@@ -11,11 +11,13 @@
   import ConfigNetworkSection from './config/ConfigNetworkSection.svelte';
   import SaveChangesBar from './primitives/SaveChangesBar.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
+  import { isAdminConfigWritable } from '../../domain/config-runtime.js';
 
   export let managed = false;
   export let isActive = false;
   export let tabStatus = null;
   export let configSnapshot = null;
+  export let configRuntimeSnapshot = null;
   export let configVersion = 0;
   export let onSaveConfig = null;
   export let noticeText = '';
@@ -52,8 +54,8 @@
 
   const readBool = (value) => value === true;
 
-  const applyConfig = (config = {}) => {
-    writable = config.admin_config_write_enabled !== false;
+  const applyConfig = (config = {}, runtime = {}) => {
+    writable = isAdminConfigWritable(runtime);
     honeypotEnabled = config.honeypot_enabled !== false;
     honeypotPaths = formatListTextarea(config.honeypots);
     mazeEnabled = config.maze_enabled !== false;
@@ -98,7 +100,10 @@
     try {
       const nextConfig = await onSaveConfig(payload, { successMessage: 'Trap settings saved' });
       if (nextConfig && typeof nextConfig === 'object') {
-        applyConfig(nextConfig);
+        applyConfig(
+          nextConfig,
+          configRuntimeSnapshot && typeof configRuntimeSnapshot === 'object' ? configRuntimeSnapshot : {}
+        );
       } else {
         baseline = {
           honeypot: {
@@ -190,7 +195,10 @@
     if (nextVersion !== lastAppliedConfigVersion) {
       lastAppliedConfigVersion = nextVersion;
       if (!hasUnsavedChanges && !savingTraps) {
-        applyConfig(configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {});
+        applyConfig(
+          configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {},
+          configRuntimeSnapshot && typeof configRuntimeSnapshot === 'object' ? configRuntimeSnapshot : {}
+        );
       }
     }
   }

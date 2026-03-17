@@ -14,7 +14,8 @@ const SNAPSHOT_KEYS = Object.freeze([
   'monitoringFreshness',
   'ipBansFreshness',
   'ipRangeSuggestions',
-  'config'
+  'config',
+  'configRuntime'
 ]);
 
 const TAB_STATUS_DEFAULT = Object.freeze({
@@ -90,7 +91,8 @@ export const createInitialState = (initialTab = DEFAULT_TAB) => ({
     monitoringFreshness: null,
     ipBansFreshness: null,
     ipRangeSuggestions: null,
-    config: null
+    config: null,
+    configRuntime: null
   },
   snapshotVersions: createSnapshotVersionState(),
   tabStatus: createTabStatusState()

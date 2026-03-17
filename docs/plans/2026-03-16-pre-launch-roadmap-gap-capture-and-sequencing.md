@@ -264,6 +264,12 @@ These are not optional polish items because:
 2. Clear heartbeat-owned connection-state contract and diagnostics.
 3. Separate `GET /admin/config` operational overlays from the writable `POST /admin/config` contract.
 
+Status update (2026-03-17):
+
+1. Delivered. The dashboard now treats the admin-session heartbeat as the sole global connection-state writer, surfaces heartbeat diagnostics and local-failure counters in `Status`, and keeps non-heartbeat request failures local.
+2. `GET /admin/config` now returns a split `{ config, runtime }` envelope so writable KV settings and read-only operational/runtime overlays are no longer presented as one flat contract.
+3. This stage is now closed; the next execution focus should move to Stage 1 operator-grade monitoring and tuning-surface completion.
+
 Reason:
 
 1. operator surfaces should be truthful before Shuma invests in a full monitoring overhaul or treats the Tuning tab as the control-plane contract.

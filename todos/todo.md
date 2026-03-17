@@ -1,6 +1,6 @@
 # TODO Roadmap
 
-Last updated: 2026-03-15
+Last updated: 2026-03-17
 
 This is the active execution-ready work queue.
 Blocked or contingent work lives in `todos/blocked-todo.md`.
@@ -23,14 +23,6 @@ Reference context:
 - [`docs/testing.md`](../docs/testing.md)
 
 ### SIM2-R4-4: Config Seeding Lifecycle and Shadow-Mode Semantics
-
-### SIM2-R4-CONN-1: Dashboard Connection-State Hardening
-- [ ] SIM2-R4-CONN-1-1 Add passive request-failure classification and dedicated heartbeat diagnostics before any global state-machine change.
-- [ ] SIM2-R4-CONN-1-2 Add instrumentation-only tests that capture abort churn and prove cancelled requests do not mutate global connection state.
-- [ ] SIM2-R4-CONN-1-3 Record the heartbeat-owned single-writer connection-state contract and hysteresis rules.
-- [ ] SIM2-R4-CONN-1-4 Implement the dedicated heartbeat-owned connection controller and keep non-heartbeat failures local.
-- [ ] SIM2-R4-CONN-1-5 Add regression and end-to-end coverage for the transition graph, hysteresis thresholds, and concurrent polling loops.
-- [ ] SIM2-R4-CONN-1-6 Update dashboard/operator diagnostics and rollback guidance for connection-state incidents.
 
 ## P1 Production Adversary-Sim Operating Contract
 
@@ -144,7 +136,6 @@ Architecture alignment reference:
 
 ## P3 Platform and Configuration Clarity
 
-- [ ] Separate `GET /admin/config` operational overlays from the writable `POST /admin/config` contract so fields like `adversary_sim_enabled` stop masquerading as normal config writes and the dashboard/docs/test surfaces stay truthful by construction.
 - [ ] Centralize dashboard tab metadata (tab ids, loading copy, refresh defaults, and invalidation scopes) into one shared registry consumed by route, route-controller, refresh-runtime, and native-runtime code so stale fallback tabs/messages cannot drift.
 - [ ] ADV-RUN-ARCH-1 Break `scripts/tests/adversarial_simulation_runner.py` into focused modules/helpers for contract loading, attacker/control-plane execution, evidence shaping, and governance/report checks so the current `6881`-line multi-responsibility runner stops concentrating unrelated concerns in one file.
 - [ ] Resolve the `ip_range_suggestions_*` classification exception so the documented config model stays honest: either make those runtime-visible KV knobs admin-writable with Advanced JSON parity, or move them out of the persisted read-only exception path and document the chosen contract.

@@ -191,6 +191,24 @@ const appendHeartbeatBreadcrumb = (heartbeat = {}, eventType = '', details = {})
   return trimEntries([...(Array.isArray(heartbeat.breadcrumbs) ? heartbeat.breadcrumbs : []), breadcrumb], maxBreadcrumbs);
 };
 
+const appendControllerResetBreadcrumb = (heartbeat = {}, reason = 'heartbeat_controller_reset') =>
+  trimEntries(
+    [
+      ...(Array.isArray(heartbeat.breadcrumbs) ? heartbeat.breadcrumbs : []),
+      {
+        eventType: 'controller_reset',
+        at: new Date().toISOString(),
+        requestId: '',
+        path: '/admin/session',
+        method: 'GET',
+        statusCode: 0,
+        failureClass: '',
+        reason: String(reason || 'heartbeat_controller_reset')
+      }
+    ],
+    Number(heartbeat.maxBreadcrumbs || HEARTBEAT_BREADCRUMB_MAX_ENTRIES)
+  );
+
 export function createDashboardStore(options = {}) {
   const initialTab = normalizeTab(options.initialTab || DEFAULT_TAB);
   const internal = writable(createInitialState(initialTab));
@@ -608,29 +626,46 @@ export function createDashboardStore(options = {}) {
     });
   };
 
-  const setBackendConnection = (connected, error = '') => {
-    if (connected === true) {
-      recordHeartbeatSuccess({
-        transitionReason: 'legacy_set_connected'
-      });
-      return;
-    }
-    if (connected === false) {
-      recordHeartbeatFailure({
-        failureClass: REQUEST_FAILURE_CLASSES.transport,
-        error: String(error || ''),
-        transitionReason: 'legacy_set_disconnected'
-      });
-      return;
-    }
-    runtimeTelemetryStore.update((telemetry) => ({
-      ...telemetry,
-      connection: {
-        ...telemetry.connection,
-        state: CONNECTION_STATES.disconnected,
-        lastTransitionReason: 'legacy_set_disconnected'
-      }
-    }));
+  const recordHeartbeatControllerReset = (event = {}) => {
+    runtimeTelemetryStore.update((telemetry) => {
+      const nowIso = new Date().toISOString();
+      const currentConnection =
+        telemetry && telemetry.connection && typeof telemetry.connection === 'object'
+          ? telemetry.connection
+          : {};
+      const heartbeat =
+        telemetry && telemetry.heartbeat && typeof telemetry.heartbeat === 'object'
+          ? telemetry.heartbeat
+          : {};
+      const reason = String(event.reason || 'heartbeat_controller_reset');
+      const priorState = normalizeConnectionState(currentConnection.state);
+      return {
+        ...telemetry,
+        connection: {
+          ...currentConnection,
+          state: CONNECTION_STATES.disconnected,
+          lastTransitionAt:
+            priorState === CONNECTION_STATES.disconnected
+              ? String(currentConnection.lastTransitionAt || '')
+              : nowIso,
+          lastError: '',
+          consecutiveFailures: 0,
+          disconnectThreshold: Math.max(
+            1,
+            Math.floor(Number(currentConnection.disconnectThreshold || CONNECTION_DISCONNECT_THRESHOLD))
+          ),
+          lastTransitionReason: reason
+        },
+        heartbeat: {
+          ...heartbeat,
+          consecutiveFailures: 0,
+          lastFailureClass: '',
+          lastFailureError: '',
+          lastTransitionReason: reason,
+          breadcrumbs: appendControllerResetBreadcrumb(heartbeat, reason)
+        }
+      };
+    });
   };
 
   return {
@@ -672,6 +707,6 @@ export function createDashboardStore(options = {}) {
     recordHeartbeatAttemptStarted,
     recordHeartbeatSuccess,
     recordHeartbeatFailure,
-    setBackendConnection
+    recordHeartbeatControllerReset
   };
 }

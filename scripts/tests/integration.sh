@@ -250,7 +250,8 @@ try:
     data=json.loads(sys.stdin.read())
 except Exception:
     data={}
-print(json.dumps(data, separators=(",", ":")))' <<< "$original_config_snapshot")
+config=data.get("config") or {}
+print(json.dumps(config, separators=(",", ":")))' <<< "$original_config_snapshot")
 ORIGINAL_CONFIG_RESTORE_PAYLOAD="$snapshot_restore_payload"
 if [[ -z "${ORIGINAL_CONFIG_RESTORE_PAYLOAD}" ]]; then
   fail "Could not capture original runtime config snapshot for restore."
@@ -300,7 +301,8 @@ try:
     data=json.loads(sys.stdin.read())
 except Exception:
     data={}
-paths=data.get("honeypots") or []
+config=data.get("config") or {}
+paths=config.get("honeypots") or []
 print(paths[0] if paths else "")' <<< "$config_snapshot")
 if [[ -n "$resolved_honeypot" ]]; then
   HONEYPOT_PATH="$resolved_honeypot"
@@ -313,7 +315,8 @@ try:
     data=json.loads(sys.stdin.read())
 except Exception:
     data={}
-provider_backends=data.get("provider_backends") or {}
+config=data.get("config") or {}
+provider_backends=config.get("provider_backends") or {}
 print(provider_backends.get("fingerprint_signal") or "")' <<< "$config_snapshot")
 if [[ "$resolved_fingerprint_backend" == "external" ]]; then
   FINGERPRINT_REPORT_PATH="/fingerprint-report"

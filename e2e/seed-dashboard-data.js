@@ -72,11 +72,15 @@ async function seedDashboardData() {
   const config = await request(baseURL, "/admin/config", {
     headers: adminHeaders()
   });
-  if (config && typeof config.shadow_mode === "boolean") {
-    originalShadowMode = config.shadow_mode;
+  const configSnapshot =
+    config && typeof config === "object" && config.config && typeof config.config === "object"
+      ? config.config
+      : {};
+  if (typeof configSnapshot.shadow_mode === "boolean") {
+    originalShadowMode = configSnapshot.shadow_mode;
     restoreShadowMode = true;
   }
-  if (config?.provider_backends?.fingerprint_signal === "external") {
+  if (configSnapshot?.provider_backends?.fingerprint_signal === "external") {
     fingerprintReportPath = "/fingerprint-report";
   }
 

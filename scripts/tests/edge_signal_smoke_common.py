@@ -128,7 +128,10 @@ class EdgeSignalSmokeBase:
             raise SmokeFailure(f"/admin/config returned invalid JSON: {exc}") from exc
         if not isinstance(payload, dict):
             raise SmokeFailure("/admin/config returned a non-object payload.")
-        return payload
+        config = payload.get("config")
+        if not isinstance(config, dict):
+            raise SmokeFailure("/admin/config returned a payload without a config object.")
+        return config
 
     def _patch_config(self, patch: dict[str, Any]) -> dict[str, Any]:
         body = json.dumps(patch).encode("utf-8")

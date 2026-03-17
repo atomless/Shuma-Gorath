@@ -21,6 +21,10 @@
   import {
     deriveGlobalControlDisabled
   } from '$lib/runtime/dashboard-global-controls.js';
+  import {
+    getFrontierProviderCount,
+    isAdminConfigWritable
+  } from '$lib/domain/config-runtime.js';
   import { deriveDashboardRequestBudgets } from '$lib/runtime/dashboard-request-budgets.js';
   import { createDashboardRouteController } from '$lib/runtime/dashboard-route-controller.js';
   import { createDashboardRedTeamController } from '$lib/runtime/dashboard-red-team-controller.js';
@@ -211,6 +215,7 @@
   $: snapshotVersions = dashboardState?.snapshotVersions || {};
   $: analyticsSnapshot = snapshots.analytics || {};
   $: configSnapshot = snapshots.config || {};
+  $: configRuntimeSnapshot = snapshots.configRuntime || {};
   $: hasConfigSnapshot = Object.keys(configSnapshot).length > 0;
   $: hasConfigShadowMode = typeof configSnapshot.shadow_mode === 'boolean';
   $: currentShadowModeValue = hasConfigShadowMode
@@ -229,7 +234,12 @@
   $: runtimeClassHint = sessionRuntimeClassHint || rootRuntimeClassHint;
   $: adversarySimStatus = adversarySimControllerState?.backendStatus || {};
   $: normalizedAdversarySimStatus = normalizeAdversarySimStatus(adversarySimStatus);
-  $: bodyClassState = deriveDashboardBodyClassState(configSnapshot, {
+  $: bodyClassSource = {
+    ...(configRuntimeSnapshot && typeof configRuntimeSnapshot === 'object' ? configRuntimeSnapshot : {}),
+    shadow_mode: configSnapshot?.shadow_mode,
+    backend_connected: configSnapshot?.backend_connected
+  };
+  $: bodyClassState = deriveDashboardBodyClassState(bodyClassSource, {
     backendConnectionState,
     runtimeClassHint,
     shadowModeEnabled: currentShadowModeValue,
@@ -252,7 +262,7 @@
   }
   $: adversarySimToggleEnabled = adversarySimControllerState?.uiDesiredEnabled === true;
   $: adversarySimControlState = deriveAdversarySimControlState({
-    configSnapshot,
+    configRuntimeSnapshot,
     adversarySimStatus
   });
   $: paneNoticeValues = DASHBOARD_TABS.reduce((next, tab) => {
@@ -268,15 +278,13 @@
   $: adversarySimRuntimeEnvironment = adversarySimControlState.runtimeEnvironment;
   $: adversarySimSurfaceAvailable = adversarySimControlState.surfaceAvailable;
   $: adversarySimControlAvailable = adversarySimControlState.controlAvailable;
-  $: frontierProviderCount = Number.isFinite(Number(configSnapshot.frontier_provider_count))
-    ? Math.max(0, Math.floor(Number(configSnapshot.frontier_provider_count)))
-    : 0;
+  $: frontierProviderCount = getFrontierProviderCount(configRuntimeSnapshot);
   $: globalShadowModeToggleDisabled = deriveGlobalControlDisabled({
     runtimeMounted: routeController.getRuntimeMounted(),
     loggingOut,
     saving: savingGlobalShadowMode,
     authenticated: dashboardState?.session?.authenticated === true,
-    adminConfigWritable: configSnapshot.admin_config_write_enabled === true,
+    adminConfigWritable: isAdminConfigWritable(configRuntimeSnapshot),
     surfaceAvailable: true
   });
   $: globalAdversarySimToggleDisabled = deriveGlobalControlDisabled({
@@ -284,7 +292,7 @@
     loggingOut,
     saving: false,
     authenticated: dashboardState?.session?.authenticated === true,
-    adminConfigWritable: configSnapshot.admin_config_write_enabled === true,
+    adminConfigWritable: isAdminConfigWritable(configRuntimeSnapshot),
     surfaceAvailable: adversarySimControlAvailable
   });
   $: globalShadowModeToggleDisabledReason = globalShadowModeToggleDisabled
@@ -293,7 +301,7 @@
       loggingOut,
       saving: savingGlobalShadowMode,
       authenticated: dashboardState?.session?.authenticated,
-      adminConfigWritable: configSnapshot.admin_config_write_enabled,
+      adminConfigWritable: isAdminConfigWritable(configRuntimeSnapshot),
       unavailableMessage: ''
     })
     : '';
@@ -303,13 +311,13 @@
       loggingOut,
       saving: false,
       authenticated: dashboardState?.session?.authenticated,
-      adminConfigWritable: configSnapshot.admin_config_write_enabled,
+      adminConfigWritable: isAdminConfigWritable(configRuntimeSnapshot),
       unavailableMessage: adversarySimControlAvailable
         ? ''
         : 'Unavailable because adversary simulation control requires the simulation surface to be active in this deployment.'
     })
     : '';
-  $: dashboardRequestBudgets = deriveDashboardRequestBudgets(configSnapshot);
+  $: dashboardRequestBudgets = deriveDashboardRequestBudgets(configRuntimeSnapshot);
   $: adversarySimLifecycleCopy = deriveAdversarySimLifecycleCopy({
     status: adversarySimStatus,
     controllerState: adversarySimControllerState
@@ -526,7 +534,7 @@
       } catch (error) {
         if (error && Number(error.status) === 404) {
           return {
-            runtime_environment: dashboardStore.getState()?.snapshots?.config?.runtime_environment,
+            runtime_environment: dashboardStore.getState()?.snapshots?.configRuntime?.runtime_environment,
             adversary_sim_available: false,
             adversary_sim_enabled: false,
             generation_active: false,
@@ -541,7 +549,7 @@
           );
           redirectToLogin();
           return {
-            runtime_environment: dashboardStore.getState()?.snapshots?.config?.runtime_environment,
+            runtime_environment: dashboardStore.getState()?.snapshots?.configRuntime?.runtime_environment,
             adversary_sim_available: false,
             adversary_sim_enabled: false,
             generation_active: false,
@@ -1173,6 +1181,7 @@
           bansSnapshot={snapshots.bans}
           ipRangeSuggestionsSnapshot={snapshots.ipRangeSuggestions}
           configSnapshot={snapshots.config}
+          configRuntimeSnapshot={snapshots.configRuntime}
           configVersion={snapshotVersions.config || 0}
           ipRangeSuggestionsVersion={snapshotVersions.ipRangeSuggestions || 0}
           onSaveConfig={onSaveConfig}
@@ -1199,6 +1208,7 @@
           runtimeTelemetry={runtimeTelemetry}
           tabStatus={tabStatus.status || {}}
           configSnapshot={snapshots.config}
+          configRuntimeSnapshot={snapshots.configRuntime}
           monitoringSnapshot={snapshots.monitoring}
           monitoringFreshnessSnapshot={snapshots.monitoringFreshness}
           ipBansFreshnessSnapshot={snapshots.ipBansFreshness}
@@ -1224,6 +1234,7 @@
           noticeText={paneNoticeValues.verification?.text || ''}
           noticeKind={paneNoticeValues.verification?.kind || 'info'}
           configSnapshot={snapshots.config}
+          configRuntimeSnapshot={snapshots.configRuntime}
           configVersion={snapshotVersions.config || 0}
           onSaveConfig={onSaveConfig}
         />
@@ -1248,6 +1259,7 @@
           noticeText={paneNoticeValues.traps?.text || ''}
           noticeKind={paneNoticeValues.traps?.kind || 'info'}
           configSnapshot={snapshots.config}
+          configRuntimeSnapshot={snapshots.configRuntime}
           configVersion={snapshotVersions.config || 0}
           onSaveConfig={onSaveConfig}
         />
@@ -1272,6 +1284,7 @@
           noticeText={paneNoticeValues['rate-limiting']?.text || ''}
           noticeKind={paneNoticeValues['rate-limiting']?.kind || 'info'}
           configSnapshot={snapshots.config}
+          configRuntimeSnapshot={snapshots.configRuntime}
           configVersion={snapshotVersions.config || 0}
           onSaveConfig={onSaveConfig}
         />
@@ -1296,6 +1309,7 @@
           noticeText={paneNoticeValues.geo?.text || ''}
           noticeKind={paneNoticeValues.geo?.kind || 'info'}
           configSnapshot={snapshots.config}
+          configRuntimeSnapshot={snapshots.configRuntime}
           configVersion={snapshotVersions.config || 0}
           onSaveConfig={onSaveConfig}
         />
@@ -1320,6 +1334,7 @@
           noticeText={paneNoticeValues.fingerprinting?.text || ''}
           noticeKind={paneNoticeValues.fingerprinting?.kind || 'info'}
           configSnapshot={snapshots.config}
+          configRuntimeSnapshot={snapshots.configRuntime}
           configVersion={snapshotVersions.config || 0}
           onSaveConfig={onSaveConfig}
         />
@@ -1344,6 +1359,7 @@
           noticeText={paneNoticeValues.robots?.text || ''}
           noticeKind={paneNoticeValues.robots?.kind || 'info'}
           configSnapshot={snapshots.config}
+          configRuntimeSnapshot={snapshots.configRuntime}
           configVersion={snapshotVersions.config || 0}
           onSaveConfig={onSaveConfig}
           onFetchRobotsPreview={onRobotsPreview}
@@ -1369,6 +1385,7 @@
           noticeText={paneNoticeValues.tuning?.text || ''}
           noticeKind={paneNoticeValues.tuning?.kind || 'info'}
           configSnapshot={snapshots.config}
+          configRuntimeSnapshot={snapshots.configRuntime}
           configVersion={snapshotVersions.config || 0}
           onSaveConfig={onSaveConfig}
         />
@@ -1393,6 +1410,7 @@
           noticeText={paneNoticeValues.advanced?.text || ''}
           noticeKind={paneNoticeValues.advanced?.kind || 'info'}
           configSnapshot={snapshots.config}
+          configRuntimeSnapshot={snapshots.configRuntime}
           configVersion={snapshotVersions.config || 0}
           dashboardBasePath={dashboardBasePath}
           onSaveConfig={onSaveConfig}

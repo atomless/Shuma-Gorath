@@ -2,6 +2,38 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-03-17)
+
+### Stage 0 Roadmap: Complete Operator-Surface Truth Prerequisites
+
+- [x] Complete Stage 0 by finishing the heartbeat-owned dashboard connection-state hardening tranche, surfacing operator-facing connection diagnostics in `Status`, and splitting `GET /admin/config` into a truthful `{ config, runtime }` envelope that no longer presents read-only operational overlays as writable admin config.
+- [x] Why:
+  - Stage 0 existed to make the operator surfaces truthful before Shuma builds a fuller monitoring control plane or hands more tuning authority to humans and future scheduled agents.
+  - connection-state ownership had to be explicit and test-proven so tab-local request failures, cancelled requests, and polling churn could not masquerade as backend disconnects.
+  - the config contract had to stop muddying the adversary-sim and runtime posture story by mixing writable KV settings with read-only operational facts in one flat payload.
+- [x] Evidence:
+  - `dashboard/src/lib/state/dashboard-store.js`
+  - `dashboard/src/lib/runtime/dashboard-native-runtime.js`
+  - `dashboard/src/lib/components/dashboard/StatusTab.svelte`
+  - `dashboard/src/lib/domain/config-runtime.js`
+  - `dashboard/src/lib/domain/dashboard-state.js`
+  - `dashboard/src/lib/domain/api-client.js`
+  - `dashboard/src/routes/+page.svelte`
+  - `src/admin/api.rs`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `e2e/dashboard.smoke.spec.js`
+  - `scripts/tests/integration.sh`
+  - `scripts/tests/edge_signal_smoke_common.py`
+  - `docs/configuration.md`
+  - `docs/api.md`
+  - `docs/dashboard-tabs/status.md`
+  - `docs/testing.md`
+  - `docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`
+  - `make test-dashboard-unit`
+  - `make test-dashboard-e2e PLAYWRIGHT_ARGS='--grep "status tab resolves fail mode without requiring monitoring bootstrap|tab-local monitoring failures do not flip the global dashboard connection state"'`
+  - `make test-unit`
+  - `git diff --check`
+
 ## Additional completions (2026-03-16)
 
 ### Telemetry Cleanup: Restore Architectural Clarity, Keep Monitoring External-Only, And Revalidate The Full Suite

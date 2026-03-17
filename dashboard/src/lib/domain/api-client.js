@@ -346,8 +346,15 @@ export const adaptIpRangeSuggestions = (payload) => {
 
 /**
  * @param {unknown} payload
+ * @returns {{ config: Record<string, unknown>, runtime: Record<string, unknown> }}
  */
-export const adaptConfig = (payload) => asRecord(payload);
+export const adaptConfigEnvelope = (payload) => {
+  const source = asRecord(payload);
+  return {
+    config: asRecord(source.config),
+    runtime: asRecord(source.runtime)
+  };
+};
 
 /**
  * @param {unknown} payload
@@ -766,7 +773,7 @@ export const create = (options = {}) => {
    * @param {RequestOptions} [requestOptions]
    */
   const getConfig = async (requestOptions = {}) =>
-    adaptConfig(await request('/admin/config', requestOptions));
+    adaptConfigEnvelope(await request('/admin/config', requestOptions));
 
   /**
    * @param {RequestOptions} [requestOptions]
@@ -879,14 +886,21 @@ export const create = (options = {}) => {
    * @param {Record<string, unknown>} configPatch
    * @param {RequestOptions} [requestOptions]
    */
-  const updateConfig = async (configPatch, requestOptions = {}) =>
-    adaptConfig(
+  const updateConfig = async (configPatch, requestOptions = {}) => {
+    const payload = asRecord(
       await request('/admin/config', {
         ...requestOptions,
         method: 'POST',
         json: configPatch
       })
     );
+    const configEnvelope = adaptConfigEnvelope(payload);
+    return {
+      status: typeof payload.status === 'string' ? payload.status : '',
+      config: configEnvelope.config,
+      runtime: configEnvelope.runtime
+    };
+  };
 
   /**
    * @param {Record<string, unknown>} configPatch
@@ -924,7 +938,8 @@ export const create = (options = {}) => {
         (payload.requested_state && payload.requested_state.enabled === true),
       operation_id: typeof payload.operation_id === 'string' ? payload.operation_id : '',
       status: adaptAdversarySimStatus(payload.status),
-      config: adaptConfig(payload.config)
+      config: asRecord(payload.config),
+      runtime: asRecord(payload.runtime)
     };
   };
 

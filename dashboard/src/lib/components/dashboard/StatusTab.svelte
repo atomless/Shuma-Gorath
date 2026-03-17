@@ -12,6 +12,7 @@
   export let runtimeTelemetry = null;
   export let tabStatus = null;
   export let configSnapshot = null;
+  export let configRuntimeSnapshot = null;
   export let monitoringSnapshot = null;
   export let monitoringFreshnessSnapshot = null;
   export let ipBansFreshnessSnapshot = null;
@@ -26,6 +27,12 @@
     degraded: 'Degraded',
     stalled: 'Stalled',
     unknown: 'Unknown'
+  });
+  const HEARTBEAT_FAILURE_CLASS_LABELS = Object.freeze({
+    cancelled: 'Cancelled',
+    timeout: 'Timeout',
+    transport: 'Transport',
+    http: 'HTTP'
   });
 
   const formatMetricMs = (value) => {
@@ -52,16 +59,34 @@
     const normalized = String(value || '').trim().toLowerCase();
     return CONNECTION_STATE_LABELS[normalized] || CONNECTION_STATE_LABELS.disconnected;
   };
+  const formatHeartbeatFailureClass = (value) => {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (!normalized) return '-';
+    return HEARTBEAT_FAILURE_CLASS_LABELS[normalized] || normalized.toUpperCase();
+  };
   const formatRetentionState = (value) => {
     const normalized = String(value || '').trim().toLowerCase();
     return RETENTION_STATE_LABELS[normalized] || RETENTION_STATE_LABELS.unknown;
   };
+  const formatHeartbeatBreadcrumbs = (entries = []) => {
+    if (!Array.isArray(entries) || entries.length === 0) return '-';
+    return entries
+      .slice(-3)
+      .map((entry) => {
+        const source = entry && typeof entry === 'object' ? entry : {};
+        const eventType = String(source.eventType || '').trim() || 'event';
+        const reason = String(source.reason || '').trim();
+        return reason ? `${eventType} (${reason})` : eventType;
+      })
+      .join(' -> ');
+  };
 
-  $: statusSnapshot = deriveStatusSnapshot(configSnapshot || {});
+  $: statusSnapshot = deriveStatusSnapshot(configSnapshot || {}, configRuntimeSnapshot || {});
   $: featureStatusItems = buildFeatureStatusItems(statusSnapshot);
   $: refresh = runtimeTelemetry && runtimeTelemetry.refresh ? runtimeTelemetry.refresh : {};
   $: polling = runtimeTelemetry && runtimeTelemetry.polling ? runtimeTelemetry.polling : {};
   $: connection = runtimeTelemetry && runtimeTelemetry.connection ? runtimeTelemetry.connection : {};
+  $: heartbeat = runtimeTelemetry && runtimeTelemetry.heartbeat ? runtimeTelemetry.heartbeat : {};
   $: monitoringFreshness = deriveFreshnessSummary(monitoringFreshnessSnapshot, {
     formatTimestamp: formatUnixTimestamp
   });
@@ -124,6 +149,30 @@
             <span class="info-label text-muted">Consecutive failures:</span>
             <span id="status-connection-failure-budget" class="status-value">
               {connection.consecutiveFailures || 0} / {connection.disconnectThreshold || 0}
+            </span>
+          </div>
+          <div class="info-row">
+            <span class="info-label text-muted">Last heartbeat failure class:</span>
+            <span id="status-connection-last-failure-class" class="status-value">
+              {formatHeartbeatFailureClass(heartbeat.lastFailureClass)}
+            </span>
+          </div>
+          <div class="info-row">
+            <span class="info-label text-muted">Ignored cancelled requests:</span>
+            <span id="status-connection-ignored-cancelled" class="status-value">
+              {heartbeat.ignoredCancelledCount || 0}
+            </span>
+          </div>
+          <div class="info-row">
+            <span class="info-label text-muted">Ignored non-heartbeat failures:</span>
+            <span id="status-connection-ignored-non-heartbeat" class="status-value">
+              {heartbeat.ignoredNonHeartbeatFailureCount || 0}
+            </span>
+          </div>
+          <div class="info-row">
+            <span class="info-label text-muted">Recent heartbeat events:</span>
+            <span id="status-connection-breadcrumbs" class="status-value">
+              {formatHeartbeatBreadcrumbs(heartbeat.breadcrumbs)}
             </span>
           </div>
         </div>

@@ -1,6 +1,10 @@
 <script>
   import { onMount } from 'svelte';
   import { normalizeEdgeMode } from '../../domain/config-tab-helpers.js';
+  import {
+    isAdminConfigWritable,
+    isAkamaiEdgeAvailable
+  } from '../../domain/config-runtime.js';
   import ConfigPanel from './primitives/ConfigPanel.svelte';
   import ConfigPanelHeading from './primitives/ConfigPanelHeading.svelte';
   import SaveChangesBar from './primitives/SaveChangesBar.svelte';
@@ -10,6 +14,7 @@
   export let isActive = false;
   export let tabStatus = null;
   export let configSnapshot = null;
+  export let configRuntimeSnapshot = null;
   export let configVersion = 0;
   export let onSaveConfig = null;
   export let noticeText = '';
@@ -51,9 +56,9 @@
     event.returnValue = '';
   };
 
-  function applyConfig(config = {}) {
-    writable = config.admin_config_write_enabled === true;
-    akamaiEdgeAvailable = config.akamai_edge_available === true;
+  function applyConfig(config = {}, runtime = {}) {
+    writable = isAdminConfigWritable(runtime);
+    akamaiEdgeAvailable = isAkamaiEdgeAvailable(runtime);
     akamaiBotSignalEnabled = String(config?.provider_backends?.fingerprint_signal || '').toLowerCase() === 'external';
     edgeIntegrationMode = normalizedModeFromConfig(config.edge_integration_mode);
 
@@ -79,7 +84,10 @@
     try {
       const nextConfig = await onSaveConfig(payload, { successMessage: 'Fingerprinting settings saved' });
       if (nextConfig && typeof nextConfig === 'object') {
-        applyConfig(nextConfig);
+        applyConfig(
+          nextConfig,
+          configRuntimeSnapshot && typeof configRuntimeSnapshot === 'object' ? configRuntimeSnapshot : {}
+        );
       } else {
         baseline = {
           akamai: {
@@ -120,8 +128,8 @@
   $: warnOnUnload = writable && hasUnsavedChanges;
   $: hasConfigSnapshot = configSnapshot && typeof configSnapshot === 'object' && Object.keys(configSnapshot).length > 0;
 
-  $: signalDefinitions = configSnapshot && typeof configSnapshot.botness_signal_definitions === 'object'
-    ? configSnapshot.botness_signal_definitions
+  $: signalDefinitions = configRuntimeSnapshot && typeof configRuntimeSnapshot.botness_signal_definitions === 'object'
+    ? configRuntimeSnapshot.botness_signal_definitions
     : {};
   $: scoredSignals = Array.isArray(signalDefinitions.scored_signals)
     ? signalDefinitions.scored_signals
@@ -155,7 +163,10 @@
     if (nextVersion !== lastAppliedConfigVersion) {
       lastAppliedConfigVersion = nextVersion;
       if (!hasUnsavedChanges && !savingFingerprinting) {
-        applyConfig(configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {});
+        applyConfig(
+          configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {},
+          configRuntimeSnapshot && typeof configRuntimeSnapshot === 'object' ? configRuntimeSnapshot : {}
+        );
       }
     }
   }

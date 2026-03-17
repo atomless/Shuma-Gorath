@@ -321,7 +321,24 @@ async function fetchAdminConfig(request, ip = "127.0.0.1") {
     const body = await response.text();
     throw new Error(`admin config read should succeed: ${response.status()} ${body}`);
   }
-  return response.json();
+  const payload = await response.json();
+  return payload && typeof payload === "object" && payload.config && typeof payload.config === "object"
+    ? payload.config
+    : {};
+}
+
+async function fetchAdminConfigRuntime(request, ip = "127.0.0.1") {
+  const response = await request.get(`${BASE_URL}/admin/config`, {
+    headers: buildAdminAuthHeaders(ip)
+  });
+  if (!response.ok()) {
+    const body = await response.text();
+    throw new Error(`admin config read should succeed: ${response.status()} ${body}`);
+  }
+  const payload = await response.json();
+  return payload && typeof payload === "object" && payload.runtime && typeof payload.runtime === "object"
+    ? payload.runtime
+    : {};
 }
 
 async function withRestoredAdminConfig(request, paths, callback, ip = "127.0.0.1") {
@@ -337,7 +354,7 @@ async function withRestoredAdminConfig(request, paths, callback, ip = "127.0.0.1
 }
 
 async function fetchRuntimeEnvironment(request, ip = "127.0.0.1") {
-  const payload = await fetchAdminConfig(request, ip);
+  const payload = await fetchAdminConfigRuntime(request, ip);
   const runtimeEnvironment = String(payload?.runtime_environment || "").trim();
   if (runtimeEnvironment !== "runtime-dev" && runtimeEnvironment !== "runtime-prod") {
     throw new Error(`unexpected runtime_environment from /admin/config: ${runtimeEnvironment || "missing"}`);
@@ -824,7 +841,7 @@ async function updateAdminConfig(request, patch, ip = "127.0.0.1") {
 }
 
 async function fetchFrontierProviderCount(request, ip = "127.0.0.1") {
-  const payload = await fetchAdminConfig(request, ip);
+  const payload = await fetchAdminConfigRuntime(request, ip);
   const count = Number(payload?.frontier_provider_count || 0);
   return Number.isFinite(count) ? count : 0;
 }
@@ -1003,7 +1020,11 @@ test("not-a-bot browser lifecycle captures telemetry and rejects replayed submit
     headers: configHeaders
   });
   expect(currentConfigResponse.ok()).toBe(true);
-  const currentConfig = await currentConfigResponse.json();
+  const currentConfigEnvelope = await currentConfigResponse.json();
+  const currentConfig =
+    currentConfigEnvelope && typeof currentConfigEnvelope === "object" && currentConfigEnvelope.config
+      ? currentConfigEnvelope.config
+      : {};
   const originalTestMode = currentConfig && currentConfig.shadow_mode === true;
   const originalNotABotEnabled = currentConfig && currentConfig.not_a_bot_enabled !== false;
   const originalNotABotPassMin = Number.isFinite(currentConfig?.not_a_bot_pass_score)
@@ -1174,6 +1195,34 @@ test("dashboard clean-state renders explicit empty placeholders", async ({ page 
     geo_maze: [],
     geo_block: []
   };
+  const emptyConfigRuntime = {
+    admin_config_write_enabled: true,
+    kv_store_fail_open: true,
+    runtime_environment: "runtime-dev",
+    gateway_deployment_profile: "shared-server",
+    akamai_edge_available: false,
+    local_prod_direct_mode: false,
+    adversary_sim_available: true,
+    adversary_sim_enabled: false,
+    frontier_mode: "disabled",
+    frontier_provider_count: 0,
+    frontier_diversity_confidence: "none",
+    frontier_reduced_diversity_warning: false,
+    frontier_providers: [],
+    challenge_puzzle_risk_threshold_default: 3,
+    not_a_bot_risk_threshold_default: 2,
+    botness_maze_threshold_default: 6,
+    defence_modes_effective: {},
+    defence_mode_warnings: [],
+    enterprise_multi_instance: false,
+    enterprise_unsynced_state_exception_confirmed: false,
+    enterprise_state_guardrail_warnings: [],
+    enterprise_state_guardrail_error: null,
+    botness_signal_definitions: {
+      scored_signals: [],
+      terminal_signals: []
+    }
+  };
 
   await page.route("**/admin/monitoring?hours=*&limit=*", async (route) => {
     await route.fulfill({
@@ -1217,7 +1266,7 @@ test("dashboard clean-state renders explicit empty placeholders", async ({ page 
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify(emptyConfig)
+      body: JSON.stringify({ config: emptyConfig, runtime: emptyConfigRuntime })
     });
   });
   await page.route("**/admin/ban", async (route) => {
@@ -1592,6 +1641,39 @@ test("status tab resolves fail mode without requiring monitoring bootstrap", asy
   await expect(page.locator("#runtime-fetch-latency-last")).toContainText("ms");
   await expect(page.locator("#runtime-render-timing-last")).toContainText("ms");
   await expect(page.locator("#runtime-polling-skip-count")).toContainText("/");
+});
+
+test("tab-local monitoring failures do not flip the global dashboard connection state", async ({ page }) => {
+  await openDashboard(page, { initialTab: "status" });
+
+  await page.route("**/admin/monitoring?hours=*&limit=*", async (route) => {
+    await route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "monitoring pipeline unavailable" })
+    });
+  }, { times: 1 });
+
+  await openTab(page, "monitoring", { waitForReady: true });
+  await expect(page.locator('[data-tab-state="monitoring"]')).toContainText(
+    "monitoring pipeline unavailable"
+  );
+
+  await openTab(page, "status", { waitForReady: true });
+  await expect(page.locator("#status-connection-state")).toHaveText("Connected");
+  await expect.poll(async () => {
+    const value = await page.locator("#status-connection-ignored-non-heartbeat").textContent();
+    return Number.parseInt(String(value || "0").trim(), 10) || 0;
+  }).toBeGreaterThan(0);
+  await expect(page.locator("#status-connection-last-failure-class")).toHaveText("-");
+
+  await expect.poll(async () => {
+    const domState = await dashboardDomClassState(page);
+    return {
+      degraded: domState.rootClasses.includes("degraded"),
+      disconnected: domState.rootClasses.includes("disconnected")
+    };
+  }).toEqual({ degraded: false, disconnected: false });
 });
 
 test("advanced tab shows runtime variable inventory groups", async ({ page }) => {

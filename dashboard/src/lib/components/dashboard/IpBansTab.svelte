@@ -32,6 +32,7 @@
     buildHalfDoughnutOptions,
     syncHalfDoughnutReadout
   } from '../../domain/half-doughnut-chart.js';
+  import { isAdminConfigWritable } from '../../domain/config-runtime.js';
 
   export let managed = false;
   export let isActive = false;
@@ -39,6 +40,7 @@
   export let bansSnapshot = null;
   export let ipRangeSuggestionsSnapshot = null;
   export let configSnapshot = null;
+  export let configRuntimeSnapshot = null;
   export let configVersion = 0;
   export let ipRangeSuggestionsVersion = 0;
   export let onSaveConfig = null;
@@ -803,7 +805,7 @@
     }
   }
 
-  $: writable = configSnapshot && configSnapshot.admin_config_write_enabled === true;
+  $: writable = isAdminConfigWritable(configRuntimeSnapshot);
   $: hasConfigSnapshot = configSnapshot && typeof configSnapshot === 'object' && Object.keys(configSnapshot).length > 0;
   $: bypassAllowlistsNetworkNormalized = normalizeListTextareaForCompare(networkAllowlist);
   $: bypassAllowlistsDirty = (

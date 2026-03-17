@@ -65,7 +65,12 @@ export function createDashboardRefreshRuntime(options = {}) {
 
   const isConfigSnapshotEmpty = (config) =>
     !config || typeof config !== 'object' || Object.keys(config).length === 0;
-  const hasConfigSnapshot = (config) => !isConfigSnapshotEmpty(config);
+  const isConfigRuntimeSnapshotEmpty = (runtime) =>
+    !runtime || typeof runtime !== 'object' || Object.keys(runtime).length === 0;
+  const hasConfigEnvelope = (configEnvelope) => {
+    const source = configEnvelope && typeof configEnvelope === 'object' ? configEnvelope : {};
+    return !isConfigSnapshotEmpty(source.config) && !isConfigRuntimeSnapshotEmpty(source.runtime);
+  };
   const toArray = (value) => (Array.isArray(value) ? value : []);
   const toTabCursorKey = (tab) => (tab === 'ip-bans' ? 'ipBans' : 'monitoring');
   const freshnessSnapshotKey = (tab) =>
@@ -104,6 +109,17 @@ export function createDashboardRefreshRuntime(options = {}) {
     const next = normalizeFreshnessSnapshot(sourcePayload, fallbackTransport);
     applySnapshots({ [key]: next });
     return next;
+  };
+
+  const applyConfigEnvelope = (configEnvelope = null) => {
+    const source = configEnvelope && typeof configEnvelope === 'object' ? configEnvelope : {};
+    const config = source.config && typeof source.config === 'object' ? source.config : {};
+    const runtime = source.runtime && typeof source.runtime === 'object' ? source.runtime : {};
+    applySnapshots({
+      config,
+      configRuntime: runtime
+    });
+    return { config, runtime };
   };
 
   const eventCursorKey = (event = {}) => {
@@ -194,7 +210,7 @@ export function createDashboardRefreshRuntime(options = {}) {
     };
   }
 
-  function buildMonitoringSnapshots(monitoringData = {}, configSnapshot = {}) {
+  function buildMonitoringSnapshots(monitoringData = {}, configSnapshot = {}, configRuntimeSnapshot = {}) {
     const monitoring = monitoringData && typeof monitoringData === 'object' ? monitoringData : {};
     const monitoringDetails =
       monitoring && typeof monitoring.details === 'object' ? monitoring.details : {};
@@ -204,7 +220,7 @@ export function createDashboardRefreshRuntime(options = {}) {
     const mazeData = monitoringDetails.maze || {};
     const cdpData = monitoringDetails.cdp || {};
     const cdpEventsData = monitoringDetails.cdp_events || { events: [] };
-    const analytics = deriveMonitoringAnalytics(configSnapshot, analyticsResponse);
+    const analytics = deriveMonitoringAnalytics(configSnapshot, configRuntimeSnapshot, analyticsResponse);
     if (
       !Number.isFinite(Number(analytics.ban_count)) &&
       Array.isArray(bansData.bans)
@@ -540,17 +556,23 @@ export function createDashboardRefreshRuntime(options = {}) {
       source: 'shared-config-refresh'
     });
     const existingConfig = dashboardState ? dashboardState.getSnapshot('config') : null;
+    const existingRuntime = dashboardState ? dashboardState.getSnapshot('configRuntime') : null;
 
     if (!dashboardApiClient) {
-      return existingConfig;
+      return {
+        config: existingConfig && typeof existingConfig === 'object' ? existingConfig : {},
+        runtime: existingRuntime && typeof existingRuntime === 'object' ? existingRuntime : {}
+      };
     }
-    if (hasConfigSnapshot(existingConfig)) {
-      return existingConfig;
+    if (!isConfigSnapshotEmpty(existingConfig) && !isConfigRuntimeSnapshotEmpty(existingRuntime)) {
+      return {
+        config: existingConfig,
+        runtime: existingRuntime
+      };
     }
 
-    const config = await dashboardApiClient.getConfig(requestOptions);
-    applySnapshots({ config });
-    return config;
+    const configEnvelope = await dashboardApiClient.getConfig(requestOptions);
+    return applyConfigEnvelope(configEnvelope);
   }
 
   async function refreshMonitoringTab(reason = 'manual', runtimeOptions = {}) {
@@ -567,13 +589,14 @@ export function createDashboardRefreshRuntime(options = {}) {
       const cachedMonitoring = readCache(MONITORING_CACHE_KEY);
       if (cachedMonitoring) {
         const configSnapshot = dashboardState ? dashboardState.getSnapshot('config') : {};
+        const configRuntimeSnapshot = dashboardState ? dashboardState.getSnapshot('configRuntime') : {};
         const monitoringData =
           cachedMonitoring && typeof cachedMonitoring.monitoring === 'object'
             ? cachedMonitoring.monitoring
             : (cachedMonitoring && typeof cachedMonitoring === 'object'
               ? cachedMonitoring
               : {});
-        applySnapshots(buildMonitoringSnapshots(monitoringData, configSnapshot));
+        applySnapshots(buildMonitoringSnapshots(monitoringData, configSnapshot, configRuntimeSnapshot));
         baselineState.monitoring = true;
         if (dashboardState && dashboardState.getDerivedState().monitoringEmpty) {
           showTabEmpty('monitoring', 'No operational events yet. Monitoring will populate as traffic arrives.');
@@ -589,8 +612,8 @@ export function createDashboardRefreshRuntime(options = {}) {
       reason,
       source: 'tab-refresh'
     });
-    const currentConfigSnapshot = dashboardState ? dashboardState.getSnapshot('config') : {};
-    const requestBudgets = deriveDashboardRequestBudgets(currentConfigSnapshot);
+    const currentConfigRuntimeSnapshot = dashboardState ? dashboardState.getSnapshot('configRuntime') : {};
+    const requestBudgets = deriveDashboardRequestBudgets(currentConfigRuntimeSnapshot);
     const monitoringRequestOptions = {
       ...requestOptions,
       timeoutMs: requestBudgets.monitoringRequestTimeoutMs
@@ -601,7 +624,12 @@ export function createDashboardRefreshRuntime(options = {}) {
     };
     const applyMonitoringSnapshot = (monitoringData = {}, { writeCursor = false } = {}) => {
       const configSnapshot = dashboardState ? dashboardState.getSnapshot('config') : {};
-      const monitoringSnapshots = buildMonitoringSnapshots(monitoringData, configSnapshot);
+      const configRuntimeSnapshot = dashboardState ? dashboardState.getSnapshot('configRuntime') : {};
+      const monitoringSnapshots = buildMonitoringSnapshots(
+        monitoringData,
+        configSnapshot,
+        configRuntimeSnapshot
+      );
       const compactMonitoring = compactMonitoringSnapshot(monitoringData);
       const compactBans = compactBansSnapshot(monitoringSnapshots.bans);
       applySnapshots(monitoringSnapshots);
@@ -793,7 +821,7 @@ export function createDashboardRefreshRuntime(options = {}) {
       source: 'tab-refresh'
     });
     const fetchFullIpBans = async () => {
-      const [bansData, ipRangeSuggestions, configSnapshot] = await Promise.all([
+      const [bansData, ipRangeSuggestions, configEnvelope] = await Promise.all([
         dashboardApiClient.getBans(requestOptions),
         dashboardApiClient.getIpRangeSuggestions(
           { hours: IP_RANGE_SUGGESTIONS_HOURS, limit: IP_RANGE_SUGGESTIONS_LIMIT },
@@ -808,8 +836,8 @@ export function createDashboardRefreshRuntime(options = {}) {
         ipRangeSuggestions
       });
       baselineState.ipBans = true;
-      if (hasConfigSnapshot(configSnapshot)) {
-        applySnapshots({ config: configSnapshot });
+      if (hasConfigEnvelope(configEnvelope)) {
+        applyConfigEnvelope(configEnvelope);
       }
       writeCache(IP_BANS_CACHE_KEY, {
         bans: compactBans,
@@ -853,9 +881,9 @@ export function createDashboardRefreshRuntime(options = {}) {
         if (delta.overflow === 'limit_exceeded') {
           await fetchFullIpBans();
         } else if (includeConfigRefresh) {
-          const configSnapshot = await refreshSharedConfig(reason, runtimeOptions);
-          if (hasConfigSnapshot(configSnapshot)) {
-            applySnapshots({ config: configSnapshot });
+          const configEnvelope = await refreshSharedConfig(reason, runtimeOptions);
+          if (hasConfigEnvelope(configEnvelope)) {
+            applyConfigEnvelope(configEnvelope);
           }
         }
       } catch (_error) {
@@ -882,8 +910,8 @@ export function createDashboardRefreshRuntime(options = {}) {
     if (reason !== 'auto-refresh') {
       showTabLoading(tab, loadingMessage);
     }
-    const config = await refreshSharedConfig(reason, runtimeOptions);
-    if (isConfigSnapshotEmpty(config)) {
+    const configEnvelope = await refreshSharedConfig(reason, runtimeOptions);
+    if (isConfigSnapshotEmpty(configEnvelope.config)) {
       showTabEmpty(tab, emptyMessage);
     } else {
       clearTabStateMessage(tab);
@@ -908,8 +936,8 @@ export function createDashboardRefreshRuntime(options = {}) {
       source: 'status-operational-refresh'
     });
     const dashboardState = getStateStore();
-    const configSnapshot = dashboardState ? dashboardState.getSnapshot('config') : {};
-    const requestBudgets = deriveDashboardRequestBudgets(configSnapshot);
+    const configRuntimeSnapshot = dashboardState ? dashboardState.getSnapshot('configRuntime') : {};
+    const requestBudgets = deriveDashboardRequestBudgets(configRuntimeSnapshot);
 
     try {
       const monitoringData = await dashboardApiClient.getMonitoring(
@@ -920,7 +948,12 @@ export function createDashboardRefreshRuntime(options = {}) {
         }
       );
       const currentConfigSnapshot = dashboardState ? dashboardState.getSnapshot('config') : {};
-      const monitoringSnapshots = buildMonitoringSnapshots(monitoringData, currentConfigSnapshot);
+      const currentConfigRuntimeSnapshot = dashboardState ? dashboardState.getSnapshot('configRuntime') : {};
+      const monitoringSnapshots = buildMonitoringSnapshots(
+        monitoringData,
+        currentConfigSnapshot,
+        currentConfigRuntimeSnapshot
+      );
       applySnapshots(monitoringSnapshots);
       updateFreshnessSnapshot(
         'monitoring',
@@ -1020,13 +1053,13 @@ export function createDashboardRefreshRuntime(options = {}) {
       reason,
       source: 'tab-refresh'
     });
-    const [config, cdp] = await Promise.all([
+    const [configEnvelope, cdp] = await Promise.all([
       refreshSharedConfig(reason, runtimeOptions),
       dashboardApiClient.getCdp(requestOptions)
     ]);
 
     applySnapshots({ cdp });
-    if (isConfigSnapshotEmpty(config)) {
+    if (isConfigSnapshotEmpty(configEnvelope?.config)) {
       showTabEmpty('fingerprinting', 'No fingerprinting config snapshot available yet.');
     } else {
       clearTabStateMessage('fingerprinting');

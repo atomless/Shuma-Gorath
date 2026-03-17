@@ -5,6 +5,10 @@
     parseCountryCodesStrict
   } from '../../domain/config-form-utils.js';
   import { formatCountryCodes, geoModeFromToggleState, geoToggleStateFromMode } from '../../domain/config-tab-helpers.js';
+  import {
+    isAdminConfigWritable,
+    isAkamaiEdgeAvailable
+  } from '../../domain/config-runtime.js';
   import ConfigGeoSection from './config/ConfigGeoSection.svelte';
   import ConfigPanel from './primitives/ConfigPanel.svelte';
   import ConfigPanelHeading from './primitives/ConfigPanelHeading.svelte';
@@ -15,6 +19,7 @@
   export let isActive = false;
   export let tabStatus = null;
   export let configSnapshot = null;
+  export let configRuntimeSnapshot = null;
   export let configVersion = 0;
   export let onSaveConfig = null;
   export let noticeText = '';
@@ -58,9 +63,9 @@
     event.returnValue = '';
   };
 
-  const applyConfig = (config = {}) => {
-    writable = config.admin_config_write_enabled !== false;
-    akamaiEdgeAvailable = config.akamai_edge_available === true;
+  const applyConfig = (config = {}, runtime = {}) => {
+    writable = isAdminConfigWritable(runtime);
+    akamaiEdgeAvailable = isAkamaiEdgeAvailable(runtime);
     geoRiskList = formatCountryCodes(config.geo_risk);
     geoAllowList = formatCountryCodes(config.geo_allow);
     geoChallengeList = formatCountryCodes(config.geo_challenge);
@@ -113,7 +118,10 @@
     try {
       const nextConfig = await onSaveConfig(payload, { successMessage: 'GEO settings saved' });
       if (nextConfig && typeof nextConfig === 'object') {
-        applyConfig(nextConfig);
+        applyConfig(
+          nextConfig,
+          configRuntimeSnapshot && typeof configRuntimeSnapshot === 'object' ? configRuntimeSnapshot : {}
+        );
       } else {
         baseline = {
           geo: {
@@ -234,7 +242,10 @@
     if (nextVersion !== lastAppliedConfigVersion) {
       lastAppliedConfigVersion = nextVersion;
       if (!hasUnsavedChanges && !savingGeo) {
-        applyConfig(configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {});
+        applyConfig(
+          configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {},
+          configRuntimeSnapshot && typeof configRuntimeSnapshot === 'object' ? configRuntimeSnapshot : {}
+        );
       }
     }
   }

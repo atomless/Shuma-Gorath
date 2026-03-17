@@ -217,20 +217,20 @@ export function normalizeAdversarySimStatus(payload) {
 }
 
 /**
- * @param {{ configSnapshot?: Record<string, unknown>, adversarySimStatus?: unknown }} source
+ * @param {{ configRuntimeSnapshot?: Record<string, unknown>, adversarySimStatus?: unknown }} source
  * @returns {{ runtimeEnvironment: '' | 'runtime-dev' | 'runtime-prod', surfaceAvailable: boolean, controlAvailable: boolean }}
  */
 export function deriveAdversarySimControlState(source = {}) {
-  const configSnapshot =
-    source && source.configSnapshot && typeof source.configSnapshot === 'object'
-      ? /** @type {Record<string, unknown>} */ (source.configSnapshot)
+  const configRuntimeSnapshot =
+    source && source.configRuntimeSnapshot && typeof source.configRuntimeSnapshot === 'object'
+      ? /** @type {Record<string, unknown>} */ (source.configRuntimeSnapshot)
       : {};
   const normalizedStatus = normalizeAdversarySimStatus(source?.adversarySimStatus);
   const runtimeEnvironment = normalizeRuntimeEnvironment(
-    normalizedStatus.runtimeEnvironment || configSnapshot.runtime_environment || ''
+    normalizedStatus.runtimeEnvironment || configRuntimeSnapshot.runtime_environment || ''
   );
   const surfaceAvailable =
-    normalizedStatus.available === true || configSnapshot.adversary_sim_available === true;
+    normalizedStatus.available === true || configRuntimeSnapshot.adversary_sim_available === true;
   return {
     runtimeEnvironment,
     surfaceAvailable,

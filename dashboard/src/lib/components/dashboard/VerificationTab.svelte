@@ -5,6 +5,7 @@
   import { onMount } from 'svelte';
   import SaveChangesBar from './primitives/SaveChangesBar.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
+  import { isAdminConfigWritable } from '../../domain/config-runtime.js';
   import { parseFloatNumber, parseInteger } from '../../domain/core/math.js';
   import { inRange } from '../../domain/core/validation.js';
   import ToggleRow from './primitives/ToggleRow.svelte';
@@ -13,6 +14,7 @@
   export let isActive = false;
   export let tabStatus = null;
   export let configSnapshot = null;
+  export let configRuntimeSnapshot = null;
   export let configVersion = 0;
   export let onSaveConfig = null;
   export let noticeText = '';
@@ -73,9 +75,9 @@
     };
   });
 
-  function applyConfig(config = {}) {
+  function applyConfig(config = {}, runtime = {}) {
     hasConfigSnapshot = config && typeof config === 'object' && Object.keys(config).length > 0;
-    writable = config.admin_config_write_enabled === true;
+    writable = isAdminConfigWritable(runtime);
 
     jsRequiredEnforced = config.js_required_enforced !== false;
     cdpDetectionEnabled = config.cdp_detection_enabled !== false;
@@ -171,7 +173,10 @@
         : `Saved ${dirtySectionCount} configuration sections`;
       const nextConfig = await onSaveConfig(patch, { successMessage });
       if (nextConfig && typeof nextConfig === 'object') {
-        applyConfig(nextConfig);
+        applyConfig(
+          nextConfig,
+          configRuntimeSnapshot && typeof configRuntimeSnapshot === 'object' ? configRuntimeSnapshot : {}
+        );
       }
     } finally {
       savingAll = false;
@@ -253,14 +258,20 @@
       if (hasUnsavedChanges && !savingAll) {
         deferredConfigApply = true;
       } else {
-        applyConfig(configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {});
+        applyConfig(
+          configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {},
+          configRuntimeSnapshot && typeof configRuntimeSnapshot === 'object' ? configRuntimeSnapshot : {}
+        );
       }
     }
   }
 
   $: if (deferredConfigApply && !hasUnsavedChanges && !savingAll) {
     deferredConfigApply = false;
-    applyConfig(configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {});
+    applyConfig(
+      configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {},
+      configRuntimeSnapshot && typeof configRuntimeSnapshot === 'object' ? configRuntimeSnapshot : {}
+    );
   }
 </script>
 

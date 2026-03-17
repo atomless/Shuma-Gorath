@@ -39,13 +39,15 @@ const INITIAL_STATE = Object.freeze({
       rate_medium: 1,
       rate_high: 2
     },
-    configSnapshot: {}
+    configSnapshot: {},
+    runtimeSnapshot: {}
   });
 
 const createInitialState = () => ({
     ...INITIAL_STATE,
     botnessWeights: { ...INITIAL_STATE.botnessWeights },
-    configSnapshot: cloneConfigSnapshot(INITIAL_STATE.configSnapshot)
+    configSnapshot: cloneConfigSnapshot(INITIAL_STATE.configSnapshot),
+    runtimeSnapshot: cloneConfigSnapshot(INITIAL_STATE.runtimeSnapshot)
   });
 
 const WRITABLE_VAR_PATHS = new Set(writableStatusVarPaths || []);
@@ -267,21 +269,24 @@ function formatIpRangeModeLabel(mode) {
     return normalized.toUpperCase();
   }
 
-export function deriveStatusSnapshot(configSnapshot = {}) {
+export function deriveStatusSnapshot(configSnapshot = {}, configRuntimeSnapshot = {}) {
     const config = configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {};
+    const runtime = configRuntimeSnapshot && typeof configRuntimeSnapshot === 'object'
+      ? configRuntimeSnapshot
+      : {};
     const base = createInitialState();
     const botnessWeights = config.botness_weights && typeof config.botness_weights === 'object'
       ? config.botness_weights
       : {};
     return {
       ...base,
-      failMode: parseBoolLike(config.kv_store_fail_open, true) ? 'open' : 'closed',
-      httpsEnforced: parseBoolLike(config.https_enforced, false),
-      forwardedHeaderTrustConfigured: parseBoolLike(config.forwarded_header_trust_configured, false),
-      runtimeEnvironment: normalizeRuntimeEnvironment(config.runtime_environment),
-      gatewayDeploymentProfile: normalizeGatewayDeploymentProfile(config.gateway_deployment_profile),
-      localProdDirectMode: parseBoolLike(config.local_prod_direct_mode, false),
-      adminConfigWriteEnabled: parseBoolLike(config.admin_config_write_enabled, false),
+      failMode: parseBoolLike(runtime.kv_store_fail_open, true) ? 'open' : 'closed',
+      httpsEnforced: parseBoolLike(runtime.https_enforced, false),
+      forwardedHeaderTrustConfigured: parseBoolLike(runtime.forwarded_header_trust_configured, false),
+      runtimeEnvironment: normalizeRuntimeEnvironment(runtime.runtime_environment),
+      gatewayDeploymentProfile: normalizeGatewayDeploymentProfile(runtime.gateway_deployment_profile),
+      localProdDirectMode: parseBoolLike(runtime.local_prod_direct_mode, false),
+      adminConfigWriteEnabled: parseBoolLike(runtime.admin_config_write_enabled, false),
       shadowMode: parseBoolLike(config.shadow_mode, false),
       powEnabled: parseBoolLike(config.pow_enabled, true),
       mazeEnabled: parseBoolLike(config.maze_enabled, true),
@@ -314,7 +319,8 @@ export function deriveStatusSnapshot(configSnapshot = {}) {
         rate_medium: parseIntegerLike(botnessWeights.rate_medium, base.botnessWeights.rate_medium),
         rate_high: parseIntegerLike(botnessWeights.rate_high, base.botnessWeights.rate_high)
       },
-      configSnapshot: cloneConfigSnapshot(config)
+      configSnapshot: cloneConfigSnapshot(config),
+      runtimeSnapshot: cloneConfigSnapshot(runtime)
     };
   }
 
@@ -555,7 +561,7 @@ export function buildFeatureStatusItems(snapshot, options = {}) {
 
 export function buildVariableInventoryGroups(snapshot, options = {}) {
     const varMeanings = normalizeVarMeanings(options.varMeanings);
-    const flattened = flattenConfigEntries(snapshot.configSnapshot || {})
+    const configEntries = flattenConfigEntries(snapshot.configSnapshot || {})
       .filter((entry) => entry.path && entry.path.length > 0)
       .map((entry) => {
         const valueClass = classifyVarPath(entry.path);
@@ -567,7 +573,18 @@ export function buildVariableInventoryGroups(snapshot, options = {}) {
           meaning: withAbbrMarkup(escapeHtml(meaningForVarPath(entry.path, varMeanings))),
           isAdminWrite: valueClass === 'ADMIN_WRITE'
         };
-      })
+      });
+    const runtimeEntries = flattenConfigEntries(snapshot.runtimeSnapshot || {})
+      .filter((entry) => entry.path && entry.path.length > 0)
+      .map((entry) => ({
+        path: entry.path,
+        valueClass: 'READ_ONLY',
+        group: classifyVarGroup(entry.path),
+        valueText: formatVarValue(entry.value),
+        meaning: withAbbrMarkup(escapeHtml(meaningForVarPath(entry.path, varMeanings))),
+        isAdminWrite: false
+      }));
+    const flattened = [...configEntries, ...runtimeEntries]
       .sort((a, b) => {
         if (a.group.key !== b.group.key) {
           const groupOrder = VAR_GROUP_DEFINITIONS.map((group) => group.key).concat(['other']);

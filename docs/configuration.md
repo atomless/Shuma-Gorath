@@ -282,7 +282,9 @@ These keys are seeded into <abbr title="Key-Value">KV</abbr> and loaded from <ab
 
 ## 🐙 Admin Config Writes
 
-- `GET /admin/config` reads effective <abbr title="Key-Value">KV</abbr>-backed config.
+- `GET /admin/config` returns a split envelope:
+  - `config`: writable effective <abbr title="Key-Value">KV</abbr>-backed admin settings,
+  - `runtime`: read-only operational/runtime facts used by dashboard posture gating and operator diagnostics.
 - `POST /admin/config` writes to <abbr title="Key-Value">KV</abbr> only when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=true`.
 - `POST /admin/config/validate` runs the same config validators as `POST /admin/config` without persisting writes (returns structured validation issues).
 - `GET /admin/config/export` returns a non-secret deploy handoff snapshot as env-style key/value output:
@@ -307,6 +309,8 @@ The following <abbr title="Key-Value">KV</abbr>-backed fields are currently writ
 Shuma targets a 2-class model:
 - Env-only runtime keys in the Env-Only table above.
 - <abbr title="Key-Value">KV</abbr>-backed admin-editable runtime settings writable via `POST /admin/config`.
+
+Read-only operational overlays are returned under `GET /admin/config.runtime` and surfaced in the dashboard runtime inventory for operator clarity, but they are not writable via `POST /admin/config`.
 
 Current exception:
 - `ip_range_suggestions_*` thresholds are still <abbr title="Key-Value">KV</abbr>-backed and visible in the Advanced runtime inventory, but they are not writable through `POST /admin/config` yet. Treat them as read-only runtime knobs until their final classification is resolved.
@@ -410,9 +414,9 @@ Default seeded modes are `both` for all three modules as the current pre-launch 
 - `js_required_enforced` is still a hard gate for <abbr title="JavaScript">JS</abbr> paths.
 - When `js_required_enforced=false`, <abbr title="JavaScript">JS</abbr> signal and <abbr title="JavaScript">JS</abbr> enforcement are both effectively disabled even if `defence_modes.js` is `signal`, `enforce`, or `both`.
 - `/admin/config` surfaces this as:
-  - `defence_modes` (configured modes),
-  - `defence_modes_effective` (runtime-effective signal/action booleans),
-  - `defence_mode_warnings` (configuration conflict notes).
+  - `config.defence_modes` (configured modes),
+  - `runtime.defence_modes_effective` (runtime-effective signal/action booleans),
+  - `runtime.defence_mode_warnings` (configuration conflict notes).
 
 ### Tuning implications
 

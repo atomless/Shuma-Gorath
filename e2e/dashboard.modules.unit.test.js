@@ -1113,6 +1113,8 @@ test('dashboard state and store contracts remain immutable and bounded with hear
     assert.notEqual(initial, next);
     assert.equal(initial.activeTab, 'monitoring');
     assert.equal(next.activeTab, 'verification');
+    assert.equal(Object.prototype.hasOwnProperty.call(initial.snapshots, 'configRuntime'), true);
+    assert.equal(initial.snapshots.configRuntime, null);
 
     const store = storeModule.createDashboardStore({ initialTab: 'monitoring' });
     store.recordRefreshMetrics({ tab: 'monitoring', reason: 'manual', fetchLatencyMs: 100, renderTimingMs: 10 });
@@ -1221,6 +1223,38 @@ test('dashboard store heartbeat failure hysteresis transitions connected -> degr
     const disconnectedTelemetry = store.getRuntimeTelemetry();
     assert.equal(disconnectedTelemetry.connection.state, 'disconnected');
     assert.equal(disconnectedTelemetry.connection.consecutiveFailures, 3);
+  });
+});
+
+test('dashboard store heartbeat controller reset clears failure budget without inventing a failure', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
+    const store = storeModule.createDashboardStore({ initialTab: 'monitoring' });
+
+    store.recordHeartbeatSuccess({ requestId: 'hb-start', path: '/admin/session', method: 'GET' });
+    store.recordHeartbeatFailure({
+      requestId: 'hb-fail-1',
+      path: '/admin/session',
+      method: 'GET',
+      failureClass: 'transport',
+      error: 'network unreachable'
+    });
+    store.recordHeartbeatControllerReset({
+      reason: 'session_cleared'
+    });
+
+    const telemetry = store.getRuntimeTelemetry();
+    assert.equal(telemetry.connection.state, 'disconnected');
+    assert.equal(telemetry.connection.consecutiveFailures, 0);
+    assert.equal(telemetry.connection.lastTransitionReason, 'session_cleared');
+    assert.equal(telemetry.heartbeat.consecutiveFailures, 0);
+    assert.equal(telemetry.heartbeat.lastFailureClass, '');
+    assert.equal(telemetry.heartbeat.lastFailureError, '');
+    assert.equal(telemetry.heartbeat.lastTransitionReason, 'session_cleared');
+    assert.equal(
+      telemetry.heartbeat.breadcrumbs[telemetry.heartbeat.breadcrumbs.length - 1].eventType,
+      'controller_reset'
+    );
   });
 });
 
@@ -1908,7 +1942,7 @@ test('manual refresh bypasses monitoring cache while passive reasons honor cache
       normalizeTab: (value) => String(value || ''),
       getApiClient: () => apiClient,
       getStateStore: () => store,
-      deriveMonitoringAnalytics: (_configSnapshot, analyticsResponse = {}) => ({
+      deriveMonitoringAnalytics: (_configSnapshot, _configRuntimeSnapshot, analyticsResponse = {}) => ({
         ban_count: Number(analyticsResponse.ban_count || 0),
         shadow_mode: analyticsResponse.shadow_mode === true,
         fail_mode: String(analyticsResponse.fail_mode || 'open')
@@ -1938,13 +1972,9 @@ test('monitoring bootstrap does not wait for cursor seeding before config-backed
     const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
 
     const store = storeModule.createDashboardStore({ initialTab: 'monitoring' });
-    let resolveSeedCursor;
-    const seedCursorPromise = new Promise((resolve) => {
-      resolveSeedCursor = resolve;
-    });
     let configFetchCount = 0;
     let monitoringFetchCount = 0;
-    let seedCursorCount = 0;
+    let deferredSeedCursorCount = 0;
 
     const apiClient = {
       async getMonitoring() {
@@ -1965,14 +1995,25 @@ test('monitoring bootstrap does not wait for cursor seeding before config-backed
       async getConfig() {
         configFetchCount += 1;
         return {
-          admin_config_write_enabled: true,
-          runtime_environment: 'runtime-prod'
+          config: {},
+          runtime: {
+            admin_config_write_enabled: true,
+            runtime_environment: 'runtime-prod'
+          }
         };
       },
       async getMonitoringDelta(params = {}) {
         if (Number(params.limit || 0) === 1) {
-          seedCursorCount += 1;
-          return seedCursorPromise;
+          deferredSeedCursorCount += 1;
+          return {
+            after_cursor: '',
+            window_end_cursor: 'cursor-1',
+            next_cursor: 'cursor-1',
+            has_more: false,
+            overflow: 'none',
+            events: [],
+            freshness: { state: 'fresh' }
+          };
         }
         return {
           after_cursor: '',
@@ -2006,21 +2047,11 @@ test('monitoring bootstrap does not wait for cursor seeding before config-backed
     assert.equal(refreshCompleted, true);
     assert.equal(monitoringFetchCount, 1);
     assert.equal(configFetchCount, 1);
-    assert.equal(seedCursorCount, 1);
+    assert.equal(deferredSeedCursorCount, 1);
     assert.equal(
-      (store.getSnapshot('config') || {}).admin_config_write_enabled,
+      (store.getSnapshot('configRuntime') || {}).admin_config_write_enabled,
       true
     );
-
-    resolveSeedCursor({
-      after_cursor: '',
-      window_end_cursor: 'cursor-1',
-      next_cursor: 'cursor-1',
-      has_more: false,
-      overflow: 'none',
-      events: [],
-      freshness: { state: 'fresh' }
-    });
   });
 });
 
@@ -2053,8 +2084,11 @@ test('monitoring tab shows bootstrap telemetry before slow full monitoring detai
       },
       async getConfig() {
         return {
-          admin_config_write_enabled: true,
-          runtime_environment: 'runtime-prod'
+          config: {},
+          runtime: {
+            admin_config_write_enabled: true,
+            runtime_environment: 'runtime-prod'
+          }
         };
       },
       async getMonitoringDelta() {
@@ -2082,7 +2116,7 @@ test('monitoring tab shows bootstrap telemetry before slow full monitoring detai
       normalizeTab: (value) => String(value || ''),
       getApiClient: () => apiClient,
       getStateStore: () => store,
-      deriveMonitoringAnalytics: (_configSnapshot, analyticsResponse = {}) => ({
+      deriveMonitoringAnalytics: (_configSnapshot, _configRuntimeSnapshot, analyticsResponse = {}) => ({
         ban_count: Number(analyticsResponse.ban_count || 0),
         shadow_mode: analyticsResponse.shadow_mode === true,
         fail_mode: String(analyticsResponse.fail_mode || 'open')
@@ -2196,8 +2230,11 @@ test('monitoring tab surfaces bootstrap failure as a tab-scoped error when delta
       },
       async getConfig() {
         return {
-          admin_config_write_enabled: true,
-          runtime_environment: 'runtime-prod'
+          config: {},
+          runtime: {
+            admin_config_write_enabled: true,
+            runtime_environment: 'runtime-prod'
+          }
         };
       }
     };
@@ -2206,7 +2243,7 @@ test('monitoring tab surfaces bootstrap failure as a tab-scoped error when delta
       normalizeTab: (value) => String(value || ''),
       getApiClient: () => apiClient,
       getStateStore: () => store,
-      deriveMonitoringAnalytics: (_configSnapshot, analyticsResponse = {}) => ({
+      deriveMonitoringAnalytics: (_configSnapshot, _configRuntimeSnapshot, analyticsResponse = {}) => ({
         ban_count: Number(analyticsResponse.ban_count || 0),
         shadow_mode: analyticsResponse.shadow_mode === true,
         fail_mode: String(analyticsResponse.fail_mode || 'open')
@@ -2736,12 +2773,7 @@ test('monitoring view model and status module remain pure snapshot transforms', 
     assert.equal(dayLabel, hourLabel);
 
     const configSnapshot = {
-      kv_store_fail_open: true,
       shadow_mode: false,
-      runtime_environment: 'runtime-prod',
-      gateway_deployment_profile: 'shared-server',
-      local_prod_direct_mode: true,
-      admin_config_write_enabled: false,
       pow_enabled: true,
       not_a_bot_enabled: true,
       not_a_bot_risk_threshold: 2,
@@ -2759,8 +2791,15 @@ test('monitoring view model and status module remain pure snapshot transforms', 
         rate_high: 2
       }
     };
+    const configRuntimeSnapshot = {
+      kv_store_fail_open: true,
+      runtime_environment: 'runtime-prod',
+      gateway_deployment_profile: 'shared-server',
+      local_prod_direct_mode: true,
+      admin_config_write_enabled: false
+    };
     const before = JSON.stringify(configSnapshot);
-    const derived = statusModule.deriveStatusSnapshot(configSnapshot);
+    const derived = statusModule.deriveStatusSnapshot(configSnapshot, configRuntimeSnapshot);
     assert.equal(String(derived.failMode).toLowerCase(), 'open');
     assert.equal(derived.powEnabled, true);
     assert.equal(derived.notABotEnabled, true);
@@ -2836,11 +2875,14 @@ test('status refresh hydrates monitoring retention/freshness and ip-ban freshnes
       async getConfig() {
         configCalls += 1;
         return {
-          runtime_environment: 'runtime-prod',
-          gateway_deployment_profile: 'shared-server',
-          local_prod_direct_mode: false,
-          admin_config_write_enabled: true,
-          kv_store_fail_open: true
+          config: {},
+          runtime: {
+            runtime_environment: 'runtime-prod',
+            gateway_deployment_profile: 'shared-server',
+            local_prod_direct_mode: false,
+            admin_config_write_enabled: true,
+            kv_store_fail_open: true
+          }
         };
       },
       async getMonitoring(params = {}) {
@@ -3178,7 +3220,7 @@ test('dashboard adversary-sim control availability follows explicit surface opt-
 
     assert.deepEqual(
       adversaryModule.deriveAdversarySimControlState({
-        configSnapshot: {
+        configRuntimeSnapshot: {
           runtime_environment: 'runtime-prod',
           adversary_sim_available: true
         }
@@ -3192,7 +3234,7 @@ test('dashboard adversary-sim control availability follows explicit surface opt-
 
     assert.deepEqual(
       adversaryModule.deriveAdversarySimControlState({
-        configSnapshot: {
+        configRuntimeSnapshot: {
           runtime_environment: 'runtime-dev',
           adversary_sim_available: true
         }
@@ -3206,7 +3248,7 @@ test('dashboard adversary-sim control availability follows explicit surface opt-
 
     assert.deepEqual(
       adversaryModule.deriveAdversarySimControlState({
-        configSnapshot: {
+        configRuntimeSnapshot: {
           runtime_environment: 'runtime-prod',
           adversary_sim_available: false
         },
@@ -3969,13 +4011,13 @@ test('runtime variable inventory meanings match writable and read-only admin con
     fs.readFileSync(path.join(DASHBOARD_ROOT, 'static/assets/status-var-meanings.json'), 'utf8')
   );
 
-  const payloadFnStart = apiSource.indexOf('fn admin_config_payload(');
-  const payloadFnEnd = apiSource.indexOf('\n#[derive(Debug, Deserialize, Default)]', payloadFnStart);
-  if (payloadFnStart < 0 || payloadFnEnd < 0) {
-    throw new Error('Unable to parse admin_config_payload function body');
+  const runtimePayloadFnStart = apiSource.indexOf('fn admin_config_runtime_payload(');
+  const runtimePayloadFnEnd = apiSource.indexOf('\nfn admin_config_response_payload(', runtimePayloadFnStart);
+  if (runtimePayloadFnStart < 0 || runtimePayloadFnEnd < 0) {
+    throw new Error('Unable to parse admin_config_runtime_payload function body');
   }
-  const payloadFnSource = apiSource.slice(payloadFnStart, payloadFnEnd);
-  const insertedReadOnlyTopLevelPaths = Array.from(payloadFnSource.matchAll(/obj\.insert\(\s*"([^"]+)"/g))
+  const runtimePayloadFnSource = apiSource.slice(runtimePayloadFnStart, runtimePayloadFnEnd);
+  const insertedReadOnlyTopLevelPaths = Array.from(runtimePayloadFnSource.matchAll(/obj\.insert\(\s*"([^"]+)"/g))
     .map((match) => String(match[1] || '').trim())
     .filter((value) => value.length > 0);
 
@@ -4231,6 +4273,10 @@ test('dashboard config tabs reuse shared panels, save flows, and owned controls'
   assert.match(statusSource, /<h3>Dashboard Connectivity<\/h3>/);
   assert.match(statusSource, /id="status-connection-state"/);
   assert.doesNotMatch(statusSource, /id="status-connection-reason"/);
+  assert.match(statusSource, /id="status-connection-last-failure-class"/);
+  assert.match(statusSource, /id="status-connection-ignored-cancelled"/);
+  assert.match(statusSource, /id="status-connection-ignored-non-heartbeat"/);
+  assert.match(statusSource, /id="status-connection-breadcrumbs"/);
   assert.match(statusSource, /<h3>Telemetry Delivery Health<\/h3>/);
   assert.match(statusSource, />Monitoring feed status:</);
   assert.match(statusSource, /id="status-monitoring-freshness-state"/);
@@ -4341,7 +4387,8 @@ test('dashboard config tabs reuse shared panels, save flows, and owned controls'
 
   assert.match(fingerprintingSource, /export let onSaveConfig = null;/);
   assert.match(fingerprintingSource, /await onSaveConfig\(payload/);
-  assert.match(fingerprintingSource, /config\.akamai_edge_available === true/);
+  assert.match(fingerprintingSource, /isAkamaiEdgeAvailable/);
+  assert.match(fingerprintingSource, /akamaiEdgeAvailable = isAkamaiEdgeAvailable\(runtime\);/);
   assert.match(fingerprintingSource, /id="fingerprinting-akamai-enabled-toggle"/);
   assert.match(fingerprintingSource, /id="fingerprinting-edge-mode-select"/);
   assert.match(fingerprintingSource, /id="fingerprinting-akamai-unavailable-message"/);
@@ -4468,7 +4515,9 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.match(source, /\$lib\/runtime\/dashboard-adversary-sim\.js/);
   assert.match(source, /\$lib\/runtime\/dashboard-red-team-controller\.js/);
   assert.match(source, /deriveAdversarySimControlState/);
-  assert.match(source, /deriveDashboardBodyClassState\(configSnapshot,\s*\{/);
+  assert.match(source, /\$:\s+bodyClassSource = \{/);
+  assert.match(source, /shadow_mode:\s*configSnapshot\?\.shadow_mode/);
+  assert.match(source, /deriveDashboardBodyClassState\(bodyClassSource,\s*\{/);
   assert.match(source, /runtimeClassHint/);
   assert.match(source, /const DASHBOARD_LOADED_CLASS = 'dashboard-loaded';/);
   assert.match(source, /backendConnectionState/);
@@ -4514,7 +4563,7 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.match(source, /if \(restored !== true\) throw error;/);
   assert.match(source, /await withRefreshedSessionOnAuthError\(/);
   assert.match(source, /controlAdversarySimWithRetry\(\s*\(\) => withRefreshedSessionOnAuthError\(/);
-  assert.match(source, /dashboardRequestBudgets = deriveDashboardRequestBudgets\(configSnapshot\)/);
+  assert.match(source, /dashboardRequestBudgets = deriveDashboardRequestBudgets\(configRuntimeSnapshot\)/);
   assert.match(source, /dashboardRequestBudgets\.configWriteTimeoutMs/);
   assert.match(source, /dashboardRequestBudgets\.adversarySimControlTimeoutMs/);
   assert.match(source, /dashboardRequestBudgets\.adversarySimEnableTimeoutMs/);
@@ -4947,6 +4996,8 @@ test('dashboard native runtime owns session heartbeat, tab normalization, and ac
   assert.match(source, /recordHeartbeatAttemptStarted/);
   assert.match(source, /recordHeartbeatSuccess/);
   assert.match(source, /recordHeartbeatFailure/);
+  assert.match(source, /recordHeartbeatControllerReset/);
+  assert.doesNotMatch(source, /setBackendConnectionState/);
   assert.match(source, /function hasRuntimeEnvironment\(\)/);
   assert.match(source, /if \(!hasRuntimeEnvironment\(\)\) return false;/);
   assert.match(source, /export async function updateDashboardConfig/);
@@ -4984,7 +5035,7 @@ test('dashboard refresh runtime owns bounded cache, delta, and red-team monitori
   assert.match(source, /applyIpBansDeltaSnapshots\(payload, 'sse'\)/);
   assert.match(source, /updateFreshnessSnapshot\(/);
   assert.match(source, /writeCache\(MONITORING_CACHE_KEY, \{ monitoring: compactMonitoring \}\);/);
-  assert.match(source, /if \(hasConfigSnapshot\(existingConfig\)\) \{/);
+  assert.match(source, /if \(!isConfigSnapshotEmpty\(existingConfig\) && !isConfigRuntimeSnapshotEmpty\(existingRuntime\)\) \{/);
   assert.match(source, /const refreshVerificationTab = \(reason = 'manual'/);
   assert.match(source, /const refreshRedTeamTab = async \(reason = 'manual', runtimeOptions = \{\}\) => \{/);
   assert.match(source, /if \(reason === 'auto-refresh'\) \{\s*await refreshMonitoringTab\(reason, runtimeOptions\);/s);

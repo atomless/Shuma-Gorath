@@ -40,7 +40,8 @@ const DASHBOARD_STATE_REQUIRED_METHODS = Object.freeze([
   'markTabUpdated',
   'invalidate',
   'isTabStale',
-  'getDerivedState'
+  'getDerivedState',
+  'recordHeartbeatControllerReset'
 ]);
 
 const isObject = (value) => value && typeof value === 'object';
@@ -77,13 +78,14 @@ function parseBoolLike(value, fallback = false) {
   return fallback;
 }
 
-function deriveMonitoringAnalytics(configSnapshot = {}, analyticsSnapshot = {}) {
+function deriveMonitoringAnalytics(configSnapshot = {}, configRuntimeSnapshot = {}, analyticsSnapshot = {}) {
   const config = isObject(configSnapshot) ? configSnapshot : {};
+  const runtime = isObject(configRuntimeSnapshot) ? configRuntimeSnapshot : {};
   const analytics = isObject(analyticsSnapshot) ? analyticsSnapshot : {};
   return {
     ban_count: Number(analytics.ban_count || 0),
     shadow_mode: parseBoolLike(config.shadow_mode, analytics.shadow_mode === true),
-    fail_mode: parseBoolLike(config.kv_store_fail_open, true) ? 'open' : 'closed'
+    fail_mode: parseBoolLike(runtime.kv_store_fail_open, true) ? 'open' : 'closed'
   };
 }
 
@@ -146,16 +148,17 @@ function setSessionState(authenticated, csrfToken = '', expiresAt = 0, runtimeEn
       runtimeEnvironment: sessionState.runtimeEnvironment
     });
     if (sessionState.authenticated !== true) {
-      setBackendConnectionState(null, '');
+      resetHeartbeatConnectionState('session_cleared');
     }
   }
   syncConnectionHeartbeatLoop(sessionState.authenticated ? 'session-authenticated' : 'session-cleared');
 }
 
-function setBackendConnectionState(connected, error = '') {
-  if (!dashboardState || typeof dashboardState.setBackendConnection !== 'function') return;
-  const normalized = connected === true ? true : connected === false ? false : null;
-  dashboardState.setBackendConnection(normalized, String(error || ''));
+function resetHeartbeatConnectionState(reason = 'heartbeat_controller_reset') {
+  if (!dashboardState || typeof dashboardState.recordHeartbeatControllerReset !== 'function') return;
+  dashboardState.recordHeartbeatControllerReset({
+    reason
+  });
 }
 
 function clearConnectionHeartbeatTimer() {
@@ -381,11 +384,19 @@ async function restoreSessionFromServer() {
   }
 }
 
-function invalidateAfterConfigSave(nextConfig = null) {
+function applyConfigEnvelopeSnapshots(nextConfig = null, nextRuntime = null) {
   if (!dashboardState) return;
   if (isObject(nextConfig)) {
     dashboardState.setSnapshot('config', nextConfig);
   }
+  if (isObject(nextRuntime)) {
+    dashboardState.setSnapshot('configRuntime', nextRuntime);
+  }
+}
+
+function invalidateAfterConfigSave(nextConfig = null, nextRuntime = null) {
+  if (!dashboardState) return;
+  applyConfigEnvelopeSnapshots(nextConfig, nextRuntime);
   dashboardState.invalidate('securityConfig');
   dashboardState.invalidate('monitoring');
   dashboardState.invalidate('ip-bans');
@@ -393,38 +404,40 @@ function invalidateAfterConfigSave(nextConfig = null) {
 
 function applyAdversarySimStatusSnapshot(status = null) {
   if (!dashboardState || !isObject(status)) return;
-  const existing = dashboardState.getSnapshot('config');
-  const base = isObject(existing) ? existing : null;
-  if (!base) return;
-  if (Object.keys(base).length === 0) return;
-  const next = { ...base };
+  const existingConfig = dashboardState.getSnapshot('config');
+  const configBase = isObject(existingConfig) ? existingConfig : {};
+  const existingRuntime = dashboardState.getSnapshot('configRuntime');
+  const runtimeBase = isObject(existingRuntime) ? existingRuntime : {};
+  if (Object.keys(configBase).length === 0 && Object.keys(runtimeBase).length === 0) return;
+  const nextConfig = { ...configBase };
+  const nextRuntime = { ...runtimeBase };
   let changed = false;
   if (
-    (typeof next.runtime_environment !== 'string' || !next.runtime_environment.trim()) &&
+    (typeof nextRuntime.runtime_environment !== 'string' || !nextRuntime.runtime_environment.trim()) &&
     typeof status.runtime_environment === 'string' &&
     status.runtime_environment.trim()
   ) {
-    next.runtime_environment = status.runtime_environment.trim();
+    nextRuntime.runtime_environment = status.runtime_environment.trim();
     changed = true;
   }
   if (
-    next.adversary_sim_available === undefined &&
+    nextRuntime.adversary_sim_available === undefined &&
     typeof status.adversary_sim_available === 'boolean'
   ) {
-    next.adversary_sim_available = status.adversary_sim_available;
+    nextRuntime.adversary_sim_available = status.adversary_sim_available;
     changed = true;
   }
   const durationSeconds = Number(status.duration_seconds);
   if (
-    next.adversary_sim_duration_seconds === undefined &&
+    nextConfig.adversary_sim_duration_seconds === undefined &&
     Number.isFinite(durationSeconds) &&
     durationSeconds > 0
   ) {
-    next.adversary_sim_duration_seconds = Math.floor(durationSeconds);
+    nextConfig.adversary_sim_duration_seconds = Math.floor(durationSeconds);
     changed = true;
   }
   if (changed) {
-    dashboardState.setSnapshot('config', next);
+    applyConfigEnvelopeSnapshots(nextConfig, nextRuntime);
   }
 }
 
@@ -439,7 +452,7 @@ export async function mountDashboardApp(options = {}) {
 
   runtimeMountOptions = normalizeRuntimeMountOptions(options);
   dashboardState = resolveDashboardStateStore(options);
-  setBackendConnectionState(null, '');
+  resetHeartbeatConnectionState('runtime_mount_boot');
 
   resolveAdminApiEndpoint = adminEndpointModule.createAdminEndpointResolver({ window });
 
@@ -534,8 +547,12 @@ export async function updateDashboardConfig(patch, requestOptions = {}) {
   const nextConfig =
     response && typeof response === 'object' && response.config && typeof response.config === 'object'
       ? response.config
-      : response;
-  invalidateAfterConfigSave(nextConfig);
+      : {};
+  const nextRuntime =
+    response && typeof response === 'object' && response.runtime && typeof response.runtime === 'object'
+      ? response.runtime
+      : {};
+  invalidateAfterConfigSave(nextConfig, nextRuntime);
   return nextConfig;
 }
 
@@ -556,14 +573,16 @@ export async function controlDashboardAdversarySim(enabled, requestOptions = {})
   const response = await apiClient.controlAdversarySim(enabled === true, requestOptions || {});
   const status = isObject(response.status) ? response.status : {};
   const nextConfig = isObject(response.config) ? response.config : null;
-  if (nextConfig) {
-    invalidateAfterConfigSave(nextConfig);
+  const nextRuntime = isObject(response.runtime) ? response.runtime : null;
+  if (nextConfig || nextRuntime) {
+    invalidateAfterConfigSave(nextConfig, nextRuntime);
   }
   applyAdversarySimStatusSnapshot(status);
   return {
     requested_enabled: response.requested_enabled === true,
     status,
-    config: nextConfig
+    config: nextConfig,
+    runtime: nextRuntime
   };
 }
 
@@ -595,7 +614,7 @@ export function unmountDashboardApp() {
   if (!runtimeMounted) return;
   runtimeMounted = false;
   stopConnectionHeartbeat();
-  setBackendConnectionState(null, '');
+  resetHeartbeatConnectionState('runtime_unmounted');
   runtimeMountOptions = normalizeRuntimeMountOptions({});
   dashboardApiClient = null;
   dashboardState = null;

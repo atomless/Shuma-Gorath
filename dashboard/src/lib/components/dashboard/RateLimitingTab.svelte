@@ -6,6 +6,10 @@
     rateEnforcementEnabledFromMode,
     rateModeFromToggleState
   } from '../../domain/config-tab-helpers.js';
+  import {
+    isAdminConfigWritable,
+    isAkamaiEdgeAvailable
+  } from '../../domain/config-runtime.js';
   import ConfigPanel from './primitives/ConfigPanel.svelte';
   import ConfigPanelHeading from './primitives/ConfigPanelHeading.svelte';
   import NumericInputRow from './primitives/NumericInputRow.svelte';
@@ -16,6 +20,7 @@
   export let isActive = false;
   export let tabStatus = null;
   export let configSnapshot = null;
+  export let configRuntimeSnapshot = null;
   export let configVersion = 0;
   export let onSaveConfig = null;
   export let noticeText = '';
@@ -49,9 +54,9 @@
     event.returnValue = '';
   };
 
-  const applyConfig = (config = {}) => {
-    writable = config.admin_config_write_enabled !== false;
-    akamaiEdgeAvailable = config.akamai_edge_available === true;
+  const applyConfig = (config = {}, runtime = {}) => {
+    writable = isAdminConfigWritable(runtime);
+    akamaiEdgeAvailable = isAkamaiEdgeAvailable(runtime);
     rateLimitThreshold = parseInteger(config.rate_limit, 80);
     rateLimitingEnabled = rateEnforcementEnabledFromMode(config?.defence_modes?.rate ?? 'both');
     externalRateBackendEnabled =
@@ -88,7 +93,10 @@
     try {
       const nextConfig = await onSaveConfig(payload, { successMessage: 'Rate limiting settings saved' });
       if (nextConfig && typeof nextConfig === 'object') {
-        applyConfig(nextConfig);
+        applyConfig(
+          nextConfig,
+          configRuntimeSnapshot && typeof configRuntimeSnapshot === 'object' ? configRuntimeSnapshot : {}
+        );
       } else {
         baseline = {
           rate: {
@@ -143,7 +151,10 @@
     if (nextVersion !== lastAppliedConfigVersion) {
       lastAppliedConfigVersion = nextVersion;
       if (!hasUnsavedChanges && !savingRateLimiting) {
-        applyConfig(configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {});
+        applyConfig(
+          configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {},
+          configRuntimeSnapshot && typeof configRuntimeSnapshot === 'object' ? configRuntimeSnapshot : {}
+        );
       }
     }
   }

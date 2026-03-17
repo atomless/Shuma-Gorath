@@ -16,12 +16,14 @@
     buildVariableInventoryGroups,
     deriveStatusSnapshot
   } from '../../domain/status.js';
+  import { isAdminConfigWritable } from '../../domain/config-runtime.js';
   import { resolveDashboardAssetPath } from '../../runtime/dashboard-paths.js';
 
   export let managed = false;
   export let isActive = false;
   export let tabStatus = null;
   export let configSnapshot = null;
+  export let configRuntimeSnapshot = null;
   export let configVersion = 0;
   export let dashboardBasePath = '/dashboard';
   export let onSaveConfig = null;
@@ -161,9 +163,9 @@
     }
   }
 
-  function applyConfig(config = {}) {
+  function applyConfig(config = {}, runtime = {}) {
     hasConfigSnapshot = config && typeof config === 'object' && Object.keys(config).length > 0;
-    writable = config.admin_config_write_enabled === true;
+    writable = isAdminConfigWritable(runtime);
 
     const advancedTemplate = buildTemplateFromPaths(config, advancedConfigTemplatePaths || []);
     const advancedText = JSON.stringify(advancedTemplate, null, 2);
@@ -196,7 +198,10 @@
     try {
       const nextConfig = await onSaveConfig(patch, { successMessage: 'Advanced config saved' });
       if (nextConfig && typeof nextConfig === 'object') {
-        applyConfig(nextConfig);
+        applyConfig(
+          nextConfig,
+          configRuntimeSnapshot && typeof configRuntimeSnapshot === 'object' ? configRuntimeSnapshot : {}
+        );
       }
     } finally {
       savingAdvanced = false;
@@ -276,7 +281,7 @@
     clearExportStatusTimer();
   });
 
-  $: statusSnapshot = deriveStatusSnapshot(configSnapshot || {});
+  $: statusSnapshot = deriveStatusSnapshot(configSnapshot || {}, configRuntimeSnapshot || {});
   $: statusVariableGroups = buildVariableInventoryGroups(statusSnapshot, {
     varMeanings: statusVarMeanings
   });
@@ -356,14 +361,20 @@
       if (hasUnsavedChanges && !savingAdvanced) {
         deferredConfigApply = true;
       } else {
-        applyConfig(configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {});
+        applyConfig(
+          configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {},
+          configRuntimeSnapshot && typeof configRuntimeSnapshot === 'object' ? configRuntimeSnapshot : {}
+        );
       }
     }
   }
 
   $: if (deferredConfigApply && !hasUnsavedChanges && !savingAdvanced) {
     deferredConfigApply = false;
-    applyConfig(configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {});
+    applyConfig(
+      configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {},
+      configRuntimeSnapshot && typeof configRuntimeSnapshot === 'object' ? configRuntimeSnapshot : {}
+    );
   }
 </script>
 

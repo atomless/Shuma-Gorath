@@ -2,6 +2,7 @@
   import { onDestroy, onMount } from 'svelte';
   import { parseInteger } from '../../domain/core/math.js';
   import { inRange } from '../../domain/core/validation.js';
+  import { isAdminConfigWritable } from '../../domain/config-runtime.js';
   import ConfigRobotsSection from './config/ConfigRobotsSection.svelte';
   import SaveChangesBar from './primitives/SaveChangesBar.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
@@ -10,6 +11,7 @@
   export let isActive = false;
   export let tabStatus = null;
   export let configSnapshot = null;
+  export let configRuntimeSnapshot = null;
   export let configVersion = 0;
   export let onSaveConfig = null;
   export let onFetchRobotsPreview = null;
@@ -70,8 +72,8 @@
     };
   };
 
-  const applyConfig = (config = {}) => {
-    writable = config.admin_config_write_enabled !== false;
+  const applyConfig = (config = {}, runtime = {}) => {
+    writable = isAdminConfigWritable(runtime);
     robotsEnabled = config.robots_enabled !== false;
     robotsCrawlDelay = parseInteger(config.robots_crawl_delay, 2);
     robotsBlockTraining = config.ai_policy_block_training !== false;
@@ -100,7 +102,10 @@
     try {
       const nextConfig = await onSaveConfig(payload, { successMessage: 'Robots policy saved' });
       if (nextConfig && typeof nextConfig === 'object') {
-        applyConfig(nextConfig);
+        applyConfig(
+          nextConfig,
+          configRuntimeSnapshot && typeof configRuntimeSnapshot === 'object' ? configRuntimeSnapshot : {}
+        );
       } else {
         baseline = {
           enabled: robotsEnabled === true,
@@ -208,7 +213,10 @@
     if (nextVersion !== lastAppliedConfigVersion) {
       lastAppliedConfigVersion = nextVersion;
       if (!hasUnsavedChanges && !savingRobots) {
-        applyConfig(configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {});
+        applyConfig(
+          configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {},
+          configRuntimeSnapshot && typeof configRuntimeSnapshot === 'object' ? configRuntimeSnapshot : {}
+        );
       }
     }
   }

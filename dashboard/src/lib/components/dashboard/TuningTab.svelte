@@ -17,11 +17,13 @@
   import SaveChangesBar from './primitives/SaveChangesBar.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
   import TextareaField from './primitives/TextareaField.svelte';
+  import { isAdminConfigWritable } from '../../domain/config-runtime.js';
 
   export let managed = false;
   export let isActive = false;
   export let tabStatus = null;
   export let configSnapshot = null;
+  export let configRuntimeSnapshot = null;
   export let configVersion = 0;
   export let onSaveConfig = null;
   export let noticeText = '';
@@ -251,7 +253,7 @@
     };
   });
 
-  $: writable = configSnapshot && configSnapshot.admin_config_write_enabled === true;
+  $: writable = isAdminConfigWritable(configRuntimeSnapshot);
   $: hasConfigSnapshot = configSnapshot && typeof configSnapshot === 'object' && Object.keys(configSnapshot).length > 0;
   $: notABotThresholdValid = (
     inRange(notABotThreshold, 1, 10) &&

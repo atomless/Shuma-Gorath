@@ -3210,72 +3210,74 @@ mod admin_config_tests {
         let resp = handle_admin_config(&req, &store, "default");
         assert_eq!(*resp.status(), 200u16);
         let body: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
-        assert!(body.get("challenge_puzzle_risk_threshold").is_some());
-        assert!(body.get("not_a_bot_risk_threshold").is_some());
-        assert!(body.get("not_a_bot_enabled").is_some());
-        assert!(body.get("not_a_bot_risk_threshold_default").is_some());
-        assert!(body.get("challenge_puzzle_enabled").is_some());
-        assert!(body.get("tarpit_enabled").is_some());
-        assert!(body.get("tarpit_progress_token_ttl_seconds").is_some());
-        assert!(body.get("tarpit_progress_replay_ttl_seconds").is_some());
-        assert!(body.get("tarpit_hashcash_min_difficulty").is_some());
-        assert!(body.get("tarpit_hashcash_max_difficulty").is_some());
-        assert!(body.get("tarpit_hashcash_base_difficulty").is_some());
-        assert!(body.get("tarpit_hashcash_adaptive").is_some());
-        assert!(body.get("tarpit_step_chunk_base_bytes").is_some());
-        assert!(body.get("tarpit_step_chunk_max_bytes").is_some());
-        assert!(body.get("tarpit_step_jitter_percent").is_some());
-        assert!(body.get("tarpit_shard_rotation_enabled").is_some());
-        assert!(body.get("tarpit_egress_window_seconds").is_some());
-        assert!(body.get("tarpit_egress_global_bytes_per_window").is_some());
-        assert!(body.get("tarpit_egress_per_ip_bucket_bytes_per_window").is_some());
-        assert!(body.get("tarpit_egress_per_flow_max_bytes").is_some());
-        assert!(body.get("tarpit_egress_per_flow_max_duration_seconds").is_some());
-        assert!(body.get("tarpit_max_concurrent_global").is_some());
-        assert!(body.get("tarpit_max_concurrent_per_ip_bucket").is_some());
-        assert!(body.get("tarpit_fallback_action").is_some());
-        assert!(body.get("challenge_puzzle_risk_threshold_default").is_some());
-        assert!(body.get("challenge_puzzle_transform_count").is_some());
-        assert!(body.get("challenge_puzzle_seed_ttl_seconds").is_some());
-        assert!(body.get("challenge_puzzle_attempt_limit_per_window").is_some());
-        assert!(body.get("challenge_puzzle_attempt_window_seconds").is_some());
-        assert!(body.get("ai_policy_block_training").is_some());
-        assert!(body.get("ai_policy_block_search").is_some());
-        assert!(body.get("ai_policy_allow_search_engines").is_some());
-        assert!(body.get("robots_block_ai_training").is_none());
-        assert!(body.get("robots_block_ai_search").is_none());
-        assert!(body.get("robots_allow_search_engines").is_none());
-        assert!(body.get("ip_range_suggestions_min_observations").is_some());
-        assert!(body.get("ip_range_suggestions_min_bot_events").is_some());
-        assert!(body.get("ip_range_suggestions_min_confidence_percent").is_some());
-        assert!(body.get("ip_range_suggestions_low_collateral_percent").is_some());
-        assert!(body.get("ip_range_suggestions_high_collateral_percent").is_some());
-        assert!(body.get("ip_range_suggestions_ipv4_min_prefix_len").is_some());
-        assert!(body.get("ip_range_suggestions_ipv6_min_prefix_len").is_some());
-        assert!(body
+        let config = body.get("config").expect("config payload");
+        let runtime = body.get("runtime").expect("runtime payload");
+        assert!(config.get("challenge_puzzle_risk_threshold").is_some());
+        assert!(config.get("not_a_bot_risk_threshold").is_some());
+        assert!(config.get("not_a_bot_enabled").is_some());
+        assert!(runtime.get("not_a_bot_risk_threshold_default").is_some());
+        assert!(config.get("challenge_puzzle_enabled").is_some());
+        assert!(config.get("tarpit_enabled").is_some());
+        assert!(config.get("tarpit_progress_token_ttl_seconds").is_some());
+        assert!(config.get("tarpit_progress_replay_ttl_seconds").is_some());
+        assert!(config.get("tarpit_hashcash_min_difficulty").is_some());
+        assert!(config.get("tarpit_hashcash_max_difficulty").is_some());
+        assert!(config.get("tarpit_hashcash_base_difficulty").is_some());
+        assert!(config.get("tarpit_hashcash_adaptive").is_some());
+        assert!(config.get("tarpit_step_chunk_base_bytes").is_some());
+        assert!(config.get("tarpit_step_chunk_max_bytes").is_some());
+        assert!(config.get("tarpit_step_jitter_percent").is_some());
+        assert!(config.get("tarpit_shard_rotation_enabled").is_some());
+        assert!(config.get("tarpit_egress_window_seconds").is_some());
+        assert!(config.get("tarpit_egress_global_bytes_per_window").is_some());
+        assert!(config.get("tarpit_egress_per_ip_bucket_bytes_per_window").is_some());
+        assert!(config.get("tarpit_egress_per_flow_max_bytes").is_some());
+        assert!(config.get("tarpit_egress_per_flow_max_duration_seconds").is_some());
+        assert!(config.get("tarpit_max_concurrent_global").is_some());
+        assert!(config.get("tarpit_max_concurrent_per_ip_bucket").is_some());
+        assert!(config.get("tarpit_fallback_action").is_some());
+        assert!(runtime.get("challenge_puzzle_risk_threshold_default").is_some());
+        assert!(config.get("challenge_puzzle_transform_count").is_some());
+        assert!(config.get("challenge_puzzle_seed_ttl_seconds").is_some());
+        assert!(config.get("challenge_puzzle_attempt_limit_per_window").is_some());
+        assert!(config.get("challenge_puzzle_attempt_window_seconds").is_some());
+        assert!(config.get("ai_policy_block_training").is_some());
+        assert!(config.get("ai_policy_block_search").is_some());
+        assert!(config.get("ai_policy_allow_search_engines").is_some());
+        assert!(config.get("robots_block_ai_training").is_none());
+        assert!(config.get("robots_block_ai_search").is_none());
+        assert!(config.get("robots_allow_search_engines").is_none());
+        assert!(config.get("ip_range_suggestions_min_observations").is_some());
+        assert!(config.get("ip_range_suggestions_min_bot_events").is_some());
+        assert!(config.get("ip_range_suggestions_min_confidence_percent").is_some());
+        assert!(config.get("ip_range_suggestions_low_collateral_percent").is_some());
+        assert!(config.get("ip_range_suggestions_high_collateral_percent").is_some());
+        assert!(config.get("ip_range_suggestions_ipv4_min_prefix_len").is_some());
+        assert!(config.get("ip_range_suggestions_ipv6_min_prefix_len").is_some());
+        assert!(config
             .get("ip_range_suggestions_likely_human_sample_percent")
             .is_some());
-        assert!(body.get("botness_maze_threshold").is_some());
-        assert!(body.get("js_required_enforced").is_some());
-        assert!(body.get("kv_store_fail_open").is_some());
-        assert!(body.get("botness_weights").is_some());
-        assert!(body.get("defence_modes").is_some());
-        assert!(body.get("provider_backends").is_some());
-        assert!(body.get("edge_integration_mode").is_some());
-        assert!(body.get("defence_modes_effective").is_some());
-        assert!(body.get("defence_mode_warnings").is_some());
-        assert!(body.get("enterprise_multi_instance").is_some());
-        assert!(body
+        assert!(config.get("botness_maze_threshold").is_some());
+        assert!(config.get("js_required_enforced").is_some());
+        assert!(runtime.get("kv_store_fail_open").is_some());
+        assert!(config.get("botness_weights").is_some());
+        assert!(config.get("defence_modes").is_some());
+        assert!(config.get("provider_backends").is_some());
+        assert!(config.get("edge_integration_mode").is_some());
+        assert!(runtime.get("defence_modes_effective").is_some());
+        assert!(runtime.get("defence_mode_warnings").is_some());
+        assert!(runtime.get("enterprise_multi_instance").is_some());
+        assert!(runtime
             .get("enterprise_unsynced_state_exception_confirmed")
             .is_some());
-        assert!(body.get("enterprise_state_guardrail_warnings").is_some());
-        assert!(body.get("enterprise_state_guardrail_error").is_some());
-        assert!(body.get("botness_signal_definitions").is_some());
-        assert!(body.get("honeypot_enabled").is_some());
-        assert!(body.get("adversary_sim_enabled").is_some());
-        assert!(body.get("adversary_sim_duration_seconds").is_some());
-        assert!(body.get("runtime_environment").is_some());
-        assert!(body.get("adversary_sim_available").is_some());
+        assert!(runtime.get("enterprise_state_guardrail_warnings").is_some());
+        assert!(runtime.get("enterprise_state_guardrail_error").is_some());
+        assert!(runtime.get("botness_signal_definitions").is_some());
+        assert!(config.get("honeypot_enabled").is_some());
+        assert!(runtime.get("adversary_sim_enabled").is_some());
+        assert!(config.get("adversary_sim_duration_seconds").is_some());
+        assert!(runtime.get("runtime_environment").is_some());
+        assert!(runtime.get("adversary_sim_available").is_some());
     }
 
     #[test]
@@ -3291,29 +3293,32 @@ mod admin_config_tests {
         let resp = handle_admin_config(&req, &store, "default");
         assert_eq!(*resp.status(), 200u16);
         let body: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+        let runtime = body.get("runtime").expect("runtime payload");
 
         assert_eq!(
-            body.get("runtime_environment").and_then(|v| v.as_str()),
+            runtime.get("runtime_environment").and_then(|v| v.as_str()),
             Some("runtime-dev")
         );
         assert_eq!(
-            body.get("adversary_sim_available").and_then(|v| v.as_bool()),
+            runtime.get("adversary_sim_available").and_then(|v| v.as_bool()),
             Some(true)
         );
         assert_eq!(
-            body.get("adversary_sim_enabled").and_then(|v| v.as_bool()),
+            runtime.get("adversary_sim_enabled").and_then(|v| v.as_bool()),
             Some(false)
         );
         assert_eq!(
-            body.get("gateway_deployment_profile").and_then(|v| v.as_str()),
+            runtime
+                .get("gateway_deployment_profile")
+                .and_then(|v| v.as_str()),
             Some("shared-server")
         );
         assert_eq!(
-            body.get("akamai_edge_available").and_then(|v| v.as_bool()),
+            runtime.get("akamai_edge_available").and_then(|v| v.as_bool()),
             Some(false)
         );
         assert_eq!(
-            body.get("local_prod_direct_mode").and_then(|v| v.as_bool()),
+            runtime.get("local_prod_direct_mode").and_then(|v| v.as_bool()),
             Some(true)
         );
 
@@ -3333,13 +3338,16 @@ mod admin_config_tests {
         let resp = handle_admin_config(&req, &store, "default");
         assert_eq!(*resp.status(), 200u16);
         let body: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+        let runtime = body.get("runtime").expect("runtime payload");
 
         assert_eq!(
-            body.get("gateway_deployment_profile").and_then(|v| v.as_str()),
+            runtime
+                .get("gateway_deployment_profile")
+                .and_then(|v| v.as_str()),
             Some("edge-fermyon")
         );
         assert_eq!(
-            body.get("akamai_edge_available").and_then(|v| v.as_bool()),
+            runtime.get("akamai_edge_available").and_then(|v| v.as_bool()),
             Some(true)
         );
 
@@ -3358,27 +3366,31 @@ mod admin_config_tests {
         assert_eq!(*resp.status(), 200u16);
         let body_raw = String::from_utf8_lossy(resp.body()).to_string();
         let body: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+        let runtime = body.get("runtime").expect("runtime payload");
 
         assert_eq!(
-            body.get("frontier_mode").and_then(|value| value.as_str()),
+            runtime.get("frontier_mode").and_then(|value| value.as_str()),
             Some("single_provider_self_play")
         );
         assert_eq!(
-            body.get("frontier_provider_count")
+            runtime
+                .get("frontier_provider_count")
                 .and_then(|value| value.as_u64()),
             Some(1)
         );
         assert_eq!(
-            body.get("frontier_diversity_confidence")
+            runtime
+                .get("frontier_diversity_confidence")
                 .and_then(|value| value.as_str()),
             Some("low")
         );
         assert_eq!(
-            body.get("frontier_reduced_diversity_warning")
+            runtime
+                .get("frontier_reduced_diversity_warning")
                 .and_then(|value| value.as_bool()),
             Some(true)
         );
-        let providers = body
+        let providers = runtime
             .get("frontier_providers")
             .and_then(|value| value.as_array())
             .cloned()
@@ -6662,24 +6674,25 @@ mod admin_config_tests {
         let get_resp = handle_admin_config(&get_req, &store, "default");
         assert_eq!(*get_resp.status(), 200u16);
         let get_json: serde_json::Value = serde_json::from_slice(get_resp.body()).unwrap();
+        let get_cfg = get_json.get("config").unwrap();
         assert_eq!(
-            get_json.get("geo_risk").unwrap(),
+            get_cfg.get("geo_risk").unwrap(),
             &serde_json::json!(["US", "CN"])
         );
         assert_eq!(
-            get_json.get("geo_allow").unwrap(),
+            get_cfg.get("geo_allow").unwrap(),
             &serde_json::json!(["GB"])
         );
         assert_eq!(
-            get_json.get("geo_challenge").unwrap(),
+            get_cfg.get("geo_challenge").unwrap(),
             &serde_json::json!(["BR"])
         );
         assert_eq!(
-            get_json.get("geo_maze").unwrap(),
+            get_cfg.get("geo_maze").unwrap(),
             &serde_json::json!(["RU"])
         );
         assert_eq!(
-            get_json.get("geo_block").unwrap(),
+            get_cfg.get("geo_block").unwrap(),
             &serde_json::json!(["KP"])
         );
         std::env::remove_var("SHUMA_GEO_RISK_COUNTRIES");
@@ -11140,17 +11153,13 @@ fn parse_tarpit_fallback_action_json(
         .ok_or_else(|| format!("{} must be one of: maze, block", field))
 }
 
-fn admin_config_payload(
-    cfg: &crate::config::Config,
-    challenge_default: u8,
-    not_a_bot_default: u8,
-    maze_default: u8,
-) -> serde_json::Value {
+fn admin_config_settings_payload(cfg: &crate::config::Config) -> serde_json::Value {
     let mut payload = serde_json::to_value(cfg).unwrap_or_else(|_| json!({}));
     let Some(obj) = payload.as_object_mut() else {
         return json!({});
     };
 
+    obj.remove("adversary_sim_enabled");
     obj.remove("robots_block_ai_training");
     obj.remove("robots_block_ai_search");
     obj.remove("robots_allow_search_engines");
@@ -11166,6 +11175,24 @@ fn admin_config_payload(
     obj.insert(
         "ai_policy_allow_search_engines".to_string(),
         serde_json::Value::Bool(cfg.robots_allow_search_engines),
+    );
+    payload
+}
+
+fn admin_config_runtime_payload(
+    cfg: &crate::config::Config,
+    challenge_default: u8,
+    not_a_bot_default: u8,
+    maze_default: u8,
+) -> serde_json::Value {
+    let mut payload = json!({});
+    let Some(obj) = payload.as_object_mut() else {
+        return json!({});
+    };
+
+    obj.insert(
+        "adversary_sim_enabled".to_string(),
+        serde_json::Value::Bool(cfg.adversary_sim_enabled),
     );
     obj.insert(
         "admin_config_write_enabled".to_string(),
@@ -11269,6 +11296,18 @@ fn admin_config_payload(
     );
     obj.insert("botness_signal_definitions".to_string(), botness_signal_definitions(cfg));
     payload
+}
+
+fn admin_config_response_payload(
+    cfg: &crate::config::Config,
+    challenge_default: u8,
+    not_a_bot_default: u8,
+    maze_default: u8,
+) -> serde_json::Value {
+    json!({
+        "config": admin_config_settings_payload(cfg),
+        "runtime": admin_config_runtime_payload(cfg, challenge_default, not_a_bot_default, maze_default)
+    })
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -13260,7 +13299,13 @@ fn handle_admin_config_internal(
         effective_cfg.adversary_sim_enabled = effective_adversary_sim_enabled;
         let body = serde_json::to_string(&json!({
             "status": "updated",
-            "config": admin_config_payload(&effective_cfg, challenge_default, not_a_bot_default, maze_default)
+            "config": admin_config_settings_payload(&effective_cfg),
+            "runtime": admin_config_runtime_payload(
+                &effective_cfg,
+                challenge_default,
+                not_a_bot_default,
+                maze_default
+            )
         }))
         .unwrap();
         return Response::new(200, body);
@@ -13284,14 +13329,13 @@ fn handle_admin_config_internal(
     let challenge_default = challenge_threshold_default();
     let not_a_bot_default = not_a_bot_threshold_default();
     let maze_default = maze_threshold_default();
-    let body =
-        serde_json::to_string(&admin_config_payload(
-            &cfg,
-            challenge_default,
-            not_a_bot_default,
-            maze_default,
-        ))
-            .unwrap();
+    let body = serde_json::to_string(&admin_config_response_payload(
+        &cfg,
+        challenge_default,
+        not_a_bot_default,
+        maze_default,
+    ))
+    .unwrap();
     Response::new(200, body)
 }
 
@@ -13347,7 +13391,8 @@ fn handle_admin_config_bootstrap(
     let maze_default = maze_threshold_default();
     let response_body = serde_json::to_string(&json!({
         "bootstrapped": true,
-        "config": admin_config_payload(&cfg, challenge_default, not_a_bot_default, maze_default)
+        "config": admin_config_settings_payload(&cfg),
+        "runtime": admin_config_runtime_payload(&cfg, challenge_default, not_a_bot_default, maze_default)
     }))
     .unwrap();
     Response::new(200, response_body)
@@ -15851,7 +15896,8 @@ fn handle_admin_adversary_sim_control(
                 },
                 "operation": operation,
                 "status": adversary_sim_status_payload(store, site_id, &cfg, &state, now),
-                "config": admin_config_payload(
+                "config": admin_config_settings_payload(&cfg),
+                "runtime": admin_config_runtime_payload(
                     &cfg,
                     challenge_threshold_default(),
                     not_a_bot_threshold_default(),
@@ -16081,7 +16127,8 @@ fn handle_admin_adversary_sim_control(
             "ttl_seconds": crate::admin::adversary_sim_control::IDEMPOTENCY_TTL_SECONDS
         },
         "status": adversary_sim_status_payload(store, site_id, &cfg, &state, now),
-        "config": admin_config_payload(
+        "config": admin_config_settings_payload(&cfg),
+        "runtime": admin_config_runtime_payload(
             &cfg,
             challenge_threshold_default(),
             not_a_bot_threshold_default(),
