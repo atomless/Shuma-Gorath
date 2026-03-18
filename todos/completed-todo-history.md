@@ -4,6 +4,67 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-18)
 
+### Monitoring Telemetry Foundations: Capture The Remaining Implementation Guardrails From Review
+
+- [x] Turn the latest architecture-review findings into explicit design contracts and backlog guardrails, covering operator-summary exactness, summary ownership tiers, and tighter execution constraints on the active monitoring-telemetry tranche.
+- [x] Why:
+  - the first prerequisite notes and contracts had already set the direction, but the review still found a few places where implementation could drift: summary truth metadata was not yet formalized, bootstrap ownership was still too implicit, and the active TODOs did not yet spell out the branch-mapping, buffered-emission, and ownership constraints clearly enough.
+  - capturing those findings in repo-native design contracts now reduces the chance that `MON-TEL-1` quietly regresses hot-read economics, overstates summary truthfulness, or lets implementers improvise around static-bypass and outcome-emission boundaries.
+  - this keeps the tranche on a clean architectural bearing before any runtime code is touched, which is especially important because this work will shape a long sequence of monitoring, tuning, identity, and oversight changes.
+- [x] Evidence:
+  - `docs/plans/2026-03-18-monitoring-operator-summary-exactness-contract.md`
+  - `docs/plans/2026-03-18-monitoring-bootstrap-and-supporting-summary-ownership-contract.md`
+  - `docs/plans/2026-03-18-monitoring-telemetry-foundations-architectural-necessities.md`
+  - `docs/plans/2026-03-18-monitoring-traffic-lane-and-denominator-contract.md`
+  - `docs/plans/2026-03-18-monitoring-request-outcome-telemetry-hook-contract.md`
+  - `docs/index.md`
+  - `todos/todo.md`
+  - `todos/blocked-todo.md`
+  - docs-only slice: tests intentionally skipped
+  - `git diff --check`
+
+### Monitoring Telemetry Foundations: Define The Request-Outcome Telemetry Hook Contract
+
+- [x] Turn the second telemetry-foundation prerequisite into a concrete design contract for one authoritative request-outcome telemetry hook, including the rendered outcome object, ownership boundaries across request flow and effect intents, shadow-mode semantics, byte-accounting rules, and the requirement that coarse request and funnel counters come from one canonical finalization point.
+- [x] Why:
+  - the architecture note established that Shuma needed one final outcome hook before adding counters and funnels, but the implementation tranche still needed a precise answer to where that hook lives and how it relates to the existing request-flow, effect-intent, and forwarding layers.
+  - this design had to preserve the current runtime structure rather than creating a second telemetry pipeline: request flow owns finalization, response rendering supplies structured facts, and the hook stays within the existing capability model.
+  - making shadow-mode truth, forward-failure fallback handling, and response-byte accounting explicit now reduces the risk that `MON-TEL-1-2` and `MON-TEL-1-4` duplicate logic across response branches or accidentally muddy operator summaries.
+- [x] Evidence:
+  - `docs/plans/2026-03-18-monitoring-request-outcome-telemetry-hook-contract.md`
+  - `docs/index.md`
+  - `todos/todo.md`
+  - docs-only slice: tests intentionally skipped
+  - `git diff --check`
+
+### Monitoring Telemetry Foundations: Define The Concrete Traffic-Lane And Denominator Contract
+
+- [x] Turn the first telemetry-foundation prerequisite into a concrete design contract for Monitoring's canonical traffic-lane vocabulary, denominator boundary, route and action-family grouping, and the relationship between lane interpretation and the existing tunable routing or scoring controls.
+- [x] Why:
+  - the prerequisite architecture note established that Shuma needed a lane contract before adding counters, but the implementation tranche still needed a more specific answer to what the lanes actually are and how they relate to real runtime tuning.
+  - this design had to stay consistent with the repo's current runtime model: one decision system, one monitoring interpretation of that system, and no second analytics-only lane-threshold surface.
+  - defining simulation as a separate origin dimension, separating defence follow-up flows from the primary ingress denominator, and reserving future verified and declared non-human lanes now reduces later drift when the verified-identity and mature monitoring tranches land.
+- [x] Evidence:
+  - `docs/plans/2026-03-18-monitoring-traffic-lane-and-denominator-contract.md`
+  - `docs/index.md`
+  - `todos/todo.md`
+  - docs-only slice: tests intentionally skipped
+  - `git diff --check`
+
+### Monitoring Telemetry Foundations: Capture The Architectural Necessities Before Implementation
+
+- [x] Write up the prerequisite architectural necessities that should be settled before the active `MON-TEL-1` telemetry-foundation tranche proceeds, covering the canonical traffic-lane domain, one authoritative request-outcome telemetry hook, explicit operator-summary exactness, and bootstrap-versus-supporting-summary ownership.
+- [x] Why:
+  - the telemetry tranche is no longer just a matter of adding counters; without a few explicit architectural decisions first, the work would risk duplicating logic across response branches, inventing inconsistent lane semantics, overstating exactness, or bloating bootstrap payloads.
+  - these prerequisites are small enough to settle now and strong enough to reduce implementation churn later, especially because Shuma already has a well-defined runtime orchestration and hot-read architecture that should be extended rather than bypassed.
+  - capturing them repo-natively keeps the active backlog honest: `MON-TEL-1` is execution-ready, but it is now clearly gated by a small set of architecture decisions instead of leaving those decisions implicit.
+- [x] Evidence:
+  - `docs/plans/2026-03-18-monitoring-telemetry-foundations-architectural-necessities.md`
+  - `docs/index.md`
+  - `todos/todo.md`
+  - docs-only slice: tests intentionally skipped
+  - `git diff --check`
+
 ### Monitoring Research: Compare Current Telemetry To The Desired Operator Model Under Cost Constraints
 
 - [x] Compare Shuma's current telemetry collection and materialization model with the desired operator-grade, agentic-era telemetry model, while explicitly preserving the existing hot-read, retention, and bounded-summary efficiency constraints.

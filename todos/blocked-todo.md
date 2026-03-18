@@ -27,6 +27,7 @@ Reference context:
 - [`docs/research/2026-03-17-operator-decision-support-telemetry-audit.md`](../docs/research/2026-03-17-operator-decision-support-telemetry-audit.md)
 - [`docs/research/2026-03-18-agentic-era-operator-telemetry-research-synthesis.md`](../docs/research/2026-03-18-agentic-era-operator-telemetry-research-synthesis.md)
 - [`docs/research/2026-03-18-cost-aware-operator-telemetry-gap-analysis.md`](../docs/research/2026-03-18-cost-aware-operator-telemetry-gap-analysis.md)
+- [`docs/plans/2026-03-18-monitoring-telemetry-foundations-architectural-necessities.md`](../docs/plans/2026-03-18-monitoring-telemetry-foundations-architectural-necessities.md)
 - [`docs/plans/2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md`](../docs/plans/2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md)
 - [`docs/plans/2026-03-15-agentic-era-oversight-design.md`](../docs/plans/2026-03-15-agentic-era-oversight-design.md)
 - [`docs/plans/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-design.md`](../docs/plans/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-design.md)
@@ -38,7 +39,7 @@ Reference context:
   Blocker: defer execution until the operator monitoring overhaul defines which knobs are actionable, which remain diagnostic, and which are safe for future controller tuning.
 
 - [ ] MON-OVERHAUL-1 Redesign Monitoring as an operator decision surface with explicit enforced-vs-shadow separation and clear attacker-effectiveness vs human-friction visibility.
-  Blocker: defer execution until the roadmap capture is turned into an implementation-ready plan that defines the core operator questions, required telemetry contracts, and section ownership across Monitoring, Status, and Red Team.
+  Blocker: keep the UI/surface redesign blocked until the active `MON-TEL-1` telemetry-foundation tranche lands, the prerequisite lane/outcome/exactness/bootstrap decisions in `2026-03-18-monitoring-telemetry-foundations-architectural-necessities.md` and its linked design contracts are settled, and the remaining section-ownership plan is written, so Monitoring is rebuilt on truthful lane, cost, and funnel summaries instead of inferring operator meaning from subsystem widgets or raw tails.
 
 - [ ] SIM-RET-1 Define a dedicated retention and disposal model for adversary-sim telemetry distinct from real-traffic telemetry.
   Blocker: defer execution until mature adversary-sim lane planning settles the expected telemetry classes, retention value horizon, and audit residue needed after tune-confirm-act loops.
