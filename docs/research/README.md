@@ -58,6 +58,8 @@ Completed archive index:
    Research synthesis for banded ban jitter, local repeat-offender escalation, and central intelligence as coordinated cost-shaping features within Shuma's agentic-era defence model.
 3. [`2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-research-synthesis.md`](2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-research-synthesis.md)
    Research synthesis for Web Bot Auth, HTTP Message Signatures, signed agents, verified bots, and the local policy and trust model Shuma needs for authenticated automated traffic.
+4. [`2026-03-17-operator-decision-support-telemetry-audit.md`](2026-03-17-operator-decision-support-telemetry-audit.md)
+   Repo-grounded audit of current telemetry collection, operator-useful decision-support signals, contributor-only diagnostics, and the highest-value monitoring gaps Shuma should close before the Monitoring overhaul.
 
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 

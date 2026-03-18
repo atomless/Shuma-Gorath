@@ -4,6 +4,29 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-17)
 
+### Monitoring Roadmap Input: Audit Current Telemetry For Operator Decision Support
+
+- [x] Audit the telemetry Shuma currently collects across emission, hot-read materialization, admin API read paths, and dashboard consumption, then document which signals are already useful for operator decision support, which remain contributor-only diagnostics, and which telemetry families are still missing for the Monitoring overhaul and future bounded oversight controller.
+- [x] Why:
+  - `MON-OVERHAUL-1` needs more than a visual redesign; it needs a clear telemetry contract that answers operator questions about attack effectiveness, human friction, cost placement, and shadow-vs-enforced outcomes.
+  - the repo already contains substantial telemetry, but it was not yet documented in one place as an operator-decision-support audit, which made it too easy to confuse subsystem counters with genuinely actionable evidence.
+  - capturing the audit repo-natively now gives the Monitoring overhaul, Tuning-surface completion, and later oversight-controller work a shared evidence base instead of relying on rediscovery through code spelunking.
+- [x] Evidence:
+  - `docs/research/2026-03-17-operator-decision-support-telemetry-audit.md`
+  - `docs/research/README.md`
+  - `docs/index.md`
+  - `todos/blocked-todo.md`
+  - `src/observability/monitoring.rs`
+  - `src/observability/metrics.rs`
+  - `src/observability/hot_read_documents.rs`
+  - `src/observability/hot_read_projection.rs`
+  - `src/admin/api.rs`
+  - `dashboard/src/lib/components/dashboard/MonitoringTab.svelte`
+  - `dashboard/src/lib/components/dashboard/monitoring-view-model.js`
+  - `dashboard/src/lib/components/dashboard/StatusTab.svelte`
+  - docs-only slice: tests intentionally skipped
+  - `git diff --check`
+
 ### Stage 0 Roadmap: Complete Operator-Surface Truth Prerequisites
 
 - [x] Complete Stage 0 by finishing the heartbeat-owned dashboard connection-state hardening tranche, surfacing operator-facing connection diagnostics in `Status`, and splitting `GET /admin/config` into a truthful `{ config, runtime }` envelope that no longer presents read-only operational overlays as writable admin config.
