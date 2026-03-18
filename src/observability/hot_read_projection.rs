@@ -569,6 +569,85 @@ mod tests {
     }
 
     #[test]
+    fn counter_flush_refresh_preserves_request_outcome_summary_rows_in_summary_and_bootstrap() {
+        let store = MockStore::new();
+        crate::observability::monitoring::record_request_outcome(
+            &store,
+            &crate::runtime::request_outcome::RenderedRequestOutcome {
+                traffic_origin: crate::runtime::request_outcome::TrafficOrigin::Live,
+                measurement_scope:
+                    crate::runtime::traffic_classification::MeasurementScope::IngressPrimary,
+                route_action_family:
+                    crate::runtime::traffic_classification::RouteActionFamily::PublicContent,
+                execution_mode: crate::runtime::effect_intents::ExecutionMode::Enforced,
+                traffic_lane: Some(crate::runtime::request_outcome::RequestOutcomeLane {
+                    lane: crate::runtime::traffic_classification::TrafficLane::LikelyHuman,
+                    exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
+                    basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
+                }),
+                outcome_class: crate::runtime::request_outcome::RequestOutcomeClass::Forwarded,
+                response_kind: crate::runtime::request_outcome::ResponseKind::ForwardAllow,
+                http_status: 200,
+                response_bytes: 123,
+                forward_attempted: true,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: crate::runtime::traffic_classification::PolicySource::CleanAllow,
+            },
+        );
+        refresh_after_counter_flush(&store, "default");
+
+        let summary = read_document::<_, crate::observability::monitoring::MonitoringSummary>(
+            &store,
+            monitoring_summary_document_key("default"),
+            crate::observability::hot_read_documents::monitoring_summary_document_contract()
+                .schema_version,
+        )
+        .expect("summary document");
+        let live_scope = summary
+            .payload
+            .request_outcomes
+            .by_scope
+            .iter()
+            .find(|row| {
+                row.traffic_origin == "live"
+                    && row.measurement_scope == "ingress_primary"
+                    && row.execution_mode == "enforced"
+            })
+            .expect("live scope row in summary");
+        assert_eq!(live_scope.total_requests, 1);
+        assert_eq!(live_scope.forwarded_requests, 1);
+        assert_eq!(live_scope.response_bytes, 123);
+
+        let bootstrap = read_document::<
+            _,
+            crate::observability::hot_read_documents::MonitoringBootstrapHotReadPayload,
+        >(
+            &store,
+            monitoring_bootstrap_document_key("default"),
+            crate::observability::hot_read_documents::monitoring_bootstrap_document_contract()
+                .schema_version,
+        )
+        .expect("bootstrap document");
+        let bootstrap_lane = bootstrap
+            .payload
+            .summary
+            .request_outcomes
+            .by_lane
+            .iter()
+            .find(|row| {
+                row.traffic_origin == "live"
+                    && row.measurement_scope == "ingress_primary"
+                    && row.execution_mode == "enforced"
+                    && row.lane == "likely_human"
+            })
+            .expect("live lane row in bootstrap");
+        assert_eq!(bootstrap_lane.total_requests, 1);
+        assert_eq!(bootstrap_lane.forwarded_requests, 1);
+        assert_eq!(bootstrap_lane.response_bytes, 123);
+    }
+
+    #[test]
     fn event_append_refresh_writes_recent_events_tail_and_bootstrap_documents() {
         let store = MockStore::new();
         let now = crate::admin::now_ts();

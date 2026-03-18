@@ -4,6 +4,19 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-18)
 
+### Monitoring Telemetry Foundations: Prove Request-Outcome Summaries Survive Hot-Read Refresh
+
+- [x] Add a focused hot-read projection proof that request-outcome summary rows survive counter flush refresh into both the dedicated monitoring-summary document and the monitoring bootstrap document, and wire that proof into the focused telemetry-foundation Make target.
+- [x] Why:
+  - once the compact request-outcome summary existed, the next architectural risk was not the counter math itself but whether the summary actually made it through the refresh path that Monitoring depends on.
+  - proving the summary at the hot-read boundary keeps the telemetry tranche honest without jumping to broader admin or dashboard suites, which matches the project’s “surgical during development, thorough when needed” verification discipline.
+  - this also hardens the future path toward `MON-TEL-1-5/6`, because the request-outcome summary is now verified as a real backend contract rather than only an internal monitoring-module shape.
+- [x] Evidence:
+  - `src/observability/hot_read_projection.rs`
+  - `Makefile`
+  - `make test-monitoring-telemetry-foundation-unit`
+  - `git diff --check`
+
 ### Monitoring Telemetry Foundations: Materialize Compact Request-Outcome Summary Rows
 
 - [x] Extend `MonitoringSummary` so the new request-outcome counters are projected into compact backend summary rows by scope and by lane, exposing live-versus-adversary-sim totals, outcome-class splits, and response-byte totals without starting the Monitoring UI overhaul early.

@@ -845,6 +845,7 @@ test-monitoring-telemetry-foundation-unit: ## Run focused unit checks for monito
 	@cargo test observability::monitoring::tests:: -- --nocapture
 	@cargo test observability::hot_read_contract::tests:: -- --nocapture
 	@cargo test observability::hot_read_documents::tests:: -- --nocapture
+	@cargo test observability::hot_read_projection::tests:: -- --nocapture
 	@cargo test runtime::traffic_classification::tests:: -- --nocapture
 	@cargo test runtime::request_outcome::tests:: -- --nocapture
 	@cargo test runtime::request_flow::tests:: -- --nocapture
