@@ -2,7 +2,74 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-03-18)
+
+### Monitoring Research: Compare Current Telemetry To The Desired Operator Model Under Cost Constraints
+
+- [x] Compare Shuma's current telemetry collection and materialization model with the desired operator-grade, agentic-era telemetry model, while explicitly preserving the existing hot-read, retention, and bounded-summary efficiency constraints.
+- [x] Why:
+  - the recent operator telemetry audit and external state-of-the-art research together showed what Shuma should ultimately measure, but they did not yet spell out which gaps are genuinely collection gaps versus summary-shaping gaps.
+  - the project has already invested heavily in hot-read efficiency, compact event rows, and retention discipline, so the next Monitoring tranche must be guided by what adds operator value without inflating retained footprint or reintroducing request-time reconstruction.
+  - capturing that comparison repo-natively now gives `MON-OVERHAUL-1` a more precise starting point: add coarse lane and denominator counters, build one operator summary document, and avoid high-cardinality or raw-tail-driven analytics.
+- [x] Evidence:
+  - `docs/research/2026-03-18-cost-aware-operator-telemetry-gap-analysis.md`
+  - `docs/research/README.md`
+  - `docs/index.md`
+  - `todos/blocked-todo.md`
+  - `docs/plans/2026-03-12-unified-telemetry-hot-read-architecture-plan.md`
+  - `docs/plans/2026-03-13-compact-event-telemetry-implementation-plan.md`
+  - `docs/research/2026-03-14-compact-event-telemetry-live-evidence.md`
+  - `src/observability/monitoring.rs`
+  - `src/observability/hot_read_documents.rs`
+  - `src/observability/hot_read_projection.rs`
+  - `src/admin/api.rs`
+  - docs-only slice: tests intentionally skipped
+  - `git diff --check`
+
+### Verified Identity Docs: Make "Authenticated Does Not Mean Allowed" Explicit
+
+- [x] Tighten the verified-identity and telemetry research/design docs so they state plainly that successful bot or agent authentication must never imply privileged access, and that operators must have an obvious way to deny all non-human traffic while still benefiting from identity recognition and telemetry.
+- [x] Why:
+  - verified identity is useful for recognition, attribution, and policy precision, but many Shuma operators will still want to block all non-human traffic equally aggressively.
+  - without this caveat written into the design, the phrase "beneficial authenticated agents" risks sounding like an automatic product preference rather than an operator-controlled authorization choice.
+  - capturing the distinction now keeps the future Web Bot Auth and verified-agent work aligned with Shuma's broader principle that authentication, authorization, and cost treatment are separate concerns.
+- [x] Evidence:
+  - `docs/research/2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-research-synthesis.md`
+  - `docs/plans/2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-design.md`
+  - `docs/plans/2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-implementation-plan.md`
+  - `docs/research/2026-03-18-agentic-era-operator-telemetry-research-synthesis.md`
+  - docs-only slice: tests intentionally skipped
+  - `git diff --check`
+
+### Monitoring Research: Capture State-Of-The-Art Agentic-Era Telemetry Guidance
+
+- [x] Research the telemetry Shuma should collect for the Monitoring overhaul and later oversight loop, grounded in current Cloudflare, Google, OpenAI, Anthropic, Web Bot Auth, and HTTP Message Signatures guidance on bot categorization, detection layering, operator analytics, crawler etiquette, and verified-agent handling.
+- [x] Why:
+  - the Monitoring overhaul needs more than a repo-local audit; it also needs an external state-of-the-art synthesis so the telemetry contract we choose now will remain useful in the coming agentic era.
+  - current bot defence practice has moved beyond a single human-versus-bot split into finer classes such as crawlers, search bots, user-triggered assistants, verified bots, and signed agents, and Shuma needed that reflected explicitly in its telemetry research base.
+  - grounding the next telemetry tranche in Cloudflare's operator analytics and detection model, Google's crawler taxonomy and verification guidance, and the emerging verified-agent ecosystem reduces the risk that Shuma optimizes around an outdated or too-coarse telemetry model.
+- [x] Evidence:
+  - `docs/research/2026-03-18-agentic-era-operator-telemetry-research-synthesis.md`
+  - `docs/research/README.md`
+  - `docs/index.md`
+  - `todos/blocked-todo.md`
+  - docs-only slice: tests intentionally skipped
+  - `git diff --check`
+
 ## Additional completions (2026-03-17)
+
+### Monitoring Terminology Cleanup: Remove Overstated Live Shadow-vs-Enforced "Comparison" Language
+
+- [x] Tighten the Monitoring-overhaul research and roadmap wording so Shuma promises explicit separation of `shadow_mode` and enforced telemetry, not an implied paired live counterfactual comparison of the same requests under both modes.
+- [x] Why:
+  - the current runtime truthfully records whether a given request executed in `shadow` or `enforced` mode, plus the intended action for shadow rows, but it does not execute both modes for the same live request.
+  - wording such as "shadow vs enforced comparison" risked implying a stronger and more complex contract than Shuma currently has or needs for operator monitoring.
+  - clarifying this now keeps the Monitoring overhaul honest and aligned with the actual shadow-mode telemetry contract: truthful would-have-enforced visibility during `shadow_mode`, kept clearly separate from real enforced outcomes.
+- [x] Evidence:
+  - `docs/research/2026-03-17-operator-decision-support-telemetry-audit.md`
+  - `docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`
+  - docs-only slice: tests intentionally skipped
+  - `git diff --check`
 
 ### Monitoring Roadmap Input: Audit Current Telemetry For Operator Decision Support
 

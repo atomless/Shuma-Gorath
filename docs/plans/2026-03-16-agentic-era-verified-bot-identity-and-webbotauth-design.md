@@ -13,7 +13,7 @@ Related context:
 
 1. Give Shuma a first-class verified bot and agent identity lane that fits the emerging Web Bot Auth ecosystem.
 2. Let operators allow, restrict, or deny specific bots or agents based on authenticated identity rather than only user-agent strings or CIDR lists.
-3. Preserve low friction for beneficial authenticated agents while still allowing Shuma to react when a verified identity violates local policy.
+3. Preserve low friction for beneficial authenticated agents only when the operator wants that, while still allowing Shuma to react when a verified identity violates local policy.
 4. Keep request-path identity verification deterministic and Rust-owned.
 5. Keep identity, authorization policy, crawler preference signaling, and central intelligence as separate concerns.
 
@@ -21,10 +21,11 @@ Related context:
 
 1. Treating `robots.txt` or AI preference signaling as verified identity.
 2. Treating authenticated identity as automatic allow.
-3. Letting the future oversight controller auto-mutate trust roots, named allow/deny rules, or directory sources in early phases.
-4. Building a hosted global reputation system as part of the first verified-identity tranche.
-5. Relying on LLMs or agents inside the request path.
-6. Adding backward-compatibility aliases or migration clutter in this pre-launch stage.
+3. Assuming verified identities should receive lower friction unless an operator opts out.
+4. Letting the future oversight controller auto-mutate trust roots, named allow/deny rules, or directory sources in early phases.
+5. Building a hosted global reputation system as part of the first verified-identity tranche.
+6. Relying on LLMs or agents inside the request path.
+7. Adding backward-compatibility aliases or migration clutter in this pre-launch stage.
 
 # Architectural Positioning
 
@@ -145,6 +146,15 @@ Each policy entry should express actions such as:
 
 This is the core operator feature the user asked for: allowing or blocking specific bots or agents based on authenticated identity.
 
+At the top level, the policy model should also expose a small number of obvious operator stances, for example:
+
+1. `deny_all_non_human`
+2. `allow_only_explicit_verified_identities`
+3. `allow_verified_by_category`
+4. `allow_verified_with_low_cost_profiles_only`
+
+These are operator authorization choices, not telemetry classifications.
+
 ## C. Service-Level Profiles
 
 Verified identity becomes more valuable if it can select a cheaper service profile.
@@ -163,6 +173,8 @@ This keeps Shuma aligned with the agentic-era dual strategy:
 
 1. cost-shift suspicious automation,
 2. reduce site cost for beneficial authenticated agents.
+
+It must remain explicit that these service profiles are granted by local policy. A successfully authenticated identity may still map to `denied`.
 
 ## D. Verification Model
 
@@ -240,11 +252,12 @@ Shuma should add a dedicated identity-policy surface for:
 1. enabling the identity subsystem,
 2. enabling native Web Bot Auth verification,
 3. enabling provider-normalized verified-bot inputs,
-4. freshness and replay windows,
-5. trusted directory sources,
-6. per-identity policy rules,
-7. default actions by category,
-8. service-level profile mapping.
+4. top-level non-human traffic stance,
+5. freshness and replay windows,
+6. trusted directory sources,
+7. per-identity policy rules,
+8. default actions by category,
+9. service-level profile mapping.
 
 ## Autotunable surfaces
 

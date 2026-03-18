@@ -144,9 +144,9 @@ Shuma still needs a monitoring redesign focused on operator questions:
 1. where are attackers being effectively intercepted,
 2. where are attackers probably getting through,
 3. what is the apparent human-friction cost,
-4. what did shadow mode predict would happen,
-5. what actually happened under enforced mode,
-6. and how should those two views stay clearly separated.
+4. when `shadow_mode` is active, what Shuma says it would have enforced,
+5. what actually happened while enforcement was active,
+6. and how should those two telemetry modes stay clearly separated without implying a paired live counterfactual for each request.
 
 This is a foundational prerequisite for autonomous tuning. If monitoring remains contributor-diagnostic rather than operator-decisional, the controller will lack the right evidence surface.
 

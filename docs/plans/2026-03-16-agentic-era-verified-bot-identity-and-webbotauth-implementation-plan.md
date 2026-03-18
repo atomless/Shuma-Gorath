@@ -15,6 +15,7 @@ Related context:
 3. Keep identity verification deterministic and request-path safe.
 4. Normalize native Web Bot Auth and provider-verified signals into one internal contract.
 5. Make verified identity visible to monitoring, dashboard policy surfaces, and the future oversight controller.
+6. Ensure authenticated identities can still be denied cleanly and obviously under a top-level operator non-human traffic stance.
 
 # Delivery Strategy
 
@@ -68,11 +69,12 @@ Add canonical config for:
 1. identity subsystem enablement,
 2. native Web Bot Auth enablement,
 3. provider-normalized verified-bot enablement,
-4. replay and clock-skew windows,
-5. directory cache TTLs and freshness requirements,
-6. named identity policy entries,
-7. category default actions,
-8. service-level profiles.
+4. top-level non-human traffic stance,
+5. replay and clock-skew windows,
+6. directory cache TTLs and freshness requirements,
+7. named identity policy entries,
+8. category default actions,
+9. service-level profiles.
 
 Acceptance:
 
@@ -179,7 +181,8 @@ Acceptance:
 
 1. operators can allow or block specific authenticated bots or agents,
 2. policy precedence is explicit and testable,
-3. named deny does not depend on user-agent-only matching.
+3. named deny does not depend on user-agent-only matching,
+4. a top-level "deny all non-human traffic" stance remains easy to express without forcing operators to enumerate every identity first.
 
 ## WB-3.2 Add downgrade and violation handling
 
@@ -242,13 +245,15 @@ Add dashboard/admin support for:
 
 1. enabling identity verification modes,
 2. managing named identity policies,
-3. viewing directory/source freshness,
-4. assigning low-cost profiles.
+3. selecting the top-level non-human traffic stance,
+4. viewing directory/source freshness,
+5. assigning low-cost profiles.
 
 Acceptance:
 
 1. this surface is clearly separate from `robots.txt` controls,
-2. trust-boundary settings are labeled as manual-only.
+2. trust-boundary settings are labeled as manual-only,
+3. the UI makes it obvious that "verified" does not mean "allowed".
 
 ## WB-5.3 Update documentation
 

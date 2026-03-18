@@ -63,7 +63,7 @@ The right next move is not to keep piling more subsystem widgets into Monitoring
 2. human friction,
 3. suspicious traffic cost,
 4. defence effectiveness,
-5. shadow-vs-enforced comparison,
+5. explicit shadow-mode and enforced-mode separation,
 6. verified-agent outcomes once identity exists.
 
 # What Shuma Collects Today
@@ -82,7 +82,7 @@ The event log remains the richest per-event source. Event records currently carr
 Important current truth:
 
 1. monitoring-facing reads now exclude `AdminAction` and any row with an `admin` actor, so Monitoring is external-traffic-only.
-2. shadow execution is already represented in a durable event contract, which is good groundwork for the eventual shadow-vs-enforced operator model.
+2. shadow execution is already represented in a durable event contract, which is good groundwork for a truthful shadow-mode operator view when `shadow_mode` is active.
 
 Limitations:
 
@@ -206,7 +206,7 @@ That helps operators answer:
 2. which sources are repeatedly hitting specific defences,
 3. whether a specific subsystem is carrying too much of the defensive burden.
 
-## C. Shadow-vs-enforced metadata groundwork
+## C. Shadow-mode metadata groundwork
 
 The system already records enough per-event truth to keep shadow-mode and enforced-mode semantics separate:
 
@@ -447,12 +447,12 @@ Per defence family:
 
 ### 5. Shadow Comparison
 
-For the same period:
+This should be a mode-aware monitoring view, not a paired counterfactual replay of the same requests:
 
-1. what was enforced,
-2. what shadow mode says would have happened,
-3. the difference between the two,
-4. where shadow suggests stricter or looser tuning may be appropriate.
+1. when `shadow_mode` is active, what Shuma says it would have challenged, mazed, blocked, tarpitted, or otherwise enforced,
+2. when enforcement is active, what Shuma actually challenged, mazed, blocked, tarpitted, or otherwise enforced,
+3. clear filtering and labeling so mixed windows do not muddy the two modes together,
+4. later replay, canary, or sim-vs-real analysis may compare those modes, but the default live Monitoring contract should not imply a paired alternate-universe comparison for each request.
 
 ### 6. Red-Team Evidence
 
@@ -484,7 +484,7 @@ Should answer:
 1. what external traffic is happening,
 2. how effective the defences are,
 3. what friction humans and beneficial bots are seeing,
-4. what shadow predicts versus what enforcement actually did.
+4. when `shadow_mode` is active, what would have been enforced, kept clearly separate from what was actually enforced.
 
 Should not be the default home for:
 

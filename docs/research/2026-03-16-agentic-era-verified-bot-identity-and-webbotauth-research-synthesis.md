@@ -49,6 +49,7 @@ Shuma implication:
    - identity/authentication,
    - local authorization policy,
    - optional external reputation/intelligence.
+4. The operator must have an obvious, simple way to deny all non-human traffic, including successfully authenticated bots or agents, because many deployments will want cryptographic identity for recognition and reporting without offering any privileged access.
 
 ### 2. RFC 9421 gives the ecosystem a real cryptographic request-authentication base
 
@@ -150,6 +151,7 @@ Shuma implication:
    - restrict by scope or rate,
    - observe,
    - deny.
+4. Shuma should also support a global operator stance such as "deny all non-human traffic by default," with per-identity exceptions only when the operator chooses to create them.
 
 ### 6. Low-friction beneficial-agent handling is not only about allowing access
 
@@ -163,11 +165,13 @@ The new verified-bot identity evidence sharpens that:
 1. authenticated user-triggered agents may be conversion-positive traffic,
 2. but they may also be costlier than search bots because they request user-specific browsing or retrieval work,
 3. so the best operator outcome is often not "let them browse like a browser," but "give them cheaper structured access under clear policy."
+4. some operators will still want to deny all non-human traffic, and verified identity should make that choice easier to express and audit, not harder.
 
 Shuma implication:
 
-1. Verified identity should eventually connect to low-cost content profiles, not only enforcement bypass.
-2. This is where Shuma's future agent-oriented content work belongs.
+1. Verified identity should eventually connect to operator-controlled low-cost content profiles, not only enforcement bypass.
+2. Low-friction treatment must remain a policy choice, not a side effect of successful verification.
+3. This is where Shuma's future agent-oriented content work belongs.
 
 ### 7. Legacy UA and IP signals are still useful, but they should become secondary identity aids
 
@@ -215,6 +219,8 @@ R3. Keep identity/authentication separate from reputation/intelligence and from 
 R4. Support per-identity policy, not just per-company or per-user-agent policy.
 
 R5. Treat authenticated identity as an input to authorization and service-level selection, not automatic allow.
+
+R5a. Provide an obvious top-level operator stance for non-human traffic, including the ability to deny all non-human traffic regardless of successful authentication and then carve out explicit exceptions only where desired.
 
 R6. Keep the request path deterministic and Rust-owned. Agents and LLMs must not participate in identity verification decisions on the hot path.
 

@@ -60,6 +60,10 @@ Completed archive index:
    Research synthesis for Web Bot Auth, HTTP Message Signatures, signed agents, verified bots, and the local policy and trust model Shuma needs for authenticated automated traffic.
 4. [`2026-03-17-operator-decision-support-telemetry-audit.md`](2026-03-17-operator-decision-support-telemetry-audit.md)
    Repo-grounded audit of current telemetry collection, operator-useful decision-support signals, contributor-only diagnostics, and the highest-value monitoring gaps Shuma should close before the Monitoring overhaul.
+5. [`2026-03-18-agentic-era-operator-telemetry-research-synthesis.md`](2026-03-18-agentic-era-operator-telemetry-research-synthesis.md)
+   State-of-the-art research synthesis for the telemetry Shuma should collect in the agentic era, grounded in current Cloudflare, Google, OpenAI, Anthropic, Web Bot Auth, and HTTP Message Signatures guidance on traffic classification, detection layering, operator analytics, and verified-agent handling.
+6. [`2026-03-18-cost-aware-operator-telemetry-gap-analysis.md`](2026-03-18-cost-aware-operator-telemetry-gap-analysis.md)
+   Cost-aware gap analysis comparing Shuma's current telemetry collection to the desired operator-grade model, with explicit attention to hot-read budget, retained-footprint economics, and the minimum next telemetry tranche that improves operator decision support without regressing efficiency.
 
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 
