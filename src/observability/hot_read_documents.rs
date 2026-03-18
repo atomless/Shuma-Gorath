@@ -5,13 +5,14 @@ use serde_json::Value;
 use std::collections::BTreeMap;
 
 use crate::observability::hot_read_contract::{
-    monitoring_bootstrap_component_contracts, HotReadProjectionModel, TelemetryExactness,
+    monitoring_bootstrap_component_contracts, HotReadOwnershipTier, HotReadProjectionModel,
+    TelemetryBasis, TelemetryExactness,
 };
 use crate::observability::monitoring::MonitoringSummary;
 use crate::observability::retention::RetentionHealth;
 
 const HOT_READ_PREFIX: &str = "telemetry:hot_read:v1";
-const HOT_READ_BOOTSTRAP_SCHEMA_VERSION: &str = "telemetry-hot-read-bootstrap.v4";
+const HOT_READ_BOOTSTRAP_SCHEMA_VERSION: &str = "telemetry-hot-read-bootstrap.v5";
 const HOT_READ_RETENTION_SCHEMA_VERSION: &str = "telemetry-hot-read-retention.v1";
 const HOT_READ_SECURITY_PRIVACY_SCHEMA_VERSION: &str = "telemetry-hot-read-security-privacy.v1";
 const HOT_READ_RECENT_EVENTS_TAIL_SCHEMA_VERSION: &str = "telemetry-hot-read-recent-events.v4";
@@ -55,6 +56,7 @@ pub(crate) struct HotReadRepairPolicy {
 pub(crate) struct HotReadDocumentContract {
     pub document_key: &'static str,
     pub schema_version: &'static str,
+    pub ownership_tier: HotReadOwnershipTier,
     pub max_serialized_bytes: usize,
     pub freshness: HotReadFreshnessBudget,
     pub repair_policy: HotReadRepairPolicy,
@@ -72,6 +74,8 @@ pub(crate) struct HotReadDocumentMetadata {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct HotReadComponentMetadata {
     pub exactness: TelemetryExactness,
+    pub basis: TelemetryBasis,
+    pub ownership_tier: HotReadOwnershipTier,
     pub refreshed_at_ts: u64,
 }
 
@@ -184,6 +188,7 @@ const MONITORING_BOOTSTRAP_DRILL_DOWN_ONLY_FIELDS: [&str; 8] = [
 const MONITORING_BOOTSTRAP_DOCUMENT_CONTRACT: HotReadDocumentContract = HotReadDocumentContract {
     document_key: "telemetry:hot_read:v1:bootstrap:<site>",
     schema_version: HOT_READ_BOOTSTRAP_SCHEMA_VERSION,
+    ownership_tier: HotReadOwnershipTier::BootstrapCritical,
     max_serialized_bytes: HOT_READ_BOOTSTRAP_MAX_BYTES,
     freshness: HotReadFreshnessBudget {
         stale_after_seconds: 15,
@@ -201,6 +206,7 @@ const MONITORING_RETENTION_SUMMARY_DOCUMENT_CONTRACT: HotReadDocumentContract =
     HotReadDocumentContract {
         document_key: "telemetry:hot_read:v1:retention_summary:<site>",
         schema_version: HOT_READ_RETENTION_SCHEMA_VERSION,
+        ownership_tier: HotReadOwnershipTier::SupportingSummary,
         max_serialized_bytes: HOT_READ_RETENTION_MAX_BYTES,
         freshness: HotReadFreshnessBudget {
             stale_after_seconds: 30,
@@ -218,6 +224,7 @@ const MONITORING_SECURITY_PRIVACY_SUMMARY_DOCUMENT_CONTRACT: HotReadDocumentCont
     HotReadDocumentContract {
         document_key: "telemetry:hot_read:v1:security_privacy_summary:<site>",
         schema_version: HOT_READ_SECURITY_PRIVACY_SCHEMA_VERSION,
+        ownership_tier: HotReadOwnershipTier::SupportingSummary,
         max_serialized_bytes: HOT_READ_SECURITY_PRIVACY_MAX_BYTES,
         freshness: HotReadFreshnessBudget {
             stale_after_seconds: 30,
@@ -235,6 +242,7 @@ const MONITORING_RECENT_EVENTS_TAIL_DOCUMENT_CONTRACT: HotReadDocumentContract =
     HotReadDocumentContract {
         document_key: "telemetry:hot_read:v1:recent_events_tail:<site>",
         schema_version: HOT_READ_RECENT_EVENTS_TAIL_SCHEMA_VERSION,
+        ownership_tier: HotReadOwnershipTier::SupportingSummary,
         max_serialized_bytes: HOT_READ_RECENT_EVENTS_TAIL_MAX_BYTES,
         freshness: HotReadFreshnessBudget {
             stale_after_seconds: 10,
@@ -252,6 +260,7 @@ const MONITORING_RECENT_SIM_RUNS_DOCUMENT_CONTRACT: HotReadDocumentContract =
     HotReadDocumentContract {
         document_key: "telemetry:hot_read:v1:recent_sim_runs:<site>",
         schema_version: HOT_READ_RECENT_SIM_RUNS_SCHEMA_VERSION,
+        ownership_tier: HotReadOwnershipTier::SupportingSummary,
         max_serialized_bytes: HOT_READ_RECENT_SIM_RUNS_MAX_BYTES,
         freshness: HotReadFreshnessBudget {
             stale_after_seconds: 10,
@@ -268,6 +277,7 @@ const MONITORING_RECENT_SIM_RUNS_DOCUMENT_CONTRACT: HotReadDocumentContract =
 const MONITORING_SUMMARY_DOCUMENT_CONTRACT: HotReadDocumentContract = HotReadDocumentContract {
     document_key: "telemetry:hot_read:v1:monitoring_summary:<site>",
     schema_version: HOT_READ_MONITORING_SUMMARY_SCHEMA_VERSION,
+    ownership_tier: HotReadOwnershipTier::BootstrapCritical,
     max_serialized_bytes: HOT_READ_MONITORING_SUMMARY_MAX_BYTES,
     freshness: HotReadFreshnessBudget {
         stale_after_seconds: 15,
@@ -371,6 +381,8 @@ pub(crate) fn monitoring_hot_read_component_metadata(
                 component.key.to_string(),
                 HotReadComponentMetadata {
                     exactness: component.exactness,
+                    basis: component.basis,
+                    ownership_tier: component.ownership_tier,
                     refreshed_at_ts,
                 },
             )
@@ -392,12 +404,16 @@ mod tests {
         monitoring_summary_top_limit,
         monitoring_security_privacy_summary_document_contract, HotReadUpdateTrigger,
     };
-    use crate::observability::hot_read_contract::TelemetryExactness;
+    use crate::observability::hot_read_contract::{
+        HotReadOwnershipTier, TelemetryBasis, TelemetryExactness,
+    };
+    use serde_json::Value;
 
     #[test]
     fn monitoring_bootstrap_contract_is_bounded_to_payload_budget() {
         let contract = monitoring_bootstrap_document_contract();
-        assert_eq!(contract.schema_version, "telemetry-hot-read-bootstrap.v4");
+        assert_eq!(contract.schema_version, "telemetry-hot-read-bootstrap.v5");
+        assert_eq!(contract.ownership_tier, HotReadOwnershipTier::BootstrapCritical);
         assert_eq!(contract.max_serialized_bytes, 64 * 1024);
         assert_eq!(monitoring_bootstrap_window_hours(), 24);
         assert_eq!(monitoring_recent_events_tail_max_records(), 40);
@@ -460,6 +476,67 @@ mod tests {
                 .expect("security privacy metadata")
                 .exactness,
             TelemetryExactness::BestEffort
+        );
+        assert_eq!(
+            metadata
+                .get("monitoring_summary")
+                .expect("monitoring summary metadata")
+                .exactness,
+            TelemetryExactness::BestEffort
+        );
+    }
+
+    #[test]
+    fn component_metadata_serializes_basis_and_ownership_tier() {
+        let metadata = monitoring_hot_read_component_metadata(1_700_000_000);
+        let recent_events = metadata
+            .get("recent_events_tail")
+            .expect("recent events metadata");
+        let value = serde_json::to_value(recent_events).expect("metadata serializes");
+        let object = value.as_object().expect("metadata is object");
+        assert_eq!(
+            object.get("basis"),
+            Some(&Value::String("observed".to_string()))
+        );
+        assert_eq!(
+            object.get("ownership_tier"),
+            Some(&Value::String("supporting_summary".to_string()))
+        );
+        assert_eq!(
+            object.get("exactness"),
+            Some(&Value::String("exact".to_string()))
+        );
+    }
+
+    #[test]
+    fn document_contracts_serialize_ownership_tier() {
+        let bootstrap = serde_json::to_value(monitoring_bootstrap_document_contract())
+            .expect("bootstrap contract serializes");
+        let bootstrap_object = bootstrap.as_object().expect("bootstrap is object");
+        assert_eq!(
+            bootstrap_object.get("ownership_tier"),
+            Some(&Value::String("bootstrap_critical".to_string()))
+        );
+
+        let recent_events = serde_json::to_value(monitoring_recent_events_tail_document_contract())
+            .expect("recent events contract serializes");
+        let recent_events_object = recent_events.as_object().expect("recent events is object");
+        assert_eq!(
+            recent_events_object.get("ownership_tier"),
+            Some(&Value::String("supporting_summary".to_string()))
+        );
+    }
+
+    #[test]
+    fn bootstrap_metadata_exposes_monitoring_summary_basis_and_tier() {
+        let metadata = monitoring_hot_read_component_metadata(1_700_000_000);
+        let monitoring_summary = metadata
+            .get("monitoring_summary")
+            .expect("monitoring summary metadata");
+        assert_eq!(monitoring_summary.basis, TelemetryBasis::Mixed);
+        assert_eq!(
+            monitoring_summary.ownership_tier,
+            HotReadOwnershipTier::BootstrapCritical
         );
     }
 

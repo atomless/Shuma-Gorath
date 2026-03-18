@@ -5,6 +5,11 @@ const PURE_DECISION_MODULES: &[(&str, &str)] = &[
     ("request_facts.rs", include_str!("request_facts.rs")),
     ("policy_graph.rs", include_str!("policy_graph.rs")),
     ("policy_taxonomy.rs", include_str!("policy_taxonomy.rs")),
+    ("request_outcome.rs", include_str!("request_outcome.rs")),
+    (
+        "traffic_classification.rs",
+        include_str!("traffic_classification.rs"),
+    ),
     (
         "effect_intents/plan_builder.rs",
         include_str!("effect_intents/plan_builder.rs"),

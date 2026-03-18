@@ -9,6 +9,34 @@ impl RequestFlowCapabilityToken {
     }
 }
 
+fn clean_allow_monitoring_intents(
+    traffic_origin: crate::runtime::request_outcome::TrafficOrigin,
+    path: &str,
+    sample_percent: u8,
+    shadow_mode_active: bool,
+) -> Vec<crate::runtime::effect_intents::EffectIntent> {
+    if matches!(
+        traffic_origin,
+        crate::runtime::request_outcome::TrafficOrigin::AdversarySim
+    ) {
+        return Vec::new();
+    }
+
+    let mut intents = vec![
+        crate::runtime::effect_intents::EffectIntent::RecordPolicyMatch(
+            crate::runtime::policy_taxonomy::PolicyTransition::AllowClean,
+        ),
+        crate::runtime::effect_intents::EffectIntent::RecordLikelyHumanSample {
+            sample_percent,
+            sample_hint: path.to_string(),
+        },
+    ];
+    if shadow_mode_active {
+        intents.push(crate::runtime::effect_intents::EffectIntent::RecordShadowPassThrough);
+    }
+    intents
+}
+
 /// Main handler logic, testable as a plain Rust function.
 pub(crate) fn handle_request(req: &Request) -> Response {
     if let Err(err) = crate::config::validate_env_only_once() {
@@ -99,28 +127,43 @@ pub(crate) fn handle_request(req: &Request) -> Response {
             None,
         );
     };
+    let traffic_origin = if crate::runtime::sim_telemetry::current_metadata().is_some() {
+        crate::runtime::request_outcome::TrafficOrigin::AdversarySim
+    } else {
+        crate::runtime::request_outcome::TrafficOrigin::Live
+    };
+    let finalize_handled_response =
+        |handled: crate::runtime::request_outcome::HandledRequestResponse| {
+            let outcome =
+                crate::runtime::request_outcome::RenderedRequestOutcome::from_handled_response(
+                    traffic_origin,
+                    &handled,
+                );
+            execute_request_intents(vec![
+                crate::runtime::effect_intents::EffectIntent::RecordRequestOutcome { outcome },
+            ]);
+            handled.rendered.response
+        };
     let forward_allow_response = |reason: &str| {
         if crate::runtime::shadow_mode::shadow_mode_active(&cfg)
             && !crate::runtime::shadow_mode::shadow_passthrough_available()
         {
-            return crate::runtime::shadow_mode::synthetic_shadow_allow_response();
+            return crate::runtime::request_outcome::RenderedResponseEvidence::synthetic_shadow_allow(
+                crate::runtime::shadow_mode::synthetic_shadow_allow_response(),
+            );
         }
         crate::runtime::effect_intents::render_forward_allow_response(&request_effect_context, reason)
     };
     let record_allow_clean = || {
-        let mut intents = vec![
-            crate::runtime::effect_intents::EffectIntent::RecordPolicyMatch(
-                crate::runtime::policy_taxonomy::PolicyTransition::AllowClean,
-            ),
-            crate::runtime::effect_intents::EffectIntent::RecordLikelyHumanSample {
-                sample_percent: cfg.ip_range_suggestions_likely_human_sample_percent,
-                sample_hint: path.to_string(),
-            },
-        ];
-        if crate::runtime::shadow_mode::shadow_mode_active(&cfg) {
-            intents.push(crate::runtime::effect_intents::EffectIntent::RecordShadowPassThrough);
+        let intents = clean_allow_monitoring_intents(
+            traffic_origin,
+            path,
+            cfg.ip_range_suggestions_likely_human_sample_percent,
+            crate::runtime::shadow_mode::shadow_mode_active(&cfg),
+        );
+        if !intents.is_empty() {
+            execute_request_intents(intents);
         }
-        execute_request_intents(intents);
     };
     execute_request_intents(crate::provider_backend_visibility_intents(&provider_registry));
     execute_request_intents(vec![crate::policy_signal_intent(
@@ -142,9 +185,16 @@ pub(crate) fn handle_request(req: &Request) -> Response {
     if path == provider_registry.fingerprint_signal_provider().report_path()
         && *req.method() == spin_sdk::http::Method::Post
     {
-        return provider_registry
-            .fingerprint_signal_provider()
-            .handle_report(store, req);
+        return finalize_handled_response(crate::runtime::request_outcome::HandledRequestResponse {
+            branch: crate::runtime::traffic_classification::CurrentRuntimeBranch::DefenceFollowup,
+            execution_mode: request_effect_context.execution_mode,
+            rendered: crate::runtime::request_outcome::RenderedResponseEvidence::local(
+                provider_registry
+                    .fingerprint_signal_provider()
+                    .handle_report(store, req),
+                crate::runtime::request_outcome::ResponseKind::DefenceFollowupResponse,
+            ),
+        });
     }
 
     if path == crate::maze::checkpoint_path() {
@@ -159,23 +209,51 @@ pub(crate) fn handle_request(req: &Request) -> Response {
             crate::observability::metrics::MetricName::MazeCheckpointOutcomes,
             Some(checkpoint_outcome.to_string()),
         )]);
-        return response;
+        return finalize_handled_response(crate::runtime::request_outcome::HandledRequestResponse {
+            branch: crate::runtime::traffic_classification::CurrentRuntimeBranch::DefenceFollowup,
+            execution_mode: request_effect_context.execution_mode,
+            rendered: crate::runtime::request_outcome::RenderedResponseEvidence::local(
+                response,
+                crate::runtime::request_outcome::ResponseKind::CheckpointResponse,
+            ),
+        });
     }
 
     if path == crate::maze::issue_links_path() {
-        return crate::maze::runtime::handle_issue_links(store, &cfg, req, &ip, ua);
+        return finalize_handled_response(crate::runtime::request_outcome::HandledRequestResponse {
+            branch: crate::runtime::traffic_classification::CurrentRuntimeBranch::DefenceFollowup,
+            execution_mode: request_effect_context.execution_mode,
+            rendered: crate::runtime::request_outcome::RenderedResponseEvidence::local(
+                crate::maze::runtime::handle_issue_links(store, &cfg, req, &ip, ua),
+                crate::runtime::request_outcome::ResponseKind::DefenceFollowupResponse,
+            ),
+        });
     }
 
     if path == crate::tarpit::progress_path() {
-        return provider_registry
-            .maze_tarpit_provider()
-            .handle_tarpit_progress(req, store, &cfg, site_id, &ip, ua);
+        return finalize_handled_response(crate::runtime::request_outcome::HandledRequestResponse {
+            branch: crate::runtime::traffic_classification::CurrentRuntimeBranch::DefenceFollowup,
+            execution_mode: request_effect_context.execution_mode,
+            rendered: crate::runtime::request_outcome::RenderedResponseEvidence::local(
+                provider_registry
+                    .maze_tarpit_provider()
+                    .handle_tarpit_progress(req, store, &cfg, site_id, &ip, ua),
+                crate::runtime::request_outcome::ResponseKind::Tarpit,
+            ),
+        });
     }
 
     // Maze - route suspicious crawlers into deception space (only if enabled)
     if provider_registry.maze_tarpit_provider().is_maze_path(path) {
         if !cfg.maze_enabled {
-            return Response::new(404, "Not Found");
+            return finalize_handled_response(crate::runtime::request_outcome::HandledRequestResponse {
+                branch: crate::runtime::traffic_classification::CurrentRuntimeBranch::DefenceFollowup,
+                execution_mode: request_effect_context.execution_mode,
+                rendered: crate::runtime::request_outcome::RenderedResponseEvidence::local(
+                    Response::new(404, "Not Found"),
+                    crate::runtime::request_outcome::ResponseKind::DefenceFollowupResponse,
+                ),
+            });
         }
         let policy_match = crate::runtime::policy_taxonomy::resolve_policy_match(
             crate::runtime::policy_taxonomy::PolicyTransition::MazeTraversal,
@@ -186,19 +264,26 @@ pub(crate) fn handle_request(req: &Request) -> Response {
             ),
         ]);
         let event_outcome = policy_match.annotate_outcome("maze_page_served");
-        return provider_registry
-            .maze_tarpit_provider()
-            .serve_maze_with_tracking(
-                req,
-                store,
-                &cfg,
-                &ip,
-                ua,
-                path,
-                "maze_trap",
-                event_outcome.as_str(),
-                None,
-            );
+        return finalize_handled_response(crate::runtime::request_outcome::HandledRequestResponse {
+            branch: crate::runtime::traffic_classification::CurrentRuntimeBranch::DefenceFollowup,
+            execution_mode: request_effect_context.execution_mode,
+            rendered: crate::runtime::request_outcome::RenderedResponseEvidence::local(
+                provider_registry
+                    .maze_tarpit_provider()
+                    .serve_maze_with_tracking(
+                        req,
+                        store,
+                        &cfg,
+                        &ip,
+                        ua,
+                        path,
+                        "maze_trap",
+                        event_outcome.as_str(),
+                        None,
+                    ),
+                crate::runtime::request_outcome::ResponseKind::Maze,
+            ),
+        });
     }
 
     execute_request_intents(vec![crate::increment_metric_intent(
@@ -213,7 +298,11 @@ pub(crate) fn handle_request(req: &Request) -> Response {
             crate::observability::metrics::MetricName::AllowlistedTotal,
             None,
         )]);
-        return forward_allow_response("path_allowlist");
+        return finalize_handled_response(crate::runtime::request_outcome::HandledRequestResponse {
+            branch: crate::runtime::traffic_classification::CurrentRuntimeBranch::PathAllowlistBypass,
+            execution_mode: request_effect_context.execution_mode,
+            rendered: forward_allow_response("path_allowlist"),
+        });
     }
     // IP/CIDR allowlist
     if cfg.bypass_allowlists_enabled && crate::signals::allowlist::is_allowlisted(&ip, &cfg.allowlist) {
@@ -221,7 +310,11 @@ pub(crate) fn handle_request(req: &Request) -> Response {
             crate::observability::metrics::MetricName::AllowlistedTotal,
             None,
         )]);
-        return forward_allow_response("ip_allowlist");
+        return finalize_handled_response(crate::runtime::request_outcome::HandledRequestResponse {
+            branch: crate::runtime::traffic_classification::CurrentRuntimeBranch::IpAllowlistBypass,
+            execution_mode: request_effect_context.execution_mode,
+            rendered: forward_allow_response("ip_allowlist"),
+        });
     }
     let ip_range_evaluation = crate::signals::ip_range_policy::evaluate(&cfg, &ip);
     if let Some(response) = crate::runtime::policy_pipeline::maybe_handle_policy_graph_first_tranche(
@@ -237,27 +330,48 @@ pub(crate) fn handle_request(req: &Request) -> Response {
         &ip_range_evaluation,
         &request_capabilities,
     ) {
-        return response;
+        return finalize_handled_response(response);
     }
     // PoW endpoints (public, before JS verification)
     if path == "/pow" {
         if *req.method() != spin_sdk::http::Method::Get {
-            return Response::new(405, "Method Not Allowed");
+            return finalize_handled_response(crate::runtime::request_outcome::HandledRequestResponse {
+                branch: crate::runtime::traffic_classification::CurrentRuntimeBranch::DefenceFollowup,
+                execution_mode: request_effect_context.execution_mode,
+                rendered: crate::runtime::request_outcome::RenderedResponseEvidence::local(
+                    Response::new(405, "Method Not Allowed"),
+                    crate::runtime::request_outcome::ResponseKind::DefenceFollowupResponse,
+                ),
+            });
         }
-        return provider_registry
-            .challenge_engine_provider()
-            .handle_pow_challenge(
-                &ip,
-                ua,
-                cfg.pow_enabled,
-                cfg.pow_difficulty,
-                cfg.pow_ttl_seconds,
-            );
+        return finalize_handled_response(crate::runtime::request_outcome::HandledRequestResponse {
+            branch: crate::runtime::traffic_classification::CurrentRuntimeBranch::DefenceFollowup,
+            execution_mode: request_effect_context.execution_mode,
+            rendered: crate::runtime::request_outcome::RenderedResponseEvidence::local(
+                provider_registry
+                    .challenge_engine_provider()
+                    .handle_pow_challenge(
+                        &ip,
+                        ua,
+                        cfg.pow_enabled,
+                        cfg.pow_difficulty,
+                        cfg.pow_ttl_seconds,
+                    ),
+                crate::runtime::request_outcome::ResponseKind::DefenceFollowupResponse,
+            ),
+        });
     }
     if path == "/pow/verify" {
-        return provider_registry
-            .challenge_engine_provider()
-            .handle_pow_verify(req, &ip, cfg.pow_enabled);
+        return finalize_handled_response(crate::runtime::request_outcome::HandledRequestResponse {
+            branch: crate::runtime::traffic_classification::CurrentRuntimeBranch::DefenceFollowup,
+            execution_mode: request_effect_context.execution_mode,
+            rendered: crate::runtime::request_outcome::RenderedResponseEvidence::local(
+                provider_registry
+                    .challenge_engine_provider()
+                    .handle_pow_verify(req, &ip, cfg.pow_enabled),
+                crate::runtime::request_outcome::ResponseKind::DefenceFollowupResponse,
+            ),
+        });
     }
     if let Some(response) = crate::runtime::policy_pipeline::maybe_handle_policy_graph_second_tranche(
         req,
@@ -272,16 +386,77 @@ pub(crate) fn handle_request(req: &Request) -> Response {
         &ip_range_evaluation,
         &request_capabilities,
     ) {
-        return response;
+        return finalize_handled_response(response);
     }
 
     if let Some(response) = crate::runtime::sim_public::maybe_handle(req, path, &cfg) {
         if *response.status() == 200u16 {
             record_allow_clean();
         }
-        return response;
+        return finalize_handled_response(crate::runtime::request_outcome::HandledRequestResponse {
+            branch: crate::runtime::traffic_classification::CurrentRuntimeBranch::SimPublic,
+            execution_mode: request_effect_context.execution_mode,
+            rendered: crate::runtime::request_outcome::RenderedResponseEvidence::local(
+                response,
+                crate::runtime::request_outcome::ResponseKind::SimPublicResponse,
+            ),
+        });
     }
 
     record_allow_clean();
-    forward_allow_response("policy_clean_allow")
+    finalize_handled_response(crate::runtime::request_outcome::HandledRequestResponse {
+        branch: crate::runtime::traffic_classification::CurrentRuntimeBranch::CleanAllow {
+            not_a_bot_marker_valid: crate::challenge::has_valid_not_a_bot_marker(req, &ip, ua),
+        },
+        execution_mode: request_effect_context.execution_mode,
+        rendered: forward_allow_response("policy_clean_allow"),
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::clean_allow_monitoring_intents;
+
+    #[test]
+    fn clean_allow_monitoring_intents_skip_live_inference_for_adversary_sim_origin() {
+        let intents = clean_allow_monitoring_intents(
+            crate::runtime::request_outcome::TrafficOrigin::AdversarySim,
+            "/sim/public/landing",
+            25,
+            true,
+        );
+
+        assert!(intents.is_empty());
+    }
+
+    #[test]
+    fn clean_allow_monitoring_intents_preserve_live_signals() {
+        let intents = clean_allow_monitoring_intents(
+            crate::runtime::request_outcome::TrafficOrigin::Live,
+            "/pricing",
+            10,
+            true,
+        );
+
+        assert!(matches!(
+            intents.first(),
+            Some(crate::runtime::effect_intents::EffectIntent::RecordPolicyMatch(
+                crate::runtime::policy_taxonomy::PolicyTransition::AllowClean
+            ))
+        ));
+        assert!(matches!(
+            intents.get(1),
+            Some(
+                crate::runtime::effect_intents::EffectIntent::RecordLikelyHumanSample {
+                    sample_percent: 10,
+                    sample_hint
+                }
+            ) if sample_hint == "/pricing"
+        ));
+        assert!(matches!(
+            intents.get(2),
+            Some(crate::runtime::effect_intents::EffectIntent::RecordShadowPassThrough)
+        ));
+        assert_eq!(intents.len(), 3);
+    }
 }

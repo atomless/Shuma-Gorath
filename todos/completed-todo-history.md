@@ -4,6 +4,55 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-18)
 
+### Monitoring Telemetry Foundations: Stop Adversary-Sim Traffic From Polluting Clean-Allow Human Inference
+
+- [x] Correct the runtime clean-allow monitoring path so adversary-sim-origin traffic no longer emits live-only clean-allow or likely-human inference signals, regardless of whether the sim is traversing fallback `/sim/public/*` pages or a real hosted public surface.
+- [x] Why:
+  - the monitoring review surfaced an important semantic bug: the true boundary is `traffic_origin`, not whether the adversary is traversing dummy pages.
+  - Shuma's fallback `/sim/public/*` surface exists only so contributors and evaluators can see the system working without a real site behind it; it must not cause synthetic traffic to be treated as likely-human evidence in live operator telemetry.
+  - fixing this now prevents current `ip_range_suggestions` and future clean-allow denominator work from being polluted by adversary-sim traffic while preserving the broader plan to make origin-aware summaries first-class in `MON-TEL-1`.
+- [x] Evidence:
+  - `src/runtime/request_flow.rs`
+  - `Makefile`
+  - `docs/plans/2026-03-18-monitoring-traffic-lane-and-denominator-contract.md`
+  - `docs/plans/2026-03-18-monitoring-request-outcome-telemetry-hook-contract.md`
+  - `make test-monitoring-telemetry-foundation-unit`
+  - `git diff --check`
+
+### Monitoring Telemetry Foundations: Complete The Prerequisite Foundation Tranche
+
+- [x] Implement the full prerequisite foundation for `MON-TEL-1`, including hot-read exactness or basis or ownership metadata, the canonical traffic-lane and measurement-scope model, and the first runtime-owned request-outcome finalization hook that future bounded counters and operator summaries will reuse.
+- [x] Why:
+  - the telemetry roadmap was at the point where continuing without implementation would leave the contracts theoretical; we needed to land the shared runtime and hot-read foundations now so the next tranche can add operator summaries without inventing local patterns or drifting from the architecture.
+  - this work had to preserve the project's existing telemetry-discipline: no widened event tails, no second analytics pipeline, no fast-path surprise cost, and no contributor-only semantics disguised as operator truth.
+  - landing the foundation cleanly also meant proving it end to end: focused unit coverage while iterating, then a fresh full-suite pass to confirm the new runtime and hot-read contracts did not destabilize the broader product.
+- [x] Delivered:
+  - `src/observability/hot_read_contract.rs`, `src/observability/hot_read_documents.rs`, and `src/observability/hot_read_projection.rs` now carry explicit exactness, evidentiary basis, and ownership-tier metadata for operator summaries, including a first-class monitoring-summary contract in bootstrap metadata.
+  - `src/runtime/traffic_classification.rs` establishes the shared `MeasurementScope`, `RouteActionFamily`, `TrafficLane`, `PolicySource`, and current-runtime branch mapping contract, including the explicit decision to keep static-bypass traffic excluded until a low-cost accounting path exists.
+  - `src/runtime/request_outcome.rs` and the related runtime/effect-intent wiring give Shuma one reusable final-outcome foundation for store-backed request branches, preserving rendered-versus-intended shadow truth and keeping emission ownership in request flow.
+  - `Makefile` now exposes a tighter focused verification target for this tranche so future iteration can stay surgical without dragging unrelated suites into every change.
+- [x] Evidence:
+  - `src/observability/hot_read_contract.rs`
+  - `src/observability/hot_read_documents.rs`
+  - `src/observability/hot_read_projection.rs`
+  - `src/runtime/traffic_classification.rs`
+  - `src/runtime/request_outcome.rs`
+  - `src/runtime/request_flow.rs`
+  - `src/runtime/policy_pipeline.rs`
+  - `src/runtime/effect_intents/response_renderer.rs`
+  - `src/runtime/effect_intents/intent_executor.rs`
+  - `docs/plans/2026-03-18-monitoring-telemetry-foundations-architectural-necessities.md`
+  - `docs/plans/2026-03-18-monitoring-traffic-lane-and-denominator-contract.md`
+  - `docs/plans/2026-03-18-monitoring-request-outcome-telemetry-hook-contract.md`
+  - `docs/plans/2026-03-18-monitoring-operator-summary-exactness-contract.md`
+  - `docs/plans/2026-03-18-monitoring-bootstrap-and-supporting-summary-ownership-contract.md`
+  - `Makefile`
+  - `make test-monitoring-telemetry-foundation-unit`
+  - `make test-dashboard-unit`
+  - `make test`
+  - `.spin/last-full-test-pass.json`
+  - `git diff --check`
+
 ### Monitoring Telemetry Foundations: Capture The Remaining Implementation Guardrails From Review
 
 - [x] Turn the latest architecture-review findings into explicit design contracts and backlog guardrails, covering operator-summary exactness, summary ownership tiers, and tighter execution constraints on the active monitoring-telemetry tranche.

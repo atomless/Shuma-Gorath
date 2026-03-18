@@ -1,6 +1,5 @@
-use spin_sdk::http::Response;
-
 use crate::runtime::capabilities::PolicyExecutionCapabilities;
+use crate::runtime::request_outcome::{RenderedResponseEvidence, ResponseKind};
 
 use super::intent_executor::{apply_ban_intent, apply_event_log_intent, apply_metric_intent};
 use super::intent_types::{EffectExecutionContext, EffectIntent, ResponseIntent, ShadowAction};
@@ -8,7 +7,7 @@ use super::intent_types::{EffectExecutionContext, EffectIntent, ResponseIntent, 
 pub(crate) fn render_forward_allow_response(
     context: &EffectExecutionContext<'_>,
     reason: &str,
-) -> Response {
+) -> RenderedResponseEvidence {
     let started = std::time::Instant::now();
     crate::observability::metrics::record_forward_attempt(context.store);
     let forward = crate::runtime::upstream_proxy::forward_allow_request(
@@ -24,18 +23,23 @@ pub(crate) fn render_forward_allow_response(
     } else {
         crate::observability::metrics::record_forward_success(context.store, latency_ms);
     }
-    forward.response
+    RenderedResponseEvidence::forwarded(forward.response, forward.failure_class, None)
 }
 
 pub(crate) fn render_shadow_allow_response(
     context: &EffectExecutionContext<'_>,
     action: ShadowAction,
-) -> Response {
+) -> RenderedResponseEvidence {
     if crate::runtime::shadow_mode::shadow_passthrough_available() {
         let reason = format!("shadow_mode_shadow_{}", action.as_str());
-        return render_forward_allow_response(context, reason.as_str());
+        let mut evidence = render_forward_allow_response(context, reason.as_str());
+        evidence.intended_action = Some(action);
+        return evidence;
     }
-    crate::runtime::shadow_mode::synthetic_shadow_response(action)
+    RenderedResponseEvidence::synthetic_shadow_action(
+        crate::runtime::shadow_mode::synthetic_shadow_response(action),
+        action,
+    )
 }
 
 pub(super) fn execute_response_intent(
@@ -43,44 +47,51 @@ pub(super) fn execute_response_intent(
     facts: &crate::runtime::request_facts::RequestFacts,
     context: &EffectExecutionContext<'_>,
     capabilities: &PolicyExecutionCapabilities,
-) -> Option<Response> {
+) -> Option<RenderedResponseEvidence> {
     let _response_privileged = capabilities.response_privileged();
     match response_intent {
         ResponseIntent::Continue => None,
         ResponseIntent::ForwardAllow { reason } => {
             Some(render_forward_allow_response(context, reason.as_str()))
         }
-        ResponseIntent::BlockPage { status, reason } => {
-            Some(Response::new(status, crate::enforcement::block_page::render_block_page(reason)))
-        }
-        ResponseIntent::PlainTextBlock { body } => Some(
-            Response::builder()
+        ResponseIntent::BlockPage { status, reason } => Some(RenderedResponseEvidence::local(
+            spin_sdk::http::Response::new(
+                status,
+                crate::enforcement::block_page::render_block_page(reason),
+            ),
+            ResponseKind::BlockPage,
+        )),
+        ResponseIntent::PlainTextBlock { body } => Some(RenderedResponseEvidence::local(
+            spin_sdk::http::Response::builder()
                 .status(403)
                 .header("Content-Type", "text/plain; charset=utf-8")
                 .header("Cache-Control", "no-store")
                 .body(body)
                 .build(),
-        ),
-        ResponseIntent::DropConnection => Some(
-            Response::builder()
+            ResponseKind::PlainTextBlock,
+        )),
+        ResponseIntent::DropConnection => Some(RenderedResponseEvidence::local(
+            spin_sdk::http::Response::builder()
                 .status(444)
                 .body("")
                 .build(),
-        ),
-        ResponseIntent::Redirect { location } => Some(
-            Response::builder()
+            ResponseKind::DropConnection,
+        )),
+        ResponseIntent::Redirect { location } => Some(RenderedResponseEvidence::local(
+            spin_sdk::http::Response::builder()
                 .status(308)
                 .header("Location", location)
                 .header("Cache-Control", "no-store")
                 .body("")
                 .build(),
-        ),
+            ResponseKind::Redirect,
+        )),
         ResponseIntent::Maze {
             entry_path,
             event_reason,
             event_outcome,
             botness_score,
-        } => Some(
+        } => Some(RenderedResponseEvidence::local(
             context
                 .provider_registry
                 .maze_tarpit_provider()
@@ -95,8 +106,9 @@ pub(super) fn execute_response_intent(
                     event_outcome.as_str(),
                     botness_score,
                 ),
-        ),
-        ResponseIntent::Challenge => Some(
+            ResponseKind::Maze,
+        )),
+        ResponseIntent::Challenge => Some(RenderedResponseEvidence::local(
             context
                 .provider_registry
                 .challenge_engine_provider()
@@ -105,19 +117,23 @@ pub(super) fn execute_response_intent(
                     context.cfg.challenge_puzzle_transform_count as usize,
                     context.cfg.challenge_puzzle_seed_ttl_seconds,
                 ),
-        ),
+            ResponseKind::Challenge,
+        )),
         ResponseIntent::NotABot => {
             let not_a_bot_response = context
                 .provider_registry
                 .challenge_engine_provider()
                 .render_not_a_bot(context.req, context.cfg);
-            Some(crate::maze::covert_decoy::maybe_inject_non_maze_decoy(
-                context.req,
-                context.cfg,
-                context.ip,
-                context.ua,
-                not_a_bot_response,
-                facts.botness_score,
+            Some(RenderedResponseEvidence::local(
+                crate::maze::covert_decoy::maybe_inject_non_maze_decoy(
+                    context.req,
+                    context.cfg,
+                    context.ip,
+                    context.ua,
+                    not_a_bot_response,
+                    facts.botness_score,
+                ),
+                ResponseKind::NotABot,
             ))
         }
         ResponseIntent::JsChallenge => {
@@ -125,15 +141,18 @@ pub(super) fn execute_response_intent(
                 .provider_registry
                 .fingerprint_signal_provider()
                 .report_path();
-            Some(crate::signals::js_verification::inject_js_challenge(
-                context.ip,
-                context.ua,
-                report_endpoint,
-                context.cfg.pow_enabled,
-                context.cfg.pow_difficulty,
-                context.cfg.pow_ttl_seconds,
-                context.cfg.cdp_probe_family,
-                context.cfg.cdp_probe_rollout_percent,
+            Some(RenderedResponseEvidence::local(
+                crate::signals::js_verification::inject_js_challenge(
+                    context.ip,
+                    context.ua,
+                    report_endpoint,
+                    context.cfg.pow_enabled,
+                    context.cfg.pow_difficulty,
+                    context.cfg.pow_ttl_seconds,
+                    context.cfg.cdp_probe_family,
+                    context.cfg.cdp_probe_rollout_percent,
+                ),
+                ResponseKind::JsChallenge,
             ))
         }
         ResponseIntent::IpRangeTarpit {
@@ -177,7 +196,7 @@ pub(super) fn execute_response_intent(
                         intent,
                     );
                 }
-                return Some(response);
+                return Some(RenderedResponseEvidence::local(response, ResponseKind::Tarpit));
             }
 
             let transition = crate::runtime::policy_taxonomy::PolicyTransition::IpRangeTarpit(
@@ -189,7 +208,7 @@ pub(super) fn execute_response_intent(
                 let event_outcome = policy_match.annotate_outcome(
                     format!("{} tarpit_unavailable fallback=maze", base_outcome).as_str(),
                 );
-                return Some(
+                return Some(RenderedResponseEvidence::local(
                     context
                         .provider_registry
                         .maze_tarpit_provider()
@@ -204,7 +223,8 @@ pub(super) fn execute_response_intent(
                             event_outcome.as_str(),
                             None,
                         ),
-                );
+                    ResponseKind::Maze,
+                ));
             }
 
             let block_intent = EffectIntent::IncrementMetric {
@@ -246,11 +266,14 @@ pub(super) fn execute_response_intent(
                 );
             }
 
-            Some(Response::new(
-                403,
-                crate::enforcement::block_page::render_block_page(
-                    crate::enforcement::block_page::BlockReason::IpRangePolicy,
+            Some(RenderedResponseEvidence::local(
+                spin_sdk::http::Response::new(
+                    403,
+                    crate::enforcement::block_page::render_block_page(
+                        crate::enforcement::block_page::BlockReason::IpRangePolicy,
+                    ),
                 ),
+                ResponseKind::BlockPage,
             ))
         }
     }

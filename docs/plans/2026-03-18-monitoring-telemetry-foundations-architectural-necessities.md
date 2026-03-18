@@ -1,5 +1,5 @@
 Date: 2026-03-18
-Status: Proposed prerequisite note
+Status: Settled and implemented prerequisite foundation
 
 Related context:
 

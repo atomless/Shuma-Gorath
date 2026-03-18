@@ -1,5 +1,5 @@
 Date: 2026-03-18
-Status: Proposed design
+Status: Settled and implemented foundation contract
 
 Related context:
 
@@ -302,7 +302,7 @@ The final hook must cover all terminal branches that matter to operator summarie
 3. forward-failure fallback responses
 4. static bypass responses
 5. allowlist bypass responses
-6. sim public responses that are intentionally part of monitored site-traffic semantics
+6. sim public responses that currently exist as fallback content-surface helpers for adversary-sim/demo scenarios
 7. checkpoint and tarpit-progress responses where subsystem follow-up accounting is required
 
 ## Explicit exclusions or reduced accounting
@@ -313,6 +313,12 @@ The final hook must cover all terminal branches that matter to operator summarie
 4. bootstrap failures where the store or config is unavailable before Shuma can perform meaningful monitored classification
 
 These may still return a `RenderedRequestOutcome`, but they should resolve to `measurement_scope=excluded` or `bypass_and_control` so they do not pollute primary operator counters.
+
+Important clarification:
+
+1. fallback `/sim/public/*` pages are not a justification for treating adversary-generated traffic as likely-human or clean live ingress,
+2. the critical split is `traffic_origin`, not dummy-surface versus real-surface path provenance,
+3. so live-only inference signals must not be emitted for adversary-sim-origin requests even when the request would otherwise look like a clean allow.
 
 # Important Implementation Consequence
 

@@ -39,7 +39,7 @@ Reference context:
   Blocker: defer execution until the operator monitoring overhaul defines which knobs are actionable, which remain diagnostic, and which are safe for future controller tuning.
 
 - [ ] MON-OVERHAUL-1 Redesign Monitoring as an operator decision surface with explicit enforced-vs-shadow separation and clear attacker-effectiveness vs human-friction visibility.
-  Blocker: keep the UI/surface redesign blocked until the active `MON-TEL-1` telemetry-foundation tranche lands, the prerequisite lane/outcome/exactness/bootstrap decisions in `2026-03-18-monitoring-telemetry-foundations-architectural-necessities.md` and its linked design contracts are settled, and the remaining section-ownership plan is written, so Monitoring is rebuilt on truthful lane, cost, and funnel summaries instead of inferring operator meaning from subsystem widgets or raw tails.
+  Blocker: keep the UI/surface redesign blocked until the active `MON-TEL-1` telemetry-foundation tranche lands and the remaining section-ownership plan is written. The prerequisite lane/outcome/exactness/bootstrap decisions from `2026-03-18-monitoring-telemetry-foundations-architectural-necessities.md` and its linked design contracts are now settled and implemented; the remaining blocker is the operator-grade summaries themselves.
 
 - [ ] SIM-RET-1 Define a dedicated retention and disposal model for adversary-sim telemetry distinct from real-traffic telemetry.
   Blocker: defer execution until mature adversary-sim lane planning settles the expected telemetry classes, retention value horizon, and audit residue needed after tune-confirm-act loops.

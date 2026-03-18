@@ -6,7 +6,26 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "snake_case")]
 pub(crate) enum TelemetryExactness {
     Exact,
+    Derived,
     BestEffort,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum TelemetryBasis {
+    Observed,
+    Policy,
+    Verified,
+    Residual,
+    Mixed,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum HotReadOwnershipTier {
+    BootstrapCritical,
+    SupportingSummary,
+    DiagnosticOrDrilldown,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -30,6 +49,8 @@ pub(crate) enum HotReadProjectionModel {
 pub(crate) struct HotReadComponentContract {
     pub key: &'static str,
     pub exactness: TelemetryExactness,
+    pub basis: TelemetryBasis,
+    pub ownership_tier: HotReadOwnershipTier,
     pub canonical_source: HotReadCanonicalSource,
     pub projection_model: HotReadProjectionModel,
     pub note: &'static str,
@@ -42,17 +63,30 @@ pub(crate) struct HotReadProjectionContract {
     pub external_database_required: bool,
 }
 
-const MONITORING_BOOTSTRAP_COMPONENTS: [HotReadComponentContract; 6] = [
+const MONITORING_BOOTSTRAP_COMPONENTS: [HotReadComponentContract; 7] = [
     HotReadComponentContract {
         key: "runtime_posture_summary",
         exactness: TelemetryExactness::Exact,
+        basis: TelemetryBasis::Policy,
+        ownership_tier: HotReadOwnershipTier::BootstrapCritical,
         canonical_source: HotReadCanonicalSource::DirectStateSnapshot,
         projection_model: HotReadProjectionModel::DeterministicRebuild,
         note: "Derived from current config/runtime state rather than accumulated telemetry.",
     },
     HotReadComponentContract {
+        key: "monitoring_summary",
+        exactness: TelemetryExactness::BestEffort,
+        basis: TelemetryBasis::Mixed,
+        ownership_tier: HotReadOwnershipTier::BootstrapCritical,
+        canonical_source: HotReadCanonicalSource::MutableCounter,
+        projection_model: HotReadProjectionModel::DeterministicRebuild,
+        note: "Current monitoring summary is rebuilt from mutable counters and remains best-effort until newer operator summaries land.",
+    },
+    HotReadComponentContract {
         key: "recent_events_tail",
         exactness: TelemetryExactness::Exact,
+        basis: TelemetryBasis::Observed,
+        ownership_tier: HotReadOwnershipTier::SupportingSummary,
         canonical_source: HotReadCanonicalSource::ImmutableEventLog,
         projection_model: HotReadProjectionModel::DeterministicRebuild,
         note: "Must remain rebuildable from immutable event records so edge writers do not race on tail mutation.",
@@ -60,6 +94,8 @@ const MONITORING_BOOTSTRAP_COMPONENTS: [HotReadComponentContract; 6] = [
     HotReadComponentContract {
         key: "recent_sim_runs_summary",
         exactness: TelemetryExactness::Exact,
+        basis: TelemetryBasis::Observed,
+        ownership_tier: HotReadOwnershipTier::SupportingSummary,
         canonical_source: HotReadCanonicalSource::ImmutableEventLog,
         projection_model: HotReadProjectionModel::DeterministicRebuild,
         note: "Compact recent run history must remain rebuildable from immutable simulation-tagged event records rather than mutable run-state caches.",
@@ -67,6 +103,8 @@ const MONITORING_BOOTSTRAP_COMPONENTS: [HotReadComponentContract; 6] = [
     HotReadComponentContract {
         key: "security_privacy_summary",
         exactness: TelemetryExactness::BestEffort,
+        basis: TelemetryBasis::Mixed,
+        ownership_tier: HotReadOwnershipTier::SupportingSummary,
         canonical_source: HotReadCanonicalSource::MutableCounter,
         projection_model: HotReadProjectionModel::DeterministicRebuild,
         note: "Current hourly security/privacy counters are shared mutable KV state and are not a safe exact source on non-atomic edge KV.",
@@ -74,6 +112,8 @@ const MONITORING_BOOTSTRAP_COMPONENTS: [HotReadComponentContract; 6] = [
     HotReadComponentContract {
         key: "retention_health_summary",
         exactness: TelemetryExactness::BestEffort,
+        basis: TelemetryBasis::Mixed,
+        ownership_tier: HotReadOwnershipTier::SupportingSummary,
         canonical_source: HotReadCanonicalSource::MutableCatalog,
         projection_model: HotReadProjectionModel::DeterministicRebuild,
         note: "Retention worker catalogs and state are currently maintained with read-modify-write over shared KV.",
@@ -81,6 +121,8 @@ const MONITORING_BOOTSTRAP_COMPONENTS: [HotReadComponentContract; 6] = [
     HotReadComponentContract {
         key: "active_ban_summary",
         exactness: TelemetryExactness::BestEffort,
+        basis: TelemetryBasis::Policy,
+        ownership_tier: HotReadOwnershipTier::SupportingSummary,
         canonical_source: HotReadCanonicalSource::DirectStateSnapshot,
         projection_model: HotReadProjectionModel::DeterministicRebuild,
         note: "Direct state reads are cheap, but enterprise fallback semantics are still not strict enough to classify this summary as exact across all targets.",
@@ -105,9 +147,10 @@ pub(crate) fn current_hot_read_projection_contract() -> HotReadProjectionContrac
 mod tests {
     use super::{
         current_hot_read_projection_contract, monitoring_bootstrap_component_contracts,
-        HotReadCanonicalSource, HotReadComponentContract, HotReadProjectionModel,
-        TelemetryExactness,
+        HotReadCanonicalSource, HotReadComponentContract, HotReadOwnershipTier,
+        HotReadProjectionModel, TelemetryBasis, TelemetryExactness,
     };
+    use serde_json::Value;
 
     fn contract_for(key: &str) -> HotReadComponentContract {
         monitoring_bootstrap_component_contracts()
@@ -121,6 +164,11 @@ mod tests {
     fn recent_events_tail_is_exact_and_immutable() {
         let contract = contract_for("recent_events_tail");
         assert_eq!(contract.exactness, TelemetryExactness::Exact);
+        assert_eq!(contract.basis, TelemetryBasis::Observed);
+        assert_eq!(
+            contract.ownership_tier,
+            HotReadOwnershipTier::SupportingSummary
+        );
         assert_eq!(
             contract.canonical_source,
             HotReadCanonicalSource::ImmutableEventLog
@@ -135,6 +183,7 @@ mod tests {
     fn recent_sim_runs_summary_is_exact_and_immutable() {
         let contract = contract_for("recent_sim_runs_summary");
         assert_eq!(contract.exactness, TelemetryExactness::Exact);
+        assert_eq!(contract.basis, TelemetryBasis::Observed);
         assert_eq!(
             contract.canonical_source,
             HotReadCanonicalSource::ImmutableEventLog
@@ -149,6 +198,22 @@ mod tests {
     fn security_privacy_summary_is_best_effort_from_mutable_counters() {
         let contract = contract_for("security_privacy_summary");
         assert_eq!(contract.exactness, TelemetryExactness::BestEffort);
+        assert_eq!(contract.basis, TelemetryBasis::Mixed);
+        assert_eq!(
+            contract.canonical_source,
+            HotReadCanonicalSource::MutableCounter
+        );
+    }
+
+    #[test]
+    fn monitoring_summary_is_bootstrap_critical_best_effort_component() {
+        let contract = contract_for("monitoring_summary");
+        assert_eq!(contract.exactness, TelemetryExactness::BestEffort);
+        assert_eq!(contract.basis, TelemetryBasis::Mixed);
+        assert_eq!(
+            contract.ownership_tier,
+            HotReadOwnershipTier::BootstrapCritical
+        );
         assert_eq!(
             contract.canonical_source,
             HotReadCanonicalSource::MutableCounter
@@ -161,5 +226,20 @@ mod tests {
         assert!(contract.shared_read_modify_write_forbidden);
         assert!(contract.sqlite_split_forbidden);
         assert!(!contract.external_database_required);
+    }
+
+    #[test]
+    fn component_contracts_serialize_basis_and_ownership_tier() {
+        let contract = contract_for("recent_events_tail");
+        let value = serde_json::to_value(contract).expect("component contract serializes");
+        let object = value.as_object().expect("contract is object");
+        assert_eq!(
+            object.get("basis"),
+            Some(&Value::String("observed".to_string()))
+        );
+        assert_eq!(
+            object.get("ownership_tier"),
+            Some(&Value::String("supporting_summary".to_string()))
+        );
     }
 }

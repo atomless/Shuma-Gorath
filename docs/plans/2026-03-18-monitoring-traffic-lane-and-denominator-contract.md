@@ -1,5 +1,5 @@
 Date: 2026-03-18
-Status: Proposed design
+Status: Settled and implemented foundation contract
 
 Related context:
 
@@ -352,6 +352,12 @@ This grouping is enough to:
 3. keep allowlist traffic visible without muddying public-traffic tuning
 4. keep internal and sim helper traffic out of the primary operator story
 
+Important clarification:
+
+1. `sim_public` is a fallback content-surface provenance for development and demo scenarios, not a distinct long-term traffic lane concept.
+2. The meaningful monitoring boundary is `traffic_origin` (`live` vs `adversary_sim`), not whether synthetic traffic traversed fallback `/sim/public/*` pages or a real hosted public surface.
+3. Until origin-aware operator summaries land, Shuma must not let adversary-sim traffic feed live-only inference signals such as clean-allow or likely-human evidence.
+
 # Current-Runtime Branch Mapping Guardrail
 
 Before `MON-TEL-1-1` is implemented in code, Shuma must lock one deterministic mapping table from today's actual terminal branches to:
@@ -376,6 +382,12 @@ The current recommended starting matrix is:
 | sim-public helper endpoints | `excluded` from primary live ingress | `sim_public` | lane omitted from primary mix | `sim_public` |
 
 This table is deliberately grouped rather than path-by-path. The implementation must still cover every existing terminal branch, but it must do so by mapping each branch into one of these grouped rows rather than inventing new local categories.
+
+The `sim_public` row must be read narrowly:
+
+1. it exists because Shuma currently has a fallback dummy public surface for contributors and evaluators who do not yet have a real hosted site behind the gateway,
+2. it must not be interpreted as meaning that adversary-sim traffic against those fallback pages deserves fundamentally different defence treatment,
+3. and future operator summaries should prefer origin-aware separation over path-based special casing once `MON-TEL-1` introduces those summaries.
 
 # Lane Derivation Order
 

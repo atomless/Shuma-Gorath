@@ -353,6 +353,10 @@ fn rebuild_bootstrap_document<S: KeyValueStore>(
     if let Some(metadata) = component_metadata.get_mut("recent_sim_runs_summary") {
         metadata.refreshed_at_ts = recent_sim_runs.metadata.generated_at_ts;
     }
+    let monitoring_summary = ensure_monitoring_summary_document(store, site_id, generated_at_ts);
+    if let Some(metadata) = component_metadata.get_mut("monitoring_summary") {
+        metadata.refreshed_at_ts = monitoring_summary.metadata.generated_at_ts;
+    }
     if let Some(metadata) = component_metadata.get_mut("runtime_posture_summary") {
         metadata.refreshed_at_ts = generated_at_ts;
     }
@@ -363,7 +367,7 @@ fn rebuild_bootstrap_document<S: KeyValueStore>(
     HotReadDocumentEnvelope {
         metadata: document_metadata(contract.schema_version, site_id, generated_at_ts, trigger),
         payload: MonitoringBootstrapHotReadPayload {
-            summary: ensure_monitoring_summary_document(store, site_id, generated_at_ts).payload,
+            summary: monitoring_summary.payload,
             component_metadata,
             analytics: analytics_summary(store, site_id),
             retention_health: retention.payload,

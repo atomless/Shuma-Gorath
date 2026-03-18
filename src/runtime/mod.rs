@@ -4,6 +4,8 @@ pub(crate) mod effect_intents;
 pub(crate) mod policy_pipeline;
 pub(crate) mod policy_graph;
 pub(crate) mod policy_taxonomy;
+pub(crate) mod traffic_classification;
+pub(crate) mod request_outcome;
 pub(crate) mod request_facts;
 pub(crate) mod request_flow;
 pub(crate) mod request_router;

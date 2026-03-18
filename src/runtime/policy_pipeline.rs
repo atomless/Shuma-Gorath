@@ -1,5 +1,7 @@
-use spin_sdk::http::{Request, Response};
+use spin_sdk::http::Request;
 use spin_sdk::key_value::Store;
+
+use crate::runtime::request_outcome::HandledRequestResponse;
 
 fn active_botness_signal_ids(
     assessment: &crate::BotnessAssessment,
@@ -43,13 +45,19 @@ fn execute_decision_sequence(
     facts: &crate::runtime::request_facts::RequestFacts,
     context: &crate::runtime::effect_intents::EffectExecutionContext<'_>,
     capabilities: &crate::runtime::capabilities::PolicyExecutionCapabilities,
-) -> Option<Response> {
+) -> Option<HandledRequestResponse> {
     for decision in decisions {
         let plan = crate::runtime::effect_intents::plan_for_decision(&decision, facts, context.cfg);
-        if let Some(response) =
+        if let Some(rendered) =
             crate::runtime::effect_intents::execute_plan(plan, facts, context, capabilities)
         {
-            return Some(response);
+            return Some(HandledRequestResponse {
+                branch: crate::runtime::traffic_classification::CurrentRuntimeBranch::PolicyDecision(
+                    decision,
+                ),
+                execution_mode: context.execution_mode,
+                rendered,
+            });
         }
     }
     None
@@ -67,7 +75,7 @@ pub(crate) fn maybe_handle_policy_graph_first_tranche(
     geo_assessment: &crate::GeoAssessment,
     ip_range_evaluation: &crate::signals::ip_range_policy::Evaluation,
     capabilities: &crate::runtime::capabilities::PolicyExecutionCapabilities,
-) -> Option<Response> {
+) -> Option<HandledRequestResponse> {
     let execution_mode = crate::runtime::shadow_mode::effective_execution_mode(cfg);
     let context = crate::runtime::effect_intents::EffectExecutionContext {
         req,
@@ -140,7 +148,7 @@ pub(crate) fn maybe_handle_policy_graph_second_tranche(
     geo_assessment: &crate::GeoAssessment,
     ip_range_evaluation: &crate::signals::ip_range_policy::Evaluation,
     capabilities: &crate::runtime::capabilities::PolicyExecutionCapabilities,
-) -> Option<Response> {
+) -> Option<HandledRequestResponse> {
     let execution_mode = crate::runtime::shadow_mode::effective_execution_mode(cfg);
     let context = crate::runtime::effect_intents::EffectExecutionContext {
         req,

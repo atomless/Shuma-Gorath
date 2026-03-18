@@ -1,5 +1,5 @@
 Date: 2026-03-18
-Status: Proposed design
+Status: Settled and implemented foundation contract
 
 Related context:
 

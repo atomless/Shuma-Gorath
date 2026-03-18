@@ -1,10 +1,10 @@
-use spin_sdk::http::Response;
 use spin_sdk::key_value::Store;
 
 use crate::runtime::capabilities::{
     BanWriteCapability, EventLogCapability, MetricsCapability, MonitoringCapability,
     PolicyExecutionCapabilities, PostResponseFlushCapabilities, RequestBootstrapCapabilities,
 };
+use crate::runtime::request_outcome::RenderedResponseEvidence;
 
 use super::intent_types::{
     DecisionPlan, EffectExecutionContext, EffectIntent, ExecutionMode, ShadowAction,
@@ -123,6 +123,10 @@ pub(super) fn apply_metric_intent(
         EffectIntent::RecordShadowAction { .. } | EffectIntent::RecordShadowPassThrough => {
             None
         }
+        EffectIntent::RecordRequestOutcome { outcome } => {
+            let _ = outcome;
+            None
+        }
         other => Some(other),
     }
 }
@@ -189,6 +193,10 @@ fn apply_monitoring_intent(
         }
         EffectIntent::RecordShadowPassThrough => {
             crate::observability::monitoring::record_shadow_pass_through(store);
+            None
+        }
+        EffectIntent::RecordRequestOutcome { outcome } => {
+            let _ = outcome;
             None
         }
         EffectIntent::FlushPendingMonitoringCounters => {
@@ -258,7 +266,7 @@ pub(crate) fn execute_plan(
     facts: &crate::runtime::request_facts::RequestFacts,
     context: &EffectExecutionContext<'_>,
     capabilities: &PolicyExecutionCapabilities,
-) -> Option<Response> {
+) -> Option<RenderedResponseEvidence> {
     let (prepared_intents, shadow_action) =
         prepare_intents_for_execution(plan.intents, context.execution_mode, &plan.response);
     execute_effect_intents(prepared_intents, context, capabilities, shadow_action);
@@ -410,5 +418,42 @@ mod tests {
             prepared[0],
             EffectIntent::RecordShadowPassThrough
         ));
+    }
+
+    #[test]
+    fn record_request_outcome_survives_shadow_preparation() {
+        let (prepared, shadow_action) = prepare_intents_for_execution(
+            vec![EffectIntent::RecordRequestOutcome {
+                outcome: crate::runtime::request_outcome::RenderedRequestOutcome {
+                    traffic_origin: crate::runtime::request_outcome::TrafficOrigin::Live,
+                    measurement_scope:
+                        crate::runtime::traffic_classification::MeasurementScope::IngressPrimary,
+                    route_action_family:
+                        crate::runtime::traffic_classification::RouteActionFamily::PublicContent,
+                    execution_mode: ExecutionMode::Shadow,
+                    traffic_lane: None,
+                    outcome_class:
+                        crate::runtime::request_outcome::RequestOutcomeClass::ShortCircuited,
+                    response_kind: crate::runtime::request_outcome::ResponseKind::BlockPage,
+                    http_status: 403,
+                    response_bytes: 10,
+                    forward_attempted: false,
+                    forward_failure_class: None,
+                    intended_action: None,
+                    policy_source: crate::runtime::traffic_classification::PolicySource::PolicyGraphFirstTranche,
+                },
+            }],
+            ExecutionMode::Shadow,
+            &super::super::intent_types::ResponseIntent::BlockPage {
+                status: 403,
+                reason: crate::enforcement::block_page::BlockReason::Honeypot,
+            },
+        );
+
+        assert_eq!(shadow_action, Some(ShadowAction::Block));
+        assert!(prepared.iter().any(|intent| matches!(
+            intent,
+            EffectIntent::RecordRequestOutcome { .. }
+        )));
     }
 }
