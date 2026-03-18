@@ -842,6 +842,7 @@ test-monitoring-telemetry-contract: ## Run focused external-only monitoring tele
 test-monitoring-telemetry-foundation-unit: ## Run focused unit checks for monitoring telemetry foundation contracts and runtime classification scaffolding
 	@echo "$(CYAN)🧪 Running monitoring telemetry foundation unit checks...$(NC)"
 	@./scripts/set_crate_type.sh rlib
+	@cargo test observability::monitoring::tests:: -- --nocapture
 	@cargo test observability::hot_read_contract::tests:: -- --nocapture
 	@cargo test observability::hot_read_documents::tests:: -- --nocapture
 	@cargo test runtime::traffic_classification::tests:: -- --nocapture

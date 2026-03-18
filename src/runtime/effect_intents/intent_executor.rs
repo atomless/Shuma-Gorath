@@ -137,6 +137,14 @@ fn apply_monitoring_intent(
     ip: &str,
     intent: EffectIntent,
 ) -> Option<EffectIntent> {
+    apply_monitoring_intent_with_store(store, ip, intent)
+}
+
+fn apply_monitoring_intent_with_store<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    ip: &str,
+    intent: EffectIntent,
+) -> Option<EffectIntent> {
     match intent {
         EffectIntent::RecordRateViolation { path, outcome } => {
             crate::observability::monitoring::record_rate_violation_with_path(
@@ -196,7 +204,7 @@ fn apply_monitoring_intent(
             None
         }
         EffectIntent::RecordRequestOutcome { outcome } => {
-            let _ = outcome;
+            crate::observability::monitoring::record_request_outcome(store, &outcome);
             None
         }
         EffectIntent::FlushPendingMonitoringCounters => {
@@ -346,6 +354,43 @@ pub(crate) fn execute_monitoring_store_intents(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::challenge::KeyValueStore;
+    use base64::{engine::general_purpose, Engine as _};
+    use std::collections::HashMap;
+    use std::sync::Mutex;
+
+    #[derive(Default)]
+    struct MockStore {
+        map: Mutex<HashMap<String, Vec<u8>>>,
+    }
+
+    impl crate::challenge::KeyValueStore for MockStore {
+        fn get(&self, key: &str) -> Result<Option<Vec<u8>>, ()> {
+            let map = self.map.lock().unwrap();
+            Ok(map.get(key).cloned())
+        }
+
+        fn set(&self, key: &str, value: &[u8]) -> Result<(), ()> {
+            let mut map = self.map.lock().unwrap();
+            map.insert(key.to_string(), value.to_vec());
+            Ok(())
+        }
+
+        fn delete(&self, key: &str) -> Result<(), ()> {
+            let mut map = self.map.lock().unwrap();
+            map.remove(key);
+            Ok(())
+        }
+
+        fn get_keys(&self) -> Result<Vec<String>, ()> {
+            let map = self.map.lock().unwrap();
+            Ok(map.keys().cloned().collect())
+        }
+    }
+
+    fn encode_dim(value: &str) -> String {
+        general_purpose::URL_SAFE_NO_PAD.encode(value.as_bytes())
+    }
 
     #[test]
     fn prepare_intents_for_shadow_suppresses_enforcement_and_records_shadow_action() {
@@ -455,5 +500,81 @@ mod tests {
             intent,
             EffectIntent::RecordRequestOutcome { .. }
         )));
+    }
+
+    #[test]
+    fn apply_monitoring_intent_records_request_outcome_counters() {
+        let store = MockStore::default();
+        let outcome = crate::runtime::request_outcome::RenderedRequestOutcome {
+            traffic_origin: crate::runtime::request_outcome::TrafficOrigin::Live,
+            measurement_scope:
+                crate::runtime::traffic_classification::MeasurementScope::IngressPrimary,
+            route_action_family:
+                crate::runtime::traffic_classification::RouteActionFamily::PublicContent,
+            execution_mode: ExecutionMode::Enforced,
+            traffic_lane: Some(crate::runtime::request_outcome::RequestOutcomeLane {
+                lane: crate::runtime::traffic_classification::TrafficLane::UnknownInteractive,
+                exactness: crate::observability::hot_read_contract::TelemetryExactness::Derived,
+                basis: crate::observability::hot_read_contract::TelemetryBasis::Residual,
+            }),
+            outcome_class: crate::runtime::request_outcome::RequestOutcomeClass::Forwarded,
+            response_kind: crate::runtime::request_outcome::ResponseKind::ForwardAllow,
+            http_status: 200,
+            response_bytes: 42,
+            forward_attempted: true,
+            forward_failure_class: None,
+            intended_action: None,
+            policy_source: crate::runtime::traffic_classification::PolicySource::CleanAllow,
+        };
+
+        let result = apply_monitoring_intent_with_store(
+            &store,
+            "198.51.100.20",
+            EffectIntent::RecordRequestOutcome {
+                outcome: outcome.clone(),
+            },
+        );
+
+        assert!(result.is_none());
+
+        let scope = encode_dim("live|ingress_primary|enforced");
+        let lane = encode_dim("live|ingress_primary|enforced|unknown_interactive|derived|residual");
+        let keys = store.get_keys().expect("get_keys");
+        let total_key = keys
+            .iter()
+            .find(|key| key.starts_with(format!("monitoring:v1:request_outcome:total:{}:", scope).as_str()))
+            .cloned()
+            .expect("total key written");
+        let bytes_key = keys
+            .iter()
+            .find(|key| {
+                key.starts_with(
+                    format!("monitoring:v1:request_outcome:response_bytes:{}:", scope).as_str(),
+                )
+            })
+            .cloned()
+            .expect("bytes key written");
+        let lane_total_key = keys
+            .iter()
+            .find(|key| {
+                key.starts_with(
+                    format!("monitoring:v1:request_outcome:lane_total:{}:", lane).as_str(),
+                )
+            })
+            .cloned()
+            .expect("lane total key written");
+
+        assert_eq!(
+            store.get(total_key.as_str()).unwrap().as_deref(),
+            Some(b"1".as_slice())
+        );
+        assert_eq!(
+            store.get(bytes_key.as_str()).unwrap().as_deref(),
+            Some(b"42".as_slice())
+        );
+        assert_eq!(
+            store.get(lane_total_key.as_str()).unwrap().as_deref(),
+            Some(b"1".as_slice())
+        );
     }
 }

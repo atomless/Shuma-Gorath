@@ -337,6 +337,176 @@ fn normalize_shadow_action(
     action.as_str()
 }
 
+fn normalize_execution_mode(
+    mode: crate::runtime::effect_intents::ExecutionMode,
+) -> &'static str {
+    match mode {
+        crate::runtime::effect_intents::ExecutionMode::Enforced => "enforced",
+        crate::runtime::effect_intents::ExecutionMode::Shadow => "shadow",
+    }
+}
+
+fn normalize_traffic_origin(origin: crate::runtime::request_outcome::TrafficOrigin) -> &'static str {
+    match origin {
+        crate::runtime::request_outcome::TrafficOrigin::Live => "live",
+        crate::runtime::request_outcome::TrafficOrigin::AdversarySim => "adversary_sim",
+    }
+}
+
+fn normalize_measurement_scope(
+    scope: crate::runtime::traffic_classification::MeasurementScope,
+) -> &'static str {
+    match scope {
+        crate::runtime::traffic_classification::MeasurementScope::IngressPrimary => {
+            "ingress_primary"
+        }
+        crate::runtime::traffic_classification::MeasurementScope::DefenceFollowup => {
+            "defence_followup"
+        }
+        crate::runtime::traffic_classification::MeasurementScope::BypassAndControl => {
+            "bypass_and_control"
+        }
+        crate::runtime::traffic_classification::MeasurementScope::Excluded => "excluded",
+    }
+}
+
+fn normalize_route_action_family(
+    family: crate::runtime::traffic_classification::RouteActionFamily,
+) -> &'static str {
+    match family {
+        crate::runtime::traffic_classification::RouteActionFamily::PublicContent => {
+            "public_content"
+        }
+        crate::runtime::traffic_classification::RouteActionFamily::StaticAsset => "static_asset",
+        crate::runtime::traffic_classification::RouteActionFamily::DefenceFollowup => {
+            "defence_followup"
+        }
+        crate::runtime::traffic_classification::RouteActionFamily::AllowlistBypass => {
+            "allowlist_bypass"
+        }
+        crate::runtime::traffic_classification::RouteActionFamily::ControlPlane => "control_plane",
+        crate::runtime::traffic_classification::RouteActionFamily::SimPublic => "sim_public",
+    }
+}
+
+fn normalize_traffic_lane(lane: crate::runtime::traffic_classification::TrafficLane) -> &'static str {
+    match lane {
+        crate::runtime::traffic_classification::TrafficLane::LikelyHuman => "likely_human",
+        crate::runtime::traffic_classification::TrafficLane::UnknownInteractive => {
+            "unknown_interactive"
+        }
+        crate::runtime::traffic_classification::TrafficLane::SuspiciousAutomation => {
+            "suspicious_automation"
+        }
+        crate::runtime::traffic_classification::TrafficLane::DeclaredCrawler => {
+            "declared_crawler"
+        }
+        crate::runtime::traffic_classification::TrafficLane::DeclaredUserTriggeredAgent => {
+            "declared_user_triggered_agent"
+        }
+        crate::runtime::traffic_classification::TrafficLane::VerifiedBot => "verified_bot",
+        crate::runtime::traffic_classification::TrafficLane::SignedAgent => "signed_agent",
+    }
+}
+
+fn normalize_telemetry_exactness(
+    exactness: crate::observability::hot_read_contract::TelemetryExactness,
+) -> &'static str {
+    match exactness {
+        crate::observability::hot_read_contract::TelemetryExactness::Exact => "exact",
+        crate::observability::hot_read_contract::TelemetryExactness::Derived => "derived",
+        crate::observability::hot_read_contract::TelemetryExactness::BestEffort => "best_effort",
+    }
+}
+
+fn normalize_telemetry_basis(
+    basis: crate::observability::hot_read_contract::TelemetryBasis,
+) -> &'static str {
+    match basis {
+        crate::observability::hot_read_contract::TelemetryBasis::Observed => "observed",
+        crate::observability::hot_read_contract::TelemetryBasis::Policy => "policy",
+        crate::observability::hot_read_contract::TelemetryBasis::Verified => "verified",
+        crate::observability::hot_read_contract::TelemetryBasis::Residual => "residual",
+        crate::observability::hot_read_contract::TelemetryBasis::Mixed => "mixed",
+    }
+}
+
+fn normalize_request_outcome_class(
+    outcome_class: crate::runtime::request_outcome::RequestOutcomeClass,
+) -> &'static str {
+    match outcome_class {
+        crate::runtime::request_outcome::RequestOutcomeClass::Forwarded => "forwarded",
+        crate::runtime::request_outcome::RequestOutcomeClass::ShortCircuited => "short_circuited",
+        crate::runtime::request_outcome::RequestOutcomeClass::ControlResponse => {
+            "control_response"
+        }
+    }
+}
+
+fn normalize_response_kind(kind: crate::runtime::request_outcome::ResponseKind) -> &'static str {
+    match kind {
+        crate::runtime::request_outcome::ResponseKind::ForwardAllow => "forward_allow",
+        crate::runtime::request_outcome::ResponseKind::ForwardFailureFallback => {
+            "forward_failure_fallback"
+        }
+        crate::runtime::request_outcome::ResponseKind::SyntheticShadowAllow => {
+            "synthetic_shadow_allow"
+        }
+        crate::runtime::request_outcome::ResponseKind::SyntheticShadowAction => {
+            "synthetic_shadow_action"
+        }
+        crate::runtime::request_outcome::ResponseKind::BlockPage => "block_page",
+        crate::runtime::request_outcome::ResponseKind::PlainTextBlock => "plain_text_block",
+        crate::runtime::request_outcome::ResponseKind::Redirect => "redirect",
+        crate::runtime::request_outcome::ResponseKind::DropConnection => "drop_connection",
+        crate::runtime::request_outcome::ResponseKind::Challenge => "challenge",
+        crate::runtime::request_outcome::ResponseKind::NotABot => "not_a_bot",
+        crate::runtime::request_outcome::ResponseKind::JsChallenge => "js_challenge",
+        crate::runtime::request_outcome::ResponseKind::Maze => "maze",
+        crate::runtime::request_outcome::ResponseKind::Tarpit => "tarpit",
+        crate::runtime::request_outcome::ResponseKind::CheckpointResponse => {
+            "checkpoint_response"
+        }
+        crate::runtime::request_outcome::ResponseKind::DefenceFollowupResponse => {
+            "defence_followup_response"
+        }
+        crate::runtime::request_outcome::ResponseKind::SimPublicResponse => {
+            "sim_public_response"
+        }
+        crate::runtime::request_outcome::ResponseKind::ControlPlaneResponse => {
+            "control_plane_response"
+        }
+    }
+}
+
+fn normalize_policy_source(
+    source: crate::runtime::traffic_classification::PolicySource,
+) -> &'static str {
+    match source {
+        crate::runtime::traffic_classification::PolicySource::EarlyRoute => "early_route",
+        crate::runtime::traffic_classification::PolicySource::StaticAssetBypass => {
+            "static_asset_bypass"
+        }
+        crate::runtime::traffic_classification::PolicySource::AllowlistBypass => {
+            "allowlist_bypass"
+        }
+        crate::runtime::traffic_classification::PolicySource::PolicyGraphFirstTranche => {
+            "policy_graph_first_tranche"
+        }
+        crate::runtime::traffic_classification::PolicySource::PolicyGraphSecondTranche => {
+            "policy_graph_second_tranche"
+        }
+        crate::runtime::traffic_classification::PolicySource::CleanAllow => "clean_allow",
+        crate::runtime::traffic_classification::PolicySource::DefenceFollowup => {
+            "defence_followup"
+        }
+        crate::runtime::traffic_classification::PolicySource::SimPublic => "sim_public",
+        crate::runtime::traffic_classification::PolicySource::BootstrapFailure => {
+            "bootstrap_failure"
+        }
+    }
+}
+
 fn normalize_ip_range_human_signal(signal: &str) -> &'static str {
     match signal {
         "challenge_puzzle_pass" => "challenge_puzzle_pass",
@@ -452,9 +622,12 @@ fn maybe_flush_pending_counter_buffer<S: crate::challenge::KeyValueStore>(store:
 }
 
 #[cfg(test)]
-fn increment_counter<S: crate::challenge::KeyValueStore>(store: &S, key: &str) {
+fn add_counter<S: crate::challenge::KeyValueStore>(store: &S, key: &str, delta: u64) {
+    if delta == 0 {
+        return;
+    }
     let current = read_counter(store, key);
-    let next = current.saturating_add(1);
+    let next = current.saturating_add(delta);
     if let Err(err) = store.set(key, next.to_string().as_bytes()) {
         eprintln!("[monitoring] failed writing {}: {:?}", key, err);
         return;
@@ -469,17 +642,24 @@ fn increment_counter<S: crate::challenge::KeyValueStore>(store: &S, key: &str) {
 }
 
 #[cfg(not(test))]
-fn increment_counter<S: crate::challenge::KeyValueStore>(store: &S, key: &str) {
+fn add_counter<S: crate::challenge::KeyValueStore>(store: &S, key: &str, delta: u64) {
+    if delta == 0 {
+        return;
+    }
     let now = now_ts();
     {
         let mut buffer = PENDING_COUNTER_BUFFER.lock().unwrap();
         let entry = buffer.deltas.entry(key.to_string()).or_insert(0);
-        *entry = entry.saturating_add(1);
+        *entry = entry.saturating_add(delta);
         if buffer.last_flush_ts == 0 {
             buffer.last_flush_ts = now;
         }
     }
     maybe_flush_pending_counter_buffer(store, false);
+}
+
+fn increment_counter<S: crate::challenge::KeyValueStore>(store: &S, key: &str) {
+    add_counter(store, key, 1);
 }
 
 pub(crate) fn flush_pending_counters<S: crate::challenge::KeyValueStore>(_store: &S) {
@@ -652,6 +832,143 @@ fn record_with_dimension<S: crate::challenge::KeyValueStore>(
         dimension.map(|value| apply_guarded_dimension_cardinality(store, section, metric, value, hour));
     let key = monitoring_key(section, metric, dimension_value.as_deref(), hour);
     increment_counter(store, key.as_str());
+}
+
+fn record_with_dimension_delta<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    section: &str,
+    metric: &str,
+    dimension: Option<&str>,
+    delta: u64,
+) {
+    if delta == 0 {
+        return;
+    }
+    let hour = now_ts() / 3600;
+    let dimension_value =
+        dimension.map(|value| apply_guarded_dimension_cardinality(store, section, metric, value, hour));
+    let key = monitoring_key(section, metric, dimension_value.as_deref(), hour);
+    add_counter(store, key.as_str(), delta);
+}
+
+fn request_outcome_scope_cohort(
+    outcome: &crate::runtime::request_outcome::RenderedRequestOutcome,
+) -> String {
+    [
+        normalize_traffic_origin(outcome.traffic_origin),
+        normalize_measurement_scope(outcome.measurement_scope),
+        normalize_execution_mode(outcome.execution_mode),
+    ]
+    .join("|")
+}
+
+fn request_outcome_nested_cohort(prefix: &str, suffix: &str) -> String {
+    format!("{prefix}|{suffix}")
+}
+
+fn request_outcome_lane_cohort(
+    outcome: &crate::runtime::request_outcome::RenderedRequestOutcome,
+) -> Option<String> {
+    outcome.traffic_lane.map(|lane| {
+        [
+            request_outcome_scope_cohort(outcome),
+            normalize_traffic_lane(lane.lane).to_string(),
+            normalize_telemetry_exactness(lane.exactness).to_string(),
+            normalize_telemetry_basis(lane.basis).to_string(),
+        ]
+        .join("|")
+    })
+}
+
+pub(crate) fn record_request_outcome<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    outcome: &crate::runtime::request_outcome::RenderedRequestOutcome,
+) {
+    let scope_cohort = request_outcome_scope_cohort(outcome);
+    record_with_dimension(store, "request_outcome", "total", Some(scope_cohort.as_str()));
+    record_with_dimension(
+        store,
+        "request_outcome",
+        "outcome_class",
+        Some(
+            request_outcome_nested_cohort(
+                scope_cohort.as_str(),
+                normalize_request_outcome_class(outcome.outcome_class),
+            )
+            .as_str(),
+        ),
+    );
+    record_with_dimension(
+        store,
+        "request_outcome",
+        "response_kind",
+        Some(
+            request_outcome_nested_cohort(
+                scope_cohort.as_str(),
+                normalize_response_kind(outcome.response_kind),
+            )
+            .as_str(),
+        ),
+    );
+    record_with_dimension(
+        store,
+        "request_outcome",
+        "route_action_family",
+        Some(
+            request_outcome_nested_cohort(
+                scope_cohort.as_str(),
+                normalize_route_action_family(outcome.route_action_family),
+            )
+            .as_str(),
+        ),
+    );
+    record_with_dimension(
+        store,
+        "request_outcome",
+        "policy_source",
+        Some(
+            request_outcome_nested_cohort(
+                scope_cohort.as_str(),
+                normalize_policy_source(outcome.policy_source),
+            )
+            .as_str(),
+        ),
+    );
+    record_with_dimension_delta(
+        store,
+        "request_outcome",
+        "response_bytes",
+        Some(scope_cohort.as_str()),
+        outcome.response_bytes,
+    );
+
+    if let Some(lane_cohort) = request_outcome_lane_cohort(outcome) {
+        record_with_dimension(
+            store,
+            "request_outcome",
+            "lane_total",
+            Some(lane_cohort.as_str()),
+        );
+        record_with_dimension(
+            store,
+            "request_outcome",
+            "lane_outcome_class",
+            Some(
+                request_outcome_nested_cohort(
+                    lane_cohort.as_str(),
+                    normalize_request_outcome_class(outcome.outcome_class),
+                )
+                .as_str(),
+            ),
+        );
+        record_with_dimension_delta(
+            store,
+            "request_outcome",
+            "lane_response_bytes",
+            Some(lane_cohort.as_str()),
+            outcome.response_bytes,
+        );
+    }
 }
 
 pub(crate) fn record_honeypot_hit<S: crate::challenge::KeyValueStore>(
@@ -1429,6 +1746,15 @@ pub(crate) fn summarize_metrics_window<S: crate::challenge::KeyValueStore>(
 mod tests {
     use super::*;
     use crate::challenge::KeyValueStore;
+    use crate::observability::hot_read_contract::{TelemetryBasis, TelemetryExactness};
+    use crate::runtime::effect_intents::ExecutionMode;
+    use crate::runtime::request_outcome::{
+        RenderedRequestOutcome, RequestOutcomeClass, RequestOutcomeLane, ResponseKind,
+        TrafficOrigin,
+    };
+    use crate::runtime::traffic_classification::{
+        MeasurementScope, PolicySource, RouteActionFamily, TrafficLane,
+    };
     use std::collections::HashMap;
 
     #[derive(Default)]
@@ -1475,6 +1801,192 @@ mod tests {
         if let Some((_, _, _, hour)) = parse_monitoring_key_with_prefix(key, MONITORING_PREFIX) {
             crate::observability::retention::register_monitoring_key(store, hour, key);
         }
+    }
+
+    #[test]
+    fn record_request_outcome_records_origin_scope_outcome_and_lane_counters() {
+        let store = MockStore::default();
+        let hour = now_ts() / 3600;
+        let outcome = RenderedRequestOutcome {
+            traffic_origin: TrafficOrigin::Live,
+            measurement_scope: MeasurementScope::IngressPrimary,
+            route_action_family: RouteActionFamily::PublicContent,
+            execution_mode: ExecutionMode::Enforced,
+            traffic_lane: Some(RequestOutcomeLane {
+                lane: TrafficLane::LikelyHuman,
+                exactness: TelemetryExactness::Exact,
+                basis: TelemetryBasis::Observed,
+            }),
+            outcome_class: RequestOutcomeClass::Forwarded,
+            response_kind: ResponseKind::ForwardAllow,
+            http_status: 200,
+            response_bytes: 321,
+            forward_attempted: true,
+            forward_failure_class: None,
+            intended_action: None,
+            policy_source: PolicySource::CleanAllow,
+        };
+
+        record_request_outcome(&store, &outcome);
+
+        let scope_cohort = request_outcome_scope_cohort(&outcome);
+        let lane_cohort = request_outcome_lane_cohort(&outcome).expect("lane cohort");
+        let key = |metric: &str, dimension: &str| {
+            monitoring_key("request_outcome", metric, Some(dimension), hour)
+        };
+
+        assert_eq!(read_counter(&store, key("total", scope_cohort.as_str()).as_str()), 1);
+        assert_eq!(
+            read_counter(
+                &store,
+                key(
+                    "outcome_class",
+                    request_outcome_nested_cohort(scope_cohort.as_str(), "forwarded").as_str(),
+                )
+                .as_str(),
+            ),
+            1
+        );
+        assert_eq!(
+            read_counter(
+                &store,
+                key(
+                    "response_kind",
+                    request_outcome_nested_cohort(scope_cohort.as_str(), "forward_allow").as_str(),
+                )
+                .as_str(),
+            ),
+            1
+        );
+        assert_eq!(
+            read_counter(
+                &store,
+                key(
+                    "policy_source",
+                    request_outcome_nested_cohort(scope_cohort.as_str(), "clean_allow").as_str(),
+                )
+                .as_str(),
+            ),
+            1
+        );
+        assert_eq!(
+            read_counter(
+                &store,
+                key(
+                    "route_action_family",
+                    request_outcome_nested_cohort(scope_cohort.as_str(), "public_content").as_str(),
+                )
+                .as_str(),
+            ),
+            1
+        );
+        assert_eq!(
+            read_counter(&store, key("response_bytes", scope_cohort.as_str()).as_str()),
+            321
+        );
+        assert_eq!(read_counter(&store, key("lane_total", lane_cohort.as_str()).as_str()), 1);
+        assert_eq!(
+            read_counter(
+                &store,
+                key(
+                    "lane_outcome_class",
+                    request_outcome_nested_cohort(lane_cohort.as_str(), "forwarded").as_str(),
+                )
+                .as_str(),
+            ),
+            1
+        );
+        assert_eq!(
+            read_counter(
+                &store,
+                key("lane_response_bytes", lane_cohort.as_str()).as_str(),
+            ),
+            321
+        );
+    }
+
+    #[test]
+    fn record_request_outcome_keeps_adversary_sim_origin_separate_without_live_lane_inference() {
+        let store = MockStore::default();
+        let hour = now_ts() / 3600;
+        let outcome = RenderedRequestOutcome {
+            traffic_origin: TrafficOrigin::AdversarySim,
+            measurement_scope: MeasurementScope::Excluded,
+            route_action_family: RouteActionFamily::SimPublic,
+            execution_mode: ExecutionMode::Enforced,
+            traffic_lane: None,
+            outcome_class: RequestOutcomeClass::ShortCircuited,
+            response_kind: ResponseKind::SimPublicResponse,
+            http_status: 200,
+            response_bytes: 77,
+            forward_attempted: false,
+            forward_failure_class: None,
+            intended_action: None,
+            policy_source: PolicySource::SimPublic,
+        };
+
+        record_request_outcome(&store, &outcome);
+
+        let scope_cohort = request_outcome_scope_cohort(&outcome);
+        let key = |metric: &str, dimension: &str| {
+            monitoring_key("request_outcome", metric, Some(dimension), hour)
+        };
+
+        assert_eq!(
+            read_counter(&store, key("total", scope_cohort.as_str()).as_str()),
+            1
+        );
+        assert_eq!(
+            read_counter(
+                &store,
+                key(
+                    "outcome_class",
+                    request_outcome_nested_cohort(scope_cohort.as_str(), "short_circuited").as_str(),
+                )
+                .as_str(),
+            ),
+            1
+        );
+        assert_eq!(
+            read_counter(
+                &store,
+                key(
+                    "response_kind",
+                    request_outcome_nested_cohort(scope_cohort.as_str(), "sim_public_response").as_str(),
+                )
+                .as_str(),
+            ),
+            1
+        );
+        assert_eq!(
+            read_counter(
+                &store,
+                key(
+                    "policy_source",
+                    request_outcome_nested_cohort(scope_cohort.as_str(), "sim_public").as_str(),
+                )
+                .as_str(),
+            ),
+            1
+        );
+        assert_eq!(
+            read_counter(
+                &store,
+                key(
+                    "route_action_family",
+                    request_outcome_nested_cohort(scope_cohort.as_str(), "sim_public").as_str(),
+                )
+                .as_str(),
+            ),
+            1
+        );
+        assert_eq!(
+            read_counter(
+                &store,
+                key("response_bytes", scope_cohort.as_str()).as_str(),
+            ),
+            77
+        );
     }
 
     #[test]

@@ -4,6 +4,20 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-18)
 
+### Monitoring Telemetry Foundations: Add Origin-Aware Request-Outcome Counters
+
+- [x] Land the first `MON-TEL-1-2` implementation slice by routing `RecordRequestOutcome` through the shared buffered monitoring path and recording bounded coarse counters for request totals, outcome classes, response kinds, policy sources, route-action families, lane totals, and response-byte totals without widening event rows or adding a second analytics path.
+- [x] Why:
+  - the prerequisite contracts and runtime-owned outcome object were already in place, but the effect-intent executor still discarded `RecordRequestOutcome`, which meant the telemetry foundation could not yet produce the origin-aware counters needed for later denominators, suspicious-cost summaries, and operator-grade Monitoring.
+  - landing the counter family now gives adversary-sim traffic a truthful telemetry home separate from live traffic while preserving the existing retention and hot-read economics: buffered mutable counters, bounded low-cardinality dimensions, and no new scan-heavy read path.
+  - adding both monitoring-module and executor-boundary tests in this slice reduces the risk of quiet regressions at the exact seam that previously dropped request-outcome telemetry on the floor.
+- [x] Evidence:
+  - `src/observability/monitoring.rs`
+  - `src/runtime/effect_intents/intent_executor.rs`
+  - `Makefile`
+  - `make test-monitoring-telemetry-foundation-unit`
+  - `git diff --check`
+
 ### Monitoring Telemetry Foundations: Stop Adversary-Sim Traffic From Polluting Clean-Allow Human Inference
 
 - [x] Correct the runtime clean-allow monitoring path so adversary-sim-origin traffic no longer emits live-only clean-allow or likely-human inference signals, regardless of whether the sim is traversing fallback `/sim/public/*` pages or a real hosted public surface.
