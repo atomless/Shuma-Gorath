@@ -4,6 +4,18 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-18)
 
+### Monitoring Telemetry Foundations: Materialize Compact Request-Outcome Summary Rows
+
+- [x] Extend `MonitoringSummary` so the new request-outcome counters are projected into compact backend summary rows by scope and by lane, exposing live-versus-adversary-sim totals, outcome-class splits, and response-byte totals without starting the Monitoring UI overhaul early.
+- [x] Why:
+  - the previous slice landed the counter family, but until a bounded summary projected those counters, the new telemetry was only visible as low-level mutable keys and could not yet serve as a clean backend contract for denominators or later operator-facing Monitoring work.
+  - this summary keeps the implementation on the right architectural bearing: compact, bounded, hot-read-friendly, and still backend-only, so Shuma gains operator-grade telemetry structure without prematurely redesigning the dashboard.
+  - projecting both scope rows and lane rows now gives the next telemetry slices a stable base for human-friction denominators, suspicious-cost posture, and origin-aware monitoring while keeping adversary-sim traffic truthful and separate from live ingress.
+- [x] Evidence:
+  - `src/observability/monitoring.rs`
+  - `make test-monitoring-telemetry-foundation-unit`
+  - `git diff --check`
+
 ### Monitoring Telemetry Foundations: Add Origin-Aware Request-Outcome Counters
 
 - [x] Land the first `MON-TEL-1-2` implementation slice by routing `RecordRequestOutcome` through the shared buffered monitoring path and recording bounded coarse counters for request totals, outcome classes, response kinds, policy sources, route-action families, lane totals, and response-byte totals without widening event rows or adding a second analytics path.

@@ -167,6 +167,39 @@ pub(crate) struct NotABotSummary {
     pub abandonment_ratio: f64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+pub(crate) struct RequestOutcomeScopeSummaryRow {
+    pub traffic_origin: String,
+    pub measurement_scope: String,
+    pub execution_mode: String,
+    pub total_requests: u64,
+    pub forwarded_requests: u64,
+    pub short_circuited_requests: u64,
+    pub control_response_requests: u64,
+    pub response_bytes: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+pub(crate) struct RequestOutcomeLaneSummaryRow {
+    pub traffic_origin: String,
+    pub measurement_scope: String,
+    pub execution_mode: String,
+    pub lane: String,
+    pub exactness: String,
+    pub basis: String,
+    pub total_requests: u64,
+    pub forwarded_requests: u64,
+    pub short_circuited_requests: u64,
+    pub control_response_requests: u64,
+    pub response_bytes: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub(crate) struct RequestOutcomeSummary {
+    pub by_scope: Vec<RequestOutcomeScopeSummaryRow>,
+    pub by_lane: Vec<RequestOutcomeLaneSummaryRow>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub(crate) struct MonitoringSummary {
     pub generated_at: u64,
@@ -178,6 +211,7 @@ pub(crate) struct MonitoringSummary {
     pub pow: PowSummary,
     pub rate: RateSummary,
     pub geo: GeoSummary,
+    pub request_outcomes: RequestOutcomeSummary,
 }
 
 fn now_ts() -> u64 {
@@ -880,6 +914,46 @@ fn request_outcome_lane_cohort(
     })
 }
 
+fn split_last_cohort_segment(value: &str) -> Option<(&str, &str)> {
+    value.rsplit_once('|')
+}
+
+fn parse_request_outcome_scope_cohort(
+    cohort: &str,
+) -> Option<(String, String, String)> {
+    let mut parts = cohort.split('|');
+    let traffic_origin = parts.next()?.to_string();
+    let measurement_scope = parts.next()?.to_string();
+    let execution_mode = parts.next()?.to_string();
+    if parts.next().is_some() {
+        return None;
+    }
+    Some((traffic_origin, measurement_scope, execution_mode))
+}
+
+fn parse_request_outcome_lane_cohort(
+    cohort: &str,
+) -> Option<(String, String, String, String, String, String)> {
+    let mut parts = cohort.split('|');
+    let traffic_origin = parts.next()?.to_string();
+    let measurement_scope = parts.next()?.to_string();
+    let execution_mode = parts.next()?.to_string();
+    let lane = parts.next()?.to_string();
+    let exactness = parts.next()?.to_string();
+    let basis = parts.next()?.to_string();
+    if parts.next().is_some() {
+        return None;
+    }
+    Some((
+        traffic_origin,
+        measurement_scope,
+        execution_mode,
+        lane,
+        exactness,
+        basis,
+    ))
+}
+
 pub(crate) fn record_request_outcome<S: crate::challenge::KeyValueStore>(
     store: &S,
     outcome: &crate::runtime::request_outcome::RenderedRequestOutcome,
@@ -1208,6 +1282,12 @@ struct MonitoringAccumulator {
     geo_total: u64,
     geo_actions: HashMap<String, u64>,
     geo_countries: HashMap<String, u64>,
+    request_outcome_scope_totals: HashMap<String, u64>,
+    request_outcome_scope_bytes: HashMap<String, u64>,
+    request_outcome_scope_outcomes: HashMap<String, u64>,
+    request_outcome_lane_totals: HashMap<String, u64>,
+    request_outcome_lane_bytes: HashMap<String, u64>,
+    request_outcome_lane_outcomes: HashMap<String, u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1378,6 +1458,39 @@ impl MonitoringAccumulator {
                 }
                 _ => {}
             },
+            "request_outcome" => match metric {
+                "total" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(&mut self.request_outcome_scope_totals, dim, count);
+                    }
+                }
+                "response_bytes" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(&mut self.request_outcome_scope_bytes, dim, count);
+                    }
+                }
+                "outcome_class" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(&mut self.request_outcome_scope_outcomes, dim, count);
+                    }
+                }
+                "lane_total" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(&mut self.request_outcome_lane_totals, dim, count);
+                    }
+                }
+                "lane_response_bytes" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(&mut self.request_outcome_lane_bytes, dim, count);
+                    }
+                }
+                "lane_outcome_class" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(&mut self.request_outcome_lane_outcomes, dim, count);
+                    }
+                }
+                _ => {}
+            },
             _ => {}
         }
     }
@@ -1422,6 +1535,30 @@ impl MonitoringAccumulator {
         self.geo_total = self.geo_total.saturating_add(source.geo_total);
         Self::merge_count_maps(&mut self.geo_actions, &source.geo_actions);
         Self::merge_count_maps(&mut self.geo_countries, &source.geo_countries);
+        Self::merge_count_maps(
+            &mut self.request_outcome_scope_totals,
+            &source.request_outcome_scope_totals,
+        );
+        Self::merge_count_maps(
+            &mut self.request_outcome_scope_bytes,
+            &source.request_outcome_scope_bytes,
+        );
+        Self::merge_count_maps(
+            &mut self.request_outcome_scope_outcomes,
+            &source.request_outcome_scope_outcomes,
+        );
+        Self::merge_count_maps(
+            &mut self.request_outcome_lane_totals,
+            &source.request_outcome_lane_totals,
+        );
+        Self::merge_count_maps(
+            &mut self.request_outcome_lane_bytes,
+            &source.request_outcome_lane_bytes,
+        );
+        Self::merge_count_maps(
+            &mut self.request_outcome_lane_outcomes,
+            &source.request_outcome_lane_outcomes,
+        );
     }
 
     fn finalize(self, now: u64, hours: u64, top_limit: usize, start_hour: u64, end_hour: u64) -> MonitoringSummary {
@@ -1491,6 +1628,180 @@ impl MonitoringAccumulator {
             *entry = entry.saturating_add(value);
         }
 
+        let mut request_outcome_scope_rows: BTreeMap<(String, String, String), RequestOutcomeScopeSummaryRow> =
+            BTreeMap::new();
+        for (cohort, count) in self.request_outcome_scope_totals {
+            if let Some((traffic_origin, measurement_scope, execution_mode)) =
+                parse_request_outcome_scope_cohort(cohort.as_str())
+            {
+                let row = request_outcome_scope_rows
+                    .entry((
+                        traffic_origin.clone(),
+                        measurement_scope.clone(),
+                        execution_mode.clone(),
+                    ))
+                    .or_insert_with(|| RequestOutcomeScopeSummaryRow {
+                        traffic_origin,
+                        measurement_scope,
+                        execution_mode,
+                        ..RequestOutcomeScopeSummaryRow::default()
+                    });
+                row.total_requests = row.total_requests.saturating_add(count);
+            }
+        }
+        for (cohort, count) in self.request_outcome_scope_bytes {
+            if let Some((traffic_origin, measurement_scope, execution_mode)) =
+                parse_request_outcome_scope_cohort(cohort.as_str())
+            {
+                let row = request_outcome_scope_rows
+                    .entry((
+                        traffic_origin.clone(),
+                        measurement_scope.clone(),
+                        execution_mode.clone(),
+                    ))
+                    .or_insert_with(|| RequestOutcomeScopeSummaryRow {
+                        traffic_origin,
+                        measurement_scope,
+                        execution_mode,
+                        ..RequestOutcomeScopeSummaryRow::default()
+                    });
+                row.response_bytes = row.response_bytes.saturating_add(count);
+            }
+        }
+        for (nested_cohort, count) in self.request_outcome_scope_outcomes {
+            if let Some((scope_cohort, outcome_class)) =
+                split_last_cohort_segment(nested_cohort.as_str())
+            {
+                if let Some((traffic_origin, measurement_scope, execution_mode)) =
+                    parse_request_outcome_scope_cohort(scope_cohort)
+                {
+                    let row = request_outcome_scope_rows
+                        .entry((
+                            traffic_origin.clone(),
+                            measurement_scope.clone(),
+                            execution_mode.clone(),
+                        ))
+                        .or_insert_with(|| RequestOutcomeScopeSummaryRow {
+                            traffic_origin,
+                            measurement_scope,
+                            execution_mode,
+                            ..RequestOutcomeScopeSummaryRow::default()
+                        });
+                    match outcome_class {
+                        "forwarded" => {
+                            row.forwarded_requests = row.forwarded_requests.saturating_add(count)
+                        }
+                        "short_circuited" => {
+                            row.short_circuited_requests =
+                                row.short_circuited_requests.saturating_add(count)
+                        }
+                        "control_response" => {
+                            row.control_response_requests =
+                                row.control_response_requests.saturating_add(count)
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+
+        let mut request_outcome_lane_rows: BTreeMap<
+            (String, String, String, String, String, String),
+            RequestOutcomeLaneSummaryRow,
+        > = BTreeMap::new();
+        for (cohort, count) in self.request_outcome_lane_totals {
+            if let Some((traffic_origin, measurement_scope, execution_mode, lane, exactness, basis)) =
+                parse_request_outcome_lane_cohort(cohort.as_str())
+            {
+                let row = request_outcome_lane_rows
+                    .entry((
+                        traffic_origin.clone(),
+                        measurement_scope.clone(),
+                        execution_mode.clone(),
+                        lane.clone(),
+                        exactness.clone(),
+                        basis.clone(),
+                    ))
+                    .or_insert_with(|| RequestOutcomeLaneSummaryRow {
+                        traffic_origin,
+                        measurement_scope,
+                        execution_mode,
+                        lane,
+                        exactness,
+                        basis,
+                        ..RequestOutcomeLaneSummaryRow::default()
+                    });
+                row.total_requests = row.total_requests.saturating_add(count);
+            }
+        }
+        for (cohort, count) in self.request_outcome_lane_bytes {
+            if let Some((traffic_origin, measurement_scope, execution_mode, lane, exactness, basis)) =
+                parse_request_outcome_lane_cohort(cohort.as_str())
+            {
+                let row = request_outcome_lane_rows
+                    .entry((
+                        traffic_origin.clone(),
+                        measurement_scope.clone(),
+                        execution_mode.clone(),
+                        lane.clone(),
+                        exactness.clone(),
+                        basis.clone(),
+                    ))
+                    .or_insert_with(|| RequestOutcomeLaneSummaryRow {
+                        traffic_origin,
+                        measurement_scope,
+                        execution_mode,
+                        lane,
+                        exactness,
+                        basis,
+                        ..RequestOutcomeLaneSummaryRow::default()
+                    });
+                row.response_bytes = row.response_bytes.saturating_add(count);
+            }
+        }
+        for (nested_cohort, count) in self.request_outcome_lane_outcomes {
+            if let Some((lane_cohort, outcome_class)) =
+                split_last_cohort_segment(nested_cohort.as_str())
+            {
+                if let Some((traffic_origin, measurement_scope, execution_mode, lane, exactness, basis)) =
+                    parse_request_outcome_lane_cohort(lane_cohort)
+                {
+                    let row = request_outcome_lane_rows
+                        .entry((
+                            traffic_origin.clone(),
+                            measurement_scope.clone(),
+                            execution_mode.clone(),
+                            lane.clone(),
+                            exactness.clone(),
+                            basis.clone(),
+                        ))
+                        .or_insert_with(|| RequestOutcomeLaneSummaryRow {
+                            traffic_origin,
+                            measurement_scope,
+                            execution_mode,
+                            lane,
+                            exactness,
+                            basis,
+                            ..RequestOutcomeLaneSummaryRow::default()
+                        });
+                    match outcome_class {
+                        "forwarded" => {
+                            row.forwarded_requests = row.forwarded_requests.saturating_add(count)
+                        }
+                        "short_circuited" => {
+                            row.short_circuited_requests =
+                                row.short_circuited_requests.saturating_add(count)
+                        }
+                        "control_response" => {
+                            row.control_response_requests =
+                                row.control_response_requests.saturating_add(count)
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+
         MonitoringSummary {
             generated_at: now,
             hours,
@@ -1546,6 +1857,10 @@ impl MonitoringAccumulator {
                 total_violations: self.geo_total,
                 actions: geo_action_map,
                 top_countries: top_entries(&self.geo_countries, top_limit),
+            },
+            request_outcomes: RequestOutcomeSummary {
+                by_scope: request_outcome_scope_rows.into_values().collect(),
+                by_lane: request_outcome_lane_rows.into_values().collect(),
             },
         }
     }
@@ -1990,6 +2305,107 @@ mod tests {
     }
 
     #[test]
+    fn summarize_exposes_compact_request_outcome_scope_and_lane_rows() {
+        let store = MockStore::default();
+
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::Live,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::PublicContent,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: Some(RequestOutcomeLane {
+                    lane: TrafficLane::LikelyHuman,
+                    exactness: TelemetryExactness::Exact,
+                    basis: TelemetryBasis::Observed,
+                }),
+                outcome_class: RequestOutcomeClass::Forwarded,
+                response_kind: ResponseKind::ForwardAllow,
+                http_status: 200,
+                response_bytes: 321,
+                forward_attempted: true,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::CleanAllow,
+            },
+        );
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::AdversarySim,
+                measurement_scope: MeasurementScope::Excluded,
+                route_action_family: RouteActionFamily::SimPublic,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: None,
+                outcome_class: RequestOutcomeClass::ShortCircuited,
+                response_kind: ResponseKind::SimPublicResponse,
+                http_status: 200,
+                response_bytes: 77,
+                forward_attempted: false,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::SimPublic,
+            },
+        );
+
+        let summary = summarize_with_store(&store, 24, 10);
+        assert_eq!(summary.request_outcomes.by_scope.len(), 2);
+        assert_eq!(summary.request_outcomes.by_lane.len(), 1);
+
+        let live_scope = summary
+            .request_outcomes
+            .by_scope
+            .iter()
+            .find(|row| {
+                row.traffic_origin == "live"
+                    && row.measurement_scope == "ingress_primary"
+                    && row.execution_mode == "enforced"
+            })
+            .expect("live scope row");
+        assert_eq!(live_scope.total_requests, 1);
+        assert_eq!(live_scope.forwarded_requests, 1);
+        assert_eq!(live_scope.short_circuited_requests, 0);
+        assert_eq!(live_scope.control_response_requests, 0);
+        assert_eq!(live_scope.response_bytes, 321);
+
+        let sim_scope = summary
+            .request_outcomes
+            .by_scope
+            .iter()
+            .find(|row| {
+                row.traffic_origin == "adversary_sim"
+                    && row.measurement_scope == "excluded"
+                    && row.execution_mode == "enforced"
+            })
+            .expect("sim scope row");
+        assert_eq!(sim_scope.total_requests, 1);
+        assert_eq!(sim_scope.forwarded_requests, 0);
+        assert_eq!(sim_scope.short_circuited_requests, 1);
+        assert_eq!(sim_scope.control_response_requests, 0);
+        assert_eq!(sim_scope.response_bytes, 77);
+
+        let live_lane = summary
+            .request_outcomes
+            .by_lane
+            .iter()
+            .find(|row| {
+                row.traffic_origin == "live"
+                    && row.measurement_scope == "ingress_primary"
+                    && row.execution_mode == "enforced"
+                    && row.lane == "likely_human"
+            })
+            .expect("live lane row");
+        assert_eq!(live_lane.exactness, "exact");
+        assert_eq!(live_lane.basis, "observed");
+        assert_eq!(live_lane.total_requests, 1);
+        assert_eq!(live_lane.forwarded_requests, 1);
+        assert_eq!(live_lane.short_circuited_requests, 0);
+        assert_eq!(live_lane.control_response_requests, 0);
+        assert_eq!(live_lane.response_bytes, 321);
+    }
+
+    #[test]
     fn summarize_returns_seeded_maps_when_empty() {
         let store = MockStore::default();
         let summary = summarize_with_store(&store, 24, 10);
@@ -2027,6 +2443,8 @@ mod tests {
             0
         );
         assert_eq!(summary.geo.actions.get("maze").copied().unwrap_or(99), 0);
+        assert!(summary.request_outcomes.by_scope.is_empty());
+        assert!(summary.request_outcomes.by_lane.is_empty());
     }
 
     #[test]
