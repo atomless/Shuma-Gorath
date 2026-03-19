@@ -31,16 +31,28 @@ This file provides instructions for coding agents working in this repository.
 
 ## Required workflow for non-trivial changes
 
+Planning-first workflow is mandatory unless the user explicitly stipulates a different sequence for the specific task.
+
 1. Read relevant docs and touched modules before editing.
-2. Check `docs/plans/` for active or recent design docs relevant to the area you are changing, and align implementation with those plans unless the user explicitly overrides them.
-3. When acting on TODO items, achieve full situational awareness before implementation:
+2. For any non-trivial feature, architectural change, telemetry/control-plane change, or multi-step tranche, establish and preserve the full planning chain in order:
+   - perform or refresh the necessary research first and capture it in `docs/research/` before implementation,
+   - convert that research into one or more plan/design docs in `docs/plans/`,
+   - update roadmap or sequencing docs when the work changes execution order or dependencies,
+   - manifest execution as atomic checklist TODOs in `todos/todo.md` or `todos/blocked-todo.md`,
+   - execute one atomic tranche at a time, not a blended mega-change,
+   - move completed TODOs immediately to the top of `todos/completed-todo-history.md` with the completion date,
+   - conduct a post-implementation review after every tranche,
+   - if that review finds shortfalls between research, plan, implementation, or the excellence demanded by the project, write them up as further TODOs and carry them out immediately,
+   - conduct one final review before moving to the next planned tranche or the next round of research.
+3. Check `docs/plans/` for active or recent design docs relevant to the area you are changing, and align implementation with those plans unless the user explicitly overrides them.
+4. When acting on TODO items, achieve full situational awareness before implementation:
    - scan the full TODO backlog first (`todos/todo.md`, `todos/blocked-todo.md`, and `todos/security-review.md`) to identify intersecting items,
    - identify and read relevant plan documents in `docs/plans/`,
    - synchronize TODO execution with those plans so work does not duplicate, contradict, or drift from planned architecture.
-4. Make small, reviewable changes.
-5. Add/update tests for behavior changes.
-6. Update docs for behavior/config/ops changes.
-7. Run verification through `Makefile` targets only:
+5. Make small, reviewable changes.
+6. Add/update tests for behavior changes.
+7. Update docs for behavior/config/ops changes.
+8. Run verification through `Makefile` targets only:
    - for any newly created development branch/worktree, run `make setup` before `make dev`/`make test` so `.env.local`, local tooling, and seeded config are initialized for that workspace,
    - `make test` as the umbrella verification path (unit + integration + dashboard e2e),
    - `make test-unit`, `make test-integration`, and `make test-dashboard-e2e` for focused reruns,
@@ -60,15 +72,15 @@ This file provides instructions for coding agents working in this repository.
    - before re-running full-suite verification, agents MUST compare the current `HEAD` and worktree fingerprint to the latest receipt;
    - if both match (no code/config/test changes since the last full pass), agents MUST NOT rerun `make test`; they MUST reuse the existing passing receipt and proceed with commit/push;
    - when state differs from the latest receipt, agents MUST run the minimum relevant verification first, then refresh `.spin/last-full-test-pass.json` only after a new successful `make test`.
-8. Before reporting completion, confirm relevant CI status (or state explicitly that CI is pending/unverified).
-9. Commit/push in atomic slices by default:
+9. Before reporting completion, confirm relevant CI status (or state explicitly that CI is pending/unverified).
+10. Commit/push in atomic slices by default:
    - one logical change per commit,
    - avoid mixing unrelated refactors and feature/bug work in the same commit,
    - run relevant Makefile verification before each commit,
    - push after each validated atomic commit unless the user explicitly asks for batching,
    - after changes are merged, clean up merged branches as housekeeping (delete merged local topic branches and merged remote topic branches), while preserving protected branches such as `main`.
-10. Document security, operational, and resource implications.
-11. TODO housekeeping is immediate, not batched:
+11. Document security, operational, and resource implications.
+12. TODO housekeeping is immediate, not batched:
    - when any TODO checklist item is completed, move it from `todos/todo.md` to `todos/completed-todo-history.md` at the point of completion,
    - when a TODO becomes explicitly blocked or contingent rather than execution-ready, move it from `todos/todo.md` to `todos/blocked-todo.md` with a short blocking condition,
    - when code or behavior work is completed without a pre-written TODO entry, agents MUST still add a dated completion record to `todos/completed-todo-history.md` describing the work delivered, why it was done, and the main evidence/verification, so every lasting change leaves an auditable paper trail,
@@ -77,41 +89,41 @@ This file provides instructions for coding agents working in this repository.
    - preserve the original TODO section title(s) as headings in the archive entry.
    - immediately after completing any TODO tranche, review the recently completed TODOs and their linked plan requirements as a consistency check,
    - confirm the delivered result actually met the planned requirements and did so with the architectural, security, and operational excellence demanded by this project; if it did not, continue the work or reopen the TODO instead of reporting completion.
-12. For any new `SHUMA_*` variable, follow the single-source-of-truth lifecycle:
+13. For any new `SHUMA_*` variable, follow the single-source-of-truth lifecycle:
    - define/update canonical default in `config/defaults.env` first and classify it as env-only or KV-tunable,
    - wire seeding/bootstrap paths so `make config-seed`/`make setup` produce a correct local baseline (at minimum update `scripts/config_seed.sh`, `scripts/bootstrap/setup.sh`, and `Makefile` env wiring/help as applicable),
    - keep dev-only overrides intentional for local manual config/monitoring/tuning workflows (do not silently broaden them),
    - ensure tests leave no strange state behind (restore env mutations and reset runtime config they toggle),
    - ensure production-start defaults remain secure-by-default (no debug/unsafe defaults enabled by default).
-13. Keep admin-writable config and Dashboard Advanced JSON in strict parity:
+14. Keep admin-writable config and Dashboard Advanced JSON in strict parity:
    - every KV-editable key accepted by `POST /admin/config` must appear in `dashboard/src/lib/domain/config-schema.js` Advanced JSON paths,
    - env-only keys remain excluded,
    - maintain/update parity tests so drift fails fast.
-14. Non-negotiable whole-system evidence rule for usage/coverage claims:
+15. Non-negotiable whole-system evidence rule for usage/coverage claims:
    - agents MUST NOT claim that code/endpoint/functionality is "unused", "dead", "not exercised", or "only used by X" from partial inspection;
    - before making any such claim, agents MUST trace and verify the full execution surface end-to-end: runtime call sites, dashboard/client call paths, test suites (unit/integration/e2e/adversarial), `Makefile` target wiring, package scripts, and CI workflow execution paths;
    - agents MUST cite concrete evidence (`file:line` references and the exact verification commands/targets used) for every usage/non-usage assertion;
    - if full-path verification is incomplete, agents MUST explicitly state uncertainty and continue investigation instead of making definitive claims;
    - treat shallow usage assessments as release-blocking process failure.
-15. Non-negotiable completion proof for large tranches/refactors (release-blocking):
+16. Non-negotiable completion proof for large tranches/refactors (release-blocking):
    - for any large feature tranche, cross-cutting refactor, or architecture migration, agents MUST NOT claim "working", "complete", or "done" without end-to-end proof across runtime, CI, and UI surfaces;
    - Definition of Done for such work MUST include explicit acceptance checks proving expected traffic/data flow and shape at every boundary: generation/emission, persistence/telemetry, API read paths, and dashboard rendering/refresh behavior;
    - for dashboard telemetry or hot-read changes specifically, proof MUST cover the full data path end-to-end: backend emission/materialization, admin API payload shape, dashboard API-client normalization/adaptation, runtime/store merge, and the rendered tab or panel DOM that operators actually use;
    - unit or source-contract coverage for only one boundary is insufficient for dashboard telemetry changes. Agents MUST add or update tests at the boundary where the regression could be hidden, and MUST include at least one rendered proof when the user-facing dashboard output changes;
    - for adversary-simulation work specifically, completion MUST prove (1) traffic is generated, (2) traffic is persisted/observable in monitoring APIs, (3) traffic is rendered in dashboard sections expected by spec, and (4) CI/runtime gates assert those outcomes;
    - when any required proof is missing or flaky, agents MUST report the slice as incomplete, continue debugging, and must not present status as complete.
-16. Non-negotiable Make target truth-in-naming rule (release-blocking):
+17. Non-negotiable Make target truth-in-naming rule (release-blocking):
    - agents MUST NOT add, rename, or document any `make` target whose name implies behavior/scope/isolation that the implementation does not actually guarantee;
    - before claiming a new `make` command is complete, agents MUST verify and document its real blast radius and data scope (for example runtime-specific vs shared keyspace, dev-only vs prod-only, destructive vs non-destructive);
    - when architecture constraints prevent strict semantics implied by a target name, agents MUST either (a) choose an accurate name, or (b) explicitly call out the limitation in help/docs and completion notes before merge;
    - ambiguous or misleading command naming/claims are process failures and must be corrected before completion.
-17. Non-negotiable scope-lock and critical-state change gate (release-blocking):
+18. Non-negotiable scope-lock and critical-state change gate (release-blocking):
    - for local issues (for example chart tick density, label rendering, or component-scoped UI behavior), agents MUST keep the first remediation slice scoped to the local module and MUST NOT modify global runtime/auth/connection/polling state flows in that same slice;
    - before changing any cross-cutting dashboard state path (connection state derivation, auth/session lifecycle, polling scheduler, route controller cancellation semantics, or global body/root class state), agents MUST present a file:line causal chain proving the local issue originates in that path and MUST receive explicit user signoff;
    - agents MUST NOT combine a local bugfix and a critical-state architecture change in one patch series without explicit approval for the architecture change;
    - for connection/auth/polling state changes, agents MUST add targeted regression tests that prove stability under cancellation/retry overlap (for example no connected/disconnected oscillation from client-side abort churn);
    - if investigation shows uncertainty about root cause, agents MUST instrument and gather evidence first, then propose the smallest change that addresses the proven cause.
-18. Non-negotiable user no-touch and exact-restore contract (release-blocking):
+19. Non-negotiable user no-touch and exact-restore contract (release-blocking):
    - when the user says not to touch specific files/regions/behaviors, agents MUST treat those areas as frozen and MUST NOT edit them for any reason unless the user later gives explicit permission;
    - if an agent violates a no-touch instruction or is asked to revert, the agent MUST restore the exact prior code (byte-for-byte where feasible) from authoritative evidence (`git` history/reflog/stash/recoverable objects), not an approximation;
    - agents MUST NEVER ad-lib, synthesize, or "best-guess" replacement code while claiming it is a restoration of prior code;

@@ -4,6 +4,23 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-19)
 
+### Monitoring Telemetry Foundations: Capture The Follow-On Precision Contracts And Enforce The Planning-First Workflow
+
+- [x] Record the three remaining controller-grade telemetry precision items as an explicit follow-on plan, refine the active TODOs into more atomic execution steps, and strengthen `AGENTS.md` so the project workflow is unambiguous: research first, then plan docs, then roadmap alignment, then atomic TODOs, then implementation, then immediate post-tranche review and remediation.
+- [x] Why:
+  - the latest telemetry review clarified that the next stage does not need more broad research, but it does need one precise execution contract for byte attribution, summary shapes, and terminal-path coverage before implementation continues.
+  - the user also made the desired project rhythm explicit, and that rhythm is strong enough that it should be enforced by repository policy rather than carried informally in conversation.
+  - refining the open telemetry items into smaller TODOs now reduces the risk of blended slices and makes the next runtime change easier to verify and archive cleanly.
+- [x] Evidence:
+  - `AGENTS.md`
+  - `docs/plans/2026-03-19-controller-grade-monitoring-telemetry-foundation-follow-on-plan.md`
+  - `docs/index.md`
+  - `todos/todo.md`
+  - docs-only slice: tests intentionally skipped
+  - `git diff --check`
+
+## Additional completions (2026-03-19)
+
 ### Monitoring Telemetry Foundations: Reprioritize The Remaining Stage 1 Work Around Controller-Grade Benchmarks
 
 - [x] Capture the telemetry-foundation controller-readiness review in active research, roadmap sequencing, and backlog blockers so the next Stage 1 work stays focused on benchmark-grade telemetry foundations rather than jumping early to Monitoring UI work or inside-agent controller planning.
