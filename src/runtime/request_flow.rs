@@ -37,6 +37,32 @@ fn clean_allow_monitoring_intents(
     intents
 }
 
+fn bootstrap_failure_handled_response(
+    response: Response,
+) -> crate::runtime::request_outcome::HandledRequestResponse {
+    crate::runtime::request_outcome::HandledRequestResponse {
+        branch: crate::runtime::traffic_classification::CurrentRuntimeBranch::BootstrapFailure,
+        execution_mode: crate::runtime::effect_intents::ExecutionMode::Enforced,
+        rendered: crate::runtime::request_outcome::RenderedResponseEvidence::local(
+            response,
+            crate::runtime::request_outcome::ResponseKind::ControlPlaneResponse,
+        ),
+    }
+}
+
+fn finalize_request_outcome<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    traffic_origin: crate::runtime::request_outcome::TrafficOrigin,
+    handled: crate::runtime::request_outcome::HandledRequestResponse,
+) -> Response {
+    let outcome = crate::runtime::request_outcome::RenderedRequestOutcome::from_handled_response(
+        traffic_origin,
+        &handled,
+    );
+    crate::observability::monitoring::record_request_outcome(store, &outcome);
+    handled.rendered.response
+}
+
 /// Main handler logic, testable as a plain Rust function.
 pub(crate) fn handle_request(req: &Request) -> Response {
     if let Err(err) = crate::config::validate_env_only_once() {
@@ -56,6 +82,11 @@ pub(crate) fn handle_request(req: &Request) -> Response {
     };
     let _sim_context_guard =
         crate::runtime::sim_telemetry::enter(sim_metadata.or(inherited_sim_metadata));
+    let traffic_origin = if crate::runtime::sim_telemetry::current_metadata().is_some() {
+        crate::runtime::request_outcome::TrafficOrigin::AdversarySim
+    } else {
+        crate::runtime::request_outcome::TrafficOrigin::Live
+    };
     let capability_token = RequestFlowCapabilityToken::new();
     let request_capabilities =
         crate::runtime::capabilities::RuntimeCapabilities::for_policy_execution_phase(capability_token);
@@ -106,7 +137,13 @@ pub(crate) fn handle_request(req: &Request) -> Response {
 
     let cfg = match crate::load_runtime_config(store, site_id, path) {
         Ok(cfg) => cfg,
-        Err(resp) => return resp,
+        Err(resp) => {
+            return finalize_request_outcome(
+                store,
+                traffic_origin,
+                bootstrap_failure_handled_response(resp),
+            )
+        }
     };
     let provider_registry = crate::providers::registry::ProviderRegistry::from_config(&cfg);
     let request_effect_context = crate::runtime::effect_intents::EffectExecutionContext {
@@ -127,22 +164,9 @@ pub(crate) fn handle_request(req: &Request) -> Response {
             None,
         );
     };
-    let traffic_origin = if crate::runtime::sim_telemetry::current_metadata().is_some() {
-        crate::runtime::request_outcome::TrafficOrigin::AdversarySim
-    } else {
-        crate::runtime::request_outcome::TrafficOrigin::Live
-    };
     let finalize_handled_response =
         |handled: crate::runtime::request_outcome::HandledRequestResponse| {
-            let outcome =
-                crate::runtime::request_outcome::RenderedRequestOutcome::from_handled_response(
-                    traffic_origin,
-                    &handled,
-                );
-            execute_request_intents(vec![
-                crate::runtime::effect_intents::EffectIntent::RecordRequestOutcome { outcome },
-            ]);
-            handled.rendered.response
+            finalize_request_outcome(store, traffic_origin, handled)
         };
     let forward_allow_response = |reason: &str| {
         if crate::runtime::shadow_mode::shadow_mode_active(&cfg)
@@ -415,7 +439,7 @@ pub(crate) fn handle_request(req: &Request) -> Response {
 
 #[cfg(test)]
 mod tests {
-    use super::clean_allow_monitoring_intents;
+    use super::{clean_allow_monitoring_intents, finalize_request_outcome};
 
     #[test]
     fn clean_allow_monitoring_intents_skip_live_inference_for_adversary_sim_origin() {
@@ -458,5 +482,57 @@ mod tests {
             Some(crate::runtime::effect_intents::EffectIntent::RecordShadowPassThrough)
         ));
         assert_eq!(intents.len(), 3);
+    }
+
+    #[test]
+    fn bootstrap_failure_handled_response_uses_control_plane_outcome_contract() {
+        let handled = super::bootstrap_failure_handled_response(spin_sdk::http::Response::new(
+            500,
+            "Configuration unavailable",
+        ));
+
+        assert!(matches!(
+            handled.branch,
+            crate::runtime::traffic_classification::CurrentRuntimeBranch::BootstrapFailure
+        ));
+        assert_eq!(
+            handled.execution_mode,
+            crate::runtime::effect_intents::ExecutionMode::Enforced
+        );
+        assert_eq!(
+            handled.rendered.response_kind,
+            crate::runtime::request_outcome::ResponseKind::ControlPlaneResponse
+        );
+        assert!(!handled.rendered.forward_attempted);
+        assert!(handled.rendered.forward_failure_class.is_none());
+    }
+
+    #[test]
+    fn finalize_request_outcome_records_bootstrap_failures_under_control_scope() {
+        let store = crate::test_support::InMemoryStore::default();
+        let response = finalize_request_outcome(
+            &store,
+            crate::runtime::request_outcome::TrafficOrigin::Live,
+            super::bootstrap_failure_handled_response(spin_sdk::http::Response::new(
+                500,
+                "Configuration unavailable",
+            )),
+        );
+
+        assert_eq!(*response.status(), 500);
+
+        let summary = crate::observability::monitoring::summarize_with_store(&store, 24, 10);
+        let control_scope = summary
+            .request_outcomes
+            .by_scope
+            .iter()
+            .find(|row| {
+                row.traffic_origin == "live"
+                    && row.measurement_scope == "bypass_and_control"
+                    && row.execution_mode == "enforced"
+            })
+            .expect("bootstrap failure scope row");
+        assert_eq!(control_scope.total_requests, 1);
+        assert_eq!(control_scope.control_response_requests, 1);
     }
 }

@@ -79,9 +79,6 @@ pub(crate) enum EffectIntent {
         action: ShadowAction,
     },
     RecordShadowPassThrough,
-    RecordRequestOutcome {
-        outcome: crate::runtime::request_outcome::RenderedRequestOutcome,
-    },
     FlushPendingMonitoringCounters,
     LogEvent {
         event: crate::admin::EventType,

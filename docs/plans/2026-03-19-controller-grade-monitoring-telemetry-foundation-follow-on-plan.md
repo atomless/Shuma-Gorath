@@ -116,15 +116,15 @@ Every terminal path in [`src/runtime/request_flow.rs`](../../src/runtime/request
 2. must be brought under the request-outcome hook,
 3. remains intentionally excluded with explicit reason.
 
-## Current desired disposition
+## Resolved disposition for the prerequisite tranche
 
 | Terminal path | Current state | Desired state |
 | --- | --- | --- |
-| HTTPS-required rejection | early return | include as control-path outcome |
-| early routes | early return | include as control-path outcome |
-| static asset bypass | early return | remain excluded until a low-cost accounting path is chosen |
-| store-open failure | early return | include as fail/control outcome |
-| config-load failure | early return | include as fail/control outcome |
+| HTTPS-required rejection | early return before store open | remain intentionally excluded for now; this is a pre-store control-path response and must not be forced into an ad hoc telemetry path before a bootstrap-safe monitoring write contract exists |
+| early routes | early return before store open | remain intentionally excluded for now; these are pre-store control-plane responses and should only move under the request-outcome contract if a low-cost pre-store telemetry path is designed deliberately |
+| static asset bypass | early return before store open | remain excluded until a low-cost accounting path is chosen |
+| store-open failure | early return before store open | remain intentionally excluded for now because no store-backed request-outcome write path exists at the point of failure |
+| config-load failure | store-backed early return | include as fail/control outcome via the request-flow-owned bootstrap failure outcome hook |
 | handled forwarded allow | covered | keep covered |
 | handled defence follow-up responses | covered | keep covered |
 | handled sim-public responses | covered | keep covered with adversary-sim origin truth |

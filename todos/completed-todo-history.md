@@ -4,6 +4,37 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-19)
 
+### Monitoring Telemetry Foundations: Bring Bootstrap Failure Under The Request-Outcome Contract
+
+- [x] Complete `MON-TEL-1-2B` by bringing the store-backed config-load/bootstrap failure path under the request-flow-owned request-outcome hook, removing the stale `RecordRequestOutcome` effect-intent path, and codifying which remaining pre-store control paths stay intentionally outside the contract for now.
+- [x] Why:
+  - the controller-readiness review showed that fail/control responses were still partly invisible, which would weaken later operator and bounded-controller telemetry if bootstrap failure remained outside the same outcome contract as normal handled responses.
+  - config-load failure is the highest-value feasible inclusion because the store is already open, so Shuma can record truthful control-path telemetry without inventing a second write model or burdening the static fast path.
+  - removing the now-dead effect-intent variant keeps the architecture honest: request outcomes are finalized by the runtime-owned hook in `request_flow`, not by an orphaned effect-intent path.
+- [x] Evidence:
+  - `src/runtime/request_flow.rs`
+  - `src/runtime/request_outcome.rs`
+  - `src/runtime/traffic_classification.rs`
+  - `src/runtime/effect_intents/intent_types.rs`
+  - `src/runtime/effect_intents/intent_executor.rs`
+  - `docs/plans/2026-03-19-controller-grade-monitoring-telemetry-foundation-follow-on-plan.md`
+  - `make test-monitoring-telemetry-foundation-unit`
+  - `git diff --check`
+
+### Monitoring Telemetry Foundations: Materialize Benchmark Breakdown Summary Rows
+
+- [x] Complete `MON-TEL-1-5A`, `MON-TEL-1-5B`, and `MON-TEL-1-5C` by extending `MonitoringSummary.request_outcomes` with bounded breakdown rows for `response_kind`, `policy_source`, and `route_action_family`, including forwarded/short-circuited/control counts per breakdown value.
+- [x] Why:
+  - the controller-readiness review showed that Shuma was already recording these semantics at the counter layer, but operators and future bounded controllers still could not consume them through a stable backend summary contract.
+  - landing the three breakdown families together keeps the shape consistent and avoids three near-identical follow-on summary designs drifting apart.
+  - this gives the pre-overhaul telemetry foundation a much stronger backend contract for later Monitoring and tuning work without yet bloating the UI or widening event retention.
+- [x] Evidence:
+  - `src/observability/monitoring.rs`
+  - `make test-monitoring-telemetry-foundation-unit`
+  - `git diff --check`
+
+## Additional completions (2026-03-19)
+
 ### Monitoring Telemetry Foundations: Add Outcome-Attributed Byte Telemetry
 
 - [x] Complete `MON-TEL-1-2A` by extending the request-outcome counter and summary contract with bounded outcome-attributed byte telemetry, so scope and lane rows now distinguish total bytes from forwarded, short-circuited, and control-response bytes.

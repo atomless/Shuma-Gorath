@@ -149,7 +149,7 @@ pub(crate) fn classify_current_runtime_branch(
             policy_source: PolicySource::SimPublic,
         },
         CurrentRuntimeBranch::BootstrapFailure => MonitoringTrafficClassification {
-            measurement_scope: MeasurementScope::Excluded,
+            measurement_scope: MeasurementScope::BypassAndControl,
             route_action_family: RouteActionFamily::ControlPlane,
             traffic_lane: None,
             policy_source: PolicySource::BootstrapFailure,

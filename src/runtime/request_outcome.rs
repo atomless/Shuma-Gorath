@@ -309,4 +309,25 @@ mod tests {
         assert_eq!(outcome.outcome_class, RequestOutcomeClass::Forwarded);
         assert!(outcome.traffic_lane.is_none());
     }
+
+    #[test]
+    fn bootstrap_failure_is_control_plane_but_not_silently_dropped_from_control_scope() {
+        let handled = HandledRequestResponse {
+            branch: CurrentRuntimeBranch::BootstrapFailure,
+            execution_mode: ExecutionMode::Enforced,
+            rendered: RenderedResponseEvidence::local(
+                response(500, "Configuration unavailable"),
+                ResponseKind::ControlPlaneResponse,
+            ),
+        };
+
+        let outcome =
+            RenderedRequestOutcome::from_handled_response(TrafficOrigin::Live, &handled);
+
+        assert_eq!(outcome.measurement_scope, MeasurementScope::BypassAndControl);
+        assert_eq!(outcome.route_action_family, RouteActionFamily::ControlPlane);
+        assert_eq!(outcome.policy_source, PolicySource::BootstrapFailure);
+        assert_eq!(outcome.outcome_class, RequestOutcomeClass::ControlResponse);
+        assert!(outcome.traffic_lane.is_none());
+    }
 }

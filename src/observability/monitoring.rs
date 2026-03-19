@@ -200,10 +200,25 @@ pub(crate) struct RequestOutcomeLaneSummaryRow {
     pub control_response_bytes: u64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+pub(crate) struct RequestOutcomeBreakdownSummaryRow {
+    pub traffic_origin: String,
+    pub measurement_scope: String,
+    pub execution_mode: String,
+    pub value: String,
+    pub total_requests: u64,
+    pub forwarded_requests: u64,
+    pub short_circuited_requests: u64,
+    pub control_response_requests: u64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub(crate) struct RequestOutcomeSummary {
     pub by_scope: Vec<RequestOutcomeScopeSummaryRow>,
     pub by_lane: Vec<RequestOutcomeLaneSummaryRow>,
+    pub by_response_kind: Vec<RequestOutcomeBreakdownSummaryRow>,
+    pub by_policy_source: Vec<RequestOutcomeBreakdownSummaryRow>,
+    pub by_route_action_family: Vec<RequestOutcomeBreakdownSummaryRow>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -937,6 +952,35 @@ fn parse_request_outcome_scope_cohort(
     Some((traffic_origin, measurement_scope, execution_mode))
 }
 
+fn parse_request_outcome_scope_breakdown_cohort(
+    cohort: &str,
+) -> Option<(String, String, String, String)> {
+    let (scope_cohort, value) = split_last_cohort_segment(cohort)?;
+    let (traffic_origin, measurement_scope, execution_mode) =
+        parse_request_outcome_scope_cohort(scope_cohort)?;
+    Some((
+        traffic_origin,
+        measurement_scope,
+        execution_mode,
+        value.to_string(),
+    ))
+}
+
+fn parse_request_outcome_scope_breakdown_outcome_cohort(
+    cohort: &str,
+) -> Option<(String, String, String, String, String)> {
+    let (breakdown_cohort, outcome_class) = split_last_cohort_segment(cohort)?;
+    let (traffic_origin, measurement_scope, execution_mode, value) =
+        parse_request_outcome_scope_breakdown_cohort(breakdown_cohort)?;
+    Some((
+        traffic_origin,
+        measurement_scope,
+        execution_mode,
+        value,
+        outcome_class.to_string(),
+    ))
+}
+
 fn parse_request_outcome_lane_cohort(
     cohort: &str,
 ) -> Option<(String, String, String, String, String, String)> {
@@ -993,6 +1037,22 @@ pub(crate) fn record_request_outcome<S: crate::challenge::KeyValueStore>(
     record_with_dimension(
         store,
         "request_outcome",
+        "response_kind_outcome_class",
+        Some(
+            request_outcome_nested_cohort(
+                request_outcome_nested_cohort(
+                    scope_cohort.as_str(),
+                    normalize_response_kind(outcome.response_kind),
+                )
+                .as_str(),
+                normalize_request_outcome_class(outcome.outcome_class),
+            )
+            .as_str(),
+        ),
+    );
+    record_with_dimension(
+        store,
+        "request_outcome",
         "route_action_family",
         Some(
             request_outcome_nested_cohort(
@@ -1005,11 +1065,43 @@ pub(crate) fn record_request_outcome<S: crate::challenge::KeyValueStore>(
     record_with_dimension(
         store,
         "request_outcome",
+        "route_action_family_outcome_class",
+        Some(
+            request_outcome_nested_cohort(
+                request_outcome_nested_cohort(
+                    scope_cohort.as_str(),
+                    normalize_route_action_family(outcome.route_action_family),
+                )
+                .as_str(),
+                normalize_request_outcome_class(outcome.outcome_class),
+            )
+            .as_str(),
+        ),
+    );
+    record_with_dimension(
+        store,
+        "request_outcome",
         "policy_source",
         Some(
             request_outcome_nested_cohort(
                 scope_cohort.as_str(),
                 normalize_policy_source(outcome.policy_source),
+            )
+            .as_str(),
+        ),
+    );
+    record_with_dimension(
+        store,
+        "request_outcome",
+        "policy_source_outcome_class",
+        Some(
+            request_outcome_nested_cohort(
+                request_outcome_nested_cohort(
+                    scope_cohort.as_str(),
+                    normalize_policy_source(outcome.policy_source),
+                )
+                .as_str(),
+                normalize_request_outcome_class(outcome.outcome_class),
             )
             .as_str(),
         ),
@@ -1318,6 +1410,12 @@ struct MonitoringAccumulator {
     request_outcome_scope_bytes: HashMap<String, u64>,
     request_outcome_scope_outcomes: HashMap<String, u64>,
     request_outcome_scope_outcome_bytes: HashMap<String, u64>,
+    request_outcome_scope_response_kinds: HashMap<String, u64>,
+    request_outcome_scope_response_kind_outcomes: HashMap<String, u64>,
+    request_outcome_scope_policy_sources: HashMap<String, u64>,
+    request_outcome_scope_policy_source_outcomes: HashMap<String, u64>,
+    request_outcome_scope_route_action_families: HashMap<String, u64>,
+    request_outcome_scope_route_action_family_outcomes: HashMap<String, u64>,
     request_outcome_lane_totals: HashMap<String, u64>,
     request_outcome_lane_bytes: HashMap<String, u64>,
     request_outcome_lane_outcomes: HashMap<String, u64>,
@@ -1503,6 +1601,56 @@ impl MonitoringAccumulator {
                         Self::add_count(&mut self.request_outcome_scope_bytes, dim, count);
                     }
                 }
+                "response_kind" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(&mut self.request_outcome_scope_response_kinds, dim, count);
+                    }
+                }
+                "response_kind_outcome_class" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(
+                            &mut self.request_outcome_scope_response_kind_outcomes,
+                            dim,
+                            count,
+                        );
+                    }
+                }
+                "route_action_family" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(
+                            &mut self.request_outcome_scope_route_action_families,
+                            dim,
+                            count,
+                        );
+                    }
+                }
+                "route_action_family_outcome_class" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(
+                            &mut self.request_outcome_scope_route_action_family_outcomes,
+                            dim,
+                            count,
+                        );
+                    }
+                }
+                "policy_source" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(
+                            &mut self.request_outcome_scope_policy_sources,
+                            dim,
+                            count,
+                        );
+                    }
+                }
+                "policy_source_outcome_class" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(
+                            &mut self.request_outcome_scope_policy_source_outcomes,
+                            dim,
+                            count,
+                        );
+                    }
+                }
                 "outcome_class" => {
                     if let Some(dim) = dimension {
                         Self::add_count(&mut self.request_outcome_scope_outcomes, dim, count);
@@ -1594,6 +1742,30 @@ impl MonitoringAccumulator {
         Self::merge_count_maps(
             &mut self.request_outcome_scope_bytes,
             &source.request_outcome_scope_bytes,
+        );
+        Self::merge_count_maps(
+            &mut self.request_outcome_scope_response_kinds,
+            &source.request_outcome_scope_response_kinds,
+        );
+        Self::merge_count_maps(
+            &mut self.request_outcome_scope_response_kind_outcomes,
+            &source.request_outcome_scope_response_kind_outcomes,
+        );
+        Self::merge_count_maps(
+            &mut self.request_outcome_scope_policy_sources,
+            &source.request_outcome_scope_policy_sources,
+        );
+        Self::merge_count_maps(
+            &mut self.request_outcome_scope_policy_source_outcomes,
+            &source.request_outcome_scope_policy_source_outcomes,
+        );
+        Self::merge_count_maps(
+            &mut self.request_outcome_scope_route_action_families,
+            &source.request_outcome_scope_route_action_families,
+        );
+        Self::merge_count_maps(
+            &mut self.request_outcome_scope_route_action_family_outcomes,
+            &source.request_outcome_scope_route_action_family_outcomes,
         );
         Self::merge_count_maps(
             &mut self.request_outcome_scope_outcomes,
@@ -1942,6 +2114,78 @@ impl MonitoringAccumulator {
             }
         }
 
+        let build_request_outcome_breakdown_rows =
+            |totals: HashMap<String, u64>,
+             outcome_counts: HashMap<String, u64>|
+             -> Vec<RequestOutcomeBreakdownSummaryRow> {
+                let mut rows: BTreeMap<
+                    (String, String, String, String),
+                    RequestOutcomeBreakdownSummaryRow,
+                > = BTreeMap::new();
+
+                for (cohort, count) in totals {
+                    if let Some((traffic_origin, measurement_scope, execution_mode, value)) =
+                        parse_request_outcome_scope_breakdown_cohort(cohort.as_str())
+                    {
+                        let row = rows
+                            .entry((
+                                traffic_origin.clone(),
+                                measurement_scope.clone(),
+                                execution_mode.clone(),
+                                value.clone(),
+                            ))
+                            .or_insert_with(|| RequestOutcomeBreakdownSummaryRow {
+                                traffic_origin,
+                                measurement_scope,
+                                execution_mode,
+                                value,
+                                ..RequestOutcomeBreakdownSummaryRow::default()
+                            });
+                        row.total_requests = row.total_requests.saturating_add(count);
+                    }
+                }
+
+                for (nested_cohort, count) in outcome_counts {
+                    if let Some((traffic_origin, measurement_scope, execution_mode, value, outcome_class)) =
+                        parse_request_outcome_scope_breakdown_outcome_cohort(
+                            nested_cohort.as_str(),
+                        )
+                    {
+                        let row = rows
+                            .entry((
+                                traffic_origin.clone(),
+                                measurement_scope.clone(),
+                                execution_mode.clone(),
+                                value.clone(),
+                            ))
+                            .or_insert_with(|| RequestOutcomeBreakdownSummaryRow {
+                                traffic_origin,
+                                measurement_scope,
+                                execution_mode,
+                                value,
+                                ..RequestOutcomeBreakdownSummaryRow::default()
+                            });
+                        match outcome_class.as_str() {
+                            "forwarded" => {
+                                row.forwarded_requests =
+                                    row.forwarded_requests.saturating_add(count)
+                            }
+                            "short_circuited" => {
+                                row.short_circuited_requests =
+                                    row.short_circuited_requests.saturating_add(count)
+                            }
+                            "control_response" => {
+                                row.control_response_requests =
+                                    row.control_response_requests.saturating_add(count)
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+
+                rows.into_values().collect()
+            };
+
         MonitoringSummary {
             generated_at: now,
             hours,
@@ -2001,6 +2245,18 @@ impl MonitoringAccumulator {
             request_outcomes: RequestOutcomeSummary {
                 by_scope: request_outcome_scope_rows.into_values().collect(),
                 by_lane: request_outcome_lane_rows.into_values().collect(),
+                by_response_kind: build_request_outcome_breakdown_rows(
+                    self.request_outcome_scope_response_kinds,
+                    self.request_outcome_scope_response_kind_outcomes,
+                ),
+                by_policy_source: build_request_outcome_breakdown_rows(
+                    self.request_outcome_scope_policy_sources,
+                    self.request_outcome_scope_policy_source_outcomes,
+                ),
+                by_route_action_family: build_request_outcome_breakdown_rows(
+                    self.request_outcome_scope_route_action_families,
+                    self.request_outcome_scope_route_action_family_outcomes,
+                ),
             },
         }
     }
@@ -2622,6 +2878,123 @@ mod tests {
         assert_eq!(live_lane.forwarded_response_bytes, 321);
         assert_eq!(live_lane.short_circuited_response_bytes, 0);
         assert_eq!(live_lane.control_response_bytes, 0);
+    }
+
+    #[test]
+    fn summarize_exposes_request_outcome_breakdown_rows_for_benchmark_dimensions() {
+        let store = MockStore::default();
+
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::Live,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::PublicContent,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: Some(RequestOutcomeLane {
+                    lane: TrafficLane::LikelyHuman,
+                    exactness: TelemetryExactness::Exact,
+                    basis: TelemetryBasis::Observed,
+                }),
+                outcome_class: RequestOutcomeClass::Forwarded,
+                response_kind: ResponseKind::ForwardAllow,
+                http_status: 200,
+                response_bytes: 321,
+                forward_attempted: true,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::CleanAllow,
+            },
+        );
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::AdversarySim,
+                measurement_scope: MeasurementScope::Excluded,
+                route_action_family: RouteActionFamily::SimPublic,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: None,
+                outcome_class: RequestOutcomeClass::ShortCircuited,
+                response_kind: ResponseKind::SimPublicResponse,
+                http_status: 200,
+                response_bytes: 77,
+                forward_attempted: false,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::SimPublic,
+            },
+        );
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::Live,
+                measurement_scope: MeasurementScope::BypassAndControl,
+                route_action_family: RouteActionFamily::ControlPlane,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: None,
+                outcome_class: RequestOutcomeClass::ControlResponse,
+                response_kind: ResponseKind::ControlPlaneResponse,
+                http_status: 500,
+                response_bytes: 9,
+                forward_attempted: false,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::BootstrapFailure,
+            },
+        );
+
+        let summary = summarize_with_store(&store, 24, 10);
+        assert_eq!(summary.request_outcomes.by_response_kind.len(), 3);
+        assert_eq!(summary.request_outcomes.by_policy_source.len(), 3);
+        assert_eq!(summary.request_outcomes.by_route_action_family.len(), 3);
+
+        let forward_allow = summary
+            .request_outcomes
+            .by_response_kind
+            .iter()
+            .find(|row| {
+                row.traffic_origin == "live"
+                    && row.measurement_scope == "ingress_primary"
+                    && row.execution_mode == "enforced"
+                    && row.value == "forward_allow"
+            })
+            .expect("forward allow breakdown");
+        assert_eq!(forward_allow.total_requests, 1);
+        assert_eq!(forward_allow.forwarded_requests, 1);
+        assert_eq!(forward_allow.short_circuited_requests, 0);
+        assert_eq!(forward_allow.control_response_requests, 0);
+
+        let sim_public = summary
+            .request_outcomes
+            .by_policy_source
+            .iter()
+            .find(|row| {
+                row.traffic_origin == "adversary_sim"
+                    && row.measurement_scope == "excluded"
+                    && row.execution_mode == "enforced"
+                    && row.value == "sim_public"
+            })
+            .expect("sim public policy source");
+        assert_eq!(sim_public.total_requests, 1);
+        assert_eq!(sim_public.forwarded_requests, 0);
+        assert_eq!(sim_public.short_circuited_requests, 1);
+        assert_eq!(sim_public.control_response_requests, 0);
+
+        let control_plane = summary
+            .request_outcomes
+            .by_route_action_family
+            .iter()
+            .find(|row| {
+                row.traffic_origin == "live"
+                    && row.measurement_scope == "bypass_and_control"
+                    && row.execution_mode == "enforced"
+                    && row.value == "control_plane"
+            })
+            .expect("control-plane route family");
+        assert_eq!(control_plane.total_requests, 1);
+        assert_eq!(control_plane.forwarded_requests, 0);
+        assert_eq!(control_plane.short_circuited_requests, 0);
+        assert_eq!(control_plane.control_response_requests, 1);
     }
 
     #[test]
