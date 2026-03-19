@@ -6,6 +6,7 @@ Related context:
 - [`../research/2026-03-17-operator-decision-support-telemetry-audit.md`](../research/2026-03-17-operator-decision-support-telemetry-audit.md)
 - [`../research/2026-03-18-cost-aware-operator-telemetry-gap-analysis.md`](../research/2026-03-18-cost-aware-operator-telemetry-gap-analysis.md)
 - [`../research/2026-03-19-controller-readiness-telemetry-foundation-review.md`](../research/2026-03-19-controller-readiness-telemetry-foundation-review.md)
+- [`../research/2026-03-19-defence-funnel-origin-integrity-review.md`](../research/2026-03-19-defence-funnel-origin-integrity-review.md)
 - [`2026-03-18-monitoring-request-outcome-telemetry-hook-contract.md`](./2026-03-18-monitoring-request-outcome-telemetry-hook-contract.md)
 - [`2026-03-19-controller-grade-monitoring-telemetry-foundation-follow-on-plan.md`](./2026-03-19-controller-grade-monitoring-telemetry-foundation-follow-on-plan.md)
 - [`2026-03-19-monitoring-human-friction-denominator-plan.md`](./2026-03-19-monitoring-human-friction-denominator-plan.md)
@@ -17,6 +18,8 @@ Related context:
 Define the first normalized defence-effectiveness funnel contract for `MON-TEL-1-4`.
 
 This plan is intentionally conservative. It does not try to synthesize perfect funnels for every defence family. It defines one shared row shape, limits the first implementation to the families with enough backend truth today, and uses explicit `null` stage values where Shuma does not yet have trustworthy coverage.
+
+The 2026-03-19 origin-integrity review tightens this further: the first wave must only consume live-safe telemetry sources. If an older family-specific counter does not yet separate `live` and `adversary_sim`, that stage must remain `null` until the follow-on origin-aware counter slice lands.
 
 # Why This Is The Next Slice
 
@@ -84,10 +87,9 @@ That keeps the summary safe for later operator and controller use because it dis
 The first implementation should include only the families with enough backend truth today:
 
 1. `not_a_bot`
-2. `pow`
-3. `challenge`
-4. `js_challenge`
-5. `maze`
+2. `challenge`
+3. `js_challenge`
+4. `maze`
 
 Do not include first-wave rows for:
 
@@ -96,6 +98,7 @@ Do not include first-wave rows for:
 3. `geo`
 4. `tarpit`
 5. `ban`
+6. `pow`
 
 Those can follow later once the measurement boundary is cleaner.
 
@@ -108,38 +111,22 @@ Populate:
 1. `candidate_requests` = `not_a_bot.served`
 2. `triggered_requests` = `not_a_bot.served`
 3. `friction_requests` = `not_a_bot.served`
-4. `passed_requests` = `not_a_bot.pass`
-5. `failed_requests` = `not_a_bot.fail`
-6. `escalated_requests` = `not_a_bot.escalate`
-7. `likely_human_affected_requests` = `human_friction.likely_human.not_a_bot_requests`
+4. `likely_human_affected_requests` = `human_friction.likely_human.not_a_bot_requests`
 
-Leave `denied_requests` and `suspicious_forwarded_requests` as `None` in the first wave.
+Leave `passed_requests`, `failed_requests`, `escalated_requests`, `denied_requests`, and `suspicious_forwarded_requests` as `None` in the first wave until the legacy `not_a_bot` counters become origin-aware.
 
-## 2. `pow`
-
-Populate:
-
-1. `candidate_requests` = `pow.total_attempts`
-2. `triggered_requests` = `pow.total_attempts`
-3. `friction_requests` = `pow.total_attempts`
-4. `passed_requests` = `pow.total_successes`
-5. `failed_requests` = `pow.total_failures`
-
-Leave the other stages as `None` for now.
-
-## 3. `challenge`
+## 2. `challenge`
 
 Populate:
 
 1. `candidate_requests` = request-outcome `response_kind = challenge` for live ingress-primary requests in the current execution mode
 2. `triggered_requests` = same as candidate for first wave
 3. `friction_requests` = same as candidate for first wave
-4. `failed_requests` = `challenge.total_failures`
-5. `likely_human_affected_requests` = `human_friction.likely_human.challenge_requests`
+4. `likely_human_affected_requests` = `human_friction.likely_human.challenge_requests`
 
-Leave `passed_requests`, `escalated_requests`, `denied_requests`, and `suspicious_forwarded_requests` as `None`.
+Leave `passed_requests`, `failed_requests`, `escalated_requests`, `denied_requests`, and `suspicious_forwarded_requests` as `None` until `challenge` follow-up telemetry becomes origin-aware.
 
-## 4. `js_challenge`
+## 3. `js_challenge`
 
 Populate:
 
@@ -150,7 +137,7 @@ Populate:
 
 Leave the other stages as `None`.
 
-## 5. `maze`
+## 4. `maze`
 
 Populate:
 
@@ -168,6 +155,7 @@ Leave the other stages as `None` in the first wave.
 3. Keep the summary bounded and family-level only.
 4. Do not add per-path or per-country funnel variants in this tranche.
 5. Keep adversary-sim traffic out of the first-wave funnel summary.
+6. Do not consume legacy family-specific counters unless they are origin-safe for the operator view being summarized.
 
 # Ownership And Read-Surface Placement
 
@@ -191,7 +179,8 @@ Add tests that prove:
 2. `None` is used where a stage is intentionally unavailable,
 3. `likely_human_affected_requests` comes from the human-friction summary rather than ad hoc widget math,
 4. adversary-sim traffic does not populate the funnel rows,
-5. the summary survives hot-read refresh into the monitoring summary document and bootstrap payload if it remains bootstrap-resident.
+5. `pow` is omitted until its family counters become origin-aware,
+6. the summary survives hot-read refresh into the monitoring summary document and bootstrap payload if it remains bootstrap-resident.
 
 # Outcome
 

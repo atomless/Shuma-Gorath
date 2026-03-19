@@ -234,6 +234,26 @@ pub(crate) struct HumanFrictionSummary {
     pub segments: Vec<HumanFrictionSegmentRow>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub(crate) struct DefenceFunnelRow {
+    pub execution_mode: String,
+    pub family: String,
+    pub candidate_requests: Option<u64>,
+    pub triggered_requests: Option<u64>,
+    pub friction_requests: Option<u64>,
+    pub passed_requests: Option<u64>,
+    pub failed_requests: Option<u64>,
+    pub escalated_requests: Option<u64>,
+    pub denied_requests: Option<u64>,
+    pub suspicious_forwarded_requests: Option<u64>,
+    pub likely_human_affected_requests: Option<u64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub(crate) struct DefenceFunnelSummary {
+    pub rows: Vec<DefenceFunnelRow>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub(crate) struct RequestOutcomeSummary {
     pub by_scope: Vec<RequestOutcomeScopeSummaryRow>,
@@ -255,6 +275,7 @@ pub(crate) struct MonitoringSummary {
     pub rate: RateSummary,
     pub geo: GeoSummary,
     pub human_friction: HumanFrictionSummary,
+    pub defence_funnel: DefenceFunnelSummary,
     pub request_outcomes: RequestOutcomeSummary,
 }
 
@@ -2252,6 +2273,19 @@ impl MonitoringAccumulator {
                 rows.into_values().collect()
             };
 
+        let request_outcome_response_kind_rows = build_request_outcome_breakdown_rows(
+            self.request_outcome_scope_response_kinds.clone(),
+            self.request_outcome_scope_response_kind_outcomes.clone(),
+        );
+        let request_outcome_policy_source_rows = build_request_outcome_breakdown_rows(
+            self.request_outcome_scope_policy_sources.clone(),
+            self.request_outcome_scope_policy_source_outcomes.clone(),
+        );
+        let request_outcome_route_action_family_rows = build_request_outcome_breakdown_rows(
+            self.request_outcome_scope_route_action_families.clone(),
+            self.request_outcome_scope_route_action_family_outcomes.clone(),
+        );
+
         let mut human_friction_rows: BTreeMap<(String, String), HumanFrictionSegmentRow> =
             BTreeMap::new();
 
@@ -2356,6 +2390,103 @@ impl MonitoringAccumulator {
             row.friction_rate = row.friction_requests as f64 / denominator;
         }
 
+        let response_kind_total_for_mode =
+            |execution_mode: &str, response_kind: &str| -> u64 {
+                request_outcome_response_kind_rows
+                    .iter()
+                    .find(|row| {
+                        row.traffic_origin == "live"
+                            && row.measurement_scope == "ingress_primary"
+                            && row.execution_mode == execution_mode
+                            && row.value == response_kind
+                    })
+                    .map(|row| row.total_requests)
+                    .unwrap_or(0)
+            };
+
+        let likely_human_friction_for_mode =
+            |execution_mode: &str, family: &str| -> u64 {
+                human_friction_rows
+                    .get(&(execution_mode.to_string(), "likely_human".to_string()))
+                    .map(|row| match family {
+                        "not_a_bot" => row.not_a_bot_requests,
+                        "challenge" => row.challenge_requests,
+                        "js_challenge" => row.js_challenge_requests,
+                        "maze" => row.maze_requests,
+                        _ => 0,
+                    })
+                    .unwrap_or(0)
+            };
+
+        let mut defence_funnel_rows: BTreeMap<(String, String), DefenceFunnelRow> = BTreeMap::new();
+
+        for execution_mode in ["enforced", "shadow"] {
+            let not_a_bot_triggered = response_kind_total_for_mode(execution_mode, "not_a_bot");
+            if not_a_bot_triggered > 0 {
+                let row = defence_funnel_rows
+                    .entry((execution_mode.to_string(), "not_a_bot".to_string()))
+                    .or_insert_with(|| DefenceFunnelRow {
+                        execution_mode: execution_mode.to_string(),
+                        family: "not_a_bot".to_string(),
+                        ..DefenceFunnelRow::default()
+                    });
+                row.candidate_requests = Some(not_a_bot_triggered);
+                row.triggered_requests = Some(not_a_bot_triggered);
+                row.friction_requests = Some(not_a_bot_triggered);
+                row.likely_human_affected_requests =
+                    Some(likely_human_friction_for_mode(execution_mode, "not_a_bot"));
+            }
+
+            let challenge_triggered = response_kind_total_for_mode(execution_mode, "challenge");
+            if challenge_triggered > 0 {
+                let row = defence_funnel_rows
+                    .entry((execution_mode.to_string(), "challenge".to_string()))
+                    .or_insert_with(|| DefenceFunnelRow {
+                        execution_mode: execution_mode.to_string(),
+                        family: "challenge".to_string(),
+                        ..DefenceFunnelRow::default()
+                    });
+                row.candidate_requests = Some(challenge_triggered);
+                row.triggered_requests = Some(challenge_triggered);
+                row.friction_requests = Some(challenge_triggered);
+                row.likely_human_affected_requests =
+                    Some(likely_human_friction_for_mode(execution_mode, "challenge"));
+            }
+
+            let js_challenge_triggered =
+                response_kind_total_for_mode(execution_mode, "js_challenge");
+            if js_challenge_triggered > 0 {
+                let row = defence_funnel_rows
+                    .entry((execution_mode.to_string(), "js_challenge".to_string()))
+                    .or_insert_with(|| DefenceFunnelRow {
+                        execution_mode: execution_mode.to_string(),
+                        family: "js_challenge".to_string(),
+                        ..DefenceFunnelRow::default()
+                    });
+                row.candidate_requests = Some(js_challenge_triggered);
+                row.triggered_requests = Some(js_challenge_triggered);
+                row.friction_requests = Some(js_challenge_triggered);
+                row.likely_human_affected_requests =
+                    Some(likely_human_friction_for_mode(execution_mode, "js_challenge"));
+            }
+
+            let maze_triggered = response_kind_total_for_mode(execution_mode, "maze");
+            if maze_triggered > 0 {
+                let row = defence_funnel_rows
+                    .entry((execution_mode.to_string(), "maze".to_string()))
+                    .or_insert_with(|| DefenceFunnelRow {
+                        execution_mode: execution_mode.to_string(),
+                        family: "maze".to_string(),
+                        ..DefenceFunnelRow::default()
+                    });
+                row.candidate_requests = Some(maze_triggered);
+                row.triggered_requests = Some(maze_triggered);
+                row.friction_requests = Some(maze_triggered);
+                row.likely_human_affected_requests =
+                    Some(likely_human_friction_for_mode(execution_mode, "maze"));
+            }
+        }
+
         MonitoringSummary {
             generated_at: now,
             hours,
@@ -2415,21 +2546,15 @@ impl MonitoringAccumulator {
             human_friction: HumanFrictionSummary {
                 segments: human_friction_rows.into_values().collect(),
             },
+            defence_funnel: DefenceFunnelSummary {
+                rows: defence_funnel_rows.into_values().collect(),
+            },
             request_outcomes: RequestOutcomeSummary {
                 by_scope: request_outcome_scope_rows.into_values().collect(),
                 by_lane: request_outcome_lane_rows.into_values().collect(),
-                by_response_kind: build_request_outcome_breakdown_rows(
-                    self.request_outcome_scope_response_kinds,
-                    self.request_outcome_scope_response_kind_outcomes,
-                ),
-                by_policy_source: build_request_outcome_breakdown_rows(
-                    self.request_outcome_scope_policy_sources,
-                    self.request_outcome_scope_policy_source_outcomes,
-                ),
-                by_route_action_family: build_request_outcome_breakdown_rows(
-                    self.request_outcome_scope_route_action_families,
-                    self.request_outcome_scope_route_action_family_outcomes,
-                ),
+                by_response_kind: request_outcome_response_kind_rows,
+                by_policy_source: request_outcome_policy_source_rows,
+                by_route_action_family: request_outcome_route_action_family_rows,
             },
         }
     }
@@ -3412,6 +3537,203 @@ mod tests {
     }
 
     #[test]
+    fn summarize_exposes_normalized_defence_funnel_rows_for_supported_families() {
+        let store = MockStore::default();
+
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::Live,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::PublicContent,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: Some(RequestOutcomeLane {
+                    lane: TrafficLane::LikelyHuman,
+                    exactness: TelemetryExactness::Exact,
+                    basis: TelemetryBasis::Observed,
+                }),
+                outcome_class: RequestOutcomeClass::ShortCircuited,
+                response_kind: ResponseKind::NotABot,
+                http_status: 200,
+                response_bytes: 111,
+                forward_attempted: false,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::PolicyGraphSecondTranche,
+            },
+        );
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::Live,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::PublicContent,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: Some(RequestOutcomeLane {
+                    lane: TrafficLane::UnknownInteractive,
+                    exactness: TelemetryExactness::Derived,
+                    basis: TelemetryBasis::Residual,
+                }),
+                outcome_class: RequestOutcomeClass::ShortCircuited,
+                response_kind: ResponseKind::Challenge,
+                http_status: 200,
+                response_bytes: 95,
+                forward_attempted: false,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::PolicyGraphSecondTranche,
+            },
+        );
+        record_challenge_failure(&store, "198.51.100.30", "incorrect");
+
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::Live,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::PublicContent,
+                execution_mode: ExecutionMode::Shadow,
+                traffic_lane: Some(RequestOutcomeLane {
+                    lane: TrafficLane::LikelyHuman,
+                    exactness: TelemetryExactness::Exact,
+                    basis: TelemetryBasis::Observed,
+                }),
+                outcome_class: RequestOutcomeClass::ShortCircuited,
+                response_kind: ResponseKind::JsChallenge,
+                http_status: 200,
+                response_bytes: 50,
+                forward_attempted: false,
+                forward_failure_class: None,
+                intended_action: Some(ShadowAction::JsChallenge),
+                policy_source: PolicySource::PolicyGraphSecondTranche,
+            },
+        );
+
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::Live,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::PublicContent,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: Some(RequestOutcomeLane {
+                    lane: TrafficLane::LikelyHuman,
+                    exactness: TelemetryExactness::Exact,
+                    basis: TelemetryBasis::Observed,
+                }),
+                outcome_class: RequestOutcomeClass::ShortCircuited,
+                response_kind: ResponseKind::Maze,
+                http_status: 200,
+                response_bytes: 70,
+                forward_attempted: false,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::PolicyGraphSecondTranche,
+            },
+        );
+
+        record_pow_failure(&store, "198.51.100.44", "invalid_proof");
+        record_pow_success(&store);
+
+        let summary = summarize_with_store(&store, 24, 10);
+
+        let not_a_bot = summary
+            .defence_funnel
+            .rows
+            .iter()
+            .find(|row| row.execution_mode == "enforced" && row.family == "not_a_bot")
+            .expect("not_a_bot funnel row");
+        assert_eq!(not_a_bot.candidate_requests, Some(1));
+        assert_eq!(not_a_bot.triggered_requests, Some(1));
+        assert_eq!(not_a_bot.friction_requests, Some(1));
+        assert_eq!(not_a_bot.passed_requests, None);
+        assert_eq!(not_a_bot.failed_requests, None);
+        assert_eq!(not_a_bot.escalated_requests, None);
+        assert_eq!(not_a_bot.denied_requests, None);
+        assert_eq!(not_a_bot.suspicious_forwarded_requests, None);
+        assert_eq!(not_a_bot.likely_human_affected_requests, Some(1));
+
+        let challenge = summary
+            .defence_funnel
+            .rows
+            .iter()
+            .find(|row| row.execution_mode == "enforced" && row.family == "challenge")
+            .expect("challenge funnel row");
+        assert_eq!(challenge.candidate_requests, Some(1));
+        assert_eq!(challenge.triggered_requests, Some(1));
+        assert_eq!(challenge.friction_requests, Some(1));
+        assert_eq!(challenge.passed_requests, None);
+        assert_eq!(challenge.failed_requests, None);
+        assert_eq!(challenge.escalated_requests, None);
+        assert_eq!(challenge.likely_human_affected_requests, Some(0));
+
+        let js_challenge = summary
+            .defence_funnel
+            .rows
+            .iter()
+            .find(|row| row.execution_mode == "shadow" && row.family == "js_challenge")
+            .expect("js challenge funnel row");
+        assert_eq!(js_challenge.candidate_requests, Some(1));
+        assert_eq!(js_challenge.triggered_requests, Some(1));
+        assert_eq!(js_challenge.friction_requests, Some(1));
+        assert_eq!(js_challenge.passed_requests, None);
+        assert_eq!(js_challenge.failed_requests, None);
+        assert_eq!(js_challenge.likely_human_affected_requests, Some(1));
+
+        let maze = summary
+            .defence_funnel
+            .rows
+            .iter()
+            .find(|row| row.execution_mode == "enforced" && row.family == "maze")
+            .expect("maze funnel row");
+        assert_eq!(maze.candidate_requests, Some(1));
+        assert_eq!(maze.triggered_requests, Some(1));
+        assert_eq!(maze.friction_requests, Some(1));
+        assert_eq!(maze.likely_human_affected_requests, Some(1));
+
+        assert!(
+            summary
+                .defence_funnel
+                .rows
+                .iter()
+                .all(|row| row.family != "pow")
+        );
+    }
+
+    #[test]
+    fn summarize_keeps_defence_funnel_live_only_even_when_legacy_followup_counters_exist() {
+        let store = MockStore::default();
+
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::AdversarySim,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::SimPublic,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: None,
+                outcome_class: RequestOutcomeClass::ShortCircuited,
+                response_kind: ResponseKind::NotABot,
+                http_status: 200,
+                response_bytes: 111,
+                forward_attempted: false,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::SimPublic,
+            },
+        );
+        record_not_a_bot_served(&store);
+        record_not_a_bot_submit(&store, "pass", Some(900));
+        record_challenge_failure(&store, "198.51.100.30", "incorrect");
+        record_pow_failure(&store, "198.51.100.44", "invalid_proof");
+        record_pow_success(&store);
+
+        let summary = summarize_with_store(&store, 24, 10);
+
+        assert!(summary.defence_funnel.rows.is_empty());
+    }
+
+    #[test]
     fn summarize_returns_seeded_maps_when_empty() {
         let store = MockStore::default();
         let summary = summarize_with_store(&store, 24, 10);
@@ -3449,6 +3771,7 @@ mod tests {
             0
         );
         assert_eq!(summary.geo.actions.get("maze").copied().unwrap_or(99), 0);
+        assert!(summary.defence_funnel.rows.is_empty());
         assert!(summary.human_friction.segments.is_empty());
         assert!(summary.request_outcomes.by_scope.is_empty());
         assert!(summary.request_outcomes.by_lane.is_empty());

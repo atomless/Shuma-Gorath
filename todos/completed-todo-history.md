@@ -4,6 +4,21 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-19)
 
+### Monitoring Telemetry Foundations: Land An Honest First-Wave Defence Funnel
+
+- [x] Complete `MON-TEL-1-4` by adding the first bounded `defence_funnel` backend summary, carrying it through hot-read summary and bootstrap documents, and tightening the contract so only live-safe family stages are populated today.
+- [x] Why:
+  - the request-outcome and human-friction foundation is now strong enough to support one reusable defence-family comparison shape, which is a prerequisite for the Monitoring overhaul and later bounded controller benchmarks.
+  - the post-implementation review uncovered an important truthfulness gap: older `not_a_bot`, `challenge`, and `pow` follow-up counters are not yet origin-aware, so the funnel would have overclaimed if it consumed them directly.
+  - the right first-wave implementation is therefore intentionally narrower and more honest: keep `candidate`, `triggered`, `friction`, and `likely_human_affected` where they are live-safe today, omit `pow` for now, and record the new origin-aware follow-up counter tranche immediately as the next backend foundation step.
+- [x] Evidence:
+  - `docs/research/2026-03-19-defence-funnel-origin-integrity-review.md`
+  - `docs/plans/2026-03-19-monitoring-defence-funnel-plan.md`
+  - `src/observability/monitoring.rs`
+  - `src/observability/hot_read_projection.rs`
+  - `make test-monitoring-telemetry-foundation-unit`
+  - `git diff --check`
+
 ### Monitoring Telemetry Foundations: Write The Defence-Funnel Plan
 
 - [x] Capture the concrete `MON-TEL-1-4` funnel design in a dedicated implementation note so the next backend slice has a settled family set, row shape, and honest `None` semantics for unavailable stages.

@@ -654,6 +654,16 @@ mod tests {
             .expect("likely human friction row in summary");
         assert_eq!(summary_human_friction.denominator_requests, 2);
         assert_eq!(summary_human_friction.not_a_bot_requests, 1);
+        let summary_not_a_bot_funnel = summary
+            .payload
+            .defence_funnel
+            .rows
+            .iter()
+            .find(|row| row.execution_mode == "enforced" && row.family == "not_a_bot")
+            .expect("not_a_bot funnel row in summary");
+        assert_eq!(summary_not_a_bot_funnel.candidate_requests, Some(1));
+        assert_eq!(summary_not_a_bot_funnel.passed_requests, None);
+        assert_eq!(summary_not_a_bot_funnel.likely_human_affected_requests, Some(1));
 
         let bootstrap = read_document::<
             _,
@@ -692,6 +702,20 @@ mod tests {
             .expect("likely human friction row in bootstrap");
         assert_eq!(bootstrap_human_friction.denominator_requests, 2);
         assert_eq!(bootstrap_human_friction.not_a_bot_requests, 1);
+        let bootstrap_not_a_bot_funnel = bootstrap
+            .payload
+            .summary
+            .defence_funnel
+            .rows
+            .iter()
+            .find(|row| row.execution_mode == "enforced" && row.family == "not_a_bot")
+            .expect("not_a_bot funnel row in bootstrap");
+        assert_eq!(bootstrap_not_a_bot_funnel.candidate_requests, Some(1));
+        assert_eq!(bootstrap_not_a_bot_funnel.passed_requests, None);
+        assert_eq!(
+            bootstrap_not_a_bot_funnel.likely_human_affected_requests,
+            Some(1)
+        );
     }
 
     #[test]
