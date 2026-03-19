@@ -197,6 +197,12 @@ fn privileged_effect_executors_require_phase_specific_capability_types() {
         &crate::runtime::capabilities::PostResponseFlushCapabilities,
     ) = crate::runtime::effect_intents::execute_monitoring_store_intents;
 
+    let _request_outcome_executor: fn(
+        Vec<crate::runtime::effect_intents::EffectIntent>,
+        &spin_sdk::key_value::Store,
+        &crate::runtime::capabilities::PolicyExecutionCapabilities,
+    ) = crate::runtime::effect_intents::execute_request_outcome_intents;
+
     let _effect_executor: for<'a> fn(
         Vec<crate::runtime::effect_intents::EffectIntent>,
         &crate::runtime::effect_intents::EffectExecutionContext<'a>,

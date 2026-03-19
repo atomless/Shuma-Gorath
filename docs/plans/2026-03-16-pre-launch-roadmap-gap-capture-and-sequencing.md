@@ -288,6 +288,12 @@ Reason:
 1. the recent telemetry-foundation review showed that Shuma now has the right seam, but not yet the benchmark-grade telemetry needed for agentic-era operators or future inside controllers.
 2. without controller-grade byte attribution, richer bounded summary semantics, and fuller terminal-path coverage, Monitoring risks becoming visually better while still failing to expose the truths later tuning loops must optimize against.
 
+Status update (2026-03-19):
+
+1. Delivered. Outcome-attributed bytes, bounded `response_kind` and `policy_source` and `route_action_family` summaries, origin-safe follow-up telemetry, and the terminal-path truth boundary are now in place.
+2. The backend telemetry foundation is therefore complete enough for the Monitoring overhaul to begin once the section-ownership plan is written.
+3. No further telemetry architecture sweep is required before `MON-OVERHAUL-1`; the next work should move to Monitoring surface design and ownership planning.
+
 ## Stage 2: Monitoring And Tuning Surfaces
 
 1. Monitoring overhaul for operator decision-making.

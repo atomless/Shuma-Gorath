@@ -1536,6 +1536,12 @@ class Runner:
                     simulation_event_count_after=int_or_zero(scenario_events_after.get("count")),
                     simulation_event_reasons_before=list_or_empty(scenario_events_before.get("reasons")),
                     simulation_event_reasons_after=list_or_empty(scenario_events_after.get("reasons")),
+                    simulation_event_reason_counts_before=dict_or_empty(
+                        scenario_events_before.get("reason_counts")
+                    ),
+                    simulation_event_reason_counts_after=dict_or_empty(
+                        scenario_events_after.get("reason_counts")
+                    ),
                     driver_class=scenario_driver_class(scenario),
                     browser_realism=result.realism,
                 )
@@ -1853,6 +1859,7 @@ class Runner:
             return {"count": 0, "reasons": []}
 
         reasons = set()
+        reason_counts: Dict[str, int] = {}
         event_count = 0
         for event in recent_events:
             record = dict_or_empty(event)
@@ -1864,9 +1871,11 @@ class Runner:
             reason = str(record.get("reason") or "").strip().lower()
             if reason:
                 reasons.add(reason)
+                reason_counts[reason] = reason_counts.get(reason, 0) + 1
         return {
             "count": event_count,
             "reasons": sorted(reasons),
+            "reason_counts": reason_counts,
         }
 
     def simulation_event_reasons_snapshot(self, hours: int = 24, limit: int = 500) -> List[str]:
@@ -4556,6 +4565,49 @@ def compute_coverage_deltas(before: Dict[str, Any], after: Dict[str, Any]) -> Di
     return deltas
 
 
+def derive_coverage_deltas_from_simulation_event_reasons(
+    simulation_event_reason_counts_delta: Dict[str, int],
+) -> Dict[str, int]:
+    deltas: Dict[str, int] = {}
+    for reason, observed_count in simulation_event_reason_counts_delta.items():
+        normalized = str(reason).strip().lower()
+        count = max(0, int_or_zero(observed_count))
+        if not normalized:
+            continue
+        if count <= 0:
+            continue
+        if normalized.startswith("not_a_bot_pass"):
+            deltas["not_a_bot_pass"] = deltas.get("not_a_bot_pass", 0) + count
+        elif normalized == "not_a_bot_fail" or normalized.startswith("not_a_bot_submit_fail"):
+            deltas["not_a_bot_fail"] = deltas.get("not_a_bot_fail", 0) + count
+        elif normalized.startswith("not_a_bot_replay"):
+            deltas["not_a_bot_replay"] = deltas.get("not_a_bot_replay", 0) + count
+        elif normalized.startswith("not_a_bot_escalate"):
+            deltas["not_a_bot_escalate"] = deltas.get("not_a_bot_escalate", 0) + count
+        elif normalized.startswith("not_a_bot_submit_abuse") or normalized.startswith(
+            "not_a_bot_abuse"
+        ):
+            deltas["not_a_bot_replay"] = deltas.get("not_a_bot_replay", 0) + count
+    return deltas
+
+
+def compute_reason_count_deltas(
+    before: Optional[Dict[str, Any]],
+    after: Optional[Dict[str, Any]],
+) -> Dict[str, int]:
+    before_counts = dict_or_empty(before)
+    after_counts = dict_or_empty(after)
+    deltas: Dict[str, int] = {}
+    for reason in sorted(set(before_counts.keys()).union(after_counts.keys())):
+        delta = max(
+            0,
+            int_or_zero(after_counts.get(reason)) - int_or_zero(before_counts.get(reason)),
+        )
+        if delta > 0:
+            deltas[str(reason)] = delta
+    return deltas
+
+
 def build_retention_lifecycle_report(retention_health: Any) -> Dict[str, Any]:
     section = dict_or_empty(retention_health)
     bucket_schema = {
@@ -4669,6 +4721,8 @@ def build_scenario_execution_evidence(
     simulation_event_count_after: int,
     simulation_event_reasons_before: Optional[List[str]] = None,
     simulation_event_reasons_after: Optional[List[str]] = None,
+    simulation_event_reason_counts_before: Optional[Dict[str, Any]] = None,
+    simulation_event_reason_counts_after: Optional[Dict[str, Any]] = None,
     driver_class: str = "",
     browser_realism: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
@@ -4685,21 +4739,36 @@ def build_scenario_execution_evidence(
         0,
         int_or_zero(simulation_event_count_after) - int_or_zero(simulation_event_count_before),
     )
-    reasons_before = {
-        str(reason).strip().lower()
-        for reason in list_or_empty(simulation_event_reasons_before)
-        if str(reason).strip()
-    }
-    reasons_after = {
-        str(reason).strip().lower()
-        for reason in list_or_empty(simulation_event_reasons_after)
-        if str(reason).strip()
-    }
-    simulation_event_reasons_delta = sorted(reasons_after - reasons_before)
+    reason_count_deltas = compute_reason_count_deltas(
+        simulation_event_reason_counts_before,
+        simulation_event_reason_counts_after,
+    )
+    if reason_count_deltas:
+        simulation_event_reasons_delta = sorted(reason_count_deltas.keys())
+    else:
+        reasons_before = {
+            str(reason).strip().lower()
+            for reason in list_or_empty(simulation_event_reasons_before)
+            if str(reason).strip()
+        }
+        reasons_after = {
+            str(reason).strip().lower()
+            for reason in list_or_empty(simulation_event_reasons_after)
+            if str(reason).strip()
+        }
+        simulation_event_reasons_delta = sorted(reasons_after - reasons_before)
+        reason_count_deltas = {reason: 1 for reason in simulation_event_reasons_delta}
     simulation_event_count_delta = max(
         raw_simulation_event_count_delta,
         len(simulation_event_reasons_delta),
     )
+    reason_coverage_deltas = derive_coverage_deltas_from_simulation_event_reasons(
+        reason_count_deltas
+    )
+    for key, value in reason_coverage_deltas.items():
+        coverage_deltas[key] = max(0, int_or_zero(coverage_deltas.get(key))) + max(
+            0, int_or_zero(value)
+        )
     if int_or_zero(coverage_deltas.get("recent_event_count")) <= 0 and simulation_event_count_delta > 0:
         coverage_deltas["recent_event_count"] = simulation_event_count_delta
     coverage_delta_total = sum(max(0, int_or_zero(value)) for value in coverage_deltas.values())

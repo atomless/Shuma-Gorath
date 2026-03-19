@@ -4,6 +4,22 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-19)
 
+### Monitoring Telemetry Foundations: Close The Pre-Overhaul Backend Foundation Tranche
+
+- [x] Complete `MON-TEL-1-6` and `MON-TEL-1-7` by confirming that the admin monitoring read contract now exposes the richer bounded operator summaries, that focused backend and dashboard verification proves those summaries survive the full backend-to-dashboard path, and that retained-footprint and hot-read budget discipline remains intact through explicit budget assertions and the existing live-evidence context.
+- [x] Why:
+  - the controller-grade follow-on plan identified three remaining precision items before the Monitoring overhaul: byte attribution, richer bounded backend summaries, and terminal-path truth-boundary closure.
+  - those items are now closed, which means the telemetry foundation should stop being treated as an indefinite active blocker and the roadmap should move to the Monitoring-overhaul discussion and section-ownership planning work.
+  - capturing that closeout explicitly is important for the repo's planning-first workflow, because the project now has a clean handoff point between backend telemetry foundation work and the next operator-surface design stage.
+- [x] Evidence:
+  - `docs/research/2026-03-19-pre-monitoring-overhaul-telemetry-foundation-closeout-review.md`
+  - `src/observability/monitoring.rs`
+  - `src/observability/hot_read_projection.rs`
+  - `src/admin/api.rs`
+  - `make test-monitoring-telemetry-contract`
+  - `make test-dashboard-unit`
+  - `git diff --check`
+
 ### Monitoring Telemetry Foundations: Make Legacy Follow-Up Counters Origin-Aware
 
 - [x] Complete `MON-TEL-1-5D` by making `not_a_bot`, `challenge`, and `pow` follow-up telemetry origin-aware, switching the corresponding operator summaries to live-only truth by default, and restoring the richer defence-funnel stages once their backing counters became safe to use.

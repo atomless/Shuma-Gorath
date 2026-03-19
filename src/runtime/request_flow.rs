@@ -52,6 +52,7 @@ fn bootstrap_failure_handled_response(
 
 fn finalize_request_outcome<S: crate::challenge::KeyValueStore>(
     store: &S,
+    capabilities: &crate::runtime::capabilities::PolicyExecutionCapabilities,
     traffic_origin: crate::runtime::request_outcome::TrafficOrigin,
     handled: crate::runtime::request_outcome::HandledRequestResponse,
 ) -> Response {
@@ -59,7 +60,9 @@ fn finalize_request_outcome<S: crate::challenge::KeyValueStore>(
         traffic_origin,
         &handled,
     );
-    crate::observability::monitoring::record_request_outcome(store, &outcome);
+    crate::runtime::effect_intents::execute_request_outcome_intents(vec![
+        crate::runtime::effect_intents::EffectIntent::RecordRequestOutcome { outcome },
+    ], store, capabilities);
     handled.rendered.response
 }
 
@@ -140,6 +143,7 @@ pub(crate) fn handle_request(req: &Request) -> Response {
         Err(resp) => {
             return finalize_request_outcome(
                 store,
+                &request_capabilities,
                 traffic_origin,
                 bootstrap_failure_handled_response(resp),
             )
@@ -166,7 +170,7 @@ pub(crate) fn handle_request(req: &Request) -> Response {
     };
     let finalize_handled_response =
         |handled: crate::runtime::request_outcome::HandledRequestResponse| {
-            finalize_request_outcome(store, traffic_origin, handled)
+            finalize_request_outcome(store, &request_capabilities, traffic_origin, handled)
         };
     let forward_allow_response = |reason: &str| {
         if crate::runtime::shadow_mode::shadow_mode_active(&cfg)
@@ -510,8 +514,11 @@ mod tests {
     #[test]
     fn finalize_request_outcome_records_bootstrap_failures_under_control_scope() {
         let store = crate::test_support::InMemoryStore::default();
+        let capabilities =
+            crate::runtime::capabilities::RuntimeCapabilities::for_test_policy_execution_phase();
         let response = finalize_request_outcome(
             &store,
+            &capabilities,
             crate::runtime::request_outcome::TrafficOrigin::Live,
             super::bootstrap_failure_handled_response(spin_sdk::http::Response::new(
                 500,

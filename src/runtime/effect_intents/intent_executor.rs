@@ -191,6 +191,10 @@ fn apply_monitoring_intent_with_store<S: crate::challenge::KeyValueStore>(
             );
             None
         }
+        EffectIntent::RecordRequestOutcome { outcome } => {
+            crate::observability::monitoring::record_request_outcome(store, &outcome);
+            None
+        }
         EffectIntent::RecordShadowAction { action } => {
             crate::observability::monitoring::record_shadow_action(store, action);
             None
@@ -339,6 +343,22 @@ pub(crate) fn execute_monitoring_store_intents(
         else {
             continue;
         };
+        let _ = unhandled;
+    }
+}
+
+pub(crate) fn execute_request_outcome_intents<S: crate::challenge::KeyValueStore>(
+    intents: Vec<EffectIntent>,
+    store: &S,
+    capabilities: &PolicyExecutionCapabilities,
+) {
+    for intent in intents {
+        let Some(unhandled) =
+            apply_monitoring_intent_with_store(store, "", intent)
+        else {
+            continue;
+        };
+        let _ = capabilities.monitoring();
         let _ = unhandled;
     }
 }

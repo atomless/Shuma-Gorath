@@ -1142,6 +1142,63 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         self.assertEqual(evidence["coverage_deltas"]["recent_event_count"], 1)
         self.assertTrue(evidence["has_runtime_telemetry_evidence"])
 
+    def test_build_scenario_execution_evidence_supplements_not_a_bot_pass_from_sim_reason_delta(self):
+        evidence = runner.build_scenario_execution_evidence(
+            scenario_id="scenario_not_a_bot_pass",
+            request_count_before=4,
+            request_count_after=7,
+            monitoring_before={"monitoring_total": 0, "coverage": {"not_a_bot_pass": 0}},
+            monitoring_after={"monitoring_total": 0, "coverage": {"not_a_bot_pass": 0}},
+            simulation_event_count_before=10,
+            simulation_event_count_after=12,
+            simulation_event_reasons_before=["js_verification"],
+            simulation_event_reasons_after=["js_verification", "not_a_bot_pass"],
+        )
+        self.assertEqual(evidence["coverage_deltas"]["not_a_bot_pass"], 1)
+        self.assertEqual(evidence["simulation_event_reasons_delta"], ["not_a_bot_pass"])
+        self.assertTrue(evidence["has_runtime_telemetry_evidence"])
+
+    def test_build_scenario_execution_evidence_maps_not_a_bot_abuse_reason_to_replay_delta(self):
+        evidence = runner.build_scenario_execution_evidence(
+            scenario_id="scenario_not_a_bot_abuse",
+            request_count_before=4,
+            request_count_after=7,
+            monitoring_before={"monitoring_total": 0, "coverage": {"not_a_bot_replay": 0}},
+            monitoring_after={"monitoring_total": 0, "coverage": {"not_a_bot_replay": 0}},
+            simulation_event_count_before=10,
+            simulation_event_count_after=12,
+            simulation_event_reasons_before=["not_a_bot_fail"],
+            simulation_event_reasons_after=[
+                "not_a_bot_fail",
+                "not_a_bot_submit_abuse_shadow_mode_maze",
+            ],
+        )
+        self.assertEqual(evidence["coverage_deltas"]["not_a_bot_replay"], 1)
+        self.assertEqual(
+            evidence["simulation_event_reasons_delta"],
+            ["not_a_bot_submit_abuse_shadow_mode_maze"],
+        )
+        self.assertTrue(evidence["has_runtime_telemetry_evidence"])
+
+    def test_build_scenario_execution_evidence_uses_reason_count_delta_for_repeated_sim_reasons(self):
+        evidence = runner.build_scenario_execution_evidence(
+            scenario_id="scenario_not_a_bot_stale_abuse",
+            request_count_before=4,
+            request_count_after=6,
+            monitoring_before={"monitoring_total": 0, "coverage": {"not_a_bot_fail": 0}},
+            monitoring_after={"monitoring_total": 0, "coverage": {"not_a_bot_fail": 0}},
+            simulation_event_count_before=3,
+            simulation_event_count_after=5,
+            simulation_event_reasons_before=["not_a_bot_fail"],
+            simulation_event_reasons_after=["not_a_bot_fail"],
+            simulation_event_reason_counts_before={"not_a_bot_fail": 1},
+            simulation_event_reason_counts_after={"not_a_bot_fail": 3},
+        )
+        self.assertEqual(evidence["coverage_deltas"]["not_a_bot_fail"], 2)
+        self.assertEqual(evidence["simulation_event_reasons_delta"], ["not_a_bot_fail"])
+        self.assertEqual(evidence["simulation_event_count_delta"], 2)
+        self.assertTrue(evidence["has_runtime_telemetry_evidence"])
+
     def test_build_scenario_execution_evidence_includes_browser_fields_for_browser_realistic_driver(self):
         evidence = runner.build_scenario_execution_evidence(
             scenario_id="scenario_browser",

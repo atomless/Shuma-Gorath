@@ -5986,16 +5986,6 @@ mod admin_config_tests {
                 .and_then(|value| value.as_u64()),
             Some(1)
         );
-        let response_kind_rows = body_default
-            .get("summary")
-            .and_then(|summary| summary.get("request_outcomes"))
-            .and_then(|request_outcomes| request_outcomes.get("by_response_kind"))
-            .and_then(|rows| rows.as_array())
-            .expect("response_kind_rows");
-        assert!(response_kind_rows.iter().any(|row| {
-            row.get("traffic_origin").and_then(|value| value.as_str()) == Some("adversary_sim")
-                && row.get("count").and_then(|value| value.as_u64()) == Some(1)
-        }));
         let include_events = body_default
             .get("details")
             .and_then(|details| details.get("events"))

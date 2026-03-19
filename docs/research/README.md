@@ -68,6 +68,8 @@ Completed archive index:
    Architecture review addendum for the newly landed telemetry foundation work, identifying the remaining controller-grade gaps that should be treated as first-order Stage 1 foundation work before the Monitoring overhaul or bounded inside-agent benchmarking loops.
 8. [`2026-03-19-defence-funnel-origin-integrity-review.md`](2026-03-19-defence-funnel-origin-integrity-review.md)
    Post-implementation review for the first defence-funnel slice, tightening the contract so only live-safe family stages are populated today and recording the immediate follow-on need for origin-aware `not_a_bot`, `challenge`, and `pow` family telemetry.
+9. [`2026-03-19-pre-monitoring-overhaul-telemetry-foundation-closeout-review.md`](2026-03-19-pre-monitoring-overhaul-telemetry-foundation-closeout-review.md)
+   Closeout review confirming that the controller-grade backend telemetry foundation is complete and that the next work should move to the Monitoring-overhaul discussion and section-ownership planning rather than another telemetry architecture sweep.
 
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 
