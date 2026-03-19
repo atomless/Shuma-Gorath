@@ -4,6 +4,20 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-19)
 
+### Monitoring Telemetry Foundations: Add Human-Friction Denominator And Rate Summaries
+
+- [x] Complete `MON-TEL-1-3` by adding the minimum lane-aware denominator counters and bounded backend summary needed to turn existing human-friction evidence into truthful rates for `likely_human`, `unknown_interactive`, and combined `interactive` traffic.
+- [x] Why:
+  - the telemetry foundation could already count lanes and response kinds separately, but it still could not answer one of the most important operator questions: how much human-adjacent traffic is actually seeing friction.
+  - the clean solution was small and compositional: add one `lane_response_kind` counter family, then derive a compact `human_friction` summary from existing lane denominators instead of introducing another bespoke friction subsystem.
+  - the post-implementation review also confirmed that this summary needed an explicit hot-read propagation proof, which is now included so the backend contract is verified through bootstrap rather than only inside the monitoring module.
+- [x] Evidence:
+  - `src/observability/monitoring.rs`
+  - `src/observability/hot_read_projection.rs`
+  - `docs/plans/2026-03-19-monitoring-human-friction-denominator-plan.md`
+  - `make test-monitoring-telemetry-foundation-unit`
+  - `git diff --check`
+
 ### Monitoring Telemetry Foundations: Write The Human-Friction Denominator Plan
 
 - [x] Capture the concrete `MON-TEL-1-3` denominator design in a dedicated implementation note so the next backend slice is driven by a settled contract rather than improvised from the monitoring module.

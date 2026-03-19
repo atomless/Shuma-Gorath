@@ -212,6 +212,28 @@ pub(crate) struct RequestOutcomeBreakdownSummaryRow {
     pub control_response_requests: u64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub(crate) struct HumanFrictionSegmentRow {
+    pub execution_mode: String,
+    pub segment: String,
+    pub denominator_requests: u64,
+    pub not_a_bot_requests: u64,
+    pub challenge_requests: u64,
+    pub js_challenge_requests: u64,
+    pub maze_requests: u64,
+    pub friction_requests: u64,
+    pub not_a_bot_rate: f64,
+    pub challenge_rate: f64,
+    pub js_challenge_rate: f64,
+    pub maze_rate: f64,
+    pub friction_rate: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub(crate) struct HumanFrictionSummary {
+    pub segments: Vec<HumanFrictionSegmentRow>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub(crate) struct RequestOutcomeSummary {
     pub by_scope: Vec<RequestOutcomeScopeSummaryRow>,
@@ -232,6 +254,7 @@ pub(crate) struct MonitoringSummary {
     pub pow: PowSummary,
     pub rate: RateSummary,
     pub geo: GeoSummary,
+    pub human_friction: HumanFrictionSummary,
     pub request_outcomes: RequestOutcomeSummary,
 }
 
@@ -981,6 +1004,23 @@ fn parse_request_outcome_scope_breakdown_outcome_cohort(
     ))
 }
 
+fn parse_request_outcome_lane_breakdown_cohort(
+    cohort: &str,
+) -> Option<(String, String, String, String, String, String, String)> {
+    let (lane_cohort, value) = split_last_cohort_segment(cohort)?;
+    let (traffic_origin, measurement_scope, execution_mode, lane, exactness, basis) =
+        parse_request_outcome_lane_cohort(lane_cohort)?;
+    Some((
+        traffic_origin,
+        measurement_scope,
+        execution_mode,
+        lane,
+        exactness,
+        basis,
+        value.to_string(),
+    ))
+}
+
 fn parse_request_outcome_lane_cohort(
     cohort: &str,
 ) -> Option<(String, String, String, String, String, String)> {
@@ -1152,6 +1192,18 @@ pub(crate) fn record_request_outcome<S: crate::challenge::KeyValueStore>(
             "lane_response_bytes",
             Some(lane_cohort.as_str()),
             outcome.response_bytes,
+        );
+        record_with_dimension(
+            store,
+            "request_outcome",
+            "lane_response_kind",
+            Some(
+                request_outcome_nested_cohort(
+                    lane_cohort.as_str(),
+                    normalize_response_kind(outcome.response_kind),
+                )
+                .as_str(),
+            ),
         );
         record_with_dimension_delta(
             store,
@@ -1418,6 +1470,7 @@ struct MonitoringAccumulator {
     request_outcome_scope_route_action_family_outcomes: HashMap<String, u64>,
     request_outcome_lane_totals: HashMap<String, u64>,
     request_outcome_lane_bytes: HashMap<String, u64>,
+    request_outcome_lane_response_kinds: HashMap<String, u64>,
     request_outcome_lane_outcomes: HashMap<String, u64>,
     request_outcome_lane_outcome_bytes: HashMap<String, u64>,
 }
@@ -1675,6 +1728,15 @@ impl MonitoringAccumulator {
                         Self::add_count(&mut self.request_outcome_lane_bytes, dim, count);
                     }
                 }
+                "lane_response_kind" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(
+                            &mut self.request_outcome_lane_response_kinds,
+                            dim,
+                            count,
+                        );
+                    }
+                }
                 "lane_outcome_class" => {
                     if let Some(dim) = dimension {
                         Self::add_count(&mut self.request_outcome_lane_outcomes, dim, count);
@@ -1782,6 +1844,10 @@ impl MonitoringAccumulator {
         Self::merge_count_maps(
             &mut self.request_outcome_lane_bytes,
             &source.request_outcome_lane_bytes,
+        );
+        Self::merge_count_maps(
+            &mut self.request_outcome_lane_response_kinds,
+            &source.request_outcome_lane_response_kinds,
         );
         Self::merge_count_maps(
             &mut self.request_outcome_lane_outcomes,
@@ -2186,6 +2252,110 @@ impl MonitoringAccumulator {
                 rows.into_values().collect()
             };
 
+        let mut human_friction_rows: BTreeMap<(String, String), HumanFrictionSegmentRow> =
+            BTreeMap::new();
+
+        for row in request_outcome_lane_rows.values() {
+            if row.traffic_origin != "live" || row.measurement_scope != "ingress_primary" {
+                continue;
+            }
+
+            match row.lane.as_str() {
+                "likely_human" | "unknown_interactive" => {
+                    let segment_row = human_friction_rows
+                        .entry((row.execution_mode.clone(), row.lane.clone()))
+                        .or_insert_with(|| HumanFrictionSegmentRow {
+                            execution_mode: row.execution_mode.clone(),
+                            segment: row.lane.clone(),
+                            ..HumanFrictionSegmentRow::default()
+                        });
+                    segment_row.denominator_requests = segment_row
+                        .denominator_requests
+                        .saturating_add(row.total_requests);
+
+                    let interactive_row = human_friction_rows
+                        .entry((row.execution_mode.clone(), "interactive".to_string()))
+                        .or_insert_with(|| HumanFrictionSegmentRow {
+                            execution_mode: row.execution_mode.clone(),
+                            segment: "interactive".to_string(),
+                            ..HumanFrictionSegmentRow::default()
+                        });
+                    interactive_row.denominator_requests = interactive_row
+                        .denominator_requests
+                        .saturating_add(row.total_requests);
+                }
+                _ => {}
+            }
+        }
+
+        for (cohort, count) in &self.request_outcome_lane_response_kinds {
+            let Some((traffic_origin, measurement_scope, execution_mode, lane, _exactness, _basis, value)) =
+                parse_request_outcome_lane_breakdown_cohort(cohort.as_str())
+            else {
+                continue;
+            };
+            if traffic_origin != "live" || measurement_scope != "ingress_primary" {
+                continue;
+            }
+
+            let apply_count = |row: &mut HumanFrictionSegmentRow, response_kind: &str, count: u64| {
+                match response_kind {
+                    "not_a_bot" => {
+                        row.not_a_bot_requests = row.not_a_bot_requests.saturating_add(count)
+                    }
+                    "challenge" => {
+                        row.challenge_requests = row.challenge_requests.saturating_add(count)
+                    }
+                    "js_challenge" => {
+                        row.js_challenge_requests =
+                            row.js_challenge_requests.saturating_add(count)
+                    }
+                    "maze" => row.maze_requests = row.maze_requests.saturating_add(count),
+                    _ => return,
+                }
+                row.friction_requests = row
+                    .not_a_bot_requests
+                    .saturating_add(row.challenge_requests)
+                    .saturating_add(row.js_challenge_requests)
+                    .saturating_add(row.maze_requests);
+            };
+
+            match lane.as_str() {
+                "likely_human" | "unknown_interactive" => {
+                    let row = human_friction_rows
+                        .entry((execution_mode.clone(), lane.clone()))
+                        .or_insert_with(|| HumanFrictionSegmentRow {
+                            execution_mode: execution_mode.clone(),
+                            segment: lane.clone(),
+                            ..HumanFrictionSegmentRow::default()
+                        });
+                    apply_count(row, value.as_str(), *count);
+
+                    let interactive_row = human_friction_rows
+                        .entry((execution_mode.clone(), "interactive".to_string()))
+                        .or_insert_with(|| HumanFrictionSegmentRow {
+                            execution_mode: execution_mode.clone(),
+                            segment: "interactive".to_string(),
+                            ..HumanFrictionSegmentRow::default()
+                        });
+                    apply_count(interactive_row, value.as_str(), *count);
+                }
+                _ => {}
+            }
+        }
+
+        for row in human_friction_rows.values_mut() {
+            if row.denominator_requests == 0 {
+                continue;
+            }
+            let denominator = row.denominator_requests as f64;
+            row.not_a_bot_rate = row.not_a_bot_requests as f64 / denominator;
+            row.challenge_rate = row.challenge_requests as f64 / denominator;
+            row.js_challenge_rate = row.js_challenge_requests as f64 / denominator;
+            row.maze_rate = row.maze_requests as f64 / denominator;
+            row.friction_rate = row.friction_requests as f64 / denominator;
+        }
+
         MonitoringSummary {
             generated_at: now,
             hours,
@@ -2241,6 +2411,9 @@ impl MonitoringAccumulator {
                 total_violations: self.geo_total,
                 actions: geo_action_map,
                 top_countries: top_entries(&self.geo_countries, top_limit),
+            },
+            human_friction: HumanFrictionSummary {
+                segments: human_friction_rows.into_values().collect(),
             },
             request_outcomes: RequestOutcomeSummary {
                 by_scope: request_outcome_scope_rows.into_values().collect(),
@@ -2458,7 +2631,7 @@ mod tests {
     use super::*;
     use crate::challenge::KeyValueStore;
     use crate::observability::hot_read_contract::{TelemetryBasis, TelemetryExactness};
-    use crate::runtime::effect_intents::ExecutionMode;
+    use crate::runtime::effect_intents::{ExecutionMode, ShadowAction};
     use crate::runtime::request_outcome::{
         RenderedRequestOutcome, RequestOutcomeClass, RequestOutcomeLane, ResponseKind,
         TrafficOrigin,
@@ -2734,6 +2907,50 @@ mod tests {
     }
 
     #[test]
+    fn record_request_outcome_records_lane_response_kind_counters_for_lane_backed_requests() {
+        let store = MockStore::default();
+        let hour = now_ts() / 3600;
+        let outcome = RenderedRequestOutcome {
+            traffic_origin: TrafficOrigin::Live,
+            measurement_scope: MeasurementScope::IngressPrimary,
+            route_action_family: RouteActionFamily::PublicContent,
+            execution_mode: ExecutionMode::Enforced,
+            traffic_lane: Some(RequestOutcomeLane {
+                lane: TrafficLane::LikelyHuman,
+                exactness: TelemetryExactness::Exact,
+                basis: TelemetryBasis::Observed,
+            }),
+            outcome_class: RequestOutcomeClass::ShortCircuited,
+            response_kind: ResponseKind::NotABot,
+            http_status: 200,
+            response_bytes: 111,
+            forward_attempted: false,
+            forward_failure_class: None,
+            intended_action: None,
+            policy_source: PolicySource::PolicyGraphSecondTranche,
+        };
+
+        record_request_outcome(&store, &outcome);
+
+        let lane_cohort = request_outcome_lane_cohort(&outcome).expect("lane cohort");
+        let key = |metric: &str, dimension: &str| {
+            monitoring_key("request_outcome", metric, Some(dimension), hour)
+        };
+
+        assert_eq!(
+            read_counter(
+                &store,
+                key(
+                    "lane_response_kind",
+                    request_outcome_nested_cohort(lane_cohort.as_str(), "not_a_bot").as_str(),
+                )
+                .as_str(),
+            ),
+            1
+        );
+    }
+
+    #[test]
     fn summarize_exposes_compact_request_outcome_scope_and_lane_rows() {
         let store = MockStore::default();
 
@@ -2998,6 +3215,203 @@ mod tests {
     }
 
     #[test]
+    fn summarize_derives_human_friction_segments_from_lane_denominators() {
+        let store = MockStore::default();
+
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::Live,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::PublicContent,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: Some(RequestOutcomeLane {
+                    lane: TrafficLane::LikelyHuman,
+                    exactness: TelemetryExactness::Exact,
+                    basis: TelemetryBasis::Observed,
+                }),
+                outcome_class: RequestOutcomeClass::Forwarded,
+                response_kind: ResponseKind::ForwardAllow,
+                http_status: 200,
+                response_bytes: 321,
+                forward_attempted: true,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::CleanAllow,
+            },
+        );
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::Live,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::PublicContent,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: Some(RequestOutcomeLane {
+                    lane: TrafficLane::LikelyHuman,
+                    exactness: TelemetryExactness::Exact,
+                    basis: TelemetryBasis::Observed,
+                }),
+                outcome_class: RequestOutcomeClass::ShortCircuited,
+                response_kind: ResponseKind::NotABot,
+                http_status: 200,
+                response_bytes: 111,
+                forward_attempted: false,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::PolicyGraphSecondTranche,
+            },
+        );
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::Live,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::PublicContent,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: Some(RequestOutcomeLane {
+                    lane: TrafficLane::UnknownInteractive,
+                    exactness: TelemetryExactness::Derived,
+                    basis: TelemetryBasis::Residual,
+                }),
+                outcome_class: RequestOutcomeClass::Forwarded,
+                response_kind: ResponseKind::ForwardAllow,
+                http_status: 200,
+                response_bytes: 222,
+                forward_attempted: true,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::CleanAllow,
+            },
+        );
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::Live,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::PublicContent,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: Some(RequestOutcomeLane {
+                    lane: TrafficLane::UnknownInteractive,
+                    exactness: TelemetryExactness::Derived,
+                    basis: TelemetryBasis::Residual,
+                }),
+                outcome_class: RequestOutcomeClass::ShortCircuited,
+                response_kind: ResponseKind::Challenge,
+                http_status: 200,
+                response_bytes: 95,
+                forward_attempted: false,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::PolicyGraphSecondTranche,
+            },
+        );
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::Live,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::PublicContent,
+                execution_mode: ExecutionMode::Shadow,
+                traffic_lane: Some(RequestOutcomeLane {
+                    lane: TrafficLane::UnknownInteractive,
+                    exactness: TelemetryExactness::Derived,
+                    basis: TelemetryBasis::Residual,
+                }),
+                outcome_class: RequestOutcomeClass::ShortCircuited,
+                response_kind: ResponseKind::JsChallenge,
+                http_status: 200,
+                response_bytes: 50,
+                forward_attempted: false,
+                forward_failure_class: None,
+                intended_action: Some(ShadowAction::JsChallenge),
+                policy_source: PolicySource::PolicyGraphSecondTranche,
+            },
+        );
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::AdversarySim,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::PublicContent,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: Some(RequestOutcomeLane {
+                    lane: TrafficLane::LikelyHuman,
+                    exactness: TelemetryExactness::Exact,
+                    basis: TelemetryBasis::Observed,
+                }),
+                outcome_class: RequestOutcomeClass::ShortCircuited,
+                response_kind: ResponseKind::Maze,
+                http_status: 200,
+                response_bytes: 77,
+                forward_attempted: false,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::SimPublic,
+            },
+        );
+
+        let summary = summarize_with_store(&store, 24, 10);
+
+        let likely_human = summary
+            .human_friction
+            .segments
+            .iter()
+            .find(|row| row.execution_mode == "enforced" && row.segment == "likely_human")
+            .expect("likely human friction row");
+        assert_eq!(likely_human.denominator_requests, 2);
+        assert_eq!(likely_human.not_a_bot_requests, 1);
+        assert_eq!(likely_human.challenge_requests, 0);
+        assert_eq!(likely_human.js_challenge_requests, 0);
+        assert_eq!(likely_human.maze_requests, 0);
+        assert_eq!(likely_human.friction_requests, 1);
+        assert!((likely_human.not_a_bot_rate - 0.5).abs() < 0.000_001);
+        assert!((likely_human.friction_rate - 0.5).abs() < 0.000_001);
+
+        let unknown_interactive = summary
+            .human_friction
+            .segments
+            .iter()
+            .find(|row| row.execution_mode == "enforced" && row.segment == "unknown_interactive")
+            .expect("unknown interactive friction row");
+        assert_eq!(unknown_interactive.denominator_requests, 2);
+        assert_eq!(unknown_interactive.not_a_bot_requests, 0);
+        assert_eq!(unknown_interactive.challenge_requests, 1);
+        assert_eq!(unknown_interactive.js_challenge_requests, 0);
+        assert_eq!(unknown_interactive.maze_requests, 0);
+        assert_eq!(unknown_interactive.friction_requests, 1);
+        assert!((unknown_interactive.challenge_rate - 0.5).abs() < 0.000_001);
+        assert!((unknown_interactive.friction_rate - 0.5).abs() < 0.000_001);
+
+        let interactive = summary
+            .human_friction
+            .segments
+            .iter()
+            .find(|row| row.execution_mode == "enforced" && row.segment == "interactive")
+            .expect("interactive friction row");
+        assert_eq!(interactive.denominator_requests, 4);
+        assert_eq!(interactive.not_a_bot_requests, 1);
+        assert_eq!(interactive.challenge_requests, 1);
+        assert_eq!(interactive.js_challenge_requests, 0);
+        assert_eq!(interactive.maze_requests, 0);
+        assert_eq!(interactive.friction_requests, 2);
+        assert!((interactive.not_a_bot_rate - 0.25).abs() < 0.000_001);
+        assert!((interactive.challenge_rate - 0.25).abs() < 0.000_001);
+        assert!((interactive.friction_rate - 0.5).abs() < 0.000_001);
+
+        let shadow_interactive = summary
+            .human_friction
+            .segments
+            .iter()
+            .find(|row| row.execution_mode == "shadow" && row.segment == "interactive")
+            .expect("shadow interactive friction row");
+        assert_eq!(shadow_interactive.denominator_requests, 1);
+        assert_eq!(shadow_interactive.js_challenge_requests, 1);
+        assert_eq!(shadow_interactive.friction_requests, 1);
+        assert!((shadow_interactive.js_challenge_rate - 1.0).abs() < 0.000_001);
+    }
+
+    #[test]
     fn summarize_returns_seeded_maps_when_empty() {
         let store = MockStore::default();
         let summary = summarize_with_store(&store, 24, 10);
@@ -3035,6 +3449,7 @@ mod tests {
             0
         );
         assert_eq!(summary.geo.actions.get("maze").copied().unwrap_or(99), 0);
+        assert!(summary.human_friction.segments.is_empty());
         assert!(summary.request_outcomes.by_scope.is_empty());
         assert!(summary.request_outcomes.by_lane.is_empty());
     }

@@ -595,6 +595,32 @@ mod tests {
                 policy_source: crate::runtime::traffic_classification::PolicySource::CleanAllow,
             },
         );
+        crate::observability::monitoring::record_request_outcome(
+            &store,
+            &crate::runtime::request_outcome::RenderedRequestOutcome {
+                traffic_origin: crate::runtime::request_outcome::TrafficOrigin::Live,
+                measurement_scope:
+                    crate::runtime::traffic_classification::MeasurementScope::IngressPrimary,
+                route_action_family:
+                    crate::runtime::traffic_classification::RouteActionFamily::PublicContent,
+                execution_mode: crate::runtime::effect_intents::ExecutionMode::Enforced,
+                traffic_lane: Some(crate::runtime::request_outcome::RequestOutcomeLane {
+                    lane: crate::runtime::traffic_classification::TrafficLane::LikelyHuman,
+                    exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
+                    basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
+                }),
+                outcome_class:
+                    crate::runtime::request_outcome::RequestOutcomeClass::ShortCircuited,
+                response_kind: crate::runtime::request_outcome::ResponseKind::NotABot,
+                http_status: 200,
+                response_bytes: 45,
+                forward_attempted: false,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source:
+                    crate::runtime::traffic_classification::PolicySource::PolicyGraphSecondTranche,
+            },
+        );
         refresh_after_counter_flush(&store, "default");
 
         let summary = read_document::<_, crate::observability::monitoring::MonitoringSummary>(
@@ -615,9 +641,19 @@ mod tests {
                     && row.execution_mode == "enforced"
             })
             .expect("live scope row in summary");
-        assert_eq!(live_scope.total_requests, 1);
+        assert_eq!(live_scope.total_requests, 2);
         assert_eq!(live_scope.forwarded_requests, 1);
-        assert_eq!(live_scope.response_bytes, 123);
+        assert_eq!(live_scope.short_circuited_requests, 1);
+        assert_eq!(live_scope.response_bytes, 168);
+        let summary_human_friction = summary
+            .payload
+            .human_friction
+            .segments
+            .iter()
+            .find(|row| row.execution_mode == "enforced" && row.segment == "likely_human")
+            .expect("likely human friction row in summary");
+        assert_eq!(summary_human_friction.denominator_requests, 2);
+        assert_eq!(summary_human_friction.not_a_bot_requests, 1);
 
         let bootstrap = read_document::<
             _,
@@ -642,9 +678,20 @@ mod tests {
                     && row.lane == "likely_human"
             })
             .expect("live lane row in bootstrap");
-        assert_eq!(bootstrap_lane.total_requests, 1);
+        assert_eq!(bootstrap_lane.total_requests, 2);
         assert_eq!(bootstrap_lane.forwarded_requests, 1);
-        assert_eq!(bootstrap_lane.response_bytes, 123);
+        assert_eq!(bootstrap_lane.short_circuited_requests, 1);
+        assert_eq!(bootstrap_lane.response_bytes, 168);
+        let bootstrap_human_friction = bootstrap
+            .payload
+            .summary
+            .human_friction
+            .segments
+            .iter()
+            .find(|row| row.execution_mode == "enforced" && row.segment == "likely_human")
+            .expect("likely human friction row in bootstrap");
+        assert_eq!(bootstrap_human_friction.denominator_requests, 2);
+        assert_eq!(bootstrap_human_friction.not_a_bot_requests, 1);
     }
 
     #[test]
