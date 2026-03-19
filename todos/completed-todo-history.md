@@ -2,6 +2,25 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-03-19)
+
+### Monitoring Telemetry Foundations: Reprioritize The Remaining Stage 1 Work Around Controller-Grade Benchmarks
+
+- [x] Capture the telemetry-foundation controller-readiness review in active research, roadmap sequencing, and backlog blockers so the next Stage 1 work stays focused on benchmark-grade telemetry foundations rather than jumping early to Monitoring UI work or inside-agent controller planning.
+- [x] Why:
+  - the latest architecture review confirmed that Shuma now has the right telemetry seam, but still lacks a few controller-grade essentials: forwarded-versus-local byte attribution, bounded summary exposure for `response_kind` or `policy_source` or `route_action_family`, and fuller control/fail-path outcome coverage.
+  - those gaps are no longer later nice-to-have monitoring detail; they are foundation work for the agentic-era roadmap, because future bounded inside agents will need to optimize against trustworthy benchmark inputs rather than against a convenient but incomplete chart surface.
+  - capturing that reprioritization immediately in research, roadmap sequencing, and backlog blockers reduces the risk of Stage 1 drifting into UI or agent-loop work before the backend telemetry contract is ready.
+- [x] Evidence:
+  - `docs/research/2026-03-19-controller-readiness-telemetry-foundation-review.md`
+  - `docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`
+  - `docs/research/README.md`
+  - `docs/index.md`
+  - `todos/todo.md`
+  - `todos/blocked-todo.md`
+  - docs-only slice: tests intentionally skipped
+  - `git diff --check`
+
 ## Additional completions (2026-03-18)
 
 ### Monitoring Telemetry Foundations: Prove Request-Outcome Summaries Survive Hot-Read Refresh

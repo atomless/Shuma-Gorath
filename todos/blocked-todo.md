@@ -1,6 +1,6 @@
 # Blocked TODO Roadmap
 
-Last updated: 2026-03-18
+Last updated: 2026-03-19
 
 This file holds gated, contingent, or explicitly deferred work that is not execution-ready.
 Move an item back into `todos/todo.md` only when its blocking condition is cleared.
@@ -27,6 +27,7 @@ Reference context:
 - [`docs/research/2026-03-17-operator-decision-support-telemetry-audit.md`](../docs/research/2026-03-17-operator-decision-support-telemetry-audit.md)
 - [`docs/research/2026-03-18-agentic-era-operator-telemetry-research-synthesis.md`](../docs/research/2026-03-18-agentic-era-operator-telemetry-research-synthesis.md)
 - [`docs/research/2026-03-18-cost-aware-operator-telemetry-gap-analysis.md`](../docs/research/2026-03-18-cost-aware-operator-telemetry-gap-analysis.md)
+- [`docs/research/2026-03-19-controller-readiness-telemetry-foundation-review.md`](../docs/research/2026-03-19-controller-readiness-telemetry-foundation-review.md)
 - [`docs/plans/2026-03-18-monitoring-telemetry-foundations-architectural-necessities.md`](../docs/plans/2026-03-18-monitoring-telemetry-foundations-architectural-necessities.md)
 - [`docs/plans/2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md`](../docs/plans/2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md)
 - [`docs/plans/2026-03-15-agentic-era-oversight-design.md`](../docs/plans/2026-03-15-agentic-era-oversight-design.md)
@@ -39,7 +40,7 @@ Reference context:
   Blocker: defer execution until the operator monitoring overhaul defines which knobs are actionable, which remain diagnostic, and which are safe for future controller tuning.
 
 - [ ] MON-OVERHAUL-1 Redesign Monitoring as an operator decision surface with explicit enforced-vs-shadow separation and clear attacker-effectiveness vs human-friction visibility.
-  Blocker: keep the UI/surface redesign blocked until the active `MON-TEL-1` telemetry-foundation tranche lands and the remaining section-ownership plan is written. The prerequisite lane/outcome/exactness/bootstrap decisions from `2026-03-18-monitoring-telemetry-foundations-architectural-necessities.md` and its linked design contracts are now settled and implemented; the remaining blocker is the operator-grade summaries themselves.
+  Blocker: keep the UI/surface redesign blocked until the active `MON-TEL-1` telemetry-foundation tranche lands and the remaining section-ownership plan is written. The prerequisite lane/outcome/exactness/bootstrap decisions from `2026-03-18-monitoring-telemetry-foundations-architectural-necessities.md` and its linked design contracts are now settled and implemented; the remaining blocker is the controller-grade summary foundation identified in [`../docs/research/2026-03-19-controller-readiness-telemetry-foundation-review.md`](../docs/research/2026-03-19-controller-readiness-telemetry-foundation-review.md): forwarded-versus-local byte attribution, bounded `response_kind` or `policy_source` or `route_action_family` summaries, and closure of the remaining control-path or fail-path outcome gaps.
 
 - [ ] SIM-RET-1 Define a dedicated retention and disposal model for adversary-sim telemetry distinct from real-traffic telemetry.
   Blocker: defer execution until mature adversary-sim lane planning settles the expected telemetry classes, retention value horizon, and audit residue needed after tune-confirm-act loops.
@@ -48,7 +49,7 @@ Reference context:
   Blocker: defer execution until the current local recidive/jitter/intelligence design is ready to be broken into service/API/storage contracts; do not treat the Git repository itself as the default shared-intelligence transport.
 
 - [ ] OVR-AGENT-2 Plan the scheduled agent analyzer/recommender/reconfigurer workflow, including model/runtime choice, config-vs-code scope, and whether PR/code-change suggestions are part of the same system or a separate reviewed path.
-  Blocker: defer execution until monitoring, tuning, sim-evidence, and central-intelligence contracts are mature enough that the agent loop can be planned against truthful inputs and bounded outputs.
+  Blocker: defer execution until monitoring, tuning, sim-evidence, and central-intelligence contracts are mature enough that the agent loop can be planned against truthful inputs and bounded outputs. In particular, do not start bounded benchmark/controller design until the controller-grade telemetry foundation gaps from [`../docs/research/2026-03-19-controller-readiness-telemetry-foundation-review.md`](../docs/research/2026-03-19-controller-readiness-telemetry-foundation-review.md) are closed, because the future agent loop needs benchmark-grade byte, outcome, and route-policy summaries rather than only operator charts.
 
 ## P1 Blocked by Enterprise Baseline Maturity
 

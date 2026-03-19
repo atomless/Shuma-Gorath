@@ -64,6 +64,8 @@ Completed archive index:
    State-of-the-art research synthesis for the telemetry Shuma should collect in the agentic era, grounded in current Cloudflare, Google, OpenAI, Anthropic, Web Bot Auth, and HTTP Message Signatures guidance on traffic classification, detection layering, operator analytics, and verified-agent handling.
 6. [`2026-03-18-cost-aware-operator-telemetry-gap-analysis.md`](2026-03-18-cost-aware-operator-telemetry-gap-analysis.md)
    Cost-aware gap analysis comparing Shuma's current telemetry collection to the desired operator-grade model, with explicit attention to hot-read budget, retained-footprint economics, and the minimum next telemetry tranche that improves operator decision support without regressing efficiency.
+7. [`2026-03-19-controller-readiness-telemetry-foundation-review.md`](2026-03-19-controller-readiness-telemetry-foundation-review.md)
+   Architecture review addendum for the newly landed telemetry foundation work, identifying the remaining controller-grade gaps that should be treated as first-order Stage 1 foundation work before the Monitoring overhaul or bounded inside-agent benchmarking loops.
 
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 

@@ -268,24 +268,37 @@ Status update (2026-03-17):
 
 1. Delivered. The dashboard now treats the admin-session heartbeat as the sole global connection-state writer, surfaces heartbeat diagnostics and local-failure counters in `Status`, and keeps non-heartbeat request failures local.
 2. `GET /admin/config` now returns a split `{ config, runtime }` envelope so writable KV settings and read-only operational/runtime overlays are no longer presented as one flat contract.
-3. This stage is now closed; the next execution focus should move to Stage 1 operator-grade monitoring and tuning-surface completion.
+3. This stage is now closed; the next execution focus should move to Stage 1 controller-grade monitoring telemetry foundations.
 
 Reason:
 
 1. operator surfaces should be truthful before Shuma invests in a full monitoring overhaul or treats the Tuning tab as the control-plane contract.
 2. otherwise the project risks rebuilding operator UX on top of noisy connection state or misleading config semantics.
 
-## Stage 1: Monitoring And Tuning Foundations
+## Stage 1: Controller-Grade Monitoring Telemetry Foundations
+
+1. Preserve the settled lane, outcome, exactness, and summary-ownership contracts as the one telemetry foundation.
+2. Extend request-outcome counters with forwarded-versus-local byte attribution so suspicious origin cost and likely-human friction cost can be benchmarked truthfully.
+3. Materialize bounded operator summaries for `response_kind`, `policy_source`, and `route_action_family` instead of leaving those semantics stranded in raw counters.
+4. Close the remaining control-path and fail-path request-outcome coverage gaps, or codify and prove intentional exclusions where a path must remain out of scope.
+5. Keep adversary-sim traffic first-class but separate from live operator ingress so future benchmarks can compare live and simulated outcomes without polluting one another.
+
+Reason:
+
+1. the recent telemetry-foundation review showed that Shuma now has the right seam, but not yet the benchmark-grade telemetry needed for agentic-era operators or future inside controllers.
+2. without controller-grade byte attribution, richer bounded summary semantics, and fuller terminal-path coverage, Monitoring risks becoming visually better while still failing to expose the truths later tuning loops must optimize against.
+
+## Stage 2: Monitoring And Tuning Surfaces
 
 1. Monitoring overhaul for operator decision-making.
-2. Clear shadow vs enforced telemetry separation.
+2. Clear shadow versus enforced telemetry separation in operator narratives.
 3. Tuning tab completion and config-governance alignment.
 
 Reason:
 
-1. without truthful operator monitoring and a complete tuning surface, neither human operators nor future scheduled agents have a solid control plane.
+1. once the controller-grade telemetry foundation exists, Shuma can redesign Monitoring and complete Tuning against a truthful backend contract instead of inventing UI semantics ahead of the data model.
 
-## Stage 2: Edge-Instance Ban Sync And Distributed State Correctness
+## Stage 3: Edge-Instance Ban Sync And Distributed State Correctness
 
 1. Strict distributed ban-store mode for enterprise authoritative operation.
 2. Ban and unban convergence observability and sync-lag truth surfaces.
@@ -297,7 +310,7 @@ Reason:
 2. mature multi-instance adversary-sim should not be trusted until Shuma can prove that locally issued bans converge across instances.
 3. this keeps the exact current-enforcement plane separate from later shared-intelligence work.
 
-## Stage 3: Verified Identity Foundation
+## Stage 4: Verified Identity Foundation
 
 1. Canonical verified-identity contract.
 2. Native Web Bot Auth and HTTP Message Signatures handling.
@@ -311,7 +324,7 @@ Reason:
 2. This gives later sim lanes a truthful beneficial-agent and spoofed-agent target model to test against.
 3. It also keeps trust-boundary controls out of later autonomous tuning work until those controls exist explicitly.
 
-## Stage 4: Adversary-Sim Foundations
+## Stage 5: Adversary-Sim Foundations
 
 1. Production adversary-sim operating envelope hardening.
 2. Shared-host discovery baseline.
@@ -321,7 +334,7 @@ Reason:
 1. Shuma should settle production posture, kill-switches, desired-state truth, and no-impact guarantees before broadening the sim.
 2. realistic Scrapling and containerized lanes should start from a truthful discovered public-surface baseline rather than ad hoc targets.
 
-## Stage 5: Mature Adversary-Sim As A Tuning Input
+## Stage 6: Mature Adversary-Sim As A Tuning Input
 
 1. Scrapling lane.
 2. Containerized frontier lane as a bounded emergent actor.
@@ -333,7 +346,7 @@ Reason:
 
 1. Shuma needs realistic attacker input before automated tuning can be trusted to optimize against the actual agentic threat landscape.
 
-## Stage 6: Sim-Telemetry Lifecycle
+## Stage 7: Sim-Telemetry Lifecycle
 
 1. Separate retention and disposal policy for sim telemetry.
 2. Clear distinction between actioned and unactioned sim evidence.
@@ -343,7 +356,7 @@ Reason:
 
 1. once emergent and frontier lanes exist, sim telemetry volume and cost will matter much more.
 
-## Stage 7: Privacy And State-Minimization Gate
+## Stage 8: Privacy And State-Minimization Gate
 
 1. Deterministic cleanup for stale fingerprint state.
 2. Optional event-log IP minimization mode and explicit tradeoff docs.
@@ -353,7 +366,7 @@ Reason:
 
 1. before central intelligence or later autonomous oversight, Shuma should have a cleaner answer for what state persists, how long it persists, and when raw IP retention is actually necessary.
 
-## Stage 8: Central Intelligence Architecture
+## Stage 9: Central Intelligence Architecture
 
 1. Storage and service architecture.
 2. Governance and false-positive process.
@@ -366,7 +379,7 @@ Reason:
 2. this must follow verified identity so Shuma keeps "who is this?" separate from "what does outside reputation say about it?"
 3. this must also follow edge-instance ban sync so the exact local active-ban plane is already cleanly separated from cross-site reputation and worst-offender memory.
 
-## Stage 9: Scheduled Agent Operator Loop
+## Stage 10: Scheduled Agent Operator Loop
 
 1. Recommend-only scheduled agent.
 2. Narrow config auto-apply with canary and rollback.
@@ -377,7 +390,7 @@ Reason:
 
 1. the agent loop should stand on truthful monitoring, explicit identity policy, deployment-local sync correctness, mature sim evidence, tuned config surfaces, and explicit central-intelligence governance.
 
-## Stage 10: Final Pre-Launch Performance Gate
+## Stage 11: Final Pre-Launch Performance Gate
 
 1. Execute the final performance and optimization pass.
 2. Enforce bundle, latency, CPU, memory, and high-cost request-path acceptance thresholds.
@@ -391,16 +404,17 @@ Reason:
 
 1. Keep request-path logic deterministic and Rust-only.
 2. Harden dashboard connection-state truth and admin-config truth before relying on those surfaces as operator control planes.
-3. Treat monitoring overhaul as a prerequisite for serious autonomous tuning.
-4. Treat tuning-tab completion as a control-plane contract, not a cosmetic dashboard task.
-5. Treat edge-instance ban sync as deployment-local state correctness and schedule it before mature multi-instance sim or cross-site intelligence work.
-6. Formalize verified bot identity before mature sim, central intelligence, or scheduled agentic reconfiguration so identity, authorization, and reputation are separated cleanly.
-7. Settle production adversary-sim posture and shared-host discovery before expanding emergent lanes.
-8. Keep adversary-sim telemetry retention distinct from real-traffic retention.
-9. Add a privacy and state-minimization gate before central intelligence so richer telemetry and shared-memory work do not outpace retention discipline.
-10. Treat central intelligence as a separate service or data plane concern, not a side effect of the Git repository.
-11. Keep config auto-tuning and code-change/PR generation as separate systems with separate permissions and review paths.
-12. Treat the final performance gate as a release stage, not a cleanup afterthought.
+3. Treat controller-grade monitoring telemetry foundations as a prerequisite for both the Monitoring overhaul and any future bounded benchmark/controller loop.
+4. Treat monitoring overhaul as a prerequisite for serious autonomous tuning.
+5. Treat tuning-tab completion as a control-plane contract, not a cosmetic dashboard task.
+6. Treat edge-instance ban sync as deployment-local state correctness and schedule it before mature multi-instance sim or cross-site intelligence work.
+7. Formalize verified bot identity before mature sim, central intelligence, or scheduled agentic reconfiguration so identity, authorization, and reputation are separated cleanly.
+8. Settle production adversary-sim posture and shared-host discovery before expanding emergent lanes.
+9. Keep adversary-sim telemetry retention distinct from real-traffic retention.
+10. Add a privacy and state-minimization gate before central intelligence so richer telemetry and shared-memory work do not outpace retention discipline.
+11. Treat central intelligence as a separate service or data plane concern, not a side effect of the Git repository.
+12. Keep config auto-tuning and code-change/PR generation as separate systems with separate permissions and review paths.
+13. Treat the final performance gate as a release stage, not a cleanup afterthought.
 
 # Side Branches, Not Mainline Sequence
 
@@ -416,8 +430,8 @@ These items should remain explicitly off the mainline sequence:
 This roadmap suggests that the next pre-launch excellence sequence should be:
 
 1. operator-surface truth prerequisites,
-2. operator-grade monitoring,
-3. tuning-surface completion,
+2. controller-grade monitoring telemetry foundations,
+3. operator-grade monitoring and tuning surfaces,
 4. edge-instance ban sync and distributed state correctness,
 5. verified bot identity and Web Bot Auth foundation,
 6. adversary-sim foundations,
