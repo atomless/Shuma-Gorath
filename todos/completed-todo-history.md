@@ -4,6 +4,20 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-19)
 
+### Monitoring Telemetry Foundations: Write The Defence-Funnel Plan
+
+- [x] Capture the concrete `MON-TEL-1-4` funnel design in a dedicated implementation note so the next backend slice has a settled family set, row shape, and honest `None` semantics for unavailable stages.
+- [x] Why:
+  - the backend foundation is now strong enough that the next risk is not missing data, but inventing an overconfident funnel contract that quietly treats unknown stages as zero.
+  - the right first wave is deliberately narrow: a shared family row shape, limited to the families Shuma can currently describe truthfully, with explicit `null` coverage where measurement is not yet available.
+  - writing that down first keeps the controller-facing telemetry disciplined and avoids reintroducing per-widget bespoke storytelling just before the Monitoring overhaul.
+- [x] Evidence:
+  - `docs/plans/2026-03-19-monitoring-defence-funnel-plan.md`
+  - `docs/index.md`
+  - `todos/todo.md`
+  - docs-only slice: tests intentionally skipped
+  - `git diff --check`
+
 ### Monitoring Telemetry Foundations: Add Human-Friction Denominator And Rate Summaries
 
 - [x] Complete `MON-TEL-1-3` by adding the minimum lane-aware denominator counters and bounded backend summary needed to turn existing human-friction evidence into truthful rates for `likely_human`, `unknown_interactive`, and combined `interactive` traffic.
