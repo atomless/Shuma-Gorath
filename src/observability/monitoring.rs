@@ -177,6 +177,9 @@ pub(crate) struct RequestOutcomeScopeSummaryRow {
     pub short_circuited_requests: u64,
     pub control_response_requests: u64,
     pub response_bytes: u64,
+    pub forwarded_response_bytes: u64,
+    pub short_circuited_response_bytes: u64,
+    pub control_response_bytes: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
@@ -192,6 +195,9 @@ pub(crate) struct RequestOutcomeLaneSummaryRow {
     pub short_circuited_requests: u64,
     pub control_response_requests: u64,
     pub response_bytes: u64,
+    pub forwarded_response_bytes: u64,
+    pub short_circuited_response_bytes: u64,
+    pub control_response_bytes: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -1015,6 +1021,19 @@ pub(crate) fn record_request_outcome<S: crate::challenge::KeyValueStore>(
         Some(scope_cohort.as_str()),
         outcome.response_bytes,
     );
+    record_with_dimension_delta(
+        store,
+        "request_outcome",
+        "outcome_class_response_bytes",
+        Some(
+            request_outcome_nested_cohort(
+                scope_cohort.as_str(),
+                normalize_request_outcome_class(outcome.outcome_class),
+            )
+            .as_str(),
+        ),
+        outcome.response_bytes,
+    );
 
     if let Some(lane_cohort) = request_outcome_lane_cohort(outcome) {
         record_with_dimension(
@@ -1040,6 +1059,19 @@ pub(crate) fn record_request_outcome<S: crate::challenge::KeyValueStore>(
             "request_outcome",
             "lane_response_bytes",
             Some(lane_cohort.as_str()),
+            outcome.response_bytes,
+        );
+        record_with_dimension_delta(
+            store,
+            "request_outcome",
+            "lane_outcome_class_response_bytes",
+            Some(
+                request_outcome_nested_cohort(
+                    lane_cohort.as_str(),
+                    normalize_request_outcome_class(outcome.outcome_class),
+                )
+                .as_str(),
+            ),
             outcome.response_bytes,
         );
     }
@@ -1285,9 +1317,11 @@ struct MonitoringAccumulator {
     request_outcome_scope_totals: HashMap<String, u64>,
     request_outcome_scope_bytes: HashMap<String, u64>,
     request_outcome_scope_outcomes: HashMap<String, u64>,
+    request_outcome_scope_outcome_bytes: HashMap<String, u64>,
     request_outcome_lane_totals: HashMap<String, u64>,
     request_outcome_lane_bytes: HashMap<String, u64>,
     request_outcome_lane_outcomes: HashMap<String, u64>,
+    request_outcome_lane_outcome_bytes: HashMap<String, u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1474,6 +1508,15 @@ impl MonitoringAccumulator {
                         Self::add_count(&mut self.request_outcome_scope_outcomes, dim, count);
                     }
                 }
+                "outcome_class_response_bytes" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(
+                            &mut self.request_outcome_scope_outcome_bytes,
+                            dim,
+                            count,
+                        );
+                    }
+                }
                 "lane_total" => {
                     if let Some(dim) = dimension {
                         Self::add_count(&mut self.request_outcome_lane_totals, dim, count);
@@ -1487,6 +1530,15 @@ impl MonitoringAccumulator {
                 "lane_outcome_class" => {
                     if let Some(dim) = dimension {
                         Self::add_count(&mut self.request_outcome_lane_outcomes, dim, count);
+                    }
+                }
+                "lane_outcome_class_response_bytes" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(
+                            &mut self.request_outcome_lane_outcome_bytes,
+                            dim,
+                            count,
+                        );
                     }
                 }
                 _ => {}
@@ -1548,6 +1600,10 @@ impl MonitoringAccumulator {
             &source.request_outcome_scope_outcomes,
         );
         Self::merge_count_maps(
+            &mut self.request_outcome_scope_outcome_bytes,
+            &source.request_outcome_scope_outcome_bytes,
+        );
+        Self::merge_count_maps(
             &mut self.request_outcome_lane_totals,
             &source.request_outcome_lane_totals,
         );
@@ -1558,6 +1614,10 @@ impl MonitoringAccumulator {
         Self::merge_count_maps(
             &mut self.request_outcome_lane_outcomes,
             &source.request_outcome_lane_outcomes,
+        );
+        Self::merge_count_maps(
+            &mut self.request_outcome_lane_outcome_bytes,
+            &source.request_outcome_lane_outcome_bytes,
         );
     }
 
@@ -1704,6 +1764,43 @@ impl MonitoringAccumulator {
                 }
             }
         }
+        for (nested_cohort, count) in self.request_outcome_scope_outcome_bytes {
+            if let Some((scope_cohort, outcome_class)) =
+                split_last_cohort_segment(nested_cohort.as_str())
+            {
+                if let Some((traffic_origin, measurement_scope, execution_mode)) =
+                    parse_request_outcome_scope_cohort(scope_cohort)
+                {
+                    let row = request_outcome_scope_rows
+                        .entry((
+                            traffic_origin.clone(),
+                            measurement_scope.clone(),
+                            execution_mode.clone(),
+                        ))
+                        .or_insert_with(|| RequestOutcomeScopeSummaryRow {
+                            traffic_origin,
+                            measurement_scope,
+                            execution_mode,
+                            ..RequestOutcomeScopeSummaryRow::default()
+                        });
+                    match outcome_class {
+                        "forwarded" => {
+                            row.forwarded_response_bytes =
+                                row.forwarded_response_bytes.saturating_add(count)
+                        }
+                        "short_circuited" => {
+                            row.short_circuited_response_bytes =
+                                row.short_circuited_response_bytes.saturating_add(count)
+                        }
+                        "control_response" => {
+                            row.control_response_bytes =
+                                row.control_response_bytes.saturating_add(count)
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
 
         let mut request_outcome_lane_rows: BTreeMap<
             (String, String, String, String, String, String),
@@ -1795,6 +1892,49 @@ impl MonitoringAccumulator {
                         "control_response" => {
                             row.control_response_requests =
                                 row.control_response_requests.saturating_add(count)
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+        for (nested_cohort, count) in self.request_outcome_lane_outcome_bytes {
+            if let Some((lane_cohort, outcome_class)) =
+                split_last_cohort_segment(nested_cohort.as_str())
+            {
+                if let Some((traffic_origin, measurement_scope, execution_mode, lane, exactness, basis)) =
+                    parse_request_outcome_lane_cohort(lane_cohort)
+                {
+                    let row = request_outcome_lane_rows
+                        .entry((
+                            traffic_origin.clone(),
+                            measurement_scope.clone(),
+                            execution_mode.clone(),
+                            lane.clone(),
+                            exactness.clone(),
+                            basis.clone(),
+                        ))
+                        .or_insert_with(|| RequestOutcomeLaneSummaryRow {
+                            traffic_origin,
+                            measurement_scope,
+                            execution_mode,
+                            lane,
+                            exactness,
+                            basis,
+                            ..RequestOutcomeLaneSummaryRow::default()
+                        });
+                    match outcome_class {
+                        "forwarded" => {
+                            row.forwarded_response_bytes =
+                                row.forwarded_response_bytes.saturating_add(count)
+                        }
+                        "short_circuited" => {
+                            row.short_circuited_response_bytes =
+                                row.short_circuited_response_bytes.saturating_add(count)
+                        }
+                        "control_response" => {
+                            row.control_response_bytes =
+                                row.control_response_bytes.saturating_add(count)
                         }
                         _ => {}
                     }
@@ -2199,6 +2339,17 @@ mod tests {
             read_counter(&store, key("response_bytes", scope_cohort.as_str()).as_str()),
             321
         );
+        assert_eq!(
+            read_counter(
+                &store,
+                key(
+                    "outcome_class_response_bytes",
+                    request_outcome_nested_cohort(scope_cohort.as_str(), "forwarded").as_str(),
+                )
+                .as_str(),
+            ),
+            321
+        );
         assert_eq!(read_counter(&store, key("lane_total", lane_cohort.as_str()).as_str()), 1);
         assert_eq!(
             read_counter(
@@ -2215,6 +2366,17 @@ mod tests {
             read_counter(
                 &store,
                 key("lane_response_bytes", lane_cohort.as_str()).as_str(),
+            ),
+            321
+        );
+        assert_eq!(
+            read_counter(
+                &store,
+                key(
+                    "lane_outcome_class_response_bytes",
+                    request_outcome_nested_cohort(lane_cohort.as_str(), "forwarded").as_str(),
+                )
+                .as_str(),
             ),
             321
         );
@@ -2302,6 +2464,17 @@ mod tests {
             ),
             77
         );
+        assert_eq!(
+            read_counter(
+                &store,
+                key(
+                    "outcome_class_response_bytes",
+                    request_outcome_nested_cohort(scope_cohort.as_str(), "short_circuited").as_str(),
+                )
+                .as_str(),
+            ),
+            77
+        );
     }
 
     #[test]
@@ -2348,9 +2521,27 @@ mod tests {
                 policy_source: PolicySource::SimPublic,
             },
         );
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::Live,
+                measurement_scope: MeasurementScope::BypassAndControl,
+                route_action_family: RouteActionFamily::ControlPlane,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: None,
+                outcome_class: RequestOutcomeClass::ControlResponse,
+                response_kind: ResponseKind::ControlPlaneResponse,
+                http_status: 500,
+                response_bytes: 9,
+                forward_attempted: false,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::BootstrapFailure,
+            },
+        );
 
         let summary = summarize_with_store(&store, 24, 10);
-        assert_eq!(summary.request_outcomes.by_scope.len(), 2);
+        assert_eq!(summary.request_outcomes.by_scope.len(), 3);
         assert_eq!(summary.request_outcomes.by_lane.len(), 1);
 
         let live_scope = summary
@@ -2368,6 +2559,9 @@ mod tests {
         assert_eq!(live_scope.short_circuited_requests, 0);
         assert_eq!(live_scope.control_response_requests, 0);
         assert_eq!(live_scope.response_bytes, 321);
+        assert_eq!(live_scope.forwarded_response_bytes, 321);
+        assert_eq!(live_scope.short_circuited_response_bytes, 0);
+        assert_eq!(live_scope.control_response_bytes, 0);
 
         let sim_scope = summary
             .request_outcomes
@@ -2384,6 +2578,28 @@ mod tests {
         assert_eq!(sim_scope.short_circuited_requests, 1);
         assert_eq!(sim_scope.control_response_requests, 0);
         assert_eq!(sim_scope.response_bytes, 77);
+        assert_eq!(sim_scope.forwarded_response_bytes, 0);
+        assert_eq!(sim_scope.short_circuited_response_bytes, 77);
+        assert_eq!(sim_scope.control_response_bytes, 0);
+
+        let control_scope = summary
+            .request_outcomes
+            .by_scope
+            .iter()
+            .find(|row| {
+                row.traffic_origin == "live"
+                    && row.measurement_scope == "bypass_and_control"
+                    && row.execution_mode == "enforced"
+            })
+            .expect("control scope row");
+        assert_eq!(control_scope.total_requests, 1);
+        assert_eq!(control_scope.forwarded_requests, 0);
+        assert_eq!(control_scope.short_circuited_requests, 0);
+        assert_eq!(control_scope.control_response_requests, 1);
+        assert_eq!(control_scope.response_bytes, 9);
+        assert_eq!(control_scope.forwarded_response_bytes, 0);
+        assert_eq!(control_scope.short_circuited_response_bytes, 0);
+        assert_eq!(control_scope.control_response_bytes, 9);
 
         let live_lane = summary
             .request_outcomes
@@ -2403,6 +2619,9 @@ mod tests {
         assert_eq!(live_lane.short_circuited_requests, 0);
         assert_eq!(live_lane.control_response_requests, 0);
         assert_eq!(live_lane.response_bytes, 321);
+        assert_eq!(live_lane.forwarded_response_bytes, 321);
+        assert_eq!(live_lane.short_circuited_response_bytes, 0);
+        assert_eq!(live_lane.control_response_bytes, 0);
     }
 
     #[test]

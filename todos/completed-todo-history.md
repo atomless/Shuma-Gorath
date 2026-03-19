@@ -4,6 +4,20 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-19)
 
+### Monitoring Telemetry Foundations: Add Outcome-Attributed Byte Telemetry
+
+- [x] Complete `MON-TEL-1-2A` by extending the request-outcome counter and summary contract with bounded outcome-attributed byte telemetry, so scope and lane rows now distinguish total bytes from forwarded, short-circuited, and control-response bytes.
+- [x] Why:
+  - the controller-readiness review showed that Shuma could count requests by outcome but still could not benchmark suspicious origin cost or locally served friction cost truthfully, because all response bytes were blended into one total.
+  - this slice keeps the architecture clean: it extends the existing buffered request-outcome counter family and hot-read summary projection instead of adding a second analytics path or widening event rows.
+  - landing the byte split first gives later Monitoring and oversight-controller work a real cost benchmark primitive without yet jumping into richer summary families or UI redesign.
+- [x] Evidence:
+  - `src/observability/monitoring.rs`
+  - `make test-monitoring-telemetry-foundation-unit`
+  - `git diff --check`
+
+## Additional completions (2026-03-19)
+
 ### Monitoring Telemetry Foundations: Capture The Follow-On Precision Contracts And Enforce The Planning-First Workflow
 
 - [x] Record the three remaining controller-grade telemetry precision items as an explicit follow-on plan, refine the active TODOs into more atomic execution steps, and strengthen `AGENTS.md` so the project workflow is unambiguous: research first, then plan docs, then roadmap alignment, then atomic TODOs, then implementation, then immediate post-tranche review and remediation.
