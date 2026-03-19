@@ -4,6 +4,20 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-19)
 
+### Monitoring Telemetry Foundations: Write The Human-Friction Denominator Plan
+
+- [x] Capture the concrete `MON-TEL-1-3` denominator design in a dedicated implementation note so the next backend slice is driven by a settled contract rather than improvised from the monitoring module.
+- [x] Why:
+  - the next telemetry gap is no longer broad research; it is a precise contract question about how to get truthful human-friction rates with the minimum extra counters and without regressing hot-read economics.
+  - a narrow plan is especially valuable here because the clean answer is subtle: add one lane-plus-response-kind counter family and derive a compact human-friction summary, rather than creating another bespoke friction subsystem.
+  - locking that choice in writing preserves the project rhythm the user asked to enforce: research, then plan, then implementation.
+- [x] Evidence:
+  - `docs/plans/2026-03-19-monitoring-human-friction-denominator-plan.md`
+  - `docs/index.md`
+  - `todos/todo.md`
+  - docs-only slice: tests intentionally skipped
+  - `git diff --check`
+
 ### Monitoring Telemetry Foundations: Bring Bootstrap Failure Under The Request-Outcome Contract
 
 - [x] Complete `MON-TEL-1-2B` by bringing the store-backed config-load/bootstrap failure path under the request-flow-owned request-outcome hook, removing the stale `RecordRequestOutcome` effect-intent path, and codifying which remaining pre-store control paths stay intentionally outside the contract for now.
