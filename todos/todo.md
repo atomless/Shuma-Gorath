@@ -49,7 +49,6 @@ Reference context:
 - Controller-readiness review addendum (2026-03-19):
   - treat the remaining telemetry work below as first-order foundation, not later polish, because future operator benchmarks and bounded inside-controller loops will need truthful byte attribution, richer bounded backend summaries, and fuller control/fail-path outcome coverage before the Monitoring UI overhaul should start.
   - reference: [`docs/research/2026-03-19-controller-readiness-telemetry-foundation-review.md`](../docs/research/2026-03-19-controller-readiness-telemetry-foundation-review.md)
-- [ ] MON-TEL-1-5D Make legacy `not_a_bot`, `challenge`, and `pow` follow-up telemetry origin-aware before the Monitoring overhaul, then switch the corresponding operator summaries and defence-funnel stage population to consume live-only truth by default instead of origin-blended counters. Reference the post-implementation shortfall in [`docs/research/2026-03-19-defence-funnel-origin-integrity-review.md`](../docs/research/2026-03-19-defence-funnel-origin-integrity-review.md).
 - [ ] MON-TEL-1-6 Extend the admin monitoring read contract to expose the new operator summaries without bloating bootstrap details or re-promoting contributor diagnostics into the primary Monitoring narrative.
 - [ ] MON-TEL-1-7 Add focused backend, dashboard, and live-evidence verification proving the new summaries are truthful, bounded, and budget-safe, including retained-footprint checks so the tranche improves operator value without regressing hot-read latency or storage economics.
 

@@ -838,6 +838,7 @@ test-monitoring-telemetry-contract: ## Run focused external-only monitoring tele
 	@cargo test admin::api::admin_config_tests::admin_monitoring_delta_reads_bucket_indexes_without_keyspace_scan -- --exact --nocapture
 	@cargo test admin::api::tests::handle_admin_monitoring_delta_includes_freshness_and_load_contracts -- --exact --nocapture
 	@cargo test admin::api::tests::handle_admin_monitoring_snapshot_includes_freshness_and_load_contracts -- --exact --nocapture
+	@cargo test admin::api::tests::handle_admin_monitoring_snapshot_exposes_extended_operator_summary_contract -- --exact --nocapture
 
 test-monitoring-telemetry-foundation-unit: ## Run focused unit checks for monitoring telemetry foundation contracts and runtime classification scaffolding
 	@echo "$(CYAN)🧪 Running monitoring telemetry foundation unit checks...$(NC)"

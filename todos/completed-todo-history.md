@@ -4,6 +4,20 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-19)
 
+### Monitoring Telemetry Foundations: Make Legacy Follow-Up Counters Origin-Aware
+
+- [x] Complete `MON-TEL-1-5D` by making `not_a_bot`, `challenge`, and `pow` follow-up telemetry origin-aware, switching the corresponding operator summaries to live-only truth by default, and restoring the richer defence-funnel stages once their backing counters became safe to use.
+- [x] Why:
+  - the post-implementation review on the first defence-funnel slice exposed a real truthfulness problem: older family-specific counters were still origin-blended, so the operator summaries and richer funnel stages could not be trusted while adversary-sim traffic was active.
+  - the right fix was not a UI workaround; it was a backend correction that keeps live operator truth and adversary-sim evidence separate at the telemetry layer itself.
+  - landing this now keeps Stage 1 on the correct bearing for the later Monitoring overhaul and bounded inside-controller benchmarking work.
+- [x] Evidence:
+  - `docs/plans/2026-03-19-monitoring-origin-aware-followup-telemetry-plan.md`
+  - `src/observability/monitoring.rs`
+  - `src/observability/hot_read_projection.rs`
+  - `make test-monitoring-telemetry-foundation-unit`
+  - `git diff --check`
+
 ### Monitoring Telemetry Foundations: Land An Honest First-Wave Defence Funnel
 
 - [x] Complete `MON-TEL-1-4` by adding the first bounded `defence_funnel` backend summary, carrying it through hot-read summary and bootstrap documents, and tightening the contract so only live-safe family stages are populated today.

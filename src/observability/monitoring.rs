@@ -965,6 +965,25 @@ fn request_outcome_nested_cohort(prefix: &str, suffix: &str) -> String {
     format!("{prefix}|{suffix}")
 }
 
+fn current_traffic_origin() -> crate::runtime::request_outcome::TrafficOrigin {
+    if crate::runtime::sim_telemetry::current_metadata().is_some() {
+        crate::runtime::request_outcome::TrafficOrigin::AdversarySim
+    } else {
+        crate::runtime::request_outcome::TrafficOrigin::Live
+    }
+}
+
+fn origin_cohort(origin: crate::runtime::request_outcome::TrafficOrigin) -> String {
+    normalize_traffic_origin(origin).to_string()
+}
+
+fn origin_nested_cohort(
+    origin: crate::runtime::request_outcome::TrafficOrigin,
+    suffix: &str,
+) -> String {
+    request_outcome_nested_cohort(origin_cohort(origin).as_str(), suffix)
+}
+
 fn request_outcome_lane_cohort(
     outcome: &crate::runtime::request_outcome::RenderedRequestOutcome,
 ) -> Option<String> {
@@ -1023,6 +1042,15 @@ fn parse_request_outcome_scope_breakdown_outcome_cohort(
         value,
         outcome_class.to_string(),
     ))
+}
+
+fn parse_origin_cohort(cohort: &str) -> Option<String> {
+    (!cohort.contains('|')).then(|| cohort.to_string())
+}
+
+fn parse_origin_breakdown_cohort(cohort: &str) -> Option<(String, String)> {
+    let (origin, value) = split_last_cohort_segment(cohort)?;
+    Some((origin.to_string(), value.to_string()))
 }
 
 fn parse_request_outcome_lane_breakdown_cohort(
@@ -1259,11 +1287,22 @@ pub(crate) fn record_challenge_failure<S: crate::challenge::KeyValueStore>(
     ip: &str,
     reason: &str,
 ) {
+    let origin = current_traffic_origin();
     let normalized_reason = normalize_challenge_reason(reason);
     let ip_bucket = crate::signals::ip_identity::bucket_ip(ip);
-    record_with_dimension(store, "challenge", "total", None);
-    record_with_dimension(store, "challenge", "reason", Some(normalized_reason));
-    record_with_dimension(store, "challenge", "ip", Some(ip_bucket.as_str()));
+    record_with_dimension(store, "challenge", "total", Some(origin_cohort(origin).as_str()));
+    record_with_dimension(
+        store,
+        "challenge",
+        "reason",
+        Some(origin_nested_cohort(origin, normalized_reason).as_str()),
+    );
+    record_with_dimension(
+        store,
+        "challenge",
+        "ip",
+        Some(origin_nested_cohort(origin, ip_bucket.as_str()).as_str()),
+    );
 }
 
 pub(crate) fn record_pow_failure<S: crate::challenge::KeyValueStore>(
@@ -1271,17 +1310,44 @@ pub(crate) fn record_pow_failure<S: crate::challenge::KeyValueStore>(
     ip: &str,
     reason: &str,
 ) {
+    let origin = current_traffic_origin();
     let normalized_reason = normalize_pow_reason(reason);
     let ip_bucket = crate::signals::ip_identity::bucket_ip(ip);
-    record_with_dimension(store, "pow", "total", None);
-    record_with_dimension(store, "pow", "outcome", Some("failure"));
-    record_with_dimension(store, "pow", "reason", Some(normalized_reason));
-    record_with_dimension(store, "pow", "ip", Some(ip_bucket.as_str()));
+    record_with_dimension(store, "pow", "total", Some(origin_cohort(origin).as_str()));
+    record_with_dimension(
+        store,
+        "pow",
+        "outcome",
+        Some(origin_nested_cohort(origin, "failure").as_str()),
+    );
+    record_with_dimension(
+        store,
+        "pow",
+        "reason",
+        Some(origin_nested_cohort(origin, normalized_reason).as_str()),
+    );
+    record_with_dimension(
+        store,
+        "pow",
+        "ip",
+        Some(origin_nested_cohort(origin, ip_bucket.as_str()).as_str()),
+    );
 }
 
 pub(crate) fn record_pow_success<S: crate::challenge::KeyValueStore>(store: &S) {
-    record_with_dimension(store, "pow", "success", None);
-    record_with_dimension(store, "pow", "outcome", Some("success"));
+    let origin = current_traffic_origin();
+    record_with_dimension(
+        store,
+        "pow",
+        "success",
+        Some(origin_cohort(origin).as_str()),
+    );
+    record_with_dimension(
+        store,
+        "pow",
+        "outcome",
+        Some(origin_nested_cohort(origin, "success").as_str()),
+    );
 }
 
 pub(crate) fn record_rate_violation_with_path<S: crate::challenge::KeyValueStore>(
@@ -1319,7 +1385,13 @@ pub(crate) fn record_geo_violation<S: crate::challenge::KeyValueStore>(
 }
 
 pub(crate) fn record_not_a_bot_served<S: crate::challenge::KeyValueStore>(store: &S) {
-    record_with_dimension(store, "not_a_bot", "served", None);
+    let origin = current_traffic_origin();
+    record_with_dimension(
+        store,
+        "not_a_bot",
+        "served",
+        Some(origin_cohort(origin).as_str()),
+    );
 }
 
 pub(crate) fn record_not_a_bot_submit<S: crate::challenge::KeyValueStore>(
@@ -1327,12 +1399,28 @@ pub(crate) fn record_not_a_bot_submit<S: crate::challenge::KeyValueStore>(
     outcome: &str,
     solve_ms: Option<u64>,
 ) {
+    let origin = current_traffic_origin();
     let normalized_outcome = normalize_not_a_bot_outcome(outcome);
-    record_with_dimension(store, "not_a_bot", "submitted", None);
-    record_with_dimension(store, "not_a_bot", "outcome", Some(normalized_outcome));
+    record_with_dimension(
+        store,
+        "not_a_bot",
+        "submitted",
+        Some(origin_cohort(origin).as_str()),
+    );
+    record_with_dimension(
+        store,
+        "not_a_bot",
+        "outcome",
+        Some(origin_nested_cohort(origin, normalized_outcome).as_str()),
+    );
     if let Some(ms) = solve_ms {
         let bucket = not_a_bot_solve_ms_bucket(ms);
-        record_with_dimension(store, "not_a_bot", "solve_ms_bucket", Some(bucket));
+        record_with_dimension(
+            store,
+            "not_a_bot",
+            "solve_ms_bucket",
+            Some(origin_nested_cohort(origin, bucket).as_str()),
+        );
     }
 }
 
@@ -1458,20 +1546,20 @@ struct MonitoringAccumulator {
     honeypot_total: u64,
     honeypot_ip_counts: HashMap<String, u64>,
     honeypot_path_counts: HashMap<String, u64>,
-    challenge_total: u64,
-    challenge_ip_counts: HashMap<String, u64>,
-    challenge_reason_counts: HashMap<String, u64>,
-    challenge_trend: TrendAccumulator,
-    not_a_bot_served_total: u64,
-    not_a_bot_submitted_total: u64,
-    not_a_bot_outcomes: HashMap<String, u64>,
-    not_a_bot_latency_buckets: HashMap<String, u64>,
-    pow_total: u64,
-    pow_success_total: u64,
-    pow_ip_counts: HashMap<String, u64>,
-    pow_reason_counts: HashMap<String, u64>,
-    pow_outcomes: HashMap<String, u64>,
-    pow_trend: TrendAccumulator,
+    challenge_totals_by_origin: HashMap<String, u64>,
+    challenge_ip_counts_by_origin: HashMap<String, HashMap<String, u64>>,
+    challenge_reason_counts_by_origin: HashMap<String, HashMap<String, u64>>,
+    challenge_trends_by_origin: HashMap<String, TrendAccumulator>,
+    not_a_bot_served_by_origin: HashMap<String, u64>,
+    not_a_bot_submitted_by_origin: HashMap<String, u64>,
+    not_a_bot_outcomes_by_origin: HashMap<String, HashMap<String, u64>>,
+    not_a_bot_latency_buckets_by_origin: HashMap<String, HashMap<String, u64>>,
+    pow_totals_by_origin: HashMap<String, u64>,
+    pow_success_totals_by_origin: HashMap<String, u64>,
+    pow_ip_counts_by_origin: HashMap<String, HashMap<String, u64>>,
+    pow_reason_counts_by_origin: HashMap<String, HashMap<String, u64>>,
+    pow_outcomes_by_origin: HashMap<String, HashMap<String, u64>>,
+    pow_trends_by_origin: HashMap<String, TrendAccumulator>,
     rate_total: u64,
     rate_ip_counts: HashMap<String, u64>,
     rate_path_counts: HashMap<String, u64>,
@@ -1514,6 +1602,30 @@ impl MonitoringAccumulator {
         for (key, count) in source {
             let entry = target.entry(key.clone()).or_insert(0);
             *entry = entry.saturating_add(*count);
+        }
+    }
+
+    fn add_nested_count(
+        target: &mut HashMap<String, HashMap<String, u64>>,
+        outer: &str,
+        inner: &str,
+        count: u64,
+    ) {
+        let row = target.entry(outer.to_string()).or_default();
+        let entry = row.entry(inner.to_string()).or_insert(0);
+        *entry = entry.saturating_add(count);
+    }
+
+    fn merge_nested_count_maps(
+        target: &mut HashMap<String, HashMap<String, u64>>,
+        source: &HashMap<String, HashMap<String, u64>>,
+    ) {
+        for (outer, source_row) in source {
+            let target_row = target.entry(outer.clone()).or_default();
+            for (inner, count) in source_row {
+                let entry = target_row.entry(inner.clone()).or_insert(0);
+                *entry = entry.saturating_add(*count);
+            }
         }
     }
 
@@ -1562,71 +1674,137 @@ impl MonitoringAccumulator {
             },
             "challenge" => match metric {
                 "total" => {
-                    self.challenge_total = self.challenge_total.saturating_add(count);
-                    let entry = self.challenge_trend.totals.entry(hour).or_insert(0);
-                    *entry = entry.saturating_add(count);
+                    if let Some(origin) = dimension.and_then(parse_origin_cohort) {
+                        let entry = self.challenge_totals_by_origin.entry(origin.clone()).or_insert(0);
+                        *entry = entry.saturating_add(count);
+                        let trend = self.challenge_trends_by_origin.entry(origin).or_default();
+                        let total = trend.totals.entry(hour).or_insert(0);
+                        *total = total.saturating_add(count);
+                    }
                 }
                 "ip" => {
-                    if let Some(dim) = dimension {
-                        Self::add_count(&mut self.challenge_ip_counts, dim, count);
+                    if let Some((origin, ip_bucket)) =
+                        dimension.and_then(parse_origin_breakdown_cohort)
+                    {
+                        Self::add_nested_count(
+                            &mut self.challenge_ip_counts_by_origin,
+                            origin.as_str(),
+                            ip_bucket.as_str(),
+                            count,
+                        );
                     }
                 }
                 "reason" => {
-                    if let Some(dim) = dimension {
-                        Self::add_count(&mut self.challenge_reason_counts, dim, count);
-                        let row = self.challenge_trend.reasons.entry(hour).or_default();
-                        let reason_entry = row.entry(dim.to_string()).or_insert(0);
-                        *reason_entry = reason_entry.saturating_add(count);
+                    if let Some((origin, reason)) =
+                        dimension.and_then(parse_origin_breakdown_cohort)
+                    {
+                        Self::add_nested_count(
+                            &mut self.challenge_reason_counts_by_origin,
+                            origin.as_str(),
+                            reason.as_str(),
+                            count,
+                        );
+                        let trend = self.challenge_trends_by_origin.entry(origin).or_default();
+                        let row = trend.reasons.entry(hour).or_default();
+                        let entry = row.entry(reason).or_insert(0);
+                        *entry = entry.saturating_add(count);
                     }
                 }
                 _ => {}
             },
             "not_a_bot" => match metric {
                 "served" => {
-                    self.not_a_bot_served_total =
-                        self.not_a_bot_served_total.saturating_add(count)
+                    if let Some(origin) = dimension.and_then(parse_origin_cohort) {
+                        let entry = self.not_a_bot_served_by_origin.entry(origin).or_insert(0);
+                        *entry = entry.saturating_add(count);
+                    }
                 }
                 "submitted" => {
-                    self.not_a_bot_submitted_total =
-                        self.not_a_bot_submitted_total.saturating_add(count)
+                    if let Some(origin) = dimension.and_then(parse_origin_cohort) {
+                        let entry = self.not_a_bot_submitted_by_origin.entry(origin).or_insert(0);
+                        *entry = entry.saturating_add(count);
+                    }
                 }
                 "outcome" => {
-                    if let Some(dim) = dimension {
-                        Self::add_count(&mut self.not_a_bot_outcomes, dim, count);
+                    if let Some((origin, outcome)) =
+                        dimension.and_then(parse_origin_breakdown_cohort)
+                    {
+                        Self::add_nested_count(
+                            &mut self.not_a_bot_outcomes_by_origin,
+                            origin.as_str(),
+                            outcome.as_str(),
+                            count,
+                        );
                     }
                 }
                 "solve_ms_bucket" => {
-                    if let Some(dim) = dimension {
-                        Self::add_count(&mut self.not_a_bot_latency_buckets, dim, count);
+                    if let Some((origin, bucket)) =
+                        dimension.and_then(parse_origin_breakdown_cohort)
+                    {
+                        Self::add_nested_count(
+                            &mut self.not_a_bot_latency_buckets_by_origin,
+                            origin.as_str(),
+                            bucket.as_str(),
+                            count,
+                        );
                     }
                 }
                 _ => {}
             },
             "pow" => match metric {
                 "total" => {
-                    self.pow_total = self.pow_total.saturating_add(count);
-                    let entry = self.pow_trend.totals.entry(hour).or_insert(0);
-                    *entry = entry.saturating_add(count);
+                    if let Some(origin) = dimension.and_then(parse_origin_cohort) {
+                        let entry = self.pow_totals_by_origin.entry(origin.clone()).or_insert(0);
+                        *entry = entry.saturating_add(count);
+                        let trend = self.pow_trends_by_origin.entry(origin).or_default();
+                        let total = trend.totals.entry(hour).or_insert(0);
+                        *total = total.saturating_add(count);
+                    }
                 }
                 "success" => {
-                    self.pow_success_total = self.pow_success_total.saturating_add(count);
+                    if let Some(origin) = dimension.and_then(parse_origin_cohort) {
+                        let entry = self.pow_success_totals_by_origin.entry(origin).or_insert(0);
+                        *entry = entry.saturating_add(count);
+                    }
                 }
                 "ip" => {
-                    if let Some(dim) = dimension {
-                        Self::add_count(&mut self.pow_ip_counts, dim, count);
+                    if let Some((origin, ip_bucket)) =
+                        dimension.and_then(parse_origin_breakdown_cohort)
+                    {
+                        Self::add_nested_count(
+                            &mut self.pow_ip_counts_by_origin,
+                            origin.as_str(),
+                            ip_bucket.as_str(),
+                            count,
+                        );
                     }
                 }
                 "reason" => {
-                    if let Some(dim) = dimension {
-                        Self::add_count(&mut self.pow_reason_counts, dim, count);
-                        let row = self.pow_trend.reasons.entry(hour).or_default();
-                        let reason_entry = row.entry(dim.to_string()).or_insert(0);
-                        *reason_entry = reason_entry.saturating_add(count);
+                    if let Some((origin, reason)) =
+                        dimension.and_then(parse_origin_breakdown_cohort)
+                    {
+                        Self::add_nested_count(
+                            &mut self.pow_reason_counts_by_origin,
+                            origin.as_str(),
+                            reason.as_str(),
+                            count,
+                        );
+                        let trend = self.pow_trends_by_origin.entry(origin).or_default();
+                        let row = trend.reasons.entry(hour).or_default();
+                        let entry = row.entry(reason).or_insert(0);
+                        *entry = entry.saturating_add(count);
                     }
                 }
                 "outcome" => {
-                    if let Some(dim) = dimension {
-                        Self::add_count(&mut self.pow_outcomes, dim, count);
+                    if let Some((origin, outcome)) =
+                        dimension.and_then(parse_origin_breakdown_cohort)
+                    {
+                        Self::add_nested_count(
+                            &mut self.pow_outcomes_by_origin,
+                            origin.as_str(),
+                            outcome.as_str(),
+                            count,
+                        );
                     }
                 }
                 _ => {}
@@ -1787,30 +1965,60 @@ impl MonitoringAccumulator {
         self.honeypot_total = self.honeypot_total.saturating_add(source.honeypot_total);
         Self::merge_count_maps(&mut self.honeypot_ip_counts, &source.honeypot_ip_counts);
         Self::merge_count_maps(&mut self.honeypot_path_counts, &source.honeypot_path_counts);
-        self.challenge_total = self.challenge_total.saturating_add(source.challenge_total);
-        Self::merge_count_maps(&mut self.challenge_ip_counts, &source.challenge_ip_counts);
         Self::merge_count_maps(
-            &mut self.challenge_reason_counts,
-            &source.challenge_reason_counts,
+            &mut self.challenge_totals_by_origin,
+            &source.challenge_totals_by_origin,
         );
-        Self::merge_trend(&mut self.challenge_trend, &source.challenge_trend);
-        self.not_a_bot_served_total = self
-            .not_a_bot_served_total
-            .saturating_add(source.not_a_bot_served_total);
-        self.not_a_bot_submitted_total = self
-            .not_a_bot_submitted_total
-            .saturating_add(source.not_a_bot_submitted_total);
-        Self::merge_count_maps(&mut self.not_a_bot_outcomes, &source.not_a_bot_outcomes);
+        Self::merge_nested_count_maps(
+            &mut self.challenge_ip_counts_by_origin,
+            &source.challenge_ip_counts_by_origin,
+        );
+        Self::merge_nested_count_maps(
+            &mut self.challenge_reason_counts_by_origin,
+            &source.challenge_reason_counts_by_origin,
+        );
+        for (origin, trend) in &source.challenge_trends_by_origin {
+            Self::merge_trend(self.challenge_trends_by_origin.entry(origin.clone()).or_default(), trend);
+        }
         Self::merge_count_maps(
-            &mut self.not_a_bot_latency_buckets,
-            &source.not_a_bot_latency_buckets,
+            &mut self.not_a_bot_served_by_origin,
+            &source.not_a_bot_served_by_origin,
         );
-        self.pow_total = self.pow_total.saturating_add(source.pow_total);
-        self.pow_success_total = self.pow_success_total.saturating_add(source.pow_success_total);
-        Self::merge_count_maps(&mut self.pow_ip_counts, &source.pow_ip_counts);
-        Self::merge_count_maps(&mut self.pow_reason_counts, &source.pow_reason_counts);
-        Self::merge_count_maps(&mut self.pow_outcomes, &source.pow_outcomes);
-        Self::merge_trend(&mut self.pow_trend, &source.pow_trend);
+        Self::merge_count_maps(
+            &mut self.not_a_bot_submitted_by_origin,
+            &source.not_a_bot_submitted_by_origin,
+        );
+        Self::merge_nested_count_maps(
+            &mut self.not_a_bot_outcomes_by_origin,
+            &source.not_a_bot_outcomes_by_origin,
+        );
+        Self::merge_nested_count_maps(
+            &mut self.not_a_bot_latency_buckets_by_origin,
+            &source.not_a_bot_latency_buckets_by_origin,
+        );
+        Self::merge_count_maps(
+            &mut self.pow_totals_by_origin,
+            &source.pow_totals_by_origin,
+        );
+        Self::merge_count_maps(
+            &mut self.pow_success_totals_by_origin,
+            &source.pow_success_totals_by_origin,
+        );
+        Self::merge_nested_count_maps(
+            &mut self.pow_ip_counts_by_origin,
+            &source.pow_ip_counts_by_origin,
+        );
+        Self::merge_nested_count_maps(
+            &mut self.pow_reason_counts_by_origin,
+            &source.pow_reason_counts_by_origin,
+        );
+        Self::merge_nested_count_maps(
+            &mut self.pow_outcomes_by_origin,
+            &source.pow_outcomes_by_origin,
+        );
+        for (origin, trend) in &source.pow_trends_by_origin {
+            Self::merge_trend(self.pow_trends_by_origin.entry(origin.clone()).or_default(), trend);
+        }
         self.rate_total = self.rate_total.saturating_add(source.rate_total);
         Self::merge_count_maps(&mut self.rate_ip_counts, &source.rate_ip_counts);
         Self::merge_count_maps(&mut self.rate_path_counts, &source.rate_path_counts);
@@ -1881,47 +2089,108 @@ impl MonitoringAccumulator {
     }
 
     fn finalize(self, now: u64, hours: u64, top_limit: usize, start_hour: u64, end_hour: u64) -> MonitoringSummary {
+        let live_origin = "live";
+        let challenge_total = self
+            .challenge_totals_by_origin
+            .get(live_origin)
+            .copied()
+            .unwrap_or(0);
+        let challenge_ip_counts = self
+            .challenge_ip_counts_by_origin
+            .get(live_origin)
+            .cloned()
+            .unwrap_or_default();
+        let challenge_trend = self
+            .challenge_trends_by_origin
+            .get(live_origin)
+            .cloned()
+            .unwrap_or_default();
         let mut challenge_reason_map = build_seeded_map(&CHALLENGE_REASON_KEYS);
-        for (key, value) in self.challenge_reason_counts {
+        for (key, value) in self
+            .challenge_reason_counts_by_origin
+            .get(live_origin)
+            .cloned()
+            .unwrap_or_default()
+        {
             let entry = challenge_reason_map.entry(key).or_insert(0);
             *entry = entry.saturating_add(value);
         }
 
+        let not_a_bot_served_total = self
+            .not_a_bot_served_by_origin
+            .get(live_origin)
+            .copied()
+            .unwrap_or(0);
+        let not_a_bot_submitted_total = self
+            .not_a_bot_submitted_by_origin
+            .get(live_origin)
+            .copied()
+            .unwrap_or(0);
         let mut pow_reason_map = build_seeded_map(&POW_REASON_KEYS);
-        for (key, value) in self.pow_reason_counts {
+        for (key, value) in self
+            .pow_reason_counts_by_origin
+            .get(live_origin)
+            .cloned()
+            .unwrap_or_default()
+        {
             let entry = pow_reason_map.entry(key).or_insert(0);
             *entry = entry.saturating_add(value);
         }
 
         let mut not_a_bot_outcome_map = build_seeded_map(&NOT_A_BOT_OUTCOME_KEYS);
-        for (key, value) in self.not_a_bot_outcomes {
+        for (key, value) in self
+            .not_a_bot_outcomes_by_origin
+            .get(live_origin)
+            .cloned()
+            .unwrap_or_default()
+        {
             let entry = not_a_bot_outcome_map.entry(key).or_insert(0);
             *entry = entry.saturating_add(value);
         }
 
         let mut not_a_bot_latency_map = build_seeded_map(&NOT_A_BOT_SOLVE_MS_BUCKET_KEYS);
-        for (key, value) in self.not_a_bot_latency_buckets {
+        for (key, value) in self
+            .not_a_bot_latency_buckets_by_origin
+            .get(live_origin)
+            .cloned()
+            .unwrap_or_default()
+        {
             let entry = not_a_bot_latency_map.entry(key).or_insert(0);
             *entry = entry.saturating_add(value);
         }
 
         let not_a_bot_abandonments =
-            self.not_a_bot_served_total.saturating_sub(self.not_a_bot_submitted_total);
-        let not_a_bot_abandonment_ratio = if self.not_a_bot_served_total == 0 {
+            not_a_bot_served_total.saturating_sub(not_a_bot_submitted_total);
+        let not_a_bot_abandonment_ratio = if not_a_bot_served_total == 0 {
             0.0
         } else {
-            not_a_bot_abandonments as f64 / self.not_a_bot_served_total as f64
+            not_a_bot_abandonments as f64 / not_a_bot_served_total as f64
         };
 
         let mut pow_outcome_map = build_seeded_map(&POW_OUTCOME_KEYS);
-        for (key, value) in self.pow_outcomes {
+        for (key, value) in self
+            .pow_outcomes_by_origin
+            .get(live_origin)
+            .cloned()
+            .unwrap_or_default()
+        {
             let entry = pow_outcome_map.entry(key).or_insert(0);
             *entry = entry.saturating_add(value);
         }
         let pow_outcome_failures = pow_outcome_map.get("failure").copied().unwrap_or(0);
         let pow_outcome_successes = pow_outcome_map.get("success").copied().unwrap_or(0);
-        let pow_total_failures = self.pow_total.max(pow_outcome_failures);
-        let pow_total_successes = self.pow_success_total.max(pow_outcome_successes);
+        let pow_total_failures = self
+            .pow_totals_by_origin
+            .get(live_origin)
+            .copied()
+            .unwrap_or(0)
+            .max(pow_outcome_failures);
+        let pow_total_successes = self
+            .pow_success_totals_by_origin
+            .get(live_origin)
+            .copied()
+            .unwrap_or(0)
+            .max(pow_outcome_successes);
         let pow_total_attempts = pow_total_failures.saturating_add(pow_total_successes);
         let pow_success_ratio = if pow_total_attempts == 0 {
             0.0
@@ -2419,10 +2688,15 @@ impl MonitoringAccumulator {
             };
 
         let mut defence_funnel_rows: BTreeMap<(String, String), DefenceFunnelRow> = BTreeMap::new();
+        let not_a_bot_metrics_present = not_a_bot_served_total > 0
+            || not_a_bot_submitted_total > 0
+            || not_a_bot_outcome_map.values().any(|count| *count > 0);
 
         for execution_mode in ["enforced", "shadow"] {
             let not_a_bot_triggered = response_kind_total_for_mode(execution_mode, "not_a_bot");
-            if not_a_bot_triggered > 0 {
+            if not_a_bot_triggered > 0
+                || (execution_mode == "enforced" && not_a_bot_metrics_present)
+            {
                 let row = defence_funnel_rows
                     .entry((execution_mode.to_string(), "not_a_bot".to_string()))
                     .or_insert_with(|| DefenceFunnelRow {
@@ -2435,10 +2709,16 @@ impl MonitoringAccumulator {
                 row.friction_requests = Some(not_a_bot_triggered);
                 row.likely_human_affected_requests =
                     Some(likely_human_friction_for_mode(execution_mode, "not_a_bot"));
+                if execution_mode == "enforced" {
+                    row.passed_requests = Some(*not_a_bot_outcome_map.get("pass").unwrap_or(&0));
+                    row.failed_requests = Some(*not_a_bot_outcome_map.get("fail").unwrap_or(&0));
+                    row.escalated_requests =
+                        Some(*not_a_bot_outcome_map.get("escalate").unwrap_or(&0));
+                }
             }
 
             let challenge_triggered = response_kind_total_for_mode(execution_mode, "challenge");
-            if challenge_triggered > 0 {
+            if challenge_triggered > 0 || (execution_mode == "enforced" && challenge_total > 0) {
                 let row = defence_funnel_rows
                     .entry((execution_mode.to_string(), "challenge".to_string()))
                     .or_insert_with(|| DefenceFunnelRow {
@@ -2451,6 +2731,9 @@ impl MonitoringAccumulator {
                 row.friction_requests = Some(challenge_triggered);
                 row.likely_human_affected_requests =
                     Some(likely_human_friction_for_mode(execution_mode, "challenge"));
+                if execution_mode == "enforced" {
+                    row.failed_requests = Some(challenge_total);
+                }
             }
 
             let js_challenge_triggered =
@@ -2487,6 +2770,21 @@ impl MonitoringAccumulator {
             }
         }
 
+        if pow_total_attempts > 0 {
+            let row = defence_funnel_rows
+                .entry(("enforced".to_string(), "pow".to_string()))
+                .or_insert_with(|| DefenceFunnelRow {
+                    execution_mode: "enforced".to_string(),
+                    family: "pow".to_string(),
+                    ..DefenceFunnelRow::default()
+                });
+            row.candidate_requests = Some(pow_total_attempts);
+            row.triggered_requests = Some(pow_total_attempts);
+            row.friction_requests = Some(pow_total_attempts);
+            row.passed_requests = Some(pow_total_successes);
+            row.failed_requests = Some(pow_total_failures);
+        }
+
         MonitoringSummary {
             generated_at: now,
             hours,
@@ -2502,15 +2800,15 @@ impl MonitoringAccumulator {
                 top_paths: top_entries(&self.honeypot_path_counts, top_limit),
             },
             challenge: FailureSummary {
-                total_failures: self.challenge_total,
-                unique_offenders: self.challenge_ip_counts.len() as u64,
-                top_offenders: top_entries(&self.challenge_ip_counts, top_limit),
+                total_failures: challenge_total,
+                unique_offenders: challenge_ip_counts.len() as u64,
+                top_offenders: top_entries(&challenge_ip_counts, top_limit),
                 reasons: challenge_reason_map,
-                trend: build_trend(start_hour, end_hour, &CHALLENGE_REASON_KEYS, self.challenge_trend),
+                trend: build_trend(start_hour, end_hour, &CHALLENGE_REASON_KEYS, challenge_trend),
             },
             not_a_bot: NotABotSummary {
-                served: self.not_a_bot_served_total,
-                submitted: self.not_a_bot_submitted_total,
+                served: not_a_bot_served_total,
+                submitted: not_a_bot_submitted_total,
                 pass: *not_a_bot_outcome_map.get("pass").unwrap_or(&0),
                 escalate: *not_a_bot_outcome_map.get("escalate").unwrap_or(&0),
                 fail: *not_a_bot_outcome_map.get("fail").unwrap_or(&0),
@@ -2525,11 +2823,30 @@ impl MonitoringAccumulator {
                 total_successes: pow_total_successes,
                 total_attempts: pow_total_attempts,
                 success_ratio: pow_success_ratio,
-                unique_offenders: self.pow_ip_counts.len() as u64,
-                top_offenders: top_entries(&self.pow_ip_counts, top_limit),
+                unique_offenders: self
+                    .pow_ip_counts_by_origin
+                    .get(live_origin)
+                    .map(|row| row.len() as u64)
+                    .unwrap_or(0),
+                top_offenders: top_entries(
+                    &self
+                        .pow_ip_counts_by_origin
+                        .get(live_origin)
+                        .cloned()
+                        .unwrap_or_default(),
+                    top_limit,
+                ),
                 reasons: pow_reason_map,
                 outcomes: pow_outcome_map,
-                trend: build_trend(start_hour, end_hour, &POW_REASON_KEYS, self.pow_trend),
+                trend: build_trend(
+                    start_hour,
+                    end_hour,
+                    &POW_REASON_KEYS,
+                    self.pow_trends_by_origin
+                        .get(live_origin)
+                        .cloned()
+                        .unwrap_or_default(),
+                ),
             },
             rate: RateSummary {
                 total_violations: self.rate_total,
@@ -3608,6 +3925,9 @@ mod tests {
                 policy_source: PolicySource::PolicyGraphSecondTranche,
             },
         );
+        record_not_a_bot_served(&store);
+        record_not_a_bot_submit(&store, "pass", Some(900));
+        record_not_a_bot_submit(&store, "escalate", Some(1700));
 
         record_request_outcome(
             &store,
@@ -3646,9 +3966,9 @@ mod tests {
         assert_eq!(not_a_bot.candidate_requests, Some(1));
         assert_eq!(not_a_bot.triggered_requests, Some(1));
         assert_eq!(not_a_bot.friction_requests, Some(1));
-        assert_eq!(not_a_bot.passed_requests, None);
-        assert_eq!(not_a_bot.failed_requests, None);
-        assert_eq!(not_a_bot.escalated_requests, None);
+        assert_eq!(not_a_bot.passed_requests, Some(1));
+        assert_eq!(not_a_bot.failed_requests, Some(0));
+        assert_eq!(not_a_bot.escalated_requests, Some(1));
         assert_eq!(not_a_bot.denied_requests, None);
         assert_eq!(not_a_bot.suspicious_forwarded_requests, None);
         assert_eq!(not_a_bot.likely_human_affected_requests, Some(1));
@@ -3663,7 +3983,7 @@ mod tests {
         assert_eq!(challenge.triggered_requests, Some(1));
         assert_eq!(challenge.friction_requests, Some(1));
         assert_eq!(challenge.passed_requests, None);
-        assert_eq!(challenge.failed_requests, None);
+        assert_eq!(challenge.failed_requests, Some(1));
         assert_eq!(challenge.escalated_requests, None);
         assert_eq!(challenge.likely_human_affected_requests, Some(0));
 
@@ -3691,18 +4011,30 @@ mod tests {
         assert_eq!(maze.friction_requests, Some(1));
         assert_eq!(maze.likely_human_affected_requests, Some(1));
 
-        assert!(
-            summary
-                .defence_funnel
-                .rows
-                .iter()
-                .all(|row| row.family != "pow")
-        );
+        let pow = summary
+            .defence_funnel
+            .rows
+            .iter()
+            .find(|row| row.execution_mode == "enforced" && row.family == "pow")
+            .expect("pow funnel row");
+        assert_eq!(pow.candidate_requests, Some(2));
+        assert_eq!(pow.triggered_requests, Some(2));
+        assert_eq!(pow.friction_requests, Some(2));
+        assert_eq!(pow.passed_requests, Some(1));
+        assert_eq!(pow.failed_requests, Some(1));
+        assert_eq!(pow.likely_human_affected_requests, None);
     }
 
     #[test]
     fn summarize_keeps_defence_funnel_live_only_even_when_legacy_followup_counters_exist() {
         let store = MockStore::default();
+        let _guard = crate::runtime::sim_telemetry::enter(Some(
+            crate::runtime::sim_telemetry::SimulationRequestMetadata {
+                sim_run_id: "run-1".to_string(),
+                sim_profile: "deterministic".to_string(),
+                sim_lane: "crawler".to_string(),
+            },
+        ));
 
         record_request_outcome(
             &store,
@@ -3730,6 +4062,10 @@ mod tests {
 
         let summary = summarize_with_store(&store, 24, 10);
 
+        assert_eq!(summary.challenge.total_failures, 0);
+        assert_eq!(summary.not_a_bot.served, 0);
+        assert_eq!(summary.not_a_bot.submitted, 0);
+        assert_eq!(summary.pow.total_attempts, 0);
         assert!(summary.defence_funnel.rows.is_empty());
     }
 
@@ -3804,11 +4140,16 @@ mod tests {
             3,
         );
 
-        let challenge_reason = encode_dim("incorrect");
-        let challenge_ip = encode_dim("198.51.100.0");
+        let challenge_origin = encode_dim("live");
+        let challenge_reason = encode_dim("live|incorrect");
+        let challenge_ip = encode_dim("live|198.51.100.0");
         set_counter(
             &store,
-            format!("{}:challenge:total:{}", MONITORING_PREFIX, now_hour).as_str(),
+            format!(
+                "{}:challenge:total:{}:{}",
+                MONITORING_PREFIX, challenge_origin, now_hour
+            )
+            .as_str(),
             2,
         );
         set_counter(
@@ -3884,21 +4225,30 @@ mod tests {
     fn summarize_aggregates_not_a_bot_outcomes_and_latency() {
         let store = MockStore::default();
         let now_hour = now_ts() / 3600;
-        let outcome_pass = encode_dim("pass");
-        let outcome_escalate = encode_dim("escalate");
-        let outcome_fail = encode_dim("fail");
-        let latency_fast = encode_dim("lt_1s");
-        let latency_mid = encode_dim("1_3s");
-        let latency_slow = encode_dim("10s_plus");
+        let live_origin = encode_dim("live");
+        let outcome_pass = encode_dim("live|pass");
+        let outcome_escalate = encode_dim("live|escalate");
+        let outcome_fail = encode_dim("live|fail");
+        let latency_fast = encode_dim("live|lt_1s");
+        let latency_mid = encode_dim("live|1_3s");
+        let latency_slow = encode_dim("live|10s_plus");
 
         set_counter(
             &store,
-            format!("{}:not_a_bot:served:{}", MONITORING_PREFIX, now_hour).as_str(),
+            format!(
+                "{}:not_a_bot:served:{}:{}",
+                MONITORING_PREFIX, live_origin, now_hour
+            )
+            .as_str(),
             5,
         );
         set_counter(
             &store,
-            format!("{}:not_a_bot:submitted:{}", MONITORING_PREFIX, now_hour).as_str(),
+            format!(
+                "{}:not_a_bot:submitted:{}:{}",
+                MONITORING_PREFIX, live_origin, now_hour
+            )
+            .as_str(),
             4,
         );
         set_counter(
@@ -3980,19 +4330,24 @@ mod tests {
     fn summarize_aggregates_pow_outcomes_and_ratio() {
         let store = MockStore::default();
         let now_hour = now_ts() / 3600;
-        let pow_ip = encode_dim("198.51.100.9");
-        let pow_reason = encode_dim("invalid_proof");
-        let pow_outcome_success = encode_dim("success");
-        let pow_outcome_failure = encode_dim("failure");
+        let pow_origin = encode_dim("live");
+        let pow_ip = encode_dim("live|198.51.100.9");
+        let pow_reason = encode_dim("live|invalid_proof");
+        let pow_outcome_success = encode_dim("live|success");
+        let pow_outcome_failure = encode_dim("live|failure");
 
         set_counter(
             &store,
-            format!("{}:pow:total:{}", MONITORING_PREFIX, now_hour).as_str(),
+            format!("{}:pow:total:{}:{}", MONITORING_PREFIX, pow_origin, now_hour).as_str(),
             3,
         );
         set_counter(
             &store,
-            format!("{}:pow:success:{}", MONITORING_PREFIX, now_hour).as_str(),
+            format!(
+                "{}:pow:success:{}:{}",
+                MONITORING_PREFIX, pow_origin, now_hour
+            )
+            .as_str(),
             9,
         );
         set_counter(
@@ -4070,7 +4425,12 @@ mod tests {
     fn summarize_uses_bucket_indexes_without_full_keyspace_scan() {
         let store = MockStore::default();
         let now_hour = now_ts() / 3600;
-        let counter_key = format!("{}:challenge:total:{}", MONITORING_PREFIX, now_hour);
+        let counter_key = format!(
+            "{}:challenge:total:{}:{}",
+            MONITORING_PREFIX,
+            encode_dim("live"),
+            now_hour
+        );
         set_counter(&store, counter_key.as_str(), 4);
         crate::observability::retention::register_monitoring_key(&store, now_hour, counter_key.as_str());
         store
@@ -4113,14 +4473,26 @@ mod tests {
         for hour in previous_day_start..previous_day_start.saturating_add(MONITORING_DAY_HOURS) {
             set_counter(
                 &store,
-                format!("{}:challenge:total:{}", MONITORING_PREFIX, hour).as_str(),
+                format!(
+                    "{}:challenge:total:{}:{}",
+                    MONITORING_PREFIX,
+                    encode_dim("live"),
+                    hour
+                )
+                .as_str(),
                 1,
             );
         }
         for hour in current_day_start..=now_hour {
             set_counter(
                 &store,
-                format!("{}:challenge:total:{}", MONITORING_PREFIX, hour).as_str(),
+                format!(
+                    "{}:challenge:total:{}:{}",
+                    MONITORING_PREFIX,
+                    encode_dim("live"),
+                    hour
+                )
+                .as_str(),
                 1,
             );
         }
@@ -4135,7 +4507,12 @@ mod tests {
         );
 
         for hour in previous_day_start..previous_day_start.saturating_add(MONITORING_DAY_HOURS) {
-            let key = format!("{}:challenge:total:{}", MONITORING_PREFIX, hour);
+            let key = format!(
+                "{}:challenge:total:{}:{}",
+                MONITORING_PREFIX,
+                encode_dim("live"),
+                hour
+            );
             store.delete(key.as_str()).expect("delete hourly key");
         }
 
@@ -4261,7 +4638,7 @@ mod tests {
         let store = MockStore::default();
         let now_hour = now_ts() / 3600;
         let expired_hour = now_hour.saturating_sub(6);
-        let expired_key = monitoring_key("pow", "total", None, expired_hour);
+        let expired_key = monitoring_key("pow", "total", Some("live"), expired_hour);
         store
             .set(expired_key.as_str(), b"1")
             .expect("counter write should succeed");

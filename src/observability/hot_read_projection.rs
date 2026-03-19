@@ -662,7 +662,7 @@ mod tests {
             .find(|row| row.execution_mode == "enforced" && row.family == "not_a_bot")
             .expect("not_a_bot funnel row in summary");
         assert_eq!(summary_not_a_bot_funnel.candidate_requests, Some(1));
-        assert_eq!(summary_not_a_bot_funnel.passed_requests, None);
+        assert_eq!(summary_not_a_bot_funnel.passed_requests, Some(0));
         assert_eq!(summary_not_a_bot_funnel.likely_human_affected_requests, Some(1));
 
         let bootstrap = read_document::<
@@ -711,10 +711,65 @@ mod tests {
             .find(|row| row.execution_mode == "enforced" && row.family == "not_a_bot")
             .expect("not_a_bot funnel row in bootstrap");
         assert_eq!(bootstrap_not_a_bot_funnel.candidate_requests, Some(1));
-        assert_eq!(bootstrap_not_a_bot_funnel.passed_requests, None);
+        assert_eq!(bootstrap_not_a_bot_funnel.passed_requests, Some(0));
         assert_eq!(
             bootstrap_not_a_bot_funnel.likely_human_affected_requests,
             Some(1)
+        );
+    }
+
+    #[test]
+    fn counter_flush_refresh_bootstrap_with_extended_operator_summary_stays_within_budget() {
+        let store = MockStore::new();
+        crate::observability::monitoring::record_request_outcome(
+            &store,
+            &crate::runtime::request_outcome::RenderedRequestOutcome {
+                traffic_origin: crate::runtime::request_outcome::TrafficOrigin::Live,
+                measurement_scope:
+                    crate::runtime::traffic_classification::MeasurementScope::IngressPrimary,
+                route_action_family:
+                    crate::runtime::traffic_classification::RouteActionFamily::PublicContent,
+                execution_mode: crate::runtime::effect_intents::ExecutionMode::Enforced,
+                traffic_lane: Some(crate::runtime::request_outcome::RequestOutcomeLane {
+                    lane: crate::runtime::traffic_classification::TrafficLane::LikelyHuman,
+                    exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
+                    basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
+                }),
+                outcome_class:
+                    crate::runtime::request_outcome::RequestOutcomeClass::ShortCircuited,
+                response_kind: crate::runtime::request_outcome::ResponseKind::NotABot,
+                http_status: 200,
+                response_bytes: 45,
+                forward_attempted: false,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source:
+                    crate::runtime::traffic_classification::PolicySource::PolicyGraphSecondTranche,
+            },
+        );
+        crate::observability::monitoring::record_not_a_bot_served(&store);
+        crate::observability::monitoring::record_not_a_bot_submit(&store, "pass", Some(900));
+        refresh_after_counter_flush(&store, "default");
+
+        let bootstrap = read_document::<
+            _,
+            crate::observability::hot_read_documents::MonitoringBootstrapHotReadPayload,
+        >(
+            &store,
+            monitoring_bootstrap_document_key("default"),
+            crate::observability::hot_read_documents::monitoring_bootstrap_document_contract()
+                .schema_version,
+        )
+        .expect("bootstrap document");
+        let serialized = serde_json::to_vec(&bootstrap).expect("bootstrap serializes");
+        assert!(
+            serialized.len()
+                <= crate::observability::hot_read_documents::monitoring_bootstrap_document_contract()
+                    .max_serialized_bytes,
+            "bootstrap size {} exceeded max {}",
+            serialized.len(),
+            crate::observability::hot_read_documents::monitoring_bootstrap_document_contract()
+                .max_serialized_bytes
         );
     }
 

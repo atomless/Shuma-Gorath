@@ -1768,6 +1768,116 @@ mod tests {
     }
 
     #[test]
+    fn handle_admin_monitoring_snapshot_exposes_extended_operator_summary_contract() {
+        let store = MockStore::new();
+        crate::observability::monitoring::record_request_outcome(
+            &store,
+            &crate::runtime::request_outcome::RenderedRequestOutcome {
+                traffic_origin: crate::runtime::request_outcome::TrafficOrigin::Live,
+                measurement_scope:
+                    crate::runtime::traffic_classification::MeasurementScope::IngressPrimary,
+                route_action_family:
+                    crate::runtime::traffic_classification::RouteActionFamily::PublicContent,
+                execution_mode: crate::runtime::effect_intents::ExecutionMode::Enforced,
+                traffic_lane: Some(crate::runtime::request_outcome::RequestOutcomeLane {
+                    lane: crate::runtime::traffic_classification::TrafficLane::LikelyHuman,
+                    exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
+                    basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
+                }),
+                outcome_class:
+                    crate::runtime::request_outcome::RequestOutcomeClass::ShortCircuited,
+                response_kind: crate::runtime::request_outcome::ResponseKind::NotABot,
+                http_status: 200,
+                response_bytes: 45,
+                forward_attempted: false,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source:
+                    crate::runtime::traffic_classification::PolicySource::PolicyGraphSecondTranche,
+            },
+        );
+        crate::observability::monitoring::record_not_a_bot_served(&store);
+        crate::observability::monitoring::record_not_a_bot_submit(&store, "pass", Some(900));
+
+        let mut builder = Request::builder();
+        builder
+            .method(Method::Get)
+            .uri("/admin/monitoring?hours=24&limit=10");
+        let req = builder.build();
+        let resp = handle_admin_monitoring(&req, &store);
+        assert_eq!(*resp.status(), 200u16);
+        let payload: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+
+        let response_kind_rows = payload
+            .get("summary")
+            .and_then(|value| value.get("request_outcomes"))
+            .and_then(|value| value.get("by_response_kind"))
+            .and_then(|value| value.as_array())
+            .expect("request outcome response kind rows");
+        assert!(response_kind_rows.iter().any(|row| {
+            row.get("traffic_origin").and_then(|value| value.as_str()) == Some("live")
+                && row.get("measurement_scope").and_then(|value| value.as_str())
+                    == Some("ingress_primary")
+                && row.get("execution_mode").and_then(|value| value.as_str())
+                    == Some("enforced")
+                && row.get("value").and_then(|value| value.as_str()) == Some("not_a_bot")
+        }));
+
+        let human_friction_rows = payload
+            .get("summary")
+            .and_then(|value| value.get("human_friction"))
+            .and_then(|value| value.get("segments"))
+            .and_then(|value| value.as_array())
+            .expect("human friction rows");
+        let likely_human = human_friction_rows
+            .iter()
+            .find(|row| {
+                row.get("execution_mode").and_then(|value| value.as_str()) == Some("enforced")
+                    && row.get("segment").and_then(|value| value.as_str())
+                        == Some("likely_human")
+            })
+            .expect("likely human friction row");
+        assert_eq!(
+            likely_human
+                .get("denominator_requests")
+                .and_then(|value| value.as_u64()),
+            Some(1)
+        );
+        assert_eq!(
+            likely_human
+                .get("not_a_bot_requests")
+                .and_then(|value| value.as_u64()),
+            Some(1)
+        );
+
+        let funnel_rows = payload
+            .get("summary")
+            .and_then(|value| value.get("defence_funnel"))
+            .and_then(|value| value.get("rows"))
+            .and_then(|value| value.as_array())
+            .expect("defence funnel rows");
+        let not_a_bot_row = funnel_rows
+            .iter()
+            .find(|row| {
+                row.get("execution_mode").and_then(|value| value.as_str()) == Some("enforced")
+                    && row.get("family").and_then(|value| value.as_str()) == Some("not_a_bot")
+            })
+            .expect("not_a_bot funnel row");
+        assert_eq!(
+            not_a_bot_row
+                .get("passed_requests")
+                .and_then(|value| value.as_u64()),
+            Some(1)
+        );
+        assert_eq!(
+            not_a_bot_row
+                .get("likely_human_affected_requests")
+                .and_then(|value| value.as_u64()),
+            Some(1)
+        );
+    }
+
+    #[test]
     fn handle_admin_monitoring_delta_keeps_freshness_anchor_when_page_is_empty() {
         let store = MockStore::new();
         let now = now_ts();
@@ -4107,14 +4217,13 @@ mod admin_config_tests {
         assert_eq!(*monitoring_resp.status(), 200u16);
         let monitoring_json: serde_json::Value =
             serde_json::from_slice(monitoring_resp.body()).unwrap();
-        assert!(
+        assert_eq!(
             monitoring_json
                 .get("summary")
                 .and_then(|v| v.get("challenge"))
                 .and_then(|v| v.get("total_failures"))
-                .and_then(|v| v.as_u64())
-                .unwrap_or(0)
-                >= 1
+                .and_then(|v| v.as_u64()),
+            Some(0)
         );
         assert!(
             monitoring_json
@@ -5818,7 +5927,7 @@ mod admin_config_tests {
     }
 
     #[test]
-    fn admin_monitoring_includes_simulation_and_baseline_events() {
+    fn admin_monitoring_keeps_live_summary_truth_separate_from_simulation_details() {
         let store = TestStore::default();
         let now = now_ts();
 
@@ -5875,8 +5984,18 @@ mod admin_config_tests {
                 .and_then(|summary| summary.get("challenge"))
                 .and_then(|challenge| challenge.get("total_failures"))
                 .and_then(|value| value.as_u64()),
-            Some(2)
+            Some(1)
         );
+        let response_kind_rows = body_default
+            .get("summary")
+            .and_then(|summary| summary.get("request_outcomes"))
+            .and_then(|request_outcomes| request_outcomes.get("by_response_kind"))
+            .and_then(|rows| rows.as_array())
+            .expect("response_kind_rows");
+        assert!(response_kind_rows.iter().any(|row| {
+            row.get("traffic_origin").and_then(|value| value.as_str()) == Some("adversary_sim")
+                && row.get("count").and_then(|value| value.as_u64()) == Some(1)
+        }));
         let include_events = body_default
             .get("details")
             .and_then(|details| details.get("events"))
@@ -5960,7 +6079,7 @@ mod admin_config_tests {
                 .and_then(|summary| summary.get("challenge"))
                 .and_then(|challenge| challenge.get("total_failures"))
                 .and_then(|value| value.as_u64()),
-            Some(2)
+            Some(1)
         );
 
         let events = payload

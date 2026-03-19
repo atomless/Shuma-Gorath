@@ -2416,6 +2416,175 @@ test('monitoring refresh recovers cleanly after transient failure without synthe
   });
 });
 
+test('monitoring refresh preserves extended operator summary families in the dashboard snapshot path', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
+    const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
+
+    const store = storeModule.createDashboardStore({ initialTab: 'monitoring' });
+    const apiClient = {
+      async getConfig() {
+        return {
+          config: {},
+          runtime: {
+            admin_config_write_enabled: true,
+            runtime_environment: 'runtime-prod'
+          }
+        };
+      },
+      async getBans() {
+        return { bans: [] };
+      },
+      async getIpRangeSuggestions() {
+        return {
+          summary: {
+            suggestions_total: 0,
+            low_risk: 0,
+            medium_risk: 0,
+            high_risk: 0
+          },
+          suggestions: []
+        };
+      },
+      async getMonitoring() {
+        return {
+          freshness: {
+            state: 'fresh',
+            lag_ms: 0,
+            last_event_ts: 1_700_000_050,
+            slow_consumer_lag_state: 'normal',
+            overflow: 'none',
+            transport: 'snapshot_poll'
+          },
+          summary: {
+            honeypot: {},
+            challenge: {},
+            not_a_bot: {},
+            pow: {},
+            rate: {},
+            geo: {},
+            human_friction: {
+              segments: [{
+                execution_mode: 'enforced',
+                segment: 'likely_human',
+                denominator_requests: 1,
+                friction_requests: 1,
+                not_a_bot_requests: 1,
+                challenge_requests: 0,
+                js_challenge_requests: 0,
+                maze_requests: 0,
+                not_a_bot_rate: 1,
+                challenge_rate: 0,
+                js_challenge_rate: 0,
+                maze_rate: 0,
+                friction_rate: 1
+              }]
+            },
+            defence_funnel: {
+              rows: [{
+                execution_mode: 'enforced',
+                family: 'not_a_bot',
+                candidate_requests: 1,
+                triggered_requests: 1,
+                friction_requests: 1,
+                passed_requests: 1,
+                failed_requests: 0,
+                escalated_requests: 0,
+                denied_requests: null,
+                suspicious_forwarded_requests: null,
+                likely_human_affected_requests: 1
+              }]
+            },
+            request_outcomes: {
+              by_scope: [],
+              by_lane: [],
+              by_response_kind: [{
+                traffic_origin: 'live',
+                measurement_scope: 'ingress_primary',
+                execution_mode: 'enforced',
+                value: 'not_a_bot',
+                total_requests: 1,
+                forwarded_requests: 0,
+                short_circuited_requests: 1,
+                control_response_requests: 0,
+                response_bytes: 45,
+                forwarded_response_bytes: 0,
+                short_circuited_response_bytes: 45,
+                control_response_bytes: 0
+              }],
+              by_policy_source: [],
+              by_route_action_family: []
+            }
+          },
+          details: {
+            analytics: { ban_count: 0, shadow_mode: false, fail_mode: 'open' },
+            events: { recent_events: [], recent_sim_runs: [] },
+            bans: { bans: [] },
+            maze: {},
+            cdp: {},
+            cdp_events: { events: [] }
+          }
+        };
+      },
+      async getMonitoringDelta(params = {}) {
+        return {
+          after_cursor: String(params.after_cursor || ''),
+          window_end_cursor: '',
+          next_cursor: '',
+          has_more: false,
+          overflow: 'none',
+          events: [],
+          freshness: {
+            state: 'fresh',
+            lag_ms: 0,
+            last_event_ts: 1_700_000_050,
+            slow_consumer_lag_state: 'normal',
+            overflow: 'none',
+            transport: 'cursor_delta_poll'
+          }
+        };
+      },
+      async getIpBansDelta(params = {}) {
+        return {
+          after_cursor: String(params.after_cursor || ''),
+          window_end_cursor: '',
+          next_cursor: '',
+          has_more: false,
+          overflow: 'none',
+          active_bans: [],
+          freshness: {
+            state: 'fresh',
+            lag_ms: 0,
+            last_event_ts: 1_700_000_050,
+            slow_consumer_lag_state: 'normal',
+            overflow: 'none',
+            transport: 'cursor_delta_poll'
+          }
+        };
+      }
+    };
+
+    const runtime = refreshModule.createDashboardRefreshRuntime({
+      normalizeTab: (value) => String(value || ''),
+      getApiClient: () => apiClient,
+      getStateStore: () => store,
+      deriveMonitoringAnalytics: () => ({ ban_count: 0, shadow_mode: false, fail_mode: 'open' }),
+      storage: null
+    });
+
+    await runtime.refreshDashboardForTab('monitoring', 'manual-refresh');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const monitoringSnapshot = store.getSnapshot('monitoring') || {};
+    assert.equal(monitoringSnapshot.summary?.human_friction?.segments?.[0]?.segment, 'likely_human');
+    assert.equal(monitoringSnapshot.summary?.defence_funnel?.rows?.[0]?.family, 'not_a_bot');
+    assert.equal(
+      monitoringSnapshot.summary?.request_outcomes?.by_response_kind?.[0]?.value,
+      'not_a_bot'
+    );
+  });
+});
+
 test('monitoring view model and status module remain pure snapshot transforms', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const monitoringModelModule = await importBrowserModule('dashboard/src/lib/components/dashboard/monitoring-view-model.js');
