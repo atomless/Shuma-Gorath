@@ -4,6 +4,18 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-20)
 
+### Operator Snapshot Backlog: Tighten Remaining TODO Scope Before The Next Slice
+
+- [x] Update the stale `OPS-SNAPSHOT-1` wording in `todos/todo.md` so the active backlog reflects only the genuinely remaining work: bounded `recent_changes` materialization and the `allowed_actions_v1` controller envelope.
+- [x] Why:
+  - the machine-first snapshot foundation has already landed live-traffic, shadow, adversary-sim, runtime-posture, and budget-distance sections, so leaving the broader stale wording in place risked muddling the next implementation slice.
+  - tightening the backlog first keeps the next code tranche scoped to the actual remaining controller-loop contract work instead of carrying already-completed semantics as if they were still open.
+  - the project workflow requires plans and TODOs to stay aligned with delivered reality before the next implementation tranche proceeds.
+- [x] Evidence:
+  - `todos/todo.md`
+  - docs-only slice: tests intentionally skipped
+  - `git diff --check`
+
 ### Operator Snapshot Foundation: Post-Implementation Review And Missing-Document Read-Path Proof
 
 - [x] Complete the mandatory post-implementation review for the first `operator_snapshot_v1` foundation slice, compare the delivered backend contract against the machine-first design and implementation plan, and close the one tranche shortfall by adding focused proof that `/admin/operator-snapshot` returns `503 operator_snapshot_not_materialized` without materializing the hot-read document on read.

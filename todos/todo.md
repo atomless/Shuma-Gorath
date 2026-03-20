@@ -63,8 +63,8 @@ Reference context:
 - [`docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
 
 ### OPS-SNAPSHOT-1: Machine-First Operator Snapshot Foundation
-- [ ] OPS-SNAPSHOT-1-3 Add budget-distance computation and snapshot sections for live traffic, shadow assertions, adversary-sim evidence, recent changes, and runtime or config posture so later controller loops can reason over typed deltas instead of chart prose.
-- [ ] OPS-SNAPSHOT-1-5 Add a bounded recent-change summary and `allowed_actions_v1` contract so later scheduled controllers can attribute observed changes and stay inside one explicit config-diff surface.
+- [ ] OPS-SNAPSHOT-1-3 Materialize the bounded `recent_changes` section for `operator_snapshot_v1`, sourced from meaningful admin mutation history rather than generic admin reads or monitoring tails, so later controller loops can attribute observed changes to recent policy/config shifts.
+- [ ] OPS-SNAPSHOT-1-5 Materialize `allowed_actions_v1` as the explicit controller action envelope, including bounded config-diff scope and guardrail metadata, so later scheduled controllers stay inside one truthful write surface.
 
 ### OPS-BENCH-1: Benchmark Contract For Project Evolution
 - [ ] OPS-BENCH-1-1 Define `benchmark_suite_v1` around the first four benchmark families: suspicious-origin cost, likely-human friction, representative adversary effectiveness, and beneficial or authenticated non-human posture according to local policy stance.
