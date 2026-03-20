@@ -4,6 +4,20 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-20)
 
+### SIM-DEPLOY-2: Readiness Review And Execution-Plan Capture
+
+- [x] Capture the `SIM-DEPLOY-2` architectural readiness review, execution order, and backlog refinement so the production operating-envelope tranche can start from an explicit research and implementation plan instead of implicit context spread across older heartbeat, roadmap, and operator docs.
+- [x] Why:
+  - `SIM-DEPLOY-2` was clearly active in the backlog, but it still lacked its own dedicated research note and execution-ready implementation plan even though it now gates later Scrapling and mature adversary-sim work.
+  - the review also surfaced one local prerequisite inside the tranche itself: the focused lifecycle `make` target had stale selectors and was weaker than its help text implied, so that needed to be recorded explicitly before the tranche could rely on it as acceptance evidence.
+  - capturing the optimal tranche order now keeps the work scoped and reduces the chance that kill-switch, no-impact, or docs work gets attempted before the desired-state architecture is simplified.
+- [x] Evidence:
+  - `docs/research/2026-03-20-sim-deploy-2-readiness-review.md`
+  - `docs/plans/2026-03-20-sim-deploy-2-production-operating-envelope-implementation-plan.md`
+  - `todos/todo.md`
+  - docs-only slice: tests intentionally skipped
+  - `git diff --check`
+
 ### Docs / Policy: Codify "Telemetry Is The Map" As A Guiding Principle
 
 - [x] Promote "telemetry is the map" from a local shared-host discovery insight into a repo-wide guiding principle across canonical policy, observability guidance, operator docs, and the active machine-first, benchmark, and adversary-sim planning docs.
