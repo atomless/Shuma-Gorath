@@ -4,6 +4,23 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-20)
 
+### OPS-BENCH-1: Materialize The Benchmark-Driven Escalation Boundary
+
+- [x] Complete `OPS-BENCH-1-3` by turning the placeholder `benchmark_results_v1.escalation_hint` into a bounded machine-facing decision contract with explicit `config_tuning_candidate`, `observe_longer`, and `code_evolution_candidate` outcomes, review status, trigger families, candidate config-action families, and blockers derived from existing benchmark results plus `allowed_actions_v1`.
+- [x] Why:
+  - the benchmark tranche still lacked the crucial boundary between per-instance config changes and later code evolution, which would have left future controllers or Monitoring work to infer escalation intent from raw statuses and free-form notes.
+  - the clean implementation needed to reuse the existing action-surface contract rather than inventing a second ad hoc tuning taxonomy, so the escalation logic was correctly derived from `allowed_actions_v1` and current benchmark family results.
+  - closing this slice now leaves benchmark projection, not benchmark semantics, as the next dependency before Monitoring overhaul.
+- [x] Evidence:
+  - `src/observability/benchmark_results.rs`
+  - `src/admin/api.rs`
+  - `Makefile`
+  - `docs/plans/2026-03-20-benchmark-suite-v1-design.md`
+  - `docs/research/2026-03-20-benchmark-escalation-boundary-post-implementation-review.md`
+  - `make test-benchmark-results-contract`
+  - `make test`
+  - `git diff --check`
+
 ### OPS-BENCH-1: Materialize The First Bounded `benchmark_results_v1` Envelope
 
 - [x] Complete `OPS-BENCH-1-2` by adding the first bounded `benchmark_results_v1` backend contract, exposing it through a read-only `/admin/benchmark-results` endpoint, deriving it from the already-materialized `operator_snapshot_v1` document, and proving that the read path stays `GET`-only and no-write-on-read when the snapshot is absent.

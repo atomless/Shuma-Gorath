@@ -86,6 +86,8 @@ Completed archive index:
    Post-implementation review confirming the static `benchmark_suite_v1` registry landed as a machine-first backend contract and that the next benchmark work should move to `benchmark_results_v1` rather than Monitoring UI work.
 17. [`2026-03-20-benchmark-results-contract-post-implementation-review.md`](2026-03-20-benchmark-results-contract-post-implementation-review.md)
    Post-implementation review confirming the first `benchmark_results_v1` slice landed as a bounded machine-first backend contract over `operator_snapshot_v1` and that the next benchmark work should move to explicit escalation semantics.
+18. [`2026-03-20-benchmark-escalation-boundary-post-implementation-review.md`](2026-03-20-benchmark-escalation-boundary-post-implementation-review.md)
+   Post-implementation review confirming the benchmark-driven escalation boundary landed as a bounded machine-first contract over benchmark results plus `allowed_actions_v1`, and that the next benchmark work should move to snapshot and Monitoring projection.
 
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 

@@ -2378,6 +2378,20 @@ mod tests {
                 .and_then(|value| value.as_str()),
             Some("not_available")
         );
+        assert_eq!(
+            payload
+                .get("escalation_hint")
+                .and_then(|value| value.get("decision"))
+                .and_then(|value| value.as_str()),
+            Some("observe_longer")
+        );
+        assert_eq!(
+            payload
+                .get("escalation_hint")
+                .and_then(|value| value.get("review_status"))
+                .and_then(|value| value.as_str()),
+            Some("manual_review_required")
+        );
         assert!(
             payload
                 .get("families")

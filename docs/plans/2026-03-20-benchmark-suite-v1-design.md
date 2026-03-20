@@ -251,6 +251,41 @@ The benchmark layer should support an explicit decision boundary:
 
 This boundary must remain explicit and benchmark-driven rather than anecdotal.
 
+## `escalation_hint` Contract Direction
+
+The first machine-readable escalation contract should remain bounded and review-aware.
+
+`benchmark_results_v1.escalation_hint` should carry:
+
+1. `availability`
+2. `decision`
+3. `review_status`
+4. `trigger_family_ids`
+5. `candidate_action_families`
+6. `blockers`
+7. `note`
+
+### First-wave semantics
+
+1. `review_status` should remain `manual_review_required`.
+2. `decision` should use only:
+   - `config_tuning_candidate`
+   - `observe_longer`
+   - `code_evolution_candidate`
+3. The first slice may remain `partial_support` when the decision is derived from the current watch window plus the current action surface but baseline history is not yet materialized.
+4. `candidate_action_families` should be derived from the existing `allowed_actions_v1` family surface rather than from UI-local heuristics.
+5. `blockers` should explain why a stronger action is not yet justified, for example:
+   - no outside-budget benchmark family is currently observed,
+   - evidence is still insufficient,
+   - or no existing config/action family can plausibly address the active benchmark miss.
+
+### First-wave decision rules
+
+1. If no benchmark family is outside budget, the hint should remain `observe_longer`.
+2. If an outside-budget family maps to an existing config/action family, the hint should become `config_tuning_candidate`, even when the relevant config family is manual-review or canary-gated.
+3. If an outside-budget family has no matching config/action family or requires an absent capability, the hint should become `code_evolution_candidate`.
+4. The first slice must not require baseline history to return a bounded escalation hint, but it must say explicitly when the decision is based on current-window evidence only.
+
 ## Relationship To `operator_snapshot_v1`
 
 `benchmark_suite_v1` should not bypass `operator_snapshot_v1`.

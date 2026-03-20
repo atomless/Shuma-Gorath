@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
 
 use crate::observability::benchmark_suite::BENCHMARK_SUITE_SCHEMA_VERSION;
 use crate::observability::operator_snapshot::{
@@ -40,6 +41,10 @@ pub(crate) struct BenchmarkFamilyResult {
 pub(crate) struct BenchmarkEscalationHint {
     pub availability: String,
     pub decision: String,
+    pub review_status: String,
+    pub trigger_family_ids: Vec<String>,
+    pub candidate_action_families: Vec<String>,
+    pub blockers: Vec<String>,
     pub note: String,
 }
 
@@ -89,13 +94,8 @@ pub(crate) fn build_benchmark_results_payload(
         coverage_status: overall_coverage_status(families.as_slice()),
         overall_status: overall_status(families.as_slice()),
         improvement_status: "not_available".to_string(),
+        escalation_hint: derive_escalation_hint(snapshot, families.as_slice()),
         families,
-        escalation_hint: BenchmarkEscalationHint {
-            availability: "not_yet_materialized".to_string(),
-            decision: "observe_longer".to_string(),
-            note: "Explicit config-versus-code escalation lands with the next benchmark tranche."
-                .to_string(),
-        },
     }
 }
 
@@ -338,6 +338,159 @@ fn overall_status(families: &[BenchmarkFamilyResult]) -> String {
     }
 }
 
+fn derive_escalation_hint(
+    snapshot: &OperatorSnapshotHotReadPayload,
+    families: &[BenchmarkFamilyResult],
+) -> BenchmarkEscalationHint {
+    let outside_budget_families: Vec<&BenchmarkFamilyResult> = families
+        .iter()
+        .filter(|family| family.status == "outside_budget")
+        .collect();
+    let near_limit_families: Vec<&BenchmarkFamilyResult> = families
+        .iter()
+        .filter(|family| family.status == "near_limit")
+        .collect();
+    let insufficient_families: Vec<&BenchmarkFamilyResult> = families
+        .iter()
+        .filter(|family| family.status == "insufficient_evidence")
+        .collect();
+
+    let availability = "partial_support".to_string();
+    let review_status = "manual_review_required".to_string();
+
+    if outside_budget_families.is_empty() {
+        let mut blockers = Vec::new();
+        let trigger_family_ids = if !near_limit_families.is_empty() {
+            blockers.push("near_limit_only".to_string());
+            family_ids(&near_limit_families)
+        } else if !insufficient_families.is_empty() {
+            blockers.push("insufficient_evidence".to_string());
+            family_ids(&insufficient_families)
+        } else {
+            blockers.push("outside_budget_not_observed".to_string());
+            Vec::new()
+        };
+        return BenchmarkEscalationHint {
+            availability,
+            decision: "observe_longer".to_string(),
+            review_status,
+            trigger_family_ids,
+            candidate_action_families: Vec::new(),
+            blockers,
+            note:
+                "Current benchmark evidence does not yet justify config or code escalation; keep observing additional windows."
+                    .to_string(),
+        };
+    }
+
+    let trigger_family_ids = family_ids(&outside_budget_families);
+    let mut candidate_action_families = BTreeSet::new();
+    let mut blockers = BTreeSet::new();
+
+    for family in outside_budget_families {
+        if family.capability_gate == "not_yet_supported" {
+            blockers.insert("family_capability_gap".to_string());
+        }
+
+        let mapped_families = benchmark_action_families(family.family_id.as_str());
+        if mapped_families.is_empty() {
+            blockers.insert("no_matching_config_surface".to_string());
+            continue;
+        }
+
+        let matching_surface_families: Vec<_> = snapshot
+            .allowed_actions
+            .families
+            .iter()
+            .filter(|allowed_family| mapped_families.contains(&allowed_family.family.as_str()))
+            .collect();
+
+        if matching_surface_families.is_empty() {
+            blockers.insert("no_matching_config_surface".to_string());
+            continue;
+        }
+
+        let has_addressable_surface = matching_surface_families.iter().any(|allowed_family| {
+            matches!(
+                allowed_family.controller_status.as_str(),
+                "allowed" | "manual_only"
+            )
+        });
+
+        if has_addressable_surface {
+            for allowed_family in matching_surface_families {
+                if matches!(
+                    allowed_family.controller_status.as_str(),
+                    "allowed" | "manual_only"
+                ) {
+                    candidate_action_families.insert(allowed_family.family.clone());
+                }
+            }
+        } else {
+            blockers.insert("no_matching_config_surface".to_string());
+        }
+    }
+
+    if blockers.is_empty() && !candidate_action_families.is_empty() {
+        return BenchmarkEscalationHint {
+            availability,
+            decision: "config_tuning_candidate".to_string(),
+            review_status,
+            trigger_family_ids,
+            candidate_action_families: candidate_action_families.into_iter().collect(),
+            blockers: Vec::new(),
+            note: "Current-window benchmark misses align with existing config surfaces; manual review remains required before proposing a tuning change."
+                .to_string(),
+        };
+    }
+
+    BenchmarkEscalationHint {
+        availability,
+        decision: "code_evolution_candidate".to_string(),
+        review_status,
+        trigger_family_ids,
+        candidate_action_families: candidate_action_families.into_iter().collect(),
+        blockers: blockers.into_iter().collect(),
+        note: "At least one outside-budget benchmark family is not addressable through the current config surface or requires missing capability; manual review should consider code evolution."
+            .to_string(),
+    }
+}
+
+fn benchmark_action_families(family_id: &str) -> &'static [&'static str] {
+    match family_id {
+        "suspicious_origin_cost" => &[
+            "geo_policy",
+            "ip_range_policy",
+            "honeypot",
+            "maze_core",
+            "tarpit",
+            "proof_of_work",
+            "challenge",
+            "not_a_bot",
+            "botness",
+            "cdp_detection",
+            "fingerprint_signal",
+        ],
+        "likely_human_friction" => &[
+            "core_policy",
+            "browser_policy",
+            "proof_of_work",
+            "challenge",
+            "not_a_bot",
+            "botness",
+            "maze_core",
+        ],
+        _ => &[],
+    }
+}
+
+fn family_ids(families: &[&BenchmarkFamilyResult]) -> Vec<String> {
+    families
+        .iter()
+        .map(|family| family.family_id.clone())
+        .collect()
+}
+
 fn ratio(numerator: u64, denominator: u64) -> f64 {
     if denominator == 0 {
         0.0
@@ -348,7 +501,11 @@ fn ratio(numerator: u64, denominator: u64) -> f64 {
 
 #[cfg(test)]
 mod tests {
-    use super::build_benchmark_results_payload;
+    use super::{
+        build_benchmark_results_payload, derive_escalation_hint, BenchmarkFamilyResult,
+        BenchmarkMetricResult,
+    };
+    use crate::config::allowed_actions_v1;
     use crate::challenge::KeyValueStore;
     use crate::observability::monitoring::{record_request_outcome, summarize_with_store};
     use crate::observability::operator_snapshot::{
@@ -457,5 +614,116 @@ mod tests {
             .any(|family| family.family_id == "likely_human_friction"));
         assert_eq!(payload.coverage_status, "partial_support");
         assert_eq!(payload.improvement_status, "not_available");
+        assert_eq!(payload.escalation_hint.availability, "partial_support");
+        assert_eq!(payload.escalation_hint.decision, "config_tuning_candidate");
+        assert_eq!(payload.escalation_hint.review_status, "manual_review_required");
+    }
+
+    #[test]
+    fn escalation_hint_promotes_supported_budget_breach_to_config_tuning_candidate() {
+        let store = TestStore::new();
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::Live,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::PublicContent,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: Some(RequestOutcomeLane {
+                    lane: TrafficLane::LikelyHuman,
+                    exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
+                    basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
+                }),
+                outcome_class: RequestOutcomeClass::ShortCircuited,
+                response_kind: ResponseKind::NotABot,
+                http_status: 200,
+                response_bytes: 45,
+                forward_attempted: false,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::PolicyGraphSecondTranche,
+            },
+        );
+        let summary = summarize_with_store(&store, 24, 10);
+        let mut snapshot = build_operator_snapshot_payload(
+            &store,
+            "default",
+            1_700_000_100,
+            &summary,
+            &[],
+            OperatorSnapshotRecentChanges::default(),
+            1_700_000_100,
+            1_700_000_100,
+            1_700_000_100,
+        );
+        let row = snapshot
+            .budget_distance
+            .rows
+            .iter_mut()
+            .find(|row| row.metric == "likely_human_friction_rate")
+            .expect("likely human friction budget row present");
+        row.status = "outside_budget".to_string();
+        row.current = 0.12;
+        row.delta = 0.10;
+        snapshot.allowed_actions = allowed_actions_v1();
+
+        let payload = build_benchmark_results_payload(1_700_000_100, &snapshot);
+        assert_eq!(payload.escalation_hint.decision, "config_tuning_candidate");
+        assert_eq!(payload.escalation_hint.review_status, "manual_review_required");
+        assert!(
+            payload
+                .escalation_hint
+                .trigger_family_ids
+                .contains(&"likely_human_friction".to_string())
+        );
+        assert!(
+            payload
+                .escalation_hint
+                .candidate_action_families
+                .contains(&"challenge".to_string())
+        );
+    }
+
+    #[test]
+    fn escalation_hint_promotes_unaddressable_budget_breach_to_code_evolution_candidate() {
+        let snapshot = build_operator_snapshot_payload(
+            &TestStore::new(),
+            "default",
+            1_700_000_100,
+            &crate::observability::monitoring::summarize_with_store(&TestStore::new(), 24, 10),
+            &[],
+            OperatorSnapshotRecentChanges::default(),
+            1_700_000_100,
+            1_700_000_100,
+            1_700_000_100,
+        );
+        let families = vec![BenchmarkFamilyResult {
+            family_id: "beneficial_non_human_posture".to_string(),
+            status: "outside_budget".to_string(),
+            capability_gate: "not_yet_supported".to_string(),
+            note: "identity posture is missing".to_string(),
+            metrics: vec![BenchmarkMetricResult {
+                metric_id: "allowed_as_intended_rate".to_string(),
+                status: "not_yet_supported".to_string(),
+                current: None,
+                target: None,
+                delta: None,
+                exactness: "derived".to_string(),
+                basis: "mixed".to_string(),
+                capability_gate: "not_yet_supported".to_string(),
+            }],
+        }];
+
+        let hint = derive_escalation_hint(&snapshot, families.as_slice());
+        assert_eq!(hint.decision, "code_evolution_candidate");
+        assert_eq!(hint.review_status, "manual_review_required");
+        assert!(
+            hint.blockers
+                .contains(&"no_matching_config_surface".to_string())
+        );
+        assert!(
+            hint.blockers
+                .contains(&"family_capability_gap".to_string())
+        );
     }
 }
