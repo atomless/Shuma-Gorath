@@ -2268,6 +2268,73 @@ mod tests {
     }
 
     #[test]
+    fn handle_admin_benchmark_suite_returns_machine_first_benchmark_contract() {
+        let mut builder = Request::builder();
+        builder
+            .method(Method::Get)
+            .uri("/admin/benchmark-suite")
+            .header("host", "localhost:3000")
+            .header("authorization", "Bearer changeme-dev-only-api-key")
+            .header("origin", "http://localhost:3000")
+            .header("sec-fetch-site", "same-origin")
+            .body(Vec::new());
+        let req = builder.build();
+        let resp = handle_admin_benchmark_suite(&req);
+        assert_eq!(*resp.status(), 200u16);
+
+        let payload: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+        assert_eq!(
+            payload
+                .get("schema_version")
+                .and_then(|value| value.as_str()),
+            Some("benchmark_suite_v1")
+        );
+        assert_eq!(
+            payload
+                .get("comparison_modes")
+                .and_then(|value| value.as_array())
+                .map(|rows| rows.len()),
+            Some(3)
+        );
+        assert!(
+            payload
+                .get("families")
+                .and_then(|value| value.as_array())
+                .map(|rows| rows.iter().any(|row| {
+                    row.get("id").and_then(|value| value.as_str())
+                        == Some("suspicious_origin_cost")
+                }))
+                .unwrap_or(false)
+        );
+        assert!(
+            payload
+                .get("decision_boundaries")
+                .and_then(|value| value.as_array())
+                .map(|rows| rows.iter().any(|row| {
+                    row.get("decision").and_then(|value| value.as_str())
+                        == Some("code_evolution_candidate")
+                }))
+                .unwrap_or(false)
+        );
+    }
+
+    #[test]
+    fn handle_admin_benchmark_suite_is_get_only() {
+        let mut builder = Request::builder();
+        builder
+            .method(Method::Post)
+            .uri("/admin/benchmark-suite")
+            .header("host", "localhost:3000")
+            .header("authorization", "Bearer changeme-dev-only-api-key")
+            .header("origin", "http://localhost:3000")
+            .header("sec-fetch-site", "same-origin")
+            .body(Vec::new());
+        let req = builder.build();
+        let resp = handle_admin_benchmark_suite(&req);
+        assert_eq!(*resp.status(), 405u16);
+    }
+
+    #[test]
     fn handle_admin_monitoring_delta_keeps_freshness_anchor_when_page_is_empty() {
         let store = MockStore::new();
         let now = now_ts();
@@ -5864,6 +5931,7 @@ mod admin_config_tests {
         assert!(sanitize_path("/admin/tarpit/preview"));
         assert!(sanitize_path("/admin/ip-range/suggestions"));
         assert!(sanitize_path("/admin/operator-snapshot"));
+        assert!(sanitize_path("/admin/benchmark-suite"));
         assert!(sanitize_path("/admin/monitoring/stream"));
         assert!(sanitize_path("/admin/ip-bans/stream"));
         assert!(sanitize_path("/admin/adversary-sim/history/cleanup"));
@@ -8778,6 +8846,10 @@ mod admin_auth_tests {
             "/admin/operator-snapshot",
             &Method::Get
         ));
+        assert!(!request_requires_admin_write(
+            "/admin/benchmark-suite",
+            &Method::Get
+        ));
         assert!(!request_requires_admin_write("/admin/config", &Method::Get));
         assert!(!request_requires_admin_write(
             "/admin/config/bootstrap",
@@ -8839,6 +8911,7 @@ fn sanitize_path(path: &str) -> bool {
             | "/admin/analytics"
             | "/admin/events"
             | "/admin/operator-snapshot"
+            | "/admin/benchmark-suite"
             | "/admin/config"
             | "/admin/config/bootstrap"
             | "/admin/config/validate"
@@ -15999,6 +16072,20 @@ where
     }
 }
 
+fn handle_admin_benchmark_suite(_req: &Request) -> Response {
+    if *_req.method() != Method::Get {
+        return Response::new(405, "Method Not Allowed");
+    }
+    let body = serde_json::to_string(&crate::observability::benchmark_suite::benchmark_suite_v1())
+        .unwrap_or_else(|_| "{}".to_string());
+    Response::builder()
+        .status(200)
+        .header("Content-Type", "application/json")
+        .header("Cache-Control", "no-store")
+        .body(body)
+        .build()
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct AdminAdversarySimControlRequest {
@@ -17114,6 +17201,7 @@ pub fn handle_internal(req: &Request) -> Response {
 ///   - GET /admin/events: Query event log
 ///   - GET /admin/cdp/events: Query CDP-only events
 ///   - GET /admin/operator-snapshot: Query the machine-first operator snapshot contract
+///   - GET /admin/benchmark-suite: Query the machine-first benchmark family registry
 ///   - GET /admin/monitoring: Query consolidated monitoring telemetry summaries
 ///   - GET /admin/monitoring/delta: Cursor-based monitoring event deltas (`after_cursor`, `limit`, `next_cursor`)
 ///   - GET /admin/monitoring/stream: One-shot SSE cursor delta (`Last-Event-ID` resume supported)
@@ -17336,6 +17424,7 @@ pub fn handle_admin(req: &Request) -> Response {
             }
             handle_admin_operator_snapshot(req, &store)
         }
+        "/admin/benchmark-suite" => handle_admin_benchmark_suite(req),
         "/admin/monitoring" => {
             if dashboard_refresh_is_limited(&store, &auth, provider_registry.as_ref())
                 || expensive_admin_read_is_limited(&store, req, &auth, provider_registry.as_ref())
@@ -17578,7 +17667,7 @@ pub fn handle_admin(req: &Request) -> Response {
                     admin: Some(crate::admin::auth::get_admin_id(req)),
                 },
             );
-            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/operator-snapshot, /admin/monitoring, /admin/monitoring/delta, /admin/monitoring/stream, /admin/ip-bans/delta, /admin/ip-bans/stream, /admin/ip-range/suggestions, /admin/config, /admin/config/bootstrap, /admin/config/validate, /admin/config/export, /admin/adversary-sim/control, /admin/adversary-sim/status, /admin/adversary-sim/history/cleanup, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/tarpit/preview (GET non-operational progressive tarpit preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/robots/preview (POST unsaved robots preview patch), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
+            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/operator-snapshot, /admin/benchmark-suite, /admin/monitoring, /admin/monitoring/delta, /admin/monitoring/stream, /admin/ip-bans/delta, /admin/ip-bans/stream, /admin/ip-range/suggestions, /admin/config, /admin/config/bootstrap, /admin/config/validate, /admin/config/export, /admin/adversary-sim/control, /admin/adversary-sim/status, /admin/adversary-sim/history/cleanup, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/tarpit/preview (GET non-operational progressive tarpit preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/robots/preview (POST unsaved robots preview patch), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
         }
         "/admin/maze" => {
             // Return maze statistics

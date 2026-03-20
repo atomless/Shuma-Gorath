@@ -4,6 +4,23 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-20)
 
+### OPS-BENCH-1: Materialize The Static `benchmark_suite_v1` Registry
+
+- [x] Complete `OPS-BENCH-1-1` by turning the first benchmark-family definition into a real backend-owned machine contract, exposing the static `benchmark_suite_v1` registry through a read-only `/admin/benchmark-suite` endpoint, and tightening the active benchmark backlog so it now points at result materialization and escalation work rather than already-finished definition work.
+- [x] Why:
+  - the benchmark tranche had reached the point where the family design existed in docs but not yet in machine-readable code, which would have forced later result materialization or Monitoring work to re-encode benchmark family semantics locally.
+  - the clean first implementation did not need hot-read materialization yet because the suite registry is static and backend-owned; the important part was to give later controller and Monitoring work one canonical family registry to build against.
+  - closing this slice now keeps the roadmap honest and makes `benchmark_results_v1` the next real dependency before the Monitoring overhaul.
+- [x] Evidence:
+  - `src/observability/benchmark_suite.rs`
+  - `src/observability/mod.rs`
+  - `src/admin/api.rs`
+  - `Makefile`
+  - `docs/api.md`
+  - `docs/research/2026-03-20-benchmark-suite-contract-post-implementation-review.md`
+  - `make test-benchmark-suite-contract`
+  - `git diff --check`
+
 ### OPS-SNAPSHOT-1: Materialize `allowed_actions_v1` And Close The Machine-First Snapshot Foundation
 
 - [x] Complete `OPS-SNAPSHOT-1-5` by replacing the placeholder `allowed_actions` section with a bounded `allowed_actions_v1` contract that enumerates allowed, manual-only, and forbidden controller groups, patch paths, canary requirements, and explicit value envelopes where Shuma already has safe clamp semantics.

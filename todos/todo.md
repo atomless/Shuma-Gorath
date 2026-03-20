@@ -63,11 +63,10 @@ Reference context:
 - [`docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
 
 ### OPS-BENCH-1: Benchmark Contract For Project Evolution
-- [ ] OPS-BENCH-1-1 Define `benchmark_suite_v1` around the first four benchmark families: suspicious-origin cost, likely-human friction, representative adversary effectiveness, and beneficial or authenticated non-human posture according to local policy stance.
-- [ ] OPS-BENCH-1-2 Define `benchmark_results_v1` as the bounded comparison envelope for subject kind, baseline, watch window, per-family deltas, and improvement or regression status.
-- [ ] OPS-BENCH-1-3 Define the decision boundary between `config_tuning_candidate`, `observe_longer`, and `code_evolution_candidate`, keeping that escalation gate explicit and benchmark-driven.
-- [ ] OPS-BENCH-1-4 Define how benchmark families project into `operator_snapshot_v1` and later Monitoring without letting the human UI invent a parallel semantic model.
-- [ ] OPS-BENCH-1-5 Define how fleet or central-intelligence evidence may enrich benchmark selection, weighting, and scenario priority without turning the Git repository itself into the shared-intelligence transport.
+- [ ] OPS-BENCH-1-2 Materialize `benchmark_results_v1` as the bounded comparison envelope for subject kind, baseline reference, watch window, per-family statuses, metric deltas, and exactness or capability metadata.
+- [ ] OPS-BENCH-1-3 Materialize the benchmark-driven escalation hint boundary between `config_tuning_candidate`, `observe_longer`, and `code_evolution_candidate`, keeping that gate explicit, review-aware, and benchmark-driven.
+- [ ] OPS-BENCH-1-4 Project `benchmark_suite_v1` and `benchmark_results_v1` into `operator_snapshot_v1` and later Monitoring without letting the human UI invent a parallel semantic model.
+- [ ] OPS-BENCH-1-5 Capture the later fleet or central-intelligence enrichment contract for benchmark scenario selection, weighting, and priority without turning the Git repository itself into the shared-intelligence transport.
 
 ## P1 Production Adversary-Sim Operating Contract
 

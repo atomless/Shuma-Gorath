@@ -82,6 +82,8 @@ Completed archive index:
    Post-implementation review confirming that the Monitoring/Diagnostics ownership split landed cleanly, that the legacy bounded monitoring surface now has a truthful Diagnostics home, and that the next work should move to the substantive Monitoring overhaul.
 15. [`2026-03-20-benchmark-suite-v1-research-synthesis.md`](2026-03-20-benchmark-suite-v1-research-synthesis.md)
    Research synthesis defining the first benchmark families Shuma should use to judge bot-cost asymmetry, human-friction control, adversary-sim effectiveness, and beneficial non-human posture for both instance tuning and later project evolution.
+16. [`2026-03-20-benchmark-suite-contract-post-implementation-review.md`](2026-03-20-benchmark-suite-contract-post-implementation-review.md)
+   Post-implementation review confirming the static `benchmark_suite_v1` registry landed as a machine-first backend contract and that the next benchmark work should move to `benchmark_results_v1` rather than Monitoring UI work.
 
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 
