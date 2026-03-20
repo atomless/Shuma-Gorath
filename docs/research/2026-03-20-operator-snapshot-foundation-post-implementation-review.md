@@ -42,9 +42,8 @@ One smaller evidence gap was exposed and corrected immediately during this revie
 
 ## Existing Follow-On Work That Remains Valid
 
-1. `OPS-SNAPSHOT-1-3` remains open. The first slice now includes live traffic, shadow mode, adversary-sim, runtime posture, and budget-distance structure, but the tranche is not fully complete until the recent-change portion is materialized rather than placeholder-only.
-2. `OPS-SNAPSHOT-1-5` remains open. `allowed_actions_v1` and the bounded recent-change ledger are still the missing controller-context pieces before later Monitoring projection and scheduled-agent planning can proceed safely.
-3. The current `503` behavior for an unmaterialized snapshot is a deliberate first-slice contract, not a regression. It keeps the no-write-on-read rule explicit until a later materialization policy is designed intentionally rather than smuggled in through a read path.
+1. At the time of this first-slice review, `OPS-SNAPSHOT-1-3` and `OPS-SNAPSHOT-1-5` still remained. `OPS-SNAPSHOT-1-3` has since been completed in `2026-03-20-operator-snapshot-recent-changes-post-implementation-review.md`, while `OPS-SNAPSHOT-1-5` remains the active next slice.
+2. The current `503` behavior for an unmaterialized snapshot is a deliberate first-slice contract, not a regression. It keeps the no-write-on-read rule explicit until a later materialization policy is designed intentionally rather than smuggled in through a read path.
 
 ## Recommendation
 

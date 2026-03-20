@@ -187,11 +187,11 @@ const OPERATOR_SNAPSHOT_COMPONENTS: [HotReadComponentContract; 9] = [
     HotReadComponentContract {
         key: "recent_changes",
         exactness: TelemetryExactness::BestEffort,
-        basis: TelemetryBasis::Residual,
+        basis: TelemetryBasis::Observed,
         ownership_tier: HotReadOwnershipTier::SupportingSummary,
         canonical_source: HotReadCanonicalSource::DirectStateSnapshot,
         projection_model: HotReadProjectionModel::DeterministicRebuild,
-        note: "Recent-change ledger is not yet materialized and currently exposes a placeholder availability contract only.",
+        note: "Recent-change ledger is maintained from meaningful admin mutation writes and exposed as a bounded controller-context summary.",
     },
     HotReadComponentContract {
         key: "allowed_actions",

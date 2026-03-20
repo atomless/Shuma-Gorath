@@ -859,6 +859,9 @@ test-operator-snapshot-foundation: ## Run focused operator snapshot foundation c
 	@cargo test observability::operator_snapshot::tests:: -- --nocapture
 	@cargo test observability::hot_read_documents::tests::operator_snapshot_ -- --nocapture
 	@cargo test observability::hot_read_projection::tests::counter_flush_refresh_operator_snapshot -- --nocapture
+	@cargo test admin::api::tests::operator_snapshot_recent_changes_ledger_tracks_changed_config_families -- --exact --nocapture
+	@cargo test admin::api::tests::operator_snapshot_recent_changes_ledger_ignores_requested_families_without_diff -- --exact --nocapture
+	@cargo test admin::api::admin_config_tests::admin_config_updates_materialize_recent_changes_in_operator_snapshot -- --exact --nocapture
 	@cargo test admin::api::tests::handle_admin_operator_snapshot_returns_machine_first_snapshot_contract -- --exact --nocapture
 	@cargo test admin::api::tests::handle_admin_operator_snapshot_returns_503_without_materializing_on_read -- --exact --nocapture
 

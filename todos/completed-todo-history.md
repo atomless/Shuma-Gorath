@@ -4,6 +4,26 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-20)
 
+### OPS-SNAPSHOT-1: Materialize The Bounded Recent-Changes Ledger In `operator_snapshot_v1`
+
+- [x] Complete `OPS-SNAPSHOT-1-3` by replacing the placeholder `recent_changes` section with a bounded machine-first ledger that is maintained on meaningful admin mutation writes, exposed through `operator_snapshot_v1`, and proven through helper, projection, config-write, and endpoint tests.
+- [x] Why:
+  - the machine-first snapshot contract was not controller-ready while `recent_changes` remained a placeholder, because later agents would have lacked bounded context about what had recently changed and whether enough watch-window evidence had accumulated yet.
+  - the recent-change implementation needed to preserve the telemetry-efficiency work already done, so the correct architecture was a compact write-side ledger rather than a read-time event-log scan on every snapshot rebuild.
+  - landing this slice now closes the first remaining snapshot-foundation gap and leaves `allowed_actions_v1` as the last missing controller-boundary piece before benchmark and Monitoring projection work continues.
+- [x] Evidence:
+  - `src/admin/api.rs`
+  - `src/admin/mod.rs`
+  - `src/observability/operator_snapshot.rs`
+  - `src/observability/hot_read_contract.rs`
+  - `src/observability/hot_read_projection.rs`
+  - `Makefile`
+  - `docs/api.md`
+  - `docs/research/2026-03-20-operator-snapshot-recent-changes-post-implementation-review.md`
+  - `make test-operator-snapshot-foundation`
+  - `make test-monitoring-telemetry-foundation-unit`
+  - `git diff --check`
+
 ### Operator Snapshot Backlog: Tighten Remaining TODO Scope Before The Next Slice
 
 - [x] Update the stale `OPS-SNAPSHOT-1` wording in `todos/todo.md` so the active backlog reflects only the genuinely remaining work: bounded `recent_changes` materialization and the `allowed_actions_v1` controller envelope.

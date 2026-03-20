@@ -26,7 +26,8 @@ use crate::observability::hot_read_documents::{
     OperatorSnapshotHotReadDocument,
 };
 use crate::observability::operator_snapshot::{
-    build_operator_snapshot_payload, OperatorSnapshotRecentSimRun,
+    build_operator_snapshot_payload, operator_snapshot_recent_changes_limit,
+    operator_snapshot_watch_window_hours, OperatorSnapshotRecentSimRun,
 };
 
 fn write_document<S, T>(store: &S, key: String, document: &HotReadDocumentEnvelope<T>) -> Result<(), ()>
@@ -227,6 +228,15 @@ fn build_operator_snapshot_document<S: KeyValueStore>(
         .iter()
         .map(operator_snapshot_recent_sim_run)
         .collect();
+    let watch_window_hours = operator_snapshot_watch_window_hours(summary.payload.hours);
+    let (recent_changes, recent_changes_refreshed_at_ts) =
+        crate::admin::load_operator_snapshot_recent_changes(
+            store,
+            site_id,
+            generated_at_ts,
+            watch_window_hours,
+            operator_snapshot_recent_changes_limit(),
+        );
 
     HotReadDocumentEnvelope {
         metadata: document_metadata(contract.schema_version, site_id, generated_at_ts, trigger),
@@ -236,8 +246,10 @@ fn build_operator_snapshot_document<S: KeyValueStore>(
             generated_at_ts,
             &summary.payload,
             recent_runs.as_slice(),
+            recent_changes,
             summary.metadata.generated_at_ts,
             recent_sim_runs.metadata.generated_at_ts,
+            recent_changes_refreshed_at_ts,
         ),
     }
 }
@@ -871,6 +883,7 @@ mod tests {
     #[test]
     fn counter_flush_refresh_operator_snapshot_document_includes_budget_distance() {
         let store = MockStore::new();
+        let recent_change_ts = crate::admin::now_ts();
         crate::observability::monitoring::record_request_outcome(
             &store,
             &crate::runtime::request_outcome::RenderedRequestOutcome {
@@ -897,6 +910,19 @@ mod tests {
                     crate::runtime::traffic_classification::PolicySource::PolicyGraphSecondTranche,
             },
         );
+        crate::admin::record_operator_snapshot_recent_change_rows(
+            &store,
+            "default",
+            &[crate::admin::operator_snapshot_manual_change_row(
+                recent_change_ts,
+                "config_patch",
+                &["core_policy"],
+                &["suspicious_forwarded_requests"],
+                "admin_rw",
+                "config families updated: core_policy",
+            )],
+            recent_change_ts,
+        );
         refresh_after_counter_flush(&store, "default");
 
         let snapshot = read_document::<
@@ -919,9 +945,10 @@ mod tests {
                 .iter()
                 .any(|row| row.metric == "likely_human_friction_rate")
         );
+        assert_eq!(snapshot.payload.recent_changes.rows.len(), 1);
         assert_eq!(
-            snapshot.payload.recent_changes.availability.as_str(),
-            "not_yet_materialized"
+            snapshot.payload.recent_changes.rows[0].change_reason.as_str(),
+            "config_patch"
         );
     }
 

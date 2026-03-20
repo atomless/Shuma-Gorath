@@ -14,6 +14,7 @@ use crate::observability::monitoring::{
 pub(crate) const OPERATOR_SNAPSHOT_SCHEMA_VERSION: &str = "operator_snapshot_v1";
 const BACKEND_DEFAULT_OBJECTIVE_PROFILE_ID: &str = "backend_default_v1";
 const DEFAULT_WINDOW_HOURS: u64 = 24;
+const DEFAULT_RECENT_CHANGE_ROWS: usize = 6;
 const DEFAULT_NEAR_LIMIT_RATIO: f64 = 0.75;
 const LIKELY_HUMAN_FRICTION_TARGET: f64 = 0.02;
 const SUSPICIOUS_FORWARDED_REQUEST_TARGET: f64 = 0.10;
@@ -152,6 +153,26 @@ pub(crate) struct OperatorSnapshotRuntimePosture {
     pub adversary_sim_available: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct OperatorSnapshotRecentChange {
+    pub changed_at_ts: u64,
+    pub change_reason: String,
+    pub changed_families: Vec<String>,
+    pub source: String,
+    pub targets: Vec<String>,
+    pub watch_window_status: String,
+    pub watch_window_elapsed_seconds: u64,
+    pub watch_window_remaining_seconds: u64,
+    pub change_summary: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub(crate) struct OperatorSnapshotRecentChanges {
+    pub lookback_seconds: u64,
+    pub watch_window_seconds: u64,
+    pub rows: Vec<OperatorSnapshotRecentChange>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub(crate) struct OperatorBudgetDistanceRow {
     pub budget_id: String,
@@ -182,10 +203,18 @@ pub(crate) struct OperatorSnapshotHotReadPayload {
     pub shadow_mode: OperatorSnapshotShadowMode,
     pub adversary_sim: OperatorSnapshotAdversarySim,
     pub runtime_posture: OperatorSnapshotRuntimePosture,
-    pub recent_changes: OperatorSnapshotPlaceholderSection,
+    pub recent_changes: OperatorSnapshotRecentChanges,
     pub budget_distance: OperatorBudgetDistanceSummary,
     pub allowed_actions: OperatorSnapshotPlaceholderSection,
     pub verified_identity: OperatorSnapshotPlaceholderSection,
+}
+
+pub(crate) fn operator_snapshot_watch_window_hours(summary_hours: u64) -> u64 {
+    summary_hours.max(DEFAULT_WINDOW_HOURS)
+}
+
+pub(crate) fn operator_snapshot_recent_changes_limit() -> usize {
+    DEFAULT_RECENT_CHANGE_ROWS
 }
 
 pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
@@ -194,10 +223,13 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
     generated_at_ts: u64,
     summary: &MonitoringSummary,
     recent_sim_runs: &[OperatorSnapshotRecentSimRun],
+    recent_changes: OperatorSnapshotRecentChanges,
     summary_refreshed_at_ts: u64,
     recent_sim_runs_refreshed_at_ts: u64,
+    recent_changes_refreshed_at_ts: u64,
 ) -> OperatorSnapshotHotReadPayload {
     let objectives = default_operator_objectives();
+    let window_hours = operator_snapshot_watch_window_hours(summary.hours);
     let live_scope = scope_row(summary, "live", "ingress_primary", "enforced").cloned();
     let sim_scope = scope_row(summary, "adversary_sim", "ingress_primary", "enforced").cloned();
     let likely_human_lane =
@@ -215,11 +247,12 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
     OperatorSnapshotHotReadPayload {
         schema_version: OPERATOR_SNAPSHOT_SCHEMA_VERSION.to_string(),
         generated_at: generated_at_ts,
-        window: snapshot_window(generated_at_ts, summary.hours.max(DEFAULT_WINDOW_HOURS)),
+        window: snapshot_window(generated_at_ts, window_hours),
         section_metadata: operator_snapshot_section_metadata(
             generated_at_ts,
             summary_refreshed_at_ts,
             recent_sim_runs_refreshed_at_ts,
+            recent_changes_refreshed_at_ts,
         ),
         objectives: objectives.clone(),
         live_traffic: live_traffic_section(
@@ -236,10 +269,7 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
         },
         adversary_sim: adversary_sim_section(sim_scope.as_ref(), recent_sim_runs),
         runtime_posture: runtime_posture(store, site_id),
-        recent_changes: placeholder_section(
-            "not_yet_materialized",
-            "Recent config-change ledger lands in a later operator-snapshot slice.",
-        ),
+        recent_changes,
         budget_distance: budget_distance_summary(
             &objectives,
             likely_human_lane.as_ref(),
@@ -316,6 +346,7 @@ fn operator_snapshot_section_metadata(
     generated_at_ts: u64,
     summary_refreshed_at_ts: u64,
     recent_sim_runs_refreshed_at_ts: u64,
+    recent_changes_refreshed_at_ts: u64,
 ) -> BTreeMap<String, OperatorSnapshotSectionMetadata> {
     operator_snapshot_component_contracts()
         .iter()
@@ -323,6 +354,7 @@ fn operator_snapshot_section_metadata(
             let refreshed_at_ts = match component.key {
                 "live_traffic" | "shadow_mode" | "budget_distance" => summary_refreshed_at_ts,
                 "adversary_sim" => recent_sim_runs_refreshed_at_ts,
+                "recent_changes" => recent_changes_refreshed_at_ts,
                 _ => generated_at_ts,
             };
             (
@@ -629,7 +661,8 @@ fn ratio(numerator: u64, denominator: u64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::{
-        build_operator_snapshot_payload, OperatorSnapshotRecentSimRun,
+        build_operator_snapshot_payload, OperatorSnapshotRecentChanges,
+        OperatorSnapshotRecentSimRun, operator_snapshot_watch_window_hours,
         OPERATOR_SNAPSHOT_SCHEMA_VERSION,
     };
     use crate::challenge::KeyValueStore;
@@ -706,6 +739,7 @@ mod tests {
             },
         );
         let summary = summarize_with_store(&store, 24, 10);
+        let watch_window_hours = operator_snapshot_watch_window_hours(summary.hours);
         let payload = build_operator_snapshot_payload(
             &store,
             "default",
@@ -721,6 +755,12 @@ mod tests {
                 defense_delta_count: 2,
                 ban_outcome_count: 0,
             }],
+            OperatorSnapshotRecentChanges {
+                lookback_seconds: watch_window_hours.saturating_mul(3).saturating_mul(3600),
+                watch_window_seconds: watch_window_hours.saturating_mul(3600),
+                rows: Vec::new(),
+            },
+            1_700_000_000,
             1_700_000_000,
             1_700_000_000,
         );
@@ -732,7 +772,7 @@ mod tests {
             .rows
             .iter()
             .any(|row| row.metric == "likely_human_friction_rate"));
-        assert_eq!(payload.recent_changes.availability, "not_yet_materialized");
+        assert!(payload.recent_changes.rows.is_empty());
         assert_eq!(payload.allowed_actions.availability, "not_yet_materialized");
         assert_eq!(payload.verified_identity.availability, "not_yet_supported");
     }
@@ -786,12 +826,19 @@ mod tests {
         );
 
         let summary = summarize_with_store(&store, 24, 10);
+        let watch_window_hours = operator_snapshot_watch_window_hours(summary.hours);
         let payload = build_operator_snapshot_payload(
             &store,
             "default",
             1_700_000_000,
             &summary,
             &[],
+            OperatorSnapshotRecentChanges {
+                lookback_seconds: watch_window_hours.saturating_mul(3).saturating_mul(3600),
+                watch_window_seconds: watch_window_hours.saturating_mul(3600),
+                rows: Vec::new(),
+            },
+            1_700_000_000,
             1_700_000_000,
             1_700_000_000,
         );

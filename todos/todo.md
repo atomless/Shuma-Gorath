@@ -63,7 +63,6 @@ Reference context:
 - [`docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
 
 ### OPS-SNAPSHOT-1: Machine-First Operator Snapshot Foundation
-- [ ] OPS-SNAPSHOT-1-3 Materialize the bounded `recent_changes` section for `operator_snapshot_v1`, sourced from meaningful admin mutation history rather than generic admin reads or monitoring tails, so later controller loops can attribute observed changes to recent policy/config shifts.
 - [ ] OPS-SNAPSHOT-1-5 Materialize `allowed_actions_v1` as the explicit controller action envelope, including bounded config-diff scope and guardrail metadata, so later scheduled controllers stay inside one truthful write surface.
 
 ### OPS-BENCH-1: Benchmark Contract For Project Evolution

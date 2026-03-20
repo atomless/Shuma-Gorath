@@ -2,7 +2,7 @@ use flate2::write::GzEncoder;
 use flate2::Compression;
 use rand::random;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::io::Write;
 use std::time::{SystemTime, UNIX_EPOCH};
 /// Event types for activity logging
@@ -163,6 +163,10 @@ const SECURITY_FORENSIC_ACK_VALUE: &str = "I_UNDERSTAND_FORENSIC";
 const TELEMETRY_CLEANUP_ACK_HEADER: &str = "x-shuma-telemetry-cleanup-ack";
 const TELEMETRY_CLEANUP_ACK_VALUE: &str = "I_UNDERSTAND_TELEMETRY_CLEANUP";
 const SECURITY_HIGH_RISK_RETENTION_MAX_HOURS: u64 = 72;
+const OPERATOR_SNAPSHOT_RECENT_CHANGES_SCHEMA_VERSION: &str =
+    "operator_snapshot_recent_changes.v1";
+const OPERATOR_SNAPSHOT_RECENT_CHANGES_MAX_ROWS: usize = 24;
+const OPERATOR_SNAPSHOT_RECENT_CHANGES_SUMMARY_MAX_CHARS: usize = 240;
 const SECRET_LIKE_SUBSTRINGS: [&str; 8] = [
     "sk-",
     "api_key",
@@ -178,6 +182,33 @@ const SECRET_CANARY_MARKERS: [&str; 3] = [
     "frontier_secret_canary",
     "sim_secret_canary",
 ];
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub(crate) struct OperatorSnapshotRecentChangeLedgerRow {
+    changed_at_ts: u64,
+    change_reason: String,
+    changed_families: Vec<String>,
+    source: String,
+    targets: Vec<String>,
+    change_summary: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct OperatorSnapshotRecentChangeLedgerState {
+    schema_version: String,
+    updated_at_ts: u64,
+    rows: Vec<OperatorSnapshotRecentChangeLedgerRow>,
+}
+
+impl Default for OperatorSnapshotRecentChangeLedgerState {
+    fn default() -> Self {
+        Self {
+            schema_version: OPERATOR_SNAPSHOT_RECENT_CHANGES_SCHEMA_VERSION.to_string(),
+            updated_at_ts: 0,
+            rows: Vec::new(),
+        }
+    }
+}
 
 fn event_log_retention_hours() -> u64 {
     crate::observability::retention::event_log_high_risk_retention_hours()
@@ -197,6 +228,140 @@ fn effective_event_log_query_hours(requested_hours: u64) -> u64 {
         return requested_hours.clamp(1, 720);
     }
     requested_hours.clamp(1, retention.clamp(1, 720))
+}
+
+fn operator_snapshot_recent_changes_state_key(site_id: &str) -> String {
+    format!("operator_snapshot:recent_changes:v1:{}", site_id)
+}
+
+fn load_operator_snapshot_recent_changes_state<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    site_id: &str,
+) -> OperatorSnapshotRecentChangeLedgerState {
+    let key = operator_snapshot_recent_changes_state_key(site_id);
+    store
+        .get(key.as_str())
+        .ok()
+        .flatten()
+        .and_then(|value| {
+            serde_json::from_slice::<OperatorSnapshotRecentChangeLedgerState>(value.as_slice()).ok()
+        })
+        .unwrap_or_default()
+}
+
+fn save_operator_snapshot_recent_changes_state<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    site_id: &str,
+    state: &OperatorSnapshotRecentChangeLedgerState,
+) {
+    let key = operator_snapshot_recent_changes_state_key(site_id);
+    let Ok(payload) = serde_json::to_vec(state) else {
+        eprintln!(
+            "[operator-snapshot] failed serializing recent change ledger site={}",
+            site_id
+        );
+        return;
+    };
+    if store.set(key.as_str(), payload.as_slice()).is_err() {
+        eprintln!(
+            "[operator-snapshot] failed persisting recent change ledger site={}",
+            site_id
+        );
+    }
+}
+
+fn truncate_operator_snapshot_change_summary(summary: &str) -> String {
+    if summary.chars().count() <= OPERATOR_SNAPSHOT_RECENT_CHANGES_SUMMARY_MAX_CHARS {
+        return summary.to_string();
+    }
+    summary
+        .chars()
+        .take(OPERATOR_SNAPSHOT_RECENT_CHANGES_SUMMARY_MAX_CHARS.saturating_sub(3))
+        .collect::<String>()
+        + "..."
+}
+
+pub(crate) fn record_operator_snapshot_recent_change_rows<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    site_id: &str,
+    rows: &[OperatorSnapshotRecentChangeLedgerRow],
+    updated_at_ts: u64,
+) {
+    if rows.is_empty() {
+        return;
+    }
+
+    let mut state = load_operator_snapshot_recent_changes_state(store, site_id);
+    for row in rows.iter().cloned() {
+        state.rows.push(row);
+    }
+    state.rows.sort_by(|left, right| {
+        right
+            .changed_at_ts
+            .cmp(&left.changed_at_ts)
+            .then_with(|| left.change_reason.cmp(&right.change_reason))
+            .then_with(|| left.change_summary.cmp(&right.change_summary))
+    });
+    state.rows.truncate(OPERATOR_SNAPSHOT_RECENT_CHANGES_MAX_ROWS);
+    state.updated_at_ts = updated_at_ts;
+    state.schema_version = OPERATOR_SNAPSHOT_RECENT_CHANGES_SCHEMA_VERSION.to_string();
+    save_operator_snapshot_recent_changes_state(store, site_id, &state);
+}
+
+pub(crate) fn load_operator_snapshot_recent_changes<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    site_id: &str,
+    generated_at_ts: u64,
+    watch_window_hours: u64,
+    max_rows: usize,
+) -> (
+    crate::observability::operator_snapshot::OperatorSnapshotRecentChanges,
+    u64,
+) {
+    let state = load_operator_snapshot_recent_changes_state(store, site_id);
+    let watch_window_seconds = watch_window_hours.saturating_mul(3600);
+    let lookback_seconds = watch_window_seconds.saturating_mul(3).max(watch_window_seconds);
+    let lookback_start_ts = generated_at_ts.saturating_sub(lookback_seconds.saturating_sub(1));
+    let rows = state
+        .rows
+        .iter()
+        .filter(|row| row.changed_at_ts >= lookback_start_ts)
+        .take(max_rows)
+        .map(|row| {
+            let elapsed = generated_at_ts.saturating_sub(row.changed_at_ts);
+            let bounded_elapsed = elapsed.min(watch_window_seconds);
+            let remaining = watch_window_seconds.saturating_sub(bounded_elapsed);
+            let watch_window_status = if remaining == 0 {
+                "watch_window_complete"
+            } else {
+                "collecting_post_change_window"
+            };
+            crate::observability::operator_snapshot::OperatorSnapshotRecentChange {
+                changed_at_ts: row.changed_at_ts,
+                change_reason: row.change_reason.clone(),
+                changed_families: row.changed_families.clone(),
+                source: row.source.clone(),
+                targets: row.targets.clone(),
+                watch_window_status: watch_window_status.to_string(),
+                watch_window_elapsed_seconds: bounded_elapsed,
+                watch_window_remaining_seconds: remaining,
+                change_summary: row.change_summary.clone(),
+            }
+        })
+        .collect();
+
+    (
+        crate::observability::operator_snapshot::OperatorSnapshotRecentChanges {
+            lookback_seconds,
+            watch_window_seconds,
+            rows,
+        },
+        if state.updated_at_ts == 0 {
+            generated_at_ts
+        } else {
+            state.updated_at_ts
+        },
+    )
 }
 
 fn make_v2_event_key(hour: u64, ts: u64) -> String {
@@ -1628,6 +1793,65 @@ mod tests {
     }
 
     #[test]
+    fn operator_snapshot_recent_changes_ledger_tracks_changed_config_families() {
+        let store = MockStore::new();
+        let old_cfg = crate::config::default_seeded_config();
+        let mut new_cfg = old_cfg.clone();
+        new_cfg.shadow_mode = true;
+        new_cfg.rate_limit = 321;
+        let patch = json!({
+            "shadow_mode": true,
+            "rate_limit": 321
+        });
+        let changed_at_ts = 1_700_000_000;
+        let row = operator_snapshot_config_patch_recent_change_row(
+            &old_cfg,
+            &new_cfg,
+            &patch,
+            "admin_rw",
+            changed_at_ts,
+        )
+        .expect("recent change row");
+        record_operator_snapshot_recent_change_rows(&store, "default", &[row], changed_at_ts);
+
+        let (recent_changes, refreshed_at_ts) =
+            load_operator_snapshot_recent_changes(&store, "default", changed_at_ts, 24, 6);
+        assert_eq!(refreshed_at_ts, changed_at_ts);
+        assert_eq!(recent_changes.watch_window_seconds, 24 * 3600);
+        assert_eq!(recent_changes.lookback_seconds, 24 * 3 * 3600);
+        assert_eq!(recent_changes.rows.len(), 1);
+        let row = &recent_changes.rows[0];
+        assert_eq!(row.change_reason, "config_patch");
+        assert_eq!(row.source, "manual_admin");
+        assert_eq!(
+            row.changed_families,
+            vec!["core_policy".to_string(), "shadow_mode".to_string()]
+        );
+        assert_eq!(row.targets, vec!["suspicious_forwarded_requests".to_string()]);
+        assert_eq!(row.watch_window_status, "collecting_post_change_window");
+        assert_eq!(row.watch_window_elapsed_seconds, 0);
+        assert_eq!(row.watch_window_remaining_seconds, 24 * 3600);
+        assert!(row.change_summary.contains("shadow_mode"));
+        assert!(row.change_summary.contains("core_policy"));
+    }
+
+    #[test]
+    fn operator_snapshot_recent_changes_ledger_ignores_requested_families_without_diff() {
+        let old_cfg = crate::config::default_seeded_config();
+        let patch = json!({
+            "rate_limit": old_cfg.rate_limit
+        });
+        let row = operator_snapshot_config_patch_recent_change_row(
+            &old_cfg,
+            &old_cfg,
+            &patch,
+            "admin_rw",
+            1_700_000_000,
+        );
+        assert!(row.is_none());
+    }
+
+    #[test]
     fn paginate_cursor_rows_supports_monotonic_resume_contract() {
         let base_ts = now_ts();
         let make_row = |offset: u64, key: &str, reason: &str| CursorEventRecord {
@@ -1880,6 +2104,7 @@ mod tests {
     #[test]
     fn handle_admin_operator_snapshot_returns_machine_first_snapshot_contract() {
         let store = MockStore::new();
+        let recent_change_ts = now_ts();
         crate::observability::monitoring::record_request_outcome(
             &store,
             &crate::runtime::request_outcome::RenderedRequestOutcome {
@@ -1905,6 +2130,19 @@ mod tests {
                 policy_source:
                     crate::runtime::traffic_classification::PolicySource::PolicyGraphSecondTranche,
             },
+        );
+        record_operator_snapshot_recent_change_rows(
+            &store,
+            "default",
+            &[operator_snapshot_manual_change_row(
+                recent_change_ts,
+                "config_patch",
+                &["core_policy"],
+                &["suspicious_forwarded_requests"],
+                "admin_rw",
+                "config families updated: core_policy",
+            )],
+            recent_change_ts,
         );
         crate::observability::hot_read_projection::refresh_after_counter_flush(&store, "default");
 
@@ -1945,6 +2183,24 @@ mod tests {
                         == Some("likely_human_friction_rate")
                 }))
                 .unwrap_or(false)
+        );
+        assert_eq!(
+            payload
+                .get("recent_changes")
+                .and_then(|value| value.get("rows"))
+                .and_then(|value| value.as_array())
+                .map(|rows| rows.len()),
+            Some(1)
+        );
+        assert_eq!(
+            payload
+                .get("recent_changes")
+                .and_then(|value| value.get("rows"))
+                .and_then(|value| value.as_array())
+                .and_then(|rows| rows.first())
+                .and_then(|row| row.get("change_reason"))
+                .and_then(|value| value.as_str()),
+            Some("config_patch")
         );
     }
 
@@ -3695,6 +3951,56 @@ mod admin_config_tests {
         assert!(saved_cfg.shadow_mode);
         let effective_cfg = crate::config::load_runtime_cached(&store, "default").unwrap();
         assert!(effective_cfg.shadow_mode);
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+    }
+
+    #[test]
+    fn admin_config_updates_materialize_recent_changes_in_operator_snapshot() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+
+        let body = br#"{"shadow_mode":true,"rate_limit":321}"#.to_vec();
+        let req = make_request(Method::Post, "/admin/config", body);
+        let store = TestStore::default();
+        let resp = handle_admin_config(&req, &store, "default");
+        assert_eq!(*resp.status(), 200u16);
+
+        let snapshot_req = make_request(Method::Get, "/admin/operator-snapshot", Vec::new());
+        let snapshot_resp = handle_admin_operator_snapshot(&snapshot_req, &store);
+        assert_eq!(*snapshot_resp.status(), 200u16);
+        let payload: serde_json::Value = serde_json::from_slice(snapshot_resp.body()).unwrap();
+        let rows = payload
+            .get("recent_changes")
+            .and_then(|value| value.get("rows"))
+            .and_then(|value| value.as_array())
+            .expect("recent change rows");
+        assert_eq!(rows.len(), 1);
+        let row = rows[0].as_object().expect("recent change row");
+        assert_eq!(
+            row.get("change_reason").and_then(|value| value.as_str()),
+            Some("config_patch")
+        );
+        assert_eq!(
+            row.get("source").and_then(|value| value.as_str()),
+            Some("manual_admin")
+        );
+        let families: Vec<_> = row
+            .get("changed_families")
+            .and_then(|value| value.as_array())
+            .expect("changed families")
+            .iter()
+            .filter_map(|value| value.as_str())
+            .collect();
+        assert_eq!(families, vec!["core_policy", "shadow_mode"]);
+        let targets: Vec<_> = row
+            .get("targets")
+            .and_then(|value| value.as_array())
+            .expect("targets")
+            .iter()
+            .filter_map(|value| value.as_str())
+            .collect();
+        assert_eq!(targets, vec!["suspicious_forwarded_requests"]);
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
     }
@@ -11842,14 +12148,384 @@ fn admin_config_validation_issue(
     }
 }
 
+fn operator_snapshot_recent_change_source(admin_id: &str) -> String {
+    if admin_id.starts_with("controller:") || admin_id == "scheduled_controller" {
+        "scheduled_controller".to_string()
+    } else {
+        "manual_admin".to_string()
+    }
+}
+
+fn operator_snapshot_patch_requested_families(
+    patch: &serde_json::Value,
+) -> Vec<&'static str> {
+    let Some(object) = patch.as_object() else {
+        return Vec::new();
+    };
+    let mut families = Vec::new();
+    for key in object.keys() {
+        let family = match key.as_str() {
+            "shadow_mode" => Some("shadow_mode"),
+            "adversary_sim_duration_seconds" => Some("adversary_sim_config"),
+            "ban_duration" | "ban_durations" | "rate_limit" | "js_required_enforced" => {
+                Some("core_policy")
+            }
+            "geo_risk"
+            | "geo_allow"
+            | "geo_challenge"
+            | "geo_maze"
+            | "geo_block"
+            | "geo_edge_headers_enabled" => Some("geo_policy"),
+            "honeypot_enabled" | "honeypots" => Some("honeypot"),
+            "browser_policy_enabled" | "browser_block" | "browser_allowlist" => {
+                Some("browser_policy")
+            }
+            "bypass_allowlists_enabled"
+            | "allowlist"
+            | "path_allowlist_enabled"
+            | "path_allowlist" => Some("allowlists"),
+            "ip_range_policy_mode"
+            | "ip_range_emergency_allowlist"
+            | "ip_range_custom_rules"
+            | "ip_range_suggestions_min_observations"
+            | "ip_range_suggestions_min_bot_events"
+            | "ip_range_suggestions_min_confidence_percent"
+            | "ip_range_suggestions_low_collateral_percent"
+            | "ip_range_suggestions_high_collateral_percent"
+            | "ip_range_suggestions_ipv4_min_prefix_len"
+            | "ip_range_suggestions_ipv6_min_prefix_len"
+            | "ip_range_suggestions_likely_human_sample_percent" => Some("ip_range_policy"),
+            "maze_enabled"
+            | "maze_auto_ban"
+            | "maze_auto_ban_threshold"
+            | "maze_rollout_phase"
+            | "maze_token_ttl_seconds"
+            | "maze_token_max_depth"
+            | "maze_token_branch_budget"
+            | "maze_replay_ttl_seconds"
+            | "maze_entropy_window_seconds"
+            | "maze_client_expansion_enabled"
+            | "maze_checkpoint_every_nodes"
+            | "maze_checkpoint_every_ms"
+            | "maze_step_ahead_max"
+            | "maze_no_js_fallback_max_depth"
+            | "maze_micro_pow_enabled"
+            | "maze_micro_pow_depth_start"
+            | "maze_micro_pow_base_difficulty"
+            | "maze_max_concurrent_global"
+            | "maze_max_concurrent_per_ip_bucket"
+            | "maze_max_response_bytes"
+            | "maze_max_response_duration_ms"
+            | "maze_server_visible_links"
+            | "maze_max_links"
+            | "maze_max_paragraphs"
+            | "maze_path_entropy_segment_len"
+            | "maze_covert_decoys_enabled"
+            | "maze_seed_provider"
+            | "maze_seed_refresh_interval_seconds"
+            | "maze_seed_refresh_rate_limit_per_hour"
+            | "maze_seed_refresh_max_sources"
+            | "maze_seed_metadata_only" => Some("maze_core"),
+            key if key.starts_with("tarpit_") => Some("tarpit"),
+            key if key.starts_with("pow_") => Some("proof_of_work"),
+            key if key.starts_with("challenge_puzzle_") => Some("challenge"),
+            key if key.starts_with("not_a_bot_") => Some("not_a_bot"),
+            "provider_backends" | "edge_integration_mode" => Some("provider_selection"),
+            "challenge_puzzle_risk_threshold" | "botness_maze_threshold" | "botness_weights"
+            | "defence_modes" => Some("botness"),
+            "robots_enabled"
+            | "ai_policy_block_training"
+            | "ai_policy_block_search"
+            | "ai_policy_allow_search_engines"
+            | "robots_crawl_delay" => Some("robots_policy"),
+            key if key.starts_with("cdp_") => Some("cdp_detection"),
+            key if key.starts_with("fingerprint_") => Some("fingerprint_signal"),
+            _ => None,
+        };
+        if let Some(family) = family {
+            if !families.contains(&family) {
+                families.push(family);
+            }
+        }
+    }
+    families
+}
+
+fn operator_snapshot_family_snapshot(
+    cfg: &crate::config::Config,
+    family: &str,
+) -> serde_json::Value {
+    match family {
+        "shadow_mode" => json!({
+            "shadow_mode": cfg.shadow_mode,
+        }),
+        "adversary_sim_config" => json!({
+            "adversary_sim_duration_seconds": cfg.adversary_sim_duration_seconds,
+        }),
+        "core_policy" => json!({
+            "ban_duration": cfg.ban_duration,
+            "ban_durations": cfg.ban_durations,
+            "rate_limit": cfg.rate_limit,
+            "js_required_enforced": cfg.js_required_enforced,
+        }),
+        "geo_policy" => json!({
+            "geo_risk": cfg.geo_risk,
+            "geo_allow": cfg.geo_allow,
+            "geo_challenge": cfg.geo_challenge,
+            "geo_maze": cfg.geo_maze,
+            "geo_block": cfg.geo_block,
+            "geo_edge_headers_enabled": cfg.geo_edge_headers_enabled,
+        }),
+        "honeypot" => json!({
+            "honeypot_enabled": cfg.honeypot_enabled,
+            "honeypots": cfg.honeypots,
+        }),
+        "browser_policy" => json!({
+            "browser_policy_enabled": cfg.browser_policy_enabled,
+            "browser_block": cfg.browser_block,
+            "browser_allowlist": cfg.browser_allowlist,
+        }),
+        "allowlists" => json!({
+            "bypass_allowlists_enabled": cfg.bypass_allowlists_enabled,
+            "allowlist": cfg.allowlist,
+            "path_allowlist_enabled": cfg.path_allowlist_enabled,
+            "path_allowlist": cfg.path_allowlist,
+        }),
+        "ip_range_policy" => json!({
+            "ip_range_policy_mode": cfg.ip_range_policy_mode,
+            "ip_range_emergency_allowlist": cfg.ip_range_emergency_allowlist,
+            "ip_range_custom_rules": cfg.ip_range_custom_rules,
+            "ip_range_suggestions_min_observations": cfg.ip_range_suggestions_min_observations,
+            "ip_range_suggestions_min_bot_events": cfg.ip_range_suggestions_min_bot_events,
+            "ip_range_suggestions_min_confidence_percent": cfg.ip_range_suggestions_min_confidence_percent,
+            "ip_range_suggestions_low_collateral_percent": cfg.ip_range_suggestions_low_collateral_percent,
+            "ip_range_suggestions_high_collateral_percent": cfg.ip_range_suggestions_high_collateral_percent,
+            "ip_range_suggestions_ipv4_min_prefix_len": cfg.ip_range_suggestions_ipv4_min_prefix_len,
+            "ip_range_suggestions_ipv6_min_prefix_len": cfg.ip_range_suggestions_ipv6_min_prefix_len,
+            "ip_range_suggestions_likely_human_sample_percent": cfg.ip_range_suggestions_likely_human_sample_percent,
+        }),
+        "maze_core" => json!({
+            "maze_enabled": cfg.maze_enabled,
+            "maze_auto_ban": cfg.maze_auto_ban,
+            "maze_auto_ban_threshold": cfg.maze_auto_ban_threshold,
+            "maze_rollout_phase": cfg.maze_rollout_phase,
+            "maze_token_ttl_seconds": cfg.maze_token_ttl_seconds,
+            "maze_token_max_depth": cfg.maze_token_max_depth,
+            "maze_token_branch_budget": cfg.maze_token_branch_budget,
+            "maze_replay_ttl_seconds": cfg.maze_replay_ttl_seconds,
+            "maze_entropy_window_seconds": cfg.maze_entropy_window_seconds,
+            "maze_client_expansion_enabled": cfg.maze_client_expansion_enabled,
+            "maze_checkpoint_every_nodes": cfg.maze_checkpoint_every_nodes,
+            "maze_checkpoint_every_ms": cfg.maze_checkpoint_every_ms,
+            "maze_step_ahead_max": cfg.maze_step_ahead_max,
+            "maze_no_js_fallback_max_depth": cfg.maze_no_js_fallback_max_depth,
+            "maze_micro_pow_enabled": cfg.maze_micro_pow_enabled,
+            "maze_micro_pow_depth_start": cfg.maze_micro_pow_depth_start,
+            "maze_micro_pow_base_difficulty": cfg.maze_micro_pow_base_difficulty,
+            "maze_max_concurrent_global": cfg.maze_max_concurrent_global,
+            "maze_max_concurrent_per_ip_bucket": cfg.maze_max_concurrent_per_ip_bucket,
+            "maze_max_response_bytes": cfg.maze_max_response_bytes,
+            "maze_max_response_duration_ms": cfg.maze_max_response_duration_ms,
+            "maze_server_visible_links": cfg.maze_server_visible_links,
+            "maze_max_links": cfg.maze_max_links,
+            "maze_max_paragraphs": cfg.maze_max_paragraphs,
+            "maze_path_entropy_segment_len": cfg.maze_path_entropy_segment_len,
+            "maze_covert_decoys_enabled": cfg.maze_covert_decoys_enabled,
+            "maze_seed_provider": cfg.maze_seed_provider,
+            "maze_seed_refresh_interval_seconds": cfg.maze_seed_refresh_interval_seconds,
+            "maze_seed_refresh_rate_limit_per_hour": cfg.maze_seed_refresh_rate_limit_per_hour,
+            "maze_seed_refresh_max_sources": cfg.maze_seed_refresh_max_sources,
+            "maze_seed_metadata_only": cfg.maze_seed_metadata_only,
+        }),
+        "tarpit" => json!({
+            "tarpit_enabled": cfg.tarpit_enabled,
+            "tarpit_progress_token_ttl_seconds": cfg.tarpit_progress_token_ttl_seconds,
+            "tarpit_progress_replay_ttl_seconds": cfg.tarpit_progress_replay_ttl_seconds,
+            "tarpit_hashcash_min_difficulty": cfg.tarpit_hashcash_min_difficulty,
+            "tarpit_hashcash_max_difficulty": cfg.tarpit_hashcash_max_difficulty,
+            "tarpit_hashcash_base_difficulty": cfg.tarpit_hashcash_base_difficulty,
+            "tarpit_hashcash_adaptive": cfg.tarpit_hashcash_adaptive,
+            "tarpit_step_chunk_base_bytes": cfg.tarpit_step_chunk_base_bytes,
+            "tarpit_step_chunk_max_bytes": cfg.tarpit_step_chunk_max_bytes,
+            "tarpit_step_jitter_percent": cfg.tarpit_step_jitter_percent,
+            "tarpit_shard_rotation_enabled": cfg.tarpit_shard_rotation_enabled,
+            "tarpit_egress_window_seconds": cfg.tarpit_egress_window_seconds,
+            "tarpit_egress_global_bytes_per_window": cfg.tarpit_egress_global_bytes_per_window,
+            "tarpit_egress_per_ip_bucket_bytes_per_window": cfg.tarpit_egress_per_ip_bucket_bytes_per_window,
+            "tarpit_egress_per_flow_max_bytes": cfg.tarpit_egress_per_flow_max_bytes,
+            "tarpit_egress_per_flow_max_duration_seconds": cfg.tarpit_egress_per_flow_max_duration_seconds,
+            "tarpit_max_concurrent_global": cfg.tarpit_max_concurrent_global,
+            "tarpit_max_concurrent_per_ip_bucket": cfg.tarpit_max_concurrent_per_ip_bucket,
+            "tarpit_fallback_action": cfg.tarpit_fallback_action,
+        }),
+        "proof_of_work" => json!({
+            "pow_enabled": cfg.pow_enabled,
+            "pow_difficulty": cfg.pow_difficulty,
+            "pow_ttl_seconds": cfg.pow_ttl_seconds,
+        }),
+        "challenge" => json!({
+            "challenge_puzzle_enabled": cfg.challenge_puzzle_enabled,
+            "challenge_puzzle_transform_count": cfg.challenge_puzzle_transform_count,
+            "challenge_puzzle_seed_ttl_seconds": cfg.challenge_puzzle_seed_ttl_seconds,
+            "challenge_puzzle_attempt_limit_per_window": cfg.challenge_puzzle_attempt_limit_per_window,
+            "challenge_puzzle_attempt_window_seconds": cfg.challenge_puzzle_attempt_window_seconds,
+        }),
+        "not_a_bot" => json!({
+            "not_a_bot_enabled": cfg.not_a_bot_enabled,
+            "not_a_bot_risk_threshold": cfg.not_a_bot_risk_threshold,
+            "not_a_bot_pass_score": cfg.not_a_bot_pass_score,
+            "not_a_bot_fail_score": cfg.not_a_bot_fail_score,
+            "not_a_bot_nonce_ttl_seconds": cfg.not_a_bot_nonce_ttl_seconds,
+            "not_a_bot_marker_ttl_seconds": cfg.not_a_bot_marker_ttl_seconds,
+            "not_a_bot_attempt_limit_per_window": cfg.not_a_bot_attempt_limit_per_window,
+            "not_a_bot_attempt_window_seconds": cfg.not_a_bot_attempt_window_seconds,
+        }),
+        "provider_selection" => json!({
+            "provider_backends": cfg.provider_backends,
+            "edge_integration_mode": cfg.edge_integration_mode,
+        }),
+        "botness" => json!({
+            "challenge_puzzle_risk_threshold": cfg.challenge_puzzle_risk_threshold,
+            "botness_maze_threshold": cfg.botness_maze_threshold,
+            "botness_weights": cfg.botness_weights,
+            "defence_modes": cfg.defence_modes,
+        }),
+        "robots_policy" => json!({
+            "robots_enabled": cfg.robots_enabled,
+            "ai_policy_block_training": cfg.robots_block_ai_training,
+            "ai_policy_block_search": cfg.robots_block_ai_search,
+            "ai_policy_allow_search_engines": cfg.robots_allow_search_engines,
+            "robots_crawl_delay": cfg.robots_crawl_delay,
+        }),
+        "cdp_detection" => json!({
+            "cdp_detection_enabled": cfg.cdp_detection_enabled,
+            "cdp_auto_ban": cfg.cdp_auto_ban,
+            "cdp_detection_threshold": cfg.cdp_detection_threshold,
+            "cdp_probe_family": cfg.cdp_probe_family,
+            "cdp_probe_rollout_percent": cfg.cdp_probe_rollout_percent,
+        }),
+        "fingerprint_signal" => json!({
+            "fingerprint_signal_enabled": cfg.fingerprint_signal_enabled,
+            "fingerprint_state_ttl_seconds": cfg.fingerprint_state_ttl_seconds,
+            "fingerprint_flow_window_seconds": cfg.fingerprint_flow_window_seconds,
+            "fingerprint_flow_violation_threshold": cfg.fingerprint_flow_violation_threshold,
+            "fingerprint_pseudonymize": cfg.fingerprint_pseudonymize,
+            "fingerprint_entropy_budget": cfg.fingerprint_entropy_budget,
+            "fingerprint_family_cap_header_runtime": cfg.fingerprint_family_cap_header_runtime,
+            "fingerprint_family_cap_transport": cfg.fingerprint_family_cap_transport,
+            "fingerprint_family_cap_temporal": cfg.fingerprint_family_cap_temporal,
+            "fingerprint_family_cap_persistence": cfg.fingerprint_family_cap_persistence,
+            "fingerprint_family_cap_behavior": cfg.fingerprint_family_cap_behavior,
+        }),
+        _ => serde_json::Value::Null,
+    }
+}
+
+fn operator_snapshot_patch_changed_families(
+    old_cfg: &crate::config::Config,
+    new_cfg: &crate::config::Config,
+    patch: &serde_json::Value,
+) -> Vec<String> {
+    let mut families = operator_snapshot_patch_requested_families(patch)
+        .into_iter()
+        .filter(|family| {
+            operator_snapshot_family_snapshot(old_cfg, family)
+                != operator_snapshot_family_snapshot(new_cfg, family)
+        })
+        .map(|family| family.to_string())
+        .collect::<Vec<_>>();
+    families.sort();
+    families
+}
+
+fn operator_snapshot_targets_for_families(families: &[String]) -> Vec<String> {
+    let mut targets = BTreeSet::new();
+    for family in families {
+        let family_targets: &[&str] = match family.as_str() {
+            "shadow_mode" => &[],
+            "adversary_sim_config" => &["representative_adversary_effectiveness"],
+            "core_policy" => &["suspicious_forwarded_requests"],
+            "geo_policy" => &["likely_human_friction", "suspicious_forwarded_requests"],
+            "honeypot" => &["suspicious_forwarded_requests"],
+            "browser_policy" => &["likely_human_friction", "suspicious_forwarded_requests"],
+            "allowlists" => &["likely_human_friction", "suspicious_forwarded_requests"],
+            "ip_range_policy" => &["likely_human_friction", "suspicious_forwarded_requests"],
+            "maze_core" | "tarpit" => {
+                &["suspicious_forwarded_bytes", "suspicious_forwarded_requests"]
+            }
+            "proof_of_work" | "challenge" | "botness" | "cdp_detection" | "fingerprint_signal" => {
+                &[
+                    "likely_human_friction",
+                    "suspicious_forwarded_bytes",
+                    "suspicious_forwarded_requests",
+                ]
+            }
+            "not_a_bot" => &["likely_human_friction"],
+            "provider_selection" => &[],
+            "robots_policy" => &["beneficial_non_human_posture"],
+            _ => &[],
+        };
+        for target in family_targets {
+            targets.insert((*target).to_string());
+        }
+    }
+    targets.into_iter().collect()
+}
+
+fn operator_snapshot_config_patch_recent_change_row(
+    old_cfg: &crate::config::Config,
+    new_cfg: &crate::config::Config,
+    patch: &serde_json::Value,
+    admin_id: &str,
+    changed_at_ts: u64,
+) -> Option<OperatorSnapshotRecentChangeLedgerRow> {
+    let changed_families = operator_snapshot_patch_changed_families(old_cfg, new_cfg, patch);
+    if changed_families.is_empty() {
+        return None;
+    }
+    Some(OperatorSnapshotRecentChangeLedgerRow {
+        changed_at_ts,
+        change_reason: "config_patch".to_string(),
+        changed_families: changed_families.clone(),
+        source: operator_snapshot_recent_change_source(admin_id),
+        targets: operator_snapshot_targets_for_families(&changed_families),
+        change_summary: truncate_operator_snapshot_change_summary(
+            format!("config families updated: {}", changed_families.join(", ")).as_str(),
+        ),
+    })
+}
+
+pub(crate) fn operator_snapshot_manual_change_row(
+    changed_at_ts: u64,
+    change_reason: &str,
+    changed_families: &[&str],
+    targets: &[&str],
+    admin_id: &str,
+    change_summary: &str,
+) -> OperatorSnapshotRecentChangeLedgerRow {
+    OperatorSnapshotRecentChangeLedgerRow {
+        changed_at_ts,
+        change_reason: change_reason.to_string(),
+        changed_families: changed_families
+            .iter()
+            .map(|family| family.to_string())
+            .collect(),
+        source: operator_snapshot_recent_change_source(admin_id),
+        targets: targets.iter().map(|target| target.to_string()).collect(),
+        change_summary: truncate_operator_snapshot_change_summary(change_summary),
+    }
+}
+
 fn persist_site_config(
     store: &impl crate::challenge::KeyValueStore,
     site_id: &str,
     cfg: &crate::config::Config,
+    recent_change_rows: &[OperatorSnapshotRecentChangeLedgerRow],
 ) -> Result<(), ()> {
     let key = format!("config:{}", site_id);
     let encoded = crate::config::serialize_persisted_kv_config(cfg).map_err(|_| ())?;
     store.set(&key, &encoded).map_err(|_| ())?;
+    record_operator_snapshot_recent_change_rows(store, site_id, recent_change_rows, now_ts());
     crate::config::invalidate_runtime_cache(site_id);
     crate::observability::hot_read_projection::refresh_after_admin_mutation(store, site_id);
     Ok(())
@@ -11886,6 +12562,8 @@ fn handle_admin_config_internal(
             Err(crate::config::ConfigLoadError::MissingConfig) => crate::config::default_seeded_config(),
             Err(err) => return Response::new(500, err.user_message()),
         };
+        let original_cfg = cfg.clone();
+        let admin_id = crate::admin::auth::get_admin_id(req);
         let mut changed = false;
         let effective_adversary_sim_enabled =
             crate::config::runtime_adversary_sim_enabled_for_site(site_id);
@@ -13513,7 +14191,16 @@ fn handle_admin_config_internal(
 
         // Save config to KV store.
         if changed && !validate_only {
-            if persist_site_config(store, site_id, &cfg).is_err() {
+            let recent_change_rows = operator_snapshot_config_patch_recent_change_row(
+                &original_cfg,
+                &cfg,
+                &json,
+                admin_id.as_str(),
+                now_ts(),
+            )
+            .into_iter()
+            .collect::<Vec<_>>();
+            if persist_site_config(store, site_id, &cfg, recent_change_rows.as_slice()).is_err() {
                 return Response::new(500, "Key-value store error");
             }
         }
@@ -13610,7 +14297,7 @@ fn handle_admin_config_bootstrap(
     };
     crate::config::normalize_persisted_config(&mut cfg);
 
-    if persist_site_config(store, site_id, &cfg).is_err() {
+    if persist_site_config(store, site_id, &cfg, &[]).is_err() {
         return Response::new(500, "Key-value store error");
     }
 
@@ -13793,10 +14480,24 @@ where
             {
                 return Response::new(400, err);
             }
+            let changed_at_ts = now_ts();
+            record_operator_snapshot_recent_change_rows(
+                store,
+                site_id,
+                &[operator_snapshot_manual_change_row(
+                    changed_at_ts,
+                    "maze_seed_sources_update",
+                    &["maze_seed_sources"],
+                    &["suspicious_forwarded_bytes", "suspicious_forwarded_requests"],
+                    crate::admin::auth::get_admin_id(req).as_str(),
+                    format!("operator maze seed sources updated: {} sources", sources.len()).as_str(),
+                )],
+                changed_at_ts,
+            );
             log_event(
                 store,
                 &EventLogEntry {
-                    ts: now_ts(),
+                    ts: changed_at_ts,
                     event: EventType::AdminAction,
                     ip: None,
                     reason: Some("maze_seed_sources_update".to_string()),
@@ -13885,6 +14586,23 @@ where
             return Response::new(400, err);
         }
     };
+    record_operator_snapshot_recent_change_rows(
+        store,
+        site_id,
+        &[operator_snapshot_manual_change_row(
+            now,
+            "maze_seed_refresh",
+            &["maze_seed_refresh"],
+            &["suspicious_forwarded_bytes", "suspicious_forwarded_requests"],
+            crate::admin::auth::get_admin_id(req).as_str(),
+            format!(
+                "maze seed corpus refreshed: provider={} version={} sources={}",
+                refreshed.provider, refreshed.version, refreshed.source_count
+            )
+            .as_str(),
+        )],
+        now,
+    );
     log_event(
         store,
         &EventLogEntry {
@@ -15392,6 +16110,7 @@ fn log_admin_csrf_denied<S: crate::challenge::KeyValueStore>(
 
 fn log_adversary_sim_transition<S: crate::challenge::KeyValueStore>(
     store: &S,
+    site_id: &str,
     req: &Request,
     auth: &crate::admin::auth::AdminAuthResult,
     transition: &crate::admin::adversary_sim::Transition,
@@ -15401,6 +16120,25 @@ fn log_adversary_sim_transition<S: crate::challenge::KeyValueStore>(
     let session = auth.session_id.as_deref().unwrap_or("-");
     let run_id = transition.run_id.as_deref().unwrap_or("-");
     let operation = operation_id.unwrap_or("-");
+    record_operator_snapshot_recent_change_rows(
+        store,
+        site_id,
+        &[operator_snapshot_manual_change_row(
+            now_ts(),
+            "adversary_sim_transition",
+            &["adversary_sim_control"],
+            &["representative_adversary_effectiveness"],
+            auth.audit_actor_label(),
+            format!(
+                "adversary sim transition {} -> {} ({})",
+                transition.from.as_str(),
+                transition.to.as_str(),
+                transition.reason
+            )
+            .as_str(),
+        )],
+        now_ts(),
+    );
     log_event(
         store,
         &EventLogEntry {
@@ -16280,7 +17018,14 @@ fn handle_admin_adversary_sim_control(
     crate::config::set_runtime_adversary_sim_enabled_override(site_id, desired_enabled);
     cfg.adversary_sim_enabled = desired_enabled;
     for transition in &transitions {
-        log_adversary_sim_transition(store, req, auth, transition, Some(operation_id.as_str()));
+        log_adversary_sim_transition(
+            store,
+            site_id,
+            req,
+            auth,
+            transition,
+            Some(operation_id.as_str()),
+        );
     }
 
     let operation_record = crate::admin::adversary_sim_control::ControlOperationRecord {
