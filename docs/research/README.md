@@ -80,20 +80,24 @@ Completed archive index:
    Closeout review confirming that the controller-grade backend telemetry foundation is complete and that the next work should move to the Monitoring-overhaul discussion and section-ownership planning rather than another telemetry architecture sweep.
 14. [`2026-03-20-monitoring-diagnostics-ownership-post-implementation-review.md`](2026-03-20-monitoring-diagnostics-ownership-post-implementation-review.md)
    Post-implementation review confirming that the Monitoring/Diagnostics ownership split landed cleanly, that the legacy bounded monitoring surface now has a truthful Diagnostics home, and that the next work should move to the substantive Monitoring overhaul.
-15. [`2026-03-20-benchmark-suite-v1-research-synthesis.md`](2026-03-20-benchmark-suite-v1-research-synthesis.md)
+15. [`2026-03-20-adversary-evolution-loop-role-synthesis.md`](2026-03-20-adversary-evolution-loop-role-synthesis.md)
+   Research synthesis clarifying the roles of deterministic oracle traffic, emergent Scrapling and frontier lanes, and the diagnosis agent in Shuma's future adaptive feedback loop.
+16. [`2026-03-20-benchmark-suite-v1-research-synthesis.md`](2026-03-20-benchmark-suite-v1-research-synthesis.md)
    Research synthesis defining the first benchmark families Shuma should use to judge bot-cost asymmetry, human-friction control, adversary-sim effectiveness, and beneficial non-human posture for both instance tuning and later project evolution.
-16. [`2026-03-20-benchmark-fleet-and-intelligence-enrichment-research-synthesis.md`](2026-03-20-benchmark-fleet-and-intelligence-enrichment-research-synthesis.md)
+17. [`2026-03-20-benchmark-fleet-and-intelligence-enrichment-research-synthesis.md`](2026-03-20-benchmark-fleet-and-intelligence-enrichment-research-synthesis.md)
    Research synthesis defining how later fleet or central-intelligence evidence should enrich benchmark scenario selection, family priority, and bounded weighting without rewriting local benchmark truth.
-17. [`2026-03-20-benchmark-suite-contract-post-implementation-review.md`](2026-03-20-benchmark-suite-contract-post-implementation-review.md)
+18. [`2026-03-20-benchmark-suite-contract-post-implementation-review.md`](2026-03-20-benchmark-suite-contract-post-implementation-review.md)
    Post-implementation review confirming the static `benchmark_suite_v1` registry landed as a machine-first backend contract and that the next benchmark work should move to `benchmark_results_v1` rather than Monitoring UI work.
-18. [`2026-03-20-benchmark-results-contract-post-implementation-review.md`](2026-03-20-benchmark-results-contract-post-implementation-review.md)
+19. [`2026-03-20-benchmark-results-contract-post-implementation-review.md`](2026-03-20-benchmark-results-contract-post-implementation-review.md)
    Post-implementation review confirming the first `benchmark_results_v1` slice landed as a bounded machine-first backend contract over `operator_snapshot_v1` and that the next benchmark work should move to explicit escalation semantics.
-19. [`2026-03-20-benchmark-escalation-boundary-post-implementation-review.md`](2026-03-20-benchmark-escalation-boundary-post-implementation-review.md)
+20. [`2026-03-20-benchmark-escalation-boundary-post-implementation-review.md`](2026-03-20-benchmark-escalation-boundary-post-implementation-review.md)
    Post-implementation review confirming the benchmark-driven escalation boundary landed as a bounded machine-first contract over benchmark results plus `allowed_actions_v1`, and that the next benchmark work should move to snapshot and Monitoring projection.
-20. [`2026-03-20-benchmark-results-snapshot-projection-post-implementation-review.md`](2026-03-20-benchmark-results-snapshot-projection-post-implementation-review.md)
+21. [`2026-03-20-benchmark-results-snapshot-projection-post-implementation-review.md`](2026-03-20-benchmark-results-snapshot-projection-post-implementation-review.md)
    Post-implementation review confirming `benchmark_results_v1` is now projected directly into `operator_snapshot_v1`, that `/admin/benchmark-results` reuses the same materialized contract, and that Monitoring is discussion-ready from the backend side.
-21. [`2026-03-20-benchmark-fleet-enrichment-contract-post-implementation-review.md`](2026-03-20-benchmark-fleet-enrichment-contract-post-implementation-review.md)
+22. [`2026-03-20-benchmark-fleet-enrichment-contract-post-implementation-review.md`](2026-03-20-benchmark-fleet-enrichment-contract-post-implementation-review.md)
    Post-implementation review confirming the later fleet or central-intelligence benchmark-enrichment rules are now captured as a separate advisory contract and that the local benchmark-planning tranche is complete.
+23. [`2026-03-20-mature-adversary-sim-evolution-roadmap-post-implementation-review.md`](2026-03-20-mature-adversary-sim-evolution-roadmap-post-implementation-review.md)
+   Post-implementation review confirming the mature adversary-sim roadmap now treats deterministic traffic as oracle and memory, emergent lanes as primary adaptive inputs, and replay promotion as a named future step.
 
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 

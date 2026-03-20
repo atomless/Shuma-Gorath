@@ -4,6 +4,7 @@ Status: Roadmap capture
 Related context:
 
 - [`2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md`](2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md)
+- [`2026-03-20-mature-adversary-sim-evolution-roadmap.md`](2026-03-20-mature-adversary-sim-evolution-roadmap.md)
 - [`2026-03-15-agentic-era-oversight-design.md`](2026-03-15-agentic-era-oversight-design.md)
 - [`2026-03-15-agentic-era-oversight-implementation-plan.md`](2026-03-15-agentic-era-oversight-implementation-plan.md)
 - [`2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-design.md`](2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-design.md)
@@ -39,7 +40,7 @@ Current references:
 
 Gap:
 
-1. there is not yet one mature end-state roadmap that ties deterministic, Scrapling, and containerized frontier lanes to the future tuning and oversight loop as one operating system.
+1. this was true when first written, but the gap is now closed by [`2026-03-20-mature-adversary-sim-evolution-roadmap.md`](2026-03-20-mature-adversary-sim-evolution-roadmap.md), which makes deterministic traffic the oracle and comparator, emergent lanes the primary adaptive inputs, and replay promotion into deterministic memory a named future step.
 
 ## 2. Oversight-controller direction is planned, but the operator surfaces it depends on are not all ready
 
@@ -116,6 +117,14 @@ This should explicitly answer:
 2. what remains emergent and advisory,
 3. what telemetry from each lane is trustworthy enough to drive policy changes,
 4. and how run results become tuning evidence rather than mere diagnostics.
+
+Status update (2026-03-20):
+
+1. Captured in [`2026-03-20-mature-adversary-sim-evolution-roadmap.md`](2026-03-20-mature-adversary-sim-evolution-roadmap.md).
+2. Deterministic traffic is now explicitly treated as oracle, comparator, and curated memory rather than the primary adaptive diagnosis lane.
+3. Scrapling and later frontier-agent lanes are now explicitly treated as the primary adaptive discovery inputs.
+4. Shared-host work is now narrowed to a minimal scope and seed gate rather than the whole first adaptive milestone.
+5. Reviewed promotion from emergent exploit to deterministic replay case is now an explicit roadmap concept.
 
 ## B. Tuning Surface Completion
 
@@ -443,7 +452,7 @@ Reason:
 5. Treat tuning-tab completion as a control-plane contract, not a cosmetic dashboard task.
 6. Treat edge-instance ban sync as deployment-local state correctness and schedule it before mature multi-instance sim or cross-site intelligence work.
 7. Formalize verified bot identity before mature sim, central intelligence, or scheduled agentic reconfiguration so identity, authorization, and reputation are separated cleanly.
-8. Settle production adversary-sim posture and shared-host discovery before expanding emergent lanes.
+8. Settle production adversary-sim posture and the minimal shared-host scope-and-seed gate before expanding emergent lanes.
 9. Keep adversary-sim telemetry retention distinct from real-traffic retention.
 10. Add a privacy and state-minimization gate before central intelligence so richer telemetry and shared-memory work do not outpace retention discipline.
 11. Treat central intelligence as a separate service or data plane concern, not a side effect of the Git repository.
@@ -457,7 +466,7 @@ These items should remain explicitly off the mainline sequence:
 1. optional asynchronous mirroring of high-confidence bans to Akamai Network Lists
    - only after `DEP-ENT-1..5` establish the enterprise distributed-state baseline;
 2. external breach to replayable attack pipeline
-   - only after shared-host discovery, mature adversary-sim, and retention governance are established.
+   - only after the first emergent lanes are producing stable exploit findings, mature adversary-sim is established, and retention governance is in place.
 
 # Roadmap Outcome
 

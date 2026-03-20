@@ -10,15 +10,15 @@ Security finding validity and closure status live in `todos/security-review.md`.
 ## P0 Blocked by Shared-Host Discovery and Runtime-Safety Gates
 
 - [ ] SIM-SCR-LANE-1 Three-lane runtime migration and Scrapling integration.
-  Blocker: do not start until `SIM-SH-SURFACE-1` is complete with real shared-host evidence per [`docs/plans/2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md`](../docs/plans/2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md).
+  Blocker: do not start until `SIM-DEPLOY-2` establishes the runtime operating envelope and the minimal scope-and-seed gate in `SIM-SH-SURFACE-1-1..3` is complete per [`docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`](../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md).
 
 - [ ] SIM-LLM-1 Full LLM-orchestrated, instruction-driven, containerized adversary lane as a first-class runtime actor.
-  Blocker: keep blocked until shared-host discovery is complete, the runtime lane model is proven safe, and the active `SIM-DEPLOY-2` operating-envelope tranche establishes acceptable production bounds.
+  Blocker: keep blocked until the Scrapling emergent lane is producing benchmarkable signal, the runtime lane model is proven safe, and the active `SIM-DEPLOY-2` operating-envelope tranche establishes acceptable production bounds.
 
 ## P1 Blocked by Roadmap Reprioritisation After Deployment Baseline
 
 - [ ] SIM-BREACH-REPLAY-1 External breach to replayable attack pipeline.
-  Blocker: defer until shared-host deployment readiness and discovery baseline are complete, then re-assess capture, retention, and replay governance against the deployed operating model.
+  Blocker: defer until the first emergent lanes are producing stable exploit findings, then re-assess replay capture, promotion, retention, and governance against the adopted mature-sim roadmap.
 
 ## P1 Deferred Pre-Launch Roadmap Captures
 
@@ -30,11 +30,9 @@ Reference context:
 - [`docs/research/2026-03-19-controller-readiness-telemetry-foundation-review.md`](../docs/research/2026-03-19-controller-readiness-telemetry-foundation-review.md)
 - [`docs/plans/2026-03-18-monitoring-telemetry-foundations-architectural-necessities.md`](../docs/plans/2026-03-18-monitoring-telemetry-foundations-architectural-necessities.md)
 - [`docs/plans/2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md`](../docs/plans/2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md)
+- [`docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`](../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md)
 - [`docs/plans/2026-03-15-agentic-era-oversight-design.md`](../docs/plans/2026-03-15-agentic-era-oversight-design.md)
 - [`docs/plans/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-design.md`](../docs/plans/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-design.md)
-
-- [ ] SIM-MAT-1 Mature adversary-sim completion roadmap.
-  Blocker: do not expand beyond the current deterministic baseline and already-captured shared-host/Scrapling/LLM gates until there is one explicit end-state roadmap that ties deterministic, Scrapling, and containerized frontier lanes into the future tuning and oversight loop.
 
 - [ ] TUNE-SURFACE-1 Complete the Tuning tab and related config-control surfaces as the full operator contract for route, defence, ban, recidive, and intelligence thresholds.
   Blocker: defer execution until the operator monitoring overhaul defines which knobs are actionable, which remain diagnostic, and which are safe for future controller tuning.
@@ -49,7 +47,7 @@ Reference context:
   Blocker: defer execution until the current local recidive/jitter/intelligence design and the delivered benchmark enrichment contract are ready to be broken into service/API/storage contracts; do not treat the Git repository itself as the default shared-intelligence transport.
 
 - [ ] OVR-AGENT-2 Plan the scheduled agent analyzer/recommender/reconfigurer workflow, including model/runtime choice, config-vs-code scope, and whether PR/code-change suggestions are part of the same system or a separate reviewed path.
-  Blocker: defer execution until monitoring, tuning, sim-evidence, and central-intelligence contracts are mature enough that the agent loop can be planned against truthful inputs and bounded outputs. In particular, do not start bounded benchmark/controller design until the delivered machine-first operator-snapshot contract, the delivered static `benchmark_suite_v1` registry, the delivered nested `benchmark_results_v1` snapshot projection, the delivered benchmark enrichment contract, the later Monitoring projection, and `TUNE-SURFACE-1` are all in place, because the future agent loop should consume `operator_snapshot_v1`, bounded action metadata, and explicit benchmark results rather than only operator charts.
+  Blocker: defer full recommend-or-apply controller planning until monitoring, tuning, sim-evidence, and central-intelligence contracts are mature enough that the agent loop can be planned against truthful inputs and bounded outputs. The mature-sim roadmap now makes clear that a first recommend-only analysis harness should consume machine-first contracts and emergent-lane evidence before later auto-apply or code-evolution planning, but the full controller plan should still wait for the delivered machine-first operator-snapshot contract, the delivered static `benchmark_suite_v1` registry, the delivered nested `benchmark_results_v1` snapshot projection, the delivered benchmark enrichment contract, the later Monitoring projection, and `TUNE-SURFACE-1`.
 
 - [ ] OVR-CODE-1 Plan the later benchmark-driven project-evolution loop for code changes and optional PR generation.
   Blocker: defer execution until the delivered benchmark enrichment contract, central-intelligence architecture, and the bounded scheduled config-tuning loop are all mature enough that code evolution can be judged against explicit benchmark suites rather than anecdotes or single-instance dashboard impressions. The current benchmark-family prerequisite is captured in [`../docs/plans/2026-03-20-benchmark-suite-v1-design.md`](../docs/plans/2026-03-20-benchmark-suite-v1-design.md), the benchmark enrichment contract in [`../docs/plans/2026-03-20-benchmark-fleet-and-intelligence-enrichment-contract.md`](../docs/plans/2026-03-20-benchmark-fleet-and-intelligence-enrichment-contract.md), the delivered static suite registry review in [`../docs/research/2026-03-20-benchmark-suite-contract-post-implementation-review.md`](../docs/research/2026-03-20-benchmark-suite-contract-post-implementation-review.md), the delivered first results-envelope review in [`../docs/research/2026-03-20-benchmark-results-contract-post-implementation-review.md`](../docs/research/2026-03-20-benchmark-results-contract-post-implementation-review.md), the delivered escalation-boundary review in [`../docs/research/2026-03-20-benchmark-escalation-boundary-post-implementation-review.md`](../docs/research/2026-03-20-benchmark-escalation-boundary-post-implementation-review.md), and the delivered snapshot-projection review in [`../docs/research/2026-03-20-benchmark-results-snapshot-projection-post-implementation-review.md`](../docs/research/2026-03-20-benchmark-results-snapshot-projection-post-implementation-review.md).

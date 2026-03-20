@@ -4,6 +4,23 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-20)
 
+### SIM-MAT-1: Capture The Mature Adversary-Sim Evolution Roadmap
+
+- [x] Complete `SIM-MAT-1` by writing the mature adversary-sim roadmap that recasts deterministic traffic as oracle and comparator, promotes Scrapling and later frontier-agent lanes to primary adaptive inputs, narrows shared-host discovery to a minimal scope-and-seed gate, and makes reviewed promotion from emergent finding to deterministic replay memory an explicit future step.
+- [x] Why:
+  - the previous roadmap still treated deterministic sim too much like the primary adaptive lane and still over-weighted full shared-host discovery as the first gate before useful emergent feedback work.
+  - Shuma's intended evolutionary loop is now clearer: emergent adversary traffic should discover weaknesses, benchmark telemetry should measure them, the diagnosis harness should propose mitigations, and stable findings should become deterministic memory.
+  - capturing that explicitly now prevents later sim, controller, and code-evolution work from drifting back into a contributor-tool mindset.
+- [x] Evidence:
+  - `docs/research/2026-03-20-adversary-evolution-loop-role-synthesis.md`
+  - `docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`
+  - `docs/research/2026-03-20-mature-adversary-sim-evolution-roadmap-post-implementation-review.md`
+  - `docs/plans/2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md`
+  - `docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`
+  - `todos/blocked-todo.md`
+  - `todos/todo.md`
+  - `git diff --check`
+
 ### OPS-BENCH-1: Capture Later Fleet And Central-Intelligence Benchmark Enrichment
 
 - [x] Complete `OPS-BENCH-1-5` by capturing the later fleet or central-intelligence enrichment contract for benchmark scenario selection, family priority, and bounded weight bias, while explicitly keeping local benchmark truth anchored to `benchmark_suite_v1`, `benchmark_results_v1`, and `operator_snapshot_v1`.

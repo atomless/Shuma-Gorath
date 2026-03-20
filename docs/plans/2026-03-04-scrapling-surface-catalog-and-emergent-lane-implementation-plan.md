@@ -7,6 +7,7 @@ Related:
 - [`docs/adr/0010-adversary-sim-autonomous-heartbeat.md`](../adr/0010-adversary-sim-autonomous-heartbeat.md)
 - [`docs/adr/0005-adversarial-lane-coexistence-policy.md`](../adr/0005-adversarial-lane-coexistence-policy.md)
 - [`docs/plans/2026-03-01-adversary-sim-autonomous-heartbeat-implementation-plan.md`](2026-03-01-adversary-sim-autonomous-heartbeat-implementation-plan.md)
+- [`docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`](2026-03-20-mature-adversary-sim-evolution-roadmap.md)
 - [`scripts/tests/adversarial/hybrid_lane_contract.v1.json`](../../scripts/tests/adversarial/hybrid_lane_contract.v1.json)
 - [`docs/adversarial-operator-guide.md`](../adversarial-operator-guide.md)
 - [`todos/todo.md`](../../todos/todo.md) (`SIM-DEPLOY-2`)
@@ -24,6 +25,16 @@ Implement a hosted-site public-surface simulation model with:
    - `bot_red_team` (LLM traffic, initially disabled/placeholder).
 4. A strict boundary where deterministic oracle authority (CI/replay) remains separate from heartbeat runtime-lane scheduling.
 5. A manual operator tuning loop (run, inspect breaches, tune, rerun) without automatic replay-promotion in this tranche.
+
+## Sequencing Note (2026-03-20)
+
+The later mature-sim roadmap in [`2026-03-20-mature-adversary-sim-evolution-roadmap.md`](2026-03-20-mature-adversary-sim-evolution-roadmap.md) refines the role split and gating assumptions in this plan:
+
+1. deterministic traffic should be treated as oracle, comparator, and curated memory rather than the primary adaptive diagnosis lane,
+2. Scrapling and later frontier-agent lanes should be treated as the primary adaptive feedback inputs,
+3. shared-host discovery remains necessary as a fail-closed scope and seed contract,
+4. but the full shared-host evidence workflow should no longer be treated as the sole gate before useful emergent-lane feedback work can begin,
+5. and reviewed promotion from emergent finding to deterministic replay case is now a named future roadmap concept.
 
 ## Decisions Locked In
 
@@ -159,7 +170,7 @@ Goal:
 2. Discovery order must be:
    - `robots.txt` + `sitemap.xml` ingest and normalize first,
    - then bounded Scrapling probe augmentation for additional in-scope findings.
-3. Prove it on a real shared host and produce inventory evidence artifacts before any non-deterministic lane implementation.
+3. Prove it on a real shared host and produce inventory evidence artifacts as follow-on hardening, while the first emergent-lane execution gate remains the narrower scope-and-seed contract defined by the later mature-sim roadmap.
 
 Slices in this milestone:
 
@@ -193,9 +204,10 @@ Slices in this milestone:
 5. `SIM-SCR-8` Operator workflow docs, Make targets, and rollout/rollback playbook.
 6. `SIM-SCR-9` Roadmap capture for replay automation and LLM lane follow-up.
 
-Execution gate (non-negotiable):
+Execution gate (updated by 2026-03-20 roadmap):
 
-1. `SIM-SCR-6` and later non-deterministic lane slices must not start until Milestone 1 has real shared-host evidence artifacts and acceptance checks passed.
+1. `SIM-SCR-6` and later non-deterministic lane slices must not start until hosted-scope policy plus minimal seed discovery are in place and `SIM-DEPLOY-2` has established the runtime operating envelope.
+2. The remaining shared-host evidence and catalog hardening work stays valuable, but it is no longer the sole gating concept for the first adaptive Scrapling feedback loop.
 
 ## Execution Order (Slice-by-Slice)
 
@@ -384,6 +396,7 @@ Acceptance criteria:
 Scope:
 
 1. Start only after Milestone 1 shared-host discovery proof is complete and accepted.
+   Updated by the 2026-03-20 mature-sim roadmap: the first execution gate is now `SIM-SH-SURFACE-1-1..3` plus `SIM-DEPLOY-2`, while the rest of Milestone 1 remains important hardening and evidence work.
 2. Add bounded out-of-process Scrapling worker invoked by supervisor when `active_lane=scrapling_traffic`.
 3. Define per-beat worker contract with strict `TickBudget` (`max_requests`, `max_depth`, `max_bytes`, `max_ms`).
 4. Persist per-run crawl state (`crawldir`) to support incremental per-beat crawling and safe resume.
