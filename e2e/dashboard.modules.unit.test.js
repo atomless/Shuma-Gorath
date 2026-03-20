@@ -4459,8 +4459,8 @@ test('dashboard config tabs reuse shared panels, save flows, and owned controls'
   assert.match(statusSource, /id="status-retention-health-state"/);
   assert.match(statusSource, /<h3>Runtime Performance Telemetry<\/h3>/);
   assert.match(statusSource, /Operator thresholds for auto-refresh tabs/);
-  assert.match(statusSource, /<code>diagnostics<\/code>, <code>ip-bans<\/code>, and\s*<code>red-team<\/code>/);
-  assert.doesNotMatch(statusSource, /Operator thresholds for auto-refresh tabs \(\s*<code>diagnostics<\/code> and <code>ip-bans<\/code>\)/);
+  assert.match(statusSource, /<code>ip-bans<\/code> and <code>red-team<\/code>/);
+  assert.doesNotMatch(statusSource, /<code>diagnostics<\/code>, <code>ip-bans<\/code>, and\s*<code>red-team<\/code>/);
   assert.match(statusSource, />Fetch latency \(last \/ rolling\):</);
   assert.match(statusSource, />Render timing \(last \/ rolling\):</);
   assert.match(statusSource, />Polling skip \/ resume:</);
@@ -4798,7 +4798,7 @@ test('dashboard smoke spec keeps status and red-team tab order aligned with the 
   );
 });
 
-test('dashboard route exposes auto-refresh controls on diagnostics, ip-bans, and red-team', () => {
+test('dashboard route exposes manual refresh on diagnostics and auto-refresh only on ip-bans and red-team', () => {
   const source = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/routes/+page.svelte'),
     'utf8'
@@ -4806,7 +4806,11 @@ test('dashboard route exposes auto-refresh controls on diagnostics, ip-bans, and
 
   assert.match(
     source,
-    /const AUTO_REFRESH_TABS = new Set\(\['diagnostics', 'ip-bans', 'red-team'\]\);/
+    /const MANUAL_REFRESH_TABS = new Set\(\['diagnostics', 'ip-bans', 'red-team'\]\);/
+  );
+  assert.match(
+    source,
+    /const AUTO_REFRESH_TABS = new Set\(\['ip-bans', 'red-team'\]\);/
   );
 });
 
@@ -5239,7 +5243,7 @@ test('dashboard refresh runtime owns bounded cache, delta, and red-team monitori
   );
 });
 
-test('dashboard route wires native runtime actions and shared auto-refresh tabs', () => {
+test('dashboard route wires native runtime actions with separate manual and auto refresh tab sets', () => {
   const source = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/routes/+page.svelte'),
     'utf8'
@@ -5251,7 +5255,8 @@ test('dashboard route wires native runtime actions and shared auto-refresh tabs'
   assert.match(source, /banDashboardIp/);
   assert.match(source, /unbanDashboardIp/);
   assert.match(source, /getDashboardRobotsPreview/);
-  assert.match(source, /const AUTO_REFRESH_TABS = new Set\(\['diagnostics', 'ip-bans', 'red-team'\]\);/);
+  assert.match(source, /const MANUAL_REFRESH_TABS = new Set\(\['diagnostics', 'ip-bans', 'red-team'\]\);/);
+  assert.match(source, /const AUTO_REFRESH_TABS = new Set\(\['ip-bans', 'red-team'\]\);/);
 });
 
 test('dashboard route keeps the shadow-mode eye overlay mounted and lets CSS reveal it when enabled', () => {

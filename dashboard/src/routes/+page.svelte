@@ -68,7 +68,8 @@
     tuning: 'Loading tuning values...'
   });
   const AUTO_REFRESH_INTERVAL_MS = 1000;
-  const AUTO_REFRESH_TABS = new Set(['diagnostics', 'ip-bans', 'red-team']);
+  const MANUAL_REFRESH_TABS = new Set(['diagnostics', 'ip-bans', 'red-team']);
+  const AUTO_REFRESH_TABS = new Set(['ip-bans', 'red-team']);
   const AUTO_REFRESH_PREF_KEY = 'shuma_dashboard_auto_refresh_v1';
   const DASHBOARD_LOADED_CLASS = 'dashboard-loaded';
   const ACTIVE_DIRTY_CONFIG_SAVE_BAR_SELECTOR =
@@ -202,14 +203,17 @@
   $: activeTabKey = normalizeTab(dashboardState.activeTab);
   $: tabStatus = dashboardState?.tabStatus || {};
   $: activeTabStatus = tabStatus[activeTabKey] || {};
+  $: manualRefreshSupported = MANUAL_REFRESH_TABS.has(activeTabKey);
   $: autoRefreshSupported = AUTO_REFRESH_TABS.has(activeTabKey);
   $: refreshNowDisabled =
-    !runtimeReady || activeTabStatus.loading === true || autoRefreshSupported !== true;
+    !runtimeReady || activeTabStatus.loading === true || manualRefreshSupported !== true;
   $: refreshModeText = autoRefreshSupported
     ? (autoRefreshEnabled
       ? `Auto refresh ON (${Math.floor(AUTO_REFRESH_INTERVAL_MS / 1000)}s cadence)`
       : 'Auto refresh OFF (manual)')
-    : 'Manual updates only on this tab';
+    : (manualRefreshSupported
+      ? 'Manual refresh only on this tab'
+      : 'Manual updates only on this tab');
   $: lastUpdatedText = activeTabStatus.updatedAt
     ? `Last updated: ${new Date(activeTabStatus.updatedAt).toLocaleString()}`
     : 'Last updated: not updated yet';
@@ -562,8 +566,8 @@
       }
     },
     onControlAccepted: () => {
-      if (activeTabKey === 'diagnostics' && autoRefreshEnabled === true) {
-        void routeController.refreshTab('diagnostics', 'auto-refresh');
+      if (autoRefreshEnabled === true && autoRefreshSupported && runtimeReady) {
+        void routeController.refreshTab(activeTabKey, 'auto-refresh');
       }
     },
     onError: (message) => {
@@ -724,7 +728,7 @@
     if (event && typeof event.preventDefault === 'function') {
       event.preventDefault();
     }
-    if (refreshNowDisabled || !autoRefreshSupported) return;
+    if (refreshNowDisabled || !manualRefreshSupported) return;
     await routeController.refreshTab(activeTabKey, 'manual-refresh');
   }
 
@@ -1085,11 +1089,11 @@
         </a>
       {/each}
     </nav>
-    {#if autoRefreshSupported}
+    {#if manualRefreshSupported}
       <div id="dashboard-refresh-controls" class="dashboard-refresh-controls">
         <div class="dashboard-refresh-meta">
           <span id="last-updated" class="text-muted">{lastUpdatedText}</span>
-          {#if !autoRefreshEnabled}
+          {#if !autoRefreshSupported || !autoRefreshEnabled}
             <button
               id="refresh-now-btn"
               class="btn btn-subtle"
@@ -1102,18 +1106,20 @@
         </div>
         <div class="dashboard-refresh-auto">
           <span id="refresh-mode" class="text-muted">{refreshModeText}</span>
-          <div class="toggle-row dashboard-refresh-toggle">
-            <label class="toggle-switch" for="auto-refresh-toggle">
-              <input
-                id="auto-refresh-toggle"
-                type="checkbox"
-                aria-label="Enable automatic refresh for current tab"
-                checked={autoRefreshEnabled}
-                on:change={onAutoRefreshToggle}
-              >
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
+          {#if autoRefreshSupported}
+            <div class="toggle-row dashboard-refresh-toggle">
+              <label class="toggle-switch" for="auto-refresh-toggle">
+                <input
+                  id="auto-refresh-toggle"
+                  type="checkbox"
+                  aria-label="Enable automatic refresh for current tab"
+                  checked={autoRefreshEnabled}
+                  on:change={onAutoRefreshToggle}
+                >
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          {/if}
         </div>
       </div>
     {/if}

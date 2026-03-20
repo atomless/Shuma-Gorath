@@ -20,7 +20,7 @@ What it shows:
   - monitoring-feed freshness and IP-ban-feed freshness, including lag, last event time, and partial-data warnings when present,
   - retention-worker health sourced from `/admin/monitoring` (`retention_health`).
 - Runtime performance telemetry for dashboard refresh behavior:
-  - thresholds apply to the dashboard auto-refresh tabs (`diagnostics`, `ip-bans`, and `red-team`),
+  - thresholds apply to the dashboard auto-refresh tabs (`ip-bans` and `red-team`),
   - fetch latency (last, avg, p95),
   - render timing (last, avg, p95),
   - polling skip/resume counters.

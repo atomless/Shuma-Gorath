@@ -73,7 +73,8 @@ It should not absorb the full legacy Monitoring surface.
 
 During the transition:
 
-- `Diagnostics` keeps the current auto-refresh behavior used by the legacy Monitoring surface.
+- `Diagnostics` keeps the bounded monitoring refresh path but exposes manual refresh only.
+- auto-refresh remains available only on `IP Bans` and `Red Team`.
 - `Monitoring` no longer needs auto-refresh for the placeholder stage.
 - the backend monitoring data source remains shared; the split is surface ownership, not a telemetry fork.
 - dashboard request/runtime telemetry should describe `Diagnostics` truthfully where the legacy Monitoring surface now lives.

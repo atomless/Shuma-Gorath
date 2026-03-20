@@ -4,6 +4,22 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-20)
 
+### Dashboard Diagnostics: Remove Auto-Refresh And Keep Manual Refresh Only
+
+- [x] Remove auto-refresh eligibility from `Diagnostics` while preserving the refresh bar and explicit `Refresh now` action, update dashboard copy/docs to reflect the split between manual-refresh and auto-refresh tabs, and realign smoke/source contracts so they prove the new behavior.
+- [x] Why:
+  - once the legacy Monitoring surface moved into `Diagnostics`, keeping it on the same 1-second polling loop as `IP Bans` and `Red Team` no longer matched its contributor-oriented role and spent unnecessary read budget.
+  - the clean transition contract is `Diagnostics` as a manual deep-inspection surface, while the future operator `Monitoring` tab can later reclaim live auto-refresh deliberately.
+  - making this cut now improves cost discipline immediately without complicating the later Monitoring overhaul.
+- [x] Evidence:
+  - `dashboard/src/routes/+page.svelte`
+  - `dashboard/src/lib/components/dashboard/StatusTab.svelte`
+  - `docs/dashboard-tabs/diagnostics.md`
+  - `docs/dashboard-tabs/status.md`
+  - `docs/dashboard.md`
+  - `e2e/dashboard.smoke.spec.js`
+  - `e2e/dashboard.modules.unit.test.js`
+
 ### Monitoring Surface Ownership: Split Legacy Monitoring Diagnostics From The New Monitoring Surface
 
 - [x] Complete `MON-OWN-1-1` and `MON-OWN-1-2` by moving the legacy subsystem-by-subsystem Monitoring implementation into a new `Diagnostics` tab after `Advanced`, replacing `Monitoring` with a clean transitional placeholder, and updating docs/tests/runtime ownership so the legacy surface and auto-refresh behavior now live under Diagnostics.

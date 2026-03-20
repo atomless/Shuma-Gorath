@@ -24,8 +24,8 @@ What it shows:
 
 Refresh behavior:
 
-- Supports manual refresh and optional auto-refresh.
-- Auto-refresh is available on this tab, `IP Bans`, and `Red Team`.
+- Supports manual refresh only.
+- Auto-refresh is intentionally not available on this tab.
 - Uses consolidated `/admin/monitoring` snapshot refresh and bounded local cache.
 - Simulation-tagged events are included whenever simulation traffic is present and remain distinguishable via per-event simulation metadata fields.
 - Contributor-style freshness, transport, overflow, and raw-feed diagnostics are intentionally kept in the collapsed diagnostics section.

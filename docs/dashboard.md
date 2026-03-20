@@ -38,7 +38,8 @@ Behavior:
 
 ## 🐙 Refresh Model
 
-- Auto-refresh is available only on `Diagnostics`, `IP Bans`, and `Red Team`.
+- Manual refresh is available on `Diagnostics`, `IP Bans`, and `Red Team`.
+- Auto-refresh is available only on `IP Bans` and `Red Team`.
 - Most tabs refresh on initial load, on explicit refresh events, and after relevant save flows.
 - The `Red Team` adversary-sim controller is page-scoped rather than tab-scoped:
   - it forces a status refresh on dashboard bootstrap, `Red Team` tab activation, and page-visibility resume,

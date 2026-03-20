@@ -27,8 +27,8 @@ That objective is now met.
 
 1. `Diagnostics` now owns the legacy monitoring surface with minimal semantic churn. The detailed charts, recent-event surface, raw-feed diagnostics, and contributor-oriented sections remain available without muddying the future Monitoring contract.
 2. `Monitoring` is intentionally sparse and truthful. It no longer pretends that the legacy contributor surface is already the operator decision plane Shuma wants long-term.
-3. The runtime split is clean. Diagnostics reuses the existing bounded monitoring refresh path, while Monitoring no longer owns auto-refresh or the legacy monitoring bootstrap flow.
-4. The tab-state, hash-route, and auto-refresh contracts are now aligned with the new ownership model and are proven by rendered browser coverage.
+3. The runtime split is clean. Diagnostics reuses the existing bounded monitoring refresh path as a manual-refresh contributor surface, while Monitoring no longer owns the legacy monitoring bootstrap flow.
+4. The tab-state and refresh contracts are now aligned with the new ownership model: `Diagnostics` is manual-only, while `IP Bans` and `Red Team` remain the live auto-refresh tabs, and that split is proven by rendered browser coverage.
 
 ## Review Findings
 
@@ -49,7 +49,7 @@ Those were corrected immediately and do not represent a runtime design shortfall
 ## Evidence
 
 - `make test-dashboard-unit`
-- `make test-dashboard-e2e PLAYWRIGHT_ARGS='--grep "monitoring tab is a clean-slate placeholder that points to diagnostics|dashboard clean-state renders explicit empty placeholders|auto refresh defaults off and is only available on diagnostics, ip-bans, and red-team tabs"'`
+- `make test-dashboard-e2e PLAYWRIGHT_ARGS='--grep "monitoring tab is a clean-slate placeholder that points to diagnostics|dashboard clean-state renders explicit empty placeholders|diagnostics is manual-refresh only while auto-refresh is limited to ip-bans and red-team"'`
 - `make test-dashboard-e2e PLAYWRIGHT_ARGS='--grep "tab keyboard navigation updates hash and selected state|tab states surface loading and data-ready transitions across all tabs"'`
 - `make test`
 - `git diff --check`

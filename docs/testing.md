@@ -391,10 +391,10 @@ Behavior:
    - page loads and refresh succeeds
    - runtime page errors or failed <abbr title="JavaScript">JS</abbr>/CSS loads fail the run
    - only one dashboard tab panel is visible at a time (panel exclusivity)
-   - auto-refresh defaults OFF and is only exposed on Monitoring/<abbr title="Internet Protocol">IP</abbr> Bans
+   - Diagnostics is manual-refresh only, and auto-refresh defaults OFF on the eligible `IP Bans` and `Red Team` tabs
    - polling cadence assertions explicitly enable auto-refresh toggle (60s production cadence)
-   - monitoring and <abbr title="Internet Protocol">IP</abbr>-bans tabs use cursor-delta refresh by default, prefer <abbr title="Server-Sent Events">SSE</abbr> when available, and surface explicit freshness state (`fresh`/`degraded`/`stale`)
-   - native Monitoring polling request fan-out stays within bounded per-cycle budget during remount/steady-state loops
+   - Diagnostics and <abbr title="Internet Protocol">IP</abbr>-bans tabs use cursor-delta refresh by default, prefer <abbr title="Server-Sent Events">SSE</abbr> when available, and surface explicit freshness state (`fresh`/`degraded`/`stale`)
+   - native eligible-tab polling request fan-out stays within bounded per-cycle budget during remount/steady-state loops
    - seeded events/tables are visible
    - clean-state <abbr title="Application Programming Interface">API</abbr> payloads render explicit empty placeholders (no crash/blank <abbr title="User Interface">UI</abbr>)
    - form validation/submit-state behavior works

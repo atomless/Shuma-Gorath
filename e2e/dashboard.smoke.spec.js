@@ -1337,7 +1337,7 @@ test("monitoring tab is a clean-slate placeholder that points to diagnostics", a
   await expect(page.locator('#dashboard-panel-monitoring a[href="#diagnostics"]')).toBeVisible();
 });
 
-test("monitoring summary sections render data and cap oversized result lists", async ({ page }) => {
+test("diagnostics manual refresh renders detailed monitoring sections and caps oversized result lists", async ({ page }) => {
   const buildCountEntries = (prefix, count, start = 1) =>
     Array.from({ length: count }, (_, index) => ({
       label: `${prefix}-${index + start}`,
@@ -1424,9 +1424,44 @@ test("monitoring summary sections render data and cap oversized result lists", a
       })
     });
   });
+  await page.route("**/admin/monitoring/delta?hours=*&limit=*", async (route) => {
+    const url = new URL(route.request().url());
+    const limit = Number.parseInt(url.searchParams.get("limit") || "0", 10);
+    const afterCursor = String(url.searchParams.get("after_cursor") || "").trim();
+    if (limit === 1) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          after_cursor: "",
+          window_end_cursor: "cursor-summary-1",
+          next_cursor: "cursor-summary-1",
+          has_more: false,
+          overflow: "none",
+          events: [],
+          freshness: { state: "fresh", lag_ms: 0, transport: "cursor_delta_poll" }
+        })
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        after_cursor: afterCursor,
+        window_end_cursor: "cursor-summary-2",
+        next_cursor: "cursor-summary-2",
+        has_more: false,
+        overflow: "limit_exceeded",
+        events: [],
+        freshness: { state: "fresh", lag_ms: 0, transport: "cursor_delta_poll" }
+      })
+    });
+  });
 
   await openDashboard(page);
   await openTab(page, "diagnostics");
+  await page.click("#refresh-now-btn");
   await expect(page.locator("#honeypot-total-hits")).toHaveText("125");
   await expect(page.locator("#challenge-failures-total")).toHaveText("41");
   await expect(page.locator("#pow-total-attempts")).toHaveText("100");
@@ -1655,6 +1690,7 @@ test("status tab resolves fail mode without requiring monitoring bootstrap", asy
 
 test("tab-local monitoring failures do not flip the global dashboard connection state", async ({ page }) => {
   await openDashboard(page, { initialTab: "status" });
+  await openTab(page, "diagnostics", { waitForReady: true });
 
   await page.route("**/admin/monitoring?hours=*&limit=*", async (route) => {
     await route.fulfill({
@@ -1664,7 +1700,7 @@ test("tab-local monitoring failures do not flip the global dashboard connection 
     });
   }, { times: 1 });
 
-  await openTab(page, "diagnostics", { waitForReady: true });
+  await page.click("#refresh-now-btn");
   await expect(page.locator('[data-tab-state="diagnostics"]')).toContainText(
     "monitoring pipeline unavailable"
   );
@@ -2016,7 +2052,8 @@ test("adversary sim toggle emits fresh telemetry visible in monitoring raw feed"
     await openDashboard(page);
     await waitForDashboardAdversarySimUiState(page, request, false);
     await openTab(page, "diagnostics");
-    await setAutoRefresh(page, true);
+    await expect(page.locator('label[for="auto-refresh-toggle"]')).toBeHidden();
+    await expect(page.locator("#refresh-now-btn")).toBeVisible();
 
     const toggle = page.locator("#global-adversary-sim-toggle");
     await expect(toggle).toBeEnabled({ timeout: 15000 });
@@ -2032,6 +2069,7 @@ test("adversary sim toggle emits fresh telemetry visible in monitoring raw feed"
 
       const advancedTs = await waitForSimulationEventAdvance(request, baselineTs, 20000);
       await openTab(page, "diagnostics");
+      await page.click("#refresh-now-btn");
       await expect(page.locator("#monitoring-raw-feed tbody")).toContainText(`"ts":${advancedTs}`);
     } finally {
       await forceAdversarySimDisabled(request);
@@ -2090,16 +2128,12 @@ test("adversary sim toggle cancel path avoids orchestration request when frontie
   });
 });
 
-test("auto refresh defaults off and is only available on diagnostics, ip-bans, and red-team tabs", async ({ page }) => {
+test("diagnostics is manual-refresh only while auto-refresh is limited to ip-bans and red-team", async ({ page }) => {
   await openDashboard(page);
   await openTab(page, "diagnostics");
-  await expect(page.locator('label[for="auto-refresh-toggle"]')).toBeVisible();
-  await expect(page.locator("#auto-refresh-toggle")).not.toBeChecked();
+  await expect(page.locator('label[for="auto-refresh-toggle"]')).toBeHidden();
   await expect(page.locator("#refresh-now-btn")).toBeVisible();
-  await expect(page.locator("#refresh-mode")).toContainText("OFF");
-  await setAutoRefresh(page, true);
-  await expect(page.locator("#refresh-now-btn")).toBeHidden();
-  await expect(page.locator("#refresh-mode")).toContainText("ON");
+  await expect(page.locator("#refresh-mode")).toContainText("Manual refresh only");
 
   await openTab(page, "status");
   await expect(page.locator('label[for="auto-refresh-toggle"]')).toBeHidden();
@@ -2107,17 +2141,26 @@ test("auto refresh defaults off and is only available on diagnostics, ip-bans, a
 
   await openTab(page, "red-team");
   await expect(page.locator('label[for="auto-refresh-toggle"]')).toBeVisible();
-  await expect(page.locator("#auto-refresh-toggle")).toBeChecked();
+  await expect(page.locator("#auto-refresh-toggle")).not.toBeChecked();
+  await expect(page.locator("#refresh-now-btn")).toBeVisible();
+  await setAutoRefresh(page, true);
   await expect(page.locator("#refresh-now-btn")).toBeHidden();
+  await expect(page.locator("#refresh-mode")).toContainText("ON");
 
   await openTab(page, "ip-bans");
   await expect(page.locator('label[for="auto-refresh-toggle"]')).toBeVisible();
   await expect(page.locator("#auto-refresh-toggle")).toBeChecked();
+  await expect(page.locator("#refresh-now-btn")).toBeHidden();
   await setAutoRefresh(page, false);
   await expect(page.locator("#refresh-now-btn")).toBeVisible();
+
+  await openTab(page, "diagnostics");
+  await expect(page.locator('label[for="auto-refresh-toggle"]')).toBeHidden();
+  await expect(page.locator("#refresh-now-btn")).toBeVisible();
+  await expect(page.locator("#refresh-mode")).toContainText("Manual refresh only");
 });
 
-test("monitoring initial load hydrates from full snapshot even when first delta page is empty", async ({ page }) => {
+test("diagnostics manual refresh hydrates full snapshot even when first delta page is empty", async ({ page }) => {
   const now = Math.floor(Date.now() / 1000);
   const buildMonitoringPayload = (reason) => ({
     summary: {
@@ -2169,6 +2212,7 @@ test("monitoring initial load hydrates from full snapshot even when first delta 
   });
   await page.route("**/admin/monitoring/delta?hours=*&limit=*", async (route) => {
     const url = new URL(route.request().url());
+    const limit = Number.parseInt(url.searchParams.get("limit") || "0", 10);
     const afterCursor = (url.searchParams.get("after_cursor") || "").trim();
     await route.fulfill({
       status: 200,
@@ -2178,7 +2222,7 @@ test("monitoring initial load hydrates from full snapshot even when first delta 
         window_end_cursor: "cursor-1",
         next_cursor: "cursor-1",
         has_more: false,
-        overflow: "none",
+        overflow: limit === 1 ? "none" : "limit_exceeded",
         events: [],
         freshness: { state: "fresh", lag_ms: 0, transport: "cursor_delta_poll" }
       })
@@ -2187,6 +2231,7 @@ test("monitoring initial load hydrates from full snapshot even when first delta 
 
   await openDashboard(page);
   await openTab(page, "diagnostics");
+  await page.click("#refresh-now-btn");
   await expect(page.locator("#monitoring-events tbody")).toContainText("historical-baseline-visible");
 });
 
@@ -2289,7 +2334,7 @@ test("red team recent runs table renders compact run-history rows from monitorin
 
 test("manual refresh button appends new monitoring delta events when auto-refresh is off", async ({ page }) => {
   const now = Math.floor(Date.now() / 1000);
-  const buildMonitoringPayload = () => ({
+  const buildMonitoringPayload = (reason = "historical-baseline") => ({
     summary: {
       honeypot: { total_hits: 2, unique_crawlers: 1, top_crawlers: [], top_paths: [] },
       challenge: { total_failures: 0, unique_offenders: 0, top_offenders: [], reasons: {}, trend: [] },
@@ -2315,7 +2360,7 @@ test("manual refresh button appends new monitoring delta events when auto-refres
           ts: now,
           event: "Challenge",
           ip: "198.51.100.77",
-          reason: "historical-baseline",
+          reason,
           outcome: "served",
           admin: "ops"
         }],
@@ -2331,11 +2376,17 @@ test("manual refresh button appends new monitoring delta events when auto-refres
   });
 
   let deltaRequestCount = 0;
+  let monitoringSnapshotRequestCount = 0;
+  let nonFreshnessDeltaCount = 0;
   await page.route("**/admin/monitoring?hours=*&limit=*", async (route) => {
+    const reason = monitoringSnapshotRequestCount === 0
+      ? "historical-baseline"
+      : "manual-refresh-delta-event";
+    monitoringSnapshotRequestCount += 1;
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify(buildMonitoringPayload())
+      body: JSON.stringify(buildMonitoringPayload(reason))
     });
   });
   await page.route("**/admin/monitoring/delta?hours=*&limit=*", async (route) => {
@@ -2344,11 +2395,31 @@ test("manual refresh button appends new monitoring delta events when auto-refres
     const limit = Number.parseInt(url.searchParams.get("limit") || "0", 10);
     const afterCursor = (url.searchParams.get("after_cursor") || "").trim();
     if (limit === 1 || !afterCursor) {
+      if (limit !== 1) {
+        nonFreshnessDeltaCount += 1;
+      }
       await route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
           after_cursor: "",
+          window_end_cursor: "cursor-1",
+          next_cursor: "cursor-1",
+          has_more: false,
+          overflow: "none",
+          events: [],
+          freshness: { state: "fresh", lag_ms: 0, transport: "cursor_delta_poll" }
+        })
+      });
+      return;
+    }
+    nonFreshnessDeltaCount += 1;
+    if (nonFreshnessDeltaCount < 2) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          after_cursor: afterCursor,
           window_end_cursor: "cursor-1",
           next_cursor: "cursor-1",
           has_more: false,
@@ -2384,7 +2455,7 @@ test("manual refresh button appends new monitoring delta events when auto-refres
 
   await openDashboard(page);
   await openTab(page, "diagnostics");
-  await expect(page.locator("#auto-refresh-toggle")).not.toBeChecked();
+  await expect(page.locator('label[for="auto-refresh-toggle"]')).toBeHidden();
   await expect(page.locator("#refresh-now-btn")).toBeVisible();
   await expect(page.locator("#monitoring-events tbody")).not.toContainText("manual-refresh-delta-event");
 
@@ -2405,17 +2476,17 @@ test("diagnostics recent-event filters use canonical shared control classes", as
 });
 
 test("route remount preserves keyboard navigation, ban/unban, verification save, and polling", async ({ page, request }) => {
-  let monitoringRefreshRequests = 0;
+  let ipBansRefreshRequests = 0;
   page.on("request", (request) => {
     if (request.method() !== "GET") {
       return;
     }
     const url = request.url();
     if (
-      url.includes("/admin/monitoring?hours=24") ||
-      url.includes("/admin/monitoring/delta?hours=24")
+      url.includes("/admin/ban") ||
+      url.includes("/admin/ip-bans/delta?hours=24")
     ) {
-      monitoringRefreshRequests += 1;
+      ipBansRefreshRequests += 1;
     }
   });
 
@@ -2475,15 +2546,15 @@ test("route remount preserves keyboard navigation, ban/unban, verification save,
     }
   });
 
-  await openTab(page, "diagnostics");
+  await openTab(page, "ip-bans");
   await setAutoRefresh(page, true);
   await page.waitForTimeout(150);
-  const beforePollWait = monitoringRefreshRequests;
+  const beforePollWait = ipBansRefreshRequests;
   await page.waitForTimeout(1300);
-  expect(monitoringRefreshRequests).toBeGreaterThan(beforePollWait);
+  expect(ipBansRefreshRequests).toBeGreaterThan(beforePollWait);
 });
 
-test("diagnostics auto-refresh avoids placeholder flicker and bounds table churn", async ({ page }) => {
+test("diagnostics manual refresh avoids placeholder flicker and bounds table churn", async ({ page }) => {
   let monitoringSnapshotRequests = 0;
   let monitoringDeltaRequests = 0;
   await page.route("**/admin/monitoring?hours=*&limit=*", async (route) => {
@@ -2570,7 +2641,8 @@ test("diagnostics auto-refresh avoids placeholder flicker and bounds table churn
 
   await openDashboard(page);
   await openTab(page, "diagnostics");
-  await setAutoRefresh(page, true);
+  await expect(page.locator('label[for="auto-refresh-toggle"]')).toBeHidden();
+  await expect(page.locator("#refresh-now-btn")).toBeVisible();
   await expect(page.locator("#honeypot-total-hits")).not.toHaveText("...");
 
   await page.evaluate(() => {
@@ -2588,9 +2660,8 @@ test("diagnostics auto-refresh avoids placeholder flicker and bounds table churn
     window.__shumaEventObserver = observer;
   });
 
-  await page.waitForTimeout(150);
   const beforePollWindow = monitoringSnapshotRequests + monitoringDeltaRequests;
-  await page.waitForTimeout(1300);
+  await page.click("#refresh-now-btn");
   const afterPollWindow = monitoringSnapshotRequests + monitoringDeltaRequests;
   expect(monitoringSnapshotRequests).toBeGreaterThanOrEqual(1);
   expect(afterPollWindow).toBeGreaterThan(beforePollWindow);
@@ -2621,16 +2692,16 @@ test("repeated route remount loops keep polling request fan-out bounded", async 
   const remountObservationWindowMs = 1300;
   const maxExpectedRequestsInWindow = 6;
 
-  let monitoringRequests = 0;
+  let ipBansRequests = 0;
   page.on("request", (request) => {
     if (
       request.method() === "GET" &&
       (
-        request.url().includes("/admin/monitoring?hours=24") ||
-        request.url().includes("/admin/monitoring/delta?hours=")
+        request.url().includes("/admin/ban") ||
+        request.url().includes("/admin/ip-bans/delta?hours=")
       )
     ) {
-      monitoringRequests += 1;
+      ipBansRequests += 1;
     }
   });
 
@@ -2638,18 +2709,18 @@ test("repeated route remount loops keep polling request fan-out bounded", async 
   const remountCycles = 4;
   for (let cycle = 0; cycle < remountCycles; cycle += 1) {
     await openDashboard(page);
-    await openTab(page, "diagnostics");
+    await openTab(page, "ip-bans");
     await setAutoRefresh(page, true);
-    const beforeWindow = monitoringRequests;
+    const beforeWindow = ipBansRequests;
     await page.waitForTimeout(remountObservationWindowMs);
-    let delta = monitoringRequests - beforeWindow;
+    let delta = ipBansRequests - beforeWindow;
     let maxRequestsForObservedWindow = maxExpectedRequestsInWindow;
     if (delta === 0) {
       // Polling is serialized behind in-flight refresh work; allow one extra
       // cadence window before failing this cycle.
       const extraWindowMs = 1200;
       await page.waitForTimeout(extraWindowMs);
-      delta = monitoringRequests - beforeWindow;
+      delta = ipBansRequests - beforeWindow;
       maxRequestsForObservedWindow = 5;
     }
     remountRequestDeltas.push(delta);
@@ -2673,14 +2744,14 @@ test("native remount soak keeps refresh p95 and polling cadence within bounds", 
   const maxFetchP95Ms = 2500;
   const maxRenderP95Ms = 80;
 
-  let monitoringRequests = 0;
+  let ipBansRequests = 0;
   const delayedPassThrough = async (route) => {
-    monitoringRequests += 1;
+    ipBansRequests += 1;
     await page.waitForTimeout(18);
     await route.continue();
   };
-  await page.route("**/admin/monitoring?hours=*&limit=*", delayedPassThrough);
-  await page.route("**/admin/monitoring/delta?hours=*", delayedPassThrough);
+  await page.route("**/admin/ban", delayedPassThrough);
+  await page.route("**/admin/ip-bans/delta?*", delayedPassThrough);
 
   const cadenceDeltas = [];
   const fetchP95Samples = [];
@@ -2689,16 +2760,16 @@ test("native remount soak keeps refresh p95 and polling cadence within bounds", 
 
   for (let cycle = 0; cycle < remountCycles; cycle += 1) {
     await openDashboard(page);
-    await openTab(page, "diagnostics");
+    await openTab(page, "ip-bans");
     await setAutoRefresh(page, true);
 
-    const before = monitoringRequests;
+    const before = ipBansRequests;
     await page.waitForTimeout(soakWindowMs);
-    let delta = monitoringRequests - before;
+    let delta = ipBansRequests - before;
     if (delta === 0) {
       // Give the polling loop one more cadence window to tick before failing cadence.
       await page.waitForTimeout(1200);
-      delta = monitoringRequests - before;
+      delta = ipBansRequests - before;
     }
     cadenceDeltas.push(delta);
     expect(delta).toBeLessThanOrEqual(maxExpectedRequestsInWindow);
@@ -2800,7 +2871,7 @@ test("tab keyboard navigation updates hash and selected state", async ({ page })
 
 test("tab states surface loading and data-ready transitions across all tabs", async ({ page }) => {
   await openDashboard(page);
-  await openTab(page, "diagnostics");
+  await openTab(page, "ip-bans");
   await setAutoRefresh(page, false);
 
   await openTab(page, "status");
@@ -2822,26 +2893,52 @@ test("tab states surface loading and data-ready transitions across all tabs", as
   await expect(page.locator('[data-tab-state="tuning"]')).toBeHidden();
 
   await clearDashboardClientCache(page);
-  let releaseBanFetch = null;
-  const banFetchObserved = new Promise((resolve) => {
-    releaseBanFetch = resolve;
+  let releaseIpBansDeltaFetch = null;
+  const ipBansDeltaFetchObserved = new Promise((resolve) => {
+    releaseIpBansDeltaFetch = resolve;
   });
-  let releaseBanResponse = null;
-  const banResponseGate = new Promise((resolve) => {
-    releaseBanResponse = resolve;
+  let releaseIpBansDeltaResponse = null;
+  const ipBansDeltaResponseGate = new Promise((resolve) => {
+    releaseIpBansDeltaResponse = resolve;
   });
-  await page.route("**/admin/ban", async (route) => {
+  await page.route("**/admin/ip-bans/delta?*", async (route) => {
     if (route.request().method() !== "GET") {
       await route.continue();
       return;
     }
-    releaseBanFetch();
-    await banResponseGate;
+    const url = new URL(route.request().url());
+    const limit = Number.parseInt(url.searchParams.get("limit") || "0", 10);
+    const afterCursor = String(url.searchParams.get("after_cursor") || "").trim();
+    if (limit === 1) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          after_cursor: "",
+          window_end_cursor: "cursor-ip-bans-1",
+          next_cursor: "cursor-ip-bans-1",
+          has_more: false,
+          overflow: "none",
+          events: [],
+          active_bans: [],
+          freshness: { state: "fresh", lag_ms: 0, transport: "cursor_delta_poll" }
+        })
+      });
+      return;
+    }
+    releaseIpBansDeltaFetch();
+    await ipBansDeltaResponseGate;
     await route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
-        bans: [
+        after_cursor: afterCursor,
+        window_end_cursor: "cursor-ip-bans-2",
+        next_cursor: "cursor-ip-bans-2",
+        has_more: false,
+        overflow: "none",
+        events: [],
+        active_bans: [
           {
             ip: "198.51.100.250",
             reason: "manual_ban",
@@ -2849,15 +2946,16 @@ test("tab states surface loading and data-ready transitions across all tabs", as
             expires: Math.floor(Date.now() / 1000) + 3600,
             fingerprint: { signals: ["ua_transport_mismatch"], score: 4, summary: "seeded row" }
           }
-        ]
+        ],
+        freshness: { state: "fresh", lag_ms: 0, transport: "cursor_delta_poll" }
       })
     });
   }, { times: 1 });
 
   await openTab(page, "ip-bans");
-  await banFetchObserved;
+  await ipBansDeltaFetchObserved;
   await expect(page.locator('[data-tab-state="ip-bans"]')).toContainText("Loading ban list...");
-  releaseBanResponse();
+  releaseIpBansDeltaResponse();
   await expect(page.locator("#bans-table tbody")).toContainText("198.51.100.250");
   await expect(page.locator('[data-tab-state="ip-bans"]')).toBeHidden();
 
@@ -3104,6 +3202,7 @@ test("tab error state is surfaced when tab-scoped fetch fails", async ({ page })
 
 test("diagnostics tab surfaces tab-scoped error when consolidated monitoring fetch fails", async ({ page }) => {
   await openDashboard(page, { initialTab: "status" });
+  await openTab(page, "diagnostics", { waitForReady: true });
 
   await page.route("**/admin/monitoring?hours=*&limit=*", async (route) => {
     await route.fulfill({
@@ -3113,7 +3212,7 @@ test("diagnostics tab surfaces tab-scoped error when consolidated monitoring fet
     });
   }, { times: 1 });
 
-  await openTab(page, "diagnostics");
+  await page.click("#refresh-now-btn");
   await expect(page.locator('[data-tab-state="diagnostics"]')).toContainText(
     "monitoring pipeline unavailable"
   );

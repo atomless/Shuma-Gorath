@@ -22,7 +22,7 @@ Panel:
 Behavior:
 
 - The switch reflects the latest operator intent immediately, even during the debounce window.
-- The tab shares the dashboard refresh affordance used by `Diagnostics` and `IP Bans`:
+- The tab shares the dashboard refresh affordance used by `IP Bans`:
   - manual refresh and auto-refresh both hydrate the monitoring-backed run table,
   - the run table stays on the shared monitoring refresh path, but no longer infers run history from the bounded raw-event tail.
 - Backend truth remains separate:
