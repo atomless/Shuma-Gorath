@@ -345,6 +345,12 @@ Acceptance criteria:
 
 ### SIM-SCR-3: Minimal Seed Intake, Normalization, And Diagnostics
 
+Update on 2026-03-20:
+
+1. the narrower contract in [`2026-03-20-shared-host-seed-contract.md`](2026-03-20-shared-host-seed-contract.md) now defines the first executable shape for this slice,
+2. `robots.txt` should contribute bounded hint documents in the first tranche rather than an authoritative public-surface inventory,
+3. and the accepted artifact should be treated as a minimal seed inventory, not as the reachable-surface map.
+
 Scope:
 
 1. Accept one required primary public start URL.
@@ -361,9 +367,9 @@ Primary touchpoints:
 - `Makefile` (new target wiring)
 - `docs/adversarial-operator-guide.md`
 
-Artifact proposal:
+Revised artifact proposal (2026-03-20):
 
-- `scripts/tests/adversarial/public_surface_inventory.json`
+1. `scripts/tests/adversarial/shared_host_seed_inventory.json`
 
 Acceptance criteria:
 
@@ -371,7 +377,8 @@ Acceptance criteria:
 2. Seed inputs capture source provenance per URL (`primary_start_url`, `robots`, `manual_extra_seed`).
 3. Out-of-scope or malformed URLs are excluded and recorded as structured rejection reasons.
 4. Normalized seed output is deterministic when the operator inputs are fixed.
-5. The resulting emergent lane can begin from these seeds without requiring a precompiled public-surface catalog.
+5. `robots.txt`-derived sitemap references remain hint documents in the first tranche and do not become a claimed public-surface inventory.
+6. The resulting emergent lane can begin from these seeds without requiring a precompiled public-surface catalog.
 
 ### SIM-SCR-4: Historical Optional Export Or Replay-Curation Compiler
 

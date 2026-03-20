@@ -4,6 +4,22 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-20)
 
+### SIM-SH-SURFACE-1-2: Capture The Shared-Host Seed Contract Plan
+
+- [x] Write the dedicated `SIM-SH-SURFACE-1-2` plan that defines the first minimal seed inventory shape, keeps the completed shared-host scope validator as the single URL gate, and resolves the `robots.txt` question by treating sitemap references as bounded hint documents instead of reviving a catalog-first surface artifact.
+- [x] Why:
+  - once `SIM-SH-SURFACE-1-1` landed, the next meaningful ambiguity sat in the seed contract rather than in code plumbing: the repo still needed a concrete answer for what the first `robots.txt` ingestion should produce and how that artifact should be named and bounded.
+  - the updated roadmap and discovery research were already clear that `robots.txt` and sitemaps are hints, not discovery truth, but the older Scrapling plan still carried the historical `public_surface_inventory` artifact wording. This tranche closes that naming and semantics gap before implementation starts.
+  - capturing the seed contract now keeps the next implementation slice small and makes it much harder to backslide into a richer precomputed surface model under a more neutral name.
+- [x] Evidence:
+  - `docs/plans/2026-03-20-shared-host-seed-contract.md`
+  - `docs/plans/2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md`
+  - `docs/index.md`
+  - `todos/todo.md`
+  - docs-only slice: tests intentionally skipped
+  - `git diff --check`
+  - post-tranche review: no additional shortfall was found in the planning slice; the next optimal tranche is implementing the minimal seed inventory and `make test-shared-host-seed-contract`
+
 ### SIM-SH-SURFACE-1-1: Implement The Shared-Host Scope Contract
 
 - [x] Complete `SIM-SH-SURFACE-1-1` by landing a versioned shared-host scope contract, a fail-closed tooling validator with redirect revalidation, a focused `make test-shared-host-scope-contract` gate, and canonical adversarial Python-unit integration without adding speculative admin or KV config surface.
