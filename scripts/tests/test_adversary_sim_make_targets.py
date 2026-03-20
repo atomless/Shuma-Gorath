@@ -51,6 +51,29 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
             body,
         )
 
+    def test_lane_selection_target_uses_control_lane_selectors(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-adversary-sim-lane-selection:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn(
+            "adversary_sim_control_accepts_lane_selection_while_off_and_persists_desired_lane",
+            body,
+        )
+        self.assertIn("adversary_sim_control_rejects_invalid_lane_value", body)
+        self.assertIn(
+            "adversary_sim_control_rejects_lane_only_idempotency_payload_mismatch",
+            body,
+        )
+        self.assertIn(
+            "adversary_sim_running_lane_selection_updates_desired_lane_without_switching_active_lane",
+            body,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

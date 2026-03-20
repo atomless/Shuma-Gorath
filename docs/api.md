@@ -164,7 +164,7 @@ When `SHUMA_DEBUG_HEADERS=true`, the health response includes:
 - `POST /admin/config` - Update configuration (partial <abbr title="JavaScript Object Notation">JSON</abbr>, disabled when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false`)
 - `POST /admin/config/validate` - Validate a config patch without persisting changes (returns `{ valid, issues[] }` with field/expected/received hints when invalid)
 - `GET /admin/config/export` - Export non-secret runtime config as deploy-ready env key/value output
-- `POST /admin/adversary-sim/control` - Explicit adversary-sim lifecycle command submission (`{"enabled":true|false,"reason":"optional"}`), admin-auth + CSRF protected, strict same-origin/fetch-metadata checks, and required `Idempotency-Key` header
+- `POST /admin/adversary-sim/control` - Explicit adversary-sim lifecycle command submission (`{"enabled":true|false,"lane":"synthetic_traffic|scrapling_traffic|bot_red_team","reason":"optional"}` with `lane` optional), admin-auth + CSRF protected, strict same-origin/fetch-metadata checks, and required `Idempotency-Key` header
 - `GET /admin/adversary-sim/status` - Adversary-sim lifecycle status read path, including desired vs actual state, additive runtime-lane migration fields (`desired_lane`, `active_lane`, `lane_switch_seq`, `last_lane_switch_at`, `last_lane_switch_reason`), zeroed `lane_diagnostics` scaffolding for later lane workers, and controller lease metadata. Legacy `active_lane_count` plus `lanes.{deterministic,containerized}` remain during the migration. This endpoint is read-only: it reports stale persisted state via `controller_reconciliation_required` and does not reconcile or persist state as part of the read.
 - `POST /admin/adversary-sim/history/cleanup` - Explicitly clear retained telemetry history (`eventlog:v2:*`, `monitoring:v1:*`, and derived monitoring detail counters) without changing adversary-sim control state.
   - In `runtime-dev`: endpoint is available without extra cleanup acknowledgement.
@@ -193,9 +193,16 @@ Security/privacy controls are enforced by default:
 Adversary-sim command contract (`adversary-sim-control.v1`) highlights:
 
 - `POST /admin/adversary-sim/control` always returns an `operation_id` and `decision` (`accepted` or `replayed` on `200`).
-- Exact idempotent retries (`Idempotency-Key` + same canonical payload) replay the original operation and keep `operation_id` stable.
+- Exact idempotent retries (`Idempotency-Key` + same canonical payload, including lane when provided) replay the original operation and keep `operation_id` stable.
 - Reusing an idempotency key with a different payload returns `409`.
 - Production adversary-sim is a normal operating path in `runtime-prod`, not a gated exception. A truthful operating receipt keeps one off-state `GET /admin/adversary-sim/status` posture snapshot, one accepted ON `operation_id`, the no-impact proof from `make test-adversary-sim-runtime-surface` against the running target, and one accepted OFF `operation_id`.
+- Control responses include requested and accepted lane metadata:
+  - `requested_state.enabled`
+  - `requested_state.lane` (`null` when omitted)
+  - `accepted_state.desired_enabled`
+  - `accepted_state.desired_lane`
+  - `accepted_state.actual_phase`
+  - `accepted_state.active_lane`
 - Status responses include:
   - `desired_state` (`running|off`)
   - `actual_state` (`running|stopping|off`)

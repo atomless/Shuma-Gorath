@@ -3147,18 +3147,13 @@ mod admin_config_tests {
         }
     }
 
-    fn make_control_request_with_trust_headers(
-        enabled: bool,
+    fn make_control_request_body_with_trust_headers(
+        body: Vec<u8>,
         idempotency_key: &str,
         origin: Option<&str>,
         fetch_site: Option<&str>,
         csrf_token: Option<&str>,
     ) -> Request {
-        let body = if enabled {
-            br#"{"enabled":true}"#.to_vec()
-        } else {
-            br#"{"enabled":false}"#.to_vec()
-        };
         let mut builder = Request::builder();
         builder
             .method(Method::Post)
@@ -3179,9 +3174,40 @@ mod admin_config_tests {
         builder.build()
     }
 
+    fn make_control_request_with_trust_headers(
+        enabled: bool,
+        idempotency_key: &str,
+        origin: Option<&str>,
+        fetch_site: Option<&str>,
+        csrf_token: Option<&str>,
+    ) -> Request {
+        let body = if enabled {
+            br#"{"enabled":true}"#.to_vec()
+        } else {
+            br#"{"enabled":false}"#.to_vec()
+        };
+        make_control_request_body_with_trust_headers(
+            body,
+            idempotency_key,
+            origin,
+            fetch_site,
+            csrf_token,
+        )
+    }
+
     fn make_control_request(enabled: bool, idempotency_key: &str) -> Request {
         make_control_request_with_trust_headers(
             enabled,
+            idempotency_key,
+            Some("http://localhost:3000"),
+            Some("same-origin"),
+            None,
+        )
+    }
+
+    fn make_control_request_json(body: &[u8], idempotency_key: &str) -> Request {
+        make_control_request_body_with_trust_headers(
+            body.to_vec(),
             idempotency_key,
             Some("http://localhost:3000"),
             Some("same-origin"),
@@ -5610,6 +5636,207 @@ mod admin_config_tests {
         assert_eq!(
             status_json.get("phase").and_then(|value| value.as_str()),
             Some("running")
+        );
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    }
+
+    #[test]
+    fn adversary_sim_control_accepts_lane_selection_while_off_and_persists_desired_lane() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+
+        let resp = handle_admin_adversary_sim_control(
+            &make_control_request_json(
+                br#"{"enabled":false,"lane":"scrapling_traffic","reason":"prestage_lane"}"#,
+                "lane-off-1",
+            ),
+            &store,
+            "default",
+            &auth,
+        );
+        assert_eq!(*resp.status(), 200u16);
+        let body: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+        let operation_id = body
+            .get("operation_id")
+            .and_then(|value| value.as_str())
+            .expect("operation id");
+        assert_eq!(
+            body.get("requested_state")
+                .and_then(|value| value.get("lane"))
+                .and_then(|value| value.as_str()),
+            Some("scrapling_traffic")
+        );
+        assert_eq!(
+            body.get("accepted_state")
+                .and_then(|value| value.get("desired_lane"))
+                .and_then(|value| value.as_str()),
+            Some("scrapling_traffic")
+        );
+        assert_eq!(
+            body.get("accepted_state")
+                .and_then(|value| value.get("active_lane")),
+            Some(&serde_json::Value::Null)
+        );
+        assert_eq!(
+            body.get("status")
+                .and_then(|value| value.get("desired_lane"))
+                .and_then(|value| value.as_str()),
+            Some("scrapling_traffic")
+        );
+        assert_eq!(
+            body.get("status").and_then(|value| value.get("active_lane")),
+            Some(&serde_json::Value::Null)
+        );
+
+        let persisted = crate::admin::adversary_sim::load_state(&store, "default");
+        assert_eq!(
+            persisted.desired_lane,
+            crate::admin::adversary_sim::RuntimeLane::ScraplingTraffic
+        );
+        assert_eq!(persisted.active_lane, None);
+
+        let operation_key =
+            crate::admin::adversary_sim_control::control_operation_key("default", operation_id);
+        let operation = crate::admin::adversary_sim_control::load_operation_record(&store, &operation_key)
+            .expect("operation record");
+        assert_eq!(operation.requested_lane.as_deref(), Some("scrapling_traffic"));
+        assert_eq!(operation.desired_lane.as_deref(), Some("scrapling_traffic"));
+        assert_eq!(operation.actual_lane, None);
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    }
+
+    #[test]
+    fn adversary_sim_control_rejects_invalid_lane_value() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+
+        let resp = handle_admin_adversary_sim_control(
+            &make_control_request_json(
+                br#"{"enabled":false,"lane":"invalid_lane"}"#,
+                "lane-invalid-1",
+            ),
+            &store,
+            "default",
+            &auth,
+        );
+        assert_eq!(*resp.status(), 400u16);
+        assert!(String::from_utf8_lossy(resp.body()).contains("Invalid control payload"));
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    }
+
+    #[test]
+    fn adversary_sim_control_rejects_lane_only_idempotency_payload_mismatch() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+
+        let first = handle_admin_adversary_sim_control(
+            &make_control_request_json(
+                br#"{"enabled":false,"lane":"synthetic_traffic"}"#,
+                "lane-mismatch-1",
+            ),
+            &store,
+            "default",
+            &auth,
+        );
+        assert_eq!(*first.status(), 200u16);
+
+        let mismatch = handle_admin_adversary_sim_control(
+            &make_control_request_json(
+                br#"{"enabled":false,"lane":"scrapling_traffic"}"#,
+                "lane-mismatch-1",
+            ),
+            &store,
+            "default",
+            &auth,
+        );
+        assert_eq!(*mismatch.status(), 409u16);
+        assert!(String::from_utf8_lossy(mismatch.body()).contains("payload mismatch"));
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    }
+
+    #[test]
+    fn adversary_sim_running_lane_selection_updates_desired_lane_without_switching_active_lane() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+
+        let start = handle_admin_adversary_sim_control(
+            &make_control_request(true, "lane-running-start"),
+            &store,
+            "default",
+            &auth,
+        );
+        assert_eq!(*start.status(), 200u16);
+
+        let resp = handle_admin_adversary_sim_control(
+            &make_control_request_json(
+                br#"{"enabled":true,"lane":"scrapling_traffic"}"#,
+                "lane-running-switch",
+            ),
+            &store,
+            "default",
+            &auth,
+        );
+        assert_eq!(*resp.status(), 200u16);
+        let body: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+        assert_eq!(
+            body.get("accepted_state")
+                .and_then(|value| value.get("desired_lane"))
+                .and_then(|value| value.as_str()),
+            Some("scrapling_traffic")
+        );
+        assert_eq!(
+            body.get("accepted_state")
+                .and_then(|value| value.get("active_lane"))
+                .and_then(|value| value.as_str()),
+            Some("synthetic_traffic")
+        );
+        assert_eq!(
+            body.get("status")
+                .and_then(|value| value.get("controller_reconciliation_required"))
+                .and_then(|value| value.as_bool()),
+            Some(true)
+        );
+
+        let persisted = crate::admin::adversary_sim::load_state(&store, "default");
+        assert_eq!(
+            persisted.desired_lane,
+            crate::admin::adversary_sim::RuntimeLane::ScraplingTraffic
+        );
+        assert_eq!(
+            persisted.active_lane,
+            Some(crate::admin::adversary_sim::RuntimeLane::SyntheticTraffic)
         );
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
@@ -16496,7 +16723,33 @@ where
 struct AdminAdversarySimControlRequest {
     enabled: bool,
     #[serde(default)]
+    lane: Option<crate::admin::adversary_sim::RuntimeLane>,
+    #[serde(default)]
     reason: Option<String>,
+}
+
+fn control_state_label(enabled: bool) -> String {
+    if enabled {
+        "running".to_string()
+    } else {
+        "off".to_string()
+    }
+}
+
+fn control_lane_label(lane: Option<crate::admin::adversary_sim::RuntimeLane>) -> Option<String> {
+    lane.map(|value| value.as_str().to_string())
+}
+
+fn control_desired_lane_label(
+    state: &crate::admin::adversary_sim::ControlState,
+) -> Option<String> {
+    Some(state.desired_lane.as_str().to_string())
+}
+
+fn control_actual_lane_label(
+    state: &crate::admin::adversary_sim::ControlState,
+) -> Option<String> {
+    control_lane_label(crate::admin::adversary_sim::effective_active_lane(state))
 }
 
 fn log_admin_csrf_denied<S: crate::challenge::KeyValueStore>(
@@ -16597,8 +16850,11 @@ fn log_adversary_sim_control_audit<S: crate::challenge::KeyValueStore>(
         "idempotency_key_hash": audit.idempotency_key_hash.clone(),
         "request_origin": audit.request_origin.clone(),
         "requested_state": audit.requested_state.clone(),
+        "requested_lane": audit.requested_lane.clone(),
         "desired_state": audit.desired_state.clone(),
-        "actual_state": audit.actual_state.clone()
+        "desired_lane": audit.desired_lane.clone(),
+        "actual_state": audit.actual_state.clone(),
+        "actual_lane": audit.actual_lane.clone()
     });
     log_event(
         store,
@@ -17041,6 +17297,7 @@ fn handle_admin_adversary_sim_control(
     let idempotency_key_hash = crate::admin::adversary_sim_control::hash_hex(idempotency_key);
     let payload_hash = crate::admin::adversary_sim_control::canonical_payload_hash(
         payload.enabled,
+        payload.lane.map(|lane| lane.as_str()),
         requested_reason.as_str(),
     );
 
@@ -17114,6 +17371,13 @@ fn handle_admin_adversary_sim_control(
         }
     }
     crate::admin::adversary_sim::project_effective_desired_state(&mut cfg, &state);
+    let requested_state_label = control_state_label(payload.enabled);
+    let requested_lane_label = control_lane_label(payload.lane);
+    let requested_lane = payload.lane.unwrap_or(state.desired_lane);
+    let current_desired_state_label = control_state_label(cfg.adversary_sim_enabled);
+    let current_desired_lane_label = control_desired_lane_label(&state);
+    let current_actual_state = state.phase.as_str().to_string();
+    let current_actual_lane_label = control_actual_lane_label(&state);
 
     let debounce_key =
         crate::admin::adversary_sim_control::control_debounce_key(site_id, session_scope.as_str());
@@ -17127,7 +17391,8 @@ fn handle_admin_adversary_sim_control(
         now,
         last_submission_at,
         crate::admin::adversary_sim_control::CONTROL_DEBOUNCE_SECONDS,
-    ) && cfg.adversary_sim_enabled == payload.enabled;
+    ) && cfg.adversary_sim_enabled == payload.enabled
+        && state.desired_lane == requested_lane;
     let rate_limited = adversary_sim_control_submission_is_limited(
         store,
         session_scope.as_str(),
@@ -17157,7 +17422,6 @@ fn handle_admin_adversary_sim_control(
     );
     let capabilities = crate::admin::adversary_sim_control::ControlCapabilities::mint_for_trust_boundary();
 
-    let current_actual_state = state.phase.as_str().to_string();
     match plan.decision {
         crate::admin::adversary_sim_control::SubmissionPlanDecision::RejectTrustBoundary => {
             let trust_reason = trust_reason.clone();
@@ -17174,17 +17438,12 @@ fn handle_admin_adversary_sim_control(
                     origin_verdict,
                     idempotency_key_hash: Some(idempotency_key_hash),
                     request_origin,
-                    requested_state: Some(if payload.enabled {
-                        "running".to_string()
-                    } else {
-                        "off".to_string()
-                    }),
-                    desired_state: Some(if cfg.adversary_sim_enabled {
-                        "running".to_string()
-                    } else {
-                        "off".to_string()
-                    }),
-                    actual_state: current_actual_state,
+                    requested_state: Some(requested_state_label.clone()),
+                    requested_lane: requested_lane_label.clone(),
+                    desired_state: Some(current_desired_state_label.clone()),
+                    desired_lane: current_desired_lane_label.clone(),
+                    actual_state: current_actual_state.clone(),
+                    actual_lane: current_actual_lane_label.clone(),
                 },
                 capabilities.audit_write(),
             );
@@ -17204,17 +17463,12 @@ fn handle_admin_adversary_sim_control(
                     origin_verdict,
                     idempotency_key_hash: Some(idempotency_key_hash),
                     request_origin,
-                    requested_state: Some(if payload.enabled {
-                        "running".to_string()
-                    } else {
-                        "off".to_string()
-                    }),
-                    desired_state: Some(if cfg.adversary_sim_enabled {
-                        "running".to_string()
-                    } else {
-                        "off".to_string()
-                    }),
-                    actual_state: current_actual_state,
+                    requested_state: Some(requested_state_label.clone()),
+                    requested_lane: requested_lane_label.clone(),
+                    desired_state: Some(current_desired_state_label.clone()),
+                    desired_lane: current_desired_lane_label.clone(),
+                    actual_state: current_actual_state.clone(),
+                    actual_lane: current_actual_lane_label.clone(),
                 },
                 capabilities.audit_write(),
             );
@@ -17241,17 +17495,12 @@ fn handle_admin_adversary_sim_control(
                     origin_verdict,
                     idempotency_key_hash: Some(idempotency_key_hash),
                     request_origin,
-                    requested_state: Some(if payload.enabled {
-                        "running".to_string()
-                    } else {
-                        "off".to_string()
-                    }),
-                    desired_state: Some(if cfg.adversary_sim_enabled {
-                        "running".to_string()
-                    } else {
-                        "off".to_string()
-                    }),
-                    actual_state: current_actual_state,
+                    requested_state: Some(requested_state_label.clone()),
+                    requested_lane: requested_lane_label.clone(),
+                    desired_state: Some(current_desired_state_label.clone()),
+                    desired_lane: current_desired_lane_label.clone(),
+                    actual_state: current_actual_state.clone(),
+                    actual_lane: current_actual_lane_label.clone(),
                 },
                 capabilities.audit_write(),
             );
@@ -17282,17 +17531,12 @@ fn handle_admin_adversary_sim_control(
                     origin_verdict,
                     idempotency_key_hash: Some(idempotency_key_hash.clone()),
                     request_origin,
-                    requested_state: Some(if payload.enabled {
-                        "running".to_string()
-                    } else {
-                        "off".to_string()
-                    }),
-                    desired_state: Some(if cfg.adversary_sim_enabled {
-                        "running".to_string()
-                    } else {
-                        "off".to_string()
-                    }),
+                    requested_state: Some(requested_state_label.clone()),
+                    requested_lane: requested_lane_label.clone(),
+                    desired_state: Some(current_desired_state_label.clone()),
+                    desired_lane: current_desired_lane_label.clone(),
                     actual_state: state.phase.as_str().to_string(),
+                    actual_lane: control_actual_lane_label(&state),
                 },
                 capabilities.audit_write(),
             );
@@ -17303,11 +17547,14 @@ fn handle_admin_adversary_sim_control(
                 "phase_trace": ["plan", "execute", "collect_evidence", "publish_report"],
                 "requested_state": {
                     "enabled": payload.enabled,
+                    "lane": requested_lane_label,
                     "reason": requested_reason
                 },
                 "accepted_state": {
                     "desired_enabled": cfg.adversary_sim_enabled,
-                    "actual_phase": state.phase.as_str()
+                    "desired_lane": state.desired_lane.as_str(),
+                    "actual_phase": state.phase.as_str(),
+                    "active_lane": control_actual_lane_label(&state)
                 },
                 "idempotency": {
                     "key_hash": idempotency_key_hash,
@@ -17352,17 +17599,12 @@ fn handle_admin_adversary_sim_control(
                     origin_verdict,
                     idempotency_key_hash: Some(idempotency_key_hash),
                     request_origin,
-                    requested_state: Some(if payload.enabled {
-                        "running".to_string()
-                    } else {
-                        "off".to_string()
-                    }),
-                    desired_state: Some(if cfg.adversary_sim_enabled {
-                        "running".to_string()
-                    } else {
-                        "off".to_string()
-                    }),
+                    requested_state: Some(requested_state_label.clone()),
+                    requested_lane: requested_lane_label.clone(),
+                    desired_state: Some(current_desired_state_label.clone()),
+                    desired_lane: current_desired_lane_label.clone(),
                     actual_state: state.phase.as_str().to_string(),
+                    actual_lane: control_actual_lane_label(&state),
                 },
                 capabilities.audit_write(),
             );
@@ -17394,6 +17636,7 @@ fn handle_admin_adversary_sim_control(
         crate::admin::adversary_sim::reconcile_state(now, cfg.adversary_sim_enabled, &state);
     state = preflight_state;
     transitions.append(&mut preflight_transitions);
+    state = crate::admin::adversary_sim::select_desired_lane(now, requested_lane, &state);
     let mut desired_enabled = payload.enabled;
 
     if payload.enabled {
@@ -17436,6 +17679,9 @@ fn handle_admin_adversary_sim_control(
         return Response::new(500, "Key-value store error");
     }
     crate::admin::adversary_sim::project_effective_desired_state(&mut cfg, &state);
+    let desired_state_label = control_state_label(desired_enabled);
+    let desired_lane_label = control_desired_lane_label(&state);
+    let actual_lane_label = control_actual_lane_label(&state);
     for transition in &transitions {
         log_adversary_sim_transition(
             store,
@@ -17450,9 +17696,12 @@ fn handle_admin_adversary_sim_control(
     let operation_record = crate::admin::adversary_sim_control::ControlOperationRecord {
         operation_id: operation_id.clone(),
         requested_enabled: payload.enabled,
+        requested_lane: requested_lane_label.clone(),
         requested_reason: requested_reason.clone(),
         desired_enabled,
+        desired_lane: desired_lane_label.clone(),
         actual_phase: state.phase.as_str().to_string(),
+        actual_lane: actual_lane_label.clone(),
         actor_scope: actor_scope.clone(),
         session_scope: session_scope.clone(),
         idempotency_key_hash: idempotency_key_hash.clone(),
@@ -17519,17 +17768,12 @@ fn handle_admin_adversary_sim_control(
             origin_verdict,
             idempotency_key_hash: Some(idempotency_key_hash.clone()),
             request_origin,
-            requested_state: Some(if payload.enabled {
-                "running".to_string()
-            } else {
-                "off".to_string()
-            }),
-            desired_state: Some(if cfg.adversary_sim_enabled {
-                "running".to_string()
-            } else {
-                "off".to_string()
-            }),
+            requested_state: Some(requested_state_label),
+            requested_lane: requested_lane_label.clone(),
+            desired_state: Some(desired_state_label.clone()),
+            desired_lane: desired_lane_label.clone(),
             actual_state: state.phase.as_str().to_string(),
+            actual_lane: actual_lane_label.clone(),
         },
         capabilities.audit_write(),
     );
@@ -17541,11 +17785,14 @@ fn handle_admin_adversary_sim_control(
         "phase_trace": ["plan", "execute", "collect_evidence", "publish_report"],
         "requested_state": {
             "enabled": payload.enabled,
+            "lane": requested_lane_label,
             "reason": requested_reason
         },
         "accepted_state": {
             "desired_enabled": desired_enabled,
-            "actual_phase": state.phase.as_str()
+            "desired_lane": desired_lane_label,
+            "actual_phase": state.phase.as_str(),
+            "active_lane": actual_lane_label
         },
         "idempotency": {
             "key_hash": idempotency_key_hash,

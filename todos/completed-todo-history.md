@@ -4,6 +4,26 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-20)
 
+### SIM-SCR-1: Implement Strict Lane Selection In The Control Path
+
+- [x] Complete `SIM-SCR-1` by extending the adversary-sim control payload with optional strict lane selection, persisting desired lane independently from ON/OFF intent, making idempotency lane-aware, recording requested/desired/actual lane data in control operation and audit surfaces, adding a focused `make test-adversary-sim-lane-selection` gate, and documenting the new control contract.
+- [x] Why:
+  - once `SIM-SCR-0` landed the additive status contract, the next real risk was letting later worker routing invent control semantics ad hoc. The control plane needed to become explicit before Scrapling execution could be attached to it.
+  - the biggest low-level correctness trap in this slice was idempotency drift: same-key control replays that differ only by lane must be treated as different payloads, or lane selection can be silently collapsed under retry.
+  - the slice also needed to stay truthful about current runtime behavior. Persisting desired lane while keeping `active_lane=synthetic_traffic` under a running pre-router system is the correct interim contract until `SIM-SCR-6` lands actual lane routing.
+- [x] Evidence:
+  - `src/admin/adversary_sim.rs`
+  - `src/admin/adversary_sim_control.rs`
+  - `src/admin/api.rs`
+  - `scripts/tests/test_adversary_sim_make_targets.py`
+  - `Makefile`
+  - `docs/api.md`
+  - `docs/testing.md`
+  - `docs/research/2026-03-20-sim-scr-1-lane-selection-post-implementation-review.md`
+  - `make test-adversary-sim-lane-selection`
+  - `git diff --check`
+  - post-tranche review: no new architectural shortfall was found inside `SIM-SCR-1`; the next optimal tranche is `SIM-SCR-6`, where heartbeat routing and bounded Scrapling worker execution must make desired-versus-active lane convergence real
+
 ### SIM-SCR-0: Implement Additive Lane Contract Scaffolding
 
 - [x] Complete `SIM-SCR-0` by adding additive persisted lane-state fields (`desired_lane`, `active_lane`, and switch metadata), zeroed `lane_diagnostics` scaffolding on the adversary-sim status payload, a truthful focused `make test-adversary-sim-lane-contract` gate, and API/testing docs that describe the new backend contract while keeping legacy status compatibility.

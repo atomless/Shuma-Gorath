@@ -645,7 +645,7 @@ pub fn start_state(
         stop_deadline: None,
         active_run_count: 1,
         active_lane_count: deterministic_runtime_profile().active_lane_count,
-        active_lane: Some(desired_lane),
+        active_lane: Some(RuntimeLane::SyntheticTraffic),
         lane_switch_seq: current.lane_switch_seq,
         last_lane_switch_at: current.last_lane_switch_at,
         last_lane_switch_reason: current.last_lane_switch_reason.clone(),
@@ -786,11 +786,26 @@ fn lane_phase(phase: ControlPhase) -> &'static str {
     }
 }
 
-fn effective_active_lane(state: &ControlState) -> Option<RuntimeLane> {
+pub fn effective_active_lane(state: &ControlState) -> Option<RuntimeLane> {
     match state.phase {
         ControlPhase::Running => state.active_lane.or(Some(RuntimeLane::SyntheticTraffic)),
         ControlPhase::Off | ControlPhase::Stopping => None,
     }
+}
+
+pub fn lane_reconciliation_needed(state: &ControlState) -> bool {
+    matches!(state.phase, ControlPhase::Running)
+        && effective_active_lane(state) != Some(state.desired_lane)
+}
+
+pub fn select_desired_lane(now: u64, desired_lane: RuntimeLane, current: &ControlState) -> ControlState {
+    if current.desired_lane == desired_lane {
+        return current.clone();
+    }
+    let mut next = current.clone();
+    next.desired_lane = desired_lane;
+    next.updated_at = now;
+    next
 }
 
 fn zero_lane_counter_payload() -> serde_json::Value {

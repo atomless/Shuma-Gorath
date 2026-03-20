@@ -49,9 +49,12 @@ pub enum ControlDecision {
 pub struct ControlOperationRecord {
     pub operation_id: String,
     pub requested_enabled: bool,
+    pub requested_lane: Option<String>,
     pub requested_reason: String,
     pub desired_enabled: bool,
+    pub desired_lane: Option<String>,
     pub actual_phase: String,
+    pub actual_lane: Option<String>,
     pub actor_scope: String,
     pub session_scope: String,
     pub idempotency_key_hash: String,
@@ -75,8 +78,11 @@ pub struct ControlAuditRecord {
     pub idempotency_key_hash: Option<String>,
     pub request_origin: Option<String>,
     pub requested_state: Option<String>,
+    pub requested_lane: Option<String>,
     pub desired_state: Option<String>,
+    pub desired_lane: Option<String>,
     pub actual_state: String,
+    pub actual_lane: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -196,9 +202,10 @@ pub fn hash_hex(value: &str) -> String {
     format!("{:x}", digest)
 }
 
-pub fn canonical_payload_hash(enabled: bool, reason: &str) -> String {
+pub fn canonical_payload_hash(enabled: bool, lane: Option<&str>, reason: &str) -> String {
     let payload = serde_json::json!({
         "enabled": enabled,
+        "lane": lane,
         "reason": reason,
     });
     let encoded = serde_json::to_vec(&payload).unwrap_or_default();
@@ -494,7 +501,7 @@ pub fn status_reconciliation_needed(
     actual_state: &crate::admin::adversary_sim::ControlState,
 ) -> bool {
     let (next, _) = crate::admin::adversary_sim::reconcile_state(now, desired_enabled, actual_state);
-    next != *actual_state
+    next != *actual_state || crate::admin::adversary_sim::lane_reconciliation_needed(actual_state)
 }
 
 pub fn actual_phase_label(phase: ControlPhase) -> &'static str {
@@ -653,11 +660,13 @@ mod tests {
 
     #[test]
     fn canonical_payload_hash_changes_when_payload_changes() {
-        let a = canonical_payload_hash(true, "manual_on");
-        let b = canonical_payload_hash(false, "manual_on");
-        let c = canonical_payload_hash(true, "manual_off");
+        let a = canonical_payload_hash(true, None, "manual_on");
+        let b = canonical_payload_hash(false, None, "manual_on");
+        let c = canonical_payload_hash(true, None, "manual_off");
+        let d = canonical_payload_hash(true, Some("scrapling_traffic"), "manual_on");
 
         assert_ne!(a, b);
         assert_ne!(a, c);
+        assert_ne!(a, d);
     }
 }

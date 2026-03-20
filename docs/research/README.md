@@ -48,6 +48,8 @@ Completed archive index:
    Readiness review confirming `SIM-SCR-LANE-1` can start immediately after the 2026-03-20 deploy and shared-host closeouts, and recommending additive contract migration before worker or dashboard work.
 8. [`2026-03-20-sim-scr-0-lane-contract-post-implementation-review.md`](2026-03-20-sim-scr-0-lane-contract-post-implementation-review.md)
    Post-implementation review confirming the first additive lane-migration slice landed as backend state/status scaffolding plus a focused `make test-adversary-sim-lane-contract` gate without changing runtime routing yet.
+9. [`2026-03-20-sim-scr-1-lane-selection-post-implementation-review.md`](2026-03-20-sim-scr-1-lane-selection-post-implementation-review.md)
+   Post-implementation review confirming the control path now persists strict lane selection, exposes requested/desired/actual lane auditability, keeps idempotency lane-aware, and still truthfully reports `synthetic_traffic` as the active lane until worker routing lands.
 
 ## 🐙 Gateway Deployment Research
 

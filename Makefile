@@ -977,6 +977,15 @@ test-adversary-sim-lane-contract: ## Focused backend lane-migration contract gat
 	@cargo test status_payload_exposes_additive_lane_migration_contract -- --nocapture
 	@cargo test adversary_sim_control_status_exposes_additive_lane_migration_contract -- --nocapture
 
+test-adversary-sim-lane-selection: ## Focused control-path lane-selection gate (validation, persistence, idempotency, desired-vs-active semantics)
+	@echo "$(CYAN)🧪 Running adversary-sim lane-selection gate...$(NC)"
+	@./scripts/set_crate_type.sh rlib
+	@cargo test canonical_payload_hash_changes_when_payload_changes -- --nocapture
+	@cargo test adversary_sim_control_accepts_lane_selection_while_off_and_persists_desired_lane -- --nocapture
+	@cargo test adversary_sim_control_rejects_invalid_lane_value -- --nocapture
+	@cargo test adversary_sim_control_rejects_lane_only_idempotency_payload_mismatch -- --nocapture
+	@cargo test adversary_sim_running_lane_selection_updates_desired_lane_without_switching_active_lane -- --nocapture
+
 adversary-sim-supervisor-build: ## Build the host-side adversary-sim supervisor worker binary
 	@./scripts/adversary_sim_supervisor_launch.sh --build-only
 
