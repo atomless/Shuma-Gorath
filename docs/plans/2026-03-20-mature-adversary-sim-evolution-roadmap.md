@@ -113,6 +113,11 @@ The recommended minimal seed contract is:
 
 The observed reachable surface should then emerge from traversal telemetry. Shuma should not require a rich precomputed public-surface catalog before Scrapling can become the first adaptive lane, and it should not treat sitemap-derived or precompiled inventory as the adversary's primary knowledge model.
 
+Guiding rule:
+
+1. telemetry is the map.
+2. If a page or exploit path never appears in the observed traversal telemetry for the active adversary loop, it does not belong in that loop's working surface map unless a narrower safety contract explicitly requires it.
+
 ## Recommended First Closed Loop
 
 The first real evolutionary loop should be:

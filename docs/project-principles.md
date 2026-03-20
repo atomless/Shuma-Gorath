@@ -93,6 +93,8 @@ Shuma-Gorath exists to provide layered, practical bot defense that teams can dep
 - MUST expose useful metrics and logs for detection, actions, and failures.
 - MUST make operational status inspectable without code changes.
 - MUST ensure operator-facing monitoring and status surfaces reflect real runtime/request-pipeline telemetry and degraded states; they must not rely on synthetic or optimistic placeholder data that can hide missing behavior.
+- MUST treat observed telemetry as the authoritative map of Shuma's reachable surface, attacker behavior, and operational reality. Development and operations must prefer telemetry-emergent evidence over speculative or precomputed discovery models unless a narrower safety contract explicitly requires otherwise.
+- MUST derive adversary-reachable surface understanding, replay-promotion inputs, and benchmark evidence from observed telemetry when the capability exists, rather than maintaining richer parallel maps that the telemetry itself does not support.
 - SHOULD keep monitoring guidance current with features.
 
 ### P10. Resource Efficiency

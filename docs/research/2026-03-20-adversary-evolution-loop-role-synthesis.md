@@ -72,6 +72,7 @@ Implications:
 1. Shuma still needs a fail-closed scope contract and initial seed discovery.
 2. But full discovery artifact generation should not remain the primary gate before useful Scrapling execution starts.
 3. Continuous discovery should become a byproduct of the emergent harness itself.
+4. Observed telemetry should become the authoritative map of what the emergent harness actually reached.
 
 ### 4. Emergent findings should feed deterministic memory through reviewed promotion
 
@@ -118,4 +119,5 @@ The mature adversary-sim roadmap should be rewritten so that:
 1. deterministic traffic is explicitly demoted from "primary tuning signal" to oracle/comparator,
 2. Scrapling and later frontier-agent lanes are the primary adaptive inputs,
 3. shared-host discovery is narrowed to a minimal scope and seed gate,
-4. and promotion from emergent exploit to deterministic scenario becomes an explicit roadmap concept.
+4. observed telemetry is treated as the authoritative surface map for emergent lanes,
+5. and promotion from emergent exploit to deterministic scenario becomes an explicit roadmap concept.

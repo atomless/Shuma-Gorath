@@ -128,6 +128,7 @@ Status update (2026-03-20):
 4. Shared-host work is now narrowed to a minimal scope fence and operator-defined seed gate rather than the whole first adaptive milestone.
 5. Traversal telemetry is now the intended adversary-reachable surface map; a rich precomputed public-surface catalog is no longer the default execution model.
 6. Reviewed promotion from emergent exploit to deterministic replay case is now an explicit roadmap concept.
+7. The guiding rule for future sim, benchmark, and replay planning is now explicit: telemetry is the map.
 
 ## B. Tuning Surface Completion
 

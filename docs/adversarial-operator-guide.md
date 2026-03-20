@@ -30,6 +30,17 @@ Runtime-toggle adversary generation is owned by a host-side supervisor heartbeat
 4. Equivalent worker deployment adapters are supported for single-host service managers, container sidecars, and external edge supervisor services.
 5. Host-side supervisor requests use trusted-forwarding plus the internal supervisor marker so `runtime-prod` deployments can keep HTTPS enforcement and operator IP allowlists without starving the supervisor.
 
+## Telemetry Is The Map
+
+For adversarial simulation work, operators should treat observed telemetry as the authoritative map of what the adversary actually reached.
+
+That means:
+
+1. minimal seeds and scope fences are the starting contract,
+2. traversal telemetry defines the reachable surface that Shuma should reason about,
+3. replay-promotion candidates should come from observed telemetry traces,
+4. and routes that never appear in telemetry do not belong in the active adversary surface map unless a narrower safety or operator contract explicitly requires them.
+
 ## SIM Run Definition Of Done (`SIM2-GC-1`)
 
 A run must be treated as complete only when all rules below are true:

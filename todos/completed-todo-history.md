@@ -4,6 +4,27 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-20)
 
+### Docs / Policy: Codify "Telemetry Is The Map" As A Guiding Principle
+
+- [x] Promote "telemetry is the map" from a local shared-host discovery insight into a repo-wide guiding principle across canonical policy, observability guidance, operator docs, and the active machine-first, benchmark, and adversary-sim planning docs.
+- [x] Why:
+  - this principle now governs more than shared-host discovery. It affects how Shuma should reason about adversary-reachable surface, benchmark scope, replay promotion, and future controller inputs.
+  - codifying it in canonical docs prevents later work from drifting back toward speculative inventories or richer parallel maps that the telemetry itself does not justify.
+  - the principle is operational as well as architectural: if a route or exploit path never appears in the telemetry for a given loop, there is no value in treating it as part of that loop's active map unless a narrower safety contract explicitly requires it.
+- [x] Evidence:
+  - `docs/project-principles.md`
+  - `AGENTS.md`
+  - `docs/observability.md`
+  - `docs/adversarial-operator-guide.md`
+  - `docs/plans/2026-03-20-machine-first-operator-snapshot-and-feedback-loop-design.md`
+  - `docs/plans/2026-03-20-benchmark-suite-v1-design.md`
+  - `docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`
+  - `docs/plans/2026-03-20-minimal-seed-and-telemetry-surface-discovery-design.md`
+  - `docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`
+  - `docs/research/2026-03-20-adversary-evolution-loop-role-synthesis.md`
+  - docs-only slice: tests intentionally skipped
+  - `git diff --check`
+
 ### SIM-SH-SURFACE / SIM-MAT: Recast Shared-Host Discovery As Minimal Seeds And Telemetry Map
 
 - [x] Recast the shared-host discovery and Scrapling roadmap so the only active gate is a fail-closed scope fence plus minimal operator-defined seeds, while the observed reachable surface is explicitly treated as emerging from adversary traversal telemetry rather than from a rich precomputed public-surface catalog.

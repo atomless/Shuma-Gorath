@@ -37,6 +37,11 @@ and not as:
 2. `catalog_compiler`
 3. `authoritative_public_surface_map`
 
+Guiding rule:
+
+1. telemetry is the map.
+2. If a route or exploit path never appears in the observed traversal telemetry for the active loop, Shuma should not treat it as part of the active adversary-reachable surface unless a narrower safety contract explicitly requires it.
+
 ## 1. Scope Fence
 
 This remains mandatory.

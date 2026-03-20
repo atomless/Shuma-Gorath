@@ -35,6 +35,20 @@ Recent event rows also carry explicit execution metadata:
 
 Dashboard monitoring uses those fields directly rather than inferring shadow semantics from free-text reasons/outcomes.
 
+## 🐙 Telemetry Is The Map
+
+Shuma treats observed telemetry as the authoritative map of operational reality.
+
+That means:
+
+- adversary-reachable surface understanding should come from observed traversal telemetry, not from richer speculative maps that the runtime has not actually seen,
+- benchmark evidence and replay-promotion inputs should be derived from observed telemetry traces when the capability exists,
+- and any later export or curation artifact must remain a bounded derivative of telemetry rather than a parallel source of truth.
+
+Operational consequence:
+
+- if a route, page, or exploit path never appears in the telemetry available to a given loop, Shuma should not assume it belongs in that loop's working surface map until there is a narrower safety or operator-contract reason to include it.
+
 Prometheus parity scope for Monitoring widgets is tracked in:
 - [`docs/monitoring-prometheus-parity-audit.md`](monitoring-prometheus-parity-audit.md)
 

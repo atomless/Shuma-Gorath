@@ -7,6 +7,7 @@ Related context:
 
 - [`../research/2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md`](../research/2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md)
 - [`../research/2026-03-20-benchmark-suite-v1-research-synthesis.md`](../research/2026-03-20-benchmark-suite-v1-research-synthesis.md)
+- [`../research/2026-03-20-telemetry-as-map-adversary-surface-discovery-synthesis.md`](../research/2026-03-20-telemetry-as-map-adversary-surface-discovery-synthesis.md)
 - [`../research/2026-03-19-pre-monitoring-overhaul-telemetry-foundation-closeout-review.md`](../research/2026-03-19-pre-monitoring-overhaul-telemetry-foundation-closeout-review.md)
 - [`../research/2026-03-20-monitoring-diagnostics-ownership-post-implementation-review.md`](../research/2026-03-20-monitoring-diagnostics-ownership-post-implementation-review.md)
 - [`2026-03-15-agentic-era-oversight-design.md`](./2026-03-15-agentic-era-oversight-design.md)
@@ -21,6 +22,7 @@ Related context:
 4. Keep Diagnostics as the place for raw subsystem inspection, transport detail, and bounded drill-downs.
 5. Make the first future agent loop config-diff-only, not code-change-first.
 6. Prepare a second, later loop where Shuma's own code evolution is informed by explicit benchmark evidence rather than intuition.
+7. Keep the operator and controller loops anchored to observed telemetry as the authoritative map of what the adversary actually reached and what Shuma actually did.
 
 ## Non-goals
 
@@ -74,6 +76,11 @@ Inputs:
 3. `allowed_actions_v1`,
 4. adversary-sim evidence,
 5. and later central-intelligence enrichment.
+
+Telemetry rule:
+
+1. the loop must prefer observed telemetry and bounded summaries over speculative surface inventories,
+2. and any replay-promotion candidate or adversary-surface understanding carried into this loop must be derived from what the telemetry actually observed.
 
 ### 2. Project evolution loop
 
@@ -242,6 +249,7 @@ Must answer:
 4. and whether the current config is holding up against known representative scenarios.
 
 This section must be first-class, but separate from live operator ingress.
+Its reachable-surface understanding and replay-promotion candidates must be derived from observed traversal telemetry rather than from an independently maintained public-surface catalog.
 
 ### Recent changes section
 

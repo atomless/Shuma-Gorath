@@ -8,6 +8,7 @@ Related context:
 - [`../research/2026-03-20-benchmark-suite-v1-research-synthesis.md`](../research/2026-03-20-benchmark-suite-v1-research-synthesis.md)
 - [`../research/2026-03-20-benchmark-fleet-and-intelligence-enrichment-research-synthesis.md`](../research/2026-03-20-benchmark-fleet-and-intelligence-enrichment-research-synthesis.md)
 - [`../research/2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md`](../research/2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md)
+- [`../research/2026-03-20-telemetry-as-map-adversary-surface-discovery-synthesis.md`](../research/2026-03-20-telemetry-as-map-adversary-surface-discovery-synthesis.md)
 - [`2026-03-20-machine-first-operator-snapshot-and-feedback-loop-design.md`](./2026-03-20-machine-first-operator-snapshot-and-feedback-loop-design.md)
 - [`2026-03-20-benchmark-fleet-and-intelligence-enrichment-contract.md`](./2026-03-20-benchmark-fleet-and-intelligence-enrichment-contract.md)
 - [`2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](./2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
@@ -19,6 +20,7 @@ Related context:
 3. Make benchmark families machine-readable, bounded, and exactness-aware.
 4. Prevent Monitoring from inventing a human-only success model ahead of the machine-first control contract.
 5. Keep the first version small enough to align with the telemetry Shuma already has or has explicitly planned.
+6. Keep benchmark subjects anchored to observed telemetry rather than to richer parallel surface inventories that Shuma has not actually seen.
 
 ## Non-goals
 
@@ -160,11 +162,13 @@ The definition should stay declarative and avoid code-path-specific trivia.
 2. scenario-level objective mapping,
 3. bounded recent-run or benchmark-result summaries,
 4. explicit origin separation from live traffic.
+5. replay candidates and discovered surface understanding derived from observed traversal telemetry.
 
 ### Notes
 
 1. This family should compare named scenario families rather than free-form run narratives.
 2. It should remain separate from live traffic summaries even when both inform the same tuning decision.
+3. The benchmark family should inherit Shuma's telemetry-is-the-map rule: if a route or exploit path never appears in the observed adversary telemetry for a given benchmark window or promoted replay set, it does not belong in the active representative surface map for that benchmark family yet.
 
 ## Benchmark Family 4: `beneficial_non_human_posture`
 
