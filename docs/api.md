@@ -165,7 +165,7 @@ When `SHUMA_DEBUG_HEADERS=true`, the health response includes:
 - `POST /admin/config/validate` - Validate a config patch without persisting changes (returns `{ valid, issues[] }` with field/expected/received hints when invalid)
 - `GET /admin/config/export` - Export non-secret runtime config as deploy-ready env key/value output
 - `POST /admin/adversary-sim/control` - Explicit adversary-sim lifecycle command submission (`{"enabled":true|false,"reason":"optional"}`), admin-auth + CSRF protected, strict same-origin/fetch-metadata checks, and required `Idempotency-Key` header
-- `GET /admin/adversary-sim/status` - Adversary-sim lifecycle status read path, including desired vs actual state, reconciliation-needed signal, and controller lease metadata. This endpoint is read-only: it reports stale persisted state via `controller_reconciliation_required` and does not reconcile or persist state as part of the read.
+- `GET /admin/adversary-sim/status` - Adversary-sim lifecycle status read path, including desired vs actual state, additive runtime-lane migration fields (`desired_lane`, `active_lane`, `lane_switch_seq`, `last_lane_switch_at`, `last_lane_switch_reason`), zeroed `lane_diagnostics` scaffolding for later lane workers, and controller lease metadata. Legacy `active_lane_count` plus `lanes.{deterministic,containerized}` remain during the migration. This endpoint is read-only: it reports stale persisted state via `controller_reconciliation_required` and does not reconcile or persist state as part of the read.
 - `POST /admin/adversary-sim/history/cleanup` - Explicitly clear retained telemetry history (`eventlog:v2:*`, `monitoring:v1:*`, and derived monitoring detail counters) without changing adversary-sim control state.
   - In `runtime-dev`: endpoint is available without extra cleanup acknowledgement.
   - In `runtime-prod`: endpoint requires header `X-Shuma-Telemetry-Cleanup-Ack: I_UNDERSTAND_TELEMETRY_CLEANUP`.
@@ -199,6 +199,13 @@ Adversary-sim command contract (`adversary-sim-control.v1`) highlights:
 - Status responses include:
   - `desired_state` (`running|off`)
   - `actual_state` (`running|stopping|off`)
+  - `desired_lane` (`synthetic_traffic|scrapling_traffic|bot_red_team`)
+  - `active_lane` (`synthetic_traffic|scrapling_traffic|bot_red_team|null`)
+  - `lane_switch_seq`
+  - `last_lane_switch_at`
+  - `last_lane_switch_reason`
+  - `lane_diagnostics.lanes.<lane>.beat_attempts|beat_successes|beat_failures`
+  - `lane_diagnostics.request_failure_classes.<class>.count|last_seen_at`
   - `generation_active` (`true|false`; producer lifecycle only)
   - `historical_data_visible` (`true` when retained telemetry remains queryable regardless of producer state)
   - `history_retention.retention_hours`

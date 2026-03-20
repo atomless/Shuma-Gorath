@@ -4,6 +4,24 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-20)
 
+### SIM-SCR-0: Implement Additive Lane Contract Scaffolding
+
+- [x] Complete `SIM-SCR-0` by adding additive persisted lane-state fields (`desired_lane`, `active_lane`, and switch metadata), zeroed `lane_diagnostics` scaffolding on the adversary-sim status payload, a truthful focused `make test-adversary-sim-lane-contract` gate, and API/testing docs that describe the new backend contract while keeping legacy status compatibility.
+- [x] Why:
+  - after the planning tranche, the clean next move was to make the three-lane migration visible in backend state and status before touching control writes, Scrapling workers, or dashboard selectors.
+  - the key migration risk was breaking the current dashboard and status consumers that still normalize `active_lane_count` and `lanes.{deterministic,containerized}`. The right fix was additive contract scaffolding, not a breaking rename or removal.
+  - landing the zeroed diagnostics schema now also keeps later worker slices from having to negotiate payload shape while they debug routing and bounded execution behavior.
+- [x] Evidence:
+  - `src/admin/adversary_sim.rs`
+  - `src/admin/api.rs`
+  - `Makefile`
+  - `docs/api.md`
+  - `docs/testing.md`
+  - `docs/research/2026-03-20-sim-scr-0-lane-contract-post-implementation-review.md`
+  - `make test-adversary-sim-lane-contract`
+  - `git diff --check`
+  - post-tranche review: no new architectural shortfall was found inside `SIM-SCR-0`; the next optimal tranche is `SIM-SCR-1`, which should extend the control API and persisted control state for strict lane selection without starting worker routing yet
+
 ### SIM-SCR-LANE-1: Capture The Runtime Lane Migration Plan
 
 - [x] Write a readiness review and an active implementation plan for `SIM-SCR-LANE-1` that ground the next Scrapling tranche in the current toggle-only code truth, lock the execution order as additive contract first then control state then worker then dashboard, and break the backlog item into atomic slice TODOs.

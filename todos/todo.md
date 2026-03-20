@@ -105,7 +105,6 @@ Reference plan:
 - [ ] SIM-SCR-LANE-1 Three-lane runtime migration and Scrapling integration.
   Execution note: this lane is now unblocked by `SIM-DEPLOY-2` and `SIM-SH-SURFACE-1-1..2`. Its reachable-surface view must derive from the minimal seed inventory plus later traversal telemetry, not from a precompiled public-surface catalog.
   Execution order:
-  - [ ] SIM-SCR-0 Add additive desired/active lane status fields plus bounded lane-diagnostics scaffolding without changing runtime routing.
   - [ ] SIM-SCR-1 Extend persisted control state and `POST /admin/adversary-sim/control` to support strict lane selection and desired-versus-active lane semantics.
   - [ ] SIM-SCR-6 Route heartbeat execution through the selected lane and integrate bounded Scrapling worker execution under the shared-host scope-and-seed gate.
   - [ ] SIM-SCR-7 Add dashboard lane controls and diagnostics after the backend contract is stable.

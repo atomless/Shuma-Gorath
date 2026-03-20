@@ -35,6 +35,22 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
             body,
         )
 
+    def test_lane_contract_target_uses_additive_lane_contract_selectors(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-adversary-sim-lane-contract:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn("start_and_stop_transitions_track_additive_lane_contract", body)
+        self.assertIn("status_payload_exposes_additive_lane_migration_contract", body)
+        self.assertIn(
+            "adversary_sim_control_status_exposes_additive_lane_migration_contract",
+            body,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

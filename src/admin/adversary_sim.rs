@@ -26,6 +26,7 @@ pub const AUTONOMOUS_EDGE_FERMYON_MAX_CATCHUP_TICKS_PER_INVOCATION: u64 = 1;
 pub const AUTONOMOUS_EDGE_FERMYON_CRON_SCHEDULE: &str =
     "staggered 5x cron set (one run per minute, each job every 5 minutes)";
 const PRODUCTION_GENERATION_DEFAULT: &str = "off_until_explicit_enable";
+const LANE_DIAGNOSTICS_SCHEMA_VERSION: &str = "adversary-sim-lane-diagnostics.v1";
 const DETERMINISTIC_ATTACK_CORPUS_SCHEMA_VERSION: &str = "sim-deterministic-attack-corpus.v1";
 const DETERMINISTIC_ATTACK_CORPUS_PATH: &str =
     "scripts/tests/adversarial/deterministic_attack_corpus.v1.json";
@@ -386,12 +387,33 @@ impl ControlPhase {
     }
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum RuntimeLane {
+    #[default]
+    SyntheticTraffic,
+    ScraplingTraffic,
+    BotRedTeam,
+}
+
+impl RuntimeLane {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::SyntheticTraffic => "synthetic_traffic",
+            Self::ScraplingTraffic => "scrapling_traffic",
+            Self::BotRedTeam => "bot_red_team",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ControlState {
     #[serde(default)]
     pub phase: ControlPhase,
     #[serde(default)]
     pub desired_enabled: bool,
+    #[serde(default)]
+    pub desired_lane: RuntimeLane,
     #[serde(default)]
     pub owner_instance_id: Option<String>,
     #[serde(default)]
@@ -406,6 +428,14 @@ pub struct ControlState {
     pub active_run_count: u32,
     #[serde(default)]
     pub active_lane_count: u32,
+    #[serde(default)]
+    pub active_lane: Option<RuntimeLane>,
+    #[serde(default)]
+    pub lane_switch_seq: u64,
+    #[serde(default)]
+    pub last_lane_switch_at: Option<u64>,
+    #[serde(default)]
+    pub last_lane_switch_reason: Option<String>,
     #[serde(default)]
     pub last_transition_reason: Option<String>,
     #[serde(default)]
@@ -429,6 +459,7 @@ impl Default for ControlState {
         Self {
             phase: ControlPhase::Off,
             desired_enabled: false,
+            desired_lane: RuntimeLane::SyntheticTraffic,
             owner_instance_id: None,
             run_id: None,
             started_at: None,
@@ -436,6 +467,10 @@ impl Default for ControlState {
             stop_deadline: None,
             active_run_count: 0,
             active_lane_count: 0,
+            active_lane: None,
+            lane_switch_seq: 0,
+            last_lane_switch_at: None,
+            last_lane_switch_reason: None,
             last_transition_reason: None,
             last_terminal_failure_reason: None,
             last_run_id: None,
@@ -598,9 +633,11 @@ pub fn start_state(
         reason: "manual_on".to_string(),
         run_id: Some(run_id.clone()),
     };
+    let desired_lane = current.desired_lane;
     let next = ControlState {
         phase: ControlPhase::Running,
         desired_enabled: true,
+        desired_lane,
         owner_instance_id: Some(process_instance_id().to_string()),
         run_id: Some(run_id),
         started_at: Some(now),
@@ -608,6 +645,10 @@ pub fn start_state(
         stop_deadline: None,
         active_run_count: 1,
         active_lane_count: deterministic_runtime_profile().active_lane_count,
+        active_lane: Some(desired_lane),
+        lane_switch_seq: current.lane_switch_seq,
+        last_lane_switch_at: current.last_lane_switch_at,
+        last_lane_switch_reason: current.last_lane_switch_reason.clone(),
         last_transition_reason: Some("manual_on".to_string()),
         last_terminal_failure_reason: None,
         last_run_id: current.last_run_id.clone(),
@@ -637,6 +678,7 @@ pub fn stop_state(now: u64, reason: &str, current: &ControlState) -> (ControlSta
     // Current stop path is synchronous; the forced-kill path still protects stale/stuck state.
     next.active_run_count = 0;
     next.active_lane_count = 0;
+    next.active_lane = None;
     next.updated_at = now;
 
     let transition = Transition {
@@ -702,6 +744,7 @@ pub fn reconcile_state(
             next.stop_deadline = None;
             next.active_run_count = 0;
             next.active_lane_count = 0;
+            next.active_lane = None;
             next.updated_at = now;
         } else if next.stop_deadline.map(|deadline| now >= deadline).unwrap_or(false) {
             let run_id = next.run_id.clone();
@@ -719,6 +762,7 @@ pub fn reconcile_state(
             next.stop_deadline = None;
             next.active_run_count = 0;
             next.active_lane_count = 0;
+            next.active_lane = None;
             next.last_transition_reason = Some("forced_kill_timeout".to_string());
             next.last_terminal_failure_reason = Some("forced_kill_timeout".to_string());
             next.updated_at = now;
@@ -728,6 +772,7 @@ pub fn reconcile_state(
     if next.phase == ControlPhase::Off {
         next.active_run_count = 0;
         next.active_lane_count = 0;
+        next.active_lane = None;
     }
 
     (next, transitions)
@@ -741,6 +786,45 @@ fn lane_phase(phase: ControlPhase) -> &'static str {
     }
 }
 
+fn effective_active_lane(state: &ControlState) -> Option<RuntimeLane> {
+    match state.phase {
+        ControlPhase::Running => state.active_lane.or(Some(RuntimeLane::SyntheticTraffic)),
+        ControlPhase::Off | ControlPhase::Stopping => None,
+    }
+}
+
+fn zero_lane_counter_payload() -> serde_json::Value {
+    json!({
+        "beat_attempts": 0,
+        "beat_successes": 0,
+        "beat_failures": 0
+    })
+}
+
+fn zero_failure_class_payload() -> serde_json::Value {
+    json!({
+        "count": 0,
+        "last_seen_at": Option::<u64>::None
+    })
+}
+
+fn lane_diagnostics_payload() -> serde_json::Value {
+    json!({
+        "schema_version": LANE_DIAGNOSTICS_SCHEMA_VERSION,
+        "lanes": {
+            "synthetic_traffic": zero_lane_counter_payload(),
+            "scrapling_traffic": zero_lane_counter_payload(),
+            "bot_red_team": zero_lane_counter_payload()
+        },
+        "request_failure_classes": {
+            "cancelled": zero_failure_class_payload(),
+            "timeout": zero_failure_class_payload(),
+            "transport": zero_failure_class_payload(),
+            "http": zero_failure_class_payload()
+        }
+    })
+}
+
 pub fn status_payload(
     now: u64,
     runtime_environment: crate::config::RuntimeEnvironment,
@@ -749,6 +833,7 @@ pub fn status_payload(
     cfg_duration_seconds: u64,
     state: &ControlState,
 ) -> serde_json::Value {
+    let active_lane = effective_active_lane(state);
     let duration_seconds = clamp_duration_seconds(cfg_duration_seconds);
     let remaining_seconds = match (state.phase, state.ends_at) {
         (ControlPhase::Running, Some(ends_at)) => ends_at.saturating_sub(now),
@@ -768,10 +853,16 @@ pub fn status_payload(
         "remaining_seconds": remaining_seconds,
         "active_run_count": state.active_run_count,
         "active_lane_count": state.active_lane_count,
+        "desired_lane": state.desired_lane.as_str(),
+        "active_lane": active_lane.map(RuntimeLane::as_str),
+        "lane_switch_seq": state.lane_switch_seq,
+        "last_lane_switch_at": state.last_lane_switch_at,
+        "last_lane_switch_reason": state.last_lane_switch_reason.clone(),
         "lanes": {
             "deterministic": lane_phase(state.phase),
             "containerized": lane_phase(state.phase)
         },
+        "lane_diagnostics": lane_diagnostics_payload(),
         "guardrails": {
             "surface_available_by_default": crate::config::adversary_sim_available_default(),
             "generation_default": PRODUCTION_GENERATION_DEFAULT,
@@ -1639,6 +1730,27 @@ mod tests {
     }
 
     #[test]
+    fn start_and_stop_transitions_track_additive_lane_contract() {
+        let now = 1_000u64;
+        let (started, _) = start_state(now, 180, &ControlState::default()).expect("start");
+        assert_eq!(started.desired_lane.as_str(), "synthetic_traffic");
+        assert_eq!(
+            started.active_lane.map(RuntimeLane::as_str),
+            Some("synthetic_traffic")
+        );
+        assert_eq!(started.lane_switch_seq, 0);
+        assert_eq!(started.last_lane_switch_at, None);
+        assert_eq!(started.last_lane_switch_reason, None);
+
+        let (stopping, _) = stop_state(now + 1, "manual_off", &started);
+        assert_eq!(stopping.desired_lane.as_str(), "synthetic_traffic");
+        assert_eq!(stopping.active_lane, None);
+        assert_eq!(stopping.lane_switch_seq, 0);
+        assert_eq!(stopping.last_lane_switch_at, None);
+        assert_eq!(stopping.last_lane_switch_reason, None);
+    }
+
+    #[test]
     fn reconcile_expired_window_stops_and_turns_off() {
         let state = ControlState {
             phase: ControlPhase::Running,
@@ -1932,6 +2044,70 @@ mod tests {
         );
 
         std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+    }
+
+    #[test]
+    fn status_payload_exposes_additive_lane_migration_contract() {
+        let state = ControlState {
+            phase: ControlPhase::Running,
+            desired_enabled: true,
+            run_id: Some("run-lane-contract".to_string()),
+            started_at: Some(100),
+            ends_at: Some(400),
+            active_run_count: 1,
+            active_lane_count: deterministic_runtime_profile().active_lane_count,
+            ..ControlState::default()
+        };
+
+        let payload = status_payload(
+            150,
+            crate::config::RuntimeEnvironment::RuntimeProd,
+            true,
+            true,
+            180,
+            &state,
+        );
+        assert_eq!(
+            payload
+                .get("desired_lane")
+                .and_then(|value| value.as_str()),
+            Some("synthetic_traffic")
+        );
+        assert_eq!(
+            payload
+                .get("active_lane")
+                .and_then(|value| value.as_str()),
+            Some("synthetic_traffic")
+        );
+        assert_eq!(
+            payload
+                .get("lane_switch_seq")
+                .and_then(|value| value.as_u64()),
+            Some(0)
+        );
+        assert_eq!(payload.get("last_lane_switch_at"), Some(&serde_json::Value::Null));
+        assert_eq!(
+            payload.get("last_lane_switch_reason"),
+            Some(&serde_json::Value::Null)
+        );
+        assert_eq!(
+            payload
+                .get("lane_diagnostics")
+                .and_then(|value| value.get("lanes"))
+                .and_then(|value| value.get("scrapling_traffic"))
+                .and_then(|value| value.get("beat_attempts"))
+                .and_then(|value| value.as_u64()),
+            Some(0)
+        );
+        assert_eq!(
+            payload
+                .get("lane_diagnostics")
+                .and_then(|value| value.get("request_failure_classes"))
+                .and_then(|value| value.get("cancelled"))
+                .and_then(|value| value.get("count"))
+                .and_then(|value| value.as_u64()),
+            Some(0)
+        );
     }
 
     #[test]

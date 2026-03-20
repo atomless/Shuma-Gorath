@@ -4472,6 +4472,90 @@ mod admin_config_tests {
     }
 
     #[test]
+    fn adversary_sim_control_status_exposes_additive_lane_migration_contract() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+
+        let on_resp = handle_admin_adversary_sim_control(
+            &make_request(
+                Method::Post,
+                "/admin/adversary-sim/control",
+                br#"{"enabled":true}"#.to_vec(),
+            ),
+            &store,
+            "default",
+            &auth,
+        );
+        assert_eq!(*on_resp.status(), 200u16);
+        let on_json: serde_json::Value = serde_json::from_slice(on_resp.body()).unwrap();
+        let status = on_json.get("status").expect("status payload");
+        assert_eq!(
+            status.get("desired_lane").and_then(|value| value.as_str()),
+            Some("synthetic_traffic")
+        );
+        assert_eq!(
+            status.get("active_lane").and_then(|value| value.as_str()),
+            Some("synthetic_traffic")
+        );
+        assert_eq!(
+            status.get("lane_switch_seq").and_then(|value| value.as_u64()),
+            Some(0)
+        );
+        assert_eq!(
+            status
+                .get("lane_diagnostics")
+                .and_then(|value| value.get("lanes"))
+                .and_then(|value| value.get("synthetic_traffic"))
+                .and_then(|value| value.get("beat_successes"))
+                .and_then(|value| value.as_u64()),
+            Some(0)
+        );
+        assert_eq!(
+            status
+                .get("lane_diagnostics")
+                .and_then(|value| value.get("request_failure_classes"))
+                .and_then(|value| value.get("timeout"))
+                .and_then(|value| value.get("last_seen_at")),
+            Some(&serde_json::Value::Null)
+        );
+        assert_eq!(
+            status
+                .get("lanes")
+                .and_then(|value| value.get("deterministic"))
+                .and_then(|value| value.as_str()),
+            Some("running")
+        );
+
+        let off_resp = handle_admin_adversary_sim_control(
+            &make_request(
+                Method::Post,
+                "/admin/adversary-sim/control",
+                br#"{"enabled":false}"#.to_vec(),
+            ),
+            &store,
+            "default",
+            &auth,
+        );
+        assert_eq!(*off_resp.status(), 200u16);
+        let off_json: serde_json::Value = serde_json::from_slice(off_resp.body()).unwrap();
+        let off_status = off_json.get("status").expect("off status payload");
+        assert_eq!(
+            off_status.get("desired_lane").and_then(|value| value.as_str()),
+            Some("synthetic_traffic")
+        );
+        assert_eq!(off_status.get("active_lane"), Some(&serde_json::Value::Null));
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    }
+
+    #[test]
     fn adversary_sim_control_enable_reports_edge_cron_warming_before_first_tick() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
@@ -4718,6 +4802,7 @@ mod admin_config_tests {
         let stale_state = crate::admin::adversary_sim::ControlState {
             phase: crate::admin::adversary_sim::ControlPhase::Running,
             desired_enabled: false,
+            desired_lane: crate::admin::adversary_sim::RuntimeLane::SyntheticTraffic,
             owner_instance_id: Some("simproc-stale".to_string()),
             run_id: Some("simrun-stale".to_string()),
             started_at: Some(now.saturating_sub(600)),
@@ -4725,6 +4810,10 @@ mod admin_config_tests {
             stop_deadline: None,
             active_run_count: 1,
             active_lane_count: 2,
+            active_lane: Some(crate::admin::adversary_sim::RuntimeLane::SyntheticTraffic),
+            lane_switch_seq: 0,
+            last_lane_switch_at: None,
+            last_lane_switch_reason: None,
             last_transition_reason: Some("manual_on".to_string()),
             last_terminal_failure_reason: None,
             last_run_id: Some("simrun-stale".to_string()),
@@ -5206,6 +5295,7 @@ mod admin_config_tests {
         let stale_running_state = crate::admin::adversary_sim::ControlState {
             phase: crate::admin::adversary_sim::ControlPhase::Running,
             desired_enabled: false,
+            desired_lane: crate::admin::adversary_sim::RuntimeLane::SyntheticTraffic,
             owner_instance_id: Some("simproc-stale".to_string()),
             run_id: Some("simrun-stale-running".to_string()),
             started_at: Some(now.saturating_sub(30)),
@@ -5213,6 +5303,10 @@ mod admin_config_tests {
             stop_deadline: None,
             active_run_count: 1,
             active_lane_count: 2,
+            active_lane: Some(crate::admin::adversary_sim::RuntimeLane::SyntheticTraffic),
+            lane_switch_seq: 0,
+            last_lane_switch_at: None,
+            last_lane_switch_reason: None,
             last_transition_reason: Some("manual_on".to_string()),
             last_terminal_failure_reason: None,
             last_run_id: Some("simrun-stale-running".to_string()),

@@ -970,6 +970,13 @@ test-adversary-sim-lifecycle: ## Fast adversary-sim lifecycle regression gate (t
 	@python3 -m unittest scripts/tests/test_adversary_sim_supervisor.py
 	@$(MAKE) --no-print-directory test-adversarial-deterministic-corpus
 
+test-adversary-sim-lane-contract: ## Focused backend lane-migration contract gate (additive desired/active lane scaffolding)
+	@echo "$(CYAN)🧪 Running adversary-sim lane-contract gate...$(NC)"
+	@./scripts/set_crate_type.sh rlib
+	@cargo test start_and_stop_transitions_track_additive_lane_contract -- --nocapture
+	@cargo test status_payload_exposes_additive_lane_migration_contract -- --nocapture
+	@cargo test adversary_sim_control_status_exposes_additive_lane_migration_contract -- --nocapture
+
 adversary-sim-supervisor-build: ## Build the host-side adversary-sim supervisor worker binary
 	@./scripts/adversary_sim_supervisor_launch.sh --build-only
 
