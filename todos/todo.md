@@ -99,9 +99,17 @@ Reference plan:
 - [`docs/plans/2026-03-20-minimal-seed-and-telemetry-surface-discovery-design.md`](../docs/plans/2026-03-20-minimal-seed-and-telemetry-surface-discovery-design.md)
 - [`docs/plans/2026-03-20-shared-host-scope-fence-contract.md`](../docs/plans/2026-03-20-shared-host-scope-fence-contract.md)
 - [`docs/plans/2026-03-20-shared-host-seed-contract.md`](../docs/plans/2026-03-20-shared-host-seed-contract.md)
+- [`docs/plans/2026-03-20-sim-scr-lane-1-runtime-migration-plan.md`](../docs/plans/2026-03-20-sim-scr-lane-1-runtime-migration-plan.md)
+- [`docs/research/2026-03-20-sim-scr-lane-1-readiness-review.md`](../docs/research/2026-03-20-sim-scr-lane-1-readiness-review.md)
 
 - [ ] SIM-SCR-LANE-1 Three-lane runtime migration and Scrapling integration.
   Execution note: this lane is now unblocked by `SIM-DEPLOY-2` and `SIM-SH-SURFACE-1-1..2`. Its reachable-surface view must derive from the minimal seed inventory plus later traversal telemetry, not from a precompiled public-surface catalog.
+  Execution order:
+  - [ ] SIM-SCR-0 Add additive desired/active lane status fields plus bounded lane-diagnostics scaffolding without changing runtime routing.
+  - [ ] SIM-SCR-1 Extend persisted control state and `POST /admin/adversary-sim/control` to support strict lane selection and desired-versus-active lane semantics.
+  - [ ] SIM-SCR-6 Route heartbeat execution through the selected lane and integrate bounded Scrapling worker execution under the shared-host scope-and-seed gate.
+  - [ ] SIM-SCR-7 Add dashboard lane controls and diagnostics after the backend contract is stable.
+  - [ ] SIM-SCR-8 Close operator workflow, truthful `make` verification targets, rollout/rollback guidance, and tranche evidence.
 
 ## P1 Enterprise Distributed-State Deployment Baseline
 

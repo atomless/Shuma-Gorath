@@ -4,6 +4,23 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-20)
 
+### SIM-SCR-LANE-1: Capture The Runtime Lane Migration Plan
+
+- [x] Write a readiness review and an active implementation plan for `SIM-SCR-LANE-1` that ground the next Scrapling tranche in the current toggle-only code truth, lock the execution order as additive contract first then control state then worker then dashboard, and break the backlog item into atomic slice TODOs.
+- [x] Why:
+  - the shared-host and production-envelope gates were both complete on 2026-03-20, so the next real risk was no longer missing prerequisites but starting the runtime-lane tranche without a precise migration contract.
+  - the code still carries legacy status fields and dashboard adapters for `lanes.{deterministic,containerized}`, which makes it easy to overreach into worker and UI work before the desired/active lane contract is explicit.
+  - capturing the lane-state migration now keeps the first implementation slice honest, preserves additive status compatibility, and gives the later Scrapling worker one stable contract to target.
+- [x] Evidence:
+  - `docs/research/2026-03-20-sim-scr-lane-1-readiness-review.md`
+  - `docs/plans/2026-03-20-sim-scr-lane-1-runtime-migration-plan.md`
+  - `docs/index.md`
+  - `docs/research/README.md`
+  - `todos/todo.md`
+  - docs-only slice: tests intentionally skipped
+  - `git diff --check`
+  - post-tranche review: no new planning shortfall was found in this docs tranche; the next optimal slice is `SIM-SCR-0`, starting with failing tests for the additive lane migration fields
+
 ### SIM-SH-SURFACE-1-2: Implement The Shared-Host Seed Contract
 
 - [x] Complete `SIM-SH-SURFACE-1-2` by landing a versioned minimal seed contract, a shared seed-inventory builder and CLI, a truthful `make build-shared-host-seed-inventory` operator workflow, a focused `make test-shared-host-seed-contract` gate, and bounded `robots.txt` ingestion that emits hint documents rather than a public-surface catalog.

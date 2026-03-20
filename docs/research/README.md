@@ -44,6 +44,8 @@ Completed archive index:
    Readiness review confirming `SIM-DEPLOY-2` could start immediately, identifying the stale lifecycle verification target as the first local prerequisite, and recommending the execution order for the production operating-envelope tranche.
 6. [`2026-03-20-sim-deploy-2-post-implementation-review.md`](2026-03-20-sim-deploy-2-post-implementation-review.md)
    Closeout review confirming the production adversary-sim operating envelope now has truthful lifecycle verification, one desired-state authority, explicit production posture and kill-switch semantics, no-impact proof, and first-class deployment/operator guidance.
+7. [`2026-03-20-sim-scr-lane-1-readiness-review.md`](2026-03-20-sim-scr-lane-1-readiness-review.md)
+   Readiness review confirming `SIM-SCR-LANE-1` can start immediately after the 2026-03-20 deploy and shared-host closeouts, and recommending additive contract migration before worker or dashboard work.
 
 ## 🐙 Gateway Deployment Research
 
