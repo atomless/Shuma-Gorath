@@ -5,10 +5,11 @@ use serde_json::Value;
 use std::collections::BTreeMap;
 
 use crate::observability::hot_read_contract::{
-    monitoring_bootstrap_component_contracts, HotReadOwnershipTier, HotReadProjectionModel,
-    TelemetryBasis, TelemetryExactness,
+    monitoring_bootstrap_component_contracts, operator_snapshot_component_contracts,
+    HotReadOwnershipTier, HotReadProjectionModel, TelemetryBasis, TelemetryExactness,
 };
 use crate::observability::monitoring::MonitoringSummary;
+use crate::observability::operator_snapshot::OperatorSnapshotHotReadPayload;
 use crate::observability::retention::RetentionHealth;
 
 const HOT_READ_PREFIX: &str = "telemetry:hot_read:v1";
@@ -18,6 +19,7 @@ const HOT_READ_SECURITY_PRIVACY_SCHEMA_VERSION: &str = "telemetry-hot-read-secur
 const HOT_READ_RECENT_EVENTS_TAIL_SCHEMA_VERSION: &str = "telemetry-hot-read-recent-events.v4";
 const HOT_READ_RECENT_SIM_RUNS_SCHEMA_VERSION: &str = "telemetry-hot-read-recent-sim-runs.v1";
 const HOT_READ_MONITORING_SUMMARY_SCHEMA_VERSION: &str = "telemetry-hot-read-summary.v1";
+const HOT_READ_OPERATOR_SNAPSHOT_SCHEMA_VERSION: &str = "telemetry-hot-read-operator-snapshot.v1";
 const HOT_READ_BOOTSTRAP_WINDOW_HOURS: u64 = 24;
 const HOT_READ_BOOTSTRAP_MAX_BYTES: usize = 64 * 1024;
 const HOT_READ_SECURITY_PRIVACY_MAX_BYTES: usize = 16 * 1024;
@@ -25,6 +27,7 @@ const HOT_READ_RETENTION_MAX_BYTES: usize = 8 * 1024;
 const HOT_READ_RECENT_EVENTS_TAIL_MAX_BYTES: usize = 32 * 1024;
 const HOT_READ_RECENT_SIM_RUNS_MAX_BYTES: usize = 8 * 1024;
 const HOT_READ_MONITORING_SUMMARY_MAX_BYTES: usize = 24 * 1024;
+const HOT_READ_OPERATOR_SNAPSHOT_MAX_BYTES: usize = 32 * 1024;
 const HOT_READ_RECENT_EVENTS_TAIL_MAX_RECORDS: usize = 40;
 const HOT_READ_RECENT_SIM_RUNS_MAX_RECORDS: usize = 12;
 const HOT_READ_MONITORING_SUMMARY_TOP_LIMIT: usize = 10;
@@ -155,6 +158,8 @@ pub(crate) type MonitoringRecentEventsTailDocument =
 pub(crate) type MonitoringRecentSimRunsDocument =
     HotReadDocumentEnvelope<MonitoringRecentSimRunsPayload>;
 pub(crate) type MonitoringSummaryHotReadDocument = HotReadDocumentEnvelope<MonitoringSummary>;
+pub(crate) type OperatorSnapshotHotReadDocument =
+    HotReadDocumentEnvelope<OperatorSnapshotHotReadPayload>;
 
 const MONITORING_BOOTSTRAP_UPDATE_TRIGGERS: [HotReadUpdateTrigger; 4] = [
     HotReadUpdateTrigger::MonitoringFlush,
@@ -291,6 +296,23 @@ const MONITORING_SUMMARY_DOCUMENT_CONTRACT: HotReadDocumentContract = HotReadDoc
     projection_model: HotReadProjectionModel::DeterministicRebuild,
 };
 
+const OPERATOR_SNAPSHOT_DOCUMENT_CONTRACT: HotReadDocumentContract = HotReadDocumentContract {
+    document_key: "telemetry:hot_read:v1:operator_snapshot:<site>",
+    schema_version: HOT_READ_OPERATOR_SNAPSHOT_SCHEMA_VERSION,
+    ownership_tier: HotReadOwnershipTier::BootstrapCritical,
+    max_serialized_bytes: HOT_READ_OPERATOR_SNAPSHOT_MAX_BYTES,
+    freshness: HotReadFreshnessBudget {
+        stale_after_seconds: 15,
+        rebuild_after_seconds: 90,
+    },
+    repair_policy: HotReadRepairPolicy {
+        rebuild_on_missing: false,
+        rebuild_on_schema_mismatch: false,
+        rebuild_on_decode_error: false,
+    },
+    projection_model: HotReadProjectionModel::DeterministicRebuild,
+};
+
 pub(crate) fn monitoring_bootstrap_document_contract() -> HotReadDocumentContract {
     MONITORING_BOOTSTRAP_DOCUMENT_CONTRACT
 }
@@ -313,6 +335,10 @@ pub(crate) fn monitoring_recent_sim_runs_document_contract() -> HotReadDocumentC
 
 pub(crate) fn monitoring_summary_document_contract() -> HotReadDocumentContract {
     MONITORING_SUMMARY_DOCUMENT_CONTRACT
+}
+
+pub(crate) fn operator_snapshot_document_contract() -> HotReadDocumentContract {
+    OPERATOR_SNAPSHOT_DOCUMENT_CONTRACT
 }
 
 pub(crate) fn monitoring_bootstrap_update_triggers() -> &'static [HotReadUpdateTrigger] {
@@ -371,10 +397,33 @@ pub(crate) fn monitoring_summary_document_key(site_id: &str) -> String {
     format!("{HOT_READ_PREFIX}:monitoring_summary:{site_id}")
 }
 
+pub(crate) fn operator_snapshot_document_key(site_id: &str) -> String {
+    format!("{HOT_READ_PREFIX}:operator_snapshot:{site_id}")
+}
+
 pub(crate) fn monitoring_hot_read_component_metadata(
     refreshed_at_ts: u64,
 ) -> BTreeMap<String, HotReadComponentMetadata> {
     monitoring_bootstrap_component_contracts()
+        .iter()
+        .map(|component| {
+            (
+                component.key.to_string(),
+                HotReadComponentMetadata {
+                    exactness: component.exactness,
+                    basis: component.basis,
+                    ownership_tier: component.ownership_tier,
+                    refreshed_at_ts,
+                },
+            )
+        })
+        .collect()
+}
+
+pub(crate) fn operator_snapshot_component_metadata(
+    refreshed_at_ts: u64,
+) -> BTreeMap<String, HotReadComponentMetadata> {
+    operator_snapshot_component_contracts()
         .iter()
         .map(|component| {
             (
@@ -396,6 +445,8 @@ mod tests {
         monitoring_bootstrap_document_contract, monitoring_bootstrap_document_key,
         monitoring_bootstrap_drill_down_only_fields, monitoring_bootstrap_update_triggers,
         monitoring_bootstrap_window_hours, monitoring_hot_read_component_metadata,
+        operator_snapshot_component_metadata, operator_snapshot_document_contract,
+        operator_snapshot_document_key,
         monitoring_recent_events_tail_document_contract, monitoring_recent_events_tail_max_records,
         monitoring_recent_events_tail_update_triggers, monitoring_recent_sim_runs_document_contract,
         monitoring_recent_sim_runs_document_key, monitoring_recent_sim_runs_max_records,
@@ -428,12 +479,14 @@ mod tests {
         let recent_events = monitoring_recent_events_tail_document_contract();
         let recent_sim_runs = monitoring_recent_sim_runs_document_contract();
         let monitoring_summary = monitoring_summary_document_contract();
+        let operator_snapshot = operator_snapshot_document_contract();
 
         assert!(retention.max_serialized_bytes < bootstrap.max_serialized_bytes);
         assert!(security_privacy.max_serialized_bytes < bootstrap.max_serialized_bytes);
         assert!(recent_events.max_serialized_bytes < bootstrap.max_serialized_bytes);
         assert!(recent_sim_runs.max_serialized_bytes < bootstrap.max_serialized_bytes);
         assert!(monitoring_summary.max_serialized_bytes < bootstrap.max_serialized_bytes);
+        assert!(operator_snapshot.max_serialized_bytes < bootstrap.max_serialized_bytes);
         assert_eq!(recent_events.freshness.stale_after_seconds, 10);
         assert_eq!(recent_sim_runs.freshness.stale_after_seconds, 10);
         assert_eq!(monitoring_summary_top_limit(), 10);
@@ -506,6 +559,38 @@ mod tests {
             object.get("exactness"),
             Some(&Value::String("exact".to_string()))
         );
+    }
+
+    #[test]
+    fn operator_snapshot_metadata_preserves_budget_distance_contract() {
+        let metadata = operator_snapshot_component_metadata(1_700_000_000);
+        assert_eq!(
+            metadata
+                .get("budget_distance")
+                .expect("budget distance metadata")
+                .exactness,
+            TelemetryExactness::Derived
+        );
+        assert_eq!(
+            metadata
+                .get("runtime_posture")
+                .expect("runtime posture metadata")
+                .ownership_tier,
+            HotReadOwnershipTier::BootstrapCritical
+        );
+    }
+
+    #[test]
+    fn operator_snapshot_contract_is_read_only_hot_read_surface() {
+        let contract = operator_snapshot_document_contract();
+        assert_eq!(contract.schema_version, "telemetry-hot-read-operator-snapshot.v1");
+        assert_eq!(
+            operator_snapshot_document_key("default"),
+            "telemetry:hot_read:v1:operator_snapshot:default"
+        );
+        assert!(!contract.repair_policy.rebuild_on_missing);
+        assert!(!contract.repair_policy.rebuild_on_schema_mismatch);
+        assert!(!contract.repair_policy.rebuild_on_decode_error);
     }
 
     #[test]

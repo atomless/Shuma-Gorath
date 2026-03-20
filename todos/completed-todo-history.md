@@ -4,6 +4,25 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-20)
 
+### OPS-SNAPSHOT-1: Land The First Machine-First Operator Snapshot Foundation Slice
+
+- [x] Complete `OPS-SNAPSHOT-1-1`, `OPS-SNAPSHOT-1-2`, `OPS-SNAPSHOT-1-4`, and `OPS-SNAPSHOT-1-6` by defining the backend-owned `operator_objectives_v1` default profile, materializing the bounded `operator_snapshot_v1` hot-read document, exposing it through a dedicated read-only `/admin/operator-snapshot` endpoint, and proving the contract with focused boundedness, exactness, and live-vs-adversary-sim tests.
+- [x] Why:
+  - the machine-first roadmap depends on one canonical operator snapshot contract before Monitoring becomes a thin projection and before later controller loops can consume truthful, bounded telemetry.
+  - the first slice needed to prove the new contract could sit above existing monitoring summaries without sneaking old bootstrap write-on-read behavior into the agent-facing path.
+  - landing the default objective profile, budget-distance rows, and read-only endpoint now gives the project a real backend contract to build on while leaving recent-change and allowed-action work for the next slice.
+- [x] Evidence:
+  - `src/observability/operator_snapshot.rs`
+  - `src/observability/hot_read_contract.rs`
+  - `src/observability/hot_read_documents.rs`
+  - `src/observability/hot_read_projection.rs`
+  - `src/admin/api.rs`
+  - `docs/api.md`
+  - `todos/todo.md`
+  - `make test-operator-snapshot-foundation`
+  - `make test-monitoring-telemetry-foundation-unit`
+  - `git diff --check`
+
 ### Benchmark Suite v1: Capture The First Benchmark Families And Contract Direction
 
 - [x] Complete the next planning tranche for `OPS-BENCH-1` by researching and documenting the first benchmark families Shuma should use to judge bot-cost asymmetry, likely-human friction, representative adversary effectiveness, and beneficial non-human posture, then wire that benchmark contract direction into the roadmap, machine-first snapshot plan, and active or blocked backlog.

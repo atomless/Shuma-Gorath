@@ -14,13 +14,19 @@ use crate::observability::hot_read_documents::{
     monitoring_retention_summary_document_contract, monitoring_retention_summary_document_key,
     monitoring_security_privacy_summary_document_contract,
     monitoring_security_privacy_summary_document_key, monitoring_summary_document_contract,
-    monitoring_summary_document_key, monitoring_summary_top_limit, HotReadDocumentEnvelope,
-    HotReadDocumentMetadata, HotReadUpdateTrigger, MonitoringBootstrapAnalyticsSummary,
-    MonitoringBootstrapHotReadDocument, MonitoringBootstrapHotReadPayload,
-    MonitoringRecentEventsTailDocument, MonitoringRecentEventsTailPayload,
-    MonitoringRecentSimRunsDocument, MonitoringRecentSimRunsPayload,
-    MonitoringRetentionSummaryDocument, MonitoringSecurityPrivacySummaryDocument,
-    MonitoringSummaryHotReadDocument, MonitoringRecentEventsWindowSummary,
+    monitoring_summary_document_key, monitoring_summary_top_limit,
+    operator_snapshot_document_contract, operator_snapshot_document_key,
+    HotReadDocumentEnvelope, HotReadDocumentMetadata, HotReadUpdateTrigger,
+    MonitoringBootstrapAnalyticsSummary, MonitoringBootstrapHotReadDocument,
+    MonitoringBootstrapHotReadPayload, MonitoringRecentEventsTailDocument,
+    MonitoringRecentEventsTailPayload, MonitoringRecentSimRunsDocument,
+    MonitoringRecentSimRunsPayload, MonitoringRecentSimRunSummary,
+    MonitoringRecentEventsWindowSummary, MonitoringRetentionSummaryDocument,
+    MonitoringSecurityPrivacySummaryDocument, MonitoringSummaryHotReadDocument,
+    OperatorSnapshotHotReadDocument,
+};
+use crate::observability::operator_snapshot::{
+    build_operator_snapshot_payload, OperatorSnapshotRecentSimRun,
 };
 
 fn write_document<S, T>(store: &S, key: String, document: &HotReadDocumentEnvelope<T>) -> Result<(), ()>
@@ -179,6 +185,63 @@ fn build_recent_sim_runs_document<S: KeyValueStore>(
     }
 }
 
+fn operator_snapshot_recent_sim_run(
+    run: &MonitoringRecentSimRunSummary,
+) -> OperatorSnapshotRecentSimRun {
+    OperatorSnapshotRecentSimRun {
+        run_id: run.run_id.clone(),
+        lane: run.lane.clone(),
+        profile: run.profile.clone(),
+        first_ts: run.first_ts,
+        last_ts: run.last_ts,
+        monitoring_event_count: run.monitoring_event_count,
+        defense_delta_count: run.defense_delta_count,
+        ban_outcome_count: run.ban_outcome_count,
+    }
+}
+
+fn build_operator_snapshot_document<S: KeyValueStore>(
+    store: &S,
+    site_id: &str,
+    generated_at_ts: u64,
+    trigger: HotReadUpdateTrigger,
+) -> OperatorSnapshotHotReadDocument {
+    let contract = operator_snapshot_document_contract();
+    let summary_contract = monitoring_summary_document_contract();
+    let summary = read_document(
+        store,
+        monitoring_summary_document_key(site_id),
+        summary_contract.schema_version,
+    )
+    .unwrap_or_else(|| build_monitoring_summary_document(store, site_id, generated_at_ts, trigger));
+    let recent_sim_runs_contract = monitoring_recent_sim_runs_document_contract();
+    let recent_sim_runs = read_document(
+        store,
+        monitoring_recent_sim_runs_document_key(site_id),
+        recent_sim_runs_contract.schema_version,
+    )
+    .unwrap_or_else(|| build_recent_sim_runs_document(store, site_id, generated_at_ts, trigger));
+    let recent_runs: Vec<_> = recent_sim_runs
+        .payload
+        .recent_sim_runs
+        .iter()
+        .map(operator_snapshot_recent_sim_run)
+        .collect();
+
+    HotReadDocumentEnvelope {
+        metadata: document_metadata(contract.schema_version, site_id, generated_at_ts, trigger),
+        payload: build_operator_snapshot_payload(
+            store,
+            site_id,
+            generated_at_ts,
+            &summary.payload,
+            recent_runs.as_slice(),
+            summary.metadata.generated_at_ts,
+            recent_sim_runs.metadata.generated_at_ts,
+        ),
+    }
+}
+
 fn ensure_retention_summary_document<S: KeyValueStore>(
     store: &S,
     site_id: &str,
@@ -329,6 +392,18 @@ pub(crate) fn load_monitoring_security_privacy_summary_hot_read<S: KeyValueStore
     ensure_security_privacy_summary_document(store, site_id, generated_at_ts)
 }
 
+pub(crate) fn load_operator_snapshot_hot_read<S: KeyValueStore>(
+    store: &S,
+    site_id: &str,
+) -> Option<OperatorSnapshotHotReadDocument> {
+    let contract = operator_snapshot_document_contract();
+    read_document(
+        store,
+        operator_snapshot_document_key(site_id),
+        contract.schema_version,
+    )
+}
+
 fn rebuild_bootstrap_document<S: KeyValueStore>(
     store: &S,
     site_id: &str,
@@ -401,6 +476,22 @@ fn write_bootstrap_document<S: KeyValueStore>(
     }
 }
 
+fn write_operator_snapshot_document<S: KeyValueStore>(
+    store: &S,
+    site_id: &str,
+    generated_at_ts: u64,
+    trigger: HotReadUpdateTrigger,
+) {
+    let key = operator_snapshot_document_key(site_id);
+    let document = build_operator_snapshot_document(store, site_id, generated_at_ts, trigger);
+    if let Err(err) = write_document(store, key, &document) {
+        eprintln!(
+            "[telemetry-hot-read] failed writing operator snapshot site={} trigger={:?} error={:?}",
+            site_id, trigger, err
+        );
+    }
+}
+
 pub(crate) fn refresh_after_counter_flush<S: KeyValueStore>(store: &S, site_id: &str) {
     let now = crate::admin::now_ts();
     let summary_key = monitoring_summary_document_key(site_id);
@@ -429,6 +520,7 @@ pub(crate) fn refresh_after_counter_flush<S: KeyValueStore>(store: &S, site_id: 
             site_id
         );
     }
+    write_operator_snapshot_document(store, site_id, now, HotReadUpdateTrigger::MonitoringFlush);
     write_bootstrap_document(store, site_id, now, HotReadUpdateTrigger::MonitoringFlush);
 }
 
@@ -452,6 +544,7 @@ pub(crate) fn refresh_after_event_append<S: KeyValueStore>(store: &S, site_id: &
             site_id
         );
     }
+    write_operator_snapshot_document(store, site_id, now, HotReadUpdateTrigger::EventAppend);
     write_bootstrap_document(store, site_id, now, HotReadUpdateTrigger::EventAppend);
 }
 
@@ -487,6 +580,7 @@ pub(crate) fn refresh_after_admin_mutation<S: KeyValueStore>(store: &S, site_id:
         HotReadUpdateTrigger::AdminMutation,
     );
     let _ = write_document(store, security_privacy_key, &security_privacy);
+    write_operator_snapshot_document(store, site_id, now, HotReadUpdateTrigger::AdminMutation);
     write_bootstrap_document(store, site_id, now, HotReadUpdateTrigger::AdminMutation);
 }
 
@@ -495,6 +589,7 @@ mod tests {
     use super::{
         monitoring_bootstrap_document_key, monitoring_recent_events_tail_document_key,
         monitoring_recent_sim_runs_document_key,
+        operator_snapshot_document_key,
         monitoring_retention_summary_document_key,
         monitoring_security_privacy_summary_document_key, monitoring_summary_document_key,
         read_document, refresh_after_admin_mutation, refresh_after_counter_flush,
@@ -771,6 +866,145 @@ mod tests {
             crate::observability::hot_read_documents::monitoring_bootstrap_document_contract()
                 .max_serialized_bytes
         );
+    }
+
+    #[test]
+    fn counter_flush_refresh_operator_snapshot_document_includes_budget_distance() {
+        let store = MockStore::new();
+        crate::observability::monitoring::record_request_outcome(
+            &store,
+            &crate::runtime::request_outcome::RenderedRequestOutcome {
+                traffic_origin: crate::runtime::request_outcome::TrafficOrigin::Live,
+                measurement_scope:
+                    crate::runtime::traffic_classification::MeasurementScope::IngressPrimary,
+                route_action_family:
+                    crate::runtime::traffic_classification::RouteActionFamily::PublicContent,
+                execution_mode: crate::runtime::effect_intents::ExecutionMode::Enforced,
+                traffic_lane: Some(crate::runtime::request_outcome::RequestOutcomeLane {
+                    lane: crate::runtime::traffic_classification::TrafficLane::LikelyHuman,
+                    exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
+                    basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
+                }),
+                outcome_class:
+                    crate::runtime::request_outcome::RequestOutcomeClass::ShortCircuited,
+                response_kind: crate::runtime::request_outcome::ResponseKind::NotABot,
+                http_status: 200,
+                response_bytes: 45,
+                forward_attempted: false,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source:
+                    crate::runtime::traffic_classification::PolicySource::PolicyGraphSecondTranche,
+            },
+        );
+        refresh_after_counter_flush(&store, "default");
+
+        let snapshot = read_document::<
+            _,
+            crate::observability::operator_snapshot::OperatorSnapshotHotReadPayload,
+        >(
+            &store,
+            operator_snapshot_document_key("default"),
+            crate::observability::hot_read_documents::operator_snapshot_document_contract()
+                .schema_version,
+        )
+        .expect("operator snapshot document");
+        assert_eq!(snapshot.payload.schema_version, "operator_snapshot_v1");
+        assert_eq!(snapshot.payload.objectives.profile_id, "backend_default_v1");
+        assert!(
+            snapshot
+                .payload
+                .budget_distance
+                .rows
+                .iter()
+                .any(|row| row.metric == "likely_human_friction_rate")
+        );
+        assert_eq!(
+            snapshot.payload.recent_changes.availability.as_str(),
+            "not_yet_materialized"
+        );
+    }
+
+    #[test]
+    fn counter_flush_refresh_operator_snapshot_document_stays_within_budget_and_separates_live_from_sim(
+    ) {
+        let store = MockStore::new();
+        crate::observability::monitoring::record_request_outcome(
+            &store,
+            &crate::runtime::request_outcome::RenderedRequestOutcome {
+                traffic_origin: crate::runtime::request_outcome::TrafficOrigin::Live,
+                measurement_scope:
+                    crate::runtime::traffic_classification::MeasurementScope::IngressPrimary,
+                route_action_family:
+                    crate::runtime::traffic_classification::RouteActionFamily::PublicContent,
+                execution_mode: crate::runtime::effect_intents::ExecutionMode::Enforced,
+                traffic_lane: Some(crate::runtime::request_outcome::RequestOutcomeLane {
+                    lane: crate::runtime::traffic_classification::TrafficLane::LikelyHuman,
+                    exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
+                    basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
+                }),
+                outcome_class:
+                    crate::runtime::request_outcome::RequestOutcomeClass::ShortCircuited,
+                response_kind: crate::runtime::request_outcome::ResponseKind::NotABot,
+                http_status: 200,
+                response_bytes: 45,
+                forward_attempted: false,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source:
+                    crate::runtime::traffic_classification::PolicySource::PolicyGraphSecondTranche,
+            },
+        );
+        crate::observability::monitoring::record_request_outcome(
+            &store,
+            &crate::runtime::request_outcome::RenderedRequestOutcome {
+                traffic_origin: crate::runtime::request_outcome::TrafficOrigin::AdversarySim,
+                measurement_scope:
+                    crate::runtime::traffic_classification::MeasurementScope::IngressPrimary,
+                route_action_family:
+                    crate::runtime::traffic_classification::RouteActionFamily::PublicContent,
+                execution_mode: crate::runtime::effect_intents::ExecutionMode::Enforced,
+                traffic_lane: Some(crate::runtime::request_outcome::RequestOutcomeLane {
+                    lane: crate::runtime::traffic_classification::TrafficLane::SuspiciousAutomation,
+                    exactness: crate::observability::hot_read_contract::TelemetryExactness::Derived,
+                    basis: crate::observability::hot_read_contract::TelemetryBasis::Mixed,
+                }),
+                outcome_class: crate::runtime::request_outcome::RequestOutcomeClass::Forwarded,
+                response_kind: crate::runtime::request_outcome::ResponseKind::ForwardAllow,
+                http_status: 200,
+                response_bytes: 256,
+                forward_attempted: true,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: crate::runtime::traffic_classification::PolicySource::CleanAllow,
+            },
+        );
+        refresh_after_counter_flush(&store, "default");
+
+        let snapshot = read_document::<
+            _,
+            crate::observability::operator_snapshot::OperatorSnapshotHotReadPayload,
+        >(
+            &store,
+            operator_snapshot_document_key("default"),
+            crate::observability::hot_read_documents::operator_snapshot_document_contract()
+                .schema_version,
+        )
+        .expect("operator snapshot document");
+        let serialized = serde_json::to_vec(&snapshot).expect("operator snapshot serializes");
+        assert!(
+            serialized.len()
+                <= crate::observability::hot_read_documents::operator_snapshot_document_contract()
+                    .max_serialized_bytes,
+            "operator snapshot size {} exceeded max {}",
+            serialized.len(),
+            crate::observability::hot_read_documents::operator_snapshot_document_contract()
+                .max_serialized_bytes
+        );
+        assert_eq!(snapshot.payload.live_traffic.traffic_origin, "live");
+        assert_eq!(snapshot.payload.live_traffic.total_requests, 1);
+        assert_eq!(snapshot.payload.adversary_sim.traffic_origin, "adversary_sim");
+        assert_eq!(snapshot.payload.adversary_sim.total_requests, 1);
     }
 
     #[test]

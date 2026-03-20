@@ -129,6 +129,90 @@ const MONITORING_BOOTSTRAP_COMPONENTS: [HotReadComponentContract; 7] = [
     },
 ];
 
+const OPERATOR_SNAPSHOT_COMPONENTS: [HotReadComponentContract; 9] = [
+    HotReadComponentContract {
+        key: "objectives",
+        exactness: TelemetryExactness::Derived,
+        basis: TelemetryBasis::Policy,
+        ownership_tier: HotReadOwnershipTier::BootstrapCritical,
+        canonical_source: HotReadCanonicalSource::DirectStateSnapshot,
+        projection_model: HotReadProjectionModel::DeterministicRebuild,
+        note: "Current objective profile is a backend-owned default contract until a writable objective surface lands.",
+    },
+    HotReadComponentContract {
+        key: "live_traffic",
+        exactness: TelemetryExactness::BestEffort,
+        basis: TelemetryBasis::Mixed,
+        ownership_tier: HotReadOwnershipTier::BootstrapCritical,
+        canonical_source: HotReadCanonicalSource::MutableCounter,
+        projection_model: HotReadProjectionModel::DeterministicRebuild,
+        note: "Live-traffic summary is currently derived from bounded monitoring counters and request-outcome summaries.",
+    },
+    HotReadComponentContract {
+        key: "shadow_mode",
+        exactness: TelemetryExactness::Derived,
+        basis: TelemetryBasis::Mixed,
+        ownership_tier: HotReadOwnershipTier::BootstrapCritical,
+        canonical_source: HotReadCanonicalSource::MutableCounter,
+        projection_model: HotReadProjectionModel::DeterministicRebuild,
+        note: "Shadow section combines runtime posture and shadow-action counters into one bounded snapshot view.",
+    },
+    HotReadComponentContract {
+        key: "adversary_sim",
+        exactness: TelemetryExactness::BestEffort,
+        basis: TelemetryBasis::Observed,
+        ownership_tier: HotReadOwnershipTier::BootstrapCritical,
+        canonical_source: HotReadCanonicalSource::ImmutableEventLog,
+        projection_model: HotReadProjectionModel::DeterministicRebuild,
+        note: "Adversary-sim section uses bounded recent-run summaries and request-outcome aggregates while remaining separate from live ingress.",
+    },
+    HotReadComponentContract {
+        key: "runtime_posture",
+        exactness: TelemetryExactness::Exact,
+        basis: TelemetryBasis::Policy,
+        ownership_tier: HotReadOwnershipTier::BootstrapCritical,
+        canonical_source: HotReadCanonicalSource::DirectStateSnapshot,
+        projection_model: HotReadProjectionModel::DeterministicRebuild,
+        note: "Runtime posture is read directly from current config and runtime environment state.",
+    },
+    HotReadComponentContract {
+        key: "budget_distance",
+        exactness: TelemetryExactness::Derived,
+        basis: TelemetryBasis::Mixed,
+        ownership_tier: HotReadOwnershipTier::BootstrapCritical,
+        canonical_source: HotReadCanonicalSource::MutableCounter,
+        projection_model: HotReadProjectionModel::DeterministicRebuild,
+        note: "Budget-distance rows are derived from bounded summaries and backend-owned objective budgets rather than raw counters alone.",
+    },
+    HotReadComponentContract {
+        key: "recent_changes",
+        exactness: TelemetryExactness::BestEffort,
+        basis: TelemetryBasis::Residual,
+        ownership_tier: HotReadOwnershipTier::SupportingSummary,
+        canonical_source: HotReadCanonicalSource::DirectStateSnapshot,
+        projection_model: HotReadProjectionModel::DeterministicRebuild,
+        note: "Recent-change ledger is not yet materialized and currently exposes a placeholder availability contract only.",
+    },
+    HotReadComponentContract {
+        key: "allowed_actions",
+        exactness: TelemetryExactness::Derived,
+        basis: TelemetryBasis::Policy,
+        ownership_tier: HotReadOwnershipTier::SupportingSummary,
+        canonical_source: HotReadCanonicalSource::DirectStateSnapshot,
+        projection_model: HotReadProjectionModel::DeterministicRebuild,
+        note: "Allowed-actions surface is not yet materialized and currently exposes a placeholder availability contract only.",
+    },
+    HotReadComponentContract {
+        key: "verified_identity",
+        exactness: TelemetryExactness::Derived,
+        basis: TelemetryBasis::Verified,
+        ownership_tier: HotReadOwnershipTier::SupportingSummary,
+        canonical_source: HotReadCanonicalSource::DirectStateSnapshot,
+        projection_model: HotReadProjectionModel::DeterministicRebuild,
+        note: "Verified-identity summaries are not yet supported and currently expose a placeholder capability contract only.",
+    },
+];
+
 const CURRENT_PROJECTION_CONTRACT: HotReadProjectionContract = HotReadProjectionContract {
     shared_read_modify_write_forbidden: true,
     sqlite_split_forbidden: true,
@@ -139,6 +223,10 @@ pub(crate) fn monitoring_bootstrap_component_contracts() -> &'static [HotReadCom
     &MONITORING_BOOTSTRAP_COMPONENTS
 }
 
+pub(crate) fn operator_snapshot_component_contracts() -> &'static [HotReadComponentContract] {
+    &OPERATOR_SNAPSHOT_COMPONENTS
+}
+
 pub(crate) fn current_hot_read_projection_contract() -> HotReadProjectionContract {
     CURRENT_PROJECTION_CONTRACT
 }
@@ -147,6 +235,7 @@ pub(crate) fn current_hot_read_projection_contract() -> HotReadProjectionContrac
 mod tests {
     use super::{
         current_hot_read_projection_contract, monitoring_bootstrap_component_contracts,
+        operator_snapshot_component_contracts,
         HotReadCanonicalSource, HotReadComponentContract, HotReadOwnershipTier,
         HotReadProjectionModel, TelemetryBasis, TelemetryExactness,
     };
@@ -241,5 +330,17 @@ mod tests {
             object.get("ownership_tier"),
             Some(&Value::String("supporting_summary".to_string()))
         );
+    }
+
+    #[test]
+    fn operator_snapshot_contracts_include_budget_distance_and_runtime_posture() {
+        let keys: Vec<_> = operator_snapshot_component_contracts()
+            .iter()
+            .map(|component| component.key)
+            .collect();
+        assert!(keys.contains(&"objectives"));
+        assert!(keys.contains(&"live_traffic"));
+        assert!(keys.contains(&"budget_distance"));
+        assert!(keys.contains(&"runtime_posture"));
     }
 }

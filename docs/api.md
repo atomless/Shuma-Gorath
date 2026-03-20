@@ -149,6 +149,7 @@ When `SHUMA_DEBUG_HEADERS=true`, the health response includes:
 - `GET /admin/analytics` - Ban/event statistics
 - `GET /admin/events?hours=N` - Recent events + summary stats (simulation rows are included when present and tagged per row). Default view is pseudonymized; forensic raw view requires `forensic=1&forensic_ack=I_UNDERSTAND_FORENSIC`.
 - `GET /admin/cdp/events?hours=N&limit=M` - <abbr title="Chrome DevTools Protocol">CDP</abbr>-only detections/auto-bans (time-windowed, limit configurable). Default view is pseudonymized; forensic raw view requires `forensic=1&forensic_ack=I_UNDERSTAND_FORENSIC`.
+- `GET /admin/operator-snapshot` - Read-only machine-first `operator_snapshot_v1` contract for later controller loops and Monitoring projection work. Returns bounded objectives, live-vs-shadow-vs-adversary-sim sections, budget-distance rows, and section metadata. This endpoint does not repair or rebuild documents on read; if the hot-read document has not been materialized yet it returns `503` with `error=operator_snapshot_not_materialized`.
 - `GET /admin/monitoring?hours=N&limit=M` - Consolidated monitoring summaries plus dashboard-native detail payload for Monitoring tab refreshes. Default view is pseudonymized; forensic raw view requires `forensic=1&forensic_ack=I_UNDERSTAND_FORENSIC`.
 - `GET /admin/monitoring/delta?after_cursor=...&limit=N&hours=M` - Cursor-ordered monitoring event deltas (`next_cursor`, `has_more`, `overflow`) with `ETag`/`If-None-Match` support and freshness/load-envelope metadata. Default view is pseudonymized; forensic raw view requires `forensic=1&forensic_ack=I_UNDERSTAND_FORENSIC`.
 - `GET /admin/monitoring/stream?after_cursor=...&limit=N&hours=M` - One-shot <abbr title="Server-Sent Events">SSE</abbr> monitoring delta (`text/event-stream`) with `Last-Event-ID` resume using the same cursor namespace. Default view is pseudonymized; forensic raw view requires `forensic=1&forensic_ack=I_UNDERSTAND_FORENSIC`.
@@ -177,7 +178,7 @@ When `SHUMA_DEBUG_HEADERS=true`, the health response includes:
 
 `GET /admin/session` includes `access` as `read_only`, `read_write`, or `none`.
 
-Expensive admin read endpoints (`/admin/events`, `/admin/cdp/events`, `/admin/monitoring`, `/admin/monitoring/delta`, `/admin/monitoring/stream`, `/admin/ip-bans/delta`, `/admin/ip-bans/stream`, `/admin/ip-range/suggestions`, `/admin/ban` `GET`) are rate-limited to reduce <abbr title="Key-Value">KV</abbr>/<abbr title="Central Processing Unit">CPU</abbr> abuse amplification (`429` with `Retry-After: 60` when limited).
+Expensive admin read endpoints (`/admin/events`, `/admin/cdp/events`, `/admin/operator-snapshot`, `/admin/monitoring`, `/admin/monitoring/delta`, `/admin/monitoring/stream`, `/admin/ip-bans/delta`, `/admin/ip-bans/stream`, `/admin/ip-range/suggestions`, `/admin/ban` `GET`) are rate-limited to reduce <abbr title="Key-Value">KV</abbr>/<abbr title="Central Processing Unit">CPU</abbr> abuse amplification (`429` with `Retry-After: 60` when limited).
 
 Simulation telemetry uses per-row metadata tags (`sim_run_id`, `sim_profile`, `sim_lane`, `is_simulation`) rather than read-time query toggles.
 Deprecated simulation-namespace config keys are rejected on write (`sim_telemetry_namespace` and related unknown namespace-era fields).

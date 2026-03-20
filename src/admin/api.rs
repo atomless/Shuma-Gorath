@@ -1878,6 +1878,77 @@ mod tests {
     }
 
     #[test]
+    fn handle_admin_operator_snapshot_returns_machine_first_snapshot_contract() {
+        let store = MockStore::new();
+        crate::observability::monitoring::record_request_outcome(
+            &store,
+            &crate::runtime::request_outcome::RenderedRequestOutcome {
+                traffic_origin: crate::runtime::request_outcome::TrafficOrigin::Live,
+                measurement_scope:
+                    crate::runtime::traffic_classification::MeasurementScope::IngressPrimary,
+                route_action_family:
+                    crate::runtime::traffic_classification::RouteActionFamily::PublicContent,
+                execution_mode: crate::runtime::effect_intents::ExecutionMode::Enforced,
+                traffic_lane: Some(crate::runtime::request_outcome::RequestOutcomeLane {
+                    lane: crate::runtime::traffic_classification::TrafficLane::LikelyHuman,
+                    exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
+                    basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
+                }),
+                outcome_class:
+                    crate::runtime::request_outcome::RequestOutcomeClass::ShortCircuited,
+                response_kind: crate::runtime::request_outcome::ResponseKind::NotABot,
+                http_status: 200,
+                response_bytes: 45,
+                forward_attempted: false,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source:
+                    crate::runtime::traffic_classification::PolicySource::PolicyGraphSecondTranche,
+            },
+        );
+        crate::observability::hot_read_projection::refresh_after_counter_flush(&store, "default");
+
+        let mut builder = Request::builder();
+        builder
+            .method(Method::Get)
+            .uri("/admin/operator-snapshot")
+            .header("host", "localhost:3000")
+            .header("authorization", "Bearer changeme-dev-only-api-key")
+            .header("origin", "http://localhost:3000")
+            .header("sec-fetch-site", "same-origin")
+            .body(Vec::new());
+        let req = builder.build();
+        let resp = handle_admin_operator_snapshot(&req, &store);
+        assert_eq!(*resp.status(), 200u16);
+        let payload: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+
+        assert_eq!(
+            payload
+                .get("schema_version")
+                .and_then(|value| value.as_str()),
+            Some("operator_snapshot_v1")
+        );
+        assert_eq!(
+            payload
+                .get("objectives")
+                .and_then(|value| value.get("profile_id"))
+                .and_then(|value| value.as_str()),
+            Some("backend_default_v1")
+        );
+        assert!(
+            payload
+                .get("budget_distance")
+                .and_then(|value| value.get("rows"))
+                .and_then(|value| value.as_array())
+                .map(|rows| rows.iter().any(|row| {
+                    row.get("metric").and_then(|value| value.as_str())
+                        == Some("likely_human_friction_rate")
+                }))
+                .unwrap_or(false)
+        );
+    }
+
+    #[test]
     fn handle_admin_monitoring_delta_keeps_freshness_anchor_when_page_is_empty() {
         let store = MockStore::new();
         let now = now_ts();
@@ -5417,6 +5488,7 @@ mod admin_config_tests {
         assert!(sanitize_path("/admin/maze/preview"));
         assert!(sanitize_path("/admin/tarpit/preview"));
         assert!(sanitize_path("/admin/ip-range/suggestions"));
+        assert!(sanitize_path("/admin/operator-snapshot"));
         assert!(sanitize_path("/admin/monitoring/stream"));
         assert!(sanitize_path("/admin/ip-bans/stream"));
         assert!(sanitize_path("/admin/adversary-sim/history/cleanup"));
@@ -8327,6 +8399,10 @@ mod admin_auth_tests {
             "/admin/monitoring",
             &Method::Post
         ));
+        assert!(!request_requires_admin_write(
+            "/admin/operator-snapshot",
+            &Method::Get
+        ));
         assert!(!request_requires_admin_write("/admin/config", &Method::Get));
         assert!(!request_requires_admin_write(
             "/admin/config/bootstrap",
@@ -8387,6 +8463,7 @@ fn sanitize_path(path: &str) -> bool {
             | "/admin/unban"
             | "/admin/analytics"
             | "/admin/events"
+            | "/admin/operator-snapshot"
             | "/admin/config"
             | "/admin/config/bootstrap"
             | "/admin/config/validate"
@@ -15202,6 +15279,40 @@ fn monitoring_prometheus_helper_payload() -> serde_json::Value {
     })
 }
 
+fn handle_admin_operator_snapshot<S>(_req: &Request, store: &S) -> Response
+where
+    S: crate::challenge::KeyValueStore,
+{
+    match crate::observability::hot_read_projection::load_operator_snapshot_hot_read(
+        store, "default",
+    ) {
+        Some(snapshot) => {
+            let body =
+                serde_json::to_string(&snapshot.payload).unwrap_or_else(|_| "{}".to_string());
+            Response::builder()
+                .status(200)
+                .header("Content-Type", "application/json")
+                .header("Cache-Control", "no-store")
+                .body(body)
+                .build()
+        }
+        None => {
+            let body = serde_json::to_string(&json!({
+                "schema_version": crate::observability::operator_snapshot::OPERATOR_SNAPSHOT_SCHEMA_VERSION,
+                "error": "operator_snapshot_not_materialized",
+                "message": "Operator snapshot is not materialized yet. Wait for the next telemetry refresh cycle."
+            }))
+            .unwrap_or_else(|_| "{}".to_string());
+            Response::builder()
+                .status(503)
+                .header("Content-Type", "application/json")
+                .header("Cache-Control", "no-store")
+                .body(body)
+                .build()
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct AdminAdversarySimControlRequest {
@@ -16289,6 +16400,7 @@ pub fn handle_internal(req: &Request) -> Response {
 ///   - GET /admin/analytics: Return ban count and shadow_mode status
 ///   - GET /admin/events: Query event log
 ///   - GET /admin/cdp/events: Query CDP-only events
+///   - GET /admin/operator-snapshot: Query the machine-first operator snapshot contract
 ///   - GET /admin/monitoring: Query consolidated monitoring telemetry summaries
 ///   - GET /admin/monitoring/delta: Cursor-based monitoring event deltas (`after_cursor`, `limit`, `next_cursor`)
 ///   - GET /admin/monitoring/stream: One-shot SSE cursor delta (`Last-Event-ID` resume supported)
@@ -16504,6 +16616,12 @@ pub fn handle_admin(req: &Request) -> Response {
             }))
             .unwrap();
             Response::new(200, body)
+        }
+        "/admin/operator-snapshot" => {
+            if expensive_admin_read_is_limited(&store, req, &auth, provider_registry.as_ref()) {
+                return too_many_admin_read_requests_response();
+            }
+            handle_admin_operator_snapshot(req, &store)
         }
         "/admin/monitoring" => {
             if dashboard_refresh_is_limited(&store, &auth, provider_registry.as_ref())
@@ -16747,7 +16865,7 @@ pub fn handle_admin(req: &Request) -> Response {
                     admin: Some(crate::admin::auth::get_admin_id(req)),
                 },
             );
-            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/monitoring, /admin/monitoring/delta, /admin/monitoring/stream, /admin/ip-bans/delta, /admin/ip-bans/stream, /admin/ip-range/suggestions, /admin/config, /admin/config/bootstrap, /admin/config/validate, /admin/config/export, /admin/adversary-sim/control, /admin/adversary-sim/status, /admin/adversary-sim/history/cleanup, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/tarpit/preview (GET non-operational progressive tarpit preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/robots/preview (POST unsaved robots preview patch), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
+            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/operator-snapshot, /admin/monitoring, /admin/monitoring/delta, /admin/monitoring/stream, /admin/ip-bans/delta, /admin/ip-bans/stream, /admin/ip-range/suggestions, /admin/config, /admin/config/bootstrap, /admin/config/validate, /admin/config/export, /admin/adversary-sim/control, /admin/adversary-sim/status, /admin/adversary-sim/history/cleanup, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/tarpit/preview (GET non-operational progressive tarpit preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/robots/preview (POST unsaved robots preview patch), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
         }
         "/admin/maze" => {
             // Return maze statistics
