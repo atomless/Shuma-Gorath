@@ -54,6 +54,7 @@
   export let data;
   const TAB_LOADING_MESSAGES = Object.freeze({
     monitoring: 'Loading monitoring data...',
+    diagnostics: 'Loading diagnostics...',
     'ip-bans': 'Loading ban list...',
     status: 'Loading status signals...',
     'red-team': 'Loading red team controls...',
@@ -67,7 +68,7 @@
     tuning: 'Loading tuning values...'
   });
   const AUTO_REFRESH_INTERVAL_MS = 1000;
-  const AUTO_REFRESH_TABS = new Set(['monitoring', 'ip-bans', 'red-team']);
+  const AUTO_REFRESH_TABS = new Set(['diagnostics', 'ip-bans', 'red-team']);
   const AUTO_REFRESH_PREF_KEY = 'shuma_dashboard_auto_refresh_v1';
   const DASHBOARD_LOADED_CLASS = 'dashboard-loaded';
   const ACTIVE_DIRTY_CONFIG_SAVE_BAR_SELECTOR =
@@ -113,6 +114,7 @@
   let VerificationTabComponent = null;
   let TrapsTabComponent = null;
   let AdvancedTabComponent = null;
+  let DiagnosticsTabComponent = null;
   let RateLimitingTabComponent = null;
   let GeoTabComponent = null;
   let FingerprintingTabComponent = null;
@@ -560,8 +562,8 @@
       }
     },
     onControlAccepted: () => {
-      if (activeTabKey === 'monitoring' && autoRefreshEnabled === true) {
-        void routeController.refreshTab('monitoring', 'auto-refresh');
+      if (activeTabKey === 'diagnostics' && autoRefreshEnabled === true) {
+        void routeController.refreshTab('diagnostics', 'auto-refresh');
       }
     },
     onError: (message) => {
@@ -600,6 +602,7 @@
         { default: loadedVerificationTab },
         { default: loadedTrapsTab },
         { default: loadedAdvancedTab },
+        { default: loadedDiagnosticsTab },
         { default: loadedRateLimitingTab },
         { default: loadedGeoTab },
         { default: loadedFingerprintingTab },
@@ -612,6 +615,7 @@
         import('$lib/components/dashboard/VerificationTab.svelte'),
         import('$lib/components/dashboard/TrapsTab.svelte'),
         import('$lib/components/dashboard/AdvancedTab.svelte'),
+        import('$lib/components/dashboard/DiagnosticsTab.svelte'),
         import('$lib/components/dashboard/RateLimitingTab.svelte'),
         import('$lib/components/dashboard/GeoTab.svelte'),
         import('$lib/components/dashboard/FingerprintingTab.svelte'),
@@ -624,6 +628,7 @@
       VerificationTabComponent = loadedVerificationTab;
       TrapsTabComponent = loadedTrapsTab;
       AdvancedTabComponent = loadedAdvancedTab;
+      DiagnosticsTabComponent = loadedDiagnosticsTab;
       RateLimitingTabComponent = loadedRateLimitingTab;
       GeoTabComponent = loadedGeoTab;
       FingerprintingTabComponent = loadedFingerprintingTab;
@@ -961,9 +966,9 @@
       ? { ...options }
       : {};
     requestOptions.telemetry = {
-      tab: 'monitoring',
+      tab: 'diagnostics',
       reason: 'range-fetch',
-      source: 'monitoring-range',
+      source: 'diagnostics-range',
       ...(requestOptions.telemetry && typeof requestOptions.telemetry === 'object'
         ? requestOptions.telemetry
         : {})
@@ -1117,19 +1122,7 @@
   <MonitoringTab
     managed={true}
     isActive={activeTabKey === 'monitoring'}
-    autoRefreshEnabled={autoRefreshEnabled}
     tabStatus={tabStatus.monitoring || {}}
-    analyticsSnapshot={snapshots.analytics}
-    eventsSnapshot={snapshots.events}
-    bansSnapshot={snapshots.bans}
-    mazeSnapshot={snapshots.maze}
-    cdpSnapshot={snapshots.cdp}
-    cdpEventsSnapshot={snapshots.cdpEvents}
-    monitoringSnapshot={snapshots.monitoring}
-    monitoringFreshnessSnapshot={snapshots.monitoringFreshness}
-    ipBansFreshnessSnapshot={snapshots.ipBansFreshness}
-    configSnapshot={snapshots.config}
-    onFetchEventsRange={onFetchEventsRange}
   />
 
   <div
@@ -1426,6 +1419,37 @@
           aria-hidden={activeTabKey === 'advanced' ? 'false' : 'true'}
         >
           <p class="message info">Loading advanced controls...</p>
+        </section>
+      {/if}
+      {#if DiagnosticsTabComponent}
+        <svelte:component
+          this={DiagnosticsTabComponent}
+          managed={true}
+          isActive={activeTabKey === 'diagnostics'}
+          autoRefreshEnabled={autoRefreshEnabled}
+          tabStatus={tabStatus.diagnostics || {}}
+          analyticsSnapshot={snapshots.analytics}
+          eventsSnapshot={snapshots.events}
+          bansSnapshot={snapshots.bans}
+          mazeSnapshot={snapshots.maze}
+          cdpSnapshot={snapshots.cdp}
+          cdpEventsSnapshot={snapshots.cdpEvents}
+          monitoringSnapshot={snapshots.monitoring}
+          monitoringFreshnessSnapshot={snapshots.monitoringFreshness}
+          ipBansFreshnessSnapshot={snapshots.ipBansFreshness}
+          configSnapshot={snapshots.config}
+          onFetchEventsRange={onFetchEventsRange}
+        />
+      {:else}
+        <section
+          id="dashboard-panel-diagnostics"
+          class="admin-group"
+          data-dashboard-tab-panel="diagnostics"
+          aria-labelledby="dashboard-tab-diagnostics"
+          hidden={activeTabKey !== 'diagnostics'}
+          aria-hidden={activeTabKey === 'diagnostics' ? 'false' : 'true'}
+        >
+          <p class="message info">Loading diagnostics...</p>
         </section>
       {/if}
     </div>

@@ -6,7 +6,7 @@ Component: [`dashboard/src/lib/components/dashboard/IpBansTab.svelte`](../../das
 Purpose:
 
 - Operate active bans and configure IP range policy and bypass allowlists.
-- Keep contributor diagnostics off the main ban-operations surface; low-level freshness/transport/raw-feed diagnostics now live in Monitoring's collapsed `Telemetry Diagnostics` section instead.
+- Keep contributor diagnostics off the main ban-operations surface; low-level freshness/transport/raw-feed diagnostics now live in Diagnostics' collapsed `Telemetry Diagnostics` section instead.
 - Show the real active ban state for the site, including manual interventions, even though Monitoring excludes operator-originated actions from its external-traffic telemetry.
 
 Panels and behavior:

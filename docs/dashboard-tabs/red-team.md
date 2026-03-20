@@ -15,16 +15,16 @@ Panel:
   - lifecycle copy rendered from backend status plus controller phase,
   - backend-timed run progress bar derived from `started_at`, `ends_at`, and `remaining_seconds`.
 - `Recent Red Team Runs`:
-  - recent adversary simulation run identifiers derived from a compact Monitoring-backed run-history summary,
-  - run-id linkage back to `Monitoring` and `IP Bans`,
+  - recent adversary simulation run identifiers derived from a compact monitoring-backed run-history summary,
+  - run-id linkage back to `Diagnostics` and `IP Bans`,
   - freshness-aware empty/degraded messaging so delayed telemetry is not misread as no activity.
 
 Behavior:
 
 - The switch reflects the latest operator intent immediately, even during the debounce window.
-- The tab shares the dashboard refresh affordance used by `Monitoring` and `IP Bans`:
+- The tab shares the dashboard refresh affordance used by `Diagnostics` and `IP Bans`:
   - manual refresh and auto-refresh both hydrate the monitoring-backed run table,
-  - the run table stays on the shared Monitoring refresh path, but no longer infers run history from the bounded raw-event tail.
+  - the run table stays on the shared monitoring refresh path, but no longer infers run history from the bounded raw-event tail.
 - Backend truth remains separate:
   - lifecycle copy uses backend phase/status,
   - the root `adversary-sim` class follows backend truth only,

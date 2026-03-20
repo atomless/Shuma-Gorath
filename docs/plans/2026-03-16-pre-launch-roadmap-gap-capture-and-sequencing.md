@@ -294,15 +294,22 @@ Status update (2026-03-19):
 2. The backend telemetry foundation is therefore complete enough for the Monitoring overhaul to begin once the section-ownership plan is written.
 3. No further telemetry architecture sweep is required before `MON-OVERHAUL-1`; the next work should move to Monitoring surface design and ownership planning.
 
+Status update (2026-03-20):
+
+1. Delivered. The section-ownership plan now explicitly splits the legacy subsystem-by-subsystem surface into a new `Diagnostics` tab and reserves `Monitoring` as a clean slate for the operator decision surface.
+2. This means the next implementation work can safely move the legacy Monitoring implementation without muddying the eventual operator-facing Monitoring contract.
+
 ## Stage 2: Monitoring And Tuning Surfaces
 
-1. Monitoring overhaul for operator decision-making.
-2. Clear shadow versus enforced telemetry separation in operator narratives.
-3. Tuning tab completion and config-governance alignment.
+1. Delivered. Monitoring/Diagnostics ownership split so the legacy diagnostic surface now has a truthful home.
+2. Monitoring overhaul for operator decision-making.
+3. Clear shadow versus enforced telemetry separation in operator narratives.
+4. Tuning tab completion and config-governance alignment.
 
 Reason:
 
 1. once the controller-grade telemetry foundation exists, Shuma can redesign Monitoring and complete Tuning against a truthful backend contract instead of inventing UI semantics ahead of the data model.
+2. with the ownership split now implemented, the next work in this stage is the substantive Monitoring redesign itself rather than more transition mechanics.
 
 ## Stage 3: Edge-Instance Ban Sync And Distributed State Correctness
 

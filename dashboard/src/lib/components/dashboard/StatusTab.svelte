@@ -266,7 +266,7 @@
       <div class="status-item">
         <h3>Runtime Performance Telemetry</h3>
         <p class="control-desc text-muted">
-          Operator thresholds for auto-refresh tabs (<code>monitoring</code>, <code>ip-bans</code>, and
+          Operator thresholds for auto-refresh tabs (<code>diagnostics</code>, <code>ip-bans</code>, and
           <code>red-team</code>): keep rolling p95 fetch latency under <strong>500 ms</strong>, rolling p95 render
           timing under <strong>16 ms</strong>, and investigate sustained polling skip/resume churn.
         </p>

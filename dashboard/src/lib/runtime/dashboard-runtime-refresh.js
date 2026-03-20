@@ -575,13 +575,13 @@ export function createDashboardRefreshRuntime(options = {}) {
     return applyConfigEnvelope(configEnvelope);
   }
 
-  async function refreshMonitoringTab(reason = 'manual', runtimeOptions = {}) {
+  async function refreshMonitoringTab(reason = 'manual', runtimeOptions = {}, surfaceTab = 'monitoring') {
     const dashboardApiClient = getApiClient();
     if (!dashboardApiClient) return;
 
     const isAutoRefresh = reason === 'auto-refresh';
     if (!isAutoRefresh) {
-      showTabLoading('monitoring', 'Loading monitoring data...');
+      showTabLoading(surfaceTab, surfaceTab === 'diagnostics' ? 'Loading diagnostics...' : 'Loading monitoring data...');
     }
 
     const dashboardState = getStateStore();
@@ -599,16 +599,16 @@ export function createDashboardRefreshRuntime(options = {}) {
         applySnapshots(buildMonitoringSnapshots(monitoringData, configSnapshot, configRuntimeSnapshot));
         baselineState.monitoring = true;
         if (dashboardState && dashboardState.getDerivedState().monitoringEmpty) {
-          showTabEmpty('monitoring', 'No operational events yet. Monitoring will populate as traffic arrives.');
+          showTabEmpty(surfaceTab, 'No operational events yet. Monitoring will populate as traffic arrives.');
         } else {
-          clearTabStateMessage('monitoring');
+          clearTabStateMessage(surfaceTab);
         }
         return;
       }
     }
 
     const requestOptions = toRequestOptions(runtimeOptions, {
-      tab: 'monitoring',
+      tab: surfaceTab,
       reason,
       source: 'tab-refresh'
     });
@@ -654,9 +654,9 @@ export function createDashboardRefreshRuntime(options = {}) {
     };
     const showMonitoringStateMessage = () => {
       if (dashboardState && dashboardState.getDerivedState().monitoringEmpty) {
-        showTabEmpty('monitoring', 'No operational events yet. Monitoring will populate as traffic arrives.');
+        showTabEmpty(surfaceTab, 'No operational events yet. Monitoring will populate as traffic arrives.');
       } else {
-        clearTabStateMessage('monitoring');
+        clearTabStateMessage(surfaceTab);
       }
     };
     const handledBootstrapResult = (promise) =>
@@ -668,7 +668,7 @@ export function createDashboardRefreshRuntime(options = {}) {
       void monitoringPromise
         .then((result) => {
           if (!result || result.ok !== true) {
-            showTabError('monitoring', errorMessage(result?.error, 'Failed to load monitoring data.'));
+            showTabError(surfaceTab, errorMessage(result?.error, 'Failed to load monitoring data.'));
             return null;
           }
           const monitoringData = result.value;
@@ -742,7 +742,7 @@ export function createDashboardRefreshRuntime(options = {}) {
             return;
           }
           showTabError(
-            'monitoring',
+            surfaceTab,
             errorMessage(bootstrapResult?.error, 'Failed to load monitoring data.')
           );
           return;
@@ -796,6 +796,9 @@ export function createDashboardRefreshRuntime(options = {}) {
 
     showMonitoringStateMessage();
   }
+
+  const refreshDiagnosticsTab = (reason = 'manual', runtimeOptions = {}) =>
+    refreshMonitoringTab(reason, runtimeOptions, 'diagnostics');
 
   async function refreshIpBansTab(reason = 'manual', runtimeOptions = {}) {
     const dashboardApiClient = getApiClient();
@@ -1086,12 +1089,16 @@ export function createDashboardRefreshRuntime(options = {}) {
 
   const TAB_REFRESH_HANDLERS = Object.freeze({
     monitoring: async (reason = 'manual', runtimeOptions = {}) => {
+      await refreshSharedConfig(reason, runtimeOptions);
+      clearTabStateMessage('monitoring');
+    },
+    diagnostics: async (reason = 'manual', runtimeOptions = {}) => {
       if (reason === 'auto-refresh') {
-        await refreshMonitoringTab(reason, runtimeOptions);
+        await refreshDiagnosticsTab(reason, runtimeOptions);
         return;
       }
       await Promise.all([
-        refreshMonitoringTab(reason, runtimeOptions),
+        refreshDiagnosticsTab(reason, runtimeOptions),
         refreshSharedConfig(reason, runtimeOptions)
       ]);
     },
@@ -1152,6 +1159,7 @@ export function createDashboardRefreshRuntime(options = {}) {
     clearAllCaches,
     refreshSharedConfig,
     refreshMonitoringTab,
+    refreshDiagnosticsTab,
     refreshIpBansTab,
     refreshStatusTab,
     refreshRedTeamTab,

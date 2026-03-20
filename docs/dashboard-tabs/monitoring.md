@@ -5,38 +5,19 @@ Component: [`dashboard/src/lib/components/dashboard/MonitoringTab.svelte`](../..
 
 Purpose:
 
-- Operational visibility for live detections, bans, challenge outcomes, and trend data.
-- External-traffic telemetry only: operator actions, dashboard/config interactions, and manual ban/unban events are excluded from Monitoring so the analysis stays focused on real incoming traffic.
+- Reserve a clean slate for the operator Monitoring overhaul.
+- Avoid mixing the future operator decision surface with the legacy subsystem-by-subsystem diagnostics layout.
 
-What it shows:
+Current behavior:
 
-- Overview cards: total bans, active bans, events (24h), unique IPs.
-- Charts: enforced event types, top IPs by enforced events, and enforced-event time series for `60m/24h/7d/30d`.
-- Per-defense trend blocks (trigger volume, pass/fail/escalate mix, ban outcomes, execution mode, source-label breakdown).
-- Recent Events table with fast filters (`origin`, `mode`, `scenario`, `lane`, `defense`, `outcome`).
-- CDP detections table and summary cards, including total detections, detection-triggered bans, and fingerprint mismatch/transition counters.
-- Maze, honeypot, challenge, PoW, rate-limiting, GEO, and IP-range monitoring sections.
-- Collapsed `Telemetry Diagnostics` section near the bottom:
-  - low-level monitoring-feed freshness and read-path diagnostics,
-  - low-level IP-ban-feed freshness and read-path diagnostics,
-  - rolling raw external-traffic telemetry feed rows.
-- External monitoring helper with Prometheus and JSON API examples.
+- Shows a minimal transition panel explaining that the operator Monitoring overhaul is in progress.
+- Directs operators and contributors to `#diagnostics` for the current deep-inspection surface.
+- Keeps the tab truthful during the transition instead of pretending the old diagnostic surface is already the Monitoring contract Shuma wants long-term.
 
 Refresh behavior:
 
-- Supports manual refresh and optional auto-refresh.
-- Auto-refresh is available on this tab, `IP Bans`, and `Red Team`.
-- Uses consolidated `/admin/monitoring` snapshot refresh and bounded local cache.
-- Simulation-tagged events are included in monitoring data whenever simulation traffic is present and remain distinguishable via per-event simulation metadata fields.
-- Contributor-style freshness, transport, overflow, and raw-feed diagnostics are intentionally kept in the collapsed diagnostics section so the main monitoring surface stays operator-focused by default.
-- Shadow-mode traffic remains visually distinct from enforced traffic:
-  - primary charts stay focused on enforced activity,
-  - Recent Events include an explicit execution `Mode`,
-  - defense trend rows split `Enforced` and `Shadow` counts.
-- Recent-events empty states are explicit:
-  - degraded/stale freshness uses warning language,
-  - filter mismatch states are distinct from true no-data states,
-  - tab-level fetch errors render explicit error context.
+- No dedicated auto-refresh surface behavior is exposed on this placeholder tab.
+- Shared config/bootstrap state still loads through the dashboard runtime so global controls remain available.
 
 Writes:
 

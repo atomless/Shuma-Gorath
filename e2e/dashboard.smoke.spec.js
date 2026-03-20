@@ -4,8 +4,8 @@ const { seedDashboardData } = require("./seed-dashboard-data");
 const BASE_URL = process.env.SHUMA_BASE_URL || "http://127.0.0.1:3000";
 const API_KEY = (process.env.SHUMA_API_KEY || "").trim();
 const FORWARDED_IP_SECRET = (process.env.SHUMA_FORWARDED_IP_SECRET || "").trim();
-const DASHBOARD_TABS = Object.freeze(["monitoring", "ip-bans", "red-team", "status", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "robots", "tuning", "advanced"]);
-const ADMIN_TABS = Object.freeze(["ip-bans", "red-team", "status", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "robots", "tuning", "advanced"]);
+const DASHBOARD_TABS = Object.freeze(["monitoring", "ip-bans", "red-team", "status", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "robots", "tuning", "advanced", "diagnostics"]);
+const ADMIN_TABS = Object.freeze(["ip-bans", "red-team", "status", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "robots", "tuning", "advanced", "diagnostics"]);
 const VERIFICATION_RESTORE_PATHS = Object.freeze([
   "js_required_enforced"
 ]);
@@ -1135,7 +1135,7 @@ test("dashboard generated runtime has no missing script or stylesheet requests",
   await openTab(page, "fingerprinting");
   await openTab(page, "tuning");
   await openTab(page, "ip-bans");
-  await openTab(page, "monitoring");
+  await openTab(page, "diagnostics");
 
   const failures = runtimeFailures(page).filter((entry) =>
     entry.includes("requestfailed") || entry.includes("asset-response")
@@ -1309,6 +1309,7 @@ test("dashboard clean-state renders explicit empty placeholders", async ({ page 
   });
 
   await openDashboard(page);
+  await openTab(page, "diagnostics");
   await expect(page.locator("#total-events")).toHaveText("0");
   await expect(page.locator("#monitoring-events tbody")).toContainText(
     /No (recent events|events loaded while freshness is degraded\/stale)/i
@@ -1328,6 +1329,12 @@ test("dashboard clean-state renders explicit empty placeholders", async ({ page 
   await openTab(page, "ip-bans");
   await expect(page.locator("#bans-table tbody")).toContainText("No active bans");
   await expect(page.locator('[data-tab-state="ip-bans"]')).toHaveText("");
+});
+
+test("monitoring tab is a clean-slate placeholder that points to diagnostics", async ({ page }) => {
+  await openDashboard(page);
+  await expect(page.locator("#dashboard-panel-monitoring")).toContainText("Monitoring Overhaul In Progress");
+  await expect(page.locator('#dashboard-panel-monitoring a[href="#diagnostics"]')).toBeVisible();
 });
 
 test("monitoring summary sections render data and cap oversized result lists", async ({ page }) => {
@@ -1419,6 +1426,7 @@ test("monitoring summary sections render data and cap oversized result lists", a
   });
 
   await openDashboard(page);
+  await openTab(page, "diagnostics");
   await expect(page.locator("#honeypot-total-hits")).toHaveText("125");
   await expect(page.locator("#challenge-failures-total")).toHaveText("41");
   await expect(page.locator("#pow-total-attempts")).toHaveText("100");
@@ -1470,6 +1478,7 @@ test("status/verification/rate-limiting/geo/fingerprinting/tuning show empty sta
 
 test("dashboard loads and shows seeded operational data", async ({ page }) => {
   await openDashboard(page);
+  await openTab(page, "diagnostics");
   await assertChartsFillPanels(page);
 
   await expect(page.locator("h1")).toHaveText("Shuma-Gorath");
@@ -1519,8 +1528,9 @@ test("dashboard header overlays the eye only while shadow mode is enabled", asyn
   });
 });
 
-test("dashboard monitoring totals stay in parity with /metrics monitoring families", async ({ page, request }) => {
+test("dashboard diagnostics totals stay in parity with /metrics monitoring families", async ({ page, request }) => {
   await openDashboard(page);
+  await openTab(page, "diagnostics");
 
   const adminHeaders = {
     ...buildTrustedForwardingHeaders(),
@@ -1654,8 +1664,8 @@ test("tab-local monitoring failures do not flip the global dashboard connection 
     });
   }, { times: 1 });
 
-  await openTab(page, "monitoring", { waitForReady: true });
-  await expect(page.locator('[data-tab-state="monitoring"]')).toContainText(
+  await openTab(page, "diagnostics", { waitForReady: true });
+  await expect(page.locator('[data-tab-state="diagnostics"]')).toContainText(
     "monitoring pipeline unavailable"
   );
 
@@ -1893,9 +1903,9 @@ test("advanced tab save flow validates and persists advanced JSON edits", async 
 test("session survives reload and time-range controls refresh chart data", async ({ page }) => {
   await openDashboard(page);
 
-  await openTab(page, "monitoring");
+  await openTab(page, "diagnostics");
   await page.reload();
-  await expect(page).toHaveURL(/\/dashboard\/index\.html#monitoring/);
+  await expect(page).toHaveURL(/\/dashboard\/index\.html#diagnostics/);
   await expect(page.locator("#logout-btn")).toBeEnabled();
 
   await Promise.all([
@@ -2005,7 +2015,7 @@ test("adversary sim toggle emits fresh telemetry visible in monitoring raw feed"
     await forceAdversarySimDisabled(request);
     await openDashboard(page);
     await waitForDashboardAdversarySimUiState(page, request, false);
-    await openTab(page, "monitoring");
+    await openTab(page, "diagnostics");
     await setAutoRefresh(page, true);
 
     const toggle = page.locator("#global-adversary-sim-toggle");
@@ -2021,7 +2031,7 @@ test("adversary sim toggle emits fresh telemetry visible in monitoring raw feed"
       await expect(toggle).toBeChecked();
 
       const advancedTs = await waitForSimulationEventAdvance(request, baselineTs, 20000);
-      await openTab(page, "monitoring");
+      await openTab(page, "diagnostics");
       await expect(page.locator("#monitoring-raw-feed tbody")).toContainText(`"ts":${advancedTs}`);
     } finally {
       await forceAdversarySimDisabled(request);
@@ -2080,9 +2090,9 @@ test("adversary sim toggle cancel path avoids orchestration request when frontie
   });
 });
 
-test("auto refresh defaults off and is only available on monitoring, ip-bans, and red-team tabs", async ({ page }) => {
+test("auto refresh defaults off and is only available on diagnostics, ip-bans, and red-team tabs", async ({ page }) => {
   await openDashboard(page);
-  await openTab(page, "monitoring");
+  await openTab(page, "diagnostics");
   await expect(page.locator('label[for="auto-refresh-toggle"]')).toBeVisible();
   await expect(page.locator("#auto-refresh-toggle")).not.toBeChecked();
   await expect(page.locator("#refresh-now-btn")).toBeVisible();
@@ -2176,6 +2186,7 @@ test("monitoring initial load hydrates from full snapshot even when first delta 
   });
 
   await openDashboard(page);
+  await openTab(page, "diagnostics");
   await expect(page.locator("#monitoring-events tbody")).toContainText("historical-baseline-visible");
 });
 
@@ -2372,6 +2383,7 @@ test("manual refresh button appends new monitoring delta events when auto-refres
   });
 
   await openDashboard(page);
+  await openTab(page, "diagnostics");
   await expect(page.locator("#auto-refresh-toggle")).not.toBeChecked();
   await expect(page.locator("#refresh-now-btn")).toBeVisible();
   await expect(page.locator("#monitoring-events tbody")).not.toContainText("manual-refresh-delta-event");
@@ -2382,9 +2394,9 @@ test("manual refresh button appends new monitoring delta events when auto-refres
   expect(deltaRequestCount).toBeGreaterThan(beforeRefreshDeltaCalls);
 });
 
-test("monitoring recent-event filters use canonical shared control classes", async ({ page }) => {
+test("diagnostics recent-event filters use canonical shared control classes", async ({ page }) => {
   await openDashboard(page);
-  await openTab(page, "monitoring");
+  await openTab(page, "diagnostics");
 
   await expect(page.locator("#monitoring-event-filters .input-row")).toHaveCount(6);
   await expect(page.locator("#monitoring-event-filters .field-row")).toHaveCount(0);
@@ -2463,7 +2475,7 @@ test("route remount preserves keyboard navigation, ban/unban, verification save,
     }
   });
 
-  await openTab(page, "monitoring");
+  await openTab(page, "diagnostics");
   await setAutoRefresh(page, true);
   await page.waitForTimeout(150);
   const beforePollWait = monitoringRefreshRequests;
@@ -2471,7 +2483,7 @@ test("route remount preserves keyboard navigation, ban/unban, verification save,
   expect(monitoringRefreshRequests).toBeGreaterThan(beforePollWait);
 });
 
-test("monitoring auto-refresh avoids placeholder flicker and bounds table churn", async ({ page }) => {
+test("diagnostics auto-refresh avoids placeholder flicker and bounds table churn", async ({ page }) => {
   let monitoringSnapshotRequests = 0;
   let monitoringDeltaRequests = 0;
   await page.route("**/admin/monitoring?hours=*&limit=*", async (route) => {
@@ -2557,7 +2569,7 @@ test("monitoring auto-refresh avoids placeholder flicker and bounds table churn"
   });
 
   await openDashboard(page);
-  await openTab(page, "monitoring");
+  await openTab(page, "diagnostics");
   await setAutoRefresh(page, true);
   await expect(page.locator("#honeypot-total-hits")).not.toHaveText("...");
 
@@ -2626,7 +2638,7 @@ test("repeated route remount loops keep polling request fan-out bounded", async 
   const remountCycles = 4;
   for (let cycle = 0; cycle < remountCycles; cycle += 1) {
     await openDashboard(page);
-    await openTab(page, "monitoring");
+    await openTab(page, "diagnostics");
     await setAutoRefresh(page, true);
     const beforeWindow = monitoringRequests;
     await page.waitForTimeout(remountObservationWindowMs);
@@ -2677,7 +2689,7 @@ test("native remount soak keeps refresh p95 and polling cadence within bounds", 
 
   for (let cycle = 0; cycle < remountCycles; cycle += 1) {
     await openDashboard(page);
-    await openTab(page, "monitoring");
+    await openTab(page, "diagnostics");
     await setAutoRefresh(page, true);
 
     const before = monitoringRequests;
@@ -2727,7 +2739,7 @@ test("native remount soak keeps refresh p95 and polling cadence within bounds", 
 
 test("dashboard tables keep sticky headers", async ({ page }) => {
   await openDashboard(page);
-  await openTab(page, "monitoring");
+  await openTab(page, "diagnostics");
 
   const eventsHeaderPosition = await page
     .locator("#monitoring-events thead th")
@@ -2775,11 +2787,11 @@ test("tab keyboard navigation updates hash and selected state", async ({ page })
 
   await page.locator("#dashboard-tab-ip-bans").focus();
   await page.keyboard.press("End");
-  await expect(page).toHaveURL(/#advanced$/);
-  await expect(page.locator("#dashboard-tab-advanced")).toHaveAttribute("aria-selected", "true");
-  await assertActiveTabPanelVisibility(page, "advanced");
+  await expect(page).toHaveURL(/#diagnostics$/);
+  await expect(page.locator("#dashboard-tab-diagnostics")).toHaveAttribute("aria-selected", "true");
+  await assertActiveTabPanelVisibility(page, "diagnostics");
 
-  await page.locator("#dashboard-tab-advanced").focus();
+  await page.locator("#dashboard-tab-diagnostics").focus();
   await page.keyboard.press("Home");
   await expect(page).toHaveURL(/#monitoring$/);
   await expect(page.locator("#dashboard-tab-monitoring")).toHaveAttribute("aria-selected", "true");
@@ -2788,6 +2800,7 @@ test("tab keyboard navigation updates hash and selected state", async ({ page })
 
 test("tab states surface loading and data-ready transitions across all tabs", async ({ page }) => {
   await openDashboard(page);
+  await openTab(page, "diagnostics");
   await setAutoRefresh(page, false);
 
   await openTab(page, "status");
@@ -2848,8 +2861,8 @@ test("tab states surface loading and data-ready transitions across all tabs", as
   await expect(page.locator("#bans-table tbody")).toContainText("198.51.100.250");
   await expect(page.locator('[data-tab-state="ip-bans"]')).toBeHidden();
 
-  await openTab(page, "monitoring");
-  await expect(page.locator('[data-tab-state="monitoring"]')).toBeHidden();
+  await openTab(page, "diagnostics");
+  await expect(page.locator('[data-tab-state="diagnostics"]')).toBeHidden();
 });
 
 test("verification save roundtrip clears dirty state after successful write", async ({ page, request }) => {
@@ -3089,7 +3102,7 @@ test("tab error state is surfaced when tab-scoped fetch fails", async ({ page })
   await page.unroute("**/admin/ban");
 });
 
-test("monitoring tab surfaces tab-scoped error when consolidated monitoring fetch fails", async ({ page }) => {
+test("diagnostics tab surfaces tab-scoped error when consolidated monitoring fetch fails", async ({ page }) => {
   await openDashboard(page, { initialTab: "status" });
 
   await page.route("**/admin/monitoring?hours=*&limit=*", async (route) => {
@@ -3100,8 +3113,8 @@ test("monitoring tab surfaces tab-scoped error when consolidated monitoring fetc
     });
   }, { times: 1 });
 
-  await openTab(page, "monitoring");
-  await expect(page.locator('[data-tab-state="monitoring"]')).toContainText(
+  await openTab(page, "diagnostics");
+  await expect(page.locator('[data-tab-state="diagnostics"]')).toContainText(
     "monitoring pipeline unavailable"
   );
 });

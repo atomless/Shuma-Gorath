@@ -2,6 +2,27 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-03-20)
+
+### Monitoring Surface Ownership: Split Legacy Monitoring Diagnostics From The New Monitoring Surface
+
+- [x] Complete `MON-OWN-1-1` and `MON-OWN-1-2` by moving the legacy subsystem-by-subsystem Monitoring implementation into a new `Diagnostics` tab after `Advanced`, replacing `Monitoring` with a clean transitional placeholder, and updating docs/tests/runtime ownership so the legacy surface and auto-refresh behavior now live under Diagnostics.
+- [x] Why:
+  - the backend telemetry foundation was complete enough for the Monitoring overhaul to begin, but the old Monitoring tab was still contributor-oriented and would have muddied the operator-facing redesign if left in place.
+  - the right transition was not to delete useful diagnostics; it was to give them a truthful home while preserving a genuinely clean slate for the later operator decision surface.
+  - landing the ownership split now keeps the project on the planned sequence and sets up the next substantive design discussion around the real Monitoring overhaul rather than transition mechanics.
+- [x] Evidence:
+  - `docs/plans/2026-03-20-monitoring-and-diagnostics-tab-ownership-plan.md`
+  - `docs/research/2026-03-20-monitoring-diagnostics-ownership-post-implementation-review.md`
+  - `dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte`
+  - `dashboard/src/lib/components/dashboard/MonitoringTab.svelte`
+  - `dashboard/src/routes/+page.svelte`
+  - `make test-dashboard-unit`
+  - `make test-dashboard-e2e PLAYWRIGHT_ARGS='--grep "monitoring tab is a clean-slate placeholder that points to diagnostics|dashboard clean-state renders explicit empty placeholders|auto refresh defaults off and is only available on diagnostics, ip-bans, and red-team tabs"'`
+  - `make test-dashboard-e2e PLAYWRIGHT_ARGS='--grep "tab keyboard navigation updates hash and selected state|tab states surface loading and data-ready transitions across all tabs"'`
+  - `make test`
+  - `git diff --check`
+
 ## Additional completions (2026-03-19)
 
 ### Monitoring Telemetry Foundations: Close The Pre-Overhaul Backend Foundation Tranche

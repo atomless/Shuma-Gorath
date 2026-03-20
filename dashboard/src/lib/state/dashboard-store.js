@@ -12,6 +12,7 @@ export { DASHBOARD_TABS, DEFAULT_TAB, normalizeTab };
 
 export const TAB_REFRESH_INTERVAL_MS = Object.freeze({
   monitoring: 30000,
+  diagnostics: 30000,
   'ip-bans': 45000,
   status: 60000,
   'red-team': 60000,
@@ -28,7 +29,7 @@ export const RUNTIME_TELEMETRY_ROLLING_WINDOW_SIZE = 20;
 export const CONNECTION_DISCONNECT_THRESHOLD = 3;
 export const REQUEST_DIAGNOSTIC_MAX_ENTRIES = 200;
 export const HEARTBEAT_BREADCRUMB_MAX_ENTRIES = 100;
-const RUNTIME_TELEMETRY_TABS = Object.freeze(new Set(['monitoring', 'ip-bans']));
+const RUNTIME_TELEMETRY_TABS = Object.freeze(new Set(['diagnostics', 'ip-bans']));
 const CONNECTION_STATES = Object.freeze({
   connected: 'connected',
   degraded: 'degraded',

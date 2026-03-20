@@ -1090,7 +1090,8 @@ test('dashboard state and store contracts remain immutable and bounded with hear
       'fingerprinting',
       'robots',
       'tuning',
-      'advanced'
+      'advanced',
+      'diagnostics'
     ]);
     assert.deepEqual(toPlain(storeModule.DASHBOARD_TABS), [
       'monitoring',
@@ -1104,7 +1105,8 @@ test('dashboard state and store contracts remain immutable and bounded with hear
       'fingerprinting',
       'robots',
       'tuning',
-      'advanced'
+      'advanced',
+      'diagnostics'
     ]);
     assert.equal(stateModule.normalizeTab('red-team'), 'red-team');
 
@@ -1117,8 +1119,8 @@ test('dashboard state and store contracts remain immutable and bounded with hear
     assert.equal(initial.snapshots.configRuntime, null);
 
     const store = storeModule.createDashboardStore({ initialTab: 'monitoring' });
-    store.recordRefreshMetrics({ tab: 'monitoring', reason: 'manual', fetchLatencyMs: 100, renderTimingMs: 10 });
-    store.recordRefreshMetrics({ tab: 'monitoring', reason: 'manual', fetchLatencyMs: 200, renderTimingMs: 20 });
+    store.recordRefreshMetrics({ tab: 'diagnostics', reason: 'manual', fetchLatencyMs: 100, renderTimingMs: 10 });
+    store.recordRefreshMetrics({ tab: 'diagnostics', reason: 'manual', fetchLatencyMs: 200, renderTimingMs: 20 });
     store.recordRefreshMetrics({ tab: 'status', reason: 'manual', fetchLatencyMs: 999, renderTimingMs: 999 });
     store.recordRequestTelemetry({
       requestId: 'req-failure-1',
@@ -1155,7 +1157,7 @@ test('dashboard state and store contracts remain immutable and bounded with hear
     const telemetry = store.getRuntimeTelemetry();
     assert.equal(telemetry.refresh.fetchLatencyMs.last, 200);
     assert.equal(telemetry.refresh.renderTimingMs.last, 20);
-    assert.equal(telemetry.refresh.lastTab, 'monitoring');
+    assert.equal(telemetry.refresh.lastTab, 'diagnostics');
     assert.equal(telemetry.refresh.fetchLatencyMs.totalSamples, 2);
     assert.equal(telemetry.refresh.fetchLatencyMs.window.length > 0, true);
     assert.equal(telemetry.connection.state, 'connected');
@@ -1563,12 +1565,12 @@ test('monitoring auto-refresh refreshes monitoring snapshots without extra ip-ba
       storage
     });
 
-    await runtime.refreshDashboardForTab('monitoring', 'auto-refresh');
+    await runtime.refreshDashboardForTab('diagnostics', 'auto-refresh');
     await new Promise((resolve) => setTimeout(resolve, 0));
     assert.equal(monitoringCalls, 1);
     assert.equal(monitoringDeltaBootstrapCalls, 1);
     assert.equal(monitoringDeltaCalls, 0);
-    await runtime.refreshDashboardForTab('monitoring', 'auto-refresh');
+    await runtime.refreshDashboardForTab('diagnostics', 'auto-refresh');
     assert.equal(monitoringCalls, 1);
     assert.equal(monitoringDeltaCalls, 1);
     assert.equal(bansCalls, 0);
@@ -2040,7 +2042,7 @@ test('monitoring bootstrap does not wait for cursor seeding before config-backed
     });
 
     const refreshCompleted = await Promise.race([
-      runtime.refreshDashboardForTab('monitoring', 'session-restored').then(() => true),
+      runtime.refreshDashboardForTab('diagnostics', 'session-restored').then(() => true),
       new Promise((resolve) => setTimeout(() => resolve(false), 50))
     ]);
 
@@ -2125,7 +2127,7 @@ test('monitoring tab shows bootstrap telemetry before slow full monitoring detai
     });
 
     const refreshCompleted = await Promise.race([
-      runtime.refreshDashboardForTab('monitoring', 'manual').then(() => true),
+      runtime.refreshDashboardForTab('diagnostics', 'manual').then(() => true),
       new Promise((resolve) => setTimeout(() => resolve(false), 50))
     ]);
 
@@ -2251,10 +2253,10 @@ test('monitoring tab surfaces bootstrap failure as a tab-scoped error when delta
       storage: null
     });
 
-    await runtime.refreshDashboardForTab('monitoring', 'manual');
+    await runtime.refreshDashboardForTab('diagnostics', 'manual');
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    const monitoringStatus = store.getState().tabStatus.monitoring;
+    const monitoringStatus = store.getState().tabStatus.diagnostics;
     assert.equal(monitoringStatus.loading, false);
     assert.equal(monitoringStatus.error, 'monitoring pipeline unavailable');
     assert.equal((store.getSnapshot('events') || {}).recent_events?.[0]?.event, 'Challenge');
@@ -2392,8 +2394,8 @@ test('monitoring refresh recovers cleanly after transient failure without synthe
       storage
     });
 
-    await runtime.refreshDashboardForTab('monitoring', 'manual-refresh');
-    const failedStatus = store.getState().tabStatus.monitoring;
+    await runtime.refreshDashboardForTab('diagnostics', 'manual-refresh');
+    const failedStatus = store.getState().tabStatus.diagnostics;
     assert.equal(failedStatus.loading, false);
     assert.equal(Boolean(String(failedStatus.error || '').trim()), true);
     assert.equal(
@@ -2401,8 +2403,8 @@ test('monitoring refresh recovers cleanly after transient failure without synthe
       1_700_000_000
     );
 
-    await runtime.refreshDashboardForTab('monitoring', 'manual-refresh');
-    const recoveredStatus = store.getState().tabStatus.monitoring;
+    await runtime.refreshDashboardForTab('diagnostics', 'manual-refresh');
+    const recoveredStatus = store.getState().tabStatus.diagnostics;
     assert.equal(recoveredStatus.loading, false);
     assert.equal(String(recoveredStatus.error || ''), '');
     assert.equal(
@@ -2572,7 +2574,7 @@ test('monitoring refresh preserves extended operator summary families in the das
       storage: null
     });
 
-    await runtime.refreshDashboardForTab('monitoring', 'manual-refresh');
+    await runtime.refreshDashboardForTab('diagnostics', 'manual-refresh');
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     const monitoringSnapshot = store.getSnapshot('monitoring') || {};
@@ -4457,8 +4459,8 @@ test('dashboard config tabs reuse shared panels, save flows, and owned controls'
   assert.match(statusSource, /id="status-retention-health-state"/);
   assert.match(statusSource, /<h3>Runtime Performance Telemetry<\/h3>/);
   assert.match(statusSource, /Operator thresholds for auto-refresh tabs/);
-  assert.match(statusSource, /<code>monitoring<\/code>, <code>ip-bans<\/code>, and\s*<code>red-team<\/code>/);
-  assert.doesNotMatch(statusSource, /Operator thresholds for auto-refresh tabs \(\s*<code>monitoring<\/code> and <code>ip-bans<\/code>\)/);
+  assert.match(statusSource, /<code>diagnostics<\/code>, <code>ip-bans<\/code>, and\s*<code>red-team<\/code>/);
+  assert.doesNotMatch(statusSource, /Operator thresholds for auto-refresh tabs \(\s*<code>diagnostics<\/code> and <code>ip-bans<\/code>\)/);
   assert.match(statusSource, />Fetch latency \(last \/ rolling\):</);
   assert.match(statusSource, />Render timing \(last \/ rolling\):</);
   assert.match(statusSource, />Polling skip \/ resume:</);
@@ -4788,15 +4790,15 @@ test('dashboard smoke spec keeps status and red-team tab order aligned with the 
 
   assert.match(
     source,
-    /const DASHBOARD_TABS = Object\.freeze\(\["monitoring", "ip-bans", "red-team", "status", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "robots", "tuning", "advanced"\]\);/
+    /const DASHBOARD_TABS = Object\.freeze\(\["monitoring", "ip-bans", "red-team", "status", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "robots", "tuning", "advanced", "diagnostics"\]\);/
   );
   assert.match(
     source,
-    /const ADMIN_TABS = Object\.freeze\(\["ip-bans", "red-team", "status", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "robots", "tuning", "advanced"\]\);/
+    /const ADMIN_TABS = Object\.freeze\(\["ip-bans", "red-team", "status", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "robots", "tuning", "advanced", "diagnostics"\]\);/
   );
 });
 
-test('dashboard route exposes auto-refresh controls on monitoring, ip-bans, and red-team', () => {
+test('dashboard route exposes auto-refresh controls on diagnostics, ip-bans, and red-team', () => {
   const source = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/routes/+page.svelte'),
     'utf8'
@@ -4804,7 +4806,7 @@ test('dashboard route exposes auto-refresh controls on monitoring, ip-bans, and 
 
   assert.match(
     source,
-    /const AUTO_REFRESH_TABS = new Set\(\['monitoring', 'ip-bans', 'red-team'\]\);/
+    /const AUTO_REFRESH_TABS = new Set\(\['diagnostics', 'ip-bans', 'red-team'\]\);/
   );
 });
 
@@ -4903,9 +4905,9 @@ test('dashboard routes advertise an explicit dashboard-scoped favicon', () => {
   assert.match(mainSource, /<link rel="icon" type="image\/png" href=\{faviconHref\}>/);
 });
 
-test('monitoring tab applies bounded sanitization and redraw guards', () => {
+test('diagnostics tab preserves the bounded legacy monitoring surface', () => {
   const source = fs.readFileSync(
-    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/MonitoringTab.svelte'),
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/DiagnosticsTab.svelte'),
     'utf8'
   );
 
@@ -4944,9 +4946,9 @@ test('monitoring tab applies bounded sanitization and redraw guards', () => {
   assert.match(source, /eventTypesReadout = EMPTY_HALF_DOUGHNUT_READOUT;/);
 });
 
-test('monitoring tab is decomposed into focused subsection components', () => {
+test('diagnostics tab is decomposed into focused subsection components', () => {
   const source = fs.readFileSync(
-    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/MonitoringTab.svelte'),
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/DiagnosticsTab.svelte'),
     'utf8'
   );
   const diagnosticsSource = fs.readFileSync(
@@ -5005,6 +5007,18 @@ test('monitoring tab is decomposed into focused subsection components', () => {
   assert.match(disclosureSource, /<summary/);
 });
 
+test('monitoring tab is intentionally a clean-slate placeholder during the overhaul transition', () => {
+  const source = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/MonitoringTab.svelte'),
+    'utf8'
+  );
+
+  assert.match(source, /Monitoring Overhaul In Progress/);
+  assert.match(source, /href="#diagnostics"/);
+  assert.doesNotMatch(source, /import DiagnosticsSection from '\.\/monitoring\/DiagnosticsSection\.svelte';/);
+  assert.doesNotMatch(source, /export let autoRefreshEnabled = false;/);
+});
+
 test('tarpit monitoring section centers progression and outcome telemetry', () => {
   const source = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/monitoring/TarpitSection.svelte'),
@@ -5053,9 +5067,9 @@ test('primary charts reuse the shared half doughnut shell for event-type readout
   assert.match(source, /readout=\{eventTypesReadout\}/);
 });
 
-test('monitoring and ip-ban doughnuts share the canonical largest-to-smallest series normalizer', () => {
-  const monitoringSource = fs.readFileSync(
-    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/MonitoringTab.svelte'),
+test('diagnostics and ip-ban doughnuts share the canonical largest-to-smallest series normalizer', () => {
+  const diagnosticsSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/DiagnosticsTab.svelte'),
     'utf8'
   );
   const ipBansSource = fs.readFileSync(
@@ -5063,8 +5077,8 @@ test('monitoring and ip-ban doughnuts share the canonical largest-to-smallest se
     'utf8'
   );
 
-  assert.match(monitoringSource, /buildHalfDoughnutSeries,/);
-  assert.match(monitoringSource, /const \{ labels, values: data \} = buildHalfDoughnutSeries\(counts\);/);
+  assert.match(diagnosticsSource, /buildHalfDoughnutSeries,/);
+  assert.match(diagnosticsSource, /const \{ labels, values: data \} = buildHalfDoughnutSeries\(counts\);/);
   assert.match(ipBansSource, /buildHalfDoughnutSeries,/);
   assert.match(ipBansSource, /const \{ labels, values \} = buildHalfDoughnutSeries\(entries\);/);
   assert.match(ipBansSource, /banReasonEntries = buildHalfDoughnutSeries\(Array\.from\(reasonCounts\.entries\(\)\)\)\.entries;/);
@@ -5158,7 +5172,7 @@ test('monitoring overview stats labels retain explicit window semantics', () => 
 test('dashboard native runtime owns session heartbeat, tab normalization, and action exports', () => {
   const source = fs.readFileSync(DASHBOARD_NATIVE_RUNTIME_PATH, 'utf8');
 
-  assert.match(source, /const DASHBOARD_TABS = Object\.freeze\(\['monitoring', 'ip-bans', 'status', 'red-team'/);
+  assert.match(source, /const DASHBOARD_TABS = Object\.freeze\(\['monitoring', 'ip-bans', 'status', 'red-team', 'verification', 'traps', 'rate-limiting', 'geo', 'fingerprinting', 'robots', 'tuning', 'advanced', 'diagnostics'\]\);/);
   assert.match(source, /createDashboardRefreshRuntime/);
   assert.match(source, /const CONNECTION_HEARTBEAT_PATH = '\/admin\/session';/);
   assert.match(source, /function runConnectionHeartbeat\(reason = 'manual'\)/);
@@ -5237,7 +5251,7 @@ test('dashboard route wires native runtime actions and shared auto-refresh tabs'
   assert.match(source, /banDashboardIp/);
   assert.match(source, /unbanDashboardIp/);
   assert.match(source, /getDashboardRobotsPreview/);
-  assert.match(source, /const AUTO_REFRESH_TABS = new Set\(\['monitoring', 'ip-bans', 'red-team'\]\);/);
+  assert.match(source, /const AUTO_REFRESH_TABS = new Set\(\['diagnostics', 'ip-bans', 'red-team'\]\);/);
 });
 
 test('dashboard route keeps the shadow-mode eye overlay mounted and lets CSS reveal it when enabled', () => {

@@ -27,6 +27,7 @@ The dashboard uses URL hash routes:
 - `#robots` - [`dashboard-tabs/robots.md`](dashboard-tabs/robots.md)
 - `#tuning` - [`dashboard-tabs/tuning.md`](dashboard-tabs/tuning.md)
 - `#advanced` - [`dashboard-tabs/advanced.md`](dashboard-tabs/advanced.md)
+- `#diagnostics` - [`dashboard-tabs/diagnostics.md`](dashboard-tabs/diagnostics.md)
 
 Behavior:
 
@@ -37,13 +38,13 @@ Behavior:
 
 ## 🐙 Refresh Model
 
-- Auto-refresh is available only on `Monitoring` and `IP Bans`.
+- Auto-refresh is available only on `Diagnostics`, `IP Bans`, and `Red Team`.
 - Most tabs refresh on initial load, on explicit refresh events, and after relevant save flows.
 - The `Red Team` adversary-sim controller is page-scoped rather than tab-scoped:
   - it forces a status refresh on dashboard bootstrap, `Red Team` tab activation, and page-visibility resume,
   - it keeps status polling alive while a control request is submitting/converging and while backend truth reports the sim as `running` or `stopping`,
   - hiding the `Red Team` panel does not pause a running sim or let backend status go stale.
-- Monitoring and IP-bans snapshots use bounded local cache to reduce repeated admin API load on rapid remount/revisit.
+- Diagnostics and IP-bans snapshots use bounded local cache to reduce repeated admin API load on rapid remount/revisit.
 
 ## 🐙 Runtime Architecture
 

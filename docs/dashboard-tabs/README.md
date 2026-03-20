@@ -16,6 +16,7 @@ Top-level tabs and routes:
 - [`robots.md`](robots.md) - `#robots`
 - [`tuning.md`](tuning.md) - `#tuning`
 - [`advanced.md`](advanced.md) - `#advanced`
+- [`diagnostics.md`](diagnostics.md) - `#diagnostics`
 
 Implementation source of truth:
 
