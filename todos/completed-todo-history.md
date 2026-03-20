@@ -4,6 +4,22 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-20)
 
+### SIM-SH-SURFACE-1-1: Capture The Shared-Host Scope Fence Contract Plan
+
+- [x] Write the dedicated `SIM-SH-SURFACE-1-1` contract plan that turns the telemetry-as-map roadmap into an execution-ready shared-host scope slice, narrows the first implementation to a versioned fail-closed descriptor plus pre-lane tooling validator, and explicitly keeps deployment catalog tooling separate from emergent-lane discovery truth.
+- [x] Why:
+  - after `SIM-DEPLOY-2` closed, the next blocker was no longer a strategy gap but a missing concrete contract for the shared-host scope fence. The roadmap and design docs were clear at a high level, but the repo still lacked the execution-facing note that says what the descriptor is, what the rejection reasons are, and where the first real implementation should land.
+  - the older Scrapling plan still carried a broader first-wave shape through admin config, KV seeding, and dashboard parity touchpoints. That is too much speculative surface before a Scrapling runtime consumer exists, so this tranche deliberately narrows the first move to a versioned tooling contract instead.
+  - the repo also still contains a valid deployment catalog helper for gateway onboarding. The new plan needed to make that boundary explicit so future emergent-lane work does not accidentally promote deploy artifacts into the adversary's working surface map.
+- [x] Evidence:
+  - `docs/plans/2026-03-20-shared-host-scope-fence-contract.md`
+  - `docs/plans/2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md`
+  - `docs/index.md`
+  - `todos/todo.md`
+  - docs-only slice: tests intentionally skipped
+  - `git diff --check`
+  - post-tranche review: no additional shortfall was found inside the planning slice itself; the next optimal tranche is to execute the versioned scope contract and focused `make` gate described here
+
 ### SIM-DEPLOY-2-3: Close Production Adversary-Sim Operating Envelope And Evidence Receipts
 
 - [x] Update deployment/operator/API/configuration guidance so production adversary-sim is documented as a first-class operating lane with an explicit receipt for off-state posture, ON/OFF control operations, runtime-surface no-impact proof, and intentional-only history cleanup.

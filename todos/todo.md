@@ -82,10 +82,12 @@ Reference plan:
 - [`docs/plans/2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md`](../docs/plans/2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md)
 - [`docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`](../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md)
 - [`docs/plans/2026-03-20-minimal-seed-and-telemetry-surface-discovery-design.md`](../docs/plans/2026-03-20-minimal-seed-and-telemetry-surface-discovery-design.md)
+- [`docs/plans/2026-03-20-shared-host-scope-fence-contract.md`](../docs/plans/2026-03-20-shared-host-scope-fence-contract.md)
 - [`docs/research/2026-03-20-telemetry-as-map-adversary-surface-discovery-synthesis.md`](../docs/research/2026-03-20-telemetry-as-map-adversary-surface-discovery-synthesis.md)
 
 ### SIM-SH-SURFACE-1: Minimal Shared-Host Scope And Seed Gate
 - [ ] SIM-SH-SURFACE-1-1 Define the shared-host descriptor and fail-closed scope contract.
+  Execution note: first land the versioned shared-host scope contract plus pre-lane tooling validator and focused `make` gate. Do not start this slice by adding admin/KV/dashboard surface before there is a real runtime consumer.
 - [ ] SIM-SH-SURFACE-1-2 Define the minimal operator seed contract:
   - one required primary public start URL,
   - optional `robots.txt`,

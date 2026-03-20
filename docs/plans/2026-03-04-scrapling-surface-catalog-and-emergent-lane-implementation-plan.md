@@ -295,6 +295,12 @@ Acceptance criteria:
 
 ### SIM-SCR-2: Hosted-Scope Policy Model and Validation
 
+Update on 2026-03-20:
+
+1. the narrower contract in [`2026-03-20-shared-host-scope-fence-contract.md`](2026-03-20-shared-host-scope-fence-contract.md) now supersedes the older first-wave touchpoint proposal below,
+2. the first executable slice should land as a versioned contract plus pre-lane tooling validator,
+3. and agents must not start this milestone by adding admin-writable KV config, dashboard Advanced JSON parity, or status payload scaffolding before there is a real runtime consumer.
+
 Scope:
 
 1. Introduce explicit scope policy contract for crawler seed validation and runtime traversal gating.
@@ -302,24 +308,32 @@ Scope:
 3. Enforce redirect revalidation (redirect target must pass the same scope gate).
 4. Reject privileged/internal paths from scope.
 
-Primary touchpoints:
+Initial implementation touchpoints (superseding note, 2026-03-20):
 
-- `config/defaults.env`
-- `src/config/mod.rs`
-- `scripts/config_seed.sh`
-- `scripts/bootstrap/setup.sh`
-- `dashboard/src/lib/domain/config-schema.js`
-- `src/admin/api.rs` (config validation and status exposure)
+1. `scripts/tests/adversarial/shared_host_scope_contract.v1.json` (new)
+2. `scripts/tests/shared_host_scope.py` (new)
+3. `scripts/tests/test_shared_host_scope.py` (new)
+4. `scripts/tests/check_shared_host_scope_contract.py` (new)
+5. `Makefile`
+
+Later touchpoints only when a real runtime or operator surface exists:
+
+1. `src/crawler_policy/`
+2. `src/admin/api.rs`
+3. `src/config/mod.rs`
+4. `dashboard/src/lib/domain/config-schema.js`
 
 Policy fields (initial proposal):
 
 1. `adversary_surface_allowed_hosts` (required list)
-2. `adversary_surface_allowed_path_prefixes` (required list)
-3. `adversary_surface_denied_path_prefixes` (required list, default includes `/admin`, `/internal`, `/dashboard`, `/session`, `/auth`, `/login`)
-4. `adversary_surface_require_https` (required bool, default `true`)
-5. `adversary_surface_deny_ip_literals` (required bool, default `true`)
-6. `adversary_surface_allow_query_patterns` (optional)
-7. `adversary_surface_max_redirect_hops` (bounded)
+2. `adversary_surface_denied_path_prefixes` (required list, default includes `/admin`, `/internal`, `/dashboard`, `/session`, `/auth`, `/login`)
+3. `adversary_surface_require_https` (required bool, default `true`)
+4. `adversary_surface_deny_ip_literals` (required bool, default `true`)
+
+Explicit narrowing note:
+
+1. do not introduce `allowed_path_prefixes`, query-pattern DSLs, or other richer discovery controls in the first shared-host scope tranche unless later hosted evidence proves they are necessary,
+2. and do not treat a deployment catalog artifact as a substitute for this scope contract.
 
 Acceptance criteria:
 
