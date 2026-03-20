@@ -98,6 +98,10 @@ Completed archive index:
    Post-implementation review confirming the later fleet or central-intelligence benchmark-enrichment rules are now captured as a separate advisory contract and that the local benchmark-planning tranche is complete.
 23. [`2026-03-20-mature-adversary-sim-evolution-roadmap-post-implementation-review.md`](2026-03-20-mature-adversary-sim-evolution-roadmap-post-implementation-review.md)
    Post-implementation review confirming the mature adversary-sim roadmap now treats deterministic traffic as oracle and memory, emergent lanes as primary adaptive inputs, and replay promotion as a named future step.
+24. [`2026-03-20-telemetry-as-map-adversary-surface-discovery-synthesis.md`](2026-03-20-telemetry-as-map-adversary-surface-discovery-synthesis.md)
+   Research synthesis arguing that a realistic adversary harness should start from minimal seeds and scope fences, then let traversal telemetry become the authoritative adversary-reachable surface map.
+25. [`2026-03-20-minimal-seed-surface-discovery-post-implementation-review.md`](2026-03-20-minimal-seed-surface-discovery-post-implementation-review.md)
+   Post-implementation review confirming the shared-host backlog and roadmap now prefer minimal operator-defined seeds plus traversal telemetry rather than a rich precomputed public-surface catalog.
 
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 

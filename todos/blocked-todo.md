@@ -10,7 +10,7 @@ Security finding validity and closure status live in `todos/security-review.md`.
 ## P0 Blocked by Shared-Host Discovery and Runtime-Safety Gates
 
 - [ ] SIM-SCR-LANE-1 Three-lane runtime migration and Scrapling integration.
-  Blocker: do not start until `SIM-DEPLOY-2` establishes the runtime operating envelope and the minimal scope-and-seed gate in `SIM-SH-SURFACE-1-1..3` is complete per [`docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`](../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md).
+  Blocker: do not start until `SIM-DEPLOY-2` establishes the runtime operating envelope and the minimal scope-and-seed gate in `SIM-SH-SURFACE-1-1..2` is complete per [`docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`](../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md) and [`docs/plans/2026-03-20-minimal-seed-and-telemetry-surface-discovery-design.md`](../docs/plans/2026-03-20-minimal-seed-and-telemetry-surface-discovery-design.md). The lane must derive its reachable-surface view from traversal telemetry rather than from a precomputed public-surface catalog.
 
 - [ ] SIM-LLM-1 Full LLM-orchestrated, instruction-driven, containerized adversary lane as a first-class runtime actor.
   Blocker: keep blocked until the Scrapling emergent lane is producing benchmarkable signal, the runtime lane model is proven safe, and the active `SIM-DEPLOY-2` operating-envelope tranche establishes acceptable production bounds.
@@ -19,6 +19,9 @@ Security finding validity and closure status live in `todos/security-review.md`.
 
 - [ ] SIM-BREACH-REPLAY-1 External breach to replayable attack pipeline.
   Blocker: defer until the first emergent lanes are producing stable exploit findings, then re-assess replay capture, promotion, retention, and governance against the adopted mature-sim roadmap.
+
+- [ ] SIM-SH-EXPORT-1 Optional export or curation tooling over observed reachable-surface telemetry.
+  Blocker: defer unless Scrapling or later frontier telemetry proves a concrete need for bounded export artifacts or deterministic replay-promotion helpers. Any future tooling must be derived from observed traversal telemetry rather than revive a catalog-first discovery architecture.
 
 ## P1 Deferred Pre-Launch Roadmap Captures
 

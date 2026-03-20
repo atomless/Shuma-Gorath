@@ -4,6 +4,25 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-20)
 
+### SIM-SH-SURFACE / SIM-MAT: Recast Shared-Host Discovery As Minimal Seeds And Telemetry Map
+
+- [x] Recast the shared-host discovery and Scrapling roadmap so the only active gate is a fail-closed scope fence plus minimal operator-defined seeds, while the observed reachable surface is explicitly treated as emerging from adversary traversal telemetry rather than from a rich precomputed public-surface catalog.
+- [x] Why:
+  - the older shared-host plan still carried too much catalog-first weight, which risked pushing the emergent adversary harness toward unrealistic prior knowledge and unnecessary implementation machinery.
+  - the cleaner model for Shuma's adaptive loop is now explicit: the operator gives the harness the smallest realistic starting point, the harness discovers the rest by traversal, and the telemetry produced by that traversal becomes the map that later replay-promotion and benchmarking work can consume.
+  - tightening the backlog and roadmap now keeps the next Scrapling tranche aligned with realism, cost discipline, and the broader "telemetry is the map" principle instead of preserving obsolete discovery or product assumptions.
+- [x] Evidence:
+  - `docs/research/2026-03-20-telemetry-as-map-adversary-surface-discovery-synthesis.md`
+  - `docs/plans/2026-03-20-minimal-seed-and-telemetry-surface-discovery-design.md`
+  - `docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`
+  - `docs/plans/2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md`
+  - `docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`
+  - `docs/research/2026-03-20-minimal-seed-surface-discovery-post-implementation-review.md`
+  - `todos/todo.md`
+  - `todos/blocked-todo.md`
+  - docs-only slice: tests intentionally skipped
+  - `git diff --check`
+
 ### SIM-MAT-1: Capture The Mature Adversary-Sim Evolution Roadmap
 
 - [x] Complete `SIM-MAT-1` by writing the mature adversary-sim roadmap that recasts deterministic traffic as oracle and comparator, promotes Scrapling and later frontier-agent lanes to primary adaptive inputs, narrows shared-host discovery to a minimal scope-and-seed gate, and makes reviewed promotion from emergent finding to deterministic replay memory an explicit future step.

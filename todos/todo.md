@@ -84,18 +84,20 @@ Current stance:
 Reference plan:
 - [`docs/plans/2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md`](../docs/plans/2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md)
 - [`docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`](../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md)
+- [`docs/plans/2026-03-20-minimal-seed-and-telemetry-surface-discovery-design.md`](../docs/plans/2026-03-20-minimal-seed-and-telemetry-surface-discovery-design.md)
+- [`docs/research/2026-03-20-telemetry-as-map-adversary-surface-discovery-synthesis.md`](../docs/research/2026-03-20-telemetry-as-map-adversary-surface-discovery-synthesis.md)
 
-### SIM-SH-SURFACE-1: Shared-Host Scope And Seed Baseline
+### SIM-SH-SURFACE-1: Minimal Shared-Host Scope And Seed Gate
 - [ ] SIM-SH-SURFACE-1-1 Define the shared-host descriptor and fail-closed scope contract.
-- [ ] SIM-SH-SURFACE-1-2 Implement `robots.txt` and `sitemap.xml` discovery with provenance and diagnostics.
-- [ ] SIM-SH-SURFACE-1-3 Merge seed inventory with deterministic canonicalization, dedupe, scope filtering, and rejection reporting.
-- [ ] SIM-SH-SURFACE-1-4 Add operator make workflows for seed-only discovery and optional bounded-Scrapling probe augmentation.
-- [ ] SIM-SH-SURFACE-1-5 Run the combined workflow against a real shared-host deployment and archive timestamped evidence artifacts.
-- [ ] SIM-SH-SURFACE-1-6 Compile the hosted-surface catalog baseline and publish the operator runbook/signoff checklist.
+- [ ] SIM-SH-SURFACE-1-2 Define the minimal operator seed contract:
+  - one required primary public start URL,
+  - optional `robots.txt`,
+  - optional small explicit extra seed list,
+  - provenance and rejection diagnostics for invalid or out-of-scope seeds.
 
 Scope note:
-- `SIM-SCR-LANE-1` should require only the minimal scope-and-seed gate in `SIM-SH-SURFACE-1-1..3` plus `SIM-DEPLOY-2`.
-- `SIM-SH-SURFACE-1-4..6` remain valuable hardening and operator-evidence work, but they are no longer the sole gate before the first useful emergent-lane feedback loop.
+- `SIM-SCR-LANE-1` should require only the minimal scope-and-seed gate in `SIM-SH-SURFACE-1-1..2` plus `SIM-DEPLOY-2`.
+- The observed reachable surface should emerge from traversal telemetry once the emergent lane runs; Shuma should not build a rich precomputed public-surface catalog as the default discovery architecture.
 
 ## P1 Enterprise Distributed-State Deployment Baseline
 

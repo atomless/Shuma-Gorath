@@ -1,13 +1,14 @@
 # Scrapling Surface Catalog and Emergent Lane Implementation Plan
 
 Date: 2026-03-04
-Status: Proposed (implementation-ready)
+Status: Proposed (partially superseded on 2026-03-20)
 
 Related:
 - [`docs/adr/0010-adversary-sim-autonomous-heartbeat.md`](../adr/0010-adversary-sim-autonomous-heartbeat.md)
 - [`docs/adr/0005-adversarial-lane-coexistence-policy.md`](../adr/0005-adversarial-lane-coexistence-policy.md)
 - [`docs/plans/2026-03-01-adversary-sim-autonomous-heartbeat-implementation-plan.md`](2026-03-01-adversary-sim-autonomous-heartbeat-implementation-plan.md)
 - [`docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`](2026-03-20-mature-adversary-sim-evolution-roadmap.md)
+- [`docs/plans/2026-03-20-minimal-seed-and-telemetry-surface-discovery-design.md`](2026-03-20-minimal-seed-and-telemetry-surface-discovery-design.md)
 - [`scripts/tests/adversarial/hybrid_lane_contract.v1.json`](../../scripts/tests/adversarial/hybrid_lane_contract.v1.json)
 - [`docs/adversarial-operator-guide.md`](../adversarial-operator-guide.md)
 - [`todos/todo.md`](../../todos/todo.md) (`SIM-DEPLOY-2`)
@@ -18,7 +19,7 @@ Related:
 Implement a hosted-site public-surface simulation model with:
 
 1. A code-truth baseline that accurately reflects current runtime behavior today (toggle-only control, deterministic runtime generation, no lane selection control yet).
-2. A production-setting shared-host discovery tool that maps host public surface from `robots.txt` and `sitemap.xml` first, then uses bounded Scrapling probing to discover additional in-scope pages.
+2. A production-setting shared-host scope-and-seed layer that starts emergent crawling from minimal operator-defined seeds under a fail-closed scope fence.
 3. A staged migration to a 3-lane runtime selector under the existing top-level Adversary Sim toggle:
    - `synthetic_traffic` (internal deterministic traffic),
    - `scrapling_traffic` (crawler/scraper traffic),
@@ -35,6 +36,17 @@ The later mature-sim roadmap in [`2026-03-20-mature-adversary-sim-evolution-road
 3. shared-host discovery remains necessary as a fail-closed scope and seed contract,
 4. but the full shared-host evidence workflow should no longer be treated as the sole gate before useful emergent-lane feedback work can begin,
 5. and reviewed promotion from emergent finding to deterministic replay case is now a named future roadmap concept.
+
+## Superseding Discovery Note (2026-03-20)
+
+The newer discovery design in [`2026-03-20-minimal-seed-and-telemetry-surface-discovery-design.md`](2026-03-20-minimal-seed-and-telemetry-surface-discovery-design.md) is now the authority for shared-host discovery sequencing.
+
+Use these rules when reading the rest of this plan:
+
+1. emergent lanes should begin from a minimal operator-defined seed contract, not a rich precomputed public-surface catalog,
+2. the required gate is a fail-closed scope fence plus minimal seeds,
+3. the observed reachable surface should emerge from traversal telemetry,
+4. and the catalog-oriented sections below should be treated as historical context or optional later export and replay-curation tooling, not as the default discovery architecture.
 
 ## Decisions Locked In
 
@@ -53,7 +65,7 @@ The later mature-sim roadmap in [`2026-03-20-mature-adversary-sim-evolution-road
 
 1. Repository is pre-launch; avoid backward-compatibility shims unless explicitly requested.
 2. Operators may run simulation in both runtime classes, subject to the active adversary-sim operating envelope and deployment guardrails.
-3. Hosted public surface can be discovered from sitemap/robots/crawl/telemetry, but final catalog activation remains operator-approved.
+3. Hosted public surface should emerge from minimal seeds plus crawl and telemetry, and any later export or curation artifact should remain derived rather than authoritative.
 
 ## Verified Current Runtime Baseline (Code-Truth, 2026-03-04)
 
@@ -142,8 +154,8 @@ This plan is grounded in the full Scrapling docs sitemap on 2026-03-04 (see Appe
 
 ### Data Plane
 
-1. Discovery inventory artifact: merged raw URL evidence from sitemap/robots/crawl/telemetry.
-2. Compiled deterministic catalog artifact: canonicalized, templated, scoped route set consumed by deterministic oracle execution and runtime synthetic baselines.
+1. Observed reachable-surface telemetry: raw URL evidence from seeds, crawl traversal, and scope rejections.
+2. Any later export or replay-curation artifact must be derived from observed traversal telemetry rather than treated as an authoritative discovery input.
 3. Sim telemetry tags include run ID, lane label, tick ID, and worker provenance for auditability.
 
 ### Governance
@@ -155,38 +167,40 @@ This plan is grounded in the full Scrapling docs sitemap on 2026-03-04 (see Appe
 
 ## Naming and Slice Mapping
 
-1. Plan slices `SIM-SCR-2`, `SIM-SCR-3`, and `SIM-SCR-4` map to roadmap tranche `SIM-SH-SURFACE-1` (shared-host discovery first gate).
+1. Plan slices `SIM-SCR-2` and `SIM-SCR-3` map to roadmap tranche `SIM-SH-SURFACE-1` (minimal shared-host scope-and-seed gate).
 2. Plan slices `SIM-SCR-0`, `SIM-SCR-1`, `SIM-SCR-6`, `SIM-SCR-7`, and `SIM-SCR-8` map to roadmap tranche `SIM-SCR-LANE-1` (runtime lane integration after gate).
-3. Plan slice `SIM-SCR-9` maps to roadmap tranche `SIM-BREACH-REPLAY-1` and later `SIM-LLM-1` follow-up.
-4. Where older notes reference `SIM-SCR-6`, treat it as the runtime-lane implementation slice now sequenced under `SIM-SCR-LANE-1`.
+3. Historical catalog-oriented `SIM-SCR-4` and `SIM-SCR-5` concepts are no longer part of the first execution path and should only be revived as optional derived export or replay-curation work.
+4. Plan slice `SIM-SCR-9` maps to roadmap tranche `SIM-BREACH-REPLAY-1` and later `SIM-LLM-1` follow-up.
+5. Where older notes reference `SIM-SCR-6`, treat it as the runtime-lane implementation slice now sequenced under `SIM-SCR-LANE-1`.
 
 ## Milestone-First Implementation Order (Explicit)
 
-### Milestone 1 (Current Priority): Shared-Host Public-Surface Discovery Tool
+### Milestone 1 (Current Priority): Minimal Shared-Host Scope And Seed Gate
 
 Goal:
 
-1. Build an operator tool that discovers the host's public surface on a shared single-host deployment.
-2. Discovery order must be:
-   - `robots.txt` + `sitemap.xml` ingest and normalize first,
-   - then bounded Scrapling probe augmentation for additional in-scope findings.
-3. Prove it on a real shared host and produce inventory evidence artifacts as follow-on hardening, while the first emergent-lane execution gate remains the narrower scope-and-seed contract defined by the later mature-sim roadmap.
+1. Define the fail-closed scope fence for shared-host emergent crawling.
+2. Start emergent crawling from the smallest realistic operator-defined seed contract:
+   - one required primary public start URL,
+   - optional `robots.txt`,
+   - optional small explicit extra seed list.
+3. Treat traversal telemetry as the authoritative adversary-reachable surface map rather than compiling a large pre-run inventory.
 
 Slices in this milestone:
 
 1. `SIM-SCR-2` Hosted-scope policy model and validation.
-2. `SIM-SCR-3` Discovery inventory builder (robots/sitemap first, Scrapling augmentation second).
-3. `SIM-SCR-4` Inventory-to-catalog compiler.
+2. `SIM-SCR-3` Minimal seed intake, normalization, provenance, and rejection diagnostics.
 
-### Milestone 2: Deterministic Oracle and Synthetic Seed Adoption
+### Milestone 2: Optional Later Export And Replay-Curation Tooling
 
 Goal:
 
-1. Consume the compiled hosted-surface catalog in deterministic oracle execution and synthetic-lane seeding.
+1. Only if later evidence proves it useful, derive bounded exports or replay-curation inputs from observed traversal telemetry.
+2. Keep deterministic replay memory promotion anchored to observed traces rather than a separately maintained authoritative catalog.
 
 Slices in this milestone:
 
-1. `SIM-SCR-5` Deterministic oracle/baseline migration from fixed sim paths to catalog.
+1. Historical `SIM-SCR-4` and `SIM-SCR-5` catalog-oriented concepts should now be treated as optional follow-on work, not as the first gate before emergent-lane realism.
 
 ### Milestone 3: Lane Selector Migration + Scrapling Sim Lane
 
@@ -206,23 +220,32 @@ Slices in this milestone:
 
 Execution gate (updated by 2026-03-20 roadmap):
 
-1. `SIM-SCR-6` and later non-deterministic lane slices must not start until hosted-scope policy plus minimal seed discovery are in place and `SIM-DEPLOY-2` has established the runtime operating envelope.
-2. The remaining shared-host evidence and catalog hardening work stays valuable, but it is no longer the sole gating concept for the first adaptive Scrapling feedback loop.
+1. `SIM-SCR-6` and later non-deterministic lane slices must not start until hosted-scope policy plus the minimal operator-defined seed contract are in place and `SIM-DEPLOY-2` has established the runtime operating envelope.
+2. Traversal telemetry, not a precompiled public-surface catalog, should become the map used by the adaptive loop.
+3. Any later shared-host export or curation tooling remains optional and derived from observed traversal telemetry.
 
 ## Execution Order (Slice-by-Slice)
 
 1. `SIM-SCR-2` Hosted-scope policy model and validation.
-2. `SIM-SCR-3` Public-surface discovery inventory builder (robots/sitemap first, Scrapling probe second).
-3. `SIM-SCR-4` Inventory-to-catalog compiler for deterministic execution.
-4. `SIM-SCR-5` Deterministic oracle/baseline migration from fixed sim paths to catalog.
-5. `SIM-SCR-0` Contracts and observability scaffolding for lane diagnostics.
-6. `SIM-SCR-1` Control/state model for lane selection.
-7. `SIM-SCR-6` Scrapling non-deterministic lane worker integration.
-8. `SIM-SCR-7` Dashboard lane controls and diagnostics.
-9. `SIM-SCR-8` Operator workflow and Make targets hardening.
-10. `SIM-SCR-9` Deferred roadmap capture.
+2. `SIM-SCR-3` Minimal seed intake, normalization, provenance, and rejection diagnostics.
+3. `SIM-SCR-0` Contracts and observability scaffolding for lane diagnostics.
+4. `SIM-SCR-1` Control/state model for lane selection.
+5. `SIM-SCR-6` Scrapling non-deterministic lane worker integration.
+6. `SIM-SCR-7` Dashboard lane controls and diagnostics.
+7. `SIM-SCR-8` Operator workflow and Make targets hardening.
+8. `SIM-SCR-9` Deferred roadmap capture.
+
+Historical note:
+
+1. The earlier catalog-oriented `SIM-SCR-4` and `SIM-SCR-5` concepts are no longer part of the first execution path.
+2. If later revived, they should consume observed traversal telemetry and replay-promotion needs rather than reintroducing a catalog-first discovery architecture.
 
 ## Slice Details
+
+Historical note:
+
+1. `SIM-SCR-2` and `SIM-SCR-3` remain the active discovery gate.
+2. `SIM-SCR-4` and `SIM-SCR-5` are retained below only as optional historical follow-on concepts and are not part of the first execution path.
 
 ### SIM-SCR-0: Contracts and Observability Scaffolding
 
@@ -274,7 +297,7 @@ Acceptance criteria:
 
 Scope:
 
-1. Introduce explicit scope policy contract for crawler/catalog generation.
+1. Introduce explicit scope policy contract for crawler seed validation and runtime traversal gating.
 2. Enforce fail-closed validation for host/scheme/path constraints (`https` only, host allowlist only, no IP-literal URLs).
 3. Enforce redirect revalidation (redirect target must pass the same scope gate).
 4. Reject privileged/internal paths from scope.
@@ -306,21 +329,16 @@ Acceptance criteria:
 4. Status exposes effective scope policy summary (redacted as needed).
 5. Policy gate is fail-closed and has no permissive fallback path.
 
-### SIM-SCR-3: Discovery Inventory Builder
+### SIM-SCR-3: Minimal Seed Intake, Normalization, And Diagnostics
 
 Scope:
 
-1. Build inventory seed from `robots.txt` and `sitemap.xml` first (including sitemap index expansion) before any probing.
-2. Merge/canonicalize seed URLs and enforce scope policy prior to probing.
-3. Use Scrapling spider as bounded probe augmenter only after seed ingest completes, with:
-   - `allowed_domains` sourced from approved scope policy,
-   - explicit concurrency and delay caps,
-   - offsite filtering stats collection,
-   - HTTP-first session profile (`FetcherSession`) as default.
-4. Optionally merge monitoring telemetry URL evidence after seed + probe steps.
-5. Persist inventory artifact with provenance and evidence metadata.
-6. Expose inventory generation as operator workflow for shared-host deployments (Make target first, API follow-up optional).
-7. Execute and evidence at least one real shared-host discovery run before lane work starts.
+1. Accept one required primary public start URL.
+2. Optionally ingest and parse `robots.txt`.
+3. Optionally accept a small explicit extra seed list.
+4. Normalize seed URLs and enforce scope policy before any traversal begins.
+5. Record provenance and structured rejection reasons for invalid or out-of-scope seeds.
+6. Expose seed validation as an operator workflow for shared-host deployments (Make target first, API follow-up optional).
 
 Primary touchpoints:
 
@@ -335,16 +353,13 @@ Artifact proposal:
 
 Acceptance criteria:
 
-1. Discovery execution order is enforced and test-covered: `robots/sitemap -> normalize/scope -> Scrapling probe`.
-2. Inventory contains source provenance per URL (`sitemap`, `robots`, `crawl`, `telemetry`).
-3. `crawl` provenance entries are additive only (they must not bypass scope or override seed exclusions).
-4. Out-of-scope URLs are excluded and recorded as structured rejection reasons.
-5. Build command is deterministic when input sources and seed are fixed.
-6. Inventory run captures crawl stats (`requests_count`, `offsite_requests_count`, `response_status_count`, `response_bytes`).
-7. Inventory command fails closed when scope policy is absent/invalid.
-8. Real shared-host proof run outputs versioned artifact + summary report under `scripts/tests/adversarial/` and is linked from operator docs.
+1. Seed validation is test-covered and fails closed when scope policy is absent or invalid.
+2. Seed inputs capture source provenance per URL (`primary_start_url`, `robots`, `manual_extra_seed`).
+3. Out-of-scope or malformed URLs are excluded and recorded as structured rejection reasons.
+4. Normalized seed output is deterministic when the operator inputs are fixed.
+5. The resulting emergent lane can begin from these seeds without requiring a precompiled public-surface catalog.
 
-### SIM-SCR-4: Inventory-to-Catalog Compiler
+### SIM-SCR-4: Historical Optional Export Or Replay-Curation Compiler
 
 Scope:
 
@@ -369,7 +384,7 @@ Acceptance criteria:
 2. Catalog includes `catalog_hash` and compile-time scope policy digest.
 3. Compile output reports accepted/rejected counts and reason breakdown.
 
-### SIM-SCR-5: Deterministic Oracle/Baseline Migration to Catalog Input
+### SIM-SCR-5: Historical Optional Replay-Promotion Input Shaping
 
 Scope:
 
@@ -395,8 +410,8 @@ Acceptance criteria:
 
 Scope:
 
-1. Start only after Milestone 1 shared-host discovery proof is complete and accepted.
-   Updated by the 2026-03-20 mature-sim roadmap: the first execution gate is now `SIM-SH-SURFACE-1-1..3` plus `SIM-DEPLOY-2`, while the rest of Milestone 1 remains important hardening and evidence work.
+1. Start only after the minimal shared-host scope-and-seed gate is complete.
+   Updated by the 2026-03-20 mature-sim roadmap: the first execution gate is now `SIM-SH-SURFACE-1-1..2` plus `SIM-DEPLOY-2`, while any later export or curation work remains optional follow-on evidence.
 2. Add bounded out-of-process Scrapling worker invoked by supervisor when `active_lane=scrapling_traffic`.
 3. Define per-beat worker contract with strict `TickBudget` (`max_requests`, `max_depth`, `max_bytes`, `max_ms`).
 4. Persist per-run crawl state (`crawldir`) to support incremental per-beat crawling and safe resume.

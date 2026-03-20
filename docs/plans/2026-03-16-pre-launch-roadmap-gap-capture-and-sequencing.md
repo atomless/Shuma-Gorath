@@ -5,6 +5,7 @@ Related context:
 
 - [`2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md`](2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md)
 - [`2026-03-20-mature-adversary-sim-evolution-roadmap.md`](2026-03-20-mature-adversary-sim-evolution-roadmap.md)
+- [`2026-03-20-minimal-seed-and-telemetry-surface-discovery-design.md`](2026-03-20-minimal-seed-and-telemetry-surface-discovery-design.md)
 - [`2026-03-15-agentic-era-oversight-design.md`](2026-03-15-agentic-era-oversight-design.md)
 - [`2026-03-15-agentic-era-oversight-implementation-plan.md`](2026-03-15-agentic-era-oversight-implementation-plan.md)
 - [`2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-design.md`](2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-design.md)
@@ -25,8 +26,8 @@ This note is intentionally a roadmap and sequencing capture, not an implementati
 
 Already captured:
 
-1. shared-host discovery first,
-2. Scrapling surface catalog work,
+1. minimal shared-host scope-and-seed gate,
+2. Scrapling emergent-lane planning,
 3. blocked Scrapling runtime lane,
 4. blocked containerized LLM lane,
 5. deterministic oracle governance,
@@ -35,8 +36,9 @@ Already captured:
 Current references:
 
 1. [`2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md`](2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md)
-2. `SIM-SH-SURFACE-1` in [`../../todos/todo.md`](../../todos/todo.md)
-3. `SIM-SCR-LANE-1` and `SIM-LLM-1` in [`../../todos/blocked-todo.md`](../../todos/blocked-todo.md)
+2. [`2026-03-20-minimal-seed-and-telemetry-surface-discovery-design.md`](2026-03-20-minimal-seed-and-telemetry-surface-discovery-design.md)
+3. `SIM-SH-SURFACE-1` in [`../../todos/todo.md`](../../todos/todo.md)
+4. `SIM-SCR-LANE-1` and `SIM-LLM-1` in [`../../todos/blocked-todo.md`](../../todos/blocked-todo.md)
 
 Gap:
 
@@ -123,8 +125,9 @@ Status update (2026-03-20):
 1. Captured in [`2026-03-20-mature-adversary-sim-evolution-roadmap.md`](2026-03-20-mature-adversary-sim-evolution-roadmap.md).
 2. Deterministic traffic is now explicitly treated as oracle, comparator, and curated memory rather than the primary adaptive diagnosis lane.
 3. Scrapling and later frontier-agent lanes are now explicitly treated as the primary adaptive discovery inputs.
-4. Shared-host work is now narrowed to a minimal scope and seed gate rather than the whole first adaptive milestone.
-5. Reviewed promotion from emergent exploit to deterministic replay case is now an explicit roadmap concept.
+4. Shared-host work is now narrowed to a minimal scope fence and operator-defined seed gate rather than the whole first adaptive milestone.
+5. Traversal telemetry is now the intended adversary-reachable surface map; a rich precomputed public-surface catalog is no longer the default execution model.
+6. Reviewed promotion from emergent exploit to deterministic replay case is now an explicit roadmap concept.
 
 ## B. Tuning Surface Completion
 

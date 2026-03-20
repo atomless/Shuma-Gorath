@@ -6,6 +6,8 @@ Status: Proposed
 Related context:
 
 - [`../research/2026-03-20-adversary-evolution-loop-role-synthesis.md`](../research/2026-03-20-adversary-evolution-loop-role-synthesis.md)
+- [`../research/2026-03-20-telemetry-as-map-adversary-surface-discovery-synthesis.md`](../research/2026-03-20-telemetry-as-map-adversary-surface-discovery-synthesis.md)
+- [`2026-03-20-minimal-seed-and-telemetry-surface-discovery-design.md`](./2026-03-20-minimal-seed-and-telemetry-surface-discovery-design.md)
 - [`2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md`](./2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md)
 - [`2026-03-20-machine-first-operator-snapshot-and-feedback-loop-design.md`](./2026-03-20-machine-first-operator-snapshot-and-feedback-loop-design.md)
 - [`2026-03-20-benchmark-suite-v1-design.md`](./2026-03-20-benchmark-suite-v1-design.md)
@@ -100,17 +102,23 @@ This roadmap narrows that.
 Shuma still needs:
 
 1. a fail-closed scope contract,
-2. minimal seed discovery from `robots.txt` and `sitemap.xml`,
-3. and operator-visible scope diagnostics.
+2. a minimal operator-defined seed contract,
+3. and operator-visible scope diagnostics and rejection evidence.
 
-But it should not require the entire shared-host catalog workflow and evidence pack before Scrapling can become the first adaptive lane. Continuous discovery should be a byproduct of the emergent lane itself.
+The recommended minimal seed contract is:
+
+1. one required primary public start URL,
+2. optional `robots.txt` fetch and parsing,
+3. and an optional small explicit extra seed list.
+
+The observed reachable surface should then emerge from traversal telemetry. Shuma should not require a rich precomputed public-surface catalog before Scrapling can become the first adaptive lane, and it should not treat sitemap-derived or precompiled inventory as the adversary's primary knowledge model.
 
 ## Recommended First Closed Loop
 
 The first real evolutionary loop should be:
 
 1. `SIM-DEPLOY-2` production operating envelope,
-2. minimal `SIM-SH-SURFACE-1` scope and seed contract,
+2. minimal `SIM-SH-SURFACE-1` scope fence and seed contract,
 3. `SIM-SCR-LANE-1` Scrapling emergent lane,
 4. benchmarkable telemetry via existing snapshot and benchmark contracts,
 5. recommend-only diagnosis/tuning harness,
@@ -155,3 +163,4 @@ This roadmap should be considered adopted when the backlog and sequence make the
 2. deterministic oracle is comparator and memory,
 3. shared-host work is a minimal safety gate rather than a full first-product loop,
 4. and reviewed promotion from emergent exploit to deterministic scenario is a named future step.
+5. traversal telemetry is the authoritative adversary-reachable surface map, while any later export or curation tooling remains secondary and derived.
