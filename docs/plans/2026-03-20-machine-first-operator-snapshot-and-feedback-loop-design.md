@@ -18,6 +18,7 @@ Related context:
 3. Keep request-path behavior deterministic and Rust-owned.
 4. Keep Diagnostics as the place for raw subsystem inspection, transport detail, and bounded drill-downs.
 5. Make the first future agent loop config-diff-only, not code-change-first.
+6. Prepare a second, later loop where Shuma's own code evolution is informed by explicit benchmark evidence rather than intuition.
 
 ## Non-goals
 
@@ -44,6 +45,50 @@ That snapshot is:
 5. and structured around operator objectives and budget distance.
 
 The future human Monitoring tab is then a projection over selected `operator_snapshot_v1` sections.
+
+## Two Feedback Loops
+
+Shuma should explicitly model two related but distinct feedback loops.
+
+### 1. Instance tuning loop
+
+Scope:
+
+1. one Shuma instance or site,
+2. one bounded observation window,
+3. one bounded config-diff action surface.
+
+Purpose:
+
+1. tighten or loosen thresholds,
+2. enable or disable existing defences,
+3. adjust routing,
+4. and confirm or roll back the result.
+
+Inputs:
+
+1. `operator_objectives_v1`,
+2. `operator_snapshot_v1`,
+3. `allowed_actions_v1`,
+4. adversary-sim evidence,
+5. and later central-intelligence enrichment.
+
+### 2. Project evolution loop
+
+Scope:
+
+1. many instances over time,
+2. fleet-level evidence plus benchmark suites,
+3. code and design evolution rather than only config changes.
+
+Purpose:
+
+1. detect when the current Shuma codebase is no longer winning the cost asymmetry race,
+2. identify missing capabilities or weak defences,
+3. propose code changes,
+4. and later allow reviewed PR creation only when benchmark evidence says the code itself needs to evolve.
+
+The first loop should arrive much earlier. The second loop should remain more review-heavy and explicitly benchmark-driven.
 
 ## Required Companion Contracts
 
@@ -96,6 +141,29 @@ It should enumerate:
 4. canary-required families,
 5. manual-only families,
 6. and permanently forbidden families.
+
+### 4. `benchmark_suite_v1`
+
+This is the project-evolution contract for judging Shuma itself.
+
+It should define benchmark families such as:
+
+1. suspicious-origin cost to defended site,
+2. local friction cost imposed on likely-human traffic,
+3. success or leakage rate for representative hostile traffic,
+4. success rate for beneficial authenticated or declared automation according to local stance,
+5. adversary-sim benchmark outcomes by lane and scenario family,
+6. and later central-intelligence-informed challenge sets.
+
+### 5. `benchmark_results_v1`
+
+This is the bounded benchmark output that compares:
+
+1. current code and config posture,
+2. prior baseline,
+3. and candidate code changes where applicable.
+
+It should make code evolution measurable instead of anecdotal.
 
 ## Proposed `operator_snapshot_v1` Shape
 
@@ -196,6 +264,16 @@ It should compute, for each budgeted objective:
 
 This should let a future controller reason over bounded numeric deltas rather than interpreting prose.
 
+### Benchmark section
+
+`operator_snapshot_v1` itself does not need to contain the entire project benchmark history, but it should contain enough local benchmark summary to feed the instance loop and enough references to support later project-evolution aggregation.
+
+That means the contract should reserve room for:
+
+1. recent adversary-sim benchmark deltas,
+2. local objective-compliance trend summaries,
+3. and references that a later fleet or project benchmark layer can aggregate.
+
 ## Human Monitoring Implication
 
 The human Monitoring tab should become a thin projection of `operator_snapshot_v1`.
@@ -243,14 +321,36 @@ That loop deliberately excludes:
 4. identity allowlist changes,
 5. and provider-backend changes.
 
+## Project Evolution Loop
+
+The later loop should look different:
+
+1. collect benchmark results across adversary-sim, selected live outcomes, and later central intelligence,
+2. compare those results against `benchmark_suite_v1`,
+3. determine whether config-only tuning is insufficient,
+4. identify missing or weak defence behavior in the codebase,
+5. generate reviewed implementation suggestions,
+6. and only later, when explicitly enabled, draft PRs that are judged by the same benchmark suite.
+
+This loop should never be the first automation layer Shuma relies on.
+
+It should be gated behind:
+
+1. benchmark maturity,
+2. clear regression criteria,
+3. human review,
+4. and reproducible before-versus-after evidence.
+
 ## Design Consequences For Roadmap Sequencing
 
 The next implementation work should therefore be:
 
 1. `OPS-SNAPSHOT-1` machine-first operator snapshot foundation,
-2. then `MON-OVERHAUL-1` as a thin projection over that foundation,
-3. then `TUNE-SURFACE-1` aligned to the same objective and action model,
-4. then later `OVR-AGENT-2` for the scheduled recommend-or-apply loop.
+2. benchmark-contract planning for code-evolution criteria,
+3. then `MON-OVERHAUL-1` as a thin projection over that foundation,
+4. then `TUNE-SURFACE-1` aligned to the same objective and action model,
+5. then later `OVR-AGENT-2` for the scheduled recommend-or-apply loop,
+6. and only after that the separate code-evolution and PR-generation path.
 
 ## Recommended Acceptance Standard
 

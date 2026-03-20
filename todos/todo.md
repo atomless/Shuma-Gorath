@@ -67,6 +67,12 @@ Reference context:
 - [ ] OPS-SNAPSHOT-1-5 Add a bounded recent-change summary and `allowed_actions_v1` contract so later scheduled controllers can attribute observed changes and stay inside one explicit config-diff surface.
 - [ ] OPS-SNAPSHOT-1-6 Add focused contract tests proving boundedness, live-vs-sim separation, exactness semantics, and API stability for `operator_snapshot_v1`.
 
+### OPS-BENCH-1: Benchmark Contract For Project Evolution
+- [ ] OPS-BENCH-1-1 Define `benchmark_suite_v1` so Shuma has one explicit benchmark contract for bot-cost asymmetry, likely-human friction, representative adversary outcomes, and beneficial or authenticated non-human posture according to local policy stance.
+- [ ] OPS-BENCH-1-2 Define `benchmark_results_v1` and the minimal evidence model that can compare current code or config posture to prior baselines and later candidate code changes.
+- [ ] OPS-BENCH-1-3 Define the decision boundary between "config tuning is enough" and "the codebase itself needs to evolve", keeping that gate explicit and benchmark-driven.
+- [ ] OPS-BENCH-1-4 Define how fleet or central-intelligence evidence may enrich benchmark selection without turning the Git repository itself into the shared-intelligence transport.
+
 ## P1 Production Adversary-Sim Operating Contract
 
 Reference context:

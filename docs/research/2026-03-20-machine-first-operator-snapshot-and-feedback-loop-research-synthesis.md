@@ -154,6 +154,34 @@ Taken together, the external evidence points toward one clear direction:
 4. Autonomous tuning should operate on explicit objectives, budgets, and bounded action families.
 5. Verification and rollback posture must be part of the feedback loop from the start.
 
+An additional implication becomes clear when this is combined with Shuma's larger roadmap:
+
+1. there are really two future feedback loops, not one,
+2. and they must stay distinct even though they inform each other.
+
+### Loop A: Instance tuning loop
+
+This loop adjusts the config of one defended Shuma instance.
+
+It should optimize against:
+
+1. per-instance human-friction budgets,
+2. per-instance suspicious-origin leakage or cost budgets,
+3. per-instance adversary-sim benchmark outcomes,
+4. and local policy stance for non-human traffic.
+
+### Loop B: Project evolution loop
+
+This loop does not adjust one site's config. It evaluates whether the Shuma project itself needs to evolve.
+
+It should optimize against:
+
+1. benchmark suites aggregated across adversary-sim, live traffic outcomes, and later central intelligence,
+2. fleet-level evidence about which attack classes are becoming cheaper or more successful,
+3. and measurable improvements in bot-cost asymmetry and human-friction reduction after code changes.
+
+The first loop should mature earlier. The second loop should remain more bounded and review-heavy, because code and PR generation has a much larger blast radius than config tuning.
+
 ## Recommended Long-Term Destination
 
 Shuma should converge on three related backend contracts:
@@ -164,6 +192,13 @@ Shuma should converge on three related backend contracts:
    - a bounded, exactness-tagged, machine-readable snapshot of current state over a defined window.
 3. `allowed_actions_v1`
    - the bounded set of config families and thresholds that a scheduled controller is allowed to propose for adjustment.
+
+It should also converge on two benchmark artifacts for the project-evolution loop:
+
+4. `benchmark_suite_v1`
+   - the canonical definitions of the benchmark families Shuma uses to decide whether the codebase itself has improved.
+5. `benchmark_results_v1`
+   - bounded benchmark outputs across adversary-sim, representative live-traffic summaries, and later central-intelligence evidence.
 
 The future human Monitoring tab should not invent a separate semantic model. It should simply render selected parts of `operator_snapshot_v1`.
 
@@ -176,17 +211,20 @@ Instead, the sequence should be:
 1. define the machine-first objective contract,
 2. define and materialize `operator_snapshot_v1`,
 3. define the bounded action surface and recent-change ledger needed for tune-confirm-repeat loops,
-4. then build a thin Monitoring projection over those backend contracts,
-5. then complete the Tuning tab against the same action model,
-6. and only after that plan the scheduled recommend-or-apply agent in detail.
+4. define the benchmark families that will later tell Shuma whether code changes actually improved the arms race,
+5. then build a thin Monitoring projection over those backend contracts,
+6. then complete the Tuning tab against the same action model,
+7. and only after that plan the scheduled recommend-or-apply agent in detail and the later code-evolution loop.
 
 ## Explicit Recommendations
 
 1. Reframe `MON-OVERHAUL-1` as a thin Monitoring projection over a machine-first operator snapshot, not as a charting exercise.
 2. Add a new active tranche for `OPS-SNAPSHOT-1`, covering objectives, snapshot materialization, exactness, change ledger, and allowed action families.
-3. Keep `OVR-AGENT-2` blocked until `OPS-SNAPSHOT-1` and the Tuning surface define a truthful controller input and action contract.
-4. Keep Diagnostics as the home for raw subsystem, transport, and drill-down detail.
-5. Treat sampled or human-dashboard-only views as insufficient for future autonomous operation.
+3. Add a later planning tranche for benchmark-grade project evolution so Shuma can judge code changes against explicit bot-cost and human-friction criteria instead of anecdotes.
+4. Keep `OVR-AGENT-2` blocked until `OPS-SNAPSHOT-1` and the Tuning surface define a truthful controller input and action contract.
+5. Keep code and PR generation out of the first controller loop; treat it as a second, more review-heavy loop that consumes benchmark results rather than only live per-instance telemetry.
+6. Keep Diagnostics as the home for raw subsystem, transport, and drill-down detail.
+7. Treat sampled or human-dashboard-only views as insufficient for future autonomous operation.
 
 ## Sources
 

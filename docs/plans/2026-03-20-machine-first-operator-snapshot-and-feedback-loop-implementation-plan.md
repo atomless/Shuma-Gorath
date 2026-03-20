@@ -4,7 +4,7 @@
 
 **Goal:** Build the machine-first objective and operator-snapshot foundations that future Monitoring, Tuning, and scheduled controller work will consume.
 
-**Architecture:** Keep the current telemetry foundation as the source of truth, add a bounded `operator_objectives_v1` and `operator_snapshot_v1` layer above it, and treat the human Monitoring tab as a later projection over that backend contract instead of inventing UI-first semantics.
+**Architecture:** Keep the current telemetry foundation as the source of truth, add a bounded `operator_objectives_v1` and `operator_snapshot_v1` layer above it, treat the human Monitoring tab as a later projection over that backend contract instead of inventing UI-first semantics, and preserve a separate later benchmark-driven code-evolution loop so Shuma can evolve its own code as part of the arms race rather than only per-instance config.
 
 **Tech Stack:** Rust hot-read documents and admin APIs, existing monitoring summary materialization, dashboard read-model consumers, Markdown planning and backlog docs.
 
@@ -213,6 +213,36 @@ Make the scheduled controller planning depend on:
 4. and the completed Tuning surface.
 
 That ensures later controller design starts from truthful inputs and bounded outputs.
+
+## Phase 7: Benchmark-Driven Project Evolution Handoff
+
+### Task 10: Define the benchmark contract for code evolution
+
+**Files:**
+
+- Create later design and research docs for the project-evolution loop
+- Modify:
+  - `todos/blocked-todo.md`
+  - roadmap docs
+
+**Outcome:**
+
+Define:
+
+1. `benchmark_suite_v1`,
+2. `benchmark_results_v1`,
+3. the separation between instance tuning and project evolution,
+4. and the gate that determines when Shuma needs code changes rather than only config changes.
+
+### Task 11: Keep code and PR generation as a later reviewed path
+
+**Outcome:**
+
+Make explicit that:
+
+1. config tuning is the first automation loop,
+2. code evolution is the second loop,
+3. and code or PR generation must remain benchmark-driven and review-heavy rather than being bundled into the first operator loop.
 
 ## Verification Expectations
 

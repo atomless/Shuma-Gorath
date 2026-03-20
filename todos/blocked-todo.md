@@ -49,7 +49,10 @@ Reference context:
   Blocker: defer execution until the current local recidive/jitter/intelligence design is ready to be broken into service/API/storage contracts; do not treat the Git repository itself as the default shared-intelligence transport.
 
 - [ ] OVR-AGENT-2 Plan the scheduled agent analyzer/recommender/reconfigurer workflow, including model/runtime choice, config-vs-code scope, and whether PR/code-change suggestions are part of the same system or a separate reviewed path.
-  Blocker: defer execution until monitoring, tuning, sim-evidence, and central-intelligence contracts are mature enough that the agent loop can be planned against truthful inputs and bounded outputs. In particular, do not start bounded benchmark/controller design until the active machine-first operator-snapshot tranche [`OPS-SNAPSHOT-1`](../todos/todo.md), the later Monitoring projection, and `TUNE-SURFACE-1` are in place, because the future agent loop should consume `operator_snapshot_v1` and bounded action metadata rather than only operator charts.
+  Blocker: defer execution until monitoring, tuning, sim-evidence, and central-intelligence contracts are mature enough that the agent loop can be planned against truthful inputs and bounded outputs. In particular, do not start bounded benchmark/controller design until the active machine-first operator-snapshot tranche [`OPS-SNAPSHOT-1`](../todos/todo.md), the benchmark-contract tranche `OPS-BENCH-1`, the later Monitoring projection, and `TUNE-SURFACE-1` are in place, because the future agent loop should consume `operator_snapshot_v1`, bounded action metadata, and explicit benchmark results rather than only operator charts.
+
+- [ ] OVR-CODE-1 Plan the later benchmark-driven project-evolution loop for code changes and optional PR generation.
+  Blocker: defer execution until `OPS-BENCH-1`, central-intelligence architecture, and the bounded scheduled config-tuning loop are all mature enough that code evolution can be judged against explicit benchmark suites rather than anecdotes or single-instance dashboard impressions.
 
 ## P1 Blocked by Enterprise Baseline Maturity
 

@@ -303,19 +303,22 @@ Status update (2026-03-20):
 
 1. Delivered. Monitoring/Diagnostics ownership split so the legacy diagnostic surface now has a truthful home.
 2. Define `operator_objectives_v1`, `operator_snapshot_v1`, and `allowed_actions_v1` as the machine-first control contract for both future agents and later human Monitoring surfaces.
-3. Build Monitoring as a thin projection over that snapshot, with explicit live versus shadow versus adversary-sim separation.
-4. Complete the Tuning tab against the same objective and action model.
+3. Define benchmark contracts that will later tell Shuma whether the codebase itself is improving the bot-cost versus human-friction arms race.
+4. Build Monitoring as a thin projection over that snapshot, with explicit live versus shadow versus adversary-sim separation.
+5. Complete the Tuning tab against the same objective and action model.
 
 Reason:
 
 1. once the controller-grade telemetry foundation exists, Shuma should not jump straight to chart-first Monitoring work; it should first define the machine-readable contract that a future scheduled controller and a later human dashboard will both consume.
-2. with the ownership split now implemented, the next work in this stage is the operator snapshot and objective-loop foundation, followed by the human Monitoring projection rather than more transition mechanics.
+2. with the ownership split now implemented, the next work in this stage is the operator snapshot and objective-loop foundation, followed by benchmark criteria for project evolution and then the human Monitoring projection rather than more transition mechanics.
 
 Status update (2026-03-20):
 
 1. The next Stage 2 work is now explicitly the machine-first operator snapshot foundation, not a human-chart-first Monitoring build.
 2. Monitoring overhaul should be treated as a thin projection over `operator_snapshot_v1`.
-3. The scheduled controller planning should remain blocked until that snapshot contract and the later tuning-action contract exist.
+3. Shuma should explicitly preserve two later loops: per-instance config tuning and project-level code evolution.
+4. The scheduled controller planning should remain blocked until that snapshot contract and the later tuning-action contract exist.
+5. Code and PR generation should remain behind a later benchmark-driven planning gate rather than being folded into the first tuning loop.
 
 ## Stage 3: Edge-Instance Ban Sync And Distributed State Correctness
 
