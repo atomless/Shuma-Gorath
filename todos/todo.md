@@ -86,13 +86,12 @@ Reference plan:
 - [`docs/research/2026-03-20-telemetry-as-map-adversary-surface-discovery-synthesis.md`](../docs/research/2026-03-20-telemetry-as-map-adversary-surface-discovery-synthesis.md)
 
 ### SIM-SH-SURFACE-1: Minimal Shared-Host Scope And Seed Gate
-- [ ] SIM-SH-SURFACE-1-1 Define the shared-host descriptor and fail-closed scope contract.
-  Execution note: first land the versioned shared-host scope contract plus pre-lane tooling validator and focused `make` gate. Do not start this slice by adding admin/KV/dashboard surface before there is a real runtime consumer.
 - [ ] SIM-SH-SURFACE-1-2 Define the minimal operator seed contract:
   - one required primary public start URL,
   - optional `robots.txt`,
   - optional small explicit extra seed list,
   - provenance and rejection diagnostics for invalid or out-of-scope seeds.
+  Execution note: reuse `scripts/tests/shared_host_scope.py` and the shared-host scope contract from `SIM-SH-SURFACE-1-1` rather than introducing a second seed or redirect validator.
 
 Scope note:
 - `SIM-SCR-LANE-1` should require only the minimal scope-and-seed gate in `SIM-SH-SURFACE-1-1..2` plus `SIM-DEPLOY-2`.

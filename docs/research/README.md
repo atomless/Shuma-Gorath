@@ -106,6 +106,8 @@ Completed archive index:
    Research synthesis arguing that a realistic adversary harness should start from minimal seeds and scope fences, then let traversal telemetry become the authoritative adversary-reachable surface map.
 25. [`2026-03-20-minimal-seed-surface-discovery-post-implementation-review.md`](2026-03-20-minimal-seed-surface-discovery-post-implementation-review.md)
    Post-implementation review confirming the shared-host backlog and roadmap now prefer minimal operator-defined seeds plus traversal telemetry rather than a rich precomputed public-surface catalog.
+26. [`2026-03-20-shared-host-scope-contract-post-implementation-review.md`](2026-03-20-shared-host-scope-contract-post-implementation-review.md)
+   Post-implementation review confirming `SIM-SH-SURFACE-1-1` landed as a versioned fail-closed scope contract plus tooling validator, and that the next shared-host work should move to the seed contract rather than control-plane surface.
 
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 

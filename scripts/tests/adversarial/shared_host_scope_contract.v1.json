@@ -1,0 +1,34 @@
+{
+  "schema_version": "shared-host-scope-contract.v1",
+  "descriptor": {
+    "required_fields": [
+      "allowed_hosts",
+      "denied_path_prefixes",
+      "require_https",
+      "deny_ip_literals"
+    ],
+    "defaults": {
+      "require_https": true,
+      "deny_ip_literals": true
+    },
+    "baseline_denied_path_prefixes": [
+      "/admin",
+      "/internal",
+      "/dashboard",
+      "/session",
+      "/auth",
+      "/login"
+    ]
+  },
+  "validation": {
+    "rejection_reasons": [
+      "malformed_url",
+      "missing_host",
+      "non_https",
+      "ip_literal_host",
+      "host_not_allowed",
+      "denied_path_prefix",
+      "redirect_target_out_of_scope"
+    ]
+  }
+}

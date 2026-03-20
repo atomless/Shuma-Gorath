@@ -4,6 +4,28 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-20)
 
+### SIM-SH-SURFACE-1-1: Implement The Shared-Host Scope Contract
+
+- [x] Complete `SIM-SH-SURFACE-1-1` by landing a versioned shared-host scope contract, a fail-closed tooling validator with redirect revalidation, a focused `make test-shared-host-scope-contract` gate, and canonical adversarial Python-unit integration without adding speculative admin or KV config surface.
+- [x] Why:
+  - after the planning slice, the next optimal work was to make the new shared-host scope model executable before any seed or Scrapling lane work started. Without that, `SIM-SH-SURFACE-1-2` would have had to invent its own URL and redirect rules locally.
+  - the repo already had a strong pattern for versioned contracts and focused parity checkers in adversarial tooling, so the clean implementation was to reuse that pattern instead of adding a one-off validator with undocumented semantics.
+  - the post-tranche review found one real fail-closed gap in the first draft: non-HTTP schemes could have slipped through if `require_https=false`. That was fixed immediately before closeout and regression-covered along with malformed-authority rejection.
+- [x] Evidence:
+  - `scripts/tests/adversarial/shared_host_scope_contract.v1.json`
+  - `scripts/tests/shared_host_scope.py`
+  - `scripts/tests/check_shared_host_scope_contract.py`
+  - `scripts/tests/test_shared_host_scope.py`
+  - `Makefile`
+  - `docs/testing.md`
+  - `docs/research/2026-03-20-shared-host-scope-contract-post-implementation-review.md`
+  - `docs/research/README.md`
+  - `docs/index.md`
+  - `make test-shared-host-scope-contract`
+  - `make test-adversarial-python-unit`
+  - `git diff --check`
+  - post-tranche review: the non-HTTP-scheme fail-open edge and malformed-port handling shortfall were found during review, corrected before closeout, and no further shortfall remains inside `SIM-SH-SURFACE-1-1`
+
 ### SIM-SH-SURFACE-1-1: Capture The Shared-Host Scope Fence Contract Plan
 
 - [x] Write the dedicated `SIM-SH-SURFACE-1-1` contract plan that turns the telemetry-as-map roadmap into an execution-ready shared-host scope slice, narrows the first implementation to a versioned fail-closed descriptor plus pre-lane tooling validator, and explicitly keeps deployment catalog tooling separate from emergent-lane discovery truth.
