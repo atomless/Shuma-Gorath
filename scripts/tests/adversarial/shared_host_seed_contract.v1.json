@@ -1,0 +1,26 @@
+{
+  "schema_version": "shared-host-seed-contract.v1",
+  "source_labels": [
+    "primary_start_url",
+    "robots",
+    "manual_extra_seed"
+  ],
+  "inventory_sections": [
+    "accepted_start_urls",
+    "accepted_hint_documents",
+    "rejected_inputs"
+  ],
+  "validation": {
+    "rejection_reasons": [
+      "malformed_url",
+      "missing_host",
+      "non_https",
+      "ip_literal_host",
+      "host_not_allowed",
+      "denied_path_prefix",
+      "redirect_target_out_of_scope",
+      "robots_fetch_failed",
+      "robots_parse_failed"
+    ]
+  }
+}

@@ -9,9 +9,6 @@ Security finding validity and closure status live in `todos/security-review.md`.
 
 ## P0 Blocked by Shared-Host Discovery and Runtime-Safety Gates
 
-- [ ] SIM-SCR-LANE-1 Three-lane runtime migration and Scrapling integration.
-  Blocker: do not start until `SIM-DEPLOY-2` establishes the runtime operating envelope and the minimal scope-and-seed gate in `SIM-SH-SURFACE-1-1..2` is complete per [`docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`](../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md) and [`docs/plans/2026-03-20-minimal-seed-and-telemetry-surface-discovery-design.md`](../docs/plans/2026-03-20-minimal-seed-and-telemetry-surface-discovery-design.md). The lane must derive its reachable-surface view from traversal telemetry rather than from a precomputed public-surface catalog.
-
 - [ ] SIM-LLM-1 Full LLM-orchestrated, instruction-driven, containerized adversary lane as a first-class runtime actor.
   Blocker: keep blocked until the Scrapling emergent lane is producing benchmarkable signal, the runtime lane model is proven safe, and the active `SIM-DEPLOY-2` operating-envelope tranche establishes acceptable production bounds.
 

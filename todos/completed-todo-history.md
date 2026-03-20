@@ -4,6 +4,31 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-20)
 
+### SIM-SH-SURFACE-1-2: Implement The Shared-Host Seed Contract
+
+- [x] Complete `SIM-SH-SURFACE-1-2` by landing a versioned minimal seed contract, a shared seed-inventory builder and CLI, a truthful `make build-shared-host-seed-inventory` operator workflow, a focused `make test-shared-host-seed-contract` gate, and bounded `robots.txt` ingestion that emits hint documents rather than a public-surface catalog.
+- [x] Why:
+  - once the scope fence landed, the remaining shared-host blocker was the actual operator seed workflow. Without it, the later Scrapling runtime lane would still have had to invent a start-set artifact and robots semantics ad hoc.
+  - the key architectural risk in this tranche was silent backsliding into a catalog-first model. The clean fix was to separate accepted crawl start URLs from accepted hint documents and to keep all URL validation delegated to the completed shared-host scope contract.
+  - the first live verification pass found one concrete tooling gap: the new CLI worked under imported unit tests but failed when invoked as a standalone script because it did not bootstrap repo-local imports. That was corrected before closeout and regression-covered through the CLI test path.
+- [x] Evidence:
+  - `scripts/tests/adversarial/shared_host_seed_contract.v1.json`
+  - `scripts/tests/shared_host_seed_inventory.py`
+  - `scripts/tests/check_shared_host_seed_contract.py`
+  - `scripts/tests/test_shared_host_seed_inventory.py`
+  - `Makefile`
+  - `docs/testing.md`
+  - `docs/adversarial-operator-guide.md`
+  - `docs/research/2026-03-20-shared-host-seed-contract-post-implementation-review.md`
+  - `docs/research/README.md`
+  - `docs/index.md`
+  - `todos/todo.md`
+  - `todos/blocked-todo.md`
+  - `make test-shared-host-seed-contract`
+  - `make test-adversarial-python-unit`
+  - `git diff --check`
+  - post-tranche review: the standalone CLI import-path shortfall was found during verification, corrected before closeout, and no further shortfall remains inside `SIM-SH-SURFACE-1-2`
+
 ### SIM-SH-SURFACE-1-2: Capture The Shared-Host Seed Contract Plan
 
 - [x] Write the dedicated `SIM-SH-SURFACE-1-2` plan that defines the first minimal seed inventory shape, keeps the completed shared-host scope validator as the single URL gate, and resolves the `robots.txt` question by treating sitemap references as bounded hint documents instead of reviving a catalog-first surface artifact.

@@ -41,6 +41,13 @@ That means:
 3. replay-promotion candidates should come from observed telemetry traces,
 4. and routes that never appear in telemetry do not belong in the active adversary surface map unless a narrower safety or operator contract explicitly requires them.
 
+For shared-host emergent-lane preparation, the minimal seed workflow now has an explicit tooling shape:
+
+1. provide a shared-host scope descriptor that satisfies `SIM-SH-SURFACE-1-1`,
+2. build the minimal seed inventory with `make build-shared-host-seed-inventory SHARED_HOST_SEED_ARGS='...'`,
+3. treat the resulting artifact as accepted start URLs plus bounded hint documents,
+4. and do not treat `robots.txt` or sitemap hints as the authoritative reachable-surface map.
+
 ## Production Operating Receipt (`SIM-DEPLOY-2`)
 
 Production adversary-sim is now a normal Shuma operating lane, not a runtime-prod exception.

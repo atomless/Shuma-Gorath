@@ -87,16 +87,21 @@ Reference plan:
 - [`docs/research/2026-03-20-telemetry-as-map-adversary-surface-discovery-synthesis.md`](../docs/research/2026-03-20-telemetry-as-map-adversary-surface-discovery-synthesis.md)
 
 ### SIM-SH-SURFACE-1: Minimal Shared-Host Scope And Seed Gate
-- [ ] SIM-SH-SURFACE-1-2 Define the minimal operator seed contract:
-  - one required primary public start URL,
-  - optional `robots.txt`,
-  - optional small explicit extra seed list,
-  - provenance and rejection diagnostics for invalid or out-of-scope seeds.
-  Execution note: reuse `scripts/tests/shared_host_scope.py` and the shared-host scope contract from `SIM-SH-SURFACE-1-1` rather than introducing a second seed or redirect validator. Keep `robots.txt` output bounded to hint documents in the first tranche; do not let this artifact drift into a claimed public-surface catalog.
-
 Scope note:
 - `SIM-SCR-LANE-1` should require only the minimal scope-and-seed gate in `SIM-SH-SURFACE-1-1..2` plus `SIM-DEPLOY-2`.
 - The observed reachable surface should emerge from traversal telemetry once the emergent lane runs; Shuma should not build a rich precomputed public-surface catalog as the default discovery architecture.
+
+## P1 Scrapling Emergent Lane
+
+Reference plan:
+- [`docs/plans/2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md`](../docs/plans/2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md)
+- [`docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`](../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md)
+- [`docs/plans/2026-03-20-minimal-seed-and-telemetry-surface-discovery-design.md`](../docs/plans/2026-03-20-minimal-seed-and-telemetry-surface-discovery-design.md)
+- [`docs/plans/2026-03-20-shared-host-scope-fence-contract.md`](../docs/plans/2026-03-20-shared-host-scope-fence-contract.md)
+- [`docs/plans/2026-03-20-shared-host-seed-contract.md`](../docs/plans/2026-03-20-shared-host-seed-contract.md)
+
+- [ ] SIM-SCR-LANE-1 Three-lane runtime migration and Scrapling integration.
+  Execution note: this lane is now unblocked by `SIM-DEPLOY-2` and `SIM-SH-SURFACE-1-1..2`. Its reachable-surface view must derive from the minimal seed inventory plus later traversal telemetry, not from a precompiled public-surface catalog.
 
 ## P1 Enterprise Distributed-State Deployment Baseline
 

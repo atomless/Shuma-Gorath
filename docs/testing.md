@@ -174,6 +174,7 @@ Available profiles:
 - `make test-adversarial-manifest` - schema/fixture validation without server
 - `make test-adversarial-lane-contract` - black-box attacker/control capability contract parity check across deterministic/container tooling
 - `make test-shared-host-scope-contract` - shared-host descriptor and fail-closed scope gate parity check across the versioned contract plus seed-tooling validator
+- `make test-shared-host-seed-contract` - minimal shared-host seed inventory contract parity check, including required primary URL handling, bounded `robots.txt` hint ingestion, provenance merge, and rejection diagnostics
 - `make test-adversarial-sim-tag-contract` - signed simulation-tag contract parity check across lane contract, runner, and container worker
 - `make test-adversarial-coverage-contract` - canonical `full_coverage` contract parity check across SIM2 plan rows, manifests, and runner enforcement
 - `make test-adversarial-live` - repeated live traffic generator for operator monitoring drills
