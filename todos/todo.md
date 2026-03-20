@@ -62,9 +62,6 @@ Reference context:
 - [`docs/plans/2026-03-15-agentic-era-oversight-design.md`](../docs/plans/2026-03-15-agentic-era-oversight-design.md)
 - [`docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
 
-### OPS-SNAPSHOT-1: Machine-First Operator Snapshot Foundation
-- [ ] OPS-SNAPSHOT-1-5 Materialize `allowed_actions_v1` as the explicit controller action envelope, including bounded config-diff scope and guardrail metadata, so later scheduled controllers stay inside one truthful write surface.
-
 ### OPS-BENCH-1: Benchmark Contract For Project Evolution
 - [ ] OPS-BENCH-1-1 Define `benchmark_suite_v1` around the first four benchmark families: suspicious-origin cost, likely-human friction, representative adversary effectiveness, and beneficial or authenticated non-human posture according to local policy stance.
 - [ ] OPS-BENCH-1-2 Define `benchmark_results_v1` as the bounded comparison envelope for subject kind, baseline, watch window, per-family deltas, and improvement or regression status.

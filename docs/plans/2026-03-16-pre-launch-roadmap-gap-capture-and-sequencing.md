@@ -314,10 +314,10 @@ Reason:
 
 Status update (2026-03-20):
 
-1. The next Stage 2 work is now explicitly the machine-first operator snapshot foundation, not a human-chart-first Monitoring build.
-2. Monitoring overhaul should be treated as a thin projection over `operator_snapshot_v1`.
-3. Shuma should explicitly preserve two later loops: per-instance config tuning and project-level code evolution.
-4. The scheduled controller planning should remain blocked until that snapshot contract and the later tuning-action contract exist.
+1. Delivered. The machine-first operator snapshot foundation now includes `operator_objectives_v1`, `operator_snapshot_v1`, the bounded `recent_changes` ledger, and `allowed_actions_v1`.
+2. The next Stage 2 work is now the benchmark contract tranche, not a human-chart-first Monitoring build.
+3. Monitoring overhaul should be treated as a thin projection over `operator_snapshot_v1` plus benchmark-family truth.
+4. Shuma should explicitly preserve two later loops: per-instance config tuning and project-level code evolution.
 5. Code and PR generation should remain behind a later benchmark-driven planning gate rather than being folded into the first tuning loop.
 
 Status update (2026-03-20, benchmark addendum):

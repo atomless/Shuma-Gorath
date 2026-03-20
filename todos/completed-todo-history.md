@@ -4,6 +4,28 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-20)
 
+### OPS-SNAPSHOT-1: Materialize `allowed_actions_v1` And Close The Machine-First Snapshot Foundation
+
+- [x] Complete `OPS-SNAPSHOT-1-5` by replacing the placeholder `allowed_actions` section with a bounded `allowed_actions_v1` contract that enumerates allowed, manual-only, and forbidden controller groups, patch paths, canary requirements, and explicit value envelopes where Shuma already has safe clamp semantics.
+- [x] Why:
+  - the machine-first snapshot foundation was still incomplete while controller write authority remained a placeholder, because later agent loops would otherwise have to invent their own understanding of what they were allowed to change.
+  - the correct first implementation needed to stay conservative, so trust-boundary or insufficiently bounded families remained `manual_only` or `forbidden` rather than being overclaimed as safe for autonomous tuning.
+  - landing this slice now closes `OPS-SNAPSHOT-1` and leaves the benchmark contract tranche as the correct next dependency before Monitoring overhaul.
+- [x] Evidence:
+  - `src/config/controller_action_surface.rs`
+  - `src/config/mod.rs`
+  - `src/config/tests.rs`
+  - `src/admin/api.rs`
+  - `src/observability/operator_snapshot.rs`
+  - `src/observability/hot_read_contract.rs`
+  - `src/observability/hot_read_projection.rs`
+  - `Makefile`
+  - `docs/research/2026-03-20-operator-snapshot-allowed-actions-post-implementation-review.md`
+  - `make test-operator-snapshot-foundation`
+  - `make test-monitoring-telemetry-foundation-unit`
+  - `make test`
+  - `git diff --check`
+
 ### OPS-SNAPSHOT-1: Materialize The Bounded Recent-Changes Ledger In `operator_snapshot_v1`
 
 - [x] Complete `OPS-SNAPSHOT-1-3` by replacing the placeholder `recent_changes` section with a bounded machine-first ledger that is maintained on meaningful admin mutation writes, exposed through `operator_snapshot_v1`, and proven through helper, projection, config-write, and endpoint tests.

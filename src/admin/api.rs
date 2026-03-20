@@ -1827,7 +1827,13 @@ mod tests {
             row.changed_families,
             vec!["core_policy".to_string(), "shadow_mode".to_string()]
         );
-        assert_eq!(row.targets, vec!["suspicious_forwarded_requests".to_string()]);
+        assert_eq!(
+            row.targets,
+            vec![
+                "likely_human_friction".to_string(),
+                "suspicious_forwarded_requests".to_string(),
+            ]
+        );
         assert_eq!(row.watch_window_status, "collecting_post_change_window");
         assert_eq!(row.watch_window_elapsed_seconds, 0);
         assert_eq!(row.watch_window_remaining_seconds, 24 * 3600);
@@ -2134,16 +2140,16 @@ mod tests {
         record_operator_snapshot_recent_change_rows(
             &store,
             "default",
-            &[operator_snapshot_manual_change_row(
+                &[operator_snapshot_manual_change_row(
+                    recent_change_ts,
+                    "config_patch",
+                    &["core_policy"],
+                    &["likely_human_friction", "suspicious_forwarded_requests"],
+                    "admin_rw",
+                    "config families updated: core_policy",
+                )],
                 recent_change_ts,
-                "config_patch",
-                &["core_policy"],
-                &["suspicious_forwarded_requests"],
-                "admin_rw",
-                "config families updated: core_policy",
-            )],
-            recent_change_ts,
-        );
+            );
         crate::observability::hot_read_projection::refresh_after_counter_flush(&store, "default");
 
         let mut builder = Request::builder();
@@ -2201,6 +2207,21 @@ mod tests {
                 .and_then(|row| row.get("change_reason"))
                 .and_then(|value| value.as_str()),
             Some("config_patch")
+        );
+        assert_eq!(
+            payload
+                .get("allowed_actions")
+                .and_then(|value| value.get("schema_version"))
+                .and_then(|value| value.as_str()),
+            Some("allowed_actions_v1")
+        );
+        assert!(
+            payload
+                .get("allowed_actions")
+                .and_then(|value| value.get("allowed_group_ids"))
+                .and_then(|value| value.as_array())
+                .map(|rows| rows.iter().any(|row| row.as_str() == Some("not_a_bot.policy")))
+                .unwrap_or(false)
         );
     }
 
@@ -4000,7 +4021,13 @@ mod admin_config_tests {
             .iter()
             .filter_map(|value| value.as_str())
             .collect();
-        assert_eq!(targets, vec!["suspicious_forwarded_requests"]);
+        assert_eq!(
+            targets,
+            vec![
+                "likely_human_friction",
+                "suspicious_forwarded_requests",
+            ]
+        );
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
     }
@@ -12164,84 +12191,7 @@ fn operator_snapshot_patch_requested_families(
     };
     let mut families = Vec::new();
     for key in object.keys() {
-        let family = match key.as_str() {
-            "shadow_mode" => Some("shadow_mode"),
-            "adversary_sim_duration_seconds" => Some("adversary_sim_config"),
-            "ban_duration" | "ban_durations" | "rate_limit" | "js_required_enforced" => {
-                Some("core_policy")
-            }
-            "geo_risk"
-            | "geo_allow"
-            | "geo_challenge"
-            | "geo_maze"
-            | "geo_block"
-            | "geo_edge_headers_enabled" => Some("geo_policy"),
-            "honeypot_enabled" | "honeypots" => Some("honeypot"),
-            "browser_policy_enabled" | "browser_block" | "browser_allowlist" => {
-                Some("browser_policy")
-            }
-            "bypass_allowlists_enabled"
-            | "allowlist"
-            | "path_allowlist_enabled"
-            | "path_allowlist" => Some("allowlists"),
-            "ip_range_policy_mode"
-            | "ip_range_emergency_allowlist"
-            | "ip_range_custom_rules"
-            | "ip_range_suggestions_min_observations"
-            | "ip_range_suggestions_min_bot_events"
-            | "ip_range_suggestions_min_confidence_percent"
-            | "ip_range_suggestions_low_collateral_percent"
-            | "ip_range_suggestions_high_collateral_percent"
-            | "ip_range_suggestions_ipv4_min_prefix_len"
-            | "ip_range_suggestions_ipv6_min_prefix_len"
-            | "ip_range_suggestions_likely_human_sample_percent" => Some("ip_range_policy"),
-            "maze_enabled"
-            | "maze_auto_ban"
-            | "maze_auto_ban_threshold"
-            | "maze_rollout_phase"
-            | "maze_token_ttl_seconds"
-            | "maze_token_max_depth"
-            | "maze_token_branch_budget"
-            | "maze_replay_ttl_seconds"
-            | "maze_entropy_window_seconds"
-            | "maze_client_expansion_enabled"
-            | "maze_checkpoint_every_nodes"
-            | "maze_checkpoint_every_ms"
-            | "maze_step_ahead_max"
-            | "maze_no_js_fallback_max_depth"
-            | "maze_micro_pow_enabled"
-            | "maze_micro_pow_depth_start"
-            | "maze_micro_pow_base_difficulty"
-            | "maze_max_concurrent_global"
-            | "maze_max_concurrent_per_ip_bucket"
-            | "maze_max_response_bytes"
-            | "maze_max_response_duration_ms"
-            | "maze_server_visible_links"
-            | "maze_max_links"
-            | "maze_max_paragraphs"
-            | "maze_path_entropy_segment_len"
-            | "maze_covert_decoys_enabled"
-            | "maze_seed_provider"
-            | "maze_seed_refresh_interval_seconds"
-            | "maze_seed_refresh_rate_limit_per_hour"
-            | "maze_seed_refresh_max_sources"
-            | "maze_seed_metadata_only" => Some("maze_core"),
-            key if key.starts_with("tarpit_") => Some("tarpit"),
-            key if key.starts_with("pow_") => Some("proof_of_work"),
-            key if key.starts_with("challenge_puzzle_") => Some("challenge"),
-            key if key.starts_with("not_a_bot_") => Some("not_a_bot"),
-            "provider_backends" | "edge_integration_mode" => Some("provider_selection"),
-            "challenge_puzzle_risk_threshold" | "botness_maze_threshold" | "botness_weights"
-            | "defence_modes" => Some("botness"),
-            "robots_enabled"
-            | "ai_policy_block_training"
-            | "ai_policy_block_search"
-            | "ai_policy_allow_search_engines"
-            | "robots_crawl_delay" => Some("robots_policy"),
-            key if key.starts_with("cdp_") => Some("cdp_detection"),
-            key if key.starts_with("fingerprint_") => Some("fingerprint_signal"),
-            _ => None,
-        };
+        let family = crate::config::controller_config_family_for_patch_key(key.as_str());
         if let Some(family) = family {
             if !families.contains(&family) {
                 families.push(family);
@@ -12441,32 +12391,8 @@ fn operator_snapshot_patch_changed_families(
 fn operator_snapshot_targets_for_families(families: &[String]) -> Vec<String> {
     let mut targets = BTreeSet::new();
     for family in families {
-        let family_targets: &[&str] = match family.as_str() {
-            "shadow_mode" => &[],
-            "adversary_sim_config" => &["representative_adversary_effectiveness"],
-            "core_policy" => &["suspicious_forwarded_requests"],
-            "geo_policy" => &["likely_human_friction", "suspicious_forwarded_requests"],
-            "honeypot" => &["suspicious_forwarded_requests"],
-            "browser_policy" => &["likely_human_friction", "suspicious_forwarded_requests"],
-            "allowlists" => &["likely_human_friction", "suspicious_forwarded_requests"],
-            "ip_range_policy" => &["likely_human_friction", "suspicious_forwarded_requests"],
-            "maze_core" | "tarpit" => {
-                &["suspicious_forwarded_bytes", "suspicious_forwarded_requests"]
-            }
-            "proof_of_work" | "challenge" | "botness" | "cdp_detection" | "fingerprint_signal" => {
-                &[
-                    "likely_human_friction",
-                    "suspicious_forwarded_bytes",
-                    "suspicious_forwarded_requests",
-                ]
-            }
-            "not_a_bot" => &["likely_human_friction"],
-            "provider_selection" => &[],
-            "robots_policy" => &["beneficial_non_human_posture"],
-            _ => &[],
-        };
-        for target in family_targets {
-            targets.insert((*target).to_string());
+        for target in crate::config::controller_action_family_targets(family.as_str()) {
+            targets.insert(target);
         }
     }
     targets.into_iter().collect()

@@ -235,6 +235,65 @@ fn parse_provider_backend_accepts_expected_values() {
 }
 
 #[test]
+fn allowed_actions_v1_exposes_conservative_controller_write_surface() {
+    let surface = allowed_actions_v1();
+    assert_eq!(surface.schema_version, "allowed_actions_v1");
+    assert_eq!(surface.write_surface, "admin_config");
+    assert_eq!(surface.proposal_mode, "config_diff_only");
+    assert!(surface
+        .allowed_group_ids
+        .contains(&"not_a_bot.policy".to_string()));
+    assert!(surface
+        .manual_only_group_ids
+        .contains(&"shadow_mode.state".to_string()));
+    assert!(surface
+        .forbidden_group_ids
+        .contains(&"provider_selection.backends".to_string()));
+
+    let core_policy = surface
+        .families
+        .iter()
+        .find(|family| family.family == "core_policy")
+        .expect("core_policy family");
+    assert_eq!(core_policy.controller_status, "mixed");
+    assert!(core_policy
+        .targets
+        .contains(&"likely_human_friction".to_string()));
+
+    let not_a_bot = surface
+        .groups
+        .iter()
+        .find(|group| group.group_id == "not_a_bot.policy")
+        .expect("not_a_bot policy group");
+    assert_eq!(not_a_bot.controller_status, "allowed");
+    assert_eq!(not_a_bot.canary_requirement, "required");
+    assert!(not_a_bot
+        .value_constraints
+        .iter()
+        .any(|constraint| constraint.path == "not_a_bot_risk_threshold"));
+}
+
+#[test]
+fn controller_config_family_for_patch_key_reuses_allowed_action_catalog() {
+    assert_eq!(
+        controller_config_family_for_patch_key("js_required_enforced"),
+        Some("core_policy")
+    );
+    assert_eq!(
+        controller_config_family_for_patch_key("defence_modes"),
+        Some("botness")
+    );
+    assert_eq!(
+        controller_config_family_for_patch_key("edge_integration_mode"),
+        Some("provider_selection")
+    );
+    assert_eq!(
+        controller_config_family_for_patch_key("unknown_field"),
+        None
+    );
+}
+
+#[test]
 fn parse_edge_integration_mode_accepts_expected_values() {
     assert_eq!(
         parse_edge_integration_mode("off"),

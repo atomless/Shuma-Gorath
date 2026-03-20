@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 use crate::challenge::KeyValueStore;
+use crate::config::AllowedActionsSurface;
 use crate::observability::hot_read_contract::{
     operator_snapshot_component_contracts, HotReadOwnershipTier, TelemetryBasis,
     TelemetryExactness,
@@ -205,7 +206,7 @@ pub(crate) struct OperatorSnapshotHotReadPayload {
     pub runtime_posture: OperatorSnapshotRuntimePosture,
     pub recent_changes: OperatorSnapshotRecentChanges,
     pub budget_distance: OperatorBudgetDistanceSummary,
-    pub allowed_actions: OperatorSnapshotPlaceholderSection,
+    pub allowed_actions: AllowedActionsSurface,
     pub verified_identity: OperatorSnapshotPlaceholderSection,
 }
 
@@ -276,10 +277,7 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
             suspicious_lane.as_ref(),
             human_friction.as_ref(),
         ),
-        allowed_actions: placeholder_section(
-            "not_yet_materialized",
-            "Allowed controller action envelope lands in a later operator-snapshot slice.",
-        ),
+        allowed_actions: crate::config::allowed_actions_v1(),
         verified_identity: placeholder_section(
             "not_yet_supported",
             "Verified identity summaries land with the verified bot identity foundation.",
@@ -773,7 +771,13 @@ mod tests {
             .iter()
             .any(|row| row.metric == "likely_human_friction_rate"));
         assert!(payload.recent_changes.rows.is_empty());
-        assert_eq!(payload.allowed_actions.availability, "not_yet_materialized");
+        assert_eq!(payload.allowed_actions.schema_version, "allowed_actions_v1");
+        assert!(
+            payload
+                .allowed_actions
+                .allowed_group_ids
+                .contains(&"not_a_bot.policy".to_string())
+        );
         assert_eq!(payload.verified_identity.availability, "not_yet_supported");
     }
 

@@ -856,6 +856,8 @@ test-monitoring-telemetry-foundation-unit: ## Run focused unit checks for monito
 test-operator-snapshot-foundation: ## Run focused operator snapshot foundation checks
 	@echo "$(CYAN)🧪 Running operator snapshot foundation checks...$(NC)"
 	@./scripts/set_crate_type.sh rlib
+	@cargo test config::tests::allowed_actions_v1_exposes_conservative_controller_write_surface -- --exact --nocapture
+	@cargo test config::tests::controller_config_family_for_patch_key_reuses_allowed_action_catalog -- --exact --nocapture
 	@cargo test observability::operator_snapshot::tests:: -- --nocapture
 	@cargo test observability::hot_read_documents::tests::operator_snapshot_ -- --nocapture
 	@cargo test observability::hot_read_projection::tests::counter_flush_refresh_operator_snapshot -- --nocapture

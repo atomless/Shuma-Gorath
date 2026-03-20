@@ -63,27 +63,25 @@ Completed archive index:
 5. [`2026-03-20-operator-snapshot-foundation-post-implementation-review.md`](2026-03-20-operator-snapshot-foundation-post-implementation-review.md)
    Post-implementation review confirming the first `operator_snapshot_v1` foundation slice landed cleanly and tightening the no-write-on-read proof for the new admin read path.
 6. [`2026-03-20-operator-snapshot-recent-changes-post-implementation-review.md`](2026-03-20-operator-snapshot-recent-changes-post-implementation-review.md)
-   Post-implementation review confirming the bounded `recent_changes` ledger landed as a write-side compact summary rather than a read-time event-log scan, and that the remaining next step is `allowed_actions_v1`.
-4. [`2026-03-17-operator-decision-support-telemetry-audit.md`](2026-03-17-operator-decision-support-telemetry-audit.md)
+   Post-implementation review confirming the bounded `recent_changes` ledger landed as a write-side compact summary rather than a read-time event-log scan.
+7. [`2026-03-20-operator-snapshot-allowed-actions-post-implementation-review.md`](2026-03-20-operator-snapshot-allowed-actions-post-implementation-review.md)
+   Post-implementation review confirming `allowed_actions_v1` landed as a conservative controller write contract and that `OPS-SNAPSHOT-1` is now complete.
+8. [`2026-03-17-operator-decision-support-telemetry-audit.md`](2026-03-17-operator-decision-support-telemetry-audit.md)
    Repo-grounded audit of current telemetry collection, operator-useful decision-support signals, contributor-only diagnostics, and the highest-value monitoring gaps Shuma should close before the Monitoring overhaul.
-5. [`2026-03-18-agentic-era-operator-telemetry-research-synthesis.md`](2026-03-18-agentic-era-operator-telemetry-research-synthesis.md)
+9. [`2026-03-18-agentic-era-operator-telemetry-research-synthesis.md`](2026-03-18-agentic-era-operator-telemetry-research-synthesis.md)
    State-of-the-art research synthesis for the telemetry Shuma should collect in the agentic era, grounded in current Cloudflare, Google, OpenAI, Anthropic, Web Bot Auth, and HTTP Message Signatures guidance on traffic classification, detection layering, operator analytics, and verified-agent handling.
-6. [`2026-03-18-cost-aware-operator-telemetry-gap-analysis.md`](2026-03-18-cost-aware-operator-telemetry-gap-analysis.md)
+10. [`2026-03-18-cost-aware-operator-telemetry-gap-analysis.md`](2026-03-18-cost-aware-operator-telemetry-gap-analysis.md)
    Cost-aware gap analysis comparing Shuma's current telemetry collection to the desired operator-grade model, with explicit attention to hot-read budget, retained-footprint economics, and the minimum next telemetry tranche that improves operator decision support without regressing efficiency.
-7. [`2026-03-19-controller-readiness-telemetry-foundation-review.md`](2026-03-19-controller-readiness-telemetry-foundation-review.md)
+11. [`2026-03-19-controller-readiness-telemetry-foundation-review.md`](2026-03-19-controller-readiness-telemetry-foundation-review.md)
    Architecture review addendum for the newly landed telemetry foundation work, identifying the remaining controller-grade gaps that should be treated as first-order Stage 1 foundation work before the Monitoring overhaul or bounded inside-agent benchmarking loops.
-8. [`2026-03-19-defence-funnel-origin-integrity-review.md`](2026-03-19-defence-funnel-origin-integrity-review.md)
+12. [`2026-03-19-defence-funnel-origin-integrity-review.md`](2026-03-19-defence-funnel-origin-integrity-review.md)
    Post-implementation review for the first defence-funnel slice, tightening the contract so only live-safe family stages are populated today and recording the immediate follow-on need for origin-aware `not_a_bot`, `challenge`, and `pow` family telemetry.
-9. [`2026-03-19-pre-monitoring-overhaul-telemetry-foundation-closeout-review.md`](2026-03-19-pre-monitoring-overhaul-telemetry-foundation-closeout-review.md)
+13. [`2026-03-19-pre-monitoring-overhaul-telemetry-foundation-closeout-review.md`](2026-03-19-pre-monitoring-overhaul-telemetry-foundation-closeout-review.md)
    Closeout review confirming that the controller-grade backend telemetry foundation is complete and that the next work should move to the Monitoring-overhaul discussion and section-ownership planning rather than another telemetry architecture sweep.
-10. [`2026-03-20-monitoring-diagnostics-ownership-post-implementation-review.md`](2026-03-20-monitoring-diagnostics-ownership-post-implementation-review.md)
+14. [`2026-03-20-monitoring-diagnostics-ownership-post-implementation-review.md`](2026-03-20-monitoring-diagnostics-ownership-post-implementation-review.md)
    Post-implementation review confirming that the Monitoring/Diagnostics ownership split landed cleanly, that the legacy bounded monitoring surface now has a truthful Diagnostics home, and that the next work should move to the substantive Monitoring overhaul.
-11. [`2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md`](2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md)
-   Research synthesis arguing that Shuma's Monitoring destination should be a machine-first operator snapshot and feedback-loop contract, with human Monitoring later becoming a thin projection over that bounded backend truth.
-12. [`2026-03-20-benchmark-suite-v1-research-synthesis.md`](2026-03-20-benchmark-suite-v1-research-synthesis.md)
+15. [`2026-03-20-benchmark-suite-v1-research-synthesis.md`](2026-03-20-benchmark-suite-v1-research-synthesis.md)
    Research synthesis defining the first benchmark families Shuma should use to judge bot-cost asymmetry, human-friction control, adversary-sim effectiveness, and beneficial non-human posture for both instance tuning and later project evolution.
-13. [`2026-03-20-operator-snapshot-foundation-post-implementation-review.md`](2026-03-20-operator-snapshot-foundation-post-implementation-review.md)
-   Post-implementation review confirming that the first `operator_snapshot_v1` foundation slice landed on the intended machine-first architecture, while tightening the missing-document no-write-on-read proof for the dedicated admin read contract.
 
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 

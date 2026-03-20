@@ -917,7 +917,7 @@ mod tests {
                 recent_change_ts,
                 "config_patch",
                 &["core_policy"],
-                &["suspicious_forwarded_requests"],
+                &["likely_human_friction", "suspicious_forwarded_requests"],
                 "admin_rw",
                 "config families updated: core_policy",
             )],
@@ -949,6 +949,14 @@ mod tests {
         assert_eq!(
             snapshot.payload.recent_changes.rows[0].change_reason.as_str(),
             "config_patch"
+        );
+        assert_eq!(snapshot.payload.allowed_actions.schema_version, "allowed_actions_v1");
+        assert!(
+            snapshot
+                .payload
+                .allowed_actions
+                .allowed_group_ids
+                .contains(&"not_a_bot.policy".to_string())
         );
     }
 

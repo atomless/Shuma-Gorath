@@ -200,7 +200,7 @@ const OPERATOR_SNAPSHOT_COMPONENTS: [HotReadComponentContract; 9] = [
         ownership_tier: HotReadOwnershipTier::SupportingSummary,
         canonical_source: HotReadCanonicalSource::DirectStateSnapshot,
         projection_model: HotReadProjectionModel::DeterministicRebuild,
-        note: "Allowed-actions surface is not yet materialized and currently exposes a placeholder availability contract only.",
+        note: "Allowed-actions surface enumerates the bounded controller write contract, including allowed, manual-only, and forbidden config groups plus canary guardrails.",
     },
     HotReadComponentContract {
         key: "verified_identity",

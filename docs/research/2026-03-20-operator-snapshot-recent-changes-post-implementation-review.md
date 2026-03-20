@@ -37,7 +37,7 @@ Two implementation choices are especially worth preserving:
 
 ## Remaining Follow-On Work
 
-1. `OPS-SNAPSHOT-1-5` remains open. `allowed_actions_v1` is still the missing controller-boundary contract before later Monitoring projection and scheduled-agent planning can proceed safely.
+1. At the time of this review, `OPS-SNAPSHOT-1-5` still remained. It has since been completed in `2026-03-20-operator-snapshot-allowed-actions-post-implementation-review.md`.
 2. Future scheduled-controller work should reuse the same grouped family vocabulary and source semantics introduced here rather than inventing a parallel action taxonomy.
 
 ## Recommendation
@@ -46,9 +46,8 @@ Treat `OPS-SNAPSHOT-1-3` as complete and build the next slice on top of it.
 
 The next work should stay on the existing plan:
 
-1. materialize `allowed_actions_v1`,
-2. perform the same post-implementation review on that slice,
-3. then move into the benchmark and Monitoring projection work from the now-complete machine-first snapshot base.
+1. use the now-complete machine-first snapshot foundation as the base for `OPS-BENCH-1`,
+2. then move into the benchmark and Monitoring projection work in the planned order.
 
 ## Evidence
 

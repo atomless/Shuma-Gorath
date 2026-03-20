@@ -42,7 +42,7 @@ One smaller evidence gap was exposed and corrected immediately during this revie
 
 ## Existing Follow-On Work That Remains Valid
 
-1. At the time of this first-slice review, `OPS-SNAPSHOT-1-3` and `OPS-SNAPSHOT-1-5` still remained. `OPS-SNAPSHOT-1-3` has since been completed in `2026-03-20-operator-snapshot-recent-changes-post-implementation-review.md`, while `OPS-SNAPSHOT-1-5` remains the active next slice.
+1. At the time of this first-slice review, `OPS-SNAPSHOT-1-3` and `OPS-SNAPSHOT-1-5` still remained. Both have since been completed in `2026-03-20-operator-snapshot-recent-changes-post-implementation-review.md` and `2026-03-20-operator-snapshot-allowed-actions-post-implementation-review.md`.
 2. The current `503` behavior for an unmaterialized snapshot is a deliberate first-slice contract, not a regression. It keeps the no-write-on-read rule explicit until a later materialization policy is designed intentionally rather than smuggled in through a read path.
 
 ## Recommendation
@@ -51,9 +51,8 @@ Treat the first operator-snapshot foundation slice as architecturally sound and 
 
 The next work should stay on the existing plan:
 
-1. complete the remaining `OPS-SNAPSHOT-1` items for recent changes and allowed actions,
-2. continue the benchmark-contract groundwork,
-3. then begin `MON-OVERHAUL-1` as a thin projection over the machine-first snapshot contract.
+1. continue the benchmark-contract groundwork from the now-complete machine-first snapshot base,
+2. then begin `MON-OVERHAUL-1` as a thin projection over the machine-first snapshot and benchmark contracts.
 
 Do not reopen the snapshot architecture itself unless later slices show a real boundedness, truthfulness, or controller-safety problem.
 
