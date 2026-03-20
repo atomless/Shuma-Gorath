@@ -74,6 +74,8 @@ Completed archive index:
    Post-implementation review confirming that the Monitoring/Diagnostics ownership split landed cleanly, that the legacy bounded monitoring surface now has a truthful Diagnostics home, and that the next work should move to the substantive Monitoring overhaul.
 11. [`2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md`](2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md)
    Research synthesis arguing that Shuma's Monitoring destination should be a machine-first operator snapshot and feedback-loop contract, with human Monitoring later becoming a thin projection over that bounded backend truth.
+12. [`2026-03-20-benchmark-suite-v1-research-synthesis.md`](2026-03-20-benchmark-suite-v1-research-synthesis.md)
+   Research synthesis defining the first benchmark families Shuma should use to judge bot-cost asymmetry, human-friction control, adversary-sim effectiveness, and beneficial non-human posture for both instance tuning and later project evolution.
 
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 

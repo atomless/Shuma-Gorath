@@ -320,6 +320,13 @@ Status update (2026-03-20):
 4. The scheduled controller planning should remain blocked until that snapshot contract and the later tuning-action contract exist.
 5. Code and PR generation should remain behind a later benchmark-driven planning gate rather than being folded into the first tuning loop.
 
+Status update (2026-03-20, benchmark addendum):
+
+1. The next planning work inside Stage 2 should explicitly define `benchmark_suite_v1` and `benchmark_results_v1` before the Monitoring overhaul begins.
+2. The first benchmark families should stay intentionally small: suspicious-origin cost, likely-human friction, representative adversary effectiveness, and beneficial non-human posture.
+3. Monitoring should later project those benchmark semantics rather than inventing a second human-only notion of success or regression.
+4. This keeps the measuring stick for config tuning, future scheduled controllers, and later code evolution aligned from the start.
+
 ## Stage 3: Edge-Instance Ban Sync And Distributed State Correctness
 
 1. Strict distributed ban-store mode for enterprise authoritative operation.

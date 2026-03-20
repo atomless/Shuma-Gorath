@@ -54,8 +54,11 @@ Reference context:
 
 Reference context:
 - [`docs/research/2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md`](../docs/research/2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md)
+- [`docs/research/2026-03-20-benchmark-suite-v1-research-synthesis.md`](../docs/research/2026-03-20-benchmark-suite-v1-research-synthesis.md)
 - [`docs/plans/2026-03-20-machine-first-operator-snapshot-and-feedback-loop-design.md`](../docs/plans/2026-03-20-machine-first-operator-snapshot-and-feedback-loop-design.md)
 - [`docs/plans/2026-03-20-machine-first-operator-snapshot-and-feedback-loop-implementation-plan.md`](../docs/plans/2026-03-20-machine-first-operator-snapshot-and-feedback-loop-implementation-plan.md)
+- [`docs/plans/2026-03-20-benchmark-suite-v1-design.md`](../docs/plans/2026-03-20-benchmark-suite-v1-design.md)
+- [`docs/plans/2026-03-20-benchmark-suite-v1-implementation-plan.md`](../docs/plans/2026-03-20-benchmark-suite-v1-implementation-plan.md)
 - [`docs/plans/2026-03-15-agentic-era-oversight-design.md`](../docs/plans/2026-03-15-agentic-era-oversight-design.md)
 - [`docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
 
@@ -68,10 +71,11 @@ Reference context:
 - [ ] OPS-SNAPSHOT-1-6 Add focused contract tests proving boundedness, live-vs-sim separation, exactness semantics, and API stability for `operator_snapshot_v1`.
 
 ### OPS-BENCH-1: Benchmark Contract For Project Evolution
-- [ ] OPS-BENCH-1-1 Define `benchmark_suite_v1` so Shuma has one explicit benchmark contract for bot-cost asymmetry, likely-human friction, representative adversary outcomes, and beneficial or authenticated non-human posture according to local policy stance.
-- [ ] OPS-BENCH-1-2 Define `benchmark_results_v1` and the minimal evidence model that can compare current code or config posture to prior baselines and later candidate code changes.
-- [ ] OPS-BENCH-1-3 Define the decision boundary between "config tuning is enough" and "the codebase itself needs to evolve", keeping that gate explicit and benchmark-driven.
-- [ ] OPS-BENCH-1-4 Define how fleet or central-intelligence evidence may enrich benchmark selection without turning the Git repository itself into the shared-intelligence transport.
+- [ ] OPS-BENCH-1-1 Define `benchmark_suite_v1` around the first four benchmark families: suspicious-origin cost, likely-human friction, representative adversary effectiveness, and beneficial or authenticated non-human posture according to local policy stance.
+- [ ] OPS-BENCH-1-2 Define `benchmark_results_v1` as the bounded comparison envelope for subject kind, baseline, watch window, per-family deltas, and improvement or regression status.
+- [ ] OPS-BENCH-1-3 Define the decision boundary between `config_tuning_candidate`, `observe_longer`, and `code_evolution_candidate`, keeping that escalation gate explicit and benchmark-driven.
+- [ ] OPS-BENCH-1-4 Define how benchmark families project into `operator_snapshot_v1` and later Monitoring without letting the human UI invent a parallel semantic model.
+- [ ] OPS-BENCH-1-5 Define how fleet or central-intelligence evidence may enrich benchmark selection, weighting, and scenario priority without turning the Git repository itself into the shared-intelligence transport.
 
 ## P1 Production Adversary-Sim Operating Contract
 

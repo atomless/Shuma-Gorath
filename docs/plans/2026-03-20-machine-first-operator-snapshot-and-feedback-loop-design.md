@@ -6,9 +6,11 @@ Status: Proposed
 Related context:
 
 - [`../research/2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md`](../research/2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md)
+- [`../research/2026-03-20-benchmark-suite-v1-research-synthesis.md`](../research/2026-03-20-benchmark-suite-v1-research-synthesis.md)
 - [`../research/2026-03-19-pre-monitoring-overhaul-telemetry-foundation-closeout-review.md`](../research/2026-03-19-pre-monitoring-overhaul-telemetry-foundation-closeout-review.md)
 - [`../research/2026-03-20-monitoring-diagnostics-ownership-post-implementation-review.md`](../research/2026-03-20-monitoring-diagnostics-ownership-post-implementation-review.md)
 - [`2026-03-15-agentic-era-oversight-design.md`](./2026-03-15-agentic-era-oversight-design.md)
+- [`2026-03-20-benchmark-suite-v1-design.md`](./2026-03-20-benchmark-suite-v1-design.md)
 - [`2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](./2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
 
 ## Objectives

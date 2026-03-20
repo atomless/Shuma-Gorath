@@ -4,6 +4,24 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-20)
 
+### Benchmark Suite v1: Capture The First Benchmark Families And Contract Direction
+
+- [x] Complete the next planning tranche for `OPS-BENCH-1` by researching and documenting the first benchmark families Shuma should use to judge bot-cost asymmetry, likely-human friction, representative adversary effectiveness, and beneficial non-human posture, then wire that benchmark contract direction into the roadmap, machine-first snapshot plan, and active or blocked backlog.
+- [x] Why:
+  - the machine-first operator snapshot work established that Shuma needs both an instance tuning loop and a later project-evolution loop, but the project still needed one explicit measuring stick for deciding whether config changes or code changes are actually improvements.
+  - defining the benchmark families now keeps Monitoring from drifting into a human-only notion of success and gives the later controller and code-evolution work a shared contract from the start.
+  - the benchmark suite also sharpens what Shuma should optimize toward in the agentic era: less suspicious traffic reaching origin, less friction on likely humans, stronger representative adversary outcomes, and stance-consistent treatment of beneficial automation.
+- [x] Evidence:
+  - `docs/research/2026-03-20-benchmark-suite-v1-research-synthesis.md`
+  - `docs/plans/2026-03-20-benchmark-suite-v1-design.md`
+  - `docs/plans/2026-03-20-benchmark-suite-v1-implementation-plan.md`
+  - `docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`
+  - `docs/plans/2026-03-20-machine-first-operator-snapshot-and-feedback-loop-design.md`
+  - `todos/todo.md`
+  - `todos/blocked-todo.md`
+  - docs-only slice: tests intentionally skipped
+  - `git diff --check`
+
 ### Dashboard Diagnostics: Remove Auto-Refresh And Keep Manual Refresh Only
 
 - [x] Remove auto-refresh eligibility from `Diagnostics` while preserving the refresh bar and explicit `Refresh now` action, update dashboard copy/docs to reflect the split between manual-refresh and auto-refresh tabs, and realign smoke/source contracts so they prove the new behavior.

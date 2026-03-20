@@ -220,7 +220,10 @@ That ensures later controller design starts from truthful inputs and bounded out
 
 **Files:**
 
-- Create later design and research docs for the project-evolution loop
+- Create later benchmark-design and project-evolution docs, beginning with:
+  - `docs/research/2026-03-20-benchmark-suite-v1-research-synthesis.md`
+  - `docs/plans/2026-03-20-benchmark-suite-v1-design.md`
+  - `docs/plans/2026-03-20-benchmark-suite-v1-implementation-plan.md`
 - Modify:
   - `todos/blocked-todo.md`
   - roadmap docs
