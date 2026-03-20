@@ -4,6 +4,22 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-20)
 
+### Operator Snapshot Foundation: Post-Implementation Review And Missing-Document Read-Path Proof
+
+- [x] Complete the mandatory post-implementation review for the first `operator_snapshot_v1` foundation slice, compare the delivered backend contract against the machine-first design and implementation plan, and close the one tranche shortfall by adding focused proof that `/admin/operator-snapshot` returns `503 operator_snapshot_not_materialized` without materializing the hot-read document on read.
+- [x] Why:
+  - the project workflow requires every non-trivial tranche to be reviewed against the intended plan and against Shuma's architectural standards before the next planned tranche begins.
+  - the operator-snapshot slice specifically claimed a read-only, no-write-on-read contract, so that claim needed explicit proof rather than only positive-path success coverage.
+  - closing that proof gap now keeps the machine-first snapshot foundation honest before later Monitoring and controller work begins to rely on it.
+- [x] Evidence:
+  - `docs/research/2026-03-20-operator-snapshot-foundation-post-implementation-review.md`
+  - `src/admin/api.rs`
+  - `Makefile`
+  - `make test-operator-snapshot-foundation`
+  - `make test-monitoring-telemetry-foundation-unit`
+  - `make test`
+  - `git diff --check`
+
 ### OPS-SNAPSHOT-1: Land The First Machine-First Operator Snapshot Foundation Slice
 
 - [x] Complete `OPS-SNAPSHOT-1-1`, `OPS-SNAPSHOT-1-2`, `OPS-SNAPSHOT-1-4`, and `OPS-SNAPSHOT-1-6` by defining the backend-owned `operator_objectives_v1` default profile, materializing the bounded `operator_snapshot_v1` hot-read document, exposing it through a dedicated read-only `/admin/operator-snapshot` endpoint, and proving the contract with focused boundedness, exactness, and live-vs-adversary-sim tests.

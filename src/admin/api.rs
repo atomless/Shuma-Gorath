@@ -1949,6 +1949,48 @@ mod tests {
     }
 
     #[test]
+    fn handle_admin_operator_snapshot_returns_503_without_materializing_on_read() {
+        let store = MockStore::new();
+
+        let mut builder = Request::builder();
+        builder
+            .method(Method::Get)
+            .uri("/admin/operator-snapshot")
+            .header("host", "localhost:3000")
+            .header("authorization", "Bearer changeme-dev-only-api-key")
+            .header("origin", "http://localhost:3000")
+            .header("sec-fetch-site", "same-origin")
+            .body(Vec::new());
+        let req = builder.build();
+        let resp = handle_admin_operator_snapshot(&req, &store);
+        assert_eq!(*resp.status(), 503u16);
+
+        let payload: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+        assert_eq!(
+            payload
+                .get("schema_version")
+                .and_then(|value| value.as_str()),
+            Some("operator_snapshot_v1")
+        );
+        assert_eq!(
+            payload.get("error").and_then(|value| value.as_str()),
+            Some("operator_snapshot_not_materialized")
+        );
+        assert!(
+            store
+                .get(
+                    crate::observability::hot_read_documents::operator_snapshot_document_key(
+                        "default",
+                    )
+                    .as_str(),
+                )
+                .expect("operator snapshot key lookup succeeds")
+                .is_none(),
+            "operator snapshot read path must not materialize the hot-read document"
+        );
+    }
+
+    #[test]
     fn handle_admin_monitoring_delta_keeps_freshness_anchor_when_page_is_empty() {
         let store = MockStore::new();
         let now = now_ts();

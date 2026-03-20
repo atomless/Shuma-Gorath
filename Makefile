@@ -860,6 +860,7 @@ test-operator-snapshot-foundation: ## Run focused operator snapshot foundation c
 	@cargo test observability::hot_read_documents::tests::operator_snapshot_ -- --nocapture
 	@cargo test observability::hot_read_projection::tests::counter_flush_refresh_operator_snapshot -- --nocapture
 	@cargo test admin::api::tests::handle_admin_operator_snapshot_returns_machine_first_snapshot_contract -- --exact --nocapture
+	@cargo test admin::api::tests::handle_admin_operator_snapshot_returns_503_without_materializing_on_read -- --exact --nocapture
 
 test-telemetry-hot-read-evidence: ## Run focused telemetry hot-read live-evidence tooling checks
 	@echo "$(CYAN)🧪 Running telemetry hot-read evidence checks...$(NC)"
