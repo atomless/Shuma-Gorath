@@ -323,10 +323,11 @@ Status update (2026-03-20):
 Status update (2026-03-20, benchmark addendum):
 
 1. Delivered. The static `benchmark_suite_v1` registry now exists as a machine-first backend contract and read surface.
-2. The next Stage 2 implementation work is the bounded `benchmark_results_v1` envelope and explicit escalation-hint semantics.
-3. The first benchmark families stay intentionally small: suspicious-origin cost, likely-human friction, representative adversary effectiveness, and beneficial non-human posture.
-4. Monitoring should later project those benchmark semantics rather than inventing a second human-only notion of success or regression.
-5. This keeps the measuring stick for config tuning, future scheduled controllers, and later code evolution aligned from the start.
+2. Delivered. The first bounded `benchmark_results_v1` envelope now exists as a machine-first backend read surface derived from `operator_snapshot_v1`.
+3. The next Stage 2 implementation work is the explicit escalation-hint semantics and later projection of benchmark results into snapshot and Monitoring surfaces.
+4. The first benchmark families stay intentionally small: suspicious-origin cost, likely-human friction, representative adversary effectiveness, and beneficial non-human posture.
+5. Monitoring should later project those benchmark semantics rather than inventing a second human-only notion of success or regression.
+6. This keeps the measuring stick for config tuning, future scheduled controllers, and later code evolution aligned from the start.
 
 ## Stage 3: Edge-Instance Ban Sync And Distributed State Correctness
 

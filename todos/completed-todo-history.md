@@ -4,6 +4,24 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-20)
 
+### OPS-BENCH-1: Materialize The First Bounded `benchmark_results_v1` Envelope
+
+- [x] Complete `OPS-BENCH-1-2` by adding the first bounded `benchmark_results_v1` backend contract, exposing it through a read-only `/admin/benchmark-results` endpoint, deriving it from the already-materialized `operator_snapshot_v1` document, and proving that the read path stays `GET`-only and no-write-on-read when the snapshot is absent.
+- [x] Why:
+  - the benchmark tranche had reached the point where Shuma could describe benchmark families but still could not return any machine-readable current-instance benchmark result envelope, which would have left later Monitoring and controller work to invent result semantics locally.
+  - the clean first implementation needed to preserve the telemetry-efficiency and machine-first layering work already done, so the right architecture was to build bounded results from `operator_snapshot_v1` rather than to scan raw telemetry tails or create a second unbounded read model.
+  - closing this slice now keeps the sequence honest and makes the explicit escalation boundary the next real benchmark dependency before Monitoring overhaul.
+- [x] Evidence:
+  - `src/observability/benchmark_results.rs`
+  - `src/observability/mod.rs`
+  - `src/admin/api.rs`
+  - `Makefile`
+  - `docs/api.md`
+  - `docs/research/2026-03-20-benchmark-results-contract-post-implementation-review.md`
+  - `make test-benchmark-results-contract`
+  - `make test`
+  - `git diff --check`
+
 ### OPS-BENCH-1: Materialize The Static `benchmark_suite_v1` Registry
 
 - [x] Complete `OPS-BENCH-1-1` by turning the first benchmark-family definition into a real backend-owned machine contract, exposing the static `benchmark_suite_v1` registry through a read-only `/admin/benchmark-suite` endpoint, and tightening the active benchmark backlog so it now points at result materialization and escalation work rather than already-finished definition work.

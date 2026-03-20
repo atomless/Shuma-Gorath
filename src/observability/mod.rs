@@ -1,3 +1,4 @@
+pub(crate) mod benchmark_results;
 pub(crate) mod benchmark_suite;
 pub(crate) mod hot_read_contract;
 pub(crate) mod hot_read_documents;

@@ -2335,6 +2335,121 @@ mod tests {
     }
 
     #[test]
+    fn handle_admin_benchmark_results_returns_bounded_current_instance_contract() {
+        let store = MockStore::new();
+        crate::observability::hot_read_projection::refresh_after_counter_flush(&store, "default");
+
+        let mut builder = Request::builder();
+        builder
+            .method(Method::Get)
+            .uri("/admin/benchmark-results")
+            .header("host", "localhost:3000")
+            .header("authorization", "Bearer changeme-dev-only-api-key")
+            .header("origin", "http://localhost:3000")
+            .header("sec-fetch-site", "same-origin")
+            .body(Vec::new());
+        let req = builder.build();
+        let resp = handle_admin_benchmark_results(&req, &store);
+        assert_eq!(*resp.status(), 200u16);
+
+        let payload: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+        assert_eq!(
+            payload
+                .get("schema_version")
+                .and_then(|value| value.as_str()),
+            Some("benchmark_results_v1")
+        );
+        assert_eq!(
+            payload
+                .get("suite_version")
+                .and_then(|value| value.as_str()),
+            Some("benchmark_suite_v1")
+        );
+        assert_eq!(
+            payload
+                .get("subject_kind")
+                .and_then(|value| value.as_str()),
+            Some("current_instance")
+        );
+        assert_eq!(
+            payload
+                .get("baseline_reference")
+                .and_then(|value| value.get("status"))
+                .and_then(|value| value.as_str()),
+            Some("not_available")
+        );
+        assert!(
+            payload
+                .get("families")
+                .and_then(|value| value.as_array())
+                .map(|rows| rows.iter().any(|row| {
+                    row.get("family_id").and_then(|value| value.as_str())
+                        == Some("suspicious_origin_cost")
+                }))
+                .unwrap_or(false)
+        );
+    }
+
+    #[test]
+    fn handle_admin_benchmark_results_returns_503_without_materialized_snapshot() {
+        let store = MockStore::new();
+
+        let mut builder = Request::builder();
+        builder
+            .method(Method::Get)
+            .uri("/admin/benchmark-results")
+            .header("host", "localhost:3000")
+            .header("authorization", "Bearer changeme-dev-only-api-key")
+            .header("origin", "http://localhost:3000")
+            .header("sec-fetch-site", "same-origin")
+            .body(Vec::new());
+        let req = builder.build();
+        let resp = handle_admin_benchmark_results(&req, &store);
+        assert_eq!(*resp.status(), 503u16);
+
+        let payload: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+        assert_eq!(
+            payload
+                .get("schema_version")
+                .and_then(|value| value.as_str()),
+            Some("benchmark_results_v1")
+        );
+        assert_eq!(
+            payload.get("error").and_then(|value| value.as_str()),
+            Some("benchmark_results_snapshot_missing")
+        );
+        assert!(
+            store
+                .get(
+                    crate::observability::hot_read_documents::operator_snapshot_document_key(
+                        "default",
+                    )
+                    .as_str(),
+                )
+                .expect("operator snapshot key lookup succeeds")
+                .is_none(),
+            "benchmark results read path must not materialize operator snapshot on read"
+        );
+    }
+
+    #[test]
+    fn handle_admin_benchmark_results_is_get_only() {
+        let store = MockStore::new();
+        let mut builder = Request::builder();
+        builder
+            .method(Method::Post)
+            .uri("/admin/benchmark-results")
+            .header("host", "localhost:3000")
+            .header("authorization", "Bearer changeme-dev-only-api-key")
+            .header("origin", "http://localhost:3000")
+            .header("sec-fetch-site", "same-origin")
+            .body(Vec::new());
+        let req = builder.build();
+        let resp = handle_admin_benchmark_results(&req, &store);
+        assert_eq!(*resp.status(), 405u16);
+    }
+
+    #[test]
     fn handle_admin_monitoring_delta_keeps_freshness_anchor_when_page_is_empty() {
         let store = MockStore::new();
         let now = now_ts();
@@ -8912,6 +9027,7 @@ fn sanitize_path(path: &str) -> bool {
             | "/admin/events"
             | "/admin/operator-snapshot"
             | "/admin/benchmark-suite"
+            | "/admin/benchmark-results"
             | "/admin/config"
             | "/admin/config/bootstrap"
             | "/admin/config/validate"
@@ -16086,6 +16202,45 @@ fn handle_admin_benchmark_suite(_req: &Request) -> Response {
         .build()
 }
 
+fn handle_admin_benchmark_results<S>(req: &Request, store: &S) -> Response
+where
+    S: crate::challenge::KeyValueStore,
+{
+    if *req.method() != Method::Get {
+        return Response::new(405, "Method Not Allowed");
+    }
+    match crate::observability::hot_read_projection::load_operator_snapshot_hot_read(store, "default")
+    {
+        Some(snapshot) => {
+            let payload = crate::observability::benchmark_results::build_benchmark_results_payload(
+                snapshot.metadata.generated_at_ts,
+                &snapshot.payload,
+            );
+            let body = serde_json::to_string(&payload).unwrap_or_else(|_| "{}".to_string());
+            Response::builder()
+                .status(200)
+                .header("Content-Type", "application/json")
+                .header("Cache-Control", "no-store")
+                .body(body)
+                .build()
+        }
+        None => {
+            let body = serde_json::to_string(&json!({
+                "schema_version": crate::observability::benchmark_results::BENCHMARK_RESULTS_SCHEMA_VERSION,
+                "error": "benchmark_results_snapshot_missing",
+                "message": "Benchmark results require an already-materialized operator snapshot."
+            }))
+            .unwrap_or_else(|_| "{}".to_string());
+            Response::builder()
+                .status(503)
+                .header("Content-Type", "application/json")
+                .header("Cache-Control", "no-store")
+                .body(body)
+                .build()
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct AdminAdversarySimControlRequest {
@@ -17202,6 +17357,7 @@ pub fn handle_internal(req: &Request) -> Response {
 ///   - GET /admin/cdp/events: Query CDP-only events
 ///   - GET /admin/operator-snapshot: Query the machine-first operator snapshot contract
 ///   - GET /admin/benchmark-suite: Query the machine-first benchmark family registry
+///   - GET /admin/benchmark-results: Query the bounded machine-first benchmark result envelope
 ///   - GET /admin/monitoring: Query consolidated monitoring telemetry summaries
 ///   - GET /admin/monitoring/delta: Cursor-based monitoring event deltas (`after_cursor`, `limit`, `next_cursor`)
 ///   - GET /admin/monitoring/stream: One-shot SSE cursor delta (`Last-Event-ID` resume supported)
@@ -17425,6 +17581,12 @@ pub fn handle_admin(req: &Request) -> Response {
             handle_admin_operator_snapshot(req, &store)
         }
         "/admin/benchmark-suite" => handle_admin_benchmark_suite(req),
+        "/admin/benchmark-results" => {
+            if expensive_admin_read_is_limited(&store, req, &auth, provider_registry.as_ref()) {
+                return too_many_admin_read_requests_response();
+            }
+            handle_admin_benchmark_results(req, &store)
+        }
         "/admin/monitoring" => {
             if dashboard_refresh_is_limited(&store, &auth, provider_registry.as_ref())
                 || expensive_admin_read_is_limited(&store, req, &auth, provider_registry.as_ref())
@@ -17667,7 +17829,7 @@ pub fn handle_admin(req: &Request) -> Response {
                     admin: Some(crate::admin::auth::get_admin_id(req)),
                 },
             );
-            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/operator-snapshot, /admin/benchmark-suite, /admin/monitoring, /admin/monitoring/delta, /admin/monitoring/stream, /admin/ip-bans/delta, /admin/ip-bans/stream, /admin/ip-range/suggestions, /admin/config, /admin/config/bootstrap, /admin/config/validate, /admin/config/export, /admin/adversary-sim/control, /admin/adversary-sim/status, /admin/adversary-sim/history/cleanup, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/tarpit/preview (GET non-operational progressive tarpit preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/robots/preview (POST unsaved robots preview patch), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
+            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/operator-snapshot, /admin/benchmark-suite, /admin/benchmark-results, /admin/monitoring, /admin/monitoring/delta, /admin/monitoring/stream, /admin/ip-bans/delta, /admin/ip-bans/stream, /admin/ip-range/suggestions, /admin/config, /admin/config/bootstrap, /admin/config/validate, /admin/config/export, /admin/adversary-sim/control, /admin/adversary-sim/status, /admin/adversary-sim/history/cleanup, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/tarpit/preview (GET non-operational progressive tarpit preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/robots/preview (POST unsaved robots preview patch), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
         }
         "/admin/maze" => {
             // Return maze statistics
