@@ -143,6 +143,7 @@ Storage and read-path policy:
 1. Simulation telemetry writes to canonical event/monitoring stores and is identified by metadata fields (`sim_run_id`, `sim_profile`, `sim_lane`, `is_simulation`).
 2. Admin read endpoints (`/admin/events`, `/admin/cdp/events`, `/admin/monitoring`, `/admin/monitoring/delta`, `/admin/monitoring/stream`, `/admin/ip-bans/delta`, `/admin/ip-bans/stream`) include tagged simulation rows whenever adversary simulation is active, with pseudonymized sensitive identifiers unless explicit forensic break-glass is acknowledged (`forensic=1&forensic_ack=I_UNDERSTAND_FORENSIC`).
 3. Deployments remain default-safe because adversary traffic generation stays off until an operator enables it through `POST /admin/adversary-sim/control` (or the dashboard `Red Team` toggle), even though the control surface is available by default. `SHUMA_ADVERSARY_SIM_ENABLED` seeds only the initial desired state; once any lifecycle state is persisted, `ControlState.desired_enabled` becomes the sole desired-state authority surfaced through status, config runtime overlays, and `/sim/public/*` availability.
+   The same control endpoint with `{"enabled":false}` is the production kill-switch path; there is no separate runtime override writer.
 4. Unsigned/invalid/stale/replayed simulation tags must not activate simulation context; requests stay in normal telemetry partition.
 5. Invalid simulation-tag attempts emit explicit policy-signal telemetry:
    - `S_SIM_TAG_MISSING_SECRET`
@@ -571,6 +572,7 @@ Mandatory lifecycle incident reference:
 1. [`docs/research/2026-03-02-adversary-toggle-incident-report-and-lifecycle-invariants.md`](./research/2026-03-02-adversary-toggle-incident-report-and-lifecycle-invariants.md)
 2. Before merging SIM tranche changes, run both `make test-adversary-sim-lifecycle` and `make test-adversary-sim-runtime-surface`.
    The lifecycle gate now covers seeded desired-state semantics, projected runtime/config visibility after cache reset, stale expiry recovery, stale-state diagnostics, auto-window expiry without a second enabled flag, and internal beat diagnostics.
+   The runtime-surface gate must prove both deterministic defense-surface coverage and that live-only monitoring summary counts remain clean while simulation-tagged details are present.
 
 Lifecycle semantics:
 

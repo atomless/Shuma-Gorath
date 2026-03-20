@@ -49,7 +49,7 @@ class RuntimeToggleSurfaceGateTests(unittest.TestCase):
             api_key="test-api-key",
             forwarded_secret="forwarded-secret",
             health_secret="health-secret",
-            timeout_seconds=1,
+            timeout_seconds=2,
         )
 
         monitoring_body = {
@@ -101,7 +101,7 @@ class RuntimeToggleSurfaceGateTests(unittest.TestCase):
             api_key="test-api-key",
             forwarded_secret="forwarded-secret",
             health_secret="health-secret",
-            timeout_seconds=1,
+            timeout_seconds=2,
         )
 
         captured = {}
@@ -124,6 +124,102 @@ class RuntimeToggleSurfaceGateTests(unittest.TestCase):
         self.assertFalse(captured["payload"]["not_a_bot_enabled"])
         self.assertFalse(captured["payload"]["geo_edge_headers_enabled"])
         self.assertEqual(captured["payload"]["geo_challenge"], [])
+
+    def test_live_summary_counts_read_live_only_summary_paths(self) -> None:
+        gate = runtime_surface_gate.RuntimeToggleSurfaceGate(
+            base_url="http://127.0.0.1:3000",
+            api_key="test-api-key",
+            forwarded_secret="forwarded-secret",
+            health_secret="health-secret",
+            timeout_seconds=1,
+        )
+
+        counts = gate.live_summary_counts(
+            {
+                "summary": {
+                    "challenge": {"total_failures": 2},
+                    "pow": {"total_attempts": 3},
+                    "rate": {"total_violations": 4},
+                    "geo": {"total_violations": 5},
+                },
+                "details": {
+                    "events": {
+                        "recent_events": [
+                            {"is_simulation": True, "event": "Challenge", "reason": "sim_event"}
+                        ]
+                    }
+                },
+            }
+        )
+
+        self.assertEqual(
+            counts,
+            {
+                "challenge_failures": 2,
+                "pow_attempts": 3,
+                "rate_violations": 4,
+                "geo_violations": 5,
+            },
+        )
+
+    def test_poll_live_summary_clean_waits_for_zero_live_only_counts(self) -> None:
+        gate = runtime_surface_gate.RuntimeToggleSurfaceGate(
+            base_url="http://127.0.0.1:3000",
+            api_key="test-api-key",
+            forwarded_secret="forwarded-secret",
+            health_secret="health-secret",
+            timeout_seconds=2,
+        )
+
+        responses = iter(
+            [
+                {
+                    "status": 200,
+                    "body": {
+                        "summary": {"challenge": {"total_failures": 1}},
+                        "details": {
+                            "events": {
+                                "recent_events": [
+                                    {"is_simulation": True, "event": "Challenge", "reason": "sim_event"}
+                                ]
+                            }
+                        },
+                    },
+                    "raw": "",
+                },
+                {
+                    "status": 200,
+                    "body": {
+                        "summary": {
+                            "challenge": {"total_failures": 0},
+                            "pow": {"total_attempts": 0},
+                            "rate": {"total_violations": 0},
+                            "geo": {"total_violations": 0},
+                        }
+                    },
+                    "raw": "",
+                },
+            ]
+        )
+
+        def fake_request(method, path, payload=None, extra_headers=None):
+            self.assertEqual(method, "GET")
+            self.assertIn("/admin/monitoring", path)
+            return next(responses)
+
+        gate.request = fake_request
+
+        counts = gate.poll_live_summary_clean()
+
+        self.assertEqual(
+            counts,
+            {
+                "challenge_failures": 0,
+                "pow_attempts": 0,
+                "rate_violations": 0,
+                "geo_violations": 0,
+            },
+        )
 
 
 if __name__ == "__main__":

@@ -4,6 +4,24 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-20)
 
+### SIM-DEPLOY-2-2: Prove Adversary-Sim Kill Switch And No-Impact Contract
+
+- [x] Extend the runtime-surface gate so it separately proves deterministic adversary-sim defense-surface coverage and verifies that live-only monitoring summary paths remain clean while simulation-tagged details are present under live operator use.
+- [x] Why:
+  - the original runtime-surface harness only proved that sim-tagged coverage showed up somewhere in monitoring; it did not prove the equally important operating claim that normal live summaries stay untouched while adversary-sim runs.
+  - the production kill-switch contract was already the control endpoint, but it was not called out explicitly enough in the operator/testing docs as the only supported OFF path after the desired-state refactor removed the separate runtime override writer.
+  - the smallest truthful fix was to extend the existing harness with a dedicated live-summary cleanliness check, keep the Make target name aligned with its real scope, and document the control endpoint as the production kill switch.
+- [x] Evidence:
+  - `scripts/tests/adversary_runtime_toggle_surface_gate.py`
+  - `scripts/tests/test_adversary_runtime_toggle_surface_gate.py`
+  - `Makefile`
+  - `docs/testing.md`
+  - `docs/adversarial-operator-guide.md`
+  - `python3 -m unittest scripts/tests/test_adversary_runtime_toggle_surface_gate.py`
+  - `make test-adversary-sim-lifecycle`
+  - `make test-adversary-sim-runtime-surface` not run in this tranche because no live `make dev` server was active in the session
+  - post-tranche review: no additional shortfall found beyond the remaining planned `SIM-DEPLOY-2-3` slice
+
 ### SIM-DEPLOY-2-1: Codify Production Adversary-Sim Posture
 
 - [x] Define the production-default runtime lane and resource posture in the adversary-sim status contract so operators can see that the surface is available by default, generation stays off until explicit enable, hard guardrails remain bounded, and heartbeat posture changes with the deployment profile.

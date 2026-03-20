@@ -963,8 +963,8 @@ adversary-sim-supervisor: adversary-sim-supervisor-build ## Run host-side advers
 	@SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL=$(ADVERSARY_SIM_SUPERVISOR_BASE_URL) \
 		./scripts/adversary_sim_supervisor_launch.sh --watch --base-url $(ADVERSARY_SIM_SUPERVISOR_BASE_URL)
 
-test-adversary-sim-runtime-surface: ## Runtime-toggle integration gate for deterministic defense-surface telemetry coverage (requires running server)
-	@echo "$(CYAN)🧪 Running runtime-toggle adversary-sim surface coverage gate...$(NC)"
+test-adversary-sim-runtime-surface: ## Runtime-toggle integration gate for deterministic defense-surface coverage plus live-summary no-impact proof (requires running server)
+	@echo "$(CYAN)🧪 Running runtime-toggle adversary-sim surface/no-impact gate...$(NC)"
 	@if $(MAKE) --no-print-directory spin-wait-ready; then \
 		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" \
 			python3 scripts/tests/adversary_runtime_toggle_surface_gate.py; \

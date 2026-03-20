@@ -160,7 +160,7 @@ make test-adversarial-smoke
 
 Available profiles:
 - `make test-adversarial-fast` - mandatory fast matrix (`smoke + abuse + Akamai`)
-- `make test-adversary-sim-runtime-surface` - runtime-toggle integration gate that verifies required deterministic defense-surface telemetry categories (challenge/JS/PoW/rate/GEO/maze-tarpit/fingerprint-CDP/ban) on a running server
+- `make test-adversary-sim-runtime-surface` - runtime-toggle integration gate that verifies required deterministic defense-surface telemetry categories (challenge/JS/PoW/rate/GEO/maze-tarpit/fingerprint-CDP/ban) and asserts live-only monitoring summary paths remain clean while adversary-sim runs on a running server
 - `make test-adversarial-smoke` - mandatory fast smoke gate (`SIM-T0`..`SIM-T4`)
 - `make test-adversarial-abuse` - mandatory replay/stale/order-cadence abuse regressions
 - `make test-adversarial-akamai` - mandatory Akamai signal fixture coverage

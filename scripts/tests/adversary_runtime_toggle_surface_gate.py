@@ -2,7 +2,8 @@
 """Runtime-toggle deterministic surface coverage gate.
 
 This validates the dashboard-toggle execution lane (control endpoint + autonomous supervisor)
-emits required defense-surface telemetry categories in live runtime mode.
+emits required defense-surface telemetry categories in live runtime mode without polluting
+live-only monitoring summary paths.
 """
 
 from __future__ import annotations
@@ -122,6 +123,19 @@ class RuntimeToggleSurfaceGate:
             str(signal).strip().lower()
             for signal in signals
             if str(signal).strip()
+        }
+
+    def live_summary_counts(self, monitoring_body: Dict[str, Any]) -> Dict[str, int]:
+        summary = self._as_obj(monitoring_body.get("summary"))
+        return {
+            "challenge_failures": self._as_int(
+                self._as_obj(summary.get("challenge")).get("total_failures")
+            ),
+            "pow_attempts": self._as_int(self._as_obj(summary.get("pow")).get("total_attempts")),
+            "rate_violations": self._as_int(
+                self._as_obj(summary.get("rate")).get("total_violations")
+            ),
+            "geo_violations": self._as_int(self._as_obj(summary.get("geo")).get("total_violations")),
         }
 
     def ensure_health(self) -> None:
@@ -277,6 +291,27 @@ class RuntimeToggleSurfaceGate:
 
         return seen
 
+    def poll_live_summary_clean(self) -> Dict[str, int]:
+        deadline = time.time() + float(self.timeout_seconds)
+        counts = {
+            "challenge_failures": 0,
+            "pow_attempts": 0,
+            "rate_violations": 0,
+            "geo_violations": 0,
+        }
+
+        while time.time() < deadline:
+            monitoring = self.request("GET", "/admin/monitoring?hours=24&limit=200")
+            if monitoring["status"] != 200:
+                time.sleep(1)
+                continue
+            counts = self.live_summary_counts(self._as_obj(monitoring["body"]))
+            if all(value == 0 for value in counts.values()):
+                return counts
+            time.sleep(1)
+
+        return counts
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Runtime-toggle deterministic telemetry surface gate")
@@ -306,6 +341,7 @@ def main() -> int:
         seen = gate.poll_categories(required={"challenge", "js_required"})
         gate.configure_runtime_surface_profile()
         seen = gate.poll_categories(existing=seen)
+        live_summary_counts = gate.poll_live_summary_clean()
     except Exception as exc:  # noqa: BLE001
         print(f"[runtime-surface-gate] error: {exc}", file=sys.stderr)
         try:
@@ -329,7 +365,22 @@ def main() -> int:
         print(f"[runtime-surface-gate] observed={json.dumps(seen, sort_keys=True)}", file=sys.stderr)
         return 1
 
-    print(f"[runtime-surface-gate] PASS observed={json.dumps(seen, sort_keys=True)}")
+    leaked = {name: value for name, value in live_summary_counts.items() if value > 0}
+    if leaked:
+        print(
+            "[runtime-surface-gate] live-only monitoring summary was polluted by sim traffic: "
+            + json.dumps(leaked, sort_keys=True),
+            file=sys.stderr,
+        )
+        print(f"[runtime-surface-gate] observed={json.dumps(seen, sort_keys=True)}", file=sys.stderr)
+        return 1
+
+    print(
+        "[runtime-surface-gate] PASS observed="
+        + json.dumps(seen, sort_keys=True)
+        + " live_summary="
+        + json.dumps(live_summary_counts, sort_keys=True)
+    )
     return 0
 
 
