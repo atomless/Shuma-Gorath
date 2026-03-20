@@ -830,6 +830,7 @@ test-monitoring-telemetry-contract: ## Run focused external-only monitoring tele
 	@cargo test admin::api::admin_config_tests::admin_monitoring_delta_pseudonymizes_without_forensic_ack -- --exact --nocapture
 	@cargo test admin::api::admin_config_tests::admin_monitoring_delta_bootstrap_prefers_hot_read_tail_and_security_summary -- --exact --nocapture
 	@cargo test admin::api::admin_config_tests::admin_monitoring_includes_simulation_and_baseline_events -- --exact --nocapture
+	@cargo test admin::api::admin_config_tests::admin_monitoring_keeps_live_summary_truth_separate_from_simulation_details -- --exact --nocapture
 	@cargo test admin::api::admin_config_tests::admin_monitoring_keeps_simulation_event_parity_for_equivalent_outcomes -- --exact --nocapture
 	@cargo test admin::api::admin_config_tests::adversary_sim_auto_off_preserves_historical_monitoring_visibility -- --exact --nocapture
 	@cargo test admin::api::admin_config_tests::adversary_sim_history_cleanup_endpoint_clears_retained_telemetry -- --exact --nocapture

@@ -41,6 +41,22 @@ That means:
 3. replay-promotion candidates should come from observed telemetry traces,
 4. and routes that never appear in telemetry do not belong in the active adversary surface map unless a narrower safety or operator contract explicitly requires them.
 
+## Production Operating Receipt (`SIM-DEPLOY-2`)
+
+Production adversary-sim is now a normal Shuma operating lane, not a runtime-prod exception.
+
+That means operators should keep one standard receipt whenever they validate or exercise the lane on a deployed instance:
+
+1. read `GET /admin/adversary-sim/status` while the lane is off and confirm the explicit production posture:
+   - `gateway_deployment_profile` matches the deployment,
+   - `guardrails.surface_available_by_default=true`,
+   - `guardrails.generation_default=off_until_explicit_enable`,
+   - `guardrails.generation_requires_explicit_enable=true`.
+2. enable the lane once through `POST /admin/adversary-sim/control` or the dashboard `Red Team` toggle and keep the returned ON `operation_id`.
+3. run `make test-adversary-sim-runtime-surface` against the running target and keep the evidence that it proved both deterministic defense-surface coverage and live-summary no-impact.
+4. disable the lane through the same control endpoint and keep the OFF `operation_id` as the production kill-switch receipt.
+5. use `POST /admin/adversary-sim/history/cleanup` only when retained telemetry reset is intentionally required; normal OFF does not imply cleanup.
+
 ## SIM Run Definition Of Done (`SIM2-GC-1`)
 
 A run must be treated as complete only when all rules below are true:
@@ -144,6 +160,7 @@ Storage and read-path policy:
 2. Admin read endpoints (`/admin/events`, `/admin/cdp/events`, `/admin/monitoring`, `/admin/monitoring/delta`, `/admin/monitoring/stream`, `/admin/ip-bans/delta`, `/admin/ip-bans/stream`) include tagged simulation rows whenever adversary simulation is active, with pseudonymized sensitive identifiers unless explicit forensic break-glass is acknowledged (`forensic=1&forensic_ack=I_UNDERSTAND_FORENSIC`).
 3. Deployments remain default-safe because adversary traffic generation stays off until an operator enables it through `POST /admin/adversary-sim/control` (or the dashboard `Red Team` toggle), even though the control surface is available by default. `SHUMA_ADVERSARY_SIM_ENABLED` seeds only the initial desired state; once any lifecycle state is persisted, `ControlState.desired_enabled` becomes the sole desired-state authority surfaced through status, config runtime overlays, and `/sim/public/*` availability.
    The same control endpoint with `{"enabled":false}` is the production kill-switch path; there is no separate runtime override writer.
+   Treat this as a normal deployment receipt, not as a one-off validation path: keep the off-state status proof, ON/OFF `operation_id` values, and the runtime-surface no-impact proof together whenever production adversary-sim is exercised.
 4. Unsigned/invalid/stale/replayed simulation tags must not activate simulation context; requests stay in normal telemetry partition.
 5. Invalid simulation-tag attempts emit explicit policy-signal telemetry:
    - `S_SIM_TAG_MISSING_SECRET`

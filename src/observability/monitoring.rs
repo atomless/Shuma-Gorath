@@ -1356,20 +1356,42 @@ pub(crate) fn record_rate_violation_with_path<S: crate::challenge::KeyValueStore
     path: Option<&str>,
     outcome: &str,
 ) {
+    let origin = current_traffic_origin();
     let normalized_outcome = normalize_rate_outcome(outcome);
     let ip_bucket = crate::signals::ip_identity::bucket_ip(ip);
-    record_with_dimension(store, "rate", "total", None);
-    record_with_dimension(store, "rate", "outcome", Some(normalized_outcome));
-    record_with_dimension(store, "rate", "ip", Some(ip_bucket.as_str()));
+    record_with_dimension(store, "rate", "total", Some(origin_cohort(origin).as_str()));
+    record_with_dimension(
+        store,
+        "rate",
+        "outcome",
+        Some(origin_nested_cohort(origin, normalized_outcome).as_str()),
+    );
+    record_with_dimension(
+        store,
+        "rate",
+        "ip",
+        Some(origin_nested_cohort(origin, ip_bucket.as_str()).as_str()),
+    );
     if let Some(raw_path) = path {
         let normalized_path = normalize_telemetry_path(raw_path);
-        record_with_dimension(store, "rate", "path", Some(normalized_path.as_str()));
+        record_with_dimension(
+            store,
+            "rate",
+            "path",
+            Some(origin_nested_cohort(origin, normalized_path.as_str()).as_str()),
+        );
     }
 }
 
 pub(crate) fn record_rate_outcome<S: crate::challenge::KeyValueStore>(store: &S, outcome: &str) {
+    let origin = current_traffic_origin();
     let normalized_outcome = normalize_rate_outcome(outcome);
-    record_with_dimension(store, "rate", "outcome", Some(normalized_outcome));
+    record_with_dimension(
+        store,
+        "rate",
+        "outcome",
+        Some(origin_nested_cohort(origin, normalized_outcome).as_str()),
+    );
 }
 
 pub(crate) fn record_geo_violation<S: crate::challenge::KeyValueStore>(
@@ -1377,11 +1399,22 @@ pub(crate) fn record_geo_violation<S: crate::challenge::KeyValueStore>(
     country: Option<&str>,
     action: &str,
 ) {
+    let origin = current_traffic_origin();
     let normalized_action = normalize_geo_action(action);
     let normalized_country = normalize_country(country);
-    record_with_dimension(store, "geo", "total", None);
-    record_with_dimension(store, "geo", "action", Some(normalized_action));
-    record_with_dimension(store, "geo", "country", Some(normalized_country.as_str()));
+    record_with_dimension(store, "geo", "total", Some(origin_cohort(origin).as_str()));
+    record_with_dimension(
+        store,
+        "geo",
+        "action",
+        Some(origin_nested_cohort(origin, normalized_action).as_str()),
+    );
+    record_with_dimension(
+        store,
+        "geo",
+        "country",
+        Some(origin_nested_cohort(origin, normalized_country.as_str()).as_str()),
+    );
 }
 
 pub(crate) fn record_not_a_bot_served<S: crate::challenge::KeyValueStore>(store: &S) {
@@ -1560,13 +1593,13 @@ struct MonitoringAccumulator {
     pow_reason_counts_by_origin: HashMap<String, HashMap<String, u64>>,
     pow_outcomes_by_origin: HashMap<String, HashMap<String, u64>>,
     pow_trends_by_origin: HashMap<String, TrendAccumulator>,
-    rate_total: u64,
-    rate_ip_counts: HashMap<String, u64>,
-    rate_path_counts: HashMap<String, u64>,
-    rate_outcomes: HashMap<String, u64>,
-    geo_total: u64,
-    geo_actions: HashMap<String, u64>,
-    geo_countries: HashMap<String, u64>,
+    rate_totals_by_origin: HashMap<String, u64>,
+    rate_ip_counts_by_origin: HashMap<String, HashMap<String, u64>>,
+    rate_path_counts_by_origin: HashMap<String, HashMap<String, u64>>,
+    rate_outcomes_by_origin: HashMap<String, HashMap<String, u64>>,
+    geo_totals_by_origin: HashMap<String, u64>,
+    geo_actions_by_origin: HashMap<String, HashMap<String, u64>>,
+    geo_countries_by_origin: HashMap<String, HashMap<String, u64>>,
     request_outcome_scope_totals: HashMap<String, u64>,
     request_outcome_scope_bytes: HashMap<String, u64>,
     request_outcome_scope_outcomes: HashMap<String, u64>,
@@ -1810,34 +1843,79 @@ impl MonitoringAccumulator {
                 _ => {}
             },
             "rate" => match metric {
-                "total" => self.rate_total = self.rate_total.saturating_add(count),
+                "total" => {
+                    if let Some(origin) = dimension.and_then(parse_origin_cohort) {
+                        let entry = self.rate_totals_by_origin.entry(origin).or_insert(0);
+                        *entry = entry.saturating_add(count);
+                    }
+                }
                 "ip" => {
-                    if let Some(dim) = dimension {
-                        Self::add_count(&mut self.rate_ip_counts, dim, count);
+                    if let Some((origin, ip_bucket)) =
+                        dimension.and_then(parse_origin_breakdown_cohort)
+                    {
+                        Self::add_nested_count(
+                            &mut self.rate_ip_counts_by_origin,
+                            origin.as_str(),
+                            ip_bucket.as_str(),
+                            count,
+                        );
                     }
                 }
                 "path" => {
-                    if let Some(dim) = dimension {
-                        Self::add_count(&mut self.rate_path_counts, dim, count);
+                    if let Some((origin, path)) =
+                        dimension.and_then(parse_origin_breakdown_cohort)
+                    {
+                        Self::add_nested_count(
+                            &mut self.rate_path_counts_by_origin,
+                            origin.as_str(),
+                            path.as_str(),
+                            count,
+                        );
                     }
                 }
                 "outcome" => {
-                    if let Some(dim) = dimension {
-                        Self::add_count(&mut self.rate_outcomes, dim, count);
+                    if let Some((origin, outcome)) =
+                        dimension.and_then(parse_origin_breakdown_cohort)
+                    {
+                        Self::add_nested_count(
+                            &mut self.rate_outcomes_by_origin,
+                            origin.as_str(),
+                            outcome.as_str(),
+                            count,
+                        );
                     }
                 }
                 _ => {}
             },
             "geo" => match metric {
-                "total" => self.geo_total = self.geo_total.saturating_add(count),
+                "total" => {
+                    if let Some(origin) = dimension.and_then(parse_origin_cohort) {
+                        let entry = self.geo_totals_by_origin.entry(origin).or_insert(0);
+                        *entry = entry.saturating_add(count);
+                    }
+                }
                 "action" => {
-                    if let Some(dim) = dimension {
-                        Self::add_count(&mut self.geo_actions, dim, count);
+                    if let Some((origin, action)) =
+                        dimension.and_then(parse_origin_breakdown_cohort)
+                    {
+                        Self::add_nested_count(
+                            &mut self.geo_actions_by_origin,
+                            origin.as_str(),
+                            action.as_str(),
+                            count,
+                        );
                     }
                 }
                 "country" => {
-                    if let Some(dim) = dimension {
-                        Self::add_count(&mut self.geo_countries, dim, count);
+                    if let Some((origin, country)) =
+                        dimension.and_then(parse_origin_breakdown_cohort)
+                    {
+                        Self::add_nested_count(
+                            &mut self.geo_countries_by_origin,
+                            origin.as_str(),
+                            country.as_str(),
+                            count,
+                        );
                     }
                 }
                 _ => {}
@@ -2019,13 +2097,34 @@ impl MonitoringAccumulator {
         for (origin, trend) in &source.pow_trends_by_origin {
             Self::merge_trend(self.pow_trends_by_origin.entry(origin.clone()).or_default(), trend);
         }
-        self.rate_total = self.rate_total.saturating_add(source.rate_total);
-        Self::merge_count_maps(&mut self.rate_ip_counts, &source.rate_ip_counts);
-        Self::merge_count_maps(&mut self.rate_path_counts, &source.rate_path_counts);
-        Self::merge_count_maps(&mut self.rate_outcomes, &source.rate_outcomes);
-        self.geo_total = self.geo_total.saturating_add(source.geo_total);
-        Self::merge_count_maps(&mut self.geo_actions, &source.geo_actions);
-        Self::merge_count_maps(&mut self.geo_countries, &source.geo_countries);
+        Self::merge_count_maps(
+            &mut self.rate_totals_by_origin,
+            &source.rate_totals_by_origin,
+        );
+        Self::merge_nested_count_maps(
+            &mut self.rate_ip_counts_by_origin,
+            &source.rate_ip_counts_by_origin,
+        );
+        Self::merge_nested_count_maps(
+            &mut self.rate_path_counts_by_origin,
+            &source.rate_path_counts_by_origin,
+        );
+        Self::merge_nested_count_maps(
+            &mut self.rate_outcomes_by_origin,
+            &source.rate_outcomes_by_origin,
+        );
+        Self::merge_count_maps(
+            &mut self.geo_totals_by_origin,
+            &source.geo_totals_by_origin,
+        );
+        Self::merge_nested_count_maps(
+            &mut self.geo_actions_by_origin,
+            &source.geo_actions_by_origin,
+        );
+        Self::merge_nested_count_maps(
+            &mut self.geo_countries_by_origin,
+            &source.geo_countries_by_origin,
+        );
         Self::merge_count_maps(
             &mut self.request_outcome_scope_totals,
             &source.request_outcome_scope_totals,
@@ -2198,17 +2297,52 @@ impl MonitoringAccumulator {
             pow_total_successes as f64 / pow_total_attempts as f64
         };
 
+        let rate_total = self
+            .rate_totals_by_origin
+            .get(live_origin)
+            .copied()
+            .unwrap_or(0);
+        let rate_ip_counts = self
+            .rate_ip_counts_by_origin
+            .get(live_origin)
+            .cloned()
+            .unwrap_or_default();
+        let rate_path_counts = self
+            .rate_path_counts_by_origin
+            .get(live_origin)
+            .cloned()
+            .unwrap_or_default();
         let mut rate_outcome_map = build_seeded_map(&RATE_OUTCOME_KEYS);
-        for (key, value) in self.rate_outcomes {
+        for (key, value) in self
+            .rate_outcomes_by_origin
+            .get(live_origin)
+            .cloned()
+            .unwrap_or_default()
+        {
             let entry = rate_outcome_map.entry(key).or_insert(0);
             *entry = entry.saturating_add(value);
         }
 
         let mut geo_action_map = build_seeded_map(&GEO_ACTION_KEYS);
-        for (key, value) in self.geo_actions {
+        for (key, value) in self
+            .geo_actions_by_origin
+            .get(live_origin)
+            .cloned()
+            .unwrap_or_default()
+        {
             let entry = geo_action_map.entry(key).or_insert(0);
             *entry = entry.saturating_add(value);
         }
+        let geo_total = self
+            .geo_totals_by_origin
+            .get(live_origin)
+            .copied()
+            .unwrap_or(0);
+        let geo_countries = self
+            .geo_countries_by_origin
+            .get(live_origin)
+            .cloned()
+            .unwrap_or_default();
 
         let mut shadow_action_map = build_seeded_map(&SHADOW_ACTION_KEYS);
         for (key, value) in self.shadow_actions {
@@ -2849,16 +2983,16 @@ impl MonitoringAccumulator {
                 ),
             },
             rate: RateSummary {
-                total_violations: self.rate_total,
-                unique_offenders: self.rate_ip_counts.len() as u64,
-                top_offenders: top_entries(&self.rate_ip_counts, top_limit),
-                top_paths: top_entries(&self.rate_path_counts, top_limit),
+                total_violations: rate_total,
+                unique_offenders: rate_ip_counts.len() as u64,
+                top_offenders: top_entries(&rate_ip_counts, top_limit),
+                top_paths: top_entries(&rate_path_counts, top_limit),
                 outcomes: rate_outcome_map,
             },
             geo: GeoSummary {
-                total_violations: self.geo_total,
+                total_violations: geo_total,
                 actions: geo_action_map,
-                top_countries: top_entries(&self.geo_countries, top_limit),
+                top_countries: top_entries(&geo_countries, top_limit),
             },
             human_friction: HumanFrictionSummary {
                 segments: human_friction_rows.into_values().collect(),
@@ -4170,12 +4304,17 @@ mod tests {
             .as_str(),
             2,
         );
-        let rate_ip = encode_dim("203.0.113.0");
-        let rate_path = encode_dim("/checkout");
-        let rate_outcome = encode_dim("limited");
+        let rate_origin = encode_dim("live");
+        let rate_ip = encode_dim("live|203.0.113.0");
+        let rate_path = encode_dim("live|/checkout");
+        let rate_outcome = encode_dim("live|limited");
         set_counter(
             &store,
-            format!("{}:rate:total:{}", MONITORING_PREFIX, now_hour).as_str(),
+            format!(
+                "{}:rate:total:{}:{}",
+                MONITORING_PREFIX, rate_origin, now_hour
+            )
+            .as_str(),
             4,
         );
         set_counter(

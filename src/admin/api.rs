@@ -6655,6 +6655,13 @@ mod admin_config_tests {
             "198.51.100.7",
             "incorrect",
         );
+        crate::observability::monitoring::record_rate_violation_with_path(
+            &store,
+            "198.51.100.7",
+            Some("/baseline"),
+            "limited",
+        );
+        crate::observability::monitoring::record_geo_violation(&store, Some("US"), "challenge");
         log_event(
             &store,
             &EventLogEntry {
@@ -6680,6 +6687,13 @@ mod admin_config_tests {
                 "198.51.100.8",
                 "incorrect",
             );
+            crate::observability::monitoring::record_rate_violation_with_path(
+                &store,
+                "198.51.100.8",
+                Some("/sim"),
+                "banned",
+            );
+            crate::observability::monitoring::record_geo_violation(&store, Some("RU"), "challenge");
             log_event(
                 &store,
                 &EventLogEntry {
@@ -6705,6 +6719,62 @@ mod admin_config_tests {
                 .and_then(|value| value.as_u64()),
             Some(1)
         );
+        assert_eq!(
+            body_default
+                .get("summary")
+                .and_then(|summary| summary.get("rate"))
+                .and_then(|rate| rate.get("total_violations"))
+                .and_then(|value| value.as_u64()),
+            Some(1)
+        );
+        assert_eq!(
+            body_default
+                .get("summary")
+                .and_then(|summary| summary.get("rate"))
+                .and_then(|rate| rate.get("outcomes"))
+                .and_then(|outcomes| outcomes.get("limited"))
+                .and_then(|value| value.as_u64()),
+            Some(1)
+        );
+        assert_eq!(
+            body_default
+                .get("summary")
+                .and_then(|summary| summary.get("rate"))
+                .and_then(|rate| rate.get("outcomes"))
+                .and_then(|outcomes| outcomes.get("banned"))
+                .and_then(|value| value.as_u64()),
+            Some(0)
+        );
+        assert_eq!(
+            body_default
+                .get("summary")
+                .and_then(|summary| summary.get("geo"))
+                .and_then(|geo| geo.get("total_violations"))
+                .and_then(|value| value.as_u64()),
+            Some(1)
+        );
+        assert_eq!(
+            body_default
+                .get("summary")
+                .and_then(|summary| summary.get("geo"))
+                .and_then(|geo| geo.get("actions"))
+                .and_then(|actions| actions.get("challenge"))
+                .and_then(|value| value.as_u64()),
+            Some(1)
+        );
+        let top_countries = body_default
+            .get("summary")
+            .and_then(|summary| summary.get("geo"))
+            .and_then(|geo| geo.get("top_countries"))
+            .and_then(|countries| countries.as_array())
+            .cloned()
+            .unwrap_or_default();
+        assert!(top_countries
+            .iter()
+            .any(|entry| entry.get("label").and_then(|value| value.as_str()) == Some("US")));
+        assert!(!top_countries
+            .iter()
+            .any(|entry| entry.get("label").and_then(|value| value.as_str()) == Some("RU")));
         let include_events = body_default
             .get("details")
             .and_then(|details| details.get("events"))

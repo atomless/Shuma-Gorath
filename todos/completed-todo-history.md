@@ -4,6 +4,31 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-20)
 
+### SIM-DEPLOY-2-3: Close Production Adversary-Sim Operating Envelope And Evidence Receipts
+
+- [x] Update deployment/operator/API/configuration guidance so production adversary-sim is documented as a first-class operating lane with an explicit receipt for off-state posture, ON/OFF control operations, runtime-surface no-impact proof, and intentional-only history cleanup.
+- [x] Why:
+  - the final planned `SIM-DEPLOY-2` slice started as a docs-and-evidence closeout, but the first live rerun exposed a real implementation shortfall: `rate` and `geo` monitoring summaries were still origin-blended, so the production no-impact claim was not yet true even though the earlier challenge and PoW separation work had landed.
+  - fixing that then exposed a second, smaller proof gap in the runtime-surface harness itself: the `rate` category had been riding on the old leaked summary path instead of forcing an actual rate-limit signal during the runtime-surface profile.
+  - both issues were corrected immediately inside this final tranche, so the closeout now records the real finished operating envelope rather than the intended one.
+- [x] Evidence:
+  - `docs/deployment.md`
+  - `docs/adversarial-operator-guide.md`
+  - `docs/api.md`
+  - `docs/configuration.md`
+  - `docs/research/2026-03-20-sim-deploy-2-post-implementation-review.md`
+  - `docs/research/README.md`
+  - `src/observability/monitoring.rs`
+  - `src/admin/api.rs`
+  - `scripts/tests/adversary_runtime_toggle_surface_gate.py`
+  - `scripts/tests/test_adversary_runtime_toggle_surface_gate.py`
+  - `Makefile`
+  - `make test-monitoring-telemetry-contract`
+  - `make test-adversarial-python-unit`
+  - `make test-adversary-sim-runtime-surface`
+  - `make test-adversary-sim-lifecycle`
+  - post-tranche review: the live verification run surfaced the rate/GEO separation and rate-proof harness shortfalls above; both were executed before closeout, and no further shortfall remains
+
 ### SIM-DEPLOY-2-2: Prove Adversary-Sim Kill Switch And No-Impact Contract
 
 - [x] Extend the runtime-surface gate so it separately proves deterministic adversary-sim defense-surface coverage and verifies that live-only monitoring summary paths remain clean while simulation-tagged details are present under live operator use.

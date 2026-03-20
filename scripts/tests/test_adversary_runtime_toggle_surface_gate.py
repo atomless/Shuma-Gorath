@@ -125,6 +125,35 @@ class RuntimeToggleSurfaceGateTests(unittest.TestCase):
         self.assertFalse(captured["payload"]["geo_edge_headers_enabled"])
         self.assertEqual(captured["payload"]["geo_challenge"], [])
 
+    def test_configure_runtime_surface_profile_enables_actual_rate_limit_signal(self) -> None:
+        gate = runtime_surface_gate.RuntimeToggleSurfaceGate(
+            base_url="http://127.0.0.1:3000",
+            api_key="test-api-key",
+            forwarded_secret="forwarded-secret",
+            health_secret="health-secret",
+            timeout_seconds=2,
+        )
+
+        captured = {}
+
+        def fake_request(method, path, payload=None, extra_headers=None):
+            captured["method"] = method
+            captured["path"] = path
+            captured["payload"] = payload
+            return {"status": 200, "body": {}, "raw": ""}
+
+        gate.request = fake_request
+
+        gate.configure_runtime_surface_profile()
+
+        self.assertEqual(captured["method"], "POST")
+        self.assertEqual(captured["path"], "/admin/config")
+        self.assertEqual(captured["payload"]["defence_modes"]["rate"], "both")
+        self.assertEqual(captured["payload"]["rate_limit"], 6)
+        self.assertTrue(captured["payload"]["not_a_bot_enabled"])
+        self.assertTrue(captured["payload"]["geo_edge_headers_enabled"])
+        self.assertEqual(captured["payload"]["geo_challenge"], ["RU"])
+
     def test_live_summary_counts_read_live_only_summary_paths(self) -> None:
         gate = runtime_surface_gate.RuntimeToggleSurfaceGate(
             base_url="http://127.0.0.1:3000",

@@ -40,6 +40,10 @@ Completed archive index:
    Prime directive for one shared deterministic corpus plus out-of-process runtime heartbeat ownership.
 4. [`2026-03-02-adversary-toggle-incident-report-and-lifecycle-invariants.md`](2026-03-02-adversary-toggle-incident-report-and-lifecycle-invariants.md)  
    Incident capture and non-negotiable lifecycle invariants for toggle/restart/off-state behavior, with required fast regression gate.
+5. [`2026-03-20-sim-deploy-2-readiness-review.md`](2026-03-20-sim-deploy-2-readiness-review.md)
+   Readiness review confirming `SIM-DEPLOY-2` could start immediately, identifying the stale lifecycle verification target as the first local prerequisite, and recommending the execution order for the production operating-envelope tranche.
+6. [`2026-03-20-sim-deploy-2-post-implementation-review.md`](2026-03-20-sim-deploy-2-post-implementation-review.md)
+   Closeout review confirming the production adversary-sim operating envelope now has truthful lifecycle verification, one desired-state authority, explicit production posture and kill-switch semantics, no-impact proof, and first-class deployment/operator guidance.
 
 ## 🐙 Gateway Deployment Research
 

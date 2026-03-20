@@ -315,6 +315,7 @@ Read-only operational overlays are returned under `GET /admin/config.runtime` an
 For adversary-sim specifically:
 - `runtime.adversary_sim_enabled` is the effective desired state projection.
 - `GET /admin/adversary-sim/status` is the fuller runtime posture contract: it surfaces `gateway_deployment_profile`, `guardrails.surface_available_by_default`, `guardrails.generation_default`, `guardrails.generation_requires_explicit_enable`, and supervisor cadence/trigger metadata for the active deployment profile.
+- Leaving `SHUMA_ADVERSARY_SIM_AVAILABLE=true` is the canonical production posture. Treat that as a first-class operating lane: verify the status posture, keep the ON/OFF control `operation_id` receipts, and run `make test-adversary-sim-runtime-surface` against a running target before broader rollout. Set `SHUMA_ADVERSARY_SIM_AVAILABLE=false` only when a deployment must hide the surface entirely.
 
 Current exception:
 - `ip_range_suggestions_*` thresholds are still <abbr title="Key-Value">KV</abbr>-backed and visible in the Advanced runtime inventory, but they are not writable through `POST /admin/config` yet. Treat them as read-only runtime knobs until their final classification is resolved.

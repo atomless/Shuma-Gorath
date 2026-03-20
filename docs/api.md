@@ -195,6 +195,7 @@ Adversary-sim command contract (`adversary-sim-control.v1`) highlights:
 - `POST /admin/adversary-sim/control` always returns an `operation_id` and `decision` (`accepted` or `replayed` on `200`).
 - Exact idempotent retries (`Idempotency-Key` + same canonical payload) replay the original operation and keep `operation_id` stable.
 - Reusing an idempotency key with a different payload returns `409`.
+- Production adversary-sim is a normal operating path in `runtime-prod`, not a gated exception. A truthful operating receipt keeps one off-state `GET /admin/adversary-sim/status` posture snapshot, one accepted ON `operation_id`, the no-impact proof from `make test-adversary-sim-runtime-surface` against the running target, and one accepted OFF `operation_id`.
 - Status responses include:
   - `desired_state` (`running|off`)
   - `actual_state` (`running|stopping|off`)

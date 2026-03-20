@@ -146,6 +146,7 @@ class RuntimeToggleSurfaceGate:
     def configure_runtime_surface_profile(self) -> None:
         payload = {
             "defence_modes": {"rate": "both", "geo": "both", "js": "both"},
+            "rate_limit": 6,
             "js_required_enforced": True,
             "not_a_bot_enabled": True,
             "geo_edge_headers_enabled": True,
