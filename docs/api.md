@@ -160,7 +160,7 @@ When `SHUMA_DEBUG_HEADERS=true`, the health response includes:
 - `GET /admin/ip-range/suggestions?hours=N&limit=M` - Suggested IP-range candidates with collateral-risk scoring
 - `GET /admin/config` - Read configuration envelope
   - `config` contains writable persisted admin settings.
-  - `runtime` contains read-only operational overlays such as `gateway_deployment_profile`, `akamai_edge_available`, `adversary_sim_available`, and the effective `adversary_sim_enabled` state used for dashboard rendering; lifecycle writes still go through `POST /admin/adversary-sim/control`.
+  - `runtime` contains read-only operational overlays such as `gateway_deployment_profile`, `akamai_edge_available`, `adversary_sim_available`, and the effective `adversary_sim_enabled` state used for dashboard rendering; `SHUMA_ADVERSARY_SIM_ENABLED` seeds only the initial desired state, and once lifecycle state exists the runtime overlay is projected from `ControlState.desired_enabled` rather than from a separate runtime override writer. Lifecycle writes still go through `POST /admin/adversary-sim/control`.
 - `POST /admin/config` - Update configuration (partial <abbr title="JavaScript Object Notation">JSON</abbr>, disabled when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false`)
 - `POST /admin/config/validate` - Validate a config patch without persisting changes (returns `{ valid, issues[] }` with field/expected/received hints when invalid)
 - `GET /admin/config/export` - Export non-secret runtime config as deploy-ready env key/value output
@@ -468,7 +468,7 @@ Core enforcement fields:
 - `js_required_enforced` - enable/disable <abbr title="JavaScript">JS</abbr>-required enforcement
 - `rate_limit` - per-minute request limit used for hard rate limiting and rate-pressure scoring, applied per source IP bucket (IPv4 /24, IPv6 /64)
 - `honeypot_enabled` - enable/disable honeypot trap handling for configured trap paths
-- `runtime.adversary_sim_enabled` - read-only effective adversary-sim desired state surfaced in config/status payloads for dashboard/runtime rendering; change it via `POST /admin/adversary-sim/control`, not `POST /admin/config`
+- `runtime.adversary_sim_enabled` - read-only effective adversary-sim desired state surfaced in config/status payloads for dashboard/runtime rendering; it uses `SHUMA_ADVERSARY_SIM_ENABLED` only as the initial seed, then projects from persisted lifecycle control state after the first control write. Change it via `POST /admin/adversary-sim/control`, not `POST /admin/config`
 - `adversary_sim_duration_seconds` - adversary-sim run-window duration for backend autonomous supervisor generation (bounded `30..900`)
 - `challenge_puzzle_enabled` - enable/disable challenge serving at challenge-tier routes (when disabled, challenge tier falls back to maze or block)
 - `defence_modes.rate` / `defence_modes.geo` / `defence_modes.js` - per-module composability mode (`off`, `signal`, `enforce`, `both`)

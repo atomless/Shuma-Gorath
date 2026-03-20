@@ -360,8 +360,10 @@ pub(crate) fn load_runtime_config(
     site_id: &str,
     path: &str,
 ) -> Result<config::Config, Response> {
-    let cfg = config::load_runtime_cached(store, site_id)
+    let mut cfg = config::load_runtime_cached(store, site_id)
         .map_err(|err| config_error_response(err, path))?;
+    let adversary_sim_state = crate::admin::adversary_sim::load_state(store, site_id);
+    crate::admin::adversary_sim::project_effective_desired_state(&mut cfg, &adversary_sim_state);
     if let Some(guardrail_error) = cfg.enterprise_state_guardrail_error() {
         log_line(&format!(
             "[ENTERPRISE STATE ERROR] path={} {}",

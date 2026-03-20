@@ -80,7 +80,6 @@ Current stance:
 - [ ] SIM-DEPLOY-2-1 Define the production-default runtime lane/resource posture now that adversary-sim surfaces are production-capable by default.
 - [ ] SIM-DEPLOY-2-2 Add explicit production kill-switch, diagnostics, and no-impact verification for normal user traffic under live operator use.
 - [ ] SIM-DEPLOY-2-3 Update deployment/operator docs and evidence receipts so production adversary-sim usage is documented as a first-class operating path rather than a gated exception.
-- [ ] SIM-DEPLOY-2-5 Collapse adversary-sim desired state to one backend source of truth instead of the current runtime-override plus `ControlState.desired_enabled` split, then factor status/control/beat handlers onto one shared lifecycle snapshot helper so status/control contract drift cannot reappear.
 
 ## P1 Shared-Host Discovery Baseline
 

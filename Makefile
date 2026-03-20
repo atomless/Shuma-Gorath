@@ -942,9 +942,14 @@ test-adversarial-deterministic-corpus: ## Validate shared deterministic attack c
 test-adversary-sim-lifecycle: ## Fast adversary-sim lifecycle regression gate (toggle/state/heartbeat contracts)
 	@echo "$(CYAN)🧪 Running adversary-sim lifecycle regression gate...$(NC)"
 	@./scripts/set_crate_type.sh rlib
+	@cargo test runtime_adversary_sim_enablement_uses_persisted_seeded_state_once_config_exists -- --nocapture
+	@cargo test effective_desired_enabled_prefers_persisted_lifecycle_state_after_control_write -- --nocapture
+	@cargo test admin_config_runtime_projects_adversary_sim_control_state_across_runtime_cache_reset -- --nocapture
 	@cargo test adversary_sim_control_start_stop_and_status_round_trip -- --nocapture
+	@cargo test adversary_sim_control_enable_recovers_from_stale_expired_running_state -- --nocapture
 	@cargo test adversary_sim_status_reports_reconciliation_required_for_stale_running_state_when_disabled -- --nocapture
 	@cargo test adversary_sim_status_reports_previous_process_ownership_without_mutating -- --nocapture
+	@cargo test adversary_sim_status_reports_auto_window_expiry_without_second_enabled_authority -- --nocapture
 	@cargo test adversary_sim_internal_beat_updates_generation_diagnostics_contract -- --nocapture
 	@python3 -m unittest scripts/tests/test_adversary_sim_make_targets.py
 	@python3 -m unittest scripts/tests/test_adversary_sim_supervisor.py

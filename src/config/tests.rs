@@ -1920,11 +1920,10 @@ fn runtime_ephemeral_overrides_apply_without_persisting_to_kv() {
     assert!(!initial.adversary_sim_enabled);
 
     set_runtime_shadow_mode_override("default", true);
-    set_runtime_adversary_sim_enabled_override("default", true);
 
     let effective = load_runtime_cached_for_tests(&store, "default", 101, 2).unwrap();
     assert!(effective.shadow_mode);
-    assert!(effective.adversary_sim_enabled);
+    assert!(!effective.adversary_sim_enabled);
 
     let raw = Config::load(&store, "default").unwrap();
     assert!(!raw.shadow_mode);
@@ -1957,7 +1956,7 @@ fn runtime_ephemeral_defaults_honor_env_startup_overrides() {
 }
 
 #[test]
-fn runtime_adversary_sim_enablement_ignores_persisted_kv_state() {
+fn runtime_adversary_sim_enablement_uses_persisted_seeded_state_once_config_exists() {
     let _lock = crate::test_support::lock_env();
     clear_runtime_cache_for_tests();
     clear_env(&["SHUMA_ADVERSARY_SIM_ENABLED"]);
@@ -1970,11 +1969,16 @@ fn runtime_adversary_sim_enablement_ignores_persisted_kv_state() {
         .unwrap();
 
     let effective = load_runtime_cached_for_tests(&store, "default", 100, 2).unwrap();
-    assert!(!effective.adversary_sim_enabled);
+    assert!(effective.adversary_sim_enabled);
 
     std::env::set_var("SHUMA_ADVERSARY_SIM_ENABLED", "true");
+    clear_runtime_cache_for_tests();
+    persisted.adversary_sim_enabled = false;
+    store
+        .set("config:default", &serde_json::to_vec(&persisted).unwrap())
+        .unwrap();
     let env_effective = load_runtime_cached_for_tests(&store, "default", 101, 2).unwrap();
-    assert!(env_effective.adversary_sim_enabled);
+    assert!(!env_effective.adversary_sim_enabled);
     std::env::remove_var("SHUMA_ADVERSARY_SIM_ENABLED");
     clear_runtime_cache_for_tests();
 }

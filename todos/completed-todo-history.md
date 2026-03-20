@@ -4,6 +4,26 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-20)
 
+### SIM-DEPLOY-2-5: Unify Adversary-Sim Desired-State Authority
+
+- [x] Collapse adversary-sim desired state to one backend source of truth by removing the config-layer runtime enabled override, projecting effective runtime/config state from persisted lifecycle control state, and factoring status/control/beat handlers onto one shared lifecycle snapshot helper so the contracts cannot drift independently again.
+- [x] Why:
+  - the `SIM-DEPLOY-2` readiness review identified the remaining runtime-override plus `ControlState.desired_enabled` split as the highest-risk architectural debt inside the production operating-envelope tranche.
+  - that split let `/admin/config`, status/control, and runtime request handling disagree after cache resets or expiry/restart edges, even though the operator-facing design had already moved to backend-owned lifecycle control.
+  - the clean fix was to keep `SHUMA_ADVERSARY_SIM_ENABLED` as the initial seed only, then make persisted lifecycle state the sole desired-state authority everywhere Shuma projects runtime truth.
+- [x] Evidence:
+  - `src/admin/adversary_sim.rs`
+  - `src/admin/api.rs`
+  - `src/config/mod.rs`
+  - `src/config/tests.rs`
+  - `src/lib.rs`
+  - `docs/api.md`
+  - `docs/testing.md`
+  - `docs/adversarial-operator-guide.md`
+  - `Makefile`
+  - `make test-adversary-sim-lifecycle`
+  - post-tranche review: no additional shortfall found beyond the remaining planned `SIM-DEPLOY-2-1/2/3` slices
+
 ### SIM-DEPLOY-2-0: Refresh Lifecycle Verification Target Truthfulness
 
 - [x] Refresh `make test-adversary-sim-lifecycle` so the focused lifecycle gate now executes the current stale-running and previous-process ownership tests instead of historical selector names that matched zero Rust tests.

@@ -563,6 +563,25 @@ pub fn save_state<S: KeyValueStore>(store: &S, site_id: &str, state: &ControlSta
     store.set(&key, &payload)
 }
 
+fn state_has_authoritative_desired_state(state: &ControlState) -> bool {
+    state != &ControlState::default()
+}
+
+pub fn effective_desired_enabled(initial_seed_enabled: bool, state: &ControlState) -> bool {
+    if state_has_authoritative_desired_state(state) {
+        state.desired_enabled
+    } else {
+        initial_seed_enabled
+    }
+}
+
+pub fn project_effective_desired_state(
+    cfg: &mut crate::config::Config,
+    state: &ControlState,
+) {
+    cfg.adversary_sim_enabled = effective_desired_enabled(cfg.adversary_sim_enabled, state);
+}
+
 pub fn start_state(
     now: u64,
     duration_seconds: u64,
@@ -1837,6 +1856,23 @@ mod tests {
         assert_eq!(no_traffic.reason, "edge_cron_no_traffic_yet");
 
         std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+    }
+
+    #[test]
+    fn effective_desired_enabled_uses_seed_before_first_control_write() {
+        assert!(effective_desired_enabled(true, &ControlState::default()));
+        assert!(!effective_desired_enabled(false, &ControlState::default()));
+    }
+
+    #[test]
+    fn effective_desired_enabled_prefers_persisted_lifecycle_state_after_control_write() {
+        let state = ControlState {
+            desired_enabled: false,
+            updated_at: 100,
+            ..ControlState::default()
+        };
+
+        assert!(!effective_desired_enabled(true, &state));
     }
 
     #[test]

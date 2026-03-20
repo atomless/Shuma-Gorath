@@ -823,7 +823,6 @@ struct CachedConfig {
 #[derive(Debug, Clone, Copy, Default)]
 struct RuntimeEphemeralFlags {
     shadow_mode_override: Option<bool>,
-    adversary_sim_enabled_override: Option<bool>,
 }
 
 impl Config {
@@ -1002,30 +1001,11 @@ fn runtime_env_shadow_mode_override() -> Option<bool> {
         .and_then(|value| parse_bool_like(value.as_str()))
 }
 
-fn runtime_env_adversary_sim_enabled_override() -> Option<bool> {
-    runtime_var_raw_optional("SHUMA_ADVERSARY_SIM_ENABLED")
-        .and_then(|value| parse_bool_like(value.as_str()))
-}
-
-pub fn runtime_adversary_sim_enabled_for_site(site_id: &str) -> bool {
-    let overrides = runtime_ephemeral_flags(site_id);
-    overrides
-        .adversary_sim_enabled_override
-        .or_else(runtime_env_adversary_sim_enabled_override)
-        .unwrap_or_else(|| defaults_bool("SHUMA_ADVERSARY_SIM_ENABLED"))
-}
-
 #[cfg(test)]
 pub fn set_runtime_shadow_mode_override(site_id: &str, enabled: bool) {
     let mut cache = RUNTIME_EPHEMERAL_FLAGS.lock().unwrap();
     let entry = cache.entry(site_id.to_string()).or_default();
     entry.shadow_mode_override = Some(enabled);
-}
-
-pub fn set_runtime_adversary_sim_enabled_override(site_id: &str, enabled: bool) {
-    let mut cache = RUNTIME_EPHEMERAL_FLAGS.lock().unwrap();
-    let entry = cache.entry(site_id.to_string()).or_default();
-    entry.adversary_sim_enabled_override = Some(enabled);
 }
 
 pub fn apply_runtime_ephemeral_overrides(site_id: &str, cfg: &mut Config) {
@@ -1036,9 +1016,6 @@ pub fn apply_runtime_ephemeral_overrides(site_id: &str, cfg: &mut Config) {
     {
         cfg.shadow_mode = value;
     }
-    // Adversary simulation enablement is runtime-ephemeral by design.
-    // Durable KV config must not retain an "on" control-plane state.
-    cfg.adversary_sim_enabled = runtime_adversary_sim_enabled_for_site(site_id);
 }
 
 #[cfg(not(test))]
