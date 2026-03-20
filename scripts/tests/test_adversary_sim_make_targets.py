@@ -1,0 +1,40 @@
+import re
+import unittest
+from pathlib import Path
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+MAKEFILE = REPO_ROOT / "Makefile"
+
+
+class AdversarySimMakeTargetTests(unittest.TestCase):
+    def test_lifecycle_target_uses_current_stale_state_selectors(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-adversary-sim-lifecycle:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn(
+            "adversary_sim_status_reports_reconciliation_required_for_stale_running_state_when_disabled",
+            body,
+        )
+        self.assertIn(
+            "adversary_sim_status_reports_previous_process_ownership_without_mutating",
+            body,
+        )
+        self.assertNotIn("adversary_sim_status_reconciles_idle_enabled_state_to_off", body)
+        self.assertNotIn(
+            "adversary_sim_status_forces_off_when_run_owned_by_previous_process_instance",
+            body,
+        )
+        self.assertIn(
+            "adversary_sim_internal_beat_updates_generation_diagnostics_contract",
+            body,
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()

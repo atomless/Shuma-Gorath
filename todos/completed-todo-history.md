@@ -4,6 +4,19 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-20)
 
+### SIM-DEPLOY-2-0: Refresh Lifecycle Verification Target Truthfulness
+
+- [x] Refresh `make test-adversary-sim-lifecycle` so the focused lifecycle gate now executes the current stale-running and previous-process ownership tests instead of historical selector names that matched zero Rust tests.
+- [x] Why:
+  - the `SIM-DEPLOY-2` readiness review found that the lifecycle target's name and purpose were still correct, but two of its Rust selectors had drifted after the read-only status-path cleanup and were no longer exercising the intended failure modes.
+  - this was a release-blocking truth-in-naming problem for the rest of `SIM-DEPLOY-2`, because later operating-envelope work must be able to trust the focused lifecycle gate when it claims to cover stale state, restart ownership, and heartbeat diagnostics.
+  - the clean fix was to point the target at the current test names and add a focused Makefile unit test so future selector drift fails fast.
+- [x] Evidence:
+  - `Makefile`
+  - `scripts/tests/test_adversary_sim_make_targets.py`
+  - `make test-adversary-sim-lifecycle`
+  - post-tranche review: no additional shortfall found
+
 ### SIM-DEPLOY-2: Readiness Review And Execution-Plan Capture
 
 - [x] Capture the `SIM-DEPLOY-2` architectural readiness review, execution order, and backlog refinement so the production operating-envelope tranche can start from an explicit research and implementation plan instead of implicit context spread across older heartbeat, roadmap, and operator docs.

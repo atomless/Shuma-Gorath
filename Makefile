@@ -943,9 +943,10 @@ test-adversary-sim-lifecycle: ## Fast adversary-sim lifecycle regression gate (t
 	@echo "$(CYAN)🧪 Running adversary-sim lifecycle regression gate...$(NC)"
 	@./scripts/set_crate_type.sh rlib
 	@cargo test adversary_sim_control_start_stop_and_status_round_trip -- --nocapture
-	@cargo test adversary_sim_status_reconciles_idle_enabled_state_to_off -- --nocapture
-	@cargo test adversary_sim_status_forces_off_when_run_owned_by_previous_process_instance -- --nocapture
+	@cargo test adversary_sim_status_reports_reconciliation_required_for_stale_running_state_when_disabled -- --nocapture
+	@cargo test adversary_sim_status_reports_previous_process_ownership_without_mutating -- --nocapture
 	@cargo test adversary_sim_internal_beat_updates_generation_diagnostics_contract -- --nocapture
+	@python3 -m unittest scripts/tests/test_adversary_sim_make_targets.py
 	@python3 -m unittest scripts/tests/test_adversary_sim_supervisor.py
 	@$(MAKE) --no-print-directory test-adversarial-deterministic-corpus
 
