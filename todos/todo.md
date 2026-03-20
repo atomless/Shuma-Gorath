@@ -62,9 +62,6 @@ Reference context:
 - [`docs/plans/2026-03-15-agentic-era-oversight-design.md`](../docs/plans/2026-03-15-agentic-era-oversight-design.md)
 - [`docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
 
-### OPS-BENCH-1: Benchmark Contract For Project Evolution
-- [ ] OPS-BENCH-1-5 Capture the later fleet or central-intelligence enrichment contract for benchmark scenario selection, weighting, and priority without turning the Git repository itself into the shared-intelligence transport.
-
 ## P1 Production Adversary-Sim Operating Contract
 
 Reference context:

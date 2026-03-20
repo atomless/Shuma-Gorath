@@ -6,8 +6,10 @@ Status: Proposed
 Related context:
 
 - [`../research/2026-03-20-benchmark-suite-v1-research-synthesis.md`](../research/2026-03-20-benchmark-suite-v1-research-synthesis.md)
+- [`../research/2026-03-20-benchmark-fleet-and-intelligence-enrichment-research-synthesis.md`](../research/2026-03-20-benchmark-fleet-and-intelligence-enrichment-research-synthesis.md)
 - [`../research/2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md`](../research/2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md)
 - [`2026-03-20-machine-first-operator-snapshot-and-feedback-loop-design.md`](./2026-03-20-machine-first-operator-snapshot-and-feedback-loop-design.md)
+- [`2026-03-20-benchmark-fleet-and-intelligence-enrichment-contract.md`](./2026-03-20-benchmark-fleet-and-intelligence-enrichment-contract.md)
 - [`2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](./2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
 
 ## Objectives
@@ -321,3 +323,5 @@ Central intelligence should later enrich:
 3. and cross-instance comparison context.
 
 It should not be the transport for the benchmark contract itself, and it must not turn the Git repository into the fleet-intelligence data plane.
+
+That later enrichment now has a dedicated contract in [`2026-03-20-benchmark-fleet-and-intelligence-enrichment-contract.md`](./2026-03-20-benchmark-fleet-and-intelligence-enrichment-contract.md). The important rule is that central intelligence may enrich benchmark emphasis, but it must not redefine local benchmark truth.

@@ -296,6 +296,18 @@ Examples:
 2. but it should not be treated as "already banned on this site" until the local site actually issues a ban,
 3. and a local manual unban should clear the site's synced active ban without silently deleting a fleet-level worst-offender record.
 
+### Interaction with later benchmark enrichment
+
+Central intelligence should later be allowed to enrich benchmark emphasis, but not benchmark truth.
+
+That means:
+
+1. central-intelligence signals may nominate benchmark scenarios,
+2. raise benchmark family priority,
+3. or contribute bounded weight bias in a later `benchmark_enrichment_v1` contract,
+4. but they must not rewrite local `benchmark_results_v1`,
+5. and they must not use the Git repository as the live transport for dynamic fleet benchmark state.
+
 ### Central intelligence operating modes
 
 1. `off`

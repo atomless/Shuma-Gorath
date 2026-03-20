@@ -116,6 +116,7 @@ Make it explicit that:
 
 - Modify:
   - `docs/plans/2026-03-20-benchmark-suite-v1-design.md`
+  - `docs/plans/2026-03-20-benchmark-fleet-and-intelligence-enrichment-contract.md`
   - later central-intelligence planning docs
 
 **Outcome:**
@@ -127,6 +128,11 @@ Define how later fleet or central-intelligence evidence may enrich:
 3. and benchmark priority,
 
 without making the Git repository the transport or source of truth for shared benchmark data.
+
+This task is now captured by:
+
+1. `docs/research/2026-03-20-benchmark-fleet-and-intelligence-enrichment-research-synthesis.md`
+2. `docs/plans/2026-03-20-benchmark-fleet-and-intelligence-enrichment-contract.md`
 
 ## Verification Expectations
 

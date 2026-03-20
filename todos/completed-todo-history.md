@@ -4,6 +4,22 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-20)
 
+### OPS-BENCH-1: Capture Later Fleet And Central-Intelligence Benchmark Enrichment
+
+- [x] Complete `OPS-BENCH-1-5` by capturing the later fleet or central-intelligence enrichment contract for benchmark scenario selection, family priority, and bounded weight bias, while explicitly keeping local benchmark truth anchored to `benchmark_suite_v1`, `benchmark_results_v1`, and `operator_snapshot_v1`.
+- [x] Why:
+  - the benchmark-contract tranche had one planning gap left: how later fleet learning or shared intelligence should influence benchmark emphasis without mutating local benchmark truth or turning the Git repository into a live transport for shared benchmark state.
+  - this needed to be settled before later central-intelligence architecture, controller planning, and code-evolution planning, otherwise those later stages could easily invent hidden weight changes, parallel benchmark semantics, or unsafe shared-state habits.
+  - closing this slice now means the local benchmark-planning tranche is complete and the next discussion can focus cleanly on Monitoring as a projection over the existing machine-first contracts.
+- [x] Evidence:
+  - `docs/research/2026-03-20-benchmark-fleet-and-intelligence-enrichment-research-synthesis.md`
+  - `docs/plans/2026-03-20-benchmark-fleet-and-intelligence-enrichment-contract.md`
+  - `docs/research/2026-03-20-benchmark-fleet-enrichment-contract-post-implementation-review.md`
+  - `docs/plans/2026-03-20-benchmark-suite-v1-design.md`
+  - `docs/plans/2026-03-20-machine-first-operator-snapshot-and-feedback-loop-design.md`
+  - `docs/plans/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-design.md`
+  - `git diff --check`
+
 ### OPS-BENCH-1: Project `benchmark_results_v1` Directly Into `operator_snapshot_v1`
 
 - [x] Complete `OPS-BENCH-1-4` by projecting `benchmark_results_v1` directly into `operator_snapshot_v1`, making `/admin/benchmark-results` return that same materialized current-instance contract, and tightening the roadmap and blockers so Monitoring is now discussion-ready from the machine-first base rather than waiting on another backend benchmark projection layer.

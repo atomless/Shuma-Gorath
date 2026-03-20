@@ -286,6 +286,8 @@ The benchmark section should therefore answer:
 2. whether the current watch window suggests `observe_longer`, `config_tuning_candidate`, or `code_evolution_candidate`,
 3. and which benchmark contract version later Monitoring should project without reinterpretation.
 
+Later fleet or central-intelligence inputs should not rewrite that benchmark section. They should arrive through a separate advisory enrichment layer, as captured in [`2026-03-20-benchmark-fleet-and-intelligence-enrichment-contract.md`](./2026-03-20-benchmark-fleet-and-intelligence-enrichment-contract.md), so that local snapshot truth and later shared emphasis stay separate.
+
 ## Human Monitoring Implication
 
 The human Monitoring tab should become a thin projection of `operator_snapshot_v1`.
