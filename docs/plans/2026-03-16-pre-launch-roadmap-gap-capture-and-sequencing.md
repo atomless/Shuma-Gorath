@@ -325,10 +325,11 @@ Status update (2026-03-20, benchmark addendum):
 1. Delivered. The static `benchmark_suite_v1` registry now exists as a machine-first backend contract and read surface.
 2. Delivered. The first bounded `benchmark_results_v1` envelope now exists as a machine-first backend read surface derived from `operator_snapshot_v1`.
 3. Delivered. The first explicit benchmark-driven escalation boundary now exists, separating `config_tuning_candidate`, `observe_longer`, and `code_evolution_candidate` with review-aware trigger and blocker metadata.
-4. The next Stage 2 implementation work is the projection of benchmark results into snapshot and Monitoring surfaces.
+4. Delivered. `benchmark_results_v1` is now projected directly into `operator_snapshot_v1`, and the standalone `/admin/benchmark-results` read path now returns that same materialized current-instance contract rather than inventing a second benchmark summary.
 5. The first benchmark families stay intentionally small: suspicious-origin cost, likely-human friction, representative adversary effectiveness, and beneficial non-human posture.
-6. Monitoring should later project those benchmark semantics rather than inventing a second human-only notion of success or regression.
-7. This keeps the measuring stick for config tuning, future scheduled controllers, and later code evolution aligned from the start.
+6. Monitoring is now discussion-ready from the machine-first base: it should project `operator_snapshot_v1` plus nested `benchmark_results_v1` rather than invent a second human-only notion of success or regression.
+7. The only remaining active benchmark TODO before later controller or fleet work is the enrichment contract for fleet or central-intelligence weighting and priority.
+8. This keeps the measuring stick for config tuning, future scheduled controllers, and later code evolution aligned from the start.
 
 ## Stage 3: Edge-Instance Ban Sync And Distributed State Correctness
 

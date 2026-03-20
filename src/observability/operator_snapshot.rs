@@ -3,9 +3,11 @@ use std::collections::BTreeMap;
 
 use crate::challenge::KeyValueStore;
 use crate::config::AllowedActionsSurface;
+use crate::observability::benchmark_results::{
+    build_benchmark_results_from_snapshot_sections, BenchmarkResultsPayload,
+};
 use crate::observability::hot_read_contract::{
-    operator_snapshot_component_contracts, HotReadOwnershipTier, TelemetryBasis,
-    TelemetryExactness,
+    operator_snapshot_component_contracts, HotReadOwnershipTier, TelemetryBasis, TelemetryExactness,
 };
 use crate::observability::monitoring::{
     HumanFrictionSegmentRow, MonitoringSummary, RequestOutcomeLaneSummaryRow,
@@ -207,6 +209,7 @@ pub(crate) struct OperatorSnapshotHotReadPayload {
     pub recent_changes: OperatorSnapshotRecentChanges,
     pub budget_distance: OperatorBudgetDistanceSummary,
     pub allowed_actions: AllowedActionsSurface,
+    pub benchmark_results: BenchmarkResultsPayload,
     pub verified_identity: OperatorSnapshotPlaceholderSection,
 }
 
@@ -233,8 +236,14 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
     let window_hours = operator_snapshot_watch_window_hours(summary.hours);
     let live_scope = scope_row(summary, "live", "ingress_primary", "enforced").cloned();
     let sim_scope = scope_row(summary, "adversary_sim", "ingress_primary", "enforced").cloned();
-    let likely_human_lane =
-        lane_row(summary, "live", "ingress_primary", "enforced", "likely_human").cloned();
+    let likely_human_lane = lane_row(
+        summary,
+        "live",
+        "ingress_primary",
+        "enforced",
+        "likely_human",
+    )
+    .cloned();
     let suspicious_lane = lane_row(
         summary,
         "live",
@@ -244,40 +253,60 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
     )
     .cloned();
     let human_friction = human_friction_row(summary, "enforced", "likely_human").cloned();
+    let window = snapshot_window(generated_at_ts, window_hours);
+    let live_traffic = live_traffic_section(
+        live_scope.as_ref(),
+        likely_human_lane.as_ref(),
+        suspicious_lane.as_ref(),
+        human_friction.as_ref(),
+    );
+    let shadow_mode = OperatorSnapshotShadowMode {
+        enabled: runtime_shadow_mode(store, site_id),
+        total_actions: summary.shadow.total_actions,
+        pass_through_total: summary.shadow.pass_through_total,
+        actions: summary.shadow.actions.clone(),
+    };
+    let adversary_sim = adversary_sim_section(sim_scope.as_ref(), recent_sim_runs);
+    let runtime_posture = runtime_posture(store, site_id);
+    let budget_distance = budget_distance_summary(
+        &objectives,
+        likely_human_lane.as_ref(),
+        suspicious_lane.as_ref(),
+        human_friction.as_ref(),
+    );
+    let allowed_actions = crate::config::allowed_actions_v1();
+    let benchmark_results_refreshed_at_ts =
+        summary_refreshed_at_ts.min(recent_sim_runs_refreshed_at_ts);
+    let benchmark_results = build_benchmark_results_from_snapshot_sections(
+        generated_at_ts,
+        generated_at_ts,
+        &window,
+        &live_traffic,
+        &adversary_sim,
+        &budget_distance,
+        &allowed_actions,
+    );
 
     OperatorSnapshotHotReadPayload {
         schema_version: OPERATOR_SNAPSHOT_SCHEMA_VERSION.to_string(),
         generated_at: generated_at_ts,
-        window: snapshot_window(generated_at_ts, window_hours),
+        window,
         section_metadata: operator_snapshot_section_metadata(
             generated_at_ts,
             summary_refreshed_at_ts,
             recent_sim_runs_refreshed_at_ts,
             recent_changes_refreshed_at_ts,
+            benchmark_results_refreshed_at_ts,
         ),
         objectives: objectives.clone(),
-        live_traffic: live_traffic_section(
-            live_scope.as_ref(),
-            likely_human_lane.as_ref(),
-            suspicious_lane.as_ref(),
-            human_friction.as_ref(),
-        ),
-        shadow_mode: OperatorSnapshotShadowMode {
-            enabled: runtime_shadow_mode(store, site_id),
-            total_actions: summary.shadow.total_actions,
-            pass_through_total: summary.shadow.pass_through_total,
-            actions: summary.shadow.actions.clone(),
-        },
-        adversary_sim: adversary_sim_section(sim_scope.as_ref(), recent_sim_runs),
-        runtime_posture: runtime_posture(store, site_id),
+        live_traffic,
+        shadow_mode,
+        adversary_sim,
+        runtime_posture,
         recent_changes,
-        budget_distance: budget_distance_summary(
-            &objectives,
-            likely_human_lane.as_ref(),
-            suspicious_lane.as_ref(),
-            human_friction.as_ref(),
-        ),
-        allowed_actions: crate::config::allowed_actions_v1(),
+        budget_distance,
+        allowed_actions,
+        benchmark_results,
         verified_identity: placeholder_section(
             "not_yet_supported",
             "Verified identity summaries land with the verified bot identity foundation.",
@@ -307,8 +336,8 @@ fn default_operator_objectives() -> OperatorObjectivesProfile {
                 comparator: "max_ratio".to_string(),
                 target: SUSPICIOUS_FORWARDED_REQUEST_TARGET,
                 near_limit_ratio: DEFAULT_NEAR_LIMIT_RATIO,
-                eligible_population:
-                    "live:ingress_primary:enforced:suspicious_automation".to_string(),
+                eligible_population: "live:ingress_primary:enforced:suspicious_automation"
+                    .to_string(),
             },
             OperatorObjectiveBudget {
                 budget_id: "suspicious_forwarded_bytes".to_string(),
@@ -316,8 +345,8 @@ fn default_operator_objectives() -> OperatorObjectivesProfile {
                 comparator: "max_ratio".to_string(),
                 target: SUSPICIOUS_FORWARDED_BYTE_TARGET,
                 near_limit_ratio: DEFAULT_NEAR_LIMIT_RATIO,
-                eligible_population:
-                    "live:ingress_primary:enforced:suspicious_automation".to_string(),
+                eligible_population: "live:ingress_primary:enforced:suspicious_automation"
+                    .to_string(),
             },
         ],
         adversary_sim_expectations: placeholder_section(
@@ -345,6 +374,7 @@ fn operator_snapshot_section_metadata(
     summary_refreshed_at_ts: u64,
     recent_sim_runs_refreshed_at_ts: u64,
     recent_changes_refreshed_at_ts: u64,
+    benchmark_results_refreshed_at_ts: u64,
 ) -> BTreeMap<String, OperatorSnapshotSectionMetadata> {
     operator_snapshot_component_contracts()
         .iter()
@@ -353,6 +383,7 @@ fn operator_snapshot_section_metadata(
                 "live_traffic" | "shadow_mode" | "budget_distance" => summary_refreshed_at_ts,
                 "adversary_sim" => recent_sim_runs_refreshed_at_ts,
                 "recent_changes" => recent_changes_refreshed_at_ts,
+                "benchmark_results" => benchmark_results_refreshed_at_ts,
                 _ => generated_at_ts,
             };
             (
@@ -659,8 +690,8 @@ fn ratio(numerator: u64, denominator: u64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::{
-        build_operator_snapshot_payload, OperatorSnapshotRecentChanges,
-        OperatorSnapshotRecentSimRun, operator_snapshot_watch_window_hours,
+        build_operator_snapshot_payload, operator_snapshot_watch_window_hours,
+        OperatorSnapshotRecentChanges, OperatorSnapshotRecentSimRun,
         OPERATOR_SNAPSHOT_SCHEMA_VERSION,
     };
     use crate::challenge::KeyValueStore;
@@ -772,11 +803,29 @@ mod tests {
             .any(|row| row.metric == "likely_human_friction_rate"));
         assert!(payload.recent_changes.rows.is_empty());
         assert_eq!(payload.allowed_actions.schema_version, "allowed_actions_v1");
-        assert!(
-            payload
-                .allowed_actions
-                .allowed_group_ids
-                .contains(&"not_a_bot.policy".to_string())
+        assert!(payload
+            .allowed_actions
+            .allowed_group_ids
+            .contains(&"not_a_bot.policy".to_string()));
+        assert_eq!(
+            payload.benchmark_results.schema_version,
+            "benchmark_results_v1"
+        );
+        assert_eq!(
+            payload.benchmark_results.suite_version,
+            "benchmark_suite_v1"
+        );
+        assert_eq!(
+            payload.benchmark_results,
+            crate::observability::benchmark_results::build_benchmark_results_from_snapshot_sections(
+                payload.generated_at,
+                1_700_000_000,
+                &payload.window,
+                &payload.live_traffic,
+                &payload.adversary_sim,
+                &payload.budget_distance,
+                &payload.allowed_actions,
+            )
         );
         assert_eq!(payload.verified_identity.availability, "not_yet_supported");
     }

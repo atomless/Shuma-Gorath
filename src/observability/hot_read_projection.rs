@@ -958,6 +958,14 @@ mod tests {
                 .allowed_group_ids
                 .contains(&"not_a_bot.policy".to_string())
         );
+        assert_eq!(
+            snapshot.payload.benchmark_results.schema_version,
+            "benchmark_results_v1"
+        );
+        assert_eq!(
+            snapshot.payload.benchmark_results.suite_version,
+            "benchmark_suite_v1"
+        );
     }
 
     #[test]

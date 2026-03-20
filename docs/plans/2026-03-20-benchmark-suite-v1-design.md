@@ -297,6 +297,8 @@ The intended layering is:
 3. `benchmark_results_v1`,
 4. Monitoring and later agent/controller projections.
 
+For the first projection tranche, `operator_snapshot_v1` should carry `benchmark_results_v1` directly rather than a second snapshot-local benchmark wrapper. The nested benchmark payload's `suite_version` is the local reference back to `benchmark_suite_v1`.
+
 That keeps one semantic model for machine and human consumers.
 
 ## Relationship To Monitoring

@@ -1,10 +1,11 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
+use crate::config::AllowedActionsSurface;
 use crate::observability::benchmark_suite::BENCHMARK_SUITE_SCHEMA_VERSION;
 use crate::observability::operator_snapshot::{
-    OperatorBudgetDistanceRow, OperatorSnapshotHotReadPayload, OperatorSnapshotLane,
-    OperatorSnapshotWindow,
+    OperatorBudgetDistanceRow, OperatorBudgetDistanceSummary, OperatorSnapshotAdversarySim,
+    OperatorSnapshotLane, OperatorSnapshotLiveTraffic, OperatorSnapshotWindow,
 };
 
 pub(crate) const BENCHMARK_RESULTS_SCHEMA_VERSION: &str = "benchmark_results_v1";
@@ -64,13 +65,19 @@ pub(crate) struct BenchmarkResultsPayload {
     pub escalation_hint: BenchmarkEscalationHint,
 }
 
-pub(crate) fn build_benchmark_results_payload(
+pub(crate) fn build_benchmark_results_from_snapshot_sections(
+    generated_at: u64,
     input_snapshot_generated_at: u64,
-    snapshot: &OperatorSnapshotHotReadPayload,
+    watch_window: &OperatorSnapshotWindow,
+    live_traffic: &OperatorSnapshotLiveTraffic,
+    adversary_sim: &OperatorSnapshotAdversarySim,
+    budget_distance: &OperatorBudgetDistanceSummary,
+    allowed_actions: &AllowedActionsSurface,
 ) -> BenchmarkResultsPayload {
-    let suspicious_family = suspicious_origin_cost_family(snapshot);
-    let friction_family = likely_human_friction_family(snapshot);
-    let adversary_family = representative_adversary_effectiveness_family(snapshot);
+    let suspicious_family =
+        suspicious_origin_cost_family(live_traffic.suspicious_automation.as_ref(), budget_distance);
+    let friction_family = likely_human_friction_family(budget_distance);
+    let adversary_family = representative_adversary_effectiveness_family(adversary_sim);
     let non_human_family = beneficial_non_human_posture_family();
     let families = vec![
         suspicious_family,
@@ -82,10 +89,10 @@ pub(crate) fn build_benchmark_results_payload(
     BenchmarkResultsPayload {
         schema_version: BENCHMARK_RESULTS_SCHEMA_VERSION.to_string(),
         suite_version: BENCHMARK_SUITE_SCHEMA_VERSION.to_string(),
-        generated_at: snapshot.generated_at,
+        generated_at,
         input_snapshot_generated_at,
         subject_kind: "current_instance".to_string(),
-        watch_window: snapshot.window.clone(),
+        watch_window: watch_window.clone(),
         baseline_reference: BenchmarkBaselineReference {
             reference_kind: "prior_window".to_string(),
             status: "not_available".to_string(),
@@ -94,16 +101,23 @@ pub(crate) fn build_benchmark_results_payload(
         coverage_status: overall_coverage_status(families.as_slice()),
         overall_status: overall_status(families.as_slice()),
         improvement_status: "not_available".to_string(),
-        escalation_hint: derive_escalation_hint(snapshot, families.as_slice()),
+        escalation_hint: derive_escalation_hint(allowed_actions, families.as_slice()),
         families,
     }
 }
 
-fn suspicious_origin_cost_family(snapshot: &OperatorSnapshotHotReadPayload) -> BenchmarkFamilyResult {
-    let lane = snapshot.live_traffic.suspicious_automation.as_ref();
-    let request_budget =
-        budget_row(snapshot, "suspicious_forwarded_request_rate");
-    let byte_budget = budget_row(snapshot, "suspicious_forwarded_byte_rate");
+fn suspicious_origin_cost_family(
+    lane: Option<&OperatorSnapshotLane>,
+    budget_distance: &OperatorBudgetDistanceSummary,
+) -> BenchmarkFamilyResult {
+    let request_budget = budget_row(
+        budget_distance.rows.as_slice(),
+        "suspicious_forwarded_request_rate",
+    );
+    let byte_budget = budget_row(
+        budget_distance.rows.as_slice(),
+        "suspicious_forwarded_byte_rate",
+    );
     let metrics = vec![
         budget_metric_result(
             "suspicious_forwarded_request_rate",
@@ -137,8 +151,13 @@ fn suspicious_origin_cost_family(snapshot: &OperatorSnapshotHotReadPayload) -> B
     }
 }
 
-fn likely_human_friction_family(snapshot: &OperatorSnapshotHotReadPayload) -> BenchmarkFamilyResult {
-    let friction_budget = budget_row(snapshot, "likely_human_friction_rate");
+fn likely_human_friction_family(
+    budget_distance: &OperatorBudgetDistanceSummary,
+) -> BenchmarkFamilyResult {
+    let friction_budget = budget_row(
+        budget_distance.rows.as_slice(),
+        "likely_human_friction_rate",
+    );
     let metrics = vec![
         budget_metric_result("likely_human_friction_rate", friction_budget, "supported"),
         unsupported_metric("interactive_friction_rate"),
@@ -154,9 +173,9 @@ fn likely_human_friction_family(snapshot: &OperatorSnapshotHotReadPayload) -> Be
 }
 
 fn representative_adversary_effectiveness_family(
-    snapshot: &OperatorSnapshotHotReadPayload,
+    adversary_sim: &OperatorSnapshotAdversarySim,
 ) -> BenchmarkFamilyResult {
-    let recent_run_count = snapshot.adversary_sim.recent_runs.len();
+    let recent_run_count = adversary_sim.recent_runs.len();
     BenchmarkFamilyResult {
         family_id: "representative_adversary_effectiveness".to_string(),
         status: "not_yet_supported".to_string(),
@@ -189,14 +208,10 @@ fn beneficial_non_human_posture_family() -> BenchmarkFamilyResult {
 }
 
 fn budget_row<'a>(
-    snapshot: &'a OperatorSnapshotHotReadPayload,
+    rows: &'a [OperatorBudgetDistanceRow],
     metric: &str,
 ) -> Option<&'a OperatorBudgetDistanceRow> {
-    snapshot
-        .budget_distance
-        .rows
-        .iter()
-        .find(|row| row.metric == metric)
+    rows.iter().find(|row| row.metric == metric)
 }
 
 fn budget_metric_result(
@@ -283,17 +298,25 @@ fn unsupported_metric(metric_id: &str) -> BenchmarkMetricResult {
 fn aggregate_budget_status(metrics: &[BenchmarkMetricResult]) -> String {
     let budget_statuses: Vec<&str> = metrics
         .iter()
-        .filter(|metric| matches!(
-            metric.status.as_str(),
-            "outside_budget" | "near_limit" | "inside_budget" | "insufficient_evidence"
-        ))
+        .filter(|metric| {
+            matches!(
+                metric.status.as_str(),
+                "outside_budget" | "near_limit" | "inside_budget" | "insufficient_evidence"
+            )
+        })
         .map(|metric| metric.status.as_str())
         .collect();
-    if budget_statuses.iter().any(|status| *status == "outside_budget") {
+    if budget_statuses
+        .iter()
+        .any(|status| *status == "outside_budget")
+    {
         "outside_budget".to_string()
     } else if budget_statuses.iter().any(|status| *status == "near_limit") {
         "near_limit".to_string()
-    } else if budget_statuses.iter().any(|status| *status == "inside_budget") {
+    } else if budget_statuses
+        .iter()
+        .any(|status| *status == "inside_budget")
+    {
         "inside_budget".to_string()
     } else if budget_statuses
         .iter()
@@ -322,11 +345,17 @@ fn overall_coverage_status(families: &[BenchmarkFamilyResult]) -> String {
 }
 
 fn overall_status(families: &[BenchmarkFamilyResult]) -> String {
-    if families.iter().any(|family| family.status == "outside_budget") {
+    if families
+        .iter()
+        .any(|family| family.status == "outside_budget")
+    {
         "outside_budget".to_string()
     } else if families.iter().any(|family| family.status == "near_limit") {
         "near_limit".to_string()
-    } else if families.iter().any(|family| family.status == "inside_budget") {
+    } else if families
+        .iter()
+        .any(|family| family.status == "inside_budget")
+    {
         "inside_budget".to_string()
     } else if families
         .iter()
@@ -339,7 +368,7 @@ fn overall_status(families: &[BenchmarkFamilyResult]) -> String {
 }
 
 fn derive_escalation_hint(
-    snapshot: &OperatorSnapshotHotReadPayload,
+    allowed_actions: &AllowedActionsSurface,
     families: &[BenchmarkFamilyResult],
 ) -> BenchmarkEscalationHint {
     let outside_budget_families: Vec<&BenchmarkFamilyResult> = families
@@ -398,8 +427,7 @@ fn derive_escalation_hint(
             continue;
         }
 
-        let matching_surface_families: Vec<_> = snapshot
-            .allowed_actions
+        let matching_surface_families: Vec<_> = allowed_actions
             .families
             .iter()
             .filter(|allowed_family| mapped_families.contains(&allowed_family.family.as_str()))
@@ -502,14 +530,15 @@ fn ratio(numerator: u64, denominator: u64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::{
-        build_benchmark_results_payload, derive_escalation_hint, BenchmarkFamilyResult,
-        BenchmarkMetricResult,
+        build_benchmark_results_from_snapshot_sections, derive_escalation_hint,
+        BenchmarkFamilyResult, BenchmarkMetricResult,
     };
-    use crate::config::allowed_actions_v1;
     use crate::challenge::KeyValueStore;
+    use crate::config::allowed_actions_v1;
     use crate::observability::monitoring::{record_request_outcome, summarize_with_store};
     use crate::observability::operator_snapshot::{
-        build_operator_snapshot_payload, OperatorSnapshotRecentChanges, OperatorSnapshotRecentSimRun,
+        build_operator_snapshot_payload, OperatorSnapshotRecentChanges,
+        OperatorSnapshotRecentSimRun,
     };
     use crate::runtime::effect_intents::ExecutionMode;
     use crate::runtime::request_outcome::{
@@ -604,7 +633,15 @@ mod tests {
             1_700_000_100,
         );
 
-        let payload = build_benchmark_results_payload(1_700_000_100, &snapshot);
+        let payload = build_benchmark_results_from_snapshot_sections(
+            snapshot.generated_at,
+            1_700_000_100,
+            &snapshot.window,
+            &snapshot.live_traffic,
+            &snapshot.adversary_sim,
+            &snapshot.budget_distance,
+            &snapshot.allowed_actions,
+        );
         assert_eq!(payload.schema_version, "benchmark_results_v1");
         assert_eq!(payload.suite_version, "benchmark_suite_v1");
         assert_eq!(payload.subject_kind, "current_instance");
@@ -616,7 +653,10 @@ mod tests {
         assert_eq!(payload.improvement_status, "not_available");
         assert_eq!(payload.escalation_hint.availability, "partial_support");
         assert_eq!(payload.escalation_hint.decision, "config_tuning_candidate");
-        assert_eq!(payload.escalation_hint.review_status, "manual_review_required");
+        assert_eq!(
+            payload.escalation_hint.review_status,
+            "manual_review_required"
+        );
     }
 
     #[test]
@@ -667,21 +707,28 @@ mod tests {
         row.delta = 0.10;
         snapshot.allowed_actions = allowed_actions_v1();
 
-        let payload = build_benchmark_results_payload(1_700_000_100, &snapshot);
+        let payload = build_benchmark_results_from_snapshot_sections(
+            snapshot.generated_at,
+            1_700_000_100,
+            &snapshot.window,
+            &snapshot.live_traffic,
+            &snapshot.adversary_sim,
+            &snapshot.budget_distance,
+            &snapshot.allowed_actions,
+        );
         assert_eq!(payload.escalation_hint.decision, "config_tuning_candidate");
-        assert_eq!(payload.escalation_hint.review_status, "manual_review_required");
-        assert!(
-            payload
-                .escalation_hint
-                .trigger_family_ids
-                .contains(&"likely_human_friction".to_string())
+        assert_eq!(
+            payload.escalation_hint.review_status,
+            "manual_review_required"
         );
-        assert!(
-            payload
-                .escalation_hint
-                .candidate_action_families
-                .contains(&"challenge".to_string())
-        );
+        assert!(payload
+            .escalation_hint
+            .trigger_family_ids
+            .contains(&"likely_human_friction".to_string()));
+        assert!(payload
+            .escalation_hint
+            .candidate_action_families
+            .contains(&"challenge".to_string()));
     }
 
     #[test]
@@ -714,16 +761,12 @@ mod tests {
             }],
         }];
 
-        let hint = derive_escalation_hint(&snapshot, families.as_slice());
+        let hint = derive_escalation_hint(&snapshot.allowed_actions, families.as_slice());
         assert_eq!(hint.decision, "code_evolution_candidate");
         assert_eq!(hint.review_status, "manual_review_required");
-        assert!(
-            hint.blockers
-                .contains(&"no_matching_config_surface".to_string())
-        );
-        assert!(
-            hint.blockers
-                .contains(&"family_capability_gap".to_string())
-        );
+        assert!(hint
+            .blockers
+            .contains(&"no_matching_config_surface".to_string()));
+        assert!(hint.blockers.contains(&"family_capability_gap".to_string()));
     }
 }

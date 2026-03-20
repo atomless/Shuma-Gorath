@@ -270,11 +270,21 @@ This should let a future controller reason over bounded numeric deltas rather th
 
 `operator_snapshot_v1` itself does not need to contain the entire project benchmark history, but it should contain enough local benchmark summary to feed the instance loop and enough references to support later project-evolution aggregation.
 
+The first clean projection should carry `benchmark_results_v1` directly rather than inventing a second snapshot-local benchmark summary type.
+
 That means the contract should reserve room for:
 
-1. recent adversary-sim benchmark deltas,
-2. local objective-compliance trend summaries,
-3. and references that a later fleet or project benchmark layer can aggregate.
+1. a nested `benchmark_results` section whose internal `suite_version` points at the static `benchmark_suite_v1` registry,
+2. the current family statuses, metric deltas, improvement status, and escalation hint already defined by the benchmark contract,
+3. recent adversary-sim benchmark deltas,
+4. local objective-compliance trend summaries,
+5. and references that a later fleet or project benchmark layer can aggregate.
+
+The benchmark section should therefore answer:
+
+1. what benchmark family statuses currently look like,
+2. whether the current watch window suggests `observe_longer`, `config_tuning_candidate`, or `code_evolution_candidate`,
+3. and which benchmark contract version later Monitoring should project without reinterpretation.
 
 ## Human Monitoring Implication
 

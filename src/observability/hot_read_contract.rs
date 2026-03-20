@@ -129,7 +129,7 @@ const MONITORING_BOOTSTRAP_COMPONENTS: [HotReadComponentContract; 7] = [
     },
 ];
 
-const OPERATOR_SNAPSHOT_COMPONENTS: [HotReadComponentContract; 9] = [
+const OPERATOR_SNAPSHOT_COMPONENTS: [HotReadComponentContract; 10] = [
     HotReadComponentContract {
         key: "objectives",
         exactness: TelemetryExactness::Derived,
@@ -185,6 +185,15 @@ const OPERATOR_SNAPSHOT_COMPONENTS: [HotReadComponentContract; 9] = [
         note: "Budget-distance rows are derived from bounded summaries and backend-owned objective budgets rather than raw counters alone.",
     },
     HotReadComponentContract {
+        key: "benchmark_results",
+        exactness: TelemetryExactness::Derived,
+        basis: TelemetryBasis::Mixed,
+        ownership_tier: HotReadOwnershipTier::BootstrapCritical,
+        canonical_source: HotReadCanonicalSource::MutableCounter,
+        projection_model: HotReadProjectionModel::DeterministicRebuild,
+        note: "Benchmark results are a bounded machine-first projection over operator snapshot sections and reuse the shared benchmark contract rather than a dashboard-local semantic model.",
+    },
+    HotReadComponentContract {
         key: "recent_changes",
         exactness: TelemetryExactness::BestEffort,
         basis: TelemetryBasis::Observed,
@@ -235,9 +244,8 @@ pub(crate) fn current_hot_read_projection_contract() -> HotReadProjectionContrac
 mod tests {
     use super::{
         current_hot_read_projection_contract, monitoring_bootstrap_component_contracts,
-        operator_snapshot_component_contracts,
-        HotReadCanonicalSource, HotReadComponentContract, HotReadOwnershipTier,
-        HotReadProjectionModel, TelemetryBasis, TelemetryExactness,
+        operator_snapshot_component_contracts, HotReadCanonicalSource, HotReadComponentContract,
+        HotReadOwnershipTier, HotReadProjectionModel, TelemetryBasis, TelemetryExactness,
     };
     use serde_json::Value;
 
@@ -341,6 +349,7 @@ mod tests {
         assert!(keys.contains(&"objectives"));
         assert!(keys.contains(&"live_traffic"));
         assert!(keys.contains(&"budget_distance"));
+        assert!(keys.contains(&"benchmark_results"));
         assert!(keys.contains(&"runtime_posture"));
     }
 }

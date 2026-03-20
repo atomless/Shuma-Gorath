@@ -4,6 +4,25 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-20)
 
+### OPS-BENCH-1: Project `benchmark_results_v1` Directly Into `operator_snapshot_v1`
+
+- [x] Complete `OPS-BENCH-1-4` by projecting `benchmark_results_v1` directly into `operator_snapshot_v1`, making `/admin/benchmark-results` return that same materialized current-instance contract, and tightening the roadmap and blockers so Monitoring is now discussion-ready from the machine-first base rather than waiting on another backend benchmark projection layer.
+- [x] Why:
+  - the benchmark tranche still had one architectural seam left open: benchmark results existed, but they were not yet nested inside the machine-first snapshot that future Monitoring and controller work is supposed to consume.
+  - the clean implementation needed to avoid a second semantic model, so the right move was to build benchmark results from snapshot sections once, carry that payload inside `operator_snapshot_v1`, and have the standalone benchmark-results endpoint reuse that exact materialized contract.
+  - closing this slice now clears the backend prerequisite for the Monitoring-overhaul discussion while leaving only later fleet or central-intelligence enrichment as remaining benchmark work.
+- [x] Evidence:
+  - `src/observability/operator_snapshot.rs`
+  - `src/observability/benchmark_results.rs`
+  - `src/observability/hot_read_contract.rs`
+  - `src/observability/hot_read_projection.rs`
+  - `src/admin/api.rs`
+  - `docs/research/2026-03-20-benchmark-results-snapshot-projection-post-implementation-review.md`
+  - `make test-operator-snapshot-foundation`
+  - `make test-benchmark-results-contract`
+  - `make test`
+  - `git diff --check`
+
 ### OPS-BENCH-1: Materialize The Benchmark-Driven Escalation Boundary
 
 - [x] Complete `OPS-BENCH-1-3` by turning the placeholder `benchmark_results_v1.escalation_hint` into a bounded machine-facing decision contract with explicit `config_tuning_candidate`, `observe_longer`, and `code_evolution_candidate` outcomes, review status, trigger families, candidate config-action families, and blockers derived from existing benchmark results plus `allowed_actions_v1`.

@@ -2223,6 +2223,20 @@ mod tests {
                 .map(|rows| rows.iter().any(|row| row.as_str() == Some("not_a_bot.policy")))
                 .unwrap_or(false)
         );
+        assert_eq!(
+            payload
+                .get("benchmark_results")
+                .and_then(|value| value.get("schema_version"))
+                .and_then(|value| value.as_str()),
+            Some("benchmark_results_v1")
+        );
+        assert_eq!(
+            payload
+                .get("benchmark_results")
+                .and_then(|value| value.get("suite_version"))
+                .and_then(|value| value.as_str()),
+            Some("benchmark_suite_v1")
+        );
     }
 
     #[test]
@@ -16226,10 +16240,7 @@ where
     match crate::observability::hot_read_projection::load_operator_snapshot_hot_read(store, "default")
     {
         Some(snapshot) => {
-            let payload = crate::observability::benchmark_results::build_benchmark_results_payload(
-                snapshot.metadata.generated_at_ts,
-                &snapshot.payload,
-            );
+            let payload = snapshot.payload.benchmark_results.clone();
             let body = serde_json::to_string(&payload).unwrap_or_else(|_| "{}".to_string());
             Response::builder()
                 .status(200)
