@@ -72,6 +72,8 @@ Completed archive index:
    Closeout review confirming that the controller-grade backend telemetry foundation is complete and that the next work should move to the Monitoring-overhaul discussion and section-ownership planning rather than another telemetry architecture sweep.
 10. [`2026-03-20-monitoring-diagnostics-ownership-post-implementation-review.md`](2026-03-20-monitoring-diagnostics-ownership-post-implementation-review.md)
    Post-implementation review confirming that the Monitoring/Diagnostics ownership split landed cleanly, that the legacy bounded monitoring surface now has a truthful Diagnostics home, and that the next work should move to the substantive Monitoring overhaul.
+11. [`2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md`](2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md)
+   Research synthesis arguing that Shuma's Monitoring destination should be a machine-first operator snapshot and feedback-loop contract, with human Monitoring later becoming a thin projection over that bounded backend truth.
 
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 

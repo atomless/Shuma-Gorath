@@ -299,17 +299,23 @@ Status update (2026-03-20):
 1. Delivered. The section-ownership plan now explicitly splits the legacy subsystem-by-subsystem surface into a new `Diagnostics` tab and reserves `Monitoring` as a clean slate for the operator decision surface.
 2. This means the next implementation work can safely move the legacy Monitoring implementation without muddying the eventual operator-facing Monitoring contract.
 
-## Stage 2: Monitoring And Tuning Surfaces
+## Stage 2: Machine-First Monitoring, Tuning, And Objective Loop Foundations
 
 1. Delivered. Monitoring/Diagnostics ownership split so the legacy diagnostic surface now has a truthful home.
-2. Monitoring overhaul for operator decision-making.
-3. Clear shadow versus enforced telemetry separation in operator narratives.
-4. Tuning tab completion and config-governance alignment.
+2. Define `operator_objectives_v1`, `operator_snapshot_v1`, and `allowed_actions_v1` as the machine-first control contract for both future agents and later human Monitoring surfaces.
+3. Build Monitoring as a thin projection over that snapshot, with explicit live versus shadow versus adversary-sim separation.
+4. Complete the Tuning tab against the same objective and action model.
 
 Reason:
 
-1. once the controller-grade telemetry foundation exists, Shuma can redesign Monitoring and complete Tuning against a truthful backend contract instead of inventing UI semantics ahead of the data model.
-2. with the ownership split now implemented, the next work in this stage is the substantive Monitoring redesign itself rather than more transition mechanics.
+1. once the controller-grade telemetry foundation exists, Shuma should not jump straight to chart-first Monitoring work; it should first define the machine-readable contract that a future scheduled controller and a later human dashboard will both consume.
+2. with the ownership split now implemented, the next work in this stage is the operator snapshot and objective-loop foundation, followed by the human Monitoring projection rather than more transition mechanics.
+
+Status update (2026-03-20):
+
+1. The next Stage 2 work is now explicitly the machine-first operator snapshot foundation, not a human-chart-first Monitoring build.
+2. Monitoring overhaul should be treated as a thin projection over `operator_snapshot_v1`.
+3. The scheduled controller planning should remain blocked until that snapshot contract and the later tuning-action contract exist.
 
 ## Stage 3: Edge-Instance Ban Sync And Distributed State Correctness
 

@@ -1,6 +1,6 @@
 # Blocked TODO Roadmap
 
-Last updated: 2026-03-19
+Last updated: 2026-03-20
 
 This file holds gated, contingent, or explicitly deferred work that is not execution-ready.
 Move an item back into `todos/todo.md` only when its blocking condition is cleared.
@@ -39,8 +39,8 @@ Reference context:
 - [ ] TUNE-SURFACE-1 Complete the Tuning tab and related config-control surfaces as the full operator contract for route, defence, ban, recidive, and intelligence thresholds.
   Blocker: defer execution until the operator monitoring overhaul defines which knobs are actionable, which remain diagnostic, and which are safe for future controller tuning.
 
-- [ ] MON-OVERHAUL-1 Redesign Monitoring as an operator decision surface with explicit enforced-vs-shadow separation and clear attacker-effectiveness vs human-friction visibility.
-  Blocker: the backend telemetry-foundation blocker is cleared per [`../docs/research/2026-03-19-pre-monitoring-overhaul-telemetry-foundation-closeout-review.md`](../docs/research/2026-03-19-pre-monitoring-overhaul-telemetry-foundation-closeout-review.md), and the ownership split is now implemented and reviewed per [`../docs/plans/2026-03-20-monitoring-and-diagnostics-tab-ownership-plan.md`](../docs/plans/2026-03-20-monitoring-and-diagnostics-tab-ownership-plan.md) and [`../docs/research/2026-03-20-monitoring-diagnostics-ownership-post-implementation-review.md`](../docs/research/2026-03-20-monitoring-diagnostics-ownership-post-implementation-review.md). The remaining blocker is the user-facing Monitoring design discussion before the substantive overhaul tranche begins.
+- [ ] MON-OVERHAUL-1 Redesign Monitoring as a thin operator decision surface over the machine-first snapshot contract, with explicit live-versus-shadow-versus-adversary-sim separation and clear attacker-effectiveness versus human-friction visibility.
+  Blocker: the backend telemetry-foundation blocker is cleared per [`../docs/research/2026-03-19-pre-monitoring-overhaul-telemetry-foundation-closeout-review.md`](../docs/research/2026-03-19-pre-monitoring-overhaul-telemetry-foundation-closeout-review.md), and the Monitoring/Diagnostics ownership split is implemented per [`../docs/plans/2026-03-20-monitoring-and-diagnostics-tab-ownership-plan.md`](../docs/plans/2026-03-20-monitoring-and-diagnostics-tab-ownership-plan.md). The remaining prerequisite is the active `OPS-SNAPSHOT-1` tranche from [`../docs/plans/2026-03-20-machine-first-operator-snapshot-and-feedback-loop-design.md`](../docs/plans/2026-03-20-machine-first-operator-snapshot-and-feedback-loop-design.md), because Monitoring should project `operator_snapshot_v1` rather than define a human-only semantic model first.
 
 - [ ] SIM-RET-1 Define a dedicated retention and disposal model for adversary-sim telemetry distinct from real-traffic telemetry.
   Blocker: defer execution until mature adversary-sim lane planning settles the expected telemetry classes, retention value horizon, and audit residue needed after tune-confirm-act loops.
@@ -49,7 +49,7 @@ Reference context:
   Blocker: defer execution until the current local recidive/jitter/intelligence design is ready to be broken into service/API/storage contracts; do not treat the Git repository itself as the default shared-intelligence transport.
 
 - [ ] OVR-AGENT-2 Plan the scheduled agent analyzer/recommender/reconfigurer workflow, including model/runtime choice, config-vs-code scope, and whether PR/code-change suggestions are part of the same system or a separate reviewed path.
-  Blocker: defer execution until monitoring, tuning, sim-evidence, and central-intelligence contracts are mature enough that the agent loop can be planned against truthful inputs and bounded outputs. In particular, do not start bounded benchmark/controller design until the controller-grade telemetry foundation gaps from [`../docs/research/2026-03-19-controller-readiness-telemetry-foundation-review.md`](../docs/research/2026-03-19-controller-readiness-telemetry-foundation-review.md) are closed, because the future agent loop needs benchmark-grade byte, outcome, and route-policy summaries rather than only operator charts.
+  Blocker: defer execution until monitoring, tuning, sim-evidence, and central-intelligence contracts are mature enough that the agent loop can be planned against truthful inputs and bounded outputs. In particular, do not start bounded benchmark/controller design until the active machine-first operator-snapshot tranche [`OPS-SNAPSHOT-1`](../todos/todo.md), the later Monitoring projection, and `TUNE-SURFACE-1` are in place, because the future agent loop should consume `operator_snapshot_v1` and bounded action metadata rather than only operator charts.
 
 ## P1 Blocked by Enterprise Baseline Maturity
 

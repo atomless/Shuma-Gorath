@@ -1,6 +1,6 @@
 # TODO Roadmap
 
-Last updated: 2026-03-19
+Last updated: 2026-03-20
 
 This is the active execution-ready work queue.
 Blocked or contingent work lives in `todos/blocked-todo.md`.
@@ -49,6 +49,23 @@ Reference context:
 - Controller-readiness review addendum (2026-03-19):
   - treat the remaining telemetry work below as first-order foundation, not later polish, because future operator benchmarks and bounded inside-controller loops will need truthful byte attribution, richer bounded backend summaries, and fuller control/fail-path outcome coverage before the Monitoring UI overhaul should start.
   - reference: [`docs/research/2026-03-19-controller-readiness-telemetry-foundation-review.md`](../docs/research/2026-03-19-controller-readiness-telemetry-foundation-review.md)
+
+## P0 Machine-First Operator Snapshot Foundations
+
+Reference context:
+- [`docs/research/2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md`](../docs/research/2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md)
+- [`docs/plans/2026-03-20-machine-first-operator-snapshot-and-feedback-loop-design.md`](../docs/plans/2026-03-20-machine-first-operator-snapshot-and-feedback-loop-design.md)
+- [`docs/plans/2026-03-20-machine-first-operator-snapshot-and-feedback-loop-implementation-plan.md`](../docs/plans/2026-03-20-machine-first-operator-snapshot-and-feedback-loop-implementation-plan.md)
+- [`docs/plans/2026-03-15-agentic-era-oversight-design.md`](../docs/plans/2026-03-15-agentic-era-oversight-design.md)
+- [`docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
+
+### OPS-SNAPSHOT-1: Machine-First Operator Snapshot Foundation
+- [ ] OPS-SNAPSHOT-1-1 Define `operator_objectives_v1` so Shuma has one explicit objective and budget contract for likely-human friction, suspicious-origin leakage or cost, non-human stance, and adversary-sim benchmark targets.
+- [ ] OPS-SNAPSHOT-1-2 Materialize a bounded `operator_snapshot_v1` hot-read contract that sits above the existing monitoring summaries and preserves live, shadow, and adversary-sim separation with explicit freshness and exactness metadata.
+- [ ] OPS-SNAPSHOT-1-3 Add budget-distance computation and snapshot sections for live traffic, shadow assertions, adversary-sim evidence, recent changes, and runtime or config posture so later controller loops can reason over typed deltas instead of chart prose.
+- [ ] OPS-SNAPSHOT-1-4 Expose `operator_snapshot_v1` through a dedicated admin read contract with schema-versioning, exactness tags, and no dependence on raw event tails or write-on-read behavior.
+- [ ] OPS-SNAPSHOT-1-5 Add a bounded recent-change summary and `allowed_actions_v1` contract so later scheduled controllers can attribute observed changes and stay inside one explicit config-diff surface.
+- [ ] OPS-SNAPSHOT-1-6 Add focused contract tests proving boundedness, live-vs-sim separation, exactness semantics, and API stability for `operator_snapshot_v1`.
 
 ## P1 Production Adversary-Sim Operating Contract
 

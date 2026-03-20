@@ -3658,3 +3658,12 @@ Policy stance for this section: no backward DOM-ID compatibility is required pre
 
 #### P3 Platform and Configuration Clarity
 - [x] Initialize Ban IP pane duration controls from the current Admin Manual Ban default duration so Ban IP and Ban Durations panes stay consistent.
+# 2026-03-20
+
+## Monitoring and Oversight Planning
+
+- [x] Captured a new research/design/planning tranche that reorients Monitoring toward a machine-first operator snapshot and feedback loop rather than a human-chart-first redesign.
+  - Added [`docs/research/2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md`](../docs/research/2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md), grounded in current Kubernetes, Google Cloud Deploy and SLO, Cloudflare bot analytics, Google crawler classification, and OpenAI agent-safety and structured-output guidance.
+  - Added [`docs/plans/2026-03-20-machine-first-operator-snapshot-and-feedback-loop-design.md`](../docs/plans/2026-03-20-machine-first-operator-snapshot-and-feedback-loop-design.md) and [`docs/plans/2026-03-20-machine-first-operator-snapshot-and-feedback-loop-implementation-plan.md`](../docs/plans/2026-03-20-machine-first-operator-snapshot-and-feedback-loop-implementation-plan.md) to define `operator_objectives_v1`, `operator_snapshot_v1`, `allowed_actions_v1`, and the base tune-confirm-repeat loop.
+  - Updated the roadmap and backlog so active work now prioritizes `OPS-SNAPSHOT-1`, while `MON-OVERHAUL-1` is explicitly reframed as a thin projection over the machine-first snapshot rather than a human-only semantic redesign.
+  - Verification intentionally skipped because this tranche was docs-only; `git diff --check` was used as the required hygiene proof.
