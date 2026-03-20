@@ -25,6 +25,7 @@ pub const AUTONOMOUS_EDGE_FERMYON_HEARTBEAT_INTERVAL_SECONDS: u64 = 60;
 pub const AUTONOMOUS_EDGE_FERMYON_MAX_CATCHUP_TICKS_PER_INVOCATION: u64 = 1;
 pub const AUTONOMOUS_EDGE_FERMYON_CRON_SCHEDULE: &str =
     "staggered 5x cron set (one run per minute, each job every 5 minutes)";
+const PRODUCTION_GENERATION_DEFAULT: &str = "off_until_explicit_enable";
 const DETERMINISTIC_ATTACK_CORPUS_SCHEMA_VERSION: &str = "sim-deterministic-attack-corpus.v1";
 const DETERMINISTIC_ATTACK_CORPUS_PATH: &str =
     "scripts/tests/adversarial/deterministic_attack_corpus.v1.json";
@@ -756,6 +757,7 @@ pub fn status_payload(
 
     json!({
         "runtime_environment": runtime_environment.as_str(),
+        "gateway_deployment_profile": crate::config::gateway_deployment_profile().as_str(),
         "adversary_sim_available": env_available,
         "adversary_sim_enabled": cfg_enabled,
         "phase": state.phase.as_str(),
@@ -771,6 +773,9 @@ pub fn status_payload(
             "containerized": lane_phase(state.phase)
         },
         "guardrails": {
+            "surface_available_by_default": crate::config::adversary_sim_available_default(),
+            "generation_default": PRODUCTION_GENERATION_DEFAULT,
+            "generation_requires_explicit_enable": true,
             "max_duration_seconds": crate::config::ADVERSARY_SIM_DURATION_SECONDS_MAX,
             "max_concurrent_runs": MAX_CONCURRENT_RUNS,
             "cpu_cap_millicores": MAX_CPU_MILLICORES,
@@ -1177,6 +1182,7 @@ pub fn supervisor_status_payload(
         .map(|last_generated_at| now.saturating_sub(last_generated_at));
     json!({
         "owner": "backend_autonomous_supervisor",
+        "deployment_profile": crate::config::gateway_deployment_profile().as_str(),
         "cadence_seconds": profile.cadence_seconds,
         "max_catchup_ticks_per_invocation": profile.max_catchup_ticks_per_invocation,
         "heartbeat_expected": heartbeat_expected,
@@ -1854,6 +1860,76 @@ mod tests {
         let no_traffic = generation_diagnostics(170, true, &state);
         assert_eq!(no_traffic.health, "no_traffic");
         assert_eq!(no_traffic.reason, "edge_cron_no_traffic_yet");
+
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+    }
+
+    #[test]
+    fn status_payload_surfaces_explicit_production_operating_envelope() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "edge-fermyon");
+
+        let payload = status_payload(
+            100,
+            crate::config::RuntimeEnvironment::RuntimeProd,
+            true,
+            false,
+            180,
+            &ControlState::default(),
+        );
+        assert_eq!(
+            payload
+                .get("gateway_deployment_profile")
+                .and_then(|value| value.as_str()),
+            Some("edge-fermyon")
+        );
+        assert_eq!(
+            payload
+                .get("guardrails")
+                .and_then(|value| value.get("surface_available_by_default"))
+                .and_then(|value| value.as_bool()),
+            Some(true)
+        );
+        assert_eq!(
+            payload
+                .get("guardrails")
+                .and_then(|value| value.get("generation_default"))
+                .and_then(|value| value.as_str()),
+            Some(PRODUCTION_GENERATION_DEFAULT)
+        );
+        assert_eq!(
+            payload
+                .get("guardrails")
+                .and_then(|value| value.get("generation_requires_explicit_enable"))
+                .and_then(|value| value.as_bool()),
+            Some(true)
+        );
+
+        let supervisor = supervisor_status_payload(100, false, &ControlState::default());
+        assert_eq!(
+            supervisor
+                .get("deployment_profile")
+                .and_then(|value| value.as_str()),
+            Some("edge-fermyon")
+        );
+        assert_eq!(
+            supervisor
+                .get("trigger_surface")
+                .and_then(|value| value.as_str()),
+            Some("edge_cron")
+        );
+        assert_eq!(
+            supervisor
+                .get("cadence_seconds")
+                .and_then(|value| value.as_u64()),
+            Some(AUTONOMOUS_EDGE_FERMYON_HEARTBEAT_INTERVAL_SECONDS)
+        );
+        assert_eq!(
+            supervisor
+                .get("cron_schedule")
+                .and_then(|value| value.as_str()),
+            Some(AUTONOMOUS_EDGE_FERMYON_CRON_SCHEDULE)
+        );
 
         std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
     }

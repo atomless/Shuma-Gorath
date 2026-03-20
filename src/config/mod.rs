@@ -2135,6 +2135,10 @@ pub fn adversary_sim_available() -> bool {
     )
 }
 
+pub fn adversary_sim_available_default() -> bool {
+    defaults_bool("SHUMA_ADVERSARY_SIM_AVAILABLE")
+}
+
 pub fn gateway_upstream_origin() -> Option<String> {
     env_trimmed_optional("SHUMA_GATEWAY_UPSTREAM_ORIGIN")
 }

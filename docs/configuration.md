@@ -137,7 +137,7 @@ These keys are seeded into <abbr title="Key-Value">KV</abbr> and loaded from <ab
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `SHUMA_SHADOW_MODE` | `false` | Enables shadow-mode behavior for controlled local testing. |
-| `SHUMA_ADVERSARY_SIM_ENABLED` | `false` | Seeds the initial adversary-sim desired state (including `/sim/public/*` crawl-surface pages) when the env-level adversary-sim surface is available. Default remains `false`, so generation stays off until an operator enables it. Runtime on/off changes must go through `POST /admin/adversary-sim/control`. |
+| `SHUMA_ADVERSARY_SIM_ENABLED` | `false` | Seeds the initial adversary-sim desired state (including `/sim/public/*` crawl-surface pages) when the env-level adversary-sim surface is available. Default remains `false`, so generation stays off until an operator enables it. Runtime on/off changes must go through `POST /admin/adversary-sim/control`, and `GET /admin/adversary-sim/status` exposes the resulting production posture via deployment-profile, guardrail, and supervisor cadence fields. |
 | `SHUMA_ADVERSARY_SIM_DURATION_SECONDS` | `180` | Run-window duration for control-triggered adversary simulation orchestration. Value must be between `30` and `900` seconds (inclusive). |
 | `SHUMA_JS_REQUIRED_ENFORCED` | `true` | Enforces <abbr title="JavaScript">JS</abbr> verification (`js_verified` cookie gate). |
 | `SHUMA_MODE_RATE` | `both` | Rate module mode: `off`, `signal`, `enforce`, `both`. |
@@ -311,6 +311,10 @@ Shuma targets a 2-class model:
 - <abbr title="Key-Value">KV</abbr>-backed admin-editable runtime settings writable via `POST /admin/config`.
 
 Read-only operational overlays are returned under `GET /admin/config.runtime` and surfaced in the dashboard runtime inventory for operator clarity, but they are not writable via `POST /admin/config`.
+
+For adversary-sim specifically:
+- `runtime.adversary_sim_enabled` is the effective desired state projection.
+- `GET /admin/adversary-sim/status` is the fuller runtime posture contract: it surfaces `gateway_deployment_profile`, `guardrails.surface_available_by_default`, `guardrails.generation_default`, `guardrails.generation_requires_explicit_enable`, and supervisor cadence/trigger metadata for the active deployment profile.
 
 Current exception:
 - `ip_range_suggestions_*` thresholds are still <abbr title="Key-Value">KV</abbr>-backed and visible in the Advanced runtime inventory, but they are not writable through `POST /admin/config` yet. Treat them as read-only runtime knobs until their final classification is resolved.

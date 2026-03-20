@@ -4,6 +4,23 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-20)
 
+### SIM-DEPLOY-2-1: Codify Production Adversary-Sim Posture
+
+- [x] Define the production-default runtime lane and resource posture in the adversary-sim status contract so operators can see that the surface is available by default, generation stays off until explicit enable, hard guardrails remain bounded, and heartbeat posture changes with the deployment profile.
+- [x] Why:
+  - after desired-state unification, the next architectural gap was not runtime behavior but operator clarity: the production posture existed in defaults and supervisor code, but the status payload did not surface that posture explicitly enough for production operation.
+  - the clean fix was to extend the existing status and supervisor payloads rather than inventing a second posture model, then document those exact fields in operator, configuration, and deployment docs.
+  - folding the new status regression into `make test-adversary-sim-lifecycle` keeps the focused gate truthful for both lifecycle and operating-envelope posture expectations.
+- [x] Evidence:
+  - `src/admin/adversary_sim.rs`
+  - `src/config/mod.rs`
+  - `docs/adversarial-operator-guide.md`
+  - `docs/configuration.md`
+  - `docs/deployment.md`
+  - `Makefile`
+  - `make test-adversary-sim-lifecycle`
+  - post-tranche review: no additional shortfall found beyond the remaining planned `SIM-DEPLOY-2-2/3` slices
+
 ### SIM-DEPLOY-2-5: Unify Adversary-Sim Desired-State Authority
 
 - [x] Collapse adversary-sim desired state to one backend source of truth by removing the config-layer runtime enabled override, projecting effective runtime/config state from persisted lifecycle control state, and factoring status/control/beat handlers onto one shared lifecycle snapshot helper so the contracts cannot drift independently again.

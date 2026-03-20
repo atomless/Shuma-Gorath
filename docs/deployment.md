@@ -51,6 +51,7 @@ Adversary simulation telemetry is isolated by authenticated tagging and explicit
 3. Production-capable control surface:
    - `SHUMA_ADVERSARY_SIM_AVAILABLE` defaults to `true` in both runtime classes so deployed operators can use adversary-sim controls in production.
    - Traffic generation remains off until an operator enables it through `POST /admin/adversary-sim/control` (or the dashboard `Red Team` toggle). `SHUMA_ADVERSARY_SIM_ENABLED` seeds only the initial desired state.
+   - `GET /admin/adversary-sim/status` now makes the default production posture explicit: `gateway_deployment_profile`, `guardrails.surface_available_by_default=true`, `guardrails.generation_default=off_until_explicit_enable`, `guardrails.generation_requires_explicit_enable=true`, and deployment-profile-specific supervisor cadence/trigger fields (`deployment_profile`, `trigger_surface`, `cadence_seconds`, `cron_schedule` when edge cron applies).
    - Deployments that must hide the surface entirely may set `SHUMA_ADVERSARY_SIM_AVAILABLE=false`.
 
 This separation does not require different admin API keys between dev/prod; isolation is enforced by authenticated simulation metadata, operator-controlled lifecycle state, and deployment environment boundaries.

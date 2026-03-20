@@ -943,6 +943,7 @@ test-adversary-sim-lifecycle: ## Fast adversary-sim lifecycle regression gate (t
 	@echo "$(CYAN)🧪 Running adversary-sim lifecycle regression gate...$(NC)"
 	@./scripts/set_crate_type.sh rlib
 	@cargo test runtime_adversary_sim_enablement_uses_persisted_seeded_state_once_config_exists -- --nocapture
+	@cargo test status_payload_surfaces_explicit_production_operating_envelope -- --nocapture
 	@cargo test effective_desired_enabled_prefers_persisted_lifecycle_state_after_control_write -- --nocapture
 	@cargo test admin_config_runtime_projects_adversary_sim_control_state_across_runtime_cache_reset -- --nocapture
 	@cargo test adversary_sim_control_start_stop_and_status_round_trip -- --nocapture
