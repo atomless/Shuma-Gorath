@@ -7,7 +7,7 @@ description: Use when an agent needs to deploy this repository to Fermyon Wasm F
 
 ## Overview
 
-Use this skill for the deploy-side half of the Akamai-edge-only Fermyon baseline.
+Use this skill only for the deferred deploy-side half of the Akamai-edge-only Fermyon gateway path.
 
 This skill is agent-facing. It is not a human checklist.
 
@@ -17,7 +17,7 @@ Current maturity boundary:
 
 - this skill targets `spin aka` only,
 - plain `spin cloud` is out of scope for this tranche,
-- the Akamai edge baseline is now live-proven, so follow-on Akamai Rate/GEO work may proceed from this posture.
+- the Akamai edge path remains a truthful deferred gateway-only option, but it is no longer the near-term pre-launch runtime mainline.
 - full hosted Scrapling runtime support remains shared-host-first and is not part of this edge deploy contract.
 
 If the operator wants the real hosted Scrapling adversary runtime, use:
@@ -95,7 +95,7 @@ What the helper must not do:
 - it must not pretend plain `spin cloud` is part of this path,
 - it must not continue after a `spin aka login` panic,
 - it must not overload the SSH `remote-*` contract,
-- it must not claim that deploying this edge baseline makes the full Scrapling worker runtime operational.
+- it must not claim that deploying this edge gateway path makes the full Scrapling worker runtime or the later scheduled diagnosis loop operational.
 
 ## Canonical Command Path
 

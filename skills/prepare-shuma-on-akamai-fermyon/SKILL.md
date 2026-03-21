@@ -9,7 +9,7 @@ description: Use when an agent needs to turn an existing Fermyon/Akamai edge acc
 
 This skill is agent-facing. It is not a human checklist.
 
-Use it before [`../deploy-shuma-on-akamai-fermyon/SKILL.md`](../deploy-shuma-on-akamai-fermyon/SKILL.md) when you need the Akamai-edge-only setup half of the Fermyon baseline.
+Use it before [`../deploy-shuma-on-akamai-fermyon/SKILL.md`](../deploy-shuma-on-akamai-fermyon/SKILL.md) only when you are explicitly working on the deferred Akamai-edge-only gateway track.
 
 If the operator is asking for the full hosted Scrapling adversary runtime, stop and route that work to the shared-host path instead:
 
@@ -131,7 +131,7 @@ If device login completes browser auth but returns `User is not allow-listed!`:
 - wait for Wasm Functions access approval or support intervention,
 - then rerun the helper.
 
-The live edge baseline is now proven, so a successful rerun after provider approval should continue cleanly into `make deploy-fermyon-akamai-edge`.
+This path remains truthful and usable for later gateway-only work, but it is not the current pre-launch home of the full Shuma runtime or adaptive loop.
 
 ## Operations Reference
 

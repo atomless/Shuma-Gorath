@@ -2,10 +2,10 @@
 
 Maturity note:
 
-- this is now a live-proven deploy-path operations guide for the `spin aka` path;
-- the Akamai edge baseline is proven, but provider-specific gotchas remain important operational knowledge;
+- this is a deferred gateway-only operations guide for the `spin aka` path;
+- historical live proof exists for this path, but it is no longer the current pre-launch runtime mainline;
 - shared day-2 verbs are still a later design slice because this path does not participate in `ssh_systemd` remote management.
-- the full hosted Scrapling worker runtime remains a shared-host-first contract rather than part of this edge deploy guide.
+- the full hosted Scrapling worker runtime and later scheduled diagnosis loop remain shared-host-first contracts rather than part of this edge deploy guide.
 
 ## Preflight Checklist
 

@@ -20,7 +20,7 @@ Backends are config-selectable (`internal`, `external`) but external selections 
 - Minimize energy usage by default through low-cost local checks and selective escalation.
 - Preserve Shuma as the policy/orchestration brain.
 - Support enterprise edge integration with strongest focus on Akamai.
-- Keep Fermyon/Spin deployment ergonomics as a primary runtime path.
+- Keep shared-host/self-hosted runtime ergonomics as the primary path, while preserving Spin-based gateway compatibility as a later edge adapter path.
 
 ## Non-goals
 
@@ -97,7 +97,7 @@ Guardrails:
 - Akamai:
   - App and API Protector + Bot Manager provide strong enterprise edge posture for bot, WAF, API, and challenge control.
   - Application Security APIs expose edge policy resources relevant to this design (`rate-policies`, `network-lists`, IP/Geo firewall).
-  - Akamai Functions supports Spin-based workloads, which keeps Fermyon/Spin-aligned deployment paths realistic.
+  - Akamai Functions supports Spin-based workloads, which keeps a later thin edge-gateway adapter path realistic, but not the near-term home of Shuma's full adaptive loop.
 - Cloudflare:
   - Bot Management exposes rich bot telemetry fields and detection IDs.
   - Rate Limiting Rules, Lists, and Challenge surfaces provide broad edge controls with strong rule programmability.
@@ -105,6 +105,7 @@ Guardrails:
 - Planning implication:
   - Keep Akamai as the first enterprise integration target.
   - Keep provider contracts narrow and semantics-first (signal ingestion, rate state, ban sync), with explicit unsupported behavior for non-targeted features.
+  - Do not let the existence of an edge-compatible deploy target force the dashboard, adversary runtime, or later diagnosis agents onto that edge platform before a separate gateway-versus-control-plane architecture is chosen.
 
 ## Sequenced Implementation Plan
 

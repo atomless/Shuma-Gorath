@@ -4,6 +4,33 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-21)
 
+### ROADMAP-EDGE-1: Shared-Host-First Control Plane And Deferred Edge-Gateway Cleanup
+
+- [x] Reviewed the repo against the decision to shelve Fermyon as a near-term full-runtime target, wrote a new architecture review plus direction-update plan, moved edge/Fermyon and enterprise distributed-state follow-on work out of the active queue into blocked backlog, and refreshed public docs and Akamai/Fermyon agent skills so they now describe the edge path as a deferred gateway-only posture rather than the current full-runtime destination.
+- [x] Why:
+  - the repo had already converged operationally on shared-host as the real hosted Scrapling and feedback-loop target, but the master roadmap, deployment docs, and edge skills still described Fermyon as a near-term primary runtime path. That mismatch would have kept pulling planning and implementation effort toward the wrong platform constraints.
+  - the clean fix was not a surprise runtime refactor. It was a planning-chain correction: write the architecture review, update the roadmap, move the no-longer-mainline work out of `todos/todo.md`, and make the public/operator contract truthful.
+  - the review also found a smaller but important architectural residue: several runtime and dashboard surfaces still encode vendor-shaped `edge-fermyon` assumptions. Those were intentionally captured as later blocked cleanup items (`EDGE-GW-ARCH-1` and `EDGE-GW-ARCH-2`) instead of being left as undocumented drift.
+- [x] Evidence:
+  - `docs/research/2026-03-21-fermyon-shelving-and-shared-host-control-plane-architecture-review.md`
+  - `docs/plans/2026-03-21-shared-host-first-control-plane-and-deferred-edge-gateway-plan.md`
+  - `docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`
+  - `docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`
+  - `docs/plans/2026-02-13-provider-externalization-design.md`
+  - `README.md`
+  - `docs/deployment.md`
+  - `docs/bot-defence.md`
+  - `docs/index.md`
+  - `docs/research/README.md`
+  - `skills/prepare-shuma-on-akamai-fermyon/SKILL.md`
+  - `skills/deploy-shuma-on-akamai-fermyon/SKILL.md`
+  - `skills/deploy-shuma-on-akamai-fermyon/references/OPERATIONS.md`
+  - `todos/todo.md`
+  - `todos/blocked-todo.md`
+  - `docs/research/2026-03-21-fermyon-shelving-roadmap-and-docs-cleanup-post-implementation-review.md`
+  - `git diff --check`
+  - verification note: docs/plans/backlog-only tranche, so tests were intentionally skipped.
+
 ### DEP-ENT-1-4: Focused Verification And Truthful Enterprise Ban-Store Docs
 
 - [x] Closed the final `DEP-ENT-1` tranche by validating that `make test-enterprise-ban-store-contract` already truthfully covers the strict enterprise ban-store contract and by refreshing the public/operator docs to describe the settled posture: permissive self-hosted ban-store fallback remains `fallback_internal`, authoritative enterprise multi-instance ban sync requires `SHUMA_PROVIDER_BAN_STORE=external` plus `SHUMA_BAN_STORE_OUTAGE_MODE=fail_closed`, and strict admin/operator surfaces expose `503` or explicit availability markers instead of hidden local fallback.

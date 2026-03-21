@@ -1,7 +1,7 @@
 # Deployment Paths and Adversarial Simulation Excellence Plan
 
 Date: 2026-02-20  
-Status: Proposed (implementation-ready)
+Status: Proposed (partially superseded by 2026-03-21 shared-host-first direction update)
 
 Related research:
 - [`docs/research/2026-02-20-deployment-and-adversarial-simulation-research-synthesis.md`](../research/2026-02-20-deployment-and-adversarial-simulation-research-synthesis.md)
@@ -9,7 +9,7 @@ Related research:
 ## Objectives
 
 1. Publish a clear, low-friction single-host deployment path for `self_hosted_minimal`.
-2. Define and implement a strict enterprise path for Akamai/Fermyon multi-instance deployments with full ban synchronization semantics across instances.
+2. Preserve the design record for a later edge-gateway and enterprise distributed-state path, but do not treat Akamai/Fermyon multi-instance runtime work as the current pre-launch mainline.
 3. Establish a repeatable adversarial simulation program that covers crawler/scraper/bot behavior from low to high threat levels.
 
 ## Non-goals
@@ -39,13 +39,20 @@ Related research:
 - New operator can deploy single-host with only docs + `make setup` + deploy commands.
 - Deployment checks fail fast on unsafe posture drift.
 
-## Workstream B: Akamai/Fermyon Multi-Instance Full Ban Sync
+## Workstream B: Deferred Edge Gateway And Enterprise Distributed-State Hardening
 
 ### Target state
 
 - `enterprise_akamai` multi-instance uses distributed external providers for `ban_store` and `rate_limiter`.
 - Cross-instance ban visibility converges within a documented <abbr title="Service Level Objective">SLO</abbr>.
 - Drift/outage behavior is observable, tested, and rollback-safe.
+
+Status update (2026-03-21):
+
+1. This workstream remains useful design context, but it is no longer the active pre-launch mainline.
+2. Shared-host is now the supported full runtime/control-plane target for the first adaptive loop.
+3. Edge/Fermyon should be treated as a later gateway-only posture until a dedicated edge gateway plus shared-host control-plane architecture is planned explicitly.
+4. The execution-ready follow-on work from this section now belongs in the blocked backlog rather than the active queue.
 
 ### Architecture requirements
 
@@ -137,9 +144,9 @@ Related research:
 
 ## Sequence and Priority
 
-1. Start with Workstream B (`ENT-1` to `ENT-4`) because enterprise sync correctness is the largest current risk.
-2. Execute Workstream C (`SIM-1` to `SIM-4`) in parallel once strict-sync semantics are defined.
-3. Finalize Workstream A polish and docs once enterprise and simulation baselines are measurable.
+1. Continue Workstream A and the shared-host-first adversarial-sim loop as the active pre-launch path.
+2. Treat Workstream B as deferred follow-on architecture for a later edge gateway posture.
+3. Continue Workstream C only where it strengthens the shared-host-first loop and machine-first benchmark surfaces.
 
 ## Risks and Mitigations
 

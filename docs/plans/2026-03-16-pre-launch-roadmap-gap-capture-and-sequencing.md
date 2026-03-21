@@ -10,6 +10,8 @@ Related context:
 - [`2026-03-15-agentic-era-oversight-implementation-plan.md`](2026-03-15-agentic-era-oversight-implementation-plan.md)
 - [`2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-design.md`](2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-design.md)
 - [`2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-design.md`](2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-design.md)
+- [`2026-03-21-shared-host-first-control-plane-and-deferred-edge-gateway-plan.md`](2026-03-21-shared-host-first-control-plane-and-deferred-edge-gateway-plan.md)
+- [`../research/2026-03-21-fermyon-shelving-and-shared-host-control-plane-architecture-review.md`](../research/2026-03-21-fermyon-shelving-and-shared-host-control-plane-architecture-review.md)
 - [`../observability.md`](../observability.md)
 - [`../../todos/todo.md`](../../todos/todo.md)
 - [`../../todos/blocked-todo.md`](../../todos/blocked-todo.md)
@@ -219,6 +221,11 @@ Reason:
 
 Shuma already has planned work for enterprise multi-instance ban synchronization, and this roadmap should state clearly where it fits.
 
+Status update (2026-03-21):
+
+1. This remains valid architecture context for a later edge gateway posture, but it is no longer on the current pre-launch mainline while shared-host remains the supported full control plane.
+2. Keep this track conceptually separate from central intelligence, but defer its execution until the later edge gateway plus shared-host control-plane architecture is planned explicitly.
+
 This track is about:
 
 1. one site or one deployment,
@@ -231,7 +238,7 @@ This is not the same thing as central intelligence or a centralized worst-offend
 
 It should remain separate because:
 
-1. edge-instance ban sync is site-local operational correctness,
+1. edge-instance ban sync is site-local operational correctness when that deployment shape is actually in scope,
 2. central intelligence is cross-site or fleet memory and enrichment,
 3. ban sync mirrors exact current enforcement state,
 4. while central intelligence should stay advisory-first or high-confidence-feed-driven and must not become a blind active-ban replication channel across unrelated sites.
@@ -345,19 +352,13 @@ Status update (2026-03-20, benchmark addendum):
 8. Later central-intelligence architecture should implement the enrichment layer through a real data plane rather than reopening the local benchmark semantics.
 9. This keeps the measuring stick for config tuning, future scheduled controllers, and later code evolution aligned from the start.
 
-## Stage 3: Edge-Instance Ban Sync And Distributed State Correctness
+Status update (2026-03-21):
 
-1. Strict distributed ban-store mode for enterprise authoritative operation.
-2. Ban and unban convergence observability and sync-lag truth surfaces.
-3. Two-instance and failure-mode verification for convergence and outage posture.
+1. Shuma now explicitly shelves Fermyon as a near-term full-runtime target and treats the shared-host control plane as the pre-launch mainline.
+2. Edge/Fermyon and enterprise distributed-state follow-on work therefore move off the mainline sequence and into a later gateway-only side branch.
+3. The next pre-launch stages should optimize for verified identity, shared-host adversary maturity, monitoring/tuning projection, and the scheduled diagnosis loop rather than edge cron ownership or multi-instance edge convergence.
 
-Reason:
-
-1. multi-instance enforcement correctness is a deployment-local prerequisite, not an optional intelligence feature.
-2. mature multi-instance adversary-sim should not be trusted until Shuma can prove that locally issued bans converge across instances.
-3. this keeps the exact current-enforcement plane separate from later shared-intelligence work.
-
-## Stage 4: Verified Identity Foundation
+## Stage 3: Verified Identity Foundation
 
 1. Canonical verified-identity contract.
 2. Native Web Bot Auth and HTTP Message Signatures handling.
@@ -371,7 +372,7 @@ Reason:
 2. This gives later sim lanes a truthful beneficial-agent and spoofed-agent target model to test against.
 3. It also keeps trust-boundary controls out of later autonomous tuning work until those controls exist explicitly.
 
-## Stage 5: Adversary-Sim Foundations
+## Stage 4: Adversary-Sim Foundations
 
 1. Production adversary-sim operating envelope hardening.
 2. Shared-host discovery baseline.
@@ -381,17 +382,27 @@ Reason:
 1. Shuma should settle production posture, kill-switches, desired-state truth, and no-impact guarantees before broadening the sim.
 2. realistic Scrapling and containerized lanes should start from a truthful discovered public-surface baseline rather than ad hoc targets.
 
-## Stage 6: Mature Adversary-Sim As A Tuning Input
+## Stage 5: Mature Adversary-Sim As A Tuning Input
 
 1. Scrapling lane.
 2. Containerized frontier lane as a bounded emergent actor.
 3. Verified-agent, spoofed-agent, and replay-attempt scenarios against the identity lane.
-4. Multi-instance convergence scenarios against enterprise ban-sync posture.
-5. Explicit mapping from each lane's evidence to tuning confidence.
+4. Explicit mapping from each lane's evidence to tuning confidence.
 
 Reason:
 
 1. Shuma needs realistic attacker input before automated tuning can be trusted to optimize against the actual agentic threat landscape.
+
+## Stage 6: Monitoring Projection And Tuning Surface Completion
+
+1. Build Monitoring as a thin projection over `operator_snapshot_v1` and nested `benchmark_results_v1`.
+2. Complete the Tuning tab as the bounded operator control surface over the same machine-first contract.
+3. Keep live, shadow, adversary-sim, and benchmark semantics visibly separate so the first recommend-only loop is reading truthful operator surfaces.
+
+Reason:
+
+1. the shared-host-first diagnosis loop still needs a clean human/operator projection and bounded writable knobs, even though the machine-first foundation already exists.
+2. Monitoring and Tuning should now be completed against the settled snapshot and benchmark contract rather than against a separate human-only model.
 
 ## Stage 7: Sim-Telemetry Lifecycle
 
@@ -424,7 +435,7 @@ Reason:
 
 1. external and shared memory should not be wired into runtime policy before its trust and blast-radius model is explicit.
 2. this must follow verified identity so Shuma keeps "who is this?" separate from "what does outside reputation say about it?"
-3. this must also follow edge-instance ban sync so the exact local active-ban plane is already cleanly separated from cross-site reputation and worst-offender memory.
+3. this must also follow the shared-host-first benchmark and policy loop so exact local active enforcement and bounded benchmark truth are already settled.
 
 ## Stage 10: Scheduled Agent Operator Loop
 
@@ -435,7 +446,7 @@ Reason:
 
 Reason:
 
-1. the agent loop should stand on truthful monitoring, explicit identity policy, deployment-local sync correctness, mature sim evidence, tuned config surfaces, and explicit central-intelligence governance.
+1. the agent loop should stand on truthful monitoring, explicit identity policy, mature sim evidence, tuned config surfaces, and explicit central-intelligence governance.
 
 ## Stage 11: Final Pre-Launch Performance Gate
 
@@ -454,7 +465,7 @@ Reason:
 3. Treat controller-grade monitoring telemetry foundations as a prerequisite for both the Monitoring overhaul and any future bounded benchmark/controller loop.
 4. Treat monitoring overhaul as a prerequisite for serious autonomous tuning.
 5. Treat tuning-tab completion as a control-plane contract, not a cosmetic dashboard task.
-6. Treat edge-instance ban sync as deployment-local state correctness and schedule it before mature multi-instance sim or cross-site intelligence work.
+6. Keep edge-gateway distributed-state work off the shared-host-first pre-launch mainline until a later gateway-only architecture is planned explicitly.
 7. Formalize verified bot identity before mature sim, central intelligence, or scheduled agentic reconfiguration so identity, authorization, and reputation are separated cleanly.
 8. Settle production adversary-sim posture and the minimal shared-host scope-and-seed gate before expanding emergent lanes.
 9. Keep adversary-sim telemetry retention distinct from real-traffic retention.
@@ -467,9 +478,11 @@ Reason:
 
 These items should remain explicitly off the mainline sequence:
 
-1. optional asynchronous mirroring of high-confidence bans to Akamai Network Lists
-   - only after `DEP-ENT-1..5` establish the enterprise distributed-state baseline;
-2. external breach to replayable attack pipeline
+1. later edge gateway plus shared-host control-plane split architecture, including any edge-local distributed-state correctness work
+   - only after the shared-host-first pre-launch loop is operating cleanly and the later edge architecture is planned explicitly;
+2. optional asynchronous mirroring of high-confidence bans to Akamai Network Lists
+   - only after a later edge-gateway architecture and enterprise distributed-state baseline are re-committed intentionally;
+3. external breach to replayable attack pipeline
    - only after the first emergent lanes are producing stable exploit findings, mature adversary-sim is established, and retention governance is in place.
 
 # Roadmap Outcome
@@ -478,11 +491,11 @@ This roadmap suggests that the next pre-launch excellence sequence should be:
 
 1. operator-surface truth prerequisites,
 2. controller-grade monitoring telemetry foundations,
-3. operator-grade monitoring and tuning surfaces,
-4. edge-instance ban sync and distributed state correctness,
-5. verified bot identity and Web Bot Auth foundation,
-6. adversary-sim foundations,
-7. mature adversary-sim lanes,
+3. machine-first monitoring, tuning, and objective-loop foundations,
+4. verified bot identity and Web Bot Auth foundation,
+5. adversary-sim foundations,
+6. mature adversary-sim lanes,
+7. monitoring projection and tuning surface completion,
 8. sim-telemetry retention lifecycle,
 9. privacy and state-minimization gate,
 10. central-intelligence architecture,

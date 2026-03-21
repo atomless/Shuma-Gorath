@@ -1,6 +1,6 @@
 # Blocked TODO Roadmap
 
-Last updated: 2026-03-20
+Last updated: 2026-03-21
 
 This file holds gated, contingent, or explicitly deferred work that is not execution-ready.
 Move an item back into `todos/todo.md` only when its blocking condition is cleared.
@@ -22,6 +22,64 @@ Security finding validity and closure status live in `todos/security-review.md`.
 
 - [ ] SIM-EDGE-RUNTIME-1 Edge-hosted external-supervisor productization for full adversary-sim runtime.
   Blocker: defer while shared-host remains the supported full Scrapling runtime target and Fermyon/Akamai remains a gateway/edge posture target only. Re-open only when there is a concrete external-supervisor deployment product worth supporting end to end.
+
+## P1 Deferred Edge Gateway And Enterprise Distribution Follow-On
+
+Reference context:
+- [`../docs/research/2026-03-21-fermyon-shelving-and-shared-host-control-plane-architecture-review.md`](../docs/research/2026-03-21-fermyon-shelving-and-shared-host-control-plane-architecture-review.md)
+- [`../docs/plans/2026-03-21-shared-host-first-control-plane-and-deferred-edge-gateway-plan.md`](../docs/plans/2026-03-21-shared-host-first-control-plane-and-deferred-edge-gateway-plan.md)
+- [`../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
+- [`../docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](../docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md)
+- [`../docs/plans/2026-03-09-akamai-rate-geo-integration-semantics-note.md`](../docs/plans/2026-03-09-akamai-rate-geo-integration-semantics-note.md)
+- [`../docs/plans/2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md`](../docs/plans/2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md)
+
+- [ ] EDGE-GW-ARCH-1 Plan the later thin edge-gateway plus shared-host control-plane split, including state ownership, signed-forwarding contract, day-2 operations model, and which deployment-local distributed-state guarantees still matter once the edge is gateway-only.
+  Blocker: defer until the shared-host-first pre-launch loop is operating cleanly and the product intentionally re-commits to a later edge posture.
+
+- [ ] EDGE-GW-ARCH-2 Refactor vendor-shaped edge-runtime assumptions (`edge-fermyon` naming, edge-cron execution profile, edge-specific request budgets, and top-level deploy bias) after `EDGE-GW-ARCH-1` defines the later gateway contract.
+  Blocker: do not refactor these assumptions piecemeal before the later edge architecture is chosen, because the right generic shape depends on that plan.
+
+- [ ] DEP-ENT-2 Add ban-sync observability (<abbr title="Service Level Objective">SLO</abbr> metrics for sync result and lag) to support promotion and rollback decisions.
+  Blocker: defer while shared-host remains the supported full control plane and the later edge/distributed-state architecture is not yet execution-ready.
+
+- [ ] DEP-ENT-3 Add two-instance Spin integration coverage with shared Redis to prove ban and unban convergence behavior.
+  Blocker: defer while shared-host remains the supported full control plane and the later edge/distributed-state architecture is not yet execution-ready.
+
+- [ ] DEP-ENT-4 Add outage and partition tests for distributed state (Redis unavailable or degraded) and assert explicit configured behavior by mode.
+  Blocker: defer while shared-host remains the supported full control plane and the later edge/distributed-state architecture is not yet execution-ready.
+
+- [ ] DEP-ENT-5 Add deployment and runtime guardrails that validate enterprise distributed-state posture against outbound and backend requirements before authoritative operation.
+  Blocker: defer while shared-host remains the supported full control plane and the later edge/distributed-state architecture is not yet execution-ready.
+
+- [ ] OUT-1 Add explicit deployment guardrails that fail when `provider_backends.rate_limiter=external` or `provider_backends.ban_store=external` but required Redis outbound hosts are not allowlisted in `spin.toml` `allowed_outbound_hosts`.
+  Blocker: defer with `DEP-ENT-2..5`; outbound guardrails should be revisited only once the later edge/distributed-state architecture is re-opened intentionally.
+
+- [ ] OUT-2 Add a provider-to-outbound-requirements matrix in public docs (internal vs external backend, required host capabilities, required outbound host allowlists, fallback behavior).
+  Blocker: defer with `DEP-ENT-2..5`; the truthful matrix depends on the later edge/distributed-state architecture.
+
+- [ ] OUT-3 Add integration verification that exercises external Redis provider selection under restricted outbound policy and confirms safe fallback and guardrail behavior is deterministic.
+  Blocker: defer with `DEP-ENT-2..5`; the meaningful verification target depends on the later edge/distributed-state architecture.
+
+- [ ] AK-RG-2 Define config surface and naming for Rate and GEO Akamai integration controls, including defaults and whether each is a simple toggle or toggle-plus-mode control.
+  Blocker: defer while the Akamai edge posture is a later gateway-only track rather than an active pre-launch runtime target.
+
+- [ ] AK-RG-3 Implement admin API and runtime config validation for the new Rate and GEO Akamai controls with explicit guardrails and clear validation errors.
+  Blocker: defer while the Akamai edge posture is a later gateway-only track rather than an active pre-launch runtime target.
+
+- [ ] AK-RG-4 Implement runtime behavior wiring so Akamai Rate and GEO signals can influence decisions according to the defined mode semantics without bypassing Shuma policy ownership.
+  Blocker: defer while the Akamai edge posture is a later gateway-only track rather than an active pre-launch runtime target.
+
+- [ ] AK-RG-5 Add dashboard controls and help text for Rate and GEO Akamai integration in the top-level tabs, including disabled-state behavior and operator warnings.
+  Blocker: defer while the Akamai edge posture is a later gateway-only track rather than an active pre-launch runtime target.
+
+- [ ] AK-RG-6 Add observability and policy-event taxonomy coverage for Rate and GEO Akamai decisions (source, mode, action, fallback reason, and downgrade behavior).
+  Blocker: defer while the Akamai edge posture is a later gateway-only track rather than an active pre-launch runtime target.
+
+- [ ] AK-RG-7 Add integration and end-to-end tests for mode precedence, downgrade/fallback safety, and regression against internal-only behavior.
+  Blocker: defer while the Akamai edge posture is a later gateway-only track rather than an active pre-launch runtime target.
+
+- [ ] AK-RG-8 Document rollout and rollback guidance for enabling Rate and GEO Akamai integration in enterprise deployments, including promotion gates and emergency disable steps.
+  Blocker: defer while the Akamai edge posture is a later gateway-only track rather than an active pre-launch runtime target.
 
 ## P1 Deferred Pre-Launch Roadmap Captures
 

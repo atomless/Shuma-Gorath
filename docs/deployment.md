@@ -5,9 +5,9 @@ Shuma-Gorath is designed to run on Spin (local or cloud). Use the Makefile paths
 Shuma-Gorath is intended to complement enterprise bot defenses (for example Akamai Bot Manager), but can run standalone.
 Akamai-specific operator controls belong only to the Akamai edge posture (`SHUMA_GATEWAY_DEPLOYMENT_PROFILE=edge-fermyon`). Shared-server and other non-edge deployments keep the baseline and generic trusted-header surfaces, but must not present themselves as Akamai-edge integrations.
 
-The Fermyon / Akamai edge baseline is now live-proven. Akamai-edge-specific Rate and GEO expansion work can proceed from that posture, but only for deployments that actually run with `SHUMA_GATEWAY_DEPLOYMENT_PROFILE=edge-fermyon`.
+The Fermyon / Akamai edge path is now a deferred gateway-only posture. Keep it truthful and supportable for later edge experiments, but do not treat it as the current pre-launch control-plane, hosted Scrapling, or scheduled-agent target.
 
-For the current deployment-track execution backlog (single-host baseline and enterprise multi-instance sync hardening), see:
+For the current deployment-track design record (shared-host baseline plus deferred edge/distributed-state follow-on), see:
 [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md).
 
 ## 🐙 Runtime Configuration Model
@@ -646,9 +646,9 @@ allowed_outbound_hosts = []
 Only add explicit hosts if a new feature requires outbound calls.
 For the canonical shared-host gateway deployment path, keep [`spin.toml`](../spin.toml) as the deny-by-default template and render a deployment-specific manifest with `scripts/deploy/render_gateway_spin_manifest.py`.
 
-## 🐙 Fermyon / Akamai Edge
+## 🐙 Fermyon / Akamai Edge (Deferred Gateway-Only Track)
 
-Canonical Akamai-edge-only helper path:
+Use this helper path only when you are explicitly working on the deferred Akamai-edge gateway posture:
 
 ```bash
 make prepare-fermyon-akamai-edge PREPARE_FERMYON_ARGS="--upstream-origin https://origin.example.com --surface-catalog-path /abs/path/to/catalog.json --origin-lock-confirmed true --reserved-route-collision-check-passed true --admin-edge-rate-limits-confirmed true --admin-api-key-rotation-confirmed true"
@@ -675,10 +675,11 @@ Current honest boundary:
 
 - this path is `spin aka` only,
 - it does not participate in `SHUMA_ACTIVE_REMOTE` or `make remote-*`,
+- it is not the current pre-launch home of the dashboard, Scrapling worker, or later diagnosis/recommend/apply agents,
 - if `spin aka` PAT login panics, the helper falls back to device login in interactive sessions,
 - if device login still ends with `User is not allow-listed!`, treat that as a real provider-access blocker and expect the setup receipt to remain in `status=blocked` form until provider approval is active.
 
-Live proof and historical blockers are recorded in:
+Historical proof and blockers for this deferred path are recorded in:
 
 - [`research/2026-03-12-fermyon-akamai-edge-live-proof.md`](research/2026-03-12-fermyon-akamai-edge-live-proof.md)
 - [`research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md`](research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md)

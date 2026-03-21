@@ -8,7 +8,7 @@
 
 Our websites and the human sys admins that maintain them are increasingly overwhelmed by an onslaught of bots. [Shuma-Gorath](https://en.wikipedia.org/wiki/Shuma-Gorath) switches the burden of the bot onslaught back onto the bots themselves. Using the code and skills in this repository, the bots will write and maintain the codebase. They will run it, test it, debug it, tweak and improve it, then they will deploy it to your server for you. There they will run red team adversaries against which they will fine tune Shuma's defence of your live site until bot traffic is slowed and blocked according to your desired level of bot access vs bot blocking.
 
-This is bot defence for the [Chthulucene](https://read.dukeupress.edu/books/book/27/Staying-with-the-TroubleMaking-Kin-in-the). The project includes skills for both single-server hosting and enterprise edge servers where it will invisibly handle synchronisation across instances.
+This is bot defence for the [Chthulucene](https://read.dukeupress.edu/books/book/27/Staying-with-the-TroubleMaking-Kin-in-the). The current pre-launch path is shared-host-first: the dashboard, adversary sims, and later diagnosis loop run on shared compute, while any later edge posture is treated as a thinner gateway-only track rather than the main runtime home of the whole system.
 
 Taking advantage of the speed and efficiency of WebAssembly running in Spin, Shuma-Gorath detects, monitors, inhibits, and blocks the onslaught of agents, crawlers, and scrapers. Deployment of the project installs an extensive set of "botness" detection and defence capabilities: Proof-of-Work (<abbr title="Proof of Work">PoW</abbr>), <abbr title="JavaScript">JS</abbr> verification, <abbr title="Chrome DevTools Protocol">CDP</abbr> based automation detection, rate limiting, honeypots, an infinite link maze, a tarpit, not-a-bot <abbr title="User Interface">UI</abbr> challenges of escalating difficulty, geo-fenced bot weighting and blocking, real-time automatic ip and ip-range banning and manual ip ban admin. 
 
@@ -181,9 +181,9 @@ Deployment policy note: `SHUMA_KV_STORE_FAIL_OPEN` is a critical choice (fail-op
 - [`skills/prepare-scrapling-for-deploy/SKILL.md`](skills/prepare-scrapling-for-deploy/SKILL.md) - Agent skill for inferring minimal Scrapling deploy artifacts and shared-host-first runtime boundaries
 - [`skills/prepare-shared-host-on-linode/SKILL.md`](skills/prepare-shared-host-on-linode/SKILL.md) - Agent skill for preparing a Linode shared host and surface-catalog handoff before Shuma deploy
 - [`skills/deploy-shuma-on-linode/SKILL.md`](skills/deploy-shuma-on-linode/SKILL.md) - Agent skill for one-command Linode provisioning + deployment
-- [`skills/prepare-shuma-on-akamai-fermyon/SKILL.md`](skills/prepare-shuma-on-akamai-fermyon/SKILL.md) - Agent skill for Akamai-edge-only Fermyon setup and deploy handoff preparation
-- [`skills/deploy-shuma-on-akamai-fermyon/SKILL.md`](skills/deploy-shuma-on-akamai-fermyon/SKILL.md) - Deploy-side agent skill for Akamai-edge-only Fermyon rollout from a prepared setup receipt; the edge baseline is now live-proven
-- [`docs/research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md`](docs/research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md) - Current live Fermyon/Akamai edge proof blockers and recovery path
+- [`skills/prepare-shuma-on-akamai-fermyon/SKILL.md`](skills/prepare-shuma-on-akamai-fermyon/SKILL.md) - Agent skill for the deferred Akamai-edge-only Fermyon setup and deploy handoff path
+- [`skills/deploy-shuma-on-akamai-fermyon/SKILL.md`](skills/deploy-shuma-on-akamai-fermyon/SKILL.md) - Deploy-side agent skill for the deferred Akamai-edge-only Fermyon gateway path from a prepared setup receipt
+- [`docs/research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md`](docs/research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md) - Historical Fermyon/Akamai edge proof blockers and recovery path
 - [`docs/api.md`](docs/api.md) - <abbr title="Application Programming Interface">API</abbr> usage and endpoint details
 - [`docs/configuration.md`](docs/configuration.md) - Runtime configuration reference
 - [`docs/security-hardening.md`](docs/security-hardening.md) - Deployment security checklist

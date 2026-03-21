@@ -63,6 +63,10 @@ Completed archive index:
    Implementation conformance review against `DEP-GW-1` acceptance criteria with completion evidence.
 3. [`2026-03-05-gateway-first-post-tranche-cleanup-review.md`](2026-03-05-gateway-first-post-tranche-cleanup-review.md)  
    Post-tranche cleanup and knock-on architecture review, including follow-on hardening opportunities.
+4. [`2026-03-21-fermyon-shelving-and-shared-host-control-plane-architecture-review.md`](2026-03-21-fermyon-shelving-and-shared-host-control-plane-architecture-review.md)
+   Architecture review concluding that Shuma should remain shared-host-first for the full adaptive loop and defer Fermyon to a later gateway-only track.
+5. [`2026-03-21-fermyon-shelving-roadmap-and-docs-cleanup-post-implementation-review.md`](2026-03-21-fermyon-shelving-roadmap-and-docs-cleanup-post-implementation-review.md)
+   Post-implementation review for the roadmap, backlog, and public-doc cleanup that followed the shared-host-first direction update.
 
 ## 🐙 Agentic-Era Oversight
 

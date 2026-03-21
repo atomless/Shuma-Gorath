@@ -26,7 +26,7 @@ Used in concert, and sensibly configured, they limit human friction while increa
 - Default posture: self-hosted minimal infrastructure must be first-class and complete.
   Every core defence remains internally available, toggleable, and tweakable.
 - Enterprise integration focus: prioritize Akamai-compatible ingestion and control surfaces.
-- Runtime posture: keep Fermyon/Spin as a primary deployment path.
+- Runtime posture: keep shared-host/self-hosted Shuma as the primary full-runtime path. Treat edge/Fermyon as a later gateway adapter path rather than the near-term home of the dashboard, sims, or scheduled diagnosis loop.
 - Decision authority:
   - additive mode (default): managed-edge outcomes add bounded evidence into Shuma scoring.
   - authoritative mode (optional): managed-edge outcomes can short-circuit selected local paths.
