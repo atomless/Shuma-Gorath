@@ -7060,6 +7060,7 @@ mod admin_config_tests {
         assert!(summary.get("pow").is_some());
         assert!(summary.get("rate").is_some());
         assert!(summary.get("geo").is_some());
+        assert!(summary.get("verified_identity").is_some());
         assert!(summary.get("shadow").is_some());
         assert!(details.get("analytics").is_some());
         assert!(details.get("events").is_some());
@@ -7162,6 +7163,88 @@ mod admin_config_tests {
                 .unwrap_or(false)
         );
         assert_eq!(store.get_keys_calls(), 0);
+    }
+
+    #[test]
+    fn admin_monitoring_reports_verified_identity_summary_counts() {
+        let _lock = crate::test_support::lock_env();
+        let store = TestStore::default();
+        crate::observability::monitoring::record_verified_identity_telemetry(
+            &store,
+            &crate::bot_identity::telemetry::IdentityVerificationTelemetryRecord {
+                scheme: Some(crate::bot_identity::contracts::IdentityScheme::ProviderSignedAgent),
+                provenance: crate::bot_identity::contracts::IdentityProvenance::Provider,
+                result_status:
+                    crate::bot_identity::verification::IdentityVerificationResultStatus::Verified,
+                failure: None,
+                freshness:
+                    crate::bot_identity::verification::IdentityVerificationFreshness::Fresh,
+                operator: Some("openai".to_string()),
+                stable_identity: Some("chatgpt-agent".to_string()),
+            },
+        );
+        crate::observability::monitoring::record_verified_identity_telemetry(
+            &store,
+            &crate::bot_identity::telemetry::IdentityVerificationTelemetryRecord {
+                scheme: Some(
+                    crate::bot_identity::contracts::IdentityScheme::ProviderVerifiedBot,
+                ),
+                provenance: crate::bot_identity::contracts::IdentityProvenance::Provider,
+                result_status:
+                    crate::bot_identity::verification::IdentityVerificationResultStatus::Failed,
+                failure: Some(
+                    crate::bot_identity::verification::IdentityVerificationFailure::ProviderRejected,
+                ),
+                freshness:
+                    crate::bot_identity::verification::IdentityVerificationFreshness::ReplayRejected,
+                operator: None,
+                stable_identity: None,
+            },
+        );
+
+        let req = make_request(Method::Get, "/admin/monitoring?hours=24&limit=5", Vec::new());
+        let resp = handle_admin_monitoring(&req, &store);
+        assert_eq!(*resp.status(), 200u16);
+
+        let body: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+        let verified_identity = body
+            .get("summary")
+            .and_then(|summary| summary.get("verified_identity"))
+            .expect("verified_identity summary");
+
+        assert_eq!(
+            verified_identity.get("attempts"),
+            Some(&serde_json::Value::from(2))
+        );
+        assert_eq!(
+            verified_identity.get("verified"),
+            Some(&serde_json::Value::from(1))
+        );
+        assert_eq!(
+            verified_identity.get("failed"),
+            Some(&serde_json::Value::from(1))
+        );
+        assert_eq!(
+            verified_identity
+                .get("provenance")
+                .and_then(|map| map.get("provider")),
+            Some(&serde_json::Value::from(2))
+        );
+        assert_eq!(
+            verified_identity
+                .get("failures")
+                .and_then(|map| map.get("provider_rejected")),
+            Some(&serde_json::Value::from(1))
+        );
+        assert_eq!(
+            verified_identity
+                .get("top_verified_identities")
+                .and_then(|rows| rows.as_array())
+                .and_then(|rows| rows.first())
+                .and_then(|row| row.get("stable_identity"))
+                .and_then(|value| value.as_str()),
+            Some("chatgpt-agent")
+        );
     }
 
     #[test]

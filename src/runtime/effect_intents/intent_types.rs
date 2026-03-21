@@ -75,6 +75,9 @@ pub(crate) enum EffectIntent {
         sample_percent: u8,
         sample_hint: String,
     },
+    RecordVerifiedIdentityTelemetry {
+        record: crate::bot_identity::telemetry::IdentityVerificationTelemetryRecord,
+    },
     RecordRequestOutcome {
         outcome: crate::runtime::request_outcome::RenderedRequestOutcome,
     },

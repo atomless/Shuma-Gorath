@@ -86,6 +86,8 @@ Completed archive index:
    Post-implementation review for the verified-identity config tranche, confirming canonical defaults, admin/config/export parity, config-seed wiring, and dashboard Advanced JSON parity landed before request-path identity verification work.
 8. [`2026-03-21-wb-1-1-verified-identity-provider-seam-post-implementation-review.md`](2026-03-21-wb-1-1-verified-identity-provider-seam-post-implementation-review.md)
    Post-implementation review for the verified-identity provider seam tranche, confirming trusted provider assertions now normalize through the shared provider registry into canonical identity verification results without changing routing yet.
+9. [`2026-03-21-wb-1-2-verified-identity-observe-only-telemetry-post-implementation-review.md`](2026-03-21-wb-1-2-verified-identity-observe-only-telemetry-post-implementation-review.md)
+   Post-implementation review for the verified-identity telemetry tranche, confirming observe-only request-path recording now populates monitoring summaries with identity, outcome, freshness, provenance, and scheme visibility without changing routing.
 4. [`2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md`](2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md)
    Research synthesis for the machine-first Monitoring destination, bounded operator snapshot contract, and the first config-diff-only feedback loop that should precede the human Monitoring overhaul.
 5. [`2026-03-20-operator-snapshot-foundation-post-implementation-review.md`](2026-03-20-operator-snapshot-foundation-post-implementation-review.md)

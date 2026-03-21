@@ -18,7 +18,7 @@ const HOT_READ_RETENTION_SCHEMA_VERSION: &str = "telemetry-hot-read-retention.v1
 const HOT_READ_SECURITY_PRIVACY_SCHEMA_VERSION: &str = "telemetry-hot-read-security-privacy.v1";
 const HOT_READ_RECENT_EVENTS_TAIL_SCHEMA_VERSION: &str = "telemetry-hot-read-recent-events.v4";
 const HOT_READ_RECENT_SIM_RUNS_SCHEMA_VERSION: &str = "telemetry-hot-read-recent-sim-runs.v1";
-const HOT_READ_MONITORING_SUMMARY_SCHEMA_VERSION: &str = "telemetry-hot-read-summary.v1";
+const HOT_READ_MONITORING_SUMMARY_SCHEMA_VERSION: &str = "telemetry-hot-read-summary.v2";
 const HOT_READ_OPERATOR_SNAPSHOT_SCHEMA_VERSION: &str = "telemetry-hot-read-operator-snapshot.v1";
 const HOT_READ_BOOTSTRAP_WINDOW_HOURS: u64 = 24;
 const HOT_READ_BOOTSTRAP_MAX_BYTES: usize = 64 * 1024;
@@ -445,15 +445,14 @@ mod tests {
         monitoring_bootstrap_document_contract, monitoring_bootstrap_document_key,
         monitoring_bootstrap_drill_down_only_fields, monitoring_bootstrap_update_triggers,
         monitoring_bootstrap_window_hours, monitoring_hot_read_component_metadata,
-        operator_snapshot_component_metadata, operator_snapshot_document_contract,
-        operator_snapshot_document_key,
         monitoring_recent_events_tail_document_contract, monitoring_recent_events_tail_max_records,
-        monitoring_recent_events_tail_update_triggers, monitoring_recent_sim_runs_document_contract,
-        monitoring_recent_sim_runs_document_key, monitoring_recent_sim_runs_max_records,
-        monitoring_retention_summary_document_contract,
+        monitoring_recent_events_tail_update_triggers,
+        monitoring_recent_sim_runs_document_contract, monitoring_recent_sim_runs_document_key,
+        monitoring_recent_sim_runs_max_records, monitoring_retention_summary_document_contract,
+        monitoring_security_privacy_summary_document_contract,
         monitoring_summary_document_contract, monitoring_summary_document_key,
-        monitoring_summary_top_limit,
-        monitoring_security_privacy_summary_document_contract, HotReadUpdateTrigger,
+        monitoring_summary_top_limit, operator_snapshot_component_metadata,
+        operator_snapshot_document_contract, operator_snapshot_document_key, HotReadUpdateTrigger,
     };
     use crate::observability::hot_read_contract::{
         HotReadOwnershipTier, TelemetryBasis, TelemetryExactness,
@@ -464,7 +463,10 @@ mod tests {
     fn monitoring_bootstrap_contract_is_bounded_to_payload_budget() {
         let contract = monitoring_bootstrap_document_contract();
         assert_eq!(contract.schema_version, "telemetry-hot-read-bootstrap.v5");
-        assert_eq!(contract.ownership_tier, HotReadOwnershipTier::BootstrapCritical);
+        assert_eq!(
+            contract.ownership_tier,
+            HotReadOwnershipTier::BootstrapCritical
+        );
         assert_eq!(contract.max_serialized_bytes, 64 * 1024);
         assert_eq!(monitoring_bootstrap_window_hours(), 24);
         assert_eq!(monitoring_recent_events_tail_max_records(), 40);
@@ -481,6 +483,10 @@ mod tests {
         let monitoring_summary = monitoring_summary_document_contract();
         let operator_snapshot = operator_snapshot_document_contract();
 
+        assert_eq!(
+            monitoring_summary.schema_version,
+            "telemetry-hot-read-summary.v2"
+        );
         assert!(retention.max_serialized_bytes < bootstrap.max_serialized_bytes);
         assert!(security_privacy.max_serialized_bytes < bootstrap.max_serialized_bytes);
         assert!(recent_events.max_serialized_bytes < bootstrap.max_serialized_bytes);
@@ -583,7 +589,10 @@ mod tests {
     #[test]
     fn operator_snapshot_contract_is_read_only_hot_read_surface() {
         let contract = operator_snapshot_document_contract();
-        assert_eq!(contract.schema_version, "telemetry-hot-read-operator-snapshot.v1");
+        assert_eq!(
+            contract.schema_version,
+            "telemetry-hot-read-operator-snapshot.v1"
+        );
         assert_eq!(
             operator_snapshot_document_key("default"),
             "telemetry:hot_read:v1:operator_snapshot:default"

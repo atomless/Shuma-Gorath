@@ -693,6 +693,7 @@ pub(crate) fn provider_backend_visibility_intents(
         providers::registry::ProviderCapability::ChallengeEngine,
         providers::registry::ProviderCapability::MazeTarpit,
         providers::registry::ProviderCapability::FingerprintSignal,
+        providers::registry::ProviderCapability::VerifiedIdentity,
     ]
     .iter()
     .map(|capability| {

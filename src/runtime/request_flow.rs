@@ -37,6 +37,26 @@ fn clean_allow_monitoring_intents(
     intents
 }
 
+fn observe_verified_identity_intents(
+    req: &Request,
+    cfg: &crate::config::Config,
+    provider_registry: &crate::providers::registry::ProviderRegistry,
+) -> Vec<crate::runtime::effect_intents::EffectIntent> {
+    let provider_result = provider_registry
+        .verified_identity_provider()
+        .verify_identity(req, cfg);
+    let Some(record) = crate::bot_identity::telemetry::IdentityVerificationTelemetryRecord::from_verification_result(
+        crate::bot_identity::contracts::IdentityProvenance::Provider,
+        &provider_result,
+    ) else {
+        return Vec::new();
+    };
+
+    vec![
+        crate::runtime::effect_intents::EffectIntent::RecordVerifiedIdentityTelemetry { record },
+    ]
+}
+
 fn bootstrap_failure_handled_response(
     response: Response,
 ) -> crate::runtime::request_outcome::HandledRequestResponse {
@@ -194,6 +214,11 @@ pub(crate) fn handle_request(req: &Request) -> Response {
         }
     };
     execute_request_intents(crate::provider_backend_visibility_intents(&provider_registry));
+    execute_request_intents(observe_verified_identity_intents(
+        req,
+        &cfg,
+        &provider_registry,
+    ));
     execute_request_intents(vec![crate::policy_signal_intent(
         crate::runtime::policy_taxonomy::SignalId::CtxPathClass,
     )]);
@@ -443,7 +468,9 @@ pub(crate) fn handle_request(req: &Request) -> Response {
 
 #[cfg(test)]
 mod tests {
-    use super::{clean_allow_monitoring_intents, finalize_request_outcome};
+    use super::{
+        clean_allow_monitoring_intents, finalize_request_outcome, observe_verified_identity_intents,
+    };
 
     #[test]
     fn clean_allow_monitoring_intents_skip_live_inference_for_adversary_sim_origin() {
@@ -541,5 +568,101 @@ mod tests {
             .expect("bootstrap failure scope row");
         assert_eq!(control_scope.total_requests, 1);
         assert_eq!(control_scope.control_response_requests, 1);
+    }
+
+    #[test]
+    fn observe_verified_identity_intents_skip_non_attempted_requests() {
+        let mut cfg = crate::config::defaults().clone();
+        cfg.verified_identity.enabled = true;
+        let registry = crate::providers::registry::ProviderRegistry::from_config(&cfg);
+        let req = crate::test_support::request_with_headers("/", &[]);
+
+        let intents = observe_verified_identity_intents(&req, &cfg, &registry);
+
+        assert!(intents.is_empty());
+    }
+
+    #[test]
+    fn observe_verified_identity_intents_emit_provider_telemetry_for_trusted_assertions() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+
+        let mut cfg = crate::config::defaults().clone();
+        cfg.verified_identity.enabled = true;
+        cfg.edge_integration_mode = crate::config::EdgeIntegrationMode::Additive;
+        cfg.provider_backends.fingerprint_signal = crate::config::ProviderBackend::External;
+        let registry = crate::providers::registry::ProviderRegistry::from_config(&cfg);
+        let req = crate::test_support::request_with_headers(
+            "/",
+            &[
+                ("x-shuma-forwarded-secret", "test-forwarded-secret"),
+                ("x-shuma-edge-verified-identity-scheme", "provider_signed_agent"),
+                ("x-shuma-edge-verified-identity", "chatgpt-agent"),
+                ("x-shuma-edge-verified-identity-operator", "openai"),
+                (
+                    "x-shuma-edge-verified-identity-category",
+                    "user_triggered_agent",
+                ),
+                (
+                    "x-shuma-edge-verified-identity-end-user-controlled",
+                    "true",
+                ),
+            ],
+        );
+
+        let intents = observe_verified_identity_intents(&req, &cfg, &registry);
+
+        assert!(matches!(
+            intents.first(),
+            Some(
+                crate::runtime::effect_intents::EffectIntent::RecordVerifiedIdentityTelemetry {
+                    record
+                }
+            ) if record.provenance
+                == crate::bot_identity::contracts::IdentityProvenance::Provider
+                && record.operator.as_deref() == Some("openai")
+                && record.stable_identity.as_deref() == Some("chatgpt-agent")
+        ));
+        assert_eq!(intents.len(), 1);
+    }
+
+    #[test]
+    fn observe_verified_identity_intents_record_monitoring_when_executed() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+
+        let mut cfg = crate::config::defaults().clone();
+        cfg.verified_identity.enabled = true;
+        cfg.edge_integration_mode = crate::config::EdgeIntegrationMode::Additive;
+        cfg.provider_backends.fingerprint_signal = crate::config::ProviderBackend::External;
+        let registry = crate::providers::registry::ProviderRegistry::from_config(&cfg);
+        let req = crate::test_support::request_with_headers(
+            "/",
+            &[
+                ("x-shuma-forwarded-secret", "test-forwarded-secret"),
+                (
+                    "x-shuma-edge-verified-identity-scheme",
+                    "provider_verified_bot",
+                ),
+                ("x-shuma-edge-verified-identity", "search.example"),
+                ("x-shuma-edge-verified-identity-operator", "example"),
+                ("x-shuma-edge-verified-identity-category", "search"),
+            ],
+        );
+        let intents = observe_verified_identity_intents(&req, &cfg, &registry);
+        let store = crate::test_support::InMemoryStore::default();
+        let capabilities =
+            crate::runtime::capabilities::RuntimeCapabilities::for_test_policy_execution_phase();
+
+        crate::runtime::effect_intents::execute_request_outcome_intents(
+            intents,
+            &store,
+            &capabilities,
+        );
+
+        let summary = crate::observability::monitoring::summarize_with_store(&store, 24, 10);
+        assert_eq!(summary.verified_identity.attempts, 1);
+        assert_eq!(summary.verified_identity.verified, 1);
+        assert_eq!(summary.verified_identity.failed, 0);
     }
 }

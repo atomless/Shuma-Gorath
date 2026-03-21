@@ -191,6 +191,10 @@ fn apply_monitoring_intent_with_store<S: crate::challenge::KeyValueStore>(
             );
             None
         }
+        EffectIntent::RecordVerifiedIdentityTelemetry { record } => {
+            crate::observability::monitoring::record_verified_identity_telemetry(store, &record);
+            None
+        }
         EffectIntent::RecordRequestOutcome { outcome } => {
             crate::observability::monitoring::record_request_outcome(store, &outcome);
             None

@@ -4,6 +4,30 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-21)
 
+### WB-1.2: Verified-Identity Observe-Only Telemetry
+
+- [x] Added observe-only verified-identity telemetry from the request path into monitoring summaries and Prometheus export families, covering verification attempts, verified-versus-failed outcomes, freshness classes, source provenance, observed schemes, and top verified identities without changing allow/deny/challenge routing.
+- [x] Why:
+  - `WB-1.2` required Shuma to answer "what verified identities are showing up and how are they verifying?" before any policy exception or allowlist behavior exists, so the clean implementation had to start from canonical verification results rather than provider-specific headers.
+  - the shared `IdentityVerificationTelemetryRecord` projection keeps the runtime slice narrow: only attempted verifications are recorded, disabled/not-attempted cases stay silent, and future native verification can reuse the same telemetry contract by flipping provenance from provider to native.
+  - the monitoring summary and admin API additions intentionally stayed observe-only. Operators can now see recognized identities, failures, freshness outcomes, and provenance, but the slice does not silently allow or downgrade any named bot traffic.
+- [x] Evidence:
+  - `src/bot_identity/telemetry.rs`
+  - `src/bot_identity/tests.rs`
+  - `src/runtime/request_flow.rs`
+  - `src/runtime/effect_intents/intent_types.rs`
+  - `src/runtime/effect_intents/intent_executor.rs`
+  - `src/runtime/effect_intents/plan_builder.rs`
+  - `src/observability/monitoring.rs`
+  - `src/observability/metrics.rs`
+  - `src/observability/hot_read_documents.rs`
+  - `src/admin/api.rs`
+  - `Makefile`
+  - `docs/research/2026-03-21-wb-1-2-verified-identity-observe-only-telemetry-post-implementation-review.md`
+  - `make test-verified-identity-telemetry`
+  - `git diff --check`
+  - post-tranche review: no tranche-local shortfall was found; the next optimal work is `WB-1.3`.
+
 ### WB-1.1: Verified-Identity Provider Seam
 
 - [x] Added a first-class verified-identity provider capability to the shared provider contract and registry, then normalized trusted edge/provider assertions into the canonical `IdentityVerificationResult`/`VerifiedIdentityEvidence` types without changing request routing.

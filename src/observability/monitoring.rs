@@ -37,6 +37,33 @@ const NOT_A_BOT_OUTCOME_KEYS: [&str; 4] = ["pass", "escalate", "fail", "replay"]
 const NOT_A_BOT_SOLVE_MS_BUCKET_KEYS: [&str; 4] = ["lt_1s", "1_3s", "3_10s", "10s_plus"];
 const RATE_OUTCOME_KEYS: [&str; 4] = ["limited", "banned", "fallback_allow", "fallback_deny"];
 const GEO_ACTION_KEYS: [&str; 3] = ["block", "challenge", "maze"];
+const VERIFIED_IDENTITY_OUTCOME_KEYS: [&str; 2] = ["verified", "failed"];
+const VERIFIED_IDENTITY_FAILURE_KEYS: [&str; 10] = [
+    "missing_assertion",
+    "missing_signature",
+    "signature_invalid",
+    "replay_rejected",
+    "clock_skew_rejected",
+    "directory_unavailable",
+    "directory_stale",
+    "provider_rejected",
+    "provider_unavailable",
+    "unsupported_scheme",
+];
+const VERIFIED_IDENTITY_FRESHNESS_KEYS: [&str; 5] = [
+    "not_applicable",
+    "fresh",
+    "clock_skew_accepted",
+    "stale",
+    "replay_rejected",
+];
+const VERIFIED_IDENTITY_PROVENANCE_KEYS: [&str; 2] = ["native", "provider"];
+const VERIFIED_IDENTITY_SCHEME_KEYS: [&str; 4] = [
+    "http_message_signatures",
+    "provider_verified_bot",
+    "provider_signed_agent",
+    "mtls",
+];
 const SHADOW_ACTION_KEYS: [&str; 8] = [
     "not_a_bot",
     "challenge",
@@ -59,13 +86,14 @@ const UNSAMPLEABLE_SECURITY_EVENT_CLASSES: [&str; 8] = [
     "cdp",
     "ban",
 ];
-const GUARDED_DIMENSION_PAIRS: [(&str, &str); 6] = [
+const GUARDED_DIMENSION_PAIRS: [(&str, &str); 7] = [
     ("honeypot", "ip"),
     ("honeypot", "path"),
     ("challenge", "ip"),
     ("pow", "ip"),
     ("rate", "ip"),
     ("rate", "path"),
+    ("verified_identity", "identity"),
 ];
 
 pub(crate) fn guarded_dimension_cardinality_cap_per_hour() -> u64 {
@@ -165,6 +193,28 @@ pub(crate) struct NotABotSummary {
     pub solve_latency_buckets: BTreeMap<String, u64>,
     pub abandonments_estimated: u64,
     pub abandonment_ratio: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+pub(crate) struct VerifiedIdentitySeenRow {
+    pub operator: String,
+    pub stable_identity: String,
+    pub scheme: String,
+    pub count: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub(crate) struct VerifiedIdentitySummary {
+    pub attempts: u64,
+    pub verified: u64,
+    pub failed: u64,
+    pub unique_verified_identities: u64,
+    pub outcomes: BTreeMap<String, u64>,
+    pub failures: BTreeMap<String, u64>,
+    pub freshness: BTreeMap<String, u64>,
+    pub provenance: BTreeMap<String, u64>,
+    pub schemes: BTreeMap<String, u64>,
+    pub top_verified_identities: Vec<VerifiedIdentitySeenRow>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
@@ -274,6 +324,7 @@ pub(crate) struct MonitoringSummary {
     pub pow: PowSummary,
     pub rate: RateSummary,
     pub geo: GeoSummary,
+    pub verified_identity: VerifiedIdentitySummary,
     pub human_friction: HumanFrictionSummary,
     pub defence_funnel: DefenceFunnelSummary,
     pub request_outcomes: RequestOutcomeSummary,
@@ -316,7 +367,10 @@ fn normalize_telemetry_segment(segment: &str) -> String {
     if trimmed.is_empty() {
         return TELEMETRY_PATH_FALLBACK_SEGMENT.to_string();
     }
-    let alpha_count = trimmed.chars().filter(|ch| ch.is_ascii_alphabetic()).count();
+    let alpha_count = trimmed
+        .chars()
+        .filter(|ch| ch.is_ascii_alphabetic())
+        .count();
     let digit_count = trimmed.chars().filter(|ch| ch.is_ascii_digit()).count();
     let ascii_word_like = trimmed
         .chars()
@@ -430,22 +484,20 @@ fn normalize_not_a_bot_outcome(outcome: &str) -> &'static str {
     }
 }
 
-fn normalize_shadow_action(
-    action: crate::runtime::effect_intents::ShadowAction,
-) -> &'static str {
+fn normalize_shadow_action(action: crate::runtime::effect_intents::ShadowAction) -> &'static str {
     action.as_str()
 }
 
-fn normalize_execution_mode(
-    mode: crate::runtime::effect_intents::ExecutionMode,
-) -> &'static str {
+fn normalize_execution_mode(mode: crate::runtime::effect_intents::ExecutionMode) -> &'static str {
     match mode {
         crate::runtime::effect_intents::ExecutionMode::Enforced => "enforced",
         crate::runtime::effect_intents::ExecutionMode::Shadow => "shadow",
     }
 }
 
-fn normalize_traffic_origin(origin: crate::runtime::request_outcome::TrafficOrigin) -> &'static str {
+fn normalize_traffic_origin(
+    origin: crate::runtime::request_outcome::TrafficOrigin,
+) -> &'static str {
     match origin {
         crate::runtime::request_outcome::TrafficOrigin::Live => "live",
         crate::runtime::request_outcome::TrafficOrigin::AdversarySim => "adversary_sim",
@@ -488,7 +540,9 @@ fn normalize_route_action_family(
     }
 }
 
-fn normalize_traffic_lane(lane: crate::runtime::traffic_classification::TrafficLane) -> &'static str {
+fn normalize_traffic_lane(
+    lane: crate::runtime::traffic_classification::TrafficLane,
+) -> &'static str {
     match lane {
         crate::runtime::traffic_classification::TrafficLane::LikelyHuman => "likely_human",
         crate::runtime::traffic_classification::TrafficLane::UnknownInteractive => {
@@ -497,9 +551,7 @@ fn normalize_traffic_lane(lane: crate::runtime::traffic_classification::TrafficL
         crate::runtime::traffic_classification::TrafficLane::SuspiciousAutomation => {
             "suspicious_automation"
         }
-        crate::runtime::traffic_classification::TrafficLane::DeclaredCrawler => {
-            "declared_crawler"
-        }
+        crate::runtime::traffic_classification::TrafficLane::DeclaredCrawler => "declared_crawler",
         crate::runtime::traffic_classification::TrafficLane::DeclaredUserTriggeredAgent => {
             "declared_user_triggered_agent"
         }
@@ -536,9 +588,7 @@ fn normalize_request_outcome_class(
     match outcome_class {
         crate::runtime::request_outcome::RequestOutcomeClass::Forwarded => "forwarded",
         crate::runtime::request_outcome::RequestOutcomeClass::ShortCircuited => "short_circuited",
-        crate::runtime::request_outcome::RequestOutcomeClass::ControlResponse => {
-            "control_response"
-        }
+        crate::runtime::request_outcome::RequestOutcomeClass::ControlResponse => "control_response",
     }
 }
 
@@ -563,15 +613,11 @@ fn normalize_response_kind(kind: crate::runtime::request_outcome::ResponseKind) 
         crate::runtime::request_outcome::ResponseKind::JsChallenge => "js_challenge",
         crate::runtime::request_outcome::ResponseKind::Maze => "maze",
         crate::runtime::request_outcome::ResponseKind::Tarpit => "tarpit",
-        crate::runtime::request_outcome::ResponseKind::CheckpointResponse => {
-            "checkpoint_response"
-        }
+        crate::runtime::request_outcome::ResponseKind::CheckpointResponse => "checkpoint_response",
         crate::runtime::request_outcome::ResponseKind::DefenceFollowupResponse => {
             "defence_followup_response"
         }
-        crate::runtime::request_outcome::ResponseKind::SimPublicResponse => {
-            "sim_public_response"
-        }
+        crate::runtime::request_outcome::ResponseKind::SimPublicResponse => "sim_public_response",
         crate::runtime::request_outcome::ResponseKind::ControlPlaneResponse => {
             "control_plane_response"
         }
@@ -586,9 +632,7 @@ fn normalize_policy_source(
         crate::runtime::traffic_classification::PolicySource::StaticAssetBypass => {
             "static_asset_bypass"
         }
-        crate::runtime::traffic_classification::PolicySource::AllowlistBypass => {
-            "allowlist_bypass"
-        }
+        crate::runtime::traffic_classification::PolicySource::AllowlistBypass => "allowlist_bypass",
         crate::runtime::traffic_classification::PolicySource::PolicyGraphFirstTranche => {
             "policy_graph_first_tranche"
         }
@@ -596,9 +640,7 @@ fn normalize_policy_source(
             "policy_graph_second_tranche"
         }
         crate::runtime::traffic_classification::PolicySource::CleanAllow => "clean_allow",
-        crate::runtime::traffic_classification::PolicySource::DefenceFollowup => {
-            "defence_followup"
-        }
+        crate::runtime::traffic_classification::PolicySource::DefenceFollowup => "defence_followup",
         crate::runtime::traffic_classification::PolicySource::SimPublic => "sim_public",
         crate::runtime::traffic_classification::PolicySource::BootstrapFailure => {
             "bootstrap_failure"
@@ -873,12 +915,7 @@ fn apply_guarded_dimension_cardinality<S: crate::challenge::KeyValueStore>(
         return value.to_string();
     }
     let marker_key = cardinality_guard_marker_key(section, metric, value, hour);
-    if store
-        .get(marker_key.as_str())
-        .ok()
-        .flatten()
-        .is_some()
-    {
+    if store.get(marker_key.as_str()).ok().flatten().is_some() {
         return value.to_string();
     }
 
@@ -902,7 +939,11 @@ fn apply_guarded_dimension_cardinality<S: crate::challenge::KeyValueStore>(
             return value.to_string();
         }
         if distinct_count == 0 {
-            crate::observability::retention::register_monitoring_key(store, hour, count_key.as_str());
+            crate::observability::retention::register_monitoring_key(
+                store,
+                hour,
+                count_key.as_str(),
+            );
         }
         return value.to_string();
     }
@@ -915,7 +956,11 @@ fn apply_guarded_dimension_cardinality<S: crate::challenge::KeyValueStore>(
             overflow_key, err
         );
     } else if overflow_next == 1 {
-        crate::observability::retention::register_monitoring_key(store, hour, overflow_key.as_str());
+        crate::observability::retention::register_monitoring_key(
+            store,
+            hour,
+            overflow_key.as_str(),
+        );
     }
     GUARDED_DIMENSION_OVERFLOW_VALUE.to_string()
 }
@@ -927,8 +972,8 @@ fn record_with_dimension<S: crate::challenge::KeyValueStore>(
     dimension: Option<&str>,
 ) {
     let hour = now_ts() / 3600;
-    let dimension_value =
-        dimension.map(|value| apply_guarded_dimension_cardinality(store, section, metric, value, hour));
+    let dimension_value = dimension
+        .map(|value| apply_guarded_dimension_cardinality(store, section, metric, value, hour));
     let key = monitoring_key(section, metric, dimension_value.as_deref(), hour);
     increment_counter(store, key.as_str());
 }
@@ -944,8 +989,8 @@ fn record_with_dimension_delta<S: crate::challenge::KeyValueStore>(
         return;
     }
     let hour = now_ts() / 3600;
-    let dimension_value =
-        dimension.map(|value| apply_guarded_dimension_cardinality(store, section, metric, value, hour));
+    let dimension_value = dimension
+        .map(|value| apply_guarded_dimension_cardinality(store, section, metric, value, hour));
     let key = monitoring_key(section, metric, dimension_value.as_deref(), hour);
     add_counter(store, key.as_str(), delta);
 }
@@ -1002,9 +1047,7 @@ fn split_last_cohort_segment(value: &str) -> Option<(&str, &str)> {
     value.rsplit_once('|')
 }
 
-fn parse_request_outcome_scope_cohort(
-    cohort: &str,
-) -> Option<(String, String, String)> {
+fn parse_request_outcome_scope_cohort(cohort: &str) -> Option<(String, String, String)> {
     let mut parts = cohort.split('|');
     let traffic_origin = parts.next()?.to_string();
     let measurement_scope = parts.next()?.to_string();
@@ -1053,6 +1096,45 @@ fn parse_origin_breakdown_cohort(cohort: &str) -> Option<(String, String)> {
     Some((origin.to_string(), value.to_string()))
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct VerifiedIdentityDimensionLabel {
+    operator: String,
+    scheme: String,
+    stable_identity: String,
+}
+
+fn verified_identity_dimension_label(
+    operator: &str,
+    scheme: &str,
+    stable_identity: &str,
+) -> String {
+    serde_json::to_string(&VerifiedIdentityDimensionLabel {
+        operator: operator.to_string(),
+        scheme: scheme.to_string(),
+        stable_identity: stable_identity.to_string(),
+    })
+    .unwrap_or_else(|_| {
+        format!(
+            r#"{{"operator":"{}","scheme":"{}","stable_identity":"{}"}}"#,
+            operator, scheme, stable_identity
+        )
+    })
+}
+
+fn parse_verified_identity_dimension_label(raw: &str) -> Option<VerifiedIdentityDimensionLabel> {
+    serde_json::from_str(raw).ok()
+}
+
+fn parse_verified_identity_cohort(
+    cohort: &str,
+) -> Option<(String, VerifiedIdentityDimensionLabel)> {
+    let (origin, encoded_identity) = split_last_cohort_segment(cohort)?;
+    Some((
+        origin.to_string(),
+        parse_verified_identity_dimension_label(encoded_identity)?,
+    ))
+}
+
 fn parse_request_outcome_lane_breakdown_cohort(
     cohort: &str,
 ) -> Option<(String, String, String, String, String, String, String)> {
@@ -1098,7 +1180,12 @@ pub(crate) fn record_request_outcome<S: crate::challenge::KeyValueStore>(
     outcome: &crate::runtime::request_outcome::RenderedRequestOutcome,
 ) {
     let scope_cohort = request_outcome_scope_cohort(outcome);
-    record_with_dimension(store, "request_outcome", "total", Some(scope_cohort.as_str()));
+    record_with_dimension(
+        store,
+        "request_outcome",
+        "total",
+        Some(scope_cohort.as_str()),
+    );
     record_with_dimension(
         store,
         "request_outcome",
@@ -1290,7 +1377,12 @@ pub(crate) fn record_challenge_failure<S: crate::challenge::KeyValueStore>(
     let origin = current_traffic_origin();
     let normalized_reason = normalize_challenge_reason(reason);
     let ip_bucket = crate::signals::ip_identity::bucket_ip(ip);
-    record_with_dimension(store, "challenge", "total", Some(origin_cohort(origin).as_str()));
+    record_with_dimension(
+        store,
+        "challenge",
+        "total",
+        Some(origin_cohort(origin).as_str()),
+    );
     record_with_dimension(
         store,
         "challenge",
@@ -1417,6 +1509,68 @@ pub(crate) fn record_geo_violation<S: crate::challenge::KeyValueStore>(
     );
 }
 
+pub(crate) fn record_verified_identity_telemetry<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    record: &crate::bot_identity::telemetry::IdentityVerificationTelemetryRecord,
+) {
+    let origin = current_traffic_origin();
+    let origin_label = origin_cohort(origin);
+    record_with_dimension(
+        store,
+        "verified_identity",
+        "attempt",
+        Some(origin_label.as_str()),
+    );
+    record_with_dimension(
+        store,
+        "verified_identity",
+        "outcome",
+        Some(origin_nested_cohort(origin, record.outcome_class().as_str()).as_str()),
+    );
+    record_with_dimension(
+        store,
+        "verified_identity",
+        "freshness",
+        Some(origin_nested_cohort(origin, record.freshness.as_str()).as_str()),
+    );
+    record_with_dimension(
+        store,
+        "verified_identity",
+        "provenance",
+        Some(origin_nested_cohort(origin, record.provenance.as_str()).as_str()),
+    );
+    if let Some(failure) = record.failure {
+        record_with_dimension(
+            store,
+            "verified_identity",
+            "failure",
+            Some(origin_nested_cohort(origin, failure.as_str()).as_str()),
+        );
+    }
+    if let Some(scheme) = record.scheme {
+        record_with_dimension(
+            store,
+            "verified_identity",
+            "scheme",
+            Some(origin_nested_cohort(origin, scheme.as_str()).as_str()),
+        );
+    }
+    if let (Some(operator), Some(stable_identity), Some(scheme)) = (
+        record.operator.as_deref(),
+        record.stable_identity.as_deref(),
+        record.scheme,
+    ) {
+        let identity_label =
+            verified_identity_dimension_label(operator, scheme.as_str(), stable_identity);
+        record_with_dimension(
+            store,
+            "verified_identity",
+            "identity",
+            Some(origin_nested_cohort(origin, identity_label.as_str()).as_str()),
+        );
+    }
+}
+
 pub(crate) fn record_not_a_bot_served<S: crate::challenge::KeyValueStore>(store: &S) {
     let origin = current_traffic_origin();
     record_with_dimension(
@@ -1470,7 +1624,11 @@ pub(crate) fn record_shadow_pass_through<S: crate::challenge::KeyValueStore>(sto
     record_with_dimension(store, "shadow", "pass_through", None);
 }
 
-fn record_ip_range_human_signal<S: crate::challenge::KeyValueStore>(store: &S, ip: &str, signal: &str) {
+fn record_ip_range_human_signal<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    ip: &str,
+    signal: &str,
+) {
     let normalized_signal = normalize_ip_range_human_signal(signal);
     let ip_bucket = crate::signals::ip_identity::bucket_ip(ip);
     record_with_dimension(store, "ip_range_suggestions", "human_total", None);
@@ -1503,7 +1661,12 @@ pub(crate) fn maybe_record_ip_range_likely_human_sample<S: crate::challenge::Key
 ) {
     let minute_bucket = now_ts() / 60;
     if !should_sample_likely_human(ip, sample_hint, sample_percent, minute_bucket) {
-        record_with_dimension(store, "ip_range_suggestions", "likely_human_unsampled", None);
+        record_with_dimension(
+            store,
+            "ip_range_suggestions",
+            "likely_human_unsampled",
+            None,
+        );
         return;
     }
     record_with_dimension(store, "ip_range_suggestions", "likely_human_sampled", None);
@@ -1600,6 +1763,13 @@ struct MonitoringAccumulator {
     geo_totals_by_origin: HashMap<String, u64>,
     geo_actions_by_origin: HashMap<String, HashMap<String, u64>>,
     geo_countries_by_origin: HashMap<String, HashMap<String, u64>>,
+    verified_identity_attempts_by_origin: HashMap<String, u64>,
+    verified_identity_outcomes_by_origin: HashMap<String, HashMap<String, u64>>,
+    verified_identity_failures_by_origin: HashMap<String, HashMap<String, u64>>,
+    verified_identity_freshness_by_origin: HashMap<String, HashMap<String, u64>>,
+    verified_identity_provenance_by_origin: HashMap<String, HashMap<String, u64>>,
+    verified_identity_schemes_by_origin: HashMap<String, HashMap<String, u64>>,
+    verified_identity_identity_counts_by_origin: HashMap<String, HashMap<String, u64>>,
     request_outcome_scope_totals: HashMap<String, u64>,
     request_outcome_scope_bytes: HashMap<String, u64>,
     request_outcome_scope_outcomes: HashMap<String, u64>,
@@ -1676,7 +1846,14 @@ impl MonitoringAccumulator {
         }
     }
 
-    fn consume_counter(&mut self, section: &str, metric: &str, dimension: Option<&str>, hour: u64, count: u64) {
+    fn consume_counter(
+        &mut self,
+        section: &str,
+        metric: &str,
+        dimension: Option<&str>,
+        hour: u64,
+        count: u64,
+    ) {
         match section {
             "shadow" => match metric {
                 "total" => self.shadow_total = self.shadow_total.saturating_add(count),
@@ -1708,7 +1885,10 @@ impl MonitoringAccumulator {
             "challenge" => match metric {
                 "total" => {
                     if let Some(origin) = dimension.and_then(parse_origin_cohort) {
-                        let entry = self.challenge_totals_by_origin.entry(origin.clone()).or_insert(0);
+                        let entry = self
+                            .challenge_totals_by_origin
+                            .entry(origin.clone())
+                            .or_insert(0);
                         *entry = entry.saturating_add(count);
                         let trend = self.challenge_trends_by_origin.entry(origin).or_default();
                         let total = trend.totals.entry(hour).or_insert(0);
@@ -1754,7 +1934,10 @@ impl MonitoringAccumulator {
                 }
                 "submitted" => {
                     if let Some(origin) = dimension.and_then(parse_origin_cohort) {
-                        let entry = self.not_a_bot_submitted_by_origin.entry(origin).or_insert(0);
+                        let entry = self
+                            .not_a_bot_submitted_by_origin
+                            .entry(origin)
+                            .or_insert(0);
                         *entry = entry.saturating_add(count);
                     }
                 }
@@ -1862,8 +2045,7 @@ impl MonitoringAccumulator {
                     }
                 }
                 "path" => {
-                    if let Some((origin, path)) =
-                        dimension.and_then(parse_origin_breakdown_cohort)
+                    if let Some((origin, path)) = dimension.and_then(parse_origin_breakdown_cohort)
                     {
                         Self::add_nested_count(
                             &mut self.rate_path_counts_by_origin,
@@ -1920,6 +2102,95 @@ impl MonitoringAccumulator {
                 }
                 _ => {}
             },
+            "verified_identity" => match metric {
+                "attempt" => {
+                    if let Some(origin) = dimension.and_then(parse_origin_cohort) {
+                        let entry = self
+                            .verified_identity_attempts_by_origin
+                            .entry(origin)
+                            .or_insert(0);
+                        *entry = entry.saturating_add(count);
+                    }
+                }
+                "outcome" => {
+                    if let Some((origin, outcome)) =
+                        dimension.and_then(parse_origin_breakdown_cohort)
+                    {
+                        Self::add_nested_count(
+                            &mut self.verified_identity_outcomes_by_origin,
+                            origin.as_str(),
+                            outcome.as_str(),
+                            count,
+                        );
+                    }
+                }
+                "failure" => {
+                    if let Some((origin, failure)) =
+                        dimension.and_then(parse_origin_breakdown_cohort)
+                    {
+                        Self::add_nested_count(
+                            &mut self.verified_identity_failures_by_origin,
+                            origin.as_str(),
+                            failure.as_str(),
+                            count,
+                        );
+                    }
+                }
+                "freshness" => {
+                    if let Some((origin, freshness)) =
+                        dimension.and_then(parse_origin_breakdown_cohort)
+                    {
+                        Self::add_nested_count(
+                            &mut self.verified_identity_freshness_by_origin,
+                            origin.as_str(),
+                            freshness.as_str(),
+                            count,
+                        );
+                    }
+                }
+                "provenance" => {
+                    if let Some((origin, provenance)) =
+                        dimension.and_then(parse_origin_breakdown_cohort)
+                    {
+                        Self::add_nested_count(
+                            &mut self.verified_identity_provenance_by_origin,
+                            origin.as_str(),
+                            provenance.as_str(),
+                            count,
+                        );
+                    }
+                }
+                "scheme" => {
+                    if let Some((origin, scheme)) =
+                        dimension.and_then(parse_origin_breakdown_cohort)
+                    {
+                        Self::add_nested_count(
+                            &mut self.verified_identity_schemes_by_origin,
+                            origin.as_str(),
+                            scheme.as_str(),
+                            count,
+                        );
+                    }
+                }
+                "identity" => {
+                    if let Some((origin, identity)) =
+                        dimension.and_then(parse_verified_identity_cohort)
+                    {
+                        let label = verified_identity_dimension_label(
+                            identity.operator.as_str(),
+                            identity.scheme.as_str(),
+                            identity.stable_identity.as_str(),
+                        );
+                        Self::add_nested_count(
+                            &mut self.verified_identity_identity_counts_by_origin,
+                            origin.as_str(),
+                            label.as_str(),
+                            count,
+                        );
+                    }
+                }
+                _ => {}
+            },
             "request_outcome" => match metric {
                 "total" => {
                     if let Some(dim) = dimension {
@@ -1965,11 +2236,7 @@ impl MonitoringAccumulator {
                 }
                 "policy_source" => {
                     if let Some(dim) = dimension {
-                        Self::add_count(
-                            &mut self.request_outcome_scope_policy_sources,
-                            dim,
-                            count,
-                        );
+                        Self::add_count(&mut self.request_outcome_scope_policy_sources, dim, count);
                     }
                 }
                 "policy_source_outcome_class" => {
@@ -1988,11 +2255,7 @@ impl MonitoringAccumulator {
                 }
                 "outcome_class_response_bytes" => {
                     if let Some(dim) = dimension {
-                        Self::add_count(
-                            &mut self.request_outcome_scope_outcome_bytes,
-                            dim,
-                            count,
-                        );
+                        Self::add_count(&mut self.request_outcome_scope_outcome_bytes, dim, count);
                     }
                 }
                 "lane_total" => {
@@ -2007,11 +2270,7 @@ impl MonitoringAccumulator {
                 }
                 "lane_response_kind" => {
                     if let Some(dim) = dimension {
-                        Self::add_count(
-                            &mut self.request_outcome_lane_response_kinds,
-                            dim,
-                            count,
-                        );
+                        Self::add_count(&mut self.request_outcome_lane_response_kinds, dim, count);
                     }
                 }
                 "lane_outcome_class" => {
@@ -2021,11 +2280,7 @@ impl MonitoringAccumulator {
                 }
                 "lane_outcome_class_response_bytes" => {
                     if let Some(dim) = dimension {
-                        Self::add_count(
-                            &mut self.request_outcome_lane_outcome_bytes,
-                            dim,
-                            count,
-                        );
+                        Self::add_count(&mut self.request_outcome_lane_outcome_bytes, dim, count);
                     }
                 }
                 _ => {}
@@ -2056,7 +2311,12 @@ impl MonitoringAccumulator {
             &source.challenge_reason_counts_by_origin,
         );
         for (origin, trend) in &source.challenge_trends_by_origin {
-            Self::merge_trend(self.challenge_trends_by_origin.entry(origin.clone()).or_default(), trend);
+            Self::merge_trend(
+                self.challenge_trends_by_origin
+                    .entry(origin.clone())
+                    .or_default(),
+                trend,
+            );
         }
         Self::merge_count_maps(
             &mut self.not_a_bot_served_by_origin,
@@ -2074,10 +2334,7 @@ impl MonitoringAccumulator {
             &mut self.not_a_bot_latency_buckets_by_origin,
             &source.not_a_bot_latency_buckets_by_origin,
         );
-        Self::merge_count_maps(
-            &mut self.pow_totals_by_origin,
-            &source.pow_totals_by_origin,
-        );
+        Self::merge_count_maps(&mut self.pow_totals_by_origin, &source.pow_totals_by_origin);
         Self::merge_count_maps(
             &mut self.pow_success_totals_by_origin,
             &source.pow_success_totals_by_origin,
@@ -2095,7 +2352,10 @@ impl MonitoringAccumulator {
             &source.pow_outcomes_by_origin,
         );
         for (origin, trend) in &source.pow_trends_by_origin {
-            Self::merge_trend(self.pow_trends_by_origin.entry(origin.clone()).or_default(), trend);
+            Self::merge_trend(
+                self.pow_trends_by_origin.entry(origin.clone()).or_default(),
+                trend,
+            );
         }
         Self::merge_count_maps(
             &mut self.rate_totals_by_origin,
@@ -2113,10 +2373,7 @@ impl MonitoringAccumulator {
             &mut self.rate_outcomes_by_origin,
             &source.rate_outcomes_by_origin,
         );
-        Self::merge_count_maps(
-            &mut self.geo_totals_by_origin,
-            &source.geo_totals_by_origin,
-        );
+        Self::merge_count_maps(&mut self.geo_totals_by_origin, &source.geo_totals_by_origin);
         Self::merge_nested_count_maps(
             &mut self.geo_actions_by_origin,
             &source.geo_actions_by_origin,
@@ -2124,6 +2381,34 @@ impl MonitoringAccumulator {
         Self::merge_nested_count_maps(
             &mut self.geo_countries_by_origin,
             &source.geo_countries_by_origin,
+        );
+        Self::merge_count_maps(
+            &mut self.verified_identity_attempts_by_origin,
+            &source.verified_identity_attempts_by_origin,
+        );
+        Self::merge_nested_count_maps(
+            &mut self.verified_identity_outcomes_by_origin,
+            &source.verified_identity_outcomes_by_origin,
+        );
+        Self::merge_nested_count_maps(
+            &mut self.verified_identity_failures_by_origin,
+            &source.verified_identity_failures_by_origin,
+        );
+        Self::merge_nested_count_maps(
+            &mut self.verified_identity_freshness_by_origin,
+            &source.verified_identity_freshness_by_origin,
+        );
+        Self::merge_nested_count_maps(
+            &mut self.verified_identity_provenance_by_origin,
+            &source.verified_identity_provenance_by_origin,
+        );
+        Self::merge_nested_count_maps(
+            &mut self.verified_identity_schemes_by_origin,
+            &source.verified_identity_schemes_by_origin,
+        );
+        Self::merge_nested_count_maps(
+            &mut self.verified_identity_identity_counts_by_origin,
+            &source.verified_identity_identity_counts_by_origin,
         );
         Self::merge_count_maps(
             &mut self.request_outcome_scope_totals,
@@ -2187,7 +2472,120 @@ impl MonitoringAccumulator {
         );
     }
 
-    fn finalize(self, now: u64, hours: u64, top_limit: usize, start_hour: u64, end_hour: u64) -> MonitoringSummary {
+    fn finalize_verified_identity_summary(
+        &self,
+        live_origin: &str,
+        top_limit: usize,
+    ) -> VerifiedIdentitySummary {
+        let attempts = self
+            .verified_identity_attempts_by_origin
+            .get(live_origin)
+            .copied()
+            .unwrap_or(0);
+        let mut outcomes = build_seeded_map(&VERIFIED_IDENTITY_OUTCOME_KEYS);
+        for (key, value) in self
+            .verified_identity_outcomes_by_origin
+            .get(live_origin)
+            .cloned()
+            .unwrap_or_default()
+        {
+            let entry = outcomes.entry(key).or_insert(0);
+            *entry = entry.saturating_add(value);
+        }
+
+        let mut failures = build_seeded_map(&VERIFIED_IDENTITY_FAILURE_KEYS);
+        for (key, value) in self
+            .verified_identity_failures_by_origin
+            .get(live_origin)
+            .cloned()
+            .unwrap_or_default()
+        {
+            let entry = failures.entry(key).or_insert(0);
+            *entry = entry.saturating_add(value);
+        }
+
+        let mut freshness = build_seeded_map(&VERIFIED_IDENTITY_FRESHNESS_KEYS);
+        for (key, value) in self
+            .verified_identity_freshness_by_origin
+            .get(live_origin)
+            .cloned()
+            .unwrap_or_default()
+        {
+            let entry = freshness.entry(key).or_insert(0);
+            *entry = entry.saturating_add(value);
+        }
+
+        let mut provenance = build_seeded_map(&VERIFIED_IDENTITY_PROVENANCE_KEYS);
+        for (key, value) in self
+            .verified_identity_provenance_by_origin
+            .get(live_origin)
+            .cloned()
+            .unwrap_or_default()
+        {
+            let entry = provenance.entry(key).or_insert(0);
+            *entry = entry.saturating_add(value);
+        }
+
+        let mut schemes = build_seeded_map(&VERIFIED_IDENTITY_SCHEME_KEYS);
+        for (key, value) in self
+            .verified_identity_schemes_by_origin
+            .get(live_origin)
+            .cloned()
+            .unwrap_or_default()
+        {
+            let entry = schemes.entry(key).or_insert(0);
+            *entry = entry.saturating_add(value);
+        }
+
+        let identity_counts = self
+            .verified_identity_identity_counts_by_origin
+            .get(live_origin)
+            .cloned()
+            .unwrap_or_default();
+        let unique_verified_identities = identity_counts.len() as u64;
+        let mut top_verified_identities = identity_counts
+            .into_iter()
+            .filter_map(|(label, count)| {
+                let parsed = parse_verified_identity_dimension_label(label.as_str())?;
+                Some(VerifiedIdentitySeenRow {
+                    operator: parsed.operator,
+                    stable_identity: parsed.stable_identity,
+                    scheme: parsed.scheme,
+                    count,
+                })
+            })
+            .collect::<Vec<_>>();
+        top_verified_identities.sort_by(|a, b| {
+            b.count
+                .cmp(&a.count)
+                .then_with(|| a.operator.cmp(&b.operator))
+                .then_with(|| a.stable_identity.cmp(&b.stable_identity))
+                .then_with(|| a.scheme.cmp(&b.scheme))
+        });
+        top_verified_identities.truncate(top_limit);
+
+        VerifiedIdentitySummary {
+            attempts,
+            verified: outcomes.get("verified").copied().unwrap_or(0),
+            failed: outcomes.get("failed").copied().unwrap_or(0),
+            unique_verified_identities,
+            outcomes,
+            failures,
+            freshness,
+            provenance,
+            schemes,
+            top_verified_identities,
+        }
+    }
+
+    fn finalize(
+        self,
+        now: u64,
+        hours: u64,
+        top_limit: usize,
+        start_hour: u64,
+        end_hour: u64,
+    ) -> MonitoringSummary {
         let live_origin = "live";
         let challenge_total = self
             .challenge_totals_by_origin
@@ -2343,6 +2741,7 @@ impl MonitoringAccumulator {
             .get(live_origin)
             .cloned()
             .unwrap_or_default();
+        let verified_identity = self.finalize_verified_identity_summary(live_origin, top_limit);
 
         let mut shadow_action_map = build_seeded_map(&SHADOW_ACTION_KEYS);
         for (key, value) in self.shadow_actions {
@@ -2350,8 +2749,10 @@ impl MonitoringAccumulator {
             *entry = entry.saturating_add(value);
         }
 
-        let mut request_outcome_scope_rows: BTreeMap<(String, String, String), RequestOutcomeScopeSummaryRow> =
-            BTreeMap::new();
+        let mut request_outcome_scope_rows: BTreeMap<
+            (String, String, String),
+            RequestOutcomeScopeSummaryRow,
+        > = BTreeMap::new();
         for (cohort, count) in self.request_outcome_scope_totals {
             if let Some((traffic_origin, measurement_scope, execution_mode)) =
                 parse_request_outcome_scope_cohort(cohort.as_str())
@@ -2469,8 +2870,14 @@ impl MonitoringAccumulator {
             RequestOutcomeLaneSummaryRow,
         > = BTreeMap::new();
         for (cohort, count) in self.request_outcome_lane_totals {
-            if let Some((traffic_origin, measurement_scope, execution_mode, lane, exactness, basis)) =
-                parse_request_outcome_lane_cohort(cohort.as_str())
+            if let Some((
+                traffic_origin,
+                measurement_scope,
+                execution_mode,
+                lane,
+                exactness,
+                basis,
+            )) = parse_request_outcome_lane_cohort(cohort.as_str())
             {
                 let row = request_outcome_lane_rows
                     .entry((
@@ -2494,8 +2901,14 @@ impl MonitoringAccumulator {
             }
         }
         for (cohort, count) in self.request_outcome_lane_bytes {
-            if let Some((traffic_origin, measurement_scope, execution_mode, lane, exactness, basis)) =
-                parse_request_outcome_lane_cohort(cohort.as_str())
+            if let Some((
+                traffic_origin,
+                measurement_scope,
+                execution_mode,
+                lane,
+                exactness,
+                basis,
+            )) = parse_request_outcome_lane_cohort(cohort.as_str())
             {
                 let row = request_outcome_lane_rows
                     .entry((
@@ -2522,8 +2935,14 @@ impl MonitoringAccumulator {
             if let Some((lane_cohort, outcome_class)) =
                 split_last_cohort_segment(nested_cohort.as_str())
             {
-                if let Some((traffic_origin, measurement_scope, execution_mode, lane, exactness, basis)) =
-                    parse_request_outcome_lane_cohort(lane_cohort)
+                if let Some((
+                    traffic_origin,
+                    measurement_scope,
+                    execution_mode,
+                    lane,
+                    exactness,
+                    basis,
+                )) = parse_request_outcome_lane_cohort(lane_cohort)
                 {
                     let row = request_outcome_lane_rows
                         .entry((
@@ -2564,8 +2983,14 @@ impl MonitoringAccumulator {
             if let Some((lane_cohort, outcome_class)) =
                 split_last_cohort_segment(nested_cohort.as_str())
             {
-                if let Some((traffic_origin, measurement_scope, execution_mode, lane, exactness, basis)) =
-                    parse_request_outcome_lane_cohort(lane_cohort)
+                if let Some((
+                    traffic_origin,
+                    measurement_scope,
+                    execution_mode,
+                    lane,
+                    exactness,
+                    basis,
+                )) = parse_request_outcome_lane_cohort(lane_cohort)
                 {
                     let row = request_outcome_lane_rows
                         .entry((
@@ -2636,10 +3061,14 @@ impl MonitoringAccumulator {
                 }
 
                 for (nested_cohort, count) in outcome_counts {
-                    if let Some((traffic_origin, measurement_scope, execution_mode, value, outcome_class)) =
-                        parse_request_outcome_scope_breakdown_outcome_cohort(
-                            nested_cohort.as_str(),
-                        )
+                    if let Some((
+                        traffic_origin,
+                        measurement_scope,
+                        execution_mode,
+                        value,
+                        outcome_class,
+                    )) =
+                        parse_request_outcome_scope_breakdown_outcome_cohort(nested_cohort.as_str())
                     {
                         let row = rows
                             .entry((
@@ -2686,7 +3115,8 @@ impl MonitoringAccumulator {
         );
         let request_outcome_route_action_family_rows = build_request_outcome_breakdown_rows(
             self.request_outcome_scope_route_action_families.clone(),
-            self.request_outcome_scope_route_action_family_outcomes.clone(),
+            self.request_outcome_scope_route_action_family_outcomes
+                .clone(),
         );
 
         let mut human_friction_rows: BTreeMap<(String, String), HumanFrictionSegmentRow> =
@@ -2726,8 +3156,15 @@ impl MonitoringAccumulator {
         }
 
         for (cohort, count) in &self.request_outcome_lane_response_kinds {
-            let Some((traffic_origin, measurement_scope, execution_mode, lane, _exactness, _basis, value)) =
-                parse_request_outcome_lane_breakdown_cohort(cohort.as_str())
+            let Some((
+                traffic_origin,
+                measurement_scope,
+                execution_mode,
+                lane,
+                _exactness,
+                _basis,
+                value,
+            )) = parse_request_outcome_lane_breakdown_cohort(cohort.as_str())
             else {
                 continue;
             };
@@ -2735,7 +3172,9 @@ impl MonitoringAccumulator {
                 continue;
             }
 
-            let apply_count = |row: &mut HumanFrictionSegmentRow, response_kind: &str, count: u64| {
+            let apply_count = |row: &mut HumanFrictionSegmentRow,
+                               response_kind: &str,
+                               count: u64| {
                 match response_kind {
                     "not_a_bot" => {
                         row.not_a_bot_requests = row.not_a_bot_requests.saturating_add(count)
@@ -2744,8 +3183,7 @@ impl MonitoringAccumulator {
                         row.challenge_requests = row.challenge_requests.saturating_add(count)
                     }
                     "js_challenge" => {
-                        row.js_challenge_requests =
-                            row.js_challenge_requests.saturating_add(count)
+                        row.js_challenge_requests = row.js_challenge_requests.saturating_add(count)
                     }
                     "maze" => row.maze_requests = row.maze_requests.saturating_add(count),
                     _ => return,
@@ -2793,33 +3231,31 @@ impl MonitoringAccumulator {
             row.friction_rate = row.friction_requests as f64 / denominator;
         }
 
-        let response_kind_total_for_mode =
-            |execution_mode: &str, response_kind: &str| -> u64 {
-                request_outcome_response_kind_rows
-                    .iter()
-                    .find(|row| {
-                        row.traffic_origin == "live"
-                            && row.measurement_scope == "ingress_primary"
-                            && row.execution_mode == execution_mode
-                            && row.value == response_kind
-                    })
-                    .map(|row| row.total_requests)
-                    .unwrap_or(0)
-            };
+        let response_kind_total_for_mode = |execution_mode: &str, response_kind: &str| -> u64 {
+            request_outcome_response_kind_rows
+                .iter()
+                .find(|row| {
+                    row.traffic_origin == "live"
+                        && row.measurement_scope == "ingress_primary"
+                        && row.execution_mode == execution_mode
+                        && row.value == response_kind
+                })
+                .map(|row| row.total_requests)
+                .unwrap_or(0)
+        };
 
-        let likely_human_friction_for_mode =
-            |execution_mode: &str, family: &str| -> u64 {
-                human_friction_rows
-                    .get(&(execution_mode.to_string(), "likely_human".to_string()))
-                    .map(|row| match family {
-                        "not_a_bot" => row.not_a_bot_requests,
-                        "challenge" => row.challenge_requests,
-                        "js_challenge" => row.js_challenge_requests,
-                        "maze" => row.maze_requests,
-                        _ => 0,
-                    })
-                    .unwrap_or(0)
-            };
+        let likely_human_friction_for_mode = |execution_mode: &str, family: &str| -> u64 {
+            human_friction_rows
+                .get(&(execution_mode.to_string(), "likely_human".to_string()))
+                .map(|row| match family {
+                    "not_a_bot" => row.not_a_bot_requests,
+                    "challenge" => row.challenge_requests,
+                    "js_challenge" => row.js_challenge_requests,
+                    "maze" => row.maze_requests,
+                    _ => 0,
+                })
+                .unwrap_or(0)
+        };
 
         let mut defence_funnel_rows: BTreeMap<(String, String), DefenceFunnelRow> = BTreeMap::new();
         let not_a_bot_metrics_present = not_a_bot_served_total > 0
@@ -2883,8 +3319,10 @@ impl MonitoringAccumulator {
                 row.candidate_requests = Some(js_challenge_triggered);
                 row.triggered_requests = Some(js_challenge_triggered);
                 row.friction_requests = Some(js_challenge_triggered);
-                row.likely_human_affected_requests =
-                    Some(likely_human_friction_for_mode(execution_mode, "js_challenge"));
+                row.likely_human_affected_requests = Some(likely_human_friction_for_mode(
+                    execution_mode,
+                    "js_challenge",
+                ));
             }
 
             let maze_triggered = response_kind_total_for_mode(execution_mode, "maze");
@@ -2938,7 +3376,12 @@ impl MonitoringAccumulator {
                 unique_offenders: challenge_ip_counts.len() as u64,
                 top_offenders: top_entries(&challenge_ip_counts, top_limit),
                 reasons: challenge_reason_map,
-                trend: build_trend(start_hour, end_hour, &CHALLENGE_REASON_KEYS, challenge_trend),
+                trend: build_trend(
+                    start_hour,
+                    end_hour,
+                    &CHALLENGE_REASON_KEYS,
+                    challenge_trend,
+                ),
             },
             not_a_bot: NotABotSummary {
                 served: not_a_bot_served_total,
@@ -2994,6 +3437,7 @@ impl MonitoringAccumulator {
                 actions: geo_action_map,
                 top_countries: top_entries(&geo_countries, top_limit),
             },
+            verified_identity,
             human_friction: HumanFrictionSummary {
                 segments: human_friction_rows.into_values().collect(),
             },
@@ -3295,7 +3739,10 @@ mod tests {
             monitoring_key("request_outcome", metric, Some(dimension), hour)
         };
 
-        assert_eq!(read_counter(&store, key("total", scope_cohort.as_str()).as_str()), 1);
+        assert_eq!(
+            read_counter(&store, key("total", scope_cohort.as_str()).as_str()),
+            1
+        );
         assert_eq!(
             read_counter(
                 &store,
@@ -3341,7 +3788,10 @@ mod tests {
             1
         );
         assert_eq!(
-            read_counter(&store, key("response_bytes", scope_cohort.as_str()).as_str()),
+            read_counter(
+                &store,
+                key("response_bytes", scope_cohort.as_str()).as_str()
+            ),
             321
         );
         assert_eq!(
@@ -3355,7 +3805,10 @@ mod tests {
             ),
             321
         );
-        assert_eq!(read_counter(&store, key("lane_total", lane_cohort.as_str()).as_str()), 1);
+        assert_eq!(
+            read_counter(&store, key("lane_total", lane_cohort.as_str()).as_str()),
+            1
+        );
         assert_eq!(
             read_counter(
                 &store,
@@ -3423,7 +3876,8 @@ mod tests {
                 &store,
                 key(
                     "outcome_class",
-                    request_outcome_nested_cohort(scope_cohort.as_str(), "short_circuited").as_str(),
+                    request_outcome_nested_cohort(scope_cohort.as_str(), "short_circuited")
+                        .as_str(),
                 )
                 .as_str(),
             ),
@@ -3434,7 +3888,8 @@ mod tests {
                 &store,
                 key(
                     "response_kind",
-                    request_outcome_nested_cohort(scope_cohort.as_str(), "sim_public_response").as_str(),
+                    request_outcome_nested_cohort(scope_cohort.as_str(), "sim_public_response")
+                        .as_str(),
                 )
                 .as_str(),
             ),
@@ -3474,7 +3929,8 @@ mod tests {
                 &store,
                 key(
                     "outcome_class_response_bytes",
-                    request_outcome_nested_cohort(scope_cohort.as_str(), "short_circuited").as_str(),
+                    request_outcome_nested_cohort(scope_cohort.as_str(), "short_circuited")
+                        .as_str(),
                 )
                 .as_str(),
             ),
@@ -4220,7 +4676,12 @@ mod tests {
         assert_eq!(summary.not_a_bot.pass, 0);
         assert_eq!(summary.not_a_bot.replay, 0);
         assert_eq!(
-            summary.challenge.reasons.get("incorrect").copied().unwrap_or(99),
+            summary
+                .challenge
+                .reasons
+                .get("incorrect")
+                .copied()
+                .unwrap_or(99),
             0
         );
         assert_eq!(
@@ -4233,7 +4694,12 @@ mod tests {
             0
         );
         assert_eq!(
-            summary.pow.reasons.get("invalid_proof").copied().unwrap_or(99),
+            summary
+                .pow
+                .reasons
+                .get("invalid_proof")
+                .copied()
+                .unwrap_or(99),
             0
         );
         assert_eq!(
@@ -4241,6 +4707,25 @@ mod tests {
             0
         );
         assert_eq!(summary.geo.actions.get("maze").copied().unwrap_or(99), 0);
+        assert_eq!(summary.verified_identity.attempts, 0);
+        assert_eq!(
+            summary
+                .verified_identity
+                .provenance
+                .get("provider")
+                .copied()
+                .unwrap_or(99),
+            0
+        );
+        assert_eq!(
+            summary
+                .verified_identity
+                .freshness
+                .get("fresh")
+                .copied()
+                .unwrap_or(99),
+            0
+        );
         assert!(summary.defence_funnel.rows.is_empty());
         assert!(summary.human_friction.segments.is_empty());
         assert!(summary.request_outcomes.by_scope.is_empty());
@@ -4343,7 +4828,12 @@ mod tests {
         assert_eq!(summary.honeypot.top_paths.first().map(|v| v.count), Some(3));
         assert_eq!(summary.challenge.total_failures, 2);
         assert_eq!(
-            summary.challenge.reasons.get("incorrect").copied().unwrap_or(0),
+            summary
+                .challenge
+                .reasons
+                .get("incorrect")
+                .copied()
+                .unwrap_or(0),
             2
         );
         assert_eq!(summary.challenge.unique_offenders, 1);
@@ -4351,7 +4841,11 @@ mod tests {
         assert_eq!(summary.rate.total_violations, 4);
         assert_eq!(summary.rate.unique_offenders, 1);
         assert_eq!(
-            summary.rate.top_paths.first().map(|v| (v.label.as_str(), v.count)),
+            summary
+                .rate
+                .top_paths
+                .first()
+                .map(|v| (v.label.as_str(), v.count)),
             Some(("/checkout", 4))
         );
         assert_eq!(
@@ -4477,7 +4971,11 @@ mod tests {
 
         set_counter(
             &store,
-            format!("{}:pow:total:{}:{}", MONITORING_PREFIX, pow_origin, now_hour).as_str(),
+            format!(
+                "{}:pow:total:{}:{}",
+                MONITORING_PREFIX, pow_origin, now_hour
+            )
+            .as_str(),
             3,
         );
         set_counter(
@@ -4496,7 +4994,11 @@ mod tests {
         );
         set_counter(
             &store,
-            format!("{}:pow:reason:{}:{}", MONITORING_PREFIX, pow_reason, now_hour).as_str(),
+            format!(
+                "{}:pow:reason:{}:{}",
+                MONITORING_PREFIX, pow_reason, now_hour
+            )
+            .as_str(),
             3,
         );
         set_counter(
@@ -4524,9 +5026,102 @@ mod tests {
         assert_eq!(summary.pow.total_attempts, 12);
         assert!((summary.pow.success_ratio - 0.75).abs() < 0.000_001);
         assert_eq!(summary.pow.unique_offenders, 1);
-        assert_eq!(summary.pow.reasons.get("invalid_proof").copied().unwrap_or(0), 3);
+        assert_eq!(
+            summary
+                .pow
+                .reasons
+                .get("invalid_proof")
+                .copied()
+                .unwrap_or(0),
+            3
+        );
         assert_eq!(summary.pow.outcomes.get("success").copied().unwrap_or(0), 9);
         assert_eq!(summary.pow.outcomes.get("failure").copied().unwrap_or(0), 3);
+    }
+
+    #[test]
+    fn summarize_aggregates_verified_identity_attempts_and_identities() {
+        let store = MockStore::default();
+        let provider_verified_record =
+            crate::bot_identity::telemetry::IdentityVerificationTelemetryRecord {
+                scheme: Some(crate::bot_identity::contracts::IdentityScheme::ProviderSignedAgent),
+                provenance: crate::bot_identity::contracts::IdentityProvenance::Provider,
+                result_status:
+                    crate::bot_identity::verification::IdentityVerificationResultStatus::Verified,
+                failure: None,
+                freshness: crate::bot_identity::verification::IdentityVerificationFreshness::Fresh,
+                operator: Some("openai".to_string()),
+                stable_identity: Some("chatgpt-agent".to_string()),
+            };
+        let provider_failed_record = crate::bot_identity::telemetry::IdentityVerificationTelemetryRecord {
+            scheme: Some(crate::bot_identity::contracts::IdentityScheme::ProviderVerifiedBot),
+            provenance: crate::bot_identity::contracts::IdentityProvenance::Provider,
+            result_status:
+                crate::bot_identity::verification::IdentityVerificationResultStatus::Failed,
+            failure: Some(
+                crate::bot_identity::verification::IdentityVerificationFailure::ProviderRejected,
+            ),
+            freshness:
+                crate::bot_identity::verification::IdentityVerificationFreshness::ReplayRejected,
+            operator: None,
+            stable_identity: None,
+        };
+
+        record_verified_identity_telemetry(&store, &provider_verified_record);
+        record_verified_identity_telemetry(&store, &provider_verified_record);
+        record_verified_identity_telemetry(&store, &provider_failed_record);
+
+        let summary = summarize_with_store(&store, 24, 10);
+
+        assert_eq!(summary.verified_identity.attempts, 3);
+        assert_eq!(summary.verified_identity.verified, 2);
+        assert_eq!(summary.verified_identity.failed, 1);
+        assert_eq!(summary.verified_identity.unique_verified_identities, 1);
+        assert_eq!(
+            summary
+                .verified_identity
+                .provenance
+                .get("provider")
+                .copied()
+                .unwrap_or(0),
+            3
+        );
+        assert_eq!(
+            summary
+                .verified_identity
+                .schemes
+                .get("provider_signed_agent")
+                .copied()
+                .unwrap_or(0),
+            2
+        );
+        assert_eq!(
+            summary
+                .verified_identity
+                .failures
+                .get("provider_rejected")
+                .copied()
+                .unwrap_or(0),
+            1
+        );
+        assert_eq!(
+            summary
+                .verified_identity
+                .freshness
+                .get("replay_rejected")
+                .copied()
+                .unwrap_or(0),
+            1
+        );
+        assert_eq!(
+            summary.verified_identity.top_verified_identities.first(),
+            Some(&VerifiedIdentitySeenRow {
+                operator: "openai".to_string(),
+                stable_identity: "chatgpt-agent".to_string(),
+                scheme: "provider_signed_agent".to_string(),
+                count: 2,
+            })
+        );
     }
 
     #[test]
@@ -4571,7 +5166,11 @@ mod tests {
             now_hour
         );
         set_counter(&store, counter_key.as_str(), 4);
-        crate::observability::retention::register_monitoring_key(&store, now_hour, counter_key.as_str());
+        crate::observability::retention::register_monitoring_key(
+            &store,
+            now_hour,
+            counter_key.as_str(),
+        );
         store
             .set("unrelated:telemetry:key", b"17")
             .expect("set unrelated");
@@ -4586,7 +5185,10 @@ mod tests {
         let store = MockStore::default();
         let now_hour = now_ts() / 3600;
         let total_key = format!("{}:shadow:total:{}", MONITORING_PREFIX, now_hour);
-        let action_key = format!("{}:shadow:action:{}:{}", MONITORING_PREFIX, "block", now_hour);
+        let action_key = format!(
+            "{}:shadow:action:{}:{}",
+            MONITORING_PREFIX, "block", now_hour
+        );
         let pass_through_key = format!("{}:shadow:pass_through:{}", MONITORING_PREFIX, now_hour);
         set_counter(&store, total_key.as_str(), 3);
         set_counter(&store, action_key.as_str(), 2);
@@ -4638,12 +5240,10 @@ mod tests {
 
         let first_summary = summarize_with_store(&store, 48, 10);
         let rollup_key = monitoring_day_rollup_key(previous_day_start);
-        assert!(
-            store
-                .get(rollup_key.as_str())
-                .expect("rollup read should succeed")
-                .is_some()
-        );
+        assert!(store
+            .get(rollup_key.as_str())
+            .expect("rollup read should succeed")
+            .is_some());
 
         for hour in previous_day_start..previous_day_start.saturating_add(MONITORING_DAY_HOURS) {
             let key = format!(
@@ -4719,8 +5319,10 @@ mod tests {
         let store = MockStore::default();
         let hour = now_ts() / 3600;
         maybe_record_ip_range_likely_human_sample(&store, "198.51.100.10", 0, "/");
-        let sampled_key = monitoring_key("ip_range_suggestions", "likely_human_sampled", None, hour);
-        let unsampled_key = monitoring_key("ip_range_suggestions", "likely_human_unsampled", None, hour);
+        let sampled_key =
+            monitoring_key("ip_range_suggestions", "likely_human_sampled", None, hour);
+        let unsampled_key =
+            monitoring_key("ip_range_suggestions", "likely_human_unsampled", None, hour);
         assert_eq!(read_counter(&store, sampled_key.as_str()), 0);
         assert_eq!(read_counter(&store, unsampled_key.as_str()), 1);
     }
@@ -4785,12 +5387,10 @@ mod tests {
         record_pow_failure(&store, "203.0.113.9", "invalid_proof");
         let _ = summarize_with_store(&store, 24, 10);
 
-        assert!(
-            store
-                .get(expired_key.as_str())
-                .expect("counter read should succeed")
-                .is_some()
-        );
+        assert!(store
+            .get(expired_key.as_str())
+            .expect("counter read should succeed")
+            .is_some());
         std::env::remove_var("SHUMA_EVENT_LOG_RETENTION_HOURS");
     }
 }

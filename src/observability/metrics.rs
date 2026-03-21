@@ -62,11 +62,11 @@ const TARPIT_PROGRESS_OUTCOMES: [&str; 14] = [
     "tarpit_progress_invalid_proof",
     "tarpit_progress_budget_exhausted",
 ];
-const TARPIT_BUDGET_OUTCOMES: [&str; 4] = ["acquired", "saturated", "fallback_maze", "fallback_block"];
+const TARPIT_BUDGET_OUTCOMES: [&str; 4] =
+    ["acquired", "saturated", "fallback_maze", "fallback_block"];
 const TARPIT_ESCALATION_OUTCOMES: [&str; 3] = ["none", "short_ban", "block"];
 const TARPIT_DURATION_BUCKETS: [&str; 4] = ["lt_1s", "1_5s", "5_20s", "20s_plus"];
-const TARPIT_BYTES_BUCKETS: [&str; 5] =
-    ["lt_8kb", "8_32kb", "32_128kb", "128_512kb", "512kb_plus"];
+const TARPIT_BYTES_BUCKETS: [&str; 5] = ["lt_8kb", "8_32kb", "32_128kb", "128_512kb", "512kb_plus"];
 const FORWARD_FAILURE_CLASSES: [&str; 5] = [
     "timeout",
     "transport",
@@ -74,8 +74,14 @@ const FORWARD_FAILURE_CLASSES: [&str; 5] = [
     "misconfiguration",
     "loop_detected",
 ];
-const FORWARD_LATENCY_BUCKETS: [&str; 6] =
-    ["lt_10ms", "10_50ms", "50_200ms", "200_1000ms", "1_5s", "5s_plus"];
+const FORWARD_LATENCY_BUCKETS: [&str; 6] = [
+    "lt_10ms",
+    "10_50ms",
+    "50_200ms",
+    "200_1000ms",
+    "1_5s",
+    "5s_plus",
+];
 const MONITORING_CHALLENGE_FAILURE_REASON_KEYS: [&str; 5] = [
     "incorrect",
     "expired_replay",
@@ -91,13 +97,41 @@ const MONITORING_POW_FAILURE_REASON_KEYS: [&str; 5] = [
     "expired_replay",
     "binding_timing_mismatch",
 ];
-const MONITORING_RATE_OUTCOME_KEYS: [&str; 4] = ["limited", "banned", "fallback_allow", "fallback_deny"];
+const MONITORING_RATE_OUTCOME_KEYS: [&str; 4] =
+    ["limited", "banned", "fallback_allow", "fallback_deny"];
 const MONITORING_GEO_ACTION_KEYS: [&str; 3] = ["block", "challenge", "maze"];
+const MONITORING_VERIFIED_IDENTITY_OUTCOME_KEYS: [&str; 2] = ["verified", "failed"];
+const MONITORING_VERIFIED_IDENTITY_FAILURE_REASON_KEYS: [&str; 10] = [
+    "missing_assertion",
+    "missing_signature",
+    "signature_invalid",
+    "replay_rejected",
+    "clock_skew_rejected",
+    "directory_unavailable",
+    "directory_stale",
+    "provider_rejected",
+    "provider_unavailable",
+    "unsupported_scheme",
+];
+const MONITORING_VERIFIED_IDENTITY_FRESHNESS_KEYS: [&str; 5] = [
+    "not_applicable",
+    "fresh",
+    "clock_skew_accepted",
+    "stale",
+    "replay_rejected",
+];
+const MONITORING_VERIFIED_IDENTITY_PROVENANCE_KEYS: [&str; 2] = ["native", "provider"];
+const MONITORING_VERIFIED_IDENTITY_SCHEME_KEYS: [&str; 4] = [
+    "http_message_signatures",
+    "provider_verified_bot",
+    "provider_signed_agent",
+    "mtls",
+];
 const PROVIDER_OBSERVED_COMBINATIONS: [(
     crate::providers::registry::ProviderCapability,
     crate::config::ProviderBackend,
     &str,
-); 10] = [
+); 12] = [
     (
         crate::providers::registry::ProviderCapability::RateLimiter,
         crate::config::ProviderBackend::Internal,
@@ -147,6 +181,16 @@ const PROVIDER_OBSERVED_COMBINATIONS: [(
         crate::providers::registry::ProviderCapability::FingerprintSignal,
         crate::config::ProviderBackend::External,
         "external_akamai_with_internal_fallback",
+    ),
+    (
+        crate::providers::registry::ProviderCapability::VerifiedIdentity,
+        crate::config::ProviderBackend::Internal,
+        "internal",
+    ),
+    (
+        crate::providers::registry::ProviderCapability::VerifiedIdentity,
+        crate::config::ProviderBackend::External,
+        "external_edge_verified_identity_normalizer",
     ),
 ];
 
@@ -310,11 +354,19 @@ pub fn increment(store: &Store, metric: MetricName, label: Option<&str>) {
 }
 
 pub fn record_forward_attempt(store: &Store) {
-    add_key_delta(store, &format!("{}forward_attempt_total", METRICS_PREFIX), 1);
+    add_key_delta(
+        store,
+        &format!("{}forward_attempt_total", METRICS_PREFIX),
+        1,
+    );
 }
 
 pub fn record_forward_success(store: &Store, latency_ms: u64) {
-    add_key_delta(store, &format!("{}forward_success_total", METRICS_PREFIX), 1);
+    add_key_delta(
+        store,
+        &format!("{}forward_success_total", METRICS_PREFIX),
+        1,
+    );
     add_key_delta(
         store,
         &format!("{}forward_latency_ms_total", METRICS_PREFIX),
@@ -540,10 +592,7 @@ pub fn render_metrics(store: &Store) -> String {
     ));
 
     output.push_str("\n# TYPE bot_defence_not_a_bot_replay_total counter\n");
-    let not_a_bot_replay = get_counter(
-        store,
-        &format!("{}not_a_bot_replay_total", METRICS_PREFIX),
-    );
+    let not_a_bot_replay = get_counter(store, &format!("{}not_a_bot_replay_total", METRICS_PREFIX));
     output.push_str(&format!(
         "bot_defence_not_a_bot_replay_total {}\n",
         not_a_bot_replay
@@ -585,10 +634,14 @@ pub fn render_metrics(store: &Store) -> String {
     ));
 
     output.push_str("\n# TYPE bot_defence_cdp_detections_total counter\n");
-    output.push_str("# HELP bot_defence_cdp_detections_total Total CDP detection reports processed\n");
+    output.push_str(
+        "# HELP bot_defence_cdp_detections_total Total CDP detection reports processed\n",
+    );
     // Keep parity with `/admin/cdp` stats while preserving the buffered metrics key path.
-    let cdp_detections = get_counter(store, "cdp:detections")
-        .max(get_counter(store, &format!("{}cdp_detections_total", METRICS_PREFIX)));
+    let cdp_detections = get_counter(store, "cdp:detections").max(get_counter(
+        store,
+        &format!("{}cdp_detections_total", METRICS_PREFIX),
+    ));
     output.push_str(&format!(
         "bot_defence_cdp_detections_total {}\n",
         cdp_detections
@@ -601,7 +654,10 @@ pub fn render_metrics(store: &Store) -> String {
 
     // Shadow mode actions
     output.push_str("\n# TYPE bot_defence_shadow_mode_actions_total counter\n");
-    let shadow_mode = get_counter(store, &format!("{}shadow_mode_actions_total", METRICS_PREFIX));
+    let shadow_mode = get_counter(
+        store,
+        &format!("{}shadow_mode_actions_total", METRICS_PREFIX),
+    );
     output.push_str(&format!(
         "bot_defence_shadow_mode_actions_total {}\n",
         shadow_mode
@@ -697,7 +753,10 @@ pub fn render_metrics(store: &Store) -> String {
         "# HELP bot_defence_tarpit_progress_outcomes_total Tarpit progression outcomes and rejection reasons\n",
     );
     for outcome in TARPIT_PROGRESS_OUTCOMES {
-        let key = format!("{}tarpit_progress_outcomes_total:{}", METRICS_PREFIX, outcome);
+        let key = format!(
+            "{}tarpit_progress_outcomes_total:{}",
+            METRICS_PREFIX, outcome
+        );
         let count = get_counter(store, &key);
         output.push_str(&format!(
             "bot_defence_tarpit_progress_outcomes_total{{outcome=\"{}\"}} {}\n",
@@ -748,9 +807,8 @@ pub fn render_metrics(store: &Store) -> String {
     }
 
     output.push_str("\n# TYPE bot_defence_tarpit_bytes_buckets_total counter\n");
-    output.push_str(
-        "# HELP bot_defence_tarpit_bytes_buckets_total Tarpit response bytes buckets\n",
-    );
+    output
+        .push_str("# HELP bot_defence_tarpit_bytes_buckets_total Tarpit response bytes buckets\n");
     for bucket in TARPIT_BYTES_BUCKETS {
         let key = format!("{}tarpit_bytes_buckets_total:{}", METRICS_PREFIX, bucket);
         let count = get_counter(store, &key);
@@ -954,20 +1012,20 @@ pub fn render_metrics(store: &Store) -> String {
     }
 
     output.push_str("\n# TYPE bot_defence_forward_attempt_total counter\n");
-    output.push_str(
-        "# HELP bot_defence_forward_attempt_total Total upstream forwarding attempts\n",
-    );
-    let forward_attempt_total = get_counter(store, &format!("{}forward_attempt_total", METRICS_PREFIX));
+    output
+        .push_str("# HELP bot_defence_forward_attempt_total Total upstream forwarding attempts\n");
+    let forward_attempt_total =
+        get_counter(store, &format!("{}forward_attempt_total", METRICS_PREFIX));
     output.push_str(&format!(
         "bot_defence_forward_attempt_total {}\n",
         forward_attempt_total
     ));
 
     output.push_str("\n# TYPE bot_defence_forward_success_total counter\n");
-    output.push_str(
-        "# HELP bot_defence_forward_success_total Total successful upstream forwards\n",
-    );
-    let forward_success_total = get_counter(store, &format!("{}forward_success_total", METRICS_PREFIX));
+    output
+        .push_str("# HELP bot_defence_forward_success_total Total successful upstream forwards\n");
+    let forward_success_total =
+        get_counter(store, &format!("{}forward_success_total", METRICS_PREFIX));
     output.push_str(&format!(
         "bot_defence_forward_success_total {}\n",
         forward_success_total
@@ -990,7 +1048,10 @@ pub fn render_metrics(store: &Store) -> String {
     output.push_str(
         "# HELP bot_defence_forward_latency_ms_total Cumulative upstream forward latency in milliseconds\n",
     );
-    let forward_latency_ms_total = get_counter(store, &format!("{}forward_latency_ms_total", METRICS_PREFIX));
+    let forward_latency_ms_total = get_counter(
+        store,
+        &format!("{}forward_latency_ms_total", METRICS_PREFIX),
+    );
     output.push_str(&format!(
         "bot_defence_forward_latency_ms_total {}\n",
         forward_latency_ms_total
@@ -1084,10 +1145,100 @@ pub fn render_metrics(store: &Store) -> String {
         "# HELP bot_defence_monitoring_geo_violations_total Monitoring GEO policy violations by normalized action\n",
     );
     for action in MONITORING_GEO_ACTION_KEYS {
-        let count = monitoring_summary.geo.actions.get(action).copied().unwrap_or(0);
+        let count = monitoring_summary
+            .geo
+            .actions
+            .get(action)
+            .copied()
+            .unwrap_or(0);
         output.push_str(&format!(
             "bot_defence_monitoring_geo_violations_total{{action=\"{}\"}} {}\n",
             action, count
+        ));
+    }
+
+    output.push_str("\n# TYPE bot_defence_monitoring_verified_identity_attempts_total counter\n");
+    output.push_str(
+        "# HELP bot_defence_monitoring_verified_identity_attempts_total Monitoring verified-identity verification attempts by outcome\n",
+    );
+    for outcome in MONITORING_VERIFIED_IDENTITY_OUTCOME_KEYS {
+        let count = monitoring_summary
+            .verified_identity
+            .outcomes
+            .get(outcome)
+            .copied()
+            .unwrap_or(0);
+        output.push_str(&format!(
+            "bot_defence_monitoring_verified_identity_attempts_total{{outcome=\"{}\"}} {}\n",
+            outcome, count
+        ));
+    }
+
+    output.push_str("\n# TYPE bot_defence_monitoring_verified_identity_failures_total counter\n");
+    output.push_str(
+        "# HELP bot_defence_monitoring_verified_identity_failures_total Monitoring verified-identity verification failures by normalized reason\n",
+    );
+    for reason in MONITORING_VERIFIED_IDENTITY_FAILURE_REASON_KEYS {
+        let count = monitoring_summary
+            .verified_identity
+            .failures
+            .get(reason)
+            .copied()
+            .unwrap_or(0);
+        output.push_str(&format!(
+            "bot_defence_monitoring_verified_identity_failures_total{{reason=\"{}\"}} {}\n",
+            reason, count
+        ));
+    }
+
+    output.push_str("\n# TYPE bot_defence_monitoring_verified_identity_freshness_total counter\n");
+    output.push_str(
+        "# HELP bot_defence_monitoring_verified_identity_freshness_total Monitoring verified-identity freshness outcomes\n",
+    );
+    for freshness in MONITORING_VERIFIED_IDENTITY_FRESHNESS_KEYS {
+        let count = monitoring_summary
+            .verified_identity
+            .freshness
+            .get(freshness)
+            .copied()
+            .unwrap_or(0);
+        output.push_str(&format!(
+            "bot_defence_monitoring_verified_identity_freshness_total{{freshness=\"{}\"}} {}\n",
+            freshness, count
+        ));
+    }
+
+    output.push_str("\n# TYPE bot_defence_monitoring_verified_identity_provenance_total counter\n");
+    output.push_str(
+        "# HELP bot_defence_monitoring_verified_identity_provenance_total Monitoring verified-identity outcomes by provenance\n",
+    );
+    for provenance in MONITORING_VERIFIED_IDENTITY_PROVENANCE_KEYS {
+        let count = monitoring_summary
+            .verified_identity
+            .provenance
+            .get(provenance)
+            .copied()
+            .unwrap_or(0);
+        output.push_str(&format!(
+            "bot_defence_monitoring_verified_identity_provenance_total{{provenance=\"{}\"}} {}\n",
+            provenance, count
+        ));
+    }
+
+    output.push_str("\n# TYPE bot_defence_monitoring_verified_identity_schemes_total counter\n");
+    output.push_str(
+        "# HELP bot_defence_monitoring_verified_identity_schemes_total Monitoring verified-identity observations by scheme\n",
+    );
+    for scheme in MONITORING_VERIFIED_IDENTITY_SCHEME_KEYS {
+        let count = monitoring_summary
+            .verified_identity
+            .schemes
+            .get(scheme)
+            .copied()
+            .unwrap_or(0);
+        output.push_str(&format!(
+            "bot_defence_monitoring_verified_identity_schemes_total{{scheme=\"{}\"}} {}\n",
+            scheme, count
         ));
     }
 
