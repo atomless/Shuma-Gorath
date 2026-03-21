@@ -636,6 +636,9 @@ fn normalize_policy_source(
         crate::runtime::traffic_classification::PolicySource::PolicyGraphFirstTranche => {
             "policy_graph_first_tranche"
         }
+        crate::runtime::traffic_classification::PolicySource::PolicyGraphVerifiedIdentityTranche => {
+            "policy_graph_verified_identity_tranche"
+        }
         crate::runtime::traffic_classification::PolicySource::PolicyGraphSecondTranche => {
             "policy_graph_second_tranche"
         }

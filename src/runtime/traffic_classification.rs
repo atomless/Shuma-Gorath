@@ -46,6 +46,7 @@ pub(crate) enum PolicySource {
     StaticAssetBypass,
     AllowlistBypass,
     PolicyGraphFirstTranche,
+    PolicyGraphVerifiedIdentityTranche,
     PolicyGraphSecondTranche,
     CleanAllow,
     DefenceFollowup,
@@ -208,6 +209,15 @@ fn classify_policy_decision(decision: &PolicyDecision) -> MonitoringTrafficClass
             route_action_family: RouteActionFamily::PublicContent,
             traffic_lane: Some(SUSPICIOUS_POLICY),
             policy_source: PolicySource::PolicyGraphFirstTranche,
+        },
+        PolicyDecision::VerifiedIdentityPolicyDeny { .. }
+        | PolicyDecision::VerifiedIdentityPolicyAllow { .. }
+        | PolicyDecision::VerifiedIdentityPolicyObserve { .. }
+        | PolicyDecision::VerifiedIdentityPolicyRestrict { .. } => MonitoringTrafficClassification {
+            measurement_scope: MeasurementScope::IngressPrimary,
+            route_action_family: RouteActionFamily::PublicContent,
+            traffic_lane: None,
+            policy_source: PolicySource::PolicyGraphVerifiedIdentityTranche,
         },
         PolicyDecision::GeoBlock
         | PolicyDecision::GeoMaze

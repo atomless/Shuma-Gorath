@@ -469,6 +469,23 @@ pub(crate) fn handle_request(req: &Request) -> Response {
             ),
         });
     }
+    if let Some(response) =
+        crate::runtime::policy_pipeline::maybe_handle_policy_graph_verified_identity_tranche(
+            req,
+            store,
+            &cfg,
+            &provider_registry,
+            site_id,
+            &ip,
+            ua,
+            &geo_assessment,
+            &ip_range_evaluation,
+            verified_identity.as_ref(),
+            &request_capabilities,
+        )
+    {
+        return finalize_handled_response(response);
+    }
     if let Some(response) = crate::runtime::policy_pipeline::maybe_handle_policy_graph_second_tranche(
         req,
         store,

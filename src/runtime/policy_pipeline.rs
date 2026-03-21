@@ -244,6 +244,66 @@ pub(crate) fn maybe_handle_policy_graph_second_tranche(
     execute_decision_sequence(decisions, &facts, &context, &capabilities)
 }
 
+pub(crate) fn maybe_handle_policy_graph_verified_identity_tranche(
+    req: &Request,
+    store: &Store,
+    cfg: &crate::config::Config,
+    provider_registry: &crate::providers::registry::ProviderRegistry,
+    site_id: &str,
+    ip: &str,
+    ua: &str,
+    geo_assessment: &crate::GeoAssessment,
+    ip_range_evaluation: &crate::signals::ip_range_policy::Evaluation,
+    verified_identity: Option<&crate::bot_identity::contracts::VerifiedIdentityEvidence>,
+    capabilities: &crate::runtime::capabilities::PolicyExecutionCapabilities,
+) -> Option<HandledRequestResponse> {
+    let Some(verified_identity) = verified_identity else {
+        return None;
+    };
+
+    let execution_mode = crate::runtime::shadow_mode::effective_execution_mode(cfg);
+    let context = crate::runtime::effect_intents::EffectExecutionContext {
+        req,
+        store,
+        cfg,
+        provider_registry,
+        site_id,
+        ip,
+        ua,
+        execution_mode,
+    };
+
+    // This stage runs after the coarse first tranche has already executed.
+    // Do not recompute rate-limit/ban checks here because those providers can
+    // be stateful and the second evaluation would distort the decision surface.
+    let facts = crate::runtime::request_facts::build_request_facts(
+        req,
+        crate::runtime::request_facts::RequestFactInputs {
+            site_id: site_id.to_string(),
+            ip: ip.to_string(),
+            user_agent: ua.to_string(),
+            ip_range_evaluation: ip_range_evaluation.clone(),
+            honeypot_hit: false,
+            rate_limit_exceeded: false,
+            existing_ban: false,
+            geo_route: geo_assessment.route,
+            geo_country: geo_assessment.country.clone(),
+            needs_js: false,
+            botness_score: 0,
+            botness_signal_ids: vec![],
+            botness_summary: "none".to_string(),
+            botness_state_summary: "none".to_string(),
+            runtime_metadata_summary: crate::defence_runtime_metadata_summary(cfg),
+            provider_summary: crate::provider_implementations_summary(provider_registry),
+            verified_identity: Some(verified_identity.clone()),
+            not_a_bot_marker_valid: false,
+        },
+    );
+
+    let decisions = crate::runtime::policy_graph::evaluate_verified_identity_tranche(&facts, cfg);
+    execute_decision_sequence(decisions, &facts, &context, &capabilities)
+}
+
 #[cfg(test)]
 mod tests {
     use super::existing_ban_from_lookup_result;

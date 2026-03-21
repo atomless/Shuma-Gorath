@@ -25,6 +25,48 @@ fn compact_botness_outcome(outcome_code: &str, score: u8) -> String {
     format!("{outcome_code} score={score}")
 }
 
+fn verified_identity_signal_ids(
+    resolution: &crate::bot_identity::policy::IdentityPolicyResolution,
+) -> Vec<crate::runtime::policy_taxonomy::SignalId> {
+    use crate::bot_identity::policy::IdentityPolicyResolutionSourceKind;
+    use crate::runtime::policy_taxonomy::SignalId;
+
+    let mut signal_ids = vec![SignalId::VerifiedIdentityAuthenticated];
+    signal_ids.push(match resolution.source_kind() {
+        IdentityPolicyResolutionSourceKind::NamedPolicy => SignalId::VerifiedIdentityNamedPolicy,
+        IdentityPolicyResolutionSourceKind::CategoryDefault => {
+            SignalId::VerifiedIdentityCategoryDefault
+        }
+        IdentityPolicyResolutionSourceKind::TopLevelStance => {
+            SignalId::VerifiedIdentityTopLevelFallback
+        }
+    });
+    signal_ids
+}
+
+fn verified_identity_base_outcome(
+    facts: &crate::runtime::request_facts::RequestFacts,
+    resolution: &crate::bot_identity::policy::IdentityPolicyResolution,
+) -> String {
+    let identity = facts
+        .verified_identity
+        .as_ref()
+        .expect("verified-identity policy decisions require identity facts");
+    let mut parts = vec![
+        format!("source={}", resolution.source_label()),
+        format!("source_id={}", resolution.source_id()),
+        format!("policy_outcome={}", resolution.outcome.as_str()),
+        format!("scheme={}", identity.scheme.as_str()),
+        format!("operator={}", identity.operator),
+        format!("stable_identity={}", identity.stable_identity),
+        format!("category={}", identity.category.as_str()),
+    ];
+    if let Some(service_profile_id) = resolution.service_profile_id.as_deref() {
+        parts.push(format!("service_profile_id={service_profile_id}"));
+    }
+    parts.join(" ")
+}
+
 pub(crate) fn plan_for_decision(
     decision: &crate::runtime::policy_graph::PolicyDecision,
     facts: &crate::runtime::request_facts::RequestFacts,
@@ -438,6 +480,95 @@ pub(crate) fn plan_for_decision(
                 },
             }
         }
+        PolicyDecision::VerifiedIdentityPolicyDeny { resolution } => {
+            let signal_ids = verified_identity_signal_ids(resolution);
+            let policy_match =
+                resolve_policy_match(PolicyTransition::VerifiedIdentityPolicyDeny(signal_ids));
+            let base_outcome = verified_identity_base_outcome(facts, resolution);
+            DecisionPlan {
+                intents: vec![
+                    EffectIntent::RecordPolicyMatch(PolicyTransition::VerifiedIdentityPolicyDeny(
+                        verified_identity_signal_ids(resolution),
+                    )),
+                    EffectIntent::IncrementMetric {
+                        metric: crate::observability::metrics::MetricName::BlocksTotal,
+                        label: None,
+                    },
+                    EffectIntent::LogEvent {
+                        event: crate::admin::EventType::Block,
+                        reason: "verified_identity_policy_deny".to_string(),
+                        outcome: policy_match.annotate_outcome(base_outcome.as_str()),
+                    },
+                ],
+                response: ResponseIntent::BlockPage {
+                    status: 403,
+                    reason: crate::enforcement::block_page::BlockReason::VerifiedIdentityPolicy,
+                },
+            }
+        }
+        PolicyDecision::VerifiedIdentityPolicyAllow { resolution } => {
+            let signal_ids = verified_identity_signal_ids(resolution);
+            let policy_match =
+                resolve_policy_match(PolicyTransition::VerifiedIdentityPolicyAllow(signal_ids));
+            let base_outcome = verified_identity_base_outcome(facts, resolution);
+            DecisionPlan {
+                intents: vec![
+                    EffectIntent::RecordPolicyMatch(PolicyTransition::VerifiedIdentityPolicyAllow(
+                        verified_identity_signal_ids(resolution),
+                    )),
+                    EffectIntent::LogEvent {
+                        event: crate::admin::EventType::AdminAction,
+                        reason: "verified_identity_policy_allow".to_string(),
+                        outcome: policy_match.annotate_outcome(base_outcome.as_str()),
+                    },
+                ],
+                response: ResponseIntent::ForwardAllow {
+                    reason: "verified_identity_policy_allow".to_string(),
+                },
+            }
+        }
+        PolicyDecision::VerifiedIdentityPolicyObserve { resolution } => {
+            let signal_ids = verified_identity_signal_ids(resolution);
+            let policy_match =
+                resolve_policy_match(PolicyTransition::VerifiedIdentityPolicyObserve(signal_ids));
+            let base_outcome = verified_identity_base_outcome(facts, resolution);
+            DecisionPlan {
+                intents: vec![
+                    EffectIntent::RecordPolicyMatch(
+                        PolicyTransition::VerifiedIdentityPolicyObserve(
+                            verified_identity_signal_ids(resolution),
+                        ),
+                    ),
+                    EffectIntent::LogEvent {
+                        event: crate::admin::EventType::AdminAction,
+                        reason: "verified_identity_policy_observe".to_string(),
+                        outcome: policy_match.annotate_outcome(base_outcome.as_str()),
+                    },
+                ],
+                response: ResponseIntent::Continue,
+            }
+        }
+        PolicyDecision::VerifiedIdentityPolicyRestrict { resolution } => {
+            let signal_ids = verified_identity_signal_ids(resolution);
+            let policy_match =
+                resolve_policy_match(PolicyTransition::VerifiedIdentityPolicyRestrict(signal_ids));
+            let base_outcome = verified_identity_base_outcome(facts, resolution);
+            DecisionPlan {
+                intents: vec![
+                    EffectIntent::RecordPolicyMatch(
+                        PolicyTransition::VerifiedIdentityPolicyRestrict(
+                            verified_identity_signal_ids(resolution),
+                        ),
+                    ),
+                    EffectIntent::LogEvent {
+                        event: crate::admin::EventType::AdminAction,
+                        reason: "verified_identity_policy_restrict".to_string(),
+                        outcome: policy_match.annotate_outcome(base_outcome.as_str()),
+                    },
+                ],
+                response: ResponseIntent::Continue,
+            }
+        }
         PolicyDecision::GeoBlock => {
             let country = facts.geo_country.clone();
             let country_summary = format!("country={}", country.as_deref().unwrap_or("unknown"));
@@ -770,6 +901,20 @@ pub(crate) fn plan_for_decision(
 mod tests {
     use super::*;
 
+    fn verified_identity() -> crate::bot_identity::contracts::VerifiedIdentityEvidence {
+        crate::bot_identity::contracts::VerifiedIdentityEvidence {
+            scheme: crate::bot_identity::contracts::IdentityScheme::ProviderSignedAgent,
+            stable_identity: "chatgpt-agent".to_string(),
+            operator: "openai".to_string(),
+            category: crate::bot_identity::contracts::IdentityCategory::UserTriggeredAgent,
+            verification_strength:
+                crate::bot_identity::contracts::VerificationStrength::ProviderAsserted,
+            end_user_controlled: true,
+            directory_source: None,
+            provenance: crate::bot_identity::contracts::IdentityProvenance::Provider,
+        }
+    }
+
     fn cfg() -> crate::config::Config {
         crate::config::defaults().clone()
     }
@@ -884,6 +1029,218 @@ mod tests {
             ),
             "expected ForwardAllow response intent, got {:?}",
             response_label(&plan.response)
+        );
+    }
+
+    #[test]
+    fn verified_identity_policy_deny_blocks_with_verified_identity_reason() {
+        let mut facts = facts();
+        facts.verified_identity = Some(verified_identity());
+
+        let mut cfg = cfg();
+        cfg.verified_identity.enabled = true;
+        cfg.verified_identity.non_human_traffic_stance =
+            crate::bot_identity::policy::NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities;
+
+        let resolution = crate::bot_identity::policy::resolve_identity_policy(
+            cfg.verified_identity.non_human_traffic_stance,
+            &cfg.verified_identity.named_policies,
+            &cfg.verified_identity.category_defaults,
+            &cfg.verified_identity.service_profiles,
+            facts.verified_identity.as_ref().expect("verified identity"),
+            facts.path.as_str(),
+        );
+
+        let plan = plan_for_decision(
+            &crate::runtime::policy_graph::PolicyDecision::VerifiedIdentityPolicyDeny {
+                resolution,
+            },
+            &facts,
+            &cfg,
+        );
+
+        assert!(matches!(
+            plan.response,
+            ResponseIntent::BlockPage {
+                status: 403,
+                reason: crate::enforcement::block_page::BlockReason::VerifiedIdentityPolicy,
+            }
+        ));
+        assert!(plan.intents.iter().any(|intent| matches!(
+            intent,
+            EffectIntent::RecordPolicyMatch(
+                crate::runtime::policy_taxonomy::PolicyTransition::VerifiedIdentityPolicyDeny(_)
+            )
+        )));
+
+        let outcome = plan
+            .intents
+            .iter()
+            .find_map(|intent| match intent {
+                EffectIntent::LogEvent { outcome, .. } => Some(outcome.as_str()),
+                _ => None,
+            })
+            .expect("verified-identity deny log outcome");
+        let parsed = crate::runtime::policy_taxonomy::parse_annotated_outcome(outcome);
+        assert_eq!(
+            parsed.taxonomy.as_ref().and_then(|taxonomy| taxonomy.detection.as_deref()),
+            Some("D_VERIFIED_IDENTITY_POLICY_DENY")
+        );
+        assert!(parsed
+            .outcome_text
+            .as_deref()
+            .is_some_and(|text| text.contains("source=top_level_stance")));
+    }
+
+    #[test]
+    fn verified_identity_policy_allow_short_circuits_with_forward_allow() {
+        let mut facts = facts();
+        facts.verified_identity = Some(verified_identity());
+
+        let mut cfg = cfg();
+        cfg.verified_identity.enabled = true;
+        cfg.verified_identity.non_human_traffic_stance =
+            crate::bot_identity::policy::NonHumanTrafficStance::DenyAllNonHuman;
+        cfg.verified_identity.named_policies = vec![crate::bot_identity::policy::IdentityPolicyEntry {
+            policy_id: "structured-openai".to_string(),
+            description: None,
+            matcher: crate::bot_identity::policy::IdentityPolicyMatcher {
+                operator: Some("openai".to_string()),
+                ..crate::bot_identity::policy::IdentityPolicyMatcher::default()
+            },
+            action: crate::bot_identity::policy::IdentityPolicyAction::UseServiceProfile(
+                "structured_agent".to_string(),
+            ),
+        }];
+
+        let resolution = crate::bot_identity::policy::resolve_identity_policy(
+            cfg.verified_identity.non_human_traffic_stance,
+            &cfg.verified_identity.named_policies,
+            &cfg.verified_identity.category_defaults,
+            &cfg.verified_identity.service_profiles,
+            facts.verified_identity.as_ref().expect("verified identity"),
+            facts.path.as_str(),
+        );
+
+        let plan = plan_for_decision(
+            &crate::runtime::policy_graph::PolicyDecision::VerifiedIdentityPolicyAllow {
+                resolution,
+            },
+            &facts,
+            &cfg,
+        );
+
+        assert!(matches!(
+            plan.response,
+            ResponseIntent::ForwardAllow { ref reason }
+                if reason == "verified_identity_policy_allow"
+        ));
+        assert!(plan.intents.iter().any(|intent| matches!(
+            intent,
+            EffectIntent::RecordPolicyMatch(
+                crate::runtime::policy_taxonomy::PolicyTransition::VerifiedIdentityPolicyAllow(_)
+            )
+        )));
+        let outcome = plan
+            .intents
+            .iter()
+            .find_map(|intent| match intent {
+                EffectIntent::LogEvent { outcome, .. } => Some(outcome.as_str()),
+                _ => None,
+            })
+            .expect("verified-identity allow log outcome");
+        assert!(outcome.contains("service_profile_id=structured_agent"));
+    }
+
+    #[test]
+    fn verified_identity_policy_observe_and_restrict_continue_with_distinct_taxonomy() {
+        let mut facts = facts();
+        facts.verified_identity = Some(verified_identity());
+
+        let observe_resolution = crate::bot_identity::policy::resolve_identity_policy(
+            crate::bot_identity::policy::NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities,
+            &[crate::bot_identity::policy::IdentityPolicyEntry {
+                policy_id: "observe-openai".to_string(),
+                description: None,
+                matcher: crate::bot_identity::policy::IdentityPolicyMatcher {
+                    operator: Some("openai".to_string()),
+                    ..crate::bot_identity::policy::IdentityPolicyMatcher::default()
+                },
+                action: crate::bot_identity::policy::IdentityPolicyAction::Observe,
+            }],
+            &[],
+            &cfg().verified_identity.service_profiles,
+            facts.verified_identity.as_ref().expect("verified identity"),
+            facts.path.as_str(),
+        );
+        let restrict_resolution = crate::bot_identity::policy::resolve_identity_policy(
+            crate::bot_identity::policy::NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities,
+            &[crate::bot_identity::policy::IdentityPolicyEntry {
+                policy_id: "restrict-openai".to_string(),
+                description: None,
+                matcher: crate::bot_identity::policy::IdentityPolicyMatcher {
+                    operator: Some("openai".to_string()),
+                    ..crate::bot_identity::policy::IdentityPolicyMatcher::default()
+                },
+                action: crate::bot_identity::policy::IdentityPolicyAction::Restrict,
+            }],
+            &[],
+            &cfg().verified_identity.service_profiles,
+            facts.verified_identity.as_ref().expect("verified identity"),
+            facts.path.as_str(),
+        );
+
+        let observe_plan = plan_for_decision(
+            &crate::runtime::policy_graph::PolicyDecision::VerifiedIdentityPolicyObserve {
+                resolution: observe_resolution,
+            },
+            &facts,
+            &cfg(),
+        );
+        let restrict_plan = plan_for_decision(
+            &crate::runtime::policy_graph::PolicyDecision::VerifiedIdentityPolicyRestrict {
+                resolution: restrict_resolution,
+            },
+            &facts,
+            &cfg(),
+        );
+
+        assert!(matches!(observe_plan.response, ResponseIntent::Continue));
+        assert!(matches!(restrict_plan.response, ResponseIntent::Continue));
+
+        let observe_outcome = observe_plan
+            .intents
+            .iter()
+            .find_map(|intent| match intent {
+                EffectIntent::LogEvent { outcome, .. } => Some(outcome.as_str()),
+                _ => None,
+            })
+            .expect("verified-identity observe log outcome");
+        let restrict_outcome = restrict_plan
+            .intents
+            .iter()
+            .find_map(|intent| match intent {
+                EffectIntent::LogEvent { outcome, .. } => Some(outcome.as_str()),
+                _ => None,
+            })
+            .expect("verified-identity restrict log outcome");
+        let observe_taxonomy =
+            crate::runtime::policy_taxonomy::parse_annotated_outcome(observe_outcome);
+        let restrict_taxonomy =
+            crate::runtime::policy_taxonomy::parse_annotated_outcome(restrict_outcome);
+        assert_eq!(
+            observe_taxonomy
+                .taxonomy
+                .as_ref()
+                .and_then(|taxonomy| taxonomy.detection.as_deref()),
+            Some("D_VERIFIED_IDENTITY_POLICY_OBSERVE")
+        );
+        assert_eq!(
+            restrict_taxonomy
+                .taxonomy
+                .as_ref()
+                .and_then(|taxonomy| taxonomy.detection.as_deref()),
+            Some("D_VERIFIED_IDENTITY_POLICY_RESTRICT")
         );
     }
 

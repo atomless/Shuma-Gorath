@@ -678,6 +678,8 @@ test-verified-identity-policy: ## Run focused verified-identity policy-registry 
 	@echo "$(CYAN)🧪 Running verified-identity policy tests...$(NC)"
 	@./scripts/set_crate_type.sh rlib
 	@cargo test bot_identity::policy::tests:: -- --nocapture
+	@cargo test runtime::policy_graph::tests:: -- --nocapture
+	@cargo test runtime::effect_intents::plan_builder::tests:: -- --nocapture
 
 test-verified-identity-telemetry: ## Run focused verified-identity observe-only telemetry tests
 	@echo "$(CYAN)🧪 Running verified-identity telemetry tests...$(NC)"

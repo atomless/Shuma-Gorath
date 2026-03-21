@@ -351,6 +351,10 @@ pub enum SignalId {
     RateUsageHigh,
     RateLimitHit,
     HoneypotHit,
+    VerifiedIdentityAuthenticated,
+    VerifiedIdentityNamedPolicy,
+    VerifiedIdentityCategoryDefault,
+    VerifiedIdentityTopLevelFallback,
     GeoRisk,
     GeoRouteChallenge,
     GeoRouteMaze,
@@ -411,6 +415,14 @@ impl SignalId {
             SignalId::RateUsageHigh => "S_RATE_USAGE_HIGH",
             SignalId::RateLimitHit => "S_RATE_LIMIT_HIT",
             SignalId::HoneypotHit => "S_HONEYPOT_HIT",
+            SignalId::VerifiedIdentityAuthenticated => "S_VERIFIED_IDENTITY_AUTHENTICATED",
+            SignalId::VerifiedIdentityNamedPolicy => "S_VERIFIED_IDENTITY_NAMED_POLICY",
+            SignalId::VerifiedIdentityCategoryDefault => {
+                "S_VERIFIED_IDENTITY_CATEGORY_DEFAULT"
+            }
+            SignalId::VerifiedIdentityTopLevelFallback => {
+                "S_VERIFIED_IDENTITY_TOP_LEVEL_FALLBACK"
+            }
             SignalId::GeoRisk => "S_GEO_RISK",
             SignalId::GeoRouteChallenge => "S_GEO_ROUTE_CHALLENGE",
             SignalId::GeoRouteMaze => "S_GEO_ROUTE_MAZE",
@@ -460,6 +472,10 @@ pub enum DetectionId {
     HoneypotHit,
     RateLimitHit,
     ExistingBan,
+    VerifiedIdentityPolicyAllow,
+    VerifiedIdentityPolicyObserve,
+    VerifiedIdentityPolicyRestrict,
+    VerifiedIdentityPolicyDeny,
     SeqOpMissing,
     SeqOpInvalid,
     SeqOpExpired,
@@ -521,6 +537,12 @@ impl DetectionId {
             DetectionId::HoneypotHit => "D_HONEYPOT_HIT",
             DetectionId::RateLimitHit => "D_RATE_LIMIT_HIT",
             DetectionId::ExistingBan => "D_EXISTING_BAN",
+            DetectionId::VerifiedIdentityPolicyAllow => "D_VERIFIED_IDENTITY_POLICY_ALLOW",
+            DetectionId::VerifiedIdentityPolicyObserve => "D_VERIFIED_IDENTITY_POLICY_OBSERVE",
+            DetectionId::VerifiedIdentityPolicyRestrict => {
+                "D_VERIFIED_IDENTITY_POLICY_RESTRICT"
+            }
+            DetectionId::VerifiedIdentityPolicyDeny => "D_VERIFIED_IDENTITY_POLICY_DENY",
             DetectionId::SeqOpMissing => "D_SEQ_OP_MISSING",
             DetectionId::SeqOpInvalid => "D_SEQ_OP_INVALID",
             DetectionId::SeqOpExpired => "D_SEQ_OP_EXPIRED",
@@ -632,6 +654,10 @@ pub enum PolicyTransition {
     HoneypotHit,
     RateLimitHit,
     ExistingBan,
+    VerifiedIdentityPolicyAllow(Vec<SignalId>),
+    VerifiedIdentityPolicyObserve(Vec<SignalId>),
+    VerifiedIdentityPolicyRestrict(Vec<SignalId>),
+    VerifiedIdentityPolicyDeny(Vec<SignalId>),
     SeqOpMissing,
     SeqOpInvalid,
     SeqOpExpired,
@@ -701,6 +727,26 @@ pub fn resolve_policy_match(transition: PolicyTransition) -> PolicyMatch {
             EscalationLevelId::L10DenyTemp,
             DetectionId::ExistingBan,
             vec![],
+        ),
+        PolicyTransition::VerifiedIdentityPolicyAllow(signals) => PolicyMatch::new(
+            EscalationLevelId::L1AllowTagged,
+            DetectionId::VerifiedIdentityPolicyAllow,
+            signals,
+        ),
+        PolicyTransition::VerifiedIdentityPolicyObserve(signals) => PolicyMatch::new(
+            EscalationLevelId::L2Monitor,
+            DetectionId::VerifiedIdentityPolicyObserve,
+            signals,
+        ),
+        PolicyTransition::VerifiedIdentityPolicyRestrict(signals) => PolicyMatch::new(
+            EscalationLevelId::L3Shape,
+            DetectionId::VerifiedIdentityPolicyRestrict,
+            signals,
+        ),
+        PolicyTransition::VerifiedIdentityPolicyDeny(signals) => PolicyMatch::new(
+            EscalationLevelId::L10DenyTemp,
+            DetectionId::VerifiedIdentityPolicyDeny,
+            signals,
         ),
         PolicyTransition::SeqOpMissing => PolicyMatch::new(
             EscalationLevelId::L6ChallengeStrong,

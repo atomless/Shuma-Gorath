@@ -157,6 +157,13 @@ enum IdentityPolicyResolutionSource {
     TopLevelStance(NonHumanTrafficStance),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum IdentityPolicyResolutionSourceKind {
+    NamedPolicy,
+    CategoryDefault,
+    TopLevelStance,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct IdentityPolicyResolution {
     pub outcome: IdentityPolicyOutcome,
@@ -178,6 +185,20 @@ impl IdentityPolicyResolution {
             IdentityPolicyResolutionSource::NamedPolicy(policy_id) => policy_id.as_str(),
             IdentityPolicyResolutionSource::CategoryDefault(category) => category.as_str(),
             IdentityPolicyResolutionSource::TopLevelStance(stance) => stance.as_str(),
+        }
+    }
+
+    pub(crate) fn source_kind(&self) -> IdentityPolicyResolutionSourceKind {
+        match self.source {
+            IdentityPolicyResolutionSource::NamedPolicy(_) => {
+                IdentityPolicyResolutionSourceKind::NamedPolicy
+            }
+            IdentityPolicyResolutionSource::CategoryDefault(_) => {
+                IdentityPolicyResolutionSourceKind::CategoryDefault
+            }
+            IdentityPolicyResolutionSource::TopLevelStance(_) => {
+                IdentityPolicyResolutionSourceKind::TopLevelStance
+            }
         }
     }
 }

@@ -35,6 +35,18 @@ pub(crate) enum PolicyDecision {
     HoneypotHit,
     RateLimitHit,
     ExistingBan,
+    VerifiedIdentityPolicyDeny {
+        resolution: crate::bot_identity::policy::IdentityPolicyResolution,
+    },
+    VerifiedIdentityPolicyAllow {
+        resolution: crate::bot_identity::policy::IdentityPolicyResolution,
+    },
+    VerifiedIdentityPolicyObserve {
+        resolution: crate::bot_identity::policy::IdentityPolicyResolution,
+    },
+    VerifiedIdentityPolicyRestrict {
+        resolution: crate::bot_identity::policy::IdentityPolicyResolution,
+    },
     GeoBlock,
     GeoMaze,
     GeoMazeFallbackChallenge,
@@ -67,6 +79,16 @@ impl PolicyDecision {
             PolicyDecision::HoneypotHit => "honeypot_hit",
             PolicyDecision::RateLimitHit => "rate_limit_hit",
             PolicyDecision::ExistingBan => "existing_ban",
+            PolicyDecision::VerifiedIdentityPolicyDeny { .. } => "verified_identity_policy_deny",
+            PolicyDecision::VerifiedIdentityPolicyAllow { .. } => {
+                "verified_identity_policy_allow"
+            }
+            PolicyDecision::VerifiedIdentityPolicyObserve { .. } => {
+                "verified_identity_policy_observe"
+            }
+            PolicyDecision::VerifiedIdentityPolicyRestrict { .. } => {
+                "verified_identity_policy_restrict"
+            }
             PolicyDecision::GeoBlock => "geo_block",
             PolicyDecision::GeoMaze => "geo_maze",
             PolicyDecision::GeoMazeFallbackChallenge => "geo_maze_fallback_challenge",
@@ -88,7 +110,12 @@ impl PolicyDecision {
     }
 
     pub(crate) fn is_terminal(&self) -> bool {
-        !matches!(self, PolicyDecision::IpRangeAdvisory { .. })
+        !matches!(
+            self,
+            PolicyDecision::IpRangeAdvisory { .. }
+                | PolicyDecision::VerifiedIdentityPolicyObserve { .. }
+                | PolicyDecision::VerifiedIdentityPolicyRestrict { .. }
+        )
     }
 }
 
@@ -182,6 +209,43 @@ fn decide_geo(
             None
         }
     }
+}
+
+fn decide_verified_identity_policy(
+    facts: &crate::runtime::request_facts::RequestFacts,
+    cfg: &crate::config::Config,
+) -> Option<PolicyDecision> {
+    if !cfg.verified_identity.enabled {
+        return None;
+    }
+
+    let identity = facts.verified_identity.as_ref()?;
+    let resolution = crate::bot_identity::policy::resolve_identity_policy(
+        cfg.verified_identity.non_human_traffic_stance,
+        &cfg.verified_identity.named_policies,
+        &cfg.verified_identity.category_defaults,
+        &cfg.verified_identity.service_profiles,
+        identity,
+        facts.path.as_str(),
+    );
+
+    Some(match resolution.outcome {
+        crate::bot_identity::policy::IdentityPolicyOutcome::Deny
+        | crate::bot_identity::policy::IdentityPolicyOutcome::UseServiceProfile(
+            crate::bot_identity::policy::ServiceProfile::Denied,
+        ) => PolicyDecision::VerifiedIdentityPolicyDeny { resolution },
+        crate::bot_identity::policy::IdentityPolicyOutcome::Allow
+        | crate::bot_identity::policy::IdentityPolicyOutcome::UseServiceProfile(_) => {
+            PolicyDecision::VerifiedIdentityPolicyAllow { resolution }
+        }
+        crate::bot_identity::policy::IdentityPolicyOutcome::Observe => {
+            PolicyDecision::VerifiedIdentityPolicyObserve { resolution }
+        }
+        crate::bot_identity::policy::IdentityPolicyOutcome::Restrict => {
+            PolicyDecision::VerifiedIdentityPolicyRestrict { resolution }
+        }
+        crate::bot_identity::policy::IdentityPolicyOutcome::NoMatch => return None,
+    })
 }
 
 fn decide_botness(
@@ -282,9 +346,36 @@ pub(crate) fn evaluate_second_tranche(
     decisions
 }
 
+/// Evaluate the verified-identity policy tranche that sits between the
+/// first coarse controls and the later geo/botness/JS tranche.
+pub(crate) fn evaluate_verified_identity_tranche(
+    facts: &crate::runtime::request_facts::RequestFacts,
+    cfg: &crate::config::Config,
+) -> Vec<PolicyDecision> {
+    let mut decisions = Vec::new();
+    if let Some(verified_identity_policy) = decide_verified_identity_policy(facts, cfg) {
+        decisions.push(verified_identity_policy);
+    }
+    decisions
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn verified_identity() -> crate::bot_identity::contracts::VerifiedIdentityEvidence {
+        crate::bot_identity::contracts::VerifiedIdentityEvidence {
+            scheme: crate::bot_identity::contracts::IdentityScheme::ProviderSignedAgent,
+            stable_identity: "chatgpt-agent".to_string(),
+            operator: "openai".to_string(),
+            category: crate::bot_identity::contracts::IdentityCategory::UserTriggeredAgent,
+            verification_strength:
+                crate::bot_identity::contracts::VerificationStrength::ProviderAsserted,
+            end_user_controlled: true,
+            directory_source: None,
+            provenance: crate::bot_identity::contracts::IdentityProvenance::Provider,
+        }
+    }
 
     fn cfg() -> crate::config::Config {
         crate::config::defaults().clone()
@@ -370,6 +461,129 @@ mod tests {
         let decisions = evaluate_second_tranche(&request_facts, &cfg);
         assert_eq!(decisions.len(), 1);
         assert_eq!(decisions[0].label(), "botness_not_a_bot");
+    }
+
+    #[test]
+    fn verified_identity_policy_can_block_before_second_tranche_botness() {
+        let mut request_facts = facts();
+        request_facts.verified_identity = Some(verified_identity());
+        request_facts.botness_score = 8;
+
+        let mut cfg = cfg();
+        cfg.verified_identity.enabled = true;
+        cfg.verified_identity.non_human_traffic_stance =
+            crate::bot_identity::policy::NonHumanTrafficStance::DenyAllNonHuman;
+        cfg.challenge_puzzle_enabled = true;
+        cfg.challenge_puzzle_risk_threshold = 7;
+        cfg.botness_maze_threshold = 9;
+
+        assert!(evaluate_first_tranche(&request_facts, &cfg).is_empty());
+        assert_eq!(
+            evaluate_verified_identity_tranche(&request_facts, &cfg)
+                .into_iter()
+                .map(|decision| decision.label())
+                .collect::<Vec<_>>(),
+            vec!["verified_identity_policy_deny"]
+        );
+        assert_eq!(
+            evaluate_second_tranche(&request_facts, &cfg)
+                .into_iter()
+                .map(|decision| decision.label())
+                .collect::<Vec<_>>(),
+            vec!["botness_challenge"]
+        );
+    }
+
+    #[test]
+    fn verified_identity_policy_named_allow_short_circuits_before_later_tranches() {
+        let mut request_facts = facts();
+        request_facts.verified_identity = Some(verified_identity());
+        request_facts.botness_score = 8;
+
+        let mut cfg = cfg();
+        cfg.verified_identity.enabled = true;
+        cfg.verified_identity.non_human_traffic_stance =
+            crate::bot_identity::policy::NonHumanTrafficStance::DenyAllNonHuman;
+        cfg.verified_identity.named_policies = vec![crate::bot_identity::policy::IdentityPolicyEntry {
+            policy_id: "allow-openai".to_string(),
+            description: None,
+            matcher: crate::bot_identity::policy::IdentityPolicyMatcher {
+                operator: Some("openai".to_string()),
+                ..crate::bot_identity::policy::IdentityPolicyMatcher::default()
+            },
+            action: crate::bot_identity::policy::IdentityPolicyAction::Allow,
+        }];
+        cfg.challenge_puzzle_enabled = true;
+        cfg.challenge_puzzle_risk_threshold = 7;
+        cfg.botness_maze_threshold = 9;
+
+        assert_eq!(
+            evaluate_verified_identity_tranche(&request_facts, &cfg)
+                .into_iter()
+                .map(|decision| decision.label())
+                .collect::<Vec<_>>(),
+            vec!["verified_identity_policy_allow"]
+        );
+        assert_eq!(
+            evaluate_second_tranche(&request_facts, &cfg)
+                .into_iter()
+                .map(|decision| decision.label())
+                .collect::<Vec<_>>(),
+            vec!["botness_challenge"]
+        );
+    }
+
+    #[test]
+    fn verified_identity_policy_preserves_observe_and_restrict_stage_outcomes() {
+        let mut observe_facts = facts();
+        observe_facts.verified_identity = Some(verified_identity());
+        observe_facts.path = "/observe/thing".to_string();
+
+        let mut restrict_facts = facts();
+        restrict_facts.verified_identity = Some(verified_identity());
+        restrict_facts.path = "/restrict/thing".to_string();
+
+        let mut cfg = cfg();
+        cfg.verified_identity.enabled = true;
+        cfg.verified_identity.non_human_traffic_stance =
+            crate::bot_identity::policy::NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities;
+        cfg.verified_identity.named_policies = vec![
+            crate::bot_identity::policy::IdentityPolicyEntry {
+                policy_id: "observe-openai".to_string(),
+                description: None,
+                matcher: crate::bot_identity::policy::IdentityPolicyMatcher {
+                    operator: Some("openai".to_string()),
+                    path_prefixes: vec!["/observe".to_string()],
+                    ..crate::bot_identity::policy::IdentityPolicyMatcher::default()
+                },
+                action: crate::bot_identity::policy::IdentityPolicyAction::Observe,
+            },
+            crate::bot_identity::policy::IdentityPolicyEntry {
+                policy_id: "restrict-openai".to_string(),
+                description: None,
+                matcher: crate::bot_identity::policy::IdentityPolicyMatcher {
+                    operator: Some("openai".to_string()),
+                    path_prefixes: vec!["/restrict".to_string()],
+                    ..crate::bot_identity::policy::IdentityPolicyMatcher::default()
+                },
+                action: crate::bot_identity::policy::IdentityPolicyAction::Restrict,
+            },
+        ];
+
+        assert_eq!(
+            evaluate_verified_identity_tranche(&observe_facts, &cfg)
+                .into_iter()
+                .map(|decision| decision.label())
+                .collect::<Vec<_>>(),
+            vec!["verified_identity_policy_observe"]
+        );
+        assert_eq!(
+            evaluate_verified_identity_tranche(&restrict_facts, &cfg)
+                .into_iter()
+                .map(|decision| decision.label())
+                .collect::<Vec<_>>(),
+            vec!["verified_identity_policy_restrict"]
+        );
     }
 
     #[test]
