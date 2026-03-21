@@ -2,6 +2,7 @@ use super::controller_action_catalog::{
     AllowedActionGroupDefinition, AllowedActionValueConstraintDefinition,
     ALLOWED_ACTION_GROUP_DEFINITIONS,
 };
+use super::controller_action_guardrails::{build_family_summaries, group_ids_with_status};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -91,21 +92,6 @@ fn build_group(definition: &AllowedActionGroupDefinition) -> AllowedActionGroup 
     }
 }
 
-fn family_status(statuses: &[String]) -> String {
-    let all_allowed = statuses.iter().all(|status| status == "allowed");
-    let all_manual_only = statuses.iter().all(|status| status == "manual_only");
-    let all_forbidden = statuses.iter().all(|status| status == "forbidden");
-    if all_allowed {
-        "allowed".to_string()
-    } else if all_manual_only {
-        "manual_only".to_string()
-    } else if all_forbidden {
-        "forbidden".to_string()
-    } else {
-        "mixed".to_string()
-    }
-}
-
 pub(crate) fn controller_config_family_for_patch_key(key: &str) -> Option<&'static str> {
     ALLOWED_ACTION_GROUP_DEFINITIONS
         .iter()
@@ -131,48 +117,10 @@ pub(crate) fn allowed_actions_v1() -> AllowedActionsSurface {
         .iter()
         .map(build_group)
         .collect::<Vec<_>>();
-    let allowed_group_ids = groups
-        .iter()
-        .filter(|group| group.controller_status == "allowed")
-        .map(|group| group.group_id.clone())
-        .collect::<Vec<_>>();
-    let manual_only_group_ids = groups
-        .iter()
-        .filter(|group| group.controller_status == "manual_only")
-        .map(|group| group.group_id.clone())
-        .collect::<Vec<_>>();
-    let forbidden_group_ids = groups
-        .iter()
-        .filter(|group| group.controller_status == "forbidden")
-        .map(|group| group.group_id.clone())
-        .collect::<Vec<_>>();
-
-    let mut family_groups = BTreeMap::<String, Vec<&AllowedActionGroup>>::new();
-    for group in &groups {
-        family_groups
-            .entry(group.family.clone())
-            .or_default()
-            .push(group);
-    }
-
-    let families = family_groups
-        .into_iter()
-        .map(|(family, family_groups)| AllowedActionFamily {
-            controller_status: family_status(
-                family_groups
-                    .iter()
-                    .map(|group| group.controller_status.clone())
-                    .collect::<Vec<_>>()
-                    .as_slice(),
-            ),
-            group_ids: family_groups
-                .iter()
-                .map(|group| group.group_id.clone())
-                .collect(),
-            targets: controller_action_family_targets(family.as_str()),
-            family,
-        })
-        .collect::<Vec<_>>();
+    let allowed_group_ids = group_ids_with_status(groups.as_slice(), "allowed");
+    let manual_only_group_ids = group_ids_with_status(groups.as_slice(), "manual_only");
+    let forbidden_group_ids = group_ids_with_status(groups.as_slice(), "forbidden");
+    let families = build_family_summaries(groups.as_slice(), controller_action_family_targets);
 
     AllowedActionsSurface {
         schema_version: ALLOWED_ACTIONS_SCHEMA_VERSION.to_string(),
