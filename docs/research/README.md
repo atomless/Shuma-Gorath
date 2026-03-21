@@ -82,6 +82,8 @@ Completed archive index:
    Post-implementation review for the verified-identity planning refresh tranche.
 6. [`2026-03-21-wb-0-1-canonical-verified-identity-domain-post-implementation-review.md`](2026-03-21-wb-0-1-canonical-verified-identity-domain-post-implementation-review.md)
    Post-implementation review for the first verified-identity execution tranche, confirming the canonical provider-independent identity domain landed before config and provider wiring work.
+7. [`2026-03-21-wb-0-2-verified-identity-config-placeholders-and-validation-post-implementation-review.md`](2026-03-21-wb-0-2-verified-identity-config-placeholders-and-validation-post-implementation-review.md)
+   Post-implementation review for the verified-identity config tranche, confirming canonical defaults, admin/config/export parity, config-seed wiring, and dashboard Advanced JSON parity landed before request-path identity verification work.
 4. [`2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md`](2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md)
    Research synthesis for the machine-first Monitoring destination, bounded operator snapshot contract, and the first config-diff-only feedback loop that should precede the human Monitoring overhaul.
 5. [`2026-03-20-operator-snapshot-foundation-post-implementation-review.md`](2026-03-20-operator-snapshot-foundation-post-implementation-review.md)

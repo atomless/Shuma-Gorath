@@ -4,6 +4,29 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-21)
 
+### WB-0.2: Verified-Identity Config Placeholders And Validation
+
+- [x] Added the first canonical verified-identity config surface across defaults, persisted config loading, admin patch validation, config export, config seeding, controller-action family metadata, and dashboard Advanced JSON/runtime-inventory parity without changing request routing behavior.
+- [x] Why:
+  - `WB-0.2` was the first slice that had to turn the new provider-independent identity domain into an operator-shaped contract, and the plan explicitly required `config/defaults.env` to become the source of truth before provider normalization or telemetry could be wired.
+  - the clean implementation was broader than `src/config/mod.rs` alone: once verified identity becomes admin-editable, bootstrap, validation-only writes, deploy handoff export, config seeding, and dashboard Advanced JSON parity all have to speak the same schema or the repo immediately drifts.
+  - this slice intentionally stayed non-routing and manual-only. It makes restrictive non-human defaults and explicit named exceptions representable, but it does not yet verify identities on the request path or change allow/deny/challenge outcomes.
+- [x] Evidence:
+  - `src/config/mod.rs`
+  - `src/config/controller_action_surface.rs`
+  - `src/config/tests.rs`
+  - `src/admin/api.rs`
+  - `config/defaults.env`
+  - `scripts/config_seed.sh`
+  - `dashboard/src/lib/domain/config-schema.js`
+  - `dashboard/static/assets/status-var-meanings.json`
+  - `docs/configuration.md`
+  - `Makefile`
+  - `docs/research/2026-03-21-wb-0-2-verified-identity-config-placeholders-and-validation-post-implementation-review.md`
+  - `make test-verified-identity-config`
+  - `git diff --check`
+  - post-tranche review: no tranche-local shortfall was found; the next optimal work is `WB-1.1`.
+
 ### WB-0.1: Canonical Verified-Identity Domain
 
 - [x] Added a dedicated provider-independent `src/bot_identity/` subsystem with typed identity schemes, categories, evidence, verification result taxonomy, policy actions and outcomes, service-profile types, and telemetry labels that later verified-identity slices can reuse without coupling to any one provider path.

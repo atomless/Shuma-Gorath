@@ -130,7 +130,18 @@ export const advancedConfigTemplatePaths = Object.freeze([
     'provider_backends.challenge_engine',
     'provider_backends.maze_tarpit',
     'provider_backends.fingerprint_signal',
-    'edge_integration_mode'
+    'edge_integration_mode',
+    'verified_identity.enabled',
+    'verified_identity.native_web_bot_auth_enabled',
+    'verified_identity.provider_assertions_enabled',
+    'verified_identity.non_human_traffic_stance',
+    'verified_identity.replay_window_seconds',
+    'verified_identity.clock_skew_seconds',
+    'verified_identity.directory_cache_ttl_seconds',
+    'verified_identity.directory_freshness_requirement_seconds',
+    'verified_identity.named_policies',
+    'verified_identity.category_defaults',
+    'verified_identity.service_profiles'
   ]);
 
 export const writableStatusVarPaths = advancedConfigTemplatePaths;

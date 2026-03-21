@@ -4499,6 +4499,16 @@ test('config form utils and JSON object helpers preserve parser contracts', { co
     assert.equal(schema.advancedConfigTemplatePaths.includes('ai_policy_block_training'), true);
     assert.equal(schema.advancedConfigTemplatePaths.includes('ai_policy_block_search'), true);
     assert.equal(schema.advancedConfigTemplatePaths.includes('ai_policy_allow_search_engines'), true);
+    assert.equal(schema.advancedConfigTemplatePaths.includes('verified_identity.enabled'), true);
+    assert.equal(
+      schema.advancedConfigTemplatePaths.includes('verified_identity.non_human_traffic_stance'),
+      true
+    );
+    assert.equal(schema.advancedConfigTemplatePaths.includes('verified_identity.named_policies'), true);
+    assert.equal(
+      schema.advancedConfigTemplatePaths.includes('verified_identity.service_profiles'),
+      true
+    );
     assert.equal(schema.advancedConfigTemplatePaths.includes('robots_block_ai_training'), false);
     assert.equal(schema.advancedConfigTemplatePaths.includes('robots_block_ai_search'), false);
     assert.equal(schema.advancedConfigTemplatePaths.includes('robots_allow_search_engines'), false);
@@ -4514,7 +4524,8 @@ test('advanced config template paths match writable admin config patch keys', { 
     ['ban_durations', parseRustStructFieldNames(apiSource, 'AdminBanDurationsPatch')],
     ['botness_weights', parseRustStructFieldNames(apiSource, 'AdminBotnessWeightsPatch')],
     ['defence_modes', parseRustStructFieldNames(apiSource, 'AdminDefenceModesPatch')],
-    ['provider_backends', parseRustStructFieldNames(apiSource, 'AdminProviderBackendsPatch')]
+    ['provider_backends', parseRustStructFieldNames(apiSource, 'AdminProviderBackendsPatch')],
+    ['verified_identity', parseRustStructFieldNames(apiSource, 'AdminVerifiedIdentityPatch')]
   ]);
 
   const writablePaths = [];

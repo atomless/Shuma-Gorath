@@ -255,7 +255,20 @@ cat > "${tmp_json}" <<EOF
     "maze_tarpit": "${SHUMA_PROVIDER_MAZE_TARPIT}",
     "fingerprint_signal": "${SHUMA_PROVIDER_FINGERPRINT_SIGNAL}"
   },
-  "edge_integration_mode": "${SHUMA_EDGE_INTEGRATION_MODE}"
+  "edge_integration_mode": "${SHUMA_EDGE_INTEGRATION_MODE}",
+  "verified_identity": {
+    "enabled": $(bool_norm "${SHUMA_VERIFIED_IDENTITY_ENABLED}"),
+    "native_web_bot_auth_enabled": $(bool_norm "${SHUMA_VERIFIED_IDENTITY_NATIVE_WEB_BOT_AUTH_ENABLED}"),
+    "provider_assertions_enabled": $(bool_norm "${SHUMA_VERIFIED_IDENTITY_PROVIDER_ASSERTIONS_ENABLED}"),
+    "non_human_traffic_stance": "${SHUMA_VERIFIED_IDENTITY_NON_HUMAN_TRAFFIC_STANCE}",
+    "replay_window_seconds": ${SHUMA_VERIFIED_IDENTITY_REPLAY_WINDOW_SECONDS},
+    "clock_skew_seconds": ${SHUMA_VERIFIED_IDENTITY_CLOCK_SKEW_SECONDS},
+    "directory_cache_ttl_seconds": ${SHUMA_VERIFIED_IDENTITY_DIRECTORY_CACHE_TTL_SECONDS},
+    "directory_freshness_requirement_seconds": ${SHUMA_VERIFIED_IDENTITY_DIRECTORY_FRESHNESS_REQUIREMENT_SECONDS},
+    "named_policies": ${SHUMA_VERIFIED_IDENTITY_NAMED_POLICIES},
+    "category_defaults": ${SHUMA_VERIFIED_IDENTITY_CATEGORY_DEFAULTS},
+    "service_profiles": ${SHUMA_VERIFIED_IDENTITY_SERVICE_PROFILES}
+  }
 }
 EOF
 

@@ -487,6 +487,109 @@ fn defaults_enable_both_signal_and_action_paths() {
         cfg.provider_backends.fingerprint_signal,
         ProviderBackend::Internal
     );
+    assert!(!cfg.verified_identity.enabled);
+    assert!(cfg.verified_identity.native_web_bot_auth_enabled);
+    assert!(cfg.verified_identity.provider_assertions_enabled);
+    assert_eq!(
+        cfg.verified_identity.non_human_traffic_stance,
+        crate::bot_identity::policy::NonHumanTrafficStance::DenyAllNonHuman
+    );
+    assert_eq!(cfg.verified_identity.service_profiles.len(), 4);
+}
+
+#[test]
+fn verified_identity_defaults_are_seeded_and_restrictive() {
+    let cfg = defaults().clone();
+
+    assert!(!cfg.verified_identity.enabled);
+    assert!(cfg.verified_identity.native_web_bot_auth_enabled);
+    assert!(cfg.verified_identity.provider_assertions_enabled);
+    assert_eq!(
+        cfg.verified_identity.non_human_traffic_stance,
+        crate::bot_identity::policy::NonHumanTrafficStance::DenyAllNonHuman
+    );
+    assert!(cfg.verified_identity.named_policies.is_empty());
+    assert!(cfg.verified_identity.category_defaults.is_empty());
+    assert_eq!(cfg.verified_identity.service_profiles.len(), 4);
+}
+
+#[test]
+fn verified_identity_non_human_traffic_stance_accepts_expected_values() {
+    assert_eq!(
+        parse_non_human_traffic_stance("deny_all_non_human"),
+        Some(crate::bot_identity::policy::NonHumanTrafficStance::DenyAllNonHuman)
+    );
+    assert_eq!(
+        parse_non_human_traffic_stance(" allow_only_explicit_verified_identities "),
+        Some(
+            crate::bot_identity::policy::NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities
+        )
+    );
+    assert_eq!(
+        parse_non_human_traffic_stance("allow_verified_by_category"),
+        Some(crate::bot_identity::policy::NonHumanTrafficStance::AllowVerifiedByCategory)
+    );
+    assert_eq!(
+        parse_non_human_traffic_stance("allow_verified_with_low_cost_profiles_only"),
+        Some(
+            crate::bot_identity::policy::NonHumanTrafficStance::AllowVerifiedWithLowCostProfilesOnly
+        )
+    );
+    assert_eq!(parse_non_human_traffic_stance("invalid"), None);
+}
+
+#[test]
+fn verified_identity_validation_rejects_enabled_config_without_any_verifier() {
+    let mut cfg = defaults().clone();
+    cfg.verified_identity.enabled = true;
+    cfg.verified_identity.native_web_bot_auth_enabled = false;
+    cfg.verified_identity.provider_assertions_enabled = false;
+
+    let error = validate_persisted_config(&cfg).expect_err("expected invalid config");
+    assert!(error.contains("verified_identity.enabled=true"));
+}
+
+#[test]
+fn verified_identity_validation_rejects_empty_policy_matcher_and_unknown_profile_reference() {
+    let mut cfg = defaults().clone();
+    cfg.verified_identity.named_policies = vec![crate::bot_identity::policy::IdentityPolicyEntry {
+        policy_id: "empty".to_string(),
+        description: None,
+        matcher: crate::bot_identity::policy::IdentityPolicyMatcher::default(),
+        action: crate::bot_identity::policy::IdentityPolicyAction::UseServiceProfile(
+            "missing_profile".to_string(),
+        ),
+    }];
+
+    let error = validate_persisted_config(&cfg).expect_err("expected invalid config");
+    assert!(error.contains("verified_identity.named_policies[0].matcher"));
+}
+
+#[test]
+fn verified_identity_allowed_actions_surface_is_manual_only() {
+    let surface = allowed_actions_v1();
+    assert!(surface
+        .manual_only_group_ids
+        .contains(&"verified_identity.policy".to_string()));
+
+    let family = surface
+        .families
+        .iter()
+        .find(|family| family.family == "verified_identity")
+        .expect("verified_identity family");
+    assert_eq!(family.controller_status, "manual_only");
+    assert_eq!(
+        family.targets,
+        vec!["beneficial_non_human_posture".to_string()]
+    );
+}
+
+#[test]
+fn verified_identity_controller_family_maps_to_verified_identity() {
+    assert_eq!(
+        controller_config_family_for_patch_key("verified_identity"),
+        Some("verified_identity")
+    );
 }
 
 #[test]
@@ -2305,4 +2408,5 @@ fn default_seeded_config_matches_defaults_snapshot() {
         cfg.edge_integration_mode,
         defaults_cfg.edge_integration_mode
     );
+    assert_eq!(cfg.verified_identity, defaults_cfg.verified_identity);
 }

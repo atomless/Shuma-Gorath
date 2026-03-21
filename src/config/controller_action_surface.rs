@@ -793,6 +793,16 @@ const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinition] = &[
         note: "Fingerprint privacy posture remains manual-only because it changes observability/privacy policy, not tuning sensitivity.",
     },
     AllowedActionGroupDefinition {
+        group_id: "verified_identity.policy",
+        family: "verified_identity",
+        controller_status: "manual_only",
+        canary_requirement: "not_applicable",
+        patch_paths: &["verified_identity"],
+        targets: &["beneficial_non_human_posture"],
+        value_constraints: &[],
+        note: "Verified-identity trust posture remains manual-only because it changes local authorization and trust-boundary policy.",
+    },
+    AllowedActionGroupDefinition {
         group_id: "provider_selection.backends",
         family: "provider_selection",
         controller_status: "forbidden",

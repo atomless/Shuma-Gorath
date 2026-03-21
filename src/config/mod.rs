@@ -5,7 +5,7 @@
 #[cfg(not(test))]
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     env,
     net::{IpAddr, Ipv4Addr},
     sync::Mutex,
@@ -111,6 +111,13 @@ const GATEWAY_ORIGIN_AUTH_MAX_AGE_DAYS_MIN: u32 = 1;
 const GATEWAY_ORIGIN_AUTH_MAX_AGE_DAYS_MAX: u32 = 365;
 const GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS_MIN: u32 = 1;
 const GATEWAY_ORIGIN_AUTH_ROTATION_OVERLAP_DAYS_MAX: u32 = 120;
+const VERIFIED_IDENTITY_REPLAY_WINDOW_SECONDS_MIN: u64 = 30;
+const VERIFIED_IDENTITY_REPLAY_WINDOW_SECONDS_MAX: u64 = 3_600;
+const VERIFIED_IDENTITY_CLOCK_SKEW_SECONDS_MAX: u64 = 300;
+const VERIFIED_IDENTITY_DIRECTORY_CACHE_TTL_SECONDS_MIN: u64 = 60;
+const VERIFIED_IDENTITY_DIRECTORY_CACHE_TTL_SECONDS_MAX: u64 = 86_400;
+const VERIFIED_IDENTITY_DIRECTORY_FRESHNESS_REQUIREMENT_SECONDS_MIN: u64 = 60;
+const VERIFIED_IDENTITY_DIRECTORY_FRESHNESS_REQUIREMENT_SECONDS_MAX: u64 = 604_800;
 #[cfg(not(test))]
 const CONFIG_CACHE_TTL_SECONDS: u64 = 2;
 
@@ -524,6 +531,51 @@ impl Default for ProviderBackends {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct VerifiedIdentityConfig {
+    #[serde(default = "default_verified_identity_enabled")]
+    pub enabled: bool,
+    #[serde(default = "default_verified_identity_native_web_bot_auth_enabled")]
+    pub native_web_bot_auth_enabled: bool,
+    #[serde(default = "default_verified_identity_provider_assertions_enabled")]
+    pub provider_assertions_enabled: bool,
+    #[serde(default = "default_verified_identity_non_human_traffic_stance")]
+    pub non_human_traffic_stance: crate::bot_identity::policy::NonHumanTrafficStance,
+    #[serde(default = "default_verified_identity_replay_window_seconds")]
+    pub replay_window_seconds: u64,
+    #[serde(default = "default_verified_identity_clock_skew_seconds")]
+    pub clock_skew_seconds: u64,
+    #[serde(default = "default_verified_identity_directory_cache_ttl_seconds")]
+    pub directory_cache_ttl_seconds: u64,
+    #[serde(default = "default_verified_identity_directory_freshness_requirement_seconds")]
+    pub directory_freshness_requirement_seconds: u64,
+    #[serde(default = "default_verified_identity_named_policies")]
+    pub named_policies: Vec<crate::bot_identity::policy::IdentityPolicyEntry>,
+    #[serde(default = "default_verified_identity_category_defaults")]
+    pub category_defaults: Vec<crate::bot_identity::policy::IdentityCategoryDefaultAction>,
+    #[serde(default = "default_verified_identity_service_profiles")]
+    pub service_profiles: Vec<crate::bot_identity::policy::IdentityServiceProfileBinding>,
+}
+
+impl Default for VerifiedIdentityConfig {
+    fn default() -> Self {
+        Self {
+            enabled: default_verified_identity_enabled(),
+            native_web_bot_auth_enabled: default_verified_identity_native_web_bot_auth_enabled(),
+            provider_assertions_enabled: default_verified_identity_provider_assertions_enabled(),
+            non_human_traffic_stance: default_verified_identity_non_human_traffic_stance(),
+            replay_window_seconds: default_verified_identity_replay_window_seconds(),
+            clock_skew_seconds: default_verified_identity_clock_skew_seconds(),
+            directory_cache_ttl_seconds: default_verified_identity_directory_cache_ttl_seconds(),
+            directory_freshness_requirement_seconds:
+                default_verified_identity_directory_freshness_requirement_seconds(),
+            named_policies: default_verified_identity_named_policies(),
+            category_defaults: default_verified_identity_category_defaults(),
+            service_profiles: default_verified_identity_service_profiles(),
+        }
+    }
+}
+
 #[derive(Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct DefenceModeEffective {
     pub configured: ComposabilityMode,
@@ -831,6 +883,8 @@ pub struct Config {
     pub provider_backends: ProviderBackends,
     #[serde(default = "default_edge_integration_mode")]
     pub edge_integration_mode: EdgeIntegrationMode,
+    #[serde(default)]
+    pub verified_identity: VerifiedIdentityConfig,
 }
 
 #[derive(Debug, Clone)]
@@ -856,6 +910,7 @@ impl Config {
         let mut cfg =
             serde_json::from_slice::<Config>(&val).map_err(|_| ConfigLoadError::InvalidConfig)?;
         clamp_config_values(&mut cfg);
+        validate_persisted_config(&cfg).map_err(|_| ConfigLoadError::InvalidConfig)?;
         Ok(cfg)
     }
 
@@ -1007,11 +1062,189 @@ pub fn default_seeded_config() -> Config {
     let mut cfg =
         serde_json::from_str::<Config>("{}").expect("config defaults JSON must deserialize");
     clamp_config_values(&mut cfg);
+    validate_persisted_config(&cfg).expect("default seeded config must be valid");
     cfg
 }
 
-pub(crate) fn normalize_persisted_config(cfg: &mut Config) {
+pub(crate) fn normalize_persisted_config(cfg: &mut Config) -> Result<(), String> {
     clamp_config_values(cfg);
+    validate_persisted_config(cfg)
+}
+
+pub(crate) fn validate_persisted_config(cfg: &Config) -> Result<(), String> {
+    validate_verified_identity_config(&cfg.verified_identity)
+}
+
+fn validate_verified_identity_config(cfg: &VerifiedIdentityConfig) -> Result<(), String> {
+    if cfg.enabled && !cfg.native_web_bot_auth_enabled && !cfg.provider_assertions_enabled {
+        return Err(
+            "verified_identity.enabled=true requires at least one verifier path: native_web_bot_auth_enabled or provider_assertions_enabled"
+                .to_string(),
+        );
+    }
+    if !(VERIFIED_IDENTITY_REPLAY_WINDOW_SECONDS_MIN
+        ..=VERIFIED_IDENTITY_REPLAY_WINDOW_SECONDS_MAX)
+        .contains(&cfg.replay_window_seconds)
+    {
+        return Err(format!(
+            "verified_identity.replay_window_seconds out of range ({}-{})",
+            VERIFIED_IDENTITY_REPLAY_WINDOW_SECONDS_MIN,
+            VERIFIED_IDENTITY_REPLAY_WINDOW_SECONDS_MAX
+        ));
+    }
+    if cfg.clock_skew_seconds > VERIFIED_IDENTITY_CLOCK_SKEW_SECONDS_MAX {
+        return Err(format!(
+            "verified_identity.clock_skew_seconds out of range (0-{})",
+            VERIFIED_IDENTITY_CLOCK_SKEW_SECONDS_MAX
+        ));
+    }
+    if cfg.clock_skew_seconds > cfg.replay_window_seconds {
+        return Err(
+            "verified_identity.clock_skew_seconds must be <= verified_identity.replay_window_seconds"
+                .to_string(),
+        );
+    }
+    if !(VERIFIED_IDENTITY_DIRECTORY_CACHE_TTL_SECONDS_MIN
+        ..=VERIFIED_IDENTITY_DIRECTORY_CACHE_TTL_SECONDS_MAX)
+        .contains(&cfg.directory_cache_ttl_seconds)
+    {
+        return Err(format!(
+            "verified_identity.directory_cache_ttl_seconds out of range ({}-{})",
+            VERIFIED_IDENTITY_DIRECTORY_CACHE_TTL_SECONDS_MIN,
+            VERIFIED_IDENTITY_DIRECTORY_CACHE_TTL_SECONDS_MAX
+        ));
+    }
+    if !(VERIFIED_IDENTITY_DIRECTORY_FRESHNESS_REQUIREMENT_SECONDS_MIN
+        ..=VERIFIED_IDENTITY_DIRECTORY_FRESHNESS_REQUIREMENT_SECONDS_MAX)
+        .contains(&cfg.directory_freshness_requirement_seconds)
+    {
+        return Err(format!(
+            "verified_identity.directory_freshness_requirement_seconds out of range ({}-{})",
+            VERIFIED_IDENTITY_DIRECTORY_FRESHNESS_REQUIREMENT_SECONDS_MIN,
+            VERIFIED_IDENTITY_DIRECTORY_FRESHNESS_REQUIREMENT_SECONDS_MAX
+        ));
+    }
+
+    let mut profile_ids = HashSet::new();
+    for (index, profile) in cfg.service_profiles.iter().enumerate() {
+        let profile_id = profile.profile_id.trim();
+        if profile_id.is_empty() {
+            return Err(format!(
+                "verified_identity.service_profiles[{}].profile_id must not be empty",
+                index
+            ));
+        }
+        if !profile_ids.insert(profile_id.to_string()) {
+            return Err(format!(
+                "verified_identity.service_profiles[{}].profile_id duplicates {}",
+                index, profile_id
+            ));
+        }
+    }
+
+    let mut category_defaults = HashSet::new();
+    for (index, category_default) in cfg.category_defaults.iter().enumerate() {
+        if !category_defaults.insert(category_default.category) {
+            return Err(format!(
+                "verified_identity.category_defaults[{}].category duplicates {}",
+                index,
+                category_default.category.as_str()
+            ));
+        }
+        validate_verified_identity_policy_action(
+            format!("verified_identity.category_defaults[{}].action", index).as_str(),
+            &category_default.action,
+            &profile_ids,
+        )?;
+    }
+
+    let mut policy_ids = HashSet::new();
+    for (index, policy) in cfg.named_policies.iter().enumerate() {
+        let policy_id = policy.policy_id.trim();
+        if policy_id.is_empty() {
+            return Err(format!(
+                "verified_identity.named_policies[{}].policy_id must not be empty",
+                index
+            ));
+        }
+        if !policy_ids.insert(policy_id.to_string()) {
+            return Err(format!(
+                "verified_identity.named_policies[{}].policy_id duplicates {}",
+                index, policy_id
+            ));
+        }
+        validate_verified_identity_policy_matcher(
+            format!("verified_identity.named_policies[{}].matcher", index).as_str(),
+            &policy.matcher,
+        )?;
+        validate_verified_identity_policy_action(
+            format!("verified_identity.named_policies[{}].action", index).as_str(),
+            &policy.action,
+            &profile_ids,
+        )?;
+    }
+
+    Ok(())
+}
+
+fn validate_verified_identity_policy_matcher(
+    field: &str,
+    matcher: &crate::bot_identity::policy::IdentityPolicyMatcher,
+) -> Result<(), String> {
+    if matcher.is_empty() {
+        return Err(format!(
+            "{} must match at least one of: scheme, stable_identity, operator, category, or path_prefixes",
+            field
+        ));
+    }
+    if matcher
+        .stable_identity
+        .as_deref()
+        .map(str::trim)
+        .map(|value| value.is_empty())
+        .unwrap_or(false)
+    {
+        return Err(format!("{}.stable_identity must not be empty", field));
+    }
+    if matcher
+        .operator
+        .as_deref()
+        .map(str::trim)
+        .map(|value| value.is_empty())
+        .unwrap_or(false)
+    {
+        return Err(format!("{}.operator must not be empty", field));
+    }
+    for (index, prefix) in matcher.path_prefixes.iter().enumerate() {
+        if !prefix.starts_with('/') {
+            return Err(format!(
+                "{}.path_prefixes[{}] must start with /",
+                field, index
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_verified_identity_policy_action(
+    field: &str,
+    action: &crate::bot_identity::policy::IdentityPolicyAction,
+    profile_ids: &HashSet<String>,
+) -> Result<(), String> {
+    let Some(profile_id) = action.referenced_service_profile_id() else {
+        return Ok(());
+    };
+    let trimmed = profile_id.trim();
+    if trimmed.is_empty() {
+        return Err(format!("{}.value must not be empty", field));
+    }
+    if !profile_ids.contains(trimmed) {
+        return Err(format!(
+            "{} references unknown service profile {}",
+            field, trimmed
+        ));
+    }
+    Ok(())
 }
 
 static RUNTIME_CONFIG_CACHE: Lazy<Mutex<HashMap<String, CachedConfig>>> =
@@ -1297,8 +1530,10 @@ static DEFAULT_CONFIG: Lazy<Config> = Lazy::new(|| {
         defence_modes: DefenceModes::default(),
         provider_backends: ProviderBackends::default(),
         edge_integration_mode: default_edge_integration_mode(),
+        verified_identity: VerifiedIdentityConfig::default(),
     };
     clamp_config_values(&mut cfg);
+    validate_persisted_config(&cfg).expect("config defaults must be valid");
     cfg
 });
 
@@ -2426,6 +2661,24 @@ pub(crate) fn parse_provider_backend(value: &str) -> Option<ProviderBackend> {
     match value.trim().to_ascii_lowercase().as_str() {
         "internal" => Some(ProviderBackend::Internal),
         "external" => Some(ProviderBackend::External),
+        _ => None,
+    }
+}
+
+pub(crate) fn parse_non_human_traffic_stance(
+    value: &str,
+) -> Option<crate::bot_identity::policy::NonHumanTrafficStance> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "deny_all_non_human" => Some(crate::bot_identity::policy::NonHumanTrafficStance::DenyAllNonHuman),
+        "allow_only_explicit_verified_identities" => Some(
+            crate::bot_identity::policy::NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities,
+        ),
+        "allow_verified_by_category" => Some(
+            crate::bot_identity::policy::NonHumanTrafficStance::AllowVerifiedByCategory,
+        ),
+        "allow_verified_with_low_cost_profiles_only" => Some(
+            crate::bot_identity::policy::NonHumanTrafficStance::AllowVerifiedWithLowCostProfilesOnly,
+        ),
         _ => None,
     }
 }
@@ -3589,6 +3842,60 @@ fn default_fingerprint_family_cap_behavior() -> u8 {
 
 fn default_js_required_enforced() -> bool {
     defaults_bool("SHUMA_JS_REQUIRED_ENFORCED")
+}
+
+fn default_verified_identity_enabled() -> bool {
+    defaults_bool("SHUMA_VERIFIED_IDENTITY_ENABLED")
+}
+
+fn default_verified_identity_native_web_bot_auth_enabled() -> bool {
+    defaults_bool("SHUMA_VERIFIED_IDENTITY_NATIVE_WEB_BOT_AUTH_ENABLED")
+}
+
+fn default_verified_identity_provider_assertions_enabled() -> bool {
+    defaults_bool("SHUMA_VERIFIED_IDENTITY_PROVIDER_ASSERTIONS_ENABLED")
+}
+
+fn default_verified_identity_non_human_traffic_stance(
+) -> crate::bot_identity::policy::NonHumanTrafficStance {
+    let raw = defaults_raw("SHUMA_VERIFIED_IDENTITY_NON_HUMAN_TRAFFIC_STANCE");
+    parse_non_human_traffic_stance(raw.as_str()).unwrap_or_else(|| {
+        panic!(
+            "Invalid verified identity non-human traffic stance default for SHUMA_VERIFIED_IDENTITY_NON_HUMAN_TRAFFIC_STANCE={}",
+            raw
+        )
+    })
+}
+
+fn default_verified_identity_replay_window_seconds() -> u64 {
+    defaults_u64("SHUMA_VERIFIED_IDENTITY_REPLAY_WINDOW_SECONDS")
+}
+
+fn default_verified_identity_clock_skew_seconds() -> u64 {
+    defaults_u64("SHUMA_VERIFIED_IDENTITY_CLOCK_SKEW_SECONDS")
+}
+
+fn default_verified_identity_directory_cache_ttl_seconds() -> u64 {
+    defaults_u64("SHUMA_VERIFIED_IDENTITY_DIRECTORY_CACHE_TTL_SECONDS")
+}
+
+fn default_verified_identity_directory_freshness_requirement_seconds() -> u64 {
+    defaults_u64("SHUMA_VERIFIED_IDENTITY_DIRECTORY_FRESHNESS_REQUIREMENT_SECONDS")
+}
+
+fn default_verified_identity_named_policies(
+) -> Vec<crate::bot_identity::policy::IdentityPolicyEntry> {
+    defaults_json("SHUMA_VERIFIED_IDENTITY_NAMED_POLICIES")
+}
+
+fn default_verified_identity_category_defaults(
+) -> Vec<crate::bot_identity::policy::IdentityCategoryDefaultAction> {
+    defaults_json("SHUMA_VERIFIED_IDENTITY_CATEGORY_DEFAULTS")
+}
+
+fn default_verified_identity_service_profiles(
+) -> Vec<crate::bot_identity::policy::IdentityServiceProfileBinding> {
+    defaults_json("SHUMA_VERIFIED_IDENTITY_SERVICE_PROFILES")
 }
 
 fn default_pow_enabled() -> bool {

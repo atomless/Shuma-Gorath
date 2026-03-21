@@ -3714,6 +3714,29 @@ mod admin_config_tests {
         cfg.defence_modes.rate = crate::config::ComposabilityMode::Signal;
         cfg.provider_backends.fingerprint_signal = crate::config::ProviderBackend::External;
         cfg.edge_integration_mode = crate::config::EdgeIntegrationMode::Additive;
+        cfg.verified_identity.enabled = true;
+        cfg.verified_identity.native_web_bot_auth_enabled = false;
+        cfg.verified_identity.provider_assertions_enabled = true;
+        cfg.verified_identity.non_human_traffic_stance =
+            crate::bot_identity::policy::NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities;
+        cfg.verified_identity.replay_window_seconds = 180;
+        cfg.verified_identity.clock_skew_seconds = 15;
+        cfg.verified_identity.directory_cache_ttl_seconds = 900;
+        cfg.verified_identity.directory_freshness_requirement_seconds = 1_800;
+        cfg.verified_identity.named_policies = vec![crate::bot_identity::policy::IdentityPolicyEntry {
+            policy_id: "allow-openai".to_string(),
+            description: None,
+            matcher: crate::bot_identity::policy::IdentityPolicyMatcher {
+                scheme: None,
+                stable_identity: None,
+                operator: Some("openai".to_string()),
+                category: None,
+                path_prefixes: Vec::new(),
+            },
+            action: crate::bot_identity::policy::IdentityPolicyAction::UseServiceProfile(
+                "structured_agent".to_string(),
+            ),
+        }];
         store
             .set("config:default", &serde_json::to_vec(&cfg).unwrap())
             .unwrap();
@@ -3740,6 +3763,30 @@ mod admin_config_tests {
         assert_eq!(
             env.get("SHUMA_EDGE_INTEGRATION_MODE"),
             Some(&serde_json::json!("additive"))
+        );
+        assert_eq!(
+            env.get("SHUMA_VERIFIED_IDENTITY_ENABLED"),
+            Some(&serde_json::json!("true"))
+        );
+        assert_eq!(
+            env.get("SHUMA_VERIFIED_IDENTITY_NATIVE_WEB_BOT_AUTH_ENABLED"),
+            Some(&serde_json::json!("false"))
+        );
+        assert_eq!(
+            env.get("SHUMA_VERIFIED_IDENTITY_PROVIDER_ASSERTIONS_ENABLED"),
+            Some(&serde_json::json!("true"))
+        );
+        assert_eq!(
+            env.get("SHUMA_VERIFIED_IDENTITY_NON_HUMAN_TRAFFIC_STANCE"),
+            Some(&serde_json::json!("allow_only_explicit_verified_identities"))
+        );
+        assert_eq!(
+            env.get("SHUMA_VERIFIED_IDENTITY_NAMED_POLICIES"),
+            Some(&serde_json::json!(json_env(&cfg.verified_identity.named_policies)))
+        );
+        assert_eq!(
+            env.get("SHUMA_VERIFIED_IDENTITY_SERVICE_PROFILES"),
+            Some(&serde_json::json!(json_env(&cfg.verified_identity.service_profiles)))
         );
         assert_eq!(
             env.get("SHUMA_HONEYPOT_ENABLED"),
@@ -3880,6 +3927,12 @@ mod admin_config_tests {
         assert!(env_text.contains("SHUMA_RATE_LIMIT=321"));
         assert!(env_text.contains("SHUMA_MODE_RATE=signal"));
         assert!(env_text.contains("SHUMA_PROVIDER_FINGERPRINT_SIGNAL=external"));
+        assert!(env_text.contains("SHUMA_VERIFIED_IDENTITY_ENABLED=true"));
+        assert!(env_text.contains("SHUMA_VERIFIED_IDENTITY_NATIVE_WEB_BOT_AUTH_ENABLED=false"));
+        assert!(env_text.contains("SHUMA_VERIFIED_IDENTITY_PROVIDER_ASSERTIONS_ENABLED=true"));
+        assert!(env_text.contains(
+            "SHUMA_VERIFIED_IDENTITY_NON_HUMAN_TRAFFIC_STANCE=allow_only_explicit_verified_identities"
+        ));
         assert!(env_text.contains("SHUMA_HONEYPOT_ENABLED=false"));
         assert!(env_text.contains("SHUMA_BROWSER_POLICY_ENABLED=false"));
         assert!(env_text.contains("SHUMA_BYPASS_ALLOWLISTS_ENABLED=false"));
@@ -9691,6 +9744,87 @@ mod admin_config_tests {
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
     }
+
+    #[test]
+    fn admin_config_updates_verified_identity_nested_object() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        let store = TestStore::default();
+
+        let body = br#"{
+            "verified_identity": {
+                "enabled": true,
+                "native_web_bot_auth_enabled": true,
+                "provider_assertions_enabled": true,
+                "non_human_traffic_stance": "allow_only_explicit_verified_identities",
+                "replay_window_seconds": 180,
+                "clock_skew_seconds": 15,
+                "directory_cache_ttl_seconds": 900,
+                "directory_freshness_requirement_seconds": 1800,
+                "named_policies": [
+                    {
+                        "policy_id": "allow-openai-operator",
+                        "matcher": { "operator": "openai" },
+                        "action": { "kind": "use_service_profile", "value": "structured_agent" }
+                    }
+                ]
+            }
+        }"#
+        .to_vec();
+        let req = make_request(Method::Post, "/admin/config", body);
+        let resp = handle_admin_config(&req, &store, "default");
+        assert_eq!(*resp.status(), 200u16, "{:?}", resp.body());
+
+        let payload: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+        let verified_identity = payload.get("config").unwrap().get("verified_identity").unwrap();
+        assert_eq!(verified_identity.get("enabled"), Some(&serde_json::Value::Bool(true)));
+        assert_eq!(
+            verified_identity.get("non_human_traffic_stance"),
+            Some(&serde_json::Value::String(
+                "allow_only_explicit_verified_identities".to_string()
+            ))
+        );
+        assert_eq!(
+            verified_identity
+                .get("named_policies")
+                .and_then(|value| value.as_array())
+                .map(|rows| rows.len()),
+            Some(1)
+        );
+
+        let saved_cfg: crate::config::Config =
+            serde_json::from_slice(&store.get("config:default").unwrap().unwrap()).unwrap();
+        assert!(saved_cfg.verified_identity.enabled);
+        assert_eq!(
+            saved_cfg.verified_identity.non_human_traffic_stance,
+            crate::bot_identity::policy::NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities
+        );
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+    }
+
+    #[test]
+    fn admin_config_rejects_invalid_verified_identity_patch() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        let store = TestStore::default();
+
+        let body = br#"{
+            "verified_identity": {
+                "enabled": true,
+                "native_web_bot_auth_enabled": false,
+                "provider_assertions_enabled": false
+            }
+        }"#
+        .to_vec();
+        let req = make_request(Method::Post, "/admin/config", body);
+        let resp = handle_admin_config(&req, &store, "default");
+        assert_eq!(*resp.status(), 400u16);
+        let msg = String::from_utf8_lossy(resp.body());
+        assert!(msg.contains("verified_identity.enabled=true"));
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+    }
 }
 
 #[cfg(test)]
@@ -12072,6 +12206,55 @@ fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(String, String
             cfg.edge_integration_mode.as_str().to_string(),
         ),
         (
+            "SHUMA_VERIFIED_IDENTITY_ENABLED".to_string(),
+            bool_env(cfg.verified_identity.enabled).to_string(),
+        ),
+        (
+            "SHUMA_VERIFIED_IDENTITY_NATIVE_WEB_BOT_AUTH_ENABLED".to_string(),
+            bool_env(cfg.verified_identity.native_web_bot_auth_enabled).to_string(),
+        ),
+        (
+            "SHUMA_VERIFIED_IDENTITY_PROVIDER_ASSERTIONS_ENABLED".to_string(),
+            bool_env(cfg.verified_identity.provider_assertions_enabled).to_string(),
+        ),
+        (
+            "SHUMA_VERIFIED_IDENTITY_NON_HUMAN_TRAFFIC_STANCE".to_string(),
+            cfg.verified_identity
+                .non_human_traffic_stance
+                .as_str()
+                .to_string(),
+        ),
+        (
+            "SHUMA_VERIFIED_IDENTITY_REPLAY_WINDOW_SECONDS".to_string(),
+            cfg.verified_identity.replay_window_seconds.to_string(),
+        ),
+        (
+            "SHUMA_VERIFIED_IDENTITY_CLOCK_SKEW_SECONDS".to_string(),
+            cfg.verified_identity.clock_skew_seconds.to_string(),
+        ),
+        (
+            "SHUMA_VERIFIED_IDENTITY_DIRECTORY_CACHE_TTL_SECONDS".to_string(),
+            cfg.verified_identity.directory_cache_ttl_seconds.to_string(),
+        ),
+        (
+            "SHUMA_VERIFIED_IDENTITY_DIRECTORY_FRESHNESS_REQUIREMENT_SECONDS".to_string(),
+            cfg.verified_identity
+                .directory_freshness_requirement_seconds
+                .to_string(),
+        ),
+        (
+            "SHUMA_VERIFIED_IDENTITY_NAMED_POLICIES".to_string(),
+            json_env(&cfg.verified_identity.named_policies),
+        ),
+        (
+            "SHUMA_VERIFIED_IDENTITY_CATEGORY_DEFAULTS".to_string(),
+            json_env(&cfg.verified_identity.category_defaults),
+        ),
+        (
+            "SHUMA_VERIFIED_IDENTITY_SERVICE_PROFILES".to_string(),
+            json_env(&cfg.verified_identity.service_profiles),
+        ),
+        (
             "SHUMA_POW_ENABLED".to_string(),
             bool_env(cfg.pow_enabled).to_string(),
         ),
@@ -13167,6 +13350,22 @@ struct AdminProviderBackendsPatch {
 
 #[derive(Debug, Deserialize, Default)]
 #[serde(default, deny_unknown_fields)]
+struct AdminVerifiedIdentityPatch {
+    enabled: Option<bool>,
+    native_web_bot_auth_enabled: Option<bool>,
+    provider_assertions_enabled: Option<bool>,
+    non_human_traffic_stance: Option<crate::bot_identity::policy::NonHumanTrafficStance>,
+    replay_window_seconds: Option<u64>,
+    clock_skew_seconds: Option<u64>,
+    directory_cache_ttl_seconds: Option<u64>,
+    directory_freshness_requirement_seconds: Option<u64>,
+    named_policies: Option<Vec<crate::bot_identity::policy::IdentityPolicyEntry>>,
+    category_defaults: Option<Vec<crate::bot_identity::policy::IdentityCategoryDefaultAction>>,
+    service_profiles: Option<Vec<crate::bot_identity::policy::IdentityServiceProfileBinding>>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+#[serde(default, deny_unknown_fields)]
 struct AdminConfigPatch {
     shadow_mode: Option<bool>,
     adversary_sim_duration_seconds: Option<u64>,
@@ -13281,6 +13480,7 @@ struct AdminConfigPatch {
     not_a_bot_attempt_window_seconds: Option<u64>,
     provider_backends: Option<AdminProviderBackendsPatch>,
     edge_integration_mode: Option<String>,
+    verified_identity: Option<AdminVerifiedIdentityPatch>,
     challenge_puzzle_risk_threshold: Option<u64>,
     botness_maze_threshold: Option<u64>,
     botness_weights: Option<AdminBotnessWeightsPatch>,
@@ -13590,6 +13790,9 @@ fn operator_snapshot_family_snapshot(
         "provider_selection" => json!({
             "provider_backends": cfg.provider_backends,
             "edge_integration_mode": cfg.edge_integration_mode,
+        }),
+        "verified_identity" => json!({
+            "verified_identity": cfg.verified_identity,
         }),
         "botness" => json!({
             "challenge_puzzle_risk_threshold": cfg.challenge_puzzle_risk_threshold,
@@ -15220,6 +15423,111 @@ fn handle_admin_config_internal(
             );
         }
 
+        let old_verified_identity = cfg.verified_identity.clone();
+        let mut verified_identity_changed = false;
+        if let Some(verified_identity) = json.get("verified_identity") {
+            let patch = match serde_json::from_value::<AdminVerifiedIdentityPatch>(
+                verified_identity.clone(),
+            ) {
+                Ok(patch) => patch,
+                Err(err) => return Response::new(400, format!("Invalid config payload: {}", err)),
+            };
+
+            if let Some(value) = patch.enabled {
+                cfg.verified_identity.enabled = value;
+                changed = true;
+                verified_identity_changed = true;
+            }
+            if let Some(value) = patch.native_web_bot_auth_enabled {
+                cfg.verified_identity.native_web_bot_auth_enabled = value;
+                changed = true;
+                verified_identity_changed = true;
+            }
+            if let Some(value) = patch.provider_assertions_enabled {
+                cfg.verified_identity.provider_assertions_enabled = value;
+                changed = true;
+                verified_identity_changed = true;
+            }
+            if let Some(value) = patch.non_human_traffic_stance {
+                cfg.verified_identity.non_human_traffic_stance = value;
+                changed = true;
+                verified_identity_changed = true;
+            }
+            if let Some(value) = patch.replay_window_seconds {
+                cfg.verified_identity.replay_window_seconds = value;
+                changed = true;
+                verified_identity_changed = true;
+            }
+            if let Some(value) = patch.clock_skew_seconds {
+                cfg.verified_identity.clock_skew_seconds = value;
+                changed = true;
+                verified_identity_changed = true;
+            }
+            if let Some(value) = patch.directory_cache_ttl_seconds {
+                cfg.verified_identity.directory_cache_ttl_seconds = value;
+                changed = true;
+                verified_identity_changed = true;
+            }
+            if let Some(value) = patch.directory_freshness_requirement_seconds {
+                cfg.verified_identity.directory_freshness_requirement_seconds = value;
+                changed = true;
+                verified_identity_changed = true;
+            }
+            if let Some(value) = patch.named_policies {
+                cfg.verified_identity.named_policies = value;
+                changed = true;
+                verified_identity_changed = true;
+            }
+            if let Some(value) = patch.category_defaults {
+                cfg.verified_identity.category_defaults = value;
+                changed = true;
+                verified_identity_changed = true;
+            }
+            if let Some(value) = patch.service_profiles {
+                cfg.verified_identity.service_profiles = value;
+                changed = true;
+                verified_identity_changed = true;
+            }
+        }
+
+        if verified_identity_changed && !validate_only {
+            log_event(
+                store,
+                &EventLogEntry {
+                    ts: now_ts(),
+                    event: EventType::AdminAction,
+                    ip: None,
+                    reason: Some("verified_identity_config_update".to_string()),
+                    outcome: Some(format!(
+                        "enabled:{}->{} native:{}->{} provider:{}->{} stance:{}->{} replay:{}->{} skew:{}->{} cache_ttl:{}->{} freshness:{}->{} policies:{}->{} category_defaults:{}->{} profiles:{}->{}",
+                        old_verified_identity.enabled,
+                        cfg.verified_identity.enabled,
+                        old_verified_identity.native_web_bot_auth_enabled,
+                        cfg.verified_identity.native_web_bot_auth_enabled,
+                        old_verified_identity.provider_assertions_enabled,
+                        cfg.verified_identity.provider_assertions_enabled,
+                        old_verified_identity.non_human_traffic_stance.as_str(),
+                        cfg.verified_identity.non_human_traffic_stance.as_str(),
+                        old_verified_identity.replay_window_seconds,
+                        cfg.verified_identity.replay_window_seconds,
+                        old_verified_identity.clock_skew_seconds,
+                        cfg.verified_identity.clock_skew_seconds,
+                        old_verified_identity.directory_cache_ttl_seconds,
+                        cfg.verified_identity.directory_cache_ttl_seconds,
+                        old_verified_identity.directory_freshness_requirement_seconds,
+                        cfg.verified_identity.directory_freshness_requirement_seconds,
+                        old_verified_identity.named_policies.len(),
+                        cfg.verified_identity.named_policies.len(),
+                        old_verified_identity.category_defaults.len(),
+                        cfg.verified_identity.category_defaults.len(),
+                        old_verified_identity.service_profiles.len(),
+                        cfg.verified_identity.service_profiles.len()
+                    )),
+                    admin: Some(crate::admin::auth::get_admin_id(req)),
+                },
+            );
+        }
+
         let mut botness_changed = false;
         let old_challenge_threshold = cfg.challenge_puzzle_risk_threshold;
         let old_maze_threshold = cfg.botness_maze_threshold;
@@ -15370,6 +15678,10 @@ fn handle_admin_config_internal(
                 });
         }
 
+        if let Err(msg) = crate::config::validate_persisted_config(&cfg) {
+            return Response::new(400, msg);
+        }
+
         // Save config to KV store.
         if changed && !validate_only {
             let recent_change_rows = operator_snapshot_config_patch_recent_change_row(
@@ -15478,7 +15790,9 @@ fn handle_admin_config_bootstrap(
         Ok(cfg) => cfg,
         Err(err) => return Response::new(400, format!("Invalid config payload: {}", err)),
     };
-    crate::config::normalize_persisted_config(&mut cfg);
+    if let Err(msg) = crate::config::normalize_persisted_config(&mut cfg) {
+        return Response::new(400, msg);
+    }
 
     if persist_site_config(store, site_id, &cfg, &[]).is_err() {
         return Response::new(500, "Key-value store error");
