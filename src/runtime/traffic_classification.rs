@@ -305,6 +305,49 @@ mod tests {
         ));
         assert_eq!(botness.traffic_lane, Some(SUSPICIOUS_RESIDUAL));
         assert_eq!(botness.policy_source, PolicySource::PolicyGraphSecondTranche);
+
+        let verified_identity =
+            classify_current_runtime_branch(&CurrentRuntimeBranch::PolicyDecision(
+                PolicyDecision::VerifiedIdentityPolicyAllow {
+                    resolution: crate::bot_identity::policy::resolve_identity_policy(
+                        crate::bot_identity::policy::NonHumanTrafficStance::DenyAllNonHuman,
+                        &[crate::bot_identity::policy::IdentityPolicyEntry {
+                            policy_id: "allow-openai".to_string(),
+                            description: None,
+                            matcher: crate::bot_identity::policy::IdentityPolicyMatcher {
+                                operator: Some("openai".to_string()),
+                                ..crate::bot_identity::policy::IdentityPolicyMatcher::default()
+                            },
+                            action: crate::bot_identity::policy::IdentityPolicyAction::Allow,
+                        }],
+                        &[],
+                        &crate::config::defaults().verified_identity.service_profiles,
+                        &VerifiedIdentityEvidence {
+                            scheme: IdentityScheme::ProviderSignedAgent,
+                            stable_identity: "chatgpt-agent".to_string(),
+                            operator: "openai".to_string(),
+                            category: IdentityCategory::UserTriggeredAgent,
+                            verification_strength:
+                                crate::bot_identity::contracts::VerificationStrength::ProviderAsserted,
+                            end_user_controlled: true,
+                            directory_source: None,
+                            provenance:
+                                crate::bot_identity::contracts::IdentityProvenance::Provider,
+                        },
+                        "/pricing",
+                    ),
+                },
+            ));
+        assert_eq!(verified_identity.measurement_scope, MeasurementScope::IngressPrimary);
+        assert_eq!(
+            verified_identity.route_action_family,
+            RouteActionFamily::PublicContent
+        );
+        assert!(verified_identity.traffic_lane.is_none());
+        assert_eq!(
+            verified_identity.policy_source,
+            PolicySource::PolicyGraphVerifiedIdentityTranche
+        );
     }
 
     #[test]

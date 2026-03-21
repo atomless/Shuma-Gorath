@@ -680,6 +680,7 @@ test-verified-identity-policy: ## Run focused verified-identity policy-registry 
 	@cargo test bot_identity::policy::tests:: -- --nocapture
 	@cargo test runtime::policy_graph::tests:: -- --nocapture
 	@cargo test runtime::effect_intents::plan_builder::tests:: -- --nocapture
+	@cargo test runtime::traffic_classification::tests:: -- --nocapture
 
 test-verified-identity-telemetry: ## Run focused verified-identity observe-only telemetry tests
 	@echo "$(CYAN)🧪 Running verified-identity telemetry tests...$(NC)"

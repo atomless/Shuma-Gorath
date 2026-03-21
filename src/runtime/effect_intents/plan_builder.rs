@@ -1342,6 +1342,92 @@ mod tests {
                     cfg.js_required_enforced = true;
                 },
             },
+            Case {
+                name: "verified-identity-deny",
+                facts: {
+                    let mut f = facts();
+                    f.verified_identity = Some(verified_identity());
+                    f
+                },
+                configure: |cfg| {
+                    cfg.verified_identity.enabled = true;
+                    cfg.verified_identity.non_human_traffic_stance =
+                        crate::bot_identity::policy::NonHumanTrafficStance::DenyAllNonHuman;
+                },
+            },
+            Case {
+                name: "verified-identity-allow",
+                facts: {
+                    let mut f = facts();
+                    f.verified_identity = Some(verified_identity());
+                    f
+                },
+                configure: |cfg| {
+                    cfg.verified_identity.enabled = true;
+                    cfg.verified_identity.non_human_traffic_stance =
+                        crate::bot_identity::policy::NonHumanTrafficStance::DenyAllNonHuman;
+                    cfg.verified_identity.named_policies =
+                        vec![crate::bot_identity::policy::IdentityPolicyEntry {
+                            policy_id: "allow-openai".to_string(),
+                            description: None,
+                            matcher: crate::bot_identity::policy::IdentityPolicyMatcher {
+                                operator: Some("openai".to_string()),
+                                ..crate::bot_identity::policy::IdentityPolicyMatcher::default()
+                            },
+                            action: crate::bot_identity::policy::IdentityPolicyAction::Allow,
+                        }];
+                },
+            },
+            Case {
+                name: "verified-identity-observe",
+                facts: {
+                    let mut f = facts();
+                    f.path = "/observe/thing".to_string();
+                    f.verified_identity = Some(verified_identity());
+                    f
+                },
+                configure: |cfg| {
+                    cfg.verified_identity.enabled = true;
+                    cfg.verified_identity.non_human_traffic_stance =
+                        crate::bot_identity::policy::NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities;
+                    cfg.verified_identity.named_policies =
+                        vec![crate::bot_identity::policy::IdentityPolicyEntry {
+                            policy_id: "observe-openai".to_string(),
+                            description: None,
+                            matcher: crate::bot_identity::policy::IdentityPolicyMatcher {
+                                operator: Some("openai".to_string()),
+                                path_prefixes: vec!["/observe".to_string()],
+                                ..crate::bot_identity::policy::IdentityPolicyMatcher::default()
+                            },
+                            action: crate::bot_identity::policy::IdentityPolicyAction::Observe,
+                        }];
+                },
+            },
+            Case {
+                name: "verified-identity-restrict",
+                facts: {
+                    let mut f = facts();
+                    f.path = "/restrict/thing".to_string();
+                    f.verified_identity = Some(verified_identity());
+                    f
+                },
+                configure: |cfg| {
+                    cfg.verified_identity.enabled = true;
+                    cfg.verified_identity.non_human_traffic_stance =
+                        crate::bot_identity::policy::NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities;
+                    cfg.verified_identity.named_policies =
+                        vec![crate::bot_identity::policy::IdentityPolicyEntry {
+                            policy_id: "restrict-openai".to_string(),
+                            description: None,
+                            matcher: crate::bot_identity::policy::IdentityPolicyMatcher {
+                                operator: Some("openai".to_string()),
+                                path_prefixes: vec!["/restrict".to_string()],
+                                ..crate::bot_identity::policy::IdentityPolicyMatcher::default()
+                            },
+                            action: crate::bot_identity::policy::IdentityPolicyAction::Restrict,
+                        }];
+                },
+            },
         ];
 
         let mut lines = Vec::new();
@@ -1350,7 +1436,16 @@ mod tests {
             (case.configure)(&mut cfg);
             let mut decisions = crate::runtime::policy_graph::evaluate_first_tranche(&case.facts, &cfg);
             if decisions.is_empty() {
-                decisions = crate::runtime::policy_graph::evaluate_second_tranche(&case.facts, &cfg);
+                decisions = crate::runtime::policy_graph::evaluate_verified_identity_tranche(
+                    &case.facts,
+                    &cfg,
+                );
+            }
+            if decisions.is_empty() {
+                decisions = crate::runtime::policy_graph::evaluate_second_tranche(
+                    &case.facts,
+                    &cfg,
+                );
             }
             for decision in decisions {
                 let plan = plan_for_decision(&decision, &case.facts, &cfg);
