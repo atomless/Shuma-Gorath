@@ -56,6 +56,8 @@ Completed archive index:
    Post-implementation review confirming the dashboard now exposes the settled lane selector, desired-versus-active lane truth, focused module + Playwright verification, and leaves the operator-rollout tranche as the next remaining slice.
 12. [`2026-03-21-arch-sim-1-adversary-sim-structural-decomposition-post-implementation-review.md`](2026-03-21-arch-sim-1-adversary-sim-structural-decomposition-post-implementation-review.md)
    Post-implementation review confirming the adversary-sim control plane is now structurally decomposed across state, corpus, diagnostics, worker-plan, and lane-runtime modules while preserving the live runtime surface required for the later agent-first loop.
+13. [`2026-03-21-adv-run-arch-1-adversarial-runner-structural-decomposition-post-implementation-review.md`](2026-03-21-adv-run-arch-1-adversarial-runner-structural-decomposition-post-implementation-review.md)
+   Post-implementation review confirming the adversarial runner now delegates contract loading, state carriers, governance, discovery scoring, evidence shaping, and realism/profile coordination to focused helper modules, and recording the immediate attack-plan extraction follow-up completed during closeout review.
 
 ## 🐙 Gateway Deployment Research
 

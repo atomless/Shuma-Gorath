@@ -4,6 +4,30 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-21)
 
+### ADV-RUN-ARCH-1: Split The Adversarial Runner Into Focused Helper Modules
+
+- [x] Completed the planned adversarial-runner structural decomposition by extracting contract loading, runtime state carriers, report-section builders, frontier governance, frontier discovery scoring, evidence shaping, and execution/profile-coordination helpers into `scripts/tests/adversarial_runner/*` modules while keeping `scripts/tests/adversarial_simulation_runner.py` as the stable CLI and regression shell.
+- [x] Why:
+  - later `ADV-PROMO-1`, `OPS-BENCH-2`, `OVR-RECON-1`, and `OVR-AGENT-1` work needed real implementation homes around the emergent-lane and replay/promotion toolchain instead of continuing to land inside one mixed Python hotspot.
+  - the cleanest path was behavior-preserving extraction around already-present seams: contracts, state carriers, frontier governance, discovery scoring, evidence shaping, and realism/profile coordination.
+  - completing this tranche now keeps the agent-first loop work aligned with the structural decomposition plan and makes the runner safer to integrate with later backend truth work.
+- [x] Evidence:
+  - `scripts/tests/adversarial_runner/contracts.py`
+  - `scripts/tests/adversarial_runner/runtime_state.py`
+  - `scripts/tests/adversarial_runner/shared.py`
+  - `scripts/tests/adversarial_runner/reporting.py`
+  - `scripts/tests/adversarial_runner/governance.py`
+  - `scripts/tests/adversarial_runner/discovery_scoring.py`
+  - `scripts/tests/adversarial_runner/evidence.py`
+  - `scripts/tests/adversarial_runner/execution.py`
+  - `scripts/tests/adversarial_simulation_runner.py`
+  - `docs/research/2026-03-21-adv-run-arch-1-adversarial-runner-structural-decomposition-post-implementation-review.md`
+  - `make test-adversarial-runner-architecture`
+  - `make test-adversarial-python-unit`
+  - `make test-adversarial-lane-contract`
+  - `git diff --check`
+  - review follow-up `ADV-RUN-ARCH-1-REVIEW-1` moved `build_attack_plan` out of the runner shell into `scripts/tests/adversarial_runner/discovery_scoring.py`, and no tranche-local shortfall remained open before `OPS-BENCH-2`.
+
 ### ARCH-SIM-1: Split The Adversary-Sim Control Plane Into Focused Modules
 
 - [x] Completed the planned adversary-sim structural decomposition by extracting lifecycle state helpers, deterministic corpus helpers, diagnostics payload and state helpers, worker-plan/result contracts, and lane runtime execution helpers into focused modules while keeping `src/admin/adversary_sim.rs` as the stable public shell for the existing admin/runtime contract.
