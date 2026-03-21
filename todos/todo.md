@@ -84,7 +84,6 @@ Current stance:
 - Land the first shared-host agent tweaker loop before `MON-OVERHAUL-1` so Monitoring and Tuning can project proven machine-first semantics instead of inventing them early.
 - Treat the verified-identity observability and benchmarking gap as part of this loop-closure track rather than later polish.
 
-- [ ] ARCH-API-1 Split `src/admin/api.rs` into a thin router shell plus domain handler modules before any further operator-loop or adversary-control work lands there; preserve endpoint contracts, auth/rate-limit behavior, and focused `make` verification.
 - [ ] ARCH-OBS-1 Split `src/observability/operator_snapshot.rs`, `src/observability/benchmark_results.rs`, and `src/config/controller_action_surface.rs` into focused modules before adding benchmark history, persisted objectives, or decision-ledger semantics.
 - [ ] ARCH-SIM-1 Split `src/admin/adversary_sim.rs` into control-state, lane runtime, diagnostics, and corpus/worker-plan helpers before recommend-only reconcile integration work starts.
 - [ ] ADV-RUN-ARCH-1 Break `scripts/tests/adversarial_simulation_runner.py` into focused modules/helpers for contract loading, attacker/control-plane execution, evidence shaping, discovery scoring, and governance/report checks so the current `6950`-line multi-responsibility runner stops concentrating unrelated concerns in one file.

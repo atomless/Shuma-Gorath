@@ -4,6 +4,29 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-21)
 
+### ARCH-API-1: Split Admin Route Families Out Of `src/admin/api.rs`
+
+- [x] Completed the planned admin route-family decomposition by extracting recent-change ledger helpers, operator snapshot endpoints, benchmark endpoints, adversary-sim handlers, diagnostics handlers, monitoring and ip-ban monitoring handlers, and the config route surface into focused `src/admin/*` modules while keeping `src/admin/api.rs` as the top-level router shell and shared helper home.
+- [x] Why:
+  - the repo had already identified `src/admin/api.rs` as a control-plane hotspot, and later benchmark, snapshot, and recommend-only oversight work needed stable implementation homes outside that monolith before more logic landed there.
+  - the cleanest path was behavior-preserving extraction around real existing route families instead of a speculative redesign of the whole admin surface.
+  - completing this tranche first keeps later `ARCH-OBS-1`, `OPS-*`, and `OVR-*` work aligned with the planned modular architecture rather than increasing the control-plane concentration further.
+- [x] Evidence:
+  - `src/admin/recent_changes_ledger.rs`
+  - `src/admin/operator_snapshot_api.rs`
+  - `src/admin/benchmark_api.rs`
+  - `src/admin/adversary_sim_api.rs`
+  - `src/admin/diagnostics_api.rs`
+  - `src/admin/monitoring_api.rs`
+  - `src/admin/config_api.rs`
+  - `src/admin/api.rs`
+  - `Makefile`
+  - `docs/research/2026-03-21-arch-api-1-admin-route-shell-post-implementation-review.md`
+  - `make test-admin-api-routing-contract`
+  - `make test-runtime-preflight-unit`
+  - `git diff --check`
+  - tranche review result: no task-local shortfall required an immediate reopen before `ARCH-OBS-1`.
+
 ### LOOP-READY-1: Make The Agent-First Loop Queue Execution-Ready
 
 - [x] Captured the remaining prerequisite tranche before the active `ARCH-*`, `OPS-*`, and `OVR-*` queue by writing a loop-closure execution-readiness review plus three detailed implementation plans covering structural decomposition, loop-truth completion, and reconcile-plus-agent work, then wired those plans into the high-level loop-closure references and active TODO context.
