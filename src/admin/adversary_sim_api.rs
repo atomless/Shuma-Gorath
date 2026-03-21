@@ -1,9 +1,23 @@
 use serde_json::json;
 use spin_sdk::http::{Method, Request, Response};
 
+use super::recent_changes_ledger::{
+    operator_snapshot_manual_change_row, record_operator_snapshot_recent_change_rows,
+};
+
 pub(crate) struct AdversarySimLifecycleSnapshot {
     pub(crate) cfg: crate::config::Config,
     pub(crate) state: crate::admin::adversary_sim::ControlState,
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct AdminAdversarySimControlRequest {
+    pub(crate) enabled: bool,
+    #[serde(default)]
+    pub(crate) lane: Option<crate::admin::adversary_sim::RuntimeLane>,
+    #[serde(default)]
+    pub(crate) reason: Option<String>,
 }
 
 pub(crate) fn adversary_sim_lifecycle_snapshot_from_cfg(
@@ -460,4 +474,129 @@ pub(crate) fn handle_admin_adversary_sim_history_cleanup(
     }))
     .unwrap();
     Response::new(200, body)
+}
+
+pub(crate) fn control_state_label(enabled: bool) -> String {
+    if enabled {
+        "running".to_string()
+    } else {
+        "off".to_string()
+    }
+}
+
+pub(crate) fn control_lane_label(
+    lane: Option<crate::admin::adversary_sim::RuntimeLane>,
+) -> Option<String> {
+    lane.map(|value| value.as_str().to_string())
+}
+
+pub(crate) fn control_desired_lane_label(
+    state: &crate::admin::adversary_sim::ControlState,
+) -> Option<String> {
+    Some(state.desired_lane.as_str().to_string())
+}
+
+pub(crate) fn control_actual_lane_label(
+    state: &crate::admin::adversary_sim::ControlState,
+) -> Option<String> {
+    control_lane_label(crate::admin::adversary_sim::effective_active_lane(state))
+}
+
+pub(crate) fn log_adversary_sim_transition<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    site_id: &str,
+    req: &Request,
+    auth: &crate::admin::auth::AdminAuthResult,
+    transition: &crate::admin::adversary_sim::Transition,
+    operation_id: Option<&str>,
+) {
+    let client_ip = crate::extract_client_ip(req);
+    let session = auth.session_id.as_deref().unwrap_or("-");
+    let run_id = transition.run_id.as_deref().unwrap_or("-");
+    let operation = operation_id.unwrap_or("-");
+    record_operator_snapshot_recent_change_rows(
+        store,
+        site_id,
+        &[operator_snapshot_manual_change_row(
+            crate::admin::now_ts(),
+            "adversary_sim_transition",
+            &["adversary_sim_control"],
+            &["representative_adversary_effectiveness"],
+            auth.audit_actor_label(),
+            format!(
+                "adversary sim transition {} -> {} ({})",
+                transition.from.as_str(),
+                transition.to.as_str(),
+                transition.reason
+            )
+            .as_str(),
+        )],
+        crate::admin::now_ts(),
+    );
+    crate::admin::log_event(
+        store,
+        &crate::admin::EventLogEntry {
+            ts: crate::admin::now_ts(),
+            event: crate::admin::EventType::AdminAction,
+            ip: Some(client_ip),
+            reason: Some("adversary_sim_transition".to_string()),
+            outcome: Some(format!(
+                "from={} to={} reason={} run_id={} operation_id={} actor={} session={}",
+                transition.from.as_str(),
+                transition.to.as_str(),
+                transition.reason,
+                run_id,
+                operation,
+                auth.audit_actor_label(),
+                session
+            )),
+            admin: Some(auth.audit_actor_label().to_string()),
+        },
+    );
+}
+
+pub(crate) fn log_adversary_sim_control_audit<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    req: &Request,
+    auth: &crate::admin::auth::AdminAuthResult,
+    audit: &crate::admin::adversary_sim_control::ControlAuditRecord,
+    _capability: &crate::admin::adversary_sim_control::AuditWriteCapability,
+) {
+    let client_ip = crate::extract_client_ip(req);
+    let payload = json!({
+        "operation_id": audit.operation_id.clone(),
+        "actor_scope": audit.actor_scope.clone(),
+        "session_scope_hash": crate::admin::adversary_sim_control::hash_hex(audit.session_scope.as_str()),
+        "decision": audit.decision,
+        "reason": audit.reason.clone(),
+        "origin_verdict": audit.origin_verdict.clone(),
+        "idempotency_key_hash": audit.idempotency_key_hash.clone(),
+        "request_origin": audit.request_origin.clone(),
+        "requested_state": audit.requested_state.clone(),
+        "requested_lane": audit.requested_lane.clone(),
+        "desired_state": audit.desired_state.clone(),
+        "desired_lane": audit.desired_lane.clone(),
+        "actual_state": audit.actual_state.clone(),
+        "actual_lane": audit.actual_lane.clone()
+    });
+    crate::admin::log_event(
+        store,
+        &crate::admin::EventLogEntry {
+            ts: crate::admin::now_ts(),
+            event: crate::admin::EventType::AdminAction,
+            ip: Some(client_ip),
+            reason: Some("adversary_sim_control_audit".to_string()),
+            outcome: Some(payload.to_string()),
+            admin: Some(auth.audit_actor_label().to_string()),
+        },
+    );
+}
+
+pub(crate) fn save_adversary_sim_state_with_capability<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    site_id: &str,
+    state: &crate::admin::adversary_sim::ControlState,
+    _capability: &crate::admin::adversary_sim_control::StateWriteCapability,
+) -> Result<(), ()> {
+    crate::admin::adversary_sim::save_state(store, site_id, state)
 }
