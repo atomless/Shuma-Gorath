@@ -4,6 +4,45 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-21)
 
+### WB-2.2-REVIEW-1: Rebuild Directory Cache Index On Drift
+
+- [x] During the `WB-2.2` closeout review, identified that directory-cache growth was only bounded while the explicit cache index remained intact, then executed the follow-up by rebuilding the index from cached directory records when it is missing or malformed and deleting newly written records if index persistence fails.
+- [x] Why:
+  - `WB-2.2` promised bounded cache size, which must remain true even after local index drift instead of only in the happy path.
+  - the cleanest fix was reuse-first: strengthen the existing cache/index machinery rather than introduce a second storage primitive or broaden the verified-identity contract.
+  - using the existing `KeyValueStore::get_keys()` seam let Shuma recover from index loss without adding a new dependency or a parallel cache catalog.
+- [x] Evidence:
+  - `src/bot_identity/native_http_message_signatures.rs`
+  - `src/test_support.rs`
+  - `docs/research/2026-03-21-wb-2-2-directory-discovery-cache-post-implementation-review.md`
+  - `make test-verified-identity-directory-discovery`
+  - `make test-verified-identity-native`
+  - `git diff --check`
+  - review result: the cache-index drift gap was closed during tranche review; no remaining `WB-2.2` shortfall was left open.
+
+### WB-2.2: Bounded Native Directory Discovery And Cache
+
+- [x] Added bounded external directory and key discovery/cache behavior to the native HTTP Message Signatures verifier, including HTTPS-only external `Signature-Agent` resolution, explicit stale-versus-unavailable discovery outcomes, site-local bounded cache eviction, refresh fallback to still-fresh cached material, and focused make coverage for the new resolver path.
+- [x] Why:
+  - `WB-2.2` was the exact next tranche intentionally deferred by `WB-2.1`, so the implementation had to close native external-directory discovery without drifting into proxy semantics or authorization policy.
+  - the shared key-value seam already fit Shuma's existing explicit-expiry pattern, which made it possible to add caching without widening the request-path storage abstraction.
+  - keeping the default Spin manifest outbound-closed while documenting explicit host approval preserves the repo's secure default posture even though the native verifier can now resolve approved external directories.
+- [x] Evidence:
+  - `src/bot_identity/native_http_message_signatures.rs`
+  - `src/test_support.rs`
+  - `Makefile`
+  - `docs/configuration.md`
+  - `spin.toml`
+  - `docs/research/2026-03-21-wb-2-2-directory-discovery-cache-readiness-review.md`
+  - `docs/research/2026-03-21-wb-2-2-directory-discovery-cache-post-implementation-review.md`
+  - `make test-verified-identity-directory-discovery`
+  - `make test-verified-identity-native`
+  - `make test-verified-identity-provider`
+  - `make test-verified-identity-telemetry`
+  - `make test-verified-identity-annotations`
+  - `git diff --check`
+  - post-tranche review: the one cache-index shortfall found during closeout was executed immediately as `WB-2.2-REVIEW-1`; no remaining tranche-local shortfall remained open.
+
 ### WB-2.1-REVIEW-1: Fail-Closed Native Replay State
 
 - [x] During the `WB-2.1` closeout review, identified that replay-marker reads and writes in the new native verifier initially failed open on key-value errors, then executed the follow-up by making malformed/unavailable replay state and failed replay-marker persistence fail closed as explicit `replay_rejected` outcomes.

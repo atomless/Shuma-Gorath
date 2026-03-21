@@ -34,6 +34,14 @@ impl crate::challenge::KeyValueStore for InMemoryStore {
         map.remove(key);
         Ok(())
     }
+
+    fn get_keys(&self) -> Result<Vec<String>, ()> {
+        let map = self
+            .map
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        Ok(map.keys().cloned().collect())
+    }
 }
 
 static ENV_MUTEX: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));

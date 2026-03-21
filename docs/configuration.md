@@ -319,6 +319,12 @@ The following <abbr title="Key-Value">KV</abbr>-backed fields are currently writ
 - Verified identity: `verified_identity.{enabled,native_web_bot_auth_enabled,provider_assertions_enabled,non_human_traffic_stance,replay_window_seconds,clock_skew_seconds,directory_cache_ttl_seconds,directory_freshness_requirement_seconds,named_policies,category_defaults,service_profiles}`.
 - Botness/challenge tuning: `pow_enabled`, `pow_difficulty`, `pow_ttl_seconds`, `challenge_puzzle_enabled`, `challenge_puzzle_transform_count`, `challenge_puzzle_seed_ttl_seconds`, `challenge_puzzle_attempt_limit_per_window`, `challenge_puzzle_attempt_window_seconds`, `challenge_puzzle_risk_threshold`, `not_a_bot_enabled`, `not_a_bot_risk_threshold`, `not_a_bot_pass_score`, `not_a_bot_fail_score`, `not_a_bot_nonce_ttl_seconds` (Verification Token Lifetime), `not_a_bot_marker_ttl_seconds` (Pass Marker Lifetime), `not_a_bot_attempt_limit_per_window`, `not_a_bot_attempt_window_seconds`, `botness_maze_threshold`, `botness_weights.{js_required,geo_risk,rate_medium,rate_high,maze_behavior}`, `defence_modes.{rate,geo,js}`.
 
+Verified-identity directory discovery notes:
+- Native external directory discovery follows only signed `https://` `Signature-Agent` URLs.
+- The default repository Spin manifest keeps outbound HTTP closed. External native directory discovery works only when the deployment explicitly allows the approved directory hosts in the bot-defence component outbound allowlist.
+- `verified_identity.directory_cache_ttl_seconds` controls when Shuma attempts a refresh of cached directory material.
+- `verified_identity.directory_freshness_requirement_seconds` is the hard maximum age for using cached directory material. If refresh fails and cached material is older than this requirement, verification fails as stale rather than silently succeeding.
+
 Shuma targets a 2-class model:
 - Env-only runtime keys in the Env-Only table above.
 - <abbr title="Key-Value">KV</abbr>-backed admin-editable runtime settings writable via `POST /admin/config`.

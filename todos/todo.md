@@ -77,16 +77,6 @@ Current stance:
 - The primary product value is exact non-human restriction and exception management; looser treatment for named verified bots remains an explicit opt-in later policy choice.
 - Do not bundle authorization policy, low-cost profiles, or dashboard control surfaces into the first tranche.
 
-- [ ] WB-2.2 Add bounded directory and key discovery/cache for native verified identity.
-  - Reference context:
-    - [`docs/research/2026-03-21-wb-2-2-directory-discovery-cache-readiness-review.md`](../docs/research/2026-03-21-wb-2-2-directory-discovery-cache-readiness-review.md)
-    - [`docs/plans/2026-03-21-wb-2-2-directory-discovery-cache-implementation-plan.md`](../docs/plans/2026-03-21-wb-2-2-directory-discovery-cache-implementation-plan.md)
-  - Scope:
-    - fetch only signed external `https://` `Signature-Agent` directories through a bounded native resolver,
-    - cache directory material with explicit timestamps and bounded site-local eviction,
-    - surface `directory_unavailable` versus `directory_stale` explicitly,
-    - and keep proxy/header trust semantics plus authorization policy out of this tranche.
-
 ## P1 Production Adversary-Sim Operating Contract
 
 Reference context:
