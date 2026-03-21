@@ -4,6 +4,25 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-21)
 
+### DEP-ENT-1-4: Focused Verification And Truthful Enterprise Ban-Store Docs
+
+- [x] Closed the final `DEP-ENT-1` tranche by validating that `make test-enterprise-ban-store-contract` already truthfully covers the strict enterprise ban-store contract and by refreshing the public/operator docs to describe the settled posture: permissive self-hosted ban-store fallback remains `fallback_internal`, authoritative enterprise multi-instance ban sync requires `SHUMA_PROVIDER_BAN_STORE=external` plus `SHUMA_BAN_STORE_OUTAGE_MODE=fail_closed`, and strict admin/operator surfaces expose `503` or explicit availability markers instead of hidden local fallback.
+- [x] Why:
+  - the earlier implementation slices changed the runtime, admin, operator, and dashboard behavior to be truthful under strict outage posture, but the docs still described external ban store as though it always fell back internally. That left the public contract behind the code.
+  - by the time this tranche began, the focused make target had already been refined enough to match the intended proof surface. The clean closeout was therefore to confirm that coverage, not to add another gratuitous Makefile change.
+  - the post-implementation review confirmed there is no remaining shortfall inside `DEP-ENT-1`; the next open enterprise distributed-state work now begins with observability in `DEP-ENT-2`.
+- [x] Evidence:
+  - `Makefile`
+  - `docs/configuration.md`
+  - `docs/deployment.md`
+  - `docs/module-boundaries.md`
+  - `docs/api.md`
+  - `docs/quick-reference.md`
+  - `docs/research/2026-03-21-dep-ent-1-4-focused-verification-and-docs-post-implementation-review.md`
+  - `make test-enterprise-ban-store-contract`
+  - `git diff --check`
+  - post-tranche review: no new tranche-local shortfall was found inside `DEP-ENT-1-4`; `DEP-ENT-1` is complete and the next optimal work is `DEP-ENT-2`.
+
 ### DEP-ENT-1-3A: Provider-Aware Operator Ban-Read Surfaces
 
 - [x] Reworked the remaining operator-visible ban-read surfaces so they now flow through provider-aware active-ban semantics instead of unconditional local scans: `/admin/ip-bans/delta` and `/admin/ip-bans/stream` now publish explicit availability state, monitoring and analytics ban summaries now preserve unavailable-versus-available truth, and the dashboard keeps and renders those markers instead of coercing them to zero.

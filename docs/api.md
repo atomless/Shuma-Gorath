@@ -143,20 +143,20 @@ When `SHUMA_DEBUG_HEADERS=true`, the health response includes:
 - `POST /admin/login` - Native dashboard login form endpoint; accepts `application/x-www-form-urlencoded` `password=<SHUMA_API_KEY>` plus optional `next=...`, sets the admin session cookie, and redirects
 - `GET /admin/session` - Current auth/session state
 - `POST /admin/logout` - Clear admin session cookie
-- `GET /admin/ban` - List active bans
-- `POST /admin/ban` - Ban an <abbr title="Internet Protocol">IP</abbr> (<abbr title="JavaScript Object Notation">JSON</abbr> body: `{"ip":"x.x.x.x","duration":3600}`; reason is always `manual_ban`)
-- `POST /admin/unban?ip=x.x.x.x` - Unban an <abbr title="Internet Protocol">IP</abbr>
-- `GET /admin/analytics` - Ban/event statistics
+- `GET /admin/ban` - List active bans. Under strict external ban-store outage posture, this returns `503` instead of serving local-only fallback state when authoritative reads are unavailable.
+- `POST /admin/ban` - Ban an <abbr title="Internet Protocol">IP</abbr> (<abbr title="JavaScript Object Notation">JSON</abbr> body: `{"ip":"x.x.x.x","duration":3600}`; reason is always `manual_ban`). Under strict external outage posture, this returns `503` instead of claiming success when external sync fails.
+- `POST /admin/unban?ip=x.x.x.x` - Unban an <abbr title="Internet Protocol">IP</abbr>. Under strict external outage posture, this returns `503` instead of claiming success when external sync fails.
+- `GET /admin/analytics` - Ban/event statistics plus explicit ban-store availability markers (`ban_store_status`, `ban_store_message`).
 - `GET /admin/events?hours=N` - Recent events + summary stats (simulation rows are included when present and tagged per row). Default view is pseudonymized; forensic raw view requires `forensic=1&forensic_ack=I_UNDERSTAND_FORENSIC`.
 - `GET /admin/cdp/events?hours=N&limit=M` - <abbr title="Chrome DevTools Protocol">CDP</abbr>-only detections/auto-bans (time-windowed, limit configurable). Default view is pseudonymized; forensic raw view requires `forensic=1&forensic_ack=I_UNDERSTAND_FORENSIC`.
 - `GET /admin/operator-snapshot` - Read-only machine-first `operator_snapshot_v1` contract for later controller loops and Monitoring projection work. Returns bounded objectives, live-vs-shadow-vs-adversary-sim sections, a bounded `recent_changes` ledger, `allowed_actions_v1`, budget-distance rows, nested `benchmark_results_v1`, and section metadata. This endpoint does not repair or rebuild documents on read; if the hot-read document has not been materialized yet it returns `503` with `error=operator_snapshot_not_materialized`.
 - `GET /admin/benchmark-suite` - Read-only machine-first `benchmark_suite_v1` registry. Returns the bounded benchmark family contract for suspicious-origin cost, likely-human friction, representative adversary effectiveness, and beneficial non-human posture, along with supported comparison modes, subject kinds, and benchmark-driven escalation boundaries. This is a static backend-owned contract and does not depend on hot-read materialization.
 - `GET /admin/benchmark-results` - Read-only machine-first `benchmark_results_v1` envelope. Returns the same bounded current-instance benchmark contract that is nested inside `operator_snapshot_v1`, including subject kind, watch window, baseline-reference availability, per-family metric statuses, exactness or capability metadata, and an explicit review-aware `escalation_hint` containing the current benchmark decision (`config_tuning_candidate`, `observe_longer`, or `code_evolution_candidate`), trigger families, matching config-action families, and blockers. This endpoint does not materialize snapshots on read; if the operator snapshot document is missing it returns `503` with `error=benchmark_results_snapshot_missing`.
-- `GET /admin/monitoring?hours=N&limit=M` - Consolidated monitoring summaries plus dashboard-native detail payload for Monitoring tab refreshes. Default view is pseudonymized; forensic raw view requires `forensic=1&forensic_ack=I_UNDERSTAND_FORENSIC`.
+- `GET /admin/monitoring?hours=N&limit=M` - Consolidated monitoring summaries plus dashboard-native detail payload for Monitoring tab refreshes, including ban-store availability markers for `details.analytics` and `details.bans`. Default view is pseudonymized; forensic raw view requires `forensic=1&forensic_ack=I_UNDERSTAND_FORENSIC`.
 - `GET /admin/monitoring/delta?after_cursor=...&limit=N&hours=M` - Cursor-ordered monitoring event deltas (`next_cursor`, `has_more`, `overflow`) with `ETag`/`If-None-Match` support and freshness/load-envelope metadata. Default view is pseudonymized; forensic raw view requires `forensic=1&forensic_ack=I_UNDERSTAND_FORENSIC`.
 - `GET /admin/monitoring/stream?after_cursor=...&limit=N&hours=M` - One-shot <abbr title="Server-Sent Events">SSE</abbr> monitoring delta (`text/event-stream`) with `Last-Event-ID` resume using the same cursor namespace. Default view is pseudonymized; forensic raw view requires `forensic=1&forensic_ack=I_UNDERSTAND_FORENSIC`.
-- `GET /admin/ip-bans/delta?after_cursor=...&limit=N&hours=M` - Cursor-ordered ban/unban deltas plus active-ban snapshot (`active_bans`) with `ETag`/`If-None-Match` support and freshness/load-envelope metadata. Default view is pseudonymized; forensic raw view requires `forensic=1&forensic_ack=I_UNDERSTAND_FORENSIC`.
-- `GET /admin/ip-bans/stream?after_cursor=...&limit=N&hours=M` - One-shot <abbr title="Server-Sent Events">SSE</abbr> IP-ban delta (`text/event-stream`) with `Last-Event-ID` resume using the same cursor namespace. Default view is pseudonymized; forensic raw view requires `forensic=1&forensic_ack=I_UNDERSTAND_FORENSIC`.
+- `GET /admin/ip-bans/delta?after_cursor=...&limit=N&hours=M` - Cursor-ordered ban/unban deltas plus active-ban snapshot (`active_bans`) and explicit active-ban availability markers (`active_bans_status`, `active_bans_message`) with `ETag`/`If-None-Match` support and freshness/load-envelope metadata. Default view is pseudonymized; forensic raw view requires `forensic=1&forensic_ack=I_UNDERSTAND_FORENSIC`.
+- `GET /admin/ip-bans/stream?after_cursor=...&limit=N&hours=M` - One-shot <abbr title="Server-Sent Events">SSE</abbr> IP-ban delta (`text/event-stream`) with `Last-Event-ID` resume using the same cursor namespace, including `active_bans`, `active_bans_status`, and `active_bans_message`. Default view is pseudonymized; forensic raw view requires `forensic=1&forensic_ack=I_UNDERSTAND_FORENSIC`.
 - `GET /admin/ip-range/suggestions?hours=N&limit=M` - Suggested IP-range candidates with collateral-risk scoring
 - `GET /admin/config` - Read configuration envelope
   - `config` contains writable persisted admin settings.
@@ -252,10 +252,30 @@ Adversary-sim command contract (`adversary-sim-control.v1`) highlights:
 - hidden covert-decoy tracking markers/links are not emitted,
 - maze replay/checkpoint/budget/risk counters are not mutated.
 
+### 🐙 Ban Responses
+
+`GET /admin/ban` returns:
+- `bans`
+- `status`
+- `message`
+
+When `SHUMA_PROVIDER_BAN_STORE=external` is paired with strict outage posture (`SHUMA_BAN_STORE_OUTAGE_MODE=fail_open` or `fail_closed`) and the authoritative backend is unavailable, `GET /admin/ban` returns `503` with:
+- `Ban store unavailable: strict outage posture requires authoritative backend access for ban-state reads`
+
+`POST /admin/ban` returns:
+- `{"status":"banned","ip":"x.x.x.x"}` on success
+
+`POST /admin/unban?ip=x.x.x.x` returns:
+- `{"status":"unbanned","ip":"x.x.x.x"}` on success
+
+Under strict outage posture, manual ban and unban writes return `503` instead of claiming success when the external backend cannot be synchronized.
+
 ### 🐙 Analytics Response
 
 `GET /admin/analytics` returns:
-- `ban_count`
+- `ban_count` (nullable when authoritative active-ban reads are unavailable)
+- `ban_store_status` (`available|unavailable`)
+- `ban_store_message`
 - `shadow_mode`
 - `fail_mode`
 
@@ -332,6 +352,14 @@ Cost-state response headers are also emitted:
 - `X-Shuma-Monitoring-Query-Budget`
 - `X-Shuma-Monitoring-Security-Mode` (`pseudonymized_default|forensic_raw`)
 
+When authoritative active-ban reads are unavailable under strict outage posture:
+- `details.analytics.ban_count` is `null`
+- `details.analytics.ban_store_status` is `unavailable`
+- `details.analytics.ban_store_message` explains the outage contract
+- `details.bans.status` is `unavailable`
+- `details.bans.message` explains the outage contract
+- `details.maze.maze_auto_bans` is `null`
+
 `GET /admin/monitoring/delta?after_cursor=<cursor>&limit=100&hours=24` returns:
 - `cursor_contract` (version + ordering + overflow taxonomy)
 - `freshness_slo` (`p50/p95/p99` visibility-delay targets plus lag/degraded thresholds)
@@ -349,21 +377,23 @@ Cost-state response headers are also emitted:
 - same cursor fields as monitoring delta
 - `events` filtered to `Ban` and `Unban`
 - `active_bans` snapshot for current ban state reconciliation
+- `active_bans_status` (`available|unavailable`)
+- `active_bans_message`
 
 `GET /admin/monitoring/stream?after_cursor=<cursor>&limit=100&hours=24` and `GET /admin/ip-bans/stream?...` return one <abbr title="Server-Sent Events">SSE</abbr> frame per request with:
 - `event: monitoring_delta` or `event: ip_bans_delta`
 - `id: <next_cursor>` (resume token for `Last-Event-ID`)
-- `data: <JSON payload>` (same cursor/freshness contract as delta, plus `stream_contract`)
+- `data: <JSON payload>` (same cursor/freshness contract as delta, plus `stream_contract`; for `ip_bans_delta` this also includes `active_bans_status` and `active_bans_message`)
 
 The stream path is intentionally one-shot in this phase; the browser reconnect loop provides bounded fan-out/backpressure while preserving deterministic cursor ordering.
 - `prometheus`:
 - `endpoint` (`/metrics`), helper notes, and scrape examples for external platforms
 - `details` (dashboard Monitoring-tab refresh contract):
 - `retention_health`: same lifecycle contract as top-level (`state/guidance/lag/pending/error`)
-- `analytics`: `ban_count`, `shadow_mode`, `fail_mode`
+- `analytics`: `ban_count`, `ban_store_status`, `ban_store_message`, `shadow_mode`, `fail_mode`
 - `events`: `recent_events`, `event_counts`, `top_ips`, `unique_ips`, `recent_events_window` (`hours`, `requested_limit`, `applied_recent_event_cap`, `total_events_in_window`, `returned_events`, `has_more`, `continue_via`, `response_shaping_reason`)
 - `cost_governance`: same contract described above
-- `bans`: `bans`
+- `bans`: `bans`, `status`, `message`
 - `maze`: `total_hits`, `unique_crawlers`, `maze_auto_bans`, `deepest_crawler`, `top_crawlers`
 - `cdp`: `config`, `stats`, `fingerprint_stats`
 - `cdp_events`: `events`, `hours`, `limit`, `total_matches`, `counts`

@@ -269,7 +269,11 @@ Current implementation note:
   On backend degradation it applies route-class outage posture:
   - main traffic: `SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN` (default `fallback_internal`)
   - admin auth: `SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH` (default `fail_closed`)
-- `ban_store=external` uses a Redis-backed distributed adapter when `SHUMA_BAN_STORE_REDIS_URL` is configured; it falls back to internal ban logic when external backend access fails.
+- `ban_store=external` uses a Redis-backed distributed adapter when `SHUMA_BAN_STORE_REDIS_URL` is configured.
+  On backend degradation or misconfiguration it applies `SHUMA_BAN_STORE_OUTAGE_MODE`:
+  - `fallback_internal` (default) permits local fallback reads and deferred local writes.
+  - `fail_open` and `fail_closed` do not accept local-only fallback state; admin/operator reads surface unavailability and strict manual writes return `503`.
+  - authoritative enterprise multi-instance ban sync requires `SHUMA_BAN_STORE_OUTAGE_MODE=fail_closed`.
 - `challenge_engine` and `maze_tarpit` still use explicit unsupported external adapters with safe internal fallback semantics.
 - Keep production deployments on internal providers unless you are explicitly exercising a staged integration plan.
 
@@ -281,6 +285,7 @@ Current implementation note:
 - `enterprise_akamai`:
   - multi-instance deployments must treat distributed state as a critical-path control.
   - keep rollout in additive posture until rate-limiter atomicity and ban-sync semantics are validated.
+  - authoritative ban sync requires `SHUMA_PROVIDER_BAN_STORE=external`, a working `SHUMA_BAN_STORE_REDIS_URL`, and `SHUMA_BAN_STORE_OUTAGE_MODE=fail_closed`.
   - runtime now hard-fails (`503`) when enterprise multi-instance posture is unsafe (for example authoritative mode with local-only rate/ban state).
 - One codebase policy:
   - keep one shared policy engine; profile differences should be state backend and precedence choices, not separate policy logic.
@@ -313,6 +318,7 @@ Set these in your deployment secret/config system:
 - `SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED` (optional; temporary additive/off exception attestation only)
 - `SHUMA_RATE_LIMITER_REDIS_URL` (optional generally; required when enterprise multi-instance uses `SHUMA_PROVIDER_RATE_LIMITER=external`)
 - `SHUMA_BAN_STORE_REDIS_URL` (optional generally; required when enterprise multi-instance uses `SHUMA_PROVIDER_BAN_STORE=external`)
+- `SHUMA_BAN_STORE_OUTAGE_MODE` (optional generally; must be `fail_closed` when enterprise multi-instance uses authoritative external ban sync)
 - `SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN` (optional; `fallback_internal|fail_open|fail_closed`)
 - `SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH` (optional; `fallback_internal|fail_open|fail_closed`)
 - `SHUMA_GATEWAY_UPSTREAM_ORIGIN` (required for `runtime-prod`; `scheme://host[:port]`)

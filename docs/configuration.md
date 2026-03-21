@@ -103,6 +103,7 @@ Post-compaction retention rebaseline note:
 | `SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED` | No | `false` | Explicit temporary attestation for additive/off operation when enterprise multi-instance still uses local-only rate/ban state. |
 | `SHUMA_RATE_LIMITER_REDIS_URL` | No | empty | Redis endpoint for external distributed rate limiter mode (`redis://...` or `rediss://...`). |
 | `SHUMA_BAN_STORE_REDIS_URL` | No | empty | Redis endpoint for external distributed ban store mode (`redis://...` or `rediss://...`). |
+| `SHUMA_BAN_STORE_OUTAGE_MODE` | No | `fallback_internal` | Outage posture for external ban-store degradation (`fallback_internal`, `fail_open`, `fail_closed`). Authoritative enterprise multi-instance ban sync must use `fail_closed`. |
 | `SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN` | No | `fallback_internal` | Outage posture for external rate-limiter degradation on main traffic (`fallback_internal`, `fail_open`, `fail_closed`). |
 | `SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH` | No | `fail_closed` | Outage posture for external rate-limiter degradation on admin-auth routes (`fallback_internal`, `fail_open`, `fail_closed`). |
 | `SHUMA_GATEWAY_UPSTREAM_ORIGIN` | Yes for `runtime-prod` | empty | Gateway upstream origin in `scheme://host[:port]` form. Required in production mode. |
@@ -449,7 +450,11 @@ Default seeded modes are `both` for all three modules as the current pre-launch 
     - On backend degradation it applies route-class outage posture:
       - main traffic: `SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN` (default `fallback_internal`)
       - admin auth: `SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH` (default `fail_closed`)
-  - `ban_store=external` uses a Redis-backed distributed adapter (keyed <abbr title="JavaScript Object Notation">JSON</abbr> ban entries with Redis <abbr title="Time To Live">TTL</abbr>) when `SHUMA_BAN_STORE_REDIS_URL` is configured, with explicit fallback to internal behavior when unavailable/unconfigured.
+  - `ban_store=external` uses a Redis-backed distributed adapter (keyed <abbr title="JavaScript Object Notation">JSON</abbr> ban entries with Redis <abbr title="Time To Live">TTL</abbr>) when `SHUMA_BAN_STORE_REDIS_URL` is configured.
+    - On backend degradation or misconfiguration it applies `SHUMA_BAN_STORE_OUTAGE_MODE`:
+      - `fallback_internal` (default) allows local fallback for reads and deferred local writes.
+      - `fail_open` and `fail_closed` do not read or write local-only fallback state; admin/operator ban-state reads become unavailable and strict manual writes fail truthfully.
+      - authoritative enterprise multi-instance ban sync must use `SHUMA_BAN_STORE_OUTAGE_MODE=fail_closed`.
   - `challenge_engine=external` and `maze_tarpit=external` still route through explicit unsupported external adapters that currently fall back to internal runtime behavior.
 - `edge_integration_mode` defaults to `off` for self-hosted baseline and should be treated as Akamai-edge-only operator posture. Shared-server deployments should keep it `off`.
 - External fingerprint adapter precedence is mode-aware:
@@ -465,7 +470,7 @@ This matrix is meant to answer: "What actually happens if I change this setting?
 | --- | --- | --- | --- | --- | --- |
 | `fingerprint_signal` | Uses internal <abbr title="Chrome DevTools Protocol">CDP</abbr> scripts and `/cdp-report` | Uses Akamai-first adapter (`/fingerprint-report`) that maps edge outcomes and falls back to internal <abbr title="Chrome DevTools Protocol">CDP</abbr> handler for non-Akamai/legacy payloads. Current supported edge provider list: `["Akamai"]`. | Adds bounded Akamai evidence into fingerprint scoring; no direct short-circuit ban | Strong edge outcomes can trigger immediate auto-ban when `cdp_auto_ban=true` | Non-Akamai/legacy payloads downgrade to internal <abbr title="Chrome DevTools Protocol">CDP</abbr> handling; `off` mode ignores Akamai-style edge outcomes |
 | `rate_limiter` | Internal local rate logic | Redis-backed distributed limiter (`INCR` + <abbr title="Time To Live">TTL</abbr>) with configurable outage posture (`fallback_internal`/`fail_open`/`fail_closed`) by route class | Not controlled by `edge_integration_mode` | External authoritative limit decisions only after semantic parity and outage posture are validated | Applies route-class outage mode on Redis unavailability/degradation |
-| `ban_store` | Internal ban persistence and checks | Redis-backed distributed ban adapter with fallback to internal when external backend is unavailable/unconfigured | Not controlled by `edge_integration_mode` | External authoritative ban sync only with explicit outage controls | Falls back to internal ban store on Redis unavailability/misconfiguration |
+| `ban_store` | Internal ban persistence and checks | Redis-backed distributed ban adapter with explicit outage posture (`fallback_internal`/`fail_open`/`fail_closed`); local fallback exists only in `fallback_internal` | Not controlled by `edge_integration_mode` | External authoritative ban sync requires `SHUMA_BAN_STORE_OUTAGE_MODE=fail_closed` | Applies configured outage mode; only `fallback_internal` uses local fallback |
 | `challenge_engine` | Internal challenge rendering/verification | Explicit unsupported external adapter currently delegates to internal behavior | External challenge attestations may inform policy once implemented | Authoritative external challenge only when replay/expiry semantics are parity-tested | Unsupported external path keeps internal challenge path |
 | `maze_tarpit` | Internal Shuma-native maze/tarpit | Explicit unsupported external adapter delegates to internal behavior | Keep internal (no practical external target currently) | Keep internal | Internal-only path remains the source of truth |
 | Policy composition (`botness`, routing, modes) | Internal | Not externalized | Shuma remains policy brain | Shuma remains policy brain | Not swappable by design |

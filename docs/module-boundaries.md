@@ -145,7 +145,10 @@ Current `external` behavior:
 
 - `fingerprint_signal` uses an Akamai-first external adapter (`/fingerprint-report`) that maps edge/Bot Manager-style outcomes into normalized fingerprint/<abbr title="Chrome DevTools Protocol">CDP</abbr>-tier signals, with explicit fallback to the internal <abbr title="Chrome DevTools Protocol">CDP</abbr> handler when payloads are non-Akamai/legacy.
 - `rate_limiter` uses a Redis-backed distributed adapter (`INCR` + <abbr title="Time To Live">TTL</abbr>) when `SHUMA_RATE_LIMITER_REDIS_URL` is configured, with fallback to internal rate behavior when unavailable.
-- `ban_store` uses a Redis-backed distributed adapter (<abbr title="JavaScript Object Notation">JSON</abbr> ban records + Redis <abbr title="Time To Live">TTL</abbr>) when `SHUMA_BAN_STORE_REDIS_URL` is configured, with fallback to internal ban behavior when unavailable.
+- `ban_store` uses a Redis-backed distributed adapter (<abbr title="JavaScript Object Notation">JSON</abbr> ban records + Redis <abbr title="Time To Live">TTL</abbr>) when `SHUMA_BAN_STORE_REDIS_URL` is configured and applies explicit outage posture via `SHUMA_BAN_STORE_OUTAGE_MODE`.
+  - `fallback_internal` permits local fallback reads and deferred local writes.
+  - `fail_open` and `fail_closed` do not use local-only fallback state.
+  - authoritative enterprise multi-instance posture requires `SHUMA_BAN_STORE_OUTAGE_MODE=fail_closed`.
 - `challenge_engine` and `maze_tarpit` still use explicit unsupported external adapters that currently delegate to internal runtime behavior (including tarpit progression route handling).
 
 Implementation discipline for H4 coherence:

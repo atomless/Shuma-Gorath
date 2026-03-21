@@ -133,16 +133,16 @@ make test-dashboard-e2e    # In terminal 2
 - `POST /admin/login` - Native dashboard login form endpoint (`application/x-www-form-urlencoded` `password=<SHUMA_API_KEY>`, optional `next=...`) that sets the admin session cookie and redirects
 - `GET /admin/session` - Current auth/session state
 - `POST /admin/logout` - Clear the admin session cookie
-- `GET /admin/ban` - List all bans
-- `POST /admin/ban` - Manually ban <abbr title="Internet Protocol">IP</abbr> (<abbr title="JavaScript Object Notation">JSON</abbr>: `{"ip":"x.x.x.x","duration":3600}`; reason is always `manual_ban`)
-- `POST /admin/unban?ip=x.x.x.x` - Unban an <abbr title="Internet Protocol">IP</abbr>
-- `GET /admin/analytics` - Get ban statistics
+- `GET /admin/ban` - List all bans (`503` when strict external outage posture makes authoritative ban-state reads unavailable)
+- `POST /admin/ban` - Manually ban <abbr title="Internet Protocol">IP</abbr> (<abbr title="JavaScript Object Notation">JSON</abbr>: `{"ip":"x.x.x.x","duration":3600}`; reason is always `manual_ban`; strict external outage posture returns `503` on unsynced writes)
+- `POST /admin/unban?ip=x.x.x.x` - Unban an <abbr title="Internet Protocol">IP</abbr> (strict external outage posture returns `503` on unsynced writes)
+- `GET /admin/analytics` - Get ban statistics plus `ban_store_status` and `ban_store_message`
 - `GET /admin/events?hours=24` - Get recent events
-- `GET /admin/monitoring?hours=24&limit=10` - Get consolidated monitoring summaries + detail payload (`analytics`, `events`, `bans`, `maze`, `cdp`, `cdp_events`) for dashboard Monitoring refresh
+- `GET /admin/monitoring?hours=24&limit=10` - Get consolidated monitoring summaries + detail payload (`analytics`, `events`, `bans`, `maze`, `cdp`, `cdp_events`) for dashboard Monitoring refresh, including ban-state availability markers
 - `GET /admin/monitoring/delta?...` - Cursor-ordered monitoring deltas
 - `GET /admin/monitoring/stream?...` - One-shot monitoring SSE delta
-- `GET /admin/ip-bans/delta?...` - Cursor-ordered ban/unban deltas
-- `GET /admin/ip-bans/stream?...` - One-shot IP-ban SSE delta
+- `GET /admin/ip-bans/delta?...` - Cursor-ordered ban/unban deltas plus `active_bans_status` and `active_bans_message`
+- `GET /admin/ip-bans/stream?...` - One-shot IP-ban SSE delta plus `active_bans_status` and `active_bans_message`
 - Expensive admin reads (`/admin/events`, `/admin/cdp/events`, `/admin/monitoring`, `/admin/ban` `GET`) are per-<abbr title="Internet Protocol">IP</abbr> rate-limited and return `429` + `Retry-After: 60` when limited.
 - `GET /admin/config` - Get current configuration
 - `POST /admin/config` - Update configuration (shadow_mode, ban_durations, robots serving, <abbr title="Artificial Intelligence">AI</abbr> bot policy, <abbr title="Chrome DevTools Protocol">CDP</abbr>, etc.)
