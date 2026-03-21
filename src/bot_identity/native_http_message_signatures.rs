@@ -837,7 +837,8 @@ fn dispatch_directory_fetch(uri: &str) -> Result<DirectoryFetchResult, ()> {
     let mut builder = Request::builder();
     builder.method(spin_sdk::http::Method::Get).uri(uri);
     let request = builder.build();
-    let response = spin_sdk::http::run(spin_sdk::http::send(request)).map_err(|_| ())?;
+    let response: spin_sdk::http::Response =
+        spin_sdk::http::run(spin_sdk::http::send(request)).map_err(|_| ())?;
     Ok(DirectoryFetchResult {
         status: *response.status(),
         body: response.body().to_vec(),
