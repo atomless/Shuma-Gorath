@@ -18,8 +18,8 @@ use super::diagnostics_api::{
     handle_admin_tarpit_preview,
 };
 use super::monitoring_api::{
-    handle_admin_events, handle_admin_monitoring, handle_admin_monitoring_delta,
-    handle_admin_monitoring_stream,
+    handle_admin_events, handle_admin_ip_bans_delta, handle_admin_ip_bans_stream,
+    handle_admin_monitoring, handle_admin_monitoring_delta, handle_admin_monitoring_stream,
 };
 use super::operator_snapshot_api::handle_admin_operator_snapshot;
 #[cfg(test)]
@@ -11058,9 +11058,9 @@ fn load_recent_monitoring_events<S: crate::challenge::KeyValueStore>(
 }
 
 #[derive(Debug, Clone)]
-struct StoredEventLogRecord {
-    storage_key: String,
-    record: EventLogRecord,
+pub(super) struct StoredEventLogRecord {
+    pub(super) storage_key: String,
+    pub(super) record: EventLogRecord,
 }
 
 #[derive(Debug, Clone)]
@@ -12022,7 +12022,7 @@ pub(crate) fn monitoring_recent_sim_run_summaries<S: crate::challenge::KeyValueS
     rows
 }
 
-fn load_recent_event_records_with_keys<S: crate::challenge::KeyValueStore>(
+pub(super) fn load_recent_event_records_with_keys<S: crate::challenge::KeyValueStore>(
     store: &S,
     now: u64,
     hours: u64,
@@ -15945,188 +15945,6 @@ where
         overflow,
         security_privacy.payload,
     )
-}
-
-fn handle_admin_ip_bans_delta<S>(req: &Request, store: &S, site_id: &str) -> Response
-where
-    S: crate::challenge::KeyValueStore,
-{
-    let hours = query_u64_param(req.query(), "hours", 24).clamp(1, 720);
-    let limit = query_u64_param(req.query(), "limit", 100)
-        .clamp(1, MONITORING_STREAM_MAX_BUFFER_EVENTS as u64) as usize;
-    let forensic_mode = forensic_access_mode(req.query());
-    let after_cursor = resolve_after_cursor(req);
-    if let Err(msg) = validate_after_cursor(after_cursor.as_str()) {
-        return Response::new(400, msg);
-    }
-
-    let now = now_ts();
-    let rows: Vec<CursorEventRecord> = load_recent_event_records_with_keys(store, now, hours)
-        .into_iter()
-        .filter(|stored| matches!(stored.record.entry.event, EventType::Ban | EventType::Unban))
-        .map(|stored| CursorEventRecord {
-            cursor: build_event_cursor(stored.record.entry.ts, stored.storage_key.as_str()),
-            record: present_event_record(&stored.record, forensic_mode),
-        })
-        .collect();
-    let latest_window_ts = latest_event_ts(rows.as_slice());
-    let window_end_cursor = rows
-        .iter()
-        .map(|row: &CursorEventRecord| row.cursor.clone())
-        .max()
-        .unwrap_or_default();
-    let (page_rows, next_cursor, has_more, overflow) =
-        paginate_cursor_rows(rows, after_cursor.as_str(), limit);
-    let event_rows: Vec<serde_json::Value> =
-        page_rows.iter().map(cursor_event_row_payload).collect();
-
-    let cfg = crate::config::Config::load(store, site_id).ok();
-    let active_ban_snapshot =
-        list_active_ban_snapshot_view(store, site_id, cfg.as_ref(), forensic_mode);
-    let active_bans_payload = active_ban_snapshot.bans.clone();
-
-    let etag = delta_page_etag(
-        next_cursor.as_str(),
-        event_rows.len().saturating_add(active_bans_payload.len()),
-        has_more,
-        overflow,
-    );
-    if request_if_none_match(req).as_deref() == Some(etag.as_str()) {
-        return Response::builder()
-            .status(304)
-            .header("Cache-Control", "no-store")
-            .header("ETag", etag.as_str())
-            .body("")
-            .build();
-    }
-
-    let latest_ts = match (latest_window_ts, active_ban_snapshot.latest_ban_ts) {
-        (Some(event_ts), Some(ban_ts)) => Some(event_ts.max(ban_ts)),
-        (Some(event_ts), None) => Some(event_ts),
-        (None, Some(ban_ts)) => Some(ban_ts),
-        (None, None) => None,
-    };
-    let freshness =
-        freshness_health_payload(now, latest_ts, has_more, overflow, "cursor_delta_poll");
-
-    let body = serde_json::to_string(&json!({
-        "cursor_contract": {
-            "version": "monitoring-event-cursor.v1",
-            "ordering": "strict_monotonic_cursor_ascending",
-            "cursor_source": "eventlog:v2 key ordering",
-            "overflow_taxonomy": ["none", "limit_exceeded"]
-        },
-        "security_mode": security_view_mode_label(forensic_mode),
-        "security_privacy": security_privacy_payload(store, now, hours, forensic_mode),
-        "freshness_slo": freshness_slo_payload(),
-        "load_envelope": load_envelope_payload(),
-        "hours": hours,
-        "limit": limit,
-        "after_cursor": after_cursor,
-        "window_end_cursor": window_end_cursor,
-        "next_cursor": next_cursor,
-        "has_more": has_more,
-        "overflow": overflow,
-        "events": event_rows,
-        "active_bans": active_bans_payload,
-        "active_bans_status": active_ban_snapshot.status,
-        "active_bans_message": active_ban_snapshot.message,
-        "freshness": freshness,
-        "stream_supported": true,
-        "stream_endpoint": "/admin/ip-bans/stream"
-    }))
-    .unwrap();
-    Response::builder()
-        .status(200)
-        .header("Content-Type", "application/json")
-        .header("Cache-Control", "no-store")
-        .header("ETag", etag.as_str())
-        .header(
-            "X-Shuma-Monitoring-Security-Mode",
-            security_view_mode_label(forensic_mode),
-        )
-        .body(body)
-        .build()
-}
-
-fn handle_admin_ip_bans_stream<S>(req: &Request, store: &S, site_id: &str) -> Response
-where
-    S: crate::challenge::KeyValueStore,
-{
-    if *req.method() != Method::Get {
-        return Response::new(405, "Method Not Allowed");
-    }
-    let hours = query_u64_param(req.query(), "hours", 24).clamp(1, 720);
-    let limit = query_u64_param(req.query(), "limit", 100)
-        .clamp(1, MONITORING_STREAM_MAX_BUFFER_EVENTS as u64) as usize;
-    let forensic_mode = forensic_access_mode(req.query());
-    let after_cursor = resolve_after_cursor(req);
-    if let Err(msg) = validate_after_cursor(after_cursor.as_str()) {
-        return Response::new(400, msg);
-    }
-
-    let now = now_ts();
-    let rows: Vec<CursorEventRecord> = load_recent_event_records_with_keys(store, now, hours)
-        .into_iter()
-        .filter(|stored| matches!(stored.record.entry.event, EventType::Ban | EventType::Unban))
-        .map(|stored| CursorEventRecord {
-            cursor: build_event_cursor(stored.record.entry.ts, stored.storage_key.as_str()),
-            record: present_event_record(&stored.record, forensic_mode),
-        })
-        .collect();
-    let latest_window_ts = latest_event_ts(rows.as_slice());
-    let window_end_cursor = rows
-        .iter()
-        .map(|row: &CursorEventRecord| row.cursor.clone())
-        .max()
-        .unwrap_or_default();
-    let (page_rows, next_cursor, has_more, overflow) =
-        paginate_cursor_rows(rows, after_cursor.as_str(), limit);
-    let event_rows: Vec<serde_json::Value> =
-        page_rows.iter().map(cursor_event_row_payload).collect();
-
-    let cfg = crate::config::Config::load(store, site_id).ok();
-    let active_ban_snapshot =
-        list_active_ban_snapshot_view(store, site_id, cfg.as_ref(), forensic_mode);
-    let active_bans_payload = active_ban_snapshot.bans.clone();
-    let latest_ts = match (latest_window_ts, active_ban_snapshot.latest_ban_ts) {
-        (Some(event_ts), Some(ban_ts)) => Some(event_ts.max(ban_ts)),
-        (Some(event_ts), None) => Some(event_ts),
-        (None, Some(ban_ts)) => Some(ban_ts),
-        (None, None) => None,
-    };
-    let freshness = freshness_health_payload(now, latest_ts, has_more, overflow, "sse");
-    let payload = json!({
-        "cursor_contract": {
-            "version": "monitoring-event-cursor.v1",
-            "ordering": "strict_monotonic_cursor_ascending",
-            "cursor_source": "eventlog:v2 key ordering",
-            "overflow_taxonomy": ["none", "limit_exceeded"]
-        },
-        "security_mode": security_view_mode_label(forensic_mode),
-        "security_privacy": security_privacy_payload(store, now, hours, forensic_mode),
-        "freshness_slo": freshness_slo_payload(),
-        "load_envelope": load_envelope_payload(),
-        "stream_contract": stream_contract_payload(),
-        "hours": hours,
-        "limit": limit,
-        "after_cursor": after_cursor,
-        "window_end_cursor": window_end_cursor,
-        "next_cursor": next_cursor,
-        "has_more": has_more,
-        "overflow": overflow,
-        "events": event_rows,
-        "active_bans": active_bans_payload,
-        "active_bans_status": active_ban_snapshot.status,
-        "active_bans_message": active_ban_snapshot.message,
-        "freshness": freshness
-    });
-    let event_id = payload
-        .get("next_cursor")
-        .and_then(|value| value.as_str())
-        .filter(|value| !value.is_empty())
-        .unwrap_or("");
-    sse_single_event_response("ip_bans_delta", event_id, &payload)
 }
 
 fn handle_admin_ip_range_suggestions<S>(req: &Request, store: &S, site_id: &str) -> Response
