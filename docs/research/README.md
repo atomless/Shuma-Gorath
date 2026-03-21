@@ -158,6 +158,8 @@ Completed archive index:
    Post-implementation review confirming `SIM-SH-SURFACE-1-2` landed as a minimal seed inventory plus bounded `robots.txt` hint ingestion, and that `SIM-SCR-LANE-1` is now execution-ready.
 28. [`2026-03-21-feedback-loop-and-architecture-debt-review.md`](2026-03-21-feedback-loop-and-architecture-debt-review.md)
    Architecture review capturing the current feedback-loop shortfalls, benchmark/objective/decision-lineage gaps, and the need to structurally decompose oversized control-plane modules before the next controller work lands.
+29. [`2026-03-21-agent-first-feedback-loop-sequencing-review.md`](2026-03-21-agent-first-feedback-loop-sequencing-review.md)
+   Sequencing review concluding that the first shared-host agent tweaker loop should precede `MON-OVERHAUL-1`, so Monitoring and Tuning can project the semantics proven by the machine-first loop rather than guessing them in advance.
 
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 
