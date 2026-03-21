@@ -1,4 +1,5 @@
 pub(crate) mod adversary_sim;
+mod adversary_sim_api;
 pub(crate) mod adversary_sim_control;
 mod benchmark_api;
 mod api;
