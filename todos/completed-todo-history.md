@@ -4,6 +4,27 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-21)
 
+### ARCH-SIM-1: Split The Adversary-Sim Control Plane Into Focused Modules
+
+- [x] Completed the planned adversary-sim structural decomposition by extracting lifecycle state helpers, deterministic corpus helpers, diagnostics payload and state helpers, worker-plan/result contracts, and lane runtime execution helpers into focused modules while keeping `src/admin/adversary_sim.rs` as the stable public shell for the existing admin/runtime contract.
+- [x] Why:
+  - later `ADV-RUN-ARCH-1`, `OPS-BENCH-2`, `OVR-RECON-1`, and `OVR-AGENT-1` work needed real implementation homes around the adversary-sim control plane instead of continuing to land inside one mixed hotspot file.
+  - the cleanest path was behavior-preserving extraction around the real seams already present in the code: lifecycle state, deterministic corpus, diagnostics projection, worker contracts, and lane execution.
+  - completing this tranche now keeps the agent-first loop work aligned with the structural decomposition plan instead of adding more reconcile or benchmark logic to the same monolith.
+- [x] Evidence:
+  - `src/admin/adversary_sim.rs`
+  - `src/admin/adversary_sim_state.rs`
+  - `src/admin/adversary_sim_corpus.rs`
+  - `src/admin/adversary_sim_diagnostics.rs`
+  - `src/admin/adversary_sim_worker_plan.rs`
+  - `src/admin/adversary_sim_lane_runtime.rs`
+  - `docs/research/2026-03-21-arch-sim-1-adversary-sim-structural-decomposition-post-implementation-review.md`
+  - `make test-adversary-sim-domain-contract`
+  - `make test-adversary-sim-lifecycle`
+  - `make test-adversary-sim-runtime-surface`
+  - `git diff --check`
+  - tranche review result: no task-local shortfall required an immediate reopen before `ADV-RUN-ARCH-1`.
+
 ### ARCH-OBS-1: Split Operator Snapshot, Benchmark Results, And Controller Action Surfaces
 
 - [x] Completed the planned observability/config decomposition by extracting controller-action catalog and guardrail helpers, operator snapshot section builders, and benchmark family/comparison helpers into focused modules while keeping `src/observability/operator_snapshot.rs`, `src/observability/benchmark_results.rs`, and `src/config/controller_action_surface.rs` as the stable top-level orchestrators for their existing machine-first contracts.

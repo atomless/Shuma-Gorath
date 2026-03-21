@@ -54,6 +54,8 @@ Completed archive index:
    Post-implementation review confirming heartbeat lane routing now dispatches the real bounded Scrapling worker, records live lane diagnostics through the internal worker-result contract, and leaves deployment-level egress isolation as the remaining follow-on hardening note for the operator-workflow tranche.
 11. [`2026-03-20-sim-scr-7-dashboard-lane-controls-post-implementation-review.md`](2026-03-20-sim-scr-7-dashboard-lane-controls-post-implementation-review.md)
    Post-implementation review confirming the dashboard now exposes the settled lane selector, desired-versus-active lane truth, focused module + Playwright verification, and leaves the operator-rollout tranche as the next remaining slice.
+12. [`2026-03-21-arch-sim-1-adversary-sim-structural-decomposition-post-implementation-review.md`](2026-03-21-arch-sim-1-adversary-sim-structural-decomposition-post-implementation-review.md)
+   Post-implementation review confirming the adversary-sim control plane is now structurally decomposed across state, corpus, diagnostics, worker-plan, and lane-runtime modules while preserving the live runtime surface required for the later agent-first loop.
 
 ## 🐙 Gateway Deployment Research
 

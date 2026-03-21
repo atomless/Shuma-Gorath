@@ -84,7 +84,6 @@ Current stance:
 - Land the first shared-host agent tweaker loop before `MON-OVERHAUL-1` so Monitoring and Tuning can project proven machine-first semantics instead of inventing them early.
 - Treat the verified-identity observability and benchmarking gap as part of this loop-closure track rather than later polish.
 
-- [ ] ARCH-SIM-1 Split `src/admin/adversary_sim.rs` into control-state, lane runtime, diagnostics, and corpus/worker-plan helpers before recommend-only reconcile integration work starts.
 - [ ] ADV-RUN-ARCH-1 Break `scripts/tests/adversarial_simulation_runner.py` into focused modules/helpers for contract loading, attacker/control-plane execution, evidence shaping, discovery scoring, and governance/report checks so the current `6950`-line multi-responsibility runner stops concentrating unrelated concerns in one file.
 - [ ] OPS-BENCH-2 Materialize benchmark history, prior-window or explicit baseline comparison, `improvement_status`, representative adversary scenario-family results, beneficial non-human posture metrics, and candidate-vs-current comparison semantics for later tuning and code-evolution loops.
 - [ ] OPS-SNAPSHOT-2 Replace backend-default and placeholder operator state with persisted `operator_objectives_v1`, typed verified-identity summary content, and causal decision/watch-window evidence needed for later reconcile and rollback reasoning.
