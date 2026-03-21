@@ -6,6 +6,8 @@ use std::collections::{BTreeMap, HashSet};
 use std::io::Write;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use super::benchmark_api::{handle_admin_benchmark_results, handle_admin_benchmark_suite};
+use super::operator_snapshot_api::handle_admin_operator_snapshot;
 #[cfg(test)]
 use super::recent_changes_ledger::load_operator_snapshot_recent_changes;
 use super::recent_changes_ledger::{
@@ -17465,91 +17467,6 @@ fn monitoring_prometheus_helper_payload() -> serde_json::Value {
             "api": "https://github.com/atomless/Shuma-Gorath/blob/main/docs/api.md"
         }
     })
-}
-
-fn handle_admin_operator_snapshot<S>(_req: &Request, store: &S) -> Response
-where
-    S: crate::challenge::KeyValueStore,
-{
-    match crate::observability::hot_read_projection::load_operator_snapshot_hot_read(
-        store, "default",
-    ) {
-        Some(snapshot) => {
-            let body =
-                serde_json::to_string(&snapshot.payload).unwrap_or_else(|_| "{}".to_string());
-            Response::builder()
-                .status(200)
-                .header("Content-Type", "application/json")
-                .header("Cache-Control", "no-store")
-                .body(body)
-                .build()
-        }
-        None => {
-            let body = serde_json::to_string(&json!({
-                "schema_version": crate::observability::operator_snapshot::OPERATOR_SNAPSHOT_SCHEMA_VERSION,
-                "error": "operator_snapshot_not_materialized",
-                "message": "Operator snapshot is not materialized yet. Wait for the next telemetry refresh cycle."
-            }))
-            .unwrap_or_else(|_| "{}".to_string());
-            Response::builder()
-                .status(503)
-                .header("Content-Type", "application/json")
-                .header("Cache-Control", "no-store")
-                .body(body)
-                .build()
-        }
-    }
-}
-
-fn handle_admin_benchmark_suite(_req: &Request) -> Response {
-    if *_req.method() != Method::Get {
-        return Response::new(405, "Method Not Allowed");
-    }
-    let body = serde_json::to_string(&crate::observability::benchmark_suite::benchmark_suite_v1())
-        .unwrap_or_else(|_| "{}".to_string());
-    Response::builder()
-        .status(200)
-        .header("Content-Type", "application/json")
-        .header("Cache-Control", "no-store")
-        .body(body)
-        .build()
-}
-
-fn handle_admin_benchmark_results<S>(req: &Request, store: &S) -> Response
-where
-    S: crate::challenge::KeyValueStore,
-{
-    if *req.method() != Method::Get {
-        return Response::new(405, "Method Not Allowed");
-    }
-    match crate::observability::hot_read_projection::load_operator_snapshot_hot_read(
-        store, "default",
-    ) {
-        Some(snapshot) => {
-            let payload = snapshot.payload.benchmark_results.clone();
-            let body = serde_json::to_string(&payload).unwrap_or_else(|_| "{}".to_string());
-            Response::builder()
-                .status(200)
-                .header("Content-Type", "application/json")
-                .header("Cache-Control", "no-store")
-                .body(body)
-                .build()
-        }
-        None => {
-            let body = serde_json::to_string(&json!({
-                "schema_version": crate::observability::benchmark_results::BENCHMARK_RESULTS_SCHEMA_VERSION,
-                "error": "benchmark_results_snapshot_missing",
-                "message": "Benchmark results require an already-materialized operator snapshot."
-            }))
-            .unwrap_or_else(|_| "{}".to_string());
-            Response::builder()
-                .status(503)
-                .header("Content-Type", "application/json")
-                .header("Cache-Control", "no-store")
-                .body(body)
-                .build()
-        }
-    }
 }
 
 #[derive(Debug, Deserialize)]
