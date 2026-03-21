@@ -4,6 +4,35 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-21)
 
+### ARCH-OBS-1: Split Operator Snapshot, Benchmark Results, And Controller Action Surfaces
+
+- [x] Completed the planned observability/config decomposition by extracting controller-action catalog and guardrail helpers, operator snapshot section builders, and benchmark family/comparison helpers into focused modules while keeping `src/observability/operator_snapshot.rs`, `src/observability/benchmark_results.rs`, and `src/config/controller_action_surface.rs` as the stable top-level orchestrators for their existing machine-first contracts.
+- [x] Why:
+  - later `OPS-BENCH-2`, `OPS-SNAPSHOT-2`, `OVR-RECON-1`, and `OVR-AGENT-1` work needed real implementation homes outside the current hotspot files before more benchmark, objective, and controller semantics landed.
+  - the cleanest path was behavior-preserving extraction around existing section boundaries and family builders rather than mixing structural refactor with new loop-truth semantics.
+  - completing this tranche now keeps the later closed-loop work aligned with the planned modular architecture and reduces the chance of re-concentrating controller logic in the same files.
+- [x] Evidence:
+  - `src/config/controller_action_catalog.rs`
+  - `src/config/controller_action_guardrails.rs`
+  - `src/config/controller_action_surface.rs`
+  - `src/observability/operator_snapshot.rs`
+  - `src/observability/operator_snapshot_live_traffic.rs`
+  - `src/observability/operator_snapshot_objectives.rs`
+  - `src/observability/operator_snapshot_recent_changes.rs`
+  - `src/observability/operator_snapshot_runtime_posture.rs`
+  - `src/observability/operator_snapshot_verified_identity.rs`
+  - `src/observability/benchmark_results.rs`
+  - `src/observability/benchmark_results_families.rs`
+  - `src/observability/benchmark_results_comparison.rs`
+  - `docs/research/2026-03-21-arch-obs-1-observability-decomposition-post-implementation-review.md`
+  - `make test-controller-action-surface`
+  - `make test-operator-snapshot-foundation`
+  - `make test-benchmark-results-contract`
+  - `make test-telemetry-hot-read-contract`
+  - `make test-telemetry-hot-read-projection`
+  - `git diff --check`
+  - tranche review result: no task-local shortfall required an immediate reopen before `ARCH-SIM-1`.
+
 ### ARCH-API-1: Split Admin Route Families Out Of `src/admin/api.rs`
 
 - [x] Completed the planned admin route-family decomposition by extracting recent-change ledger helpers, operator snapshot endpoints, benchmark endpoints, adversary-sim handlers, diagnostics handlers, monitoring and ip-ban monitoring handlers, and the config route surface into focused `src/admin/*` modules while keeping `src/admin/api.rs` as the top-level router shell and shared helper home.
