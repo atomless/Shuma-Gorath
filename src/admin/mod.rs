@@ -2,6 +2,7 @@ pub(crate) mod adversary_sim;
 mod adversary_sim_api;
 pub(crate) mod adversary_sim_control;
 mod benchmark_api;
+mod diagnostics_api;
 mod api;
 pub(crate) mod auth;
 mod operator_snapshot_api;
