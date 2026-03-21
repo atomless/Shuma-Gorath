@@ -104,6 +104,8 @@ Completed archive index:
    Readiness review for `WB-2.3`, freezing the gateway and edge trust contract around forwarded HTTPS context, `Signature*` pass-through, and stripping of Shuma-owned verified-identity assertion headers before implementation.
 17. [`2026-03-21-wb-2-3-proxy-and-edge-trust-semantics-post-implementation-review.md`](2026-03-21-wb-2-3-proxy-and-edge-trust-semantics-post-implementation-review.md)
    Post-implementation review for `WB-2.3`, confirming the gateway/edge trust contract is now explicit in docs and regression-protected by focused native and gateway tests without expanding authorization scope.
+18. [`2026-03-21-wb-3-1-named-identity-policy-registry-readiness-review.md`](2026-03-21-wb-3-1-named-identity-policy-registry-readiness-review.md)
+   Readiness review for `WB-3.1`, defining the smallest clean activation slice for named verified-identity authorization with explicit precedence, restrictive fallback, and resolved-but-not-rendered service-profile outcomes.
 4. [`2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md`](2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md)
    Research synthesis for the machine-first Monitoring destination, bounded operator snapshot contract, and the first config-diff-only feedback loop that should precede the human Monitoring overhaul.
 5. [`2026-03-20-operator-snapshot-foundation-post-implementation-review.md`](2026-03-20-operator-snapshot-foundation-post-implementation-review.md)
