@@ -555,6 +555,8 @@ pub(crate) fn forward_allow_request(context: ForwardRequestContext<'_>, reason: 
         if should_strip_request_header(name, connection_header) {
             continue;
         }
+        // Signature* headers remain client-supplied pass-through inputs for any
+        // upstream consumer, but Shuma-owned x-shuma-* trust headers are proxy-only.
         if is_privileged_request_header(name) {
             continue;
         }
@@ -896,6 +898,85 @@ mod tests {
         std::env::remove_var("SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE");
         std::env::remove_var("SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_NAME");
         std::env::remove_var("SHUMA_GATEWAY_ORIGIN_AUTH_MODE");
+        std::env::remove_var("SHUMA_GATEWAY_UPSTREAM_ORIGIN");
+    }
+
+    #[test]
+    fn gateway_forward_preserves_signature_headers_and_strips_shuma_trust_headers() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_GATEWAY_UPSTREAM_ORIGIN", "https://origin.example.com");
+        std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+
+        let req = build_request(
+            "/allow",
+            &[
+                ("host", "public.example.com"),
+                ("x-forwarded-for", "198.51.100.99"),
+                ("x-forwarded-proto", "https"),
+                ("x-shuma-forwarded-secret", "test-forwarded-secret"),
+                ("signature-agent", "sig1=\"https://signature-agent.test/\""),
+                (
+                    "signature-input",
+                    "sig1=(\"@authority\" \"signature-agent\";key=\"sig1\");created=1;keyid=\"agent1\";tag=\"web-bot-auth\"",
+                ),
+                ("signature", "sig1=:Ym9keQ==:"),
+                ("x-shuma-edge-verified-identity-scheme", "provider_signed_agent"),
+                ("x-shuma-edge-verified-identity", "chatgpt-agent"),
+                ("x-shuma-edge-verified-identity-operator", "openai"),
+            ],
+            br#"{"ok":true}"#,
+        );
+
+        let forward = forward_allow_request(
+            ForwardRequestContext {
+                req: &req,
+                ip: "198.51.100.99",
+            },
+            "policy_clean_allow",
+        );
+
+        assert!(forward.failure_class.is_none());
+        let payload: serde_json::Value =
+            serde_json::from_slice(forward.response.body()).expect("native echo json");
+        let headers = payload["headers"].as_object().expect("headers object");
+
+        assert_eq!(
+            headers
+                .get("signature-agent")
+                .and_then(|value| value.as_str())
+                .unwrap_or_default(),
+            "sig1=\"https://signature-agent.test/\""
+        );
+        assert_eq!(
+            headers
+                .get("signature")
+                .and_then(|value| value.as_str())
+                .unwrap_or_default(),
+            "sig1=:Ym9keQ==:"
+        );
+        assert!(headers
+            .get("signature-input")
+            .and_then(|value| value.as_str())
+            .map(|value| value.contains("web-bot-auth"))
+            .unwrap_or(false));
+        assert_eq!(
+            headers
+                .get("x-forwarded-proto")
+                .and_then(|value| value.as_str())
+                .unwrap_or_default(),
+            "https"
+        );
+        assert!(headers.get("forwarded").is_some());
+        assert!(headers.get("x-shuma-forwarded-secret").is_none());
+        assert!(headers
+            .get("x-shuma-edge-verified-identity-scheme")
+            .is_none());
+        assert!(headers.get("x-shuma-edge-verified-identity").is_none());
+        assert!(headers
+            .get("x-shuma-edge-verified-identity-operator")
+            .is_none());
+
+        std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
         std::env::remove_var("SHUMA_GATEWAY_UPSTREAM_ORIGIN");
     }
 }

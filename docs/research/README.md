@@ -102,6 +102,8 @@ Completed archive index:
    Post-implementation review for `WB-2.2`, confirming native external directory discovery/cache now lands with explicit stale/unavailable behavior, bounded cache recovery, and the immediate cache-index rebuild follow-up completed during closeout review.
 16. [`2026-03-21-wb-2-3-proxy-and-edge-trust-semantics-readiness-review.md`](2026-03-21-wb-2-3-proxy-and-edge-trust-semantics-readiness-review.md)
    Readiness review for `WB-2.3`, freezing the gateway and edge trust contract around forwarded HTTPS context, `Signature*` pass-through, and stripping of Shuma-owned verified-identity assertion headers before implementation.
+17. [`2026-03-21-wb-2-3-proxy-and-edge-trust-semantics-post-implementation-review.md`](2026-03-21-wb-2-3-proxy-and-edge-trust-semantics-post-implementation-review.md)
+   Post-implementation review for `WB-2.3`, confirming the gateway/edge trust contract is now explicit in docs and regression-protected by focused native and gateway tests without expanding authorization scope.
 4. [`2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md`](2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md)
    Research synthesis for the machine-first Monitoring destination, bounded operator snapshot contract, and the first config-diff-only feedback loop that should precede the human Monitoring overhaul.
 5. [`2026-03-20-operator-snapshot-foundation-post-implementation-review.md`](2026-03-20-operator-snapshot-foundation-post-implementation-review.md)

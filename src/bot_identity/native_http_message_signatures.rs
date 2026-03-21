@@ -945,6 +945,7 @@ mod tests {
 
     struct InlineSignedRequestBuilder {
         authority: String,
+        scheme: Option<String>,
         signature_agent_key: String,
         signature_agent_component: String,
         signature_agent_header: String,
@@ -954,7 +955,7 @@ mod tests {
 
     impl UnsignedMessage for InlineSignedRequestBuilder {
         fn fetch_components_to_cover(&self) -> indexmap::IndexMap<CoveredComponent, String> {
-            indexmap::IndexMap::from_iter([
+            let mut components = indexmap::IndexMap::from_iter([
                 (
                     CoveredComponent::Derived(DerivedComponent::Authority { req: false }),
                     self.authority.clone(),
@@ -968,7 +969,14 @@ mod tests {
                     }),
                     self.signature_agent_component.clone(),
                 ),
-            ])
+            ]);
+            if let Some(scheme) = self.scheme.as_ref() {
+                components.insert(
+                    CoveredComponent::Derived(DerivedComponent::Scheme { req: false }),
+                    scheme.clone(),
+                );
+            }
+            components
         }
 
         fn register_header_contents(&mut self, signature_input: String, signature_header: String) {
@@ -1342,6 +1350,111 @@ mod tests {
         );
     }
 
+    #[test]
+    fn verify_request_accepts_trusted_forwarded_https_for_signed_scheme() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+
+        let store = crate::test_support::InMemoryStore::default();
+        let cfg = native_enabled_config();
+        let req = signed_request_for_signature_agent_with_context(
+            "example.com",
+            TEST_SIGNATURE_AGENT_URL,
+            "agent2",
+            Some("https"),
+            &[
+                ("x-forwarded-proto", "https"),
+                ("x-shuma-forwarded-secret", "test-forwarded-secret"),
+            ],
+        );
+        let created = request_created_at(&req);
+        let resolver = spec_resolver();
+
+        let result = verify_request_with_now_and_resolver(
+            &store,
+            "default",
+            &req,
+            &cfg,
+            created.saturating_add(1),
+            &resolver,
+        );
+
+        assert_eq!(
+            result.status,
+            crate::bot_identity::verification::IdentityVerificationResultStatus::Verified
+        );
+
+        std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
+    }
+
+    #[test]
+    fn verify_request_rejects_untrusted_forwarded_https_for_signed_scheme() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+
+        let store = crate::test_support::InMemoryStore::default();
+        let cfg = native_enabled_config();
+        let req = signed_request_for_signature_agent_with_context(
+            "example.com",
+            TEST_SIGNATURE_AGENT_URL,
+            "agent2",
+            Some("https"),
+            &[("x-forwarded-proto", "https")],
+        );
+        let created = request_created_at(&req);
+        let resolver = spec_resolver();
+
+        let result = verify_request_with_now_and_resolver(
+            &store,
+            "default",
+            &req,
+            &cfg,
+            created.saturating_add(1),
+            &resolver,
+        );
+
+        assert_eq!(
+            result.failure,
+            Some(crate::bot_identity::verification::IdentityVerificationFailure::SignatureInvalid)
+        );
+
+        std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
+    }
+
+    #[test]
+    fn verify_request_accepts_edge_spin_full_url_https_for_signed_scheme() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "edge-fermyon");
+
+        let store = crate::test_support::InMemoryStore::default();
+        let cfg = native_enabled_config();
+        let req = signed_request_for_signature_agent_with_context(
+            "example.edge",
+            TEST_SIGNATURE_AGENT_URL,
+            "agent2",
+            Some("https"),
+            &[("spin-full-url", "https://example.edge/")],
+        );
+        let created = request_created_at(&req);
+        let resolver = spec_resolver();
+
+        let result = verify_request_with_now_and_resolver(
+            &store,
+            "default",
+            &req,
+            &cfg,
+            created.saturating_add(1),
+            &resolver,
+        );
+
+        assert_eq!(
+            result.status,
+            crate::bot_identity::verification::IdentityVerificationResultStatus::Verified
+        );
+
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+    }
+
     fn native_enabled_config() -> crate::config::Config {
         let mut cfg = crate::config::defaults().clone();
         cfg.verified_identity.enabled = true;
@@ -1389,8 +1502,25 @@ mod tests {
     }
 
     fn signed_request_for_signature_agent(signature_agent_url: &str, signature_agent_key: &str) -> Request {
+        signed_request_for_signature_agent_with_context(
+            "example.com",
+            signature_agent_url,
+            signature_agent_key,
+            None,
+            &[],
+        )
+    }
+
+    fn signed_request_for_signature_agent_with_context(
+        authority: &str,
+        signature_agent_url: &str,
+        signature_agent_key: &str,
+        scheme: Option<&str>,
+        extra_headers: &[(&str, &str)],
+    ) -> Request {
         let mut signer_message = InlineSignedRequestBuilder {
-            authority: "example.com".to_string(),
+            authority: authority.to_string(),
+            scheme: scheme.map(ToOwned::to_owned),
             signature_agent_key: signature_agent_key.to_string(),
             signature_agent_component: format!("\"{signature_agent_url}\""),
             signature_agent_header: format!("{signature_agent_key}=\"{signature_agent_url}\""),
@@ -1411,15 +1541,15 @@ mod tests {
             )
             .expect("signature headers");
 
-        crate::test_support::request_with_headers(
-            "/",
-            &[
-                ("host", "example.com"),
-                ("signature-agent", signer_message.signature_agent_header.as_str()),
-                ("signature-input", signer_message.signature_input.as_str()),
-                ("signature", signer_message.signature_header.as_str()),
-            ],
-        )
+        let mut headers = vec![
+            ("host", authority),
+            ("signature-agent", signer_message.signature_agent_header.as_str()),
+            ("signature-input", signer_message.signature_input.as_str()),
+            ("signature", signer_message.signature_header.as_str()),
+        ];
+        headers.extend_from_slice(extra_headers);
+
+        crate::test_support::request_with_headers("/", headers.as_slice())
     }
 
     fn successful_test_jwks() -> JSONWebKeySet {

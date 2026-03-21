@@ -4,6 +4,28 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-21)
 
+### WB-2.3: Preserve Proxy And Edge Trust Semantics
+
+- [x] Preserved and documented the verified-identity proxy and edge trust contract by adding focused native/gateway tests for trusted forwarded HTTPS, untrusted forwarded proto rejection, edge `spin-full-url` HTTPS context, and gateway pass-through of `Signature*` headers while stripping Shuma-owned trust headers; also added the focused `make` gate and updated operator hardening/config docs.
+- [x] Why:
+  - `WB-2.3` was the next native verified-identity tranche after directory discovery/cache, so the remaining risk was not cryptographic verification itself but whether proxy and edge deployments would preserve the same trust semantics operators think they are running.
+  - the cleanest implementation was to codify the existing correct runtime behavior with focused tests and explicit docs instead of inventing a new trust path or bundling authorization changes early.
+  - keeping `x-shuma-*` proxy-owned while leaving `Signature*` as client-supplied verification inputs preserves Shuma's existing secure trust boundary and avoids surprising upstream behavior.
+- [x] Evidence:
+  - `src/bot_identity/native_http_message_signatures.rs`
+  - `src/runtime/upstream_proxy.rs`
+  - `Makefile`
+  - `docs/configuration.md`
+  - `docs/security-hardening.md`
+  - `docs/research/2026-03-21-wb-2-3-proxy-and-edge-trust-semantics-post-implementation-review.md`
+  - `make test-verified-identity-proxy-trust`
+  - `make test-verified-identity-native`
+  - `make test-verified-identity-provider`
+  - `make test-gateway-harness`
+  - `make test-runtime-preflight-unit`
+  - `git diff --check`
+  - post-tranche review: no tranche-local shortfall was found against `WB-2.3`.
+
 ### WB-2.2-REVIEW-1: Rebuild Directory Cache Index On Drift
 
 - [x] During the `WB-2.2` closeout review, identified that directory-cache growth was only bounded while the explicit cache index remained intact, then executed the follow-up by rebuilding the index from cached directory records when it is missing or malformed and deleting newly written records if index persistence fails.
