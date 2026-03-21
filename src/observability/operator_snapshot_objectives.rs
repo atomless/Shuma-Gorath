@@ -84,3 +84,44 @@ pub(super) fn default_operator_objectives() -> OperatorObjectivesProfile {
         },
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::default_operator_objectives;
+
+    #[test]
+    fn default_operator_objectives_expose_backend_default_profile_and_budget_catalog() {
+        let profile = default_operator_objectives();
+
+        assert_eq!(profile.profile_id, "backend_default_v1");
+        assert_eq!(profile.source, "backend_default_profile");
+        assert_eq!(profile.window_hours, 24);
+        assert_eq!(profile.compliance_semantics, "max_ratio_budget");
+        assert_eq!(
+            profile.non_human_posture,
+            "treat_as_untrusted_until_identity_foundation"
+        );
+        assert_eq!(profile.budgets.len(), 3);
+        assert_eq!(profile.budgets[0].budget_id, "likely_human_friction");
+        assert_eq!(profile.budgets[1].metric, "suspicious_forwarded_request_rate");
+        assert_eq!(profile.budgets[2].metric, "suspicious_forwarded_byte_rate");
+    }
+
+    #[test]
+    fn default_operator_objectives_keep_unmaterialized_expectations_and_manual_guardrails_explicit() {
+        let profile = default_operator_objectives();
+
+        assert_eq!(
+            profile.adversary_sim_expectations.availability,
+            "not_yet_materialized"
+        );
+        assert_eq!(
+            profile.rollout_guardrails.automated_apply_status,
+            "manual_only"
+        );
+        assert_eq!(
+            profile.rollout_guardrails.code_evolution_status,
+            "review_required"
+        );
+    }
+}

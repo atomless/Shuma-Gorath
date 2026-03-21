@@ -208,3 +208,89 @@ fn family_ids(families: &[&BenchmarkFamilyResult]) -> Vec<String> {
         .map(|family| family.family_id.clone())
         .collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        derive_escalation_hint, overall_coverage_status, overall_status,
+        unavailable_baseline_reference, unavailable_improvement_status,
+    };
+    use crate::config::allowed_actions_v1;
+    use crate::observability::benchmark_results::{BenchmarkFamilyResult, BenchmarkMetricResult};
+
+    fn family(family_id: &str, status: &str, capability_gate: &str) -> BenchmarkFamilyResult {
+        BenchmarkFamilyResult {
+            family_id: family_id.to_string(),
+            status: status.to_string(),
+            capability_gate: capability_gate.to_string(),
+            note: "test family".to_string(),
+            metrics: vec![BenchmarkMetricResult {
+                metric_id: format!("{family_id}_metric"),
+                status: status.to_string(),
+                current: Some(0.42),
+                target: Some(0.20),
+                delta: Some(0.22),
+                exactness: "exact".to_string(),
+                basis: "observed".to_string(),
+                capability_gate: capability_gate.to_string(),
+            }],
+        }
+    }
+
+    #[test]
+    fn unavailable_baseline_and_improvement_are_explicit() {
+        let baseline = unavailable_baseline_reference();
+        assert_eq!(baseline.reference_kind, "prior_window");
+        assert_eq!(baseline.status, "not_available");
+        assert_eq!(unavailable_improvement_status(), "not_available");
+    }
+
+    #[test]
+    fn overall_coverage_and_status_prioritize_supported_and_worst_budget_state() {
+        let families = vec![
+            family("suspicious_origin_cost", "inside_budget", "supported"),
+            family("likely_human_friction", "outside_budget", "partially_supported"),
+            family(
+                "representative_adversary_effectiveness",
+                "insufficient_evidence",
+                "supported",
+            ),
+        ];
+
+        assert_eq!(overall_coverage_status(families.as_slice()), "partial_support");
+        assert_eq!(overall_status(families.as_slice()), "outside_budget");
+    }
+
+    #[test]
+    fn escalation_hint_proposes_config_tuning_for_addressable_budget_breach() {
+        let hint = derive_escalation_hint(
+            &allowed_actions_v1(),
+            &[family(
+                "likely_human_friction",
+                "outside_budget",
+                "partially_supported",
+            )],
+        );
+
+        assert_eq!(hint.decision, "config_tuning_candidate");
+        assert_eq!(hint.review_status, "manual_review_required");
+        assert!(hint
+            .trigger_family_ids
+            .contains(&"likely_human_friction".to_string()));
+        assert!(hint
+            .candidate_action_families
+            .contains(&"challenge".to_string()));
+    }
+
+    #[test]
+    fn escalation_hint_stays_observe_longer_without_outside_budget_families() {
+        let hint = derive_escalation_hint(
+            &allowed_actions_v1(),
+            &[family("suspicious_origin_cost", "near_limit", "supported")],
+        );
+
+        assert_eq!(hint.decision, "observe_longer");
+        assert_eq!(hint.review_status, "manual_review_required");
+        assert!(hint.blockers.contains(&"near_limit_only".to_string()));
+    }
+}

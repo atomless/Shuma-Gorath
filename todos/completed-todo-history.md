@@ -4,6 +4,23 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-21)
 
+### LOOP-VERIFY-1: Add Focused Agent-Loop Truth Verification Targets
+
+- [x] Added the missing focused verification-prep targets for the next agent-first truth tranches: benchmark comparison, operator objectives, and replay-promotion lineage. The prep slice also added narrow module-level tests so each target proves the contract its name claims, rather than aliasing a broader suite.
+- [x] Why:
+  - the agent-first truth completion plan explicitly called for tranche-shaped verification before `OPS-BENCH-2`, `OPS-SNAPSHOT-2`, and `ADV-PROMO-1`, but those target names did not yet exist in `Makefile`.
+  - keeping the target names truthful required real narrow tests for comparison semantics and objective defaults, plus a replay-promotion contract path that stays off the full runner flow.
+  - landing this small prep slice now keeps the upcoming loop-truth work honest, cheaper to rerun, and aligned with the repo's Makefile-first verification rules.
+- [x] Evidence:
+  - `Makefile`
+  - `src/observability/benchmark_results_comparison.rs`
+  - `src/observability/operator_snapshot_objectives.rs`
+  - `docs/testing.md`
+  - `make test-benchmark-comparison-contract`
+  - `make test-operator-objectives-contract`
+  - `make test-replay-promotion-contract`
+  - `git diff --check`
+
 ### ADV-RUN-ARCH-1: Split The Adversarial Runner Into Focused Helper Modules
 
 - [x] Completed the planned adversarial-runner structural decomposition by extracting contract loading, runtime state carriers, report-section builders, frontier governance, frontier discovery scoring, evidence shaping, and execution/profile-coordination helpers into `scripts/tests/adversarial_runner/*` modules while keeping `scripts/tests/adversarial_simulation_runner.py` as the stable CLI and regression shell.
