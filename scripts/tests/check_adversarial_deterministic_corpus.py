@@ -17,7 +17,10 @@ import scripts.tests.adversarial_simulation_runner as sim_runner
 
 
 CORPUS_PATH = Path("scripts/tests/adversarial/deterministic_attack_corpus.v1.json")
-RUNTIME_PATH = Path("src/admin/adversary_sim.rs")
+RUNTIME_PATHS = [
+    Path("src/admin/adversary_sim.rs"),
+    Path("src/admin/adversary_sim_corpus.rs"),
+]
 
 
 class DeterministicCorpusError(Exception):
@@ -121,9 +124,34 @@ def validate_deterministic_corpus() -> List[str]:
             f"expected={taxonomy_version} observed={sim_runner.DETERMINISTIC_ATTACK_CORPUS_TAXONOMY_VERSION}"
         )
 
-    rust_source = RUNTIME_PATH.read_text(encoding="utf-8")
-    rust_schema = extract_rust_constant(rust_source, "DETERMINISTIC_ATTACK_CORPUS_SCHEMA_VERSION")
-    rust_path = extract_rust_constant(rust_source, "DETERMINISTIC_ATTACK_CORPUS_PATH")
+    rust_sources = {
+        path: path.read_text(encoding="utf-8")
+        for path in RUNTIME_PATHS
+        if path.exists()
+    }
+    if not rust_sources:
+        raise DeterministicCorpusError(
+            "missing runtime sources: " + ", ".join(str(path) for path in RUNTIME_PATHS)
+        )
+
+    constant_source = next(
+        (
+            source
+            for source in rust_sources.values()
+            if "DETERMINISTIC_ATTACK_CORPUS_SCHEMA_VERSION" in source
+            and "DETERMINISTIC_ATTACK_CORPUS_PATH" in source
+        ),
+        None,
+    )
+    if constant_source is None:
+        raise DeterministicCorpusError(
+            "missing runtime deterministic corpus constants in expected module set"
+        )
+
+    rust_schema = extract_rust_constant(
+        constant_source, "DETERMINISTIC_ATTACK_CORPUS_SCHEMA_VERSION"
+    )
+    rust_path = extract_rust_constant(constant_source, "DETERMINISTIC_ATTACK_CORPUS_PATH")
 
     if rust_schema != schema_version:
         errors.append(
@@ -137,7 +165,7 @@ def validate_deterministic_corpus() -> List[str]:
             f"expected={CORPUS_PATH} observed={rust_path}"
         )
 
-    if "load_deterministic_attack_corpus" not in rust_source:
+    if not any("load_deterministic_attack_corpus" in source for source in rust_sources.values()):
         errors.append("runtime loader missing: load_deterministic_attack_corpus")
 
     return errors
