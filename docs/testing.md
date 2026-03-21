@@ -38,6 +38,10 @@ make test-frontier-unavailability-policy # Frontier degraded-threshold policy tr
 make test-sim2-operational-regressions # SIM2 operational regressions for active deterministic profiles (retention/cost/security required; failure/prod checked when present)
 make test-sim2-operational-regressions-strict # Strict SIM2 operational regressions (all failure/prod/retention/cost/security domains required)
 make test-sim2-governance-contract # SIM2 hybrid lane + governance contract conformance diagnostics
+make test-admin-machine-contracts # Focused recent-change ledger + operator snapshot + benchmark admin read contracts
+make test-controller-action-surface # Focused allowed-actions and controller-family mapping checks
+make test-adversarial-runner-architecture # Focused adversarial runner CLI, unit, and validate-only checks
+make test-adversary-sim-domain-contract # Focused adversary-sim lifecycle and lane-domain checks without live runtime-surface traffic
 make test-ip-range-suggestions # Focused IP-range suggestion regression gate (runtime + dashboard)
 make test-coverage    # Unit coverage to lcov.info (requires cargo-llvm-cov)
 make test-dashboard-unit # Dashboard module unit tests (Node `node:test`)
@@ -198,6 +202,13 @@ Shared-host Scrapling proof map:
 - `make test-adversary-sim-scrapling-worker` proves the hosted worker lane itself.
 - `make test-adversary-sim-runtime-surface` proves the running target keeps the defense surface live while adversary simulation remains no-impact to normal user traffic.
 - none of those targets make Fermyon/Akamai edge a supported full hosted Scrapling worker target; that edge runtime remains outside the current supported contract.
+
+Structural refactor proof map:
+
+- `make test-admin-machine-contracts` is the focused admin read-contract gate for the recent-change ledger plus the machine-first operator snapshot and benchmark endpoints.
+- `make test-controller-action-surface` is the focused config-side gate for `allowed_actions_v1` and controller patch-family mapping reuse.
+- `make test-adversarial-runner-architecture` is the focused CLI, unit, and validate-only gate for the Python adversarial runner and closely related governance helpers.
+- `make test-adversary-sim-domain-contract` is the focused backend adversary-sim lifecycle and lane-domain gate that stays off the live runtime-surface path.
 
 Simulation realism pages are available at `/sim/public/landing`, `/sim/public/docs`, `/sim/public/pricing`, `/sim/public/contact`, and `/sim/public/search?q=...` only when both availability gates are true: `SHUMA_ADVERSARY_SIM_AVAILABLE=true` and the effective adversary-sim desired state is enabled (seeded initially by `SHUMA_ADVERSARY_SIM_ENABLED`, then projected from persisted control state after the first `POST /admin/adversary-sim/control` write).
 Dashboard DOM-class contract for runtime/simulation affordances:

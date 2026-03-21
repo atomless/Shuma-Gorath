@@ -1,4 +1,4 @@
-.PHONY: dev dev-prod local run run-prebuilt build build-runtime build-full-dev prod prod-start clean reset-local-state test test-unit unit-test test-verified-identity-contracts test-verified-identity-config test-verified-identity-provider test-verified-identity-native test-verified-identity-directory-discovery test-verified-identity-proxy-trust test-verified-identity-policy test-verified-identity-telemetry test-verified-identity-annotations test-integration integration-test test-gateway-harness test-gateway-wasm-tls-harness test-gateway-origin-bypass-probe test-gateway-profile-shared-server test-gateway-profile-edge smoke-gateway-mode test-deploy-linode test-deploy-fermyon test-scrapling-deploy-shared-host test-config-lifecycle test-js-verification-unit test-runtime-preflight-unit test-runtime-preflight test-shadow-mode test-enterprise-ban-store-contract test-telemetry-storage test-telemetry-hot-read-contract test-telemetry-hot-read-projection test-telemetry-hot-read-bootstrap test-telemetry-hot-read-evidence test-telemetry-hot-read-live-evidence test-monitoring-telemetry-contract test-monitoring-telemetry-foundation-unit test-operator-snapshot-foundation test-benchmark-suite-contract test-benchmark-results-contract telemetry-shared-host-evidence telemetry-fermyon-edge-evidence test-adversarial-python-unit test-adversarial-manifest test-adversarial-preflight test-adversarial-lane-contract test-shared-host-scope-contract test-shared-host-seed-contract build-shared-host-seed-inventory prepare-scrapling-deploy test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-scenario-review test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live test-remote-edge-signal-smoke test-fermyon-edge-signal-smoke telemetry-clean adversary-sim-supervisor-build adversary-sim-supervisor test-adversary-sim-runtime-surface test-adversary-sim-scrapling-worker test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-report-diff test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-frontier-unavailability-policy-unit test-sim2-realtime-bench test-sim2-adr-conformance test-sim2-ci-diagnostics test-sim2-verification-matrix test-sim2-verification-matrix-advisory test-sim2-operational-regressions test-sim2-operational-regressions-strict test-sim2-governance-contract test-sim2-verification-e2e test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-config-surface-contract test-dashboard-adversary-sim-lane-contract test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e test-dashboard-e2e-adversary-sim test-dashboard-e2e-external seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host prepare-linode-shared-host prepare-fermyon-akamai-edge remote-use remote-update remote-start remote-stop remote-status remote-logs remote-open-dashboard deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai deploy-linode-one-shot deploy-fermyon-akamai-edge logs status stop help setup setup-runtime verify verify-runtime config-seed config-verify dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
+.PHONY: dev dev-prod local run run-prebuilt build build-runtime build-full-dev prod prod-start clean reset-local-state test test-unit unit-test test-verified-identity-contracts test-verified-identity-config test-verified-identity-provider test-verified-identity-native test-verified-identity-directory-discovery test-verified-identity-proxy-trust test-verified-identity-policy test-verified-identity-telemetry test-verified-identity-annotations test-integration integration-test test-gateway-harness test-gateway-wasm-tls-harness test-gateway-origin-bypass-probe test-gateway-profile-shared-server test-gateway-profile-edge smoke-gateway-mode test-deploy-linode test-deploy-fermyon test-scrapling-deploy-shared-host test-config-lifecycle test-js-verification-unit test-runtime-preflight-unit test-runtime-preflight test-shadow-mode test-enterprise-ban-store-contract test-telemetry-storage test-telemetry-hot-read-contract test-telemetry-hot-read-projection test-telemetry-hot-read-bootstrap test-telemetry-hot-read-evidence test-telemetry-hot-read-live-evidence test-monitoring-telemetry-contract test-monitoring-telemetry-foundation-unit test-operator-snapshot-foundation test-admin-machine-contracts test-benchmark-suite-contract test-benchmark-results-contract test-controller-action-surface telemetry-shared-host-evidence telemetry-fermyon-edge-evidence test-adversarial-python-unit test-adversarial-manifest test-adversarial-preflight test-adversarial-lane-contract test-shared-host-scope-contract test-shared-host-seed-contract build-shared-host-seed-inventory prepare-scrapling-deploy test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-scenario-review test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live test-remote-edge-signal-smoke test-fermyon-edge-signal-smoke telemetry-clean adversary-sim-supervisor-build adversary-sim-supervisor test-adversary-sim-domain-contract test-adversary-sim-runtime-surface test-adversary-sim-scrapling-worker test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-report-diff test-adversarial-runner-architecture test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-frontier-unavailability-policy-unit test-sim2-realtime-bench test-sim2-adr-conformance test-sim2-ci-diagnostics test-sim2-verification-matrix test-sim2-verification-matrix-advisory test-sim2-operational-regressions test-sim2-operational-regressions-strict test-sim2-governance-contract test-sim2-verification-e2e test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-config-surface-contract test-dashboard-adversary-sim-lane-contract test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e test-dashboard-e2e-adversary-sim test-dashboard-e2e-external seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host prepare-linode-shared-host prepare-fermyon-akamai-edge remote-use remote-update remote-start remote-stop remote-status remote-logs remote-open-dashboard deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai deploy-linode-one-shot deploy-fermyon-akamai-edge logs status stop help setup setup-runtime verify verify-runtime config-seed config-verify dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
 
 # Default target
 .DEFAULT_GOAL := help
@@ -980,6 +980,26 @@ test-operator-snapshot-foundation: ## Run focused operator snapshot foundation c
 	@cargo test admin::api::tests::handle_admin_operator_snapshot_returns_machine_first_snapshot_contract -- --exact --nocapture
 	@cargo test admin::api::tests::handle_admin_operator_snapshot_returns_503_without_materializing_on_read -- --exact --nocapture
 
+test-admin-machine-contracts: ## Run focused admin read-contract checks for recent-change ledger plus operator snapshot and benchmark endpoints
+	@echo "$(CYAN)🧪 Running focused admin machine-contract checks...$(NC)"
+	@./scripts/set_crate_type.sh rlib
+	@cargo test admin::api::tests::operator_snapshot_recent_changes_ledger_tracks_changed_config_families -- --exact --nocapture
+	@cargo test admin::api::tests::operator_snapshot_recent_changes_ledger_ignores_requested_families_without_diff -- --exact --nocapture
+	@cargo test admin::api::admin_config_tests::admin_config_updates_materialize_recent_changes_in_operator_snapshot -- --exact --nocapture
+	@cargo test admin::api::tests::handle_admin_operator_snapshot_returns_machine_first_snapshot_contract -- --exact --nocapture
+	@cargo test admin::api::tests::handle_admin_operator_snapshot_returns_503_without_materializing_on_read -- --exact --nocapture
+	@cargo test admin::api::tests::handle_admin_benchmark_suite_returns_machine_first_benchmark_contract -- --exact --nocapture
+	@cargo test admin::api::tests::handle_admin_benchmark_suite_is_get_only -- --exact --nocapture
+	@cargo test admin::api::tests::handle_admin_benchmark_results_returns_bounded_current_instance_contract -- --exact --nocapture
+	@cargo test admin::api::tests::handle_admin_benchmark_results_returns_503_without_materialized_snapshot -- --exact --nocapture
+	@cargo test admin::api::tests::handle_admin_benchmark_results_is_get_only -- --exact --nocapture
+
+test-controller-action-surface: ## Run focused allowed-actions and controller-family mapping checks
+	@echo "$(CYAN)🧪 Running controller action-surface checks...$(NC)"
+	@./scripts/set_crate_type.sh rlib
+	@cargo test config::tests::allowed_actions_v1_exposes_conservative_controller_write_surface -- --exact --nocapture
+	@cargo test config::tests::controller_config_family_for_patch_key_reuses_allowed_action_catalog -- --exact --nocapture
+
 test-benchmark-suite-contract: ## Run focused machine-first benchmark suite contract checks
 	@echo "$(CYAN)🧪 Running benchmark suite contract checks...$(NC)"
 	@./scripts/set_crate_type.sh rlib
@@ -1070,6 +1090,16 @@ test-adversarial-lane-contract: ## Validate black-box lane capability contract p
 	@echo "$(CYAN)🧪 Validating adversarial lane capability contract...$(NC)"
 	@python3 scripts/tests/check_adversarial_lane_contract.py
 
+test-adversarial-runner-architecture: ## Run focused adversarial runner CLI, unit, and validate-only contract checks
+	@echo "$(CYAN)🧪 Running adversarial runner architecture checks...$(NC)"
+	@if [ -d "scripts/tests/adversarial_runner" ]; then python3 -m compileall scripts/tests/adversarial_runner >/dev/null; fi
+	@python3 -m py_compile scripts/tests/adversarial_simulation_runner.py scripts/tests/adversarial_promote_candidates.py scripts/tests/adversarial_report_diff.py
+	@python3 -m unittest scripts/tests/test_adversarial_simulation_runner.py scripts/tests/test_adversarial_promote_candidates.py scripts/tests/test_adversarial_report_diff.py
+	@python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v2.json --profile fast_smoke --validate-only
+	@python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v2.json --profile abuse_regression --validate-only
+	@python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v2.json --profile akamai_smoke --validate-only
+	@python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v2.json --profile full_coverage --validate-only
+
 test-adversarial-deterministic-corpus: ## Validate shared deterministic attack corpus parity across runtime and CI oracle lanes
 	@echo "$(CYAN)🧪 Validating shared deterministic attack corpus parity...$(NC)"
 	@python3 scripts/tests/check_adversarial_deterministic_corpus.py
@@ -1106,6 +1136,12 @@ test-adversary-sim-lane-selection: ## Focused control-path lane-selection gate (
 	@cargo test adversary_sim_control_rejects_invalid_lane_value -- --nocapture
 	@cargo test adversary_sim_control_rejects_lane_only_idempotency_payload_mismatch -- --nocapture
 	@cargo test adversary_sim_running_lane_selection_updates_desired_lane_without_switching_active_lane -- --nocapture
+
+test-adversary-sim-domain-contract: ## Run focused adversary-sim lifecycle and lane-domain checks without live runtime-surface traffic
+	@echo "$(CYAN)🧪 Running adversary-sim domain-contract checks...$(NC)"
+	@$(MAKE) --no-print-directory test-adversary-sim-lifecycle
+	@$(MAKE) --no-print-directory test-adversary-sim-lane-contract
+	@$(MAKE) --no-print-directory test-adversary-sim-lane-selection
 
 test-adversary-sim-scrapling-worker: ## Focused Scrapling lane worker gate (beat plan/result contract plus real worker/supervisor coverage)
 	@echo "$(CYAN)🧪 Running adversary-sim Scrapling worker gate...$(NC)"
