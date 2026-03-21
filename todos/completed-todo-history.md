@@ -4,6 +4,22 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-21)
 
+### WB-REVIEW-1: Observe-Only Tranche Metrics Boundary Coverage
+
+- [x] During the full `WB-0.*` through `WB-1.*` tranche review, identified that the new verified-identity Prometheus families were not directly regression-tested at the render boundary, then executed the follow-up by introducing a generic internal metrics renderer helper and a focused metrics test that now runs as part of `make test-verified-identity-telemetry`.
+- [x] Why:
+  - the observe-only tranche already proved the admin monitoring summary and request-outcome lane context, but the Prometheus export path remained an operator-visible boundary without a direct regression assertion.
+  - the root cause was architectural, not conceptual: `render_metrics` only accepted `spin_sdk::key_value::Store`, which prevented unit coverage against the in-memory test store used everywhere else in this repo.
+  - the clean fix was a narrow reuse-first refactor: keep the public `render_metrics(&Store)` surface, add an internal generic helper over the shared key-value contract, and attach the missing verified-identity metrics test to the existing focused make target.
+- [x] Evidence:
+  - `src/observability/metrics.rs`
+  - `Makefile`
+  - `docs/research/2026-03-21-wb-observe-only-tranche-review-and-shortfall-closeout.md`
+  - `make test-verified-identity-telemetry`
+  - `make test-verified-identity-annotations`
+  - `git diff --check`
+  - review result: the tranche-level shortfall was executed immediately; no remaining shortfall was left open in the observe-only verified-identity tranche.
+
 ### WB-1.3: Verified-Identity Request-Path Annotations
 
 - [x] Threaded successful verified-identity annotations through request facts and request-outcome monitoring context without changing allow/deny/challenge routing, including exact observed `verified_bot` and `signed_agent` lane attribution for recognized identities that are still challenged or otherwise restricted.

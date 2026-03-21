@@ -487,7 +487,7 @@ pub fn record_tarpit_bytes_bucket(store: &Store, bucket: &str) {
 }
 
 /// Get current value of a counter
-fn get_counter(store: &Store, key: &str) -> u64 {
+fn get_counter(store: &impl crate::challenge::KeyValueStore, key: &str) -> u64 {
     store
         .get(key)
         .ok()
@@ -497,7 +497,10 @@ fn get_counter(store: &Store, key: &str) -> u64 {
         .unwrap_or(0)
 }
 
-fn collect_labeled_counters(store: &Store, metric: MetricName) -> Vec<(String, u64)> {
+fn collect_labeled_counters(
+    store: &impl crate::challenge::KeyValueStore,
+    metric: MetricName,
+) -> Vec<(String, u64)> {
     let mut rows = Vec::new();
     let prefix = format!("{}{}:", METRICS_PREFIX, metric.as_str());
 
@@ -519,8 +522,10 @@ fn count_active_bans(store: &Store) -> u64 {
     crate::enforcement::ban::list_active_bans_with_scan(store, "default").len() as u64
 }
 
-/// Generate Prometheus-format metrics output
-pub fn render_metrics(store: &Store) -> String {
+fn render_metrics_with_store(
+    store: &impl crate::challenge::KeyValueStore,
+    active_bans: u64,
+) -> String {
     let mut output = String::new();
 
     // Header
@@ -1245,7 +1250,6 @@ pub fn render_metrics(store: &Store) -> String {
     // Active bans (gauge)
     output.push_str("\n# TYPE bot_defence_active_bans gauge\n");
     output.push_str("# HELP bot_defence_active_bans Current number of active (non-expired) bans\n");
-    let active_bans = count_active_bans(store);
     output.push_str(&format!("bot_defence_active_bans {}\n", active_bans));
 
     // Shadow mode enabled (gauge, 0 or 1)
@@ -1261,6 +1265,11 @@ pub fn render_metrics(store: &Store) -> String {
     output
 }
 
+/// Generate Prometheus-format metrics output
+pub fn render_metrics(store: &Store) -> String {
+    render_metrics_with_store(store, count_active_bans(store))
+}
+
 /// Handle GET /metrics endpoint
 pub fn handle_metrics(store: &Store) -> spin_sdk::http::Response {
     if crate::config::load_runtime_cached(store, "default").is_err() {
@@ -1272,4 +1281,40 @@ pub fn handle_metrics(store: &Store) -> spin_sdk::http::Response {
         .header("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
         .body(body)
         .build()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::render_metrics_with_store;
+
+    #[test]
+    fn render_metrics_includes_verified_identity_monitoring_families() {
+        let store = crate::test_support::InMemoryStore::default();
+        crate::observability::monitoring::record_verified_identity_telemetry(
+            &store,
+            &crate::bot_identity::telemetry::IdentityVerificationTelemetryRecord {
+                scheme: Some(crate::bot_identity::contracts::IdentityScheme::ProviderSignedAgent),
+                provenance: crate::bot_identity::contracts::IdentityProvenance::Provider,
+                result_status:
+                    crate::bot_identity::verification::IdentityVerificationResultStatus::Verified,
+                failure: None,
+                freshness:
+                    crate::bot_identity::verification::IdentityVerificationFreshness::Fresh,
+                operator: Some("openai".to_string()),
+                stable_identity: Some("chatgpt-agent".to_string()),
+            },
+        );
+
+        let body = render_metrics_with_store(&store, 0);
+
+        assert!(body.contains(
+            "bot_defence_monitoring_verified_identity_attempts_total{outcome=\"verified\"} 1"
+        ));
+        assert!(body.contains(
+            "bot_defence_monitoring_verified_identity_provenance_total{provenance=\"provider\"} 1"
+        ));
+        assert!(body.contains(
+            "bot_defence_monitoring_verified_identity_schemes_total{scheme=\"provider_signed_agent\"} 1"
+        ));
+    }
 }

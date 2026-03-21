@@ -659,6 +659,7 @@ test-verified-identity-telemetry: ## Run focused verified-identity observe-only 
 	@echo "$(CYAN)🧪 Running verified-identity telemetry tests...$(NC)"
 	@./scripts/set_crate_type.sh rlib
 	@cargo test bot_identity::tests::verification_telemetry_ -- --nocapture
+	@cargo test observability::metrics::tests::render_metrics_includes_verified_identity_monitoring_families -- --exact --nocapture
 	@cargo test observability::monitoring::tests::summarize_returns_seeded_maps_when_empty -- --exact --nocapture
 	@cargo test observability::monitoring::tests::summarize_aggregates_verified_identity_attempts_and_identities -- --exact --nocapture
 	@cargo test observability::hot_read_documents::tests::supporting_summary_contracts_are_narrower_than_bootstrap_document -- --exact --nocapture
