@@ -2,9 +2,16 @@ use flate2::write::GzEncoder;
 use flate2::Compression;
 use rand::random;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeMap, HashSet};
 use std::io::Write;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+#[cfg(test)]
+use super::recent_changes_ledger::load_operator_snapshot_recent_changes;
+use super::recent_changes_ledger::{
+    operator_snapshot_config_patch_recent_change_row, operator_snapshot_manual_change_row,
+    record_operator_snapshot_recent_change_rows, OperatorSnapshotRecentChangeLedgerRow,
+};
 /// Event types for activity logging
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum EventType {
@@ -163,10 +170,6 @@ const SECURITY_FORENSIC_ACK_VALUE: &str = "I_UNDERSTAND_FORENSIC";
 const TELEMETRY_CLEANUP_ACK_HEADER: &str = "x-shuma-telemetry-cleanup-ack";
 const TELEMETRY_CLEANUP_ACK_VALUE: &str = "I_UNDERSTAND_TELEMETRY_CLEANUP";
 const SECURITY_HIGH_RISK_RETENTION_MAX_HOURS: u64 = 72;
-const OPERATOR_SNAPSHOT_RECENT_CHANGES_SCHEMA_VERSION: &str =
-    "operator_snapshot_recent_changes.v1";
-const OPERATOR_SNAPSHOT_RECENT_CHANGES_MAX_ROWS: usize = 24;
-const OPERATOR_SNAPSHOT_RECENT_CHANGES_SUMMARY_MAX_CHARS: usize = 240;
 const SECRET_LIKE_SUBSTRINGS: [&str; 8] = [
     "sk-",
     "api_key",
@@ -182,33 +185,6 @@ const SECRET_CANARY_MARKERS: [&str; 3] = [
     "frontier_secret_canary",
     "sim_secret_canary",
 ];
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
-pub(crate) struct OperatorSnapshotRecentChangeLedgerRow {
-    changed_at_ts: u64,
-    change_reason: String,
-    changed_families: Vec<String>,
-    source: String,
-    targets: Vec<String>,
-    change_summary: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct OperatorSnapshotRecentChangeLedgerState {
-    schema_version: String,
-    updated_at_ts: u64,
-    rows: Vec<OperatorSnapshotRecentChangeLedgerRow>,
-}
-
-impl Default for OperatorSnapshotRecentChangeLedgerState {
-    fn default() -> Self {
-        Self {
-            schema_version: OPERATOR_SNAPSHOT_RECENT_CHANGES_SCHEMA_VERSION.to_string(),
-            updated_at_ts: 0,
-            rows: Vec::new(),
-        }
-    }
-}
 
 fn event_log_retention_hours() -> u64 {
     crate::observability::retention::event_log_high_risk_retention_hours()
@@ -230,142 +206,14 @@ fn effective_event_log_query_hours(requested_hours: u64) -> u64 {
     requested_hours.clamp(1, retention.clamp(1, 720))
 }
 
-fn operator_snapshot_recent_changes_state_key(site_id: &str) -> String {
-    format!("operator_snapshot:recent_changes:v1:{}", site_id)
-}
-
-fn load_operator_snapshot_recent_changes_state<S: crate::challenge::KeyValueStore>(
-    store: &S,
-    site_id: &str,
-) -> OperatorSnapshotRecentChangeLedgerState {
-    let key = operator_snapshot_recent_changes_state_key(site_id);
-    store
-        .get(key.as_str())
-        .ok()
-        .flatten()
-        .and_then(|value| {
-            serde_json::from_slice::<OperatorSnapshotRecentChangeLedgerState>(value.as_slice()).ok()
-        })
-        .unwrap_or_default()
-}
-
-fn save_operator_snapshot_recent_changes_state<S: crate::challenge::KeyValueStore>(
-    store: &S,
-    site_id: &str,
-    state: &OperatorSnapshotRecentChangeLedgerState,
-) {
-    let key = operator_snapshot_recent_changes_state_key(site_id);
-    let Ok(payload) = serde_json::to_vec(state) else {
-        eprintln!(
-            "[operator-snapshot] failed serializing recent change ledger site={}",
-            site_id
-        );
-        return;
-    };
-    if store.set(key.as_str(), payload.as_slice()).is_err() {
-        eprintln!(
-            "[operator-snapshot] failed persisting recent change ledger site={}",
-            site_id
-        );
-    }
-}
-
-fn truncate_operator_snapshot_change_summary(summary: &str) -> String {
-    if summary.chars().count() <= OPERATOR_SNAPSHOT_RECENT_CHANGES_SUMMARY_MAX_CHARS {
-        return summary.to_string();
-    }
-    summary
-        .chars()
-        .take(OPERATOR_SNAPSHOT_RECENT_CHANGES_SUMMARY_MAX_CHARS.saturating_sub(3))
-        .collect::<String>()
-        + "..."
-}
-
-pub(crate) fn record_operator_snapshot_recent_change_rows<S: crate::challenge::KeyValueStore>(
-    store: &S,
-    site_id: &str,
-    rows: &[OperatorSnapshotRecentChangeLedgerRow],
-    updated_at_ts: u64,
-) {
-    if rows.is_empty() {
-        return;
-    }
-
-    let mut state = load_operator_snapshot_recent_changes_state(store, site_id);
-    for row in rows.iter().cloned() {
-        state.rows.push(row);
-    }
-    state.rows.sort_by(|left, right| {
-        right
-            .changed_at_ts
-            .cmp(&left.changed_at_ts)
-            .then_with(|| left.change_reason.cmp(&right.change_reason))
-            .then_with(|| left.change_summary.cmp(&right.change_summary))
-    });
-    state.rows.truncate(OPERATOR_SNAPSHOT_RECENT_CHANGES_MAX_ROWS);
-    state.updated_at_ts = updated_at_ts;
-    state.schema_version = OPERATOR_SNAPSHOT_RECENT_CHANGES_SCHEMA_VERSION.to_string();
-    save_operator_snapshot_recent_changes_state(store, site_id, &state);
-}
-
-pub(crate) fn load_operator_snapshot_recent_changes<S: crate::challenge::KeyValueStore>(
-    store: &S,
-    site_id: &str,
-    generated_at_ts: u64,
-    watch_window_hours: u64,
-    max_rows: usize,
-) -> (
-    crate::observability::operator_snapshot::OperatorSnapshotRecentChanges,
-    u64,
-) {
-    let state = load_operator_snapshot_recent_changes_state(store, site_id);
-    let watch_window_seconds = watch_window_hours.saturating_mul(3600);
-    let lookback_seconds = watch_window_seconds.saturating_mul(3).max(watch_window_seconds);
-    let lookback_start_ts = generated_at_ts.saturating_sub(lookback_seconds.saturating_sub(1));
-    let rows = state
-        .rows
-        .iter()
-        .filter(|row| row.changed_at_ts >= lookback_start_ts)
-        .take(max_rows)
-        .map(|row| {
-            let elapsed = generated_at_ts.saturating_sub(row.changed_at_ts);
-            let bounded_elapsed = elapsed.min(watch_window_seconds);
-            let remaining = watch_window_seconds.saturating_sub(bounded_elapsed);
-            let watch_window_status = if remaining == 0 {
-                "watch_window_complete"
-            } else {
-                "collecting_post_change_window"
-            };
-            crate::observability::operator_snapshot::OperatorSnapshotRecentChange {
-                changed_at_ts: row.changed_at_ts,
-                change_reason: row.change_reason.clone(),
-                changed_families: row.changed_families.clone(),
-                source: row.source.clone(),
-                targets: row.targets.clone(),
-                watch_window_status: watch_window_status.to_string(),
-                watch_window_elapsed_seconds: bounded_elapsed,
-                watch_window_remaining_seconds: remaining,
-                change_summary: row.change_summary.clone(),
-            }
-        })
-        .collect();
-
-    (
-        crate::observability::operator_snapshot::OperatorSnapshotRecentChanges {
-            lookback_seconds,
-            watch_window_seconds,
-            rows,
-        },
-        if state.updated_at_ts == 0 {
-            generated_at_ts
-        } else {
-            state.updated_at_ts
-        },
-    )
-}
-
 fn make_v2_event_key(hour: u64, ts: u64) -> String {
-    format!("{}:{}:{}-{:016x}", EVENTLOG_V2_PREFIX, hour, ts, random::<u64>())
+    format!(
+        "{}:{}:{}-{:016x}",
+        EVENTLOG_V2_PREFIX,
+        hour,
+        ts,
+        random::<u64>()
+    )
 }
 
 fn parse_v2_event_key(key: &str) -> Option<u64> {
@@ -396,7 +244,11 @@ fn read_event_log_record<S: crate::challenge::KeyValueStore>(
     let val = store.get(key).ok().flatten()?;
     serde_json::from_slice::<EventLogRecord>(&val)
         .ok()
-        .or_else(|| serde_json::from_slice::<EventLogEntry>(&val).ok().map(EventLogRecord::from_entry))
+        .or_else(|| {
+            serde_json::from_slice::<EventLogEntry>(&val)
+                .ok()
+                .map(EventLogRecord::from_entry)
+        })
 }
 
 fn is_external_monitoring_event(record: &EventLogRecord) -> bool {
@@ -421,7 +273,10 @@ fn increment_security_privacy_counter<S: crate::challenge::KeyValueStore>(
     let hour = ts / 3600;
     let key = security_privacy_counter_key(metric, hour);
     let next = read_u64_counter(store, key.as_str()).saturating_add(1);
-    if store.set(key.as_str(), next.to_string().as_bytes()).is_err() {
+    if store
+        .set(key.as_str(), next.to_string().as_bytes())
+        .is_err()
+    {
         return;
     }
     if next == 1 {
@@ -491,7 +346,9 @@ fn scrub_secret_like_text(raw: &str) -> (String, bool, bool) {
     (raw.to_string(), false, false)
 }
 
-fn sanitize_event_record_for_persistence(record: &mut EventLogRecord) -> EventSecuritySanitizationResult {
+fn sanitize_event_record_for_persistence(
+    record: &mut EventLogRecord,
+) -> EventSecuritySanitizationResult {
     let mut result = EventSecuritySanitizationResult::default();
 
     if let Some(reason) = record.entry.reason.clone() {
@@ -589,8 +446,8 @@ fn forensic_access_mode(query: &str) -> bool {
     let forensic_requested = crate::request_validation::query_param(query, "forensic")
         .map(|value| value == "1" || value.eq_ignore_ascii_case("true"))
         .unwrap_or(false);
-    let forensic_ack = crate::request_validation::query_param(query, "forensic_ack")
-        .unwrap_or_default();
+    let forensic_ack =
+        crate::request_validation::query_param(query, "forensic_ack").unwrap_or_default();
     forensic_requested && forensic_ack == SECURITY_FORENSIC_ACK_VALUE
 }
 
@@ -740,8 +597,12 @@ fn security_privacy_payload<S: crate::challenge::KeyValueStore>(
         now,
         effective_hours,
     );
-    let secret_scrub_actions_total =
-        read_security_privacy_counter_window(store, "secret_scrub_actions_total", now, effective_hours);
+    let secret_scrub_actions_total = read_security_privacy_counter_window(
+        store,
+        "secret_scrub_actions_total",
+        now,
+        effective_hours,
+    );
     let secret_canary_detected_total = read_security_privacy_counter_window(
         store,
         "secret_canary_detected_total",
@@ -837,7 +698,11 @@ pub fn log_event_with_execution_metadata<S: crate::challenge::KeyValueStore>(
 
     let hour = record.entry.ts / 3600;
     let key = make_v2_event_key(hour, record.entry.ts);
-    increment_security_privacy_counter(store, "field_classification_enforced_total", record.entry.ts);
+    increment_security_privacy_counter(
+        store,
+        "field_classification_enforced_total",
+        record.entry.ts,
+    );
     if event_log_retention_override_requested() {
         set_security_privacy_state(
             store,
@@ -915,9 +780,7 @@ pub fn log_event_with_execution_metadata<S: crate::challenge::KeyValueStore>(
             }
             crate::observability::retention::register_event_log_key(store, hour, key.as_str());
             crate::observability::retention::run_worker_if_due(store);
-            crate::observability::hot_read_projection::refresh_after_event_append(
-                store, "default",
-            );
+            crate::observability::hot_read_projection::refresh_after_event_append(store, "default");
         }
         Err(_) => eprintln!(
             "[log_event] serialization error; dropping event for key {}",
@@ -1081,8 +944,14 @@ mod tests {
             .collect();
         assert_eq!(records.len(), 1);
         let payload: serde_json::Value = serde_json::from_slice(&records[0].1).unwrap();
-        assert_eq!(payload.get("sim_run_id").and_then(|v| v.as_str()), Some("run_001"));
-        assert_eq!(payload.get("sim_profile").and_then(|v| v.as_str()), Some("fast_smoke"));
+        assert_eq!(
+            payload.get("sim_run_id").and_then(|v| v.as_str()),
+            Some("run_001")
+        );
+        assert_eq!(
+            payload.get("sim_profile").and_then(|v| v.as_str()),
+            Some("fast_smoke")
+        );
         assert_eq!(
             payload.get("sim_lane").and_then(|v| v.as_str()),
             Some("deterministic_black_box")
@@ -1128,14 +997,8 @@ mod tests {
         assert_eq!(records.len(), 1);
 
         let payload: EventLogRecord = serde_json::from_slice(records[0].as_slice()).unwrap();
-        assert_eq!(
-            payload.execution.execution_mode.as_deref(),
-            Some("shadow")
-        );
-        assert_eq!(
-            payload.execution.intended_action.as_deref(),
-            Some("block")
-        );
+        assert_eq!(payload.execution.execution_mode.as_deref(), Some("shadow"));
+        assert_eq!(payload.execution.intended_action.as_deref(), Some("block"));
         assert_eq!(payload.execution.enforcement_applied, Some(false));
     }
 
@@ -1286,7 +1149,9 @@ mod tests {
             Some("served")
         );
         assert_eq!(
-            payload.get("botness_score").and_then(|value| value.as_u64()),
+            payload
+                .get("botness_score")
+                .and_then(|value| value.as_u64()),
             Some(8)
         );
 
@@ -1544,10 +1409,7 @@ mod tests {
             serde_json::from_slice(recent_bytes.as_slice()).expect("recent tail doc decode");
         assert_eq!(recent.payload.recent_events.len(), 40);
         assert!(recent.payload.recent_events.iter().all(|event| {
-            event
-                .get("sim_run_id")
-                .and_then(|value| value.as_str())
-                == Some("simrun-history-2")
+            event.get("sim_run_id").and_then(|value| value.as_str()) == Some("simrun-history-2")
         }));
 
         let recent_runs_bytes = store
@@ -1563,7 +1425,10 @@ mod tests {
             serde_json::from_slice(recent_runs_bytes.as_slice())
                 .expect("recent sim runs doc decode");
         assert_eq!(recent_runs.payload.recent_sim_runs.len(), 2);
-        assert_eq!(recent_runs.payload.recent_sim_runs[0].run_id, "simrun-history-2");
+        assert_eq!(
+            recent_runs.payload.recent_sim_runs[0].run_id,
+            "simrun-history-2"
+        );
         assert_eq!(
             recent_runs
                 .payload
@@ -1657,7 +1522,8 @@ mod tests {
         assert!(!persisted);
 
         let canary_counter_key = security_privacy_counter_key("secret_canary_detected_total", hour);
-        let incident_counter_key = security_privacy_counter_key("incident_hook_emitted_total", hour);
+        let incident_counter_key =
+            security_privacy_counter_key("incident_hook_emitted_total", hour);
         assert_eq!(read_u64_counter(&store, canary_counter_key.as_str()), 1);
         assert_eq!(read_u64_counter(&store, incident_counter_key.as_str()), 1);
 
@@ -1774,16 +1640,15 @@ mod tests {
         let non_sim_key = format!("eventlog:v2:{}:{}-non-sim", hour, now);
         let sim_key = format!("eventlog:v2:{}:{}-sim", hour, now);
         store
-            .set(&non_sim_key, serde_json::to_vec(&non_sim).unwrap().as_slice())
+            .set(
+                &non_sim_key,
+                serde_json::to_vec(&non_sim).unwrap().as_slice(),
+            )
             .unwrap();
         store
             .set(&sim_key, serde_json::to_vec(&sim).unwrap().as_slice())
             .unwrap();
-        crate::observability::retention::register_event_log_key(
-            &store,
-            hour,
-            non_sim_key.as_str(),
-        );
+        crate::observability::retention::register_event_log_key(&store, hour, non_sim_key.as_str());
         crate::observability::retention::register_event_log_key(&store, hour, sim_key.as_str());
 
         let records = load_recent_event_records(&store, now, 1);
@@ -1895,9 +1760,9 @@ mod tests {
         let store = MockStore::new();
         let oversized = "a".repeat(513);
         let mut builder = Request::builder();
-        builder.method(Method::Get).uri(
-            format!("/admin/monitoring/delta?after_cursor={}", oversized).as_str(),
-        );
+        builder
+            .method(Method::Get)
+            .uri(format!("/admin/monitoring/delta?after_cursor={}", oversized).as_str());
         let req = builder.build();
         let resp = handle_admin_monitoring_delta(&req, &store);
         assert_eq!(*resp.status(), 400u16);
@@ -2014,8 +1879,7 @@ mod tests {
                     exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
                     basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
                 }),
-                outcome_class:
-                    crate::runtime::request_outcome::RequestOutcomeClass::ShortCircuited,
+                outcome_class: crate::runtime::request_outcome::RequestOutcomeClass::ShortCircuited,
                 response_kind: crate::runtime::request_outcome::ResponseKind::NotABot,
                 http_status: 200,
                 response_bytes: 45,
@@ -2046,10 +1910,11 @@ mod tests {
             .expect("request outcome response kind rows");
         assert!(response_kind_rows.iter().any(|row| {
             row.get("traffic_origin").and_then(|value| value.as_str()) == Some("live")
-                && row.get("measurement_scope").and_then(|value| value.as_str())
+                && row
+                    .get("measurement_scope")
+                    .and_then(|value| value.as_str())
                     == Some("ingress_primary")
-                && row.get("execution_mode").and_then(|value| value.as_str())
-                    == Some("enforced")
+                && row.get("execution_mode").and_then(|value| value.as_str()) == Some("enforced")
                 && row.get("value").and_then(|value| value.as_str()) == Some("not_a_bot")
         }));
 
@@ -2063,8 +1928,7 @@ mod tests {
             .iter()
             .find(|row| {
                 row.get("execution_mode").and_then(|value| value.as_str()) == Some("enforced")
-                    && row.get("segment").and_then(|value| value.as_str())
-                        == Some("likely_human")
+                    && row.get("segment").and_then(|value| value.as_str()) == Some("likely_human")
             })
             .expect("likely human friction row");
         assert_eq!(
@@ -2125,8 +1989,7 @@ mod tests {
                     exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
                     basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
                 }),
-                outcome_class:
-                    crate::runtime::request_outcome::RequestOutcomeClass::ShortCircuited,
+                outcome_class: crate::runtime::request_outcome::RequestOutcomeClass::ShortCircuited,
                 response_kind: crate::runtime::request_outcome::ResponseKind::NotABot,
                 http_status: 200,
                 response_bytes: 45,
@@ -2140,16 +2003,16 @@ mod tests {
         record_operator_snapshot_recent_change_rows(
             &store,
             "default",
-                &[operator_snapshot_manual_change_row(
-                    recent_change_ts,
-                    "config_patch",
-                    &["core_policy"],
-                    &["likely_human_friction", "suspicious_forwarded_requests"],
-                    "admin_rw",
-                    "config families updated: core_policy",
-                )],
+            &[operator_snapshot_manual_change_row(
                 recent_change_ts,
-            );
+                "config_patch",
+                &["core_policy"],
+                &["likely_human_friction", "suspicious_forwarded_requests"],
+                "admin_rw",
+                "config families updated: core_policy",
+            )],
+            recent_change_ts,
+        );
         crate::observability::hot_read_projection::refresh_after_counter_flush(&store, "default");
 
         let mut builder = Request::builder();
@@ -2179,17 +2042,15 @@ mod tests {
                 .and_then(|value| value.as_str()),
             Some("backend_default_v1")
         );
-        assert!(
-            payload
-                .get("budget_distance")
-                .and_then(|value| value.get("rows"))
-                .and_then(|value| value.as_array())
-                .map(|rows| rows.iter().any(|row| {
-                    row.get("metric").and_then(|value| value.as_str())
-                        == Some("likely_human_friction_rate")
-                }))
-                .unwrap_or(false)
-        );
+        assert!(payload
+            .get("budget_distance")
+            .and_then(|value| value.get("rows"))
+            .and_then(|value| value.as_array())
+            .map(|rows| rows.iter().any(|row| {
+                row.get("metric").and_then(|value| value.as_str())
+                    == Some("likely_human_friction_rate")
+            }))
+            .unwrap_or(false));
         assert_eq!(
             payload
                 .get("recent_changes")
@@ -2215,14 +2076,14 @@ mod tests {
                 .and_then(|value| value.as_str()),
             Some("allowed_actions_v1")
         );
-        assert!(
-            payload
-                .get("allowed_actions")
-                .and_then(|value| value.get("allowed_group_ids"))
-                .and_then(|value| value.as_array())
-                .map(|rows| rows.iter().any(|row| row.as_str() == Some("not_a_bot.policy")))
-                .unwrap_or(false)
-        );
+        assert!(payload
+            .get("allowed_actions")
+            .and_then(|value| value.get("allowed_group_ids"))
+            .and_then(|value| value.as_array())
+            .map(|rows| rows
+                .iter()
+                .any(|row| row.as_str() == Some("not_a_bot.policy")))
+            .unwrap_or(false));
         assert_eq!(
             payload
                 .get("benchmark_results")
@@ -2310,26 +2171,21 @@ mod tests {
                 .map(|rows| rows.len()),
             Some(3)
         );
-        assert!(
-            payload
-                .get("families")
-                .and_then(|value| value.as_array())
-                .map(|rows| rows.iter().any(|row| {
-                    row.get("id").and_then(|value| value.as_str())
-                        == Some("suspicious_origin_cost")
-                }))
-                .unwrap_or(false)
-        );
-        assert!(
-            payload
-                .get("decision_boundaries")
-                .and_then(|value| value.as_array())
-                .map(|rows| rows.iter().any(|row| {
-                    row.get("decision").and_then(|value| value.as_str())
-                        == Some("code_evolution_candidate")
-                }))
-                .unwrap_or(false)
-        );
+        assert!(payload
+            .get("families")
+            .and_then(|value| value.as_array())
+            .map(|rows| rows.iter().any(|row| {
+                row.get("id").and_then(|value| value.as_str()) == Some("suspicious_origin_cost")
+            }))
+            .unwrap_or(false));
+        assert!(payload
+            .get("decision_boundaries")
+            .and_then(|value| value.as_array())
+            .map(|rows| rows.iter().any(|row| {
+                row.get("decision").and_then(|value| value.as_str())
+                    == Some("code_evolution_candidate")
+            }))
+            .unwrap_or(false));
     }
 
     #[test]
@@ -2380,9 +2236,7 @@ mod tests {
             Some("benchmark_suite_v1")
         );
         assert_eq!(
-            payload
-                .get("subject_kind")
-                .and_then(|value| value.as_str()),
+            payload.get("subject_kind").and_then(|value| value.as_str()),
             Some("current_instance")
         );
         assert_eq!(
@@ -2406,16 +2260,14 @@ mod tests {
                 .and_then(|value| value.as_str()),
             Some("manual_review_required")
         );
-        assert!(
-            payload
-                .get("families")
-                .and_then(|value| value.as_array())
-                .map(|rows| rows.iter().any(|row| {
-                    row.get("family_id").and_then(|value| value.as_str())
-                        == Some("suspicious_origin_cost")
-                }))
-                .unwrap_or(false)
-        );
+        assert!(payload
+            .get("families")
+            .and_then(|value| value.as_array())
+            .map(|rows| rows.iter().any(|row| {
+                row.get("family_id").and_then(|value| value.as_str())
+                    == Some("suspicious_origin_cost")
+            }))
+            .unwrap_or(false));
     }
 
     #[test]
@@ -2513,9 +2365,13 @@ mod tests {
         assert!(!anchor_cursor.is_empty());
 
         let mut delta_builder = Request::builder();
-        delta_builder
-            .method(Method::Get)
-            .uri(format!("/admin/monitoring/delta?hours=1&limit=10&after_cursor={}", anchor_cursor).as_str());
+        delta_builder.method(Method::Get).uri(
+            format!(
+                "/admin/monitoring/delta?hours=1&limit=10&after_cursor={}",
+                anchor_cursor
+            )
+            .as_str(),
+        );
         let delta_req = delta_builder.build();
         let delta_resp = handle_admin_monitoring_delta(&delta_req, &store);
         assert_eq!(*delta_resp.status(), 200u16);
@@ -2613,21 +2469,19 @@ mod tests {
             admin: None,
         };
         store
-            .set(&first_key, serde_json::to_vec(&first_event).unwrap().as_slice())
+            .set(
+                &first_key,
+                serde_json::to_vec(&first_event).unwrap().as_slice(),
+            )
             .unwrap();
         store
-            .set(&second_key, serde_json::to_vec(&second_event).unwrap().as_slice())
+            .set(
+                &second_key,
+                serde_json::to_vec(&second_event).unwrap().as_slice(),
+            )
             .unwrap();
-        crate::observability::retention::register_event_log_key(
-            &store,
-            hour,
-            first_key.as_str(),
-        );
-        crate::observability::retention::register_event_log_key(
-            &store,
-            hour,
-            second_key.as_str(),
-        );
+        crate::observability::retention::register_event_log_key(&store, hour, first_key.as_str());
+        crate::observability::retention::register_event_log_key(&store, hour, second_key.as_str());
 
         let first_cursor = build_event_cursor(now, first_key.as_str());
         let second_cursor = build_event_cursor(second_ts, second_key.as_str());
@@ -2639,11 +2493,10 @@ mod tests {
         let req = builder.build();
         let resp = handle_admin_monitoring_stream(&req, &store);
         assert_eq!(*resp.status(), 200u16);
-        assert!(
-            resp.header("connection")
-                .and_then(|value| value.as_str())
-                .is_none()
-        );
+        assert!(resp
+            .header("connection")
+            .and_then(|value| value.as_str())
+            .is_none());
 
         let body = String::from_utf8_lossy(resp.body()).to_string();
         assert!(body.contains("event: monitoring_delta"));
@@ -2661,9 +2514,7 @@ mod tests {
             .unwrap_or_default();
         assert_eq!(events.len(), 1);
         assert_eq!(
-            payload
-                .get("after_cursor")
-                .and_then(|value| value.as_str()),
+            payload.get("after_cursor").and_then(|value| value.as_str()),
             Some(first_cursor.as_str())
         );
     }
@@ -2694,21 +2545,19 @@ mod tests {
             admin: None,
         };
         store
-            .set(&first_key, serde_json::to_vec(&first_event).unwrap().as_slice())
+            .set(
+                &first_key,
+                serde_json::to_vec(&first_event).unwrap().as_slice(),
+            )
             .unwrap();
         store
-            .set(&second_key, serde_json::to_vec(&second_event).unwrap().as_slice())
+            .set(
+                &second_key,
+                serde_json::to_vec(&second_event).unwrap().as_slice(),
+            )
             .unwrap();
-        crate::observability::retention::register_event_log_key(
-            &store,
-            hour,
-            first_key.as_str(),
-        );
-        crate::observability::retention::register_event_log_key(
-            &store,
-            hour,
-            second_key.as_str(),
-        );
+        crate::observability::retention::register_event_log_key(&store, hour, first_key.as_str());
+        crate::observability::retention::register_event_log_key(&store, hour, second_key.as_str());
 
         let first_cursor = build_event_cursor(now, first_key.as_str());
         let second_cursor = build_event_cursor(second_ts, second_key.as_str());
@@ -2773,7 +2622,10 @@ mod tests {
             .set(&ban_key, serde_json::to_vec(&ban_event).unwrap().as_slice())
             .unwrap();
         store
-            .set(&unban_key, serde_json::to_vec(&unban_event).unwrap().as_slice())
+            .set(
+                &unban_key,
+                serde_json::to_vec(&unban_event).unwrap().as_slice(),
+            )
             .unwrap();
         store
             .set(
@@ -2782,11 +2634,7 @@ mod tests {
             )
             .unwrap();
         crate::observability::retention::register_event_log_key(&store, hour, ban_key.as_str());
-        crate::observability::retention::register_event_log_key(
-            &store,
-            hour,
-            unban_key.as_str(),
-        );
+        crate::observability::retention::register_event_log_key(&store, hour, unban_key.as_str());
         crate::observability::retention::register_event_log_key(
             &store,
             hour,
@@ -2794,7 +2642,9 @@ mod tests {
         );
 
         let mut builder = Request::builder();
-        builder.method(Method::Get).uri("/admin/ip-bans/delta?hours=1&limit=10");
+        builder
+            .method(Method::Get)
+            .uri("/admin/ip-bans/delta?hours=1&limit=10");
         let req = builder.build();
         let resp = handle_admin_ip_bans_delta(&req, &store, "default");
         assert_eq!(*resp.status(), 200u16);
@@ -2852,7 +2702,9 @@ mod tests {
         );
 
         let mut builder = Request::builder();
-        builder.method(Method::Get).uri("/admin/ip-bans/delta?hours=1&limit=10");
+        builder
+            .method(Method::Get)
+            .uri("/admin/ip-bans/delta?hours=1&limit=10");
         let req = builder.build();
         let resp = handle_admin_ip_bans_delta(&req, &store, "default");
         assert_eq!(*resp.status(), 200u16);
@@ -2883,17 +2735,24 @@ mod tests {
         let mut cfg = crate::config::defaults().clone();
         cfg.provider_backends.ban_store = crate::config::ProviderBackend::External;
         store
-            .set("config:default", serde_json::to_vec(&cfg).unwrap().as_slice())
+            .set(
+                "config:default",
+                serde_json::to_vec(&cfg).unwrap().as_slice(),
+            )
             .unwrap();
 
         let mut builder = Request::builder();
-        builder.method(Method::Get).uri("/admin/ip-bans/delta?hours=1&limit=10");
+        builder
+            .method(Method::Get)
+            .uri("/admin/ip-bans/delta?hours=1&limit=10");
         let req = builder.build();
         let resp = handle_admin_ip_bans_delta(&req, &store, "default");
         assert_eq!(*resp.status(), 200u16);
         let payload: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
         assert_eq!(
-            payload.get("active_bans_status").and_then(|value| value.as_str()),
+            payload
+                .get("active_bans_status")
+                .and_then(|value| value.as_str()),
             Some("unavailable")
         );
         assert_eq!(
@@ -2997,9 +2856,7 @@ mod tests {
             store
                 .set(
                     &key,
-                    ADMIN_EXPENSIVE_READ_LIMIT_PER_MINUTE
-                        .to_string()
-                        .as_bytes(),
+                    ADMIN_EXPENSIVE_READ_LIMIT_PER_MINUTE.to_string().as_bytes(),
                 )
                 .unwrap();
         }
@@ -3094,10 +2951,7 @@ mod tests {
 
     #[test]
     fn parse_unban_identity_allows_unknown_bucket() {
-        assert_eq!(
-            parse_unban_identity("unknown"),
-            Some("unknown".to_string())
-        );
+        assert_eq!(parse_unban_identity("unknown"), Some("unknown".to_string()));
         assert_eq!(
             parse_unban_identity(" UnKnOwN "),
             Some("unknown".to_string())
@@ -3564,16 +3418,23 @@ mod admin_config_tests {
         store
             .set(
                 bootstrap_key.as_str(),
-                serde_json::to_vec(&bootstrap).expect("bootstrap encode").as_slice(),
+                serde_json::to_vec(&bootstrap)
+                    .expect("bootstrap encode")
+                    .as_slice(),
             )
             .expect("bootstrap rewrite");
 
         store.reset_get_keys_calls();
 
-        let req = make_request(Method::Get, "/admin/monitoring?hours=24&limit=10&bootstrap=1", Vec::new());
+        let req = make_request(
+            Method::Get,
+            "/admin/monitoring?hours=24&limit=10&bootstrap=1",
+            Vec::new(),
+        );
         let response = handle_admin_monitoring(&req, &store);
         assert_eq!(*response.status(), 200u16);
-        let body: serde_json::Value = serde_json::from_slice(response.body()).expect("monitoring body");
+        let body: serde_json::Value =
+            serde_json::from_slice(response.body()).expect("monitoring body");
         assert_eq!(
             body.get("summary")
                 .and_then(|value| value.get("shadow"))
@@ -3641,13 +3502,19 @@ mod admin_config_tests {
         store
             .set(
                 bootstrap_key.as_str(),
-                serde_json::to_vec(&bootstrap).expect("bootstrap encode").as_slice(),
+                serde_json::to_vec(&bootstrap)
+                    .expect("bootstrap encode")
+                    .as_slice(),
             )
             .expect("bootstrap rewrite");
 
         store.reset_get_keys_calls();
 
-        let req = make_request(Method::Get, "/admin/monitoring?hours=24&limit=200&bootstrap=1", Vec::new());
+        let req = make_request(
+            Method::Get,
+            "/admin/monitoring?hours=24&limit=200&bootstrap=1",
+            Vec::new(),
+        );
         let resp = handle_admin_monitoring(&req, &store);
         assert_eq!(*resp.status(), 200u16);
         let body: serde_json::Value = serde_json::from_slice(resp.body()).expect("monitoring body");
@@ -3722,21 +3589,23 @@ mod admin_config_tests {
         cfg.verified_identity.replay_window_seconds = 180;
         cfg.verified_identity.clock_skew_seconds = 15;
         cfg.verified_identity.directory_cache_ttl_seconds = 900;
-        cfg.verified_identity.directory_freshness_requirement_seconds = 1_800;
-        cfg.verified_identity.named_policies = vec![crate::bot_identity::policy::IdentityPolicyEntry {
-            policy_id: "allow-openai".to_string(),
-            description: None,
-            matcher: crate::bot_identity::policy::IdentityPolicyMatcher {
-                scheme: None,
-                stable_identity: None,
-                operator: Some("openai".to_string()),
-                category: None,
-                path_prefixes: Vec::new(),
-            },
-            action: crate::bot_identity::policy::IdentityPolicyAction::UseServiceProfile(
-                "structured_agent".to_string(),
-            ),
-        }];
+        cfg.verified_identity
+            .directory_freshness_requirement_seconds = 1_800;
+        cfg.verified_identity.named_policies =
+            vec![crate::bot_identity::policy::IdentityPolicyEntry {
+                policy_id: "allow-openai".to_string(),
+                description: None,
+                matcher: crate::bot_identity::policy::IdentityPolicyMatcher {
+                    scheme: None,
+                    stable_identity: None,
+                    operator: Some("openai".to_string()),
+                    category: None,
+                    path_prefixes: Vec::new(),
+                },
+                action: crate::bot_identity::policy::IdentityPolicyAction::UseServiceProfile(
+                    "structured_agent".to_string(),
+                ),
+            }];
         store
             .set("config:default", &serde_json::to_vec(&cfg).unwrap())
             .unwrap();
@@ -3778,15 +3647,21 @@ mod admin_config_tests {
         );
         assert_eq!(
             env.get("SHUMA_VERIFIED_IDENTITY_NON_HUMAN_TRAFFIC_STANCE"),
-            Some(&serde_json::json!("allow_only_explicit_verified_identities"))
+            Some(&serde_json::json!(
+                "allow_only_explicit_verified_identities"
+            ))
         );
         assert_eq!(
             env.get("SHUMA_VERIFIED_IDENTITY_NAMED_POLICIES"),
-            Some(&serde_json::json!(json_env(&cfg.verified_identity.named_policies)))
+            Some(&serde_json::json!(json_env(
+                &cfg.verified_identity.named_policies
+            )))
         );
         assert_eq!(
             env.get("SHUMA_VERIFIED_IDENTITY_SERVICE_PROFILES"),
-            Some(&serde_json::json!(json_env(&cfg.verified_identity.service_profiles)))
+            Some(&serde_json::json!(json_env(
+                &cfg.verified_identity.service_profiles
+            )))
         );
         assert_eq!(
             env.get("SHUMA_HONEYPOT_ENABLED"),
@@ -3910,7 +3785,9 @@ mod admin_config_tests {
         );
         assert_eq!(
             env.get("SHUMA_ADVERSARY_SIM_DURATION_SECONDS"),
-            Some(&serde_json::json!(cfg.adversary_sim_duration_seconds.to_string()))
+            Some(&serde_json::json!(cfg
+                .adversary_sim_duration_seconds
+                .to_string()))
         );
         assert!(env.get("SHUMA_RATE_LIMITER_REDIS_URL").is_none());
         assert!(env.get("SHUMA_BAN_STORE_REDIS_URL").is_none());
@@ -3997,7 +3874,10 @@ mod admin_config_tests {
         std::env::set_var("SHUMA_HEALTH_SECRET", "health-secret");
         std::env::set_var("SHUMA_SIM_TELEMETRY_SECRET", "sim-telemetry-secret");
         std::env::set_var("SHUMA_FRONTIER_OPENAI_API_KEY", "frontier-openai-secret");
-        std::env::set_var("SHUMA_FRONTIER_ANTHROPIC_API_KEY", "frontier-anthropic-secret");
+        std::env::set_var(
+            "SHUMA_FRONTIER_ANTHROPIC_API_KEY",
+            "frontier-anthropic-secret",
+        );
         std::env::set_var("SHUMA_FRONTIER_GOOGLE_API_KEY", "frontier-google-secret");
         std::env::set_var("SHUMA_FRONTIER_XAI_API_KEY", "frontier-xai-secret");
         std::env::set_var("SHUMA_RATE_LIMITER_REDIS_URL", "redis://secret@redis:6379");
@@ -4073,31 +3953,55 @@ mod admin_config_tests {
         assert!(config.get("tarpit_step_jitter_percent").is_some());
         assert!(config.get("tarpit_shard_rotation_enabled").is_some());
         assert!(config.get("tarpit_egress_window_seconds").is_some());
-        assert!(config.get("tarpit_egress_global_bytes_per_window").is_some());
-        assert!(config.get("tarpit_egress_per_ip_bucket_bytes_per_window").is_some());
+        assert!(config
+            .get("tarpit_egress_global_bytes_per_window")
+            .is_some());
+        assert!(config
+            .get("tarpit_egress_per_ip_bucket_bytes_per_window")
+            .is_some());
         assert!(config.get("tarpit_egress_per_flow_max_bytes").is_some());
-        assert!(config.get("tarpit_egress_per_flow_max_duration_seconds").is_some());
+        assert!(config
+            .get("tarpit_egress_per_flow_max_duration_seconds")
+            .is_some());
         assert!(config.get("tarpit_max_concurrent_global").is_some());
         assert!(config.get("tarpit_max_concurrent_per_ip_bucket").is_some());
         assert!(config.get("tarpit_fallback_action").is_some());
-        assert!(runtime.get("challenge_puzzle_risk_threshold_default").is_some());
+        assert!(runtime
+            .get("challenge_puzzle_risk_threshold_default")
+            .is_some());
         assert!(config.get("challenge_puzzle_transform_count").is_some());
         assert!(config.get("challenge_puzzle_seed_ttl_seconds").is_some());
-        assert!(config.get("challenge_puzzle_attempt_limit_per_window").is_some());
-        assert!(config.get("challenge_puzzle_attempt_window_seconds").is_some());
+        assert!(config
+            .get("challenge_puzzle_attempt_limit_per_window")
+            .is_some());
+        assert!(config
+            .get("challenge_puzzle_attempt_window_seconds")
+            .is_some());
         assert!(config.get("ai_policy_block_training").is_some());
         assert!(config.get("ai_policy_block_search").is_some());
         assert!(config.get("ai_policy_allow_search_engines").is_some());
         assert!(config.get("robots_block_ai_training").is_none());
         assert!(config.get("robots_block_ai_search").is_none());
         assert!(config.get("robots_allow_search_engines").is_none());
-        assert!(config.get("ip_range_suggestions_min_observations").is_some());
+        assert!(config
+            .get("ip_range_suggestions_min_observations")
+            .is_some());
         assert!(config.get("ip_range_suggestions_min_bot_events").is_some());
-        assert!(config.get("ip_range_suggestions_min_confidence_percent").is_some());
-        assert!(config.get("ip_range_suggestions_low_collateral_percent").is_some());
-        assert!(config.get("ip_range_suggestions_high_collateral_percent").is_some());
-        assert!(config.get("ip_range_suggestions_ipv4_min_prefix_len").is_some());
-        assert!(config.get("ip_range_suggestions_ipv6_min_prefix_len").is_some());
+        assert!(config
+            .get("ip_range_suggestions_min_confidence_percent")
+            .is_some());
+        assert!(config
+            .get("ip_range_suggestions_low_collateral_percent")
+            .is_some());
+        assert!(config
+            .get("ip_range_suggestions_high_collateral_percent")
+            .is_some());
+        assert!(config
+            .get("ip_range_suggestions_ipv4_min_prefix_len")
+            .is_some());
+        assert!(config
+            .get("ip_range_suggestions_ipv6_min_prefix_len")
+            .is_some());
         assert!(config
             .get("ip_range_suggestions_likely_human_sample_percent")
             .is_some());
@@ -4144,11 +4048,15 @@ mod admin_config_tests {
             Some("runtime-dev")
         );
         assert_eq!(
-            runtime.get("adversary_sim_available").and_then(|v| v.as_bool()),
+            runtime
+                .get("adversary_sim_available")
+                .and_then(|v| v.as_bool()),
             Some(true)
         );
         assert_eq!(
-            runtime.get("adversary_sim_enabled").and_then(|v| v.as_bool()),
+            runtime
+                .get("adversary_sim_enabled")
+                .and_then(|v| v.as_bool()),
             Some(false)
         );
         assert_eq!(
@@ -4158,11 +4066,15 @@ mod admin_config_tests {
             Some("shared-server")
         );
         assert_eq!(
-            runtime.get("akamai_edge_available").and_then(|v| v.as_bool()),
+            runtime
+                .get("akamai_edge_available")
+                .and_then(|v| v.as_bool()),
             Some(false)
         );
         assert_eq!(
-            runtime.get("local_prod_direct_mode").and_then(|v| v.as_bool()),
+            runtime
+                .get("local_prod_direct_mode")
+                .and_then(|v| v.as_bool()),
             Some(true)
         );
 
@@ -4236,7 +4148,9 @@ mod admin_config_tests {
             Some("edge-fermyon")
         );
         assert_eq!(
-            runtime.get("akamai_edge_available").and_then(|v| v.as_bool()),
+            runtime
+                .get("akamai_edge_available")
+                .and_then(|v| v.as_bool()),
             Some(true)
         );
 
@@ -4280,9 +4194,8 @@ mod admin_config_tests {
 
     #[test]
     fn active_ban_list_result_returns_503_when_backend_is_unavailable() {
-        let resp = response_for_active_ban_list(
-            crate::providers::contracts::BanListResult::Unavailable,
-        );
+        let resp =
+            response_for_active_ban_list(crate::providers::contracts::BanListResult::Unavailable);
 
         assert_eq!(*resp.status(), 503u16);
         assert!(String::from_utf8_lossy(resp.body()).contains("authoritative backend access"));
@@ -4303,7 +4216,9 @@ mod admin_config_tests {
         let runtime = body.get("runtime").expect("runtime payload");
 
         assert_eq!(
-            runtime.get("frontier_mode").and_then(|value| value.as_str()),
+            runtime
+                .get("frontier_mode")
+                .and_then(|value| value.as_str()),
             Some("single_provider_self_play")
         );
         assert_eq!(
@@ -4457,10 +4372,7 @@ mod admin_config_tests {
             .collect();
         assert_eq!(
             targets,
-            vec![
-                "likely_human_friction",
-                "suspicious_forwarded_requests",
-            ]
+            vec!["likely_human_friction", "suspicious_forwarded_requests",]
         );
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
@@ -4683,7 +4595,9 @@ mod admin_config_tests {
             Some("synthetic_traffic")
         );
         assert_eq!(
-            status.get("lane_switch_seq").and_then(|value| value.as_u64()),
+            status
+                .get("lane_switch_seq")
+                .and_then(|value| value.as_u64()),
             Some(0)
         );
         assert_eq!(
@@ -4725,10 +4639,15 @@ mod admin_config_tests {
         let off_json: serde_json::Value = serde_json::from_slice(off_resp.body()).unwrap();
         let off_status = off_json.get("status").expect("off status payload");
         assert_eq!(
-            off_status.get("desired_lane").and_then(|value| value.as_str()),
+            off_status
+                .get("desired_lane")
+                .and_then(|value| value.as_str()),
             Some("synthetic_traffic")
         );
-        assert_eq!(off_status.get("active_lane"), Some(&serde_json::Value::Null));
+        assert_eq!(
+            off_status.get("active_lane"),
+            Some(&serde_json::Value::Null)
+        );
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
@@ -4826,7 +4745,10 @@ mod admin_config_tests {
         let beat_resp = handle_internal_adversary_sim_beat(&beat_req, &store, "default");
         assert_eq!(*beat_resp.status(), 200u16);
         let beat_json: serde_json::Value = serde_json::from_slice(beat_resp.body()).unwrap();
-        assert_eq!(beat_json.get("accepted").and_then(|v| v.as_bool()), Some(true));
+        assert_eq!(
+            beat_json.get("accepted").and_then(|v| v.as_bool()),
+            Some(true)
+        );
         assert!(
             beat_json
                 .get("executed_ticks")
@@ -4914,7 +4836,10 @@ mod admin_config_tests {
         assert_eq!(*on_resp.status(), 200u16);
 
         let running_state = crate::admin::adversary_sim::load_state(&base_store, "default");
-        assert_eq!(running_state.phase, crate::admin::adversary_sim::ControlPhase::Running);
+        assert_eq!(
+            running_state.phase,
+            crate::admin::adversary_sim::ControlPhase::Running
+        );
         assert!(running_state.desired_enabled);
 
         let now = now_ts();
@@ -4922,7 +4847,10 @@ mod admin_config_tests {
             crate::admin::adversary_sim::stop_state(now, "manual_off", &running_state);
         let (off_state, _) =
             crate::admin::adversary_sim::reconcile_state(now, false, &stopping_state);
-        assert_eq!(off_state.phase, crate::admin::adversary_sim::ControlPhase::Off);
+        assert_eq!(
+            off_state.phase,
+            crate::admin::adversary_sim::ControlPhase::Off
+        );
         assert!(!off_state.desired_enabled);
 
         let racing_store =
@@ -4939,7 +4867,9 @@ mod admin_config_tests {
             Some(false)
         );
         assert_eq!(
-            beat_json.get("should_exit").and_then(|value| value.as_bool()),
+            beat_json
+                .get("should_exit")
+                .and_then(|value| value.as_bool()),
             Some(true)
         );
         assert_eq!(
@@ -4958,7 +4888,10 @@ mod admin_config_tests {
         );
 
         let persisted_state = crate::admin::adversary_sim::load_state(&racing_store, "default");
-        assert_eq!(persisted_state.phase, crate::admin::adversary_sim::ControlPhase::Off);
+        assert_eq!(
+            persisted_state.phase,
+            crate::admin::adversary_sim::ControlPhase::Off
+        );
         assert!(!persisted_state.desired_enabled);
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
@@ -5005,11 +4938,15 @@ mod admin_config_tests {
         assert_eq!(*beat_resp.status(), 200u16);
         let beat_json: serde_json::Value = serde_json::from_slice(beat_resp.body()).unwrap();
         assert_eq!(
-            beat_json.get("dispatch_mode").and_then(|value| value.as_str()),
+            beat_json
+                .get("dispatch_mode")
+                .and_then(|value| value.as_str()),
             Some("scrapling_worker")
         );
         assert_eq!(
-            beat_json.get("executed_ticks").and_then(|value| value.as_u64()),
+            beat_json
+                .get("executed_ticks")
+                .and_then(|value| value.as_u64()),
             Some(0)
         );
         assert_eq!(
@@ -5093,10 +5030,7 @@ mod admin_config_tests {
         let beat_resp = handle_internal_adversary_sim_beat(&beat_req, &store, "default");
         assert_eq!(*beat_resp.status(), 200u16);
         let beat_json: serde_json::Value = serde_json::from_slice(beat_resp.body()).unwrap();
-        let worker_plan = beat_json
-            .get("worker_plan")
-            .cloned()
-            .expect("worker plan");
+        let worker_plan = beat_json.get("worker_plan").cloned().expect("worker plan");
         let run_id = worker_plan
             .get("run_id")
             .and_then(|value| value.as_str())
@@ -5148,7 +5082,9 @@ mod admin_config_tests {
         assert_eq!(*result_resp.status(), 200u16);
         let result_json: serde_json::Value = serde_json::from_slice(result_resp.body()).unwrap();
         assert_eq!(
-            result_json.get("accepted").and_then(|value| value.as_bool()),
+            result_json
+                .get("accepted")
+                .and_then(|value| value.as_bool()),
             Some(true)
         );
         assert_eq!(
@@ -5198,7 +5134,8 @@ mod admin_config_tests {
     }
 
     #[test]
-    fn adversary_sim_worker_result_is_rejected_after_manual_off_and_does_not_restore_running_state() {
+    fn adversary_sim_worker_result_is_rejected_after_manual_off_and_does_not_restore_running_state()
+    {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
         std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
@@ -5233,10 +5170,7 @@ mod admin_config_tests {
         let beat_resp = handle_internal_adversary_sim_beat(&beat_req, &store, "default");
         assert_eq!(*beat_resp.status(), 200u16);
         let beat_json: serde_json::Value = serde_json::from_slice(beat_resp.body()).unwrap();
-        let worker_plan = beat_json
-            .get("worker_plan")
-            .cloned()
-            .expect("worker plan");
+        let worker_plan = beat_json.get("worker_plan").cloned().expect("worker plan");
         let run_id = worker_plan
             .get("run_id")
             .and_then(|value| value.as_str())
@@ -5292,7 +5226,10 @@ mod admin_config_tests {
         assert_eq!(*result_resp.status(), 409u16);
 
         let persisted = crate::admin::adversary_sim::load_state(&store, "default");
-        assert_eq!(persisted.phase, crate::admin::adversary_sim::ControlPhase::Off);
+        assert_eq!(
+            persisted.phase,
+            crate::admin::adversary_sim::ControlPhase::Off
+        );
         assert!(!persisted.desired_enabled);
         assert!(persisted.pending_worker_tick_id.is_none());
 
@@ -5346,7 +5283,10 @@ mod admin_config_tests {
         let mut stale_cfg = crate::config::defaults().clone();
         stale_cfg.adversary_sim_enabled = false;
         store
-            .set("config:default", serde_json::to_vec(&stale_cfg).unwrap().as_slice())
+            .set(
+                "config:default",
+                serde_json::to_vec(&stale_cfg).unwrap().as_slice(),
+            )
             .unwrap();
 
         let on_resp = handle_admin_adversary_sim_control(
@@ -5382,8 +5322,11 @@ mod admin_config_tests {
         let persisted_cfg: crate::config::Config =
             serde_json::from_slice(&store.get("config:default").unwrap().unwrap()).unwrap();
         assert!(!persisted_cfg.adversary_sim_enabled);
-        let config_resp =
-            handle_admin_config(&make_request(Method::Get, "/admin/config", Vec::new()), &store, "default");
+        let config_resp = handle_admin_config(
+            &make_request(Method::Get, "/admin/config", Vec::new()),
+            &store,
+            "default",
+        );
         assert_eq!(*config_resp.status(), 200u16);
         let config_json: serde_json::Value = serde_json::from_slice(config_resp.body()).unwrap();
         assert_eq!(
@@ -5394,7 +5337,10 @@ mod admin_config_tests {
             Some(true)
         );
         let persisted_state = crate::admin::adversary_sim::load_state(&store, "default");
-        assert_eq!(persisted_state.phase, crate::admin::adversary_sim::ControlPhase::Running);
+        assert_eq!(
+            persisted_state.phase,
+            crate::admin::adversary_sim::ControlPhase::Running
+        );
         assert_eq!(persisted_state.active_run_count, 1);
         assert_eq!(persisted_state.active_lane_count, 2);
 
@@ -5529,7 +5475,11 @@ mod admin_config_tests {
             Some(true)
         );
 
-        let monitoring_req = make_request(Method::Get, "/admin/monitoring?hours=24&limit=10", Vec::new());
+        let monitoring_req = make_request(
+            Method::Get,
+            "/admin/monitoring?hours=24&limit=10",
+            Vec::new(),
+        );
         let monitoring_resp = handle_admin_monitoring(&monitoring_req, &store);
         assert_eq!(*monitoring_resp.status(), 200u16);
         let monitoring_json: serde_json::Value =
@@ -5542,22 +5492,17 @@ mod admin_config_tests {
                 .and_then(|v| v.as_u64()),
             Some(0)
         );
-        assert!(
-            monitoring_json
-                .get("details")
-                .and_then(|v| v.get("events"))
-                .and_then(|v| v.get("recent_events"))
-                .and_then(|v| v.as_array())
-                .map(|events| {
-                    events.iter().any(|event| {
-                        event
-                            .get("is_simulation")
-                            .and_then(|value| value.as_bool())
-                            == Some(true)
-                    })
+        assert!(monitoring_json
+            .get("details")
+            .and_then(|v| v.get("events"))
+            .and_then(|v| v.get("recent_events"))
+            .and_then(|v| v.as_array())
+            .map(|events| {
+                events.iter().any(|event| {
+                    event.get("is_simulation").and_then(|value| value.as_bool()) == Some(true)
                 })
-                .unwrap_or(false)
-        );
+            })
+            .unwrap_or(false));
         assert_eq!(
             monitoring_json
                 .get("details")
@@ -5650,7 +5595,11 @@ mod admin_config_tests {
                 >= 1
         );
 
-        let monitoring_req = make_request(Method::Get, "/admin/monitoring?hours=24&limit=10", Vec::new());
+        let monitoring_req = make_request(
+            Method::Get,
+            "/admin/monitoring?hours=24&limit=10",
+            Vec::new(),
+        );
         let monitoring_resp = handle_admin_monitoring(&monitoring_req, &store);
         assert_eq!(*monitoring_resp.status(), 200u16);
         let monitoring_json: serde_json::Value =
@@ -5717,7 +5666,11 @@ mod admin_config_tests {
         let store = TestStore::default();
         let auth = bearer_rw_auth();
         let now = now_ts();
-        crate::observability::monitoring::record_challenge_failure(&store, "198.51.100.19", "incorrect");
+        crate::observability::monitoring::record_challenge_failure(
+            &store,
+            "198.51.100.19",
+            "incorrect",
+        );
         log_event(
             &store,
             &EventLogEntry {
@@ -5765,7 +5718,11 @@ mod admin_config_tests {
                 >= 1
         );
 
-        let monitoring_req = make_request(Method::Get, "/admin/monitoring?hours=24&limit=10", Vec::new());
+        let monitoring_req = make_request(
+            Method::Get,
+            "/admin/monitoring?hours=24&limit=10",
+            Vec::new(),
+        );
         let monitoring_resp = handle_admin_monitoring(&monitoring_req, &store);
         assert_eq!(*monitoring_resp.status(), 200u16);
         let monitoring_json: serde_json::Value =
@@ -5801,7 +5758,8 @@ mod admin_config_tests {
     }
 
     #[test]
-    fn adversary_sim_status_reports_reconciliation_required_for_stale_running_state_when_disabled() {
+    fn adversary_sim_status_reports_reconciliation_required_for_stale_running_state_when_disabled()
+    {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
         std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
@@ -5843,7 +5801,10 @@ mod admin_config_tests {
         let mut cfg = crate::config::defaults().clone();
         cfg.adversary_sim_enabled = false;
         store
-            .set("config:default", serde_json::to_vec(&cfg).unwrap().as_slice())
+            .set(
+                "config:default",
+                serde_json::to_vec(&cfg).unwrap().as_slice(),
+            )
             .unwrap();
 
         let status_req = make_request(Method::Get, "/admin/adversary-sim/status", Vec::new());
@@ -5867,7 +5828,10 @@ mod admin_config_tests {
             Some(true)
         );
         let persisted = crate::admin::adversary_sim::load_state(&store, "default");
-        assert_eq!(persisted.phase, crate::admin::adversary_sim::ControlPhase::Running);
+        assert_eq!(
+            persisted.phase,
+            crate::admin::adversary_sim::ControlPhase::Running
+        );
         assert!(!persisted.desired_enabled);
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
@@ -5929,7 +5893,10 @@ mod admin_config_tests {
         );
 
         let persisted = crate::admin::adversary_sim::load_state(&store, "default");
-        assert_eq!(persisted.phase, crate::admin::adversary_sim::ControlPhase::Running);
+        assert_eq!(
+            persisted.phase,
+            crate::admin::adversary_sim::ControlPhase::Running
+        );
         assert!(persisted.desired_enabled);
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
@@ -5986,7 +5953,10 @@ mod admin_config_tests {
         );
 
         let persisted = crate::admin::adversary_sim::load_state(&store, "default");
-        assert_eq!(persisted.phase, crate::admin::adversary_sim::ControlPhase::Running);
+        assert_eq!(
+            persisted.phase,
+            crate::admin::adversary_sim::ControlPhase::Running
+        );
         assert!(persisted.desired_enabled);
 
         std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
@@ -6042,8 +6012,11 @@ mod admin_config_tests {
             Some(true)
         );
         crate::config::clear_runtime_cache_for_tests();
-        let config_resp =
-            handle_admin_config(&make_request(Method::Get, "/admin/config", Vec::new()), &store, "default");
+        let config_resp = handle_admin_config(
+            &make_request(Method::Get, "/admin/config", Vec::new()),
+            &store,
+            "default",
+        );
         assert_eq!(*config_resp.status(), 200u16);
         let config_json: serde_json::Value = serde_json::from_slice(config_resp.body()).unwrap();
         assert_eq!(
@@ -6056,7 +6029,10 @@ mod admin_config_tests {
         let persisted_cfg = crate::config::Config::load(&store, "default").unwrap();
         assert!(!persisted_cfg.adversary_sim_enabled);
         let persisted_state = crate::admin::adversary_sim::load_state(&store, "default");
-        assert_eq!(persisted_state.phase, crate::admin::adversary_sim::ControlPhase::Running);
+        assert_eq!(
+            persisted_state.phase,
+            crate::admin::adversary_sim::ControlPhase::Running
+        );
         assert!(persisted_state.desired_enabled);
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
@@ -6188,7 +6164,8 @@ mod admin_config_tests {
             Some("scrapling_traffic")
         );
         assert_eq!(
-            body.get("status").and_then(|value| value.get("active_lane")),
+            body.get("status")
+                .and_then(|value| value.get("active_lane")),
             Some(&serde_json::Value::Null)
         );
 
@@ -6201,9 +6178,13 @@ mod admin_config_tests {
 
         let operation_key =
             crate::admin::adversary_sim_control::control_operation_key("default", operation_id);
-        let operation = crate::admin::adversary_sim_control::load_operation_record(&store, &operation_key)
-            .expect("operation record");
-        assert_eq!(operation.requested_lane.as_deref(), Some("scrapling_traffic"));
+        let operation =
+            crate::admin::adversary_sim_control::load_operation_record(&store, &operation_key)
+                .expect("operation record");
+        assert_eq!(
+            operation.requested_lane.as_deref(),
+            Some("scrapling_traffic")
+        );
         assert_eq!(operation.desired_lane.as_deref(), Some("scrapling_traffic"));
         assert_eq!(operation.actual_lane, None);
 
@@ -6508,7 +6489,8 @@ mod admin_config_tests {
             Some("same-origin"),
             None,
         );
-        let missing_resp = handle_admin_adversary_sim_control(&missing_csrf, &store, "default", &auth);
+        let missing_resp =
+            handle_admin_adversary_sim_control(&missing_csrf, &store, "default", &auth);
         assert_eq!(*missing_resp.status(), 403u16);
         assert!(String::from_utf8_lossy(missing_resp.body()).contains("trust boundary"));
 
@@ -6519,7 +6501,8 @@ mod admin_config_tests {
             Some("same-origin"),
             Some("csrf-wrong"),
         );
-        let invalid_resp = handle_admin_adversary_sim_control(&invalid_csrf, &store, "default", &auth);
+        let invalid_resp =
+            handle_admin_adversary_sim_control(&invalid_csrf, &store, "default", &auth);
         assert_eq!(*invalid_resp.status(), 403u16);
         assert!(String::from_utf8_lossy(invalid_resp.body()).contains("trust boundary"));
 
@@ -6727,7 +6710,10 @@ mod admin_config_tests {
         );
 
         let persisted = crate::admin::adversary_sim::load_state(&store, "default");
-        assert_eq!(persisted.phase, crate::admin::adversary_sim::ControlPhase::Running);
+        assert_eq!(
+            persisted.phase,
+            crate::admin::adversary_sim::ControlPhase::Running
+        );
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
@@ -6977,7 +6963,10 @@ mod admin_config_tests {
         let store = TestStore::default();
         {
             let mut map = store.map.lock().unwrap();
-            map.insert("tarpit:budget:active:global:default".to_string(), b"7".to_vec());
+            map.insert(
+                "tarpit:budget:active:global:default".to_string(),
+                b"7".to_vec(),
+            );
             map.insert(
                 "tarpit:budget:active:bucket:default:bucket-a".to_string(),
                 b"2".to_vec(),
@@ -6996,11 +6985,7 @@ mod admin_config_tests {
                 .collect::<std::collections::HashMap<_, _>>()
         };
 
-        let req = make_request(
-            Method::Get,
-            "/admin/tarpit/preview",
-            Vec::new(),
-        );
+        let req = make_request(Method::Get, "/admin/tarpit/preview", Vec::new());
         let resp = handle_admin_tarpit_preview(&req, &store, "default");
         assert_eq!(*resp.status(), 200u16);
 
@@ -7047,7 +7032,11 @@ mod admin_config_tests {
         crate::observability::monitoring::record_not_a_bot_served(&store);
         crate::observability::monitoring::record_not_a_bot_submit(&store, "pass", Some(1400));
 
-        let req = make_request(Method::Get, "/admin/monitoring?hours=24&limit=5", Vec::new());
+        let req = make_request(
+            Method::Get,
+            "/admin/monitoring?hours=24&limit=5",
+            Vec::new(),
+        );
         let resp = handle_admin_monitoring(&req, &store);
         assert_eq!(*resp.status(), 200u16);
         let body: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
@@ -7078,34 +7067,29 @@ mod admin_config_tests {
                 .and_then(|v| v.as_str()),
             Some("/metrics")
         );
-        assert!(
-            body.get("prometheus")
-                .and_then(|v| v.get("notes"))
-                .and_then(|v| v.as_array())
-                .map(|notes| !notes.is_empty())
-                .unwrap_or(false)
-        );
-        assert!(
-            body.get("prometheus")
-                .and_then(|v| v.get("example_js"))
-                .and_then(|v| v.as_str())
-                .map(|value| value.contains("fetch('/metrics')"))
-                .unwrap_or(false)
-        );
-        assert!(
-            body.get("prometheus")
-                .and_then(|v| v.get("example_summary_stats"))
-                .and_then(|v| v.as_str())
-                .map(|value| value.contains("monitoring.summary"))
-                .unwrap_or(false)
-        );
-        assert!(
-            details
-                .get("events")
-                .and_then(|v| v.get("recent_events"))
-                .map(|v| v.is_array())
-                .unwrap_or(false)
-        );
+        assert!(body
+            .get("prometheus")
+            .and_then(|v| v.get("notes"))
+            .and_then(|v| v.as_array())
+            .map(|notes| !notes.is_empty())
+            .unwrap_or(false));
+        assert!(body
+            .get("prometheus")
+            .and_then(|v| v.get("example_js"))
+            .and_then(|v| v.as_str())
+            .map(|value| value.contains("fetch('/metrics')"))
+            .unwrap_or(false));
+        assert!(body
+            .get("prometheus")
+            .and_then(|v| v.get("example_summary_stats"))
+            .and_then(|v| v.as_str())
+            .map(|value| value.contains("monitoring.summary"))
+            .unwrap_or(false));
+        assert!(details
+            .get("events")
+            .and_then(|v| v.get("recent_events"))
+            .map(|v| v.is_array())
+            .unwrap_or(false));
         assert!(
             summary
                 .get("challenge")
@@ -7132,20 +7116,16 @@ mod admin_config_tests {
                 .unwrap_or(0)
                 >= 1
         );
-        assert!(
-            summary
-                .get("pow")
-                .and_then(|v| v.get("total_successes"))
-                .and_then(|v| v.as_u64())
-                .is_some()
-        );
-        assert!(
-            summary
-                .get("pow")
-                .and_then(|v| v.get("success_ratio"))
-                .and_then(|v| v.as_f64())
-                .is_some()
-        );
+        assert!(summary
+            .get("pow")
+            .and_then(|v| v.get("total_successes"))
+            .and_then(|v| v.as_u64())
+            .is_some());
+        assert!(summary
+            .get("pow")
+            .and_then(|v| v.get("success_ratio"))
+            .and_then(|v| v.as_f64())
+            .is_some());
         assert!(
             summary
                 .get("pow")
@@ -7155,13 +7135,11 @@ mod admin_config_tests {
                 .unwrap_or(0)
                 >= 1
         );
-        assert!(
-            summary
-                .get("rate")
-                .and_then(|v| v.get("top_paths"))
-                .map(|v| v.is_array())
-                .unwrap_or(false)
-        );
+        assert!(summary
+            .get("rate")
+            .and_then(|v| v.get("top_paths"))
+            .map(|v| v.is_array())
+            .unwrap_or(false));
         assert_eq!(store.get_keys_calls(), 0);
     }
 
@@ -7177,8 +7155,7 @@ mod admin_config_tests {
                 result_status:
                     crate::bot_identity::verification::IdentityVerificationResultStatus::Verified,
                 failure: None,
-                freshness:
-                    crate::bot_identity::verification::IdentityVerificationFreshness::Fresh,
+                freshness: crate::bot_identity::verification::IdentityVerificationFreshness::Fresh,
                 operator: Some("openai".to_string()),
                 stable_identity: Some("chatgpt-agent".to_string()),
             },
@@ -7202,7 +7179,11 @@ mod admin_config_tests {
             },
         );
 
-        let req = make_request(Method::Get, "/admin/monitoring?hours=24&limit=5", Vec::new());
+        let req = make_request(
+            Method::Get,
+            "/admin/monitoring?hours=24&limit=5",
+            Vec::new(),
+        );
         let resp = handle_admin_monitoring(&req, &store);
         assert_eq!(*resp.status(), 200u16);
 
@@ -7265,7 +7246,11 @@ mod admin_config_tests {
             },
         );
 
-        let req = make_request(Method::Get, "/admin/monitoring?hours=24&limit=50", Vec::new());
+        let req = make_request(
+            Method::Get,
+            "/admin/monitoring?hours=24&limit=50",
+            Vec::new(),
+        );
         let resp = handle_admin_monitoring(&req, &store);
         assert_eq!(*resp.status(), 200u16);
         let body: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
@@ -7305,7 +7290,11 @@ mod admin_config_tests {
             .unwrap();
         crate::observability::retention::register_event_log_key(&store, hour, key.as_str());
 
-        let req = make_request(Method::Get, "/admin/monitoring/delta?hours=1&limit=10", Vec::new());
+        let req = make_request(
+            Method::Get,
+            "/admin/monitoring/delta?hours=1&limit=10",
+            Vec::new(),
+        );
         let resp = handle_admin_monitoring_delta(&req, &store);
         assert_eq!(*resp.status(), 200u16);
         assert_eq!(store.get_keys_calls(), 0);
@@ -7366,17 +7355,24 @@ mod admin_config_tests {
             .expect("security doc");
         let mut security: crate::observability::hot_read_documents::MonitoringSecurityPrivacySummaryDocument =
             serde_json::from_slice(security_bytes.as_slice()).expect("security doc decode");
-        security.payload["classification"]["mode"] = serde_json::Value::String("delta_hot_read_marker".to_string());
+        security.payload["classification"]["mode"] =
+            serde_json::Value::String("delta_hot_read_marker".to_string());
         store
             .set(
                 security_key.as_str(),
-                serde_json::to_vec(&security).expect("security encode").as_slice(),
+                serde_json::to_vec(&security)
+                    .expect("security encode")
+                    .as_slice(),
             )
             .expect("security rewrite");
 
         store.reset_eventlog_get_count();
 
-        let req = make_request(Method::Get, "/admin/monitoring/delta?hours=24&limit=40", Vec::new());
+        let req = make_request(
+            Method::Get,
+            "/admin/monitoring/delta?hours=24&limit=40",
+            Vec::new(),
+        );
         let resp = handle_admin_monitoring_delta(&req, &store);
         assert_eq!(*resp.status(), 200u16);
         let payload: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
@@ -7389,7 +7385,10 @@ mod admin_config_tests {
             Some("delta_hot_read_marker")
         );
         assert_eq!(
-            payload.get("events").and_then(|value| value.as_array()).map(|rows| rows.len()),
+            payload
+                .get("events")
+                .and_then(|value| value.as_array())
+                .map(|rows| rows.len()),
             Some(40)
         );
         assert_eq!(
@@ -7458,7 +7457,11 @@ mod admin_config_tests {
             },
         );
 
-        let monitoring_req = make_request(Method::Get, "/admin/monitoring?hours=24&limit=10", Vec::new());
+        let monitoring_req = make_request(
+            Method::Get,
+            "/admin/monitoring?hours=24&limit=10",
+            Vec::new(),
+        );
         let monitoring_resp = handle_admin_monitoring(&monitoring_req, &store);
         assert_eq!(*monitoring_resp.status(), 200u16);
         let monitoring_payload: serde_json::Value =
@@ -7487,7 +7490,11 @@ mod admin_config_tests {
             Some(1)
         );
 
-        let delta_req = make_request(Method::Get, "/admin/monitoring/delta?hours=24&limit=10", Vec::new());
+        let delta_req = make_request(
+            Method::Get,
+            "/admin/monitoring/delta?hours=24&limit=10",
+            Vec::new(),
+        );
         let delta_resp = handle_admin_monitoring_delta(&delta_req, &store);
         assert_eq!(*delta_resp.status(), 200u16);
         let delta_payload: serde_json::Value = serde_json::from_slice(delta_resp.body()).unwrap();
@@ -7521,7 +7528,11 @@ mod admin_config_tests {
             Some("external_probe")
         );
 
-        let stream_req = make_request(Method::Get, "/admin/monitoring/stream?hours=24&limit=10", Vec::new());
+        let stream_req = make_request(
+            Method::Get,
+            "/admin/monitoring/stream?hours=24&limit=10",
+            Vec::new(),
+        );
         let stream_resp = handle_admin_monitoring_stream(&stream_req, &store);
         assert_eq!(*stream_resp.status(), 200u16);
         let stream_body = String::from_utf8_lossy(stream_resp.body()).to_string();
@@ -7607,7 +7618,11 @@ mod admin_config_tests {
             );
         }
 
-        let req_default = make_request(Method::Get, "/admin/monitoring?hours=24&limit=5", Vec::new());
+        let req_default = make_request(
+            Method::Get,
+            "/admin/monitoring?hours=24&limit=5",
+            Vec::new(),
+        );
         let resp_default = handle_admin_monitoring(&req_default, &store);
         assert_eq!(*resp_default.status(), 200u16);
         let body_default: serde_json::Value = serde_json::from_slice(resp_default.body()).unwrap();
@@ -7684,7 +7699,9 @@ mod admin_config_tests {
         assert_eq!(include_events.len(), 2);
         assert!(include_events
             .iter()
-            .any(|entry| entry.get("is_simulation").and_then(|value| value.as_bool()) == Some(true)));
+            .any(
+                |entry| entry.get("is_simulation").and_then(|value| value.as_bool()) == Some(true)
+            ));
         let recent_sim_runs = body_default
             .get("details")
             .and_then(|details| details.get("events"))
@@ -7748,7 +7765,11 @@ mod admin_config_tests {
             );
         }
 
-        let req = make_request(Method::Get, "/admin/monitoring?hours=24&limit=10", Vec::new());
+        let req = make_request(
+            Method::Get,
+            "/admin/monitoring?hours=24&limit=10",
+            Vec::new(),
+        );
         let resp = handle_admin_monitoring(&req, &store);
         assert_eq!(*resp.status(), 200u16);
         let payload: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
@@ -7783,7 +7804,10 @@ mod admin_config_tests {
         assert_eq!(
             equivalent
                 .iter()
-                .filter(|entry| entry.get("is_simulation").and_then(|value| value.as_bool()) == Some(true))
+                .filter(
+                    |entry| entry.get("is_simulation").and_then(|value| value.as_bool())
+                        == Some(true)
+                )
                 .count(),
             1
         );
@@ -7816,7 +7840,11 @@ mod admin_config_tests {
             },
         );
 
-        let req_default = make_request(Method::Get, "/admin/monitoring?hours=24&limit=5", Vec::new());
+        let req_default = make_request(
+            Method::Get,
+            "/admin/monitoring?hours=24&limit=5",
+            Vec::new(),
+        );
         let resp_default = handle_admin_monitoring(&req_default, &store);
         assert_eq!(*resp_default.status(), 200u16);
         assert_eq!(
@@ -7870,7 +7898,8 @@ mod admin_config_tests {
                 .and_then(|value| value.as_str()),
             Some("forensic_raw")
         );
-        let body_forensic: serde_json::Value = serde_json::from_slice(resp_forensic.body()).unwrap();
+        let body_forensic: serde_json::Value =
+            serde_json::from_slice(resp_forensic.body()).unwrap();
         let event_forensic = body_forensic
             .get("details")
             .and_then(|value| value.get("events"))
@@ -7912,7 +7941,11 @@ mod admin_config_tests {
             },
         );
 
-        let req_default = make_request(Method::Get, "/admin/monitoring?hours=24&limit=5", Vec::new());
+        let req_default = make_request(
+            Method::Get,
+            "/admin/monitoring?hours=24&limit=5",
+            Vec::new(),
+        );
         let resp_default = handle_admin_monitoring(&req_default, &store);
         assert_eq!(*resp_default.status(), 200u16);
         let body_default: serde_json::Value = serde_json::from_slice(resp_default.body()).unwrap();
@@ -7966,7 +7999,8 @@ mod admin_config_tests {
         );
         let resp_forensic = handle_admin_monitoring(&req_forensic, &store);
         assert_eq!(*resp_forensic.status(), 200u16);
-        let body_forensic: serde_json::Value = serde_json::from_slice(resp_forensic.body()).unwrap();
+        let body_forensic: serde_json::Value =
+            serde_json::from_slice(resp_forensic.body()).unwrap();
         let event_forensic = body_forensic
             .get("details")
             .and_then(|value| value.get("events"))
@@ -8032,7 +8066,8 @@ mod admin_config_tests {
         );
         let resp_default = handle_admin_monitoring_delta(&req_default, &store);
         assert_eq!(*resp_default.status(), 200u16);
-        let payload_default: serde_json::Value = serde_json::from_slice(resp_default.body()).unwrap();
+        let payload_default: serde_json::Value =
+            serde_json::from_slice(resp_default.body()).unwrap();
         let events_default = payload_default
             .get("events")
             .and_then(|value| value.as_array())
@@ -8040,8 +8075,7 @@ mod admin_config_tests {
             .unwrap_or_default();
         assert!(events_default.iter().any(|row| {
             row.get("reason").and_then(|value| value.as_str()) == Some("delta_security_mode_probe")
-                && row.get("ip").and_then(|value| value.as_str())
-                    == Some(pseudo_ip.as_str())
+                && row.get("ip").and_then(|value| value.as_str()) == Some(pseudo_ip.as_str())
         }));
         assert!(events_default.iter().all(|row| row.get("admin").is_none()));
 
@@ -8056,7 +8090,8 @@ mod admin_config_tests {
         );
         let resp_forensic = handle_admin_monitoring_delta(&req_forensic, &store);
         assert_eq!(*resp_forensic.status(), 200u16);
-        let payload_forensic: serde_json::Value = serde_json::from_slice(resp_forensic.body()).unwrap();
+        let payload_forensic: serde_json::Value =
+            serde_json::from_slice(resp_forensic.body()).unwrap();
         let events_forensic = payload_forensic
             .get("events")
             .and_then(|value| value.as_array())
@@ -8074,7 +8109,11 @@ mod admin_config_tests {
         let _lock = crate::test_support::lock_env();
         let store = TestStore::default();
 
-        let req = make_request(Method::Get, "/admin/monitoring?hours=720&limit=50", Vec::new());
+        let req = make_request(
+            Method::Get,
+            "/admin/monitoring?hours=720&limit=50",
+            Vec::new(),
+        );
         let resp = handle_admin_monitoring(&req, &store);
         assert_eq!(*resp.status(), 200u16);
         assert_eq!(
@@ -8094,19 +8133,21 @@ mod admin_config_tests {
             .and_then(|value| value.get("cost_governance"))
             .expect("cost_governance");
         assert_eq!(
-            cost.get("query_budget_status").and_then(|value| value.as_str()),
+            cost.get("query_budget_status")
+                .and_then(|value| value.as_str()),
             Some("exceeded")
         );
         assert_eq!(
             cost.get("degraded_state").and_then(|value| value.as_str()),
             Some("degraded")
         );
-        assert!(
-            cost.get("degraded_reasons")
-                .and_then(|value| value.as_array())
-                .map(|reasons| reasons.iter().any(|row| row.as_str() == Some("query_budget_exceeded")))
-                .unwrap_or(false)
-        );
+        assert!(cost
+            .get("degraded_reasons")
+            .and_then(|value| value.as_array())
+            .map(|reasons| reasons
+                .iter()
+                .any(|row| row.as_str() == Some("query_budget_exceeded")))
+            .unwrap_or(false));
         assert_eq!(
             body.get("details")
                 .and_then(|value| value.get("events"))
@@ -8125,7 +8166,11 @@ mod admin_config_tests {
         for idx in 0..320u64 {
             let key = format!("monitoring:v1:challenge:reason:dense-{}:{}", idx, now_hour);
             store.set(key.as_str(), b"1").unwrap();
-            crate::observability::retention::register_monitoring_key(&store, now_hour, key.as_str());
+            crate::observability::retention::register_monitoring_key(
+                &store,
+                now_hour,
+                key.as_str(),
+            );
         }
 
         let req = make_request(Method::Get, "/admin/monitoring?hours=1&limit=1", Vec::new());
@@ -8143,7 +8188,8 @@ mod admin_config_tests {
             .and_then(|value| value.get("cost_governance"))
             .expect("cost_governance");
         assert_eq!(
-            cost.get("query_budget_status").and_then(|value| value.as_str()),
+            cost.get("query_budget_status")
+                .and_then(|value| value.as_str()),
             Some("exceeded")
         );
         assert!(
@@ -8219,11 +8265,15 @@ mod admin_config_tests {
             .expect("compression payload");
 
         assert_eq!(
-            compression.get("negotiated").and_then(|value| value.as_bool()),
+            compression
+                .get("negotiated")
+                .and_then(|value| value.as_bool()),
             Some(true)
         );
         assert_eq!(
-            compression.get("algorithm").and_then(|value| value.as_str()),
+            compression
+                .get("algorithm")
+                .and_then(|value| value.as_str()),
             Some("gzip")
         );
         assert!(
@@ -8284,18 +8334,14 @@ mod admin_config_tests {
         );
         let first = suggestions.first().unwrap();
         assert!(first.get("cidr").and_then(|value| value.as_str()).is_some());
-        assert!(
-            first
-                .get("recommended_action")
-                .and_then(|value| value.as_str())
-                .is_some()
-        );
-        assert!(
-            first
-                .get("recommended_mode")
-                .and_then(|value| value.as_str())
-                .is_some()
-        );
+        assert!(first
+            .get("recommended_action")
+            .and_then(|value| value.as_str())
+            .is_some());
+        assert!(first
+            .get("recommended_mode")
+            .and_then(|value| value.as_str())
+            .is_some());
     }
 
     #[test]
@@ -8377,8 +8423,7 @@ mod admin_config_tests {
         .unwrap();
         crate::observability::key_catalog::register_key(
             &store,
-            crate::tarpit::runtime::tarpit_budget_bucket_active_catalog_key("other-site")
-                .as_str(),
+            crate::tarpit::runtime::tarpit_budget_bucket_active_catalog_key("other-site").as_str(),
             "tarpit:budget:active:bucket:other-site:bucket-z",
         )
         .unwrap();
@@ -8407,7 +8452,8 @@ mod admin_config_tests {
                 && entry.get("active").and_then(|value| value.as_u64()) == Some(1)
         }));
         assert!(!top_buckets.iter().any(|entry| {
-            entry.get("bucket")
+            entry
+                .get("bucket")
                 .and_then(|value| value.as_str())
                 .unwrap_or("")
                 .contains("other-site")
@@ -8418,8 +8464,7 @@ mod admin_config_tests {
     }
 
     #[test]
-    fn monitoring_details_payload_marks_ban_state_unavailable_when_strict_backend_is_unavailable()
-    {
+    fn monitoring_details_payload_marks_ban_state_unavailable_when_strict_backend_is_unavailable() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_BAN_STORE_OUTAGE_MODE", "fail_closed");
         std::env::remove_var("SHUMA_BAN_STORE_REDIS_URL");
@@ -8427,7 +8472,10 @@ mod admin_config_tests {
         let mut cfg = crate::config::defaults().clone();
         cfg.provider_backends.ban_store = crate::config::ProviderBackend::External;
         store
-            .set("config:default", serde_json::to_vec(&cfg).unwrap().as_slice())
+            .set(
+                "config:default",
+                serde_json::to_vec(&cfg).unwrap().as_slice(),
+            )
             .unwrap();
 
         let details = monitoring_details_payload(&store, "default", 24, 10, false);
@@ -8531,10 +8579,7 @@ mod admin_config_tests {
             get_cfg.get("geo_challenge").unwrap(),
             &serde_json::json!(["BR"])
         );
-        assert_eq!(
-            get_cfg.get("geo_maze").unwrap(),
-            &serde_json::json!(["RU"])
-        );
+        assert_eq!(get_cfg.get("geo_maze").unwrap(), &serde_json::json!(["RU"]));
         assert_eq!(
             get_cfg.get("geo_block").unwrap(),
             &serde_json::json!(["KP"])
@@ -8646,7 +8691,10 @@ mod admin_config_tests {
         let resp = handle_admin_config_bootstrap(&req, &store, "default");
         assert_eq!(*resp.status(), 200u16, "{:?}", resp.body());
         let body: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
-        assert_eq!(body.get("bootstrapped"), Some(&serde_json::Value::Bool(true)));
+        assert_eq!(
+            body.get("bootstrapped"),
+            Some(&serde_json::Value::Bool(true))
+        );
 
         let saved_cfg: crate::config::Config =
             serde_json::from_slice(&store.get("config:default").unwrap().unwrap()).unwrap();
@@ -8842,7 +8890,9 @@ mod admin_config_tests {
         let body: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
         assert_eq!(body.get("valid"), Some(&serde_json::Value::Bool(true)));
         assert_eq!(
-            body.get("issues").and_then(|value| value.as_array()).map(|v| v.len()),
+            body.get("issues")
+                .and_then(|value| value.as_array())
+                .map(|v| v.len()),
             Some(0)
         );
 
@@ -8874,13 +8924,11 @@ mod admin_config_tests {
             issue.get("field").and_then(|value| value.as_str()),
             Some("rate_limit")
         );
-        assert!(
-            issue
-                .get("expected")
-                .and_then(|value| value.as_str())
-                .unwrap_or("")
-                .contains("Type mismatch")
-        );
+        assert!(issue
+            .get("expected")
+            .and_then(|value| value.as_str())
+            .unwrap_or("")
+            .contains("Type mismatch"));
         assert_eq!(
             issue.get("received").and_then(|value| value.as_str()),
             Some("oops")
@@ -8916,8 +8964,14 @@ mod admin_config_tests {
         assert_eq!(*post_resp.status(), 200u16);
         let post_json: serde_json::Value = serde_json::from_slice(post_resp.body()).unwrap();
         let cfg = post_json.get("config").unwrap();
-        assert_eq!(cfg.get("honeypot_enabled"), Some(&serde_json::Value::Bool(false)));
-        assert_eq!(cfg.get("honeypots"), Some(&serde_json::json!(["/instaban", "/trap-b"])));
+        assert_eq!(
+            cfg.get("honeypot_enabled"),
+            Some(&serde_json::Value::Bool(false))
+        );
+        assert_eq!(
+            cfg.get("honeypots"),
+            Some(&serde_json::json!(["/instaban", "/trap-b"]))
+        );
         assert_eq!(
             cfg.get("browser_block"),
             Some(&serde_json::json!([["Chrome", 126], ["Firefox", 120]]))
@@ -9037,7 +9091,10 @@ mod admin_config_tests {
         assert_eq!(*post_resp.status(), 200u16);
         let post_json: serde_json::Value = serde_json::from_slice(post_resp.body()).unwrap();
         let cfg = post_json.get("config").unwrap();
-        assert_eq!(cfg.get("pow_enabled"), Some(&serde_json::Value::Bool(false)));
+        assert_eq!(
+            cfg.get("pow_enabled"),
+            Some(&serde_json::Value::Bool(false))
+        );
 
         let saved_bytes = store.get("config:default").unwrap().unwrap();
         let saved_cfg: crate::config::Config = serde_json::from_slice(&saved_bytes).unwrap();
@@ -9157,7 +9214,10 @@ mod admin_config_tests {
         assert_eq!(*post_resp.status(), 200u16);
         let post_json: serde_json::Value = serde_json::from_slice(post_resp.body()).unwrap();
         let cfg = post_json.get("config").unwrap();
-        assert_eq!(cfg.get("tarpit_enabled"), Some(&serde_json::Value::Bool(false)));
+        assert_eq!(
+            cfg.get("tarpit_enabled"),
+            Some(&serde_json::Value::Bool(false))
+        );
 
         let saved_bytes = store.get("config:default").unwrap().unwrap();
         let saved_cfg: crate::config::Config = serde_json::from_slice(&saved_bytes).unwrap();
@@ -9288,7 +9348,10 @@ mod admin_config_tests {
         assert!(!saved_cfg.tarpit_shard_rotation_enabled);
         assert_eq!(saved_cfg.tarpit_egress_window_seconds, 90);
         assert_eq!(saved_cfg.tarpit_egress_global_bytes_per_window, 8_388_608);
-        assert_eq!(saved_cfg.tarpit_egress_per_ip_bucket_bytes_per_window, 1_048_576);
+        assert_eq!(
+            saved_cfg.tarpit_egress_per_ip_bucket_bytes_per_window,
+            1_048_576
+        );
         assert_eq!(saved_cfg.tarpit_egress_per_flow_max_bytes, 524_288);
         assert_eq!(saved_cfg.tarpit_egress_per_flow_max_duration_seconds, 180);
         assert_eq!(saved_cfg.tarpit_max_concurrent_global, 24);
@@ -9314,10 +9377,8 @@ mod admin_config_tests {
         );
         let invalid_token_ttl_resp = handle_admin_config(&invalid_token_ttl, &store, "default");
         assert_eq!(*invalid_token_ttl_resp.status(), 400u16);
-        assert!(
-            String::from_utf8_lossy(invalid_token_ttl_resp.body())
-                .contains("tarpit_progress_token_ttl_seconds out of range")
-        );
+        assert!(String::from_utf8_lossy(invalid_token_ttl_resp.body())
+            .contains("tarpit_progress_token_ttl_seconds out of range"));
 
         let invalid_chunk_bounds = make_request(
             Method::Post,
@@ -9328,10 +9389,8 @@ mod admin_config_tests {
         let invalid_chunk_bounds_resp =
             handle_admin_config(&invalid_chunk_bounds, &store, "default");
         assert_eq!(*invalid_chunk_bounds_resp.status(), 400u16);
-        assert!(
-            String::from_utf8_lossy(invalid_chunk_bounds_resp.body())
-                .contains("tarpit_step_chunk_max_bytes must be >=")
-        );
+        assert!(String::from_utf8_lossy(invalid_chunk_bounds_resp.body())
+            .contains("tarpit_step_chunk_max_bytes must be >="));
 
         let invalid_budget = make_request(
             Method::Post,
@@ -9341,10 +9400,8 @@ mod admin_config_tests {
         );
         let invalid_budget_resp = handle_admin_config(&invalid_budget, &store, "default");
         assert_eq!(*invalid_budget_resp.status(), 400u16);
-        assert!(
-            String::from_utf8_lossy(invalid_budget_resp.body())
-                .contains("tarpit_max_concurrent_per_ip_bucket must be <=")
-        );
+        assert!(String::from_utf8_lossy(invalid_budget_resp.body())
+            .contains("tarpit_max_concurrent_per_ip_bucket must be <="));
 
         let invalid_egress = make_request(
             Method::Post,
@@ -9357,10 +9414,8 @@ mod admin_config_tests {
         );
         let invalid_egress_resp = handle_admin_config(&invalid_egress, &store, "default");
         assert_eq!(*invalid_egress_resp.status(), 400u16);
-        assert!(
-            String::from_utf8_lossy(invalid_egress_resp.body())
-                .contains("tarpit_egress_per_ip_bucket_bytes_per_window must be <=")
-        );
+        assert!(String::from_utf8_lossy(invalid_egress_resp.body())
+            .contains("tarpit_egress_per_ip_bucket_bytes_per_window must be <="));
 
         let invalid_fallback = make_request(
             Method::Post,
@@ -9369,10 +9424,8 @@ mod admin_config_tests {
         );
         let invalid_fallback_resp = handle_admin_config(&invalid_fallback, &store, "default");
         assert_eq!(*invalid_fallback_resp.status(), 400u16);
-        assert!(
-            String::from_utf8_lossy(invalid_fallback_resp.body())
-                .contains("tarpit_fallback_action must be one of")
-        );
+        assert!(String::from_utf8_lossy(invalid_fallback_resp.body())
+            .contains("tarpit_fallback_action must be one of"));
 
         clear_env(&["SHUMA_ADMIN_CONFIG_WRITE_ENABLED"]);
     }
@@ -9460,7 +9513,10 @@ mod admin_config_tests {
         assert_eq!(*post_resp.status(), 200u16);
         let post_json: serde_json::Value = serde_json::from_slice(post_resp.body()).unwrap();
         let cfg = post_json.get("config").unwrap();
-        assert_eq!(cfg.get("not_a_bot_enabled"), Some(&serde_json::Value::Bool(false)));
+        assert_eq!(
+            cfg.get("not_a_bot_enabled"),
+            Some(&serde_json::Value::Bool(false))
+        );
         assert_eq!(
             cfg.get("not_a_bot_risk_threshold"),
             Some(&serde_json::Value::Number(2.into()))
@@ -9517,7 +9573,8 @@ mod admin_config_tests {
         );
         let invalid_threshold_resp = handle_admin_config(&invalid_threshold, &store, "default");
         assert_eq!(*invalid_threshold_resp.status(), 400u16);
-        assert!(String::from_utf8_lossy(invalid_threshold_resp.body()).contains("not_a_bot_risk_threshold out of range"));
+        assert!(String::from_utf8_lossy(invalid_threshold_resp.body())
+            .contains("not_a_bot_risk_threshold out of range"));
 
         let invalid_score_order = make_request(
             Method::Post,
@@ -9526,7 +9583,8 @@ mod admin_config_tests {
         );
         let invalid_score_order_resp = handle_admin_config(&invalid_score_order, &store, "default");
         assert_eq!(*invalid_score_order_resp.status(), 400u16);
-        assert!(String::from_utf8_lossy(invalid_score_order_resp.body()).contains("not_a_bot_fail_score must be <= not_a_bot_pass_score"));
+        assert!(String::from_utf8_lossy(invalid_score_order_resp.body())
+            .contains("not_a_bot_fail_score must be <= not_a_bot_pass_score"));
 
         clear_env(&["SHUMA_ADMIN_CONFIG_WRITE_ENABLED"]);
     }
@@ -9859,8 +9917,15 @@ mod admin_config_tests {
         assert_eq!(*resp.status(), 200u16, "{:?}", resp.body());
 
         let payload: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
-        let verified_identity = payload.get("config").unwrap().get("verified_identity").unwrap();
-        assert_eq!(verified_identity.get("enabled"), Some(&serde_json::Value::Bool(true)));
+        let verified_identity = payload
+            .get("config")
+            .unwrap()
+            .get("verified_identity")
+            .unwrap();
+        assert_eq!(
+            verified_identity.get("enabled"),
+            Some(&serde_json::Value::Bool(true))
+        );
         assert_eq!(
             verified_identity.get("non_human_traffic_stance"),
             Some(&serde_json::Value::String(
@@ -9973,10 +10038,7 @@ mod admin_auth_tests {
                         api_key,
                         percent_encoding::NON_ALPHANUMERIC
                     ),
-                    percent_encoding::utf8_percent_encode(
-                        next,
-                        percent_encoding::NON_ALPHANUMERIC
-                    )
+                    percent_encoding::utf8_percent_encode(next, percent_encoding::NON_ALPHANUMERIC)
                 )
                 .into_bytes(),
             );
@@ -10042,12 +10104,11 @@ mod admin_auth_tests {
             resp.header("location").and_then(|value| value.as_str()),
             Some("/dashboard/index.html")
         );
-        assert!(
-            resp.header("set-cookie")
-                .and_then(|value| value.as_str())
-                .map(|value| value.contains("shuma_admin_session="))
-                .unwrap_or(false)
-        );
+        assert!(resp
+            .header("set-cookie")
+            .and_then(|value| value.as_str())
+            .map(|value| value.contains("shuma_admin_session="))
+            .unwrap_or(false));
 
         std::env::remove_var("SHUMA_API_KEY");
     }
@@ -10243,7 +10304,10 @@ fn build_active_ban_snapshot_view(
     let mut sorted_active_bans = active_bans;
     sorted_active_bans.sort_by(|left, right| left.0.cmp(&right.0));
 
-    let latest_ban_ts = sorted_active_bans.iter().map(|(_, ban)| ban.banned_at).max();
+    let latest_ban_ts = sorted_active_bans
+        .iter()
+        .map(|(_, ban)| ban.banned_at)
+        .max();
     let maze_auto_bans = sorted_active_bans
         .iter()
         .filter(|(_, ban)| ban.reason == "maze_crawler")
@@ -10396,7 +10460,11 @@ fn encode_dashboard_login_query_component(value: &str) -> String {
         .to_string()
 }
 
-fn login_redirect_location(next: &str, error_code: Option<&str>, retry_after: Option<&str>) -> String {
+fn login_redirect_location(
+    next: &str,
+    error_code: Option<&str>,
+    retry_after: Option<&str>,
+) -> String {
     let mut location = format!(
         "{}?next={}",
         DASHBOARD_LOGIN_PATH,
@@ -10413,7 +10481,11 @@ fn login_redirect_location(next: &str, error_code: Option<&str>, retry_after: Op
     location
 }
 
-fn build_login_redirect_response(next: &str, error_code: Option<&str>, retry_after: Option<&str>) -> Response {
+fn build_login_redirect_response(
+    next: &str,
+    error_code: Option<&str>,
+    retry_after: Option<&str>,
+) -> Response {
     Response::builder()
         .status(303)
         .header(
@@ -10450,7 +10522,10 @@ fn request_has_form_urlencoded_content_type(req: &Request) -> bool {
             value
                 .split(';')
                 .next()
-                .map(|mime| mime.trim().eq_ignore_ascii_case("application/x-www-form-urlencoded"))
+                .map(|mime| {
+                    mime.trim()
+                        .eq_ignore_ascii_case("application/x-www-form-urlencoded")
+                })
                 .unwrap_or(false)
         })
         .unwrap_or(false)
@@ -10547,9 +10622,7 @@ fn expensive_admin_read_is_limited(
     false
 }
 
-fn dashboard_refresh_session_scope(
-    auth: &crate::admin::auth::AdminAuthResult,
-) -> Option<String> {
+fn dashboard_refresh_session_scope(auth: &crate::admin::auth::AdminAuthResult) -> Option<String> {
     if auth.method != Some(crate::admin::auth::AdminAuthMethod::SessionCookie) {
         return None;
     }
@@ -10621,12 +10694,7 @@ fn expensive_admin_read_limit_check_internal_with_identity<S: crate::challenge::
     site_id: &str,
     limit_per_minute: u32,
 ) -> bool {
-    !crate::enforcement::rate::check_rate_limit(
-        store,
-        site_id,
-        identity,
-        limit_per_minute,
-    )
+    !crate::enforcement::rate::check_rate_limit(store, site_id, identity, limit_per_minute)
 }
 
 fn adversary_sim_control_submission_is_limited<S: crate::challenge::KeyValueStore>(
@@ -10757,7 +10825,11 @@ where
 
     if !crate::admin::auth::verify_admin_api_key_candidate(api_key) {
         if register_failure() {
-            return build_login_redirect_response(next_path.as_str(), Some("rate_limited"), Some("60"));
+            return build_login_redirect_response(
+                next_path.as_str(),
+                Some("rate_limited"),
+                Some("60"),
+            );
         }
         return build_login_redirect_response(next_path.as_str(), Some("invalid_key"), None);
     }
@@ -10903,9 +10975,7 @@ fn apply_robots_preview_patch(cfg: &mut crate::config::Config, json: &serde_json
         cfg.robots_block_ai_training = value;
     }
 
-    let ai_policy_block_search = json
-        .get("ai_policy_block_search")
-        .and_then(|v| v.as_bool());
+    let ai_policy_block_search = json.get("ai_policy_block_search").and_then(|v| v.as_bool());
     if let Some(value) = ai_policy_block_search {
         cfg.robots_block_ai_search = value;
     }
@@ -11098,7 +11168,8 @@ fn freshness_health_payload(
     overflow: &str,
     transport: &str,
 ) -> serde_json::Value {
-    let lag_ms = latest_event_ts.map(|event_ts| now_ts.saturating_sub(event_ts).saturating_mul(1000));
+    let lag_ms =
+        latest_event_ts.map(|event_ts| now_ts.saturating_sub(event_ts).saturating_mul(1000));
     let state = freshness_state_for_lag(lag_ms);
     let slow_consumer_lag_state = if has_more || overflow == "limit_exceeded" {
         "lagged"
@@ -11373,7 +11444,10 @@ fn gzip_bytes(payload: &[u8]) -> Option<Vec<u8>> {
     encoder.finish().ok()
 }
 
-fn monitoring_compression_report(payload: &[u8], supports_gzip: bool) -> MonitoringCompressionReport {
+fn monitoring_compression_report(
+    payload: &[u8],
+    supports_gzip: bool,
+) -> MonitoringCompressionReport {
     if payload.len() <= MONITORING_COMPRESSION_MIN_PAYLOAD_BYTES {
         return MonitoringCompressionReport {
             negotiated: false,
@@ -11543,7 +11617,11 @@ fn update_monitoring_cost_governance_transport_fields(
     );
 }
 
-fn sse_single_event_response(event_name: &str, event_id: &str, payload: &serde_json::Value) -> Response {
+fn sse_single_event_response(
+    event_name: &str,
+    event_id: &str,
+    payload: &serde_json::Value,
+) -> Response {
     let event_payload = serde_json::to_string(payload).unwrap_or_else(|_| "{}".to_string());
     let body = format!(
         "retry: {}\nevent: {}\nid: {}\ndata: {}\n\n",
@@ -11859,18 +11937,19 @@ pub(crate) fn monitoring_recent_sim_run_summaries<S: crate::challenge::KeyValueS
             .unwrap_or("unknown")
             .to_string();
         let defense = classify_monitoring_sim_run_defense(&stored.record);
-        let accumulator = grouped.entry(run_id.clone()).or_insert_with(|| {
-            MonitoringRecentSimRunAccumulator {
-                run_id: run_id.clone(),
-                lane: lane.clone(),
-                profile: profile.clone(),
-                first_ts: ts,
-                last_ts: ts,
-                monitoring_event_count: 0,
-                defense_keys: HashSet::new(),
-                ban_outcome_count: 0,
-            }
-        });
+        let accumulator =
+            grouped
+                .entry(run_id.clone())
+                .or_insert_with(|| MonitoringRecentSimRunAccumulator {
+                    run_id: run_id.clone(),
+                    lane: lane.clone(),
+                    profile: profile.clone(),
+                    first_ts: ts,
+                    last_ts: ts,
+                    monitoring_event_count: 0,
+                    defense_keys: HashSet::new(),
+                    ban_outcome_count: 0,
+                });
         accumulator.monitoring_event_count = accumulator.monitoring_event_count.saturating_add(1);
         if ts > 0 {
             accumulator.first_ts = if accumulator.first_ts == 0 {
@@ -11894,16 +11973,18 @@ pub(crate) fn monitoring_recent_sim_run_summaries<S: crate::challenge::KeyValueS
 
     let mut rows: Vec<_> = grouped
         .into_values()
-        .map(|row| crate::observability::hot_read_documents::MonitoringRecentSimRunSummary {
-            run_id: row.run_id,
-            lane: row.lane,
-            profile: row.profile,
-            first_ts: row.first_ts,
-            last_ts: row.last_ts,
-            monitoring_event_count: row.monitoring_event_count,
-            defense_delta_count: row.defense_keys.len() as u64,
-            ban_outcome_count: row.ban_outcome_count,
-        })
+        .map(
+            |row| crate::observability::hot_read_documents::MonitoringRecentSimRunSummary {
+                run_id: row.run_id,
+                lane: row.lane,
+                profile: row.profile,
+                first_ts: row.first_ts,
+                last_ts: row.last_ts,
+                monitoring_event_count: row.monitoring_event_count,
+                defense_delta_count: row.defense_keys.len() as u64,
+                ban_outcome_count: row.ban_outcome_count,
+            },
+        )
         .collect();
     rows.sort_by(|left, right| {
         right
@@ -12317,7 +12398,9 @@ fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(String, String
         ),
         (
             "SHUMA_VERIFIED_IDENTITY_DIRECTORY_CACHE_TTL_SECONDS".to_string(),
-            cfg.verified_identity.directory_cache_ttl_seconds.to_string(),
+            cfg.verified_identity
+                .directory_cache_ttl_seconds
+                .to_string(),
         ),
         (
             "SHUMA_VERIFIED_IDENTITY_DIRECTORY_FRESHNESS_REQUIREMENT_SECONDS".to_string(),
@@ -12888,7 +12971,10 @@ fn sanitize_custom_message(
     if message.is_empty() {
         return Ok(None);
     }
-    if message.chars().any(|ch| ch.is_control() && ch != '\n' && ch != '\r' && ch != '\t') {
+    if message
+        .chars()
+        .any(|ch| ch.is_control() && ch != '\n' && ch != '\r' && ch != '\t')
+    {
         return Err(format!(
             "{}.custom_message contains unsupported control characters",
             field
@@ -12912,10 +12998,7 @@ fn parse_cidr_list_json(
         .as_array()
         .ok_or_else(|| format!("{} must be an array of CIDR strings", field))?;
     if items.len() > max_len {
-        return Err(format!(
-            "{} exceeds max length {}",
-            field, max_len
-        ));
+        return Err(format!("{} exceeds max length {}", field, max_len));
     }
 
     let mut parsed = Vec::with_capacity(items.len());
@@ -12976,10 +13059,16 @@ fn validate_ip_range_action_params(
     custom_message: Option<&str>,
 ) -> Result<(), String> {
     if action == crate::config::IpRangePolicyAction::Redirect308 && redirect_url.is_none() {
-        return Err(format!("{} action redirect_308 requires redirect_url", field));
+        return Err(format!(
+            "{} action redirect_308 requires redirect_url",
+            field
+        ));
     }
     if action == crate::config::IpRangePolicyAction::CustomMessage && custom_message.is_none() {
-        return Err(format!("{} action custom_message requires custom_message", field));
+        return Err(format!(
+            "{} action custom_message requires custom_message",
+            field
+        ));
     }
     Ok(())
 }
@@ -12992,7 +13081,10 @@ fn parse_ip_range_custom_rules_json(
         .as_array()
         .ok_or_else(|| format!("{} must be an array of objects", field))?;
     if items.len() > IP_RANGE_MAX_RULES {
-        return Err(format!("{} exceeds max rules {}", field, IP_RANGE_MAX_RULES));
+        return Err(format!(
+            "{} exceeds max rules {}",
+            field, IP_RANGE_MAX_RULES
+        ));
     }
 
     let mut parsed = Vec::with_capacity(items.len());
@@ -13001,7 +13093,10 @@ fn parse_ip_range_custom_rules_json(
         let obj = item
             .as_object()
             .ok_or_else(|| format!("{}[{}] must be an object", field, index))?;
-        let enabled = obj.get("enabled").and_then(|value| value.as_bool()).unwrap_or(true);
+        let enabled = obj
+            .get("enabled")
+            .and_then(|value| value.as_bool())
+            .unwrap_or(true);
         let id = obj
             .get("id")
             .and_then(|value| value.as_str())
@@ -13065,7 +13160,10 @@ fn parse_ip_range_custom_rules_json(
     Ok(parsed)
 }
 
-fn parse_honeypot_paths_json(field: &str, value: &serde_json::Value) -> Result<Vec<String>, String> {
+fn parse_honeypot_paths_json(
+    field: &str,
+    value: &serde_json::Value,
+) -> Result<Vec<String>, String> {
     let paths = parse_string_list_json(field, value)?;
     for path in &paths {
         if !is_valid_honeypot_path(path) {
@@ -13369,7 +13467,8 @@ fn admin_config_runtime_payload(
     );
     obj.insert(
         "enterprise_state_guardrail_warnings".to_string(),
-        serde_json::to_value(cfg.enterprise_state_guardrail_warnings()).unwrap_or_else(|_| json!([])),
+        serde_json::to_value(cfg.enterprise_state_guardrail_warnings())
+            .unwrap_or_else(|_| json!([])),
     );
     obj.insert(
         "enterprise_state_guardrail_error".to_string(),
@@ -13378,7 +13477,10 @@ fn admin_config_runtime_payload(
             None => serde_json::Value::Null,
         },
     );
-    obj.insert("botness_signal_definitions".to_string(), botness_signal_definitions(cfg));
+    obj.insert(
+        "botness_signal_definitions".to_string(),
+        botness_signal_definitions(cfg),
+    );
     payload
 }
 
@@ -13621,7 +13723,10 @@ fn admin_config_validation_field(message: &str) -> Option<String> {
         let rest = &message[start + 1..];
         if let Some(end) = rest.find('`') {
             let field = rest[..end].trim();
-            if !field.is_empty() && field.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+            if !field.is_empty()
+                && field
+                    .chars()
+                    .all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
             {
                 return Some(field.to_string());
             }
@@ -13654,9 +13759,7 @@ fn admin_config_validation_field(message: &str) -> Option<String> {
 
 fn admin_config_validation_expected(message: &str) -> Option<String> {
     if message.contains("unknown field `") {
-        return Some(
-            "Unknown key. Use only writable keys from docs/configuration.md.".to_string(),
-        );
+        return Some("Unknown key. Use only writable keys from docs/configuration.md.".to_string());
     }
 
     if let Some(start) = message.find("out of range (") {
@@ -13715,276 +13818,6 @@ fn admin_config_validation_issue(
     }
 }
 
-fn operator_snapshot_recent_change_source(admin_id: &str) -> String {
-    if admin_id.starts_with("controller:") || admin_id == "scheduled_controller" {
-        "scheduled_controller".to_string()
-    } else {
-        "manual_admin".to_string()
-    }
-}
-
-fn operator_snapshot_patch_requested_families(
-    patch: &serde_json::Value,
-) -> Vec<&'static str> {
-    let Some(object) = patch.as_object() else {
-        return Vec::new();
-    };
-    let mut families = Vec::new();
-    for key in object.keys() {
-        let family = crate::config::controller_config_family_for_patch_key(key.as_str());
-        if let Some(family) = family {
-            if !families.contains(&family) {
-                families.push(family);
-            }
-        }
-    }
-    families
-}
-
-fn operator_snapshot_family_snapshot(
-    cfg: &crate::config::Config,
-    family: &str,
-) -> serde_json::Value {
-    match family {
-        "shadow_mode" => json!({
-            "shadow_mode": cfg.shadow_mode,
-        }),
-        "adversary_sim_config" => json!({
-            "adversary_sim_duration_seconds": cfg.adversary_sim_duration_seconds,
-        }),
-        "core_policy" => json!({
-            "ban_duration": cfg.ban_duration,
-            "ban_durations": cfg.ban_durations,
-            "rate_limit": cfg.rate_limit,
-            "js_required_enforced": cfg.js_required_enforced,
-        }),
-        "geo_policy" => json!({
-            "geo_risk": cfg.geo_risk,
-            "geo_allow": cfg.geo_allow,
-            "geo_challenge": cfg.geo_challenge,
-            "geo_maze": cfg.geo_maze,
-            "geo_block": cfg.geo_block,
-            "geo_edge_headers_enabled": cfg.geo_edge_headers_enabled,
-        }),
-        "honeypot" => json!({
-            "honeypot_enabled": cfg.honeypot_enabled,
-            "honeypots": cfg.honeypots,
-        }),
-        "browser_policy" => json!({
-            "browser_policy_enabled": cfg.browser_policy_enabled,
-            "browser_block": cfg.browser_block,
-            "browser_allowlist": cfg.browser_allowlist,
-        }),
-        "allowlists" => json!({
-            "bypass_allowlists_enabled": cfg.bypass_allowlists_enabled,
-            "allowlist": cfg.allowlist,
-            "path_allowlist_enabled": cfg.path_allowlist_enabled,
-            "path_allowlist": cfg.path_allowlist,
-        }),
-        "ip_range_policy" => json!({
-            "ip_range_policy_mode": cfg.ip_range_policy_mode,
-            "ip_range_emergency_allowlist": cfg.ip_range_emergency_allowlist,
-            "ip_range_custom_rules": cfg.ip_range_custom_rules,
-            "ip_range_suggestions_min_observations": cfg.ip_range_suggestions_min_observations,
-            "ip_range_suggestions_min_bot_events": cfg.ip_range_suggestions_min_bot_events,
-            "ip_range_suggestions_min_confidence_percent": cfg.ip_range_suggestions_min_confidence_percent,
-            "ip_range_suggestions_low_collateral_percent": cfg.ip_range_suggestions_low_collateral_percent,
-            "ip_range_suggestions_high_collateral_percent": cfg.ip_range_suggestions_high_collateral_percent,
-            "ip_range_suggestions_ipv4_min_prefix_len": cfg.ip_range_suggestions_ipv4_min_prefix_len,
-            "ip_range_suggestions_ipv6_min_prefix_len": cfg.ip_range_suggestions_ipv6_min_prefix_len,
-            "ip_range_suggestions_likely_human_sample_percent": cfg.ip_range_suggestions_likely_human_sample_percent,
-        }),
-        "maze_core" => json!({
-            "maze_enabled": cfg.maze_enabled,
-            "maze_auto_ban": cfg.maze_auto_ban,
-            "maze_auto_ban_threshold": cfg.maze_auto_ban_threshold,
-            "maze_rollout_phase": cfg.maze_rollout_phase,
-            "maze_token_ttl_seconds": cfg.maze_token_ttl_seconds,
-            "maze_token_max_depth": cfg.maze_token_max_depth,
-            "maze_token_branch_budget": cfg.maze_token_branch_budget,
-            "maze_replay_ttl_seconds": cfg.maze_replay_ttl_seconds,
-            "maze_entropy_window_seconds": cfg.maze_entropy_window_seconds,
-            "maze_client_expansion_enabled": cfg.maze_client_expansion_enabled,
-            "maze_checkpoint_every_nodes": cfg.maze_checkpoint_every_nodes,
-            "maze_checkpoint_every_ms": cfg.maze_checkpoint_every_ms,
-            "maze_step_ahead_max": cfg.maze_step_ahead_max,
-            "maze_no_js_fallback_max_depth": cfg.maze_no_js_fallback_max_depth,
-            "maze_micro_pow_enabled": cfg.maze_micro_pow_enabled,
-            "maze_micro_pow_depth_start": cfg.maze_micro_pow_depth_start,
-            "maze_micro_pow_base_difficulty": cfg.maze_micro_pow_base_difficulty,
-            "maze_max_concurrent_global": cfg.maze_max_concurrent_global,
-            "maze_max_concurrent_per_ip_bucket": cfg.maze_max_concurrent_per_ip_bucket,
-            "maze_max_response_bytes": cfg.maze_max_response_bytes,
-            "maze_max_response_duration_ms": cfg.maze_max_response_duration_ms,
-            "maze_server_visible_links": cfg.maze_server_visible_links,
-            "maze_max_links": cfg.maze_max_links,
-            "maze_max_paragraphs": cfg.maze_max_paragraphs,
-            "maze_path_entropy_segment_len": cfg.maze_path_entropy_segment_len,
-            "maze_covert_decoys_enabled": cfg.maze_covert_decoys_enabled,
-            "maze_seed_provider": cfg.maze_seed_provider,
-            "maze_seed_refresh_interval_seconds": cfg.maze_seed_refresh_interval_seconds,
-            "maze_seed_refresh_rate_limit_per_hour": cfg.maze_seed_refresh_rate_limit_per_hour,
-            "maze_seed_refresh_max_sources": cfg.maze_seed_refresh_max_sources,
-            "maze_seed_metadata_only": cfg.maze_seed_metadata_only,
-        }),
-        "tarpit" => json!({
-            "tarpit_enabled": cfg.tarpit_enabled,
-            "tarpit_progress_token_ttl_seconds": cfg.tarpit_progress_token_ttl_seconds,
-            "tarpit_progress_replay_ttl_seconds": cfg.tarpit_progress_replay_ttl_seconds,
-            "tarpit_hashcash_min_difficulty": cfg.tarpit_hashcash_min_difficulty,
-            "tarpit_hashcash_max_difficulty": cfg.tarpit_hashcash_max_difficulty,
-            "tarpit_hashcash_base_difficulty": cfg.tarpit_hashcash_base_difficulty,
-            "tarpit_hashcash_adaptive": cfg.tarpit_hashcash_adaptive,
-            "tarpit_step_chunk_base_bytes": cfg.tarpit_step_chunk_base_bytes,
-            "tarpit_step_chunk_max_bytes": cfg.tarpit_step_chunk_max_bytes,
-            "tarpit_step_jitter_percent": cfg.tarpit_step_jitter_percent,
-            "tarpit_shard_rotation_enabled": cfg.tarpit_shard_rotation_enabled,
-            "tarpit_egress_window_seconds": cfg.tarpit_egress_window_seconds,
-            "tarpit_egress_global_bytes_per_window": cfg.tarpit_egress_global_bytes_per_window,
-            "tarpit_egress_per_ip_bucket_bytes_per_window": cfg.tarpit_egress_per_ip_bucket_bytes_per_window,
-            "tarpit_egress_per_flow_max_bytes": cfg.tarpit_egress_per_flow_max_bytes,
-            "tarpit_egress_per_flow_max_duration_seconds": cfg.tarpit_egress_per_flow_max_duration_seconds,
-            "tarpit_max_concurrent_global": cfg.tarpit_max_concurrent_global,
-            "tarpit_max_concurrent_per_ip_bucket": cfg.tarpit_max_concurrent_per_ip_bucket,
-            "tarpit_fallback_action": cfg.tarpit_fallback_action,
-        }),
-        "proof_of_work" => json!({
-            "pow_enabled": cfg.pow_enabled,
-            "pow_difficulty": cfg.pow_difficulty,
-            "pow_ttl_seconds": cfg.pow_ttl_seconds,
-        }),
-        "challenge" => json!({
-            "challenge_puzzle_enabled": cfg.challenge_puzzle_enabled,
-            "challenge_puzzle_transform_count": cfg.challenge_puzzle_transform_count,
-            "challenge_puzzle_seed_ttl_seconds": cfg.challenge_puzzle_seed_ttl_seconds,
-            "challenge_puzzle_attempt_limit_per_window": cfg.challenge_puzzle_attempt_limit_per_window,
-            "challenge_puzzle_attempt_window_seconds": cfg.challenge_puzzle_attempt_window_seconds,
-        }),
-        "not_a_bot" => json!({
-            "not_a_bot_enabled": cfg.not_a_bot_enabled,
-            "not_a_bot_risk_threshold": cfg.not_a_bot_risk_threshold,
-            "not_a_bot_pass_score": cfg.not_a_bot_pass_score,
-            "not_a_bot_fail_score": cfg.not_a_bot_fail_score,
-            "not_a_bot_nonce_ttl_seconds": cfg.not_a_bot_nonce_ttl_seconds,
-            "not_a_bot_marker_ttl_seconds": cfg.not_a_bot_marker_ttl_seconds,
-            "not_a_bot_attempt_limit_per_window": cfg.not_a_bot_attempt_limit_per_window,
-            "not_a_bot_attempt_window_seconds": cfg.not_a_bot_attempt_window_seconds,
-        }),
-        "provider_selection" => json!({
-            "provider_backends": cfg.provider_backends,
-            "edge_integration_mode": cfg.edge_integration_mode,
-        }),
-        "verified_identity" => json!({
-            "verified_identity": cfg.verified_identity,
-        }),
-        "botness" => json!({
-            "challenge_puzzle_risk_threshold": cfg.challenge_puzzle_risk_threshold,
-            "botness_maze_threshold": cfg.botness_maze_threshold,
-            "botness_weights": cfg.botness_weights,
-            "defence_modes": cfg.defence_modes,
-        }),
-        "robots_policy" => json!({
-            "robots_enabled": cfg.robots_enabled,
-            "ai_policy_block_training": cfg.robots_block_ai_training,
-            "ai_policy_block_search": cfg.robots_block_ai_search,
-            "ai_policy_allow_search_engines": cfg.robots_allow_search_engines,
-            "robots_crawl_delay": cfg.robots_crawl_delay,
-        }),
-        "cdp_detection" => json!({
-            "cdp_detection_enabled": cfg.cdp_detection_enabled,
-            "cdp_auto_ban": cfg.cdp_auto_ban,
-            "cdp_detection_threshold": cfg.cdp_detection_threshold,
-            "cdp_probe_family": cfg.cdp_probe_family,
-            "cdp_probe_rollout_percent": cfg.cdp_probe_rollout_percent,
-        }),
-        "fingerprint_signal" => json!({
-            "fingerprint_signal_enabled": cfg.fingerprint_signal_enabled,
-            "fingerprint_state_ttl_seconds": cfg.fingerprint_state_ttl_seconds,
-            "fingerprint_flow_window_seconds": cfg.fingerprint_flow_window_seconds,
-            "fingerprint_flow_violation_threshold": cfg.fingerprint_flow_violation_threshold,
-            "fingerprint_pseudonymize": cfg.fingerprint_pseudonymize,
-            "fingerprint_entropy_budget": cfg.fingerprint_entropy_budget,
-            "fingerprint_family_cap_header_runtime": cfg.fingerprint_family_cap_header_runtime,
-            "fingerprint_family_cap_transport": cfg.fingerprint_family_cap_transport,
-            "fingerprint_family_cap_temporal": cfg.fingerprint_family_cap_temporal,
-            "fingerprint_family_cap_persistence": cfg.fingerprint_family_cap_persistence,
-            "fingerprint_family_cap_behavior": cfg.fingerprint_family_cap_behavior,
-        }),
-        _ => serde_json::Value::Null,
-    }
-}
-
-fn operator_snapshot_patch_changed_families(
-    old_cfg: &crate::config::Config,
-    new_cfg: &crate::config::Config,
-    patch: &serde_json::Value,
-) -> Vec<String> {
-    let mut families = operator_snapshot_patch_requested_families(patch)
-        .into_iter()
-        .filter(|family| {
-            operator_snapshot_family_snapshot(old_cfg, family)
-                != operator_snapshot_family_snapshot(new_cfg, family)
-        })
-        .map(|family| family.to_string())
-        .collect::<Vec<_>>();
-    families.sort();
-    families
-}
-
-fn operator_snapshot_targets_for_families(families: &[String]) -> Vec<String> {
-    let mut targets = BTreeSet::new();
-    for family in families {
-        for target in crate::config::controller_action_family_targets(family.as_str()) {
-            targets.insert(target);
-        }
-    }
-    targets.into_iter().collect()
-}
-
-fn operator_snapshot_config_patch_recent_change_row(
-    old_cfg: &crate::config::Config,
-    new_cfg: &crate::config::Config,
-    patch: &serde_json::Value,
-    admin_id: &str,
-    changed_at_ts: u64,
-) -> Option<OperatorSnapshotRecentChangeLedgerRow> {
-    let changed_families = operator_snapshot_patch_changed_families(old_cfg, new_cfg, patch);
-    if changed_families.is_empty() {
-        return None;
-    }
-    Some(OperatorSnapshotRecentChangeLedgerRow {
-        changed_at_ts,
-        change_reason: "config_patch".to_string(),
-        changed_families: changed_families.clone(),
-        source: operator_snapshot_recent_change_source(admin_id),
-        targets: operator_snapshot_targets_for_families(&changed_families),
-        change_summary: truncate_operator_snapshot_change_summary(
-            format!("config families updated: {}", changed_families.join(", ")).as_str(),
-        ),
-    })
-}
-
-pub(crate) fn operator_snapshot_manual_change_row(
-    changed_at_ts: u64,
-    change_reason: &str,
-    changed_families: &[&str],
-    targets: &[&str],
-    admin_id: &str,
-    change_summary: &str,
-) -> OperatorSnapshotRecentChangeLedgerRow {
-    OperatorSnapshotRecentChangeLedgerRow {
-        changed_at_ts,
-        change_reason: change_reason.to_string(),
-        changed_families: changed_families
-            .iter()
-            .map(|family| family.to_string())
-            .collect(),
-        source: operator_snapshot_recent_change_source(admin_id),
-        targets: targets.iter().map(|target| target.to_string()).collect(),
-        change_summary: truncate_operator_snapshot_change_summary(change_summary),
-    }
-}
-
 fn persist_site_config(
     store: &impl crate::challenge::KeyValueStore,
     site_id: &str,
@@ -14028,7 +13861,9 @@ fn handle_admin_config_internal(
         // Load current config
         let mut cfg = match crate::config::Config::load(store, site_id) {
             Ok(cfg) => cfg,
-            Err(crate::config::ConfigLoadError::MissingConfig) => crate::config::default_seeded_config(),
+            Err(crate::config::ConfigLoadError::MissingConfig) => {
+                crate::config::default_seeded_config()
+            }
             Err(err) => return Response::new(500, err.user_message()),
         };
         let original_cfg = cfg.clone();
@@ -14142,8 +13977,9 @@ fn handle_admin_config_internal(
                 Err(msg) => return Response::new(400, msg),
             }
         }
-        if let Some(geo_edge_headers_enabled) =
-            json.get("geo_edge_headers_enabled").and_then(|v| v.as_bool())
+        if let Some(geo_edge_headers_enabled) = json
+            .get("geo_edge_headers_enabled")
+            .and_then(|v| v.as_bool())
         {
             cfg.geo_edge_headers_enabled = geo_edge_headers_enabled;
             changed = true;
@@ -14186,8 +14022,9 @@ fn handle_admin_config_internal(
                 Err(msg) => return Response::new(400, msg),
             }
         }
-        if let Some(bypass_allowlists_enabled) =
-            json.get("bypass_allowlists_enabled").and_then(|v| v.as_bool())
+        if let Some(bypass_allowlists_enabled) = json
+            .get("bypass_allowlists_enabled")
+            .and_then(|v| v.as_bool())
         {
             cfg.bypass_allowlists_enabled = bypass_allowlists_enabled;
             changed = true;
@@ -14314,7 +14151,8 @@ fn handle_admin_config_internal(
                     400,
                     format!(
                         "tarpit_progress_token_ttl_seconds out of range ({}-{})",
-                        TARPIT_PROGRESS_TOKEN_TTL_SECONDS_MIN, TARPIT_PROGRESS_TOKEN_TTL_SECONDS_MAX
+                        TARPIT_PROGRESS_TOKEN_TTL_SECONDS_MIN,
+                        TARPIT_PROGRESS_TOKEN_TTL_SECONDS_MAX
                     ),
                 );
             }
@@ -14350,8 +14188,7 @@ fn handle_admin_config_internal(
             .get("tarpit_hashcash_min_difficulty")
             .and_then(|v| v.as_u64())
         {
-            if !(TARPIT_HASHCASH_DIFFICULTY_MIN..=TARPIT_HASHCASH_DIFFICULTY_MAX).contains(&value)
-            {
+            if !(TARPIT_HASHCASH_DIFFICULTY_MIN..=TARPIT_HASHCASH_DIFFICULTY_MAX).contains(&value) {
                 return Response::new(
                     400,
                     format!(
@@ -14370,8 +14207,7 @@ fn handle_admin_config_internal(
             .get("tarpit_hashcash_max_difficulty")
             .and_then(|v| v.as_u64())
         {
-            if !(TARPIT_HASHCASH_DIFFICULTY_MIN..=TARPIT_HASHCASH_DIFFICULTY_MAX).contains(&value)
-            {
+            if !(TARPIT_HASHCASH_DIFFICULTY_MIN..=TARPIT_HASHCASH_DIFFICULTY_MAX).contains(&value) {
                 return Response::new(
                     400,
                     format!(
@@ -14390,8 +14226,7 @@ fn handle_admin_config_internal(
             .get("tarpit_hashcash_base_difficulty")
             .and_then(|v| v.as_u64())
         {
-            if !(TARPIT_HASHCASH_DIFFICULTY_MIN..=TARPIT_HASHCASH_DIFFICULTY_MAX).contains(&value)
-            {
+            if !(TARPIT_HASHCASH_DIFFICULTY_MIN..=TARPIT_HASHCASH_DIFFICULTY_MAX).contains(&value) {
                 return Response::new(
                     400,
                     format!(
@@ -14406,7 +14241,10 @@ fn handle_admin_config_internal(
                 tarpit_changed = true;
             }
         }
-        if let Some(value) = json.get("tarpit_hashcash_adaptive").and_then(|v| v.as_bool()) {
+        if let Some(value) = json
+            .get("tarpit_hashcash_adaptive")
+            .and_then(|v| v.as_bool())
+        {
             if cfg.tarpit_hashcash_adaptive != value {
                 cfg.tarpit_hashcash_adaptive = value;
                 changed = true;
@@ -14508,7 +14346,8 @@ fn handle_admin_config_internal(
             .get("tarpit_egress_global_bytes_per_window")
             .and_then(|v| v.as_u64())
         {
-            if !(TARPIT_EGRESS_GLOBAL_BYTES_PER_WINDOW_MIN..=TARPIT_EGRESS_GLOBAL_BYTES_PER_WINDOW_MAX)
+            if !(TARPIT_EGRESS_GLOBAL_BYTES_PER_WINDOW_MIN
+                ..=TARPIT_EGRESS_GLOBAL_BYTES_PER_WINDOW_MAX)
                 .contains(&value)
             {
                 return Response::new(
@@ -14662,7 +14501,9 @@ fn handle_admin_config_internal(
                 "tarpit_step_chunk_max_bytes must be >= tarpit_step_chunk_base_bytes",
             );
         }
-        if cfg.tarpit_egress_per_ip_bucket_bytes_per_window > cfg.tarpit_egress_global_bytes_per_window {
+        if cfg.tarpit_egress_per_ip_bucket_bytes_per_window
+            > cfg.tarpit_egress_global_bytes_per_window
+        {
             return Response::new(
                 400,
                 "tarpit_egress_per_ip_bucket_bytes_per_window must be <= tarpit_egress_global_bytes_per_window",
@@ -14929,9 +14770,7 @@ fn handle_admin_config_internal(
             cfg.robots_block_ai_training = robots_block_ai_training;
             changed = true;
         }
-        let ai_policy_block_search = json
-            .get("ai_policy_block_search")
-            .and_then(|v| v.as_bool());
+        let ai_policy_block_search = json.get("ai_policy_block_search").and_then(|v| v.as_bool());
         if let Some(robots_block_ai_search) = ai_policy_block_search {
             cfg.robots_block_ai_search = robots_block_ai_search;
             changed = true;
@@ -14972,14 +14811,20 @@ fn handle_admin_config_internal(
             };
             changed = true;
         }
-        if let Some(value) = json.get("cdp_probe_rollout_percent").and_then(|v| v.as_u64()) {
+        if let Some(value) = json
+            .get("cdp_probe_rollout_percent")
+            .and_then(|v| v.as_u64())
+        {
             if value > 100 {
                 return Response::new(400, "cdp_probe_rollout_percent out of range (0-100)");
             }
             cfg.cdp_probe_rollout_percent = value as u8;
             changed = true;
         }
-        if let Some(value) = json.get("fingerprint_signal_enabled").and_then(|v| v.as_bool()) {
+        if let Some(value) = json
+            .get("fingerprint_signal_enabled")
+            .and_then(|v| v.as_bool())
+        {
             cfg.fingerprint_signal_enabled = value;
             changed = true;
         }
@@ -15004,11 +14849,17 @@ fn handle_admin_config_internal(
             cfg.fingerprint_flow_violation_threshold = value as u8;
             changed = true;
         }
-        if let Some(value) = json.get("fingerprint_pseudonymize").and_then(|v| v.as_bool()) {
+        if let Some(value) = json
+            .get("fingerprint_pseudonymize")
+            .and_then(|v| v.as_bool())
+        {
             cfg.fingerprint_pseudonymize = value;
             changed = true;
         }
-        if let Some(value) = json.get("fingerprint_entropy_budget").and_then(|v| v.as_u64()) {
+        if let Some(value) = json
+            .get("fingerprint_entropy_budget")
+            .and_then(|v| v.as_u64())
+        {
             if value > 10 {
                 return Response::new(400, "fingerprint_entropy_budget out of range (0-10)");
             }
@@ -15132,7 +14983,10 @@ fn handle_admin_config_internal(
         let old_attempt_limit_per_window = cfg.challenge_puzzle_attempt_limit_per_window;
         let old_attempt_window_seconds = cfg.challenge_puzzle_attempt_window_seconds;
         let mut challenge_changed = false;
-        if let Some(challenge_puzzle_enabled) = json.get("challenge_puzzle_enabled").and_then(|v| v.as_bool()) {
+        if let Some(challenge_puzzle_enabled) = json
+            .get("challenge_puzzle_enabled")
+            .and_then(|v| v.as_bool())
+        {
             if cfg.challenge_puzzle_enabled != challenge_puzzle_enabled {
                 cfg.challenge_puzzle_enabled = challenge_puzzle_enabled;
                 changed = true;
@@ -15162,7 +15016,10 @@ fn handle_admin_config_internal(
             if !(CHALLENGE_PUZZLE_SEED_TTL_MIN..=CHALLENGE_PUZZLE_SEED_TTL_MAX)
                 .contains(&seed_ttl_seconds)
             {
-                return Response::new(400, "challenge_puzzle_seed_ttl_seconds out of range (30-300)");
+                return Response::new(
+                    400,
+                    "challenge_puzzle_seed_ttl_seconds out of range (30-300)",
+                );
             }
             if cfg.challenge_puzzle_seed_ttl_seconds != seed_ttl_seconds {
                 cfg.challenge_puzzle_seed_ttl_seconds = seed_ttl_seconds;
@@ -15264,10 +15121,7 @@ fn handle_admin_config_internal(
                 not_a_bot_changed = true;
             }
         }
-        if let Some(value) = json
-            .get("not_a_bot_pass_score")
-            .and_then(|v| v.as_u64())
-        {
+        if let Some(value) = json.get("not_a_bot_pass_score").and_then(|v| v.as_u64()) {
             if !(NOT_A_BOT_SCORE_MIN..=NOT_A_BOT_SCORE_MAX).contains(&value) {
                 return Response::new(400, "not_a_bot_pass_score out of range (1-10)");
             }
@@ -15278,10 +15132,7 @@ fn handle_admin_config_internal(
                 not_a_bot_changed = true;
             }
         }
-        if let Some(value) = json
-            .get("not_a_bot_fail_score")
-            .and_then(|v| v.as_u64())
-        {
+        if let Some(value) = json.get("not_a_bot_fail_score").and_then(|v| v.as_u64()) {
             if !(NOT_A_BOT_SCORE_MIN..=NOT_A_BOT_SCORE_MAX).contains(&value) {
                 return Response::new(400, "not_a_bot_fail_score out of range (1-10)");
             }
@@ -15293,10 +15144,7 @@ fn handle_admin_config_internal(
             }
         }
         if cfg.not_a_bot_fail_score > cfg.not_a_bot_pass_score {
-            return Response::new(
-                400,
-                "not_a_bot_fail_score must be <= not_a_bot_pass_score",
-            );
+            return Response::new(400, "not_a_bot_fail_score must be <= not_a_bot_pass_score");
         }
         if let Some(value) = json
             .get("not_a_bot_nonce_ttl_seconds")
@@ -15552,7 +15400,8 @@ fn handle_admin_config_internal(
                 verified_identity_changed = true;
             }
             if let Some(value) = patch.directory_freshness_requirement_seconds {
-                cfg.verified_identity.directory_freshness_requirement_seconds = value;
+                cfg.verified_identity
+                    .directory_freshness_requirement_seconds = value;
                 changed = true;
                 verified_identity_changed = true;
             }
@@ -16068,9 +15917,16 @@ where
                     changed_at_ts,
                     "maze_seed_sources_update",
                     &["maze_seed_sources"],
-                    &["suspicious_forwarded_bytes", "suspicious_forwarded_requests"],
+                    &[
+                        "suspicious_forwarded_bytes",
+                        "suspicious_forwarded_requests",
+                    ],
                     crate::admin::auth::get_admin_id(req).as_str(),
-                    format!("operator maze seed sources updated: {} sources", sources.len()).as_str(),
+                    format!(
+                        "operator maze seed sources updated: {} sources",
+                        sources.len()
+                    )
+                    .as_str(),
                 )],
                 changed_at_ts,
             );
@@ -16173,7 +16029,10 @@ where
             now,
             "maze_seed_refresh",
             &["maze_seed_refresh"],
-            &["suspicious_forwarded_bytes", "suspicious_forwarded_requests"],
+            &[
+                "suspicious_forwarded_bytes",
+                "suspicious_forwarded_requests",
+            ],
             crate::admin::auth::get_admin_id(req).as_str(),
             format!(
                 "maze seed corpus refreshed: provider={} version={} sources={}",
@@ -16229,8 +16088,9 @@ where
     S: crate::challenge::KeyValueStore,
 {
     let now = now_ts();
-    let bootstrap =
-        crate::observability::hot_read_projection::load_monitoring_bootstrap_hot_read(store, site_id, now);
+    let bootstrap = crate::observability::hot_read_projection::load_monitoring_bootstrap_hot_read(
+        store, site_id, now,
+    );
     let window_end_cursor = bootstrap.payload.window_end_cursor.clone();
     let details = json!({
         "hot_read_component_metadata": bootstrap.payload.component_metadata,
@@ -16264,7 +16124,8 @@ fn monitoring_delta_hot_read_bootstrap_eligible(
     !forensic_mode
         && after_cursor.trim().is_empty()
         && hours == crate::observability::hot_read_documents::monitoring_bootstrap_window_hours()
-        && limit <= crate::observability::hot_read_documents::monitoring_recent_events_tail_max_records()
+        && limit
+            <= crate::observability::hot_read_documents::monitoring_recent_events_tail_max_records()
 }
 
 fn monitoring_delta_hot_read_bootstrap_payload<S>(
@@ -16417,11 +16278,12 @@ where
         }
     }
     let snapshot_latest_ts = latest_monitoring_snapshot_ts(&details);
-    let freshness = freshness_health_payload(now, snapshot_latest_ts, false, "none", "snapshot_poll");
-    let retention_health = details
-        .get("retention_health")
-        .cloned()
-        .unwrap_or_else(|| serde_json::to_value(crate::observability::retention::retention_health(store)).unwrap_or_else(|_| json!({})));
+    let freshness =
+        freshness_health_payload(now, snapshot_latest_ts, false, "none", "snapshot_poll");
+    let retention_health = details.get("retention_health").cloned().unwrap_or_else(|| {
+        serde_json::to_value(crate::observability::retention::retention_health(store))
+            .unwrap_or_else(|_| json!({}))
+    });
     let security_privacy = details
         .get("security_privacy")
         .cloned()
@@ -16441,8 +16303,7 @@ where
     }
 
     let supports_gzip = request_accepts_gzip(req);
-    let initial_uncompressed =
-        serde_json::to_vec(&payload).unwrap_or_else(|_| b"{}".to_vec());
+    let initial_uncompressed = serde_json::to_vec(&payload).unwrap_or_else(|_| b"{}".to_vec());
     let initial_payload_kb = (initial_uncompressed.len() as f64) / 1024.0;
     let initial_compression =
         monitoring_compression_report(initial_uncompressed.as_slice(), supports_gzip);
@@ -16480,7 +16341,10 @@ where
         .header("Content-Type", "application/json")
         .header("Cache-Control", "no-store")
         .header("X-Shuma-Monitoring-Cost-State", cost_state)
-        .header("X-Shuma-Monitoring-Security-Mode", security_view_mode_label(forensic_mode))
+        .header(
+            "X-Shuma-Monitoring-Security-Mode",
+            security_view_mode_label(forensic_mode),
+        )
         .header(
             "X-Shuma-Monitoring-Query-Budget",
             payload
@@ -16521,37 +16385,47 @@ where
         has_more,
         overflow,
         security_privacy,
-    ) =
-        if monitoring_delta_hot_read_bootstrap_eligible(hours, limit, forensic_mode, after_cursor.as_str()) {
-            monitoring_delta_hot_read_bootstrap_payload(store, "default", now, limit)
-        } else {
-            let selection =
-                load_monitoring_cursor_page(store, now, hours, after_cursor.as_str(), limit, forensic_mode);
-            let latest_window_ts = selection.latest_window_ts;
-            let window_end_cursor = selection.window_end_cursor.clone();
-            let next_cursor = selection.next_cursor.clone();
-            let has_more = selection.has_more;
-            let overflow = selection.overflow;
-            let page_rows = selection.rows;
-            let event_rows: Vec<serde_json::Value> =
-                page_rows.iter().map(cursor_event_row_payload).collect();
-            let recent_sim_runs =
-                crate::observability::hot_read_projection::load_monitoring_recent_sim_runs_hot_read(
-                    store, "default", now,
-                )
-                .payload
-                .recent_sim_runs;
-            (
-                event_rows,
-                recent_sim_runs,
-                latest_window_ts,
-                window_end_cursor,
-                next_cursor,
-                has_more,
-                overflow,
-                security_privacy_payload(store, now, hours, forensic_mode),
+    ) = if monitoring_delta_hot_read_bootstrap_eligible(
+        hours,
+        limit,
+        forensic_mode,
+        after_cursor.as_str(),
+    ) {
+        monitoring_delta_hot_read_bootstrap_payload(store, "default", now, limit)
+    } else {
+        let selection = load_monitoring_cursor_page(
+            store,
+            now,
+            hours,
+            after_cursor.as_str(),
+            limit,
+            forensic_mode,
+        );
+        let latest_window_ts = selection.latest_window_ts;
+        let window_end_cursor = selection.window_end_cursor.clone();
+        let next_cursor = selection.next_cursor.clone();
+        let has_more = selection.has_more;
+        let overflow = selection.overflow;
+        let page_rows = selection.rows;
+        let event_rows: Vec<serde_json::Value> =
+            page_rows.iter().map(cursor_event_row_payload).collect();
+        let recent_sim_runs =
+            crate::observability::hot_read_projection::load_monitoring_recent_sim_runs_hot_read(
+                store, "default", now,
             )
-        };
+            .payload
+            .recent_sim_runs;
+        (
+            event_rows,
+            recent_sim_runs,
+            latest_window_ts,
+            window_end_cursor,
+            next_cursor,
+            has_more,
+            overflow,
+            security_privacy_payload(store, now, hours, forensic_mode),
+        )
+    };
     let etag = delta_page_etag(next_cursor.as_str(), event_rows.len(), has_more, overflow);
     let freshness = freshness_health_payload(
         now,
@@ -16600,7 +16474,10 @@ where
         .header("Content-Type", "application/json")
         .header("Cache-Control", "no-store")
         .header("ETag", etag.as_str())
-        .header("X-Shuma-Monitoring-Security-Mode", security_view_mode_label(forensic_mode))
+        .header(
+            "X-Shuma-Monitoring-Security-Mode",
+            security_view_mode_label(forensic_mode),
+        )
         .body(body)
         .build()
 }
@@ -16622,22 +16499,23 @@ where
     }
 
     let now = now_ts();
-    let selection =
-        load_monitoring_cursor_page(store, now, hours, after_cursor.as_str(), limit, forensic_mode);
+    let selection = load_monitoring_cursor_page(
+        store,
+        now,
+        hours,
+        after_cursor.as_str(),
+        limit,
+        forensic_mode,
+    );
     let latest_window_ts = selection.latest_window_ts;
     let window_end_cursor = selection.window_end_cursor.clone();
     let next_cursor = selection.next_cursor.clone();
     let has_more = selection.has_more;
     let overflow = selection.overflow;
     let page_rows = selection.rows;
-    let freshness = freshness_health_payload(
-        now,
-        latest_window_ts,
-        has_more,
-        overflow,
-        "sse",
-    );
-    let event_rows: Vec<serde_json::Value> = page_rows.iter().map(cursor_event_row_payload).collect();
+    let freshness = freshness_health_payload(now, latest_window_ts, has_more, overflow, "sse");
+    let event_rows: Vec<serde_json::Value> =
+        page_rows.iter().map(cursor_event_row_payload).collect();
     let payload = json!({
         "cursor_contract": {
             "version": "monitoring-event-cursor.v1",
@@ -16701,7 +16579,8 @@ where
         .unwrap_or_default();
     let (page_rows, next_cursor, has_more, overflow) =
         paginate_cursor_rows(rows, after_cursor.as_str(), limit);
-    let event_rows: Vec<serde_json::Value> = page_rows.iter().map(cursor_event_row_payload).collect();
+    let event_rows: Vec<serde_json::Value> =
+        page_rows.iter().map(cursor_event_row_payload).collect();
 
     let cfg = crate::config::Config::load(store, site_id).ok();
     let active_ban_snapshot =
@@ -16718,9 +16597,9 @@ where
         return Response::builder()
             .status(304)
             .header("Cache-Control", "no-store")
-        .header("ETag", etag.as_str())
-        .body("")
-        .build();
+            .header("ETag", etag.as_str())
+            .body("")
+            .build();
     }
 
     let latest_ts = match (latest_window_ts, active_ban_snapshot.latest_ban_ts) {
@@ -16729,7 +16608,8 @@ where
         (None, Some(ban_ts)) => Some(ban_ts),
         (None, None) => None,
     };
-    let freshness = freshness_health_payload(now, latest_ts, has_more, overflow, "cursor_delta_poll");
+    let freshness =
+        freshness_health_payload(now, latest_ts, has_more, overflow, "cursor_delta_poll");
 
     let body = serde_json::to_string(&json!({
         "cursor_contract": {
@@ -16763,7 +16643,10 @@ where
         .header("Content-Type", "application/json")
         .header("Cache-Control", "no-store")
         .header("ETag", etag.as_str())
-        .header("X-Shuma-Monitoring-Security-Mode", security_view_mode_label(forensic_mode))
+        .header(
+            "X-Shuma-Monitoring-Security-Mode",
+            security_view_mode_label(forensic_mode),
+        )
         .body(body)
         .build()
 }
@@ -16801,7 +16684,8 @@ where
         .unwrap_or_default();
     let (page_rows, next_cursor, has_more, overflow) =
         paginate_cursor_rows(rows, after_cursor.as_str(), limit);
-    let event_rows: Vec<serde_json::Value> = page_rows.iter().map(cursor_event_row_payload).collect();
+    let event_rows: Vec<serde_json::Value> =
+        page_rows.iter().map(cursor_event_row_payload).collect();
 
     let cfg = crate::config::Config::load(store, site_id).ok();
     let active_ban_snapshot =
@@ -16994,8 +16878,13 @@ where
     let end_hour = now / 3600;
     let start_hour = end_hour.saturating_sub(hours.saturating_sub(1));
     let requested_recent_event_cap = (limit.saturating_mul(10)).clamp(20, 100) as u64;
-    let initial_query_shape =
-        monitoring_query_shape(store, site_id, start_hour, end_hour, requested_recent_event_cap);
+    let initial_query_shape = monitoring_query_shape(
+        store,
+        site_id,
+        start_hour,
+        end_hour,
+        requested_recent_event_cap,
+    );
     let query_budget = monitoring_query_budget(hours, limit, &initial_query_shape);
     let mut ip_counts = std::collections::HashMap::new();
     let mut event_counts = std::collections::HashMap::new();
@@ -17089,10 +16978,9 @@ where
 
     let mut maze_ips: Vec<(String, u32)> = Vec::new();
     let mut total_hits: u32 = 0;
-    for key in crate::observability::key_catalog::list_keys(
-        store,
-        crate::maze::maze_hits_catalog_key(),
-    ) {
+    for key in
+        crate::observability::key_catalog::list_keys(store, crate::maze::maze_hits_catalog_key())
+    {
         let ip = key
             .strip_prefix("maze_hits:")
             .unwrap_or("unknown")
@@ -17108,16 +16996,14 @@ where
         }
     }
     maze_ips.sort_by(|a, b| b.1.cmp(&a.1));
-    let deepest = maze_ips
-        .first()
-        .map(|(ip, hits)| {
-            let display_ip = if forensic_mode {
-                ip.clone()
-            } else {
-                pseudonymize_ip_identifier(ip.as_str())
-            };
-            json!({"ip": display_ip, "hits": hits})
-        });
+    let deepest = maze_ips.first().map(|(ip, hits)| {
+        let display_ip = if forensic_mode {
+            ip.clone()
+        } else {
+            pseudonymize_ip_identifier(ip.as_str())
+        };
+        json!({"ip": display_ip, "hits": hits})
+    });
     let top_crawlers: Vec<_> = maze_ips
         .iter()
         .take(10)
@@ -17130,7 +17016,8 @@ where
             json!({"ip": display_ip, "hits": hits})
         })
         .collect();
-    let tarpit_bucket_prefix = crate::providers::internal::tarpit_budget_bucket_active_prefix(site_id);
+    let tarpit_bucket_prefix =
+        crate::providers::internal::tarpit_budget_bucket_active_prefix(site_id);
     let tarpit_bucket_key_prefix = format!("{}:", tarpit_bucket_prefix);
     let mut tarpit_active_bucket_counts: Vec<(String, u64)> = Vec::new();
     for key in crate::observability::key_catalog::list_keys(
@@ -17156,7 +17043,8 @@ where
         .take(10)
         .map(|(bucket, count)| json!({"bucket": bucket, "active": count}))
         .collect();
-    let tarpit_global_active_key = crate::providers::internal::tarpit_budget_global_active_key(site_id);
+    let tarpit_global_active_key =
+        crate::providers::internal::tarpit_budget_global_active_key(site_id);
 
     let fail_mode = if crate::config::kv_store_fail_open() {
         "open"
@@ -17164,8 +17052,13 @@ where
         "closed"
     };
     let retention_health = crate::observability::retention::retention_health(store);
-    let cost_governance =
-        monitoring_cost_governance_payload(store, events.as_slice(), now, &query_budget, &query_shape);
+    let cost_governance = monitoring_cost_governance_payload(
+        store,
+        events.as_slice(),
+        now,
+        &query_budget,
+        &query_shape,
+    );
     let security_privacy = security_privacy_payload(store, now, hours, forensic_mode);
 
     json!({
@@ -17422,7 +17315,8 @@ where
     S: crate::challenge::KeyValueStore,
 {
     let now_hour = now / 3600;
-    let cap_per_hour = crate::observability::monitoring::guarded_dimension_cardinality_cap_per_hour();
+    let cap_per_hour =
+        crate::observability::monitoring::guarded_dimension_cardinality_cap_per_hour();
     let count_suffix = format!(":{}", now_hour);
     let count_prefix = "monitoring:v1:cardinality_guard_count:";
     let overflow_prefix = "monitoring:v1:cardinality_guard_overflow:";
@@ -17436,8 +17330,8 @@ where
         now_hour,
     ) {
         if key.starts_with(count_prefix) && key.ends_with(count_suffix.as_str()) {
-            observed_guarded_dimension_cardinality_max =
-                observed_guarded_dimension_cardinality_max.max(read_u64_counter(store, key.as_str()));
+            observed_guarded_dimension_cardinality_max = observed_guarded_dimension_cardinality_max
+                .max(read_u64_counter(store, key.as_str()));
             continue;
         }
         if key.starts_with(overflow_prefix) && key.ends_with(count_suffix.as_str()) {
@@ -17628,8 +17522,9 @@ where
     if *req.method() != Method::Get {
         return Response::new(405, "Method Not Allowed");
     }
-    match crate::observability::hot_read_projection::load_operator_snapshot_hot_read(store, "default")
-    {
+    match crate::observability::hot_read_projection::load_operator_snapshot_hot_read(
+        store, "default",
+    ) {
         Some(snapshot) => {
             let payload = snapshot.payload.benchmark_results.clone();
             let body = serde_json::to_string(&payload).unwrap_or_else(|_| "{}".to_string());
@@ -17679,15 +17574,11 @@ fn control_lane_label(lane: Option<crate::admin::adversary_sim::RuntimeLane>) ->
     lane.map(|value| value.as_str().to_string())
 }
 
-fn control_desired_lane_label(
-    state: &crate::admin::adversary_sim::ControlState,
-) -> Option<String> {
+fn control_desired_lane_label(state: &crate::admin::adversary_sim::ControlState) -> Option<String> {
     Some(state.desired_lane.as_str().to_string())
 }
 
-fn control_actual_lane_label(
-    state: &crate::admin::adversary_sim::ControlState,
-) -> Option<String> {
+fn control_actual_lane_label(state: &crate::admin::adversary_sim::ControlState) -> Option<String> {
     control_lane_label(crate::admin::adversary_sim::effective_active_lane(state))
 }
 
@@ -17851,7 +17742,9 @@ fn load_adversary_sim_lifecycle_snapshot(
     site_id: &str,
 ) -> Result<AdversarySimLifecycleSnapshot, crate::config::ConfigLoadError> {
     let cfg = crate::config::load_runtime_cached(store, site_id)?;
-    Ok(adversary_sim_lifecycle_snapshot_from_cfg(store, site_id, cfg))
+    Ok(adversary_sim_lifecycle_snapshot_from_cfg(
+        store, site_id, cfg,
+    ))
 }
 
 fn adversary_sim_status_payload(
@@ -17887,8 +17780,8 @@ fn adversary_sim_status_payload(
     let seconds_since_last_successful_beat = state
         .last_generated_at
         .map(|last_generated_at| now.saturating_sub(last_generated_at));
-    let generation_active =
-        cfg.adversary_sim_enabled && state.phase == crate::admin::adversary_sim::ControlPhase::Running;
+    let generation_active = cfg.adversary_sim_enabled
+        && state.phase == crate::admin::adversary_sim::ControlPhase::Running;
     if let Some(object) = payload.as_object_mut() {
         object.insert(
             "desired_state".to_string(),
@@ -18013,8 +17906,10 @@ fn handle_admin_adversary_sim_status(
     let cfg = snapshot.cfg;
     let state = snapshot.state;
 
-    let body = serde_json::to_string(&adversary_sim_status_payload(store, site_id, &cfg, &state, now))
-        .unwrap();
+    let body = serde_json::to_string(&adversary_sim_status_payload(
+        store, site_id, &cfg, &state, now,
+    ))
+    .unwrap();
     Response::builder()
         .status(200)
         .header("Cache-Control", "no-store")
@@ -18024,8 +17919,12 @@ fn handle_admin_adversary_sim_status(
 
 fn request_bypasses_admin_ip_allowlist(req: &Request, path: &str) -> bool {
     match path {
-        "/admin/adversary-sim/status" => crate::admin::auth::is_internal_adversary_sim_supervisor_request(req),
-        INTERNAL_ADVERSARY_SIM_BEAT_PATH => crate::admin::auth::is_internal_adversary_sim_beat_request(req),
+        "/admin/adversary-sim/status" => {
+            crate::admin::auth::is_internal_adversary_sim_supervisor_request(req)
+        }
+        INTERNAL_ADVERSARY_SIM_BEAT_PATH => {
+            crate::admin::auth::is_internal_adversary_sim_beat_request(req)
+        }
         INTERNAL_ADVERSARY_SIM_WORKER_RESULT_PATH => {
             crate::admin::auth::is_internal_adversary_sim_supervisor_request(req)
         }
@@ -18063,7 +17962,10 @@ fn handle_admin_adversary_sim_history_cleanup(
         }
     } else {
         let env_available = crate::config::adversary_sim_available();
-        if !crate::admin::adversary_sim::control_surface_available(runtime_environment, env_available) {
+        if !crate::admin::adversary_sim::control_surface_available(
+            runtime_environment,
+            env_available,
+        ) {
             return Response::new(404, "Not Found");
         }
     }
@@ -18121,7 +18023,10 @@ fn handle_internal_adversary_sim_beat(
     }
 
     if !internal_adversary_sim_beat_is_authorized(req) {
-        return Response::new(401, "Unauthorized: Internal adversary-sim beat authorization required");
+        return Response::new(
+            401,
+            "Unauthorized: Internal adversary-sim beat authorization required",
+        );
     }
 
     let snapshot = match load_adversary_sim_lifecycle_snapshot(store, site_id) {
@@ -18138,7 +18043,8 @@ fn handle_internal_adversary_sim_beat(
     state = reconciled_state;
     crate::admin::adversary_sim::project_effective_desired_state(&mut cfg, &state);
 
-    let summary = crate::admin::adversary_sim::run_autonomous_supervisor_ticks(store, &mut state, now);
+    let summary =
+        crate::admin::adversary_sim::run_autonomous_supervisor_ticks(store, &mut state, now);
     if state != previous_state {
         match save_adversary_sim_beat_state_if_unchanged(store, site_id, &previous_state, &state) {
             Ok(true) => {}
@@ -18149,8 +18055,11 @@ fn handle_internal_adversary_sim_beat(
                 };
                 cfg = snapshot.cfg;
                 state = snapshot.state;
-                let (reconciled_state, _) =
-                    crate::admin::adversary_sim::reconcile_state(now, cfg.adversary_sim_enabled, &state);
+                let (reconciled_state, _) = crate::admin::adversary_sim::reconcile_state(
+                    now,
+                    cfg.adversary_sim_enabled,
+                    &state,
+                );
                 state = reconciled_state;
                 crate::admin::adversary_sim::project_effective_desired_state(&mut cfg, &state);
             }
@@ -18165,8 +18074,8 @@ fn handle_internal_adversary_sim_beat(
         ));
     }
 
-    let generation_active =
-        cfg.adversary_sim_enabled && state.phase == crate::admin::adversary_sim::ControlPhase::Running;
+    let generation_active = cfg.adversary_sim_enabled
+        && state.phase == crate::admin::adversary_sim::ControlPhase::Running;
     let status = adversary_sim_status_payload(store, site_id, &cfg, &state, now);
     let dispatch_mode = if summary.worker_plan.is_some() {
         "scrapling_worker"
@@ -18217,13 +18126,16 @@ fn handle_internal_adversary_sim_worker_result(
         );
     }
 
-    let worker_result = match serde_json::from_slice::<crate::admin::adversary_sim::ScraplingWorkerResult>(
-        req.body(),
-    ) {
+    let worker_result = match serde_json::from_slice::<
+        crate::admin::adversary_sim::ScraplingWorkerResult,
+    >(req.body())
+    {
         Ok(parsed) => parsed,
         Err(_) => return Response::new(400, "Invalid Scrapling worker result payload"),
     };
-    if worker_result.schema_version != crate::admin::adversary_sim::SCRAPLING_WORKER_RESULT_SCHEMA_VERSION {
+    if worker_result.schema_version
+        != crate::admin::adversary_sim::SCRAPLING_WORKER_RESULT_SCHEMA_VERSION
+    {
         return Response::new(400, "Invalid Scrapling worker result schema_version");
     }
 
@@ -18236,11 +18148,14 @@ fn handle_internal_adversary_sim_worker_result(
     let previous_state = state.clone();
 
     let active_lane = crate::admin::adversary_sim::effective_active_lane(&state);
-    let worker_tick_matches = state.pending_worker_tick_id.as_deref() == Some(worker_result.tick_id.as_str());
+    let worker_tick_matches =
+        state.pending_worker_tick_id.as_deref() == Some(worker_result.tick_id.as_str());
     let run_matches = state.run_id.as_deref() == Some(worker_result.run_id.as_str());
     let lane_matches = active_lane == Some(worker_result.lane);
-    if !matches!(state.phase, crate::admin::adversary_sim::ControlPhase::Running)
-        || !state.desired_enabled
+    if !matches!(
+        state.phase,
+        crate::admin::adversary_sim::ControlPhase::Running
+    ) || !state.desired_enabled
         || !worker_tick_matches
         || !run_matches
         || !lane_matches
@@ -18312,7 +18227,8 @@ fn handle_admin_adversary_sim_control(
     };
 
     let now = now_ts();
-    let requested_reason = crate::admin::adversary_sim_control::canonical_reason(payload.reason.as_deref());
+    let requested_reason =
+        crate::admin::adversary_sim_control::canonical_reason(payload.reason.as_deref());
     let Some(idempotency_key) = req
         .header("idempotency-key")
         .and_then(|value| value.as_str())
@@ -18332,7 +18248,8 @@ fn handle_admin_adversary_sim_control(
     let actor_scope = crate::admin::adversary_sim_control::actor_scope(auth);
     let client_ip = crate::extract_client_ip(req);
 
-    let origin_validation = crate::admin::adversary_sim_control::validate_origin_and_fetch_metadata(req);
+    let origin_validation =
+        crate::admin::adversary_sim_control::validate_origin_and_fetch_metadata(req);
     let session_origin_fallback_allowed = matches!(
         auth.method,
         Some(crate::admin::auth::AdminAuthMethod::SessionCookie)
@@ -18344,15 +18261,12 @@ fn handle_admin_adversary_sim_control(
             "trust_boundary_ok".to_string(),
             crate::admin::adversary_sim_control::TrustDecision::Allow,
         ),
-        Err("origin_missing" | "fetch_metadata_missing") if session_origin_fallback_allowed =>
-        {
-            (
-                "session_csrf_origin_fallback".to_string(),
-                None,
-                "session_csrf_origin_fallback".to_string(),
-                crate::admin::adversary_sim_control::TrustDecision::Allow,
-            )
-        }
+        Err("origin_missing" | "fetch_metadata_missing") if session_origin_fallback_allowed => (
+            "session_csrf_origin_fallback".to_string(),
+            None,
+            "session_csrf_origin_fallback".to_string(),
+            crate::admin::adversary_sim_control::TrustDecision::Allow,
+        ),
         Err(reason) => (
             "origin_denied".to_string(),
             None,
@@ -18430,15 +18344,16 @@ fn handle_admin_adversary_sim_control(
     } else {
         crate::admin::adversary_sim_control::ThrottleDecision::Allow
     };
-    let throttle_reason = if throttle_decision == crate::admin::adversary_sim_control::ThrottleDecision::Throttle {
-        if debounce_throttled {
-            "debounce_window"
+    let throttle_reason =
+        if throttle_decision == crate::admin::adversary_sim_control::ThrottleDecision::Throttle {
+            if debounce_throttled {
+                "debounce_window"
+            } else {
+                "toggle_rate_limited"
+            }
         } else {
-            "toggle_rate_limited"
-        }
-    } else {
-        "throttle_ok"
-    };
+            "throttle_ok"
+        };
 
     let plan = crate::admin::adversary_sim_control::plan_submission(
         &crate::admin::adversary_sim_control::SubmissionPlanInput {
@@ -18447,7 +18362,8 @@ fn handle_admin_adversary_sim_control(
             idempotency: idempotency_plan,
         },
     );
-    let capabilities = crate::admin::adversary_sim_control::ControlCapabilities::mint_for_trust_boundary();
+    let capabilities =
+        crate::admin::adversary_sim_control::ControlCapabilities::mint_for_trust_boundary();
 
     match plan.decision {
         crate::admin::adversary_sim_control::SubmissionPlanDecision::RejectTrustBoundary => {
@@ -18544,7 +18460,8 @@ fn handle_admin_adversary_sim_control(
                 site_id,
                 idempotency_record.operation_id.as_str(),
             );
-            let operation = crate::admin::adversary_sim_control::load_operation_record(store, &operation_key);
+            let operation =
+                crate::admin::adversary_sim_control::load_operation_record(store, &operation_key);
             log_adversary_sim_control_audit(
                 store,
                 req,
@@ -18759,7 +18676,8 @@ fn handle_admin_adversary_sim_control(
         actor_scope: actor_scope.clone(),
         session_scope: session_scope.clone(),
         created_at: now,
-        expires_at: now.saturating_add(crate::admin::adversary_sim_control::IDEMPOTENCY_TTL_SECONDS),
+        expires_at: now
+            .saturating_add(crate::admin::adversary_sim_control::IDEMPOTENCY_TTL_SECONDS),
     };
     if crate::admin::adversary_sim_control::save_idempotency_record(
         store,
@@ -18893,9 +18811,7 @@ fn manual_ban_store_failure_response(operation: &str) -> Response {
     )
 }
 
-fn response_for_active_ban_list(
-    result: crate::providers::contracts::BanListResult,
-) -> Response {
+fn response_for_active_ban_list(result: crate::providers::contracts::BanListResult) -> Response {
     let active_ban_snapshot = build_active_ban_snapshot_view(result, true);
     if active_ban_snapshot.status == "unavailable" {
         return Response::new(503, AUTHORITATIVE_BAN_STATE_READ_UNAVAILABLE_MESSAGE);
@@ -19040,8 +18956,7 @@ pub fn handle_admin(req: &Request) -> Response {
     if !has_bearer && !has_session_cookie {
         if matches!(
             path,
-            "/admin/adversary-sim/control"
-                | "/admin/adversary-sim/history/cleanup"
+            "/admin/adversary-sim/control" | "/admin/adversary-sim/history/cleanup"
         ) {
             if let Ok(store) = Store::open_default() {
                 let client_ip = crate::extract_client_ip(req);
@@ -19074,8 +18989,7 @@ pub fn handle_admin(req: &Request) -> Response {
     if !auth.is_authorized() {
         if matches!(
             path,
-            "/admin/adversary-sim/control"
-                | "/admin/adversary-sim/history/cleanup"
+            "/admin/adversary-sim/control" | "/admin/adversary-sim/history/cleanup"
         ) {
             let client_ip = crate::extract_client_ip(req);
             log_event(
@@ -19131,8 +19045,7 @@ pub fn handle_admin(req: &Request) -> Response {
             let limit = query_u64_param(req.query(), "limit", 500).clamp(1, 5000) as usize;
             let forensic_mode = forensic_access_mode(req.query());
             let now = now_ts();
-            let mut cdp_events: Vec<EventLogRecord> =
-                load_recent_event_records(&store, now, hours)
+            let mut cdp_events: Vec<EventLogRecord> = load_recent_event_records(&store, now, hours)
                 .into_iter()
                 .filter(|entry| {
                     entry
@@ -19343,9 +19256,10 @@ pub fn handle_admin(req: &Request) -> Response {
                 Err(err) => return Response::new(500, err.user_message()),
             };
             let provider_registry = crate::providers::registry::ProviderRegistry::from_config(&cfg);
-            let sync_result = provider_registry
-                .ban_store_provider()
-                .unban_ip(&store, site_id, ip.as_str());
+            let sync_result =
+                provider_registry
+                    .ban_store_provider()
+                    .unban_ip(&store, site_id, ip.as_str());
             finalize_manual_unban_result(&store, req, ip.as_str(), sync_result)
         }
         "/admin/analytics" => {
