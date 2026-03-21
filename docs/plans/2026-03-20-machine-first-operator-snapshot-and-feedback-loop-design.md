@@ -374,6 +374,13 @@ The next implementation work should therefore be:
 5. then later `OVR-AGENT-2` for the scheduled recommend-or-apply loop,
 6. and only after that the separate code-evolution and PR-generation path.
 
+Status update (2026-03-21):
+
+1. The later feedback-loop closure review and agent-first sequencing review refine this order.
+2. After benchmark, objective, decision-evidence, and reconcile truth are complete, the first shared-host agent tweaker loop should now land before `MON-OVERHAUL-1`.
+3. Monitoring and Tuning remain projections over the same machine-first contracts, but should project the semantics proven by that first backend loop rather than guess them in advance.
+4. See [`2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md) and [`../research/2026-03-21-agent-first-feedback-loop-sequencing-review.md`](../research/2026-03-21-agent-first-feedback-loop-sequencing-review.md).
+
 ## Recommended Acceptance Standard
 
 This design should be considered ready to build against when Shuma has:

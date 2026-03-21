@@ -279,12 +279,14 @@ That track must explicitly sequence:
 3. persisted `operator_objectives_v1` plus typed verified-identity and decision-evidence snapshot content,
 4. replay-promotion lineage integration into backend contracts,
 5. the recommend-only reconcile engine,
-6. and only then Monitoring/Tuning projection and later scheduled-agent planning.
+6. the first shared-host agent tweaker loop over sim-cost and benchmark feedback,
+7. and only then Monitoring/Tuning projection plus later broader scheduled-agent planning.
 
 Status update (2026-03-21):
 
 1. Captured in [`2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md).
 2. The corresponding architecture review is [`../research/2026-03-21-feedback-loop-and-architecture-debt-review.md`](../research/2026-03-21-feedback-loop-and-architecture-debt-review.md).
+3. The sequencing correction that moves the first machine-first agent tweaker loop ahead of `MON-OVERHAUL-1` is captured in [`../research/2026-03-21-agent-first-feedback-loop-sequencing-review.md`](../research/2026-03-21-agent-first-feedback-loop-sequencing-review.md).
 
 ## I. Privacy, State-Minimization, And Final Launch Gates
 
@@ -379,7 +381,7 @@ Status update (2026-03-21):
 
 1. Shuma now explicitly shelves Fermyon as a near-term full-runtime target and treats the shared-host control plane as the pre-launch mainline.
 2. Edge/Fermyon and enterprise distributed-state follow-on work therefore move off the mainline sequence and into a later gateway-only side branch.
-3. The next pre-launch stages should optimize for verified identity, shared-host adversary maturity, monitoring/tuning projection, and the scheduled diagnosis loop rather than edge cron ownership or multi-instance edge convergence.
+3. The next pre-launch stages should optimize for verified identity, shared-host adversary maturity, the first machine-first agent loop, and only then Monitoring/Tuning projection rather than edge cron ownership or multi-instance edge convergence.
 
 ## Stage 3: Verified Identity Foundation
 
@@ -416,18 +418,30 @@ Reason:
 
 1. Shuma needs realistic attacker input before automated tuning can be trusted to optimize against the actual agentic threat landscape.
 
-## Stage 6: Monitoring Projection And Tuning Surface Completion
+## Stage 6: First Machine-First Agent Tweaker Loop
 
-1. Build Monitoring as a thin projection over `operator_snapshot_v1` and nested `benchmark_results_v1`.
-2. Complete the Tuning tab as the bounded operator control surface over the same machine-first contract.
-3. Keep live, shadow, adversary-sim, and benchmark semantics visibly separate so the first recommend-only loop is reading truthful operator surfaces.
+1. Build the first shared-host agent tweaker harness over `operator_snapshot_v1`, nested `benchmark_results_v1`, `allowed_actions_v1`, decision evidence, and adversary-sim cost outcomes.
+2. Support both periodic execution and immediate post-sim triggering through one internal reconcile or agent contract rather than separate controller implementations.
+3. Keep the first agent loop recommend-only and typed: it should emit bounded config proposals, evidence references, and explicit no-change or rerun outcomes rather than ad hoc prose.
+4. Use that loop to prove which benchmark deltas, watch outcomes, replay-promotion signals, and rollback references actually matter.
 
 Reason:
 
-1. the shared-host-first diagnosis loop still needs a clean human/operator projection and bounded writable knobs, even though the machine-first foundation already exists.
-2. Monitoring and Tuning should now be completed against the settled snapshot and benchmark contract rather than against a separate human-only model.
+1. the system should work for agents first, so the next truthful milestone after reconcile is the backend loop that actually reads sim evidence and produces bounded tuning proposals.
+2. once that loop exists, Monitoring and Tuning can be designed around demonstrated machine-first semantics rather than guessed operator desires.
 
-## Stage 7: Sim-Telemetry Lifecycle
+## Stage 7: Monitoring Projection And Tuning Surface Completion
+
+1. Build Monitoring as a thin projection over `operator_snapshot_v1`, nested `benchmark_results_v1`, decision evidence, and the first working agent loop.
+2. Complete the Tuning tab as the bounded operator control surface over the same machine-first contract and proven patch families.
+3. Keep live, shadow, adversary-sim, benchmark, proposal, and watch semantics visibly separate so the human surfaces reflect the loop that actually exists.
+
+Reason:
+
+1. once the first agent loop is real, Monitoring can surface exactly what the backend uses and Tuning can expose exactly the safe action families that loop has proven useful.
+2. this avoids turning either dashboard surface into a speculative semantic model.
+
+## Stage 8: Sim-Telemetry Lifecycle
 
 1. Separate retention and disposal policy for sim telemetry.
 2. Clear distinction between actioned and unactioned sim evidence.
@@ -437,7 +451,7 @@ Reason:
 
 1. once emergent and frontier lanes exist, sim telemetry volume and cost will matter much more.
 
-## Stage 8: Privacy And State-Minimization Gate
+## Stage 9: Privacy And State-Minimization Gate
 
 1. Deterministic cleanup for stale fingerprint state.
 2. Optional event-log IP minimization mode and explicit tradeoff docs.
@@ -447,7 +461,7 @@ Reason:
 
 1. before central intelligence or later autonomous oversight, Shuma should have a cleaner answer for what state persists, how long it persists, and when raw IP retention is actually necessary.
 
-## Stage 9: Central Intelligence Architecture
+## Stage 10: Central Intelligence Architecture
 
 1. Storage and service architecture.
 2. Governance and false-positive process.
@@ -460,18 +474,19 @@ Reason:
 2. this must follow verified identity so Shuma keeps "who is this?" separate from "what does outside reputation say about it?"
 3. this must also follow the shared-host-first benchmark and policy loop so exact local active enforcement and bounded benchmark truth are already settled.
 
-## Stage 10: Scheduled Agent Operator Loop
+## Stage 11: Later Scheduled And Autonomous Agent Expansion
 
-1. Recommend-only scheduled agent.
-2. Narrow config auto-apply with canary and rollback.
-3. Separate code-change recommendation path.
-4. Only later, if ever, a PR-generating path with stricter review gates.
+1. Broaden the first agent loop into later always-on scheduling, if still needed after the shared-host-first loop proves out.
+2. Add narrow config auto-apply with canary and rollback only after the recommend-only path and human projections are trustworthy.
+3. Keep code-change recommendation as a separate path from bounded config tuning.
+4. Only later, if ever, allow a PR-generating path with stricter review gates.
 
 Reason:
 
-1. the agent loop should stand on truthful monitoring, explicit identity policy, mature sim evidence, tuned config surfaces, and explicit central-intelligence governance.
+1. Shuma should first prove the bounded shared-host agent loop and then expand from that proven base rather than plan the broader autonomous system in the abstract.
+2. later expansion should still stand on explicit identity policy, mature sim evidence, Monitoring/Tuning projection, and central-intelligence governance.
 
-## Stage 11: Final Pre-Launch Performance Gate
+## Stage 12: Final Pre-Launch Performance Gate
 
 1. Execute the final performance and optimization pass.
 2. Enforce bundle, latency, CPU, memory, and high-cost request-path acceptance thresholds.
@@ -486,7 +501,7 @@ Reason:
 1. Keep request-path logic deterministic and Rust-only.
 2. Harden dashboard connection-state truth and admin-config truth before relying on those surfaces as operator control planes.
 3. Treat controller-grade monitoring telemetry foundations as a prerequisite for both the Monitoring overhaul and any future bounded benchmark/controller loop.
-4. Treat monitoring overhaul as a prerequisite for serious autonomous tuning.
+4. Treat the first machine-first agent tweaker loop as a prerequisite for the Monitoring overhaul and any later autonomous tuning expansion.
 5. Treat tuning-tab completion as a control-plane contract, not a cosmetic dashboard task.
 6. Keep edge-gateway distributed-state work off the shared-host-first pre-launch mainline until a later gateway-only architecture is planned explicitly.
 7. Formalize verified bot identity before mature sim, central intelligence, or scheduled agentic reconfiguration so identity, authorization, and reputation are separated cleanly.
@@ -518,11 +533,12 @@ This roadmap suggests that the next pre-launch excellence sequence should be:
 4. verified bot identity and Web Bot Auth foundation,
 5. adversary-sim foundations,
 6. mature adversary-sim lanes,
-7. monitoring projection and tuning surface completion,
-8. sim-telemetry retention lifecycle,
-9. privacy and state-minimization gate,
-10. central-intelligence architecture,
-11. scheduled agent analyzer and reconfigurer,
-12. final pre-launch performance gate.
+7. first machine-first agent tweaker loop,
+8. monitoring projection and tuning surface completion,
+9. sim-telemetry retention lifecycle,
+10. privacy and state-minimization gate,
+11. central-intelligence architecture,
+12. later scheduled and autonomous agent expansion,
+13. final pre-launch performance gate.
 
 That order makes the future autonomous loop far more likely to be truthful, low-risk, and actually useful.

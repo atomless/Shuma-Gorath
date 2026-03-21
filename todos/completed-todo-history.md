@@ -4,6 +4,24 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-21)
 
+### LOOP-ARCH-REVIEW-2: Re-sequence The First Agent Loop Ahead Of Monitoring
+
+- [x] Captured the architecture decision that the first shared-host agent tweaker loop should land before `MON-OVERHAUL-1`, then updated the active loop-closure plan, the pre-launch roadmap, and the active and blocked TODO queues so the repo now sequences `OVR-AGENT-1` ahead of Monitoring and treats the later broader agent expansion as a separate follow-on.
+- [x] Why:
+  - the latest planning chain already supported a machine-first diagnosis harness before a full human Monitoring UI, but the backlog and some older sequencing notes still implied Monitoring-first.
+  - letting the first agent loop land before Monitoring keeps the human projections downstream of proven backend semantics such as trigger modes, typed proposals, benchmark deltas, watch outcomes, rollback evidence, and replay-promotion lineage.
+  - splitting the first bounded shared-host agent loop from the later broader scheduled or autonomous agent planning keeps the mainline focused on the smallest loop that can actually be proven end to end.
+- [x] Evidence:
+  - `docs/research/2026-03-21-agent-first-feedback-loop-sequencing-review.md`
+  - `docs/research/2026-03-21-feedback-loop-and-architecture-debt-review.md`
+  - `docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`
+  - `docs/plans/2026-03-20-machine-first-operator-snapshot-and-feedback-loop-design.md`
+  - `docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`
+  - `todos/todo.md`
+  - `todos/blocked-todo.md`
+  - `git diff --check`
+  - docs-only tranche: behavior tests intentionally skipped.
+
 ### LOOP-ARCH-REVIEW-1: Capture Feedback-Loop Debt Review And Restructuring Sequence
 
 - [x] Captured the repo-grounded feedback-loop and architecture-debt review, turned it into a phased restructuring and execution plan, updated the roadmap, and realigned the active and blocked TODO queues so the benchmark/objective/decision-lineage gaps plus the large-file decomposition work are now sequenced explicitly instead of living only in chat context.

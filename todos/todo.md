@@ -77,6 +77,7 @@ Current stance:
 - Observation and adversary generation are now ahead of objective, comparison, attribution, and recommend-only reconcile truth.
 - Execute the structural decomposition tranches before landing more controller or operator-loop logic into the current hotspot files.
 - Keep the decomposition slices behavior-preserving; semantic expansion begins only after the hotspot modules have focused seams.
+- Land the first shared-host agent tweaker loop before `MON-OVERHAUL-1` so Monitoring and Tuning can project proven machine-first semantics instead of inventing them early.
 - Treat the verified-identity observability and benchmarking gap as part of this loop-closure track rather than later polish.
 
 - [ ] ARCH-API-1 Split `src/admin/api.rs` into a thin router shell plus domain handler modules before any further operator-loop or adversary-control work lands there; preserve endpoint contracts, auth/rate-limit behavior, and focused `make` verification.
@@ -87,6 +88,7 @@ Current stance:
 - [ ] OPS-SNAPSHOT-2 Replace backend-default and placeholder operator state with persisted `operator_objectives_v1`, typed verified-identity summary content, and causal decision/watch-window evidence needed for later reconcile and rollback reasoning.
 - [ ] ADV-PROMO-1 Promote emergent finding and deterministic replay lineage into backend contracts consumable from `operator_snapshot_v1` and `benchmark_results_v1` rather than leaving that lineage only in Python artifacts.
 - [ ] OVR-RECON-1 Land the first recommend-only reconcile engine, patch-policy layer, and decision ledger over `allowed_actions_v1`, reusing the existing adversary-sim lease/idempotency pattern and failing closed when evidence is stale or contradictory.
+- [ ] OVR-AGENT-1 Land the first shared-host agent tweaker harness over `operator_snapshot_v1`, `benchmark_results_v1`, `allowed_actions_v1`, decision evidence, and adversary-sim cost feedback; support both periodic and post-sim triggers through one internal contract, keep the first loop recommend-only, and make its proposal/watch semantics the truth source for later Monitoring and Tuning work.
 
 ## P1 Verified Bot Identity And Web Bot Auth Foundation
 

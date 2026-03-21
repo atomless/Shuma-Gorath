@@ -4,6 +4,7 @@ Status: Proposed
 Related context:
 
 - [`../research/2026-03-21-feedback-loop-and-architecture-debt-review.md`](../research/2026-03-21-feedback-loop-and-architecture-debt-review.md)
+- [`../research/2026-03-21-agent-first-feedback-loop-sequencing-review.md`](../research/2026-03-21-agent-first-feedback-loop-sequencing-review.md)
 - [`2026-03-20-machine-first-operator-snapshot-and-feedback-loop-design.md`](2026-03-20-machine-first-operator-snapshot-and-feedback-loop-design.md)
 - [`2026-03-20-benchmark-suite-v1-design.md`](2026-03-20-benchmark-suite-v1-design.md)
 - [`2026-03-20-mature-adversary-sim-evolution-roadmap.md`](2026-03-20-mature-adversary-sim-evolution-roadmap.md)
@@ -23,7 +24,8 @@ Close the first real Shuma feedback loop and structurally decompose the control-
 2. Structural decomposition must happen in behavior-preserving slices before more benchmark, operator-snapshot, or oversight logic is added to the current hotspot files.
 3. The first controller remains recommend-only. It must not apply or schedule changes until benchmark comparison, objectives, and decision lineage are truthful.
 4. Monitoring and Tuning remain projections and control surfaces over machine-first contracts, not separate semantic systems.
-5. Replay-promotion lineage must move from sidecar test tooling into backend contracts before later scheduled-agent planning is reopened.
+5. The first shared-host agent tweaker loop must precede `MON-OVERHAUL-1` so the human surfaces project proven backend semantics rather than invent them ahead of the loop.
+6. Replay-promotion lineage must move from sidecar test tooling into backend contracts before later scheduled-agent planning is reopened.
 
 # Target Architecture
 
@@ -36,9 +38,10 @@ The first real loop should converge on one backend contract chain:
 3. materialized `benchmark_results_v1` with baseline and candidate comparison semantics,
 4. durable decision-evidence ledger,
 5. bounded `allowed_actions_v1`,
-6. recommend-only reconcile engine,
-7. replay-promotion lineage contract,
-8. thin Monitoring and Tuning projections.
+6. replay-promotion lineage contract,
+7. recommend-only reconcile engine,
+8. first shared-host agent tweaker harness,
+9. thin Monitoring and Tuning projections.
 
 ## 2. Structural Goal
 
@@ -160,23 +163,43 @@ This phase must reuse:
 2. existing config validation seams,
 3. and the machine-first snapshot and benchmark contracts.
 
-## Phase 4: Human Operator Projection
+## Phase 4: First Machine-First Agent Tweaker Loop
+
+### `OVR-AGENT-1`
+
+Land the first shared-host agent tweaker loop over the truthful backend contracts before Monitoring or Tuning projection work.
+
+Must include:
+
+1. one agent invocation path that calls the same internal reconcile contract whether triggered periodically or immediately after a qualifying adversary-sim run,
+2. consumption of `operator_snapshot_v1`, `benchmark_results_v1`, replay-promotion lineage, and recent decision evidence,
+3. typed recommend-only proposal outputs and durable evidence references rather than prose-only diagnostics,
+4. explicit `no_change`, `insufficient_evidence`, `rerun_sim_required`, and equivalent fail-closed outcomes when signal is stale, contradictory, or incomplete,
+5. shared-host control-plane execution only, never request-path or edge-gateway execution.
+
+This phase must prove:
+
+1. the backend loop can read sim-cost and benchmark deltas end to end,
+2. proposal families and evidence semantics are now real enough for human projection,
+3. and later Monitoring/Tuning work can be derived from demonstrated backend behavior instead of speculative UI-first modeling.
+
+## Phase 5: Human Operator Projection
 
 ### `MON-OVERHAUL-1`
 
-Rebuild Monitoring as the thin human projection over the machine-first contracts after the backend truth is complete.
+Rebuild Monitoring as the thin human projection over the machine-first contracts after the backend truth and first working agent loop are complete.
 
 ### `TUNE-SURFACE-1`
 
-Finish the operator control surface once the controller inputs and safe action families are truthful.
+Finish the operator control surface once the controller inputs, safe action families, and first working agent loop semantics are truthful.
 
 These phases should not be started early just because the UI can be edited sooner.
 
-## Phase 5: Later Scheduled-Agent And Code-Evolution Loops
+## Phase 6: Later Scheduled-Agent And Code-Evolution Loops
 
 ### `OVR-AGENT-2`
 
-Reopen scheduled analyzer/recommender planning only after the recommend-only reconciler, Monitoring projection, Tuning surface, and replay-promotion contract all exist.
+Reopen later broader scheduled or autonomous agent planning only after the first shared-host agent loop, Monitoring projection, Tuning surface, replay-promotion contract, and central-intelligence architecture all exist.
 
 ### `OVR-CODE-1`
 
@@ -189,6 +212,7 @@ Keep code-evolution or PR-generation planning behind the bounded config loop and
 3. Keep the first decomposition slices behavior-preserving and test-focused.
 4. Keep one hotspot file as the primary target per refactor tranche wherever practical.
 5. Do not reopen `MON-OVERHAUL-1`, `TUNE-SURFACE-1`, or `OVR-AGENT-2` until the blockers listed in this plan are satisfied.
+6. Treat periodic scheduling and post-sim triggering as adapter paths over one reconcile or agent contract, not as separate controller implementations.
 
 # File-Length And Separation Guardrails
 
@@ -208,6 +232,7 @@ This plan is satisfied when:
 2. the benchmark contract can express improvement or regression against a real baseline,
 3. the operator snapshot contains persisted objectives, typed verified-identity summary, and causal decision evidence,
 4. the recommend-only reconcile engine exists as a backend contract,
-5. replay-promotion lineage is part of the backend control plane rather than sidecar-only tooling,
-6. Monitoring and Tuning consume those contracts rather than parallel semantics,
-7. and only then the later scheduled-agent and code-evolution planning can resume.
+5. the first shared-host agent tweaker loop exists and can exercise the backend contracts against sim-cost and benchmark feedback,
+6. replay-promotion lineage is part of the backend control plane rather than sidecar-only tooling,
+7. Monitoring and Tuning consume those contracts rather than parallel semantics,
+8. and only then the later scheduled-agent and code-evolution planning can resume.

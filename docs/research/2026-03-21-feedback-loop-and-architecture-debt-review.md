@@ -28,7 +28,7 @@ Where has Shuma accumulated technical debt or architectural drift relative to th
 2. The main shortfall is that the loop is not yet closed. Observation and adversary generation matured faster than objective materialization, baseline comparison, causal attribution, and the recommend-only reconciler.
 3. The highest-priority debt is not new feature breadth. It is completing the first real closed loop and decomposing oversized control-plane modules before more logic is added to them.
 4. The biggest structural debt is concentration of unrelated concerns in a handful of files, especially `src/admin/api.rs`, `src/admin/adversary_sim.rs`, `src/observability/operator_snapshot.rs`, `src/observability/benchmark_results.rs`, `src/config/controller_action_surface.rs`, and `scripts/tests/adversarial_simulation_runner.py`.
-5. The correct next move is a phased sequence: behavior-preserving architectural decomposition first, then benchmark/objective/decision-evidence completion, then the recommend-only reconciler, then Monitoring/Tuning projection, then later scheduled agent and code-evolution loops.
+5. The correct next move is a phased sequence: behavior-preserving architectural decomposition first, then benchmark/objective/decision-evidence completion, then the recommend-only reconciler, then the first shared-host agent tweaker loop, then Monitoring/Tuning projection, then later broader scheduled-agent and code-evolution loops.
 
 # Repo Review
 
@@ -166,8 +166,9 @@ The right next shape for Shuma is:
 4. durable decision-evidence ledger,
 5. recommend-only reconcile engine over `allowed_actions_v1`,
 6. replay-promotion lineage as a backend contract,
-7. Monitoring and Tuning as thin projections over those same contracts,
-8. and only then the later scheduled agent and code-evolution loops.
+7. first shared-host agent loop over those same contracts,
+8. Monitoring and Tuning as thin projections over the proven loop and its inputs,
+9. and only then the later broader scheduled agent and code-evolution loops.
 
 That means the repo should not treat this review as a cue to do one giant rewrite.
 
