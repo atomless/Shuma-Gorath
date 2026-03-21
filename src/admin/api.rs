@@ -17,6 +17,7 @@ use super::diagnostics_api::{
     handle_admin_maze_preview, handle_admin_maze_seed_refresh, handle_admin_maze_seed_sources,
     handle_admin_tarpit_preview,
 };
+use super::monitoring_api::handle_admin_events;
 use super::operator_snapshot_api::handle_admin_operator_snapshot;
 #[cfg(test)]
 use super::recent_changes_ledger::load_operator_snapshot_recent_changes;
@@ -62,7 +63,7 @@ pub(crate) struct EventExecutionMetadata {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct EventLogRecord {
+pub(super) struct EventLogRecord {
     #[serde(flatten)]
     pub entry: EventLogEntry,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -456,7 +457,7 @@ fn compact_event_record_for_persistence(record: &mut EventLogRecord) {
     record.entry.outcome = None;
 }
 
-fn forensic_access_mode(query: &str) -> bool {
+pub(super) fn forensic_access_mode(query: &str) -> bool {
     let forensic_requested = crate::request_validation::query_param(query, "forensic")
         .map(|value| value == "1" || value.eq_ignore_ascii_case("true"))
         .unwrap_or(false);
@@ -472,7 +473,7 @@ pub(super) fn telemetry_cleanup_acknowledged(req: &Request) -> bool {
         .unwrap_or(false)
 }
 
-fn pseudonymize_ip_identifier(ip: &str) -> String {
+pub(super) fn pseudonymize_ip_identifier(ip: &str) -> String {
     crate::signals::ip_identity::bucket_ip(ip)
 }
 
@@ -572,7 +573,7 @@ fn telemetry_field_classification_schema() -> serde_json::Value {
     ])
 }
 
-fn security_view_mode_label(forensic_mode: bool) -> &'static str {
+pub(super) fn security_view_mode_label(forensic_mode: bool) -> &'static str {
     if forensic_mode {
         "forensic_raw"
     } else {
@@ -591,14 +592,17 @@ fn present_event_record(record: &EventLogRecord, forensic_mode: bool) -> EventLo
     pseudonymize_event_record(record)
 }
 
-fn present_event_records(records: &[EventLogRecord], forensic_mode: bool) -> Vec<EventLogRecord> {
+pub(super) fn present_event_records(
+    records: &[EventLogRecord],
+    forensic_mode: bool,
+) -> Vec<EventLogRecord> {
     records
         .iter()
         .map(|record| present_event_record(record, forensic_mode))
         .collect()
 }
 
-fn security_privacy_payload<S: crate::challenge::KeyValueStore>(
+pub(super) fn security_privacy_payload<S: crate::challenge::KeyValueStore>(
     store: &S,
     now: u64,
     hours: u64,
@@ -10965,7 +10969,7 @@ fn handle_admin_logout<S: crate::challenge::KeyValueStore>(req: &Request, store:
     })
 }
 
-fn query_u64_param(query: &str, key: &str, default: u64) -> u64 {
+pub(super) fn query_u64_param(query: &str, key: &str, default: u64) -> u64 {
     query
         .split('&')
         .find_map(|pair| {
@@ -12070,7 +12074,7 @@ fn load_recent_monitoring_event_records_with_keys<S: crate::challenge::KeyValueS
         .collect()
 }
 
-fn load_recent_monitoring_event_records<S: crate::challenge::KeyValueStore>(
+pub(super) fn load_recent_monitoring_event_records<S: crate::challenge::KeyValueStore>(
     store: &S,
     now: u64,
     hours: u64,
@@ -15930,50 +15934,6 @@ where
         overflow,
         security_privacy.payload,
     )
-}
-
-fn handle_admin_events<S>(req: &Request, store: &S) -> Response
-where
-    S: crate::challenge::KeyValueStore,
-{
-    let hours = query_u64_param(req.query(), "hours", 24).clamp(1, 720);
-    let forensic_mode = forensic_access_mode(req.query());
-    let now = now_ts();
-    let mut events = load_recent_monitoring_event_records(store, now, hours);
-    let mut ip_counts = std::collections::HashMap::new();
-    let mut event_counts = std::collections::HashMap::new();
-
-    for event in &events {
-        if let Some(ip) = &event.entry.ip {
-            let key = if forensic_mode {
-                ip.clone()
-            } else {
-                pseudonymize_ip_identifier(ip.as_str())
-            };
-            *ip_counts.entry(key).or_insert(0u32) += 1;
-        }
-        *event_counts
-            .entry(format!("{:?}", event.entry.event))
-            .or_insert(0u32) += 1;
-    }
-
-    events.sort_by(|a, b| b.entry.ts.cmp(&a.entry.ts));
-    let unique_ips = ip_counts.len();
-    let mut top_ips: Vec<_> = ip_counts.into_iter().collect();
-    top_ips.sort_by(|a, b| b.1.cmp(&a.1));
-    let top_ips: Vec<_> = top_ips.into_iter().take(10).collect();
-    let recent_events_raw: Vec<_> = events.iter().take(100).cloned().collect();
-    let recent_events = present_event_records(recent_events_raw.as_slice(), forensic_mode);
-    let body = serde_json::to_string(&json!({
-        "recent_events": recent_events,
-        "event_counts": event_counts,
-        "top_ips": top_ips,
-        "unique_ips": unique_ips,
-        "security_mode": security_view_mode_label(forensic_mode),
-        "security_privacy": security_privacy_payload(store, now, hours, forensic_mode)
-    }))
-    .unwrap();
-    Response::new(200, body)
 }
 
 fn handle_admin_monitoring<S>(req: &Request, store: &S) -> Response
