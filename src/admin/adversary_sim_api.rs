@@ -600,3 +600,575 @@ pub(crate) fn save_adversary_sim_state_with_capability<S: crate::challenge::KeyV
 ) -> Result<(), ()> {
     crate::admin::adversary_sim::save_state(store, site_id, state)
 }
+
+pub(crate) fn handle_admin_adversary_sim_control(
+    req: &Request,
+    store: &impl crate::challenge::KeyValueStore,
+    site_id: &str,
+    auth: &crate::admin::auth::AdminAuthResult,
+) -> Response {
+    if *req.method() != Method::Post {
+        return Response::new(405, "Method Not Allowed");
+    }
+    if !crate::config::admin_config_write_enabled() {
+        return Response::new(
+            403,
+            "Config updates are disabled when SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false",
+        );
+    }
+
+    let runtime_environment = crate::config::runtime_environment();
+    let env_available = crate::config::adversary_sim_available();
+    if !crate::admin::adversary_sim::control_surface_available(runtime_environment, env_available) {
+        return Response::new(404, "Not Found");
+    }
+
+    if auth.requires_csrf(req) {
+        let expected = auth.csrf_token.as_deref().unwrap_or("");
+        if !crate::admin::auth::validate_session_csrf(req, expected) {
+            super::api::log_admin_csrf_denied(store, req, "/admin/adversary-sim/control", auth);
+            return Response::new(403, "Forbidden: control trust boundary violation");
+        }
+    }
+
+    let body = match crate::request_validation::parse_json_body(
+        req.body(),
+        crate::request_validation::MAX_ADMIN_JSON_BYTES,
+    ) {
+        Ok(v) => v,
+        Err(err) => return Response::new(400, err),
+    };
+    let payload = match serde_json::from_value::<AdminAdversarySimControlRequest>(body) {
+        Ok(parsed) => parsed,
+        Err(err) => return Response::new(400, format!("Invalid control payload: {}", err)),
+    };
+
+    let now = crate::admin::now_ts();
+    let requested_reason =
+        crate::admin::adversary_sim_control::canonical_reason(payload.reason.as_deref());
+    let Some(idempotency_key) = req
+        .header("idempotency-key")
+        .and_then(|value| value.as_str())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    else {
+        return Response::new(428, "Idempotency-Key header is required");
+    };
+    let idempotency_key_hash = crate::admin::adversary_sim_control::hash_hex(idempotency_key);
+    let payload_hash = crate::admin::adversary_sim_control::canonical_payload_hash(
+        payload.enabled,
+        payload.lane.map(|lane| lane.as_str()),
+        requested_reason.as_str(),
+    );
+
+    let session_scope = crate::admin::adversary_sim_control::idempotency_scope(auth);
+    let actor_scope = crate::admin::adversary_sim_control::actor_scope(auth);
+    let client_ip = crate::extract_client_ip(req);
+
+    let origin_validation =
+        crate::admin::adversary_sim_control::validate_origin_and_fetch_metadata(req);
+    let session_origin_fallback_allowed = matches!(
+        auth.method,
+        Some(crate::admin::auth::AdminAuthMethod::SessionCookie)
+    );
+    let (origin_verdict, request_origin, trust_reason, trust_decision) = match origin_validation {
+        Ok(valid) => (
+            valid.verdict,
+            valid.request_origin,
+            "trust_boundary_ok".to_string(),
+            crate::admin::adversary_sim_control::TrustDecision::Allow,
+        ),
+        Err("origin_missing" | "fetch_metadata_missing") if session_origin_fallback_allowed => (
+            "session_csrf_origin_fallback".to_string(),
+            None,
+            "session_csrf_origin_fallback".to_string(),
+            crate::admin::adversary_sim_control::TrustDecision::Allow,
+        ),
+        Err(reason) => (
+            "origin_denied".to_string(),
+            None,
+            reason.to_string(),
+            crate::admin::adversary_sim_control::TrustDecision::Reject,
+        ),
+    };
+
+    let idempotency_store_key = crate::admin::adversary_sim_control::control_idempotency_key(
+        site_id,
+        session_scope.as_str(),
+        idempotency_key_hash.as_str(),
+    );
+    let mut existing_idempotency =
+        crate::admin::adversary_sim_control::load_idempotency_record(store, &idempotency_store_key);
+    if existing_idempotency
+        .as_ref()
+        .map(|record| record.expires_at <= now)
+        .unwrap_or(false)
+    {
+        existing_idempotency = None;
+    }
+    let idempotency_plan = match existing_idempotency.as_ref() {
+        Some(record) if record.payload_hash == payload_hash => {
+            crate::admin::adversary_sim_control::IdempotencyPlan::Replay
+        }
+        Some(_) => crate::admin::adversary_sim_control::IdempotencyPlan::PayloadMismatch,
+        None => crate::admin::adversary_sim_control::IdempotencyPlan::NewSubmission,
+    };
+
+    let snapshot = match load_adversary_sim_lifecycle_snapshot(store, site_id) {
+        Ok(snapshot) => snapshot,
+        Err(err) => return Response::new(500, err.user_message()),
+    };
+    let mut cfg = snapshot.cfg;
+    let mut state = snapshot.state;
+    let (reconciled_state, _) =
+        crate::admin::adversary_sim::reconcile_state(now, cfg.adversary_sim_enabled, &state);
+    if reconciled_state != state {
+        state = reconciled_state;
+        if crate::admin::adversary_sim::save_state(store, site_id, &state).is_err() {
+            return Response::new(500, "Key-value store error");
+        }
+    }
+    crate::admin::adversary_sim::project_effective_desired_state(&mut cfg, &state);
+    let requested_state_label = control_state_label(payload.enabled);
+    let requested_lane_label = control_lane_label(payload.lane);
+    let requested_lane = payload.lane.unwrap_or(state.desired_lane);
+    let current_desired_state_label = control_state_label(cfg.adversary_sim_enabled);
+    let current_desired_lane_label = control_desired_lane_label(&state);
+    let current_actual_state = state.phase.as_str().to_string();
+    let current_actual_lane_label = control_actual_lane_label(&state);
+
+    let debounce_key =
+        crate::admin::adversary_sim_control::control_debounce_key(site_id, session_scope.as_str());
+    let last_submission_at = store
+        .get(&debounce_key)
+        .ok()
+        .flatten()
+        .as_deref()
+        .and_then(crate::admin::adversary_sim_control::parse_debounce_timestamp);
+    let debounce_throttled = crate::admin::adversary_sim_control::should_throttle_for_debounce(
+        now,
+        last_submission_at,
+        crate::admin::adversary_sim_control::CONTROL_DEBOUNCE_SECONDS,
+    ) && cfg.adversary_sim_enabled == payload.enabled
+        && state.desired_lane == requested_lane;
+    let rate_limited = super::api::adversary_sim_control_submission_is_limited(
+        store,
+        session_scope.as_str(),
+        client_ip.as_str(),
+    );
+    let throttle_decision = if rate_limited || debounce_throttled {
+        crate::admin::adversary_sim_control::ThrottleDecision::Throttle
+    } else {
+        crate::admin::adversary_sim_control::ThrottleDecision::Allow
+    };
+    let throttle_reason =
+        if throttle_decision == crate::admin::adversary_sim_control::ThrottleDecision::Throttle {
+            if debounce_throttled {
+                "debounce_window"
+            } else {
+                "toggle_rate_limited"
+            }
+        } else {
+            "throttle_ok"
+        };
+
+    let plan = crate::admin::adversary_sim_control::plan_submission(
+        &crate::admin::adversary_sim_control::SubmissionPlanInput {
+            trust: trust_decision,
+            throttle: throttle_decision,
+            idempotency: idempotency_plan,
+        },
+    );
+    let capabilities =
+        crate::admin::adversary_sim_control::ControlCapabilities::mint_for_trust_boundary();
+
+    match plan.decision {
+        crate::admin::adversary_sim_control::SubmissionPlanDecision::RejectTrustBoundary => {
+            let trust_reason = trust_reason.clone();
+            log_adversary_sim_control_audit(
+                store,
+                req,
+                auth,
+                &crate::admin::adversary_sim_control::ControlAuditRecord {
+                    operation_id: None,
+                    actor_scope,
+                    session_scope,
+                    decision: crate::admin::adversary_sim_control::ControlDecision::Rejected,
+                    reason: trust_reason,
+                    origin_verdict,
+                    idempotency_key_hash: Some(idempotency_key_hash),
+                    request_origin,
+                    requested_state: Some(requested_state_label.clone()),
+                    requested_lane: requested_lane_label.clone(),
+                    desired_state: Some(current_desired_state_label.clone()),
+                    desired_lane: current_desired_lane_label.clone(),
+                    actual_state: current_actual_state.clone(),
+                    actual_lane: current_actual_lane_label.clone(),
+                },
+                capabilities.audit_write(),
+            );
+            return Response::new(403, "Forbidden: control trust boundary violation");
+        }
+        crate::admin::adversary_sim_control::SubmissionPlanDecision::RejectThrottled => {
+            log_adversary_sim_control_audit(
+                store,
+                req,
+                auth,
+                &crate::admin::adversary_sim_control::ControlAuditRecord {
+                    operation_id: None,
+                    actor_scope,
+                    session_scope,
+                    decision: crate::admin::adversary_sim_control::ControlDecision::Throttled,
+                    reason: throttle_reason.to_string(),
+                    origin_verdict,
+                    idempotency_key_hash: Some(idempotency_key_hash),
+                    request_origin,
+                    requested_state: Some(requested_state_label.clone()),
+                    requested_lane: requested_lane_label.clone(),
+                    desired_state: Some(current_desired_state_label.clone()),
+                    desired_lane: current_desired_lane_label.clone(),
+                    actual_state: current_actual_state.clone(),
+                    actual_lane: current_actual_lane_label.clone(),
+                },
+                capabilities.audit_write(),
+            );
+            return Response::builder()
+                .status(429)
+                .header("Retry-After", "60")
+                .body("Too Many Requests: adversary control throttled")
+                .build();
+        }
+        crate::admin::adversary_sim_control::SubmissionPlanDecision::RejectPayloadMismatch => {
+            let replayed_operation_id = existing_idempotency
+                .as_ref()
+                .map(|record| record.operation_id.clone());
+            log_adversary_sim_control_audit(
+                store,
+                req,
+                auth,
+                &crate::admin::adversary_sim_control::ControlAuditRecord {
+                    operation_id: replayed_operation_id,
+                    actor_scope,
+                    session_scope,
+                    decision: crate::admin::adversary_sim_control::ControlDecision::Rejected,
+                    reason: "idempotency_payload_mismatch".to_string(),
+                    origin_verdict,
+                    idempotency_key_hash: Some(idempotency_key_hash),
+                    request_origin,
+                    requested_state: Some(requested_state_label.clone()),
+                    requested_lane: requested_lane_label.clone(),
+                    desired_state: Some(current_desired_state_label.clone()),
+                    desired_lane: current_desired_lane_label.clone(),
+                    actual_state: current_actual_state.clone(),
+                    actual_lane: current_actual_lane_label.clone(),
+                },
+                capabilities.audit_write(),
+            );
+            return Response::new(
+                409,
+                "Idempotency-Key replay rejected: payload mismatch for existing key",
+            );
+        }
+        crate::admin::adversary_sim_control::SubmissionPlanDecision::ReturnReplay => {
+            let Some(idempotency_record) = existing_idempotency.as_ref() else {
+                return Response::new(500, "Idempotency state unavailable");
+            };
+            let operation_key = crate::admin::adversary_sim_control::control_operation_key(
+                site_id,
+                idempotency_record.operation_id.as_str(),
+            );
+            let operation =
+                crate::admin::adversary_sim_control::load_operation_record(store, &operation_key);
+            log_adversary_sim_control_audit(
+                store,
+                req,
+                auth,
+                &crate::admin::adversary_sim_control::ControlAuditRecord {
+                    operation_id: Some(idempotency_record.operation_id.clone()),
+                    actor_scope,
+                    session_scope,
+                    decision: crate::admin::adversary_sim_control::ControlDecision::Replayed,
+                    reason: "idempotency_exact_replay".to_string(),
+                    origin_verdict,
+                    idempotency_key_hash: Some(idempotency_key_hash.clone()),
+                    request_origin,
+                    requested_state: Some(requested_state_label.clone()),
+                    requested_lane: requested_lane_label.clone(),
+                    desired_state: Some(current_desired_state_label.clone()),
+                    desired_lane: current_desired_lane_label.clone(),
+                    actual_state: state.phase.as_str().to_string(),
+                    actual_lane: control_actual_lane_label(&state),
+                },
+                capabilities.audit_write(),
+            );
+            let response = json!({
+                "operation_id": idempotency_record.operation_id,
+                "decision": "replayed",
+                "requested_enabled": payload.enabled,
+                "phase_trace": ["plan", "execute", "collect_evidence", "publish_report"],
+                "requested_state": {
+                    "enabled": payload.enabled,
+                    "lane": requested_lane_label,
+                    "reason": requested_reason
+                },
+                "accepted_state": {
+                    "desired_enabled": cfg.adversary_sim_enabled,
+                    "desired_lane": state.desired_lane.as_str(),
+                    "actual_phase": state.phase.as_str(),
+                    "active_lane": control_actual_lane_label(&state)
+                },
+                "idempotency": {
+                    "key_hash": idempotency_key_hash,
+                    "replayed": true,
+                    "ttl_seconds": crate::admin::adversary_sim_control::IDEMPOTENCY_TTL_SECONDS
+                },
+                "operation": operation,
+                "status": adversary_sim_status_payload(store, site_id, &cfg, &state, now),
+                "config": super::api::admin_config_settings_payload(&cfg),
+                "runtime": super::api::admin_config_runtime_payload(
+                    &cfg,
+                    super::api::challenge_threshold_default(),
+                    super::api::not_a_bot_threshold_default(),
+                    super::api::maze_threshold_default()
+                )
+            });
+            return Response::new(200, serde_json::to_string(&response).unwrap());
+        }
+        crate::admin::adversary_sim_control::SubmissionPlanDecision::AcceptNew => {}
+    }
+
+    let operation_id = crate::admin::adversary_sim_control::operation_id(now);
+    let current_lease = crate::admin::adversary_sim_control::load_controller_lease(store, site_id);
+    let lease = match crate::admin::adversary_sim_control::acquire_controller_lease(
+        now,
+        session_scope.as_str(),
+        Some(operation_id.as_str()),
+        current_lease.as_ref(),
+    ) {
+        Ok(lease) => lease,
+        Err(reason) => {
+            log_adversary_sim_control_audit(
+                store,
+                req,
+                auth,
+                &crate::admin::adversary_sim_control::ControlAuditRecord {
+                    operation_id: Some(operation_id),
+                    actor_scope,
+                    session_scope,
+                    decision: crate::admin::adversary_sim_control::ControlDecision::Throttled,
+                    reason: reason.to_string(),
+                    origin_verdict,
+                    idempotency_key_hash: Some(idempotency_key_hash),
+                    request_origin,
+                    requested_state: Some(requested_state_label.clone()),
+                    requested_lane: requested_lane_label.clone(),
+                    desired_state: Some(current_desired_state_label.clone()),
+                    desired_lane: current_desired_lane_label.clone(),
+                    actual_state: state.phase.as_str().to_string(),
+                    actual_lane: control_actual_lane_label(&state),
+                },
+                capabilities.audit_write(),
+            );
+            let retry_after_seconds = current_lease
+                .as_ref()
+                .map(|lease| lease.expires_at.saturating_sub(now).max(1))
+                .unwrap_or(crate::admin::adversary_sim_control::LEASE_TTL_SECONDS);
+            let mut response = Response::builder();
+            response
+                .status(409)
+                .header("Retry-After", retry_after_seconds.to_string())
+                .body("Adversary simulation controller lease is currently held");
+            return response.build();
+        }
+    };
+    if crate::admin::adversary_sim_control::save_controller_lease(
+        store,
+        site_id,
+        &lease,
+        capabilities.state_write(),
+    )
+    .is_err()
+    {
+        return Response::new(500, "Key-value store error");
+    }
+
+    let mut transitions = Vec::new();
+    let (preflight_state, mut preflight_transitions) =
+        crate::admin::adversary_sim::reconcile_state(now, cfg.adversary_sim_enabled, &state);
+    state = preflight_state;
+    transitions.append(&mut preflight_transitions);
+    state = crate::admin::adversary_sim::select_desired_lane(now, requested_lane, &state);
+    let mut desired_enabled = payload.enabled;
+
+    if payload.enabled {
+        if state.phase != crate::admin::adversary_sim::ControlPhase::Running {
+            let duration = crate::admin::adversary_sim::clamp_duration_seconds(
+                cfg.adversary_sim_duration_seconds,
+            );
+            match crate::admin::adversary_sim::start_state(now, duration, &state) {
+                Ok((next_state, mut started_transitions)) => {
+                    state = next_state;
+                    transitions.append(&mut started_transitions);
+                }
+                Err(crate::admin::adversary_sim::StartError::QueueFull) => {
+                    return Response::new(
+                        409,
+                        "Adversary simulation queue is full (queue_policy=reject_new)",
+                    );
+                }
+            }
+        }
+    } else {
+        let (stopping_state, mut stop_transitions) =
+            crate::admin::adversary_sim::stop_state(now, "manual_off", &state);
+        state = stopping_state;
+        transitions.append(&mut stop_transitions);
+    }
+
+    let (reconciled_state, mut reconciled_transitions) =
+        crate::admin::adversary_sim::reconcile_state(now, desired_enabled, &state);
+    state = reconciled_state;
+    transitions.append(&mut reconciled_transitions);
+
+    if state.phase == crate::admin::adversary_sim::ControlPhase::Off && desired_enabled {
+        desired_enabled = false;
+    }
+
+    if save_adversary_sim_state_with_capability(store, site_id, &state, capabilities.state_write())
+        .is_err()
+    {
+        return Response::new(500, "Key-value store error");
+    }
+    crate::admin::adversary_sim::project_effective_desired_state(&mut cfg, &state);
+    let desired_state_label = control_state_label(desired_enabled);
+    let desired_lane_label = control_desired_lane_label(&state);
+    let actual_lane_label = control_actual_lane_label(&state);
+    for transition in &transitions {
+        log_adversary_sim_transition(
+            store,
+            site_id,
+            req,
+            auth,
+            transition,
+            Some(operation_id.as_str()),
+        );
+    }
+
+    let operation_record = crate::admin::adversary_sim_control::ControlOperationRecord {
+        operation_id: operation_id.clone(),
+        requested_enabled: payload.enabled,
+        requested_lane: requested_lane_label.clone(),
+        requested_reason: requested_reason.clone(),
+        desired_enabled,
+        desired_lane: desired_lane_label.clone(),
+        actual_phase: state.phase.as_str().to_string(),
+        actual_lane: actual_lane_label.clone(),
+        actor_scope: actor_scope.clone(),
+        session_scope: session_scope.clone(),
+        idempotency_key_hash: idempotency_key_hash.clone(),
+        payload_hash: payload_hash.clone(),
+        created_at: now,
+        completed_at: now,
+        decision: crate::admin::adversary_sim_control::ControlDecision::Accepted,
+        decision_reason: "accepted".to_string(),
+        origin_verdict: origin_verdict.clone(),
+        lease_fencing_token: Some(lease.fencing_token),
+    };
+    let operation_key =
+        crate::admin::adversary_sim_control::control_operation_key(site_id, operation_id.as_str());
+    if crate::admin::adversary_sim_control::save_operation_record(
+        store,
+        &operation_key,
+        &operation_record,
+        capabilities.state_write(),
+    )
+    .is_err()
+    {
+        return Response::new(500, "Key-value store error");
+    }
+
+    let idempotency_record = crate::admin::adversary_sim_control::IdempotencyRecord {
+        operation_id: operation_id.clone(),
+        payload_hash,
+        actor_scope: actor_scope.clone(),
+        session_scope: session_scope.clone(),
+        created_at: now,
+        expires_at: now
+            .saturating_add(crate::admin::adversary_sim_control::IDEMPOTENCY_TTL_SECONDS),
+    };
+    if crate::admin::adversary_sim_control::save_idempotency_record(
+        store,
+        &idempotency_store_key,
+        &idempotency_record,
+        capabilities.state_write(),
+    )
+    .is_err()
+    {
+        return Response::new(500, "Key-value store error");
+    }
+    if crate::admin::adversary_sim_control::save_debounce_timestamp(
+        store,
+        &debounce_key,
+        now,
+        capabilities.state_write(),
+    )
+    .is_err()
+    {
+        return Response::new(500, "Key-value store error");
+    }
+
+    log_adversary_sim_control_audit(
+        store,
+        req,
+        auth,
+        &crate::admin::adversary_sim_control::ControlAuditRecord {
+            operation_id: Some(operation_id.clone()),
+            actor_scope,
+            session_scope,
+            decision: crate::admin::adversary_sim_control::ControlDecision::Accepted,
+            reason: "accepted".to_string(),
+            origin_verdict,
+            idempotency_key_hash: Some(idempotency_key_hash.clone()),
+            request_origin,
+            requested_state: Some(requested_state_label),
+            requested_lane: requested_lane_label.clone(),
+            desired_state: Some(desired_state_label.clone()),
+            desired_lane: desired_lane_label.clone(),
+            actual_state: state.phase.as_str().to_string(),
+            actual_lane: actual_lane_label.clone(),
+        },
+        capabilities.audit_write(),
+    );
+
+    let response = json!({
+        "operation_id": operation_id,
+        "decision": "accepted",
+        "requested_enabled": payload.enabled,
+        "phase_trace": ["plan", "execute", "collect_evidence", "publish_report"],
+        "requested_state": {
+            "enabled": payload.enabled,
+            "lane": requested_lane_label,
+            "reason": requested_reason
+        },
+        "accepted_state": {
+            "desired_enabled": desired_enabled,
+            "desired_lane": desired_lane_label,
+            "actual_phase": state.phase.as_str(),
+            "active_lane": actual_lane_label
+        },
+        "idempotency": {
+            "key_hash": idempotency_key_hash,
+            "replayed": false,
+            "ttl_seconds": crate::admin::adversary_sim_control::IDEMPOTENCY_TTL_SECONDS
+        },
+        "status": adversary_sim_status_payload(store, site_id, &cfg, &state, now),
+        "config": super::api::admin_config_settings_payload(&cfg),
+        "runtime": super::api::admin_config_runtime_payload(
+            &cfg,
+            super::api::challenge_threshold_default(),
+            super::api::not_a_bot_threshold_default(),
+            super::api::maze_threshold_default()
+        ),
+    });
+    Response::new(200, serde_json::to_string(&response).unwrap())
+}
