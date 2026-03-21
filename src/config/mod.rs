@@ -16,6 +16,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::challenge::KeyValueStore;
 
+mod controller_action_catalog;
 mod controller_action_surface;
 mod runtime_env;
 
