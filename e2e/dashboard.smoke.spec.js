@@ -389,8 +389,28 @@ function adversarySimStatusState(payload) {
     generationActive:
       source.generation_active === true ||
       source.generationActive === true,
-    phase: String(source.phase || "off").trim().toLowerCase()
+    phase: String(source.phase || "off").trim().toLowerCase(),
+    desiredLane: String(source.desired_lane || source.desiredLane || "synthetic_traffic")
+      .trim()
+      .toLowerCase() || "synthetic_traffic"
   };
+}
+
+async function waitForAdversarySimControllerLeaseExpiry(request, timeoutMs = 30000, ip = "127.0.0.1") {
+  const deadline = Date.now() + Math.max(1000, Number(timeoutMs || 0));
+  while (Date.now() < deadline) {
+    const payload = await fetchAdversarySimStatus(request, ip);
+    const lease = payload?.controller_lease && typeof payload.controller_lease === "object"
+      ? payload.controller_lease
+      : null;
+    const expiresAtSeconds = Number(lease?.expires_at || 0);
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    if (!lease || !Number.isFinite(expiresAtSeconds) || expiresAtSeconds <= nowSeconds) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  throw new Error(`adversary sim controller lease did not expire within ${timeoutMs}ms`);
 }
 
 async function waitForAdversarySimEnabledState(request, desiredEnabled, timeoutMs = 30000, ip = "127.0.0.1") {
@@ -463,12 +483,18 @@ async function controlAdversarySimViaAdmin(
   request,
   desiredEnabled,
   ip = "127.0.0.1",
-  timeoutMs = 95_000
+  timeoutMs = 95_000,
+  controlOptions = {}
 ) {
   const deadline = Date.now() + Math.max(5_000, Number(timeoutMs || 0));
   let lastStatus = 0;
   let lastBody = "";
   while (Date.now() < deadline) {
+    const payload = { enabled: desiredEnabled === true };
+    const desiredLane = String(controlOptions?.lane || "").trim().toLowerCase();
+    if (desiredLane) {
+      payload.lane = desiredLane;
+    }
     const response = await request.post(`${BASE_URL}/admin/adversary-sim/control`, {
       headers: {
         ...buildAdminAuthHeaders(ip),
@@ -477,7 +503,7 @@ async function controlAdversarySimViaAdmin(
         Origin: BASE_URL,
         "Sec-Fetch-Site": "same-origin"
       },
-      data: { enabled: desiredEnabled === true }
+      data: payload
     });
     if (response.ok()) {
       return response.json();
@@ -546,8 +572,9 @@ async function forceAdversarySimDisabled(request, ip = "127.0.0.1") {
 }
 
 async function withRestoredAdversarySimConfig(request, callback, ip = "127.0.0.1") {
-  const restoreDesiredEnabled =
-    adversarySimStatusState(await fetchAdversarySimStatus(request, ip)).enabled === true;
+  const restoreStatus = adversarySimStatusState(await fetchAdversarySimStatus(request, ip));
+  const restoreDesiredEnabled = restoreStatus.enabled === true;
+  const restoreDesiredLane = restoreStatus.desiredLane;
   const restorePatch = extractConfigPatchFromPaths(
     await fetchAdminConfig(request, ip),
     ADVERSARY_SIM_RESTORE_PATHS
@@ -557,15 +584,14 @@ async function withRestoredAdversarySimConfig(request, callback, ip = "127.0.0.1
   } finally {
     if (Object.keys(restorePatch).length === 0) return;
     await updateAdminConfig(request, restorePatch, ip);
-    if (restoreDesiredEnabled) {
-      const currentState = adversarySimStatusState(await fetchAdversarySimStatus(request, ip));
-      if (currentState.enabled !== true) {
-        await controlAdversarySimViaAdmin(request, true, ip);
-      }
-      await waitForAdversarySimEnabledState(request, true, 30000, ip);
-    } else {
-      await forceAdversarySimDisabled(request, ip);
-    }
+    await controlAdversarySimViaAdmin(
+      request,
+      restoreDesiredEnabled,
+      ip,
+      95_000,
+      { lane: restoreDesiredLane }
+    );
+    await waitForAdversarySimEnabledState(request, restoreDesiredEnabled, 30000, ip);
     const restoredPatch = extractConfigPatchFromPaths(await fetchAdminConfig(request, ip), ADVERSARY_SIM_RESTORE_PATHS);
     expect(restoredPatch).toEqual(restorePatch);
   }
@@ -2076,6 +2102,40 @@ test("adversary sim toggle emits fresh telemetry visible in monitoring raw feed"
     }
     await page.reload();
     await waitForDashboardAdversarySimUiState(page, request, false);
+  });
+});
+
+test("adversary sim lane selector keeps off-state desired versus active truth and disables bot red team", async ({ page, request }) => {
+  test.setTimeout(180_000);
+  await withRestoredAdversarySimConfig(request, async () => {
+    await forceAdversarySimDisabled(request);
+    await controlAdversarySimViaAdmin(
+      request,
+      false,
+      "127.0.0.1",
+      95_000,
+      { lane: "scrapling_traffic" }
+    );
+    await waitForAdversarySimControllerLeaseExpiry(request, 30000);
+
+    await openDashboard(page);
+    await waitForDashboardAdversarySimUiState(page, request, false);
+    await openTab(page, "red-team");
+
+    const laneSelect = page.locator("#adversary-sim-lane-select");
+    const botRedTeamOption = page.locator('#adversary-sim-lane-select option[value="bot_red_team"]');
+    await expect(laneSelect).toHaveValue("scrapling_traffic");
+    await expect(page.locator("#adversary-sim-lane-state-desired")).toContainText("Scrapling Traffic");
+    await expect(page.locator("#adversary-sim-lane-state-active")).toContainText("Not running");
+    await expect(botRedTeamOption).toBeDisabled();
+
+    await laneSelect.selectOption("synthetic_traffic");
+    await expect.poll(async () => {
+      const payload = await fetchAdversarySimStatus(request);
+      return String(payload?.desired_lane || "").trim().toLowerCase();
+    }, { timeout: 30000 }).toBe("synthetic_traffic");
+    await expect(page.locator("#adversary-sim-lane-state-desired")).toContainText("Synthetic Traffic");
+    await expect(page.locator("#adversary-sim-lane-state-active")).toContainText("Not running");
   });
 });
 

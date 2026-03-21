@@ -72,6 +72,7 @@
   const AUTO_REFRESH_TABS = new Set(['ip-bans', 'red-team']);
   const AUTO_REFRESH_PREF_KEY = 'shuma_dashboard_auto_refresh_v1';
   const DASHBOARD_LOADED_CLASS = 'dashboard-loaded';
+  const ADVERSARY_SIM_SELECTABLE_LANES = new Set(['synthetic_traffic', 'scrapling_traffic']);
   const ACTIVE_DIRTY_CONFIG_SAVE_BAR_SELECTOR =
     '#dashboard-admin-section [data-dashboard-tab-panel][aria-hidden="false"] .config-save-bar:not(.hidden)';
 
@@ -100,6 +101,7 @@
   let loggingOut = false;
   let suppressBeforeUnloadPrompt = false;
   let savingGlobalShadowMode = false;
+  let savingAdversarySimLane = false;
   let autoRefreshEnabled = false;
   let authExpiryTimer = null;
   let authExpiryAtSeconds = 0;
@@ -240,6 +242,9 @@
   $: runtimeClassHint = sessionRuntimeClassHint || rootRuntimeClassHint;
   $: adversarySimStatus = adversarySimControllerState?.backendStatus || {};
   $: normalizedAdversarySimStatus = normalizeAdversarySimStatus(adversarySimStatus);
+  $: adversarySimControllerBusy = ['debouncing', 'submitting', 'converging'].includes(
+    String(adversarySimControllerState?.controllerPhase || '').trim().toLowerCase()
+  );
   $: bodyClassSource = {
     ...(configRuntimeSnapshot && typeof configRuntimeSnapshot === 'object' ? configRuntimeSnapshot : {}),
     shadow_mode: configSnapshot?.shadow_mode,
@@ -301,6 +306,14 @@
     adminConfigWritable: isAdminConfigWritable(configRuntimeSnapshot),
     surfaceAvailable: adversarySimControlAvailable
   });
+  $: globalAdversarySimLaneDisabled = deriveGlobalControlDisabled({
+    runtimeMounted: routeController.getRuntimeMounted(),
+    loggingOut,
+    saving: savingAdversarySimLane || adversarySimControllerBusy,
+    authenticated: dashboardState?.session?.authenticated === true,
+    adminConfigWritable: isAdminConfigWritable(configRuntimeSnapshot),
+    surfaceAvailable: adversarySimControlAvailable
+  });
   $: globalShadowModeToggleDisabledReason = globalShadowModeToggleDisabled
     ? describeGlobalControlDisabledState({
       runtimeReady,
@@ -316,6 +329,18 @@
       runtimeReady,
       loggingOut,
       saving: false,
+      authenticated: dashboardState?.session?.authenticated,
+      adminConfigWritable: isAdminConfigWritable(configRuntimeSnapshot),
+      unavailableMessage: adversarySimControlAvailable
+        ? ''
+        : 'Unavailable because adversary simulation control requires the simulation surface to be active in this deployment.'
+    })
+    : '';
+  $: globalAdversarySimLaneDisabledReason = globalAdversarySimLaneDisabled
+    ? describeGlobalControlDisabledState({
+      runtimeReady,
+      loggingOut,
+      saving: savingAdversarySimLane || adversarySimControllerBusy,
       authenticated: dashboardState?.session?.authenticated,
       adminConfigWritable: isAdminConfigWritable(configRuntimeSnapshot),
       unavailableMessage: adversarySimControlAvailable
@@ -800,6 +825,72 @@
     void adversarySimController.handleToggleIntent(nextValue);
   }
 
+  async function onAdversarySimLaneChange(event) {
+    const target = event && event.currentTarget ? event.currentTarget : null;
+    const previousLane = normalizedAdversarySimStatus.desiredLane;
+    const nextLane = String(target?.value || '').trim().toLowerCase();
+
+    if (globalAdversarySimLaneDisabled) {
+      if (target) target.value = previousLane;
+      return;
+    }
+    if (!ADVERSARY_SIM_SELECTABLE_LANES.has(nextLane)) {
+      if (target) target.value = previousLane;
+      setPaneNotice(
+        'red-team',
+        'Bot red team lane is not yet available. Select Synthetic Traffic or Scrapling Traffic for this tranche.',
+        'warning'
+      );
+      return;
+    }
+    if (nextLane === previousLane) return;
+
+    savingAdversarySimLane = true;
+    setPaneNotice('red-team', '');
+    try {
+      const desiredEnabled = normalizedAdversarySimStatus.enabled === true;
+      const response = await controlAdversarySimWithRetry(
+        () => withRefreshedSessionOnAuthError(
+          () => controlDashboardAdversarySim(desiredEnabled, {
+            lane: nextLane,
+            timeoutMs: dashboardRequestBudgets.adversarySimControlTimeoutMs,
+            telemetry: {
+              tab: 'red-team',
+              reason: 'adversary-sim-lane',
+              source: 'adversary-sim-control'
+            }
+          })
+        ),
+        desiredEnabled,
+        {
+          timeoutMs: desiredEnabled
+            ? dashboardRequestBudgets.adversarySimEnableTimeoutMs
+            : dashboardRequestBudgets.adversarySimDisableTimeoutMs
+        }
+      );
+      adversarySimController.replaceBackendStatus(response.status);
+      if (target) {
+        target.value = normalizeAdversarySimStatus(response.status).desiredLane;
+      }
+      setPaneNotice('red-team', '');
+    } catch (error) {
+      if (target) target.value = previousLane;
+      if (isAuthSessionExpiredError(error)) {
+        setPaneNotice(
+          'red-team',
+          'Adversary simulation session expired. Redirecting to login...',
+          'warning'
+        );
+        redirectToLogin();
+        return;
+      }
+      const message = formatActionError(error, 'Failed to update adversary simulation lane.');
+      setPaneNotice('red-team', `Error: ${message}`, 'error');
+    } finally {
+      savingAdversarySimLane = false;
+    }
+  }
+
   function formatActionError(error, fallback = 'Action failed.') {
     if (error && typeof error.message === 'string' && error.message.trim()) {
       return error.message.trim();
@@ -1145,18 +1236,22 @@
           isActive={activeTabKey === 'red-team'}
           tabStatus={tabStatus['red-team'] || {}}
           noticeText={paneNoticeValues['red-team']?.text || ''}
-          noticeKind={paneNoticeValues['red-team']?.kind || 'info'}
-          toggleEnabled={adversarySimToggleEnabled}
-          toggleDisabled={globalAdversarySimToggleDisabled}
-          toggleDisabledReason={globalAdversarySimToggleDisabledReason}
-          adversarySimStatus={adversarySimStatus}
-          controllerState={adversarySimControllerState}
-          eventsSnapshot={snapshots.events}
-          bansSnapshot={snapshots.bans}
-          monitoringFreshnessSnapshot={snapshots.monitoringFreshness}
-          lifecycleCopy={adversarySimLifecycleCopy}
-          onToggleChange={onGlobalAdversarySimToggleChange}
-        />
+              noticeKind={paneNoticeValues['red-team']?.kind || 'info'}
+              toggleEnabled={adversarySimToggleEnabled}
+              toggleDisabled={globalAdversarySimToggleDisabled}
+              toggleDisabledReason={globalAdversarySimToggleDisabledReason}
+              laneValue={normalizedAdversarySimStatus.desiredLane}
+              laneDisabled={globalAdversarySimLaneDisabled}
+              laneDisabledReason={globalAdversarySimLaneDisabledReason}
+              adversarySimStatus={adversarySimStatus}
+              controllerState={adversarySimControllerState}
+              eventsSnapshot={snapshots.events}
+              bansSnapshot={snapshots.bans}
+              monitoringFreshnessSnapshot={snapshots.monitoringFreshness}
+              lifecycleCopy={adversarySimLifecycleCopy}
+              onToggleChange={onGlobalAdversarySimToggleChange}
+              onLaneChange={onAdversarySimLaneChange}
+            />
       {:else}
         <section
           id="dashboard-panel-red-team"

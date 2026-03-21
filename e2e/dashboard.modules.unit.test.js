@@ -609,6 +609,140 @@ test('dashboard API client exposes Retry-After seconds on adversary-sim control 
   });
 });
 
+test('dashboard API client preserves adversary-sim lane status and diagnostics fields', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const apiModule = await importBrowserModule('dashboard/src/lib/domain/api-client.js');
+    const adapted = apiModule.adaptAdversarySimStatus({
+      runtime_environment: 'runtime-prod',
+      adversary_sim_available: true,
+      adversary_sim_enabled: false,
+      generation_active: false,
+      phase: 'off',
+      desired_lane: 'scrapling_traffic',
+      active_lane: null,
+      lane_switch_seq: 3,
+      last_lane_switch_at: 1720,
+      last_lane_switch_reason: 'beat_boundary_reconciliation',
+      lane_diagnostics: {
+        schema_version: 'v1',
+        lanes: {
+          synthetic_traffic: {
+            beat_attempts: 4,
+            beat_successes: 4,
+            beat_failures: 0,
+            generated_requests: 10,
+            blocked_requests: 0,
+            offsite_requests: 0,
+            response_bytes: 1024,
+            response_status_count: { '200': 10 },
+            last_generated_at: 1700,
+            last_error: ''
+          },
+          scrapling_traffic: {
+            beat_attempts: 2,
+            beat_successes: 1,
+            beat_failures: 1,
+            generated_requests: 3,
+            blocked_requests: 1,
+            offsite_requests: 2,
+            response_bytes: 2048,
+            response_status_count: { '200': 2, '429': 1 },
+            last_generated_at: 1710,
+            last_error: 'timeout'
+          },
+          bot_red_team: {
+            beat_attempts: 0,
+            beat_successes: 0,
+            beat_failures: 0,
+            generated_requests: 0,
+            blocked_requests: 0,
+            offsite_requests: 0,
+            response_bytes: 0,
+            response_status_count: {},
+            last_generated_at: null,
+            last_error: ''
+          }
+        },
+        request_failure_classes: {
+          cancelled: { count: 0, last_seen_at: null },
+          timeout: { count: 1, last_seen_at: 1712 },
+          transport: { count: 0, last_seen_at: null },
+          http: { count: 2, last_seen_at: 1715 }
+        }
+      }
+    });
+
+    assert.equal(adapted.desired_lane, 'scrapling_traffic');
+    assert.equal(adapted.active_lane, '');
+    assert.equal(adapted.lane_switch_seq, 3);
+    assert.equal(adapted.last_lane_switch_at, 1720);
+    assert.equal(adapted.last_lane_switch_reason, 'beat_boundary_reconciliation');
+    assert.equal(adapted.lane_diagnostics.schema_version, 'v1');
+    assert.equal(adapted.lane_diagnostics.lanes.scrapling_traffic.generated_requests, 3);
+    assert.equal(adapted.lane_diagnostics.lanes.scrapling_traffic.offsite_requests, 2);
+    assert.equal(adapted.lane_diagnostics.request_failure_classes.timeout.count, 1);
+    assert.equal(adapted.lane_diagnostics.request_failure_classes.http.last_seen_at, 1715);
+  });
+});
+
+test('dashboard API client sends optional adversary-sim lane selection in control writes', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const apiModule = await importBrowserModule('dashboard/src/lib/domain/api-client.js');
+    const calls = [];
+    const client = apiModule.create({
+      getAdminContext: () => ({
+        endpoint: 'https://edge.local',
+        apikey: 'test-key',
+        sessionAuth: true,
+        csrfToken: 'csrf-token'
+      }),
+      request: async (url, init = {}) => {
+        calls.push({ url, init });
+        return {
+          ok: true,
+          status: 200,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          json: async () => ({
+            requested_enabled: false,
+            status: {
+              adversary_sim_enabled: false,
+              generation_active: false,
+              phase: 'off',
+              desired_lane: 'scrapling_traffic',
+              active_lane: null
+            },
+            config: {},
+            runtime: {}
+          }),
+          text: async () => JSON.stringify({
+            requested_enabled: false,
+            status: {
+              adversary_sim_enabled: false,
+              generation_active: false,
+              phase: 'off',
+              desired_lane: 'scrapling_traffic',
+              active_lane: null
+            },
+            config: {},
+            runtime: {}
+          })
+        };
+      }
+    });
+
+    const response = await client.controlAdversarySim(false, { lane: 'scrapling_traffic' });
+
+    assert.equal(calls.length, 1);
+    assert.match(String(calls[0].url), /\/admin\/adversary-sim\/control$/);
+    assert.equal(calls[0].init.method, 'POST');
+    assert.deepEqual(JSON.parse(String(calls[0].init.body || '{}')), {
+      enabled: false,
+      lane: 'scrapling_traffic'
+    });
+    assert.equal(response.status.desired_lane, 'scrapling_traffic');
+  });
+});
+
 test('dashboard API client exposes cursor-delta and stream URL helpers for realtime tabs', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const apiModule = await importBrowserModule('dashboard/src/lib/domain/api-client.js');
@@ -3330,6 +3464,11 @@ test('dashboard adversary-sim runtime normalizes orchestration status', { concur
       remaining_seconds: 120,
       active_run_count: 1,
       active_lane_count: 2,
+      desired_lane: 'scrapling_traffic',
+      active_lane: 'synthetic_traffic',
+      lane_switch_seq: 5,
+      last_lane_switch_at: 1100,
+      last_lane_switch_reason: 'beat_boundary_reconciliation',
       supervisor: {
         owner: 'backend_autonomous_supervisor',
         cadence_seconds: 1,
@@ -3349,6 +3488,53 @@ test('dashboard adversary-sim runtime normalizes orchestration status', { concur
         generated_request_count: 12,
         last_generated_at: 1100,
         last_generation_error: ''
+      },
+      lane_diagnostics: {
+        schema_version: 'v1',
+        lanes: {
+          synthetic_traffic: {
+            beat_attempts: 6,
+            beat_successes: 5,
+            beat_failures: 1,
+            generated_requests: 12,
+            blocked_requests: 0,
+            offsite_requests: 0,
+            response_bytes: 4096,
+            response_status_count: { '200': 12 },
+            last_generated_at: 1100,
+            last_error: ''
+          },
+          scrapling_traffic: {
+            beat_attempts: 1,
+            beat_successes: 0,
+            beat_failures: 1,
+            generated_requests: 0,
+            blocked_requests: 2,
+            offsite_requests: 1,
+            response_bytes: 0,
+            response_status_count: { '429': 1 },
+            last_generated_at: 1099,
+            last_error: 'timeout'
+          },
+          bot_red_team: {
+            beat_attempts: 0,
+            beat_successes: 0,
+            beat_failures: 0,
+            generated_requests: 0,
+            blocked_requests: 0,
+            offsite_requests: 0,
+            response_bytes: 0,
+            response_status_count: {},
+            last_generated_at: null,
+            last_error: ''
+          }
+        },
+        request_failure_classes: {
+          cancelled: { count: 0, last_seen_at: null },
+          timeout: { count: 1, last_seen_at: 1099 },
+          transport: { count: 0, last_seen_at: null },
+          http: { count: 0, last_seen_at: null }
+        }
       }
     });
 
@@ -3366,6 +3552,11 @@ test('dashboard adversary-sim runtime normalizes orchestration status', { concur
     assert.equal(normalized.endsAt, 1180);
     assert.equal(normalized.activeRunCount, 1);
     assert.equal(normalized.activeLaneCount, 2);
+    assert.equal(normalized.desiredLane, 'scrapling_traffic');
+    assert.equal(normalized.activeLane, 'synthetic_traffic');
+    assert.equal(normalized.laneSwitchSeq, 5);
+    assert.equal(normalized.lastLaneSwitchAt, 1100);
+    assert.equal(normalized.lastLaneSwitchReason, 'beat_boundary_reconciliation');
     assert.equal(normalized.remainingSeconds, 120);
     assert.equal(normalized.supervisor.owner, 'backend_autonomous_supervisor');
     assert.equal(normalized.supervisor.cadenceSeconds, 1);
@@ -3373,6 +3564,10 @@ test('dashboard adversary-sim runtime normalizes orchestration status', { concur
     assert.equal(normalized.generationDiagnostics.health, 'ok');
     assert.equal(normalized.generationDiagnostics.generatedTickCount, 3);
     assert.equal(normalized.generationDiagnostics.generatedRequestCount, 12);
+    assert.equal(normalized.laneDiagnostics.schemaVersion, 'v1');
+    assert.equal(normalized.laneDiagnostics.lanes.scraplingTraffic.generatedRequests, 0);
+    assert.equal(normalized.laneDiagnostics.lanes.scraplingTraffic.lastError, 'timeout');
+    assert.equal(normalized.laneDiagnostics.requestFailureClasses.timeout.count, 1);
 
     const renormalized = adversaryModule.normalizeAdversarySimStatus(normalized);
     assert.equal(renormalized.enabled, true);
@@ -3382,6 +3577,9 @@ test('dashboard adversary-sim runtime normalizes orchestration status', { concur
     assert.equal(renormalized.endsAt, 1180);
     assert.equal(renormalized.remainingSeconds, 120);
     assert.equal(renormalized.generationDiagnostics.health, 'ok');
+    assert.equal(renormalized.desiredLane, 'scrapling_traffic');
+    assert.equal(renormalized.activeLane, 'synthetic_traffic');
+    assert.equal(renormalized.laneDiagnostics.lanes.syntheticTraffic.beatAttempts, 6);
   });
 });
 
@@ -3922,6 +4120,37 @@ test('dashboard red team controller reports when a submitted desired state has c
       }
     ]);
     assert.equal(controller.getState().controllerPhase, 'idle');
+  });
+});
+
+test('dashboard red team controller can replace backend status after lane-only control writes', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const controllerModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-red-team-controller.js');
+
+    const controller = controllerModule.createDashboardRedTeamController({
+      initialStatus: {
+        adversary_sim_enabled: false,
+        generation_active: false,
+        phase: 'off',
+        desired_lane: 'synthetic_traffic',
+        active_lane: null
+      }
+    });
+
+    controller.replaceBackendStatus({
+      adversary_sim_enabled: false,
+      generation_active: false,
+      phase: 'off',
+      desired_lane: 'scrapling_traffic',
+      active_lane: null,
+      lane_switch_seq: 2
+    });
+
+    const state = controller.getState();
+    assert.equal(state.uiDesiredEnabled, false);
+    assert.equal(state.lastBackendDesiredEnabled, false);
+    assert.equal(state.backendStatus.desired_lane, 'scrapling_traffic');
+    assert.equal(state.backendStatus.lane_switch_seq, 2);
   });
 });
 
@@ -4624,9 +4853,29 @@ test('red team tab reuses verification-style config panel primitives for its adv
   );
   assert.match(redTeamTabSource, /class="controls-grid controls-grid--config"/);
   assert.match(redTeamTabSource, /<ConfigPanel writable=\{true\} dirty=\{false\}>/);
+  assert.match(redTeamTabSource, /<div class="admin-controls">/);
+  assert.match(redTeamTabSource, /<div class="input-row"/);
+  assert.match(redTeamTabSource, /<label class="control-label control-label--wide" for="adversary-sim-lane-select">Lane<\/label>/);
+  assert.match(redTeamTabSource, /<select[\s\S]*id="adversary-sim-lane-select"[\s\S]*class="input-field"[\s\S]*on:change=\{handleLaneChange\}/m);
+  assert.match(redTeamTabSource, /<option value="synthetic_traffic">Synthetic Traffic<\/option>/);
+  assert.match(redTeamTabSource, /<option value="scrapling_traffic">Scrapling Traffic<\/option>/);
+  assert.match(redTeamTabSource, /<option value="bot_red_team" disabled>Bot Red Team \(coming soon\)<\/option>/);
   assert.match(redTeamTabSource, /<p id="adversary-sim-lifecycle-copy" class="control-desc text-muted">\{lifecycleCopy\}<\/p>/);
   assert.match(redTeamTabSource, /class="dashboard-adversary-sim-progress"/);
   assert.match(redTeamTabSource, /class="dashboard-adversary-sim-progress__fill"/);
+  assert.match(redTeamTabSource, /export let laneValue = 'synthetic_traffic';/);
+  assert.match(redTeamTabSource, /export let laneDisabled = false;/);
+  assert.match(redTeamTabSource, /export let laneDisabledReason = '';/);
+  assert.match(redTeamTabSource, /export let onLaneChange = null;/);
+  assert.match(redTeamTabSource, /function handleLaneChange\(event\)/);
+  assert.match(redTeamTabSource, /<div class="status-item">[\s\S]*<h3>Lane State<\/h3>/m);
+  assert.match(redTeamTabSource, /Desired lane:/);
+  assert.match(redTeamTabSource, /Active lane:/);
+  assert.match(redTeamTabSource, /Switch sequence:/);
+  assert.match(redTeamTabSource, /<div class="status-item">[\s\S]*<h3>Lane Diagnostics<\/h3>/m);
+  assert.match(redTeamTabSource, /Beat attempts:/);
+  assert.match(redTeamTabSource, /Generated requests:/);
+  assert.match(redTeamTabSource, /Failure classes:/);
 });
 
 test('red team adversary-sim progress bar animates stripe motion and respects reduced motion', () => {
@@ -4726,6 +4975,7 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   );
   assert.match(source, /onGlobalShadowModeToggleChange/);
   assert.match(source, /onGlobalAdversarySimToggleChange/);
+  assert.match(source, /onAdversarySimLaneChange/);
   assert.match(source, /controlAdversarySimWithRetry/);
   assert.match(source, /deriveDashboardRequestBudgets/);
   assert.match(source, /function isAuthSessionExpiredError\(error\)/);
@@ -4748,6 +4998,11 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
     source,
     /controlDashboardAdversarySim\(desiredEnabled,\s*\{\s*timeoutMs:\s*dashboardRequestBudgets\.adversarySimControlTimeoutMs/s
   );
+  assert.match(
+    source,
+    /controlAdversarySimWithRetry\(\s*\(\) => withRefreshedSessionOnAuthError\(\s*\(\) => controlDashboardAdversarySim\(desiredEnabled,\s*\{\s*lane:\s*nextLane,\s*timeoutMs:\s*dashboardRequestBudgets\.adversarySimControlTimeoutMs/s
+  );
+  assert.match(source, /adversarySimController\.replaceBackendStatus\(response\.status\);/);
   assert.match(source, /banDashboardIp\(ip, duration, 'manual_ban',\s*\{/);
   assert.match(source, /unbanDashboardIp\(ip,\s*\{/);
   assert.match(source, /status === 401/);
@@ -4768,10 +5023,16 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   );
   assert.match(source, /adversarySimEnabled:\s*normalizedAdversarySimStatus\.enabled === true/);
   assert.match(source, /globalAdversarySimToggleDisabled = deriveGlobalControlDisabled\(/);
+  assert.match(source, /globalAdversarySimLaneDisabled = deriveGlobalControlDisabled\(/);
+  assert.match(source, /globalAdversarySimLaneDisabledReason = globalAdversarySimLaneDisabled/);
   assert.match(source, /void adversarySimController\.handleToggleIntent\(nextValue\);/);
   assert.match(source, /paneNoticeValues = DASHBOARD_TABS\.reduce\(/);
   assert.match(source, /const notice = paneNotices\[tab\];/);
   assert.match(source, /noticeText=\{paneNoticeValues\['red-team'\]\?\.text \|\| ''\}/);
+  assert.match(source, /laneValue=\{normalizedAdversarySimStatus\.desiredLane\}/);
+  assert.match(source, /laneDisabled=\{globalAdversarySimLaneDisabled\}/);
+  assert.match(source, /laneDisabledReason=\{globalAdversarySimLaneDisabledReason\}/);
+  assert.match(source, /onLaneChange=\{onAdversarySimLaneChange\}/);
   assert.match(source, /noticeText=\{paneNoticeValues\['ip-bans'\]\?\.text \|\| ''\}/);
   assert.match(source, /noticeText=\{paneNoticeValues\.verification\?\.text \|\| ''\}/);
 });

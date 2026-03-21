@@ -619,6 +619,10 @@ Lifecycle semantics:
    - `desired_lane` vs `active_lane` expresses operator intent versus beat-boundary runtime truth,
    - `lane_diagnostics` now carries live per-lane counters (`beat_attempts`, `beat_successes`, `beat_failures`, `generated_requests`, `blocked_requests`, `offsite_requests`, `response_bytes`, `response_status_count`, `last_generated_at`, `last_error`),
    - and `lane_diagnostics.request_failure_classes` tracks `cancelled`, `timeout`, `transport`, and `http` failure buckets across worker and internal generation paths.
+8. The Dashboard Red Team tab now exposes the same lane contract directly to operators:
+   - the lane selector can preselect `synthetic_traffic` or `scrapling_traffic` even while the simulator is off,
+   - `bot_red_team` remains visible but disabled until that lane exists,
+   - and the tab renders desired lane, active lane, switch metadata, and lane diagnostics without collapsing desired-versus-active divergence.
 
 Guardrail constants (hard-coded, not operator-configurable):
 

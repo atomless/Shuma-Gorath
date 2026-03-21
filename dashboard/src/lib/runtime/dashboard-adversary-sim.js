@@ -1,6 +1,11 @@
 // @ts-check
 
 const DEFAULT_DURATION_SECONDS = 180;
+const ADVERSARY_SIM_LANES = Object.freeze([
+  'synthetic_traffic',
+  'scrapling_traffic',
+  'bot_red_team'
+]);
 const hasOwn = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
 
 /**
@@ -45,6 +50,160 @@ function toSafeNumber(value, fallback = 0) {
 
 /**
  * @param {unknown} value
+ * @returns {Record<string, unknown>}
+ */
+function asRecord(value) {
+  return value && typeof value === 'object'
+    ? /** @type {Record<string, unknown>} */ (value)
+    : {};
+}
+
+/**
+ * @param {unknown} value
+ * @param {string} fallback
+ * @returns {string}
+ */
+function normalizeLane(value, fallback = 'synthetic_traffic') {
+  const normalized = String(value || '').trim().toLowerCase();
+  return ADVERSARY_SIM_LANES.includes(normalized) ? normalized : fallback;
+}
+
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
+function normalizeOptionalLane(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  return ADVERSARY_SIM_LANES.includes(normalized) ? normalized : '';
+}
+
+/**
+ * @param {unknown} value
+ * @returns {Record<string, number>}
+ */
+function normalizeCountMap(value) {
+  const source = asRecord(value);
+  return Object.entries(source).reduce((next, [key, rawValue]) => {
+    const normalizedKey = String(key || '').trim();
+    if (!normalizedKey) return next;
+    next[normalizedKey] = Math.max(0, Math.floor(toSafeNumber(rawValue, 0)));
+    return next;
+  }, /** @type {Record<string, number>} */ ({}));
+}
+
+/**
+ * @param {Record<string, unknown>} source
+ * @returns {{
+ *   beatAttempts: number,
+ *   beatSuccesses: number,
+ *   beatFailures: number,
+ *   generatedRequests: number,
+ *   blockedRequests: number,
+ *   offsiteRequests: number,
+ *   responseBytes: number,
+ *   responseStatusCount: Record<string, number>,
+ *   lastGeneratedAt: number,
+ *   lastError: string
+ * }}
+ */
+function normalizeLaneCounterState(source = {}) {
+  return {
+    beatAttempts: Math.max(0, Math.floor(toSafeNumber(pick(source, 'beat_attempts', 'beatAttempts', 0), 0))),
+    beatSuccesses: Math.max(0, Math.floor(toSafeNumber(pick(source, 'beat_successes', 'beatSuccesses', 0), 0))),
+    beatFailures: Math.max(0, Math.floor(toSafeNumber(pick(source, 'beat_failures', 'beatFailures', 0), 0))),
+    generatedRequests: Math.max(
+      0,
+      Math.floor(toSafeNumber(pick(source, 'generated_requests', 'generatedRequests', 0), 0))
+    ),
+    blockedRequests: Math.max(
+      0,
+      Math.floor(toSafeNumber(pick(source, 'blocked_requests', 'blockedRequests', 0), 0))
+    ),
+    offsiteRequests: Math.max(
+      0,
+      Math.floor(toSafeNumber(pick(source, 'offsite_requests', 'offsiteRequests', 0), 0))
+    ),
+    responseBytes: Math.max(
+      0,
+      Math.floor(toSafeNumber(pick(source, 'response_bytes', 'responseBytes', 0), 0))
+    ),
+    responseStatusCount: normalizeCountMap(
+      pick(source, 'response_status_count', 'responseStatusCount', {})
+    ),
+    lastGeneratedAt: Math.max(
+      0,
+      Math.floor(toSafeNumber(pick(source, 'last_generated_at', 'lastGeneratedAt', 0), 0))
+    ),
+    lastError: String(pick(source, 'last_error', 'lastError', '') || '')
+  };
+}
+
+/**
+ * @param {Record<string, unknown>} source
+ * @returns {{ count: number, lastSeenAt: number }}
+ */
+function normalizeFailureClassCounter(source = {}) {
+  return {
+    count: Math.max(0, Math.floor(toSafeNumber(pick(source, 'count', 'count', 0), 0))),
+    lastSeenAt: Math.max(0, Math.floor(toSafeNumber(pick(source, 'last_seen_at', 'lastSeenAt', 0), 0)))
+  };
+}
+
+/**
+ * @param {unknown} value
+ * @returns {{
+ *   schemaVersion: string,
+ *   lanes: {
+ *     syntheticTraffic: ReturnType<typeof normalizeLaneCounterState>,
+ *     scraplingTraffic: ReturnType<typeof normalizeLaneCounterState>,
+ *     botRedTeam: ReturnType<typeof normalizeLaneCounterState>
+ *   },
+ *   requestFailureClasses: {
+ *     cancelled: ReturnType<typeof normalizeFailureClassCounter>,
+ *     timeout: ReturnType<typeof normalizeFailureClassCounter>,
+ *     transport: ReturnType<typeof normalizeFailureClassCounter>,
+ *     http: ReturnType<typeof normalizeFailureClassCounter>
+ *   }
+ * }}
+ */
+function normalizeLaneDiagnostics(value) {
+  const source = asRecord(value);
+  const lanesRaw = asRecord(pick(source, 'lanes', 'lanes', {}));
+  const failureClassesRaw = asRecord(
+    pick(source, 'request_failure_classes', 'requestFailureClasses', {})
+  );
+  return {
+    schemaVersion: String(pick(source, 'schema_version', 'schemaVersion', '') || ''),
+    lanes: {
+      syntheticTraffic: normalizeLaneCounterState(
+        asRecord(pick(lanesRaw, 'synthetic_traffic', 'syntheticTraffic', {}))
+      ),
+      scraplingTraffic: normalizeLaneCounterState(
+        asRecord(pick(lanesRaw, 'scrapling_traffic', 'scraplingTraffic', {}))
+      ),
+      botRedTeam: normalizeLaneCounterState(
+        asRecord(pick(lanesRaw, 'bot_red_team', 'botRedTeam', {}))
+      )
+    },
+    requestFailureClasses: {
+      cancelled: normalizeFailureClassCounter(
+        asRecord(pick(failureClassesRaw, 'cancelled', 'cancelled', {}))
+      ),
+      timeout: normalizeFailureClassCounter(
+        asRecord(pick(failureClassesRaw, 'timeout', 'timeout', {}))
+      ),
+      transport: normalizeFailureClassCounter(
+        asRecord(pick(failureClassesRaw, 'transport', 'transport', {}))
+      ),
+      http: normalizeFailureClassCounter(
+        asRecord(pick(failureClassesRaw, 'http', 'http', {}))
+      )
+    }
+  };
+}
+
+/**
+ * @param {unknown} value
  * @returns {'off' | 'running' | 'stopping'}
  */
 function normalizePhase(value) {
@@ -72,7 +231,13 @@ function normalizePhase(value) {
  *   remainingSeconds: number,
  *   activeRunCount: number,
  *   activeLaneCount: number,
+ *   desiredLane: string,
+ *   activeLane: string,
+ *   laneSwitchSeq: number,
+ *   lastLaneSwitchAt: number,
+ *   lastLaneSwitchReason: string,
  *   queuePolicy: string,
+ *   laneDiagnostics: ReturnType<typeof normalizeLaneDiagnostics>,
  *   supervisor: {
  *     owner: string,
  *     cadenceSeconds: number,
@@ -107,6 +272,7 @@ export function normalizeAdversarySimStatus(payload) {
   const generationDiagnostics = generationDiagnosticsRaw && typeof generationDiagnosticsRaw === 'object'
     ? /** @type {Record<string, unknown>} */ (generationDiagnosticsRaw)
     : {};
+  const laneDiagnosticsRaw = pick(source, 'lane_diagnostics', 'laneDiagnostics', {});
   const supervisorRaw = pick(source, 'supervisor', 'supervisor', {});
   const supervisor = supervisorRaw && typeof supervisorRaw === 'object'
     ? /** @type {Record<string, unknown>} */ (supervisorRaw)
@@ -157,7 +323,21 @@ export function normalizeAdversarySimStatus(payload) {
       0,
       Math.floor(toSafeNumber(pick(source, 'active_lane_count', 'activeLaneCount', 0), 0))
     ),
+    desiredLane: normalizeLane(pick(source, 'desired_lane', 'desiredLane', 'synthetic_traffic')),
+    activeLane: normalizeOptionalLane(pick(source, 'active_lane', 'activeLane', '')),
+    laneSwitchSeq: Math.max(
+      0,
+      Math.floor(toSafeNumber(pick(source, 'lane_switch_seq', 'laneSwitchSeq', 0), 0))
+    ),
+    lastLaneSwitchAt: Math.max(
+      0,
+      Math.floor(toSafeNumber(pick(source, 'last_lane_switch_at', 'lastLaneSwitchAt', 0), 0))
+    ),
+    lastLaneSwitchReason: String(
+      pick(source, 'last_lane_switch_reason', 'lastLaneSwitchReason', '') || ''
+    ),
     queuePolicy: String(pick(source, 'queue_policy', 'queuePolicy', '') || ''),
+    laneDiagnostics: normalizeLaneDiagnostics(laneDiagnosticsRaw),
     supervisor: {
       owner: String(pick(supervisor, 'owner', 'owner', '') || ''),
       cadenceSeconds: Math.max(

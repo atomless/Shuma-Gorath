@@ -52,6 +52,8 @@ Completed archive index:
    Post-implementation review confirming the control path now persists strict lane selection, exposes requested/desired/actual lane auditability, keeps idempotency lane-aware, and still truthfully reports `synthetic_traffic` as the active lane until worker routing lands.
 10. [`2026-03-20-sim-scr-6-scrapling-worker-post-implementation-review.md`](2026-03-20-sim-scr-6-scrapling-worker-post-implementation-review.md)
    Post-implementation review confirming heartbeat lane routing now dispatches the real bounded Scrapling worker, records live lane diagnostics through the internal worker-result contract, and leaves deployment-level egress isolation as the remaining follow-on hardening note for the operator-workflow tranche.
+11. [`2026-03-20-sim-scr-7-dashboard-lane-controls-post-implementation-review.md`](2026-03-20-sim-scr-7-dashboard-lane-controls-post-implementation-review.md)
+   Post-implementation review confirming the dashboard now exposes the settled lane selector, desired-versus-active lane truth, focused module + Playwright verification, and leaves the operator-rollout tranche as the next remaining slice.
 
 ## 🐙 Gateway Deployment Research
 

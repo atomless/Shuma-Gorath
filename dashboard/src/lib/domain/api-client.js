@@ -80,6 +80,108 @@ const parseRetryAfterSeconds = (value) => {
 const asRecord = (value) =>
   value && typeof value === 'object' ? /** @type {Record<string, unknown>} */ (value) : {};
 
+const ADVERSARY_SIM_LANES = Object.freeze([
+  'synthetic_traffic',
+  'scrapling_traffic',
+  'bot_red_team'
+]);
+
+/**
+ * @param {unknown} value
+ * @param {string} fallback
+ * @returns {string}
+ */
+const normalizeAdversarySimLane = (value, fallback = 'synthetic_traffic') => {
+  const normalized = String(value || '').trim().toLowerCase();
+  return ADVERSARY_SIM_LANES.includes(normalized) ? normalized : fallback;
+};
+
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
+const normalizeOptionalAdversarySimLane = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  return ADVERSARY_SIM_LANES.includes(normalized) ? normalized : '';
+};
+
+/**
+ * @param {unknown} value
+ * @returns {number | null}
+ */
+const adaptOptionalNumber = (value) => {
+  if (value === null || value === undefined || value === '') return null;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+};
+
+/**
+ * @param {unknown} value
+ * @returns {Record<string, number>}
+ */
+const adaptCountMap = (value) => {
+  const source = asRecord(value);
+  return Object.entries(source).reduce((next, [key, rawValue]) => {
+    const normalizedKey = String(key || '').trim();
+    if (!normalizedKey) return next;
+    next[normalizedKey] = Number(rawValue || 0);
+    return next;
+  }, /** @type {Record<string, number>} */ ({}));
+};
+
+/**
+ * @param {unknown} value
+ */
+const adaptLaneCounterState = (value) => {
+  const source = asRecord(value);
+  return {
+    beat_attempts: Number(source.beat_attempts || 0),
+    beat_successes: Number(source.beat_successes || 0),
+    beat_failures: Number(source.beat_failures || 0),
+    generated_requests: Number(source.generated_requests || 0),
+    blocked_requests: Number(source.blocked_requests || 0),
+    offsite_requests: Number(source.offsite_requests || 0),
+    response_bytes: Number(source.response_bytes || 0),
+    response_status_count: adaptCountMap(source.response_status_count),
+    last_generated_at: adaptOptionalNumber(source.last_generated_at),
+    last_error: String(source.last_error || '')
+  };
+};
+
+/**
+ * @param {unknown} value
+ */
+const adaptFailureClassCounter = (value) => {
+  const source = asRecord(value);
+  return {
+    count: Number(source.count || 0),
+    last_seen_at: adaptOptionalNumber(source.last_seen_at)
+  };
+};
+
+/**
+ * @param {unknown} value
+ */
+const adaptLaneDiagnostics = (value) => {
+  const source = asRecord(value);
+  const lanes = asRecord(source.lanes);
+  const requestFailureClasses = asRecord(source.request_failure_classes);
+  return {
+    schema_version: String(source.schema_version || ''),
+    lanes: {
+      synthetic_traffic: adaptLaneCounterState(lanes.synthetic_traffic),
+      scrapling_traffic: adaptLaneCounterState(lanes.scrapling_traffic),
+      bot_red_team: adaptLaneCounterState(lanes.bot_red_team)
+    },
+    request_failure_classes: {
+      cancelled: adaptFailureClassCounter(requestFailureClasses.cancelled),
+      timeout: adaptFailureClassCounter(requestFailureClasses.timeout),
+      transport: adaptFailureClassCounter(requestFailureClasses.transport),
+      http: adaptFailureClassCounter(requestFailureClasses.http)
+    }
+  };
+};
+
 /**
  * @param {unknown} value
  * @param {number} fallback
@@ -380,10 +482,16 @@ export const adaptAdversarySimStatus = (payload) => {
     remaining_seconds: Number(source.remaining_seconds || 0),
     active_run_count: Number(source.active_run_count || 0),
     active_lane_count: Number(source.active_lane_count || 0),
+    desired_lane: normalizeAdversarySimLane(source.desired_lane),
+    active_lane: normalizeOptionalAdversarySimLane(source.active_lane),
+    lane_switch_seq: Number(source.lane_switch_seq || 0),
+    last_lane_switch_at: adaptOptionalNumber(source.last_lane_switch_at),
+    last_lane_switch_reason: String(source.last_lane_switch_reason || ''),
     lanes: {
       deterministic: String(lanes.deterministic || 'off'),
       containerized: String(lanes.containerized || 'off')
     },
+    lane_diagnostics: adaptLaneDiagnostics(source.lane_diagnostics),
     queue_policy: String(source.queue_policy || ''),
     guardrails: {
       max_duration_seconds: Number(guardrails.max_duration_seconds || 0),
@@ -917,19 +1025,30 @@ export const create = (options = {}) => {
 
   /**
    * @param {boolean} enabled
-   * @param {RequestOptions} [requestOptions]
+   * @param {RequestOptions & { lane?: string }} [requestOptions]
    */
   const controlAdversarySim = async (enabled, requestOptions = {}) => {
+    const controlOptions = asRecord(requestOptions);
+    const headers = controlOptions.headers ? controlOptions.headers : {};
+    const normalizedLane = normalizeOptionalAdversarySimLane(controlOptions.lane);
+    const payloadBody = normalizedLane
+      ? {
+        enabled: enabled === true,
+        lane: normalizedLane
+      }
+      : {
+        enabled: enabled === true
+      };
     const idempotencyKey = newIdempotencyKey();
     const payload = asRecord(
       await request('/admin/adversary-sim/control', {
         ...requestOptions,
         method: 'POST',
         headers: {
-          ...(requestOptions && requestOptions.headers ? requestOptions.headers : {}),
+          ...headers,
           'Idempotency-Key': idempotencyKey
         },
-        json: { enabled: enabled === true }
+        json: payloadBody
       })
     );
     return {

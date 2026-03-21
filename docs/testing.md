@@ -41,8 +41,10 @@ make test-sim2-governance-contract # SIM2 hybrid lane + governance contract conf
 make test-ip-range-suggestions # Focused IP-range suggestion regression gate (runtime + dashboard)
 make test-coverage    # Unit coverage to lcov.info (requires cargo-llvm-cov)
 make test-dashboard-unit # Dashboard module unit tests (Node `node:test`)
+make test-dashboard-adversary-sim-lane-contract # Focused dashboard lane-contract checks for the red-team lane selector + diagnostics
 make test-dashboard-budgets # Dashboard /_app bundle-size ceilings report (warn-only by default)
 make test-dashboard-budgets-strict # Dashboard /_app bundle-size ceilings (hard-fail)
+make test-dashboard-e2e-adversary-sim # Focused Playwright adversary-sim dashboard smoke checks
 make test-dashboard-e2e # Playwright dashboard smoke tests (waits for existing Spin readiness)
 make seed-dashboard-data # Seed local dashboard sample records against running Spin
 make test-dashboard   # Manual dashboard checklist

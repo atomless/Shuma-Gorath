@@ -4,6 +4,31 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-20)
 
+### SIM-SCR-7: Add Dashboard Lane Controls And Diagnostics
+
+- [x] Complete `SIM-SCR-7` by extending the dashboard adversary-sim adapters/runtime with lane fields and diagnostics, adding the Red Team tab lane selector plus desired-versus-active state rendering, keeping `bot_red_team` visibly disabled, adding focused `make test-dashboard-adversary-sim-lane-contract` and `make test-dashboard-e2e-adversary-sim` proof, and updating operator/testing docs to describe the settled dashboard lane surface truthfully.
+- [x] Why:
+  - once `SIM-SCR-6` landed the real Scrapling worker, the next risk was leaving the operator surface on the old toggle-only model while the backend had already moved to explicit desired/active lane truth. The dashboard needed to catch up before rollout guidance could be trusted.
+  - the cleanest path was additive reuse, not a new dashboard pattern: existing Red Team lifecycle ownership stayed in the controller, lane writes still went through the same control endpoint, and the selector reused canonical shared `input-row`, `input-field`, and `status-item` styles.
+  - the tranche needed rendered proof, not only adapter tests. The closeout therefore added one focused Playwright assertion that the lane selector persists an off-state lane choice, renders desired versus active lane honestly, and keeps `bot_red_team` disabled.
+- [x] Evidence:
+  - `dashboard/src/lib/domain/api-client.js`
+  - `dashboard/src/lib/runtime/dashboard-adversary-sim.js`
+  - `dashboard/src/lib/runtime/dashboard-red-team-controller.js`
+  - `dashboard/src/routes/+page.svelte`
+  - `dashboard/src/lib/components/dashboard/RedTeamTab.svelte`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `e2e/dashboard.smoke.spec.js`
+  - `Makefile`
+  - `docs/adversarial-operator-guide.md`
+  - `docs/testing.md`
+  - `docs/research/2026-03-20-sim-scr-7-dashboard-lane-controls-post-implementation-review.md`
+  - `make test-dashboard-adversary-sim-lane-contract`
+  - `make test-dashboard-unit`
+  - `make test-dashboard-e2e-adversary-sim`
+  - `git diff --check`
+  - post-tranche review: the live closeout found two tranche-local proof gaps and two e2e harness gaps before completion. The proof gaps were corrected by adding a truthful focused `make test-dashboard-adversary-sim-lane-contract` target and a rendered Playwright lane-selector assertion. The harness gaps were corrected by restoring `desired_lane` as part of adversary-sim Playwright cleanup and by waiting for the direct bearer control lease to expire before exercising the dashboard session write path. No new architectural shortfall remains inside `SIM-SCR-7`; the next optimal tranche remains `SIM-SCR-8`, which should close operator rollout/rollback guidance, hosted-scope deployment egress hardening notes, and final tranche evidence
+
 ### SIM-SCR-6: Route Heartbeat Execution Through The Selected Lane And Integrate The Real Scrapling Worker
 
 - [x] Complete `SIM-SCR-6` by routing heartbeat execution through the selected runtime lane, dispatching a real bounded Scrapling worker under the shared-host scope-and-seed gate, persisting worker results through the internal supervisor contract, provisioning the repo-owned `.venv-scrapling` runtime through setup flows, adding the focused `make test-adversary-sim-scrapling-worker` gate, and updating the API/operator/testing docs to describe the real worker path truthfully.

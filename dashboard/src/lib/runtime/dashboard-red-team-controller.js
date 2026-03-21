@@ -349,6 +349,12 @@ export function createDashboardRedTeamController(options = {}) {
     async refreshStatus(reason = 'manual') {
       return refreshStatus(reason);
     },
+    replaceBackendStatus(status) {
+      setBackendStatus(status, true);
+      emit();
+      schedulePoll();
+      return snapshot();
+    },
     handleToggleIntent(nextEnabled) {
       const desiredEnabled = nextEnabled === true;
       clearDebounceTimer();
