@@ -287,8 +287,14 @@ const adaptTopIps = (value) => {
  */
 export const adaptAnalytics = (payload) => {
   const source = asRecord(payload);
+  const rawBanCount = source.ban_count;
+  const banCount = rawBanCount === null || rawBanCount === undefined || rawBanCount === ''
+    ? null
+    : Number(rawBanCount || 0);
   return {
-    ban_count: Number(source.ban_count || 0),
+    ban_count: Number.isFinite(banCount) && banCount >= 0 ? banCount : null,
+    ban_store_status: String(source.ban_store_status || 'available'),
+    ban_store_message: String(source.ban_store_message || ''),
     shadow_mode: source.shadow_mode === true,
     fail_mode: source.fail_mode || 'open'
   };
@@ -314,7 +320,9 @@ export const adaptEvents = (payload) => {
 export const adaptBans = (payload) => {
   const source = asRecord(payload);
   return {
-    bans: asObjectArray(source.bans)
+    bans: asObjectArray(source.bans),
+    status: String(source.status || 'available'),
+    message: String(source.message || '')
   };
 };
 
@@ -323,10 +331,14 @@ export const adaptBans = (payload) => {
  */
 export const adaptMaze = (payload) => {
   const source = asRecord(payload);
+  const rawMazeAutoBans = source.maze_auto_bans;
+  const mazeAutoBans = rawMazeAutoBans === null || rawMazeAutoBans === undefined || rawMazeAutoBans === ''
+    ? null
+    : Number(rawMazeAutoBans || 0);
   return {
     total_hits: Number(source.total_hits || 0),
     unique_crawlers: Number(source.unique_crawlers || 0),
-    maze_auto_bans: Number(source.maze_auto_bans || 0),
+    maze_auto_bans: Number.isFinite(mazeAutoBans) && mazeAutoBans >= 0 ? mazeAutoBans : null,
     top_crawlers: Array.isArray(source.top_crawlers) ? source.top_crawlers : []
   };
 };
@@ -400,6 +412,8 @@ export const adaptCursorDelta = (payload) => {
     events: asObjectArray(source.events),
     recent_sim_runs: asObjectArray(source.recent_sim_runs),
     active_bans: asObjectArray(source.active_bans),
+    active_bans_status: String(source.active_bans_status || 'available'),
+    active_bans_message: String(source.active_bans_message || ''),
     freshness: asRecord(source.freshness),
     stream_supported: source.stream_supported === true,
     stream_endpoint: String(source.stream_endpoint || '')

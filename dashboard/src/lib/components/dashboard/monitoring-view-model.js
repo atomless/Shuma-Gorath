@@ -782,10 +782,13 @@ export const formatMetricLabel = (key, fallbackMap) => {
 export const deriveMazeStatsViewModel = (data = {}) => {
   const topCrawler =
     Array.isArray(data.top_crawlers) && data.top_crawlers.length ? data.top_crawlers[0] : null;
+  const mazeAutoBans = data.maze_auto_bans === null || data.maze_auto_bans === undefined
+    ? 'Unavailable'
+    : formatCompactNumber(data.maze_auto_bans, '0');
   return {
     totalHits: formatCompactNumber(data.total_hits, '0'),
     uniqueCrawlers: formatCompactNumber(data.unique_crawlers, '0'),
-    mazeAutoBans: formatCompactNumber(data.maze_auto_bans, '0'),
+    mazeAutoBans,
     topOffender: deriveTopOffenderViewModel(
       topCrawler?.ip,
       topCrawler?.hits,

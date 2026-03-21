@@ -803,10 +803,24 @@ test-enterprise-ban-store-contract: ## Run focused enterprise ban-store outage-m
 	@cargo test providers::external::tests::distributed_ban_ -- --nocapture
 	@cargo test providers::external::tests::distributed_unban_ -- --nocapture
 	@cargo test providers::registry::tests::registry_reports_active_provider_implementation_labels -- --exact --nocapture
+	@cargo test admin::api::tests::handle_admin_ip_bans_delta_marks_active_bans_unavailable_when_strict_backend_is_unavailable -- --exact --nocapture
+	@cargo test admin::api::admin_config_tests::monitoring_details_payload_marks_ban_state_unavailable_when_strict_backend_is_unavailable -- --exact --nocapture
 	@cargo test admin::api::admin_config_tests::manual_ban_write_result_returns_503_without_logging_success_when_sync_fails -- --exact --nocapture
 	@cargo test admin::api::admin_config_tests::manual_unban_write_result_returns_503_without_logging_success_when_sync_fails -- --exact --nocapture
 	@cargo test admin::api::admin_config_tests::active_ban_list_result_returns_503_when_backend_is_unavailable -- --exact --nocapture
 	@cargo test admin::api::admin_config_tests::admin_config_export_returns_non_secret_runtime_values -- --exact --nocapture
+	@if ! command -v corepack >/dev/null 2>&1; then \
+		echo "$(RED)❌ Error: corepack not found (install Node.js 18+).$(NC)"; \
+		exit 1; \
+	fi
+	@corepack enable > /dev/null 2>&1 || true
+	@if [ ! -d node_modules/.pnpm ] || [ ! -x node_modules/.bin/vite ] || [ ! -x node_modules/.bin/svelte-check ] || [ ! -d node_modules/svelte ] || [ ! -d node_modules/@sveltejs/kit ] || [ ! -d node_modules/@playwright/test ]; then \
+		corepack pnpm install --offline --frozen-lockfile || corepack pnpm install --frozen-lockfile; \
+	fi
+	@$(MAKE) --no-print-directory test-dashboard-svelte-check
+	@node --test \
+		--test-name-pattern='dashboard API adapters normalize sparse payloads safely|dashboard API client exposes cursor-delta and stream URL helpers for realtime tabs|dashboard refresh runtime preserves unavailable ban-state markers instead of coercing them to zero' \
+		e2e/dashboard.modules.unit.test.js
 
 test-telemetry-storage: ## Run focused telemetry storage/query verification for indexed reads, retention tiers, rollups, and shared-host evidence tooling
 	@echo "$(CYAN)🧪 Running telemetry storage/query verification...$(NC)"

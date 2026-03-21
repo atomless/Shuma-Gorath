@@ -844,6 +844,10 @@
     ? 'IP range policy has unsaved changes'
     : 'No unsaved changes';
   $: warnOnUnload = writable && (ipRangeDirty || bypassAllowlistsDirty);
+  $: banSnapshotStatus = String(bansSnapshot?.status || 'available').trim().toLowerCase() || 'available';
+  $: banSnapshotUnavailableMessage = banSnapshotStatus === 'unavailable'
+    ? String(bansSnapshot?.message || '').trim()
+    : '';
   $: bans = Array.isArray(bansSnapshot?.bans) ? bansSnapshot.bans : [];
   $: banRows = bans.map((ban, index) => ({
     ban,
@@ -963,6 +967,11 @@
     <p class="control-desc text-muted">
       {filteredBanRows.length} shown of {bans.length}.
     </p>
+    {#if banSnapshotUnavailableMessage}
+      <p id="ip-bans-state-unavailable" class="message warning">
+        {banSnapshotUnavailableMessage}
+      </p>
+    {/if}
   </div>
 
   <TableWrapper>
@@ -980,7 +989,9 @@
       <tbody>
         {#if filteredBanRows.length === 0}
           <TableEmptyRow colspan={6}>
-            {#if banFilter === 'ip-range'}
+            {#if banSnapshotUnavailableMessage}
+              Authoritative active-ban state unavailable
+            {:else if banFilter === 'ip-range'}
               No active <abbr title="Internet Protocol">IP</abbr> range policy bans
             {:else}
               No active bans

@@ -17,6 +17,12 @@
     'Monitoring freshness is degraded or stale. Missing run rows may indicate delayed telemetry rather than no attacks.';
 
   $: isDegraded = freshnessStateKey === 'degraded' || freshnessStateKey === 'stale';
+  $: activeBanCountLabel = (() => {
+    if (activeBanCount === null || activeBanCount === undefined || activeBanCount === '') return '-';
+    const parsed = Number(activeBanCount);
+    if (Number.isFinite(parsed)) return formatCompactNumber(parsed, '0');
+    return String(activeBanCount);
+  })();
 </script>
 
 <SectionBlock
@@ -24,7 +30,7 @@
   {description}
 >
   <p id="adversary-run-summary" class="control-desc text-muted">
-    {@html summaryLabel}: {formatCompactNumber(activeBanCount, '0')}
+    {@html summaryLabel}: {activeBanCountLabel}
   </p>
   {#if !loading && runRows.length === 0 && isDegraded}
     <p id="adversary-run-state-degraded" class="message warning">

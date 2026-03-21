@@ -2874,6 +2874,45 @@ mod tests {
     }
 
     #[test]
+    fn handle_admin_ip_bans_delta_marks_active_bans_unavailable_when_strict_backend_is_unavailable()
+    {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_BAN_STORE_OUTAGE_MODE", "fail_closed");
+        std::env::remove_var("SHUMA_BAN_STORE_REDIS_URL");
+        let store = MockStore::new();
+        let mut cfg = crate::config::defaults().clone();
+        cfg.provider_backends.ban_store = crate::config::ProviderBackend::External;
+        store
+            .set("config:default", serde_json::to_vec(&cfg).unwrap().as_slice())
+            .unwrap();
+
+        let mut builder = Request::builder();
+        builder.method(Method::Get).uri("/admin/ip-bans/delta?hours=1&limit=10");
+        let req = builder.build();
+        let resp = handle_admin_ip_bans_delta(&req, &store, "default");
+        assert_eq!(*resp.status(), 200u16);
+        let payload: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+        assert_eq!(
+            payload.get("active_bans_status").and_then(|value| value.as_str()),
+            Some("unavailable")
+        );
+        assert_eq!(
+            payload
+                .get("active_bans")
+                .and_then(|value| value.as_array())
+                .map(|value| value.len()),
+            Some(0)
+        );
+        assert!(payload
+            .get("active_bans_message")
+            .and_then(|value| value.as_str())
+            .unwrap_or("")
+            .contains("authoritative backend access"));
+
+        std::env::remove_var("SHUMA_BAN_STORE_OUTAGE_MODE");
+    }
+
+    #[test]
     fn load_recent_event_records_ignore_legacy_v1_pages() {
         let store = MockStore::new();
         let now = now_ts();
@@ -8243,6 +8282,52 @@ mod admin_config_tests {
     }
 
     #[test]
+    fn monitoring_details_payload_marks_ban_state_unavailable_when_strict_backend_is_unavailable()
+    {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_BAN_STORE_OUTAGE_MODE", "fail_closed");
+        std::env::remove_var("SHUMA_BAN_STORE_REDIS_URL");
+        let store = TestStore::default();
+        let mut cfg = crate::config::defaults().clone();
+        cfg.provider_backends.ban_store = crate::config::ProviderBackend::External;
+        store
+            .set("config:default", serde_json::to_vec(&cfg).unwrap().as_slice())
+            .unwrap();
+
+        let details = monitoring_details_payload(&store, "default", 24, 10, false);
+        assert_eq!(
+            details
+                .get("analytics")
+                .and_then(|value| value.get("ban_count"))
+                .and_then(|value| value.as_u64()),
+            None
+        );
+        assert_eq!(
+            details
+                .get("analytics")
+                .and_then(|value| value.get("ban_store_status"))
+                .and_then(|value| value.as_str()),
+            Some("unavailable")
+        );
+        assert_eq!(
+            details
+                .get("bans")
+                .and_then(|value| value.get("status"))
+                .and_then(|value| value.as_str()),
+            Some("unavailable")
+        );
+        assert_eq!(
+            details
+                .get("maze")
+                .and_then(|value| value.get("maze_auto_bans"))
+                .and_then(|value| value.as_u64()),
+            None
+        );
+
+        std::env::remove_var("SHUMA_BAN_STORE_OUTAGE_MODE");
+    }
+
+    #[test]
     fn admin_config_rejects_updates_when_admin_config_write_disabled() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "false");
@@ -9896,6 +9981,100 @@ const ADMIN_BAN_DURATION_MIN: u64 = 60;
 const ADMIN_BAN_DURATION_MAX: u64 = 31_536_000;
 const ADVERSARY_SIM_DURATION_SECONDS_MIN: u64 = crate::config::ADVERSARY_SIM_DURATION_SECONDS_MIN;
 const ADVERSARY_SIM_DURATION_SECONDS_MAX: u64 = crate::config::ADVERSARY_SIM_DURATION_SECONDS_MAX;
+const AUTHORITATIVE_BAN_STATE_READ_UNAVAILABLE_MESSAGE: &str =
+    "Ban store unavailable: strict outage posture requires authoritative backend access for ban-state reads";
+
+#[derive(Debug, Clone)]
+struct ActiveBanSnapshotView {
+    bans: Vec<serde_json::Value>,
+    status: &'static str,
+    message: Option<&'static str>,
+    count: Option<u64>,
+    latest_ban_ts: Option<u64>,
+    maze_auto_bans: Option<u64>,
+}
+
+fn provider_registry_for_optional_config(
+    cfg: Option<&crate::config::Config>,
+) -> crate::providers::registry::ProviderRegistry {
+    cfg.map(crate::providers::registry::ProviderRegistry::from_config)
+        .unwrap_or_else(|| {
+            crate::providers::registry::ProviderRegistry::from_backends(
+                crate::config::defaults().provider_backends.clone(),
+            )
+        })
+}
+
+fn build_active_ban_snapshot_view(
+    result: crate::providers::contracts::BanListResult,
+    forensic_mode: bool,
+) -> ActiveBanSnapshotView {
+    let active_bans = match result {
+        crate::providers::contracts::BanListResult::Available(active_bans) => active_bans,
+        crate::providers::contracts::BanListResult::Unavailable => {
+            return ActiveBanSnapshotView {
+                bans: Vec::new(),
+                status: "unavailable",
+                message: Some(AUTHORITATIVE_BAN_STATE_READ_UNAVAILABLE_MESSAGE),
+                count: None,
+                latest_ban_ts: None,
+                maze_auto_bans: None,
+            };
+        }
+    };
+
+    let mut sorted_active_bans = active_bans;
+    sorted_active_bans.sort_by(|left, right| left.0.cmp(&right.0));
+
+    let latest_ban_ts = sorted_active_bans.iter().map(|(_, ban)| ban.banned_at).max();
+    let maze_auto_bans = sorted_active_bans
+        .iter()
+        .filter(|(_, ban)| ban.reason == "maze_crawler")
+        .count() as u64;
+    let count = sorted_active_bans.len() as u64;
+    let bans = sorted_active_bans
+        .into_iter()
+        .map(|(ip, ban)| {
+            let display_ip = if forensic_mode {
+                ip
+            } else {
+                pseudonymize_ip_identifier(ip.as_str())
+            };
+            json!({
+                "ip": display_ip,
+                "reason": ban.reason,
+                "expires": ban.expires,
+                "banned_at": ban.banned_at,
+                "fingerprint": ban.fingerprint
+            })
+        })
+        .collect();
+
+    ActiveBanSnapshotView {
+        bans,
+        status: "available",
+        message: None,
+        count: Some(count),
+        latest_ban_ts,
+        maze_auto_bans: Some(maze_auto_bans),
+    }
+}
+
+fn list_active_ban_snapshot_view<S>(
+    store: &S,
+    site_id: &str,
+    cfg: Option<&crate::config::Config>,
+    forensic_mode: bool,
+) -> ActiveBanSnapshotView
+where
+    S: crate::challenge::KeyValueStore,
+{
+    let provider_registry = provider_registry_for_optional_config(cfg);
+    build_active_ban_snapshot_view(
+        provider_registry.list_active_bans_for_read_surface(store, site_id),
+        forensic_mode,
+    )
+}
 
 /// Returns true if the path is a valid admin endpoint (prevents path traversal/abuse).
 fn sanitize_path(path: &str) -> bool {
@@ -16127,27 +16306,10 @@ where
         paginate_cursor_rows(rows, after_cursor.as_str(), limit);
     let event_rows: Vec<serde_json::Value> = page_rows.iter().map(cursor_event_row_payload).collect();
 
-    let mut active_bans: Vec<_> = crate::enforcement::ban::list_active_bans(store, site_id)
-        .into_iter()
-        .collect();
-    active_bans.sort_by(|a, b| a.0.cmp(&b.0));
-    let active_bans_payload: Vec<serde_json::Value> = active_bans
-        .into_iter()
-        .map(|(ip, ban)| {
-            let display_ip = if forensic_mode {
-                ip
-            } else {
-                pseudonymize_ip_identifier(ip.as_str())
-            };
-            json!({
-                "ip": display_ip,
-                "reason": ban.reason,
-                "expires": ban.expires,
-                "banned_at": ban.banned_at,
-                "fingerprint": ban.fingerprint
-            })
-        })
-        .collect();
+    let cfg = crate::config::Config::load(store, site_id).ok();
+    let active_ban_snapshot =
+        list_active_ban_snapshot_view(store, site_id, cfg.as_ref(), forensic_mode);
+    let active_bans_payload = active_ban_snapshot.bans.clone();
 
     let etag = delta_page_etag(
         next_cursor.as_str(),
@@ -16164,11 +16326,7 @@ where
         .build();
     }
 
-    let latest_ban_ts = active_bans_payload
-        .iter()
-        .filter_map(|ban| ban.get("banned_at").and_then(|value| value.as_u64()))
-        .max();
-    let latest_ts = match (latest_window_ts, latest_ban_ts) {
+    let latest_ts = match (latest_window_ts, active_ban_snapshot.latest_ban_ts) {
         (Some(event_ts), Some(ban_ts)) => Some(event_ts.max(ban_ts)),
         (Some(event_ts), None) => Some(event_ts),
         (None, Some(ban_ts)) => Some(ban_ts),
@@ -16196,6 +16354,8 @@ where
         "overflow": overflow,
         "events": event_rows,
         "active_bans": active_bans_payload,
+        "active_bans_status": active_ban_snapshot.status,
+        "active_bans_message": active_ban_snapshot.message,
         "freshness": freshness,
         "stream_supported": true,
         "stream_endpoint": "/admin/ip-bans/stream"
@@ -16246,32 +16406,11 @@ where
         paginate_cursor_rows(rows, after_cursor.as_str(), limit);
     let event_rows: Vec<serde_json::Value> = page_rows.iter().map(cursor_event_row_payload).collect();
 
-    let mut active_bans: Vec<_> = crate::enforcement::ban::list_active_bans(store, site_id)
-        .into_iter()
-        .collect();
-    active_bans.sort_by(|a, b| a.0.cmp(&b.0));
-    let active_bans_payload: Vec<serde_json::Value> = active_bans
-        .into_iter()
-        .map(|(ip, ban)| {
-            let display_ip = if forensic_mode {
-                ip
-            } else {
-                pseudonymize_ip_identifier(ip.as_str())
-            };
-            json!({
-                "ip": display_ip,
-                "reason": ban.reason,
-                "expires": ban.expires,
-                "banned_at": ban.banned_at,
-                "fingerprint": ban.fingerprint
-            })
-        })
-        .collect();
-    let latest_ban_ts = active_bans_payload
-        .iter()
-        .filter_map(|ban| ban.get("banned_at").and_then(|value| value.as_u64()))
-        .max();
-    let latest_ts = match (latest_window_ts, latest_ban_ts) {
+    let cfg = crate::config::Config::load(store, site_id).ok();
+    let active_ban_snapshot =
+        list_active_ban_snapshot_view(store, site_id, cfg.as_ref(), forensic_mode);
+    let active_bans_payload = active_ban_snapshot.bans.clone();
+    let latest_ts = match (latest_window_ts, active_ban_snapshot.latest_ban_ts) {
         (Some(event_ts), Some(ban_ts)) => Some(event_ts.max(ban_ts)),
         (Some(event_ts), None) => Some(event_ts),
         (None, Some(ban_ts)) => Some(ban_ts),
@@ -16299,6 +16438,8 @@ where
         "overflow": overflow,
         "events": event_rows,
         "active_bans": active_bans_payload,
+        "active_bans_status": active_ban_snapshot.status,
+        "active_bans_message": active_ban_snapshot.message,
         "freshness": freshness
     });
     let event_id = payload
@@ -16544,24 +16685,10 @@ where
     cdp_events.truncate(cdp_events_limit);
     let cdp_events = present_event_records(cdp_events.as_slice(), forensic_mode);
 
-    let active_bans = crate::enforcement::ban::list_active_bans(store, site_id);
-    let bans: Vec<_> = active_bans
-        .iter()
-        .map(|(ip, ban)| {
-            let display_ip = if forensic_mode {
-                ip.clone()
-            } else {
-                pseudonymize_ip_identifier(ip.as_str())
-            };
-            json!({
-                "ip": display_ip,
-                "reason": ban.reason,
-                "expires": ban.expires,
-                "banned_at": ban.banned_at,
-                "fingerprint": ban.fingerprint
-            })
-        })
-        .collect();
+    let cfg = crate::config::Config::load(store, site_id).ok();
+    let active_ban_snapshot =
+        list_active_ban_snapshot_view(store, site_id, cfg.as_ref(), forensic_mode);
+    let bans = active_ban_snapshot.bans.clone();
 
     let mut maze_ips: Vec<(String, u32)> = Vec::new();
     let mut total_hits: u32 = 0;
@@ -16606,11 +16733,6 @@ where
             json!({"ip": display_ip, "hits": hits})
         })
         .collect();
-    let maze_bans = active_bans
-        .iter()
-        .filter(|(_, ban)| ban.reason == "maze_crawler")
-        .count();
-
     let tarpit_bucket_prefix = crate::providers::internal::tarpit_budget_bucket_active_prefix(site_id);
     let tarpit_bucket_key_prefix = format!("{}:", tarpit_bucket_prefix);
     let mut tarpit_active_bucket_counts: Vec<(String, u64)> = Vec::new();
@@ -16639,7 +16761,6 @@ where
         .collect();
     let tarpit_global_active_key = crate::providers::internal::tarpit_budget_global_active_key(site_id);
 
-    let cfg = crate::config::Config::load(store, site_id).ok();
     let fail_mode = if crate::config::kv_store_fail_open() {
         "open"
     } else {
@@ -16655,7 +16776,9 @@ where
         "cost_governance": cost_governance,
         "security_privacy": security_privacy,
         "analytics": {
-            "ban_count": active_bans.len(),
+            "ban_count": active_ban_snapshot.count,
+            "ban_store_status": active_ban_snapshot.status,
+            "ban_store_message": active_ban_snapshot.message,
             "shadow_mode": cfg.as_ref().map(|v| v.shadow_mode).unwrap_or(false),
             "fail_mode": fail_mode
         },
@@ -16678,12 +16801,14 @@ where
             }
         },
         "bans": {
-            "bans": bans
+            "bans": bans,
+            "status": active_ban_snapshot.status,
+            "message": active_ban_snapshot.message
         },
         "maze": {
             "total_hits": total_hits,
             "unique_crawlers": maze_ips.len(),
-            "maze_auto_bans": maze_bans,
+            "maze_auto_bans": active_ban_snapshot.maze_auto_bans,
             "deepest_crawler": deepest,
             "top_crawlers": top_crawlers
         },
@@ -16836,6 +16961,8 @@ where
         crate::observability::hot_read_documents::monitoring_recent_sim_runs_max_records(),
     );
     let cfg = crate::config::Config::load(store, site_id).ok();
+    let active_ban_snapshot =
+        list_active_ban_snapshot_view(store, site_id, cfg.as_ref(), forensic_mode);
     let fail_mode = if crate::config::kv_store_fail_open() {
         "open"
     } else {
@@ -16849,7 +16976,9 @@ where
             "retention_health": retention_health,
             "security_privacy": security_privacy,
             "analytics": {
-                "ban_count": crate::enforcement::ban::list_active_bans(store, site_id).len(),
+                "ban_count": active_ban_snapshot.count,
+                "ban_store_status": active_ban_snapshot.status,
+                "ban_store_message": active_ban_snapshot.message,
                 "shadow_mode": cfg.as_ref().map(|value| value.shadow_mode).unwrap_or(false),
                 "fail_mode": fail_mode
             },
@@ -16871,7 +17000,11 @@ where
                     "response_shaping_reason": "bootstrap_recent_tail"
                 }
             },
-            "bans": { "bans": [] },
+            "bans": {
+                "bans": [],
+                "status": active_ban_snapshot.status,
+                "message": active_ban_snapshot.message
+            },
             "maze": {},
             "tarpit": {},
             "cdp": {},
@@ -18366,27 +18499,16 @@ fn manual_ban_store_failure_response(operation: &str) -> Response {
 fn response_for_active_ban_list(
     result: crate::providers::contracts::BanListResult,
 ) -> Response {
-    let active_bans = match result {
-        crate::providers::contracts::BanListResult::Available(bans) => bans,
-        crate::providers::contracts::BanListResult::Unavailable => {
-            return Response::new(
-                503,
-                "Ban store unavailable: strict outage posture requires authoritative backend access for active-ban reads",
-            );
-        }
-    };
-
-    let mut bans = vec![];
-    for (ip, ban) in active_bans {
-        bans.push(json!({
-            "ip": ip,
-            "reason": ban.reason,
-            "expires": ban.expires,
-            "banned_at": ban.banned_at,
-            "fingerprint": ban.fingerprint
-        }));
+    let active_ban_snapshot = build_active_ban_snapshot_view(result, true);
+    if active_ban_snapshot.status == "unavailable" {
+        return Response::new(503, AUTHORITATIVE_BAN_STATE_READ_UNAVAILABLE_MESSAGE);
     }
-    let body = serde_json::to_string(&json!({"bans": bans})).unwrap();
+    let body = serde_json::to_string(&json!({
+        "bans": active_ban_snapshot.bans,
+        "status": active_ban_snapshot.status,
+        "message": active_ban_snapshot.message
+    }))
+    .unwrap();
     Response::new(200, body)
 }
 
@@ -18835,15 +18957,17 @@ pub fn handle_admin(req: &Request) -> Response {
                 Ok(cfg) => cfg,
                 Err(err) => return Response::new(500, err.user_message()),
             };
-            let ban_count =
-                crate::enforcement::ban::list_active_bans_with_scan(&store, site_id).len();
+            let active_ban_snapshot =
+                list_active_ban_snapshot_view(&store, site_id, Some(&cfg), false);
             let fail_mode = if crate::config::kv_store_fail_open() {
                 "open"
             } else {
                 "closed"
             };
             let body = serde_json::to_string(&json!({
-                "ban_count": ban_count,
+                "ban_count": active_ban_snapshot.count,
+                "ban_store_status": active_ban_snapshot.status,
+                "ban_store_message": active_ban_snapshot.message,
                 "shadow_mode": cfg.shadow_mode,
                 "fail_mode": fail_mode
             }))

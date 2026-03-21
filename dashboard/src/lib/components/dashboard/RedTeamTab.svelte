@@ -98,6 +98,10 @@
   });
   $: normalizedStatus = normalizeAdversarySimStatus(adversarySimStatus);
   $: events = eventsSnapshot && typeof eventsSnapshot === 'object' ? eventsSnapshot : {};
+  $: banSnapshotStatus = String(bansSnapshot?.status || 'available').trim().toLowerCase() || 'available';
+  $: banSnapshotUnavailableMessage = banSnapshotStatus === 'unavailable'
+    ? String(bansSnapshot?.message || '').trim()
+    : '';
   $: bans = Array.isArray(bansSnapshot?.bans) ? bansSnapshot.bans : [];
   $: freshness = monitoringFreshnessSnapshot && typeof monitoringFreshnessSnapshot === 'object'
     ? monitoringFreshnessSnapshot
@@ -273,10 +277,18 @@
     </ConfigPanel>
   </div>
 
+  {#if banSnapshotUnavailableMessage}
+    <p id="red-team-ban-state-unavailable" class="message warning">
+      {banSnapshotUnavailableMessage}
+    </p>
+  {/if}
+
   <AdversaryRunPanel
     loading={tabStatus?.loading === true}
     runRows={adversaryRunRows}
-    activeBanCount={adversaryRunSummary?.activeBanCount || bans.length}
+    activeBanCount={banSnapshotStatus === 'unavailable'
+      ? 'Unavailable'
+      : (adversaryRunSummary?.activeBanCount || bans.length)}
     {freshnessStateKey}
     {formatTime}
     title="Recent Red Team Runs"

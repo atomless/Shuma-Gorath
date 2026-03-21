@@ -82,8 +82,14 @@ function deriveMonitoringAnalytics(configSnapshot = {}, configRuntimeSnapshot = 
   const config = isObject(configSnapshot) ? configSnapshot : {};
   const runtime = isObject(configRuntimeSnapshot) ? configRuntimeSnapshot : {};
   const analytics = isObject(analyticsSnapshot) ? analyticsSnapshot : {};
+  const rawBanCount = analytics.ban_count;
+  const banCount = rawBanCount === null || rawBanCount === undefined || rawBanCount === ''
+    ? null
+    : Number(rawBanCount);
   return {
-    ban_count: Number(analytics.ban_count || 0),
+    ban_count: Number.isFinite(banCount) && banCount >= 0 ? banCount : null,
+    ban_store_status: String(analytics.ban_store_status || 'available'),
+    ban_store_message: String(analytics.ban_store_message || ''),
     shadow_mode: parseBoolLike(config.shadow_mode, analytics.shadow_mode === true),
     fail_mode: parseBoolLike(runtime.kv_store_fail_open, true) ? 'open' : 'closed'
   };

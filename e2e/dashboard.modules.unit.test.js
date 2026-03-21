@@ -329,10 +329,24 @@ test('dashboard API adapters normalize sparse payloads safely', { concurrency: f
   await withBrowserGlobals({}, async () => {
     const api = await importBrowserModule('dashboard/src/lib/domain/api-client.js');
 
-    const analytics = api.adaptAnalytics({ ban_count: '7', shadow_mode: true });
+    const analytics = api.adaptAnalytics({
+      ban_count: '7',
+      ban_store_status: 'available',
+      shadow_mode: true
+    });
     assert.equal(analytics.ban_count, 7);
+    assert.equal(analytics.ban_store_status, 'available');
     assert.equal(analytics.shadow_mode, true);
     assert.equal(analytics.fail_mode, 'open');
+
+    const unavailableAnalytics = api.adaptAnalytics({
+      ban_count: null,
+      ban_store_status: 'unavailable',
+      ban_store_message: 'authoritative backend access required'
+    });
+    assert.equal(unavailableAnalytics.ban_count, null);
+    assert.equal(unavailableAnalytics.ban_store_status, 'unavailable');
+    assert.equal(unavailableAnalytics.ban_store_message, 'authoritative backend access required');
 
     const events = api.adaptEvents({
       recent_events: [{ ip: '198.51.100.1' }, null, 'ignored'],
@@ -412,6 +426,26 @@ test('dashboard API adapters normalize sparse payloads safely', { concurrency: f
     assert.equal(suggestions.suggestions.length, 1);
     assert.equal(suggestions.suggestions[0].recommended_action, 'deny_temp');
 
+    const bans = api.adaptBans({
+      bans: [{ ip: '198.51.100.9', reason: 'manual_ban' }, null, 'ignored'],
+      status: 'unavailable',
+      message: 'authoritative backend access required'
+    });
+    assert.equal(bans.bans.length, 1);
+    assert.equal(bans.bans[0].reason, 'manual_ban');
+    assert.equal(bans.status, 'unavailable');
+    assert.equal(bans.message, 'authoritative backend access required');
+
+    const maze = api.adaptMaze({
+      total_hits: '12',
+      unique_crawlers: '3',
+      maze_auto_bans: null,
+      top_crawlers: [{ ip: '198.51.100.9', hits: 4 }]
+    });
+    assert.equal(maze.total_hits, 12);
+    assert.equal(maze.unique_crawlers, 3);
+    assert.equal(maze.maze_auto_bans, null);
+
     const delta = api.adaptCursorDelta({
       after_cursor: 'c1',
       window_end_cursor: 'c9',
@@ -420,6 +454,8 @@ test('dashboard API adapters normalize sparse payloads safely', { concurrency: f
       overflow: 'none',
       events: [{ cursor: 'c3', event: 'Challenge', ts: 1700000000 }],
       recent_sim_runs: [{ run_id: 'simrun-delta-1' }, null, 'ignored'],
+      active_bans_status: 'unavailable',
+      active_bans_message: 'authoritative backend access required',
       freshness: { state: 'fresh', lag_ms: 120, transport: 'sse' }
     });
     assert.equal(delta.after_cursor, 'c1');
@@ -428,6 +464,8 @@ test('dashboard API adapters normalize sparse payloads safely', { concurrency: f
     assert.equal(delta.events.length, 1);
     assert.equal(delta.recent_sim_runs.length, 1);
     assert.equal(delta.recent_sim_runs[0].run_id, 'simrun-delta-1');
+    assert.equal(delta.active_bans_status, 'unavailable');
+    assert.equal(delta.active_bans_message, 'authoritative backend access required');
     assert.equal(delta.freshness.state, 'fresh');
   });
 });
@@ -768,10 +806,12 @@ test('dashboard API client exposes cursor-delta and stream URL helpers for realt
             overflow: 'none',
             events: [],
             active_bans: [],
+            active_bans_status: 'unavailable',
+            active_bans_message: 'authoritative backend access required',
             freshness: { state: 'fresh', lag_ms: 42 }
           }),
           text: async () =>
-            '{"after_cursor":"c1","window_end_cursor":"c9","next_cursor":"c2","has_more":false,"overflow":"none","events":[],"active_bans":[],"freshness":{"state":"fresh","lag_ms":42}}'
+            '{"after_cursor":"c1","window_end_cursor":"c9","next_cursor":"c2","has_more":false,"overflow":"none","events":[],"active_bans":[],"active_bans_status":"unavailable","active_bans_message":"authoritative backend access required","freshness":{"state":"fresh","lag_ms":42}}'
         };
       }
     });
@@ -788,6 +828,8 @@ test('dashboard API client exposes cursor-delta and stream URL helpers for realt
     });
     assert.equal(monitoringDelta.next_cursor, 'c2');
     assert.equal(ipBansDelta.freshness.state, 'fresh');
+    assert.equal(ipBansDelta.active_bans_status, 'unavailable');
+    assert.equal(ipBansDelta.active_bans_message, 'authoritative backend access required');
     assert.match(String(calls[0].url), /\/admin\/monitoring\/delta\?/);
     assert.match(String(calls[0].url), /hours=6/);
     assert.match(String(calls[0].url), /limit=99/);
@@ -2187,6 +2229,102 @@ test('monitoring bootstrap does not wait for cursor seeding before config-backed
     assert.equal(
       (store.getSnapshot('configRuntime') || {}).admin_config_write_enabled,
       true
+    );
+  });
+});
+
+test('dashboard refresh runtime preserves unavailable ban-state markers instead of coercing them to zero', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
+    const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
+
+    const store = storeModule.createDashboardStore({ initialTab: 'diagnostics' });
+    let ipBansDeltaCallCount = 0;
+    const apiClient = {
+      async getMonitoring() {
+        return {
+          summary: {},
+          freshness: { state: 'fresh', transport: 'snapshot_poll' },
+          details: {
+            analytics: {
+              ban_count: null,
+              ban_store_status: 'unavailable',
+              ban_store_message: 'authoritative backend access required',
+              shadow_mode: false,
+              fail_mode: 'closed'
+            },
+            events: { recent_events: [] },
+            bans: {
+              bans: [],
+              status: 'unavailable',
+              message: 'authoritative backend access required'
+            },
+            maze: { total_hits: 0, unique_crawlers: 0, maze_auto_bans: null, top_crawlers: [] },
+            cdp: {},
+            cdp_events: { events: [] }
+          }
+        };
+      },
+      async getMonitoringBootstrap() {
+        return this.getMonitoring();
+      },
+      async getConfig() {
+        return {
+          config: {},
+          runtime: {
+            admin_config_write_enabled: true,
+            runtime_environment: 'runtime-prod'
+          }
+        };
+      },
+      async getBans() {
+        return { bans: [], status: 'available', message: '' };
+      },
+      async getIpRangeSuggestions() {
+        return { summary: {}, suggestions: [] };
+      },
+      async getIpBansDelta() {
+        ipBansDeltaCallCount += 1;
+        return {
+          after_cursor: '',
+          window_end_cursor: 'cursor-1',
+          next_cursor: 'cursor-1',
+          has_more: false,
+          overflow: 'none',
+          events: [],
+          active_bans: [],
+          active_bans_status: ipBansDeltaCallCount > 1 ? 'unavailable' : 'available',
+          active_bans_message: ipBansDeltaCallCount > 1 ? 'authoritative backend access required' : '',
+          freshness: { state: 'fresh', transport: 'cursor_delta_poll' }
+        };
+      }
+    };
+
+    const runtime = refreshModule.createDashboardRefreshRuntime({
+      normalizeTab: (value) => String(value || ''),
+      getApiClient: () => apiClient,
+      getStateStore: () => store,
+      deriveMonitoringAnalytics: (_configSnapshot, _configRuntimeSnapshot, analyticsResponse = {}) => ({
+        ban_count: analyticsResponse.ban_count ?? null,
+        ban_store_status: String(analyticsResponse.ban_store_status || 'available'),
+        ban_store_message: String(analyticsResponse.ban_store_message || ''),
+        shadow_mode: analyticsResponse.shadow_mode === true,
+        fail_mode: String(analyticsResponse.fail_mode || 'open')
+      }),
+      storage: null
+    });
+
+    await runtime.refreshMonitoringTab('manual-refresh');
+    assert.equal((store.getSnapshot('analytics') || {}).ban_count, null);
+    assert.equal((store.getSnapshot('analytics') || {}).ban_store_status, 'unavailable');
+    assert.equal((store.getSnapshot('bans') || {}).status, 'unavailable');
+
+    await runtime.refreshIpBansTab('manual-refresh');
+    await runtime.refreshIpBansTab('auto-refresh');
+    assert.equal((store.getSnapshot('bans') || {}).status, 'unavailable');
+    assert.equal(
+      (store.getSnapshot('bans') || {}).message,
+      'authoritative backend access required'
     );
   });
 });

@@ -859,13 +859,7 @@ impl BanStoreProvider for ExternalBanStoreProvider {
     }
 
     fn list_active_bans(&self, store: &Store, site_id: &str) -> BanListResult {
-        let outage_mode = crate::config::ban_store_outage_mode();
-        let distributed_backend = RedisDistributedBanStore::from_env();
-        let fallback = || match internal::BAN_STORE.list_active_bans(store, site_id) {
-            BanListResult::Available(bans) => bans,
-            BanListResult::Unavailable => Vec::new(),
-        };
-        list_active_bans_with_backend(distributed_backend.as_ref(), outage_mode, site_id, fallback)
+        list_active_bans_with_runtime_contract(store, site_id)
     }
 
     fn ban_ip_with_fingerprint(
@@ -913,6 +907,19 @@ impl BanStoreProvider for ExternalBanStoreProvider {
             },
         )
     }
+}
+
+pub(crate) fn list_active_bans_with_runtime_contract<S>(
+    store: &S,
+    site_id: &str,
+) -> BanListResult
+where
+    S: crate::challenge::KeyValueStore,
+{
+    let outage_mode = crate::config::ban_store_outage_mode();
+    let distributed_backend = RedisDistributedBanStore::from_env();
+    let fallback = || crate::enforcement::ban::list_active_bans(store, site_id);
+    list_active_bans_with_backend(distributed_backend.as_ref(), outage_mode, site_id, fallback)
 }
 
 impl ChallengeEngineProvider for UnsupportedExternalChallengeEngineProvider {

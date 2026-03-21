@@ -4,6 +4,33 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-21)
 
+### DEP-ENT-1-3A: Provider-Aware Operator Ban-Read Surfaces
+
+- [x] Reworked the remaining operator-visible ban-read surfaces so they now flow through provider-aware active-ban semantics instead of unconditional local scans: `/admin/ip-bans/delta` and `/admin/ip-bans/stream` now publish explicit availability state, monitoring and analytics ban summaries now preserve unavailable-versus-available truth, and the dashboard keeps and renders those markers instead of coercing them to zero.
+- [x] Why:
+  - the `DEP-ENT-1-3` review found one important adjacent drift: several operator surfaces still looked at local active bans directly even after the primary admin and runtime ban paths became truthful. That would have left strict enterprise posture honest in one endpoint but misleading in the actual operator views.
+  - the clean fix was a shared provider-aware ban-read helper plus a thin dashboard adaptation pass, not another trait redesign. This kept the slice local to read surfaces while preserving the existing provider architecture.
+  - the closeout review confirmed the slice now covers both halves of the hidden regression path: the backend payloads expose explicit unavailability, and the dashboard snapshot layer preserves and renders that state instead of flattening it back into zero.
+- [x] Evidence:
+  - `src/providers/external.rs`
+  - `src/providers/registry.rs`
+  - `src/admin/api.rs`
+  - `dashboard/src/lib/domain/api-client.js`
+  - `dashboard/src/lib/runtime/dashboard-native-runtime.js`
+  - `dashboard/src/lib/runtime/dashboard-runtime-refresh.js`
+  - `dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte`
+  - `dashboard/src/lib/components/dashboard/IpBansTab.svelte`
+  - `dashboard/src/lib/components/dashboard/RedTeamTab.svelte`
+  - `dashboard/src/lib/components/dashboard/monitoring/OverviewStats.svelte`
+  - `dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte`
+  - `dashboard/src/lib/components/dashboard/monitoring-view-model.js`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `Makefile`
+  - `docs/research/2026-03-21-dep-ent-1-3a-operator-ban-read-surfaces-post-implementation-review.md`
+  - `make test-enterprise-ban-store-contract`
+  - `git diff --check`
+  - post-tranche review: no new tranche-local shortfall was found inside `DEP-ENT-1-3A`; the next optimal work remains the planned `DEP-ENT-1-4` docs and final verification closeout.
+
 ### DEP-ENT-1-3: Runtime And Admin Ban-Path Truthfulness Under Strict Outage Posture
 
 - [x] Made runtime and primary admin ban paths react truthfully to explicit provider outcomes: strict runtime ban checks now fail closed on unavailable ban lookups, manual admin ban and unban writes now return `503` instead of claiming success when strict sync fails, and `GET /admin/ban` now returns `503` when authoritative active-ban reads are unavailable.

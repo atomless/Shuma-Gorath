@@ -1,7 +1,7 @@
 use crate::config::{Config, ProviderBackend, ProviderBackends};
 use crate::providers::contracts::{
-    BanStoreProvider, ChallengeEngineProvider, FingerprintSignalProvider, MazeTarpitProvider,
-    RateLimiterProvider,
+    BanListResult, BanStoreProvider, ChallengeEngineProvider, FingerprintSignalProvider,
+    MazeTarpitProvider, RateLimiterProvider,
 };
 use crate::providers::{external, internal};
 use crate::signals::botness::SignalAvailability;
@@ -94,6 +94,24 @@ impl ProviderRegistry {
         match self.backend_for(ProviderCapability::BanStore) {
             ProviderBackend::Internal => &internal::BAN_STORE,
             ProviderBackend::External => &external::BAN_STORE,
+        }
+    }
+
+    pub fn list_active_bans_for_read_surface<S>(
+        &self,
+        store: &S,
+        site_id: &str,
+    ) -> BanListResult
+    where
+        S: crate::challenge::KeyValueStore,
+    {
+        match self.backend_for(ProviderCapability::BanStore) {
+            ProviderBackend::Internal => {
+                BanListResult::Available(crate::enforcement::ban::list_active_bans(store, site_id))
+            }
+            ProviderBackend::External => {
+                external::list_active_bans_with_runtime_contract(store, site_id)
+            }
         }
     }
 

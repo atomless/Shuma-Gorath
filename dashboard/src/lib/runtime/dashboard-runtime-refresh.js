@@ -223,6 +223,7 @@ export function createDashboardRefreshRuntime(options = {}) {
     const analytics = deriveMonitoringAnalytics(configSnapshot, configRuntimeSnapshot, analyticsResponse);
     if (
       !Number.isFinite(Number(analytics.ban_count)) &&
+      String(bansData.status || 'available') !== 'unavailable' &&
       Array.isArray(bansData.bans)
     ) {
       analytics.ban_count = bansData.bans.length;
@@ -479,6 +480,8 @@ export function createDashboardRefreshRuntime(options = {}) {
     const priorBans = snapshots.bans && typeof snapshots.bans === 'object' ? snapshots.bans : {};
     const nextBans = {
       ...priorBans,
+      status: String(delta.active_bans_status || priorBans.status || 'available'),
+      message: String(delta.active_bans_message || priorBans.message || ''),
       bans: toArray(delta.active_bans)
     };
     applySnapshots({ bans: nextBans });

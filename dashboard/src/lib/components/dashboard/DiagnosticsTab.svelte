@@ -709,6 +709,12 @@
   $: monitoring = monitoringSnapshot && typeof monitoringSnapshot === 'object'
     ? monitoringSnapshot
     : {};
+  $: banSnapshotStatus = String(
+    bansSnapshot?.status || analytics?.ban_store_status || 'available'
+  ).trim().toLowerCase() || 'available';
+  $: banSnapshotUnavailableMessage = banSnapshotStatus === 'unavailable'
+    ? String(bansSnapshot?.message || analytics?.ban_store_message || '').trim()
+    : '';
   $: freshnessStateKey = String(monitoringFreshnessSnapshot?.state || '').trim().toLowerCase();
 
   $: rawRecentEvents = Array.isArray(events.recent_events)
@@ -736,9 +742,10 @@
     if (byEventType !== null) return byEventType;
     const analyticsBanCount = toNonNegativeIntOrNull(analytics.ban_count);
     if (analyticsBanCount !== null) return analyticsBanCount;
+    if (banSnapshotStatus === 'unavailable') return null;
     return bans.length;
   })();
-  $: activeBans = bans.length;
+  $: activeBans = banSnapshotStatus === 'unavailable' ? null : bans.length;
   $: uniqueIps = Number.isFinite(Number(events.unique_ips))
     ? Number(events.unique_ips)
     : (Array.isArray(events.top_ips) ? events.top_ips.length : 0);
@@ -997,6 +1004,11 @@
     {eventCount}
     {uniqueIps}
   />
+  {#if banSnapshotUnavailableMessage}
+    <p id="diagnostics-ban-state-unavailable" class="message warning">
+      {banSnapshotUnavailableMessage}
+    </p>
+  {/if}
 
   <PrimaryCharts
     {selectedTimeRange}
