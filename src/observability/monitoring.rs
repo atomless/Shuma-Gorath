@@ -115,7 +115,7 @@ struct PendingCounterBuffer {
     deltas: HashMap<String, u64>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
 pub(crate) struct CountEntry {
     pub label: String,
     pub count: u64,

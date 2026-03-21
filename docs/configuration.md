@@ -319,6 +319,25 @@ The following <abbr title="Key-Value">KV</abbr>-backed fields are currently writ
 - Verified identity: `verified_identity.{enabled,native_web_bot_auth_enabled,provider_assertions_enabled,non_human_traffic_stance,replay_window_seconds,clock_skew_seconds,directory_cache_ttl_seconds,directory_freshness_requirement_seconds,named_policies,category_defaults,service_profiles}`.
 - Botness/challenge tuning: `pow_enabled`, `pow_difficulty`, `pow_ttl_seconds`, `challenge_puzzle_enabled`, `challenge_puzzle_transform_count`, `challenge_puzzle_seed_ttl_seconds`, `challenge_puzzle_attempt_limit_per_window`, `challenge_puzzle_attempt_window_seconds`, `challenge_puzzle_risk_threshold`, `not_a_bot_enabled`, `not_a_bot_risk_threshold`, `not_a_bot_pass_score`, `not_a_bot_fail_score`, `not_a_bot_nonce_ttl_seconds` (Verification Token Lifetime), `not_a_bot_marker_ttl_seconds` (Pass Marker Lifetime), `not_a_bot_attempt_limit_per_window`, `not_a_bot_attempt_window_seconds`, `botness_maze_threshold`, `botness_weights.{js_required,geo_risk,rate_medium,rate_high,maze_behavior}`, `defence_modes.{rate,geo,js}`.
 
+Operator-objectives contract notes:
+- `operator_objectives_v1` is not part of `POST /admin/config`. It has its own primary-state endpoint at `GET` and `POST /admin/operator-objectives`.
+- `POST /admin/operator-objectives` is guarded by the same `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=true` switch as other admin writes.
+- `profile_id` must not be empty.
+- `window_hours` must be between `1` and `720`.
+- `compliance_semantics` must be `max_ratio_budget`.
+- `non_human_posture` must be one of `deny_all_non_human`, `allow_only_named_verified_identities`, `allow_verified_by_category`, or `allow_verified_with_low_cost_representation_only`.
+- `budgets` must not be empty, must contain at most `8` entries, and each `budget_id` and `metric` must be unique within the document.
+- Each budget `comparator` must be `max_ratio`.
+- Each budget `target` must be between `0.0` and `1.0`.
+- Each budget `near_limit_ratio` must be greater than `0.0` and at most `1.0`.
+- `adversary_sim_expectations.comparison_mode` must be `prior_window` or `baseline`.
+- `adversary_sim_expectations.max_goal_success_rate` must be between `0.0` and `1.0`.
+- `adversary_sim_expectations.min_escalation_rate` must be between `0.0` and `1.0`.
+- `adversary_sim_expectations.regression_status_required` must be `no_goal_successes`.
+- `rollout_guardrails.automated_apply_status` must be `manual_only` or `canary_only`.
+- `rollout_guardrails.code_evolution_status` must be `review_required`.
+- Successful objective writes assign a new server-owned revision, record a bounded decision/evidence row for later reconcile reasoning, and refresh `operator_snapshot_v1`.
+
 Verified-identity directory discovery notes:
 - Native external directory discovery follows only signed `https://` `Signature-Agent` URLs.
 - The default repository Spin manifest keeps outbound HTTP closed. External native directory discovery works only when the deployment explicitly allows the approved directory hosts in the bot-defence component outbound allowlist.

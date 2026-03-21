@@ -132,12 +132,12 @@ const MONITORING_BOOTSTRAP_COMPONENTS: [HotReadComponentContract; 7] = [
 const OPERATOR_SNAPSHOT_COMPONENTS: [HotReadComponentContract; 10] = [
     HotReadComponentContract {
         key: "objectives",
-        exactness: TelemetryExactness::Derived,
+        exactness: TelemetryExactness::Exact,
         basis: TelemetryBasis::Policy,
         ownership_tier: HotReadOwnershipTier::BootstrapCritical,
         canonical_source: HotReadCanonicalSource::DirectStateSnapshot,
         projection_model: HotReadProjectionModel::DeterministicRebuild,
-        note: "Current objective profile is a backend-owned default contract until a writable objective surface lands.",
+        note: "Objective profile is a persisted site-owned direct-state contract with server-assigned revision metadata, seeded conservatively when missing and then read as the operator-facing truth.",
     },
     HotReadComponentContract {
         key: "live_traffic",
@@ -200,7 +200,7 @@ const OPERATOR_SNAPSHOT_COMPONENTS: [HotReadComponentContract; 10] = [
         ownership_tier: HotReadOwnershipTier::SupportingSummary,
         canonical_source: HotReadCanonicalSource::DirectStateSnapshot,
         projection_model: HotReadProjectionModel::DeterministicRebuild,
-        note: "Recent-change ledger is maintained from meaningful admin mutation writes and exposed as a bounded controller-context summary.",
+        note: "Recent-change ledger is maintained from meaningful admin/controller mutation writes and exposed as a bounded change-plus-decision summary with watch-window state and durable evidence references.",
     },
     HotReadComponentContract {
         key: "allowed_actions",
@@ -218,7 +218,7 @@ const OPERATOR_SNAPSHOT_COMPONENTS: [HotReadComponentContract; 10] = [
         ownership_tier: HotReadOwnershipTier::SupportingSummary,
         canonical_source: HotReadCanonicalSource::DirectStateSnapshot,
         projection_model: HotReadProjectionModel::DeterministicRebuild,
-        note: "Verified-identity summaries are not yet supported and currently expose a placeholder capability contract only.",
+        note: "Verified-identity summary is a bounded typed projection over current verified-identity telemetry plus live policy stance and capability counts, rather than a placeholder note.",
     },
 ];
 

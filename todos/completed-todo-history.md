@@ -4,6 +4,29 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-21)
 
+### OPS-SNAPSHOT-2: Replace Snapshot Defaults And Placeholders With Persisted Operator Truth
+
+- [x] Completed the planned snapshot-truth tranche by persisting `operator_objectives_v1`, exposing the new operator-objectives admin surface, replacing the placeholder verified-identity section with a typed summary, and linking `recent_changes` rows to a durable bounded decision ledger with objective revision and evidence references.
+- [x] Why:
+  - the first recommend-only reconcile loop needs a real site-owned objective function and causal change evidence, not backend defaults and placeholder strings.
+  - `operator_snapshot_v1` was still missing the typed verified-identity posture and decision/watch context needed for later rollback and proposal reasoning.
+  - the cleanest path was to extend the existing snapshot and hot-read projection chain rather than add a second controller-only status surface.
+- [x] Evidence:
+  - `src/observability/operator_snapshot_objectives.rs`
+  - `src/observability/operator_objectives_store.rs`
+  - `src/observability/decision_ledger.rs`
+  - `src/observability/operator_snapshot_verified_identity.rs`
+  - `src/observability/operator_snapshot.rs`
+  - `src/admin/operator_objectives_api.rs`
+  - `src/admin/recent_changes_ledger.rs`
+  - `docs/research/2026-03-21-ops-snapshot-2-operator-snapshot-truth-post-implementation-review.md`
+  - `make test-operator-objectives-contract`
+  - `make test-operator-snapshot-foundation`
+  - `make test-telemetry-hot-read-contract`
+  - `make test-telemetry-hot-read-projection`
+  - `git diff --check`
+  - review follow-up `OPS-SNAPSHOT-2-REVIEW-1` trimmed zero-value verified-identity serialization and updated the stale hot-read expectation so the snapshot stayed within the existing hot-read budget, and no tranche-local shortfall remained open before `ADV-PROMO-1`.
+
 ### OPS-BENCH-2: Materialize Benchmark Comparison And Missing Evidence Families
 
 - [x] Completed the planned benchmark-truth tranche by materializing prior-window comparison references, `improvement_status`, representative adversary effectiveness proxies, verified-identity-aware beneficial non-human posture metrics, and reusable candidate-comparison semantics inside the existing machine-first `benchmark_results_v1` contract.

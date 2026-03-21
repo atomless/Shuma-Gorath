@@ -42,7 +42,7 @@ make test-admin-machine-contracts # Focused recent-change ledger + operator snap
 make test-admin-api-routing-contract # Focused admin route-family contract gate for structural API refactors
 make test-controller-action-surface # Focused allowed-actions and controller-family mapping checks
 make test-benchmark-comparison-contract # Focused benchmark comparison helper contract checks
-make test-operator-objectives-contract # Focused operator objectives profile and snapshot wiring checks
+make test-operator-objectives-contract # Focused operator objectives, decision-ledger, and snapshot wiring checks
 make test-replay-promotion-contract # Focused replay-promotion lineage and governance checks
 make test-adversarial-runner-architecture # Focused adversarial runner CLI, unit, and validate-only checks
 make test-adversary-sim-domain-contract # Focused adversary-sim lifecycle and lane-domain checks without live runtime-surface traffic
@@ -212,7 +212,7 @@ Structural refactor proof map:
 - `make test-admin-machine-contracts` is the focused admin read-contract gate for the recent-change ledger plus the machine-first operator snapshot and benchmark endpoints.
 - `make test-controller-action-surface` is the focused config-side gate for `allowed_actions_v1` and controller patch-family mapping reuse.
 - `make test-benchmark-comparison-contract` is the focused benchmark helper gate for explicit baseline-availability, improvement-status, and escalation comparison semantics.
-- `make test-operator-objectives-contract` is the focused objective-profile gate for snapshot budget sources and rollout-guardrail defaults.
+- `make test-operator-objectives-contract` is the focused objective-profile and decision-evidence gate for persisted `operator_objectives_v1`, the operator-objectives admin endpoint, the bounded decision ledger, and snapshot wiring.
 - `make test-replay-promotion-contract` is the focused promotion-lineage and governance gate that stays off the full replay-runner path.
 - `make test-adversarial-runner-architecture` is the focused CLI, unit, and validate-only gate for the Python adversarial runner and closely related governance helpers.
 - `make test-adversary-sim-domain-contract` is the focused backend adversary-sim lifecycle and lane-domain gate that stays off the live runtime-surface path.

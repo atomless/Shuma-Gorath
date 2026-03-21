@@ -12,6 +12,7 @@ mod diagnostics_api;
 mod monitoring_api;
 mod api;
 pub(crate) mod auth;
+mod operator_objectives_api;
 mod operator_snapshot_api;
 mod recent_changes_ledger;
 

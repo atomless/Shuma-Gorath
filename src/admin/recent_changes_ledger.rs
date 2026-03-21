@@ -8,12 +8,14 @@ const OPERATOR_SNAPSHOT_RECENT_CHANGES_SUMMARY_MAX_CHARS: usize = 240;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub(crate) struct OperatorSnapshotRecentChangeLedgerRow {
-    changed_at_ts: u64,
-    change_reason: String,
-    changed_families: Vec<String>,
-    source: String,
-    targets: Vec<String>,
-    change_summary: String,
+    pub(crate) changed_at_ts: u64,
+    pub(crate) change_reason: String,
+    pub(crate) changed_families: Vec<String>,
+    pub(crate) source: String,
+    pub(crate) targets: Vec<String>,
+    pub(crate) change_summary: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) decision_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -124,6 +126,7 @@ pub(crate) fn load_operator_snapshot_recent_changes<S: crate::challenge::KeyValu
     u64,
 ) {
     let state = load_operator_snapshot_recent_changes_state(store, site_id);
+    let decision_map = crate::observability::decision_ledger::load_recent_decision_map(store, site_id);
     let watch_window_seconds = watch_window_hours.saturating_mul(3600);
     let lookback_seconds = watch_window_seconds
         .saturating_mul(3)
@@ -134,27 +137,7 @@ pub(crate) fn load_operator_snapshot_recent_changes<S: crate::challenge::KeyValu
         .iter()
         .filter(|row| row.changed_at_ts >= lookback_start_ts)
         .take(max_rows)
-        .map(|row| {
-            let elapsed = generated_at_ts.saturating_sub(row.changed_at_ts);
-            let bounded_elapsed = elapsed.min(watch_window_seconds);
-            let remaining = watch_window_seconds.saturating_sub(bounded_elapsed);
-            let watch_window_status = if remaining == 0 {
-                "watch_window_complete"
-            } else {
-                "collecting_post_change_window"
-            };
-            crate::observability::operator_snapshot::OperatorSnapshotRecentChange {
-                changed_at_ts: row.changed_at_ts,
-                change_reason: row.change_reason.clone(),
-                changed_families: row.changed_families.clone(),
-                source: row.source.clone(),
-                targets: row.targets.clone(),
-                watch_window_status: watch_window_status.to_string(),
-                watch_window_elapsed_seconds: bounded_elapsed,
-                watch_window_remaining_seconds: remaining,
-                change_summary: row.change_summary.clone(),
-            }
-        })
+        .map(|row| operator_snapshot_change_from_ledger_row(row, decision_map.get(row.decision_id.as_deref().unwrap_or_default()), generated_at_ts, watch_window_seconds))
         .collect();
 
     (
@@ -169,6 +152,46 @@ pub(crate) fn load_operator_snapshot_recent_changes<S: crate::challenge::KeyValu
             state.updated_at_ts
         },
     )
+}
+
+fn operator_snapshot_change_from_ledger_row(
+    row: &OperatorSnapshotRecentChangeLedgerRow,
+    decision: Option<&crate::observability::decision_ledger::OperatorDecisionRecord>,
+    generated_at_ts: u64,
+    default_watch_window_seconds: u64,
+) -> crate::observability::operator_snapshot::OperatorSnapshotRecentChange {
+    let watch_window_seconds = decision
+        .map(|decision| decision.watch_window_seconds)
+        .filter(|seconds| *seconds > 0)
+        .unwrap_or(default_watch_window_seconds);
+    let elapsed = generated_at_ts.saturating_sub(row.changed_at_ts);
+    let bounded_elapsed = elapsed.min(watch_window_seconds);
+    let remaining = watch_window_seconds.saturating_sub(bounded_elapsed);
+    let watch_window_status = if remaining == 0 {
+        "watch_window_complete"
+    } else {
+        "collecting_post_change_window"
+    };
+    crate::observability::operator_snapshot::OperatorSnapshotRecentChange {
+        changed_at_ts: row.changed_at_ts,
+        change_reason: row.change_reason.clone(),
+        changed_families: row.changed_families.clone(),
+        source: row.source.clone(),
+        targets: row.targets.clone(),
+        decision_id: row.decision_id.clone(),
+        decision_kind: decision.map(|decision| decision.decision_kind.clone()),
+        decision_status: decision.map(|decision| decision.decision_status.clone()),
+        objective_revision: decision.map(|decision| decision.objective_revision.clone()),
+        expected_impact_summary: decision
+            .map(|decision| decision.expected_impact_summary.clone()),
+        evidence_references: decision
+            .map(|decision| decision.evidence_references.clone())
+            .unwrap_or_default(),
+        watch_window_status: watch_window_status.to_string(),
+        watch_window_elapsed_seconds: bounded_elapsed,
+        watch_window_remaining_seconds: remaining,
+        change_summary: row.change_summary.clone(),
+    }
 }
 
 fn operator_snapshot_recent_change_source(admin_id: &str) -> String {
@@ -415,6 +438,7 @@ pub(crate) fn operator_snapshot_config_patch_recent_change_row(
         change_summary: truncate_operator_snapshot_change_summary(
             format!("config families updated: {}", changed_families.join(", ")).as_str(),
         ),
+        decision_id: None,
     })
 }
 
@@ -436,5 +460,15 @@ pub(crate) fn operator_snapshot_manual_change_row(
         source: operator_snapshot_recent_change_source(admin_id),
         targets: targets.iter().map(|target| target.to_string()).collect(),
         change_summary: truncate_operator_snapshot_change_summary(change_summary),
+        decision_id: None,
     }
+}
+
+pub(crate) fn operator_snapshot_recent_change_with_decision_id(
+    row: &OperatorSnapshotRecentChangeLedgerRow,
+    decision_id: &str,
+) -> OperatorSnapshotRecentChangeLedgerRow {
+    let mut updated = row.clone();
+    updated.decision_id = Some(decision_id.to_string());
+    updated
 }

@@ -12,12 +12,13 @@ use crate::observability::hot_read_contract::{
 use crate::observability::monitoring::{
     HumanFrictionSegmentRow, MonitoringSummary, RequestOutcomeLaneSummaryRow,
 };
+use super::operator_objectives_store::load_or_seed_operator_objectives;
 use super::operator_snapshot_live_traffic::{
     adversary_sim_section, human_friction_row, lane_row, live_traffic_section, scope_row,
 };
-use super::operator_snapshot_objectives::{default_operator_objectives, DEFAULT_WINDOW_HOURS};
+use super::operator_snapshot_objectives::DEFAULT_WINDOW_HOURS;
 use super::operator_snapshot_runtime_posture::{runtime_posture, runtime_shadow_mode};
-use super::operator_snapshot_verified_identity::verified_identity_placeholder_section;
+use super::operator_snapshot_verified_identity::verified_identity_summary;
 
 pub(crate) use super::operator_snapshot_live_traffic::{
     OperatorSnapshotAdversarySim, OperatorSnapshotLane, OperatorSnapshotLiveTraffic,
@@ -30,7 +31,7 @@ pub(crate) use super::operator_snapshot_recent_changes::{
     OperatorSnapshotRecentChange, OperatorSnapshotRecentChanges,
 };
 pub(crate) use super::operator_snapshot_runtime_posture::OperatorSnapshotRuntimePosture;
-pub(crate) use super::operator_snapshot_verified_identity::OperatorSnapshotPlaceholderSection;
+pub(crate) use super::operator_snapshot_verified_identity::OperatorSnapshotVerifiedIdentitySummary;
 
 pub(crate) const OPERATOR_SNAPSHOT_SCHEMA_VERSION: &str = "operator_snapshot_v1";
 const DEFAULT_RECENT_CHANGE_ROWS: usize = 6;
@@ -84,7 +85,7 @@ pub(crate) struct OperatorSnapshotHotReadPayload {
     pub budget_distance: OperatorBudgetDistanceSummary,
     pub allowed_actions: AllowedActionsSurface,
     pub benchmark_results: BenchmarkResultsPayload,
-    pub verified_identity: OperatorSnapshotPlaceholderSection,
+    pub verified_identity: OperatorSnapshotVerifiedIdentitySummary,
 }
 
 pub(crate) fn operator_snapshot_watch_window_hours(summary_hours: u64) -> u64 {
@@ -106,7 +107,7 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
     recent_sim_runs_refreshed_at_ts: u64,
     recent_changes_refreshed_at_ts: u64,
 ) -> OperatorSnapshotHotReadPayload {
-    let objectives = default_operator_objectives();
+    let objectives = load_or_seed_operator_objectives(store, site_id, generated_at_ts);
     let window_hours = operator_snapshot_watch_window_hours(summary.hours);
     let live_scope = scope_row(summary, "live", "ingress_primary", "enforced").cloned();
     let sim_scope = scope_row(summary, "adversary_sim", "ingress_primary", "enforced").cloned();
@@ -151,6 +152,7 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
     let allowed_actions = crate::config::allowed_actions_v1();
     let cfg = crate::config::load_runtime_cached(store, site_id)
         .unwrap_or_else(|_| crate::config::defaults().clone());
+    let verified_identity = verified_identity_summary(summary, &cfg);
     let prior_window_reference =
         crate::observability::benchmark_history::load_prior_window_reference(
             store,
@@ -178,12 +180,14 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
         window,
         section_metadata: operator_snapshot_section_metadata(
             generated_at_ts,
+            objectives.updated_at_ts,
             summary_refreshed_at_ts,
             recent_sim_runs_refreshed_at_ts,
             recent_changes_refreshed_at_ts,
             benchmark_results_refreshed_at_ts,
+            summary_refreshed_at_ts,
         ),
-        objectives: objectives.clone(),
+        objectives,
         live_traffic,
         shadow_mode,
         adversary_sim,
@@ -192,7 +196,7 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
         budget_distance,
         allowed_actions,
         benchmark_results,
-        verified_identity: verified_identity_placeholder_section(),
+        verified_identity,
     }
 }
 
@@ -207,19 +211,23 @@ fn snapshot_window(generated_at_ts: u64, hours: u64) -> OperatorSnapshotWindow {
 
 fn operator_snapshot_section_metadata(
     generated_at_ts: u64,
+    objectives_refreshed_at_ts: u64,
     summary_refreshed_at_ts: u64,
     recent_sim_runs_refreshed_at_ts: u64,
     recent_changes_refreshed_at_ts: u64,
     benchmark_results_refreshed_at_ts: u64,
+    verified_identity_refreshed_at_ts: u64,
 ) -> BTreeMap<String, OperatorSnapshotSectionMetadata> {
     operator_snapshot_component_contracts()
         .iter()
         .map(|component| {
             let refreshed_at_ts = match component.key {
+                "objectives" => objectives_refreshed_at_ts,
                 "live_traffic" | "shadow_mode" | "budget_distance" => summary_refreshed_at_ts,
                 "adversary_sim" => recent_sim_runs_refreshed_at_ts,
                 "recent_changes" => recent_changes_refreshed_at_ts,
                 "benchmark_results" => benchmark_results_refreshed_at_ts,
+                "verified_identity" => verified_identity_refreshed_at_ts,
                 _ => generated_at_ts,
             };
             (
@@ -416,7 +424,7 @@ mod tests {
     }
 
     #[test]
-    fn snapshot_payload_uses_backend_default_objective_profile_and_budget_statuses() {
+    fn snapshot_payload_uses_persisted_objective_profile_and_typed_verified_identity_summary() {
         let store = TestStore::new();
         record_request_outcome(
             &store,
@@ -468,7 +476,8 @@ mod tests {
         );
 
         assert_eq!(payload.schema_version, OPERATOR_SNAPSHOT_SCHEMA_VERSION);
-        assert_eq!(payload.objectives.profile_id, "backend_default_v1");
+        assert_eq!(payload.objectives.profile_id, "site_default_v1");
+        assert_eq!(payload.objectives.schema_version, "operator_objectives_v1");
         assert!(payload
             .budget_distance
             .rows
@@ -503,7 +512,8 @@ mod tests {
                 None,
             )
         );
-        assert_eq!(payload.verified_identity.availability, "not_yet_supported");
+        assert_eq!(payload.verified_identity.availability, "not_configured");
+        assert_eq!(payload.verified_identity.attempts, 0);
     }
 
     #[test]

@@ -25,15 +25,22 @@ use super::monitoring_api::{
     handle_admin_events, handle_admin_ip_bans_delta, handle_admin_ip_bans_stream,
     handle_admin_monitoring, handle_admin_monitoring_delta, handle_admin_monitoring_stream,
 };
+use super::operator_objectives_api::handle_admin_operator_objectives;
 use super::operator_snapshot_api::handle_admin_operator_snapshot;
 #[cfg(test)]
 use super::recent_changes_ledger::load_operator_snapshot_recent_changes;
 #[cfg(test)]
 use super::recent_changes_ledger::operator_snapshot_manual_change_row;
 use super::recent_changes_ledger::{
-    operator_snapshot_config_patch_recent_change_row, record_operator_snapshot_recent_change_rows,
+    operator_snapshot_config_patch_recent_change_row,
+    operator_snapshot_recent_change_with_decision_id, record_operator_snapshot_recent_change_rows,
     OperatorSnapshotRecentChangeLedgerRow,
 };
+use crate::observability::decision_ledger::{
+    record_decision, OperatorDecisionDraft, OperatorDecisionEvidenceReference,
+};
+use crate::observability::operator_objectives_store::load_or_seed_operator_objectives;
+use crate::observability::operator_snapshot_objectives::operator_objectives_watch_window_seconds;
 /// Event types for activity logging
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum EventType {
@@ -2065,8 +2072,14 @@ mod tests {
                 .get("objectives")
                 .and_then(|value| value.get("profile_id"))
                 .and_then(|value| value.as_str()),
-            Some("backend_default_v1")
+            Some("site_default_v1")
         );
+        assert!(payload
+            .get("objectives")
+            .and_then(|value| value.get("revision"))
+            .and_then(|value| value.as_str())
+            .map(|value| value.starts_with("rev-"))
+            .unwrap_or(false));
         assert!(payload
             .get("budget_distance")
             .and_then(|value| value.get("rows"))
@@ -2122,6 +2135,13 @@ mod tests {
                 .and_then(|value| value.get("suite_version"))
                 .and_then(|value| value.as_str()),
             Some("benchmark_suite_v1")
+        );
+        assert_eq!(
+            payload
+                .get("verified_identity")
+                .and_then(|value| value.get("availability"))
+                .and_then(|value| value.as_str()),
+            Some("not_configured")
         );
     }
 
@@ -4399,6 +4419,33 @@ mod admin_config_tests {
             targets,
             vec!["likely_human_friction", "suspicious_forwarded_requests",]
         );
+        assert!(row
+            .get("decision_id")
+            .and_then(|value| value.as_str())
+            .is_some());
+        assert_eq!(
+            row.get("decision_kind").and_then(|value| value.as_str()),
+            Some("manual_config_patch")
+        );
+        assert_eq!(
+            row.get("decision_status").and_then(|value| value.as_str()),
+            Some("applied")
+        );
+        assert!(row
+            .get("objective_revision")
+            .and_then(|value| value.as_str())
+            .map(|value| value.starts_with("rev-"))
+            .unwrap_or(false));
+        assert!(row
+            .get("expected_impact_summary")
+            .and_then(|value| value.as_str())
+            .map(|value| value.contains("Manual config change updated"))
+            .unwrap_or(false));
+        assert!(row
+            .get("evidence_references")
+            .and_then(|value| value.as_array())
+            .map(|rows| !rows.is_empty())
+            .unwrap_or(false));
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
     }
@@ -6963,6 +7010,7 @@ mod admin_config_tests {
         assert!(sanitize_path("/admin/tarpit/preview"));
         assert!(sanitize_path("/admin/ip-range/suggestions"));
         assert!(sanitize_path("/admin/operator-snapshot"));
+        assert!(sanitize_path("/admin/operator-objectives"));
         assert!(sanitize_path("/admin/benchmark-suite"));
         assert!(sanitize_path("/admin/monitoring/stream"));
         assert!(sanitize_path("/admin/ip-bans/stream"));
@@ -10196,6 +10244,10 @@ mod admin_auth_tests {
     fn write_access_matrix_covers_only_mutating_admin_routes() {
         assert!(request_requires_admin_write("/admin/config", &Method::Post));
         assert!(request_requires_admin_write(
+            "/admin/operator-objectives",
+            &Method::Post
+        ));
+        assert!(request_requires_admin_write(
             "/admin/config/bootstrap",
             &Method::Post
         ));
@@ -10231,6 +10283,10 @@ mod admin_auth_tests {
         ));
         assert!(!request_requires_admin_write(
             "/admin/operator-snapshot",
+            &Method::Get
+        ));
+        assert!(!request_requires_admin_write(
+            "/admin/operator-objectives",
             &Method::Get
         ));
         assert!(!request_requires_admin_write(
@@ -10395,6 +10451,7 @@ fn sanitize_path(path: &str) -> bool {
             | "/admin/analytics"
             | "/admin/events"
             | "/admin/operator-snapshot"
+            | "/admin/operator-objectives"
             | "/admin/benchmark-suite"
             | "/admin/benchmark-results"
             | "/admin/config"
@@ -10752,6 +10809,7 @@ fn request_requires_admin_write(path: &str, method: &Method) -> bool {
         "/admin/ban"
             | "/admin/unban"
             | "/admin/config"
+            | "/admin/operator-objectives"
             | "/admin/config/bootstrap"
             | "/admin/config/validate"
             | "/admin/adversary-sim/control"
@@ -13812,13 +13870,80 @@ pub(super) fn persist_site_config(
     cfg: &crate::config::Config,
     recent_change_rows: &[OperatorSnapshotRecentChangeLedgerRow],
 ) -> Result<(), ()> {
+    let recorded_at_ts = now_ts();
     let key = format!("config:{}", site_id);
     let encoded = crate::config::serialize_persisted_kv_config(cfg).map_err(|_| ())?;
     store.set(&key, &encoded).map_err(|_| ())?;
-    record_operator_snapshot_recent_change_rows(store, site_id, recent_change_rows, now_ts());
+    let decision_rows =
+        operator_snapshot_recent_change_rows_with_decisions(store, site_id, recent_change_rows, recorded_at_ts);
+    record_operator_snapshot_recent_change_rows(
+        store,
+        site_id,
+        decision_rows.as_slice(),
+        recorded_at_ts,
+    );
     crate::config::invalidate_runtime_cache(site_id);
     crate::observability::hot_read_projection::refresh_after_admin_mutation(store, site_id);
     Ok(())
+}
+
+fn operator_snapshot_recent_change_rows_with_decisions(
+    store: &impl crate::challenge::KeyValueStore,
+    site_id: &str,
+    rows: &[OperatorSnapshotRecentChangeLedgerRow],
+    recorded_at_ts: u64,
+) -> Vec<OperatorSnapshotRecentChangeLedgerRow> {
+    if rows.is_empty() {
+        return Vec::new();
+    }
+
+    let objectives = load_or_seed_operator_objectives(store, site_id, recorded_at_ts);
+    let watch_window_seconds = operator_objectives_watch_window_seconds(&objectives);
+    rows.iter()
+        .map(|row| {
+            let decision = record_decision(
+                store,
+                site_id,
+                OperatorDecisionDraft {
+                    recorded_at_ts,
+                    decision_kind: "manual_config_patch".to_string(),
+                    decision_status: "applied".to_string(),
+                    source: row.source.clone(),
+                    changed_families: row.changed_families.clone(),
+                    targets: row.targets.clone(),
+                    objective_revision: objectives.revision.clone(),
+                    watch_window_seconds,
+                    expected_impact_summary: format!(
+                        "Manual config change updated {}; observe the current objective window before judging improvement or rollback need.",
+                        row.changed_families.join(", ")
+                    ),
+                    evidence_references: vec![
+                        OperatorDecisionEvidenceReference {
+                            kind: "operator_objectives_revision".to_string(),
+                            reference: objectives.revision.clone(),
+                            note: "Objective revision active when this config change was applied."
+                                .to_string(),
+                        },
+                        OperatorDecisionEvidenceReference {
+                            kind: "config_targets".to_string(),
+                            reference: row.targets.join(","),
+                            note: "Controller or admin targets affected by the config patch."
+                                .to_string(),
+                        },
+                    ],
+                },
+            )
+            .ok();
+            if let Some(decision) = decision {
+                operator_snapshot_recent_change_with_decision_id(
+                    row,
+                    decision.decision_id.as_str(),
+                )
+            } else {
+                row.clone()
+            }
+        })
+        .collect()
 }
 
 pub(super) fn handle_admin_config_internal(
@@ -16699,6 +16824,7 @@ fn finalize_manual_unban_result<S: crate::challenge::KeyValueStore>(
 ///   - GET /admin/events: Query event log
 ///   - GET /admin/cdp/events: Query CDP-only events
 ///   - GET /admin/operator-snapshot: Query the machine-first operator snapshot contract
+///   - GET/POST /admin/operator-objectives: Read or update the persisted operator-objectives contract
 ///   - GET /admin/benchmark-suite: Query the machine-first benchmark family registry
 ///   - GET /admin/benchmark-results: Query the bounded machine-first benchmark result envelope
 ///   - GET /admin/monitoring: Query consolidated monitoring telemetry summaries
@@ -16920,6 +17046,7 @@ pub fn handle_admin(req: &Request) -> Response {
             }
             handle_admin_operator_snapshot(req, &store)
         }
+        "/admin/operator-objectives" => handle_admin_operator_objectives(req, &store, site_id),
         "/admin/benchmark-suite" => handle_admin_benchmark_suite(req),
         "/admin/benchmark-results" => {
             if expensive_admin_read_is_limited(&store, req, &auth, provider_registry.as_ref()) {
@@ -17144,7 +17271,7 @@ pub fn handle_admin(req: &Request) -> Response {
                     admin: Some(crate::admin::auth::get_admin_id(req)),
                 },
             );
-            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/operator-snapshot, /admin/benchmark-suite, /admin/benchmark-results, /admin/monitoring, /admin/monitoring/delta, /admin/monitoring/stream, /admin/ip-bans/delta, /admin/ip-bans/stream, /admin/ip-range/suggestions, /admin/config, /admin/config/bootstrap, /admin/config/validate, /admin/config/export, /admin/adversary-sim/control, /admin/adversary-sim/status, /admin/adversary-sim/history/cleanup, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/tarpit/preview (GET non-operational progressive tarpit preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/robots/preview (POST unsaved robots preview patch), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
+            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/operator-snapshot, /admin/operator-objectives, /admin/benchmark-suite, /admin/benchmark-results, /admin/monitoring, /admin/monitoring/delta, /admin/monitoring/stream, /admin/ip-bans/delta, /admin/ip-bans/stream, /admin/ip-range/suggestions, /admin/config, /admin/config/bootstrap, /admin/config/validate, /admin/config/export, /admin/adversary-sim/control, /admin/adversary-sim/status, /admin/adversary-sim/history/cleanup, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/tarpit/preview (GET non-operational progressive tarpit preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/robots/preview (POST unsaved robots preview patch), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
         }
         "/admin/maze" => {
             // Return maze statistics

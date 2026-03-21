@@ -1031,7 +1031,10 @@ test-operator-objectives-contract: ## Run focused operator-objectives profile an
 	@echo "$(CYAN)🧪 Running operator objectives contract checks...$(NC)"
 	@./scripts/set_crate_type.sh rlib
 	@cargo test observability::operator_snapshot_objectives::tests:: -- --nocapture
-	@cargo test observability::operator_snapshot::tests::snapshot_payload_uses_backend_default_objective_profile_and_budget_statuses -- --exact --nocapture
+	@cargo test observability::operator_objectives_store::tests:: -- --nocapture
+	@cargo test observability::decision_ledger::tests:: -- --nocapture
+	@cargo test admin::operator_objectives_api::tests:: -- --nocapture
+	@cargo test observability::operator_snapshot::tests::snapshot_payload_uses_persisted_objective_profile_and_typed_verified_identity_summary -- --exact --nocapture
 
 test-telemetry-hot-read-evidence: ## Run focused telemetry hot-read live-evidence tooling checks
 	@echo "$(CYAN)🧪 Running telemetry hot-read evidence checks...$(NC)"

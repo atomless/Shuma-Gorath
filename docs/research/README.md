@@ -168,6 +168,8 @@ Completed archive index:
    Execution-readiness review concluding that the remaining prerequisite is a docs-only planning and verification tranche: exact structural-decomposition, loop-truth, and reconcile-agent plans plus focused `make` verification paths before implementation starts.
 31. [`2026-03-21-ops-bench-2-benchmark-truth-completion-post-implementation-review.md`](2026-03-21-ops-bench-2-benchmark-truth-completion-post-implementation-review.md)
    Post-implementation review confirming the benchmark contract now materializes prior-window comparison truth, representative adversary and beneficial non-human families, and reusable candidate-comparison semantics for later reconcile and agent loops.
+32. [`2026-03-21-ops-snapshot-2-operator-snapshot-truth-post-implementation-review.md`](2026-03-21-ops-snapshot-2-operator-snapshot-truth-post-implementation-review.md)
+   Post-implementation review confirming the snapshot now uses persisted operator objectives, typed verified-identity state, and decision-evidence-linked recent changes instead of backend defaults and placeholders.
 
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 
