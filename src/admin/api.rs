@@ -13,6 +13,10 @@ use super::adversary_sim_api::{
     load_adversary_sim_lifecycle_snapshot,
 };
 use super::benchmark_api::{handle_admin_benchmark_results, handle_admin_benchmark_suite};
+use super::config_api::{
+    handle_admin_config, handle_admin_config_bootstrap, handle_admin_config_export,
+    handle_admin_config_validate,
+};
 use super::diagnostics_api::{
     handle_admin_maze_preview, handle_admin_maze_seed_refresh, handle_admin_maze_seed_sources,
     handle_admin_tarpit_preview,
@@ -165,7 +169,7 @@ const IP_RANGE_MAX_CIDRS_PER_RULE: usize = 512;
 const IP_RANGE_MAX_EMERGENCY_ALLOWLIST: usize = 1024;
 const IP_RANGE_CUSTOM_MESSAGE_MAX_CHARS: usize = 280;
 const IP_RANGE_REDIRECT_URL_MAX_CHARS: usize = 512;
-const CONFIG_EXPORT_SECRET_KEYS: [&str; 15] = [
+pub(super) const CONFIG_EXPORT_SECRET_KEYS: [&str; 15] = [
     "SHUMA_API_KEY",
     "SHUMA_ADMIN_READONLY_API_KEY",
     "SHUMA_JS_SECRET",
@@ -12196,7 +12200,7 @@ fn json_env<T: Serialize>(value: &T) -> String {
     serde_json::to_string(value).unwrap()
 }
 
-fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(String, String)> {
+pub(super) fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(String, String)> {
     let frontier = crate::config::frontier_summary();
     let frontier_model = |provider_name: &str| -> String {
         frontier
@@ -12870,50 +12874,6 @@ fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(String, String
             cfg.cdp_detection_threshold.to_string(),
         ),
     ]
-}
-
-fn handle_admin_config_export(
-    req: &Request,
-    store: &impl crate::challenge::KeyValueStore,
-    site_id: &str,
-) -> Response {
-    if *req.method() != spin_sdk::http::Method::Get {
-        return Response::new(405, "Method Not Allowed");
-    }
-    let cfg = match crate::config::load_runtime_cached(store, site_id) {
-        Ok(cfg) => cfg,
-        Err(err) => return Response::new(500, err.user_message()),
-    };
-    let entries = config_export_env_entries(&cfg);
-    let env_map: BTreeMap<String, String> = entries.iter().cloned().collect();
-    let env_text = entries
-        .iter()
-        .map(|(key, value)| format!("{}={}", key, value))
-        .collect::<Vec<_>>()
-        .join("\n");
-
-    log_event(
-        store,
-        &EventLogEntry {
-            ts: now_ts(),
-            event: EventType::AdminAction,
-            ip: None,
-            reason: Some("config_export".to_string()),
-            outcome: Some(format!("{} keys", entries.len())),
-            admin: Some(crate::admin::auth::get_admin_id(req)),
-        },
-    );
-
-    let body = serde_json::to_string(&json!({
-        "format": "env",
-        "site_id": site_id,
-        "generated_at": now_ts(),
-        "excluded_secrets": CONFIG_EXPORT_SECRET_KEYS,
-        "env": env_map,
-        "env_text": env_text
-    }))
-    .unwrap();
-    Response::new(200, body)
 }
 
 fn parse_country_list_json(field: &str, value: &serde_json::Value) -> Result<Vec<String>, String> {
@@ -13698,7 +13658,9 @@ struct AdminConfigPatch {
     defence_modes: Option<AdminDefenceModesPatch>,
 }
 
-fn validate_admin_config_patch_shape(json: &serde_json::Value) -> Result<(), String> {
+pub(super) fn validate_admin_config_patch_shape(
+    json: &serde_json::Value,
+) -> Result<(), String> {
     if json
         .as_object()
         .map(|object| object.contains_key("adversary_sim_enabled"))
@@ -13715,11 +13677,11 @@ fn validate_admin_config_patch_shape(json: &serde_json::Value) -> Result<(), Str
 }
 
 #[derive(Serialize)]
-struct AdminConfigValidationIssue {
-    field: Option<String>,
-    message: String,
-    expected: Option<String>,
-    received: Option<serde_json::Value>,
+pub(super) struct AdminConfigValidationIssue {
+    pub(super) field: Option<String>,
+    pub(super) message: String,
+    pub(super) expected: Option<String>,
+    pub(super) received: Option<serde_json::Value>,
 }
 
 fn admin_config_validation_read_value(
@@ -13821,7 +13783,7 @@ fn admin_config_validation_expected(message: &str) -> Option<String> {
     None
 }
 
-fn admin_config_validation_issue(
+pub(super) fn admin_config_validation_issue(
     patch: &serde_json::Value,
     message: String,
 ) -> AdminConfigValidationIssue {
@@ -13844,7 +13806,7 @@ fn admin_config_validation_issue(
     }
 }
 
-fn persist_site_config(
+pub(super) fn persist_site_config(
     store: &impl crate::challenge::KeyValueStore,
     site_id: &str,
     cfg: &crate::config::Config,
@@ -13859,7 +13821,7 @@ fn persist_site_config(
     Ok(())
 }
 
-fn handle_admin_config_internal(
+pub(super) fn handle_admin_config_internal(
     req: &Request,
     store: &impl crate::challenge::KeyValueStore,
     site_id: &str,
@@ -15707,124 +15669,6 @@ fn handle_admin_config_internal(
     Response::new(200, body)
 }
 
-fn handle_admin_config(
-    req: &Request,
-    store: &impl crate::challenge::KeyValueStore,
-    site_id: &str,
-) -> Response {
-    handle_admin_config_internal(req, store, site_id, false)
-}
-
-fn handle_admin_config_bootstrap(
-    req: &Request,
-    store: &impl crate::challenge::KeyValueStore,
-    site_id: &str,
-) -> Response {
-    if *req.method() != spin_sdk::http::Method::Post {
-        return Response::new(405, "Method Not Allowed");
-    }
-    if !crate::config::admin_config_write_enabled() {
-        return Response::new(
-            403,
-            "Config updates are disabled when SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false",
-        );
-    }
-
-    match crate::config::Config::load(store, site_id) {
-        Ok(_) => return Response::new(409, "Config already seeded"),
-        Err(crate::config::ConfigLoadError::MissingConfig) => {}
-        Err(err) => return Response::new(500, err.user_message()),
-    }
-
-    let body = match crate::request_validation::parse_json_body(
-        req.body(),
-        crate::request_validation::MAX_ADMIN_JSON_BYTES,
-    ) {
-        Ok(value) => value,
-        Err(err) => return Response::new(400, format!("Invalid config payload: {}", err)),
-    };
-
-    let mut cfg = match serde_json::from_value::<crate::config::Config>(body) {
-        Ok(cfg) => cfg,
-        Err(err) => return Response::new(400, format!("Invalid config payload: {}", err)),
-    };
-    if let Err(msg) = crate::config::normalize_persisted_config(&mut cfg) {
-        return Response::new(400, msg);
-    }
-
-    if persist_site_config(store, site_id, &cfg, &[]).is_err() {
-        return Response::new(500, "Key-value store error");
-    }
-
-    let challenge_default = challenge_threshold_default();
-    let not_a_bot_default = not_a_bot_threshold_default();
-    let maze_default = maze_threshold_default();
-    let response_body = serde_json::to_string(&json!({
-        "bootstrapped": true,
-        "config": admin_config_settings_payload(&cfg),
-        "runtime": admin_config_runtime_payload(&cfg, challenge_default, not_a_bot_default, maze_default)
-    }))
-    .unwrap();
-    Response::new(200, response_body)
-}
-
-fn handle_admin_config_validate(
-    req: &Request,
-    store: &impl crate::challenge::KeyValueStore,
-    site_id: &str,
-) -> Response {
-    if *req.method() != spin_sdk::http::Method::Post {
-        return Response::new(405, "Method Not Allowed");
-    }
-
-    let patch = match crate::request_validation::parse_json_body(
-        req.body(),
-        crate::request_validation::MAX_ADMIN_JSON_BYTES,
-    ) {
-        Ok(value) => value,
-        Err(err) => {
-            let issue = admin_config_validation_issue(
-                &serde_json::Value::Null,
-                format!("Invalid config payload: {}", err),
-            );
-            let body = serde_json::to_string(&json!({
-                "valid": false,
-                "issues": [issue]
-            }))
-            .unwrap();
-            return Response::new(200, body);
-        }
-    };
-
-    if let Err(err) = validate_admin_config_patch_shape(&patch) {
-        let issue = admin_config_validation_issue(&patch, err);
-        let body = serde_json::to_string(&json!({
-            "valid": false,
-            "issues": [issue]
-        }))
-        .unwrap();
-        return Response::new(200, body);
-    }
-
-    let validation_response = handle_admin_config_internal(req, store, site_id, true);
-    let status = *validation_response.status();
-    if status == 200 {
-        return Response::new(200, r#"{"valid":true,"issues":[]}"#);
-    }
-
-    let message = String::from_utf8_lossy(validation_response.body()).to_string();
-    if status == 400 {
-        let issue = admin_config_validation_issue(&patch, message.clone());
-        let body = serde_json::to_string(&json!({
-            "valid": false,
-            "issues": [issue]
-        }))
-        .unwrap();
-        return Response::new(200, body);
-    }
-
-    Response::new(status, message)
-}
 
 pub(super) fn monitoring_bootstrap_hot_read_request_eligible(
     hours: u64,
