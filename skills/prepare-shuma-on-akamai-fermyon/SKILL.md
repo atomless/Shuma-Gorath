@@ -11,12 +11,18 @@ This skill is agent-facing. It is not a human checklist.
 
 Use it before [`../deploy-shuma-on-akamai-fermyon/SKILL.md`](../deploy-shuma-on-akamai-fermyon/SKILL.md) when you need the Akamai-edge-only setup half of the Fermyon baseline.
 
+If the operator is asking for the full hosted Scrapling adversary runtime, stop and route that work to the shared-host path instead:
+
+- [`../prepare-scrapling-for-deploy/SKILL.md`](../prepare-scrapling-for-deploy/SKILL.md)
+- [`../deploy-shuma-on-linode/SKILL.md`](../deploy-shuma-on-linode/SKILL.md)
+
 This tranche is intentionally narrow:
 
 - target `spin aka` only,
 - keep `SHUMA_ACTIVE_REMOTE` untouched,
 - write durable Akamai/Fermyon receipts under `.shuma/`,
 - do not pretend plain Fermyon Cloud is part of this path.
+- do not pretend this path makes the full Scrapling worker runtime operational.
 
 The operator boundary is intentionally small:
 
@@ -48,12 +54,19 @@ What the helper does:
 - captures or generates `GATEWAY_SURFACE_CATALOG_PATH`,
 - writes a provider setup receipt to `.shuma/fermyon-akamai-edge-setup.json`.
 
+For Scrapling/runtime questions, the agent should keep the boundary truthful:
+
+- gateway catalogs remain gateway artifacts,
+- the default Scrapling seed remains the normalized public root URL,
+- shared-host is the current supported full runtime target.
+
 What the helper must not do:
 
 - it must not store the raw Fermyon token in the receipt,
 - it must not claim success if `spin aka login` panics or fails,
 - it must not overload the SSH `remote-*` contract,
-- it must not accept a non-HTTPS upstream origin for `edge-fermyon` posture.
+- it must not accept a non-HTTPS upstream origin for `edge-fermyon` posture,
+- it must not imply that edge setup alone satisfies the hosted Scrapling runtime contract.
 
 ## Output Contract
 

@@ -122,6 +122,9 @@ Use the Linode public IP for SSH access and origin staging before the final atta
 - the initial catalog must still be explicit and frozen,
 - use local docroot evidence first,
 - treat telemetry and Scrapling as later additive discovery.
+- treat the catalog as gateway evidence only; it must not be presented as the Scrapling runtime surface map.
+
+For the real hosted Scrapling runtime handoff, the later deploy path should infer the minimal scope-and-seed contract from the final public base URL through [`../../prepare-scrapling-for-deploy/SKILL.md`](../../prepare-scrapling-for-deploy/SKILL.md).
 
 Static example:
 

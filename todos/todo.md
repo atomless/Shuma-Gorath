@@ -110,7 +110,6 @@ Reference plan:
     - Replace any Scrapling-runtime guidance that still implies catalog compilation is a prerequisite or that a precompiled artifact defines the reachable surface.
     - Default the deploy-time seed input to the normalized public root URL only unless the operator explicitly opts into additional seeds or hint ingestion; do not feed the runtime a richer starting map than a real attacker would normally have.
     - Keep shared-host as the supported full Scrapling/adversary-sim runtime target in this tranche; keep Fermyon/Akamai truthful as an edge gateway path rather than stretching it into a first-class hosted worker target without a real external-supervisor product.
-    - [ ] SIM-SCR-8-3 Add a dedicated agent-facing Scrapling deploy skill and make the shared-host deploy skills depend on it, with explicit guidance that telemetry is the map, that deploy-time gateway catalogs are not the Scrapling reachable-surface truth, and that the default seed is just the public root URL.
     - [ ] SIM-SCR-8-4 De-scope Fermyon/Akamai from the full Scrapling runtime contract for now, keep the edge deploy skills and docs truthful about that boundary, and defer any external-supervisor productization until there is a concrete edge runtime target worth supporting.
 
 ## P1 Enterprise Distributed-State Deployment Baseline

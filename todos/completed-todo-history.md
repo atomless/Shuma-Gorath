@@ -4,6 +4,30 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-21)
 
+### SIM-SCR-8: Agent Skill Integration For Scrapling Deploy
+
+- [x] Complete `SIM-SCR-8-3` by adding a dedicated agent-facing Scrapling deploy skill, updating the shared-host Linode setup/deploy skills to depend on it for the full hosted runtime path, updating the Fermyon/Akamai setup/deploy skills to keep the shared-host-first runtime boundary truthful, and adding the new skill to the repo’s canonical skill-discovery surfaces.
+- [x] Why:
+  - once the shared-host deploy automation existed, the next real risk was leaving future agents on the old operator journey and letting them rediscover manual scope/seed/env steps that the helper had already automated away.
+  - the edge skills also needed an explicit truth correction. Without it, the repo still risked suggesting that a successful Fermyon gateway deploy was close to a full hosted Scrapling runtime, which is not the contract we want future agents or operators to infer.
+  - the first closeout pass exposed one small but important gap: the new skill existed on disk but was not yet discoverable from the repo’s canonical skill lists. That discoverability gap was corrected before completion.
+- [x] Evidence:
+  - `skills/prepare-scrapling-for-deploy/SKILL.md`
+  - `skills/prepare-shared-host-on-linode/SKILL.md`
+  - `skills/prepare-shared-host-on-linode/references/OPERATIONS.md`
+  - `skills/deploy-shuma-on-linode/SKILL.md`
+  - `skills/deploy-shuma-on-linode/references/OPERATIONS.md`
+  - `skills/prepare-shuma-on-akamai-fermyon/SKILL.md`
+  - `skills/prepare-shuma-on-akamai-fermyon/references/OPERATIONS.md`
+  - `skills/deploy-shuma-on-akamai-fermyon/SKILL.md`
+  - `skills/deploy-shuma-on-akamai-fermyon/references/OPERATIONS.md`
+  - `README.md`
+  - `docs/index.md`
+  - `docs/deployment.md`
+  - `docs/research/2026-03-21-sim-scr-8-agent-skill-integration-post-implementation-review.md`
+  - `git diff --check`
+  - post-tranche review: this slice was docs-only, so behavior tests were intentionally skipped. The review found one tranche-local shortfall before completion: the new skill was not yet discoverable from the repo’s canonical skill lists. That was corrected by updating `README.md`, `docs/index.md`, and `docs/deployment.md`. No remaining tranche-local shortfall remains inside `SIM-SCR-8-3`; the next optimal work is `SIM-SCR-8-4` for the final operator/doc closeout and broader edge-boundary truthfulness outside the skill surface.
+
 ### SIM-SCR-8: Shared-Host Scrapling Deploy Automation
 
 - [x] Complete `SIM-SCR-8-1` and `SIM-SCR-8-2` by adding one shared Scrapling deploy-preflight helper plus durable `.shuma/` receipt, wiring the shared-host Linode deploy path to generate and upload the root-only scope-and-seed artifacts automatically, persisting `ADVERSARY_SIM_SCRAPLING_*` env values into the deployed overlay, extending normalized `ssh_systemd` remote receipts with optional Scrapling metadata, and preserving the same behavior through `make remote-update`.

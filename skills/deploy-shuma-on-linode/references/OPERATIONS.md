@@ -53,6 +53,7 @@ If you are starting from a local site rather than an already-running upstream, f
 - [`../../prepare-shared-host-on-linode/SKILL.md`](../../prepare-shared-host-on-linode/SKILL.md)
 
 Use it to generate `GATEWAY_SURFACE_CATALOG_PATH` from the local docroot and to decide whether the upstream will be external or same-host internal (`http://127.0.0.1:8080`).
+If the operator also wants the hosted Scrapling runtime active, the deploy path now handles that automatically through [`../../prepare-scrapling-for-deploy/SKILL.md`](../../prepare-scrapling-for-deploy/SKILL.md); do not ask for extra scope or seed files in the normal case.
 
 The preflight verifies:
 
@@ -69,6 +70,12 @@ Gateway guardrails additionally verify:
 - origin-lock attestation (`SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED=true`).
 - admin edge-limit attestation (`SHUMA_ADMIN_EDGE_RATE_LIMITS_CONFIRMED=true`),
 - admin API-key rotation attestation (`SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED=true`).
+
+Scrapling deploy boundary:
+
+- `GATEWAY_SURFACE_CATALOG_PATH` stays a gateway preflight/smoke artifact only,
+- the deploy helper infers the root-only Scrapling scope-and-seed contract from the canonical public base URL,
+- and traversal telemetry remains the later reachable-surface map.
 
 Post-deploy smoke additionally verifies:
 
@@ -100,6 +107,7 @@ make remote-open-dashboard
 ```
 
 Those commands read `.shuma/remotes/<name>.json` and work at the generic `ssh_systemd` contract level rather than through Linode-specific provider logic. Successful deploy now auto-selects the emitted remote in `.env.local` and persists any generated operator secrets needed for dashboard/admin/smoke access there; use `make remote-use REMOTE=<name>` only to switch targets later. `make remote-update` also hydrates missing smoke-critical secrets from the remote `.env.local` for older hosts, runs a remote loopback `/health` check, and then runs public-route smoke. It must use the shipped prebuilt bundle on-host and must not rebuild dashboard/runtime artifacts remotely. `make clean` must not delete those `.shuma` artifacts; use `make reset-local-state` only when you intentionally want to wipe `.spin`.
+If the receipt includes Scrapling metadata, `make remote-update` now also re-uploads the generated scope and seed artifacts and restores the same `ADVERSARY_SIM_SCRAPLING_*` runtime env contract automatically.
 
 ## Live-Proven Gotchas
 

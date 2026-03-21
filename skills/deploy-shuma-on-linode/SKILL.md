@@ -24,6 +24,8 @@ Production posture is gateway-only (`client -> shuma -> existing origin`). This 
 
 If you are starting from a local site plus a Linode account rather than an already-prepared upstream, use [`../prepare-shared-host-on-linode/SKILL.md`](../prepare-shared-host-on-linode/SKILL.md) first. That setup skill is agent-facing: it captures or validates `LINODE_TOKEN`, proposes `SHUMA_ADMIN_IP_ALLOWLIST`, generates `GATEWAY_SURFACE_CATALOG_PATH`, writes `.shuma/linode-shared-host-setup.json`, emits the normalized day-2 remote receipt under `.shuma/remotes/<name>.json`, and auto-selects that remote in `.env.local`.
 
+If the operator also wants the full shared-host Scrapling runtime active, this deploy skill now depends on [`../prepare-scrapling-for-deploy/SKILL.md`](../prepare-scrapling-for-deploy/SKILL.md). In the normal path the deploy helper runs that automation itself; do not ask the operator to hand-author scope, seed, or `ADVERSARY_SIM_SCRAPLING_*` env values.
+
 Live proof reference:
 
 - [`../../docs/research/2026-03-06-linode-shared-host-live-proof.md`](../../docs/research/2026-03-06-linode-shared-host-live-proof.md)
@@ -45,6 +47,12 @@ Required:
 - `SHUMA_ADMIN_API_KEY_ROTATION_CONFIRMED=true`.
 - `GATEWAY_SURFACE_CATALOG_PATH`: discovered origin public-surface catalog JSON.
 - `--domain <fqdn>`: canonical production path requires domain/TLS from the start.
+
+Important boundary:
+
+- `GATEWAY_SURFACE_CATALOG_PATH` remains a gateway preflight and smoke artifact.
+- It is not the Scrapling reachable-surface truth.
+- The Scrapling deploy prep now infers a root-only starting point from `--domain` and the canonical public base URL.
 
 These may already be satisfied by the setup helper:
 
@@ -178,6 +186,7 @@ If the origin ever logs paths that start with `/http://...`, the host is running
 3. Creates a new Linode VM (Ubuntu image by default) or validates the prepared existing instance you named with `--existing-instance-id`.
 4. Waits for SSH readiness with your provided private key.
 5. Uploads generated `.env.local`, the release bundle, the reserved-route surface catalog, and bootstrap scripts.
+   It also generates the shared-host Scrapling scope/seed receipt from the canonical public base URL, uploads the resulting scope and seed artifacts, and writes the `ADVERSARY_SIM_SCRAPLING_*` env contract into the deployed overlay automatically.
 6. Runs server bootstrap using existing Makefile targets.
 7. Installs/starts a `systemd` unit for persistent runtime.
    The runtime uses `SHUMA_SPIN_MANIFEST=/opt/shuma-gorath/spin.gateway.toml`.
@@ -186,7 +195,14 @@ If the origin ever logs paths that start with `/http://...`, the host is running
 8. Configures Caddy reverse proxy for domain/TLS.
 9. Enables firewall rules for SSH and serving ports.
 10. Writes or refreshes `.shuma/remotes/<name>.json` and auto-selects it in `.env.local` so generic `make remote-*` day-2 operations can take over from provider-specific deploy plumbing.
+    The normalized receipt now also keeps the optional Scrapling scope/seed metadata so `make remote-update` preserves the same runtime artifact contract later.
 11. The acceptance path should also prove monitoring responsiveness with `make telemetry-shared-host-evidence`; a deploy is not fully accepted if the admin telemetry bootstrap path is regressing even when health/auth smoke passes.
+
+Scrapling reality rule:
+
+- the default deploy-time seed is just the normalized public root URL,
+- the deploy artifacts define the initial allowed starting envelope only,
+- traversal telemetry, not the gateway catalog, becomes the reachable-surface map later.
 
 ## Day-2 Handoff
 
@@ -202,6 +218,7 @@ make remote-open-dashboard
 ```
 
 The successful deploy already selected the emitted remote locally and persists any generated operator secrets needed for dashboard/admin/smoke access into local `.env.local`. Use `make remote-use REMOTE=<name>` later only when you want to switch targets. `remote-update` now ships the exact committed local `HEAD`, preserves the remote `.env.local` and `.spin`, runs a remote loopback `/health` check plus public-route smoke, refreshes the receipt metadata, and attempts rollback if smoke fails. If an older host is missing smoke-critical secrets locally, the helper hydrates them from the remote `.env.local` first. It must use the shipped prebuilt bundle on-host and must not rebuild dashboard/runtime artifacts remotely.
+If the remote receipt includes Scrapling metadata, `remote-update` also re-uploads the scope and seed artifacts and restores the same `ADVERSARY_SIM_SCRAPLING_*` runtime contract automatically.
 
 Fresh-proof hitch notes:
 

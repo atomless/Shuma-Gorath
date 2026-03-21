@@ -5,6 +5,7 @@ Maturity note:
 - this is now a live-proven deploy-path operations guide for the `spin aka` path;
 - the Akamai edge baseline is proven, but provider-specific gotchas remain important operational knowledge;
 - shared day-2 verbs are still a later design slice because this path does not participate in `ssh_systemd` remote management.
+- the full hosted Scrapling worker runtime remains a shared-host-first contract rather than part of this edge deploy guide.
 
 ## Preflight Checklist
 
@@ -34,6 +35,11 @@ Optional preflight-only run:
 ```bash
 make deploy-fermyon-akamai-edge DEPLOY_FERMYON_ARGS="--preflight-only"
 ```
+
+If the operator asks for the real hosted Scrapling adversary runtime, redirect to:
+
+- [`../../prepare-scrapling-for-deploy/SKILL.md`](../../prepare-scrapling-for-deploy/SKILL.md)
+- [`../../deploy-shuma-on-linode/SKILL.md`](../../deploy-shuma-on-linode/SKILL.md)
 
 ## Required Akamai Staging Property Gate
 

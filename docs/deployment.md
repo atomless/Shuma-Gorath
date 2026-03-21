@@ -146,6 +146,7 @@ make deploy-linode-one-shot DEPLOY_LINODE_ARGS="--existing-instance-id 123456 --
 
 Related repo-local deployment skills:
 
+- [`../skills/prepare-scrapling-for-deploy/SKILL.md`](../skills/prepare-scrapling-for-deploy/SKILL.md)
 - [`../skills/prepare-shared-host-on-linode/SKILL.md`](../skills/prepare-shared-host-on-linode/SKILL.md)
 - [`../skills/deploy-shuma-on-linode/SKILL.md`](../skills/deploy-shuma-on-linode/SKILL.md)
 - [`../skills/prepare-shuma-on-akamai-fermyon/SKILL.md`](../skills/prepare-shuma-on-akamai-fermyon/SKILL.md)

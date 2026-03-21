@@ -31,6 +31,7 @@ Observed setup hitch from the 2026-03-08 fresh proof:
 Live proof reference:
 
 - [`../../docs/research/2026-03-06-linode-shared-host-live-proof.md`](../../docs/research/2026-03-06-linode-shared-host-live-proof.md)
+- [`../prepare-scrapling-for-deploy/SKILL.md`](../prepare-scrapling-for-deploy/SKILL.md) for the later shared-host Scrapling runtime handoff
 
 ## Agent Contract
 
@@ -51,12 +52,14 @@ What the helper does:
 - writes a provider setup receipt to `.shuma/linode-shared-host-setup.json`,
 - writes a normalized day-2 remote receipt to `.shuma/remotes/<name>.json`,
 - auto-selects that remote into `.env.local` for later `make remote-*` commands.
+- leaves the later Scrapling runtime prep to the deploy stage, where the agent should infer the root-only scope/seed contract from the final public base URL instead of asking the operator for extra runtime artifacts.
 
 What the helper must not do:
 
 - it must not store the raw Linode token in the receipt,
 - it must not pretend same-host origin staging is complete if `SHUMA_GATEWAY_UPSTREAM_ORIGIN` is not yet real,
-- it must not require a human-authored sitemap.
+- it must not require a human-authored sitemap,
+- it must not treat the gateway surface catalog as the Scrapling runtime map.
 
 ## Output Contract
 
@@ -113,6 +116,8 @@ Only hand off to the deploy skill when all of these are true:
 - the Linode instance is known,
 - the upstream origin contract is real,
 - the final public domain/FQDN is known for canonical Shuma attach.
+
+If the operator wants Scrapling active on the deployed shared host, the next step is still the normal deploy skill. Do not insert a second manual scope/seed collection phase in between; the deploy path now owns that automation through [`../prepare-scrapling-for-deploy/SKILL.md`](../prepare-scrapling-for-deploy/SKILL.md).
 
 The live `dummy_static_site` proof confirmed this boundary is correct:
 

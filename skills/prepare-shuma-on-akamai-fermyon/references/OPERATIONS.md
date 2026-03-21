@@ -109,6 +109,12 @@ If the origin is not ready yet, stop after setup and leave the receipt unproven.
 - the initial catalog must still be explicit and frozen,
 - use `--surface-catalog-path` when you already have the artifact,
 - otherwise use `--docroot` so the helper can build it.
+- keep that catalog in the gateway lane only; it must not be presented as the Scrapling reachable-surface map.
+
+If the operator wants the real hosted Scrapling runtime, stop and hand off to the shared-host path instead:
+
+- [`../../prepare-scrapling-for-deploy/SKILL.md`](../../prepare-scrapling-for-deploy/SKILL.md)
+- [`../../deploy-shuma-on-linode/SKILL.md`](../../deploy-shuma-on-linode/SKILL.md)
 
 ## Admin Allowlist Rule
 

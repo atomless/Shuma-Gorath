@@ -18,6 +18,12 @@ Current maturity boundary:
 - this skill targets `spin aka` only,
 - plain `spin cloud` is out of scope for this tranche,
 - the Akamai edge baseline is now live-proven, so follow-on Akamai Rate/GEO work may proceed from this posture.
+- full hosted Scrapling runtime support remains shared-host-first and is not part of this edge deploy contract.
+
+If the operator wants the real hosted Scrapling adversary runtime, use:
+
+- [`../prepare-scrapling-for-deploy/SKILL.md`](../prepare-scrapling-for-deploy/SKILL.md)
+- [`../deploy-shuma-on-linode/SKILL.md`](../deploy-shuma-on-linode/SKILL.md)
 
 Production posture is gateway-only (`client -> shuma -> existing origin`) with `edge-fermyon` guardrails.
 
@@ -88,7 +94,8 @@ What the helper must not do:
 
 - it must not pretend plain `spin cloud` is part of this path,
 - it must not continue after a `spin aka login` panic,
-- it must not overload the SSH `remote-*` contract.
+- it must not overload the SSH `remote-*` contract,
+- it must not claim that deploying this edge baseline makes the full Scrapling worker runtime operational.
 
 ## Canonical Command Path
 
@@ -140,6 +147,8 @@ Stop and treat the current run as unproven if either of these is true:
 
 - `spin aka login` fails or panics,
 - no real Akamai/Fermyon deploy receipt is written.
+
+Stop and redirect to the shared-host runtime path if the request changes from "deploy Shuma at the edge" to "run the real hosted Scrapling adversary sim." The current edge deploy can carry gateway posture and edge-only cron-driven simulation beats, but it is not the supported home of the full hosted worker runtime.
 
 If the helper reports the known upstream plugin panic, treat that as an upstream CLI defect and fall back to device login in interactive sessions instead of pretending PAT login worked.
 If browser auth succeeds but Fermyon returns `User is not allow-listed!`, treat that as a provider-access blocker, expect the setup receipt to remain in `status=blocked` form, and stop.

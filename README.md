@@ -178,6 +178,7 @@ Deployment policy note: `SHUMA_KV_STORE_FAIL_OPEN` is a critical choice (fail-op
 - [`docs/testing.md`](docs/testing.md) - Testing guide (Makefile-only)
 - [`docs/dashboard.md`](docs/dashboard.md) - Dashboard and admin <abbr title="User Interface">UI</abbr>
 - [`docs/deployment.md`](docs/deployment.md) - Production/deploy configuration
+- [`skills/prepare-scrapling-for-deploy/SKILL.md`](skills/prepare-scrapling-for-deploy/SKILL.md) - Agent skill for inferring minimal Scrapling deploy artifacts and shared-host-first runtime boundaries
 - [`skills/prepare-shared-host-on-linode/SKILL.md`](skills/prepare-shared-host-on-linode/SKILL.md) - Agent skill for preparing a Linode shared host and surface-catalog handoff before Shuma deploy
 - [`skills/deploy-shuma-on-linode/SKILL.md`](skills/deploy-shuma-on-linode/SKILL.md) - Agent skill for one-command Linode provisioning + deployment
 - [`skills/prepare-shuma-on-akamai-fermyon/SKILL.md`](skills/prepare-shuma-on-akamai-fermyon/SKILL.md) - Agent skill for Akamai-edge-only Fermyon setup and deploy handoff preparation
