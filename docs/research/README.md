@@ -96,6 +96,8 @@ Completed archive index:
    Readiness review defining the smallest clean `WB-2.1` slice as the native verifier core with deterministic replay/freshness enforcement while leaving bounded remote directory discovery and caching for `WB-2.2`.
 13. [`2026-03-21-wb-2-1-native-http-message-signature-post-implementation-review.md`](2026-03-21-wb-2-1-native-http-message-signature-post-implementation-review.md)
    Post-implementation review for the native verifier tranche, confirming the internal runtime now has deterministic HTTP Message Signatures verification with explicit external-directory deferral to `WB-2.2`, and recording the replay-state fail-closed follow-up completed during closeout review.
+14. [`2026-03-21-wb-2-2-directory-discovery-cache-readiness-review.md`](2026-03-21-wb-2-2-directory-discovery-cache-readiness-review.md)
+   Readiness review for `WB-2.2`, fixing the bounded external directory-discovery/cache contract around HTTPS-only outbound resolution, explicit stale/unavailable semantics, and deterministic cache-size limits before implementation.
 4. [`2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md`](2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md)
    Research synthesis for the machine-first Monitoring destination, bounded operator snapshot contract, and the first config-diff-only feedback loop that should precede the human Monitoring overhaul.
 5. [`2026-03-20-operator-snapshot-foundation-post-implementation-review.md`](2026-03-20-operator-snapshot-foundation-post-implementation-review.md)
