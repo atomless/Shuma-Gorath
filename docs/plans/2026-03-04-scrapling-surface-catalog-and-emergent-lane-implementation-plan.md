@@ -495,9 +495,10 @@ Acceptance criteria:
 
 Scope:
 
-1. Add make targets for inventory and catalog workflows.
-2. Document manual tuning loop without automatic replay synthesis.
-3. Document runbook for scope policy setup and safety checks.
+1. Remove remaining Scrapling runtime/operator directives that imply a catalog-first discovery workflow.
+2. Keep the operator bootstrap limited to the shared-host scope fence plus minimal seed inventory; do not require a runtime catalog compile step for Scrapling lane activation.
+3. Document the manual tuning loop without automatic replay synthesis.
+4. Document the operator runbook for scope policy setup, seed setup, supervisor/runtime setup, deployment egress controls, and safe toggle-on/observe/toggle-off workflow.
 
 Primary touchpoints:
 
@@ -508,15 +509,18 @@ Primary touchpoints:
 
 Proposed targets:
 
-1. `make adversary-surface-inventory`
-2. `make adversary-surface-catalog-compile`
-3. `make test-adversary-surface-catalog`
+1. `make build-shared-host-seed-inventory`
+2. `make test-shared-host-scope-contract`
+3. `make test-shared-host-seed-contract`
+4. `make test-adversary-sim-scrapling-worker`
+5. `make test-adversary-sim-runtime-surface`
 
 Acceptance criteria:
 
-1. Operator can bootstrap catalog in <= 3 commands from fresh setup.
-2. Docs specify mandatory scope-policy checks before enabling Scrapling lane execution.
-3. Verification paths use Make targets only.
+1. Operator can bootstrap Scrapling preflight from the scope fence plus minimal seed inventory without building a runtime catalog.
+2. Docs specify mandatory scope-policy, seed, supervisor-runtime, and deployment-egress checks before enabling Scrapling lane execution.
+3. Docs explicitly state that the reachable surface comes from traversal telemetry, not from a rich precompiled catalog.
+4. Verification paths use truthful Make targets only.
 
 ### SIM-SCR-9: Roadmap Capture (Deferred Work)
 

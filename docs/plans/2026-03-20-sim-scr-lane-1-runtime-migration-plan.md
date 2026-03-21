@@ -240,15 +240,18 @@ Acceptance:
 
 Scope:
 
-1. document the new lane-selection contract,
-2. add focused Make targets or refine existing ones where verification naming/scope needs tightening,
-3. and capture rollout, rollback, and no-impact guidance for the new runtime lane.
+1. document the settled lane-selection contract and the real operator journey for preselecting, enabling, observing, and disabling the Scrapling lane,
+2. remove remaining Scrapling runtime/operator directives that still imply catalog-first discovery and restate that telemetry is the map,
+3. add focused Make targets or refine existing ones where verification naming/scope needs tightening,
+4. and capture rollout, rollback, no-impact, deployment-egress, and operating-receipt guidance for the new runtime lane.
 
 Acceptance:
 
 1. docs describe the settled contract rather than the migration intermediate,
-2. verification targets truthfully match their scope,
-3. and the operator guide explains how the new lane model interacts with shared-host seeds and traversal telemetry.
+2. no Scrapling runtime/operator doc presents catalog compilation as a prerequisite or as the reachable-surface truth,
+3. verification targets truthfully match their scope,
+4. the operator guide explains how the new lane model interacts with shared-host seeds, traversal telemetry, and deployment egress requirements,
+5. and the tranche evidence defines the expected operator receipt for preflight, enable, observe, and disable phases.
 
 ## Verification Strategy
 

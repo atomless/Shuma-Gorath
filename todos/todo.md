@@ -105,7 +105,9 @@ Reference plan:
 - [ ] SIM-SCR-LANE-1 Three-lane runtime migration and Scrapling integration.
   Execution note: this lane is now unblocked by `SIM-DEPLOY-2` and `SIM-SH-SURFACE-1-1..2`. Its reachable-surface view must derive from the minimal seed inventory plus later traversal telemetry, not from a precompiled public-surface catalog.
   Execution order:
-  - [ ] SIM-SCR-8 Close operator workflow, truthful `make` verification targets, rollout/rollback guidance, hosted-scope deployment egress guidance, and tranche evidence.
+  - [ ] SIM-SCR-8 Close operator workflow, truthful `make` verification targets, rollout/rollback guidance, hosted-scope deployment egress guidance, tranche evidence, and removal of remaining catalog-first runtime directives so "telemetry is the map" stays explicit in operator docs and plan language.
+    - Document the real operator journey: scope fence and minimal seed preflight, lane preselection while off, explicit toggle-on, beat-boundary convergence, telemetry-led observation, and explicit toggle-off with retained evidence.
+    - Replace any Scrapling-runtime guidance that still implies catalog compilation is a prerequisite or that a precompiled artifact defines the reachable surface.
 
 ## P1 Enterprise Distributed-State Deployment Baseline
 
