@@ -76,7 +76,6 @@ Current stance:
 - The first execution slices should stay observe-only: identity contracts, config, provider normalization, telemetry, and request-path annotations without routing change.
 - The primary product value is exact non-human restriction and exception management; looser treatment for named verified bots remains an explicit opt-in later policy choice.
 - Do not bundle authorization policy, low-cost profiles, or dashboard control surfaces into the first tranche.
-- [ ] WB-3.1 Add named identity policy registry per [`docs/research/2026-03-21-wb-3-1-named-identity-policy-registry-readiness-review.md`](../docs/research/2026-03-21-wb-3-1-named-identity-policy-registry-readiness-review.md) and [`docs/plans/2026-03-21-wb-3-1-named-identity-policy-registry-implementation-plan.md`](../docs/plans/2026-03-21-wb-3-1-named-identity-policy-registry-implementation-plan.md): activate the local verified-identity policy registry with explicit precedence, restrictive top-level fallback, named allow/observe/restrict/deny outcomes, and resolved service-profile selections without yet bundling low-cost response shaping.
 
 ## P1 Production Adversary-Sim Operating Contract
 

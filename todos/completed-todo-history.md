@@ -4,6 +4,51 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-21)
 
+### WB-3.1-REVIEW-1: Extend Verified-Identity Policy Parity And Classification Proof
+
+- [x] During the `WB-3.1` closeout review, identified that the canonical plan-builder characterization snapshot and the shared traffic-classification regression set did not yet cover the new verified-identity decision family, then executed the follow-up by extending the focused make gate, teaching the snapshot harness to evaluate the verified-identity tranche in real order, adding verified-identity allow/deny/observe/restrict snapshot cases, and adding explicit regression proof for the new policy-source classification.
+- [x] Why:
+  - `WB-3.1` added a new runtime decision family and a new monitoring policy source, so leaving the repo's strongest parity artifact and shared classification seam blind to that family would have weakened future regression detection even though the runtime behavior itself was correct.
+  - the cleanest fix was additive and reuse-first: extend the existing focused make target, characterization harness, and shared classification tests rather than invent a separate bespoke verification path.
+  - this keeps the repo's truth-in-naming rule intact because `test-verified-identity-policy` now really does cover the verified-identity policy family across pure evaluation, runtime mapping, parity snapshot, and classification seams.
+- [x] Evidence:
+  - `Makefile`
+  - `src/runtime/effect_intents/plan_builder.rs`
+  - `src/runtime/effect_intents/plan_builder_characterization_snapshot.txt`
+  - `src/runtime/traffic_classification.rs`
+  - `make test-verified-identity-policy`
+  - `git diff --check`
+  - review result: the regression-proof gap was closed during tranche review; no remaining `WB-3.1` shortfall was left open.
+
+### WB-3.1: Add Named Identity Policy Registry
+
+- [x] Activated the local verified-identity policy registry by adding the pure evaluator, wiring a dedicated verified-identity policy stage between the existing first and second policy tranches, mapping allow/observe/restrict/deny outcomes through the current effect-intent pipeline, introducing truthful taxonomy/block-page/monitoring source updates, and documenting the current explicit-allow versus continue semantics plus the resolved-but-not-rendered service-profile limitation.
+- [x] Why:
+  - `WB-3.1` was the first tranche where verified identity had to become real local authorization policy rather than observe-only telemetry, so the implementation needed explicit precedence and restrictive fallback without drifting into low-cost delivery or dashboard control surfaces early.
+  - the cleanest implementation reused the already-landed verified-identity config/domain/request-path seams and the existing policy-graph/effect-intent architecture instead of creating a separate allowlist or one-off runtime branch.
+  - keeping service-profile selection resolved but not yet response-shaping preserved truthful semantics for this tranche while leaving `WB-4.1` to own the lower-cost delivery contract.
+- [x] Evidence:
+  - `src/bot_identity/policy.rs`
+  - `src/runtime/policy_graph.rs`
+  - `src/runtime/policy_pipeline.rs`
+  - `src/runtime/request_flow.rs`
+  - `src/runtime/effect_intents/plan_builder.rs`
+  - `src/runtime/policy_taxonomy.rs`
+  - `src/runtime/traffic_classification.rs`
+  - `src/observability/monitoring.rs`
+  - `src/enforcement/block_page.rs`
+  - `Makefile`
+  - `docs/configuration.md`
+  - `docs/security-hardening.md`
+  - `docs/research/2026-03-21-wb-3-1-named-identity-policy-registry-post-implementation-review.md`
+  - `make test-verified-identity-policy`
+  - `make test-runtime-preflight-unit`
+  - `make test-verified-identity-native`
+  - `make test-verified-identity-provider`
+  - `make test-verified-identity-proxy-trust`
+  - `git diff --check`
+  - post-tranche review: one review-only regression-proof gap was found and closed immediately as `WB-3.1-REVIEW-1`; no remaining `WB-3.1` shortfall is left open.
+
 ### WB-2.3: Preserve Proxy And Edge Trust Semantics
 
 - [x] Preserved and documented the verified-identity proxy and edge trust contract by adding focused native/gateway tests for trusted forwarded HTTPS, untrusted forwarded proto rejection, edge `spin-full-url` HTTPS context, and gateway pass-through of `Signature*` headers while stripping Shuma-owned trust headers; also added the focused `make` gate and updated operator hardening/config docs.

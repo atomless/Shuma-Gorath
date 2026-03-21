@@ -106,6 +106,8 @@ Completed archive index:
    Post-implementation review for `WB-2.3`, confirming the gateway/edge trust contract is now explicit in docs and regression-protected by focused native and gateway tests without expanding authorization scope.
 18. [`2026-03-21-wb-3-1-named-identity-policy-registry-readiness-review.md`](2026-03-21-wb-3-1-named-identity-policy-registry-readiness-review.md)
    Readiness review for `WB-3.1`, defining the smallest clean activation slice for named verified-identity authorization with explicit precedence, restrictive fallback, and resolved-but-not-rendered service-profile outcomes.
+19. [`2026-03-21-wb-3-1-named-identity-policy-registry-post-implementation-review.md`](2026-03-21-wb-3-1-named-identity-policy-registry-post-implementation-review.md)
+   Post-implementation review for `WB-3.1`, confirming the named verified-identity policy registry now enforces explicit allow/observe/restrict/deny outcomes in the runtime policy path and recording the immediate request-flow proof follow-up closed during tranche review.
 4. [`2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md`](2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md)
    Research synthesis for the machine-first Monitoring destination, bounded operator snapshot contract, and the first config-diff-only feedback loop that should precede the human Monitoring overhaul.
 5. [`2026-03-20-operator-snapshot-foundation-post-implementation-review.md`](2026-03-20-operator-snapshot-foundation-post-implementation-review.md)
