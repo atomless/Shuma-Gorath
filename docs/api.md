@@ -183,6 +183,12 @@ Internal supervisor-only adversary-sim endpoints:
 - `POST /internal/adversary-sim/beat` - Internal supervisor heartbeat endpoint that returns lane dispatch mode and, when `active_lane=scrapling_traffic`, the bounded Scrapling worker plan for the next beat.
 - `POST /internal/adversary-sim/worker-result` - Internal supervisor write path for bounded Scrapling worker results. This path is internal-supervisor authenticated, rejects stale or off-state worker results with `409 stale_worker_result`, and never accepts dashboard/client traffic.
 
+Hosted Scrapling worker deployment boundary:
+
+- shared-host `ssh_systemd` deployments are the current supported full hosted worker path,
+- Fermyon/Akamai edge deploys can still expose lifecycle and control-plane truth, but they do not imply a supported full hosted worker runtime,
+- and the admin API does not accept a deploy-time surface catalog for lane routing; deploy-time scope/seed artifacts stay outside the API surface and traversal telemetry remains the authoritative reachable-surface map.
+
 `GET /admin/session` includes `access` as `read_only`, `read_write`, or `none`.
 
 Expensive admin read endpoints (`/admin/events`, `/admin/cdp/events`, `/admin/operator-snapshot`, `/admin/monitoring`, `/admin/monitoring/delta`, `/admin/monitoring/stream`, `/admin/ip-bans/delta`, `/admin/ip-bans/stream`, `/admin/ip-range/suggestions`, `/admin/ban` `GET`) are rate-limited to reduce <abbr title="Key-Value">KV</abbr>/<abbr title="Central Processing Unit">CPU</abbr> abuse amplification (`429` with `Retry-After: 60` when limited).

@@ -177,6 +177,8 @@ Available profiles:
 - `make test-adversarial-lane-contract` - black-box attacker/control capability contract parity check across deterministic/container tooling
 - `make test-shared-host-scope-contract` - shared-host descriptor and fail-closed scope gate parity check across the versioned contract plus seed-tooling validator
 - `make test-shared-host-seed-contract` - minimal shared-host seed inventory contract parity check, including required primary URL handling, bounded `robots.txt` hint ingestion, provenance merge, and rejection diagnostics
+- `make prepare-scrapling-deploy` - shared-host deploy-prep helper that infers the fail-closed scope fence, root-only seed, runtime env mappings, and deploy-time receipt from the canonical public base URL
+- `make test-scrapling-deploy-shared-host` - focused shared-host deploy proof for the Scrapling prep helper, Linode deploy wiring, normalized `ssh_systemd` receipt extension, and `make remote-update` preservation of the same scope/seed artifact contract
 - `make test-adversary-sim-scrapling-worker` - focused real Scrapling lane gate covering the internal beat/result contract, bounded worker execution, real signed requests against a local hosted-scope fixture, and host-side supervisor source-contract wiring
 - `make test-adversarial-sim-tag-contract` - signed simulation-tag contract parity check across lane contract, runner, and container worker
 - `make test-adversarial-coverage-contract` - canonical `full_coverage` contract parity check across SIM2 plan rows, manifests, and runner enforcement
@@ -188,6 +190,14 @@ Available profiles:
 - `make test-adversarial-frontier-attempt` - protected-lane frontier provider probe attempt (advisory, non-blocking)
 - `make test-frontier-governance` - fail-fast guard for forbidden frontier artifact fields and secret leaks
 - `make test-frontier-unavailability-policy` - degraded-threshold policy evaluation and refresh-action artifact
+
+Shared-host Scrapling proof map:
+
+- `make prepare-scrapling-deploy` proves deploy-time inference and receipt generation only.
+- `make test-scrapling-deploy-shared-host` proves the shared-host deploy/update automation carries the same inferred scope/seed/env contract end to end.
+- `make test-adversary-sim-scrapling-worker` proves the hosted worker lane itself.
+- `make test-adversary-sim-runtime-surface` proves the running target keeps the defense surface live while adversary simulation remains no-impact to normal user traffic.
+- none of those targets make Fermyon/Akamai edge a supported full hosted Scrapling worker target; that edge runtime remains outside the current supported contract.
 
 Simulation realism pages are available at `/sim/public/landing`, `/sim/public/docs`, `/sim/public/pricing`, `/sim/public/contact`, and `/sim/public/search?q=...` only when both availability gates are true: `SHUMA_ADVERSARY_SIM_AVAILABLE=true` and the effective adversary-sim desired state is enabled (seeded initially by `SHUMA_ADVERSARY_SIM_ENABLED`, then projected from persisted control state after the first `POST /admin/adversary-sim/control` write).
 Dashboard DOM-class contract for runtime/simulation affordances:
@@ -222,7 +232,7 @@ Host-side supervisor launch adapters:
   - `make adversary-sim-supervisor`
 - Single-host/systemd style deployment should use the same wrapper/runtime contract as `make prod-start`: launch `scripts/run_with_adversary_sim_supervisor.sh` around `spin up`, with `SHUMA_API_KEY` injected via service env/secret manager. That wrapper manages the `target/tools/adversary_sim_supervisor` worker, polls `GET /admin/adversary-sim/status`, sends `POST /internal/adversary-sim/beat`, and when Scrapling is selected runs `scripts/supervisor/scrapling_worker.py` with the repo-owned `.venv-scrapling` runtime before posting `POST /internal/adversary-sim/worker-result`.
 - Containerized deployment can run the same worker as a sidecar process sharing network reachability to the Shuma instance.
-- Edge/no-local-process environments can run an external supervisor service that calls the same internal beat endpoint.
+- Edge/no-local-process environments are not the current supported full hosted Scrapling worker target. External-supervisor productization remains deferred until there is a concrete edge runtime target worth supporting end to end.
 
 Live loop examples:
 

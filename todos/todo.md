@@ -91,27 +91,6 @@ Scope note:
 - `SIM-SCR-LANE-1` should require only the minimal scope-and-seed gate in `SIM-SH-SURFACE-1-1..2` plus `SIM-DEPLOY-2`.
 - The observed reachable surface should emerge from traversal telemetry once the emergent lane runs; Shuma should not build a rich precomputed public-surface catalog as the default discovery architecture.
 
-## P1 Scrapling Emergent Lane
-
-Reference plan:
-- [`docs/plans/2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md`](../docs/plans/2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md)
-- [`docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`](../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md)
-- [`docs/plans/2026-03-20-minimal-seed-and-telemetry-surface-discovery-design.md`](../docs/plans/2026-03-20-minimal-seed-and-telemetry-surface-discovery-design.md)
-- [`docs/plans/2026-03-20-shared-host-scope-fence-contract.md`](../docs/plans/2026-03-20-shared-host-scope-fence-contract.md)
-- [`docs/plans/2026-03-20-shared-host-seed-contract.md`](../docs/plans/2026-03-20-shared-host-seed-contract.md)
-- [`docs/plans/2026-03-20-sim-scr-lane-1-runtime-migration-plan.md`](../docs/plans/2026-03-20-sim-scr-lane-1-runtime-migration-plan.md)
-- [`docs/research/2026-03-20-sim-scr-lane-1-readiness-review.md`](../docs/research/2026-03-20-sim-scr-lane-1-readiness-review.md)
-
-- [ ] SIM-SCR-LANE-1 Three-lane runtime migration and Scrapling integration.
-  Execution note: this lane is now unblocked by `SIM-DEPLOY-2` and `SIM-SH-SURFACE-1-1..2`. Its reachable-surface view must derive from the minimal seed inventory plus later traversal telemetry, not from a precompiled public-surface catalog.
-  Execution order:
-  - [ ] SIM-SCR-8 Close operator workflow, truthful `make` verification targets, rollout/rollback guidance, hosted-scope deployment egress guidance, tranche evidence, and removal of remaining catalog-first runtime directives so "telemetry is the map" stays explicit in operator docs and plan language.
-    - Document the real operator journey: scope fence and minimal seed preflight, lane preselection while off, explicit toggle-on, beat-boundary convergence, telemetry-led observation, and explicit toggle-off with retained evidence.
-    - Replace any Scrapling-runtime guidance that still implies catalog compilation is a prerequisite or that a precompiled artifact defines the reachable surface.
-    - Default the deploy-time seed input to the normalized public root URL only unless the operator explicitly opts into additional seeds or hint ingestion; do not feed the runtime a richer starting map than a real attacker would normally have.
-    - Keep shared-host as the supported full Scrapling/adversary-sim runtime target in this tranche; keep Fermyon/Akamai truthful as an edge gateway path rather than stretching it into a first-class hosted worker target without a real external-supervisor product.
-    - [ ] SIM-SCR-8-4 De-scope Fermyon/Akamai from the full Scrapling runtime contract for now, keep the edge deploy skills and docs truthful about that boundary, and defer any external-supervisor productization until there is a concrete edge runtime target worth supporting.
-
 ## P1 Enterprise Distributed-State Deployment Baseline
 
 Reference plan:

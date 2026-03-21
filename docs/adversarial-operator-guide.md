@@ -27,7 +27,7 @@ Runtime-toggle adversary generation is owned by a host-side supervisor heartbeat
 1. Dashboard uses control/status endpoints only (`/admin/adversary-sim/control`, `/admin/adversary-sim/status`).
 2. Host-side supervisors call the internal beat endpoint (`POST /internal/adversary-sim/beat`) on cadence and post bounded worker results through `POST /internal/adversary-sim/worker-result` when `scrapling_traffic` is active.
 3. Local make targets (`make dev`, `make dev-prod`, `make run`, `make run-prebuilt`, `make prod`) wrap Spin with `scripts/run_with_adversary_sim_supervisor.sh`.
-4. Equivalent worker deployment adapters are supported for single-host service managers, container sidecars, and external edge supervisor services.
+4. Equivalent worker deployment adapters are supported for single-host service managers and container sidecars. External edge supervisor services remain a deferred boundary note, not the current supported full hosted Scrapling runtime target.
 5. Host-side supervisor requests use trusted-forwarding plus the internal supervisor marker so `runtime-prod` deployments can keep HTTPS enforcement and operator IP allowlists without starving the supervisor.
 6. `make setup` and `make setup-runtime` now also provision the repo-owned `.venv-scrapling` runtime used by the real Scrapling worker and its focused verification gates.
 
@@ -42,12 +42,15 @@ That means:
 3. replay-promotion candidates should come from observed telemetry traces,
 4. and routes that never appear in telemetry do not belong in the active adversary surface map unless a narrower safety or operator contract explicitly requires them.
 
-For shared-host emergent-lane preparation, the minimal seed workflow now has an explicit tooling shape:
+For shared-host emergent-lane preparation, the normal operator/deployer path is now agent-facing:
 
-1. provide a shared-host scope descriptor that satisfies `SIM-SH-SURFACE-1-1`,
-2. build the minimal seed inventory with `make build-shared-host-seed-inventory SHARED_HOST_SEED_ARGS='...'`,
-3. treat the resulting artifact as accepted start URLs plus bounded hint documents,
-4. and do not treat `robots.txt` or sitemap hints as the authoritative reachable-surface map.
+1. use `make prepare-scrapling-deploy PREPARE_SCRAPLING_ARGS='--public-base-url https://example.com --runtime-mode ssh_systemd'` when you need to inspect or regenerate the deploy-time receipt directly,
+2. or use the canonical shared-host deploy path, which now runs the same helper automatically from the final public base URL,
+3. keep the resulting receipt as proof of the inferred fail-closed scope fence and root-only seed,
+4. treat the generated artifact as accepted start URLs plus bounded hint documents only,
+5. and do not treat gateway catalogs, `robots.txt`, or sitemap hints as the authoritative reachable-surface map.
+
+Manual `make build-shared-host-seed-inventory` remains available for explicit operator-curated cases, not as the default deploy journey.
 
 ## Production Operating Receipt (`SIM-DEPLOY-2`)
 
@@ -64,6 +67,21 @@ That means operators should keep one standard receipt whenever they validate or 
 3. run `make test-adversary-sim-runtime-surface` against the running target and keep the evidence that it proved both deterministic defense-surface coverage and live-summary no-impact.
 4. disable the lane through the same control endpoint and keep the OFF `operation_id` as the production kill-switch receipt.
 5. use `POST /admin/adversary-sim/history/cleanup` only when retained telemetry reset is intentionally required; normal OFF does not imply cleanup.
+
+## Shared-Host Scrapling Operator Journey
+
+For the current full hosted Scrapling runtime, the expected journey is:
+
+1. deploy or update the shared-host target through the canonical shared-host path and let it infer the Scrapling scope, root-only seed, and `ADVERSARY_SIM_SCRAPLING_*` runtime env contract automatically,
+2. keep the deploy-time receipt and the focused `make test-scrapling-deploy-shared-host` proof as deployment evidence,
+3. before first enable, confirm deployment egress is constrained externally to the approved public host plus DNS; Shuma enforces hosted scope in application logic, but outbound sandboxing remains a deployer responsibility,
+4. with adversary sim off, preselect `scrapling_traffic` through `POST /admin/adversary-sim/control` or the Dashboard `Red Team` lane selector,
+5. toggle the simulator on and keep the accepted ON `operation_id`,
+6. watch `desired_lane` versus `active_lane` converge at the next beat boundary,
+7. use monitoring, event telemetry, and lane diagnostics as the runtime surface truth while the lane runs,
+8. toggle the simulator off and keep the accepted OFF `operation_id`; retained telemetry stays visible until normal retention expiry or explicit cleanup.
+
+If the deployment target is Fermyon/Akamai edge, stop at the gateway-only posture. That path can expose truthful lifecycle/control surfaces, but it is not the current supported full hosted Scrapling worker target.
 
 ## SIM Run Definition Of Done (`SIM2-GC-1`)
 

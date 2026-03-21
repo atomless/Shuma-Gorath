@@ -4,6 +4,21 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-21)
 
+### SIM-SCR-LANE-1: Final Operator And Boundary Closeout
+
+- [x] Complete `SIM-SCR-8` and close `SIM-SCR-LANE-1` by updating the operator/testing/API docs so the shared-host deploy path is the explicit supported full hosted Scrapling runtime target, the deploy-time seed is root-only by default, gateway catalogs are not presented as runtime reachable-surface truth, deployment egress hardening is called out as a remaining deployer responsibility, and Fermyon/Akamai edge is kept truthful as a gateway/control-plane path rather than a first-class hosted worker runtime.
+- [x] Why:
+  - the runtime and deploy helpers were already in place, but the project still needed one final truthfulness pass so future operators and agents would not mix the old catalog-first ideas or edge-runtime aspirations back into the live contract.
+  - the shared-host versus edge boundary needed to be visible outside the skills too. Operator, testing, and API docs all needed to say the same thing about what the system supports now and what remains deliberately deferred.
+  - the closeout also had to capture the remaining real operational burden honestly: Shuma constrains hosted scope in application logic, but external outbound egress hardening is still the deployer’s job.
+- [x] Evidence:
+  - `docs/adversarial-operator-guide.md`
+  - `docs/testing.md`
+  - `docs/api.md`
+  - `docs/research/2026-03-21-sim-scr-lane-1-closeout-review.md`
+  - `git diff --check`
+  - post-tranche review: this slice was docs-only, so behavior tests were intentionally skipped. The final review found no remaining lane-local truthfulness drift. External edge-supervisor productization remains explicitly deferred by design and is not a hidden shortfall inside `SIM-SCR-LANE-1`.
+
 ### SIM-SCR-8: Agent Skill Integration For Scrapling Deploy
 
 - [x] Complete `SIM-SCR-8-3` by adding a dedicated agent-facing Scrapling deploy skill, updating the shared-host Linode setup/deploy skills to depend on it for the full hosted runtime path, updating the Fermyon/Akamai setup/deploy skills to keep the shared-host-first runtime boundary truthful, and adding the new skill to the repo’s canonical skill-discovery surfaces.
