@@ -155,6 +155,20 @@ Acceptance:
 2. runtime no longer silently converts external backend failure into local-only enterprise truth,
 3. tests cover admin and runtime boundaries where the hidden regression could otherwise survive.
 
+### DEP-ENT-1-3A: Provider-aware operator ban-read surfaces
+
+Scope:
+
+1. make operator-visible ban-read surfaces use provider-aware active-ban semantics instead of unconditional local scans,
+2. cover `/admin/ip-bans/delta` and `/admin/ip-bans/stream` active-ban snapshots plus monitoring and analytics ban-count summaries that still read local state directly,
+3. keep the slice read-only and local to operator/status surfaces rather than redesigning the event log or the provider contract again.
+
+Acceptance:
+
+1. operator ban-read surfaces no longer present local-only active-ban state as authoritative enterprise truth under strict outage posture,
+2. monitoring and analytics ban counts degrade truthfully when authoritative active-ban state is unavailable,
+3. focused tests cover the operator-visible boundaries where this drift could otherwise remain hidden.
+
 ### DEP-ENT-1-4: Focused verification and docs
 
 Scope:
@@ -183,7 +197,8 @@ The target should cover:
 1. config parsing and guardrail tests,
 2. external provider outage-semantics tests,
 3. admin ban-path truthfulness tests,
-4. runtime ban-check strictness tests if a focused selector exists.
+4. runtime ban-check strictness tests if a focused selector exists,
+5. operator-visible ban-read truthfulness tests once `DEP-ENT-1-3A` lands.
 
 ## Completion Criteria
 

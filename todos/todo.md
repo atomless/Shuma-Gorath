@@ -98,7 +98,7 @@ Reference plan:
 - [`docs/research/2026-03-21-dep-ent-1-strict-enterprise-ban-sync-readiness-review.md`](../docs/research/2026-03-21-dep-ent-1-strict-enterprise-ban-sync-readiness-review.md)
 - [`docs/plans/2026-03-21-dep-ent-1-strict-enterprise-ban-sync-implementation-plan.md`](../docs/plans/2026-03-21-dep-ent-1-strict-enterprise-ban-sync-implementation-plan.md)
 
-- [ ] DEP-ENT-1-3 Remove silent local-only divergence from runtime and admin ban paths under strict outage posture, including manual ban/unban failure handling and strict runtime ban-check behavior.
+- [ ] DEP-ENT-1-3A Make operator-visible ban-read surfaces provider-aware under strict outage posture, including `/admin/ip-bans/delta`, `/admin/ip-bans/stream`, and monitoring or analytics ban-count summaries that still read local active-ban state directly.
 - [ ] DEP-ENT-1-4 Add a focused truthful `make` verification target for the strict enterprise ban-store contract and refresh operator/deployment/module-boundary docs to describe the settled posture.
 - [ ] DEP-ENT-2 Add ban-sync observability (<abbr title="Service Level Objective">SLO</abbr> metrics for sync result and lag) to support promotion and rollback decisions.
 - [ ] DEP-ENT-3 Add two-instance Spin integration coverage with shared Redis to prove ban and unban convergence behavior.

@@ -63,6 +63,19 @@ fn execute_decision_sequence(
     None
 }
 
+fn existing_ban_from_lookup_result(
+    lookup_result: crate::providers::contracts::BanLookupResult,
+    outage_mode: crate::config::BanStoreOutageMode,
+) -> bool {
+    match lookup_result {
+        crate::providers::contracts::BanLookupResult::Banned => true,
+        crate::providers::contracts::BanLookupResult::NotBanned => false,
+        crate::providers::contracts::BanLookupResult::Unavailable => {
+            outage_mode == crate::config::BanStoreOutageMode::FailClosed
+        }
+    }
+}
+
 pub(crate) fn maybe_handle_policy_graph_first_tranche(
     req: &Request,
     store: &Store,
@@ -105,10 +118,10 @@ pub(crate) fn maybe_handle_policy_graph_first_tranche(
     } else {
         false
     };
-    let existing_ban = provider_registry
-        .ban_store_provider()
-        .is_banned(store, site_id, ip)
-        == crate::providers::contracts::BanLookupResult::Banned;
+    let existing_ban = existing_ban_from_lookup_result(
+        provider_registry.ban_store_provider().is_banned(store, site_id, ip),
+        crate::config::ban_store_outage_mode(),
+    );
 
     let pre_facts = crate::runtime::request_facts::build_request_facts(
         req,
@@ -225,4 +238,29 @@ pub(crate) fn maybe_handle_policy_graph_second_tranche(
 
     let decisions = crate::runtime::policy_graph::evaluate_second_tranche(&facts, cfg);
     execute_decision_sequence(decisions, &facts, &context, &capabilities)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::existing_ban_from_lookup_result;
+
+    #[test]
+    fn fail_closed_ban_store_outage_maps_unavailable_lookup_to_existing_ban() {
+        assert!(existing_ban_from_lookup_result(
+            crate::providers::contracts::BanLookupResult::Unavailable,
+            crate::config::BanStoreOutageMode::FailClosed
+        ));
+    }
+
+    #[test]
+    fn non_strict_ban_store_outage_does_not_map_unavailable_lookup_to_existing_ban() {
+        assert!(!existing_ban_from_lookup_result(
+            crate::providers::contracts::BanLookupResult::Unavailable,
+            crate::config::BanStoreOutageMode::FailOpen
+        ));
+        assert!(!existing_ban_from_lookup_result(
+            crate::providers::contracts::BanLookupResult::Unavailable,
+            crate::config::BanStoreOutageMode::FallbackInternal
+        ));
+    }
 }

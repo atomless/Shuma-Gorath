@@ -4152,6 +4152,51 @@ mod admin_config_tests {
     }
 
     #[test]
+    fn manual_ban_write_result_returns_503_without_logging_success_when_sync_fails() {
+        let store = TestStore::default();
+        let req = make_request(Method::Post, "/admin/ban", Vec::new());
+
+        let resp = finalize_manual_ban_result(
+            &store,
+            &req,
+            "198.51.100.21",
+            "manual_ban",
+            crate::providers::contracts::BanSyncResult::Failed,
+        );
+
+        assert_eq!(*resp.status(), 503u16);
+        assert!(String::from_utf8_lossy(resp.body()).contains("strict outage posture"));
+        assert!(load_recent_event_records(&store, now_ts(), 1).is_empty());
+    }
+
+    #[test]
+    fn manual_unban_write_result_returns_503_without_logging_success_when_sync_fails() {
+        let store = TestStore::default();
+        let req = make_request(Method::Post, "/admin/unban?ip=198.51.100.21", Vec::new());
+
+        let resp = finalize_manual_unban_result(
+            &store,
+            &req,
+            "198.51.100.21",
+            crate::providers::contracts::BanSyncResult::Failed,
+        );
+
+        assert_eq!(*resp.status(), 503u16);
+        assert!(String::from_utf8_lossy(resp.body()).contains("strict outage posture"));
+        assert!(load_recent_event_records(&store, now_ts(), 1).is_empty());
+    }
+
+    #[test]
+    fn active_ban_list_result_returns_503_when_backend_is_unavailable() {
+        let resp = response_for_active_ban_list(
+            crate::providers::contracts::BanListResult::Unavailable,
+        );
+
+        assert_eq!(*resp.status(), 503u16);
+        assert!(String::from_utf8_lossy(resp.body()).contains("authoritative backend access"));
+    }
+
+    #[test]
     fn admin_config_includes_frontier_summary_without_exposing_keys() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_FRONTIER_OPENAI_API_KEY", "sk-openai-test");
@@ -18308,6 +18353,92 @@ pub fn handle_internal(req: &Request) -> Response {
     }
 }
 
+fn manual_ban_store_failure_response(operation: &str) -> Response {
+    Response::new(
+        503,
+        format!(
+            "Ban store unavailable: strict outage posture requires authoritative sync; {} must not fall back to local-only state",
+            operation
+        ),
+    )
+}
+
+fn response_for_active_ban_list(
+    result: crate::providers::contracts::BanListResult,
+) -> Response {
+    let active_bans = match result {
+        crate::providers::contracts::BanListResult::Available(bans) => bans,
+        crate::providers::contracts::BanListResult::Unavailable => {
+            return Response::new(
+                503,
+                "Ban store unavailable: strict outage posture requires authoritative backend access for active-ban reads",
+            );
+        }
+    };
+
+    let mut bans = vec![];
+    for (ip, ban) in active_bans {
+        bans.push(json!({
+            "ip": ip,
+            "reason": ban.reason,
+            "expires": ban.expires,
+            "banned_at": ban.banned_at,
+            "fingerprint": ban.fingerprint
+        }));
+    }
+    let body = serde_json::to_string(&json!({"bans": bans})).unwrap();
+    Response::new(200, body)
+}
+
+fn finalize_manual_ban_result<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    req: &Request,
+    ip: &str,
+    reason: &str,
+    sync_result: crate::providers::contracts::BanSyncResult,
+) -> Response {
+    if sync_result == crate::providers::contracts::BanSyncResult::Failed {
+        return manual_ban_store_failure_response("manual ban");
+    }
+
+    log_event(
+        store,
+        &EventLogEntry {
+            ts: now_ts(),
+            event: EventType::Ban,
+            ip: Some(ip.to_string()),
+            reason: Some(reason.to_string()),
+            outcome: Some("banned".to_string()),
+            admin: Some(crate::admin::auth::get_admin_id(req)),
+        },
+    );
+    Response::new(200, json!({"status": "banned", "ip": ip}).to_string())
+}
+
+fn finalize_manual_unban_result<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    req: &Request,
+    ip: &str,
+    sync_result: crate::providers::contracts::BanSyncResult,
+) -> Response {
+    if sync_result == crate::providers::contracts::BanSyncResult::Failed {
+        return manual_ban_store_failure_response("manual unban");
+    }
+
+    log_event(
+        store,
+        &EventLogEntry {
+            ts: now_ts(),
+            event: EventType::Unban,
+            ip: Some(ip.to_string()),
+            reason: Some("admin_unban".to_string()),
+            outcome: Some("unbanned".to_string()),
+            admin: Some(crate::admin::auth::get_admin_id(req)),
+        },
+    );
+    Response::new(200, "Unbanned")
+}
+
 /// Handles all /admin API endpoints.
 /// Supports:
 ///   - POST /admin/login: Exchange API key for short-lived admin session cookie
@@ -18643,7 +18774,7 @@ pub fn handle_admin(req: &Request) -> Response {
                     .unwrap_or(21600)
                     .clamp(ADMIN_BAN_DURATION_MIN, ADMIN_BAN_DURATION_MAX);
 
-                provider_registry
+                let sync_result = provider_registry
                     .ban_store_provider()
                     .ban_ip_with_fingerprint(
                         &store,
@@ -18657,40 +18788,20 @@ pub fn handle_admin(req: &Request) -> Response {
                             summary: Some("manual_admin_ban".to_string()),
                         }),
                     );
-                // Log ban event
-                log_event(
+                return finalize_manual_ban_result(
                     &store,
-                    &EventLogEntry {
-                        ts: now_ts(),
-                        event: EventType::Ban,
-                        ip: Some(ip.clone()),
-                        reason: Some(reason.clone()),
-                        outcome: Some("banned".to_string()),
-                        admin: Some(crate::admin::auth::get_admin_id(req)),
-                    },
+                    req,
+                    ip.as_str(),
+                    reason.as_str(),
+                    sync_result,
                 );
-                return Response::new(200, json!({"status": "banned", "ip": ip}).to_string());
             }
             // GET: List all bans for this site (keys starting with ban:site_id:)
-            let mut bans = vec![];
-            let active_bans = match provider_registry
-                .ban_store_provider()
-                .list_active_bans(&store, site_id)
-            {
-                crate::providers::contracts::BanListResult::Available(bans) => bans,
-                crate::providers::contracts::BanListResult::Unavailable => Vec::new(),
-            };
-            for (ip, ban) in active_bans {
-                bans.push(json!({
-                    "ip": ip,
-                    "reason": ban.reason,
-                    "expires": ban.expires,
-                    "banned_at": ban.banned_at,
-                    "fingerprint": ban.fingerprint
-                }));
-            }
-            let body = serde_json::to_string(&json!({"bans": bans})).unwrap();
-            Response::new(200, body)
+            response_for_active_ban_list(
+                provider_registry
+                    .ban_store_provider()
+                    .list_active_bans(&store, site_id),
+            )
         }
         "/admin/unban" => {
             if *req.method() != spin_sdk::http::Method::Post {
@@ -18713,22 +18824,10 @@ pub fn handle_admin(req: &Request) -> Response {
                 Err(err) => return Response::new(500, err.user_message()),
             };
             let provider_registry = crate::providers::registry::ProviderRegistry::from_config(&cfg);
-            let _ = provider_registry
+            let sync_result = provider_registry
                 .ban_store_provider()
                 .unban_ip(&store, site_id, ip.as_str());
-            // Log unban event
-            log_event(
-                &store,
-                &EventLogEntry {
-                    ts: now_ts(),
-                    event: EventType::Unban,
-                    ip: Some(ip.to_string()),
-                    reason: Some("admin_unban".to_string()),
-                    outcome: Some("unbanned".to_string()),
-                    admin: Some(crate::admin::auth::get_admin_id(req)),
-                },
-            );
-            Response::new(200, "Unbanned")
+            finalize_manual_unban_result(&store, req, ip.as_str(), sync_result)
         }
         "/admin/analytics" => {
             // Return analytics: ban count and shadow_mode status

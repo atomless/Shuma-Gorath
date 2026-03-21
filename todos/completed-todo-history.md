@@ -4,6 +4,22 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-21)
 
+### DEP-ENT-1-3: Runtime And Admin Ban-Path Truthfulness Under Strict Outage Posture
+
+- [x] Made runtime and primary admin ban paths react truthfully to explicit provider outcomes: strict runtime ban checks now fail closed on unavailable ban lookups, manual admin ban and unban writes now return `503` instead of claiming success when strict sync fails, and `GET /admin/ban` now returns `503` when authoritative active-ban reads are unavailable.
+- [x] Why:
+  - `DEP-ENT-1-2` made provider outcomes explicit, but the two most important consumers still collapsed those results back into normal success paths. That left strict enterprise posture technically configurable but not yet behaviorally honest.
+  - the clean next slice was therefore the primary runtime and admin ban paths, not a broader operator-surface rewrite. This kept the tranche local to the acceptance line in the implementation plan while still closing the most dangerous silent split-brain paths first.
+  - the closeout review did uncover adjacent truthfulness drift in operator-facing delta, stream, monitoring, and analytics ban-read surfaces that still bypass the provider boundary. That gap was written up immediately as `DEP-ENT-1-3A` and will be executed before the docs tranche.
+- [x] Evidence:
+  - `src/runtime/policy_pipeline.rs`
+  - `src/admin/api.rs`
+  - `Makefile`
+  - `docs/research/2026-03-21-dep-ent-1-3-runtime-admin-ban-truthfulness-post-implementation-review.md`
+  - `make test-enterprise-ban-store-contract`
+  - `git diff --check`
+  - post-tranche review: the planned `DEP-ENT-1-3` scope is complete, and the newly discovered operator-surface drift has been promoted into the next immediate atomic slice as `DEP-ENT-1-3A`.
+
 ### DEP-ENT-1-2: Truthful Ban-Store Provider Read And Write Outcomes
 
 - [x] Extended the ban-store provider contract so reads now return explicit available-versus-unavailable results, writes return `BanSyncResult` directly, the stale `sync_ban` and `sync_unban` helper path is removed, and the external provider only uses local fallback when `SHUMA_BAN_STORE_OUTAGE_MODE=fallback_internal`.
