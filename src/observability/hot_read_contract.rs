@@ -129,7 +129,7 @@ const MONITORING_BOOTSTRAP_COMPONENTS: [HotReadComponentContract; 7] = [
     },
 ];
 
-const OPERATOR_SNAPSHOT_COMPONENTS: [HotReadComponentContract; 10] = [
+const OPERATOR_SNAPSHOT_COMPONENTS: [HotReadComponentContract; 11] = [
     HotReadComponentContract {
         key: "objectives",
         exactness: TelemetryExactness::Exact,
@@ -219,6 +219,15 @@ const OPERATOR_SNAPSHOT_COMPONENTS: [HotReadComponentContract; 10] = [
         canonical_source: HotReadCanonicalSource::DirectStateSnapshot,
         projection_model: HotReadProjectionModel::DeterministicRebuild,
         note: "Verified-identity summary is a bounded typed projection over current verified-identity telemetry plus live policy stance and capability counts, rather than a placeholder note.",
+    },
+    HotReadComponentContract {
+        key: "replay_promotion",
+        exactness: TelemetryExactness::Derived,
+        basis: TelemetryBasis::Observed,
+        ownership_tier: HotReadOwnershipTier::SupportingSummary,
+        canonical_source: HotReadCanonicalSource::DirectStateSnapshot,
+        projection_model: HotReadProjectionModel::DeterministicRebuild,
+        note: "Replay-promotion summary is a bounded typed projection over persisted emergent-finding and deterministic-replay lineage materialized by the promotion triage lane, rather than a sidecar JSON artifact.",
     },
 ];
 
@@ -351,5 +360,6 @@ mod tests {
         assert!(keys.contains(&"budget_distance"));
         assert!(keys.contains(&"benchmark_results"));
         assert!(keys.contains(&"runtime_posture"));
+        assert!(keys.contains(&"replay_promotion"));
     }
 }

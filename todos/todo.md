@@ -84,7 +84,6 @@ Current stance:
 - Land the first shared-host agent tweaker loop before `MON-OVERHAUL-1` so Monitoring and Tuning can project proven machine-first semantics instead of inventing them early.
 - Treat the verified-identity observability and benchmarking gap as part of this loop-closure track rather than later polish.
 
-- [ ] ADV-PROMO-1 Promote emergent finding and deterministic replay lineage into backend contracts consumable from `operator_snapshot_v1` and `benchmark_results_v1` rather than leaving that lineage only in Python artifacts.
 - [ ] OVR-RECON-1 Land the first recommend-only reconcile engine, patch-policy layer, and decision ledger over `allowed_actions_v1`, reusing the existing adversary-sim lease/idempotency pattern and failing closed when evidence is stale or contradictory.
 - [ ] OVR-AGENT-1 Land the first shared-host agent tweaker harness over `operator_snapshot_v1`, `benchmark_results_v1`, `allowed_actions_v1`, decision evidence, and adversary-sim cost feedback; support both periodic and post-sim triggers through one internal contract, keep the first loop recommend-only, and make its proposal/watch semantics the truth source for later Monitoring and Tuning work.
 

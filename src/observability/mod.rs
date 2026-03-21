@@ -20,4 +20,5 @@ pub(crate) mod operator_snapshot_recent_changes;
 pub(crate) mod operator_snapshot_runtime_posture;
 pub(crate) mod operator_snapshot_verified_identity;
 pub(crate) mod operator_snapshot;
+pub(crate) mod replay_promotion;
 pub(crate) mod retention;

@@ -993,6 +993,7 @@ test-admin-machine-contracts: ## Run focused admin read-contract checks for rece
 	@cargo test admin::api::tests::handle_admin_benchmark_results_returns_bounded_current_instance_contract -- --exact --nocapture
 	@cargo test admin::api::tests::handle_admin_benchmark_results_returns_503_without_materialized_snapshot -- --exact --nocapture
 	@cargo test admin::api::tests::handle_admin_benchmark_results_is_get_only -- --exact --nocapture
+	@cargo test admin::replay_promotion_api::tests:: -- --nocapture
 
 test-admin-api-routing-contract: ## Run focused admin route-family contract checks for structural API refactors
 	@echo "$(CYAN)🧪 Running admin route-family contract checks...$(NC)"
@@ -1327,6 +1328,10 @@ test-sim2-governance-contract: ## Validate SIM2 governance + hybrid lane contrac
 
 test-replay-promotion-contract: ## Run focused replay-promotion lineage and governance contract checks
 	@echo "$(CYAN)🧪 Running replay-promotion contract checks...$(NC)"
+	@./scripts/set_crate_type.sh rlib
+	@cargo test observability::replay_promotion::tests:: -- --nocapture
+	@cargo test admin::replay_promotion_api::tests:: -- --nocapture
+	@cargo test observability::operator_snapshot::tests::snapshot_payload_surfaces_materialized_replay_promotion_summary -- --exact --nocapture
 	@python3 -m unittest scripts/tests/test_adversarial_promote_candidates.py
 	@$(MAKE) --no-print-directory test-sim2-governance-contract
 

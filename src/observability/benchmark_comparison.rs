@@ -449,6 +449,8 @@ mod tests {
                 blockers: Vec::new(),
                 note: "test".to_string(),
             },
+            replay_promotion:
+                crate::observability::replay_promotion::ReplayPromotionSummary::not_materialized(),
         };
 
         let comparable = comparable_snapshot_from_results(&payload);

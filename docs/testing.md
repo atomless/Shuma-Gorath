@@ -213,7 +213,7 @@ Structural refactor proof map:
 - `make test-controller-action-surface` is the focused config-side gate for `allowed_actions_v1` and controller patch-family mapping reuse.
 - `make test-benchmark-comparison-contract` is the focused benchmark helper gate for explicit baseline-availability, improvement-status, and escalation comparison semantics.
 - `make test-operator-objectives-contract` is the focused objective-profile and decision-evidence gate for persisted `operator_objectives_v1`, the operator-objectives admin endpoint, the bounded decision ledger, and snapshot wiring.
-- `make test-replay-promotion-contract` is the focused promotion-lineage and governance gate that stays off the full replay-runner path.
+- `make test-replay-promotion-contract` is the focused promotion-lineage and governance gate that stays off the full replay-runner path while still proving the Rust replay-promotion store/API contract, snapshot wiring, Python promotion tooling, and SIM2 governance markers together.
 - `make test-adversarial-runner-architecture` is the focused CLI, unit, and validate-only gate for the Python adversarial runner and closely related governance helpers.
 - `make test-adversary-sim-domain-contract` is the focused backend adversary-sim lifecycle and lane-domain gate that stays off the live runtime-surface path.
 

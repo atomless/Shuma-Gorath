@@ -12,6 +12,8 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -61,6 +63,10 @@ def dict_or_empty(value: Any) -> Dict[str, Any]:
 
 def list_or_empty(value: Any) -> List[Any]:
     return value if isinstance(value, list) else []
+
+
+def collapse_whitespace(value: str) -> str:
+    return " ".join(str(value or "").split())
 
 
 def stable_finding_id(record: Dict[str, Any]) -> str:
@@ -495,6 +501,72 @@ def run_deterministic_replay(
         return replay_result
 
 
+def replay_promotion_admin_headers() -> Dict[str, str]:
+    api_key = str(os.environ.get("SHUMA_API_KEY") or "").strip()
+    if not api_key:
+        raise ValueError("missing SHUMA_API_KEY required for replay-promotion materialization")
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "X-Forwarded-For": "127.0.0.42",
+    }
+    forwarded_secret = str(os.environ.get("SHUMA_FORWARDED_IP_SECRET") or "").strip()
+    if forwarded_secret:
+        headers["X-Shuma-Forwarded-Secret"] = forwarded_secret
+    return headers
+
+
+def materialize_backend_replay_promotion(payload: Dict[str, Any]) -> Dict[str, Any]:
+    base_url = str(os.environ.get("SHUMA_BASE_URL") or "").strip().rstrip("/")
+    if not base_url:
+        raise ValueError("missing SHUMA_BASE_URL required for replay-promotion materialization")
+
+    request = urllib.request.Request(
+        url=f"{base_url}/admin/replay-promotion",
+        data=json.dumps(payload, separators=(",", ":")).encode("utf-8"),
+        method="POST",
+        headers=replay_promotion_admin_headers(),
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=20.0) as response:
+            body = response.read().decode("utf-8", errors="replace")
+            status = int(response.getcode() or 0)
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")
+        detail = collapse_whitespace(body)[:200] or "<empty>"
+        raise ValueError(
+            "replay-promotion materialization failed: "
+            f"status={int(exc.code)} body={detail}"
+        ) from exc
+    except urllib.error.URLError as exc:
+        raise ValueError(
+            f"replay-promotion materialization failed: {exc.reason}"
+        ) from exc
+
+    if status != 200:
+        detail = collapse_whitespace(body)[:200] or "<empty>"
+        raise ValueError(
+            f"replay-promotion materialization failed: status={status} body={detail}"
+        )
+
+    try:
+        response_payload = json.loads(body)
+    except Exception as exc:
+        detail = collapse_whitespace(body)[:200] or "<empty>"
+        raise ValueError(
+            f"replay-promotion materialization returned invalid JSON: {detail}"
+        ) from exc
+    if not isinstance(response_payload, dict):
+        raise ValueError("replay-promotion materialization returned a non-object payload")
+    if response_payload.get("updated") is not True:
+        raise ValueError("replay-promotion materialization did not confirm updated=true")
+    summary = dict_or_empty(response_payload.get("summary"))
+    if str(summary.get("availability") or "") != "materialized":
+        raise ValueError("replay-promotion materialization did not return materialized summary")
+    return response_payload
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run frontier finding triage and deterministic promotion checks."
@@ -714,6 +786,17 @@ def main() -> int:
             "blocking_required": confirmed_regressions > 0
             or not bool(hybrid_governance.get("thresholds_passed")),
         },
+    }
+    save_json(output_path, payload)
+
+    try:
+        backend_materialization = materialize_backend_replay_promotion(payload)
+    except ValueError as exc:
+        print(f"[adversarial-promotion] FAIL {exc}")
+        return 1
+    payload["backend_materialization"] = {
+        "status": "materialized",
+        "summary": dict_or_empty(backend_materialization.get("summary")),
     }
     save_json(output_path, payload)
 

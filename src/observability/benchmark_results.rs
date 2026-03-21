@@ -5,7 +5,7 @@ use crate::observability::benchmark_suite::BENCHMARK_SUITE_SCHEMA_VERSION;
 use crate::config::Config;
 use crate::observability::operator_snapshot::{
     OperatorBudgetDistanceSummary, OperatorSnapshotAdversarySim, OperatorSnapshotLiveTraffic,
-    OperatorSnapshotWindow,
+    OperatorSnapshotWindow, ReplayPromotionSummary,
 };
 use super::benchmark_adversary_effectiveness::representative_adversary_effectiveness_family;
 use super::benchmark_beneficial_non_human::beneficial_non_human_posture_family;
@@ -102,6 +102,7 @@ pub(crate) struct BenchmarkResultsPayload {
     pub improvement_status: String,
     pub families: Vec<BenchmarkFamilyResult>,
     pub escalation_hint: BenchmarkEscalationHint,
+    pub replay_promotion: ReplayPromotionSummary,
 }
 
 pub(crate) fn build_benchmark_results_from_snapshot_sections(
@@ -114,6 +115,7 @@ pub(crate) fn build_benchmark_results_from_snapshot_sections(
     summary: &crate::observability::monitoring::MonitoringSummary,
     cfg: &Config,
     allowed_actions: &AllowedActionsSurface,
+    replay_promotion: &ReplayPromotionSummary,
     prior_window_reference: Option<&BenchmarkComparableSnapshot>,
 ) -> BenchmarkResultsPayload {
     let suspicious_family =
@@ -145,6 +147,7 @@ pub(crate) fn build_benchmark_results_from_snapshot_sections(
         overall_status: overall_status(families.as_slice()),
         improvement_status,
         escalation_hint: derive_escalation_hint(allowed_actions, families.as_slice()),
+        replay_promotion: replay_promotion.clone(),
         families,
     }
 }
@@ -163,6 +166,7 @@ mod tests {
         build_operator_snapshot_payload, OperatorSnapshotRecentChanges,
         OperatorSnapshotRecentSimRun,
     };
+    use crate::observability::replay_promotion::ReplayPromotionSummary;
     use crate::runtime::effect_intents::ExecutionMode;
     use crate::runtime::request_outcome::{
         RenderedRequestOutcome, RequestOutcomeClass, RequestOutcomeLane, ResponseKind,
@@ -266,6 +270,7 @@ mod tests {
             &summary,
             &defaults(),
             &snapshot.allowed_actions,
+            &ReplayPromotionSummary::not_materialized(),
             None,
         );
         assert_eq!(payload.schema_version, "benchmark_results_v1");
@@ -279,6 +284,7 @@ mod tests {
         assert_eq!(payload.improvement_status, "not_available");
         assert_eq!(payload.escalation_hint.availability, "partial_support");
         assert_eq!(payload.escalation_hint.decision, "config_tuning_candidate");
+        assert_eq!(payload.replay_promotion.availability, "not_materialized");
         assert_eq!(
             payload.escalation_hint.review_status,
             "manual_review_required"
@@ -343,6 +349,7 @@ mod tests {
             &summary,
             &defaults(),
             &snapshot.allowed_actions,
+            &ReplayPromotionSummary::not_materialized(),
             None,
         );
         assert_eq!(payload.escalation_hint.decision, "config_tuning_candidate");
@@ -490,6 +497,7 @@ mod tests {
             &summary,
             &cfg,
             &snapshot.allowed_actions,
+            &ReplayPromotionSummary::not_materialized(),
             None,
         );
 

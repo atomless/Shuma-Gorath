@@ -1553,6 +1553,22 @@ class Runner:
             )
         return parse_json_or_raise(result.body, "Failed to parse /admin/ip-range/suggestions response")
 
+    def replay_promotion_snapshot(self) -> Dict[str, Any]:
+        result = self.admin_read_request("GET", "/admin/replay-promotion")
+        if result.status != 200:
+            detail = collapse_whitespace(result.body)[:160]
+            raise SimulationError(
+                f"Failed to read /admin/replay-promotion: status={result.status} body={detail}"
+            )
+        payload = parse_json_or_raise(
+            result.body, "Failed to parse /admin/replay-promotion response"
+        )
+        if str(payload.get("schema_version") or "").strip() != "replay_promotion_v1":
+            raise SimulationError(
+                "Failed to read /admin/replay-promotion: unexpected schema_version"
+            )
+        return payload
+
     def build_control_plane_lineage(self, generated_at_unix: int) -> Dict[str, Any]:
         mutation_audit = self.summarize_control_plane_mutations()
         return {

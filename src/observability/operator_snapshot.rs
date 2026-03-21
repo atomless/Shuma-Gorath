@@ -19,6 +19,7 @@ use super::operator_snapshot_live_traffic::{
 use super::operator_snapshot_objectives::DEFAULT_WINDOW_HOURS;
 use super::operator_snapshot_runtime_posture::{runtime_posture, runtime_shadow_mode};
 use super::operator_snapshot_verified_identity::verified_identity_summary;
+use super::replay_promotion::load_replay_promotion_summary;
 
 pub(crate) use super::operator_snapshot_live_traffic::{
     OperatorSnapshotAdversarySim, OperatorSnapshotLane, OperatorSnapshotLiveTraffic,
@@ -32,6 +33,7 @@ pub(crate) use super::operator_snapshot_recent_changes::{
 };
 pub(crate) use super::operator_snapshot_runtime_posture::OperatorSnapshotRuntimePosture;
 pub(crate) use super::operator_snapshot_verified_identity::OperatorSnapshotVerifiedIdentitySummary;
+pub(crate) use super::replay_promotion::ReplayPromotionSummary;
 
 pub(crate) const OPERATOR_SNAPSHOT_SCHEMA_VERSION: &str = "operator_snapshot_v1";
 const DEFAULT_RECENT_CHANGE_ROWS: usize = 6;
@@ -86,6 +88,7 @@ pub(crate) struct OperatorSnapshotHotReadPayload {
     pub allowed_actions: AllowedActionsSurface,
     pub benchmark_results: BenchmarkResultsPayload,
     pub verified_identity: OperatorSnapshotVerifiedIdentitySummary,
+    pub replay_promotion: ReplayPromotionSummary,
 }
 
 pub(crate) fn operator_snapshot_watch_window_hours(summary_hours: u64) -> u64 {
@@ -153,6 +156,8 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
     let cfg = crate::config::load_runtime_cached(store, site_id)
         .unwrap_or_else(|_| crate::config::defaults().clone());
     let verified_identity = verified_identity_summary(summary, &cfg);
+    let (replay_promotion, replay_promotion_refreshed_at_ts) =
+        load_replay_promotion_summary(store, site_id);
     let prior_window_reference =
         crate::observability::benchmark_history::load_prior_window_reference(
             store,
@@ -171,6 +176,7 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
         summary,
         &cfg,
         &allowed_actions,
+        &replay_promotion,
         prior_window_reference.as_ref(),
     );
 
@@ -186,6 +192,7 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
             recent_changes_refreshed_at_ts,
             benchmark_results_refreshed_at_ts,
             summary_refreshed_at_ts,
+            replay_promotion_refreshed_at_ts,
         ),
         objectives,
         live_traffic,
@@ -197,6 +204,7 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
         allowed_actions,
         benchmark_results,
         verified_identity,
+        replay_promotion,
     }
 }
 
@@ -217,6 +225,7 @@ fn operator_snapshot_section_metadata(
     recent_changes_refreshed_at_ts: u64,
     benchmark_results_refreshed_at_ts: u64,
     verified_identity_refreshed_at_ts: u64,
+    replay_promotion_refreshed_at_ts: u64,
 ) -> BTreeMap<String, OperatorSnapshotSectionMetadata> {
     operator_snapshot_component_contracts()
         .iter()
@@ -228,6 +237,13 @@ fn operator_snapshot_section_metadata(
                 "recent_changes" => recent_changes_refreshed_at_ts,
                 "benchmark_results" => benchmark_results_refreshed_at_ts,
                 "verified_identity" => verified_identity_refreshed_at_ts,
+                "replay_promotion" => {
+                    if replay_promotion_refreshed_at_ts == 0 {
+                        generated_at_ts
+                    } else {
+                        replay_promotion_refreshed_at_ts
+                    }
+                }
                 _ => generated_at_ts,
             };
             (
@@ -509,11 +525,13 @@ mod tests {
                 &summary,
                 &crate::config::defaults(),
                 &payload.allowed_actions,
+                &payload.replay_promotion,
                 None,
             )
         );
         assert_eq!(payload.verified_identity.availability, "not_configured");
         assert_eq!(payload.verified_identity.attempts, 0);
+        assert_eq!(payload.replay_promotion.availability, "not_materialized");
     }
 
     #[test]
@@ -687,6 +705,123 @@ mod tests {
                 .expect("budget distance metadata")
                 .exactness,
             crate::observability::hot_read_contract::TelemetryExactness::Derived
+        );
+    }
+
+    #[test]
+    fn snapshot_payload_surfaces_materialized_replay_promotion_summary() {
+        let store = TestStore::new();
+        crate::observability::replay_promotion::persist_replay_promotion_payload(
+            &store,
+            "default",
+            serde_json::from_value(serde_json::json!({
+                "schema_version": "adversarial-promotion.v1",
+                "generated_at_unix": 1_700_000_150u64,
+                "frontier": {
+                    "frontier_mode": "multi_provider_playoff",
+                    "provider_count": 2,
+                    "diversity_confidence": "higher"
+                },
+                "hybrid_governance": {
+                    "thresholds_passed": true,
+                    "failures": [],
+                    "observed": {
+                        "deterministic_confirmation_rate_percent": 100.0,
+                        "false_discovery_rate_percent": 0.0,
+                        "overdue_owner_review_count": 0
+                    }
+                },
+                "discovery_quality_metrics": {
+                    "candidate_count": 2,
+                    "generated_candidate_count": 1,
+                    "novel_confirmed_regressions": 1,
+                    "false_discovery_rate_percent": 0.0,
+                    "provider_outage_impact_percent": 0.0,
+                    "provider_outage_status": "healthy",
+                    "blocking_requires_deterministic_confirmation": true
+                },
+                "summary": {
+                    "total_findings": 2,
+                    "replay_candidates": 1,
+                    "classification_counts": {
+                        "confirmed_reproducible": 1,
+                        "not_reproducible": 0,
+                        "needs_manual_review": 0
+                    },
+                    "confirmed_regression_count": 1,
+                    "novel_confirmed_regression_count": 1,
+                    "false_discovery_rate_percent": 0.0,
+                    "provider_outage_impact_percent": 0.0,
+                    "blocking_required": true
+                },
+                "lineage": [{
+                    "finding_id": "simf-001",
+                    "candidate_id": "cand-001",
+                    "scenario_id": "sim_t4_a",
+                    "classification": "confirmed_reproducible",
+                    "source_lane": "emergent_exploration",
+                    "deterministic_replay_lane": "deterministic_conformance",
+                    "release_blocking_authority": true,
+                    "generated_candidate": {
+                        "generation_kind": "mutation",
+                        "mutation_class": "retry_strategy",
+                        "behavioral_class": "timing_variation",
+                        "novelty_score": 0.72
+                    },
+                    "candidate": {
+                        "scenario_family": "cdp_high_confidence_deny",
+                        "path": "/sim/public/search",
+                        "expected_outcome": "deny_temp",
+                        "observed_outcome": "deny_temp",
+                        "severity": "high",
+                        "risk": "high"
+                    },
+                    "deterministic_confirmation": {
+                        "replay_status": "ok"
+                    },
+                    "promotion": {
+                        "owner_review_required": true,
+                        "owner_disposition": "pending",
+                        "owner_disposition_due_at_unix": 1_700_172_800u64,
+                        "blocking_regression": true,
+                        "promoted_scenario": {
+                            "id": "frontier_regression_simf-001"
+                        },
+                        "review_notes": [
+                            "owner review remains required."
+                        ]
+                    }
+                }]
+            }))
+            .expect("replay payload parses"),
+        )
+        .expect("replay promotion persists");
+
+        let summary = summarize_with_store(&store, 24, 10);
+        let payload = build_operator_snapshot_payload(
+            &store,
+            "default",
+            1_700_000_200,
+            &summary,
+            &[],
+            OperatorSnapshotRecentChanges::default(),
+            1_700_000_200,
+            1_700_000_200,
+            1_700_000_200,
+        );
+
+        assert_eq!(payload.replay_promotion.availability, "materialized");
+        assert_eq!(payload.replay_promotion.replay_candidates, 1);
+        assert_eq!(payload.replay_promotion.pending_owner_review_count, 1);
+        assert_eq!(payload.replay_promotion.lineage.len(), 1);
+        assert_eq!(payload.benchmark_results.replay_promotion, payload.replay_promotion);
+        assert_eq!(
+            payload
+                .section_metadata
+                .get("replay_promotion")
+                .expect("replay promotion metadata")
+                .refreshed_at_ts,
+            1_700_000_150
         );
     }
 }

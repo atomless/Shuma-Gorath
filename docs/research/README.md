@@ -170,6 +170,8 @@ Completed archive index:
    Post-implementation review confirming the benchmark contract now materializes prior-window comparison truth, representative adversary and beneficial non-human families, and reusable candidate-comparison semantics for later reconcile and agent loops.
 32. [`2026-03-21-ops-snapshot-2-operator-snapshot-truth-post-implementation-review.md`](2026-03-21-ops-snapshot-2-operator-snapshot-truth-post-implementation-review.md)
    Post-implementation review confirming the snapshot now uses persisted operator objectives, typed verified-identity state, and decision-evidence-linked recent changes instead of backend defaults and placeholders.
+33. [`2026-03-21-adv-promo-1-replay-promotion-contract-post-implementation-review.md`](2026-03-21-adv-promo-1-replay-promotion-contract-post-implementation-review.md)
+   Post-implementation review confirming replay-promotion lineage now materializes into backend state, is visible from the machine-first snapshot and benchmark contracts, and fails with correct server/client error semantics.
 
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 

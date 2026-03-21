@@ -14,6 +14,7 @@ mod api;
 pub(crate) mod auth;
 mod operator_objectives_api;
 mod operator_snapshot_api;
+mod replay_promotion_api;
 mod recent_changes_ledger;
 
 pub use api::{handle_admin, handle_internal, log_event, now_ts, EventLogEntry, EventType};

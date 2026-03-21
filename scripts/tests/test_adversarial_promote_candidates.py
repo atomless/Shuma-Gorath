@@ -1,4 +1,6 @@
+import json
 import unittest
+from unittest import mock
 
 import scripts.tests.adversarial_promote_candidates as promote
 
@@ -87,6 +89,51 @@ def sample_report():
     }
 
 
+def sample_promotion_payload():
+    return {
+        "schema_version": "adversarial-promotion.v1",
+        "generated_at_unix": 1_700_000_123,
+        "frontier": {
+            "frontier_mode": "multi_provider_playoff",
+            "provider_count": 2,
+            "diversity_confidence": "higher",
+        },
+        "hybrid_governance": {
+            "thresholds_passed": True,
+            "failures": [],
+            "observed": {
+                "deterministic_confirmation_rate_percent": 100.0,
+                "false_discovery_rate_percent": 0.0,
+                "overdue_owner_review_count": 0,
+            },
+        },
+        "discovery_quality_metrics": {
+            "candidate_count": 2,
+            "generated_candidate_count": 1,
+            "novel_confirmed_regressions": 1,
+            "false_discovery_rate_percent": 0.0,
+            "provider_outage_impact_percent": 0.0,
+            "provider_outage_status": "healthy",
+            "blocking_requires_deterministic_confirmation": True,
+        },
+        "summary": {
+            "total_findings": 2,
+            "replay_candidates": 1,
+            "classification_counts": {
+                "confirmed_reproducible": 1,
+                "not_reproducible": 0,
+                "needs_manual_review": 0,
+            },
+            "confirmed_regression_count": 1,
+            "novel_confirmed_regression_count": 1,
+            "false_discovery_rate_percent": 0.0,
+            "provider_outage_impact_percent": 0.0,
+            "blocking_required": True,
+        },
+        "lineage": [],
+    }
+
+
 class PromotionPipelineUnitTests(unittest.TestCase):
     def test_hybrid_lane_constants_are_stable(self):
         self.assertEqual(promote.DETERMINISTIC_CONFORMANCE_LANE, "deterministic_conformance")
@@ -95,6 +142,79 @@ class PromotionPipelineUnitTests(unittest.TestCase):
             str(promote.DEFAULT_HYBRID_LANE_CONTRACT_PATH),
             "scripts/tests/adversarial/hybrid_lane_contract.v1.json",
         )
+
+    def test_materialize_backend_replay_promotion_requires_runtime_endpoint_and_api_key(self):
+        with mock.patch.dict(promote.os.environ, {}, clear=True):
+            with self.assertRaisesRegex(ValueError, "missing SHUMA_BASE_URL"):
+                promote.materialize_backend_replay_promotion(sample_promotion_payload())
+
+        with mock.patch.dict(
+            promote.os.environ,
+            {"SHUMA_BASE_URL": "http://127.0.0.1:3000"},
+            clear=True,
+        ):
+            with self.assertRaisesRegex(ValueError, "missing SHUMA_API_KEY"):
+                promote.materialize_backend_replay_promotion(sample_promotion_payload())
+
+    def test_materialize_backend_replay_promotion_posts_payload_and_requires_materialized_summary(self):
+        captured = {}
+
+        class FakeResponse:
+            def __init__(self, body):
+                self._body = body
+
+            def read(self):
+                return self._body
+
+            def getcode(self):
+                return 200
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+        def fake_urlopen(request, timeout):
+            captured["url"] = request.full_url
+            captured["method"] = request.get_method()
+            captured["timeout"] = timeout
+            captured["authorization"] = request.get_header("Authorization")
+            captured["forwarded"] = request.get_header("X-shuma-forwarded-secret")
+            captured["payload"] = json.loads(request.data.decode("utf-8"))
+            return FakeResponse(
+                json.dumps(
+                    {
+                        "updated": True,
+                        "summary": {"availability": "materialized"},
+                    }
+                ).encode("utf-8")
+            )
+
+        with mock.patch.dict(
+            promote.os.environ,
+            {
+                "SHUMA_BASE_URL": "http://127.0.0.1:3000",
+                "SHUMA_API_KEY": "test-api-key",
+                "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+            },
+            clear=True,
+        ):
+            with mock.patch(
+                "scripts.tests.adversarial_promote_candidates.urllib.request.urlopen",
+                side_effect=fake_urlopen,
+            ):
+                response = promote.materialize_backend_replay_promotion(
+                    sample_promotion_payload()
+                )
+
+        self.assertEqual(captured["url"], "http://127.0.0.1:3000/admin/replay-promotion")
+        self.assertEqual(captured["method"], "POST")
+        self.assertEqual(captured["timeout"], 20.0)
+        self.assertEqual(captured["authorization"], "Bearer test-api-key")
+        self.assertEqual(captured["forwarded"], "forwarded-secret")
+        self.assertEqual(captured["payload"]["schema_version"], "adversarial-promotion.v1")
+        self.assertEqual(response["summary"]["availability"], "materialized")
 
     def test_stable_finding_id_is_deterministic(self):
         record = {

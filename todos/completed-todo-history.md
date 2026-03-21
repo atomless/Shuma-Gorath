@@ -4,6 +4,27 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-21)
 
+### ADV-PROMO-1: Materialize Replay-Promotion Lineage Into Backend Contracts
+
+- [x] Completed the planned replay-promotion tranche by materializing bounded `replay_promotion_v1` state in the backend, exposing `GET/POST /admin/replay-promotion`, wiring bounded replay-promotion summaries into `operator_snapshot_v1` and `benchmark_results_v1`, and making the promotion triage lane fail closed unless backend materialization succeeds.
+- [x] Why:
+  - the first recommend-only reconcile and agent loop needs replay-promotion evidence in backend contracts, not only in Python-side JSON artifacts.
+  - later loop logic needs one truthful control-plane chain across adversary discovery, deterministic replay confirmation, summary hot reads, and benchmark reads.
+  - the cleanest path was to extend the existing machine-first snapshot and benchmark contracts plus the current adversarial promotion lane rather than invent a separate controller-only memory surface.
+- [x] Evidence:
+  - `src/observability/replay_promotion.rs`
+  - `src/admin/replay_promotion_api.rs`
+  - `src/observability/operator_snapshot.rs`
+  - `src/observability/benchmark_results.rs`
+  - `scripts/tests/adversarial_promote_candidates.py`
+  - `scripts/tests/adversarial_simulation_runner.py`
+  - `docs/research/2026-03-21-adv-promo-1-replay-promotion-contract-post-implementation-review.md`
+  - `make test-replay-promotion-contract`
+  - `make test-adversarial-python-unit`
+  - `make test-adversarial-promote-candidates`
+  - `git diff --check`
+  - review follow-up `ADV-PROMO-1-REVIEW-1` corrected replay-promotion error mapping so invalid payloads return `400` while backend persistence faults return `500`, and no tranche-local shortfall remained open before `OVR-RECON-1`.
+
 ### OPS-SNAPSHOT-2: Replace Snapshot Defaults And Placeholders With Persisted Operator Truth
 
 - [x] Completed the planned snapshot-truth tranche by persisting `operator_objectives_v1`, exposing the new operator-objectives admin surface, replacing the placeholder verified-identity section with a typed summary, and linking `recent_changes` rows to a durable bounded decision ledger with objective revision and evidence references.

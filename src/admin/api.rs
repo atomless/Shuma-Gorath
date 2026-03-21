@@ -27,6 +27,7 @@ use super::monitoring_api::{
 };
 use super::operator_objectives_api::handle_admin_operator_objectives;
 use super::operator_snapshot_api::handle_admin_operator_snapshot;
+use super::replay_promotion_api::handle_admin_replay_promotion;
 #[cfg(test)]
 use super::recent_changes_ledger::load_operator_snapshot_recent_changes;
 #[cfg(test)]
@@ -2143,6 +2144,13 @@ mod tests {
                 .and_then(|value| value.as_str()),
             Some("not_configured")
         );
+        assert_eq!(
+            payload
+                .get("replay_promotion")
+                .and_then(|value| value.get("availability"))
+                .and_then(|value| value.as_str()),
+            Some("not_materialized")
+        );
     }
 
     #[test]
@@ -2304,6 +2312,13 @@ mod tests {
                 .and_then(|value| value.get("review_status"))
                 .and_then(|value| value.as_str()),
             Some("manual_review_required")
+        );
+        assert_eq!(
+            payload
+                .get("replay_promotion")
+                .and_then(|value| value.get("availability"))
+                .and_then(|value| value.as_str()),
+            Some("not_materialized")
         );
         assert!(payload
             .get("families")
@@ -7011,6 +7026,7 @@ mod admin_config_tests {
         assert!(sanitize_path("/admin/ip-range/suggestions"));
         assert!(sanitize_path("/admin/operator-snapshot"));
         assert!(sanitize_path("/admin/operator-objectives"));
+        assert!(sanitize_path("/admin/replay-promotion"));
         assert!(sanitize_path("/admin/benchmark-suite"));
         assert!(sanitize_path("/admin/monitoring/stream"));
         assert!(sanitize_path("/admin/ip-bans/stream"));
@@ -10248,6 +10264,10 @@ mod admin_auth_tests {
             &Method::Post
         ));
         assert!(request_requires_admin_write(
+            "/admin/replay-promotion",
+            &Method::Post
+        ));
+        assert!(request_requires_admin_write(
             "/admin/config/bootstrap",
             &Method::Post
         ));
@@ -10287,6 +10307,10 @@ mod admin_auth_tests {
         ));
         assert!(!request_requires_admin_write(
             "/admin/operator-objectives",
+            &Method::Get
+        ));
+        assert!(!request_requires_admin_write(
+            "/admin/replay-promotion",
             &Method::Get
         ));
         assert!(!request_requires_admin_write(
@@ -10452,6 +10476,7 @@ fn sanitize_path(path: &str) -> bool {
             | "/admin/events"
             | "/admin/operator-snapshot"
             | "/admin/operator-objectives"
+            | "/admin/replay-promotion"
             | "/admin/benchmark-suite"
             | "/admin/benchmark-results"
             | "/admin/config"
@@ -10810,6 +10835,7 @@ fn request_requires_admin_write(path: &str, method: &Method) -> bool {
             | "/admin/unban"
             | "/admin/config"
             | "/admin/operator-objectives"
+            | "/admin/replay-promotion"
             | "/admin/config/bootstrap"
             | "/admin/config/validate"
             | "/admin/adversary-sim/control"
@@ -16825,6 +16851,7 @@ fn finalize_manual_unban_result<S: crate::challenge::KeyValueStore>(
 ///   - GET /admin/cdp/events: Query CDP-only events
 ///   - GET /admin/operator-snapshot: Query the machine-first operator snapshot contract
 ///   - GET/POST /admin/operator-objectives: Read or update the persisted operator-objectives contract
+///   - GET/POST /admin/replay-promotion: Read or materialize bounded replay-promotion lineage
 ///   - GET /admin/benchmark-suite: Query the machine-first benchmark family registry
 ///   - GET /admin/benchmark-results: Query the bounded machine-first benchmark result envelope
 ///   - GET /admin/monitoring: Query consolidated monitoring telemetry summaries
@@ -17047,6 +17074,7 @@ pub fn handle_admin(req: &Request) -> Response {
             handle_admin_operator_snapshot(req, &store)
         }
         "/admin/operator-objectives" => handle_admin_operator_objectives(req, &store, site_id),
+        "/admin/replay-promotion" => handle_admin_replay_promotion(req, &store, site_id),
         "/admin/benchmark-suite" => handle_admin_benchmark_suite(req),
         "/admin/benchmark-results" => {
             if expensive_admin_read_is_limited(&store, req, &auth, provider_registry.as_ref()) {
@@ -17271,7 +17299,7 @@ pub fn handle_admin(req: &Request) -> Response {
                     admin: Some(crate::admin::auth::get_admin_id(req)),
                 },
             );
-            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/operator-snapshot, /admin/operator-objectives, /admin/benchmark-suite, /admin/benchmark-results, /admin/monitoring, /admin/monitoring/delta, /admin/monitoring/stream, /admin/ip-bans/delta, /admin/ip-bans/stream, /admin/ip-range/suggestions, /admin/config, /admin/config/bootstrap, /admin/config/validate, /admin/config/export, /admin/adversary-sim/control, /admin/adversary-sim/status, /admin/adversary-sim/history/cleanup, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/tarpit/preview (GET non-operational progressive tarpit preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/robots/preview (POST unsaved robots preview patch), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
+            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/operator-snapshot, /admin/operator-objectives, /admin/replay-promotion, /admin/benchmark-suite, /admin/benchmark-results, /admin/monitoring, /admin/monitoring/delta, /admin/monitoring/stream, /admin/ip-bans/delta, /admin/ip-bans/stream, /admin/ip-range/suggestions, /admin/config, /admin/config/bootstrap, /admin/config/validate, /admin/config/export, /admin/adversary-sim/control, /admin/adversary-sim/status, /admin/adversary-sim/history/cleanup, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/tarpit/preview (GET non-operational progressive tarpit preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/robots/preview (POST unsaved robots preview patch), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
         }
         "/admin/maze" => {
             // Return maze statistics

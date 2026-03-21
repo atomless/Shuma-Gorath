@@ -1975,6 +1975,45 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
             result = sim_runner.admin_read_request("GET", "/admin/events", max_attempts=2)
         self.assertEqual(result.status, 429)
 
+    def test_replay_promotion_snapshot_reads_machine_first_contract(self):
+        manifest = minimal_manifest(schema_version="sim-manifest.v2")
+        with patch.dict(
+            os.environ,
+            {
+                "SHUMA_API_KEY": "test-api-key",
+                "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+                "SHUMA_SIM_TELEMETRY_SECRET": "test-sim-tag-secret",
+            },
+            clear=False,
+        ):
+            sim_runner = runner.Runner(
+                manifest_path=Path("scripts/tests/adversarial/scenario_manifest.v2.json"),
+                manifest=manifest,
+                profile_name="test_profile",
+                execution_lane="black_box",
+                base_url="http://127.0.0.1:3000",
+                request_timeout_seconds=5.0,
+                report_path=Path("scripts/tests/adversarial/latest_report.json"),
+            )
+
+        sim_runner.admin_read_request = lambda method, path, json_body=None, max_attempts=4: runner.HttpResult(  # type: ignore[assignment]
+            status=200,
+            body=json.dumps(
+                {
+                    "schema_version": "replay_promotion_v1",
+                    "generated_at_unix": 1_700_000_200,
+                    "summary": {"blocking_required": True},
+                }
+            ),
+            headers={},
+            latency_ms=1,
+        )
+
+        payload = sim_runner.replay_promotion_snapshot()
+
+        self.assertEqual(payload["schema_version"], "replay_promotion_v1")
+        self.assertTrue(payload["summary"]["blocking_required"])
+
     def test_run_scenario_applies_setup_phase_before_attacker_execution(self):
         manifest = minimal_manifest(schema_version="sim-manifest.v2")
         with patch.dict(
