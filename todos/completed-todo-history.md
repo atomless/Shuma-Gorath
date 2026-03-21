@@ -4,6 +4,22 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-21)
 
+### LOOP-ARCH-REVIEW-1: Capture Feedback-Loop Debt Review And Restructuring Sequence
+
+- [x] Captured the repo-grounded feedback-loop and architecture-debt review, turned it into a phased restructuring and execution plan, updated the roadmap, and realigned the active and blocked TODO queues so the benchmark/objective/decision-lineage gaps plus the large-file decomposition work are now sequenced explicitly instead of living only in chat context.
+- [x] Why:
+  - the closed-loop review surfaced real planning debt that needed to become durable repo truth before more feature work resumed.
+  - the codebase now has enough machine-first and adversary foundations that the main risk is continuing to add controller and operator-loop logic into already oversized hotspot files.
+  - pulling the structural decomposition and loop-closure work onto the active path keeps the pre-launch mainline aligned with the shared-host-first, recommend-only controller direction.
+- [x] Evidence:
+  - `docs/research/2026-03-21-feedback-loop-and-architecture-debt-review.md`
+  - `docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`
+  - `docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`
+  - `todos/todo.md`
+  - `todos/blocked-todo.md`
+  - `git diff --check`
+  - docs-only tranche: behavior tests intentionally skipped.
+
 ### WB-3.1-REVIEW-1: Extend Verified-Identity Policy Parity And Classification Proof
 
 - [x] During the `WB-3.1` closeout review, identified that the canonical plan-builder characterization snapshot and the shared traffic-classification regression set did not yet cover the new verified-identity decision family, then executed the follow-up by extending the focused make gate, teaching the snapshot harness to evaluate the verified-identity tranche in real order, adding verified-identity allow/deny/observe/restrict snapshot cases, and adding explicit regression proof for the new policy-source classification.

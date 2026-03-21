@@ -62,6 +62,32 @@ Reference context:
 - [`docs/plans/2026-03-15-agentic-era-oversight-design.md`](../docs/plans/2026-03-15-agentic-era-oversight-design.md)
 - [`docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
 
+## P0 First Closed Feedback Loop And Control-Plane Restructuring
+
+Reference context:
+- [`docs/research/2026-03-21-feedback-loop-and-architecture-debt-review.md`](../docs/research/2026-03-21-feedback-loop-and-architecture-debt-review.md)
+- [`docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](../docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md)
+- [`docs/plans/2026-03-20-machine-first-operator-snapshot-and-feedback-loop-design.md`](../docs/plans/2026-03-20-machine-first-operator-snapshot-and-feedback-loop-design.md)
+- [`docs/plans/2026-03-20-benchmark-suite-v1-design.md`](../docs/plans/2026-03-20-benchmark-suite-v1-design.md)
+- [`docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`](../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md)
+- [`docs/plans/2026-03-15-agentic-era-oversight-design.md`](../docs/plans/2026-03-15-agentic-era-oversight-design.md)
+- [`docs/plans/2026-03-15-agentic-era-oversight-implementation-plan.md`](../docs/plans/2026-03-15-agentic-era-oversight-implementation-plan.md)
+
+Current stance:
+- Observation and adversary generation are now ahead of objective, comparison, attribution, and recommend-only reconcile truth.
+- Execute the structural decomposition tranches before landing more controller or operator-loop logic into the current hotspot files.
+- Keep the decomposition slices behavior-preserving; semantic expansion begins only after the hotspot modules have focused seams.
+- Treat the verified-identity observability and benchmarking gap as part of this loop-closure track rather than later polish.
+
+- [ ] ARCH-API-1 Split `src/admin/api.rs` into a thin router shell plus domain handler modules before any further operator-loop or adversary-control work lands there; preserve endpoint contracts, auth/rate-limit behavior, and focused `make` verification.
+- [ ] ARCH-OBS-1 Split `src/observability/operator_snapshot.rs`, `src/observability/benchmark_results.rs`, and `src/config/controller_action_surface.rs` into focused modules before adding benchmark history, persisted objectives, or decision-ledger semantics.
+- [ ] ARCH-SIM-1 Split `src/admin/adversary_sim.rs` into control-state, lane runtime, diagnostics, and corpus/worker-plan helpers before recommend-only reconcile integration work starts.
+- [ ] ADV-RUN-ARCH-1 Break `scripts/tests/adversarial_simulation_runner.py` into focused modules/helpers for contract loading, attacker/control-plane execution, evidence shaping, discovery scoring, and governance/report checks so the current `6950`-line multi-responsibility runner stops concentrating unrelated concerns in one file.
+- [ ] OPS-BENCH-2 Materialize benchmark history, prior-window or explicit baseline comparison, `improvement_status`, representative adversary scenario-family results, beneficial non-human posture metrics, and candidate-vs-current comparison semantics for later tuning and code-evolution loops.
+- [ ] OPS-SNAPSHOT-2 Replace backend-default and placeholder operator state with persisted `operator_objectives_v1`, typed verified-identity summary content, and causal decision/watch-window evidence needed for later reconcile and rollback reasoning.
+- [ ] ADV-PROMO-1 Promote emergent finding and deterministic replay lineage into backend contracts consumable from `operator_snapshot_v1` and `benchmark_results_v1` rather than leaving that lineage only in Python artifacts.
+- [ ] OVR-RECON-1 Land the first recommend-only reconcile engine, patch-policy layer, and decision ledger over `allowed_actions_v1`, reusing the existing adversary-sim lease/idempotency pattern and failing closed when evidence is stale or contradictory.
+
 ## P1 Verified Bot Identity And Web Bot Auth Foundation
 
 Reference context:
@@ -158,7 +184,6 @@ Architecture alignment reference:
 ## P3 Platform and Configuration Clarity
 
 - [ ] Centralize dashboard tab metadata (tab ids, loading copy, refresh defaults, and invalidation scopes) into one shared registry consumed by route, route-controller, refresh-runtime, and native-runtime code so stale fallback tabs/messages cannot drift.
-- [ ] ADV-RUN-ARCH-1 Break `scripts/tests/adversarial_simulation_runner.py` into focused modules/helpers for contract loading, attacker/control-plane execution, evidence shaping, and governance/report checks so the current `6881`-line multi-responsibility runner stops concentrating unrelated concerns in one file.
 - [ ] Resolve the `ip_range_suggestions_*` classification exception so the documented config model stays honest: either make those runtime-visible KV knobs admin-writable with Advanced JSON parity, or move them out of the persisted read-only exception path and document the chosen contract.
 - [ ] Write objective criteria for future repository splits (API stability, release cadence, ownership, operational coupling).
 - [ ] Design runtime-agnostic architecture that keeps core detection logic portable while preserving the shared-host-first control plane and a later thin edge-gateway adapter path.
