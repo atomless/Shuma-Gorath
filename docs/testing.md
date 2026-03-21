@@ -39,6 +39,7 @@ make test-sim2-operational-regressions # SIM2 operational regressions for active
 make test-sim2-operational-regressions-strict # Strict SIM2 operational regressions (all failure/prod/retention/cost/security domains required)
 make test-sim2-governance-contract # SIM2 hybrid lane + governance contract conformance diagnostics
 make test-admin-machine-contracts # Focused recent-change ledger + operator snapshot + benchmark admin read contracts
+make test-admin-api-routing-contract # Focused admin route-family contract gate for structural API refactors
 make test-controller-action-surface # Focused allowed-actions and controller-family mapping checks
 make test-adversarial-runner-architecture # Focused adversarial runner CLI, unit, and validate-only checks
 make test-adversary-sim-domain-contract # Focused adversary-sim lifecycle and lane-domain checks without live runtime-surface traffic
