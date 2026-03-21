@@ -263,6 +263,29 @@ This must clearly separate:
 
 Those are not the same risk class and should not be treated as one automation mode.
 
+## H2. First Closed Feedback Loop Completion And Structural Decomposition
+
+Shuma still needs one explicit near-term planning track for the gap between:
+
+1. today's machine-first read contracts plus adversary control,
+2. and the actual first closed feedback loop with baseline comparison, persisted objectives, causal decision evidence, and recommend-only reconcile.
+
+This is now also a structural architecture track because the current hotspot files are already too large to keep absorbing more control-loop behavior cleanly.
+
+That track must explicitly sequence:
+
+1. behavior-preserving decomposition of `src/admin/api.rs`, `src/admin/adversary_sim.rs`, `src/observability/operator_snapshot.rs`, `src/observability/benchmark_results.rs`, `src/config/controller_action_surface.rs`, and `scripts/tests/adversarial_simulation_runner.py`,
+2. benchmark-history and comparison materialization,
+3. persisted `operator_objectives_v1` plus typed verified-identity and decision-evidence snapshot content,
+4. replay-promotion lineage integration into backend contracts,
+5. the recommend-only reconcile engine,
+6. and only then Monitoring/Tuning projection and later scheduled-agent planning.
+
+Status update (2026-03-21):
+
+1. Captured in [`2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md).
+2. The corresponding architecture review is [`../research/2026-03-21-feedback-loop-and-architecture-debt-review.md`](../research/2026-03-21-feedback-loop-and-architecture-debt-review.md).
+
 ## I. Privacy, State-Minimization, And Final Launch Gates
 
 Shuma also needs explicit late-stage gates that should not be left implicit:

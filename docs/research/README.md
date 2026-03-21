@@ -156,6 +156,8 @@ Completed archive index:
    Post-implementation review confirming `SIM-SH-SURFACE-1-1` landed as a versioned fail-closed scope contract plus tooling validator, and that the next shared-host work should move to the seed contract rather than control-plane surface.
 27. [`2026-03-20-shared-host-seed-contract-post-implementation-review.md`](2026-03-20-shared-host-seed-contract-post-implementation-review.md)
    Post-implementation review confirming `SIM-SH-SURFACE-1-2` landed as a minimal seed inventory plus bounded `robots.txt` hint ingestion, and that `SIM-SCR-LANE-1` is now execution-ready.
+28. [`2026-03-21-feedback-loop-and-architecture-debt-review.md`](2026-03-21-feedback-loop-and-architecture-debt-review.md)
+   Architecture review capturing the current feedback-loop shortfalls, benchmark/objective/decision-lineage gaps, and the need to structurally decompose oversized control-plane modules before the next controller work lands.
 
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 
