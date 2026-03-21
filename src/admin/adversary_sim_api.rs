@@ -195,3 +195,203 @@ pub(crate) fn handle_admin_adversary_sim_status(
         .body(body)
         .build()
 }
+
+fn save_adversary_sim_beat_state_if_unchanged<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    site_id: &str,
+    previous_state: &crate::admin::adversary_sim::ControlState,
+    next_state: &crate::admin::adversary_sim::ControlState,
+) -> Result<bool, ()> {
+    let current_state = crate::admin::adversary_sim::load_state(store, site_id);
+    if current_state != *previous_state {
+        return Ok(false);
+    }
+    crate::admin::adversary_sim::save_state(store, site_id, next_state)?;
+    Ok(true)
+}
+
+fn internal_adversary_sim_beat_is_authorized(req: &Request) -> bool {
+    crate::admin::auth::is_internal_adversary_sim_beat_request(req)
+}
+
+fn internal_adversary_sim_worker_result_is_authorized(req: &Request) -> bool {
+    crate::admin::auth::is_internal_adversary_sim_supervisor_request(req)
+}
+
+pub(crate) fn handle_internal_adversary_sim_beat(
+    req: &Request,
+    store: &impl crate::challenge::KeyValueStore,
+    site_id: &str,
+) -> Response {
+    let edge_cron_request = crate::admin::auth::is_internal_adversary_sim_edge_cron_request(req);
+    if *req.method() != Method::Post && !(edge_cron_request && *req.method() == Method::Get) {
+        return Response::new(405, "Method Not Allowed");
+    }
+
+    let runtime_environment = crate::config::runtime_environment();
+    let env_available = crate::config::adversary_sim_available();
+    if !crate::admin::adversary_sim::control_surface_available(runtime_environment, env_available) {
+        return Response::new(404, "Not Found");
+    }
+
+    if !internal_adversary_sim_beat_is_authorized(req) {
+        return Response::new(
+            401,
+            "Unauthorized: Internal adversary-sim beat authorization required",
+        );
+    }
+
+    let snapshot = match load_adversary_sim_lifecycle_snapshot(store, site_id) {
+        Ok(snapshot) => snapshot,
+        Err(err) => return Response::new(500, err.user_message()),
+    };
+    let now = crate::admin::now_ts();
+    let mut cfg = snapshot.cfg;
+    let mut state = snapshot.state;
+    let previous_state = state.clone();
+
+    let (reconciled_state, _) =
+        crate::admin::adversary_sim::reconcile_state(now, cfg.adversary_sim_enabled, &state);
+    state = reconciled_state;
+    crate::admin::adversary_sim::project_effective_desired_state(&mut cfg, &state);
+
+    let summary =
+        crate::admin::adversary_sim::run_autonomous_supervisor_ticks(store, &mut state, now);
+    if state != previous_state {
+        match save_adversary_sim_beat_state_if_unchanged(store, site_id, &previous_state, &state) {
+            Ok(true) => {}
+            Ok(false) => {
+                let snapshot = match load_adversary_sim_lifecycle_snapshot(store, site_id) {
+                    Ok(snapshot) => snapshot,
+                    Err(err) => return Response::new(500, err.user_message()),
+                };
+                cfg = snapshot.cfg;
+                state = snapshot.state;
+                let (reconciled_state, _) = crate::admin::adversary_sim::reconcile_state(
+                    now,
+                    cfg.adversary_sim_enabled,
+                    &state,
+                );
+                state = reconciled_state;
+                crate::admin::adversary_sim::project_effective_desired_state(&mut cfg, &state);
+            }
+            Err(()) => return Response::new(500, "Key-value store error"),
+        }
+    }
+
+    if summary.executed_ticks > 0 {
+        crate::log_line(&format!(
+            "[adversary-sim-supervisor] executed_ticks={} generated_requests={} failed_requests={}",
+            summary.executed_ticks, summary.generated_requests, summary.failed_requests
+        ));
+    }
+
+    let generation_active = cfg.adversary_sim_enabled
+        && state.phase == crate::admin::adversary_sim::ControlPhase::Running;
+    let status = adversary_sim_status_payload(store, site_id, &cfg, &state, now);
+    let dispatch_mode = if summary.worker_plan.is_some() {
+        "scrapling_worker"
+    } else if summary.worker_pending {
+        "scrapling_worker_pending"
+    } else {
+        "internal"
+    };
+    let body = serde_json::to_string(&json!({
+        "accepted": true,
+        "dispatch_mode": dispatch_mode,
+        "executed_ticks": summary.executed_ticks,
+        "due_ticks": summary.due_ticks,
+        "generated_requests": summary.generated_requests,
+        "failed_requests": summary.failed_requests,
+        "last_response_status": summary.last_response_status,
+        "worker_plan": summary.worker_plan,
+        "phase": state.phase.as_str(),
+        "generation_active": generation_active,
+        "should_exit": !generation_active,
+        "status": status
+    }))
+    .unwrap();
+    Response::builder()
+        .status(200)
+        .header("Cache-Control", "no-store")
+        .body(body)
+        .build()
+}
+
+pub(crate) fn handle_internal_adversary_sim_worker_result(
+    req: &Request,
+    store: &impl crate::challenge::KeyValueStore,
+    site_id: &str,
+) -> Response {
+    if *req.method() != Method::Post {
+        return Response::new(405, "Method Not Allowed");
+    }
+    let runtime_environment = crate::config::runtime_environment();
+    let env_available = crate::config::adversary_sim_available();
+    if !crate::admin::adversary_sim::control_surface_available(runtime_environment, env_available) {
+        return Response::new(404, "Not Found");
+    }
+    if !internal_adversary_sim_worker_result_is_authorized(req) {
+        return Response::new(
+            401,
+            "Unauthorized: Internal adversary-sim worker authorization required",
+        );
+    }
+
+    let worker_result = match serde_json::from_slice::<
+        crate::admin::adversary_sim::ScraplingWorkerResult,
+    >(req.body())
+    {
+        Ok(parsed) => parsed,
+        Err(_) => return Response::new(400, "Invalid Scrapling worker result payload"),
+    };
+    if worker_result.schema_version
+        != crate::admin::adversary_sim::SCRAPLING_WORKER_RESULT_SCHEMA_VERSION
+    {
+        return Response::new(400, "Invalid Scrapling worker result schema_version");
+    }
+
+    let snapshot = match load_adversary_sim_lifecycle_snapshot(store, site_id) {
+        Ok(snapshot) => snapshot,
+        Err(err) => return Response::new(500, err.user_message()),
+    };
+    let cfg = snapshot.cfg;
+    let mut state = snapshot.state;
+    let previous_state = state.clone();
+
+    let active_lane = crate::admin::adversary_sim::effective_active_lane(&state);
+    let worker_tick_matches =
+        state.pending_worker_tick_id.as_deref() == Some(worker_result.tick_id.as_str());
+    let run_matches = state.run_id.as_deref() == Some(worker_result.run_id.as_str());
+    let lane_matches = active_lane == Some(worker_result.lane);
+    if !matches!(
+        state.phase,
+        crate::admin::adversary_sim::ControlPhase::Running
+    ) || !state.desired_enabled
+        || !worker_tick_matches
+        || !run_matches
+        || !lane_matches
+    {
+        return Response::new(409, "stale_worker_result");
+    }
+
+    crate::admin::adversary_sim::apply_scrapling_worker_result(&mut state, &worker_result);
+    match save_adversary_sim_beat_state_if_unchanged(store, site_id, &previous_state, &state) {
+        Ok(true) => {}
+        Ok(false) => return Response::new(409, "stale_worker_result"),
+        Err(()) => return Response::new(500, "Key-value store error"),
+    }
+
+    let now = worker_result.tick_completed_at;
+    let status = adversary_sim_status_payload(store, site_id, &cfg, &state, now);
+    let body = serde_json::to_string(&json!({
+        "accepted": true,
+        "status": status
+    }))
+    .unwrap();
+    Response::builder()
+        .status(200)
+        .header("Cache-Control", "no-store")
+        .body(body)
+        .build()
+}
