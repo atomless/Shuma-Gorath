@@ -5,6 +5,7 @@ Related context:
 
 - [`2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-design.md`](2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-design.md)
 - [`../research/2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-research-synthesis.md`](../research/2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-research-synthesis.md)
+- [`../research/2026-03-21-verified-identity-execution-readiness-refresh.md`](../research/2026-03-21-verified-identity-execution-readiness-refresh.md)
 - [`2026-03-15-agentic-era-oversight-implementation-plan.md`](2026-03-15-agentic-era-oversight-implementation-plan.md)
 - [`2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-implementation-plan.md`](2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-implementation-plan.md)
 
@@ -25,17 +26,19 @@ Implement this in narrow phases. Identity, authorization policy, and low-cost co
 
 This work is intended to sit in the locked pre-launch sequence:
 
-1. after monitoring overhaul and tuning-surface completion,
+1. after the delivered controller-grade telemetry foundation and the delivered machine-first operator snapshot and benchmark foundations,
 2. before mature adversary-sim expansion,
-3. before central-intelligence architecture,
-4. and before the scheduled agent analyzer and reconfigurer.
+3. before the later Monitoring projection and Tuning surface completion,
+4. before central-intelligence architecture,
+5. and before the scheduled agent analyzer and reconfigurer.
 
 Reason:
 
 1. Shuma should formalize authentication and local authorization before testing or tuning against realistic agentic traffic.
 2. Mature adversary-sim should be able to model both beneficial verified agents and spoofed, replayed, or policy-violating signed-agent traffic against a real identity lane.
-3. Central intelligence must remain separate from identity and therefore should follow this work rather than precede it.
-4. The future scheduled agent loop must not mutate or reason about trust-boundary controls before those controls are explicitly modeled and surfaced to operators.
+3. Monitoring and Tuning should consume the identity lane once it exists; they should not block the first observe-only identity foundation slices.
+4. Central intelligence must remain separate from identity and therefore should follow this work rather than precede it.
+5. The future scheduled agent loop must not mutate or reason about trust-boundary controls before those controls are explicitly modeled and surfaced to operators.
 
 # Phase 0: Contracts, ADR Alignment, And Config Prep
 

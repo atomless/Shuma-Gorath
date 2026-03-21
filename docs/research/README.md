@@ -76,6 +76,10 @@ Completed archive index:
    Research synthesis for banded ban jitter, local repeat-offender escalation, and central intelligence as coordinated cost-shaping features within Shuma's agentic-era defence model.
 3. [`2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-research-synthesis.md`](2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-research-synthesis.md)
    Research synthesis for Web Bot Auth, HTTP Message Signatures, signed agents, verified bots, and the local policy and trust model Shuma needs for authenticated automated traffic.
+4. [`2026-03-21-verified-identity-execution-readiness-refresh.md`](2026-03-21-verified-identity-execution-readiness-refresh.md)
+   Readiness refresh reconciling the verified-identity planning chain with the updated roadmap and exposing the first execution-ready `WB-0.*` and `WB-1.*` slices.
+5. [`2026-03-21-verified-identity-planning-refresh-post-implementation-review.md`](2026-03-21-verified-identity-planning-refresh-post-implementation-review.md)
+   Post-implementation review for the verified-identity planning refresh tranche.
 4. [`2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md`](2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md)
    Research synthesis for the machine-first Monitoring destination, bounded operator snapshot contract, and the first config-diff-only feedback loop that should precede the human Monitoring overhaul.
 5. [`2026-03-20-operator-snapshot-foundation-post-implementation-review.md`](2026-03-20-operator-snapshot-foundation-post-implementation-review.md)

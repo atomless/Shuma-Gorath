@@ -4,6 +4,22 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-21)
 
+### WB-PLAN-REFRESH-1: Verified-Identity Planning Refresh
+
+- [x] Refreshed the verified-identity planning chain so it matches the updated shared-host-first roadmap: added a readiness-refresh note, updated the verified-identity implementation plan to start after the delivered machine-first foundations rather than after the later human Monitoring/Tuning UI work, and added execution-ready `WB-0.*` and `WB-1.*` items to the active TODO queue.
+- [x] Why:
+  - the repo already had the research, design, and implementation plan for verified identity, but the sequencing inside that implementation plan had drifted behind the refreshed master roadmap.
+  - without this refresh, the next mainline step would have been ambiguous: the roadmap said "do verified identity now," while the implementation plan still implied it had to wait for later human Monitoring/Tuning work.
+  - the clean fix was a planning-only tranche that reconciled those documents and exposed the narrow observe-only identity slices as the first execution-ready work.
+- [x] Evidence:
+  - `docs/research/2026-03-21-verified-identity-execution-readiness-refresh.md`
+  - `docs/plans/2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-implementation-plan.md`
+  - `docs/research/README.md`
+  - `todos/todo.md`
+  - `docs/research/2026-03-21-verified-identity-planning-refresh-post-implementation-review.md`
+  - `git diff --check`
+  - verification note: docs/planning-only tranche, so tests were intentionally skipped.
+
 ### ROADMAP-EDGE-1: Shared-Host-First Control Plane And Deferred Edge-Gateway Cleanup
 
 - [x] Reviewed the repo against the decision to shelve Fermyon as a near-term full-runtime target, wrote a new architecture review plus direction-update plan, moved edge/Fermyon and enterprise distributed-state follow-on work out of the active queue into blocked backlog, and refreshed public docs and Akamai/Fermyon agent skills so they now describe the edge path as a deferred gateway-only posture rather than the current full-runtime destination.

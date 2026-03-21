@@ -62,6 +62,26 @@ Reference context:
 - [`docs/plans/2026-03-15-agentic-era-oversight-design.md`](../docs/plans/2026-03-15-agentic-era-oversight-design.md)
 - [`docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
 
+## P1 Verified Bot Identity And Web Bot Auth Foundation
+
+Reference context:
+- [`docs/research/2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-research-synthesis.md`](../docs/research/2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-research-synthesis.md)
+- [`docs/research/2026-03-21-verified-identity-execution-readiness-refresh.md`](../docs/research/2026-03-21-verified-identity-execution-readiness-refresh.md)
+- [`docs/plans/2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-design.md`](../docs/plans/2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-design.md)
+- [`docs/plans/2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-implementation-plan.md`](../docs/plans/2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-implementation-plan.md)
+- [`docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
+
+Current stance:
+- Verified identity now sits after the delivered machine-first telemetry/snapshot foundations and before mature adversary-sim expansion.
+- The first execution slices should stay observe-only: identity contracts, config, provider normalization, telemetry, and request-path annotations without routing change.
+- Do not bundle authorization policy, low-cost profiles, or dashboard control surfaces into the first tranche.
+
+- [ ] WB-0.1 Define the canonical verified-identity domain (`contracts`, `verification result`, `policy outcome`, and service-profile types) as a provider-independent internal subsystem.
+- [ ] WB-0.2 Add verified-identity config placeholders and validation (`config/defaults.env`, config parsing/validation, and admin/Advanced JSON parity where applicable) without changing runtime routing.
+- [ ] WB-1.1 Add the provider seam for normalized verified-bot and signed-agent identity assertions through the shared provider contract.
+- [ ] WB-1.2 Add observe-only verified-identity telemetry for verification attempts, success/failure classes, replay/freshness outcomes, and native-vs-provider provenance.
+- [ ] WB-1.3 Thread normalized identity annotations through request evaluation and monitoring context without changing allow/deny/challenge routing yet.
+
 ## P1 Production Adversary-Sim Operating Contract
 
 Reference context:
