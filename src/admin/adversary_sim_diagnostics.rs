@@ -1,14 +1,130 @@
+use serde::{Deserialize, Serialize};
 use serde_json::json;
+use std::collections::BTreeMap;
 
 use super::adversary_sim::{
     MAX_CONCURRENT_RUNS, MAX_CPU_MILLICORES, MAX_MEMORY_MIB, PRODUCTION_GENERATION_DEFAULT,
-    QUEUE_POLICY,
+    QUEUE_POLICY, WorkerFailureClass,
 };
 use super::adversary_sim_corpus::deterministic_corpus_metadata_payload;
 use super::adversary_sim_state::{
     autonomous_execution_profile, clamp_duration_seconds, effective_active_lane,
     generation_diagnostic_grace_seconds, lane_phase, ControlPhase, ControlState, RuntimeLane,
 };
+
+const LANE_DIAGNOSTICS_SCHEMA_VERSION: &str = "adversary-sim-lane-diagnostics.v1";
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct FailureClassCounter {
+    #[serde(default)]
+    pub count: u64,
+    #[serde(default)]
+    pub last_seen_at: Option<u64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct RequestFailureClassCounters {
+    #[serde(default)]
+    pub cancelled: FailureClassCounter,
+    #[serde(default)]
+    pub timeout: FailureClassCounter,
+    #[serde(default)]
+    pub transport: FailureClassCounter,
+    #[serde(default)]
+    pub http: FailureClassCounter,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct LaneCounterState {
+    #[serde(default)]
+    pub beat_attempts: u64,
+    #[serde(default)]
+    pub beat_successes: u64,
+    #[serde(default)]
+    pub beat_failures: u64,
+    #[serde(default)]
+    pub generated_requests: u64,
+    #[serde(default)]
+    pub blocked_requests: u64,
+    #[serde(default)]
+    pub offsite_requests: u64,
+    #[serde(default)]
+    pub response_bytes: u64,
+    #[serde(default)]
+    pub response_status_count: BTreeMap<String, u64>,
+    #[serde(default)]
+    pub last_generated_at: Option<u64>,
+    #[serde(default)]
+    pub last_error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct LaneDiagnosticsState {
+    #[serde(default)]
+    pub synthetic_traffic: LaneCounterState,
+    #[serde(default)]
+    pub scrapling_traffic: LaneCounterState,
+    #[serde(default)]
+    pub bot_red_team: LaneCounterState,
+    #[serde(default)]
+    pub request_failure_classes: RequestFailureClassCounters,
+}
+
+impl LaneDiagnosticsState {
+    pub(crate) fn lane_mut(&mut self, lane: RuntimeLane) -> &mut LaneCounterState {
+        match lane {
+            RuntimeLane::SyntheticTraffic => &mut self.synthetic_traffic,
+            RuntimeLane::ScraplingTraffic => &mut self.scrapling_traffic,
+            RuntimeLane::BotRedTeam => &mut self.bot_red_team,
+        }
+    }
+
+    pub(crate) fn failure_class_mut(&mut self, class: WorkerFailureClass) -> &mut FailureClassCounter {
+        match class {
+            WorkerFailureClass::Cancelled => &mut self.request_failure_classes.cancelled,
+            WorkerFailureClass::Timeout => &mut self.request_failure_classes.timeout,
+            WorkerFailureClass::Transport => &mut self.request_failure_classes.transport,
+            WorkerFailureClass::Http => &mut self.request_failure_classes.http,
+        }
+    }
+
+    pub(crate) fn to_payload(&self) -> serde_json::Value {
+        let lane_payload = |lane: &LaneCounterState| {
+            json!({
+                "beat_attempts": lane.beat_attempts,
+                "beat_successes": lane.beat_successes,
+                "beat_failures": lane.beat_failures,
+                "generated_requests": lane.generated_requests,
+                "blocked_requests": lane.blocked_requests,
+                "offsite_requests": lane.offsite_requests,
+                "response_bytes": lane.response_bytes,
+                "response_status_count": lane.response_status_count,
+                "last_generated_at": lane.last_generated_at,
+                "last_error": lane.last_error
+            })
+        };
+        let failure_payload = |counter: &FailureClassCounter| {
+            json!({
+                "count": counter.count,
+                "last_seen_at": counter.last_seen_at
+            })
+        };
+        json!({
+            "schema_version": LANE_DIAGNOSTICS_SCHEMA_VERSION,
+            "lanes": {
+                "synthetic_traffic": lane_payload(&self.synthetic_traffic),
+                "scrapling_traffic": lane_payload(&self.scrapling_traffic),
+                "bot_red_team": lane_payload(&self.bot_red_team)
+            },
+            "request_failure_classes": {
+                "cancelled": failure_payload(&self.request_failure_classes.cancelled),
+                "timeout": failure_payload(&self.request_failure_classes.timeout),
+                "transport": failure_payload(&self.request_failure_classes.transport),
+                "http": failure_payload(&self.request_failure_classes.http)
+            }
+        })
+    }
+}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct GenerationDiagnostics {

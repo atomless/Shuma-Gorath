@@ -1,3 +1,5 @@
+use rand::random;
+
 #[cfg(not(test))]
 use serde_json::json;
 
@@ -7,8 +9,21 @@ use base64::{engine::general_purpose, Engine as _};
 use hmac::{Hmac, Mac};
 #[cfg(not(test))]
 use sha2::Sha256;
+#[cfg(not(test))]
+use spin_sdk::http::{Method, Request};
 
+use crate::challenge::KeyValueStore;
+
+use super::adversary_sim::{
+    AutonomousHeartbeatTickSummary, ControlPhase, ControlState, GenerationTickResult, RuntimeLane,
+    ScraplingWorkerPlan, ScraplingWorkerResult, WorkerFailureClass, SCRAPLING_MAX_BYTES_PER_TICK,
+    SCRAPLING_MAX_DEPTH_PER_TICK, SCRAPLING_MAX_MS_PER_TICK, SCRAPLING_MAX_REQUESTS_PER_TICK,
+    SCRAPLING_SIM_PROFILE, SCRAPLING_WORKER_PLAN_SCHEMA_VERSION,
+};
 use super::adversary_sim_corpus::deterministic_runtime_profile;
+use super::adversary_sim_state::{
+    active_lane_count_for_lane, autonomous_execution_profile, effective_active_lane,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum SupplementalLane {
@@ -297,4 +312,568 @@ pub(crate) fn build_not_a_bot_submit_body(
         }),
     };
     format!("seed={seed_token}&checked=1&telemetry={telemetry}").into_bytes()
+}
+
+fn record_failure_class(state: &mut ControlState, class: WorkerFailureClass, now: u64) {
+    let counter = state.lane_diagnostics.failure_class_mut(class);
+    counter.count = counter.count.saturating_add(1);
+    counter.last_seen_at = Some(now);
+}
+
+fn record_lane_attempt(state: &mut ControlState, lane: RuntimeLane) {
+    let counters = state.lane_diagnostics.lane_mut(lane);
+    counters.beat_attempts = counters.beat_attempts.saturating_add(1);
+}
+
+fn record_lane_internal_result(
+    state: &mut ControlState,
+    lane: RuntimeLane,
+    result: &GenerationTickResult,
+    now: u64,
+) {
+    let had_http_failure = result.failed_requests > 0;
+    let counters = state.lane_diagnostics.lane_mut(lane);
+    if had_http_failure {
+        counters.beat_failures = counters.beat_failures.saturating_add(1);
+        counters.last_error = Some(format!(
+            "request_pipeline_errors={} of {}",
+            result.failed_requests, result.generated_requests
+        ));
+    } else {
+        counters.beat_successes = counters.beat_successes.saturating_add(1);
+        counters.last_error = None;
+    }
+    counters.generated_requests = counters
+        .generated_requests
+        .saturating_add(result.generated_requests);
+    if let Some(status) = result.last_response_status {
+        let key = format!("status_{status}");
+        let entry = counters.response_status_count.entry(key).or_insert(0);
+        *entry = entry.saturating_add(1);
+    }
+    counters.last_generated_at = Some(now);
+    let _ = counters;
+    if had_http_failure {
+        record_failure_class(state, WorkerFailureClass::Http, now);
+    }
+}
+
+pub(crate) fn apply_scrapling_worker_result(
+    state: &mut ControlState,
+    result: &ScraplingWorkerResult,
+) {
+    let failure_class = result.failure_class;
+    let counters = state.lane_diagnostics.lane_mut(result.lane);
+    if failure_class.is_some() || result.failed_requests > 0 || result.error.is_some() {
+        counters.beat_failures = counters.beat_failures.saturating_add(1);
+        counters.last_error = result.error.clone().or_else(|| {
+            Some(format!(
+                "scrapling_worker_failed generated_requests={} failed_requests={}",
+                result.generated_requests, result.failed_requests
+            ))
+        });
+    } else {
+        counters.beat_successes = counters.beat_successes.saturating_add(1);
+        counters.last_error = None;
+    }
+    counters.generated_requests = counters
+        .generated_requests
+        .saturating_add(result.generated_requests);
+    counters.blocked_requests = counters
+        .blocked_requests
+        .saturating_add(result.crawl_stats.blocked_requests_count);
+    counters.offsite_requests = counters
+        .offsite_requests
+        .saturating_add(result.crawl_stats.offsite_requests_count);
+    counters.response_bytes = counters
+        .response_bytes
+        .saturating_add(result.crawl_stats.response_bytes);
+    for (status, count) in &result.crawl_stats.response_status_count {
+        let entry = counters.response_status_count.entry(status.clone()).or_insert(0);
+        *entry = entry.saturating_add(*count);
+    }
+    counters.last_generated_at = Some(result.tick_completed_at);
+    let last_error = counters.last_error.clone();
+    let _ = counters;
+    if let Some(class) = failure_class {
+        record_failure_class(state, class, result.tick_completed_at);
+    }
+
+    state.generated_tick_count = state.generated_tick_count.saturating_add(1);
+    state.generated_request_count = state
+        .generated_request_count
+        .saturating_add(result.generated_requests);
+    state.last_generated_at = Some(result.tick_completed_at);
+    state.last_generation_error = last_error;
+    state.pending_worker_tick_id = None;
+    state.pending_worker_started_at = None;
+    state.updated_at = result.tick_completed_at;
+}
+
+fn reconcile_active_lane_at_beat_boundary(now: u64, state: &mut ControlState) {
+    if state.phase != ControlPhase::Running {
+        return;
+    }
+    if effective_active_lane(state) == Some(state.desired_lane) {
+        state.active_lane = Some(state.desired_lane);
+        state.active_lane_count = active_lane_count_for_lane(state.desired_lane);
+        return;
+    }
+    if state.pending_worker_tick_id.is_some() && state.desired_lane != RuntimeLane::ScraplingTraffic
+    {
+        state.pending_worker_tick_id = None;
+        state.pending_worker_started_at = None;
+    }
+    state.active_lane = Some(state.desired_lane);
+    state.active_lane_count = active_lane_count_for_lane(state.desired_lane);
+    state.lane_switch_seq = state.lane_switch_seq.saturating_add(1);
+    state.last_lane_switch_at = Some(now);
+    state.last_lane_switch_reason = Some("beat_boundary_reconciliation".to_string());
+    state.updated_at = now;
+}
+
+fn autonomous_heartbeat_due_ticks(now: u64, state: &ControlState) -> u64 {
+    if state.phase != ControlPhase::Running {
+        return 0;
+    }
+    let profile = autonomous_execution_profile();
+    let due = match state.last_generated_at {
+        None => 1,
+        Some(last_generated_at) => {
+            let elapsed_seconds = now.saturating_sub(last_generated_at);
+            if elapsed_seconds < profile.cadence_seconds {
+                0
+            } else {
+                elapsed_seconds / profile.cadence_seconds
+            }
+        }
+    };
+    due.min(profile.max_catchup_ticks_per_invocation)
+}
+
+fn next_scrapling_worker_plan(now: u64, state: &mut ControlState) -> ScraplingWorkerPlan {
+    let run_id = state
+        .run_id
+        .clone()
+        .or_else(|| state.last_run_id.clone())
+        .unwrap_or_else(|| format!("simrun-runtime-{now}"));
+    let tick_id = format!("scrapling-tick-{}-{:016x}", now, random::<u64>());
+    state.pending_worker_tick_id = Some(tick_id.clone());
+    state.pending_worker_started_at = Some(now);
+    state.updated_at = now;
+    ScraplingWorkerPlan {
+        schema_version: SCRAPLING_WORKER_PLAN_SCHEMA_VERSION.to_string(),
+        run_id,
+        tick_id,
+        lane: RuntimeLane::ScraplingTraffic,
+        sim_profile: SCRAPLING_SIM_PROFILE.to_string(),
+        tick_started_at: now,
+        max_requests: SCRAPLING_MAX_REQUESTS_PER_TICK,
+        max_depth: SCRAPLING_MAX_DEPTH_PER_TICK,
+        max_bytes: SCRAPLING_MAX_BYTES_PER_TICK,
+        max_ms: SCRAPLING_MAX_MS_PER_TICK,
+    }
+}
+
+pub(crate) fn run_autonomous_supervisor_ticks(
+    store: &impl KeyValueStore,
+    state: &mut ControlState,
+    now: u64,
+) -> AutonomousHeartbeatTickSummary {
+    let due_ticks = autonomous_heartbeat_due_ticks(now, state);
+    let mut summary = AutonomousHeartbeatTickSummary {
+        due_ticks,
+        ..AutonomousHeartbeatTickSummary::default()
+    };
+    if due_ticks == 0 {
+        return summary;
+    }
+    reconcile_active_lane_at_beat_boundary(now, state);
+    match effective_active_lane(state) {
+        Some(RuntimeLane::SyntheticTraffic) => {}
+        Some(RuntimeLane::ScraplingTraffic) => {
+            if state.pending_worker_tick_id.is_some() {
+                summary.worker_pending = true;
+                return summary;
+            }
+            record_lane_attempt(state, RuntimeLane::ScraplingTraffic);
+            summary.worker_plan = Some(next_scrapling_worker_plan(now, state));
+            return summary;
+        }
+        Some(RuntimeLane::BotRedTeam) => {
+            record_lane_attempt(state, RuntimeLane::BotRedTeam);
+            let counters = state.lane_diagnostics.lane_mut(RuntimeLane::BotRedTeam);
+            counters.beat_failures = counters.beat_failures.saturating_add(1);
+            counters.last_error = Some("bot_red_team_unimplemented".to_string());
+            state.last_generation_error = counters.last_error.clone();
+            state.updated_at = now;
+            return summary;
+        }
+        None => return summary,
+    }
+    for tick_index in 0..due_ticks {
+        let tick_now = now.saturating_sub(due_ticks.saturating_sub(tick_index).saturating_sub(1));
+        record_lane_attempt(state, RuntimeLane::SyntheticTraffic);
+        let tick_result = run_internal_generation_tick(store, state, tick_now);
+        record_lane_internal_result(state, RuntimeLane::SyntheticTraffic, &tick_result, tick_now);
+        summary.executed_ticks = summary.executed_ticks.saturating_add(1);
+        summary.generated_requests = summary
+            .generated_requests
+            .saturating_add(tick_result.generated_requests);
+        summary.failed_requests = summary
+            .failed_requests
+            .saturating_add(tick_result.failed_requests);
+        summary.last_response_status = tick_result.last_response_status;
+    }
+    summary
+}
+
+pub(crate) fn run_internal_generation_tick(
+    store: &impl KeyValueStore,
+    state: &mut ControlState,
+    now: u64,
+) -> GenerationTickResult {
+    let mut result = GenerationTickResult {
+        generated_requests: 0,
+        failed_requests: 0,
+        last_response_status: None,
+    };
+    if state.phase != ControlPhase::Running {
+        state.last_generation_error = Some("simulation_not_running".to_string());
+        return result;
+    }
+
+    let run_id = state
+        .run_id
+        .clone()
+        .or_else(|| state.last_run_id.clone())
+        .unwrap_or_else(|| "simrun-runtime".to_string());
+    let runtime_profile = deterministic_runtime_profile();
+    let metadata = crate::runtime::sim_telemetry::SimulationRequestMetadata {
+        sim_run_id: run_id.clone(),
+        sim_profile: runtime_profile.metadata.sim_profile.clone(),
+        sim_lane: runtime_profile.metadata.sim_lane.clone(),
+    };
+    #[cfg(not(test))]
+    {
+        let deployment_profile = crate::config::gateway_deployment_profile();
+        let forwarded_secret =
+            crate::config::runtime_var_trimmed_optional("SHUMA_FORWARDED_IP_SECRET");
+        let selected_supplemental_lanes =
+            supplemental_lanes_for_profile(deployment_profile, state.generated_tick_count);
+        let includes_lane = |lane: SupplementalLane| selected_supplemental_lanes.contains(&lane);
+
+        let mut dispatch_request = |request: Request| {
+            let _guard = crate::runtime::sim_telemetry::enter(Some(metadata.clone()));
+            let response = crate::handle_bot_defence_impl(&request);
+            let status = *response.status();
+            result.generated_requests = result.generated_requests.saturating_add(1);
+            result.last_response_status = Some(status);
+            if status >= 500 {
+                result.failed_requests = result.failed_requests.saturating_add(1);
+            }
+        };
+
+        let paths = simulated_request_paths(run_id.as_str(), state.generated_tick_count);
+        for (index, path) in paths
+            .iter()
+            .take(primary_request_budget_for_profile(deployment_profile))
+            .enumerate()
+        {
+            let user_agent = format!("ShumaAdversarySim/1.0 slot={} path={}", index, path);
+            let mut builder = Request::builder();
+            let simulated_ip = simulated_request_ip(state.generated_tick_count, index);
+            builder
+                .method(Method::Get)
+                .uri(path.as_str())
+                .header("x-forwarded-for", simulated_ip.as_str())
+                .header("x-forwarded-proto", "https")
+                .header("user-agent", user_agent.as_str());
+            if let Some(secret) = forwarded_secret.as_deref() {
+                builder.header("x-shuma-forwarded-secret", secret);
+            }
+            // GEO probes should target normal public-surface paths so they traverse
+            // the same policy path as real traffic and are not skipped by special endpoints.
+            if path.starts_with("/sim/public/") {
+                builder.header("x-geo-country", "RU");
+            }
+            if (state.generated_tick_count + index as u64) % 4 == 0 {
+                builder
+                    .header(
+                        "user-agent",
+                        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148",
+                    )
+                    .header(
+                        "sec-ch-ua",
+                        "\"Chromium\";v=\"120\", \"Not_A Brand\";v=\"99\"",
+                    )
+                    .header("sec-ch-ua-platform", "\"Windows\"")
+                    .header("sec-ch-ua-mobile", "?0")
+                    .header(
+                        "x-shuma-edge-ja3",
+                        format!("sim-ja3-{}-{}", state.generated_tick_count, index).as_str(),
+                    );
+            }
+            dispatch_request(builder.body(Vec::new()).build());
+        }
+
+        let challenge_abuse_ip = lane_actor_ip(
+            runtime_profile.lane_ip_octets.challenge_abuse,
+            state.generated_tick_count,
+            runtime_profile.lane_ip_rotation_ticks.challenge_abuse,
+            runtime_profile.lane_ip_entropy_salts.challenge_abuse,
+        );
+        let pow_abuse_ip = lane_actor_ip(
+            runtime_profile.lane_ip_octets.pow_abuse,
+            state.generated_tick_count,
+            runtime_profile.lane_ip_rotation_ticks.pow_abuse,
+            runtime_profile.lane_ip_entropy_salts.pow_abuse,
+        );
+        let tarpit_abuse_ip = lane_actor_ip(
+            runtime_profile.lane_ip_octets.tarpit_abuse,
+            state.generated_tick_count,
+            runtime_profile.lane_ip_rotation_ticks.tarpit_abuse,
+            runtime_profile.lane_ip_entropy_salts.tarpit_abuse,
+        );
+        let fingerprint_probe_ip = lane_actor_ip(
+            runtime_profile.lane_ip_octets.fingerprint_probe,
+            state.generated_tick_count,
+            runtime_profile.lane_ip_rotation_ticks.fingerprint_probe,
+            runtime_profile.lane_ip_entropy_salts.fingerprint_probe,
+        );
+        let cdp_report_ip = lane_actor_ip(
+            runtime_profile.lane_ip_octets.cdp_report,
+            state.generated_tick_count,
+            runtime_profile.lane_ip_rotation_ticks.cdp_report,
+            runtime_profile.lane_ip_entropy_salts.cdp_report,
+        );
+        let rate_burst_ip = lane_actor_ip(
+            runtime_profile.lane_ip_octets.rate_burst,
+            state.generated_tick_count,
+            runtime_profile.lane_ip_rotation_ticks.rate_burst,
+            runtime_profile.lane_ip_entropy_salts.rate_burst,
+        );
+        let not_a_bot_fail_ip = lane_actor_ip(
+            runtime_profile.lane_ip_octets.not_a_bot_fail,
+            state.generated_tick_count,
+            runtime_profile.lane_ip_rotation_ticks.not_a_bot_fail,
+            runtime_profile.lane_ip_entropy_salts.not_a_bot_fail,
+        );
+        let not_a_bot_escalate_ip = lane_actor_ip(
+            runtime_profile.lane_ip_octets.not_a_bot_escalate,
+            state.generated_tick_count,
+            runtime_profile.lane_ip_rotation_ticks.not_a_bot_escalate,
+            runtime_profile.lane_ip_entropy_salts.not_a_bot_escalate,
+        );
+
+        if includes_lane(SupplementalLane::ChallengeSubmit) {
+            let challenge_abuse_body =
+                b"answer=bad&seed=invalid&return_to=%2Fsim%2Fpublic%2Flanding".to_vec();
+            let mut challenge_submit = Request::builder();
+            challenge_submit
+                .method(Method::Post)
+                .uri(runtime_profile.paths.challenge_submit.as_str())
+                .header("x-forwarded-for", challenge_abuse_ip.as_str())
+                .header("x-forwarded-proto", "https")
+                .header("content-type", "application/x-www-form-urlencoded")
+                .header("user-agent", "ShumaAdversarySim/1.0 challenge-submit");
+            if let Some(secret) = forwarded_secret.as_deref() {
+                challenge_submit.header("x-shuma-forwarded-secret", secret);
+            }
+            dispatch_request(challenge_submit.body(challenge_abuse_body).build());
+        }
+
+        if includes_lane(SupplementalLane::NotABotFail) {
+            if let Some(fail_seed) = build_signed_not_a_bot_seed_token(
+                now,
+                not_a_bot_fail_ip.as_str(),
+                "ShumaAdversarySim/1.0 not-a-bot-fail",
+                "/sim/public/docs",
+                deterministic_lane_entropy(run_id.as_str(), state.generated_tick_count, 101),
+                1 + (state.generated_tick_count % 5),
+            ) {
+                let fail_body =
+                    build_not_a_bot_submit_body(&fail_seed, NotABotSubmissionProfile::Fail);
+                let mut not_a_bot_fail_submit = Request::builder();
+                not_a_bot_fail_submit
+                    .method(Method::Post)
+                    .uri(runtime_profile.paths.not_a_bot_checkbox.as_str())
+                    .header("x-forwarded-for", not_a_bot_fail_ip.as_str())
+                    .header("x-forwarded-proto", "https")
+                    .header("content-type", "application/x-www-form-urlencoded")
+                    .header("user-agent", "ShumaAdversarySim/1.0 not-a-bot-fail");
+                if let Some(secret) = forwarded_secret.as_deref() {
+                    not_a_bot_fail_submit.header("x-shuma-forwarded-secret", secret);
+                }
+                dispatch_request(not_a_bot_fail_submit.body(fail_body).build());
+            }
+        }
+
+        if includes_lane(SupplementalLane::NotABotEscalate) {
+            if let Some(escalate_seed) = build_signed_not_a_bot_seed_token(
+                now,
+                not_a_bot_escalate_ip.as_str(),
+                "ShumaAdversarySim/1.0 not-a-bot-escalate",
+                "/sim/public/pricing",
+                deterministic_lane_entropy(run_id.as_str(), state.generated_tick_count, 102),
+                2 + (state.generated_tick_count.wrapping_mul(3) % 7),
+            ) {
+                let escalate_body = build_not_a_bot_submit_body(
+                    &escalate_seed,
+                    NotABotSubmissionProfile::EscalatePuzzle,
+                );
+                let mut not_a_bot_escalate_submit = Request::builder();
+                not_a_bot_escalate_submit
+                    .method(Method::Post)
+                    .uri(runtime_profile.paths.not_a_bot_checkbox.as_str())
+                    .header("x-forwarded-for", not_a_bot_escalate_ip.as_str())
+                    .header("x-forwarded-proto", "https")
+                    .header("content-type", "application/x-www-form-urlencoded")
+                    .header("user-agent", "ShumaAdversarySim/1.0 not-a-bot-escalate");
+                if let Some(secret) = forwarded_secret.as_deref() {
+                    not_a_bot_escalate_submit.header("x-shuma-forwarded-secret", secret);
+                }
+                dispatch_request(not_a_bot_escalate_submit.body(escalate_body).build());
+            }
+        }
+
+        if includes_lane(SupplementalLane::PowVerify) {
+            let pow_verify_body = br#"{"seed":"invalid-seed","nonce":"invalid-nonce"}"#.to_vec();
+            let mut pow_verify = Request::builder();
+            pow_verify
+                .method(Method::Post)
+                .uri(runtime_profile.paths.pow_verify.as_str())
+                .header("x-forwarded-for", pow_abuse_ip.as_str())
+                .header("x-forwarded-proto", "https")
+                .header("content-type", "application/json")
+                .header("user-agent", "ShumaAdversarySim/1.0 pow-verify-submit");
+            if let Some(secret) = forwarded_secret.as_deref() {
+                pow_verify.header("x-shuma-forwarded-secret", secret);
+            }
+            dispatch_request(pow_verify.body(pow_verify_body).build());
+        }
+
+        if includes_lane(SupplementalLane::TarpitProgress) {
+            let tarpit_progress_body =
+                br#"{"token":"invalid","operation_id":"invalid","proof_nonce":"invalid"}"#.to_vec();
+            let mut tarpit_progress = Request::builder();
+            tarpit_progress
+                .method(Method::Post)
+                .uri(crate::tarpit::progress_path())
+                .header("x-forwarded-for", tarpit_abuse_ip.as_str())
+                .header("x-forwarded-proto", "https")
+                .header("content-type", "application/json")
+                .header("user-agent", "ShumaAdversarySim/1.0 tarpit-progress-submit");
+            if let Some(secret) = forwarded_secret.as_deref() {
+                tarpit_progress.header("x-shuma-forwarded-secret", secret);
+            }
+            dispatch_request(tarpit_progress.body(tarpit_progress_body).build());
+        }
+
+        if includes_lane(SupplementalLane::FingerprintProbe) {
+            let fingerprint_probe_path =
+                format!("{}?q=fingerprint-mismatch", runtime_profile.paths.public_search);
+            let mut fingerprint_probe = Request::builder();
+            fingerprint_probe
+                .method(Method::Get)
+                .uri(fingerprint_probe_path.as_str())
+                .header("x-forwarded-for", fingerprint_probe_ip.as_str())
+                .header("x-forwarded-proto", "https")
+                .header(
+                    "user-agent",
+                    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148",
+                )
+                .header(
+                    "sec-ch-ua",
+                    "\"Chromium\";v=\"120\", \"Not_A Brand\";v=\"99\"",
+                )
+                .header("sec-ch-ua-platform", "\"Windows\"")
+                .header("sec-ch-ua-mobile", "?0");
+            if let Some(secret) = forwarded_secret.as_deref() {
+                fingerprint_probe.header("x-shuma-forwarded-secret", secret);
+            }
+            dispatch_request(fingerprint_probe.body(Vec::new()).build());
+        }
+
+        if includes_lane(SupplementalLane::CdpReport) {
+            let cdp_probe_body = serde_json::to_vec(&json!({
+                "cdp_detected": true,
+                "score": 4.8,
+                "checks": ["webdriver", "automation_props", "cdp_timing", "micro_timing"]
+            }))
+            .unwrap_or_else(|_| {
+                b"{\"cdp_detected\":true,\"score\":4.8,\"checks\":[\"webdriver\"]}".to_vec()
+            });
+            let mut cdp_builder = Request::builder();
+            cdp_builder
+                .method(Method::Post)
+                .uri(runtime_profile.paths.cdp_report.as_str())
+                .header("x-forwarded-for", cdp_report_ip.as_str())
+                .header("x-forwarded-proto", "https")
+                .header("content-type", "application/json")
+                .header("user-agent", "ShumaAdversarySim/1.0 cdp-probe");
+            if let Some(secret) = forwarded_secret.as_deref() {
+                cdp_builder.header("x-shuma-forwarded-secret", secret);
+            }
+            dispatch_request(cdp_builder.body(cdp_probe_body).build());
+        }
+
+        let rate_burst_requests = rate_burst_requests_for_tick(state.generated_tick_count);
+        for burst_index in 0..rate_burst_requests {
+            let mut burst_builder = Request::builder();
+            let burst_path = format!(
+                "{}?q=rate-burst-{}-{}-{}",
+                runtime_profile.paths.public_search,
+                state.generated_tick_count,
+                burst_index,
+                deterministic_lane_entropy(
+                    run_id.as_str(),
+                    state.generated_tick_count,
+                    120 + burst_index,
+                ) % 10_000
+            );
+            let user_agent = format!("ShumaAdversarySim/1.0 rate-burst {}", burst_index);
+            burst_builder
+                .method(Method::Get)
+                .uri(burst_path.as_str())
+                .header("x-forwarded-for", rate_burst_ip.as_str())
+                .header("x-forwarded-proto", "https")
+                .header("user-agent", user_agent.as_str());
+            if let Some(secret) = forwarded_secret.as_deref() {
+                burst_builder.header("x-shuma-forwarded-secret", secret);
+            }
+            if burst_index % 8 == 0 {
+                burst_builder
+                    .header("sec-ch-ua", "\"Not_A Brand\";v=\"99\", \"Chromium\";v=\"120\"")
+                    .header("sec-ch-ua-platform", "\"Windows\"")
+                    .header("sec-ch-ua-mobile", "?0")
+                    .header("x-shuma-edge-browser-family", "chrome");
+            }
+            dispatch_request(burst_builder.body(Vec::new()).build());
+        }
+        crate::observability::monitoring::flush_pending_counters(store);
+    }
+    #[cfg(test)]
+    {
+        let _ = store;
+        let _ = metadata;
+        result.generated_requests =
+            deterministic_generated_request_target_for_tick(state.generated_tick_count);
+        result.last_response_status = Some(200);
+    }
+
+    state.generated_tick_count = state.generated_tick_count.saturating_add(1);
+    state.generated_request_count = state
+        .generated_request_count
+        .saturating_add(result.generated_requests);
+    state.last_generated_at = Some(now);
+    if result.failed_requests > 0 {
+        state.last_generation_error = Some(format!(
+            "request_pipeline_errors={} of {}",
+            result.failed_requests, result.generated_requests
+        ));
+    } else {
+        state.last_generation_error = None;
+    }
+    result
 }
