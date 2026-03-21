@@ -160,6 +160,8 @@ Completed archive index:
    Architecture review capturing the current feedback-loop shortfalls, benchmark/objective/decision-lineage gaps, and the need to structurally decompose oversized control-plane modules before the next controller work lands.
 29. [`2026-03-21-agent-first-feedback-loop-sequencing-review.md`](2026-03-21-agent-first-feedback-loop-sequencing-review.md)
    Sequencing review concluding that the first shared-host agent tweaker loop should precede `MON-OVERHAUL-1`, so Monitoring and Tuning can project the semantics proven by the machine-first loop rather than guessing them in advance.
+30. [`2026-03-21-loop-closure-execution-readiness-review.md`](2026-03-21-loop-closure-execution-readiness-review.md)
+   Execution-readiness review concluding that the remaining prerequisite is a docs-only planning and verification tranche: exact structural-decomposition, loop-truth, and reconcile-agent plans plus focused `make` verification paths before implementation starts.
 
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 
