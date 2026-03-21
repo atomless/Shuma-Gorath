@@ -77,7 +77,6 @@ Current stance:
 - The primary product value is exact non-human restriction and exception management; looser treatment for named verified bots remains an explicit opt-in later policy choice.
 - Do not bundle authorization policy, low-cost profiles, or dashboard control surfaces into the first tranche.
 
-- [ ] WB-0.1 Define the canonical verified-identity domain (`contracts`, `verification result`, `policy outcome`, and service-profile types) as a provider-independent internal subsystem.
 - [ ] WB-0.2 Add verified-identity config placeholders and validation (`config/defaults.env`, config parsing/validation, and admin/Advanced JSON parity where applicable) without changing runtime routing.
 - [ ] WB-1.1 Add the provider seam for normalized verified-bot and signed-agent identity assertions through the shared provider contract.
 - [ ] WB-1.2 Add observe-only verified-identity telemetry for verification attempts, success/failure classes, replay/freshness outcomes, and native-vs-provider provenance.

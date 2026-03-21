@@ -4,6 +4,26 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-21)
 
+### WB-0.1: Canonical Verified-Identity Domain
+
+- [x] Added a dedicated provider-independent `src/bot_identity/` subsystem with typed identity schemes, categories, evidence, verification result taxonomy, policy actions and outcomes, service-profile types, and telemetry labels that later verified-identity slices can reuse without coupling to any one provider path.
+- [x] Why:
+  - the verified-identity plan called for a clean internal domain before config, provider seams, or telemetry could land. Without that shared vocabulary, later slices would have been forced to invent provider-shaped or telemetry-shaped ad hoc types.
+  - this slice intentionally stayed observe-only and non-routing: it establishes the contract boundary for authenticated bot and signed-agent traffic without changing allow, deny, challenge, or forwarding behavior.
+  - the contract split keeps identity, verification, authorization policy, and telemetry taxonomy explicit, which matches both the design docs and the repo rule that authentication must not silently imply authorization.
+- [x] Evidence:
+  - `src/bot_identity.rs`
+  - `src/bot_identity/contracts.rs`
+  - `src/bot_identity/policy.rs`
+  - `src/bot_identity/verification.rs`
+  - `src/bot_identity/telemetry.rs`
+  - `src/bot_identity/tests.rs`
+  - `Makefile`
+  - `docs/research/2026-03-21-wb-0-1-canonical-verified-identity-domain-post-implementation-review.md`
+  - `make test-verified-identity-contracts`
+  - `git diff --check`
+  - post-tranche review: no tranche-local shortfall was found; the next optimal work is `WB-0.2`.
+
 ### WB-PLAN-REFRESH-1: Verified-Identity Planning Refresh
 
 - [x] Refreshed the verified-identity planning chain so it matches the updated shared-host-first roadmap: added a readiness-refresh note, updated the verified-identity implementation plan to start after the delivered machine-first foundations rather than after the later human Monitoring/Tuning UI work, and added execution-ready `WB-0.*` and `WB-1.*` items to the active TODO queue.

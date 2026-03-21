@@ -16,6 +16,7 @@ use spin_sdk::key_value::Store;
 use std::io::Write;
 
 mod admin; // Admin API endpoints
+mod bot_identity; // Verified bot and signed-agent identity domain
 mod boundaries; // Domain boundary adapters for future repo splits
 mod challenge; // Interactive math challenge for banned users
 mod config; // Config loading and defaults

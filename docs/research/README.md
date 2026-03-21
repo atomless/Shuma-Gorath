@@ -80,6 +80,8 @@ Completed archive index:
    Readiness refresh reconciling the verified-identity planning chain with the updated roadmap and exposing the first execution-ready `WB-0.*` and `WB-1.*` slices.
 5. [`2026-03-21-verified-identity-planning-refresh-post-implementation-review.md`](2026-03-21-verified-identity-planning-refresh-post-implementation-review.md)
    Post-implementation review for the verified-identity planning refresh tranche.
+6. [`2026-03-21-wb-0-1-canonical-verified-identity-domain-post-implementation-review.md`](2026-03-21-wb-0-1-canonical-verified-identity-domain-post-implementation-review.md)
+   Post-implementation review for the first verified-identity execution tranche, confirming the canonical provider-independent identity domain landed before config and provider wiring work.
 4. [`2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md`](2026-03-20-machine-first-operator-snapshot-and-feedback-loop-research-synthesis.md)
    Research synthesis for the machine-first Monitoring destination, bounded operator snapshot contract, and the first config-diff-only feedback loop that should precede the human Monitoring overhaul.
 5. [`2026-03-20-operator-snapshot-foundation-post-implementation-review.md`](2026-03-20-operator-snapshot-foundation-post-implementation-review.md)
