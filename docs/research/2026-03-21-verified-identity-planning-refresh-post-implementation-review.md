@@ -15,7 +15,7 @@ Refresh the verified-identity planning chain so it matches the updated roadmap a
 # What Landed
 
 1. Added a readiness-refresh note explaining why verified identity is now startable from the machine-first foundation and no longer waits on human Monitoring/Tuning projection work.
-2. Updated the verified-identity implementation plan so its roadmap-fit section now matches the current master roadmap.
+2. Updated the verified-identity implementation plan so its roadmap-fit section now matches the current master roadmap and so the product stance is explicit: verified identity primarily improves exact restriction and named exceptions for non-human traffic.
 3. Added execution-ready `WB-0.*` and `WB-1.*` items to the active TODO queue.
 
 # Verification Evidence
@@ -32,7 +32,8 @@ The planning refresh met its goal:
 
 1. the roadmap drift is now resolved,
 2. the next execution slice is visible in the backlog,
-3. and the first implementation tranche can start from `WB-0.1` without pretending the later human Monitoring/Tuning UI is a prerequisite.
+3. the restrictive-default operator stance is now explicit in the planning chain,
+4. and the first implementation tranche can start from `WB-0.1` without pretending the later human Monitoring/Tuning UI is a prerequisite.
 
 # Shortfalls
 

@@ -12,8 +12,8 @@ Related context:
 # Objectives
 
 1. Give Shuma a first-class verified bot and agent identity lane that fits the emerging Web Bot Auth ecosystem.
-2. Let operators allow, restrict, or deny specific bots or agents based on authenticated identity rather than only user-agent strings or CIDR lists.
-3. Preserve low friction for beneficial authenticated agents only when the operator wants that, while still allowing Shuma to react when a verified identity violates local policy.
+2. Let operators restrict or deny non-human traffic with much higher precision than user-agent strings or CIDR lists allow, and then loosen those restrictions only for specifically identified bots or agents when they choose to.
+3. Preserve low friction for authenticated agents only as an explicit operator-granted exception, while still allowing Shuma to react when a verified identity violates local policy.
 4. Keep request-path identity verification deterministic and Rust-owned.
 5. Keep identity, authorization policy, crawler preference signaling, and central intelligence as separate concerns.
 
@@ -31,19 +31,19 @@ Related context:
 
 Verified bot identity should be modeled as a separate subsystem that feeds Shuma's existing three-lane traffic model.
 
-## Lane A: Verified Beneficial Agents
+## Lane A: Verified Identified Agents
 
 Definition:
 
 1. requests with high-confidence cryptographic identity,
 2. or provider-verified bot signals normalized to equivalent assurance,
-3. where local operator policy allows or constrains the identity.
+3. where local operator policy can now constrain, deny, or explicitly allow the identity with precision.
 
 Expected treatment:
 
-1. low-friction path,
-2. explicit rate and scope policy,
-3. eligibility for low-cost content profiles,
+1. explicit rate and scope policy first,
+2. easy expression of named deny or restrictive defaults,
+3. eligibility for lower-friction or lower-cost treatment only when policy grants it,
 4. downgrade path if behavior violates local policy.
 
 ## Lane B: Declared Crawlers and Search Bots
@@ -146,6 +146,13 @@ Each policy entry should express actions such as:
 
 This is the core operator feature the user asked for: allowing or blocking specific bots or agents based on authenticated identity.
 
+The main product value of this subsystem is not automatic bot friendliness. It is that authenticated identity gives Shuma a deterministic way to say:
+
+1. all non-human traffic is restricted by default,
+2. this named identity is still denied,
+3. this named identity is allowed only on a bounded scope or rate,
+4. and only these specific named identities receive looser treatment.
+
 At the top level, the policy model should also expose a small number of obvious operator stances, for example:
 
 1. `deny_all_non_human`
@@ -172,7 +179,7 @@ Initial design profile classes:
 This keeps Shuma aligned with the agentic-era dual strategy:
 
 1. cost-shift suspicious automation,
-2. reduce site cost for beneficial authenticated agents.
+2. reduce site cost for only those authenticated agents the operator explicitly chooses to treat more cheaply.
 
 It must remain explicit that these service profiles are granted by local policy. A successfully authenticated identity may still map to `denied`.
 

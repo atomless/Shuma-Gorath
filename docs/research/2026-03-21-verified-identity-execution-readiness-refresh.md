@@ -26,6 +26,7 @@ Refresh the verified-identity planning chain so it matches the current shared-ho
    - `WB-1.1` provider seam normalization
    - `WB-1.2` observe-only telemetry
    - `WB-1.3` request-path annotations without routing change
+6. The product stance should now be stated more explicitly: verified identity is primarily about exact restriction and exception management for non-human traffic, not about granting bots preferential treatment by default.
 
 # Decision
 
@@ -33,9 +34,11 @@ Refresh the verified-identity planning chain so it matches the current shared-ho
 2. Add execution-ready `WB-0.*` and `WB-1.*` items to the active TODO queue.
 3. Keep later policy/UI/service-profile phases in the implementation plan, but do not treat them as the first execution slice.
 4. Treat `WB-0.1` as the next atomic implementation tranche after any final design discussion about adjacent inputs or inspirations.
+5. Make the restrictive-default stance explicit in the planning docs so later policy and UI work does not drift toward "verified therefore favored" semantics.
 
 # Why This Is Safe
 
 1. These first phases are contract-and-observability work, not trust-boundary auto-allow work.
 2. They preserve the repo rule that authenticated identity must not imply authorization.
 3. They prepare the later Monitoring/Tuning projection and mature adversary-sim tranches instead of waiting on them.
+4. They keep the primary operator value clear: better non-human restriction with explicit named exceptions.

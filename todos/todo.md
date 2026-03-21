@@ -74,6 +74,7 @@ Reference context:
 Current stance:
 - Verified identity now sits after the delivered machine-first telemetry/snapshot foundations and before mature adversary-sim expansion.
 - The first execution slices should stay observe-only: identity contracts, config, provider normalization, telemetry, and request-path annotations without routing change.
+- The primary product value is exact non-human restriction and exception management; looser treatment for named verified bots remains an explicit opt-in later policy choice.
 - Do not bundle authorization policy, low-cost profiles, or dashboard control surfaces into the first tranche.
 
 - [ ] WB-0.1 Define the canonical verified-identity domain (`contracts`, `verification result`, `policy outcome`, and service-profile types) as a provider-independent internal subsystem.

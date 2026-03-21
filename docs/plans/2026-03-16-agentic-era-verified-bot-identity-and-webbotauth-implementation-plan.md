@@ -12,15 +12,15 @@ Related context:
 # Implementation Goals
 
 1. Add a first-class verified bot and agent identity subsystem to Shuma.
-2. Support authenticated allow, restrict, and deny policy for named bots and agents.
+2. Support authenticated restrict, deny, and explicitly granted allow policy for named bots and agents.
 3. Keep identity verification deterministic and request-path safe.
 4. Normalize native Web Bot Auth and provider-verified signals into one internal contract.
 5. Make verified identity visible to monitoring, dashboard policy surfaces, and the future oversight controller.
-6. Ensure authenticated identities can still be denied cleanly and obviously under a top-level operator non-human traffic stance.
+6. Ensure authenticated identities can still be denied or tightly constrained cleanly and obviously under a top-level operator non-human traffic stance.
 
 # Delivery Strategy
 
-Implement this in narrow phases. Identity, authorization policy, and low-cost content should land in that order. Trust-boundary controls should stay manual-only until the system is proven.
+Implement this in narrow phases. Identity, then exact restriction-and-exception policy, and only then optional low-cost content profiles should land in that order. Trust-boundary controls should stay manual-only until the system is proven.
 
 # Roadmap Fit
 
@@ -39,6 +39,12 @@ Reason:
 3. Monitoring and Tuning should consume the identity lane once it exists; they should not block the first observe-only identity foundation slices.
 4. Central intelligence must remain separate from identity and therefore should follow this work rather than precede it.
 5. The future scheduled agent loop must not mutate or reason about trust-boundary controls before those controls are explicitly modeled and surfaced to operators.
+
+Primary product stance:
+
+1. verified identity exists first to make non-human restriction more exact and auditable,
+2. not to grant blanket preferential treatment,
+3. and any looser treatment must remain an explicit local exception.
 
 # Phase 0: Contracts, ADR Alignment, And Config Prep
 
@@ -63,7 +69,8 @@ Acceptance:
 
 1. the identity contract is independent of any one provider,
 2. all later phases normalize into that contract,
-3. docs and comments make identity vs policy vs reputation explicit.
+3. docs and comments make identity vs policy vs reputation explicit,
+4. and the domain types naturally support restrictive defaults plus explicit exception paths.
 
 ## WB-0.2 Add config placeholders and validation
 
@@ -83,7 +90,8 @@ Acceptance:
 
 1. `config/defaults.env` is the source of truth,
 2. admin config and dashboard Advanced JSON parity is maintained,
-3. unsafe or contradictory configurations fail validation clearly.
+3. unsafe or contradictory configurations fail validation clearly,
+4. and the top-level stance makes restrictive non-human defaults easy to express.
 
 # Phase 1: Observe-Only Identity Normalization
 
@@ -109,7 +117,8 @@ Emit telemetry for:
 Acceptance:
 
 1. observe-only mode does not change routing yet,
-2. monitoring can answer "what identities are showing up and how are they verifying?"
+2. monitoring can answer "what identities are showing up and how are they verifying?",
+3. and operators can later distinguish "recognized and still restricted" from "recognized and explicitly allowed."
 
 ## WB-1.3 Add request-path annotations without behavior change
 
@@ -174,15 +183,15 @@ Implement local policy entries that match on:
 
 Actions should include:
 
-1. allow,
-2. observe,
-3. restrict,
-4. low-cost profile,
-5. deny.
+1. deny,
+2. restrict,
+3. observe,
+4. allow,
+5. low-cost profile.
 
 Acceptance:
 
-1. operators can allow or block specific authenticated bots or agents,
+1. operators can deny or constrain specific authenticated bots or agents precisely, and then allow named exceptions where desired,
 2. policy precedence is explicit and testable,
 3. named deny does not depend on user-agent-only matching,
 4. a top-level "deny all non-human traffic" stance remains easy to express without forcing operators to enumerate every identity first.

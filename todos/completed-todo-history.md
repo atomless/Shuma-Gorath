@@ -10,7 +10,7 @@ Moved from active TODO files on 2026-02-14.
 - [x] Why:
   - the repo already had the research, design, and implementation plan for verified identity, but the sequencing inside that implementation plan had drifted behind the refreshed master roadmap.
   - without this refresh, the next mainline step would have been ambiguous: the roadmap said "do verified identity now," while the implementation plan still implied it had to wait for later human Monitoring/Tuning work.
-  - the clean fix was a planning-only tranche that reconciled those documents and exposed the narrow observe-only identity slices as the first execution-ready work.
+  - the clean fix was a planning-only tranche that reconciled those documents, made the restrictive-default operator stance explicit, and exposed the narrow observe-only identity slices as the first execution-ready work.
 - [x] Evidence:
   - `docs/research/2026-03-21-verified-identity-execution-readiness-refresh.md`
   - `docs/plans/2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-implementation-plan.md`
