@@ -5,6 +5,10 @@ Related context:
 
 - [`../research/2026-03-21-feedback-loop-and-architecture-debt-review.md`](../research/2026-03-21-feedback-loop-and-architecture-debt-review.md)
 - [`../research/2026-03-21-agent-first-feedback-loop-sequencing-review.md`](../research/2026-03-21-agent-first-feedback-loop-sequencing-review.md)
+- [`../research/2026-03-21-loop-closure-execution-readiness-review.md`](../research/2026-03-21-loop-closure-execution-readiness-review.md)
+- [`2026-03-21-agent-first-loop-structural-decomposition-implementation-plan.md`](2026-03-21-agent-first-loop-structural-decomposition-implementation-plan.md)
+- [`2026-03-21-agent-first-loop-truth-completion-implementation-plan.md`](2026-03-21-agent-first-loop-truth-completion-implementation-plan.md)
+- [`2026-03-21-agent-first-loop-reconcile-and-agent-implementation-plan.md`](2026-03-21-agent-first-loop-reconcile-and-agent-implementation-plan.md)
 - [`2026-03-20-machine-first-operator-snapshot-and-feedback-loop-design.md`](2026-03-20-machine-first-operator-snapshot-and-feedback-loop-design.md)
 - [`2026-03-20-benchmark-suite-v1-design.md`](2026-03-20-benchmark-suite-v1-design.md)
 - [`2026-03-20-mature-adversary-sim-evolution-roadmap.md`](2026-03-20-mature-adversary-sim-evolution-roadmap.md)
@@ -26,6 +30,7 @@ Close the first real Shuma feedback loop and structurally decompose the control-
 4. Monitoring and Tuning remain projections and control surfaces over machine-first contracts, not separate semantic systems.
 5. The first shared-host agent tweaker loop must precede `MON-OVERHAUL-1` so the human surfaces project proven backend semantics rather than invent them ahead of the loop.
 6. Replay-promotion lineage must move from sidecar test tooling into backend contracts before later scheduled-agent planning is reopened.
+7. The next coding tranche should start from the detailed 2026-03-21 execution-ready implementation plans, not only from this high-level sequencing note.
 
 # Target Architecture
 

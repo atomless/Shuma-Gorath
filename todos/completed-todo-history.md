@@ -4,6 +4,25 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-21)
 
+### LOOP-READY-1: Make The Agent-First Loop Queue Execution-Ready
+
+- [x] Captured the remaining prerequisite tranche before the active `ARCH-*`, `OPS-*`, and `OVR-*` queue by writing a loop-closure execution-readiness review plus three detailed implementation plans covering structural decomposition, loop-truth completion, and reconcile-plus-agent work, then wired those plans into the high-level loop-closure references and active TODO context.
+- [x] Why:
+  - the queue order was already correct, but the repo still only had roadmap-level bullets for the hotspot refactors and controller work, which was not enough execution detail for safe large-file decomposition.
+  - the smallest honest prerequisite was docs-only: exact file homes, reuse seams, and truthful focused `make` verification paths before implementation starts.
+  - capturing those details now lets the next coding tranche begin at `ARCH-API-1` without improvising module boundaries or verification semantics.
+- [x] Evidence:
+  - `docs/research/2026-03-21-loop-closure-execution-readiness-review.md`
+  - `docs/plans/2026-03-21-agent-first-loop-structural-decomposition-implementation-plan.md`
+  - `docs/plans/2026-03-21-agent-first-loop-truth-completion-implementation-plan.md`
+  - `docs/plans/2026-03-21-agent-first-loop-reconcile-and-agent-implementation-plan.md`
+  - `docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`
+  - `docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`
+  - `docs/research/README.md`
+  - `todos/todo.md`
+  - `git diff --check`
+  - docs-only tranche: behavior tests intentionally skipped.
+
 ### LOOP-ARCH-REVIEW-2: Re-sequence The First Agent Loop Ahead Of Monitoring
 
 - [x] Captured the architecture decision that the first shared-host agent tweaker loop should land before `MON-OVERHAUL-1`, then updated the active loop-closure plan, the pre-launch roadmap, and the active and blocked TODO queues so the repo now sequences `OVR-AGENT-1` ahead of Monitoring and treats the later broader agent expansion as a separate follow-on.

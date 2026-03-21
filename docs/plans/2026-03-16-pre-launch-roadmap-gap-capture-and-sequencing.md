@@ -287,6 +287,7 @@ Status update (2026-03-21):
 1. Captured in [`2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md).
 2. The corresponding architecture review is [`../research/2026-03-21-feedback-loop-and-architecture-debt-review.md`](../research/2026-03-21-feedback-loop-and-architecture-debt-review.md).
 3. The sequencing correction that moves the first machine-first agent tweaker loop ahead of `MON-OVERHAUL-1` is captured in [`../research/2026-03-21-agent-first-feedback-loop-sequencing-review.md`](../research/2026-03-21-agent-first-feedback-loop-sequencing-review.md).
+4. The queue is now execution-ready in detailed form via [`2026-03-21-agent-first-loop-structural-decomposition-implementation-plan.md`](2026-03-21-agent-first-loop-structural-decomposition-implementation-plan.md), [`2026-03-21-agent-first-loop-truth-completion-implementation-plan.md`](2026-03-21-agent-first-loop-truth-completion-implementation-plan.md), and [`2026-03-21-agent-first-loop-reconcile-and-agent-implementation-plan.md`](2026-03-21-agent-first-loop-reconcile-and-agent-implementation-plan.md).
 
 ## I. Privacy, State-Minimization, And Final Launch Gates
 
