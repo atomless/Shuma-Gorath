@@ -349,6 +349,7 @@ fi
 if [[ "${ENABLE_CADDY_NORM}" != "true" ]]; then
   fail "Caddy/TLS must be enabled for canonical Linode production deployment."
 fi
+BASE_URL="https://${DOMAIN_NAME}"
 
 GATEWAY_DEPLOYMENT_PROFILE_NORM="$(printf '%s' "${SHUMA_GATEWAY_DEPLOYMENT_PROFILE}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
 if [[ "${GATEWAY_DEPLOYMENT_PROFILE_NORM}" != "shared-server" ]]; then
@@ -651,6 +652,33 @@ SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL_VALUE="false"
 if [[ "${SHUMA_GATEWAY_UPSTREAM_ORIGIN}" == http://* ]]; then
   SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL_VALUE="true"
 fi
+SCRAPLING_SLUG="$(python3 - "${BASE_URL}" <<'PY_SCRAPLING_SLUG'
+import re
+import sys
+from urllib.parse import urlsplit
+
+hostname = (urlsplit(sys.argv[1]).hostname or "scrapling").lower()
+slug = re.sub(r"[^a-z0-9]+", "-", hostname).strip("-") or "scrapling"
+print(slug, end="")
+PY_SCRAPLING_SLUG
+)"
+SCRAPLING_RECEIPT_PATH="${REPO_ROOT}/.shuma/scrapling/${SCRAPLING_SLUG}.deploy-prep.json"
+SCRAPLING_SCOPE_PATH="${REPO_ROOT}/.shuma/scrapling/${SCRAPLING_SLUG}.scope.json"
+SCRAPLING_SEED_PATH="${REPO_ROOT}/.shuma/scrapling/${SCRAPLING_SLUG}.seed.json"
+SCRAPLING_SCOPE_REMOTE_SOURCE_PATH="/tmp/scrapling-scope.json"
+SCRAPLING_SEED_REMOTE_SOURCE_PATH="/tmp/scrapling-seed.json"
+python3 "${REPO_ROOT}/scripts/prepare_scrapling_deploy.py" \
+  --public-base-url "${BASE_URL}" \
+  --runtime-mode ssh_systemd \
+  --receipt-output "${SCRAPLING_RECEIPT_PATH}" \
+  --scope-output "${SCRAPLING_SCOPE_PATH}" \
+  --seed-output "${SCRAPLING_SEED_PATH}"
+SCRAPLING_SCOPE_REMOTE_PATH="$(jq -r '.environment.remote.ADVERSARY_SIM_SCRAPLING_SCOPE_DESCRIPTOR_PATH' "${SCRAPLING_RECEIPT_PATH}")"
+SCRAPLING_SEED_REMOTE_PATH="$(jq -r '.environment.remote.ADVERSARY_SIM_SCRAPLING_SEED_INVENTORY_PATH' "${SCRAPLING_RECEIPT_PATH}")"
+SCRAPLING_CRAWLDIR_REMOTE_PATH="$(jq -r '.environment.remote.ADVERSARY_SIM_SCRAPLING_CRAWLDIR' "${SCRAPLING_RECEIPT_PATH}")"
+[[ -n "${SCRAPLING_SCOPE_REMOTE_PATH}" && "${SCRAPLING_SCOPE_REMOTE_PATH}" != "null" ]] || fail "Scrapling deploy prep did not produce a remote scope path."
+[[ -n "${SCRAPLING_SEED_REMOTE_PATH}" && "${SCRAPLING_SEED_REMOTE_PATH}" != "null" ]] || fail "Scrapling deploy prep did not produce a remote seed path."
+[[ -n "${SCRAPLING_CRAWLDIR_REMOTE_PATH}" && "${SCRAPLING_CRAWLDIR_REMOTE_PATH}" != "null" ]] || fail "Scrapling deploy prep did not produce a remote crawldir path."
 
 LOCAL_ENV_FILE="$(mktemp)"
 TMP_FILES+=("$LOCAL_ENV_FILE")
@@ -676,6 +704,9 @@ SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED=true
 SHUMA_GATEWAY_TLS_STRICT=true
 SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED=true
 SHUMA_SPIN_MANIFEST=/opt/shuma-gorath/spin.gateway.toml
+ADVERSARY_SIM_SCRAPLING_SCOPE_DESCRIPTOR_PATH=${SCRAPLING_SCOPE_REMOTE_PATH}
+ADVERSARY_SIM_SCRAPLING_SEED_INVENTORY_PATH=${SCRAPLING_SEED_REMOTE_PATH}
+ADVERSARY_SIM_SCRAPLING_CRAWLDIR=${SCRAPLING_CRAWLDIR_REMOTE_PATH}
 EOF_ENV
 if [[ -n "${SHUMA_MONITORING_RETENTION_HOURS:-}" ]]; then
   printf '%s\n' "SHUMA_MONITORING_RETENTION_HOURS=${SHUMA_MONITORING_RETENTION_HOURS}" >>"${LOCAL_ENV_FILE}"
@@ -702,6 +733,11 @@ fi
 : "${RELEASE_ARCHIVE_PATH:?missing RELEASE_ARCHIVE_PATH}"
 : "${RELEASE_METADATA_PATH:?missing RELEASE_METADATA_PATH}"
 : "${GATEWAY_SURFACE_CATALOG_REMOTE_PATH:?missing GATEWAY_SURFACE_CATALOG_REMOTE_PATH}"
+: "${SCRAPLING_SCOPE_REMOTE_SOURCE_PATH:?missing SCRAPLING_SCOPE_REMOTE_SOURCE_PATH}"
+: "${SCRAPLING_SEED_REMOTE_SOURCE_PATH:?missing SCRAPLING_SEED_REMOTE_SOURCE_PATH}"
+: "${SCRAPLING_SCOPE_REMOTE_PATH:?missing SCRAPLING_SCOPE_REMOTE_PATH}"
+: "${SCRAPLING_SEED_REMOTE_PATH:?missing SCRAPLING_SEED_REMOTE_PATH}"
+: "${SCRAPLING_CRAWLDIR_REMOTE_PATH:?missing SCRAPLING_CRAWLDIR_REMOTE_PATH}"
 : "${ENABLE_CADDY:?missing ENABLE_CADDY}"
 DOMAIN_NAME="${DOMAIN_NAME:-}"
 REMOTE_SPIN_READY_TIMEOUT_SECONDS="${REMOTE_SPIN_READY_TIMEOUT_SECONDS:-300}"
@@ -723,6 +759,11 @@ tar -xzf "${RELEASE_ARCHIVE_PATH}" -C "${NEXT_APP_DIR}"
 rm -rf "${REMOTE_APP_DIR}"
 mv "${NEXT_APP_DIR}" "${REMOTE_APP_DIR}"
 cp "${RELEASE_METADATA_PATH}" "${REMOTE_APP_DIR}/.shuma-release.json"
+mkdir -p "$(dirname "${SCRAPLING_SCOPE_REMOTE_PATH}")"
+mkdir -p "$(dirname "${SCRAPLING_SEED_REMOTE_PATH}")"
+cp "${SCRAPLING_SCOPE_REMOTE_SOURCE_PATH}" "${SCRAPLING_SCOPE_REMOTE_PATH}"
+cp "${SCRAPLING_SEED_REMOTE_SOURCE_PATH}" "${SCRAPLING_SEED_REMOTE_PATH}"
+mkdir -p "${SCRAPLING_CRAWLDIR_REMOTE_PATH}"
 
 cd "${REMOTE_APP_DIR}"
 make setup-runtime
@@ -803,19 +844,15 @@ scp -q -o StrictHostKeyChecking=accept-new -i "${SSH_PRIVATE_KEY_FILE}" "${REMOT
 scp -q -o StrictHostKeyChecking=accept-new -i "${SSH_PRIVATE_KEY_FILE}" "${RELEASE_ARCHIVE_FILE}" "shuma@${INSTANCE_IPV4}:/tmp/shuma-release.tar.gz"
 scp -q -o StrictHostKeyChecking=accept-new -i "${SSH_PRIVATE_KEY_FILE}" "${RELEASE_METADATA_FILE}" "shuma@${INSTANCE_IPV4}:/tmp/shuma-release.json"
 scp -q -o StrictHostKeyChecking=accept-new -i "${SSH_PRIVATE_KEY_FILE}" "${GATEWAY_SURFACE_CATALOG_PATH}" "shuma@${INSTANCE_IPV4}:/tmp/gateway-surface-catalog.json"
+scp -q -o StrictHostKeyChecking=accept-new -i "${SSH_PRIVATE_KEY_FILE}" "${SCRAPLING_SCOPE_PATH}" "shuma@${INSTANCE_IPV4}:/tmp/scrapling-scope.json"
+scp -q -o StrictHostKeyChecking=accept-new -i "${SSH_PRIVATE_KEY_FILE}" "${SCRAPLING_SEED_PATH}" "shuma@${INSTANCE_IPV4}:/tmp/scrapling-seed.json"
 
-REMOTE_CMD="DEPLOY_USER='shuma' REMOTE_APP_DIR='/opt/shuma-gorath' RELEASE_ARCHIVE_PATH='/tmp/shuma-release.tar.gz' RELEASE_METADATA_PATH='/tmp/shuma-release.json' GATEWAY_SURFACE_CATALOG_REMOTE_PATH='/tmp/gateway-surface-catalog.json' ENABLE_CADDY='${ENABLE_CADDY_NORM}' DOMAIN_NAME='${DOMAIN_NAME}' REMOTE_SPIN_READY_TIMEOUT_SECONDS='${REMOTE_SPIN_READY_TIMEOUT_SECONDS}' bash /tmp/shuma-bootstrap.sh /tmp/shuma.env"
+REMOTE_CMD="DEPLOY_USER='shuma' REMOTE_APP_DIR='/opt/shuma-gorath' RELEASE_ARCHIVE_PATH='/tmp/shuma-release.tar.gz' RELEASE_METADATA_PATH='/tmp/shuma-release.json' GATEWAY_SURFACE_CATALOG_REMOTE_PATH='/tmp/gateway-surface-catalog.json' SCRAPLING_SCOPE_REMOTE_SOURCE_PATH='${SCRAPLING_SCOPE_REMOTE_SOURCE_PATH}' SCRAPLING_SEED_REMOTE_SOURCE_PATH='${SCRAPLING_SEED_REMOTE_SOURCE_PATH}' SCRAPLING_SCOPE_REMOTE_PATH='${SCRAPLING_SCOPE_REMOTE_PATH}' SCRAPLING_SEED_REMOTE_PATH='${SCRAPLING_SEED_REMOTE_PATH}' SCRAPLING_CRAWLDIR_REMOTE_PATH='${SCRAPLING_CRAWLDIR_REMOTE_PATH}' ENABLE_CADDY='${ENABLE_CADDY_NORM}' DOMAIN_NAME='${DOMAIN_NAME}' REMOTE_SPIN_READY_TIMEOUT_SECONDS='${REMOTE_SPIN_READY_TIMEOUT_SECONDS}' bash /tmp/shuma-bootstrap.sh /tmp/shuma.env"
 
 info "Running remote bootstrap"
 ssh -o StrictHostKeyChecking=accept-new -i "${SSH_PRIVATE_KEY_FILE}" "shuma@${INSTANCE_IPV4}" "${REMOTE_CMD}"
 
 success "Deployment completed"
-
-if [[ "${ENABLE_CADDY_NORM}" == "true" ]]; then
-  BASE_URL="https://${DOMAIN_NAME}"
-else
-  BASE_URL="http://${INSTANCE_IPV4}:3000"
-fi
 DASHBOARD_URL="${BASE_URL}/dashboard"
 REMOTE_TARGET_NAME="${REMOTE_NAME:-}"
 if [[ -z "${REMOTE_TARGET_NAME}" ]]; then
@@ -847,6 +884,11 @@ REMOTE_RECEIPT_PATH="$(python3 "${REPO_ROOT}/scripts/manage_remote_target.py" \
   --upstream-origin "${SHUMA_GATEWAY_UPSTREAM_ORIGIN}" \
   --last-deployed-commit "${RELEASE_COMMIT_SHA}" \
   --last-deployed-at-utc "${REMOTE_DEPLOYED_AT_UTC}" \
+  --scrapling-scope-descriptor-path "${SCRAPLING_SCOPE_PATH}" \
+  --scrapling-seed-inventory-path "${SCRAPLING_SEED_PATH}" \
+  --scrapling-remote-scope-descriptor-path "${SCRAPLING_SCOPE_REMOTE_PATH}" \
+  --scrapling-remote-seed-inventory-path "${SCRAPLING_SEED_REMOTE_PATH}" \
+  --scrapling-remote-crawldir-path "${SCRAPLING_CRAWLDIR_REMOTE_PATH}" \
   --instance-id "${INSTANCE_ID}" \
   --label "${INSTANCE_LABEL}" \
   --region "${LINODE_REGION}" \

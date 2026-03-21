@@ -361,6 +361,35 @@ class DeployLinodeOneShotTests(unittest.TestCase):
         self.assertRegex(env_text, r"SHUMA_SIM_TELEMETRY_SECRET=[0-9a-f]{64}")
         self.assertIn("SHUMA_ADMIN_IP_ALLOWLIST=203.0.113.0/24", env_text)
 
+    def test_existing_instance_deploy_writes_scrapling_metadata_into_remote_receipt(self) -> None:
+        result = self.run_script(
+            "--remote-name",
+            "blog-prod",
+            "--domain",
+            "shuma.example.com",
+            "--existing-instance-id",
+            "123",
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+        remote_receipt = json.loads(
+            (self.remote_receipts_dir / "blog-prod.json").read_text(encoding="utf-8")
+        )
+        scrapling = remote_receipt["deploy"]["scrapling"]
+        self.assertTrue(scrapling["scope_descriptor_path"].endswith("shuma-example-com.scope.json"))
+        self.assertTrue(scrapling["seed_inventory_path"].endswith("shuma-example-com.seed.json"))
+        self.assertEqual(
+            scrapling["remote_scope_descriptor_path"],
+            "/opt/shuma-gorath/.shuma/adversary-sim/scrapling-scope.json",
+        )
+        self.assertEqual(
+            scrapling["remote_seed_inventory_path"],
+            "/opt/shuma-gorath/.shuma/adversary-sim/scrapling-seed-inventory.json",
+        )
+        self.assertEqual(
+            scrapling["remote_crawldir_path"],
+            "/opt/shuma-gorath/.shuma/adversary-sim/scrapling-crawldir",
+        )
+
     def test_open_dashboard_flag_launches_local_dashboard_url(self) -> None:
         result = self.run_script(
             "--domain",
@@ -402,6 +431,24 @@ class DeployLinodeOneShotTests(unittest.TestCase):
             script,
         )
         self.assertNotIn('cp "${ENV_FILE_PATH}" .env.local', script)
+
+    def test_remote_bootstrap_wires_scrapling_scope_seed_and_env(self) -> None:
+        script = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn('python3 "${REPO_ROOT}/scripts/prepare_scrapling_deploy.py"', script)
+        self.assertIn(
+            'ADVERSARY_SIM_SCRAPLING_SCOPE_DESCRIPTOR_PATH=${SCRAPLING_SCOPE_REMOTE_PATH}',
+            script,
+        )
+        self.assertIn(
+            'ADVERSARY_SIM_SCRAPLING_SEED_INVENTORY_PATH=${SCRAPLING_SEED_REMOTE_PATH}',
+            script,
+        )
+        self.assertIn(
+            'ADVERSARY_SIM_SCRAPLING_CRAWLDIR=${SCRAPLING_CRAWLDIR_REMOTE_PATH}',
+            script,
+        )
+        self.assertIn('"${SCRAPLING_SCOPE_PATH}" "shuma@${INSTANCE_IPV4}:/tmp/scrapling-scope.json"', script)
+        self.assertIn('"${SCRAPLING_SEED_PATH}" "shuma@${INSTANCE_IPV4}:/tmp/scrapling-seed.json"', script)
 
     def test_remote_bootstrap_waits_for_spin_readiness_before_smoke(self) -> None:
         script = SCRIPT.read_text(encoding="utf-8")

@@ -35,12 +35,21 @@ RELEASE_BUNDLE_SCRIPT = REPO_ROOT / "scripts" / "deploy" / "build_linode_release
 REMOTE_UPDATE_ARCHIVE_PATH = "/tmp/shuma-remote-update-release.tar.gz"
 REMOTE_UPDATE_METADATA_PATH = "/tmp/shuma-remote-update-release.json"
 REMOTE_UPDATE_SURFACE_CATALOG_PATH = "/tmp/shuma-remote-update-surface-catalog.json"
+REMOTE_UPDATE_SCRAPLING_SCOPE_PATH = "/tmp/shuma-remote-update-scrapling-scope.json"
+REMOTE_UPDATE_SCRAPLING_SEED_PATH = "/tmp/shuma-remote-update-scrapling-seed.json"
 REMOTE_UPDATE_SCRIPT_PATH = "/tmp/shuma-remote-update.sh"
 REMOTE_SMOKE_ENV_KEYS = (
     "SHUMA_API_KEY",
     "SHUMA_FORWARDED_IP_SECRET",
     "SHUMA_HEALTH_SECRET",
     "SHUMA_ADMIN_IP_ALLOWLIST",
+)
+SCRAPLING_RECEIPT_KEYS = (
+    "scope_descriptor_path",
+    "seed_inventory_path",
+    "remote_scope_descriptor_path",
+    "remote_seed_inventory_path",
+    "remote_crawldir_path",
 )
 
 
@@ -93,8 +102,17 @@ def build_remote_receipt(
     last_deployed_commit: str = "",
     last_deployed_at_utc: str = "",
     provider_extension: dict[str, Any] | None = None,
+    scrapling: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     normalized_name = normalize_remote_name(name)
+    deploy: dict[str, Any] = {
+        "spin_manifest_path": spin_manifest_path,
+        "surface_catalog_path": surface_catalog_path,
+        "smoke_path": smoke_path,
+        "upstream_origin": upstream_origin,
+    }
+    if scrapling is not None:
+        deploy["scrapling"] = dict(scrapling)
     return {
         "schema": REMOTE_RECEIPT_SCHEMA,
         "identity": {
@@ -113,12 +131,7 @@ def build_remote_receipt(
             "service_name": service_name,
             "public_base_url": public_base_url.rstrip("/"),
         },
-        "deploy": {
-            "spin_manifest_path": spin_manifest_path,
-            "surface_catalog_path": surface_catalog_path,
-            "smoke_path": smoke_path,
-            "upstream_origin": upstream_origin,
-        },
+        "deploy": deploy,
         "metadata": {
             "last_deployed_commit": last_deployed_commit,
             "last_deployed_at_utc": last_deployed_at_utc,
@@ -150,6 +163,7 @@ def write_remote_receipt(
     last_deployed_commit: str = "",
     last_deployed_at_utc: str = "",
     provider_extension: dict[str, Any] | None = None,
+    scrapling: dict[str, str] | None = None,
 ) -> Path:
     path = remote_receipt_path(receipts_dir, name)
     receipt = build_remote_receipt(
@@ -169,6 +183,7 @@ def write_remote_receipt(
         last_deployed_commit=last_deployed_commit,
         last_deployed_at_utc=last_deployed_at_utc,
         provider_extension=provider_extension,
+        scrapling=scrapling,
     )
     write_json(path, receipt)
     return path
@@ -193,6 +208,18 @@ def _require_int(parent: dict[str, Any], key: str) -> int:
     if not isinstance(value, int):
         fail(f"Invalid remote receipt: {key} must be an integer.")
     return value
+
+
+def _optional_scrapling_metadata(deploy: dict[str, Any]) -> dict[str, str] | None:
+    value = deploy.get("scrapling")
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        fail("Invalid remote receipt: deploy.scrapling must be an object.")
+    normalized: dict[str, str] = {}
+    for key in SCRAPLING_RECEIPT_KEYS:
+        normalized[key] = _require_string(value, key)
+    return normalized
 
 
 def load_remote_receipt(receipts_dir: Path, name: str) -> dict[str, Any]:
@@ -239,6 +266,9 @@ def load_remote_receipt(receipts_dir: Path, name: str) -> dict[str, Any]:
             deploy["upstream_origin"] = DEFAULT_SHARED_HOST_UPSTREAM_ORIGIN
         else:
             fail("Invalid remote receipt: deploy.upstream_origin must be a non-empty string.")
+    scrapling = _optional_scrapling_metadata(deploy)
+    if scrapling is not None:
+        deploy["scrapling"] = scrapling
     if not isinstance(metadata.get("last_deployed_commit"), str):
         fail("Invalid remote receipt: metadata.last_deployed_commit must be a string.")
     if not isinstance(metadata.get("last_deployed_at_utc"), str):
@@ -398,6 +428,11 @@ install_release() {
   : "${RELEASE_ARCHIVE_PATH:?missing RELEASE_ARCHIVE_PATH}"
   : "${RELEASE_METADATA_PATH:?missing RELEASE_METADATA_PATH}"
   : "${GATEWAY_SURFACE_CATALOG_REMOTE_PATH:?missing GATEWAY_SURFACE_CATALOG_REMOTE_PATH}"
+  : "${SCRAPLING_SCOPE_REMOTE_SOURCE_PATH:=}"
+  : "${SCRAPLING_SEED_REMOTE_SOURCE_PATH:=}"
+  : "${SCRAPLING_SCOPE_REMOTE_DEST_PATH:=}"
+  : "${SCRAPLING_SEED_REMOTE_DEST_PATH:=}"
+  : "${SCRAPLING_CRAWLDIR_REMOTE_DEST_PATH:=}"
 
   if [[ ! -d "${REMOTE_APP_DIR}" ]]; then
     echo "Missing existing remote app dir: ${REMOTE_APP_DIR}" >&2
@@ -419,7 +454,17 @@ install_release() {
 
   cd "${NEXT_APP_DIR}"
   make setup-runtime
-  python3 scripts/deploy/merge_env_overlay.py --overlay "${PREV_ENV_OVERLAY_PATH}" --env-file ".env.local" --set "SHUMA_GATEWAY_UPSTREAM_ORIGIN=${REMOTE_UPSTREAM_ORIGIN}" --set "SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL=${REMOTE_ALLOW_INSECURE_HTTP_LOCAL}" --set "SHUMA_SPIN_MANIFEST=${REMOTE_APP_DIR}/spin.gateway.toml"
+  merge_env_args=(python3 scripts/deploy/merge_env_overlay.py --overlay "${PREV_ENV_OVERLAY_PATH}" --env-file ".env.local" --set "SHUMA_GATEWAY_UPSTREAM_ORIGIN=${REMOTE_UPSTREAM_ORIGIN}" --set "SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL=${REMOTE_ALLOW_INSECURE_HTTP_LOCAL}" --set "SHUMA_SPIN_MANIFEST=${REMOTE_APP_DIR}/spin.gateway.toml")
+  if [[ -n "${SCRAPLING_SCOPE_REMOTE_DEST_PATH}" ]]; then
+    merge_env_args+=(--set "ADVERSARY_SIM_SCRAPLING_SCOPE_DESCRIPTOR_PATH=${SCRAPLING_SCOPE_REMOTE_DEST_PATH}")
+  fi
+  if [[ -n "${SCRAPLING_SEED_REMOTE_DEST_PATH}" ]]; then
+    merge_env_args+=(--set "ADVERSARY_SIM_SCRAPLING_SEED_INVENTORY_PATH=${SCRAPLING_SEED_REMOTE_DEST_PATH}")
+  fi
+  if [[ -n "${SCRAPLING_CRAWLDIR_REMOTE_DEST_PATH}" ]]; then
+    merge_env_args+=(--set "ADVERSARY_SIM_SCRAPLING_CRAWLDIR=${SCRAPLING_CRAWLDIR_REMOTE_DEST_PATH}")
+  fi
+  "${merge_env_args[@]}"
   chmod 600 .env.local
   set -a
   source .env.local
@@ -441,6 +486,21 @@ install_release() {
   rm -rf "${PREV_APP_DIR}"
   mv "${REMOTE_APP_DIR}" "${PREV_APP_DIR}"
   mv "${NEXT_APP_DIR}" "${REMOTE_APP_DIR}"
+  if [[ -n "${SCRAPLING_SCOPE_REMOTE_DEST_PATH}" ]]; then
+    mkdir -p "$(dirname "${SCRAPLING_SCOPE_REMOTE_DEST_PATH}")"
+  fi
+  if [[ -n "${SCRAPLING_SEED_REMOTE_DEST_PATH}" ]]; then
+    mkdir -p "$(dirname "${SCRAPLING_SEED_REMOTE_DEST_PATH}")"
+  fi
+  if [[ -n "${SCRAPLING_SCOPE_REMOTE_SOURCE_PATH}" && -n "${SCRAPLING_SCOPE_REMOTE_DEST_PATH}" ]]; then
+    cp "${SCRAPLING_SCOPE_REMOTE_SOURCE_PATH}" "${SCRAPLING_SCOPE_REMOTE_DEST_PATH}"
+  fi
+  if [[ -n "${SCRAPLING_SEED_REMOTE_SOURCE_PATH}" && -n "${SCRAPLING_SEED_REMOTE_DEST_PATH}" ]]; then
+    cp "${SCRAPLING_SEED_REMOTE_SOURCE_PATH}" "${SCRAPLING_SEED_REMOTE_DEST_PATH}"
+  fi
+  if [[ -n "${SCRAPLING_CRAWLDIR_REMOTE_DEST_PATH}" ]]; then
+    mkdir -p "${SCRAPLING_CRAWLDIR_REMOTE_DEST_PATH}"
+  fi
   sudo systemctl daemon-reload
   if ! sudo systemctl restart "${REMOTE_SERVICE_NAME}"; then
     echo "Remote service restart failed; attempting rollback." >&2
@@ -491,8 +551,28 @@ def copy_file_to_remote(receipt: dict[str, Any], local_path: Path, remote_path: 
 
 def run_remote_update_install(receipt: dict[str, Any]) -> int:
     runtime = receipt["runtime"]
+    env_values = {
+        "REMOTE_APP_DIR": runtime["app_dir"],
+        "REMOTE_SERVICE_NAME": runtime["service_name"],
+        "RELEASE_ARCHIVE_PATH": REMOTE_UPDATE_ARCHIVE_PATH,
+        "RELEASE_METADATA_PATH": REMOTE_UPDATE_METADATA_PATH,
+        "GATEWAY_SURFACE_CATALOG_REMOTE_PATH": REMOTE_UPDATE_SURFACE_CATALOG_PATH,
+        "REMOTE_UPSTREAM_ORIGIN": receipt["deploy"]["upstream_origin"],
+        "REMOTE_ALLOW_INSECURE_HTTP_LOCAL": insecure_http_local_allowed(receipt["deploy"]["upstream_origin"]),
+    }
+    scrapling = receipt["deploy"].get("scrapling")
+    if isinstance(scrapling, dict):
+        env_values.update(
+            {
+                "SCRAPLING_SCOPE_REMOTE_SOURCE_PATH": REMOTE_UPDATE_SCRAPLING_SCOPE_PATH,
+                "SCRAPLING_SEED_REMOTE_SOURCE_PATH": REMOTE_UPDATE_SCRAPLING_SEED_PATH,
+                "SCRAPLING_SCOPE_REMOTE_DEST_PATH": scrapling["remote_scope_descriptor_path"],
+                "SCRAPLING_SEED_REMOTE_DEST_PATH": scrapling["remote_seed_inventory_path"],
+                "SCRAPLING_CRAWLDIR_REMOTE_DEST_PATH": scrapling["remote_crawldir_path"],
+            }
+        )
     remote_command = (
-        f"{shell_env_assignments({'REMOTE_APP_DIR': runtime['app_dir'], 'REMOTE_SERVICE_NAME': runtime['service_name'], 'RELEASE_ARCHIVE_PATH': REMOTE_UPDATE_ARCHIVE_PATH, 'RELEASE_METADATA_PATH': REMOTE_UPDATE_METADATA_PATH, 'GATEWAY_SURFACE_CATALOG_REMOTE_PATH': REMOTE_UPDATE_SURFACE_CATALOG_PATH, 'REMOTE_UPSTREAM_ORIGIN': receipt['deploy']['upstream_origin'], 'REMOTE_ALLOW_INSECURE_HTTP_LOCAL': insecure_http_local_allowed(receipt['deploy']['upstream_origin'])})} "
+        f"{shell_env_assignments(env_values)} "
         f"bash {shlex.quote(REMOTE_UPDATE_SCRIPT_PATH)} install"
     )
     return run_ssh_operation(receipt, remote_command)
@@ -678,6 +758,12 @@ def refresh_remote_receipt_metadata(
 
 def perform_remote_update(receipt: dict[str, Any], env_file: Path, receipts_dir: Path) -> int:
     ensure_local_file(receipt["deploy"]["surface_catalog_path"], "local surface catalog")
+    scrapling = receipt["deploy"].get("scrapling")
+    local_scope_path: Path | None = None
+    local_seed_path: Path | None = None
+    if isinstance(scrapling, dict):
+        local_scope_path = ensure_local_file(scrapling["scope_descriptor_path"], "local Scrapling scope descriptor")
+        local_seed_path = ensure_local_file(scrapling["seed_inventory_path"], "local Scrapling seed inventory")
     with tempfile.TemporaryDirectory(prefix="shuma-remote-update-") as temp_dir:
         work_dir = Path(temp_dir)
         archive_path, metadata_path, metadata = build_release_bundle(repo_root=REPO_ROOT, work_dir=work_dir)
@@ -689,6 +775,9 @@ def perform_remote_update(receipt: dict[str, Any], env_file: Path, receipts_dir:
             ensure_local_file(receipt["deploy"]["surface_catalog_path"], "local surface catalog"),
             REMOTE_UPDATE_SURFACE_CATALOG_PATH,
         )
+        if local_scope_path is not None and local_seed_path is not None:
+            copy_file_to_remote(receipt, local_scope_path, REMOTE_UPDATE_SCRAPLING_SCOPE_PATH)
+            copy_file_to_remote(receipt, local_seed_path, REMOTE_UPDATE_SCRAPLING_SEED_PATH)
         copy_file_to_remote(receipt, update_script_path, REMOTE_UPDATE_SCRIPT_PATH)
         if run_remote_update_install(receipt) != 0:
             fail("Remote update install/restart failed; rollback was attempted on the host.")
@@ -761,6 +850,11 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     write_parser.add_argument("--region", default="")
     write_parser.add_argument("--linode-type", default="")
     write_parser.add_argument("--image", default="")
+    write_parser.add_argument("--scrapling-scope-descriptor-path", default="")
+    write_parser.add_argument("--scrapling-seed-inventory-path", default="")
+    write_parser.add_argument("--scrapling-remote-scope-descriptor-path", default="")
+    write_parser.add_argument("--scrapling-remote-seed-inventory-path", default="")
+    write_parser.add_argument("--scrapling-remote-crawldir-path", default="")
     return parser.parse_args(argv)
 
 
@@ -777,6 +871,27 @@ def _linode_provider_extension(args: argparse.Namespace) -> dict[str, Any]:
     if args.image:
         values["image"] = args.image
     return {"linode": values}
+
+
+def _linode_scrapling_metadata(args: argparse.Namespace) -> dict[str, str] | None:
+    values = {
+        "scope_descriptor_path": args.scrapling_scope_descriptor_path,
+        "seed_inventory_path": args.scrapling_seed_inventory_path,
+        "remote_scope_descriptor_path": args.scrapling_remote_scope_descriptor_path,
+        "remote_seed_inventory_path": args.scrapling_remote_seed_inventory_path,
+        "remote_crawldir_path": args.scrapling_remote_crawldir_path,
+    }
+    provided = {key: value for key, value in values.items() if value}
+    if not provided:
+        return None
+    missing = [key for key, value in values.items() if not value]
+    if missing:
+        fail(
+            "Invalid remote receipt arguments: Scrapling metadata requires all of "
+            + ", ".join(SCRAPLING_RECEIPT_KEYS)
+            + "."
+        )
+    return values
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -811,6 +926,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             last_deployed_commit=args.last_deployed_commit,
             last_deployed_at_utc=last_deployed_at_utc,
             provider_extension=_linode_provider_extension(args),
+            scrapling=_linode_scrapling_metadata(args),
         )
         print(path)
         return 0

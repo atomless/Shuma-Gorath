@@ -2,6 +2,30 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-03-21)
+
+### SIM-SCR-8: Shared-Host Scrapling Deploy Automation
+
+- [x] Complete `SIM-SCR-8-1` and `SIM-SCR-8-2` by adding one shared Scrapling deploy-preflight helper plus durable `.shuma/` receipt, wiring the shared-host Linode deploy path to generate and upload the root-only scope-and-seed artifacts automatically, persisting `ADVERSARY_SIM_SCRAPLING_*` env values into the deployed overlay, extending normalized `ssh_systemd` remote receipts with optional Scrapling metadata, and preserving the same behavior through `make remote-update`.
+- [x] Why:
+  - the real operator burden after `SIM-SCR-6` was no longer the runtime worker itself; it was the deploy gap between "Scrapling exists in code" and "an agent can make it operational on a shared host without hand-authoring scope, seed, or env files."
+  - the implementation had to keep the adversary starting point realistic. The deploy helper therefore infers a fail-closed scope fence from the canonical public host and uses the normalized public root URL as the only default seed, rather than handing the runtime a richer precomputed map.
+  - the day-2 update path needed to remain truthful as well. A one-time deploy bootstrap would not be enough if `make remote-update` later dropped the scope/seed artifacts or the supervisor env contract.
+- [x] Evidence:
+  - `scripts/deploy/scrapling_deploy_prep.py`
+  - `scripts/prepare_scrapling_deploy.py`
+  - `scripts/deploy/remote_target.py`
+  - `scripts/deploy_linode_one_shot.sh`
+  - `scripts/tests/test_scrapling_deploy_prep.py`
+  - `scripts/tests/test_remote_target.py`
+  - `scripts/tests/test_deploy_linode_one_shot.py`
+  - `Makefile`
+  - `docs/research/2026-03-21-sim-scr-8-shared-host-deploy-automation-post-implementation-review.md`
+  - `make test-adversarial-python-unit`
+  - `make test-scrapling-deploy-shared-host`
+  - `git diff --check`
+  - post-tranche review: the closeout found one tranche-local proof gap before completion. The original helper target did not exercise the Linode deploy or remote-update receipt contract, so a truthful focused `make test-scrapling-deploy-shared-host` target was added and used as the canonical verification surface for this deploy slice. No remaining tranche-local architecture shortfall was found; the next optimal work remains `SIM-SCR-8-3` and `SIM-SCR-8-4` to fold the new automation into the agent-facing skills and keep Fermyon truthful about the shared-host-first runtime boundary.
+
 ## Additional completions (2026-03-20)
 
 ### SIM-SCR-7: Add Dashboard Lane Controls And Diagnostics

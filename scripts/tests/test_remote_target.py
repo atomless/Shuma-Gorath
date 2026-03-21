@@ -306,6 +306,79 @@ class RemoteTargetTests(unittest.TestCase):
         receipt = json.loads(self.receipt_path.read_text(encoding="utf-8"))
         self.assertEqual(receipt["metadata"]["last_deployed_commit"], "abc123")
 
+    def test_update_uploads_scrapling_artifacts_when_receipt_declares_them(self) -> None:
+        self.env_file.write_text("SHUMA_ACTIVE_REMOTE=blog-prod\n", encoding="utf-8")
+        receipt = json.loads(self.receipt_path.read_text(encoding="utf-8"))
+        local_scope = self.temp_dir / "scrapling.scope.json"
+        local_seed = self.temp_dir / "scrapling.seed.json"
+        local_scope.write_text('{"allowed_hosts":["blog.example.com"]}\n', encoding="utf-8")
+        local_seed.write_text('{"inventory":[{"url":"https://blog.example.com/"}]}\n', encoding="utf-8")
+        receipt["deploy"]["scrapling"] = {
+            "scope_descriptor_path": str(local_scope),
+            "seed_inventory_path": str(local_seed),
+            "remote_scope_descriptor_path": "/opt/shuma-gorath/.shuma/adversary-sim/scrapling-scope.json",
+            "remote_seed_inventory_path": "/opt/shuma-gorath/.shuma/adversary-sim/scrapling-seed-inventory.json",
+            "remote_crawldir_path": "/opt/shuma-gorath/.shuma/adversary-sim/scrapling-crawldir",
+        }
+        self.receipt_path.write_text(json.dumps(receipt) + "\n", encoding="utf-8")
+
+        bundle_dir = self.temp_dir / "bundle-scrapling"
+        bundle_dir.mkdir()
+        archive_path = bundle_dir / "release.tar.gz"
+        archive_path.write_text("bundle\n", encoding="utf-8")
+        metadata_path = bundle_dir / "release.json"
+        metadata_path.write_text(
+            json.dumps(
+                {
+                    "commit": "deadbeef",
+                    "dirty_worktree": False,
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        update_script_path = bundle_dir / "remote-update.sh"
+        update_script_path.write_text("#!/bin/sh\n", encoding="utf-8")
+
+        with patch.object(
+            remote_target,
+            "build_release_bundle",
+            return_value=(archive_path, metadata_path, {"commit": "deadbeef", "dirty_worktree": False}),
+        ), patch.object(
+            remote_target, "write_remote_update_script", return_value=update_script_path
+        ), patch.object(
+            remote_target, "copy_file_to_remote"
+        ) as copy_file, patch.object(
+            remote_target, "run_remote_update_install", return_value=0
+        ), patch.object(
+            remote_target, "run_remote_loopback_health_check", return_value=0
+        ), patch.object(
+            remote_target, "run_remote_smoke", return_value=0
+        ):
+            rc = remote_target.main(
+                [
+                    "--env-file",
+                    str(self.env_file),
+                    "--receipts-dir",
+                    str(self.receipts_dir),
+                    "update",
+                ]
+            )
+
+        self.assertEqual(rc, 0)
+        copied_remote_paths = [call.args[2] for call in copy_file.call_args_list]
+        self.assertEqual(
+            copied_remote_paths,
+            [
+                "/tmp/shuma-remote-update-release.tar.gz",
+                "/tmp/shuma-remote-update-release.json",
+                "/tmp/shuma-remote-update-surface-catalog.json",
+                "/tmp/shuma-remote-update-scrapling-scope.json",
+                "/tmp/shuma-remote-update-scrapling-seed.json",
+                "/tmp/shuma-remote-update.sh",
+            ],
+        )
+
     def test_run_remote_smoke_uses_allowlisted_forwarded_ip_for_public_remote(self) -> None:
         self.env_file.write_text(
             "SHUMA_ADMIN_IP_ALLOWLIST=198.51.100.10/32\nSHUMA_GATEWAY_UPSTREAM_ORIGIN=https://foreign.example.com\n",
@@ -572,6 +645,35 @@ class RemoteTargetTests(unittest.TestCase):
             )
         )
         self.assertNotIn('cp "${REMOTE_APP_DIR}/.env.local" "${NEXT_APP_DIR}/.env.local"', script)
+
+    def test_remote_update_script_wires_scrapling_scope_seed_and_env(self) -> None:
+        work_dir = self.temp_dir / "script-work-scrapling"
+        work_dir.mkdir()
+
+        script_path = remote_target.write_remote_update_script(work_dir)
+        script = script_path.read_text(encoding="utf-8")
+
+        self.assertIn(': "${SCRAPLING_SCOPE_REMOTE_SOURCE_PATH:=}"', script)
+        self.assertIn(': "${SCRAPLING_SEED_REMOTE_SOURCE_PATH:=}"', script)
+        self.assertIn(': "${SCRAPLING_SCOPE_REMOTE_DEST_PATH:=}"', script)
+        self.assertIn(': "${SCRAPLING_SEED_REMOTE_DEST_PATH:=}"', script)
+        self.assertIn(': "${SCRAPLING_CRAWLDIR_REMOTE_DEST_PATH:=}"', script)
+        self.assertIn('mkdir -p "$(dirname "${SCRAPLING_SCOPE_REMOTE_DEST_PATH}")"', script)
+        self.assertIn('cp "${SCRAPLING_SCOPE_REMOTE_SOURCE_PATH}" "${SCRAPLING_SCOPE_REMOTE_DEST_PATH}"', script)
+        self.assertIn('cp "${SCRAPLING_SEED_REMOTE_SOURCE_PATH}" "${SCRAPLING_SEED_REMOTE_DEST_PATH}"', script)
+        self.assertIn('mkdir -p "${SCRAPLING_CRAWLDIR_REMOTE_DEST_PATH}"', script)
+        self.assertIn(
+            '--set "ADVERSARY_SIM_SCRAPLING_SCOPE_DESCRIPTOR_PATH=${SCRAPLING_SCOPE_REMOTE_DEST_PATH}"',
+            script,
+        )
+        self.assertIn(
+            '--set "ADVERSARY_SIM_SCRAPLING_SEED_INVENTORY_PATH=${SCRAPLING_SEED_REMOTE_DEST_PATH}"',
+            script,
+        )
+        self.assertIn(
+            '--set "ADVERSARY_SIM_SCRAPLING_CRAWLDIR=${SCRAPLING_CRAWLDIR_REMOTE_DEST_PATH}"',
+            script,
+        )
 
     def test_load_remote_receipt_backfills_default_linode_upstream_origin_for_old_receipts(self) -> None:
         payload = json.loads(self.receipt_path.read_text(encoding="utf-8"))
