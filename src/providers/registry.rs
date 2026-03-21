@@ -127,7 +127,6 @@ impl ProviderRegistry {
 mod tests {
     use super::{ProviderCapability, ProviderRegistry};
     use crate::config::{defaults, ProviderBackend};
-    use crate::providers::contracts::BanSyncResult;
 
     #[test]
     fn provider_capability_has_stable_labels() {
@@ -260,14 +259,8 @@ mod tests {
         let registry = ProviderRegistry::from_config(&cfg);
 
         assert_eq!(
-            registry.ban_store_provider().sync_ban("default", "1.2.3.4"),
-            BanSyncResult::Failed
-        );
-        assert_eq!(
-            registry
-                .ban_store_provider()
-                .sync_unban("default", "1.2.3.4"),
-            BanSyncResult::Failed
+            registry.implementation_for(ProviderCapability::BanStore),
+            "external_redis_with_explicit_outage_posture"
         );
         assert_eq!(
             registry.challenge_engine_provider().puzzle_path(),
@@ -276,19 +269,6 @@ mod tests {
         assert!(registry
             .maze_tarpit_provider()
             .is_maze_path(crate::maze::entry_path("external-stub").as_str()));
-
-        std::env::set_var("SHUMA_BAN_STORE_REDIS_URL", "redis://redis:6379");
-        assert_eq!(
-            registry.ban_store_provider().sync_ban("default", "1.2.3.4"),
-            BanSyncResult::Synced
-        );
-        assert_eq!(
-            registry
-                .ban_store_provider()
-                .sync_unban("default", "1.2.3.4"),
-            BanSyncResult::Synced
-        );
-        std::env::remove_var("SHUMA_BAN_STORE_REDIS_URL");
     }
 
     #[test]

@@ -4,6 +4,27 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-21)
 
+### DEP-ENT-1-2: Truthful Ban-Store Provider Read And Write Outcomes
+
+- [x] Extended the ban-store provider contract so reads now return explicit available-versus-unavailable results, writes return `BanSyncResult` directly, the stale `sync_ban` and `sync_unban` helper path is removed, and the external provider only uses local fallback when `SHUMA_BAN_STORE_OUTAGE_MODE=fallback_internal`.
+- [x] Why:
+  - `DEP-ENT-1-1` made outage posture explicit, but the provider boundary still hid the most important truth from the rest of the system: whether a read was authoritative, whether a write only landed locally, or whether strict sync failed outright.
+  - the clean second slice was therefore the provider contract itself. This keeps the runtime and admin follow-on work in `DEP-ENT-1-3` small and honest, because those call sites can now react to explicit provider outcomes instead of inferring state from hidden fallback behavior.
+  - the closeout review found one tranche-local proof gap during implementation: the focused make gate covered ban reads and writes but not strict unban behavior. That gap was fixed before completion by extending `make test-enterprise-ban-store-contract` to include the unban selectors too.
+- [x] Evidence:
+  - `src/providers/contracts.rs`
+  - `src/providers/external.rs`
+  - `src/providers/internal.rs`
+  - `src/providers/registry.rs`
+  - `src/runtime/policy_pipeline.rs`
+  - `src/runtime/effect_intents/intent_executor.rs`
+  - `src/admin/api.rs`
+  - `Makefile`
+  - `docs/research/2026-03-21-dep-ent-1-2-ban-store-provider-semantics-post-implementation-review.md`
+  - `make test-enterprise-ban-store-contract`
+  - `git diff --check`
+  - post-tranche review: no remaining tranche-local shortfall was found inside `DEP-ENT-1-2`; the next optimal work remains `DEP-ENT-1-3`, which should make runtime and admin surfaces react truthfully to the new provider outcomes.
+
 ### DEP-ENT-1-1: Ban-Store Outage Contract And Authoritative Guardrail
 
 - [x] Added the env-only `SHUMA_BAN_STORE_OUTAGE_MODE` contract, wired it through defaults/setup/runtime export/deploy env plumbing, required `fail_closed` for authoritative enterprise when `ban_store=external`, updated the ban-store provider implementation label to stop claiming unconditional fallback, and added the focused `make test-enterprise-ban-store-contract` gate.

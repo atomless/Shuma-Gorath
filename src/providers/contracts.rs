@@ -44,13 +44,32 @@ impl BanSyncResult {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum BanLookupResult {
+    Banned,
+    NotBanned,
+    Unavailable,
+}
+
+impl BanLookupResult {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            BanLookupResult::Banned => "banned",
+            BanLookupResult::NotBanned => "not_banned",
+            BanLookupResult::Unavailable => "unavailable",
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(crate) enum BanListResult {
+    Available(Vec<(String, crate::enforcement::ban::BanEntry)>),
+    Unavailable,
+}
+
 pub(crate) trait BanStoreProvider {
-    fn is_banned(&self, store: &Store, site_id: &str, ip: &str) -> bool;
-    fn list_active_bans(
-        &self,
-        store: &Store,
-        site_id: &str,
-    ) -> Vec<(String, crate::enforcement::ban::BanEntry)>;
+    fn is_banned(&self, store: &Store, site_id: &str, ip: &str) -> BanLookupResult;
+    fn list_active_bans(&self, store: &Store, site_id: &str) -> BanListResult;
     fn ban_ip_with_fingerprint(
         &self,
         store: &Store,
@@ -59,16 +78,8 @@ pub(crate) trait BanStoreProvider {
         reason: &str,
         duration_secs: u64,
         fingerprint: Option<crate::enforcement::ban::BanFingerprint>,
-    );
-    fn unban_ip(&self, store: &Store, site_id: &str, ip: &str);
-
-    fn sync_ban(&self, _site_id: &str, _ip: &str) -> BanSyncResult {
-        BanSyncResult::Deferred
-    }
-
-    fn sync_unban(&self, _site_id: &str, _ip: &str) -> BanSyncResult {
-        BanSyncResult::Deferred
-    }
+    ) -> BanSyncResult;
+    fn unban_ip(&self, store: &Store, site_id: &str, ip: &str) -> BanSyncResult;
 }
 
 pub(crate) trait ChallengeEngineProvider {
@@ -174,37 +185,7 @@ pub(crate) trait FingerprintSignalProvider {
 
 #[cfg(test)]
 mod tests {
-    use super::{BanStoreProvider, BanSyncResult, RateLimitDecision};
-    use spin_sdk::key_value::Store;
-
-    struct StubBanStoreProvider;
-
-    impl BanStoreProvider for StubBanStoreProvider {
-        fn is_banned(&self, _store: &Store, _site_id: &str, _ip: &str) -> bool {
-            false
-        }
-
-        fn list_active_bans(
-            &self,
-            _store: &Store,
-            _site_id: &str,
-        ) -> Vec<(String, crate::enforcement::ban::BanEntry)> {
-            Vec::new()
-        }
-
-        fn ban_ip_with_fingerprint(
-            &self,
-            _store: &Store,
-            _site_id: &str,
-            _ip: &str,
-            _reason: &str,
-            _duration_secs: u64,
-            _fingerprint: Option<crate::enforcement::ban::BanFingerprint>,
-        ) {
-        }
-
-        fn unban_ip(&self, _store: &Store, _site_id: &str, _ip: &str) {}
-    }
+    use super::{BanLookupResult, BanSyncResult, RateLimitDecision};
 
     #[test]
     fn rate_limit_decision_has_stable_labels() {
@@ -220,15 +201,9 @@ mod tests {
     }
 
     #[test]
-    fn ban_store_sync_defaults_to_deferred() {
-        let provider = StubBanStoreProvider;
-        assert_eq!(
-            provider.sync_ban("default", "1.2.3.4"),
-            BanSyncResult::Deferred
-        );
-        assert_eq!(
-            provider.sync_unban("default", "1.2.3.4"),
-            BanSyncResult::Deferred
-        );
+    fn ban_lookup_result_has_stable_labels() {
+        assert_eq!(BanLookupResult::Banned.as_str(), "banned");
+        assert_eq!(BanLookupResult::NotBanned.as_str(), "not_banned");
+        assert_eq!(BanLookupResult::Unavailable.as_str(), "unavailable");
     }
 }

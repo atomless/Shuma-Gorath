@@ -107,7 +107,8 @@ pub(crate) fn maybe_handle_policy_graph_first_tranche(
     };
     let existing_ban = provider_registry
         .ban_store_provider()
-        .is_banned(store, site_id, ip);
+        .is_banned(store, site_id, ip)
+        == crate::providers::contracts::BanLookupResult::Banned;
 
     let pre_facts = crate::runtime::request_facts::build_request_facts(
         req,

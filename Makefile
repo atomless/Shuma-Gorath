@@ -798,6 +798,8 @@ test-enterprise-ban-store-contract: ## Run focused enterprise ban-store outage-m
 	@cargo test config::tests::enterprise_state_guardrail_requires_fail_closed_ban_store_outage_mode_for_authoritative_enterprise -- --exact --nocapture
 	@cargo test config::tests::enterprise_state_guardrail_is_clear_for_synced_multi_instance_posture -- --exact --nocapture
 	@cargo test config::tests::validate_env_rejects_invalid_optional_ban_store_outage_mode -- --exact --nocapture
+	@cargo test providers::external::tests::distributed_ban_ -- --nocapture
+	@cargo test providers::external::tests::distributed_unban_ -- --nocapture
 	@cargo test providers::registry::tests::registry_reports_active_provider_implementation_labels -- --exact --nocapture
 	@cargo test admin::api::admin_config_tests::admin_config_export_returns_non_secret_runtime_values -- --exact --nocapture
 

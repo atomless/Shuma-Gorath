@@ -251,7 +251,7 @@ pub(super) fn apply_ban_intent(
     intent: EffectIntent,
 ) {
     if let EffectIntent::Ban(ban) = intent {
-        provider_registry.ban_store_provider().ban_ip_with_fingerprint(
+        let _ = provider_registry.ban_store_provider().ban_ip_with_fingerprint(
             store,
             site_id,
             ip,

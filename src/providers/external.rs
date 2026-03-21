@@ -4,8 +4,8 @@ use spin_sdk::key_value::Store;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use super::contracts::{
-    BanStoreProvider, BanSyncResult, ChallengeEngineProvider, FingerprintSignalProvider,
-    MazeTarpitProvider, RateLimitDecision, RateLimiterProvider,
+    BanListResult, BanLookupResult, BanStoreProvider, BanSyncResult, ChallengeEngineProvider,
+    FingerprintSignalProvider, MazeTarpitProvider, RateLimitDecision, RateLimiterProvider,
 };
 use super::internal;
 
@@ -585,6 +585,14 @@ fn redis_result_as_string(result: &spin_sdk::redis::RedisResult) -> Option<Strin
     }
 }
 
+fn ban_lookup_result(is_banned: bool) -> BanLookupResult {
+    if is_banned {
+        BanLookupResult::Banned
+    } else {
+        BanLookupResult::NotBanned
+    }
+}
+
 impl DistributedBanStore for RedisDistributedBanStore {
     fn is_banned(&self, site_id: &str, ip: &str) -> Result<bool, String> {
         let conn = self.open_connection()?;
@@ -732,97 +740,132 @@ impl DistributedBanStore for RedisDistributedBanStore {
 
 fn is_banned_with_backend<B: DistributedBanStore>(
     backend: Option<&B>,
+    outage_mode: crate::config::BanStoreOutageMode,
     site_id: &str,
     ip: &str,
     fallback: impl FnOnce() -> bool,
-) -> bool {
+) -> BanLookupResult {
     if let Some(distributed_backend) = backend {
         match distributed_backend.is_banned(site_id, ip) {
-            Ok(is_banned) => return is_banned,
+            Ok(is_banned) => return ban_lookup_result(is_banned),
             Err(err) => eprintln!(
-                "[providers][ban] external distributed ban check failed for site={} ip={} ({}); falling back to internal",
+                "[providers][ban] external distributed ban check failed for site={} ip={} ({}); applying outage posture",
                 site_id, ip, err
             ),
         }
     }
-    fallback()
+    match outage_mode {
+        crate::config::BanStoreOutageMode::FallbackInternal => ban_lookup_result(fallback()),
+        crate::config::BanStoreOutageMode::FailOpen
+        | crate::config::BanStoreOutageMode::FailClosed => BanLookupResult::Unavailable,
+    }
 }
 
 fn list_active_bans_with_backend<B: DistributedBanStore>(
     backend: Option<&B>,
+    outage_mode: crate::config::BanStoreOutageMode,
     site_id: &str,
     fallback: impl FnOnce() -> Vec<(String, crate::enforcement::ban::BanEntry)>,
-) -> Vec<(String, crate::enforcement::ban::BanEntry)> {
+) -> BanListResult {
     if let Some(distributed_backend) = backend {
         match distributed_backend.list_active_bans(site_id) {
-            Ok(bans) => return bans,
+            Ok(bans) => return BanListResult::Available(bans),
             Err(err) => eprintln!(
-                "[providers][ban] external distributed ban listing failed for site={} ({}); falling back to internal",
+                "[providers][ban] external distributed ban listing failed for site={} ({}); applying outage posture",
                 site_id, err
             ),
         }
     }
-    fallback()
+    match outage_mode {
+        crate::config::BanStoreOutageMode::FallbackInternal => BanListResult::Available(fallback()),
+        crate::config::BanStoreOutageMode::FailOpen
+        | crate::config::BanStoreOutageMode::FailClosed => BanListResult::Unavailable,
+    }
 }
 
 fn ban_with_backend<B: DistributedBanStore>(
     backend: Option<&B>,
+    outage_mode: crate::config::BanStoreOutageMode,
     site_id: &str,
     ip: &str,
     reason: &str,
     duration_secs: u64,
     fingerprint: Option<crate::enforcement::ban::BanFingerprint>,
     fallback: impl FnOnce(),
-) {
+) -> BanSyncResult {
     if let Some(distributed_backend) = backend {
         match distributed_backend
             .ban_ip_with_fingerprint(site_id, ip, reason, duration_secs, fingerprint.clone())
         {
-            Ok(()) => return,
+            Ok(()) => return BanSyncResult::Synced,
             Err(err) => eprintln!(
-                "[providers][ban] external distributed ban write failed for site={} ip={} ({}); falling back to internal",
+                "[providers][ban] external distributed ban write failed for site={} ip={} ({}); applying outage posture",
                 site_id, ip, err
             ),
         }
     }
-    fallback();
+    match outage_mode {
+        crate::config::BanStoreOutageMode::FallbackInternal => {
+            fallback();
+            BanSyncResult::Deferred
+        }
+        crate::config::BanStoreOutageMode::FailOpen
+        | crate::config::BanStoreOutageMode::FailClosed => BanSyncResult::Failed,
+    }
 }
 
 fn unban_with_backend<B: DistributedBanStore>(
     backend: Option<&B>,
+    outage_mode: crate::config::BanStoreOutageMode,
     site_id: &str,
     ip: &str,
     fallback: impl FnOnce(),
-) {
+) -> BanSyncResult {
     if let Some(distributed_backend) = backend {
         match distributed_backend.unban_ip(site_id, ip) {
-            Ok(()) => return,
+            Ok(()) => return BanSyncResult::Synced,
             Err(err) => eprintln!(
-                "[providers][ban] external distributed unban failed for site={} ip={} ({}); falling back to internal",
+                "[providers][ban] external distributed unban failed for site={} ip={} ({}); applying outage posture",
                 site_id, ip, err
             ),
         }
     }
-    fallback();
+    match outage_mode {
+        crate::config::BanStoreOutageMode::FallbackInternal => {
+            fallback();
+            BanSyncResult::Deferred
+        }
+        crate::config::BanStoreOutageMode::FailOpen
+        | crate::config::BanStoreOutageMode::FailClosed => BanSyncResult::Failed,
+    }
 }
 
 impl BanStoreProvider for ExternalBanStoreProvider {
-    fn is_banned(&self, store: &Store, site_id: &str, ip: &str) -> bool {
+    fn is_banned(&self, store: &Store, site_id: &str, ip: &str) -> BanLookupResult {
+        let outage_mode = crate::config::ban_store_outage_mode();
         let distributed_backend = RedisDistributedBanStore::from_env();
-        is_banned_with_backend(distributed_backend.as_ref(), site_id, ip, || {
-            internal::BAN_STORE.is_banned(store, site_id, ip)
-        })
+        is_banned_with_backend(
+            distributed_backend.as_ref(),
+            outage_mode,
+            site_id,
+            ip,
+            || {
+                matches!(
+                    internal::BAN_STORE.is_banned(store, site_id, ip),
+                    BanLookupResult::Banned
+                )
+            },
+        )
     }
 
-    fn list_active_bans(
-        &self,
-        store: &Store,
-        site_id: &str,
-    ) -> Vec<(String, crate::enforcement::ban::BanEntry)> {
+    fn list_active_bans(&self, store: &Store, site_id: &str) -> BanListResult {
+        let outage_mode = crate::config::ban_store_outage_mode();
         let distributed_backend = RedisDistributedBanStore::from_env();
-        list_active_bans_with_backend(distributed_backend.as_ref(), site_id, || {
-            internal::BAN_STORE.list_active_bans(store, site_id)
-        })
+        let fallback = || match internal::BAN_STORE.list_active_bans(store, site_id) {
+            BanListResult::Available(bans) => bans,
+            BanListResult::Unavailable => Vec::new(),
+        };
+        list_active_bans_with_backend(distributed_backend.as_ref(), outage_mode, site_id, fallback)
     }
 
     fn ban_ip_with_fingerprint(
@@ -833,10 +876,12 @@ impl BanStoreProvider for ExternalBanStoreProvider {
         reason: &str,
         duration_secs: u64,
         fingerprint: Option<crate::enforcement::ban::BanFingerprint>,
-    ) {
+    ) -> BanSyncResult {
+        let outage_mode = crate::config::ban_store_outage_mode();
         let distributed_backend = RedisDistributedBanStore::from_env();
         ban_with_backend(
             distributed_backend.as_ref(),
+            outage_mode,
             site_id,
             ip,
             reason,
@@ -850,32 +895,23 @@ impl BanStoreProvider for ExternalBanStoreProvider {
                     reason,
                     duration_secs,
                     fingerprint,
-                )
+                );
             },
-        );
+        )
     }
 
-    fn unban_ip(&self, store: &Store, site_id: &str, ip: &str) {
+    fn unban_ip(&self, store: &Store, site_id: &str, ip: &str) -> BanSyncResult {
+        let outage_mode = crate::config::ban_store_outage_mode();
         let distributed_backend = RedisDistributedBanStore::from_env();
-        unban_with_backend(distributed_backend.as_ref(), site_id, ip, || {
-            internal::BAN_STORE.unban_ip(store, site_id, ip)
-        });
-    }
-
-    fn sync_ban(&self, _site_id: &str, _ip: &str) -> BanSyncResult {
-        if crate::config::ban_store_redis_url().is_some() {
-            BanSyncResult::Synced
-        } else {
-            BanSyncResult::Failed
-        }
-    }
-
-    fn sync_unban(&self, _site_id: &str, _ip: &str) -> BanSyncResult {
-        if crate::config::ban_store_redis_url().is_some() {
-            BanSyncResult::Synced
-        } else {
-            BanSyncResult::Failed
-        }
+        unban_with_backend(
+            distributed_backend.as_ref(),
+            outage_mode,
+            site_id,
+            ip,
+            || {
+                internal::BAN_STORE.unban_ip(store, site_id, ip);
+            },
+        )
     }
 }
 
@@ -1231,7 +1267,9 @@ mod tests {
         RATE_DRIFT_BAND_DELTA_1_5, RATE_DRIFT_BAND_DELTA_21_PLUS, RATE_DRIFT_BAND_DELTA_6_20,
         RATE_ROUTE_CLASS_ADMIN_AUTH, RATE_ROUTE_CLASS_MAIN_TRAFFIC,
     };
-    use crate::providers::contracts::RateLimitDecision;
+    use crate::providers::contracts::{
+        BanListResult, BanLookupResult, BanSyncResult, RateLimitDecision,
+    };
     use std::cell::Cell;
 
     #[test]
@@ -1542,17 +1580,23 @@ mod tests {
         let backend =
             MockDistributedBanStore::with_results(Ok(true), Ok(Vec::new()), Ok(()), Ok(()));
         let fallback_called = Cell::new(false);
-        let banned = is_banned_with_backend(Some(&backend), "default", "1.2.3.4", || {
-            fallback_called.set(true);
-            false
-        });
-        assert!(banned);
+        let banned = is_banned_with_backend(
+            Some(&backend),
+            crate::config::BanStoreOutageMode::FallbackInternal,
+            "default",
+            "1.2.3.4",
+            || {
+                fallback_called.set(true);
+                false
+            },
+        );
+        assert_eq!(banned, BanLookupResult::Banned);
         assert!(!fallback_called.get());
         assert_eq!(backend.is_banned_calls.get(), 1);
     }
 
     #[test]
-    fn distributed_ban_lookup_falls_back_when_backend_errors() {
+    fn distributed_ban_lookup_uses_fallback_internal_mode_when_backend_errors() {
         let backend = MockDistributedBanStore::with_results(
             Err("backend unavailable".to_string()),
             Ok(Vec::new()),
@@ -1560,13 +1604,36 @@ mod tests {
             Ok(()),
         );
         let fallback_called = Cell::new(false);
-        let banned = is_banned_with_backend(Some(&backend), "default", "1.2.3.4", || {
-            fallback_called.set(true);
-            true
-        });
-        assert!(banned);
+        let banned = is_banned_with_backend(
+            Some(&backend),
+            crate::config::BanStoreOutageMode::FallbackInternal,
+            "default",
+            "1.2.3.4",
+            || {
+                fallback_called.set(true);
+                true
+            },
+        );
+        assert_eq!(banned, BanLookupResult::Banned);
         assert!(fallback_called.get());
         assert_eq!(backend.is_banned_calls.get(), 1);
+    }
+
+    #[test]
+    fn distributed_ban_lookup_returns_unavailable_without_fallback_in_strict_modes() {
+        let fallback_called = Cell::new(false);
+        let banned = is_banned_with_backend(
+            None::<&MockDistributedBanStore>,
+            crate::config::BanStoreOutageMode::FailClosed,
+            "default",
+            "1.2.3.4",
+            || {
+                fallback_called.set(true);
+                true
+            },
+        );
+        assert_eq!(banned, BanLookupResult::Unavailable);
+        assert!(!fallback_called.get());
     }
 
     #[test]
@@ -1583,18 +1650,28 @@ mod tests {
         let backend =
             MockDistributedBanStore::with_results(Ok(false), Ok(entries.clone()), Ok(()), Ok(()));
         let fallback_called = Cell::new(false);
-        let bans = list_active_bans_with_backend(Some(&backend), "default", || {
-            fallback_called.set(true);
-            Vec::new()
-        });
-        assert_eq!(bans.len(), 1);
-        assert_eq!(bans[0].0, "1.2.3.4");
+        let bans = list_active_bans_with_backend(
+            Some(&backend),
+            crate::config::BanStoreOutageMode::FallbackInternal,
+            "default",
+            || {
+                fallback_called.set(true);
+                Vec::new()
+            },
+        );
+        match bans {
+            BanListResult::Available(bans) => {
+                assert_eq!(bans.len(), 1);
+                assert_eq!(bans[0].0, entries[0].0);
+            }
+            BanListResult::Unavailable => panic!("expected available bans"),
+        }
         assert!(!fallback_called.get());
         assert_eq!(backend.list_calls.get(), 1);
     }
 
     #[test]
-    fn distributed_ban_listing_falls_back_when_backend_errors() {
+    fn distributed_ban_listing_returns_unavailable_without_fallback_in_strict_modes() {
         let backend = MockDistributedBanStore::with_results(
             Ok(false),
             Err("backend unavailable".to_string()),
@@ -1602,21 +1679,25 @@ mod tests {
             Ok(()),
         );
         let fallback_called = Cell::new(false);
-        let bans = list_active_bans_with_backend(Some(&backend), "default", || {
-            fallback_called.set(true);
-            vec![(
-                "2.3.4.5".to_string(),
-                crate::enforcement::ban::BanEntry {
-                    reason: "fallback".to_string(),
-                    expires: 999_999,
-                    banned_at: 1,
-                    fingerprint: None,
-                },
-            )]
-        });
-        assert_eq!(bans.len(), 1);
-        assert_eq!(bans[0].0, "2.3.4.5");
-        assert!(fallback_called.get());
+        let bans = list_active_bans_with_backend(
+            Some(&backend),
+            crate::config::BanStoreOutageMode::FailOpen,
+            "default",
+            || {
+                fallback_called.set(true);
+                vec![(
+                    "2.3.4.5".to_string(),
+                    crate::enforcement::ban::BanEntry {
+                        reason: "fallback".to_string(),
+                        expires: 999_999,
+                        banned_at: 1,
+                        fingerprint: None,
+                    },
+                )]
+            },
+        );
+        assert!(matches!(bans, BanListResult::Unavailable));
+        assert!(!fallback_called.get());
         assert_eq!(backend.list_calls.get(), 1);
     }
 
@@ -1625,8 +1706,9 @@ mod tests {
         let backend =
             MockDistributedBanStore::with_results(Ok(false), Ok(Vec::new()), Ok(()), Ok(()));
         let fallback_called = Cell::new(false);
-        ban_with_backend(
+        let outcome = ban_with_backend(
             Some(&backend),
+            crate::config::BanStoreOutageMode::FallbackInternal,
             "default",
             "1.2.3.4",
             "test",
@@ -1634,12 +1716,13 @@ mod tests {
             None,
             || fallback_called.set(true),
         );
+        assert_eq!(outcome, BanSyncResult::Synced);
         assert!(!fallback_called.get());
         assert_eq!(backend.ban_calls.get(), 1);
     }
 
     #[test]
-    fn distributed_ban_write_falls_back_when_backend_errors() {
+    fn distributed_ban_write_returns_deferred_when_fallback_internal_is_used() {
         let backend = MockDistributedBanStore::with_results(
             Ok(false),
             Ok(Vec::new()),
@@ -1647,8 +1730,9 @@ mod tests {
             Ok(()),
         );
         let fallback_called = Cell::new(false);
-        ban_with_backend(
+        let outcome = ban_with_backend(
             Some(&backend),
+            crate::config::BanStoreOutageMode::FallbackInternal,
             "default",
             "1.2.3.4",
             "test",
@@ -1656,8 +1740,26 @@ mod tests {
             None,
             || fallback_called.set(true),
         );
+        assert_eq!(outcome, BanSyncResult::Deferred);
         assert!(fallback_called.get());
         assert_eq!(backend.ban_calls.get(), 1);
+    }
+
+    #[test]
+    fn distributed_ban_write_returns_failed_without_local_fallback_in_strict_modes() {
+        let fallback_called = Cell::new(false);
+        let outcome = ban_with_backend(
+            None::<&MockDistributedBanStore>,
+            crate::config::BanStoreOutageMode::FailClosed,
+            "default",
+            "1.2.3.4",
+            "test",
+            60,
+            None,
+            || fallback_called.set(true),
+        );
+        assert_eq!(outcome, BanSyncResult::Failed);
+        assert!(!fallback_called.get());
     }
 
     #[test]
@@ -1665,15 +1767,20 @@ mod tests {
         let backend =
             MockDistributedBanStore::with_results(Ok(false), Ok(Vec::new()), Ok(()), Ok(()));
         let fallback_called = Cell::new(false);
-        unban_with_backend(Some(&backend), "default", "1.2.3.4", || {
-            fallback_called.set(true)
-        });
+        let outcome = unban_with_backend(
+            Some(&backend),
+            crate::config::BanStoreOutageMode::FallbackInternal,
+            "default",
+            "1.2.3.4",
+            || fallback_called.set(true),
+        );
+        assert_eq!(outcome, BanSyncResult::Synced);
         assert!(!fallback_called.get());
         assert_eq!(backend.unban_calls.get(), 1);
     }
 
     #[test]
-    fn distributed_unban_falls_back_when_backend_errors() {
+    fn distributed_unban_returns_failed_without_local_fallback_in_strict_modes() {
         let backend = MockDistributedBanStore::with_results(
             Ok(false),
             Ok(Vec::new()),
@@ -1681,10 +1788,15 @@ mod tests {
             Err("backend unavailable".to_string()),
         );
         let fallback_called = Cell::new(false);
-        unban_with_backend(Some(&backend), "default", "1.2.3.4", || {
-            fallback_called.set(true)
-        });
-        assert!(fallback_called.get());
+        let outcome = unban_with_backend(
+            Some(&backend),
+            crate::config::BanStoreOutageMode::FailOpen,
+            "default",
+            "1.2.3.4",
+            || fallback_called.set(true),
+        );
+        assert_eq!(outcome, BanSyncResult::Failed);
+        assert!(!fallback_called.get());
         assert_eq!(backend.unban_calls.get(), 1);
     }
 }

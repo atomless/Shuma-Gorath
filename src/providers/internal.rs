@@ -198,16 +198,27 @@ impl RateLimiterProvider for InternalRateLimiterProvider {
 }
 
 impl BanStoreProvider for InternalBanStoreProvider {
-    fn is_banned(&self, store: &Store, site_id: &str, ip: &str) -> bool {
-        crate::enforcement::ban::is_banned(store, site_id, ip)
+    fn is_banned(
+        &self,
+        store: &Store,
+        site_id: &str,
+        ip: &str,
+    ) -> crate::providers::contracts::BanLookupResult {
+        if crate::enforcement::ban::is_banned(store, site_id, ip) {
+            crate::providers::contracts::BanLookupResult::Banned
+        } else {
+            crate::providers::contracts::BanLookupResult::NotBanned
+        }
     }
 
     fn list_active_bans(
         &self,
         store: &Store,
         site_id: &str,
-    ) -> Vec<(String, crate::enforcement::ban::BanEntry)> {
-        crate::enforcement::ban::list_active_bans_with_scan(store, site_id)
+    ) -> crate::providers::contracts::BanListResult {
+        crate::providers::contracts::BanListResult::Available(
+            crate::enforcement::ban::list_active_bans_with_scan(store, site_id),
+        )
     }
 
     fn ban_ip_with_fingerprint(
@@ -218,7 +229,7 @@ impl BanStoreProvider for InternalBanStoreProvider {
         reason: &str,
         duration_secs: u64,
         fingerprint: Option<crate::enforcement::ban::BanFingerprint>,
-    ) {
+    ) -> crate::providers::contracts::BanSyncResult {
         crate::enforcement::ban::ban_ip_with_fingerprint(
             store,
             site_id,
@@ -227,10 +238,17 @@ impl BanStoreProvider for InternalBanStoreProvider {
             duration_secs,
             fingerprint,
         );
+        crate::providers::contracts::BanSyncResult::Deferred
     }
 
-    fn unban_ip(&self, store: &Store, site_id: &str, ip: &str) {
+    fn unban_ip(
+        &self,
+        store: &Store,
+        site_id: &str,
+        ip: &str,
+    ) -> crate::providers::contracts::BanSyncResult {
         crate::enforcement::ban::unban_ip(store, site_id, ip);
+        crate::providers::contracts::BanSyncResult::Deferred
     }
 }
 

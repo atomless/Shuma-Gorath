@@ -98,7 +98,6 @@ Reference plan:
 - [`docs/research/2026-03-21-dep-ent-1-strict-enterprise-ban-sync-readiness-review.md`](../docs/research/2026-03-21-dep-ent-1-strict-enterprise-ban-sync-readiness-review.md)
 - [`docs/plans/2026-03-21-dep-ent-1-strict-enterprise-ban-sync-implementation-plan.md`](../docs/plans/2026-03-21-dep-ent-1-strict-enterprise-ban-sync-implementation-plan.md)
 
-- [ ] DEP-ENT-1-2 Extend the ban-store provider contract so reads and writes report truthful synced/deferred/failed or available/unavailable outcomes instead of silently collapsing every backend failure into internal fallback.
 - [ ] DEP-ENT-1-3 Remove silent local-only divergence from runtime and admin ban paths under strict outage posture, including manual ban/unban failure handling and strict runtime ban-check behavior.
 - [ ] DEP-ENT-1-4 Add a focused truthful `make` verification target for the strict enterprise ban-store contract and refresh operator/deployment/module-boundary docs to describe the settled posture.
 - [ ] DEP-ENT-2 Add ban-sync observability (<abbr title="Service Level Objective">SLO</abbr> metrics for sync result and lag) to support promotion and rollback decisions.

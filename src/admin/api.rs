@@ -18673,10 +18673,14 @@ pub fn handle_admin(req: &Request) -> Response {
             }
             // GET: List all bans for this site (keys starting with ban:site_id:)
             let mut bans = vec![];
-            for (ip, ban) in provider_registry
+            let active_bans = match provider_registry
                 .ban_store_provider()
                 .list_active_bans(&store, site_id)
             {
+                crate::providers::contracts::BanListResult::Available(bans) => bans,
+                crate::providers::contracts::BanListResult::Unavailable => Vec::new(),
+            };
+            for (ip, ban) in active_bans {
                 bans.push(json!({
                     "ip": ip,
                     "reason": ban.reason,
@@ -18709,7 +18713,7 @@ pub fn handle_admin(req: &Request) -> Response {
                 Err(err) => return Response::new(500, err.user_message()),
             };
             let provider_registry = crate::providers::registry::ProviderRegistry::from_config(&cfg);
-            provider_registry
+            let _ = provider_registry
                 .ban_store_provider()
                 .unban_ip(&store, site_id, ip.as_str());
             // Log unban event
