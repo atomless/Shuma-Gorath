@@ -74,7 +74,10 @@ fn clear_gateway_env() {
 }
 
 fn set_gateway_env_baseline() {
-    std::env::set_var("SHUMA_GATEWAY_UPSTREAM_ORIGIN", "https://origin.example.com");
+    std::env::set_var(
+        "SHUMA_GATEWAY_UPSTREAM_ORIGIN",
+        "https://origin.example.com",
+    );
     std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "shared-server");
     std::env::set_var("SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL", "false");
     std::env::set_var("SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_SPECIAL_USE_IPS", "false");
@@ -207,7 +210,10 @@ fn parse_ip_range_policy_action_accepts_expected_values() {
         parse_ip_range_policy_action("honeypot"),
         Some(IpRangePolicyAction::Honeypot)
     );
-    assert_eq!(parse_ip_range_policy_action("maze"), Some(IpRangePolicyAction::Maze));
+    assert_eq!(
+        parse_ip_range_policy_action("maze"),
+        Some(IpRangePolicyAction::Maze)
+    );
     assert_eq!(
         parse_ip_range_policy_action("tarpit"),
         Some(IpRangePolicyAction::Tarpit)
@@ -342,6 +348,33 @@ fn parse_rate_limiter_outage_mode_accepts_expected_values() {
     );
     assert_eq!(RateLimiterOutageMode::FailOpen.as_str(), "fail_open");
     assert_eq!(RateLimiterOutageMode::FailClosed.as_str(), "fail_closed");
+}
+
+#[test]
+fn parse_ban_store_outage_mode_accepts_expected_values() {
+    assert_eq!(
+        parse_ban_store_outage_mode("fallback_internal"),
+        Some(BanStoreOutageMode::FallbackInternal)
+    );
+    assert_eq!(
+        parse_ban_store_outage_mode("fail_open"),
+        Some(BanStoreOutageMode::FailOpen)
+    );
+    assert_eq!(
+        parse_ban_store_outage_mode("fail_closed"),
+        Some(BanStoreOutageMode::FailClosed)
+    );
+    assert_eq!(
+        parse_ban_store_outage_mode("  FAIL_CLOSED "),
+        Some(BanStoreOutageMode::FailClosed)
+    );
+    assert_eq!(parse_ban_store_outage_mode("invalid"), None);
+    assert_eq!(
+        BanStoreOutageMode::FallbackInternal.as_str(),
+        "fallback_internal"
+    );
+    assert_eq!(BanStoreOutageMode::FailOpen.as_str(), "fail_open");
+    assert_eq!(BanStoreOutageMode::FailClosed.as_str(), "fail_closed");
 }
 
 #[test]
@@ -490,6 +523,7 @@ fn enterprise_state_guardrail_errors_without_exception_for_unsynced_multi_instan
         "SHUMA_BAN_STORE_REDIS_URL",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
+        "SHUMA_BAN_STORE_OUTAGE_MODE",
     ]);
     std::env::set_var("SHUMA_ENTERPRISE_MULTI_INSTANCE", "true");
 
@@ -508,6 +542,7 @@ fn enterprise_state_guardrail_errors_without_exception_for_unsynced_multi_instan
         "SHUMA_BAN_STORE_REDIS_URL",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
+        "SHUMA_BAN_STORE_OUTAGE_MODE",
     ]);
 }
 
@@ -521,6 +556,7 @@ fn enterprise_state_guardrail_warns_for_exceptioned_additive_unsynced_posture() 
         "SHUMA_BAN_STORE_REDIS_URL",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
+        "SHUMA_BAN_STORE_OUTAGE_MODE",
     ]);
     std::env::set_var("SHUMA_ENTERPRISE_MULTI_INSTANCE", "true");
     std::env::set_var(
@@ -542,6 +578,7 @@ fn enterprise_state_guardrail_warns_for_exceptioned_additive_unsynced_posture() 
         "SHUMA_BAN_STORE_REDIS_URL",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
+        "SHUMA_BAN_STORE_OUTAGE_MODE",
     ]);
 }
 
@@ -555,6 +592,7 @@ fn enterprise_state_guardrail_errors_for_authoritative_unsynced_posture_even_wit
         "SHUMA_BAN_STORE_REDIS_URL",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
+        "SHUMA_BAN_STORE_OUTAGE_MODE",
     ]);
     std::env::set_var("SHUMA_ENTERPRISE_MULTI_INSTANCE", "true");
     std::env::set_var(
@@ -576,6 +614,7 @@ fn enterprise_state_guardrail_errors_for_authoritative_unsynced_posture_even_wit
         "SHUMA_BAN_STORE_REDIS_URL",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
+        "SHUMA_BAN_STORE_OUTAGE_MODE",
     ]);
 }
 
@@ -589,10 +628,12 @@ fn enterprise_state_guardrail_is_clear_for_synced_multi_instance_posture() {
         "SHUMA_BAN_STORE_REDIS_URL",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
+        "SHUMA_BAN_STORE_OUTAGE_MODE",
     ]);
     std::env::set_var("SHUMA_ENTERPRISE_MULTI_INSTANCE", "true");
     std::env::set_var("SHUMA_RATE_LIMITER_REDIS_URL", "redis://redis:6379");
     std::env::set_var("SHUMA_BAN_STORE_REDIS_URL", "redis://redis:6379");
+    std::env::set_var("SHUMA_BAN_STORE_OUTAGE_MODE", "fail_closed");
 
     let mut cfg = defaults().clone();
     cfg.provider_backends.rate_limiter = ProviderBackend::External;
@@ -608,6 +649,7 @@ fn enterprise_state_guardrail_is_clear_for_synced_multi_instance_posture() {
         "SHUMA_BAN_STORE_REDIS_URL",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
+        "SHUMA_BAN_STORE_OUTAGE_MODE",
     ]);
 }
 
@@ -621,6 +663,7 @@ fn enterprise_state_guardrail_requires_redis_url_for_external_rate_limiter() {
         "SHUMA_BAN_STORE_REDIS_URL",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
+        "SHUMA_BAN_STORE_OUTAGE_MODE",
     ]);
     std::env::set_var("SHUMA_ENTERPRISE_MULTI_INSTANCE", "true");
     std::env::set_var(
@@ -643,6 +686,7 @@ fn enterprise_state_guardrail_requires_redis_url_for_external_rate_limiter() {
         "SHUMA_BAN_STORE_REDIS_URL",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
+        "SHUMA_BAN_STORE_OUTAGE_MODE",
     ]);
 }
 
@@ -656,6 +700,7 @@ fn enterprise_state_guardrail_requires_redis_url_for_external_ban_store() {
         "SHUMA_BAN_STORE_REDIS_URL",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
+        "SHUMA_BAN_STORE_OUTAGE_MODE",
     ]);
     std::env::set_var("SHUMA_ENTERPRISE_MULTI_INSTANCE", "true");
     std::env::set_var(
@@ -678,6 +723,47 @@ fn enterprise_state_guardrail_requires_redis_url_for_external_ban_store() {
         "SHUMA_BAN_STORE_REDIS_URL",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
+        "SHUMA_BAN_STORE_OUTAGE_MODE",
+    ]);
+}
+
+#[test]
+fn enterprise_state_guardrail_requires_fail_closed_ban_store_outage_mode_for_authoritative_enterprise(
+) {
+    let _lock = crate::test_support::lock_env();
+    clear_env(&[
+        "SHUMA_ENTERPRISE_MULTI_INSTANCE",
+        "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
+        "SHUMA_RATE_LIMITER_REDIS_URL",
+        "SHUMA_BAN_STORE_REDIS_URL",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
+        "SHUMA_BAN_STORE_OUTAGE_MODE",
+    ]);
+    std::env::set_var("SHUMA_ENTERPRISE_MULTI_INSTANCE", "true");
+    std::env::set_var("SHUMA_RATE_LIMITER_REDIS_URL", "redis://redis:6379");
+    std::env::set_var("SHUMA_BAN_STORE_REDIS_URL", "redis://redis:6379");
+    std::env::set_var("SHUMA_BAN_STORE_OUTAGE_MODE", "fallback_internal");
+
+    let mut cfg = defaults().clone();
+    cfg.provider_backends.rate_limiter = ProviderBackend::External;
+    cfg.provider_backends.ban_store = ProviderBackend::External;
+    cfg.edge_integration_mode = EdgeIntegrationMode::Authoritative;
+
+    let error = cfg.enterprise_state_guardrail_error();
+    assert!(error.is_some());
+    assert!(error
+        .unwrap()
+        .contains("SHUMA_BAN_STORE_OUTAGE_MODE=fail_closed"));
+
+    clear_env(&[
+        "SHUMA_ENTERPRISE_MULTI_INSTANCE",
+        "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
+        "SHUMA_RATE_LIMITER_REDIS_URL",
+        "SHUMA_BAN_STORE_REDIS_URL",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
+        "SHUMA_BAN_STORE_OUTAGE_MODE",
     ]);
 }
 
@@ -994,7 +1080,10 @@ fn validate_env_rejects_frontier_model_id_with_whitespace() {
 
     let result = validate_env_only_once();
     assert!(result.is_err());
-    assert!(result.err().unwrap().contains("SHUMA_FRONTIER_OPENAI_MODEL"));
+    assert!(result
+        .err()
+        .unwrap()
+        .contains("SHUMA_FRONTIER_OPENAI_MODEL"));
 
     clear_env(&[
         "SHUMA_VALIDATE_ENV_IN_TESTS",
@@ -1067,6 +1156,7 @@ fn validate_env_rejects_invalid_optional_enterprise_bool() {
         "SHUMA_BAN_STORE_REDIS_URL",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
+        "SHUMA_BAN_STORE_OUTAGE_MODE",
     ]);
 }
 
@@ -1090,6 +1180,7 @@ fn validate_env_rejects_invalid_optional_redis_url() {
         "SHUMA_BAN_STORE_REDIS_URL",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
+        "SHUMA_BAN_STORE_OUTAGE_MODE",
     ]);
 
     std::env::set_var("SHUMA_VALIDATE_ENV_IN_TESTS", "true");
@@ -1126,6 +1217,7 @@ fn validate_env_rejects_invalid_optional_redis_url() {
         "SHUMA_BAN_STORE_REDIS_URL",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
+        "SHUMA_BAN_STORE_OUTAGE_MODE",
     ]);
 }
 
@@ -1149,6 +1241,7 @@ fn validate_env_rejects_invalid_optional_ban_store_redis_url() {
         "SHUMA_BAN_STORE_REDIS_URL",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
+        "SHUMA_BAN_STORE_OUTAGE_MODE",
     ]);
 
     std::env::set_var("SHUMA_VALIDATE_ENV_IN_TESTS", "true");
@@ -1182,6 +1275,68 @@ fn validate_env_rejects_invalid_optional_ban_store_redis_url() {
         "SHUMA_BAN_STORE_REDIS_URL",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
+        "SHUMA_BAN_STORE_OUTAGE_MODE",
+    ]);
+}
+
+#[test]
+fn validate_env_rejects_invalid_optional_ban_store_outage_mode() {
+    let _lock = crate::test_support::lock_env();
+    clear_gateway_env();
+    clear_env(&[
+        "SHUMA_VALIDATE_ENV_IN_TESTS",
+        "SHUMA_API_KEY",
+        "SHUMA_JS_SECRET",
+        "SHUMA_FORWARDED_IP_SECRET",
+        "SHUMA_EVENT_LOG_RETENTION_HOURS",
+        "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
+        "SHUMA_KV_STORE_FAIL_OPEN",
+        "SHUMA_ENFORCE_HTTPS",
+        "SHUMA_DEBUG_HEADERS",
+        "SHUMA_ENTERPRISE_MULTI_INSTANCE",
+        "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
+        "SHUMA_RATE_LIMITER_REDIS_URL",
+        "SHUMA_BAN_STORE_REDIS_URL",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
+        "SHUMA_BAN_STORE_OUTAGE_MODE",
+    ]);
+
+    std::env::set_var("SHUMA_VALIDATE_ENV_IN_TESTS", "true");
+    std::env::set_var("SHUMA_API_KEY", "test-admin-key");
+    std::env::set_var("SHUMA_JS_SECRET", "test-js-secret");
+    std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+    std::env::set_var("SHUMA_EVENT_LOG_RETENTION_HOURS", "168");
+    std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "false");
+    std::env::set_var("SHUMA_KV_STORE_FAIL_OPEN", "true");
+    std::env::set_var("SHUMA_ENFORCE_HTTPS", "false");
+    std::env::set_var("SHUMA_DEBUG_HEADERS", "false");
+    std::env::set_var("SHUMA_BAN_STORE_OUTAGE_MODE", "invalid-mode");
+
+    let result = validate_env_only_once();
+    assert!(result.is_err());
+    assert!(result
+        .err()
+        .unwrap()
+        .contains("SHUMA_BAN_STORE_OUTAGE_MODE"));
+
+    clear_env(&[
+        "SHUMA_VALIDATE_ENV_IN_TESTS",
+        "SHUMA_API_KEY",
+        "SHUMA_JS_SECRET",
+        "SHUMA_FORWARDED_IP_SECRET",
+        "SHUMA_EVENT_LOG_RETENTION_HOURS",
+        "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
+        "SHUMA_KV_STORE_FAIL_OPEN",
+        "SHUMA_ENFORCE_HTTPS",
+        "SHUMA_DEBUG_HEADERS",
+        "SHUMA_ENTERPRISE_MULTI_INSTANCE",
+        "SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED",
+        "SHUMA_RATE_LIMITER_REDIS_URL",
+        "SHUMA_BAN_STORE_REDIS_URL",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
+        "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
+        "SHUMA_BAN_STORE_OUTAGE_MODE",
     ]);
 }
 
@@ -1205,6 +1360,7 @@ fn validate_env_rejects_invalid_optional_rate_limiter_outage_mode() {
         "SHUMA_BAN_STORE_REDIS_URL",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
+        "SHUMA_BAN_STORE_OUTAGE_MODE",
     ]);
 
     std::env::set_var("SHUMA_VALIDATE_ENV_IN_TESTS", "true");
@@ -1241,6 +1397,7 @@ fn validate_env_rejects_invalid_optional_rate_limiter_outage_mode() {
         "SHUMA_BAN_STORE_REDIS_URL",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
+        "SHUMA_BAN_STORE_OUTAGE_MODE",
     ]);
 }
 
@@ -1264,6 +1421,7 @@ fn validate_env_accepts_empty_optional_redis_url() {
         "SHUMA_BAN_STORE_REDIS_URL",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN",
         "SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH",
+        "SHUMA_BAN_STORE_OUTAGE_MODE",
     ]);
 
     std::env::set_var("SHUMA_VALIDATE_ENV_IN_TESTS", "true");
@@ -1491,7 +1649,10 @@ fn validate_env_rejects_edge_profile_without_signed_header_origin_auth() {
 
     let result = validate_env_only_once();
     assert!(result.is_err());
-    assert!(result.err().unwrap().contains("requires SHUMA_GATEWAY_ORIGIN_AUTH_MODE=signed_header"));
+    assert!(result
+        .err()
+        .unwrap()
+        .contains("requires SHUMA_GATEWAY_ORIGIN_AUTH_MODE=signed_header"));
 
     clear_gateway_env();
     clear_env(&[
@@ -1538,7 +1699,10 @@ fn validate_env_rejects_gateway_public_authority_loop_collision() {
     std::env::set_var("SHUMA_DEBUG_HEADERS", "false");
     std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-prod");
     set_gateway_env_baseline();
-    std::env::set_var("SHUMA_GATEWAY_UPSTREAM_ORIGIN", "https://origin.example.com");
+    std::env::set_var(
+        "SHUMA_GATEWAY_UPSTREAM_ORIGIN",
+        "https://origin.example.com",
+    );
     std::env::set_var("SHUMA_GATEWAY_PUBLIC_AUTHORITIES", "origin.example.com:443");
 
     let result = validate_env_only_once();
@@ -1649,8 +1813,14 @@ fn validate_env_accepts_edge_profile_with_signed_header_origin_auth_contract() {
     std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "edge-fermyon");
     std::env::set_var("SHUMA_GATEWAY_ORIGIN_AUTH_MODE", "signed_header");
     std::env::set_var("SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_NAME", "x-origin-auth");
-    std::env::set_var("SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE", "edge-shared-secret");
-    std::env::set_var("SHUMA_GATEWAY_UPSTREAM_ORIGIN", "https://origin.example.com:443");
+    std::env::set_var(
+        "SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE",
+        "edge-shared-secret",
+    );
+    std::env::set_var(
+        "SHUMA_GATEWAY_UPSTREAM_ORIGIN",
+        "https://origin.example.com:443",
+    );
 
     let result = validate_env_only_once();
     assert!(result.is_ok());
@@ -1703,8 +1873,14 @@ fn validate_env_rejects_edge_profile_without_adversary_sim_edge_cron_secret() {
     std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "edge-fermyon");
     std::env::set_var("SHUMA_GATEWAY_ORIGIN_AUTH_MODE", "signed_header");
     std::env::set_var("SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_NAME", "x-origin-auth");
-    std::env::set_var("SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE", "edge-shared-secret");
-    std::env::set_var("SHUMA_GATEWAY_UPSTREAM_ORIGIN", "https://origin.example.com:443");
+    std::env::set_var(
+        "SHUMA_GATEWAY_ORIGIN_AUTH_HEADER_VALUE",
+        "edge-shared-secret",
+    );
+    std::env::set_var(
+        "SHUMA_GATEWAY_UPSTREAM_ORIGIN",
+        "https://origin.example.com:443",
+    );
 
     let result = validate_env_only_once();
     assert!(result.is_err());
@@ -1843,7 +2019,10 @@ fn load_config_defaults_honeypot_enabled_when_key_missing() {
         .expect("config json object")
         .remove("honeypot_enabled");
     store
-        .set("config:default", &serde_json::to_vec(&kv_cfg_value).unwrap())
+        .set(
+            "config:default",
+            &serde_json::to_vec(&kv_cfg_value).unwrap(),
+        )
         .unwrap();
 
     let cfg = Config::load(&store, "default").unwrap();
@@ -2016,7 +2195,10 @@ fn validate_env_only_accepts_spin_variables_in_tests() {
 
     std::env::remove_var("SHUMA_VALIDATE_ENV_IN_TESTS");
     clear_test_spin_variables();
-    assert!(result.is_ok(), "expected spin variables to satisfy env validation, got {result:?}");
+    assert!(
+        result.is_ok(),
+        "expected spin variables to satisfy env validation, got {result:?}"
+    );
 }
 
 #[test]
@@ -2083,7 +2265,10 @@ fn env_u64_defaulted_uses_defaults_when_env_is_missing() {
 
     assert_eq!(env_u64_defaulted("SHUMA_EVENT_LOG_RETENTION_HOURS"), 168);
     assert_eq!(env_u64_defaulted("SHUMA_MONITORING_RETENTION_HOURS"), 168);
-    assert_eq!(env_u64_defaulted("SHUMA_MONITORING_ROLLUP_RETENTION_HOURS"), 720);
+    assert_eq!(
+        env_u64_defaulted("SHUMA_MONITORING_ROLLUP_RETENTION_HOURS"),
+        720
+    );
 }
 
 #[test]
@@ -2106,9 +2291,18 @@ fn default_seeded_config_matches_defaults_snapshot() {
 
     assert_eq!(cfg.rate_limit, defaults_cfg.rate_limit);
     assert_eq!(cfg.js_required_enforced, defaults_cfg.js_required_enforced);
-    assert_eq!(cfg.challenge_puzzle_enabled, defaults_cfg.challenge_puzzle_enabled);
+    assert_eq!(
+        cfg.challenge_puzzle_enabled,
+        defaults_cfg.challenge_puzzle_enabled
+    );
     assert_eq!(cfg.not_a_bot_enabled, defaults_cfg.not_a_bot_enabled);
     assert_eq!(cfg.maze_enabled, defaults_cfg.maze_enabled);
-    assert_eq!(cfg.provider_backends.rate_limiter, defaults_cfg.provider_backends.rate_limiter);
-    assert_eq!(cfg.edge_integration_mode, defaults_cfg.edge_integration_mode);
+    assert_eq!(
+        cfg.provider_backends.rate_limiter,
+        defaults_cfg.provider_backends.rate_limiter
+    );
+    assert_eq!(
+        cfg.edge_integration_mode,
+        defaults_cfg.edge_integration_mode
+    );
 }

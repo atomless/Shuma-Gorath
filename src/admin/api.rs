@@ -11725,6 +11725,10 @@ fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(String, String
                 .to_string(),
         ),
         (
+            "SHUMA_BAN_STORE_OUTAGE_MODE".to_string(),
+            crate::config::ban_store_outage_mode().as_str().to_string(),
+        ),
+        (
             "SHUMA_GATEWAY_UPSTREAM_ORIGIN".to_string(),
             crate::config::gateway_upstream_origin().unwrap_or_default(),
         ),

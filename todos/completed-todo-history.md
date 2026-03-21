@@ -4,6 +4,26 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-21)
 
+### DEP-ENT-1-1: Ban-Store Outage Contract And Authoritative Guardrail
+
+- [x] Added the env-only `SHUMA_BAN_STORE_OUTAGE_MODE` contract, wired it through defaults/setup/runtime export/deploy env plumbing, required `fail_closed` for authoritative enterprise when `ban_store=external`, updated the ban-store provider implementation label to stop claiming unconditional fallback, and added the focused `make test-enterprise-ban-store-contract` gate.
+- [x] Why:
+  - the open enterprise security finding was not blocked on a new distributed-state subsystem; it was blocked on the absence of an explicit ban-store outage contract. Shuma already had this level of truth for the distributed rate limiter, but not for the ban store.
+  - the clean first slice was therefore configuration and guardrails, not provider rewrites. That let the repo settle the operator/deployer contract and the runtime strictness requirement before touching the deeper read/write semantics.
+  - the closeout review confirmed the slice stayed properly scoped: it made the authoritative enterprise requirement explicit and testable without prematurely bundling the later provider, runtime, and admin degraded-state work from `DEP-ENT-1-2`.
+- [x] Evidence:
+  - `src/config/mod.rs`
+  - `src/config/tests.rs`
+  - `src/providers/registry.rs`
+  - `src/admin/api.rs`
+  - `config/defaults.env`
+  - `scripts/bootstrap/setup.sh`
+  - `Makefile`
+  - `docs/research/2026-03-21-dep-ent-1-1-ban-store-outage-contract-post-implementation-review.md`
+  - `make test-enterprise-ban-store-contract`
+  - `git diff --check`
+  - post-tranche review: no new tranche-local shortfall was found inside `DEP-ENT-1-1`; the next optimal work remains `DEP-ENT-1-2`, which should make the provider read/write semantics truthful under the new outage contract.
+
 ### DEP-ENT-1: Capture Strict Enterprise Ban-Sync Readiness And Execution Plan
 
 - [x] Refreshed the enterprise distributed-state planning chain by writing a readiness review for the current ban-store outage-drift gap, converting it into an execution-ready `DEP-ENT-1` implementation plan, and breaking the backlog item into atomic `DEP-ENT-1-1..4` slices so the strictness work can land in small verified tranches.

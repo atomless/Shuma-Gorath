@@ -58,7 +58,7 @@ impl ProviderRegistry {
                 "external_redis_with_internal_fallback"
             }
             (ProviderCapability::BanStore, ProviderBackend::External) => {
-                "external_redis_with_internal_fallback"
+                "external_redis_with_explicit_outage_posture"
             }
             (ProviderCapability::FingerprintSignal, ProviderBackend::External) => {
                 "external_akamai_with_internal_fallback"
@@ -309,7 +309,7 @@ mod tests {
         );
         assert_eq!(
             registry.implementation_for(ProviderCapability::BanStore),
-            "external_redis_with_internal_fallback"
+            "external_redis_with_explicit_outage_posture"
         );
     }
 }

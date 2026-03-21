@@ -1,4 +1,4 @@
-.PHONY: dev dev-prod local run run-prebuilt build build-runtime build-full-dev prod prod-start clean reset-local-state test test-unit unit-test test-integration integration-test test-gateway-harness test-gateway-wasm-tls-harness test-gateway-origin-bypass-probe test-gateway-profile-shared-server test-gateway-profile-edge smoke-gateway-mode test-deploy-linode test-deploy-fermyon test-scrapling-deploy-shared-host test-config-lifecycle test-js-verification-unit test-runtime-preflight-unit test-runtime-preflight test-shadow-mode test-telemetry-storage test-telemetry-hot-read-contract test-telemetry-hot-read-projection test-telemetry-hot-read-bootstrap test-telemetry-hot-read-evidence test-telemetry-hot-read-live-evidence test-monitoring-telemetry-contract test-monitoring-telemetry-foundation-unit test-operator-snapshot-foundation test-benchmark-suite-contract test-benchmark-results-contract telemetry-shared-host-evidence telemetry-fermyon-edge-evidence test-adversarial-python-unit test-adversarial-manifest test-adversarial-preflight test-adversarial-lane-contract test-shared-host-scope-contract test-shared-host-seed-contract build-shared-host-seed-inventory prepare-scrapling-deploy test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-scenario-review test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live test-remote-edge-signal-smoke test-fermyon-edge-signal-smoke telemetry-clean adversary-sim-supervisor-build adversary-sim-supervisor test-adversary-sim-runtime-surface test-adversary-sim-scrapling-worker test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-report-diff test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-frontier-unavailability-policy-unit test-sim2-realtime-bench test-sim2-adr-conformance test-sim2-ci-diagnostics test-sim2-verification-matrix test-sim2-verification-matrix-advisory test-sim2-operational-regressions test-sim2-operational-regressions-strict test-sim2-governance-contract test-sim2-verification-e2e test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-adversary-sim-lane-contract test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e test-dashboard-e2e-adversary-sim test-dashboard-e2e-external seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host prepare-linode-shared-host prepare-fermyon-akamai-edge remote-use remote-update remote-start remote-stop remote-status remote-logs remote-open-dashboard deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai deploy-linode-one-shot deploy-fermyon-akamai-edge logs status stop help setup setup-runtime verify verify-runtime config-seed config-verify dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
+.PHONY: dev dev-prod local run run-prebuilt build build-runtime build-full-dev prod prod-start clean reset-local-state test test-unit unit-test test-integration integration-test test-gateway-harness test-gateway-wasm-tls-harness test-gateway-origin-bypass-probe test-gateway-profile-shared-server test-gateway-profile-edge smoke-gateway-mode test-deploy-linode test-deploy-fermyon test-scrapling-deploy-shared-host test-config-lifecycle test-js-verification-unit test-runtime-preflight-unit test-runtime-preflight test-shadow-mode test-enterprise-ban-store-contract test-telemetry-storage test-telemetry-hot-read-contract test-telemetry-hot-read-projection test-telemetry-hot-read-bootstrap test-telemetry-hot-read-evidence test-telemetry-hot-read-live-evidence test-monitoring-telemetry-contract test-monitoring-telemetry-foundation-unit test-operator-snapshot-foundation test-benchmark-suite-contract test-benchmark-results-contract telemetry-shared-host-evidence telemetry-fermyon-edge-evidence test-adversarial-python-unit test-adversarial-manifest test-adversarial-preflight test-adversarial-lane-contract test-shared-host-scope-contract test-shared-host-seed-contract build-shared-host-seed-inventory prepare-scrapling-deploy test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-scenario-review test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live test-remote-edge-signal-smoke test-fermyon-edge-signal-smoke telemetry-clean adversary-sim-supervisor-build adversary-sim-supervisor test-adversary-sim-runtime-surface test-adversary-sim-scrapling-worker test-adversarial-repeatability test-adversarial-promote-candidates test-adversarial-report-diff test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-frontier-unavailability-policy-unit test-sim2-realtime-bench test-sim2-adr-conformance test-sim2-ci-diagnostics test-sim2-verification-matrix test-sim2-verification-matrix-advisory test-sim2-operational-regressions test-sim2-operational-regressions-strict test-sim2-governance-contract test-sim2-verification-e2e test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-adversary-sim-lane-contract test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e test-dashboard-e2e-adversary-sim test-dashboard-e2e-external seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host prepare-linode-shared-host prepare-fermyon-akamai-edge remote-use remote-update remote-start remote-stop remote-status remote-logs remote-open-dashboard deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai deploy-linode-one-shot deploy-fermyon-akamai-edge logs status stop help setup setup-runtime verify verify-runtime config-seed config-verify dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate
 
 # Default target
 .DEFAULT_GOAL := help
@@ -115,6 +115,7 @@ SHUMA_RATE_LIMITER_REDIS_URL := $(call strip_wrapping_quotes,$(SHUMA_RATE_LIMITE
 SHUMA_BAN_STORE_REDIS_URL := $(call strip_wrapping_quotes,$(SHUMA_BAN_STORE_REDIS_URL))
 SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN := $(call strip_wrapping_quotes,$(SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN))
 SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH := $(call strip_wrapping_quotes,$(SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH))
+SHUMA_BAN_STORE_OUTAGE_MODE := $(call strip_wrapping_quotes,$(SHUMA_BAN_STORE_OUTAGE_MODE))
 SSH_PRIVATE_KEY_FILE := $(if $(strip $(SSH_PRIVATE_KEY_FILE)),$(SSH_PRIVATE_KEY_FILE),$(call json_receipt_value,ssh.private_key_path))
 SSH_PUBLIC_KEY_FILE := $(if $(strip $(SSH_PUBLIC_KEY_FILE)),$(SSH_PUBLIC_KEY_FILE),$(call json_receipt_value,ssh.public_key_path))
 SPIN_UP_MANIFEST := $(if $(strip $(SHUMA_SPIN_MANIFEST)),$(SHUMA_SPIN_MANIFEST),spin.toml)
@@ -143,6 +144,7 @@ DEPLOY_SHUMA_RATE_LIMITER_REDIS_URL := $(call prefer_process_env,SHUMA_RATE_LIMI
 DEPLOY_SHUMA_BAN_STORE_REDIS_URL := $(call prefer_process_env,SHUMA_BAN_STORE_REDIS_URL)
 DEPLOY_SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN := $(call prefer_process_env,SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN)
 DEPLOY_SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH := $(call prefer_process_env,SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH)
+DEPLOY_SHUMA_BAN_STORE_OUTAGE_MODE := $(call prefer_process_env,SHUMA_BAN_STORE_OUTAGE_MODE)
 DEPLOY_SHUMA_GATEWAY_UPSTREAM_ORIGIN := $(call prefer_process_env,SHUMA_GATEWAY_UPSTREAM_ORIGIN)
 DEPLOY_SHUMA_GATEWAY_DEPLOYMENT_PROFILE := $(call prefer_process_env,SHUMA_GATEWAY_DEPLOYMENT_PROFILE)
 DEPLOY_SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED := $(call prefer_process_env,SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED)
@@ -171,6 +173,7 @@ DEPLOY_ENV_ONLY := \
 	SHUMA_BAN_STORE_REDIS_URL="$(DEPLOY_SHUMA_BAN_STORE_REDIS_URL)" \
 	SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN="$(DEPLOY_SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN)" \
 	SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH="$(DEPLOY_SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH)" \
+	SHUMA_BAN_STORE_OUTAGE_MODE="$(DEPLOY_SHUMA_BAN_STORE_OUTAGE_MODE)" \
 	SHUMA_GATEWAY_UPSTREAM_ORIGIN="$(DEPLOY_SHUMA_GATEWAY_UPSTREAM_ORIGIN)" \
 	SHUMA_GATEWAY_DEPLOYMENT_PROFILE="$(DEPLOY_SHUMA_GATEWAY_DEPLOYMENT_PROFILE)" \
 	SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED="$(DEPLOY_SHUMA_GATEWAY_ORIGIN_LOCK_CONFIRMED)" \
@@ -218,6 +221,7 @@ SPIN_ENV_ONLY_BASE := \
 	--env SHUMA_BAN_STORE_REDIS_URL=$(SHUMA_BAN_STORE_REDIS_URL) \
 	--env SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN=$(SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN) \
 	--env SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH=$(SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH) \
+	--env SHUMA_BAN_STORE_OUTAGE_MODE=$(SHUMA_BAN_STORE_OUTAGE_MODE) \
 	--env SHUMA_GATEWAY_UPSTREAM_ORIGIN=$(SHUMA_GATEWAY_UPSTREAM_ORIGIN) \
 	--env SHUMA_GATEWAY_DEPLOYMENT_PROFILE=$(SHUMA_GATEWAY_DEPLOYMENT_PROFILE) \
 	--env SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL=$(SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL) \
@@ -786,6 +790,16 @@ test-shadow-mode: ## Run focused shadow-mode backend truthfulness checks
 	@cargo test observability::monitoring::tests::summarize_shadow_metrics_uses_bucket_indexes_without_full_keyspace_scan -- --exact --nocapture
 	@cargo test admin::api::tests::log_event_with_execution_metadata_persists_shadow_fields_without_source_field -- --exact --nocapture
 	@cargo test admin::api::admin_config_tests::admin_monitoring_returns_structured_summary_shape -- --exact --nocapture
+
+test-enterprise-ban-store-contract: ## Run focused enterprise ban-store outage-mode and guardrail contract checks
+	@echo "$(CYAN)🧪 Running enterprise ban-store contract checks...$(NC)"
+	@./scripts/set_crate_type.sh rlib
+	@cargo test config::tests::parse_ban_store_outage_mode_accepts_expected_values -- --exact --nocapture
+	@cargo test config::tests::enterprise_state_guardrail_requires_fail_closed_ban_store_outage_mode_for_authoritative_enterprise -- --exact --nocapture
+	@cargo test config::tests::enterprise_state_guardrail_is_clear_for_synced_multi_instance_posture -- --exact --nocapture
+	@cargo test config::tests::validate_env_rejects_invalid_optional_ban_store_outage_mode -- --exact --nocapture
+	@cargo test providers::registry::tests::registry_reports_active_provider_implementation_labels -- --exact --nocapture
+	@cargo test admin::api::admin_config_tests::admin_config_export_returns_non_secret_runtime_values -- --exact --nocapture
 
 test-telemetry-storage: ## Run focused telemetry storage/query verification for indexed reads, retention tiers, rollups, and shared-host evidence tooling
 	@echo "$(CYAN)🧪 Running telemetry storage/query verification...$(NC)"
@@ -1556,6 +1570,7 @@ env-help: ## Show supported env-only runtime overrides
 	@echo "  SHUMA_BAN_STORE_REDIS_URL"
 	@echo "  SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN"
 	@echo "  SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH"
+	@echo "  SHUMA_BAN_STORE_OUTAGE_MODE"
 	@echo "  SHUMA_GATEWAY_UPSTREAM_ORIGIN"
 	@echo "  SHUMA_GATEWAY_DEPLOYMENT_PROFILE"
 	@echo "  SHUMA_GATEWAY_ALLOW_INSECURE_HTTP_LOCAL"
@@ -1708,6 +1723,14 @@ deploy-env-validate: ## Fail deployment when unsafe debug flags are enabled, adm
 					echo "$(RED)❌ Refusing deployment: SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH must be fallback_internal|fail_open|fail_closed when SHUMA_ENTERPRISE_MULTI_INSTANCE=true.$(NC)"; \
 					exit 1 ;; \
 			esac; \
+			BAN_OUTAGE_RAW="$${SHUMA_BAN_STORE_OUTAGE_MODE:-fallback_internal}"; \
+			BAN_OUTAGE_NORM="$$(printf '%s' "$$BAN_OUTAGE_RAW" | tr '[:upper:]' '[:lower:]')"; \
+			case "$$BAN_OUTAGE_NORM" in \
+				fallback_internal|fail_open|fail_closed) ;; \
+				*) \
+					echo "$(RED)❌ Refusing deployment: SHUMA_BAN_STORE_OUTAGE_MODE must be fallback_internal|fail_open|fail_closed when SHUMA_ENTERPRISE_MULTI_INSTANCE=true.$(NC)"; \
+					exit 1 ;; \
+			esac; \
 			UNSYNCED_LOCAL_STATE=0; \
 			if [ "$$RATE_BACKEND_NORM" != "external" ] || [ "$$BAN_BACKEND_NORM" != "external" ]; then \
 				UNSYNCED_LOCAL_STATE=1; \
@@ -1727,6 +1750,9 @@ deploy-env-validate: ## Fail deployment when unsafe debug flags are enabled, adm
 						echo "$(YELLOW)Set distributed state backends (SHUMA_PROVIDER_RATE_LIMITER=external and SHUMA_PROVIDER_BAN_STORE=external), or set SHUMA_ENTERPRISE_UNSYNCED_STATE_EXCEPTION_CONFIRMED=true for temporary advisory-only operation.$(NC)"; \
 						exit 1 ;; \
 				esac; \
+			elif [ "$$EDGE_MODE_NORM" = "authoritative" ] && [ "$$BAN_OUTAGE_NORM" != "fail_closed" ]; then \
+				echo "$(RED)❌ Refusing deployment: authoritative enterprise ban sync requires SHUMA_BAN_STORE_OUTAGE_MODE=fail_closed.$(NC)"; \
+				exit 1; \
 			fi ;; \
 		0|false|no|off|"") ;; \
 		*) \

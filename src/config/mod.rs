@@ -336,6 +336,25 @@ impl RateLimiterOutageMode {
     }
 }
 
+/// Outage posture for external distributed ban-store degradation.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum BanStoreOutageMode {
+    FallbackInternal,
+    FailOpen,
+    FailClosed,
+}
+
+impl BanStoreOutageMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            BanStoreOutageMode::FallbackInternal => "fallback_internal",
+            BanStoreOutageMode::FailOpen => "fail_open",
+            BanStoreOutageMode::FailClosed => "fail_closed",
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub enum RuntimeEnvironment {
@@ -906,6 +925,15 @@ impl Config {
                     .to_string(),
             );
         }
+        if self.edge_integration_mode == EdgeIntegrationMode::Authoritative
+            && self.provider_backends.ban_store == ProviderBackend::External
+            && ban_store_outage_mode() != BanStoreOutageMode::FailClosed
+        {
+            return Some(
+                "enterprise authoritative external ban store requires SHUMA_BAN_STORE_OUTAGE_MODE=fail_closed"
+                    .to_string(),
+            );
+        }
 
         if !self.enterprise_unsynced_state_active() {
             return None;
@@ -1343,6 +1371,7 @@ fn validate_env_only_impl() -> Result<(), String> {
     validate_optional_redis_url_var("SHUMA_BAN_STORE_REDIS_URL")?;
     validate_optional_rate_limiter_outage_mode_var("SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN")?;
     validate_optional_rate_limiter_outage_mode_var("SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH")?;
+    validate_optional_ban_store_outage_mode_var("SHUMA_BAN_STORE_OUTAGE_MODE")?;
     validate_gateway_contract_env()?;
 
     Ok(())
@@ -1743,6 +1772,22 @@ fn validate_optional_rate_limiter_outage_mode_var(name: &str) -> Result<(), Stri
         return Ok(());
     }
     if parse_rate_limiter_outage_mode(&value).is_none() {
+        return Err(format!(
+            "Invalid outage mode env var {}={} (expected fallback_internal, fail_open, or fail_closed)",
+            name, value
+        ));
+    }
+    Ok(())
+}
+
+fn validate_optional_ban_store_outage_mode_var(name: &str) -> Result<(), String> {
+    let Some(value) = runtime_var_raw_optional(name) else {
+        return Ok(());
+    };
+    if value.trim().is_empty() {
+        return Ok(());
+    }
+    if parse_ban_store_outage_mode(&value).is_none() {
         return Err(format!(
             "Invalid outage mode env var {}={} (expected fallback_internal, fail_open, or fail_closed)",
             name, value
@@ -2294,6 +2339,12 @@ pub fn ban_store_redis_url() -> Option<String> {
     runtime_var_raw_optional("SHUMA_BAN_STORE_REDIS_URL").and_then(|value| parse_redis_url(&value))
 }
 
+pub fn ban_store_outage_mode() -> BanStoreOutageMode {
+    runtime_var_raw_optional("SHUMA_BAN_STORE_OUTAGE_MODE")
+        .and_then(|value| parse_ban_store_outage_mode(value.as_str()))
+        .unwrap_or_else(default_ban_store_outage_mode)
+}
+
 fn env_rate_limiter_outage_mode(
     name: &str,
     default: RateLimiterOutageMode,
@@ -2427,6 +2478,15 @@ pub(crate) fn parse_rate_limiter_outage_mode(value: &str) -> Option<RateLimiterO
         "fallback_internal" => Some(RateLimiterOutageMode::FallbackInternal),
         "fail_open" => Some(RateLimiterOutageMode::FailOpen),
         "fail_closed" => Some(RateLimiterOutageMode::FailClosed),
+        _ => None,
+    }
+}
+
+pub(crate) fn parse_ban_store_outage_mode(value: &str) -> Option<BanStoreOutageMode> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "fallback_internal" => Some(BanStoreOutageMode::FallbackInternal),
+        "fail_open" => Some(BanStoreOutageMode::FailOpen),
+        "fail_closed" => Some(BanStoreOutageMode::FailClosed),
         _ => None,
     }
 }
@@ -3687,6 +3747,16 @@ fn default_rate_limiter_outage_mode_main() -> RateLimiterOutageMode {
 
 fn default_rate_limiter_outage_mode_admin_auth() -> RateLimiterOutageMode {
     defaults_rate_limiter_outage_mode("SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH")
+}
+
+fn default_ban_store_outage_mode() -> BanStoreOutageMode {
+    let raw = defaults_raw("SHUMA_BAN_STORE_OUTAGE_MODE");
+    parse_ban_store_outage_mode(raw.as_str()).unwrap_or_else(|| {
+        panic!(
+            "Invalid ban store outage mode default for SHUMA_BAN_STORE_OUTAGE_MODE={}",
+            raw
+        )
+    })
 }
 
 fn defaults_edge_integration_mode(key: &str) -> EdgeIntegrationMode {
