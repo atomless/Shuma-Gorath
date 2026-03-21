@@ -87,6 +87,7 @@ pub(crate) fn maybe_handle_policy_graph_first_tranche(
     ua: &str,
     geo_assessment: &crate::GeoAssessment,
     ip_range_evaluation: &crate::signals::ip_range_policy::Evaluation,
+    verified_identity: Option<&crate::bot_identity::contracts::VerifiedIdentityEvidence>,
     capabilities: &crate::runtime::capabilities::PolicyExecutionCapabilities,
 ) -> Option<HandledRequestResponse> {
     let execution_mode = crate::runtime::shadow_mode::effective_execution_mode(cfg);
@@ -142,6 +143,7 @@ pub(crate) fn maybe_handle_policy_graph_first_tranche(
             botness_state_summary: "none".to_string(),
             runtime_metadata_summary: crate::defence_runtime_metadata_summary(cfg),
             provider_summary: crate::provider_implementations_summary(provider_registry),
+            verified_identity: verified_identity.cloned(),
             not_a_bot_marker_valid: false,
         },
     );
@@ -161,6 +163,7 @@ pub(crate) fn maybe_handle_policy_graph_second_tranche(
     ua: &str,
     geo_assessment: &crate::GeoAssessment,
     ip_range_evaluation: &crate::signals::ip_range_policy::Evaluation,
+    verified_identity: Option<&crate::bot_identity::contracts::VerifiedIdentityEvidence>,
     capabilities: &crate::runtime::capabilities::PolicyExecutionCapabilities,
 ) -> Option<HandledRequestResponse> {
     let execution_mode = crate::runtime::shadow_mode::effective_execution_mode(cfg);
@@ -232,6 +235,7 @@ pub(crate) fn maybe_handle_policy_graph_second_tranche(
             botness_state_summary: crate::botness_signal_states_summary(&botness),
             runtime_metadata_summary: crate::defence_runtime_metadata_summary(cfg),
             provider_summary: crate::provider_implementations_summary(provider_registry),
+            verified_identity: verified_identity.cloned(),
             not_a_bot_marker_valid: crate::challenge::has_valid_not_a_bot_marker(req, ip, ua),
         },
     );

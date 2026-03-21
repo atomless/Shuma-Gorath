@@ -797,6 +797,7 @@ mod tests {
                 botness_state_summary: "none".to_string(),
                 runtime_metadata_summary: "meta".to_string(),
                 provider_summary: "providers".to_string(),
+                verified_identity: None,
                 not_a_bot_marker_valid: false,
             },
         )

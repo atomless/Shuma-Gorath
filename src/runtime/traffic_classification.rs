@@ -1,6 +1,7 @@
 #![cfg_attr(not(test), allow(dead_code))]
 
 use crate::observability::hot_read_contract::{TelemetryBasis, TelemetryExactness};
+use crate::bot_identity::contracts::{IdentityCategory, IdentityScheme, VerifiedIdentityEvidence};
 use crate::runtime::policy_graph::PolicyDecision;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -96,6 +97,31 @@ const SUSPICIOUS_RESIDUAL: TrafficLaneAssignment = TrafficLaneAssignment {
     exactness: TelemetryExactness::Derived,
     basis: TelemetryBasis::Residual,
 };
+
+const VERIFIED_BOT_OBSERVED: TrafficLaneAssignment = TrafficLaneAssignment {
+    lane: TrafficLane::VerifiedBot,
+    exactness: TelemetryExactness::Exact,
+    basis: TelemetryBasis::Observed,
+};
+
+const SIGNED_AGENT_OBSERVED: TrafficLaneAssignment = TrafficLaneAssignment {
+    lane: TrafficLane::SignedAgent,
+    exactness: TelemetryExactness::Exact,
+    basis: TelemetryBasis::Observed,
+};
+
+pub(crate) fn verified_identity_lane_assignment(
+    identity: &VerifiedIdentityEvidence,
+) -> TrafficLaneAssignment {
+    if identity.scheme == IdentityScheme::ProviderSignedAgent
+        || identity.end_user_controlled
+        || identity.category == IdentityCategory::UserTriggeredAgent
+    {
+        SIGNED_AGENT_OBSERVED
+    } else {
+        VERIFIED_BOT_OBSERVED
+    }
+}
 
 pub(crate) fn classify_current_runtime_branch(
     branch: &CurrentRuntimeBranch,
@@ -297,5 +323,37 @@ mod tests {
             RouteActionFamily::DefenceFollowup
         );
         assert_eq!(followup.policy_source, PolicySource::DefenceFollowup);
+    }
+
+    #[test]
+    fn verified_identity_lane_assignment_marks_signed_agents_as_exact_observed() {
+        let lane = verified_identity_lane_assignment(&VerifiedIdentityEvidence {
+            scheme: IdentityScheme::ProviderSignedAgent,
+            stable_identity: "chatgpt-agent".to_string(),
+            operator: "openai".to_string(),
+            category: IdentityCategory::UserTriggeredAgent,
+            verification_strength: crate::bot_identity::contracts::VerificationStrength::ProviderAsserted,
+            end_user_controlled: true,
+            directory_source: None,
+            provenance: crate::bot_identity::contracts::IdentityProvenance::Provider,
+        });
+
+        assert_eq!(lane, SIGNED_AGENT_OBSERVED);
+    }
+
+    #[test]
+    fn verified_identity_lane_assignment_marks_verified_bots_as_exact_observed() {
+        let lane = verified_identity_lane_assignment(&VerifiedIdentityEvidence {
+            scheme: IdentityScheme::ProviderVerifiedBot,
+            stable_identity: "search.example".to_string(),
+            operator: "example".to_string(),
+            category: IdentityCategory::Search,
+            verification_strength: crate::bot_identity::contracts::VerificationStrength::ProviderAsserted,
+            end_user_controlled: false,
+            directory_source: None,
+            provenance: crate::bot_identity::contracts::IdentityProvenance::Provider,
+        });
+
+        assert_eq!(lane, VERIFIED_BOT_OBSERVED);
     }
 }

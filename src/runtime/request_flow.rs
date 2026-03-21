@@ -38,16 +38,11 @@ fn clean_allow_monitoring_intents(
 }
 
 fn observe_verified_identity_intents(
-    req: &Request,
-    cfg: &crate::config::Config,
-    provider_registry: &crate::providers::registry::ProviderRegistry,
+    result: &crate::bot_identity::verification::IdentityVerificationResult,
 ) -> Vec<crate::runtime::effect_intents::EffectIntent> {
-    let provider_result = provider_registry
-        .verified_identity_provider()
-        .verify_identity(req, cfg);
     let Some(record) = crate::bot_identity::telemetry::IdentityVerificationTelemetryRecord::from_verification_result(
         crate::bot_identity::contracts::IdentityProvenance::Provider,
-        &provider_result,
+        result,
     ) else {
         return Vec::new();
     };
@@ -55,6 +50,16 @@ fn observe_verified_identity_intents(
     vec![
         crate::runtime::effect_intents::EffectIntent::RecordVerifiedIdentityTelemetry { record },
     ]
+}
+
+fn observe_verified_identity_result(
+    req: &Request,
+    cfg: &crate::config::Config,
+    provider_registry: &crate::providers::registry::ProviderRegistry,
+) -> crate::bot_identity::verification::IdentityVerificationResult {
+    provider_registry
+        .verified_identity_provider()
+        .verify_identity(req, cfg)
 }
 
 fn bootstrap_failure_handled_response(
@@ -75,10 +80,12 @@ fn finalize_request_outcome<S: crate::challenge::KeyValueStore>(
     capabilities: &crate::runtime::capabilities::PolicyExecutionCapabilities,
     traffic_origin: crate::runtime::request_outcome::TrafficOrigin,
     handled: crate::runtime::request_outcome::HandledRequestResponse,
+    verified_identity_lane: Option<crate::runtime::request_outcome::RequestOutcomeLane>,
 ) -> Response {
     let outcome = crate::runtime::request_outcome::RenderedRequestOutcome::from_handled_response(
         traffic_origin,
         &handled,
+        verified_identity_lane,
     );
     crate::runtime::effect_intents::execute_request_outcome_intents(vec![
         crate::runtime::effect_intents::EffectIntent::RecordRequestOutcome { outcome },
@@ -166,10 +173,22 @@ pub(crate) fn handle_request(req: &Request) -> Response {
                 &request_capabilities,
                 traffic_origin,
                 bootstrap_failure_handled_response(resp),
+                None,
             )
         }
     };
     let provider_registry = crate::providers::registry::ProviderRegistry::from_config(&cfg);
+    let verified_identity_result = observe_verified_identity_result(req, &cfg, &provider_registry);
+    let verified_identity = if verified_identity_result.status
+        == crate::bot_identity::verification::IdentityVerificationResultStatus::Verified
+    {
+        verified_identity_result.identity.clone()
+    } else {
+        None
+    };
+    let verified_identity_lane = verified_identity.as_ref().map(|identity| {
+        crate::runtime::traffic_classification::verified_identity_lane_assignment(identity).into()
+    });
     let request_effect_context = crate::runtime::effect_intents::EffectExecutionContext {
         req,
         store,
@@ -190,7 +209,13 @@ pub(crate) fn handle_request(req: &Request) -> Response {
     };
     let finalize_handled_response =
         |handled: crate::runtime::request_outcome::HandledRequestResponse| {
-            finalize_request_outcome(store, &request_capabilities, traffic_origin, handled)
+            finalize_request_outcome(
+                store,
+                &request_capabilities,
+                traffic_origin,
+                handled,
+                verified_identity_lane,
+            )
         };
     let forward_allow_response = |reason: &str| {
         if crate::runtime::shadow_mode::shadow_mode_active(&cfg)
@@ -214,11 +239,7 @@ pub(crate) fn handle_request(req: &Request) -> Response {
         }
     };
     execute_request_intents(crate::provider_backend_visibility_intents(&provider_registry));
-    execute_request_intents(observe_verified_identity_intents(
-        req,
-        &cfg,
-        &provider_registry,
-    ));
+    execute_request_intents(observe_verified_identity_intents(&verified_identity_result));
     execute_request_intents(vec![crate::policy_signal_intent(
         crate::runtime::policy_taxonomy::SignalId::CtxPathClass,
     )]);
@@ -381,6 +402,7 @@ pub(crate) fn handle_request(req: &Request) -> Response {
         ua,
         &geo_assessment,
         &ip_range_evaluation,
+        verified_identity.as_ref(),
         &request_capabilities,
     ) {
         return finalize_handled_response(response);
@@ -437,6 +459,7 @@ pub(crate) fn handle_request(req: &Request) -> Response {
         ua,
         &geo_assessment,
         &ip_range_evaluation,
+        verified_identity.as_ref(),
         &request_capabilities,
     ) {
         return finalize_handled_response(response);
@@ -470,6 +493,7 @@ pub(crate) fn handle_request(req: &Request) -> Response {
 mod tests {
     use super::{
         clean_allow_monitoring_intents, finalize_request_outcome, observe_verified_identity_intents,
+        observe_verified_identity_result,
     };
 
     #[test]
@@ -551,6 +575,7 @@ mod tests {
                 500,
                 "Configuration unavailable",
             )),
+            None,
         );
 
         assert_eq!(*response.status(), 500);
@@ -571,13 +596,60 @@ mod tests {
     }
 
     #[test]
+    fn finalize_request_outcome_surfaces_verified_identity_lane_in_monitoring_context() {
+        let store = crate::test_support::InMemoryStore::default();
+        let capabilities =
+            crate::runtime::capabilities::RuntimeCapabilities::for_test_policy_execution_phase();
+        let response = finalize_request_outcome(
+            &store,
+            &capabilities,
+            crate::runtime::request_outcome::TrafficOrigin::Live,
+            crate::runtime::request_outcome::HandledRequestResponse {
+                branch: crate::runtime::traffic_classification::CurrentRuntimeBranch::PolicyDecision(
+                    crate::runtime::policy_graph::PolicyDecision::BotnessChallenge {
+                        score: 91,
+                        signal_ids: vec![],
+                    },
+                ),
+                execution_mode: crate::runtime::effect_intents::ExecutionMode::Enforced,
+                rendered: crate::runtime::request_outcome::RenderedResponseEvidence::local(
+                    spin_sdk::http::Response::new(403, "challenge"),
+                    crate::runtime::request_outcome::ResponseKind::Challenge,
+                ),
+            },
+            Some(crate::runtime::request_outcome::RequestOutcomeLane {
+                lane: crate::runtime::traffic_classification::TrafficLane::SignedAgent,
+                exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
+                basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
+            }),
+        );
+
+        assert_eq!(*response.status(), 403);
+
+        let summary = crate::observability::monitoring::summarize_with_store(&store, 24, 10);
+        let row = summary
+            .request_outcomes
+            .by_lane
+            .iter()
+            .find(|row| {
+                row.traffic_origin == "live"
+                    && row.measurement_scope == "ingress_primary"
+                    && row.execution_mode == "enforced"
+                    && row.lane == "signed_agent"
+            })
+            .expect("signed agent lane row");
+        assert_eq!(row.short_circuited_requests, 1);
+    }
+
+    #[test]
     fn observe_verified_identity_intents_skip_non_attempted_requests() {
         let mut cfg = crate::config::defaults().clone();
         cfg.verified_identity.enabled = true;
         let registry = crate::providers::registry::ProviderRegistry::from_config(&cfg);
         let req = crate::test_support::request_with_headers("/", &[]);
 
-        let intents = observe_verified_identity_intents(&req, &cfg, &registry);
+        let result = observe_verified_identity_result(&req, &cfg, &registry);
+        let intents = observe_verified_identity_intents(&result);
 
         assert!(intents.is_empty());
     }
@@ -610,7 +682,8 @@ mod tests {
             ],
         );
 
-        let intents = observe_verified_identity_intents(&req, &cfg, &registry);
+        let result = observe_verified_identity_result(&req, &cfg, &registry);
+        let intents = observe_verified_identity_intents(&result);
 
         assert!(matches!(
             intents.first(),
@@ -649,7 +722,8 @@ mod tests {
                 ("x-shuma-edge-verified-identity-category", "search"),
             ],
         );
-        let intents = observe_verified_identity_intents(&req, &cfg, &registry);
+        let result = observe_verified_identity_result(&req, &cfg, &registry);
+        let intents = observe_verified_identity_intents(&result);
         let store = crate::test_support::InMemoryStore::default();
         let capabilities =
             crate::runtime::capabilities::RuntimeCapabilities::for_test_policy_execution_phase();

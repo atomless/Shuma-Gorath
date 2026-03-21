@@ -4,6 +4,28 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-21)
 
+### WB-1.3: Verified-Identity Request-Path Annotations
+
+- [x] Threaded successful verified-identity annotations through request facts and request-outcome monitoring context without changing allow/deny/challenge routing, including exact observed `verified_bot` and `signed_agent` lane attribution for recognized identities that are still challenged or otherwise restricted.
+- [x] Why:
+  - `WB-1.3` was the final observe-only tranche before native verification and identity policy work, so the clean implementation had to make verified identity available to later policy phases without prematurely granting any authorization effect.
+  - Shuma already had unused `VerifiedBot` and `SignedAgent` lane taxonomy in the monitoring model; wiring the canonical identity contract into that existing lane surface kept the change small and made "recognized but still restricted" visible without inventing a second monitoring path.
+  - carrying the canonical `VerifiedIdentityEvidence` object into `RequestFacts` preserves the later policy seam cleanly. Future authorization work can match on authenticated identity directly instead of reparsing request headers or scraping monitoring summaries.
+- [x] Evidence:
+  - `src/runtime/traffic_classification.rs`
+  - `src/runtime/request_facts.rs`
+  - `src/runtime/policy_pipeline.rs`
+  - `src/runtime/request_outcome.rs`
+  - `src/runtime/request_flow.rs`
+  - `src/runtime/policy_graph.rs`
+  - `src/runtime/effect_intents/plan_builder.rs`
+  - `Makefile`
+  - `docs/research/2026-03-21-wb-1-3-verified-identity-request-path-annotations-post-implementation-review.md`
+  - `make test-verified-identity-annotations`
+  - `make test-verified-identity-telemetry`
+  - `git diff --check`
+  - post-tranche review: no tranche-local shortfall was found; the next step is the full `WB-0.*`/`WB-1.*` tranche review against the plans.
+
 ### WB-1.2: Verified-Identity Observe-Only Telemetry
 
 - [x] Added observe-only verified-identity telemetry from the request path into monitoring summaries and Prometheus export families, covering verification attempts, verified-versus-failed outcomes, freshness classes, source provenance, observed schemes, and top verified identities without changing allow/deny/challenge routing.

@@ -20,6 +20,7 @@ pub(crate) struct RequestFacts {
     pub botness_state_summary: String,
     pub runtime_metadata_summary: String,
     pub provider_summary: String,
+    pub verified_identity: Option<crate::bot_identity::contracts::VerifiedIdentityEvidence>,
     pub not_a_bot_marker_valid: bool,
 }
 
@@ -41,6 +42,7 @@ pub(crate) struct RequestFactInputs {
     pub botness_state_summary: String,
     pub runtime_metadata_summary: String,
     pub provider_summary: String,
+    pub verified_identity: Option<crate::bot_identity::contracts::VerifiedIdentityEvidence>,
     pub not_a_bot_marker_valid: bool,
 }
 
@@ -64,6 +66,7 @@ pub(crate) fn build_request_facts(req: &Request, inputs: RequestFactInputs) -> R
         botness_state_summary: inputs.botness_state_summary,
         runtime_metadata_summary: inputs.runtime_metadata_summary,
         provider_summary: inputs.provider_summary,
+        verified_identity: inputs.verified_identity,
         not_a_bot_marker_valid: inputs.not_a_bot_marker_valid,
     }
 }
@@ -94,6 +97,17 @@ mod tests {
                 botness_state_summary: "states".to_string(),
                 runtime_metadata_summary: "modes".to_string(),
                 provider_summary: "providers".to_string(),
+                verified_identity: Some(crate::bot_identity::contracts::VerifiedIdentityEvidence {
+                    scheme: crate::bot_identity::contracts::IdentityScheme::ProviderSignedAgent,
+                    stable_identity: "chatgpt-agent".to_string(),
+                    operator: "openai".to_string(),
+                    category: crate::bot_identity::contracts::IdentityCategory::UserTriggeredAgent,
+                    verification_strength:
+                        crate::bot_identity::contracts::VerificationStrength::ProviderAsserted,
+                    end_user_controlled: true,
+                    directory_source: None,
+                    provenance: crate::bot_identity::contracts::IdentityProvenance::Provider,
+                }),
                 not_a_bot_marker_valid: false,
             },
         );
@@ -103,5 +117,9 @@ mod tests {
         assert!(facts.honeypot_hit);
         assert!(facts.needs_js);
         assert_eq!(facts.botness_score, 7);
+        assert_eq!(
+            facts.verified_identity.as_ref().map(|identity| identity.stable_identity.as_str()),
+            Some("chatgpt-agent")
+        );
     }
 }

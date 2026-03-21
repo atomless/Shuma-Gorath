@@ -145,6 +145,7 @@ impl RenderedRequestOutcome {
     pub(crate) fn from_handled_response(
         traffic_origin: TrafficOrigin,
         handled: &HandledRequestResponse,
+        verified_identity_lane: Option<RequestOutcomeLane>,
     ) -> Self {
         let classification = classify_current_runtime_branch(&handled.branch);
         let outcome_class = if matches!(classification.route_action_family, RouteActionFamily::ControlPlane)
@@ -161,7 +162,7 @@ impl RenderedRequestOutcome {
             measurement_scope: classification.measurement_scope,
             route_action_family: classification.route_action_family,
             execution_mode: handled.execution_mode,
-            traffic_lane: classification.traffic_lane.map(Into::into),
+            traffic_lane: verified_identity_lane.or_else(|| classification.traffic_lane.map(Into::into)),
             outcome_class,
             response_kind: handled.rendered.response_kind,
             http_status: *handled.rendered.response.status(),
@@ -193,7 +194,7 @@ mod tests {
         };
 
         let outcome =
-            RenderedRequestOutcome::from_handled_response(TrafficOrigin::Live, &handled);
+            RenderedRequestOutcome::from_handled_response(TrafficOrigin::Live, &handled, None);
 
         assert_eq!(outcome.traffic_origin, TrafficOrigin::Live);
         assert_eq!(outcome.measurement_scope, MeasurementScope::IngressPrimary);
@@ -225,7 +226,7 @@ mod tests {
         };
 
         let outcome =
-            RenderedRequestOutcome::from_handled_response(TrafficOrigin::Live, &handled);
+            RenderedRequestOutcome::from_handled_response(TrafficOrigin::Live, &handled, None);
 
         assert_eq!(
             outcome.traffic_lane,
@@ -256,6 +257,7 @@ mod tests {
         let outcome = RenderedRequestOutcome::from_handled_response(
             TrafficOrigin::AdversarySim,
             &handled,
+            None,
         );
 
         assert_eq!(outcome.traffic_origin, TrafficOrigin::AdversarySim);
@@ -285,7 +287,7 @@ mod tests {
         };
 
         let outcome =
-            RenderedRequestOutcome::from_handled_response(TrafficOrigin::Live, &handled);
+            RenderedRequestOutcome::from_handled_response(TrafficOrigin::Live, &handled, None);
 
         assert_eq!(outcome.measurement_scope, MeasurementScope::Excluded);
         assert_eq!(outcome.route_action_family, RouteActionFamily::ControlPlane);
@@ -302,7 +304,7 @@ mod tests {
         };
 
         let outcome =
-            RenderedRequestOutcome::from_handled_response(TrafficOrigin::Live, &handled);
+            RenderedRequestOutcome::from_handled_response(TrafficOrigin::Live, &handled, None);
 
         assert_eq!(outcome.measurement_scope, MeasurementScope::Excluded);
         assert_eq!(outcome.route_action_family, RouteActionFamily::StaticAsset);
@@ -322,12 +324,50 @@ mod tests {
         };
 
         let outcome =
-            RenderedRequestOutcome::from_handled_response(TrafficOrigin::Live, &handled);
+            RenderedRequestOutcome::from_handled_response(TrafficOrigin::Live, &handled, None);
 
         assert_eq!(outcome.measurement_scope, MeasurementScope::BypassAndControl);
         assert_eq!(outcome.route_action_family, RouteActionFamily::ControlPlane);
         assert_eq!(outcome.policy_source, PolicySource::BootstrapFailure);
         assert_eq!(outcome.outcome_class, RequestOutcomeClass::ControlResponse);
         assert!(outcome.traffic_lane.is_none());
+    }
+
+    #[test]
+    fn verified_identity_lane_override_marks_recognized_agents_without_changing_outcome_class() {
+        let handled = HandledRequestResponse {
+            branch: CurrentRuntimeBranch::PolicyDecision(
+                crate::runtime::policy_graph::PolicyDecision::BotnessChallenge {
+                    score: 87,
+                    signal_ids: vec![],
+                },
+            ),
+            execution_mode: ExecutionMode::Enforced,
+            rendered: RenderedResponseEvidence::local(
+                response(403, "challenge"),
+                ResponseKind::Challenge,
+            ),
+        };
+
+        let outcome = RenderedRequestOutcome::from_handled_response(
+            TrafficOrigin::Live,
+            &handled,
+            Some(RequestOutcomeLane {
+                lane: TrafficLane::SignedAgent,
+                exactness: TelemetryExactness::Exact,
+                basis: TelemetryBasis::Observed,
+            }),
+        );
+
+        assert_eq!(outcome.outcome_class, RequestOutcomeClass::ShortCircuited);
+        assert_eq!(outcome.response_kind, ResponseKind::Challenge);
+        assert_eq!(
+            outcome.traffic_lane,
+            Some(RequestOutcomeLane {
+                lane: TrafficLane::SignedAgent,
+                exactness: TelemetryExactness::Exact,
+                basis: TelemetryBasis::Observed,
+            })
+        );
     }
 }
