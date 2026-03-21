@@ -2,6 +2,7 @@ pub(crate) mod adversary_sim;
 pub(crate) mod adversary_sim_corpus;
 pub(crate) mod adversary_sim_diagnostics;
 pub(crate) mod adversary_sim_state;
+pub(crate) mod adversary_sim_worker_plan;
 mod adversary_sim_api;
 pub(crate) mod adversary_sim_control;
 mod benchmark_api;

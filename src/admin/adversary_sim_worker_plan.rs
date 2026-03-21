@@ -1,0 +1,74 @@
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+
+use super::adversary_sim::{RuntimeLane, WorkerFailureClass};
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct ScraplingCrawlStats {
+    #[serde(default)]
+    pub requests_count: u64,
+    #[serde(default)]
+    pub offsite_requests_count: u64,
+    #[serde(default)]
+    pub blocked_requests_count: u64,
+    #[serde(default)]
+    pub response_status_count: BTreeMap<String, u64>,
+    #[serde(default)]
+    pub response_bytes: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ScraplingWorkerPlan {
+    pub schema_version: String,
+    pub run_id: String,
+    pub tick_id: String,
+    pub lane: RuntimeLane,
+    pub sim_profile: String,
+    pub tick_started_at: u64,
+    pub max_requests: u64,
+    pub max_depth: u64,
+    pub max_bytes: u64,
+    pub max_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ScraplingWorkerResult {
+    pub schema_version: String,
+    pub run_id: String,
+    pub tick_id: String,
+    pub lane: RuntimeLane,
+    pub worker_id: String,
+    pub tick_started_at: u64,
+    pub tick_completed_at: u64,
+    pub generated_requests: u64,
+    pub failed_requests: u64,
+    pub last_response_status: Option<u16>,
+    #[serde(default)]
+    pub failure_class: Option<WorkerFailureClass>,
+    #[serde(default)]
+    pub error: Option<String>,
+    #[serde(default)]
+    pub crawl_stats: ScraplingCrawlStats,
+    #[serde(default)]
+    pub scope_rejections: BTreeMap<String, u64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct GenerationTickResult {
+    pub generated_requests: u64,
+    pub failed_requests: u64,
+    pub last_response_status: Option<u16>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct AutonomousHeartbeatTickSummary {
+    pub due_ticks: u64,
+    pub executed_ticks: u64,
+    pub generated_requests: u64,
+    pub failed_requests: u64,
+    pub last_response_status: Option<u16>,
+    pub worker_pending: bool,
+    pub worker_plan: Option<ScraplingWorkerPlan>,
+}
