@@ -1453,11 +1453,16 @@ impl FingerprintSignalProvider for ExternalFingerprintSignalProvider {
 impl VerifiedIdentityProvider for ExternalVerifiedIdentityProvider {
     fn verify_identity(
         &self,
+        _store: &dyn crate::challenge::KeyValueStore,
+        _site_id: &str,
         req: &Request,
         cfg: &crate::config::Config,
     ) -> crate::bot_identity::verification::IdentityVerificationResult {
-        if !cfg.verified_identity.enabled || !cfg.verified_identity.provider_assertions_enabled {
+        if !cfg.verified_identity.enabled {
             return crate::bot_identity::verification::IdentityVerificationResult::disabled();
+        }
+        if !cfg.verified_identity.provider_assertions_enabled {
+            return crate::bot_identity::verification::IdentityVerificationResult::not_attempted();
         }
         if cfg.edge_integration_mode == crate::config::EdgeIntegrationMode::Off {
             return crate::bot_identity::verification::IdentityVerificationResult::not_attempted();
@@ -1665,8 +1670,9 @@ mod tests {
     fn verified_identity_provider_returns_disabled_when_provider_path_is_off() {
         let cfg = crate::config::defaults().clone();
         let req = crate::test_support::request_with_headers("/", &[]);
+        let store = crate::test_support::InMemoryStore::default();
 
-        let result = VERIFIED_IDENTITY.verify_identity(&req, &cfg);
+        let result = VERIFIED_IDENTITY.verify_identity(&store, "default", &req, &cfg);
 
         assert_eq!(
             result.status,
@@ -1682,6 +1688,7 @@ mod tests {
         let mut cfg = crate::config::defaults().clone();
         cfg.verified_identity.enabled = true;
         cfg.edge_integration_mode = crate::config::EdgeIntegrationMode::Additive;
+        let store = crate::test_support::InMemoryStore::default();
         let req = crate::test_support::request_with_headers(
             "/",
             &[
@@ -1694,7 +1701,7 @@ mod tests {
             ],
         );
 
-        let result = VERIFIED_IDENTITY.verify_identity(&req, &cfg);
+        let result = VERIFIED_IDENTITY.verify_identity(&store, "default", &req, &cfg);
         let identity = result.identity.expect("verified identity");
 
         assert_eq!(
@@ -1713,6 +1720,7 @@ mod tests {
         let mut cfg = crate::config::defaults().clone();
         cfg.verified_identity.enabled = true;
         cfg.edge_integration_mode = crate::config::EdgeIntegrationMode::Additive;
+        let store = crate::test_support::InMemoryStore::default();
         let req = crate::test_support::request_with_headers(
             "/",
             &[
@@ -1723,7 +1731,7 @@ mod tests {
             ],
         );
 
-        let result = VERIFIED_IDENTITY.verify_identity(&req, &cfg);
+        let result = VERIFIED_IDENTITY.verify_identity(&store, "default", &req, &cfg);
 
         assert_eq!(
             result.status,

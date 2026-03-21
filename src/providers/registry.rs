@@ -255,9 +255,10 @@ mod tests {
         cfg.verified_identity.enabled = true;
         let registry = ProviderRegistry::from_config(&cfg);
         let req = crate::test_support::request_with_headers("/", &[]);
+        let store = crate::test_support::InMemoryStore::default();
         let result = registry
             .verified_identity_provider()
-            .verify_identity(&req, &cfg);
+            .verify_identity(&store, "default", &req, &cfg);
 
         assert_eq!(
             result.status,
@@ -276,6 +277,7 @@ mod tests {
         cfg.edge_integration_mode = crate::config::EdgeIntegrationMode::Additive;
         cfg.provider_backends.fingerprint_signal = ProviderBackend::External;
         let registry = ProviderRegistry::from_config(&cfg);
+        let store = crate::test_support::InMemoryStore::default();
         let req = crate::test_support::request_with_headers(
             "/",
             &[
@@ -292,7 +294,7 @@ mod tests {
 
         let result = registry
             .verified_identity_provider()
-            .verify_identity(&req, &cfg);
+            .verify_identity(&store, "default", &req, &cfg);
         let identity = result.identity.expect("verified identity");
 
         assert_eq!(

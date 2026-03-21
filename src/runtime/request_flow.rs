@@ -38,10 +38,11 @@ fn clean_allow_monitoring_intents(
 }
 
 fn observe_verified_identity_intents(
+    default_provenance: crate::bot_identity::contracts::IdentityProvenance,
     result: &crate::bot_identity::verification::IdentityVerificationResult,
 ) -> Vec<crate::runtime::effect_intents::EffectIntent> {
     let Some(record) = crate::bot_identity::telemetry::IdentityVerificationTelemetryRecord::from_verification_result(
-        crate::bot_identity::contracts::IdentityProvenance::Provider,
+        default_provenance,
         result,
     ) else {
         return Vec::new();
@@ -53,13 +54,27 @@ fn observe_verified_identity_intents(
 }
 
 fn observe_verified_identity_result(
+    store: &dyn crate::challenge::KeyValueStore,
+    site_id: &str,
     req: &Request,
     cfg: &crate::config::Config,
     provider_registry: &crate::providers::registry::ProviderRegistry,
 ) -> crate::bot_identity::verification::IdentityVerificationResult {
     provider_registry
         .verified_identity_provider()
-        .verify_identity(req, cfg)
+        .verify_identity(store, site_id, req, cfg)
+}
+
+fn verified_identity_default_provenance(
+    provider_registry: &crate::providers::registry::ProviderRegistry,
+) -> crate::bot_identity::contracts::IdentityProvenance {
+    if provider_registry.backend_for(crate::providers::registry::ProviderCapability::VerifiedIdentity)
+        == crate::config::ProviderBackend::External
+    {
+        crate::bot_identity::contracts::IdentityProvenance::Provider
+    } else {
+        crate::bot_identity::contracts::IdentityProvenance::Native
+    }
 }
 
 fn bootstrap_failure_handled_response(
@@ -178,7 +193,10 @@ pub(crate) fn handle_request(req: &Request) -> Response {
         }
     };
     let provider_registry = crate::providers::registry::ProviderRegistry::from_config(&cfg);
-    let verified_identity_result = observe_verified_identity_result(req, &cfg, &provider_registry);
+    let verified_identity_result =
+        observe_verified_identity_result(store, site_id, req, &cfg, &provider_registry);
+    let verified_identity_default_provenance =
+        verified_identity_default_provenance(&provider_registry);
     let verified_identity = if verified_identity_result.status
         == crate::bot_identity::verification::IdentityVerificationResultStatus::Verified
     {
@@ -239,7 +257,10 @@ pub(crate) fn handle_request(req: &Request) -> Response {
         }
     };
     execute_request_intents(crate::provider_backend_visibility_intents(&provider_registry));
-    execute_request_intents(observe_verified_identity_intents(&verified_identity_result));
+    execute_request_intents(observe_verified_identity_intents(
+        verified_identity_default_provenance,
+        &verified_identity_result,
+    ));
     execute_request_intents(vec![crate::policy_signal_intent(
         crate::runtime::policy_taxonomy::SignalId::CtxPathClass,
     )]);
@@ -647,9 +668,13 @@ mod tests {
         cfg.verified_identity.enabled = true;
         let registry = crate::providers::registry::ProviderRegistry::from_config(&cfg);
         let req = crate::test_support::request_with_headers("/", &[]);
+        let store = crate::test_support::InMemoryStore::default();
 
-        let result = observe_verified_identity_result(&req, &cfg, &registry);
-        let intents = observe_verified_identity_intents(&result);
+        let result = observe_verified_identity_result(&store, "default", &req, &cfg, &registry);
+        let intents = observe_verified_identity_intents(
+            crate::bot_identity::contracts::IdentityProvenance::Native,
+            &result,
+        );
 
         assert!(intents.is_empty());
     }
@@ -664,6 +689,7 @@ mod tests {
         cfg.edge_integration_mode = crate::config::EdgeIntegrationMode::Additive;
         cfg.provider_backends.fingerprint_signal = crate::config::ProviderBackend::External;
         let registry = crate::providers::registry::ProviderRegistry::from_config(&cfg);
+        let store = crate::test_support::InMemoryStore::default();
         let req = crate::test_support::request_with_headers(
             "/",
             &[
@@ -682,8 +708,11 @@ mod tests {
             ],
         );
 
-        let result = observe_verified_identity_result(&req, &cfg, &registry);
-        let intents = observe_verified_identity_intents(&result);
+        let result = observe_verified_identity_result(&store, "default", &req, &cfg, &registry);
+        let intents = observe_verified_identity_intents(
+            crate::bot_identity::contracts::IdentityProvenance::Provider,
+            &result,
+        );
 
         assert!(matches!(
             intents.first(),
@@ -709,6 +738,7 @@ mod tests {
         cfg.edge_integration_mode = crate::config::EdgeIntegrationMode::Additive;
         cfg.provider_backends.fingerprint_signal = crate::config::ProviderBackend::External;
         let registry = crate::providers::registry::ProviderRegistry::from_config(&cfg);
+        let store = crate::test_support::InMemoryStore::default();
         let req = crate::test_support::request_with_headers(
             "/",
             &[
@@ -722,9 +752,11 @@ mod tests {
                 ("x-shuma-edge-verified-identity-category", "search"),
             ],
         );
-        let result = observe_verified_identity_result(&req, &cfg, &registry);
-        let intents = observe_verified_identity_intents(&result);
-        let store = crate::test_support::InMemoryStore::default();
+        let result = observe_verified_identity_result(&store, "default", &req, &cfg, &registry);
+        let intents = observe_verified_identity_intents(
+            crate::bot_identity::contracts::IdentityProvenance::Provider,
+            &result,
+        );
         let capabilities =
             crate::runtime::capabilities::RuntimeCapabilities::for_test_policy_execution_phase();
 
@@ -738,5 +770,28 @@ mod tests {
         assert_eq!(summary.verified_identity.attempts, 1);
         assert_eq!(summary.verified_identity.verified, 1);
         assert_eq!(summary.verified_identity.failed, 0);
+    }
+
+    #[test]
+    fn observe_verified_identity_intents_preserve_native_provenance_for_failed_results() {
+        let intents = observe_verified_identity_intents(
+            crate::bot_identity::contracts::IdentityProvenance::Native,
+            &crate::bot_identity::verification::IdentityVerificationResult::failed(
+                crate::bot_identity::verification::IdentityVerificationFailure::SignatureInvalid,
+                crate::bot_identity::verification::IdentityVerificationFreshness::Fresh,
+            ),
+        );
+
+        assert!(matches!(
+            intents.first(),
+            Some(
+                crate::runtime::effect_intents::EffectIntent::RecordVerifiedIdentityTelemetry {
+                    record
+                }
+            ) if record.provenance
+                == crate::bot_identity::contracts::IdentityProvenance::Native
+                && record.failure
+                    == Some(crate::bot_identity::verification::IdentityVerificationFailure::SignatureInvalid)
+        ));
     }
 }

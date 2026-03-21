@@ -4,6 +4,46 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-21)
 
+### WB-2.1-REVIEW-1: Fail-Closed Native Replay State
+
+- [x] During the `WB-2.1` closeout review, identified that replay-marker reads and writes in the new native verifier initially failed open on key-value errors, then executed the follow-up by making malformed/unavailable replay state and failed replay-marker persistence fail closed as explicit `replay_rejected` outcomes.
+- [x] Why:
+  - the `WB-2.1` plan promised deterministic replay-window enforcement, which means replay protection must not silently disappear when the request-path store cannot be read or written.
+  - the native verifier already had the right replay model and keying shape; the shortfall was the error posture, not the architecture.
+  - fixing this immediately kept the tranche honest without introducing a new telemetry taxonomy or a broader storage abstraction detour.
+- [x] Evidence:
+  - `src/bot_identity/native_http_message_signatures.rs`
+  - `docs/research/2026-03-21-wb-2-1-native-http-message-signature-post-implementation-review.md`
+  - `make test-verified-identity-native`
+  - `git diff --check`
+  - review result: the replay-state fail-open gap was closed during tranche review; no remaining `WB-2.1` shortfall was left open.
+
+### WB-2.1: Native HTTP Message Signature Verifier Core
+
+- [x] Added the first native HTTP Message Signatures verifier path for the internal verified-identity runtime/backend, including RFC 9421 parsing and signature verification through the official Rust `web-bot-auth` crate, typed `Signature-Agent`-binding failures, deterministic freshness and replay enforcement, self-contained inline verification support, and explicit `directory_unavailable` failures for unresolved external directories pending `WB-2.2`.
+- [x] Why:
+  - `WB-2.1` was the first tranche that had to move Shuma from observe-only identity normalization into a real cryptographic verifier without yet overreaching into remote discovery-cache machinery or local authorization policy.
+  - reusing the official `web-bot-auth` crate kept the implementation aligned with current RFC 9421 and Web Bot Auth behavior while avoiding a bespoke parser/verifier in Shuma's request path.
+  - threading store/site context through the verified-identity provider contract let the internal runtime enforce replay state cleanly while preserving the already-landed external provider assertion seam and its normalized output contract.
+- [x] Evidence:
+  - `Cargo.toml`
+  - `src/bot_identity/native_http_message_signatures.rs`
+  - `src/bot_identity.rs`
+  - `src/providers/contracts.rs`
+  - `src/providers/internal.rs`
+  - `src/providers/external.rs`
+  - `src/providers/registry.rs`
+  - `src/runtime/request_flow.rs`
+  - `Makefile`
+  - `docs/research/2026-03-21-wb-2-1-native-http-message-signature-readiness-review.md`
+  - `docs/research/2026-03-21-wb-2-1-native-http-message-signature-post-implementation-review.md`
+  - `make test-verified-identity-native`
+  - `make test-verified-identity-provider`
+  - `make test-verified-identity-telemetry`
+  - `make test-verified-identity-annotations`
+  - `git diff --check`
+  - post-tranche review: the one replay-state shortfall found during closeout was executed immediately as `WB-2.1-REVIEW-1`; no remaining tranche-local shortfall remained open.
+
 ### WB-REVIEW-1: Observe-Only Tranche Metrics Boundary Coverage
 
 - [x] During the full `WB-0.*` through `WB-1.*` tranche review, identified that the new verified-identity Prometheus families were not directly regression-tested at the render boundary, then executed the follow-up by introducing a generic internal metrics renderer helper and a focused metrics test that now runs as part of `make test-verified-identity-telemetry`.

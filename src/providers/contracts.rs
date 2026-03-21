@@ -186,6 +186,8 @@ pub(crate) trait FingerprintSignalProvider {
 pub(crate) trait VerifiedIdentityProvider {
     fn verify_identity(
         &self,
+        store: &dyn crate::challenge::KeyValueStore,
+        site_id: &str,
         req: &Request,
         cfg: &crate::config::Config,
     ) -> crate::bot_identity::verification::IdentityVerificationResult;

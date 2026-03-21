@@ -546,14 +546,21 @@ impl FingerprintSignalProvider for InternalFingerprintSignalProvider {
 impl VerifiedIdentityProvider for InternalVerifiedIdentityProvider {
     fn verify_identity(
         &self,
-        _req: &Request,
+        store: &dyn crate::challenge::KeyValueStore,
+        site_id: &str,
+        req: &Request,
         cfg: &crate::config::Config,
     ) -> crate::bot_identity::verification::IdentityVerificationResult {
-        if !cfg.verified_identity.enabled || !cfg.verified_identity.provider_assertions_enabled {
+        if !cfg.verified_identity.enabled {
             return crate::bot_identity::verification::IdentityVerificationResult::disabled();
         }
+        if !cfg.verified_identity.native_web_bot_auth_enabled {
+            return crate::bot_identity::verification::IdentityVerificationResult::not_attempted();
+        }
 
-        crate::bot_identity::verification::IdentityVerificationResult::not_attempted()
+        crate::bot_identity::native_http_message_signatures::verify_request(
+            store, site_id, req, cfg,
+        )
     }
 }
 
@@ -615,8 +622,9 @@ mod tests {
         let mut cfg = crate::config::defaults().clone();
         cfg.verified_identity.enabled = true;
         let req = crate::test_support::request_with_headers("/", &[]);
+        let store = crate::test_support::InMemoryStore::default();
 
-        let result = VERIFIED_IDENTITY.verify_identity(&req, &cfg);
+        let result = VERIFIED_IDENTITY.verify_identity(&store, "default", &req, &cfg);
 
         assert_eq!(
             result.status,
