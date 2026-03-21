@@ -18,6 +18,15 @@ class AdversarySimSupervisorContractTests(unittest.TestCase):
         self.assertIn("X-Forwarded-Proto: https", source)
         self.assertIn("X-Shuma-Internal-Supervisor: adversary-sim", source)
 
+    def test_supervisor_worker_posts_external_worker_results_to_internal_endpoint(self) -> None:
+        source = SUPERVISOR_WORKER_SOURCE.read_text(encoding="utf-8")
+        self.assertIn("/internal/adversary-sim/worker-result", source)
+
+    def test_supervisor_worker_knows_about_scrapling_dispatch_mode(self) -> None:
+        source = SUPERVISOR_WORKER_SOURCE.read_text(encoding="utf-8")
+        self.assertIn("scrapling_worker", source)
+        self.assertIn("scrapling_worker.py", source)
+
     def test_supervisor_manager_worker_pid_is_not_trap_scoped_local(self) -> None:
         script = SUPERVISOR_MANAGER_SCRIPT.read_text(encoding="utf-8")
         self.assertNotIn('local worker_pid=""', script)

@@ -1,8 +1,11 @@
 use std::env;
+use std::fs;
 use std::io::{Read, Write};
 use std::net::{TcpStream, ToSocketAddrs};
+use std::path::PathBuf;
+use std::process::{Command, Stdio};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 const DEFAULT_BASE_URL: &str = "http://127.0.0.1:3000";
 const DEFAULT_INTERVAL_MS: u64 = 1_000;
@@ -11,6 +14,9 @@ const DEFAULT_CONNECT_TIMEOUT_MS: u64 = 1_000;
 const DEFAULT_IO_TIMEOUT_MS: u64 = 2_000;
 const DEFAULT_MAX_FAILURES: u32 = 8;
 const BEAT_PATH: &str = "/internal/adversary-sim/beat";
+const WORKER_RESULT_PATH: &str = "/internal/adversary-sim/worker-result";
+const DEFAULT_SCRAPLING_PYTHON_RELATIVE: &str = ".venv-scrapling/bin/python3";
+const DEFAULT_SCRAPLING_CRAWLDIR_RELATIVE: &str = ".shuma/adversary-sim/scrapling-crawldir";
 
 #[derive(Clone, Debug)]
 struct Config {
@@ -25,6 +31,11 @@ struct Config {
     io_timeout_ms: u64,
     max_failures: u32,
     exit_when_off: bool,
+    repo_root: PathBuf,
+    scrapling_python: PathBuf,
+    scrapling_scope_descriptor_path: Option<PathBuf>,
+    scrapling_seed_inventory_path: Option<PathBuf>,
+    scrapling_crawldir: PathBuf,
 }
 
 #[derive(Debug)]
@@ -77,6 +88,19 @@ fn parse_base_url(base_url: &str) -> Result<(String, u16), String> {
         return Ok((host, port));
     }
     Ok((host_port.to_string(), 80))
+}
+
+fn detect_repo_root() -> Result<PathBuf, String> {
+    if let Ok(exe_path) = env::current_exe() {
+        if let Some(repo_root) = exe_path
+            .parent()
+            .and_then(|path| path.parent())
+            .and_then(|path| path.parent())
+        {
+            return Ok(repo_root.to_path_buf());
+        }
+    }
+    env::current_dir().map_err(|err| format!("cwd unavailable: {err}"))
 }
 
 fn parse_args() -> Result<Config, String> {
@@ -136,6 +160,23 @@ fn parse_args() -> Result<Config, String> {
     let max_failures =
         parse_u32_env("SHUMA_ADVERSARY_SIM_SUPERVISOR_MAX_FAILURES", DEFAULT_MAX_FAILURES).max(1);
     let (host, port) = parse_base_url(base_url.as_str())?;
+    let repo_root = detect_repo_root()?;
+    let scrapling_python = env::var("ADVERSARY_SIM_SCRAPLING_PYTHON")
+        .ok()
+        .map(PathBuf::from)
+        .unwrap_or_else(|| repo_root.join(DEFAULT_SCRAPLING_PYTHON_RELATIVE));
+    let scrapling_scope_descriptor_path =
+        env::var("ADVERSARY_SIM_SCRAPLING_SCOPE_DESCRIPTOR_PATH")
+            .ok()
+            .map(PathBuf::from);
+    let scrapling_seed_inventory_path =
+        env::var("ADVERSARY_SIM_SCRAPLING_SEED_INVENTORY_PATH")
+            .ok()
+            .map(PathBuf::from);
+    let scrapling_crawldir = env::var("ADVERSARY_SIM_SCRAPLING_CRAWLDIR")
+        .ok()
+        .map(PathBuf::from)
+        .unwrap_or_else(|| repo_root.join(DEFAULT_SCRAPLING_CRAWLDIR_RELATIVE));
 
     Ok(Config {
         host,
@@ -149,10 +190,15 @@ fn parse_args() -> Result<Config, String> {
         io_timeout_ms,
         max_failures,
         exit_when_off,
+        repo_root,
+        scrapling_python,
+        scrapling_scope_descriptor_path,
+        scrapling_seed_inventory_path,
+        scrapling_crawldir,
     })
 }
 
-fn request_beat(config: &Config) -> Result<HttpResponse, String> {
+fn request_post(config: &Config, path: &str, body: &str) -> Result<HttpResponse, String> {
     let address_text = format!("{}:{}", config.host, config.port);
     let address = address_text
         .to_socket_addrs()
@@ -168,13 +214,17 @@ fn request_beat(config: &Config) -> Result<HttpResponse, String> {
     let _ = stream.set_write_timeout(Some(Duration::from_millis(config.io_timeout_ms)));
 
     let mut request = format!(
-        "POST {BEAT_PATH} HTTP/1.1\r\nHost: {}:{}\r\nAuthorization: Bearer {}\r\nX-Forwarded-For: 127.0.0.1\r\nX-Forwarded-Proto: https\r\nX-Shuma-Internal-Supervisor: adversary-sim\r\nContent-Length: 0\r\nConnection: close\r\n",
-        config.host, config.port, config.api_key
+        "POST {path} HTTP/1.1\r\nHost: {}:{}\r\nAuthorization: Bearer {}\r\nX-Forwarded-For: 127.0.0.1\r\nX-Forwarded-Proto: https\r\nX-Shuma-Internal-Supervisor: adversary-sim\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n",
+        config.host,
+        config.port,
+        config.api_key,
+        body.as_bytes().len()
     );
     if let Some(secret) = config.forwarded_secret.as_ref() {
         request.push_str(format!("X-Shuma-Forwarded-Secret: {secret}\r\n").as_str());
     }
     request.push_str("\r\n");
+    request.push_str(body);
     stream
         .write_all(request.as_bytes())
         .map_err(|err| format!("write failed: {err}"))?;
@@ -196,6 +246,10 @@ fn request_beat(config: &Config) -> Result<HttpResponse, String> {
         .ok_or_else(|| "invalid HTTP response status".to_string())?;
 
     Ok(HttpResponse { status, body })
+}
+
+fn request_beat(config: &Config) -> Result<HttpResponse, String> {
+    request_post(config, BEAT_PATH, "")
 }
 
 fn json_bool(body: &str, key: &str) -> Option<bool> {
@@ -225,6 +279,194 @@ fn json_u64(body: &str, key: &str) -> Option<u64> {
         return None;
     }
     digits.parse::<u64>().ok()
+}
+
+fn json_string(body: &str, key: &str) -> Option<String> {
+    let compact: String = body.chars().filter(|ch| !ch.is_whitespace()).collect();
+    let needle = format!("\"{key}\":\"");
+    let start = compact.find(needle.as_str())?;
+    let mut escaped = false;
+    let mut value = String::new();
+    for ch in compact[start + needle.len()..].chars() {
+        if escaped {
+            value.push(ch);
+            escaped = false;
+            continue;
+        }
+        if ch == '\\' {
+            escaped = true;
+            continue;
+        }
+        if ch == '"' {
+            return Some(value);
+        }
+        value.push(ch);
+    }
+    None
+}
+
+fn dispatch_mode(body: &str) -> Option<String> {
+    json_string(body, "dispatch_mode")
+}
+
+fn json_escape(raw: &str) -> String {
+    raw.chars()
+        .flat_map(|ch| match ch {
+            '\\' => ['\\', '\\'].into_iter().collect::<Vec<_>>(),
+            '"' => ['\\', '"'].into_iter().collect::<Vec<_>>(),
+            '\n' => ['\\', 'n'].into_iter().collect::<Vec<_>>(),
+            '\r' => ['\\', 'r'].into_iter().collect::<Vec<_>>(),
+            '\t' => ['\\', 't'].into_iter().collect::<Vec<_>>(),
+            other => [other].into_iter().collect::<Vec<_>>(),
+        })
+        .collect()
+}
+
+fn temp_file_path(prefix: &str) -> PathBuf {
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_else(|_| Duration::from_secs(0))
+        .as_nanos();
+    env::temp_dir().join(format!("{prefix}-{nanos}-{}.json", std::process::id()))
+}
+
+fn worker_script_path(config: &Config) -> PathBuf {
+    config
+        .repo_root
+        .join("scripts")
+        .join("supervisor")
+        .join("scrapling_worker.py")
+}
+
+fn build_worker_failure_result(beat_body: &str, failure_class: &str, error: &str) -> String {
+    let run_id = json_string(beat_body, "run_id").unwrap_or_default();
+    let tick_id = json_string(beat_body, "tick_id").unwrap_or_default();
+    let lane = json_string(beat_body, "lane").unwrap_or_else(|| "scrapling_traffic".to_string());
+    let tick_started_at = json_u64(beat_body, "tick_started_at").unwrap_or(0);
+    let worker_id = format!("adversary-sim-supervisor-{}", std::process::id());
+    let tick_completed_at = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_else(|_| Duration::from_secs(0))
+        .as_secs();
+    format!(
+        "{{\"schema_version\":\"adversary-sim-scrapling-worker-result.v1\",\"run_id\":\"{}\",\"tick_id\":\"{}\",\"lane\":\"{}\",\"worker_id\":\"{}\",\"tick_started_at\":{},\"tick_completed_at\":{},\"generated_requests\":0,\"failed_requests\":0,\"last_response_status\":null,\"failure_class\":\"{}\",\"error\":\"{}\",\"crawl_stats\":{{\"requests_count\":0,\"offsite_requests_count\":0,\"blocked_requests_count\":0,\"response_status_count\":{{}},\"response_bytes\":0}},\"scope_rejections\":{{}}}}",
+        json_escape(run_id.as_str()),
+        json_escape(tick_id.as_str()),
+        json_escape(lane.as_str()),
+        json_escape(worker_id.as_str()),
+        tick_started_at,
+        tick_completed_at,
+        json_escape(failure_class),
+        json_escape(error)
+    )
+}
+
+fn run_scrapling_worker(config: &Config, beat_body: &str) -> String {
+    let beat_file = temp_file_path("shuma-scrapling-beat");
+    let result_file = temp_file_path("shuma-scrapling-result");
+    if let Err(err) = fs::write(&beat_file, beat_body.as_bytes()) {
+        return build_worker_failure_result(beat_body, "transport", format!("write beat file failed: {err}").as_str());
+    }
+    let worker_script = worker_script_path(config);
+    if !worker_script.is_file() {
+        let _ = fs::remove_file(&beat_file);
+        return build_worker_failure_result(
+            beat_body,
+            "transport",
+            format!("missing worker script: {}", worker_script.display()).as_str(),
+        );
+    }
+
+    let mut command = Command::new(&config.scrapling_python);
+    command
+        .arg(worker_script)
+        .arg("--beat-response-file")
+        .arg(&beat_file)
+        .arg("--result-output-file")
+        .arg(&result_file)
+        .arg("--crawldir")
+        .arg(&config.scrapling_crawldir)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    if let Some(path) = config.scrapling_scope_descriptor_path.as_ref() {
+        command.arg("--scope-descriptor").arg(path);
+    }
+    if let Some(path) = config.scrapling_seed_inventory_path.as_ref() {
+        command.arg("--seed-inventory").arg(path);
+    }
+    let timeout_ms = json_u64(beat_body, "max_ms").unwrap_or(2_000).saturating_add(1_000);
+    let spawn_result = command.spawn();
+    let mut child = match spawn_result {
+        Ok(child) => child,
+        Err(err) => {
+            let _ = fs::remove_file(&beat_file);
+            return build_worker_failure_result(
+                beat_body,
+                "transport",
+                format!("spawn worker failed: {err}").as_str(),
+            );
+        }
+    };
+
+    let start = SystemTime::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                let rendered = if status.success() {
+                    match fs::read_to_string(&result_file) {
+                        Ok(body) => body,
+                        Err(err) => build_worker_failure_result(
+                            beat_body,
+                            "transport",
+                            format!("read worker result failed: {err}").as_str(),
+                        ),
+                    }
+                } else {
+                    build_worker_failure_result(
+                        beat_body,
+                        "transport",
+                        format!("worker exited with status {:?}", status.code()).as_str(),
+                    )
+                };
+                let _ = fs::remove_file(&beat_file);
+                let _ = fs::remove_file(&result_file);
+                return rendered;
+            }
+            Ok(None) => {
+                let elapsed_ms = SystemTime::now()
+                    .duration_since(start)
+                    .unwrap_or_else(|_| Duration::from_secs(0))
+                    .as_millis() as u64;
+                if elapsed_ms >= timeout_ms {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    let _ = fs::remove_file(&beat_file);
+                    let _ = fs::remove_file(&result_file);
+                    return build_worker_failure_result(
+                        beat_body,
+                        "timeout",
+                        format!("worker exceeded timeout_ms={timeout_ms}").as_str(),
+                    );
+                }
+                thread::sleep(Duration::from_millis(50));
+            }
+            Err(err) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                let _ = fs::remove_file(&beat_file);
+                let _ = fs::remove_file(&result_file);
+                return build_worker_failure_result(
+                    beat_body,
+                    "transport",
+                    format!("worker wait failed: {err}").as_str(),
+                );
+            }
+        }
+    }
+}
+
+fn post_worker_result(config: &Config, body: &str) -> Result<HttpResponse, String> {
+    request_post(config, WORKER_RESULT_PATH, body)
 }
 
 fn main() {
@@ -257,11 +499,42 @@ fn main() {
                     let generation_active =
                         json_bool(response.body.as_str(), "generation_active").unwrap_or(false);
                     let should_exit = json_bool(response.body.as_str(), "should_exit").unwrap_or(false);
+                    let dispatch_mode =
+                        dispatch_mode(response.body.as_str()).unwrap_or_else(|| "internal".to_string());
                     if executed_ticks > 0 || generated_requests > 0 || failed_requests > 0 {
                         eprintln!(
                             "[adversary-sim-supervisor] executed_ticks={} generated_requests={} failed_requests={}",
                             executed_ticks, generated_requests, failed_requests
                         );
+                    }
+                    if dispatch_mode == "scrapling_worker" {
+                        let worker_result_body = run_scrapling_worker(&config, response.body.as_str());
+                        match post_worker_result(&config, worker_result_body.as_str()) {
+                            Ok(worker_response) if worker_response.status == 200 => {}
+                            Ok(worker_response) if worker_response.status == 409 => {
+                                eprintln!(
+                                    "[adversary-sim-supervisor] worker result rejected as stale status={} body={}",
+                                    worker_response.status, worker_response.body
+                                );
+                            }
+                            Ok(worker_response) => {
+                                consecutive_failures = consecutive_failures.saturating_add(1);
+                                eprintln!(
+                                    "[adversary-sim-supervisor] worker result post failed status={} failures={}/{} body={}",
+                                    worker_response.status,
+                                    consecutive_failures,
+                                    config.max_failures,
+                                    worker_response.body
+                                );
+                            }
+                            Err(err) => {
+                                consecutive_failures = consecutive_failures.saturating_add(1);
+                                eprintln!(
+                                    "[adversary-sim-supervisor] worker result transport error failures={}/{} err={}",
+                                    consecutive_failures, config.max_failures, err
+                                );
+                            }
+                        }
                     }
                     if should_exit && config.exit_when_off {
                         eprintln!(

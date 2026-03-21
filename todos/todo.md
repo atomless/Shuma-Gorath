@@ -105,9 +105,8 @@ Reference plan:
 - [ ] SIM-SCR-LANE-1 Three-lane runtime migration and Scrapling integration.
   Execution note: this lane is now unblocked by `SIM-DEPLOY-2` and `SIM-SH-SURFACE-1-1..2`. Its reachable-surface view must derive from the minimal seed inventory plus later traversal telemetry, not from a precompiled public-surface catalog.
   Execution order:
-  - [ ] SIM-SCR-6 Route heartbeat execution through the selected lane and integrate bounded Scrapling worker execution under the shared-host scope-and-seed gate.
   - [ ] SIM-SCR-7 Add dashboard lane controls and diagnostics after the backend contract is stable.
-  - [ ] SIM-SCR-8 Close operator workflow, truthful `make` verification targets, rollout/rollback guidance, and tranche evidence.
+  - [ ] SIM-SCR-8 Close operator workflow, truthful `make` verification targets, rollout/rollback guidance, hosted-scope deployment egress guidance, and tranche evidence.
 
 ## P1 Enterprise Distributed-State Deployment Baseline
 

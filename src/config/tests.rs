@@ -1948,7 +1948,7 @@ fn runtime_ephemeral_defaults_honor_env_startup_overrides() {
 
     let effective = load_runtime_cached_for_tests(&store, "default", 100, 2).unwrap();
     assert!(effective.shadow_mode);
-    assert!(effective.adversary_sim_enabled);
+    assert!(!effective.adversary_sim_enabled);
 
     std::env::remove_var("SHUMA_SHADOW_MODE");
     std::env::remove_var("SHUMA_ADVERSARY_SIM_ENABLED");

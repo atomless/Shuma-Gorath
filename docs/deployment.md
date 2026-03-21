@@ -68,7 +68,9 @@ Pick one setup flow and stick to it for that machine:
   - `make setup`
   - `make verify`
 
-`make setup` remains the full contributor workflow. `make setup-runtime` intentionally skips Node/pnpm/Playwright.
+Both setup flows now also provision the repo-owned Scrapling worker runtime at `.venv-scrapling` with the pinned `scrapling[fetchers]` dependency set used by the real `scrapling_traffic` lane and its focused verification gates.
+
+`make setup` remains the full contributor workflow. `make setup-runtime` intentionally skips Node/pnpm/Playwright, but it does not skip the Scrapling worker runtime.
 
 ## 🐙 One-Command Linode Provision + Deploy
 

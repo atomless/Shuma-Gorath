@@ -5,6 +5,9 @@ build/
 .DS_Store
 .env
 .env.local
+.venv-scrapling/
+__pycache__/
+*.pyc
 unit_test_output.log
 .worktrees/
 node_modules/

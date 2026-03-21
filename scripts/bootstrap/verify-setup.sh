@@ -5,6 +5,7 @@
 # and verifies all dependencies are correctly installed.
 
 set -e
+set -o pipefail
 
 GREEN="\033[0;32m"
 YELLOW="\033[1;33m"
@@ -18,6 +19,9 @@ info() { echo -e "${CYAN}ℹ️  $1${NC}"; }
 warn() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 
 FAILED=0
+
+# shellcheck disable=SC1091
+source "./scripts/bootstrap/scrapling_runtime.sh"
 
 read_env_local_value() {
   local key="$1"
@@ -100,6 +104,20 @@ if command -v spin &> /dev/null; then
     pass "Spin installed: $(spin --version | head -1)"
 else
     fail "Spin not installed (run: curl -fsSL https://developer.fermyon.com/downloads/install.sh | bash)"
+fi
+
+# 5b. Check repo-owned Scrapling worker runtime
+SCRAPLING_RUNTIME_PYTHON="$(scrapling_runtime_select_python || true)"
+if [[ -n "$SCRAPLING_RUNTIME_PYTHON" ]]; then
+    pass "Compatible Scrapling host python available: $SCRAPLING_RUNTIME_PYTHON ($(scrapling_runtime_python_version "$SCRAPLING_RUNTIME_PYTHON"))"
+else
+    fail "Compatible Python ${SCRAPLING_RUNTIME_MIN_MAJOR}.${SCRAPLING_RUNTIME_MIN_MINOR}+ for the Scrapling worker runtime not found (run: make setup)"
+fi
+
+if scrapling_runtime_ready; then
+    pass "Repo-owned Scrapling worker runtime ready: $(scrapling_runtime_summary)"
+else
+    fail "Repo-owned Scrapling worker runtime missing or invalid (run: make setup)"
 fi
 
 # 6. Check cargo-watch

@@ -29,6 +29,9 @@ success() { echo -e "${GREEN}✅ $1${NC}"; }
 warn() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 error() { echo -e "${RED}❌ $1${NC}"; exit 1; }
 
+# shellcheck disable=SC1091
+source "./scripts/bootstrap/scrapling_runtime.sh"
+
 ENV_LOCAL_FILE=".env.local"
 DEFAULTS_FILE="config/defaults.env"
 
@@ -674,6 +677,32 @@ else
 fi
 
 #--------------------------
+# Scrapling worker runtime
+#--------------------------
+if scrapling_runtime_ready; then
+    success "Scrapling worker runtime ready: $(scrapling_runtime_summary)"
+else
+    SCRAPLING_RUNTIME_PYTHON="$(scrapling_runtime_select_python || true)"
+    if [[ -z "$SCRAPLING_RUNTIME_PYTHON" ]]; then
+        if [[ "$(uname)" == "Darwin" ]] && command -v brew >/dev/null 2>&1; then
+            info "Installing Homebrew ${SCRAPLING_RUNTIME_BREW_FORMULA} for the Scrapling worker runtime..."
+            SCRAPLING_RUNTIME_PYTHON="$(scrapling_runtime_install_brew_python || true)"
+        fi
+    fi
+    if [[ -z "$SCRAPLING_RUNTIME_PYTHON" ]]; then
+        error "Scrapling worker runtime requires Python ${SCRAPLING_RUNTIME_MIN_MAJOR}.${SCRAPLING_RUNTIME_MIN_MINOR}+ and the repo-local ${SCRAPLING_RUNTIME_VENV_DIR}. Install a compatible python, then re-run make setup."
+    fi
+
+    info "Creating/updating ${SCRAPLING_RUNTIME_VENV_DIR} with ${SCRAPLING_RUNTIME_PACKAGE_SPEC}..."
+    scrapling_runtime_install "$SCRAPLING_RUNTIME_PYTHON"
+    if scrapling_runtime_ready; then
+        success "Scrapling worker runtime ready: $(scrapling_runtime_summary)"
+    else
+        error "Scrapling worker runtime verification failed after install."
+    fi
+fi
+
+#--------------------------
 # cargo-watch
 #--------------------------
 if command -v cargo-watch &> /dev/null; then
@@ -836,6 +865,13 @@ fi
 
 echo -n "  Spin:         "
 spin --version 2>/dev/null | head -1 || echo "not found"
+
+echo -n "  Scrapling:    "
+if scrapling_runtime_ready; then
+    scrapling_runtime_summary
+else
+    echo "not found"
+fi
 
 echo -n "  cargo-watch:  "
 cargo-watch --version 2>/dev/null || echo "not found"

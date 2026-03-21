@@ -1,0 +1,432 @@
+#!/usr/bin/env python3
+"""Real Scrapling worker for the adversary-sim Scrapling lane."""
+
+from __future__ import annotations
+
+import argparse
+from collections import Counter
+from collections.abc import AsyncGenerator
+import json
+import os
+from pathlib import Path
+import socket
+import sys
+import time
+from typing import Any
+from urllib.parse import urljoin, urlsplit
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from scripts.tests import shared_host_scope
+from scripts.tests import sim_tag_helpers
+
+
+def _import_scrapling() -> tuple[Any, Any, Any]:
+    from scrapling.fetchers import FetcherSession
+    from scrapling.spiders import Request, Spider
+
+    return FetcherSession, Request, Spider
+
+
+class WorkerConfigError(ValueError):
+    """Raised when required worker inputs are missing or invalid."""
+
+
+def _load_json(path: Path) -> dict[str, Any]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise WorkerConfigError(f"JSON payload at {path} must be an object")
+    return payload
+
+
+def _normalize_allowed_domains(descriptor: shared_host_scope.SharedHostScopeDescriptor) -> set[str]:
+    normalized: set[str] = set()
+    for host in descriptor.allowed_hosts:
+        raw_host = host.strip().lower()
+        if not raw_host:
+            continue
+        normalized.add(raw_host)
+        normalized.add(raw_host.split(":", 1)[0].strip())
+    return normalized
+
+
+def _normalized_start_urls(seed_inventory: dict[str, Any]) -> list[str]:
+    ordered: list[str] = []
+    for section in ("accepted_start_urls", "accepted_hint_documents"):
+        entries = seed_inventory.get(section) or []
+        if not isinstance(entries, list):
+            continue
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            url = str(entry.get("url") or "").strip()
+            if url and url not in ordered:
+                ordered.append(url)
+    return ordered
+
+
+def _env_or_arg(value: str | None, env_name: str) -> str | None:
+    if value and str(value).strip():
+        return str(value).strip()
+    env_value = os.environ.get(env_name, "").strip()
+    return env_value or None
+
+
+def _build_failure_result(
+    beat_payload: dict[str, Any],
+    *,
+    failure_class: str,
+    error: str,
+) -> dict[str, Any]:
+    plan = beat_payload.get("worker_plan") if isinstance(beat_payload.get("worker_plan"), dict) else {}
+    now = int(time.time())
+    return {
+        "schema_version": "adversary-sim-scrapling-worker-result.v1",
+        "run_id": str(plan.get("run_id") or ""),
+        "tick_id": str(plan.get("tick_id") or ""),
+        "lane": str(plan.get("lane") or "scrapling_traffic"),
+        "worker_id": socket.gethostname(),
+        "tick_started_at": int(plan.get("tick_started_at") or now),
+        "tick_completed_at": now,
+        "generated_requests": 0,
+        "failed_requests": 0,
+        "last_response_status": None,
+        "failure_class": failure_class,
+        "error": error,
+        "crawl_stats": {
+            "requests_count": 0,
+            "offsite_requests_count": 0,
+            "blocked_requests_count": 0,
+            "response_status_count": {},
+            "response_bytes": 0,
+        },
+        "scope_rejections": {},
+    }
+
+
+def _signed_headers(secret: str, *, run_id: str, profile: str, lane: str, seq: int) -> dict[str, str]:
+    timestamp = str(int(time.time()))
+    nonce = f"{run_id}:{profile}:{lane}:{seq}:{timestamp}"
+    signature = sim_tag_helpers.sign_sim_tag(
+        secret=secret,
+        run_id=run_id,
+        profile=profile,
+        lane=lane,
+        timestamp=timestamp,
+        nonce=nonce,
+    )
+    return {
+        sim_tag_helpers.SIM_TAG_HEADER_RUN_ID: run_id,
+        sim_tag_helpers.SIM_TAG_HEADER_PROFILE: profile,
+        sim_tag_helpers.SIM_TAG_HEADER_LANE: lane,
+        sim_tag_helpers.SIM_TAG_HEADER_TIMESTAMP: timestamp,
+        sim_tag_helpers.SIM_TAG_HEADER_NONCE: nonce,
+        sim_tag_helpers.SIM_TAG_HEADER_SIGNATURE: signature,
+        "user-agent": f"ShumaScraplingWorker/1.0 lane={lane}",
+    }
+
+
+def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base: Any):
+    class ShumaScraplingSpider(spider_base):  # type: ignore[misc]
+        name = "shuma_scrapling_lane"
+        concurrent_requests = 1
+        concurrent_requests_per_domain = 1
+        download_delay = 0.0
+        max_blocked_retries = 0
+
+        def __init__(
+            self,
+            *,
+            plan: dict[str, Any],
+            descriptor: shared_host_scope.SharedHostScopeDescriptor,
+            seed_inventory: dict[str, Any],
+            crawldir: Path,
+            sim_telemetry_secret: str,
+        ) -> None:
+            self.plan = plan
+            self.descriptor = descriptor
+            self.seed_inventory = seed_inventory
+            self.max_requests = max(1, int(plan.get("max_requests") or 1))
+            self.max_depth = max(0, int(plan.get("max_depth") or 0))
+            self.max_bytes = max(1, int(plan.get("max_bytes") or 1))
+            self.max_ms = max(1, int(plan.get("max_ms") or 1))
+            self.run_id = str(plan.get("run_id") or "")
+            self.tick_id = str(plan.get("tick_id") or "")
+            self.lane = str(plan.get("lane") or "scrapling_traffic")
+            self.sim_profile = str(plan.get("sim_profile") or "scrapling_runtime_lane")
+            self.deadline = time.monotonic() + (self.max_ms / 1000.0)
+            self.sim_telemetry_secret = sim_telemetry_secret
+            self.request_sequence = 0
+            self.requests_observed = 0
+            self.bytes_observed = 0
+            self.last_response_status: int | None = None
+            self.scope_rejections: Counter[str] = Counter()
+            self.last_transport_error: str | None = None
+            self.allowed_domains = _normalize_allowed_domains(descriptor)
+            self.start_urls = _normalized_start_urls(seed_inventory)
+            super().__init__(crawldir=str(crawldir), interval=0.0)
+
+        def configure_sessions(self, manager) -> None:
+            timeout_seconds = max(1.0, min(30.0, self.max_ms / 1000.0))
+            manager.add(
+                "default",
+                fetcher_session_cls(
+                    follow_redirects=False,
+                    timeout=timeout_seconds,
+                    retries=1,
+                    headers={"accept": "*/*"},
+                ),
+            )
+
+        def _should_stop(self) -> bool:
+            return (
+                self.requests_observed >= self.max_requests
+                or self.bytes_observed >= self.max_bytes
+                or time.monotonic() >= self.deadline
+            )
+
+        def _next_headers(self) -> dict[str, str]:
+            self.request_sequence += 1
+            return _signed_headers(
+                self.sim_telemetry_secret,
+                run_id=self.run_id,
+                profile=self.sim_profile,
+                lane=self.lane,
+                seq=self.request_sequence,
+            )
+
+        def _record_rejection(self, reason: str | None) -> None:
+            reason_key = str(reason or "malformed_url").strip() or "malformed_url"
+            self.scope_rejections[reason_key] += 1
+
+        async def on_error(self, request, error: Exception) -> None:
+            self.last_transport_error = f"{type(error).__name__}: {error}"
+
+        def _allowed_request(
+            self,
+            current_url: str,
+            raw_target: str,
+            *,
+            is_redirect: bool,
+        ) -> tuple[bool, str | None]:
+            if is_redirect:
+                decision = shared_host_scope.evaluate_redirect_target(
+                    current_url, raw_target, self.descriptor
+                )
+            else:
+                decision = shared_host_scope.evaluate_url_candidate(raw_target, self.descriptor)
+            if not decision.allowed or not decision.normalized_url:
+                self._record_rejection(decision.rejection_reason)
+                return False, None
+            return True, decision.normalized_url
+
+        async def start_requests(self) -> AsyncGenerator[Any, None]:
+            for url in self.start_urls:
+                yield request_cls(
+                    url,
+                    sid="default",
+                    meta={"depth": 0},
+                    headers=self._next_headers(),
+                )
+
+        async def parse(self, response) -> AsyncGenerator[Any, None]:
+            self.requests_observed += 1
+            self.bytes_observed += len(response.body)
+            self.last_response_status = int(response.status)
+
+            if self._should_stop():
+                self.pause()
+                return
+
+            depth = int((response.meta or {}).get("depth") or 0)
+            next_depth = depth + 1
+
+            if 300 <= int(response.status) < 400:
+                location = str(response.headers.get("location") or "").strip()
+                if location and next_depth <= self.max_depth:
+                    allowed, normalized_url = self._allowed_request(
+                        response.url,
+                        location,
+                        is_redirect=True,
+                    )
+                    if allowed and normalized_url:
+                        yield response.follow(
+                            normalized_url,
+                            meta={"depth": next_depth},
+                            headers=self._next_headers(),
+                        )
+                return
+
+            sitemap_targets = [value.strip() for value in response.css("loc::text").getall()]
+            if sitemap_targets:
+                for raw_target in sitemap_targets:
+                    if not raw_target or next_depth > self.max_depth:
+                        continue
+                    allowed, normalized_url = self._allowed_request(
+                        response.url,
+                        raw_target,
+                        is_redirect=False,
+                    )
+                    if allowed and normalized_url:
+                        yield response.follow(
+                            normalized_url,
+                            meta={"depth": next_depth},
+                            headers=self._next_headers(),
+                        )
+                        if self._should_stop():
+                            self.pause()
+                            return
+                return
+
+            for href in response.css("a::attr(href)").getall():
+                candidate = urljoin(response.url, href)
+                if next_depth > self.max_depth:
+                    continue
+                allowed, normalized_url = self._allowed_request(
+                    response.url,
+                    candidate,
+                    is_redirect=False,
+                )
+                if allowed and normalized_url:
+                    yield response.follow(
+                        normalized_url,
+                        meta={"depth": next_depth},
+                        headers=self._next_headers(),
+                    )
+                    if self._should_stop():
+                        self.pause()
+                        return
+
+    return ShumaScraplingSpider
+
+
+def execute_worker_plan(
+    beat_payload: dict[str, Any],
+    *,
+    scope_descriptor_path: Path,
+    seed_inventory_path: Path,
+    crawldir: Path,
+    sim_telemetry_secret: str,
+) -> dict[str, Any]:
+    try:
+        plan = beat_payload.get("worker_plan")
+        if not isinstance(plan, dict):
+            raise WorkerConfigError("worker_plan object is required")
+        if str(plan.get("schema_version") or "").strip() != "adversary-sim-scrapling-worker-plan.v1":
+            raise WorkerConfigError("worker_plan schema_version must be adversary-sim-scrapling-worker-plan.v1")
+        if str(plan.get("lane") or "").strip() != "scrapling_traffic":
+            raise WorkerConfigError("worker_plan lane must be scrapling_traffic")
+        if not sim_telemetry_secret.strip():
+            raise WorkerConfigError("SHUMA_SIM_TELEMETRY_SECRET is required for Scrapling worker tagging")
+
+        descriptor_payload = _load_json(scope_descriptor_path)
+        descriptor = shared_host_scope.descriptor_from_payload(descriptor_payload)
+        seed_inventory = _load_json(seed_inventory_path)
+        if not _normalized_start_urls(seed_inventory):
+            raise WorkerConfigError("seed inventory must contain at least one accepted start or hint URL")
+
+        fetcher_session_cls, request_cls, spider_cls = _import_scrapling()
+        spider_class = _build_spider_class(fetcher_session_cls, request_cls, spider_cls)
+        crawldir.mkdir(parents=True, exist_ok=True)
+        spider = spider_class(
+            plan=plan,
+            descriptor=descriptor,
+            seed_inventory=seed_inventory,
+            crawldir=crawldir,
+            sim_telemetry_secret=sim_telemetry_secret,
+        )
+        crawl_result = spider.start()
+        stats = crawl_result.stats
+        failure_class = None
+        error = None
+        if spider.last_transport_error:
+            failure_class = "transport"
+            error = spider.last_transport_error
+        return {
+            "schema_version": "adversary-sim-scrapling-worker-result.v1",
+            "run_id": str(plan.get("run_id") or ""),
+            "tick_id": str(plan.get("tick_id") or ""),
+            "lane": "scrapling_traffic",
+            "worker_id": socket.gethostname(),
+            "tick_started_at": int(plan.get("tick_started_at") or int(time.time())),
+            "tick_completed_at": int(time.time()),
+            "generated_requests": int(stats.requests_count),
+            "failed_requests": int(stats.failed_requests_count),
+            "last_response_status": spider.last_response_status,
+            "failure_class": failure_class,
+            "error": error,
+            "crawl_stats": {
+                "requests_count": int(stats.requests_count),
+                "offsite_requests_count": int(stats.offsite_requests_count),
+                "blocked_requests_count": int(stats.blocked_requests_count),
+                "response_status_count": dict(stats.response_status_count),
+                "response_bytes": int(stats.response_bytes),
+            },
+            "scope_rejections": dict(sorted(spider.scope_rejections.items())),
+        }
+    except Exception as exc:
+        return _build_failure_result(
+            beat_payload,
+            failure_class="transport",
+            error=str(exc),
+        )
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Execute one bounded Scrapling worker plan.")
+    parser.add_argument("--beat-response-file", required=True, help="Beat response JSON file")
+    parser.add_argument("--result-output-file", help="Write result JSON to this file")
+    parser.add_argument("--scope-descriptor", help="Shared-host scope descriptor JSON path")
+    parser.add_argument("--seed-inventory", help="Shared-host seed inventory JSON path")
+    parser.add_argument("--crawldir", help="Persistent Scrapling crawldir path")
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    beat_payload = _load_json(Path(args.beat_response_file))
+    scope_descriptor = _env_or_arg(
+        args.scope_descriptor,
+        "ADVERSARY_SIM_SCRAPLING_SCOPE_DESCRIPTOR_PATH",
+    )
+    seed_inventory = _env_or_arg(
+        args.seed_inventory,
+        "ADVERSARY_SIM_SCRAPLING_SEED_INVENTORY_PATH",
+    )
+    crawldir = _env_or_arg(
+        args.crawldir,
+        "ADVERSARY_SIM_SCRAPLING_CRAWLDIR",
+    )
+    if not scope_descriptor or not seed_inventory or not crawldir:
+        result = _build_failure_result(
+            beat_payload,
+            failure_class="transport",
+            error=(
+                "scope descriptor, seed inventory, and crawldir must be provided via "
+                "arguments or ADVERSARY_SIM_SCRAPLING_* environment variables"
+            ),
+        )
+    else:
+        result = execute_worker_plan(
+            beat_payload,
+            scope_descriptor_path=Path(scope_descriptor),
+            seed_inventory_path=Path(seed_inventory),
+            crawldir=Path(crawldir),
+            sim_telemetry_secret=os.environ.get("SHUMA_SIM_TELEMETRY_SECRET", ""),
+        )
+
+    rendered = json.dumps(result, separators=(",", ":"), sort_keys=True)
+    if args.result_output_file:
+        output_path = Path(args.result_output_file)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(rendered, encoding="utf-8")
+    else:
+        print(rendered)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

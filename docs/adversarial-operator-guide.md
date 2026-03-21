@@ -25,10 +25,11 @@ Use this guide for:
 Runtime-toggle adversary generation is owned by a host-side supervisor heartbeat, not by dashboard polling:
 
 1. Dashboard uses control/status endpoints only (`/admin/adversary-sim/control`, `/admin/adversary-sim/status`).
-2. Host-side supervisors call the internal beat endpoint (`POST /internal/adversary-sim/beat`) on cadence.
+2. Host-side supervisors call the internal beat endpoint (`POST /internal/adversary-sim/beat`) on cadence and post bounded worker results through `POST /internal/adversary-sim/worker-result` when `scrapling_traffic` is active.
 3. Local make targets (`make dev`, `make dev-prod`, `make run`, `make run-prebuilt`, `make prod`) wrap Spin with `scripts/run_with_adversary_sim_supervisor.sh`.
 4. Equivalent worker deployment adapters are supported for single-host service managers, container sidecars, and external edge supervisor services.
 5. Host-side supervisor requests use trusted-forwarding plus the internal supervisor marker so `runtime-prod` deployments can keep HTTPS enforcement and operator IP allowlists without starving the supervisor.
+6. `make setup` and `make setup-runtime` now also provision the repo-owned `.venv-scrapling` runtime used by the real Scrapling worker and its focused verification gates.
 
 ## Telemetry Is The Map
 
@@ -614,6 +615,10 @@ Lifecycle semantics:
    - top level: `gateway_deployment_profile`
    - guardrails: `surface_available_by_default`, `generation_default=off_until_explicit_enable`, `generation_requires_explicit_enable`
    - supervisor: `deployment_profile`, `trigger_surface`, `cadence_seconds`, and `cron_schedule` when edge cron is the trigger surface
+7. Real Scrapling worker routing is now part of the lifecycle contract:
+   - `desired_lane` vs `active_lane` expresses operator intent versus beat-boundary runtime truth,
+   - `lane_diagnostics` now carries live per-lane counters (`beat_attempts`, `beat_successes`, `beat_failures`, `generated_requests`, `blocked_requests`, `offsite_requests`, `response_bytes`, `response_status_count`, `last_generated_at`, `last_error`),
+   - and `lane_diagnostics.request_failure_classes` tracks `cancelled`, `timeout`, `transport`, and `http` failure buckets across worker and internal generation paths.
 
 Guardrail constants (hard-coded, not operator-configurable):
 

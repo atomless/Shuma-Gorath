@@ -50,6 +50,8 @@ Completed archive index:
    Post-implementation review confirming the first additive lane-migration slice landed as backend state/status scaffolding plus a focused `make test-adversary-sim-lane-contract` gate without changing runtime routing yet.
 9. [`2026-03-20-sim-scr-1-lane-selection-post-implementation-review.md`](2026-03-20-sim-scr-1-lane-selection-post-implementation-review.md)
    Post-implementation review confirming the control path now persists strict lane selection, exposes requested/desired/actual lane auditability, keeps idempotency lane-aware, and still truthfully reports `synthetic_traffic` as the active lane until worker routing lands.
+10. [`2026-03-20-sim-scr-6-scrapling-worker-post-implementation-review.md`](2026-03-20-sim-scr-6-scrapling-worker-post-implementation-review.md)
+   Post-implementation review confirming heartbeat lane routing now dispatches the real bounded Scrapling worker, records live lane diagnostics through the internal worker-result contract, and leaves deployment-level egress isolation as the remaining follow-on hardening note for the operator-workflow tranche.
 
 ## 🐙 Gateway Deployment Research
 

@@ -3231,6 +3231,23 @@ mod admin_config_tests {
         builder.build()
     }
 
+    fn make_internal_worker_result_request(api_key: &str, body: &[u8]) -> Request {
+        let authorization = format!("Bearer {}", api_key);
+        let mut builder = Request::builder();
+        builder
+            .method(Method::Post)
+            .uri("/internal/adversary-sim/worker-result")
+            .header("host", "localhost:3000")
+            .header("content-type", "application/json")
+            .header("authorization", authorization.as_str())
+            .header("x-shuma-forwarded-secret", "test-forwarded-secret")
+            .header("x-forwarded-proto", "https")
+            .header("x-forwarded-for", "127.0.0.1")
+            .header("x-shuma-internal-supervisor", "adversary-sim")
+            .body(body.to_vec());
+        builder.build()
+    }
+
     fn make_edge_cron_beat_request(secret: &str) -> Request {
         let mut builder = Request::builder();
         builder
@@ -3803,7 +3820,7 @@ mod admin_config_tests {
         assert!(env.get("SHUMA_FRONTIER_OPENAI_API_KEY").is_none());
         assert_eq!(
             env.get("SHUMA_ADVERSARY_SIM_ENABLED"),
-            Some(&serde_json::json!("false"))
+            Some(&serde_json::json!("true"))
         );
         assert_eq!(
             env.get("SHUMA_ADVERSARY_SIM_DURATION_SECONDS"),
@@ -3849,7 +3866,7 @@ mod admin_config_tests {
         assert!(env_text.contains("SHUMA_FRONTIER_GOOGLE_MODEL=gemini-2.0-flash-lite"));
         assert!(env_text.contains("SHUMA_FRONTIER_XAI_MODEL=grok-3-mini"));
         assert!(!env_text.contains("SHUMA_FRONTIER_OPENAI_API_KEY="));
-        assert!(env_text.contains("SHUMA_ADVERSARY_SIM_ENABLED=false"));
+        assert!(env_text.contains("SHUMA_ADVERSARY_SIM_ENABLED=true"));
         assert!(env_text.contains("SHUMA_ADVERSARY_SIM_DURATION_SECONDS="));
         assert!(!env_text.contains("SHUMA_RATE_LIMITER_REDIS_URL="));
         assert!(!env_text.contains("SHUMA_BAN_STORE_REDIS_URL="));
@@ -4815,6 +4832,342 @@ mod admin_config_tests {
     }
 
     #[test]
+    fn adversary_sim_internal_beat_returns_scrapling_worker_plan_and_switches_active_lane() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "shared-server");
+        std::env::set_var("SHUMA_API_KEY", "sim-scrapling-beat-test-key");
+        std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+
+        let on_resp = handle_admin_adversary_sim_control(
+            &make_control_request(true, "scrapling-beat-start"),
+            &store,
+            "default",
+            &auth,
+        );
+        assert_eq!(*on_resp.status(), 200u16);
+
+        let lane_resp = handle_admin_adversary_sim_control(
+            &make_control_request_json(
+                br#"{"enabled":true,"lane":"scrapling_traffic"}"#,
+                "scrapling-beat-lane",
+            ),
+            &store,
+            "default",
+            &auth,
+        );
+        assert_eq!(*lane_resp.status(), 200u16);
+
+        let beat_req = make_internal_beat_request("sim-scrapling-beat-test-key");
+        let beat_resp = handle_internal_adversary_sim_beat(&beat_req, &store, "default");
+        assert_eq!(*beat_resp.status(), 200u16);
+        let beat_json: serde_json::Value = serde_json::from_slice(beat_resp.body()).unwrap();
+        assert_eq!(
+            beat_json.get("dispatch_mode").and_then(|value| value.as_str()),
+            Some("scrapling_worker")
+        );
+        assert_eq!(
+            beat_json.get("executed_ticks").and_then(|value| value.as_u64()),
+            Some(0)
+        );
+        assert_eq!(
+            beat_json
+                .get("worker_plan")
+                .and_then(|value| value.get("lane"))
+                .and_then(|value| value.as_str()),
+            Some("scrapling_traffic")
+        );
+        assert_eq!(
+            beat_json
+                .get("worker_plan")
+                .and_then(|value| value.get("sim_profile"))
+                .and_then(|value| value.as_str()),
+            Some("scrapling_runtime_lane")
+        );
+        assert_eq!(
+            beat_json
+                .get("status")
+                .and_then(|value| value.get("active_lane"))
+                .and_then(|value| value.as_str()),
+            Some("scrapling_traffic")
+        );
+        assert_eq!(
+            beat_json
+                .get("status")
+                .and_then(|value| value.get("controller_reconciliation_required"))
+                .and_then(|value| value.as_bool()),
+            Some(false)
+        );
+
+        let persisted = crate::admin::adversary_sim::load_state(&store, "default");
+        assert_eq!(
+            persisted.active_lane,
+            Some(crate::admin::adversary_sim::RuntimeLane::ScraplingTraffic)
+        );
+        assert_eq!(persisted.lane_switch_seq, 1);
+        assert!(persisted.pending_worker_tick_id.is_some());
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+        std::env::remove_var("SHUMA_API_KEY");
+        std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
+    }
+
+    #[test]
+    fn adversary_sim_worker_result_updates_scrapling_generation_and_lane_diagnostics() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "shared-server");
+        std::env::set_var("SHUMA_API_KEY", "sim-scrapling-result-test-key");
+        std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+
+        let on_resp = handle_admin_adversary_sim_control(
+            &make_control_request(true, "scrapling-result-start"),
+            &store,
+            "default",
+            &auth,
+        );
+        assert_eq!(*on_resp.status(), 200u16);
+
+        let lane_resp = handle_admin_adversary_sim_control(
+            &make_control_request_json(
+                br#"{"enabled":true,"lane":"scrapling_traffic"}"#,
+                "scrapling-result-lane",
+            ),
+            &store,
+            "default",
+            &auth,
+        );
+        assert_eq!(*lane_resp.status(), 200u16);
+
+        let beat_req = make_internal_beat_request("sim-scrapling-result-test-key");
+        let beat_resp = handle_internal_adversary_sim_beat(&beat_req, &store, "default");
+        assert_eq!(*beat_resp.status(), 200u16);
+        let beat_json: serde_json::Value = serde_json::from_slice(beat_resp.body()).unwrap();
+        let worker_plan = beat_json
+            .get("worker_plan")
+            .cloned()
+            .expect("worker plan");
+        let run_id = worker_plan
+            .get("run_id")
+            .and_then(|value| value.as_str())
+            .expect("run id");
+        let tick_id = worker_plan
+            .get("tick_id")
+            .and_then(|value| value.as_str())
+            .expect("tick id");
+        let tick_started_at = worker_plan
+            .get("tick_started_at")
+            .and_then(|value| value.as_u64())
+            .expect("tick started at");
+
+        let result_body = serde_json::to_vec(&serde_json::json!({
+            "schema_version": "adversary-sim-scrapling-worker-result.v1",
+            "run_id": run_id,
+            "tick_id": tick_id,
+            "lane": "scrapling_traffic",
+            "worker_id": "scrapling-worker-test",
+            "tick_started_at": tick_started_at,
+            "tick_completed_at": tick_started_at.saturating_add(1),
+            "generated_requests": 3,
+            "failed_requests": 0,
+            "last_response_status": 200,
+            "failure_class": null,
+            "error": null,
+            "crawl_stats": {
+                "requests_count": 3,
+                "offsite_requests_count": 1,
+                "blocked_requests_count": 1,
+                "response_status_count": {
+                    "status_200": 2,
+                    "status_302": 1
+                },
+                "response_bytes": 512
+            },
+            "scope_rejections": {
+                "host_not_allowed": 1,
+                "redirect_target_out_of_scope": 1
+            }
+        }))
+        .unwrap();
+        let result_req = make_internal_worker_result_request(
+            "sim-scrapling-result-test-key",
+            result_body.as_slice(),
+        );
+        let result_resp =
+            handle_internal_adversary_sim_worker_result(&result_req, &store, "default");
+        assert_eq!(*result_resp.status(), 200u16);
+        let result_json: serde_json::Value = serde_json::from_slice(result_resp.body()).unwrap();
+        assert_eq!(
+            result_json.get("accepted").and_then(|value| value.as_bool()),
+            Some(true)
+        );
+        assert_eq!(
+            result_json
+                .get("status")
+                .and_then(|value| value.get("generation"))
+                .and_then(|value| value.get("tick_count"))
+                .and_then(|value| value.as_u64()),
+            Some(1)
+        );
+        assert_eq!(
+            result_json
+                .get("status")
+                .and_then(|value| value.get("lane_diagnostics"))
+                .and_then(|value| value.get("lanes"))
+                .and_then(|value| value.get("scrapling_traffic"))
+                .and_then(|value| value.get("beat_successes"))
+                .and_then(|value| value.as_u64()),
+            Some(1)
+        );
+        assert_eq!(
+            result_json
+                .get("status")
+                .and_then(|value| value.get("lane_diagnostics"))
+                .and_then(|value| value.get("lanes"))
+                .and_then(|value| value.get("scrapling_traffic"))
+                .and_then(|value| value.get("generated_requests"))
+                .and_then(|value| value.as_u64()),
+            Some(3)
+        );
+
+        let persisted = crate::admin::adversary_sim::load_state(&store, "default");
+        assert_eq!(
+            persisted.active_lane,
+            Some(crate::admin::adversary_sim::RuntimeLane::ScraplingTraffic)
+        );
+        assert_eq!(persisted.generated_tick_count, 1);
+        assert_eq!(persisted.generated_request_count, 3);
+        assert!(persisted.pending_worker_tick_id.is_none());
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+        std::env::remove_var("SHUMA_API_KEY");
+        std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
+    }
+
+    #[test]
+    fn adversary_sim_worker_result_is_rejected_after_manual_off_and_does_not_restore_running_state() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "shared-server");
+        std::env::set_var("SHUMA_API_KEY", "sim-scrapling-stale-test-key");
+        std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+
+        let on_resp = handle_admin_adversary_sim_control(
+            &make_control_request(true, "scrapling-stale-start"),
+            &store,
+            "default",
+            &auth,
+        );
+        assert_eq!(*on_resp.status(), 200u16);
+
+        let lane_resp = handle_admin_adversary_sim_control(
+            &make_control_request_json(
+                br#"{"enabled":true,"lane":"scrapling_traffic"}"#,
+                "scrapling-stale-lane",
+            ),
+            &store,
+            "default",
+            &auth,
+        );
+        assert_eq!(*lane_resp.status(), 200u16);
+
+        let beat_req = make_internal_beat_request("sim-scrapling-stale-test-key");
+        let beat_resp = handle_internal_adversary_sim_beat(&beat_req, &store, "default");
+        assert_eq!(*beat_resp.status(), 200u16);
+        let beat_json: serde_json::Value = serde_json::from_slice(beat_resp.body()).unwrap();
+        let worker_plan = beat_json
+            .get("worker_plan")
+            .cloned()
+            .expect("worker plan");
+        let run_id = worker_plan
+            .get("run_id")
+            .and_then(|value| value.as_str())
+            .expect("run id");
+        let tick_id = worker_plan
+            .get("tick_id")
+            .and_then(|value| value.as_str())
+            .expect("tick id");
+        let tick_started_at = worker_plan
+            .get("tick_started_at")
+            .and_then(|value| value.as_u64())
+            .expect("tick started at");
+
+        let running_state = crate::admin::adversary_sim::load_state(&store, "default");
+        let now = now_ts();
+        let (stopping_state, _) =
+            crate::admin::adversary_sim::stop_state(now, "manual_off", &running_state);
+        let (off_state, _) =
+            crate::admin::adversary_sim::reconcile_state(now, false, &stopping_state);
+        crate::admin::adversary_sim::save_state(&store, "default", &off_state).unwrap();
+
+        let result_body = serde_json::to_vec(&serde_json::json!({
+            "schema_version": "adversary-sim-scrapling-worker-result.v1",
+            "run_id": run_id,
+            "tick_id": tick_id,
+            "lane": "scrapling_traffic",
+            "worker_id": "scrapling-worker-test",
+            "tick_started_at": tick_started_at,
+            "tick_completed_at": tick_started_at.saturating_add(1),
+            "generated_requests": 1,
+            "failed_requests": 0,
+            "last_response_status": 200,
+            "failure_class": null,
+            "error": null,
+            "crawl_stats": {
+                "requests_count": 1,
+                "offsite_requests_count": 0,
+                "blocked_requests_count": 0,
+                "response_status_count": {
+                    "status_200": 1
+                },
+                "response_bytes": 128
+            },
+            "scope_rejections": {}
+        }))
+        .unwrap();
+        let result_req = make_internal_worker_result_request(
+            "sim-scrapling-stale-test-key",
+            result_body.as_slice(),
+        );
+        let result_resp =
+            handle_internal_adversary_sim_worker_result(&result_req, &store, "default");
+        assert_eq!(*result_resp.status(), 409u16);
+
+        let persisted = crate::admin::adversary_sim::load_state(&store, "default");
+        assert_eq!(persisted.phase, crate::admin::adversary_sim::ControlPhase::Off);
+        assert!(!persisted.desired_enabled);
+        assert!(persisted.pending_worker_tick_id.is_none());
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+        std::env::remove_var("SHUMA_API_KEY");
+        std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
+    }
+
+    #[test]
     fn adversary_sim_control_enable_recovers_from_stale_expired_running_state() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
@@ -4847,6 +5200,9 @@ mod admin_config_tests {
             generated_request_count: 0,
             last_generated_at: None,
             last_generation_error: None,
+            pending_worker_tick_id: None,
+            pending_worker_started_at: None,
+            lane_diagnostics: crate::admin::adversary_sim::LaneDiagnosticsState::default(),
             updated_at: now.saturating_sub(300),
         };
         crate::admin::adversary_sim::save_state(&store, "default", &stale_state).unwrap();
@@ -5340,6 +5696,9 @@ mod admin_config_tests {
             generated_request_count: 0,
             last_generated_at: None,
             last_generation_error: None,
+            pending_worker_tick_id: None,
+            pending_worker_started_at: None,
+            lane_diagnostics: crate::admin::adversary_sim::LaneDiagnosticsState::default(),
             updated_at: now.saturating_sub(10),
         };
         crate::admin::adversary_sim::save_state(&store, "default", &stale_running_state).unwrap();
@@ -9679,6 +10038,7 @@ const MONITORING_FRESHNESS_SLO_P99_MS: u64 = 500;
 const MONITORING_MANUAL_REFRESH_STALENESS_BOUND_MS: u64 = 60_000;
 const MONITORING_MAX_ALLOWED_LAG_BEFORE_DEGRADED_MS: u64 = 2_000;
 const INTERNAL_ADVERSARY_SIM_BEAT_PATH: &str = "/internal/adversary-sim/beat";
+const INTERNAL_ADVERSARY_SIM_WORKER_RESULT_PATH: &str = "/internal/adversary-sim/worker-result";
 const MONITORING_STALE_LAG_THRESHOLD_MS: u64 = 10_000;
 const MONITORING_LOAD_ENVELOPE_EVENTS_PER_SEC: u64 = 1_000;
 const MONITORING_LOAD_ENVELOPE_OPERATOR_CLIENTS: u64 = 5;
@@ -17087,6 +17447,9 @@ fn request_bypasses_admin_ip_allowlist(req: &Request, path: &str) -> bool {
     match path {
         "/admin/adversary-sim/status" => crate::admin::auth::is_internal_adversary_sim_supervisor_request(req),
         INTERNAL_ADVERSARY_SIM_BEAT_PATH => crate::admin::auth::is_internal_adversary_sim_beat_request(req),
+        INTERNAL_ADVERSARY_SIM_WORKER_RESULT_PATH => {
+            crate::admin::auth::is_internal_adversary_sim_supervisor_request(req)
+        }
         _ => false,
     }
 }
@@ -17158,6 +17521,10 @@ fn internal_adversary_sim_beat_is_authorized(req: &Request) -> bool {
     crate::admin::auth::is_internal_adversary_sim_beat_request(req)
 }
 
+fn internal_adversary_sim_worker_result_is_authorized(req: &Request) -> bool {
+    crate::admin::auth::is_internal_adversary_sim_supervisor_request(req)
+}
+
 fn handle_internal_adversary_sim_beat(
     req: &Request,
     store: &impl crate::challenge::KeyValueStore,
@@ -17222,16 +17589,97 @@ fn handle_internal_adversary_sim_beat(
     let generation_active =
         cfg.adversary_sim_enabled && state.phase == crate::admin::adversary_sim::ControlPhase::Running;
     let status = adversary_sim_status_payload(store, site_id, &cfg, &state, now);
+    let dispatch_mode = if summary.worker_plan.is_some() {
+        "scrapling_worker"
+    } else if summary.worker_pending {
+        "scrapling_worker_pending"
+    } else {
+        "internal"
+    };
     let body = serde_json::to_string(&json!({
         "accepted": true,
+        "dispatch_mode": dispatch_mode,
         "executed_ticks": summary.executed_ticks,
         "due_ticks": summary.due_ticks,
         "generated_requests": summary.generated_requests,
         "failed_requests": summary.failed_requests,
         "last_response_status": summary.last_response_status,
+        "worker_plan": summary.worker_plan,
         "phase": state.phase.as_str(),
         "generation_active": generation_active,
         "should_exit": !generation_active,
+        "status": status
+    }))
+    .unwrap();
+    Response::builder()
+        .status(200)
+        .header("Cache-Control", "no-store")
+        .body(body)
+        .build()
+}
+
+fn handle_internal_adversary_sim_worker_result(
+    req: &Request,
+    store: &impl crate::challenge::KeyValueStore,
+    site_id: &str,
+) -> Response {
+    if *req.method() != Method::Post {
+        return Response::new(405, "Method Not Allowed");
+    }
+    let runtime_environment = crate::config::runtime_environment();
+    let env_available = crate::config::adversary_sim_available();
+    if !crate::admin::adversary_sim::control_surface_available(runtime_environment, env_available) {
+        return Response::new(404, "Not Found");
+    }
+    if !internal_adversary_sim_worker_result_is_authorized(req) {
+        return Response::new(
+            401,
+            "Unauthorized: Internal adversary-sim worker authorization required",
+        );
+    }
+
+    let worker_result = match serde_json::from_slice::<crate::admin::adversary_sim::ScraplingWorkerResult>(
+        req.body(),
+    ) {
+        Ok(parsed) => parsed,
+        Err(_) => return Response::new(400, "Invalid Scrapling worker result payload"),
+    };
+    if worker_result.schema_version != crate::admin::adversary_sim::SCRAPLING_WORKER_RESULT_SCHEMA_VERSION {
+        return Response::new(400, "Invalid Scrapling worker result schema_version");
+    }
+
+    let snapshot = match load_adversary_sim_lifecycle_snapshot(store, site_id) {
+        Ok(snapshot) => snapshot,
+        Err(err) => return Response::new(500, err.user_message()),
+    };
+    let cfg = snapshot.cfg;
+    let mut state = snapshot.state;
+    let previous_state = state.clone();
+
+    let active_lane = crate::admin::adversary_sim::effective_active_lane(&state);
+    let worker_tick_matches = state.pending_worker_tick_id.as_deref() == Some(worker_result.tick_id.as_str());
+    let run_matches = state.run_id.as_deref() == Some(worker_result.run_id.as_str());
+    let lane_matches = active_lane == Some(worker_result.lane);
+    if !matches!(state.phase, crate::admin::adversary_sim::ControlPhase::Running)
+        || !state.desired_enabled
+        || !worker_tick_matches
+        || !run_matches
+        || !lane_matches
+    {
+        return Response::new(409, "stale_worker_result");
+    }
+
+    crate::admin::adversary_sim::apply_scrapling_worker_result(&mut state, &worker_result);
+    match save_adversary_sim_beat_state_if_unchanged(store, site_id, &previous_state, &state) {
+        Ok(true) => {}
+        Ok(false) => return Response::new(409, "stale_worker_result"),
+        Err(()) => return Response::new(500, "Key-value store error"),
+    }
+
+    let now = worker_result.tick_completed_at;
+    let status = adversary_sim_status_payload(store, site_id, &cfg, &state, now);
+    let body = serde_json::to_string(&json!({
+        "accepted": true,
         "status": status
     }))
     .unwrap();
@@ -17816,17 +18264,24 @@ fn handle_admin_adversary_sim_control(
 /// Currently supports:
 ///   - POST /internal/adversary-sim/beat: run one bounded host-side autonomous supervisor beat
 ///   - GET /internal/adversary-sim/beat?edge_cron_secret=...: run one bounded edge cron beat
+///   - POST /internal/adversary-sim/worker-result: persist one bounded Scrapling worker result
 pub fn handle_internal(req: &Request) -> Response {
     let path = req.path();
     let internal_beat_authorized =
         path == INTERNAL_ADVERSARY_SIM_BEAT_PATH && internal_adversary_sim_beat_is_authorized(req);
+    let internal_worker_result_authorized = path == INTERNAL_ADVERSARY_SIM_WORKER_RESULT_PATH
+        && internal_adversary_sim_worker_result_is_authorized(req);
     if !internal_beat_authorized
+        && !internal_worker_result_authorized
         && !request_bypasses_admin_ip_allowlist(req, path)
         && !crate::admin::auth::is_admin_ip_allowed(req)
     {
         return Response::new(403, "Forbidden");
     }
-    if !internal_beat_authorized && !crate::admin::auth::is_admin_api_key_configured() {
+    if !internal_beat_authorized
+        && !internal_worker_result_authorized
+        && !crate::admin::auth::is_admin_api_key_configured()
+    {
         return Response::new(503, "Internal API disabled: admin key not configured");
     }
 
@@ -17837,6 +18292,13 @@ pub fn handle_internal(req: &Request) -> Response {
                 Err(_) => return Response::new(500, "Key-value store error"),
             };
             handle_internal_adversary_sim_beat(req, &store, "default")
+        }
+        INTERNAL_ADVERSARY_SIM_WORKER_RESULT_PATH => {
+            let store = match Store::open_default() {
+                Ok(s) => s,
+                Err(_) => return Response::new(500, "Key-value store error"),
+            };
+            handle_internal_adversary_sim_worker_result(req, &store, "default")
         }
         _ => Response::new(404, "Not Found"),
     }

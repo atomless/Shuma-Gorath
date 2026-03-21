@@ -18,6 +18,9 @@ info() { echo -e "${CYAN}INFO${NC} $1"; }
 
 FAILED=0
 
+# shellcheck disable=SC1091
+source "./scripts/bootstrap/scrapling_runtime.sh"
+
 read_env_local_value() {
   local key="$1"
   if [[ ! -f ".env.local" ]]; then
@@ -68,6 +71,19 @@ if command -v spin >/dev/null 2>&1; then
   pass "Spin installed: $(spin --version | head -1)"
 else
   fail "Spin not installed (run: make setup-runtime)"
+fi
+
+SCRAPLING_RUNTIME_PYTHON="$(scrapling_runtime_select_python || true)"
+if [[ -n "$SCRAPLING_RUNTIME_PYTHON" ]]; then
+  pass "Compatible Scrapling host python available: $SCRAPLING_RUNTIME_PYTHON ($(scrapling_runtime_python_version "$SCRAPLING_RUNTIME_PYTHON"))"
+else
+  fail "Compatible Python ${SCRAPLING_RUNTIME_MIN_MAJOR}.${SCRAPLING_RUNTIME_MIN_MINOR}+ for the Scrapling worker runtime not found (run: make setup-runtime)"
+fi
+
+if scrapling_runtime_ready; then
+  pass "Repo-owned Scrapling worker runtime ready: $(scrapling_runtime_summary)"
+else
+  fail "Repo-owned Scrapling worker runtime missing or invalid (run: make setup-runtime)"
 fi
 
 if [[ -f "config/defaults.env" ]]; then

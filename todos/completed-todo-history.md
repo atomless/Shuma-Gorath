@@ -4,6 +4,40 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-20)
 
+### SIM-SCR-6: Route Heartbeat Execution Through The Selected Lane And Integrate The Real Scrapling Worker
+
+- [x] Complete `SIM-SCR-6` by routing heartbeat execution through the selected runtime lane, dispatching a real bounded Scrapling worker under the shared-host scope-and-seed gate, persisting worker results through the internal supervisor contract, provisioning the repo-owned `.venv-scrapling` runtime through setup flows, adding the focused `make test-adversary-sim-scrapling-worker` gate, and updating the API/operator/testing docs to describe the real worker path truthfully.
+- [x] Why:
+  - once `SIM-SCR-0` and `SIM-SCR-1` landed, the main remaining risk was leaving `desired_lane=scrapling_traffic` as a planned-only field while heartbeat execution still always ran synthetic traffic. The next clean slice had to make desired-versus-active lane convergence real at beat boundaries.
+  - the real worker mattered here, not a stub. The user explicitly wanted actual Scrapling from the start, and the architecture only becomes meaningful once the host-side supervisor can hand a bounded worker plan to an out-of-process Scrapling runtime and persist the result back through one internal contract.
+  - the first execution pass exposed two concrete runtime/testing issues before closeout: the worker test fixture was hanging on reverse DNS during `server_bind()`, and Scrapling request execution was silently falling through when `retries=0`. Both were corrected and regression-covered before the tranche was treated as complete.
+- [x] Evidence:
+  - `src/admin/adversary_sim.rs`
+  - `src/admin/api.rs`
+  - `scripts/supervisor/adversary_sim_supervisor.rs`
+  - `scripts/supervisor/scrapling_worker.py`
+  - `scripts/tests/sim_tag_helpers.py`
+  - `scripts/tests/test_scrapling_worker.py`
+  - `scripts/tests/test_adversary_sim_supervisor.py`
+  - `scripts/bootstrap/scrapling_runtime.sh`
+  - `scripts/bootstrap/setup.sh`
+  - `scripts/bootstrap/setup-runtime.sh`
+  - `scripts/bootstrap/verify-setup.sh`
+  - `scripts/bootstrap/verify-runtime.sh`
+  - `Makefile`
+  - `docs/api.md`
+  - `docs/testing.md`
+  - `docs/deployment.md`
+  - `docs/adversarial-operator-guide.md`
+  - `docs/research/2026-03-20-sim-scr-6-scrapling-worker-post-implementation-review.md`
+  - `src/config/tests.rs`
+  - `make test-adversary-sim-scrapling-worker`
+  - `make test-adversarial-python-unit`
+  - `make verify-runtime`
+  - `make verify`
+  - `git diff --check`
+  - post-tranche review: the live closeout found three truthfulness gaps and one later hardening gap. The truthfulness issues were corrected before completion: stale API/operator docs now describe the internal worker-result path and actual lane-diagnostics shape, `make verify` now preserves `cargo test` failure status, and stale Rust expectations were updated to the settled post-`SIM-DEPLOY-2` config/export semantics. Deployment-level outbound egress isolation remains an explicit follow-on note to close in `SIM-SCR-8` because this slice enforces hosted scope in application logic but does not yet provide OS-level outbound sandboxing
+
 ### SIM-SCR-1: Implement Strict Lane Selection In The Control Path
 
 - [x] Complete `SIM-SCR-1` by extending the adversary-sim control payload with optional strict lane selection, persisting desired lane independently from ON/OFF intent, making idempotency lane-aware, recording requested/desired/actual lane data in control operation and audit surfaces, adding a focused `make test-adversary-sim-lane-selection` gate, and documenting the new control contract.

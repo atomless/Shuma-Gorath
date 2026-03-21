@@ -27,6 +27,13 @@ pub const AUTONOMOUS_EDGE_FERMYON_CRON_SCHEDULE: &str =
     "staggered 5x cron set (one run per minute, each job every 5 minutes)";
 const PRODUCTION_GENERATION_DEFAULT: &str = "off_until_explicit_enable";
 const LANE_DIAGNOSTICS_SCHEMA_VERSION: &str = "adversary-sim-lane-diagnostics.v1";
+pub const SCRAPLING_WORKER_PLAN_SCHEMA_VERSION: &str = "adversary-sim-scrapling-worker-plan.v1";
+pub const SCRAPLING_WORKER_RESULT_SCHEMA_VERSION: &str = "adversary-sim-scrapling-worker-result.v1";
+pub const SCRAPLING_SIM_PROFILE: &str = "scrapling_runtime_lane";
+pub const SCRAPLING_MAX_REQUESTS_PER_TICK: u64 = 8;
+pub const SCRAPLING_MAX_DEPTH_PER_TICK: u64 = 2;
+pub const SCRAPLING_MAX_BYTES_PER_TICK: u64 = 262_144;
+pub const SCRAPLING_MAX_MS_PER_TICK: u64 = 2_000;
 const DETERMINISTIC_ATTACK_CORPUS_SCHEMA_VERSION: &str = "sim-deterministic-attack-corpus.v1";
 const DETERMINISTIC_ATTACK_CORPUS_PATH: &str =
     "scripts/tests/adversarial/deterministic_attack_corpus.v1.json";
@@ -406,6 +413,198 @@ impl RuntimeLane {
     }
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum WorkerFailureClass {
+    Cancelled,
+    Timeout,
+    Transport,
+    Http,
+}
+
+impl WorkerFailureClass {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Cancelled => "cancelled",
+            Self::Timeout => "timeout",
+            Self::Transport => "transport",
+            Self::Http => "http",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct FailureClassCounter {
+    #[serde(default)]
+    pub count: u64,
+    #[serde(default)]
+    pub last_seen_at: Option<u64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct RequestFailureClassCounters {
+    #[serde(default)]
+    pub cancelled: FailureClassCounter,
+    #[serde(default)]
+    pub timeout: FailureClassCounter,
+    #[serde(default)]
+    pub transport: FailureClassCounter,
+    #[serde(default)]
+    pub http: FailureClassCounter,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct LaneCounterState {
+    #[serde(default)]
+    pub beat_attempts: u64,
+    #[serde(default)]
+    pub beat_successes: u64,
+    #[serde(default)]
+    pub beat_failures: u64,
+    #[serde(default)]
+    pub generated_requests: u64,
+    #[serde(default)]
+    pub blocked_requests: u64,
+    #[serde(default)]
+    pub offsite_requests: u64,
+    #[serde(default)]
+    pub response_bytes: u64,
+    #[serde(default)]
+    pub response_status_count: BTreeMap<String, u64>,
+    #[serde(default)]
+    pub last_generated_at: Option<u64>,
+    #[serde(default)]
+    pub last_error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct LaneDiagnosticsState {
+    #[serde(default)]
+    pub synthetic_traffic: LaneCounterState,
+    #[serde(default)]
+    pub scrapling_traffic: LaneCounterState,
+    #[serde(default)]
+    pub bot_red_team: LaneCounterState,
+    #[serde(default)]
+    pub request_failure_classes: RequestFailureClassCounters,
+}
+
+impl LaneDiagnosticsState {
+    fn lane(&self, lane: RuntimeLane) -> &LaneCounterState {
+        match lane {
+            RuntimeLane::SyntheticTraffic => &self.synthetic_traffic,
+            RuntimeLane::ScraplingTraffic => &self.scrapling_traffic,
+            RuntimeLane::BotRedTeam => &self.bot_red_team,
+        }
+    }
+
+    fn lane_mut(&mut self, lane: RuntimeLane) -> &mut LaneCounterState {
+        match lane {
+            RuntimeLane::SyntheticTraffic => &mut self.synthetic_traffic,
+            RuntimeLane::ScraplingTraffic => &mut self.scrapling_traffic,
+            RuntimeLane::BotRedTeam => &mut self.bot_red_team,
+        }
+    }
+
+    fn failure_class_mut(&mut self, class: WorkerFailureClass) -> &mut FailureClassCounter {
+        match class {
+            WorkerFailureClass::Cancelled => &mut self.request_failure_classes.cancelled,
+            WorkerFailureClass::Timeout => &mut self.request_failure_classes.timeout,
+            WorkerFailureClass::Transport => &mut self.request_failure_classes.transport,
+            WorkerFailureClass::Http => &mut self.request_failure_classes.http,
+        }
+    }
+
+    fn to_payload(&self) -> serde_json::Value {
+        let lane_payload = |lane: &LaneCounterState| {
+            json!({
+                "beat_attempts": lane.beat_attempts,
+                "beat_successes": lane.beat_successes,
+                "beat_failures": lane.beat_failures,
+                "generated_requests": lane.generated_requests,
+                "blocked_requests": lane.blocked_requests,
+                "offsite_requests": lane.offsite_requests,
+                "response_bytes": lane.response_bytes,
+                "response_status_count": lane.response_status_count,
+                "last_generated_at": lane.last_generated_at,
+                "last_error": lane.last_error
+            })
+        };
+        let failure_payload = |counter: &FailureClassCounter| {
+            json!({
+                "count": counter.count,
+                "last_seen_at": counter.last_seen_at
+            })
+        };
+        json!({
+            "schema_version": LANE_DIAGNOSTICS_SCHEMA_VERSION,
+            "lanes": {
+                "synthetic_traffic": lane_payload(&self.synthetic_traffic),
+                "scrapling_traffic": lane_payload(&self.scrapling_traffic),
+                "bot_red_team": lane_payload(&self.bot_red_team)
+            },
+            "request_failure_classes": {
+                "cancelled": failure_payload(&self.request_failure_classes.cancelled),
+                "timeout": failure_payload(&self.request_failure_classes.timeout),
+                "transport": failure_payload(&self.request_failure_classes.transport),
+                "http": failure_payload(&self.request_failure_classes.http)
+            }
+        })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct ScraplingCrawlStats {
+    #[serde(default)]
+    pub requests_count: u64,
+    #[serde(default)]
+    pub offsite_requests_count: u64,
+    #[serde(default)]
+    pub blocked_requests_count: u64,
+    #[serde(default)]
+    pub response_status_count: BTreeMap<String, u64>,
+    #[serde(default)]
+    pub response_bytes: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ScraplingWorkerPlan {
+    pub schema_version: String,
+    pub run_id: String,
+    pub tick_id: String,
+    pub lane: RuntimeLane,
+    pub sim_profile: String,
+    pub tick_started_at: u64,
+    pub max_requests: u64,
+    pub max_depth: u64,
+    pub max_bytes: u64,
+    pub max_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ScraplingWorkerResult {
+    pub schema_version: String,
+    pub run_id: String,
+    pub tick_id: String,
+    pub lane: RuntimeLane,
+    pub worker_id: String,
+    pub tick_started_at: u64,
+    pub tick_completed_at: u64,
+    pub generated_requests: u64,
+    pub failed_requests: u64,
+    pub last_response_status: Option<u16>,
+    #[serde(default)]
+    pub failure_class: Option<WorkerFailureClass>,
+    #[serde(default)]
+    pub error: Option<String>,
+    #[serde(default)]
+    pub crawl_stats: ScraplingCrawlStats,
+    #[serde(default)]
+    pub scope_rejections: BTreeMap<String, u64>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ControlState {
     #[serde(default)]
@@ -451,6 +650,12 @@ pub struct ControlState {
     #[serde(default)]
     pub last_generation_error: Option<String>,
     #[serde(default)]
+    pub pending_worker_tick_id: Option<String>,
+    #[serde(default)]
+    pub pending_worker_started_at: Option<u64>,
+    #[serde(default)]
+    pub lane_diagnostics: LaneDiagnosticsState,
+    #[serde(default)]
     pub updated_at: u64,
 }
 
@@ -478,6 +683,9 @@ impl Default for ControlState {
             generated_request_count: 0,
             last_generated_at: None,
             last_generation_error: None,
+            pending_worker_tick_id: None,
+            pending_worker_started_at: None,
+            lane_diagnostics: LaneDiagnosticsState::default(),
             updated_at: 0,
         }
     }
@@ -508,6 +716,8 @@ pub struct AutonomousHeartbeatTickSummary {
     pub generated_requests: u64,
     pub failed_requests: u64,
     pub last_response_status: Option<u16>,
+    pub worker_pending: bool,
+    pub worker_plan: Option<ScraplingWorkerPlan>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -618,6 +828,14 @@ pub fn project_effective_desired_state(
     cfg.adversary_sim_enabled = effective_desired_enabled(cfg.adversary_sim_enabled, state);
 }
 
+fn active_lane_count_for_lane(lane: RuntimeLane) -> u32 {
+    match lane {
+        RuntimeLane::SyntheticTraffic => deterministic_runtime_profile().active_lane_count,
+        RuntimeLane::ScraplingTraffic => 1,
+        RuntimeLane::BotRedTeam => 0,
+    }
+}
+
 pub fn start_state(
     now: u64,
     duration_seconds: u64,
@@ -656,6 +874,9 @@ pub fn start_state(
         generated_request_count: 0,
         last_generated_at: None,
         last_generation_error: None,
+        pending_worker_tick_id: None,
+        pending_worker_started_at: None,
+        lane_diagnostics: current.lane_diagnostics.clone(),
         updated_at: now,
     };
     Ok((next, vec![transition]))
@@ -679,6 +900,8 @@ pub fn stop_state(now: u64, reason: &str, current: &ControlState) -> (ControlSta
     next.active_run_count = 0;
     next.active_lane_count = 0;
     next.active_lane = None;
+    next.pending_worker_tick_id = None;
+    next.pending_worker_started_at = None;
     next.updated_at = now;
 
     let transition = Transition {
@@ -745,6 +968,8 @@ pub fn reconcile_state(
             next.active_run_count = 0;
             next.active_lane_count = 0;
             next.active_lane = None;
+            next.pending_worker_tick_id = None;
+            next.pending_worker_started_at = None;
             next.updated_at = now;
         } else if next.stop_deadline.map(|deadline| now >= deadline).unwrap_or(false) {
             let run_id = next.run_id.clone();
@@ -765,6 +990,8 @@ pub fn reconcile_state(
             next.active_lane = None;
             next.last_transition_reason = Some("forced_kill_timeout".to_string());
             next.last_terminal_failure_reason = Some("forced_kill_timeout".to_string());
+            next.pending_worker_tick_id = None;
+            next.pending_worker_started_at = None;
             next.updated_at = now;
         }
     }
@@ -773,6 +1000,8 @@ pub fn reconcile_state(
         next.active_run_count = 0;
         next.active_lane_count = 0;
         next.active_lane = None;
+        next.pending_worker_tick_id = None;
+        next.pending_worker_started_at = None;
     }
 
     (next, transitions)
@@ -798,6 +1027,123 @@ pub fn lane_reconciliation_needed(state: &ControlState) -> bool {
         && effective_active_lane(state) != Some(state.desired_lane)
 }
 
+fn record_failure_class(state: &mut ControlState, class: WorkerFailureClass, now: u64) {
+    let counter = state.lane_diagnostics.failure_class_mut(class);
+    counter.count = counter.count.saturating_add(1);
+    counter.last_seen_at = Some(now);
+}
+
+fn record_lane_attempt(state: &mut ControlState, lane: RuntimeLane) {
+    let counters = state.lane_diagnostics.lane_mut(lane);
+    counters.beat_attempts = counters.beat_attempts.saturating_add(1);
+}
+
+fn record_lane_internal_result(
+    state: &mut ControlState,
+    lane: RuntimeLane,
+    result: &GenerationTickResult,
+    now: u64,
+) {
+    let had_http_failure = result.failed_requests > 0;
+    let counters = state.lane_diagnostics.lane_mut(lane);
+    if had_http_failure {
+        counters.beat_failures = counters.beat_failures.saturating_add(1);
+        counters.last_error = Some(format!(
+            "request_pipeline_errors={} of {}",
+            result.failed_requests, result.generated_requests
+        ));
+    } else {
+        counters.beat_successes = counters.beat_successes.saturating_add(1);
+        counters.last_error = None;
+    }
+    counters.generated_requests = counters
+        .generated_requests
+        .saturating_add(result.generated_requests);
+    if let Some(status) = result.last_response_status {
+        let key = format!("status_{status}");
+        let entry = counters.response_status_count.entry(key).or_insert(0);
+        *entry = entry.saturating_add(1);
+    }
+    counters.last_generated_at = Some(now);
+    let _ = counters;
+    if had_http_failure {
+        record_failure_class(state, WorkerFailureClass::Http, now);
+    }
+}
+
+pub fn apply_scrapling_worker_result(
+    state: &mut ControlState,
+    result: &ScraplingWorkerResult,
+) {
+    let failure_class = result.failure_class;
+    let counters = state.lane_diagnostics.lane_mut(result.lane);
+    if failure_class.is_some() || result.failed_requests > 0 || result.error.is_some() {
+        counters.beat_failures = counters.beat_failures.saturating_add(1);
+        counters.last_error = result.error.clone().or_else(|| {
+            Some(format!(
+                "scrapling_worker_failed generated_requests={} failed_requests={}",
+                result.generated_requests, result.failed_requests
+            ))
+        });
+    } else {
+        counters.beat_successes = counters.beat_successes.saturating_add(1);
+        counters.last_error = None;
+    }
+    counters.generated_requests = counters
+        .generated_requests
+        .saturating_add(result.generated_requests);
+    counters.blocked_requests = counters
+        .blocked_requests
+        .saturating_add(result.crawl_stats.blocked_requests_count);
+    counters.offsite_requests = counters
+        .offsite_requests
+        .saturating_add(result.crawl_stats.offsite_requests_count);
+    counters.response_bytes = counters
+        .response_bytes
+        .saturating_add(result.crawl_stats.response_bytes);
+    for (status, count) in &result.crawl_stats.response_status_count {
+        let entry = counters.response_status_count.entry(status.clone()).or_insert(0);
+        *entry = entry.saturating_add(*count);
+    }
+    counters.last_generated_at = Some(result.tick_completed_at);
+    let last_error = counters.last_error.clone();
+    let _ = counters;
+    if let Some(class) = failure_class {
+        record_failure_class(state, class, result.tick_completed_at);
+    }
+
+    state.generated_tick_count = state.generated_tick_count.saturating_add(1);
+    state.generated_request_count = state
+        .generated_request_count
+        .saturating_add(result.generated_requests);
+    state.last_generated_at = Some(result.tick_completed_at);
+    state.last_generation_error = last_error;
+    state.pending_worker_tick_id = None;
+    state.pending_worker_started_at = None;
+    state.updated_at = result.tick_completed_at;
+}
+
+fn reconcile_active_lane_at_beat_boundary(now: u64, state: &mut ControlState) {
+    if state.phase != ControlPhase::Running {
+        return;
+    }
+    if effective_active_lane(state) == Some(state.desired_lane) {
+        state.active_lane = Some(state.desired_lane);
+        state.active_lane_count = active_lane_count_for_lane(state.desired_lane);
+        return;
+    }
+    if state.pending_worker_tick_id.is_some() && state.desired_lane != RuntimeLane::ScraplingTraffic {
+        state.pending_worker_tick_id = None;
+        state.pending_worker_started_at = None;
+    }
+    state.active_lane = Some(state.desired_lane);
+    state.active_lane_count = active_lane_count_for_lane(state.desired_lane);
+    state.lane_switch_seq = state.lane_switch_seq.saturating_add(1);
+    state.last_lane_switch_at = Some(now);
+    state.last_lane_switch_reason = Some("beat_boundary_reconciliation".to_string());
+    state.updated_at = now;
+}
+
 pub fn select_desired_lane(now: u64, desired_lane: RuntimeLane, current: &ControlState) -> ControlState {
     if current.desired_lane == desired_lane {
         return current.clone();
@@ -806,38 +1152,6 @@ pub fn select_desired_lane(now: u64, desired_lane: RuntimeLane, current: &Contro
     next.desired_lane = desired_lane;
     next.updated_at = now;
     next
-}
-
-fn zero_lane_counter_payload() -> serde_json::Value {
-    json!({
-        "beat_attempts": 0,
-        "beat_successes": 0,
-        "beat_failures": 0
-    })
-}
-
-fn zero_failure_class_payload() -> serde_json::Value {
-    json!({
-        "count": 0,
-        "last_seen_at": Option::<u64>::None
-    })
-}
-
-fn lane_diagnostics_payload() -> serde_json::Value {
-    json!({
-        "schema_version": LANE_DIAGNOSTICS_SCHEMA_VERSION,
-        "lanes": {
-            "synthetic_traffic": zero_lane_counter_payload(),
-            "scrapling_traffic": zero_lane_counter_payload(),
-            "bot_red_team": zero_lane_counter_payload()
-        },
-        "request_failure_classes": {
-            "cancelled": zero_failure_class_payload(),
-            "timeout": zero_failure_class_payload(),
-            "transport": zero_failure_class_payload(),
-            "http": zero_failure_class_payload()
-        }
-    })
 }
 
 pub fn status_payload(
@@ -877,7 +1191,7 @@ pub fn status_payload(
             "deterministic": lane_phase(state.phase),
             "containerized": lane_phase(state.phase)
         },
-        "lane_diagnostics": lane_diagnostics_payload(),
+        "lane_diagnostics": state.lane_diagnostics.to_payload(),
         "guardrails": {
             "surface_available_by_default": crate::config::adversary_sim_available_default(),
             "generation_default": PRODUCTION_GENERATION_DEFAULT,
@@ -1323,6 +1637,30 @@ fn autonomous_heartbeat_due_ticks(now: u64, state: &ControlState) -> u64 {
     due.min(profile.max_catchup_ticks_per_invocation)
 }
 
+fn next_scrapling_worker_plan(now: u64, state: &mut ControlState) -> Option<ScraplingWorkerPlan> {
+    let run_id = state
+        .run_id
+        .clone()
+        .or_else(|| state.last_run_id.clone())
+        .unwrap_or_else(|| format!("simrun-runtime-{now}"));
+    let tick_id = format!("scrapling-tick-{}-{:016x}", now, random::<u64>());
+    state.pending_worker_tick_id = Some(tick_id.clone());
+    state.pending_worker_started_at = Some(now);
+    state.updated_at = now;
+    Some(ScraplingWorkerPlan {
+        schema_version: SCRAPLING_WORKER_PLAN_SCHEMA_VERSION.to_string(),
+        run_id,
+        tick_id,
+        lane: RuntimeLane::ScraplingTraffic,
+        sim_profile: SCRAPLING_SIM_PROFILE.to_string(),
+        tick_started_at: now,
+        max_requests: SCRAPLING_MAX_REQUESTS_PER_TICK,
+        max_depth: SCRAPLING_MAX_DEPTH_PER_TICK,
+        max_bytes: SCRAPLING_MAX_BYTES_PER_TICK,
+        max_ms: SCRAPLING_MAX_MS_PER_TICK,
+    })
+}
+
 pub fn run_autonomous_supervisor_ticks(
     store: &impl KeyValueStore,
     state: &mut ControlState,
@@ -1336,9 +1674,34 @@ pub fn run_autonomous_supervisor_ticks(
     if due_ticks == 0 {
         return summary;
     }
+    reconcile_active_lane_at_beat_boundary(now, state);
+    match effective_active_lane(state) {
+        Some(RuntimeLane::SyntheticTraffic) => {}
+        Some(RuntimeLane::ScraplingTraffic) => {
+            if state.pending_worker_tick_id.is_some() {
+                summary.worker_pending = true;
+                return summary;
+            }
+            record_lane_attempt(state, RuntimeLane::ScraplingTraffic);
+            summary.worker_plan = next_scrapling_worker_plan(now, state);
+            return summary;
+        }
+        Some(RuntimeLane::BotRedTeam) => {
+            record_lane_attempt(state, RuntimeLane::BotRedTeam);
+            let counters = state.lane_diagnostics.lane_mut(RuntimeLane::BotRedTeam);
+            counters.beat_failures = counters.beat_failures.saturating_add(1);
+            counters.last_error = Some("bot_red_team_unimplemented".to_string());
+            state.last_generation_error = counters.last_error.clone();
+            state.updated_at = now;
+            return summary;
+        }
+        None => return summary,
+    }
     for tick_index in 0..due_ticks {
         let tick_now = now.saturating_sub(due_ticks.saturating_sub(tick_index).saturating_sub(1));
+        record_lane_attempt(state, RuntimeLane::SyntheticTraffic);
         let tick_result = run_internal_generation_tick(store, state, tick_now);
+        record_lane_internal_result(state, RuntimeLane::SyntheticTraffic, &tick_result, tick_now);
         summary.executed_ticks = summary.executed_ticks.saturating_add(1);
         summary.generated_requests = summary
             .generated_requests
