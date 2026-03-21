@@ -20,6 +20,9 @@ Security finding validity and closure status live in `todos/security-review.md`.
 - [ ] SIM-SH-EXPORT-1 Optional export or curation tooling over observed reachable-surface telemetry.
   Blocker: defer unless Scrapling or later frontier telemetry proves a concrete need for bounded export artifacts or deterministic replay-promotion helpers. Any future tooling must be derived from observed traversal telemetry rather than revive a catalog-first discovery architecture.
 
+- [ ] SIM-EDGE-RUNTIME-1 Edge-hosted external-supervisor productization for full adversary-sim runtime.
+  Blocker: defer while shared-host remains the supported full Scrapling runtime target and Fermyon/Akamai remains a gateway/edge posture target only. Re-open only when there is a concrete external-supervisor deployment product worth supporting end to end.
+
 ## P1 Deferred Pre-Launch Roadmap Captures
 
 Reference context:
