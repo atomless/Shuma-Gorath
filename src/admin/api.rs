@@ -17,7 +17,10 @@ use super::diagnostics_api::{
     handle_admin_maze_preview, handle_admin_maze_seed_refresh, handle_admin_maze_seed_sources,
     handle_admin_tarpit_preview,
 };
-use super::monitoring_api::handle_admin_events;
+use super::monitoring_api::{
+    handle_admin_events, handle_admin_monitoring, handle_admin_monitoring_delta,
+    handle_admin_monitoring_stream,
+};
 use super::operator_snapshot_api::handle_admin_operator_snapshot;
 #[cfg(test)]
 use super::recent_changes_ledger::load_operator_snapshot_recent_changes;
@@ -585,7 +588,7 @@ pub(crate) fn monitoring_security_view_mode_label(forensic_mode: bool) -> &'stat
     security_view_mode_label(forensic_mode)
 }
 
-fn present_event_record(record: &EventLogRecord, forensic_mode: bool) -> EventLogRecord {
+pub(super) fn present_event_record(record: &EventLogRecord, forensic_mode: bool) -> EventLogRecord {
     if forensic_mode {
         return record.clone();
     }
@@ -10281,13 +10284,13 @@ const AUTHORITATIVE_BAN_STATE_READ_UNAVAILABLE_MESSAGE: &str =
     "Ban store unavailable: strict outage posture requires authoritative backend access for ban-state reads";
 
 #[derive(Debug, Clone)]
-struct ActiveBanSnapshotView {
-    bans: Vec<serde_json::Value>,
-    status: &'static str,
-    message: Option<&'static str>,
-    count: Option<u64>,
-    latest_ban_ts: Option<u64>,
-    maze_auto_bans: Option<u64>,
+pub(super) struct ActiveBanSnapshotView {
+    pub(super) bans: Vec<serde_json::Value>,
+    pub(super) status: &'static str,
+    pub(super) message: Option<&'static str>,
+    pub(super) count: Option<u64>,
+    pub(super) latest_ban_ts: Option<u64>,
+    pub(super) maze_auto_bans: Option<u64>,
 }
 
 fn provider_registry_for_optional_config(
@@ -10359,7 +10362,7 @@ fn build_active_ban_snapshot_view(
     }
 }
 
-fn list_active_ban_snapshot_view<S>(
+pub(super) fn list_active_ban_snapshot_view<S>(
     store: &S,
     site_id: &str,
     cfg: Option<&crate::config::Config>,
@@ -10594,7 +10597,7 @@ const MONITORING_COST_ENVELOPE_QUERY_CALLS_PER_SECOND_CLIENT_DEV: f64 =
 const MONITORING_COST_ENVELOPE_QUERY_CALLS_PER_SECOND_CLIENT_PROD: f64 =
     MONITORING_QUERY_BUDGET_REQUESTS_PER_SECOND as f64;
 const MONITORING_STREAM_RETRY_MS: u64 = 1_000;
-const MONITORING_STREAM_MAX_BUFFER_EVENTS: usize = 250;
+pub(super) const MONITORING_STREAM_MAX_BUFFER_EVENTS: usize = 250;
 
 fn too_many_admin_read_requests_response() -> Response {
     Response::builder()
@@ -11061,9 +11064,9 @@ struct StoredEventLogRecord {
 }
 
 #[derive(Debug, Clone)]
-struct CursorEventRecord {
-    cursor: String,
-    record: EventLogRecord,
+pub(super) struct CursorEventRecord {
+    pub(super) cursor: String,
+    pub(super) record: EventLogRecord,
 }
 
 #[derive(Debug, Clone)]
@@ -11074,20 +11077,20 @@ struct EventCursorMeta {
 }
 
 #[derive(Debug, Clone)]
-struct MonitoringCursorPage {
-    rows: Vec<CursorEventRecord>,
-    next_cursor: String,
-    window_end_cursor: String,
-    has_more: bool,
-    overflow: &'static str,
-    latest_window_ts: Option<u64>,
+pub(super) struct MonitoringCursorPage {
+    pub(super) rows: Vec<CursorEventRecord>,
+    pub(super) next_cursor: String,
+    pub(super) window_end_cursor: String,
+    pub(super) has_more: bool,
+    pub(super) overflow: &'static str,
+    pub(super) latest_window_ts: Option<u64>,
 }
 
-fn build_event_cursor(ts: u64, storage_key: &str) -> String {
+pub(super) fn build_event_cursor(ts: u64, storage_key: &str) -> String {
     format!("{:020}|{}", ts, storage_key)
 }
 
-fn cursor_event_row_payload(row: &CursorEventRecord) -> serde_json::Value {
+pub(super) fn cursor_event_row_payload(row: &CursorEventRecord) -> serde_json::Value {
     let mut payload = serde_json::to_value(&row.record).unwrap_or_else(|_| json!({}));
     if let Some(obj) = payload.as_object_mut() {
         obj.insert(
@@ -11098,7 +11101,7 @@ fn cursor_event_row_payload(row: &CursorEventRecord) -> serde_json::Value {
     payload
 }
 
-fn validate_after_cursor(raw_cursor: &str) -> Result<(), String> {
+pub(super) fn validate_after_cursor(raw_cursor: &str) -> Result<(), String> {
     if raw_cursor.len() > 512 {
         return Err("after_cursor must be <= 512 chars".to_string());
     }
@@ -11108,13 +11111,18 @@ fn validate_after_cursor(raw_cursor: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn delta_page_etag(next_cursor: &str, count: usize, has_more: bool, overflow: &str) -> String {
+pub(super) fn delta_page_etag(
+    next_cursor: &str,
+    count: usize,
+    has_more: bool,
+    overflow: &str,
+) -> String {
     let signature = format!("{}|{}|{}|{}", next_cursor, count, has_more, overflow);
     let digest = crate::admin::adversary_sim_control::hash_hex(signature.as_str());
     format!("\"{}\"", digest)
 }
 
-fn request_if_none_match(req: &Request) -> Option<String> {
+pub(super) fn request_if_none_match(req: &Request) -> Option<String> {
     req.header("if-none-match")
         .and_then(|value| value.as_str())
         .map(|value| value.trim().to_string())
@@ -11126,7 +11134,7 @@ fn request_last_event_id(req: &Request) -> Option<String> {
         .map(|value| value.trim().to_string())
 }
 
-fn resolve_after_cursor(req: &Request) -> String {
+pub(super) fn resolve_after_cursor(req: &Request) -> String {
     let query_cursor =
         crate::request_validation::query_param(req.query(), "after_cursor").unwrap_or_default();
     if !query_cursor.trim().is_empty() {
@@ -11135,11 +11143,11 @@ fn resolve_after_cursor(req: &Request) -> String {
     request_last_event_id(req).unwrap_or_default()
 }
 
-fn latest_event_ts(rows: &[CursorEventRecord]) -> Option<u64> {
+pub(super) fn latest_event_ts(rows: &[CursorEventRecord]) -> Option<u64> {
     rows.iter().map(|row| row.record.entry.ts).max()
 }
 
-fn latest_monitoring_snapshot_ts(details: &serde_json::Value) -> Option<u64> {
+pub(super) fn latest_monitoring_snapshot_ts(details: &serde_json::Value) -> Option<u64> {
     let event_ts = details
         .get("events")
         .and_then(|value| value.get("recent_events"))
@@ -11179,7 +11187,7 @@ fn freshness_state_for_lag(lag_ms: Option<u64>) -> &'static str {
     "stale"
 }
 
-fn freshness_health_payload(
+pub(super) fn freshness_health_payload(
     now_ts: u64,
     latest_event_ts: Option<u64>,
     has_more: bool,
@@ -11208,7 +11216,7 @@ fn freshness_health_payload(
     })
 }
 
-fn freshness_slo_payload() -> serde_json::Value {
+pub(super) fn freshness_slo_payload() -> serde_json::Value {
     json!({
         "visibility_delay_ms": {
             "p50_target": MONITORING_FRESHNESS_SLO_P50_MS,
@@ -11220,7 +11228,7 @@ fn freshness_slo_payload() -> serde_json::Value {
     })
 }
 
-fn load_envelope_payload() -> serde_json::Value {
+pub(super) fn load_envelope_payload() -> serde_json::Value {
     json!({
         "event_ingest_rate_events_per_second": MONITORING_LOAD_ENVELOPE_EVENTS_PER_SEC,
         "operator_refresh_clients": MONITORING_LOAD_ENVELOPE_OPERATOR_CLIENTS,
@@ -11229,7 +11237,7 @@ fn load_envelope_payload() -> serde_json::Value {
     })
 }
 
-fn stream_contract_payload() -> serde_json::Value {
+pub(super) fn stream_contract_payload() -> serde_json::Value {
     json!({
         "type": "one_shot_sse",
         "retry_ms": MONITORING_STREAM_RETRY_MS,
@@ -11267,13 +11275,13 @@ struct MonitoringQueryShape {
 }
 
 #[derive(Debug, Clone)]
-struct MonitoringCompressionReport {
-    negotiated: bool,
-    algorithm: &'static str,
-    status: &'static str,
-    reduction_percent: f64,
-    input_bytes: usize,
-    output_bytes: usize,
+pub(super) struct MonitoringCompressionReport {
+    pub(super) negotiated: bool,
+    pub(super) algorithm: &'static str,
+    pub(super) status: &'static str,
+    pub(super) reduction_percent: f64,
+    pub(super) input_bytes: usize,
+    pub(super) output_bytes: usize,
 }
 
 fn monitoring_query_shape<S: crate::challenge::KeyValueStore>(
@@ -11425,7 +11433,7 @@ fn monitoring_query_budget(
     }
 }
 
-fn request_accepts_gzip(req: &Request) -> bool {
+pub(super) fn request_accepts_gzip(req: &Request) -> bool {
     let Some(value) = req
         .header("accept-encoding")
         .and_then(|header| header.as_str())
@@ -11454,7 +11462,7 @@ fn request_accepts_gzip(req: &Request) -> bool {
     false
 }
 
-fn gzip_bytes(payload: &[u8]) -> Option<Vec<u8>> {
+pub(super) fn gzip_bytes(payload: &[u8]) -> Option<Vec<u8>> {
     let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
     if encoder.write_all(payload).is_err() {
         return None;
@@ -11462,7 +11470,7 @@ fn gzip_bytes(payload: &[u8]) -> Option<Vec<u8>> {
     encoder.finish().ok()
 }
 
-fn monitoring_compression_report(
+pub(super) fn monitoring_compression_report(
     payload: &[u8],
     supports_gzip: bool,
 ) -> MonitoringCompressionReport {
@@ -11514,7 +11522,7 @@ fn monitoring_compression_report(
     }
 }
 
-fn update_monitoring_cost_governance_transport_fields(
+pub(super) fn update_monitoring_cost_governance_transport_fields(
     payload: &mut serde_json::Value,
     payload_kb: f64,
     compression: &MonitoringCompressionReport,
@@ -11635,7 +11643,7 @@ fn update_monitoring_cost_governance_transport_fields(
     );
 }
 
-fn sse_single_event_response(
+pub(super) fn sse_single_event_response(
     event_name: &str,
     event_id: &str,
     payload: &serde_json::Value,
@@ -11654,7 +11662,7 @@ fn sse_single_event_response(
         .build()
 }
 
-fn paginate_cursor_rows(
+pub(super) fn paginate_cursor_rows(
     mut rows: Vec<CursorEventRecord>,
     after_cursor: &str,
     limit: usize,
@@ -11709,7 +11717,7 @@ fn load_event_cursor_metas<S: crate::challenge::KeyValueStore>(
     metas
 }
 
-fn load_monitoring_cursor_page<S: crate::challenge::KeyValueStore>(
+pub(super) fn load_monitoring_cursor_page<S: crate::challenge::KeyValueStore>(
     store: &S,
     now: u64,
     hours: u64,
@@ -15818,12 +15826,15 @@ fn handle_admin_config_validate(
     Response::new(status, message)
 }
 
-fn monitoring_bootstrap_hot_read_request_eligible(hours: u64, forensic_mode: bool) -> bool {
+pub(super) fn monitoring_bootstrap_hot_read_request_eligible(
+    hours: u64,
+    forensic_mode: bool,
+) -> bool {
     !forensic_mode
         && hours == crate::observability::hot_read_documents::monitoring_bootstrap_window_hours()
 }
 
-fn monitoring_bootstrap_hot_read_payload<S>(
+pub(super) fn monitoring_bootstrap_hot_read_payload<S>(
     store: &S,
     site_id: &str,
 ) -> (
@@ -15862,7 +15873,7 @@ where
     (bootstrap.payload.summary, details, window_end_cursor)
 }
 
-fn monitoring_delta_hot_read_bootstrap_eligible(
+pub(super) fn monitoring_delta_hot_read_bootstrap_eligible(
     hours: u64,
     limit: usize,
     forensic_mode: bool,
@@ -15875,7 +15886,7 @@ fn monitoring_delta_hot_read_bootstrap_eligible(
             <= crate::observability::hot_read_documents::monitoring_recent_events_tail_max_records()
 }
 
-fn monitoring_delta_hot_read_bootstrap_payload<S>(
+pub(super) fn monitoring_delta_hot_read_bootstrap_payload<S>(
     store: &S,
     site_id: &str,
     now: u64,
@@ -15934,322 +15945,6 @@ where
         overflow,
         security_privacy.payload,
     )
-}
-
-fn handle_admin_monitoring<S>(req: &Request, store: &S) -> Response
-where
-    S: crate::challenge::KeyValueStore,
-{
-    let hours = query_u64_param(req.query(), "hours", 24).clamp(1, 720);
-    let limit = query_u64_param(req.query(), "limit", 10).clamp(1, 50) as usize;
-    let forensic_mode = forensic_access_mode(req.query());
-    let now = now_ts();
-    let bootstrap_mode = crate::request_validation::query_param(req.query(), "bootstrap")
-        .map(|value| matches!(value.trim(), "1" | "true" | "yes"))
-        .unwrap_or(false);
-    let edge_bounded_details_mode =
-        !bootstrap_mode && crate::config::gateway_deployment_profile().is_edge();
-    let hot_read_eligible = monitoring_bootstrap_hot_read_request_eligible(hours, forensic_mode);
-    let (summary, mut details, bootstrap_window_end_cursor) = if hot_read_eligible
-        && (bootstrap_mode || edge_bounded_details_mode)
-    {
-        monitoring_bootstrap_hot_read_payload(store, "default")
-    } else {
-        let summary = crate::observability::monitoring::summarize_with_store(store, hours, limit);
-        let (details, window_end_cursor) = if bootstrap_mode {
-            monitoring_bootstrap_details_payload(store, "default", hours, limit, forensic_mode)
-        } else if edge_bounded_details_mode {
-            monitoring_bootstrap_details_payload(store, "default", hours, limit, forensic_mode)
-        } else {
-            (
-                monitoring_details_payload(store, "default", hours, limit, forensic_mode),
-                None,
-            )
-        };
-        (summary, details, window_end_cursor)
-    };
-    if edge_bounded_details_mode {
-        if let Some(recent_events_window) = details
-            .get_mut("events")
-            .and_then(|events| events.get_mut("recent_events_window"))
-            .and_then(|value| value.as_object_mut())
-        {
-            recent_events_window.insert(
-                "response_shaping_reason".to_string(),
-                serde_json::Value::String("edge_profile_bounded_details".to_string()),
-            );
-        }
-    }
-    let snapshot_latest_ts = latest_monitoring_snapshot_ts(&details);
-    let freshness =
-        freshness_health_payload(now, snapshot_latest_ts, false, "none", "snapshot_poll");
-    let retention_health = details.get("retention_health").cloned().unwrap_or_else(|| {
-        serde_json::to_value(crate::observability::retention::retention_health(store))
-            .unwrap_or_else(|_| json!({}))
-    });
-    let security_privacy = details
-        .get("security_privacy")
-        .cloned()
-        .unwrap_or_else(|| security_privacy_payload(store, now, hours, forensic_mode));
-    let mut payload = json!({
-        "summary": summary,
-        "prometheus": monitoring_prometheus_helper_payload(),
-        "details": details,
-        "freshness_slo": freshness_slo_payload(),
-        "load_envelope": load_envelope_payload(),
-        "freshness": freshness,
-        "retention_health": retention_health,
-        "security_privacy": security_privacy
-    });
-    if let Some(window_end_cursor) = bootstrap_window_end_cursor {
-        payload["window_end_cursor"] = serde_json::Value::String(window_end_cursor);
-    }
-
-    let supports_gzip = request_accepts_gzip(req);
-    let initial_uncompressed = serde_json::to_vec(&payload).unwrap_or_else(|_| b"{}".to_vec());
-    let initial_payload_kb = (initial_uncompressed.len() as f64) / 1024.0;
-    let initial_compression =
-        monitoring_compression_report(initial_uncompressed.as_slice(), supports_gzip);
-    update_monitoring_cost_governance_transport_fields(
-        &mut payload,
-        initial_payload_kb,
-        &initial_compression,
-    );
-
-    let mut uncompressed = serde_json::to_vec(&payload).unwrap_or_else(|_| b"{}".to_vec());
-    let final_payload_kb = (uncompressed.len() as f64) / 1024.0;
-    let final_compression = monitoring_compression_report(uncompressed.as_slice(), supports_gzip);
-    update_monitoring_cost_governance_transport_fields(
-        &mut payload,
-        final_payload_kb,
-        &final_compression,
-    );
-    uncompressed = serde_json::to_vec(&payload).unwrap_or_else(|_| b"{}".to_vec());
-
-    let body = if final_compression.negotiated {
-        gzip_bytes(uncompressed.as_slice()).unwrap_or_else(|| uncompressed.clone())
-    } else {
-        uncompressed
-    };
-    let cost_state = payload
-        .get("details")
-        .and_then(|details| details.get("cost_governance"))
-        .and_then(|cost| cost.get("degraded_state"))
-        .and_then(|value| value.as_str())
-        .unwrap_or("normal");
-
-    let mut builder = Response::builder();
-    builder
-        .status(200)
-        .header("Content-Type", "application/json")
-        .header("Cache-Control", "no-store")
-        .header("X-Shuma-Monitoring-Cost-State", cost_state)
-        .header(
-            "X-Shuma-Monitoring-Security-Mode",
-            security_view_mode_label(forensic_mode),
-        )
-        .header(
-            "X-Shuma-Monitoring-Query-Budget",
-            payload
-                .get("details")
-                .and_then(|details| details.get("cost_governance"))
-                .and_then(|cost| cost.get("query_budget_status"))
-                .and_then(|value| value.as_str())
-                .unwrap_or("within_budget"),
-        );
-    if final_compression.negotiated {
-        builder
-            .header("Content-Encoding", "gzip")
-            .header("Vary", "Accept-Encoding");
-    }
-    builder.body(body).build()
-}
-
-fn handle_admin_monitoring_delta<S>(req: &Request, store: &S) -> Response
-where
-    S: crate::challenge::KeyValueStore,
-{
-    let hours = query_u64_param(req.query(), "hours", 24).clamp(1, 720);
-    let limit = query_u64_param(req.query(), "limit", 100)
-        .clamp(1, MONITORING_STREAM_MAX_BUFFER_EVENTS as u64) as usize;
-    let forensic_mode = forensic_access_mode(req.query());
-    let after_cursor = resolve_after_cursor(req);
-    if let Err(msg) = validate_after_cursor(after_cursor.as_str()) {
-        return Response::new(400, msg);
-    }
-
-    let now = now_ts();
-    let (
-        event_rows,
-        recent_sim_runs,
-        latest_window_ts,
-        window_end_cursor,
-        next_cursor,
-        has_more,
-        overflow,
-        security_privacy,
-    ) = if monitoring_delta_hot_read_bootstrap_eligible(
-        hours,
-        limit,
-        forensic_mode,
-        after_cursor.as_str(),
-    ) {
-        monitoring_delta_hot_read_bootstrap_payload(store, "default", now, limit)
-    } else {
-        let selection = load_monitoring_cursor_page(
-            store,
-            now,
-            hours,
-            after_cursor.as_str(),
-            limit,
-            forensic_mode,
-        );
-        let latest_window_ts = selection.latest_window_ts;
-        let window_end_cursor = selection.window_end_cursor.clone();
-        let next_cursor = selection.next_cursor.clone();
-        let has_more = selection.has_more;
-        let overflow = selection.overflow;
-        let page_rows = selection.rows;
-        let event_rows: Vec<serde_json::Value> =
-            page_rows.iter().map(cursor_event_row_payload).collect();
-        let recent_sim_runs =
-            crate::observability::hot_read_projection::load_monitoring_recent_sim_runs_hot_read(
-                store, "default", now,
-            )
-            .payload
-            .recent_sim_runs;
-        (
-            event_rows,
-            recent_sim_runs,
-            latest_window_ts,
-            window_end_cursor,
-            next_cursor,
-            has_more,
-            overflow,
-            security_privacy_payload(store, now, hours, forensic_mode),
-        )
-    };
-    let etag = delta_page_etag(next_cursor.as_str(), event_rows.len(), has_more, overflow);
-    let freshness = freshness_health_payload(
-        now,
-        latest_window_ts,
-        has_more,
-        overflow,
-        "cursor_delta_poll",
-    );
-
-    if request_if_none_match(req).as_deref() == Some(etag.as_str()) {
-        return Response::builder()
-            .status(304)
-            .header("Cache-Control", "no-store")
-            .header("ETag", etag.as_str())
-            .body("")
-            .build();
-    }
-
-    let body = serde_json::to_string(&json!({
-        "cursor_contract": {
-            "version": "monitoring-event-cursor.v1",
-            "ordering": "strict_monotonic_cursor_ascending",
-            "cursor_source": "eventlog:v2 key ordering",
-            "overflow_taxonomy": ["none", "limit_exceeded"]
-        },
-        "security_mode": security_view_mode_label(forensic_mode),
-        "security_privacy": security_privacy,
-        "freshness_slo": freshness_slo_payload(),
-        "load_envelope": load_envelope_payload(),
-        "hours": hours,
-        "limit": limit,
-        "after_cursor": after_cursor,
-        "window_end_cursor": window_end_cursor,
-        "next_cursor": next_cursor,
-        "has_more": has_more,
-        "overflow": overflow,
-        "events": event_rows,
-        "recent_sim_runs": recent_sim_runs,
-        "freshness": freshness,
-        "stream_supported": true,
-        "stream_endpoint": "/admin/monitoring/stream"
-    }))
-    .unwrap();
-    Response::builder()
-        .status(200)
-        .header("Content-Type", "application/json")
-        .header("Cache-Control", "no-store")
-        .header("ETag", etag.as_str())
-        .header(
-            "X-Shuma-Monitoring-Security-Mode",
-            security_view_mode_label(forensic_mode),
-        )
-        .body(body)
-        .build()
-}
-
-fn handle_admin_monitoring_stream<S>(req: &Request, store: &S) -> Response
-where
-    S: crate::challenge::KeyValueStore,
-{
-    if *req.method() != Method::Get {
-        return Response::new(405, "Method Not Allowed");
-    }
-    let hours = query_u64_param(req.query(), "hours", 24).clamp(1, 720);
-    let limit = query_u64_param(req.query(), "limit", 100)
-        .clamp(1, MONITORING_STREAM_MAX_BUFFER_EVENTS as u64) as usize;
-    let forensic_mode = forensic_access_mode(req.query());
-    let after_cursor = resolve_after_cursor(req);
-    if let Err(msg) = validate_after_cursor(after_cursor.as_str()) {
-        return Response::new(400, msg);
-    }
-
-    let now = now_ts();
-    let selection = load_monitoring_cursor_page(
-        store,
-        now,
-        hours,
-        after_cursor.as_str(),
-        limit,
-        forensic_mode,
-    );
-    let latest_window_ts = selection.latest_window_ts;
-    let window_end_cursor = selection.window_end_cursor.clone();
-    let next_cursor = selection.next_cursor.clone();
-    let has_more = selection.has_more;
-    let overflow = selection.overflow;
-    let page_rows = selection.rows;
-    let freshness = freshness_health_payload(now, latest_window_ts, has_more, overflow, "sse");
-    let event_rows: Vec<serde_json::Value> =
-        page_rows.iter().map(cursor_event_row_payload).collect();
-    let payload = json!({
-        "cursor_contract": {
-            "version": "monitoring-event-cursor.v1",
-            "ordering": "strict_monotonic_cursor_ascending",
-            "cursor_source": "eventlog:v2 key ordering",
-            "overflow_taxonomy": ["none", "limit_exceeded"]
-        },
-        "security_mode": security_view_mode_label(forensic_mode),
-        "security_privacy": security_privacy_payload(store, now, hours, forensic_mode),
-        "freshness_slo": freshness_slo_payload(),
-        "load_envelope": load_envelope_payload(),
-        "stream_contract": stream_contract_payload(),
-        "hours": hours,
-        "limit": limit,
-        "after_cursor": after_cursor,
-        "window_end_cursor": window_end_cursor,
-        "next_cursor": next_cursor,
-        "has_more": has_more,
-        "overflow": overflow,
-        "events": event_rows,
-        "recent_sim_runs": crate::observability::hot_read_projection::load_monitoring_recent_sim_runs_hot_read(
-            store, "default", now,
-        ).payload.recent_sim_runs,
-        "freshness": freshness
-    });
-    let event_id = payload
-        .get("next_cursor")
-        .and_then(|value| value.as_str())
-        .filter(|value| !value.is_empty())
-        .unwrap_or("");
-    sse_single_event_response("monitoring_delta", event_id, &payload)
 }
 
 fn handle_admin_ip_bans_delta<S>(req: &Request, store: &S, site_id: &str) -> Response
@@ -16566,7 +16261,7 @@ where
     result
 }
 
-fn monitoring_details_payload<S>(
+pub(super) fn monitoring_details_payload<S>(
     store: &S,
     site_id: &str,
     hours: u64,
@@ -16921,7 +16616,7 @@ where
     })
 }
 
-fn monitoring_bootstrap_details_payload<S>(
+pub(super) fn monitoring_bootstrap_details_payload<S>(
     store: &S,
     site_id: &str,
     hours: u64,
@@ -17151,7 +16846,7 @@ where
     })
 }
 
-fn monitoring_prometheus_helper_payload() -> serde_json::Value {
+pub(super) fn monitoring_prometheus_helper_payload() -> serde_json::Value {
     json!({
         "endpoint": "/metrics",
         "notes": [
