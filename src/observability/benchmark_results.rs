@@ -2,25 +2,41 @@ use serde::{Deserialize, Serialize};
 
 use crate::config::AllowedActionsSurface;
 use crate::observability::benchmark_suite::BENCHMARK_SUITE_SCHEMA_VERSION;
+use crate::config::Config;
 use crate::observability::operator_snapshot::{
     OperatorBudgetDistanceSummary, OperatorSnapshotAdversarySim, OperatorSnapshotLiveTraffic,
     OperatorSnapshotWindow,
 };
+use super::benchmark_adversary_effectiveness::representative_adversary_effectiveness_family;
+use super::benchmark_beneficial_non_human::beneficial_non_human_posture_family;
+use super::benchmark_comparison::{
+    apply_prior_window_comparison, BenchmarkComparableSnapshot,
+};
 use super::benchmark_results_comparison::{
     derive_escalation_hint, overall_coverage_status, overall_status,
-    unavailable_baseline_reference, unavailable_improvement_status,
 };
 use super::benchmark_results_families::{
-    beneficial_non_human_posture_family, likely_human_friction_family,
-    representative_adversary_effectiveness_family, suspicious_origin_cost_family,
+    likely_human_friction_family, suspicious_origin_cost_family,
 };
 
 pub(crate) const BENCHMARK_RESULTS_SCHEMA_VERSION: &str = "benchmark_results_v1";
+
+fn benchmark_comparison_not_available() -> String {
+    "not_available".to_string()
+}
+
+fn is_benchmark_comparison_not_available(value: &str) -> bool {
+    value == "not_available"
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub(crate) struct BenchmarkBaselineReference {
     pub reference_kind: String,
     pub status: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub subject_kind: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub generated_at: Option<u64>,
     pub note: String,
 }
 
@@ -34,6 +50,15 @@ pub(crate) struct BenchmarkMetricResult {
     pub exactness: String,
     pub basis: String,
     pub capability_gate: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub baseline_current: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub comparison_delta: Option<f64>,
+    #[serde(
+        default = "benchmark_comparison_not_available",
+        skip_serializing_if = "is_benchmark_comparison_not_available"
+    )]
+    pub comparison_status: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -42,6 +67,13 @@ pub(crate) struct BenchmarkFamilyResult {
     pub status: String,
     pub capability_gate: String,
     pub note: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub baseline_status: Option<String>,
+    #[serde(
+        default = "benchmark_comparison_not_available",
+        skip_serializing_if = "is_benchmark_comparison_not_available"
+    )]
+    pub comparison_status: String,
     pub metrics: Vec<BenchmarkMetricResult>,
 }
 
@@ -79,19 +111,27 @@ pub(crate) fn build_benchmark_results_from_snapshot_sections(
     live_traffic: &OperatorSnapshotLiveTraffic,
     adversary_sim: &OperatorSnapshotAdversarySim,
     budget_distance: &OperatorBudgetDistanceSummary,
+    summary: &crate::observability::monitoring::MonitoringSummary,
+    cfg: &Config,
     allowed_actions: &AllowedActionsSurface,
+    prior_window_reference: Option<&BenchmarkComparableSnapshot>,
 ) -> BenchmarkResultsPayload {
     let suspicious_family =
         suspicious_origin_cost_family(live_traffic.suspicious_automation.as_ref(), budget_distance);
     let friction_family = likely_human_friction_family(budget_distance);
     let adversary_family = representative_adversary_effectiveness_family(adversary_sim);
-    let non_human_family = beneficial_non_human_posture_family();
-    let families = vec![
+    let non_human_family = beneficial_non_human_posture_family(summary, cfg);
+    let mut families = vec![
         suspicious_family,
         friction_family,
         adversary_family,
         non_human_family,
     ];
+    let (baseline_reference, improvement_status) = apply_prior_window_comparison(
+        generated_at,
+        families.as_mut_slice(),
+        prior_window_reference,
+    );
 
     BenchmarkResultsPayload {
         schema_version: BENCHMARK_RESULTS_SCHEMA_VERSION.to_string(),
@@ -100,10 +140,10 @@ pub(crate) fn build_benchmark_results_from_snapshot_sections(
         input_snapshot_generated_at,
         subject_kind: "current_instance".to_string(),
         watch_window: watch_window.clone(),
-        baseline_reference: unavailable_baseline_reference(),
+        baseline_reference,
         coverage_status: overall_coverage_status(families.as_slice()),
         overall_status: overall_status(families.as_slice()),
-        improvement_status: unavailable_improvement_status(),
+        improvement_status,
         escalation_hint: derive_escalation_hint(allowed_actions, families.as_slice()),
         families,
     }
@@ -117,6 +157,7 @@ mod tests {
     };
     use crate::challenge::KeyValueStore;
     use crate::config::allowed_actions_v1;
+    use crate::config::defaults;
     use crate::observability::monitoring::{record_request_outcome, summarize_with_store};
     use crate::observability::operator_snapshot::{
         build_operator_snapshot_payload, OperatorSnapshotRecentChanges,
@@ -222,7 +263,10 @@ mod tests {
             &snapshot.live_traffic,
             &snapshot.adversary_sim,
             &snapshot.budget_distance,
+            &summary,
+            &defaults(),
             &snapshot.allowed_actions,
+            None,
         );
         assert_eq!(payload.schema_version, "benchmark_results_v1");
         assert_eq!(payload.suite_version, "benchmark_suite_v1");
@@ -296,7 +340,10 @@ mod tests {
             &snapshot.live_traffic,
             &snapshot.adversary_sim,
             &snapshot.budget_distance,
+            &summary,
+            &defaults(),
             &snapshot.allowed_actions,
+            None,
         );
         assert_eq!(payload.escalation_hint.decision, "config_tuning_candidate");
         assert_eq!(
@@ -331,6 +378,8 @@ mod tests {
             status: "outside_budget".to_string(),
             capability_gate: "not_yet_supported".to_string(),
             note: "identity posture is missing".to_string(),
+            baseline_status: None,
+            comparison_status: "not_available".to_string(),
             metrics: vec![BenchmarkMetricResult {
                 metric_id: "allowed_as_intended_rate".to_string(),
                 status: "not_yet_supported".to_string(),
@@ -340,6 +389,9 @@ mod tests {
                 exactness: "derived".to_string(),
                 basis: "mixed".to_string(),
                 capability_gate: "not_yet_supported".to_string(),
+                baseline_current: None,
+                comparison_delta: None,
+                comparison_status: "not_available".to_string(),
             }],
         }];
 
@@ -350,5 +402,119 @@ mod tests {
             .blockers
             .contains(&"no_matching_config_surface".to_string()));
         assert!(hint.blockers.contains(&"family_capability_gap".to_string()));
+    }
+
+    #[test]
+    fn benchmark_results_materialize_supported_adversary_and_beneficial_non_human_families() {
+        let store = TestStore::new();
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::Live,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::PublicContent,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: Some(RequestOutcomeLane {
+                    lane: TrafficLane::SignedAgent,
+                    exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
+                    basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
+                }),
+                outcome_class: RequestOutcomeClass::Forwarded,
+                response_kind: ResponseKind::ForwardAllow,
+                http_status: 200,
+                response_bytes: 512,
+                forward_attempted: true,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::PolicyGraphVerifiedIdentityTranche,
+            },
+        );
+        crate::observability::monitoring::record_verified_identity_telemetry(
+            &store,
+            &crate::bot_identity::telemetry::IdentityVerificationTelemetryRecord {
+                scheme: Some(crate::bot_identity::contracts::IdentityScheme::ProviderSignedAgent),
+                provenance: crate::bot_identity::contracts::IdentityProvenance::Provider,
+                result_status:
+                    crate::bot_identity::verification::IdentityVerificationResultStatus::Verified,
+                failure: None,
+                freshness: crate::bot_identity::verification::IdentityVerificationFreshness::Fresh,
+                operator: Some("openai".to_string()),
+                stable_identity: Some("chatgpt-agent".to_string()),
+            },
+        );
+        let summary = summarize_with_store(&store, 24, 10);
+        let snapshot = build_operator_snapshot_payload(
+            &store,
+            "default",
+            1_700_000_200,
+            &summary,
+            &[
+                OperatorSnapshotRecentSimRun {
+                    run_id: "run_001".to_string(),
+                    lane: "synthetic_traffic".to_string(),
+                    profile: "fast_smoke".to_string(),
+                    first_ts: 1_700_000_120,
+                    last_ts: 1_700_000_140,
+                    monitoring_event_count: 4,
+                    defense_delta_count: 2,
+                    ban_outcome_count: 1,
+                },
+                OperatorSnapshotRecentSimRun {
+                    run_id: "run_002".to_string(),
+                    lane: "synthetic_traffic".to_string(),
+                    profile: "abuse_regression".to_string(),
+                    first_ts: 1_700_000_150,
+                    last_ts: 1_700_000_190,
+                    monitoring_event_count: 6,
+                    defense_delta_count: 3,
+                    ban_outcome_count: 1,
+                },
+            ],
+            OperatorSnapshotRecentChanges::default(),
+            1_700_000_200,
+            1_700_000_200,
+            1_700_000_200,
+        );
+        let mut cfg = defaults().clone();
+        cfg.verified_identity.enabled = true;
+        cfg.verified_identity.non_human_traffic_stance =
+            crate::bot_identity::policy::NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities;
+
+        let payload = build_benchmark_results_from_snapshot_sections(
+            snapshot.generated_at,
+            1_700_000_200,
+            &snapshot.window,
+            &snapshot.live_traffic,
+            &snapshot.adversary_sim,
+            &snapshot.budget_distance,
+            &summary,
+            &cfg,
+            &snapshot.allowed_actions,
+            None,
+        );
+
+        let adversary = payload
+            .families
+            .iter()
+            .find(|family| family.family_id == "representative_adversary_effectiveness")
+            .expect("adversary family");
+        assert_ne!(adversary.status, "not_yet_supported");
+        assert_ne!(adversary.capability_gate, "not_yet_supported");
+        assert!(adversary
+            .metrics
+            .iter()
+            .all(|metric| metric.status != "not_yet_supported"));
+
+        let beneficial = payload
+            .families
+            .iter()
+            .find(|family| family.family_id == "beneficial_non_human_posture")
+            .expect("beneficial family");
+        assert_ne!(beneficial.status, "not_yet_supported");
+        assert_ne!(beneficial.capability_gate, "not_yet_supported");
+        assert!(beneficial
+            .metrics
+            .iter()
+            .all(|metric| metric.status != "not_yet_supported"));
     }
 }

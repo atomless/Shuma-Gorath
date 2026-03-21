@@ -191,7 +191,7 @@ const OPERATOR_SNAPSHOT_COMPONENTS: [HotReadComponentContract; 10] = [
         ownership_tier: HotReadOwnershipTier::BootstrapCritical,
         canonical_source: HotReadCanonicalSource::MutableCounter,
         projection_model: HotReadProjectionModel::DeterministicRebuild,
-        note: "Benchmark results are a bounded machine-first projection over operator snapshot sections and reuse the shared benchmark contract rather than a dashboard-local semantic model.",
+        note: "Benchmark results are a bounded machine-first projection over operator snapshot sections, currently materialize prior-window comparison against the last snapshot, and keep the same comparison contract reusable for later baseline or candidate subjects.",
     },
     HotReadComponentContract {
         key: "recent_changes",

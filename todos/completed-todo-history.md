@@ -4,6 +4,29 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-21)
 
+### OPS-BENCH-2: Materialize Benchmark Comparison And Missing Evidence Families
+
+- [x] Completed the planned benchmark-truth tranche by materializing prior-window comparison references, `improvement_status`, representative adversary effectiveness proxies, verified-identity-aware beneficial non-human posture metrics, and reusable candidate-comparison semantics inside the existing machine-first `benchmark_results_v1` contract.
+- [x] Why:
+  - the agent-first reconcile and tweaker loop needs a truthful answer to whether the current posture improved or regressed against a real benchmark subject before it can recommend changes safely.
+  - the previous benchmark contract still left the adversary and beneficial non-human families unsupported and still lacked reusable comparison semantics for later candidate runs.
+  - the cleanest path was to extend the existing bounded benchmark projection and prior operator-snapshot materialization rather than inventing a separate benchmark history service.
+- [x] Evidence:
+  - `src/observability/benchmark_history.rs`
+  - `src/observability/benchmark_comparison.rs`
+  - `src/observability/benchmark_adversary_effectiveness.rs`
+  - `src/observability/benchmark_beneficial_non_human.rs`
+  - `src/observability/benchmark_results.rs`
+  - `src/observability/operator_snapshot.rs`
+  - `docs/research/2026-03-21-ops-bench-2-benchmark-truth-completion-post-implementation-review.md`
+  - `make test-benchmark-results-contract`
+  - `make test-benchmark-comparison-contract`
+  - `make test-benchmark-suite-contract`
+  - `make test-operator-snapshot-foundation`
+  - `make test-telemetry-hot-read-contract`
+  - `git diff --check`
+  - review follow-up `OPS-BENCH-2-REVIEW-1` generalized the comparison helper so later candidate runs reuse the same delta semantics, and no tranche-local shortfall remained open before `OPS-SNAPSHOT-2`.
+
 ### LOOP-VERIFY-1: Add Focused Agent-Loop Truth Verification Targets
 
 - [x] Added the missing focused verification-prep targets for the next agent-first truth tranches: benchmark comparison, operator objectives, and replay-promotion lineage. The prep slice also added narrow module-level tests so each target proves the contract its name claims, rather than aliasing a broader suite.

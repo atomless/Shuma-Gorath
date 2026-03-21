@@ -1,7 +1,6 @@
 use super::benchmark_results::{BenchmarkFamilyResult, BenchmarkMetricResult};
 use super::operator_snapshot::{
-    OperatorBudgetDistanceRow, OperatorBudgetDistanceSummary, OperatorSnapshotAdversarySim,
-    OperatorSnapshotLane,
+    OperatorBudgetDistanceRow, OperatorBudgetDistanceSummary, OperatorSnapshotLane,
 };
 
 pub(super) fn suspicious_origin_cost_family(
@@ -45,6 +44,8 @@ pub(super) fn suspicious_origin_cost_family(
         capability_gate: "supported".to_string(),
         note: "Derived from the live suspicious-automation lane and current budget-distance rows."
             .to_string(),
+        baseline_status: None,
+        comparison_status: "not_available".to_string(),
         metrics,
     }
 }
@@ -66,42 +67,9 @@ pub(super) fn likely_human_friction_family(
         status: aggregate_budget_status(metrics.as_slice()),
         capability_gate: "partially_supported".to_string(),
         note: "Current results are budgeted on observed likely-human friction while interactive and hard-block breakdowns remain to be materialized.".to_string(),
+        baseline_status: None,
+        comparison_status: "not_available".to_string(),
         metrics,
-    }
-}
-
-pub(super) fn representative_adversary_effectiveness_family(
-    adversary_sim: &OperatorSnapshotAdversarySim,
-) -> BenchmarkFamilyResult {
-    let recent_run_count = adversary_sim.recent_runs.len();
-    BenchmarkFamilyResult {
-        family_id: "representative_adversary_effectiveness".to_string(),
-        status: "not_yet_supported".to_string(),
-        capability_gate: "not_yet_supported".to_string(),
-        note: format!(
-            "Recent adversary-sim runs are visible (count={recent_run_count}), but scenario-family benchmark mapping and result deltas are not materialized yet."
-        ),
-        metrics: vec![
-            unsupported_metric("scenario_goal_success_rate"),
-            unsupported_metric("scenario_origin_reach_rate"),
-            unsupported_metric("scenario_escalation_rate"),
-            unsupported_metric("scenario_regression_status"),
-        ],
-    }
-}
-
-pub(super) fn beneficial_non_human_posture_family() -> BenchmarkFamilyResult {
-    BenchmarkFamilyResult {
-        family_id: "beneficial_non_human_posture".to_string(),
-        status: "not_yet_supported".to_string(),
-        capability_gate: "not_yet_supported".to_string(),
-        note: "Beneficial or authenticated non-human benchmarking waits for verified-identity and stance-aware allowance telemetry.".to_string(),
-        metrics: vec![
-            unsupported_metric("allowed_as_intended_rate"),
-            unsupported_metric("friction_mismatch_rate"),
-            unsupported_metric("deny_mismatch_rate"),
-            unsupported_metric("coverage_status"),
-        ],
     }
 }
 
@@ -111,7 +79,11 @@ pub(super) fn aggregate_budget_status(metrics: &[BenchmarkMetricResult]) -> Stri
         .filter(|metric| {
             matches!(
                 metric.status.as_str(),
-                "outside_budget" | "near_limit" | "inside_budget" | "insufficient_evidence"
+                "outside_budget"
+                    | "near_limit"
+                    | "inside_budget"
+                    | "insufficient_evidence"
+                    | "not_applicable"
             )
         })
         .map(|metric| metric.status.as_str())
@@ -133,6 +105,8 @@ pub(super) fn aggregate_budget_status(metrics: &[BenchmarkMetricResult]) -> Stri
         .any(|status| *status == "insufficient_evidence")
     {
         "insufficient_evidence".to_string()
+    } else if budget_statuses.iter().all(|status| *status == "not_applicable") {
+        "not_applicable".to_string()
     } else {
         "not_yet_supported".to_string()
     }
@@ -145,7 +119,7 @@ fn budget_row<'a>(
     rows.iter().find(|row| row.metric == metric)
 }
 
-fn budget_metric_result(
+pub(super) fn budget_metric_result(
     metric_id: &str,
     row: Option<&OperatorBudgetDistanceRow>,
     capability_gate: &str,
@@ -160,6 +134,9 @@ fn budget_metric_result(
             exactness: value.exactness.clone(),
             basis: value.basis.clone(),
             capability_gate: capability_gate.to_string(),
+            baseline_current: None,
+            comparison_delta: None,
+            comparison_status: "not_available".to_string(),
         },
         None => BenchmarkMetricResult {
             metric_id: metric_id.to_string(),
@@ -170,11 +147,14 @@ fn budget_metric_result(
             exactness: "derived".to_string(),
             basis: "mixed".to_string(),
             capability_gate: capability_gate.to_string(),
+            baseline_current: None,
+            comparison_delta: None,
+            comparison_status: "not_available".to_string(),
         },
     }
 }
 
-fn tracking_ratio_metric(
+pub(super) fn tracking_ratio_metric(
     metric_id: &str,
     lane: Option<&OperatorSnapshotLane>,
     current: Option<f64>,
@@ -189,6 +169,9 @@ fn tracking_ratio_metric(
             exactness: value.exactness.clone(),
             basis: value.basis.clone(),
             capability_gate: "supported".to_string(),
+            baseline_current: None,
+            comparison_delta: None,
+            comparison_status: "not_available".to_string(),
         },
         (Some(value), _) => BenchmarkMetricResult {
             metric_id: metric_id.to_string(),
@@ -199,6 +182,9 @@ fn tracking_ratio_metric(
             exactness: value.exactness.clone(),
             basis: value.basis.clone(),
             capability_gate: "supported".to_string(),
+            baseline_current: None,
+            comparison_delta: None,
+            comparison_status: "not_available".to_string(),
         },
         (None, _) => BenchmarkMetricResult {
             metric_id: metric_id.to_string(),
@@ -209,11 +195,14 @@ fn tracking_ratio_metric(
             exactness: "derived".to_string(),
             basis: "observed".to_string(),
             capability_gate: "supported".to_string(),
+            baseline_current: None,
+            comparison_delta: None,
+            comparison_status: "not_available".to_string(),
         },
     }
 }
 
-fn unsupported_metric(metric_id: &str) -> BenchmarkMetricResult {
+pub(super) fn unsupported_metric(metric_id: &str) -> BenchmarkMetricResult {
     BenchmarkMetricResult {
         metric_id: metric_id.to_string(),
         status: "not_yet_supported".to_string(),
@@ -223,6 +212,9 @@ fn unsupported_metric(metric_id: &str) -> BenchmarkMetricResult {
         exactness: "derived".to_string(),
         basis: "mixed".to_string(),
         capability_gate: "not_yet_supported".to_string(),
+        baseline_current: None,
+        comparison_delta: None,
+        comparison_status: "not_available".to_string(),
     }
 }
 

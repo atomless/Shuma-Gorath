@@ -166,6 +166,8 @@ Completed archive index:
    Sequencing review concluding that the first shared-host agent tweaker loop should precede `MON-OVERHAUL-1`, so Monitoring and Tuning can project the semantics proven by the machine-first loop rather than guessing them in advance.
 30. [`2026-03-21-loop-closure-execution-readiness-review.md`](2026-03-21-loop-closure-execution-readiness-review.md)
    Execution-readiness review concluding that the remaining prerequisite is a docs-only planning and verification tranche: exact structural-decomposition, loop-truth, and reconcile-agent plans plus focused `make` verification paths before implementation starts.
+31. [`2026-03-21-ops-bench-2-benchmark-truth-completion-post-implementation-review.md`](2026-03-21-ops-bench-2-benchmark-truth-completion-post-implementation-review.md)
+   Post-implementation review confirming the benchmark contract now materializes prior-window comparison truth, representative adversary and beneficial non-human families, and reusable candidate-comparison semantics for later reconcile and agent loops.
 
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 

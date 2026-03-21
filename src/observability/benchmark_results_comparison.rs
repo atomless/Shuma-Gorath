@@ -6,11 +6,24 @@ use super::benchmark_results::{
     BenchmarkBaselineReference, BenchmarkEscalationHint, BenchmarkFamilyResult,
 };
 
+#[cfg(test)]
 pub(super) fn unavailable_baseline_reference() -> BenchmarkBaselineReference {
+    unavailable_reference_for(
+        "prior_window",
+        "No prior-window benchmark subject is currently materialized for comparison.",
+    )
+}
+
+pub(super) fn unavailable_reference_for(
+    reference_kind: &str,
+    note: &str,
+) -> BenchmarkBaselineReference {
     BenchmarkBaselineReference {
-        reference_kind: "prior_window".to_string(),
+        reference_kind: reference_kind.to_string(),
         status: "not_available".to_string(),
-        note: "Baseline comparison materializes with benchmark-result history.".to_string(),
+        subject_kind: None,
+        generated_at: None,
+        note: note.to_string(),
     }
 }
 
@@ -224,6 +237,8 @@ mod tests {
             status: status.to_string(),
             capability_gate: capability_gate.to_string(),
             note: "test family".to_string(),
+            baseline_status: None,
+            comparison_status: "not_available".to_string(),
             metrics: vec![BenchmarkMetricResult {
                 metric_id: format!("{family_id}_metric"),
                 status: status.to_string(),
@@ -233,6 +248,9 @@ mod tests {
                 exactness: "exact".to_string(),
                 basis: "observed".to_string(),
                 capability_gate: capability_gate.to_string(),
+                baseline_current: None,
+                comparison_delta: None,
+                comparison_status: "not_available".to_string(),
             }],
         }
     }

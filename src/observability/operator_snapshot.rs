@@ -149,6 +149,14 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
         human_friction.as_ref(),
     );
     let allowed_actions = crate::config::allowed_actions_v1();
+    let cfg = crate::config::load_runtime_cached(store, site_id)
+        .unwrap_or_else(|_| crate::config::defaults().clone());
+    let prior_window_reference =
+        crate::observability::benchmark_history::load_prior_window_reference(
+            store,
+            site_id,
+            generated_at_ts,
+        );
     let benchmark_results_refreshed_at_ts =
         summary_refreshed_at_ts.min(recent_sim_runs_refreshed_at_ts);
     let benchmark_results = build_benchmark_results_from_snapshot_sections(
@@ -158,7 +166,10 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
         &live_traffic,
         &adversary_sim,
         &budget_distance,
+        summary,
+        &cfg,
         &allowed_actions,
+        prior_window_reference.as_ref(),
     );
 
     OperatorSnapshotHotReadPayload {
@@ -353,6 +364,10 @@ mod tests {
         OPERATOR_SNAPSHOT_SCHEMA_VERSION,
     };
     use crate::challenge::KeyValueStore;
+    use crate::observability::hot_read_documents::{
+        operator_snapshot_document_contract, operator_snapshot_document_key, HotReadDocumentEnvelope,
+        HotReadDocumentMetadata, HotReadUpdateTrigger,
+    };
     use crate::observability::monitoring::{record_request_outcome, summarize_with_store};
     use crate::runtime::effect_intents::ExecutionMode;
     use crate::runtime::request_outcome::{
@@ -482,10 +497,97 @@ mod tests {
                 &payload.live_traffic,
                 &payload.adversary_sim,
                 &payload.budget_distance,
+                &summary,
+                &crate::config::defaults(),
                 &payload.allowed_actions,
+                None,
             )
         );
         assert_eq!(payload.verified_identity.availability, "not_yet_supported");
+    }
+
+    #[test]
+    fn snapshot_payload_uses_prior_operator_snapshot_as_benchmark_reference_when_available() {
+        let store = TestStore::new();
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::Live,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::PublicContent,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: Some(RequestOutcomeLane {
+                    lane: TrafficLane::LikelyHuman,
+                    exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
+                    basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
+                }),
+                outcome_class: RequestOutcomeClass::ShortCircuited,
+                response_kind: ResponseKind::NotABot,
+                http_status: 200,
+                response_bytes: 45,
+                forward_attempted: false,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::PolicyGraphSecondTranche,
+            },
+        );
+        let previous_summary = summarize_with_store(&store, 24, 10);
+        let previous_payload = build_operator_snapshot_payload(
+            &store,
+            "default",
+            1_700_000_100,
+            &previous_summary,
+            &[],
+            OperatorSnapshotRecentChanges::default(),
+            1_700_000_100,
+            1_700_000_100,
+            1_700_000_100,
+        );
+        let previous_document = HotReadDocumentEnvelope {
+            metadata: HotReadDocumentMetadata {
+                schema_version: operator_snapshot_document_contract()
+                    .schema_version
+                    .to_string(),
+                site_id: "default".to_string(),
+                generated_at_ts: 1_700_000_100,
+                trigger: HotReadUpdateTrigger::RepairRebuild,
+            },
+            payload: previous_payload,
+        };
+        store
+            .set(
+                &operator_snapshot_document_key("default"),
+                &serde_json::to_vec(&previous_document).expect("snapshot document"),
+            )
+            .expect("seed prior operator snapshot");
+
+        let fresh_store = TestStore::new();
+        let fresh_summary = summarize_with_store(&fresh_store, 24, 10);
+        let payload = build_operator_snapshot_payload(
+            &store,
+            "default",
+            1_700_000_200,
+            &fresh_summary,
+            &[],
+            OperatorSnapshotRecentChanges::default(),
+            1_700_000_200,
+            1_700_000_200,
+            1_700_000_200,
+        );
+
+        assert_eq!(
+            payload.benchmark_results.baseline_reference.status,
+            "available"
+        );
+        assert_eq!(
+            payload.benchmark_results.baseline_reference.reference_kind,
+            "prior_window"
+        );
+        assert_eq!(
+            payload.benchmark_results.baseline_reference.generated_at,
+            Some(1_700_000_100)
+        );
+        assert_ne!(payload.benchmark_results.improvement_status, "not_available");
     }
 
     #[test]

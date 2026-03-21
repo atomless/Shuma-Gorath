@@ -333,6 +333,7 @@ Verified-identity authorization notes:
 - Named verified-identity policies are evaluated first, in configured order. The first matching policy wins.
 - `verified_identity.category_defaults` are only consulted for the category-driven top-level stances: `allow_verified_by_category` and `allow_verified_with_low_cost_profiles_only`.
 - If no named policy or eligible category default matches, the top-level verified-identity stance falls back to deny.
+- `verified_identity.non_human_traffic_stance` now directly feeds the bounded `beneficial_non_human_posture` benchmark family. When verified identity is disabled that family reports `not_applicable`; when it is enabled the benchmark compares observed verified-identity tranche outcomes and verification coverage against the configured stance, but it remains `partially_supported` until later low-cost delivery and richer allow-vs-restrict signals land.
 - `allow` and `use_service_profile(...)` with any non-`denied` profile short-circuit the current request path as explicit allow before the later <abbr title="Geolocation">GEO</abbr>, botness, and <abbr title="JavaScript">JS</abbr> stages.
 - `deny` and `use_service_profile(denied)` block immediately.
 - `observe` and `restrict` are distinct policy outcomes, but in `WB-3.1` they still continue into the later defence stages rather than changing the immediate response shape.
