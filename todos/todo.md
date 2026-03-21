@@ -1,6 +1,6 @@
 # TODO Roadmap
 
-Last updated: 2026-03-20
+Last updated: 2026-03-21
 
 This is the active execution-ready work queue.
 Blocked or contingent work lives in `todos/blocked-todo.md`.
@@ -95,8 +95,13 @@ Scope note:
 
 Reference plan:
 - [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](../docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md)
+- [`docs/research/2026-03-21-dep-ent-1-strict-enterprise-ban-sync-readiness-review.md`](../docs/research/2026-03-21-dep-ent-1-strict-enterprise-ban-sync-readiness-review.md)
+- [`docs/plans/2026-03-21-dep-ent-1-strict-enterprise-ban-sync-implementation-plan.md`](../docs/plans/2026-03-21-dep-ent-1-strict-enterprise-ban-sync-implementation-plan.md)
 
-- [ ] DEP-ENT-1 Implement strict enterprise distributed ban-sync mode for authoritative multi-instance posture (no silent local-only divergence path).
+- [ ] DEP-ENT-1-1 Add an explicit `SHUMA_BAN_STORE_OUTAGE_MODE` config/deploy contract, runtime exposure, and enterprise authoritative guardrail that requires `fail_closed` when `ban_store=external`.
+- [ ] DEP-ENT-1-2 Extend the ban-store provider contract so reads and writes report truthful synced/deferred/failed or available/unavailable outcomes instead of silently collapsing every backend failure into internal fallback.
+- [ ] DEP-ENT-1-3 Remove silent local-only divergence from runtime and admin ban paths under strict outage posture, including manual ban/unban failure handling and strict runtime ban-check behavior.
+- [ ] DEP-ENT-1-4 Add a focused truthful `make` verification target for the strict enterprise ban-store contract and refresh operator/deployment/module-boundary docs to describe the settled posture.
 - [ ] DEP-ENT-2 Add ban-sync observability (<abbr title="Service Level Objective">SLO</abbr> metrics for sync result and lag) to support promotion and rollback decisions.
 - [ ] DEP-ENT-3 Add two-instance Spin integration coverage with shared Redis to prove ban and unban convergence behavior.
 - [ ] DEP-ENT-4 Add outage and partition tests for distributed state (Redis unavailable or degraded) and assert explicit configured behavior by mode.

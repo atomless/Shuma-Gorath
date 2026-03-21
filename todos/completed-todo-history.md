@@ -4,6 +4,19 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-21)
 
+### DEP-ENT-1: Capture Strict Enterprise Ban-Sync Readiness And Execution Plan
+
+- [x] Refreshed the enterprise distributed-state planning chain by writing a readiness review for the current ban-store outage-drift gap, converting it into an execution-ready `DEP-ENT-1` implementation plan, and breaking the backlog item into atomic `DEP-ENT-1-1..4` slices so the strictness work can land in small verified tranches.
+- [x] Why:
+  - the open security finding and the old February deployment plan both pointed at the same risk, but the current code truth had moved enough that the repo needed one current readiness review before another enterprise patch series started.
+  - the biggest architectural discovery was that enterprise config guardrails already reject static local-only authoritative posture, while the live external ban-store adapter still silently falls back on backend failure. That meant the clean next move was a ban-store outage-contract tranche, not a broader distributed-state overhaul.
+  - breaking `DEP-ENT-1` into config contract, provider semantics, admin/runtime truthfulness, and focused verification also keeps the next implementation slice reviewable and lets later observability and two-instance proof stay in their own planned tranches.
+- [x] Evidence:
+  - `docs/research/2026-03-21-dep-ent-1-strict-enterprise-ban-sync-readiness-review.md`
+  - `docs/plans/2026-03-21-dep-ent-1-strict-enterprise-ban-sync-implementation-plan.md`
+  - `todos/todo.md`
+  - docs-only slice: tests intentionally skipped
+
 ### SIM-SCR-LANE-1: Final Operator And Boundary Closeout
 
 - [x] Complete `SIM-SCR-8` and close `SIM-SCR-LANE-1` by updating the operator/testing/API docs so the shared-host deploy path is the explicit supported full hosted Scrapling runtime target, the deploy-time seed is root-only by default, gateway catalogs are not presented as runtime reachable-surface truth, deployment egress hardening is called out as a remaining deployer responsibility, and Fermyon/Akamai edge is kept truthful as a gateway/control-plane path rather than a first-class hosted worker runtime.
