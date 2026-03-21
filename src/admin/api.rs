@@ -8,8 +8,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use super::adversary_sim_api::{
     adversary_sim_lifecycle_snapshot_from_cfg, adversary_sim_status_payload,
-    handle_admin_adversary_sim_status, handle_internal_adversary_sim_beat,
-    handle_internal_adversary_sim_worker_result, load_adversary_sim_lifecycle_snapshot,
+    handle_admin_adversary_sim_history_cleanup, handle_admin_adversary_sim_status,
+    handle_internal_adversary_sim_beat, handle_internal_adversary_sim_worker_result,
+    load_adversary_sim_lifecycle_snapshot,
 };
 use super::benchmark_api::{handle_admin_benchmark_results, handle_admin_benchmark_suite};
 use super::operator_snapshot_api::handle_admin_operator_snapshot;
@@ -175,7 +176,7 @@ const SECURITY_PRIVACY_PREFIX: &str = "security_privacy:v1";
 const SECURITY_PRIVACY_CLASSIFICATION_VERSION: &str = "telemetry-security-classification.v1";
 const SECURITY_FORENSIC_ACK_VALUE: &str = "I_UNDERSTAND_FORENSIC";
 const TELEMETRY_CLEANUP_ACK_HEADER: &str = "x-shuma-telemetry-cleanup-ack";
-const TELEMETRY_CLEANUP_ACK_VALUE: &str = "I_UNDERSTAND_TELEMETRY_CLEANUP";
+pub(super) const TELEMETRY_CLEANUP_ACK_VALUE: &str = "I_UNDERSTAND_TELEMETRY_CLEANUP";
 const SECURITY_HIGH_RISK_RETENTION_MAX_HOURS: u64 = 72;
 const SECRET_LIKE_SUBSTRINGS: [&str; 8] = [
     "sk-",
@@ -458,7 +459,7 @@ fn forensic_access_mode(query: &str) -> bool {
     forensic_requested && forensic_ack == SECURITY_FORENSIC_ACK_VALUE
 }
 
-fn telemetry_cleanup_acknowledged(req: &Request) -> bool {
+pub(super) fn telemetry_cleanup_acknowledged(req: &Request) -> bool {
     req.header(TELEMETRY_CLEANUP_ACK_HEADER)
         .and_then(|value| value.as_str())
         .map(|value| value.trim() == TELEMETRY_CLEANUP_ACK_VALUE)
@@ -16781,9 +16782,9 @@ where
 }
 
 #[derive(Debug, Default, Serialize)]
-struct TelemetryHistoryCleanupResult {
-    deleted_keys: u64,
-    deleted_by_family: BTreeMap<String, u64>,
+pub(super) struct TelemetryHistoryCleanupResult {
+    pub(super) deleted_keys: u64,
+    pub(super) deleted_by_family: BTreeMap<String, u64>,
 }
 
 fn classify_telemetry_history_key(
@@ -16834,7 +16835,7 @@ fn classify_telemetry_history_key(
     None
 }
 
-fn clear_telemetry_history<S>(store: &S, site_id: &str) -> TelemetryHistoryCleanupResult
+pub(super) fn clear_telemetry_history<S>(store: &S, site_id: &str) -> TelemetryHistoryCleanupResult
 where
     S: crate::challenge::KeyValueStore,
 {
@@ -17643,72 +17644,6 @@ fn request_bypasses_admin_ip_allowlist(req: &Request, path: &str) -> bool {
         }
         _ => false,
     }
-}
-
-fn handle_admin_adversary_sim_history_cleanup(
-    req: &Request,
-    store: &impl crate::challenge::KeyValueStore,
-    site_id: &str,
-    _auth: &crate::admin::auth::AdminAuthResult,
-) -> Response {
-    if *req.method() != Method::Post {
-        return Response::new(405, "Method Not Allowed");
-    }
-    if !crate::config::admin_config_write_enabled() {
-        return Response::new(
-            403,
-            "Config updates are disabled when SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false",
-        );
-    }
-
-    let runtime_environment = crate::config::runtime_environment();
-    let cleanup_command = "make telemetry-clean";
-    if runtime_environment.is_prod() {
-        if !telemetry_cleanup_acknowledged(req) {
-            return Response::new(
-                403,
-                format!(
-                    "Forbidden: runtime-prod telemetry cleanup requires header X-Shuma-Telemetry-Cleanup-Ack: {}",
-                    TELEMETRY_CLEANUP_ACK_VALUE
-                ),
-            );
-        }
-    } else {
-        let env_available = crate::config::adversary_sim_available();
-        if !crate::admin::adversary_sim::control_surface_available(
-            runtime_environment,
-            env_available,
-        ) {
-            return Response::new(404, "Not Found");
-        }
-    }
-
-    let cleanup_result = clear_telemetry_history(store, site_id);
-    log_event(
-        store,
-        &EventLogEntry {
-            ts: now_ts(),
-            event: EventType::AdminAction,
-            ip: Some(crate::extract_client_ip(req)),
-            reason: Some("telemetry_history_cleanup".to_string()),
-            outcome: Some(format!(
-                "deleted_keys={} families={}",
-                cleanup_result.deleted_keys,
-                cleanup_result.deleted_by_family.len()
-            )),
-            admin: Some(crate::admin::auth::get_admin_id(req)),
-        },
-    );
-
-    let body = serde_json::to_string(&json!({
-        "cleaned": true,
-        "deleted_keys": cleanup_result.deleted_keys,
-        "deleted_by_family": cleanup_result.deleted_by_family,
-        "retention_hours": event_log_retention_hours(),
-        "cleanup_command": cleanup_command
-    }))
-    .unwrap();
-    Response::new(200, body)
 }
 
 fn handle_admin_adversary_sim_control(

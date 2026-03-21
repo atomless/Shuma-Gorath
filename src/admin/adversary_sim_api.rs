@@ -395,3 +395,69 @@ pub(crate) fn handle_internal_adversary_sim_worker_result(
         .body(body)
         .build()
 }
+
+pub(crate) fn handle_admin_adversary_sim_history_cleanup(
+    req: &Request,
+    store: &impl crate::challenge::KeyValueStore,
+    site_id: &str,
+    _auth: &crate::admin::auth::AdminAuthResult,
+) -> Response {
+    if *req.method() != Method::Post {
+        return Response::new(405, "Method Not Allowed");
+    }
+    if !crate::config::admin_config_write_enabled() {
+        return Response::new(
+            403,
+            "Config updates are disabled when SHUMA_ADMIN_CONFIG_WRITE_ENABLED=false",
+        );
+    }
+
+    let runtime_environment = crate::config::runtime_environment();
+    let cleanup_command = "make telemetry-clean";
+    if runtime_environment.is_prod() {
+        if !super::api::telemetry_cleanup_acknowledged(req) {
+            return Response::new(
+                403,
+                format!(
+                    "Forbidden: runtime-prod telemetry cleanup requires header X-Shuma-Telemetry-Cleanup-Ack: {}",
+                    super::api::TELEMETRY_CLEANUP_ACK_VALUE
+                ),
+            );
+        }
+    } else {
+        let env_available = crate::config::adversary_sim_available();
+        if !crate::admin::adversary_sim::control_surface_available(
+            runtime_environment,
+            env_available,
+        ) {
+            return Response::new(404, "Not Found");
+        }
+    }
+
+    let cleanup_result = super::api::clear_telemetry_history(store, site_id);
+    super::api::log_event(
+        store,
+        &crate::admin::EventLogEntry {
+            ts: crate::admin::now_ts(),
+            event: crate::admin::EventType::AdminAction,
+            ip: Some(crate::extract_client_ip(req)),
+            reason: Some("telemetry_history_cleanup".to_string()),
+            outcome: Some(format!(
+                "deleted_keys={} families={}",
+                cleanup_result.deleted_keys,
+                cleanup_result.deleted_by_family.len()
+            )),
+            admin: Some(crate::admin::auth::get_admin_id(req)),
+        },
+    );
+
+    let body = serde_json::to_string(&json!({
+        "cleaned": true,
+        "deleted_keys": cleanup_result.deleted_keys,
+        "deleted_by_family": cleanup_result.deleted_by_family,
+        "retention_hours": super::api::event_log_retention_hours(),
+        "cleanup_command": cleanup_command
+    }))
+    .unwrap();
+    Response::new(200, body)
+}
