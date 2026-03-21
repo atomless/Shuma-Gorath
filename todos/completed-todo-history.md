@@ -4,6 +4,24 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-21)
 
+### WB-1.1: Verified-Identity Provider Seam
+
+- [x] Added a first-class verified-identity provider capability to the shared provider contract and registry, then normalized trusted edge/provider assertions into the canonical `IdentityVerificationResult`/`VerifiedIdentityEvidence` types without changing request routing.
+- [x] Why:
+  - the verified-identity plan called for provider-managed verified-bot and signed-agent inputs to flow through the same internal contract as the future native Web Bot Auth verifier, rather than creating a side-channel under fingerprinting or ad hoc request parsing.
+  - reusing the existing provider registry pattern kept the slice clean: one new provider capability, internal no-op behavior for non-provider runtimes, and one external edge-normalization path selected through the already-settled external fingerprint backend choice.
+  - this tranche intentionally stopped at normalization and trust-boundary enforcement. It proves that trusted provider assertions can enter Shuma as canonical identity evidence, but it does not yet emit verified-identity telemetry or alter allow/deny/challenge outcomes.
+- [x] Evidence:
+  - `src/providers/contracts.rs`
+  - `src/providers/registry.rs`
+  - `src/providers/internal.rs`
+  - `src/providers/external.rs`
+  - `Makefile`
+  - `docs/research/2026-03-21-wb-1-1-verified-identity-provider-seam-post-implementation-review.md`
+  - `make test-verified-identity-provider`
+  - `git diff --check`
+  - post-tranche review: no tranche-local shortfall was found; the next optimal work is `WB-1.2`.
+
 ### WB-0.2: Verified-Identity Config Placeholders And Validation
 
 - [x] Added the first canonical verified-identity config surface across defaults, persisted config loading, admin patch validation, config export, config seeding, controller-action family metadata, and dashboard Advanced JSON/runtime-inventory parity without changing request routing behavior.

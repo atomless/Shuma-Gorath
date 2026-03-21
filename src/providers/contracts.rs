@@ -183,6 +183,14 @@ pub(crate) trait FingerprintSignalProvider {
     fn inject_detection(&self, html: &str, report_endpoint: Option<&str>) -> String;
 }
 
+pub(crate) trait VerifiedIdentityProvider {
+    fn verify_identity(
+        &self,
+        req: &Request,
+        cfg: &crate::config::Config,
+    ) -> crate::bot_identity::verification::IdentityVerificationResult;
+}
+
 #[cfg(test)]
 mod tests {
     use super::{BanLookupResult, BanSyncResult, RateLimitDecision};

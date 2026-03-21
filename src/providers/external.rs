@@ -6,6 +6,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use super::contracts::{
     BanListResult, BanLookupResult, BanStoreProvider, BanSyncResult, ChallengeEngineProvider,
     FingerprintSignalProvider, MazeTarpitProvider, RateLimitDecision, RateLimiterProvider,
+    VerifiedIdentityProvider,
 };
 use super::internal;
 
@@ -18,12 +19,25 @@ const RATE_DRIFT_BAND_DELTA_6_20: &str = "delta_6_20";
 const RATE_DRIFT_BAND_DELTA_21_PLUS: &str = "delta_21_plus";
 const MAX_AKAMAI_DETECTION_IDS: usize = 16;
 const MAX_AKAMAI_TAGS: usize = 16;
+const MAX_VERIFIED_IDENTITY_FIELD_CHARS: usize = 256;
+const MAX_VERIFIED_IDENTITY_URI_CHARS: usize = 1024;
+const VERIFIED_IDENTITY_SCHEME_HEADER: &str = "x-shuma-edge-verified-identity-scheme";
+const VERIFIED_IDENTITY_VALUE_HEADER: &str = "x-shuma-edge-verified-identity";
+const VERIFIED_IDENTITY_OPERATOR_HEADER: &str = "x-shuma-edge-verified-identity-operator";
+const VERIFIED_IDENTITY_CATEGORY_HEADER: &str = "x-shuma-edge-verified-identity-category";
+const VERIFIED_IDENTITY_END_USER_CONTROLLED_HEADER: &str =
+    "x-shuma-edge-verified-identity-end-user-controlled";
+const VERIFIED_IDENTITY_DIRECTORY_SOURCE_ID_HEADER: &str =
+    "x-shuma-edge-verified-identity-directory-source-id";
+const VERIFIED_IDENTITY_DIRECTORY_SOURCE_URI_HEADER: &str =
+    "x-shuma-edge-verified-identity-directory-source-uri";
 
 pub(crate) struct ExternalRateLimiterProvider;
 pub(crate) struct ExternalBanStoreProvider;
 pub(crate) struct UnsupportedExternalChallengeEngineProvider;
 pub(crate) struct UnsupportedExternalMazeTarpitProvider;
 pub(crate) struct ExternalFingerprintSignalProvider;
+pub(crate) struct ExternalVerifiedIdentityProvider;
 
 pub(crate) const RATE_LIMITER: ExternalRateLimiterProvider = ExternalRateLimiterProvider;
 pub(crate) const BAN_STORE: ExternalBanStoreProvider = ExternalBanStoreProvider;
@@ -33,6 +47,8 @@ pub(crate) const UNSUPPORTED_MAZE_TARPIT: UnsupportedExternalMazeTarpitProvider 
     UnsupportedExternalMazeTarpitProvider;
 pub(crate) const FINGERPRINT_SIGNAL: ExternalFingerprintSignalProvider =
     ExternalFingerprintSignalProvider;
+pub(crate) const VERIFIED_IDENTITY: ExternalVerifiedIdentityProvider =
+    ExternalVerifiedIdentityProvider;
 
 #[derive(Debug, Clone, Deserialize)]
 struct AkamaiEdgeOutcome {
@@ -52,6 +68,29 @@ struct NormalizedFingerprintSignal {
     hard_signal: bool,
     checks: Vec<String>,
     summary: String,
+}
+
+#[derive(Debug, Clone)]
+struct RawVerifiedIdentityHeaders {
+    scheme: Option<String>,
+    stable_identity: Option<String>,
+    operator: Option<String>,
+    category: Option<String>,
+    end_user_controlled: Option<String>,
+    directory_source_id: Option<String>,
+    directory_source_uri: Option<String>,
+}
+
+impl RawVerifiedIdentityHeaders {
+    fn any_present(&self) -> bool {
+        self.scheme.is_some()
+            || self.stable_identity.is_some()
+            || self.operator.is_some()
+            || self.category.is_some()
+            || self.end_user_controlled.is_some()
+            || self.directory_source_id.is_some()
+            || self.directory_source_uri.is_some()
+    }
 }
 
 fn normalize_akamai_edge_outcome(
@@ -202,6 +241,155 @@ fn looks_like_akamai_payload(outcome: &AkamaiEdgeOutcome) -> bool {
 
 fn fingerprint_authoritative_mode_enabled(mode: crate::config::EdgeIntegrationMode) -> bool {
     mode == crate::config::EdgeIntegrationMode::Authoritative
+}
+
+fn header_value(req: &Request, name: &str) -> Option<String> {
+    req.header(name)
+        .and_then(|value| value.as_str())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned)
+}
+
+fn parse_identity_text(raw: &str, max_chars: usize) -> Option<String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty()
+        || trimmed.len() > max_chars
+        || trimmed.chars().any(|ch| ch.is_ascii_control())
+    {
+        return None;
+    }
+
+    Some(trimmed.to_string())
+}
+
+fn parse_identity_category(raw: &str) -> Option<crate::bot_identity::contracts::IdentityCategory> {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "training" => Some(crate::bot_identity::contracts::IdentityCategory::Training),
+        "search" => Some(crate::bot_identity::contracts::IdentityCategory::Search),
+        "user_triggered_agent" => {
+            Some(crate::bot_identity::contracts::IdentityCategory::UserTriggeredAgent)
+        }
+        "preview" => Some(crate::bot_identity::contracts::IdentityCategory::Preview),
+        "service_agent" => Some(crate::bot_identity::contracts::IdentityCategory::ServiceAgent),
+        "other" => Some(crate::bot_identity::contracts::IdentityCategory::Other),
+        _ => None,
+    }
+}
+
+fn parse_provider_identity_scheme(
+    raw: &str,
+) -> Result<
+    crate::bot_identity::contracts::IdentityScheme,
+    crate::bot_identity::verification::IdentityVerificationFailure,
+> {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "provider_verified_bot" => {
+            Ok(crate::bot_identity::contracts::IdentityScheme::ProviderVerifiedBot)
+        }
+        "provider_signed_agent" => {
+            Ok(crate::bot_identity::contracts::IdentityScheme::ProviderSignedAgent)
+        }
+        "http_message_signatures" | "mtls" => {
+            Err(crate::bot_identity::verification::IdentityVerificationFailure::UnsupportedScheme)
+        }
+        _ => Err(crate::bot_identity::verification::IdentityVerificationFailure::ProviderRejected),
+    }
+}
+
+fn parse_bool_header(raw: &str) -> Option<bool> {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "true" => Some(true),
+        "false" => Some(false),
+        _ => None,
+    }
+}
+
+fn extract_verified_identity_headers(req: &Request) -> RawVerifiedIdentityHeaders {
+    RawVerifiedIdentityHeaders {
+        scheme: header_value(req, VERIFIED_IDENTITY_SCHEME_HEADER),
+        stable_identity: header_value(req, VERIFIED_IDENTITY_VALUE_HEADER),
+        operator: header_value(req, VERIFIED_IDENTITY_OPERATOR_HEADER),
+        category: header_value(req, VERIFIED_IDENTITY_CATEGORY_HEADER),
+        end_user_controlled: header_value(req, VERIFIED_IDENTITY_END_USER_CONTROLLED_HEADER),
+        directory_source_id: header_value(req, VERIFIED_IDENTITY_DIRECTORY_SOURCE_ID_HEADER),
+        directory_source_uri: header_value(req, VERIFIED_IDENTITY_DIRECTORY_SOURCE_URI_HEADER),
+    }
+}
+
+fn normalize_verified_identity_headers(
+    headers: RawVerifiedIdentityHeaders,
+) -> Result<
+    crate::bot_identity::contracts::VerifiedIdentityEvidence,
+    crate::bot_identity::verification::IdentityVerificationFailure,
+> {
+    let scheme = headers
+        .scheme
+        .as_deref()
+        .ok_or(crate::bot_identity::verification::IdentityVerificationFailure::MissingAssertion)
+        .and_then(parse_provider_identity_scheme)?;
+    let stable_identity = headers
+        .stable_identity
+        .as_deref()
+        .and_then(|value| parse_identity_text(value, MAX_VERIFIED_IDENTITY_FIELD_CHARS))
+        .ok_or(crate::bot_identity::verification::IdentityVerificationFailure::MissingAssertion)?;
+    let operator = headers
+        .operator
+        .as_deref()
+        .and_then(|value| parse_identity_text(value, MAX_VERIFIED_IDENTITY_FIELD_CHARS))
+        .ok_or(crate::bot_identity::verification::IdentityVerificationFailure::MissingAssertion)?;
+    let category = headers
+        .category
+        .as_deref()
+        .and_then(parse_identity_category)
+        .ok_or(crate::bot_identity::verification::IdentityVerificationFailure::MissingAssertion)?;
+    let end_user_controlled = match headers.end_user_controlled.as_deref() {
+        Some(value) => parse_bool_header(value).ok_or(
+            crate::bot_identity::verification::IdentityVerificationFailure::ProviderRejected,
+        )?,
+        None => false,
+    };
+    let directory_source = match (
+        headers.directory_source_id.as_deref(),
+        headers.directory_source_uri.as_deref(),
+    ) {
+        (None, None) => None,
+        (Some(source_id), source_uri) => {
+            let source_id = parse_identity_text(source_id, MAX_VERIFIED_IDENTITY_FIELD_CHARS)
+                .ok_or(
+                crate::bot_identity::verification::IdentityVerificationFailure::ProviderRejected,
+            )?;
+            let source_uri = match source_uri {
+                Some(uri) => Some(
+                    parse_identity_text(uri, MAX_VERIFIED_IDENTITY_URI_CHARS).ok_or(
+                        crate::bot_identity::verification::IdentityVerificationFailure::ProviderRejected,
+                    )?,
+                ),
+                None => None,
+            };
+            Some(crate::bot_identity::contracts::IdentityDirectorySource {
+                source_id,
+                source_uri,
+            })
+        }
+        (None, Some(_)) => {
+            return Err(
+                crate::bot_identity::verification::IdentityVerificationFailure::ProviderRejected,
+            )
+        }
+    };
+
+    Ok(crate::bot_identity::contracts::VerifiedIdentityEvidence {
+        scheme,
+        stable_identity,
+        operator,
+        category,
+        verification_strength:
+            crate::bot_identity::contracts::VerificationStrength::ProviderAsserted,
+        end_user_controlled,
+        directory_source,
+        provenance: crate::bot_identity::contracts::IdentityProvenance::Provider,
+    })
 }
 
 trait DistributedRateCounter {
@@ -909,10 +1097,7 @@ impl BanStoreProvider for ExternalBanStoreProvider {
     }
 }
 
-pub(crate) fn list_active_bans_with_runtime_contract<S>(
-    store: &S,
-    site_id: &str,
-) -> BanListResult
+pub(crate) fn list_active_bans_with_runtime_contract<S>(store: &S, site_id: &str) -> BanListResult
 where
     S: crate::challenge::KeyValueStore,
 {
@@ -1125,7 +1310,10 @@ impl FingerprintSignalProvider for ExternalFingerprintSignalProvider {
                     admin: None,
                 },
             );
-            return Response::new(403, "External fingerprint report rejected (untrusted source)");
+            return Response::new(
+                403,
+                "External fingerprint report rejected (untrusted source)",
+            );
         }
         if cfg.edge_integration_mode == crate::config::EdgeIntegrationMode::Off {
             return Response::new(200, "External fingerprint report ignored (edge mode off)");
@@ -1262,20 +1450,64 @@ impl FingerprintSignalProvider for ExternalFingerprintSignalProvider {
     }
 }
 
+impl VerifiedIdentityProvider for ExternalVerifiedIdentityProvider {
+    fn verify_identity(
+        &self,
+        req: &Request,
+        cfg: &crate::config::Config,
+    ) -> crate::bot_identity::verification::IdentityVerificationResult {
+        if !cfg.verified_identity.enabled || !cfg.verified_identity.provider_assertions_enabled {
+            return crate::bot_identity::verification::IdentityVerificationResult::disabled();
+        }
+        if cfg.edge_integration_mode == crate::config::EdgeIntegrationMode::Off {
+            return crate::bot_identity::verification::IdentityVerificationResult::not_attempted();
+        }
+
+        let headers = extract_verified_identity_headers(req);
+        if !headers.any_present() {
+            return crate::bot_identity::verification::IdentityVerificationResult::not_attempted();
+        }
+        if !crate::forwarded_ip_trusted(req) {
+            return crate::bot_identity::verification::IdentityVerificationResult::failed(
+                crate::bot_identity::verification::IdentityVerificationFailure::ProviderRejected,
+                crate::bot_identity::verification::IdentityVerificationFreshness::NotApplicable,
+            );
+        }
+
+        match normalize_verified_identity_headers(headers) {
+            Ok(identity) => {
+                crate::bot_identity::verification::IdentityVerificationResult::verified(
+                    identity,
+                    crate::bot_identity::verification::IdentityVerificationFreshness::NotApplicable,
+                )
+            }
+            Err(failure) => crate::bot_identity::verification::IdentityVerificationResult::failed(
+                failure,
+                crate::bot_identity::verification::IdentityVerificationFreshness::NotApplicable,
+            ),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
         ban_with_backend, check_rate_limit_with_backend, current_rate_usage_with_backend,
-        decide_rate_limit_on_outage, fingerprint_authoritative_mode_enabled,
-        is_banned_with_backend, list_active_bans_with_backend,
-        map_normalized_fingerprint_to_cdp_report, normalize_akamai_edge_outcome, rate_drift_band,
+        decide_rate_limit_on_outage, extract_verified_identity_headers,
+        fingerprint_authoritative_mode_enabled, is_banned_with_backend,
+        list_active_bans_with_backend, map_normalized_fingerprint_to_cdp_report,
+        normalize_akamai_edge_outcome, normalize_verified_identity_headers, rate_drift_band,
         rate_route_class, unban_with_backend, AkamaiEdgeOutcome, DistributedBanStore,
         DistributedRateCounter, RateLimiterOutageAction, RATE_DRIFT_BAND_DELTA_0,
         RATE_DRIFT_BAND_DELTA_1_5, RATE_DRIFT_BAND_DELTA_21_PLUS, RATE_DRIFT_BAND_DELTA_6_20,
-        RATE_ROUTE_CLASS_ADMIN_AUTH, RATE_ROUTE_CLASS_MAIN_TRAFFIC,
+        RATE_ROUTE_CLASS_ADMIN_AUTH, RATE_ROUTE_CLASS_MAIN_TRAFFIC, VERIFIED_IDENTITY,
+        VERIFIED_IDENTITY_CATEGORY_HEADER, VERIFIED_IDENTITY_DIRECTORY_SOURCE_ID_HEADER,
+        VERIFIED_IDENTITY_DIRECTORY_SOURCE_URI_HEADER,
+        VERIFIED_IDENTITY_END_USER_CONTROLLED_HEADER, VERIFIED_IDENTITY_OPERATOR_HEADER,
+        VERIFIED_IDENTITY_SCHEME_HEADER, VERIFIED_IDENTITY_VALUE_HEADER,
     };
     use crate::providers::contracts::{
-        BanListResult, BanLookupResult, BanSyncResult, RateLimitDecision,
+        BanListResult, BanLookupResult, BanSyncResult, RateLimitDecision, VerifiedIdentityProvider,
     };
     use std::cell::Cell;
 
@@ -1337,6 +1569,170 @@ mod tests {
         assert!(report.cdp_detected);
         assert!(report.score >= 1.0);
         assert!(!report.checks.is_empty());
+    }
+
+    #[test]
+    fn verified_identity_headers_normalize_provider_verified_bot_assertion() {
+        let headers =
+            extract_verified_identity_headers(&crate::test_support::request_with_headers(
+                "/",
+                &[
+                    (VERIFIED_IDENTITY_SCHEME_HEADER, "provider_verified_bot"),
+                    (VERIFIED_IDENTITY_VALUE_HEADER, "search.example"),
+                    (VERIFIED_IDENTITY_OPERATOR_HEADER, "example"),
+                    (VERIFIED_IDENTITY_CATEGORY_HEADER, "search"),
+                ],
+            ));
+
+        let identity = normalize_verified_identity_headers(headers).expect("normalized identity");
+
+        assert_eq!(
+            identity.scheme,
+            crate::bot_identity::contracts::IdentityScheme::ProviderVerifiedBot
+        );
+        assert_eq!(
+            identity.verification_strength,
+            crate::bot_identity::contracts::VerificationStrength::ProviderAsserted
+        );
+        assert_eq!(
+            identity.provenance,
+            crate::bot_identity::contracts::IdentityProvenance::Provider
+        );
+        assert!(!identity.end_user_controlled);
+    }
+
+    #[test]
+    fn verified_identity_headers_normalize_signed_agent_assertion() {
+        let headers =
+            extract_verified_identity_headers(&crate::test_support::request_with_headers(
+                "/",
+                &[
+                    (VERIFIED_IDENTITY_SCHEME_HEADER, "provider_signed_agent"),
+                    (VERIFIED_IDENTITY_VALUE_HEADER, "chatgpt-agent"),
+                    (VERIFIED_IDENTITY_OPERATOR_HEADER, "openai"),
+                    (VERIFIED_IDENTITY_CATEGORY_HEADER, "user_triggered_agent"),
+                    (VERIFIED_IDENTITY_END_USER_CONTROLLED_HEADER, "true"),
+                    (
+                        VERIFIED_IDENTITY_DIRECTORY_SOURCE_ID_HEADER,
+                        "openai-http-message-signatures-directory",
+                    ),
+                    (
+                        VERIFIED_IDENTITY_DIRECTORY_SOURCE_URI_HEADER,
+                        "https://chatgpt.com/.well-known/http-message-signatures-directory",
+                    ),
+                ],
+            ));
+
+        let identity = normalize_verified_identity_headers(headers).expect("normalized identity");
+        let directory_source = identity.directory_source.expect("directory source");
+
+        assert_eq!(
+            identity.scheme,
+            crate::bot_identity::contracts::IdentityScheme::ProviderSignedAgent
+        );
+        assert!(identity.end_user_controlled);
+        assert_eq!(
+            directory_source.source_id,
+            "openai-http-message-signatures-directory"
+        );
+        assert_eq!(
+            directory_source.source_uri.as_deref(),
+            Some("https://chatgpt.com/.well-known/http-message-signatures-directory")
+        );
+    }
+
+    #[test]
+    fn verified_identity_headers_reject_missing_required_fields() {
+        let headers =
+            extract_verified_identity_headers(&crate::test_support::request_with_headers(
+                "/",
+                &[
+                    (VERIFIED_IDENTITY_SCHEME_HEADER, "provider_verified_bot"),
+                    (VERIFIED_IDENTITY_VALUE_HEADER, "search.example"),
+                    (VERIFIED_IDENTITY_OPERATOR_HEADER, "example"),
+                ],
+            ));
+
+        let failure = normalize_verified_identity_headers(headers).expect_err("missing category");
+
+        assert_eq!(
+            failure,
+            crate::bot_identity::verification::IdentityVerificationFailure::MissingAssertion
+        );
+    }
+
+    #[test]
+    fn verified_identity_provider_returns_disabled_when_provider_path_is_off() {
+        let cfg = crate::config::defaults().clone();
+        let req = crate::test_support::request_with_headers("/", &[]);
+
+        let result = VERIFIED_IDENTITY.verify_identity(&req, &cfg);
+
+        assert_eq!(
+            result.status,
+            crate::bot_identity::verification::IdentityVerificationResultStatus::Disabled
+        );
+    }
+
+    #[test]
+    fn verified_identity_provider_verifies_trusted_edge_assertions() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+
+        let mut cfg = crate::config::defaults().clone();
+        cfg.verified_identity.enabled = true;
+        cfg.edge_integration_mode = crate::config::EdgeIntegrationMode::Additive;
+        let req = crate::test_support::request_with_headers(
+            "/",
+            &[
+                ("x-shuma-forwarded-secret", "test-forwarded-secret"),
+                (VERIFIED_IDENTITY_SCHEME_HEADER, "provider_signed_agent"),
+                (VERIFIED_IDENTITY_VALUE_HEADER, "chatgpt-agent"),
+                (VERIFIED_IDENTITY_OPERATOR_HEADER, "openai"),
+                (VERIFIED_IDENTITY_CATEGORY_HEADER, "user_triggered_agent"),
+                (VERIFIED_IDENTITY_END_USER_CONTROLLED_HEADER, "true"),
+            ],
+        );
+
+        let result = VERIFIED_IDENTITY.verify_identity(&req, &cfg);
+        let identity = result.identity.expect("verified identity");
+
+        assert_eq!(
+            result.status,
+            crate::bot_identity::verification::IdentityVerificationResultStatus::Verified
+        );
+        assert_eq!(
+            identity.scheme,
+            crate::bot_identity::contracts::IdentityScheme::ProviderSignedAgent
+        );
+        assert!(identity.end_user_controlled);
+    }
+
+    #[test]
+    fn verified_identity_provider_rejects_untrusted_assertion_headers() {
+        let mut cfg = crate::config::defaults().clone();
+        cfg.verified_identity.enabled = true;
+        cfg.edge_integration_mode = crate::config::EdgeIntegrationMode::Additive;
+        let req = crate::test_support::request_with_headers(
+            "/",
+            &[
+                (VERIFIED_IDENTITY_SCHEME_HEADER, "provider_verified_bot"),
+                (VERIFIED_IDENTITY_VALUE_HEADER, "search.example"),
+                (VERIFIED_IDENTITY_OPERATOR_HEADER, "example"),
+                (VERIFIED_IDENTITY_CATEGORY_HEADER, "search"),
+            ],
+        );
+
+        let result = VERIFIED_IDENTITY.verify_identity(&req, &cfg);
+
+        assert_eq!(
+            result.status,
+            crate::bot_identity::verification::IdentityVerificationResultStatus::Failed
+        );
+        assert_eq!(
+            result.failure,
+            Some(crate::bot_identity::verification::IdentityVerificationFailure::ProviderRejected)
+        );
     }
 
     #[derive(Clone)]

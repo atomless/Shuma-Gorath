@@ -1,7 +1,7 @@
 use crate::config::{Config, ProviderBackend, ProviderBackends};
 use crate::providers::contracts::{
     BanListResult, BanStoreProvider, ChallengeEngineProvider, FingerprintSignalProvider,
-    MazeTarpitProvider, RateLimiterProvider,
+    MazeTarpitProvider, RateLimiterProvider, VerifiedIdentityProvider,
 };
 use crate::providers::{external, internal};
 use crate::signals::botness::SignalAvailability;
@@ -13,6 +13,7 @@ pub(crate) enum ProviderCapability {
     ChallengeEngine,
     MazeTarpit,
     FingerprintSignal,
+    VerifiedIdentity,
 }
 
 impl ProviderCapability {
@@ -23,6 +24,7 @@ impl ProviderCapability {
             ProviderCapability::ChallengeEngine => "challenge_engine",
             ProviderCapability::MazeTarpit => "maze_tarpit",
             ProviderCapability::FingerprintSignal => "fingerprint_signal",
+            ProviderCapability::VerifiedIdentity => "verified_identity",
         }
     }
 }
@@ -48,6 +50,7 @@ impl ProviderRegistry {
             ProviderCapability::ChallengeEngine => self.selections.challenge_engine,
             ProviderCapability::MazeTarpit => self.selections.maze_tarpit,
             ProviderCapability::FingerprintSignal => self.selections.fingerprint_signal,
+            ProviderCapability::VerifiedIdentity => self.selections.fingerprint_signal,
         }
     }
 
@@ -63,6 +66,9 @@ impl ProviderRegistry {
             (ProviderCapability::FingerprintSignal, ProviderBackend::External) => {
                 "external_akamai_with_internal_fallback"
             }
+            (ProviderCapability::VerifiedIdentity, ProviderBackend::External) => {
+                "external_edge_verified_identity_normalizer"
+            }
             (_, ProviderBackend::External) => "external_stub_unsupported",
         }
     }
@@ -74,6 +80,7 @@ impl ProviderRegistry {
             ProviderCapability::ChallengeEngine,
             ProviderCapability::MazeTarpit,
             ProviderCapability::FingerprintSignal,
+            ProviderCapability::VerifiedIdentity,
         ]
         .iter()
         .any(|capability| self.backend_for(*capability) == ProviderBackend::External)
@@ -97,11 +104,7 @@ impl ProviderRegistry {
         }
     }
 
-    pub fn list_active_bans_for_read_surface<S>(
-        &self,
-        store: &S,
-        site_id: &str,
-    ) -> BanListResult
+    pub fn list_active_bans_for_read_surface<S>(&self, store: &S, site_id: &str) -> BanListResult
     where
         S: crate::challenge::KeyValueStore,
     {
@@ -139,6 +142,13 @@ impl ProviderRegistry {
     pub fn fingerprint_signal_source_availability(&self, cfg: &Config) -> SignalAvailability {
         self.fingerprint_signal_provider().source_availability(cfg)
     }
+
+    pub fn verified_identity_provider(&self) -> &'static dyn VerifiedIdentityProvider {
+        match self.backend_for(ProviderCapability::VerifiedIdentity) {
+            ProviderBackend::Internal => &internal::VERIFIED_IDENTITY,
+            ProviderBackend::External => &external::VERIFIED_IDENTITY,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -158,6 +168,10 @@ mod tests {
         assert_eq!(
             ProviderCapability::FingerprintSignal.as_str(),
             "fingerprint_signal"
+        );
+        assert_eq!(
+            ProviderCapability::VerifiedIdentity.as_str(),
+            "verified_identity"
         );
     }
 
@@ -185,6 +199,10 @@ mod tests {
             registry.backend_for(ProviderCapability::FingerprintSignal),
             ProviderBackend::Internal
         );
+        assert_eq!(
+            registry.backend_for(ProviderCapability::VerifiedIdentity),
+            ProviderBackend::Internal
+        );
         assert!(!registry.has_external_provider());
     }
 
@@ -201,6 +219,10 @@ mod tests {
         );
         assert_eq!(
             registry.backend_for(ProviderCapability::FingerprintSignal),
+            ProviderBackend::External
+        );
+        assert_eq!(
+            registry.backend_for(ProviderCapability::VerifiedIdentity),
             ProviderBackend::External
         );
         assert_eq!(
@@ -224,6 +246,70 @@ mod tests {
         assert_eq!(
             provider.inject_detection("<html><body>ok</body></html>", Some("/report-endpoint")),
             "<html><body>ok</body></html>"
+        );
+    }
+
+    #[test]
+    fn verified_identity_registry_defaults_to_internal_noop_contract() {
+        let mut cfg = defaults().clone();
+        cfg.verified_identity.enabled = true;
+        let registry = ProviderRegistry::from_config(&cfg);
+        let req = crate::test_support::request_with_headers("/", &[]);
+        let result = registry
+            .verified_identity_provider()
+            .verify_identity(&req, &cfg);
+
+        assert_eq!(
+            result.status,
+            crate::bot_identity::verification::IdentityVerificationResultStatus::NotAttempted
+        );
+        assert!(result.identity.is_none());
+    }
+
+    #[test]
+    fn verified_identity_registry_routes_external_provider_assertions_through_shared_contract() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+
+        let mut cfg = defaults().clone();
+        cfg.verified_identity.enabled = true;
+        cfg.edge_integration_mode = crate::config::EdgeIntegrationMode::Additive;
+        cfg.provider_backends.fingerprint_signal = ProviderBackend::External;
+        let registry = ProviderRegistry::from_config(&cfg);
+        let req = crate::test_support::request_with_headers(
+            "/",
+            &[
+                ("x-shuma-forwarded-secret", "test-forwarded-secret"),
+                (
+                    "x-shuma-edge-verified-identity-scheme",
+                    "provider_verified_bot",
+                ),
+                ("x-shuma-edge-verified-identity", "search.example"),
+                ("x-shuma-edge-verified-identity-operator", "example"),
+                ("x-shuma-edge-verified-identity-category", "search"),
+            ],
+        );
+
+        let result = registry
+            .verified_identity_provider()
+            .verify_identity(&req, &cfg);
+        let identity = result.identity.expect("verified identity");
+
+        assert_eq!(
+            result.status,
+            crate::bot_identity::verification::IdentityVerificationResultStatus::Verified
+        );
+        assert_eq!(
+            identity.scheme,
+            crate::bot_identity::contracts::IdentityScheme::ProviderVerifiedBot
+        );
+        assert_eq!(
+            identity.provenance,
+            crate::bot_identity::contracts::IdentityProvenance::Provider
+        );
+        assert_eq!(
+            registry.implementation_for(ProviderCapability::VerifiedIdentity),
+            "external_edge_verified_identity_normalizer"
         );
     }
 
@@ -308,6 +394,10 @@ mod tests {
         assert_eq!(
             registry.implementation_for(ProviderCapability::BanStore),
             "external_redis_with_explicit_outage_posture"
+        );
+        assert_eq!(
+            registry.implementation_for(ProviderCapability::VerifiedIdentity),
+            "external_edge_verified_identity_normalizer"
         );
     }
 }

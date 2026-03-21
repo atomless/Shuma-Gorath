@@ -3,7 +3,7 @@ use spin_sdk::key_value::Store;
 
 use super::contracts::{
     BanStoreProvider, ChallengeEngineProvider, FingerprintSignalProvider, MazeTarpitProvider,
-    RateLimitDecision, RateLimiterProvider,
+    RateLimitDecision, RateLimiterProvider, VerifiedIdentityProvider,
 };
 
 pub(crate) struct InternalRateLimiterProvider;
@@ -11,6 +11,7 @@ pub(crate) struct InternalBanStoreProvider;
 pub(crate) struct InternalChallengeEngineProvider;
 pub(crate) struct InternalMazeTarpitProvider;
 pub(crate) struct InternalFingerprintSignalProvider;
+pub(crate) struct InternalVerifiedIdentityProvider;
 
 pub(crate) const RATE_LIMITER: InternalRateLimiterProvider = InternalRateLimiterProvider;
 pub(crate) const BAN_STORE: InternalBanStoreProvider = InternalBanStoreProvider;
@@ -19,6 +20,8 @@ pub(crate) const CHALLENGE_ENGINE: InternalChallengeEngineProvider =
 pub(crate) const MAZE_TARPIT: InternalMazeTarpitProvider = InternalMazeTarpitProvider;
 pub(crate) const FINGERPRINT_SIGNAL: InternalFingerprintSignalProvider =
     InternalFingerprintSignalProvider;
+pub(crate) const VERIFIED_IDENTITY: InternalVerifiedIdentityProvider =
+    InternalVerifiedIdentityProvider;
 
 const TARPIT_ESCALATION_SHORT_BAN_SECONDS: u64 = 600;
 
@@ -281,12 +284,7 @@ impl ChallengeEngineProvider for InternalChallengeEngineProvider {
         transform_count: usize,
         seed_ttl_seconds: u64,
     ) -> Response {
-        crate::boundaries::serve_challenge_page(
-            req,
-            shadow_mode,
-            transform_count,
-            seed_ttl_seconds,
-        )
+        crate::boundaries::serve_challenge_page(req, shadow_mode, transform_count, seed_ttl_seconds)
     }
 
     fn serve_not_a_bot_page(
@@ -430,8 +428,12 @@ impl MazeTarpitProvider for InternalMazeTarpitProvider {
         }
         crate::observability::metrics::record_tarpit_escalation_outcome(store, "none");
 
-        let _budget_lease =
-            match crate::tarpit::runtime::try_acquire_entry_budget(store, cfg, site_id, ip_bucket.as_str()) {
+        let _budget_lease = match crate::tarpit::runtime::try_acquire_entry_budget(
+            store,
+            cfg,
+            site_id,
+            ip_bucket.as_str(),
+        ) {
             Some(lease) => lease,
             None => {
                 crate::observability::metrics::record_tarpit_budget_outcome(store, "saturated");
@@ -480,7 +482,8 @@ impl MazeTarpitProvider for InternalMazeTarpitProvider {
         }
 
         let started_at = crate::tarpit::runtime::now_millis();
-        let handled = crate::tarpit::http::handle_progress(req, store, cfg, site_id, ip, user_agent);
+        let handled =
+            crate::tarpit::http::handle_progress(req, store, cfg, site_id, ip, user_agent);
         if let Some(reason) = handled.reject_reason {
             crate::observability::metrics::record_tarpit_progress_outcome(store, reason.as_str());
             if reason.is_budget() {
@@ -540,6 +543,20 @@ impl FingerprintSignalProvider for InternalFingerprintSignalProvider {
     }
 }
 
+impl VerifiedIdentityProvider for InternalVerifiedIdentityProvider {
+    fn verify_identity(
+        &self,
+        _req: &Request,
+        cfg: &crate::config::Config,
+    ) -> crate::bot_identity::verification::IdentityVerificationResult {
+        if !cfg.verified_identity.enabled || !cfg.verified_identity.provider_assertions_enabled {
+            return crate::bot_identity::verification::IdentityVerificationResult::disabled();
+        }
+
+        crate::bot_identity::verification::IdentityVerificationResult::not_attempted()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -548,9 +565,18 @@ mod tests {
     fn tarpit_duration_bucket_has_stable_ranges() {
         assert_eq!(crate::tarpit::runtime::tarpit_duration_bucket(0), "lt_1s");
         assert_eq!(crate::tarpit::runtime::tarpit_duration_bucket(999), "lt_1s");
-        assert_eq!(crate::tarpit::runtime::tarpit_duration_bucket(1_000), "1_5s");
-        assert_eq!(crate::tarpit::runtime::tarpit_duration_bucket(5_000), "5_20s");
-        assert_eq!(crate::tarpit::runtime::tarpit_duration_bucket(20_000), "20s_plus");
+        assert_eq!(
+            crate::tarpit::runtime::tarpit_duration_bucket(1_000),
+            "1_5s"
+        );
+        assert_eq!(
+            crate::tarpit::runtime::tarpit_duration_bucket(5_000),
+            "5_20s"
+        );
+        assert_eq!(
+            crate::tarpit::runtime::tarpit_duration_bucket(20_000),
+            "20s_plus"
+        );
     }
 
     #[test]
@@ -582,5 +608,20 @@ mod tests {
             tarpit_budget_bucket_active_prefix("default"),
             crate::tarpit::runtime::tarpit_budget_bucket_active_prefix("default")
         );
+    }
+
+    #[test]
+    fn verified_identity_internal_provider_is_a_noop_when_enabled() {
+        let mut cfg = crate::config::defaults().clone();
+        cfg.verified_identity.enabled = true;
+        let req = crate::test_support::request_with_headers("/", &[]);
+
+        let result = VERIFIED_IDENTITY.verify_identity(&req, &cfg);
+
+        assert_eq!(
+            result.status,
+            crate::bot_identity::verification::IdentityVerificationResultStatus::NotAttempted
+        );
+        assert!(result.identity.is_none());
     }
 }
