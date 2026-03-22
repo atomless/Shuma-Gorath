@@ -4,16 +4,16 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-22)
 
-### LOOP-GATE-2: Capture Observed-Traffic Taxonomy Before Lane Representativeness
+### LOOP-GATE-2: Capture Canonical Taxonomy Before Lane Representativeness
 
-- [x] Captured the next refinement to the autonomous tuning path: Shuma must first define and gain bounded confidence in the non-human traffic taxonomy it actually observes before it can truthfully judge whether Scrapling and frontier or LLM adversary lanes are representative enough for autonomous tuning, and the lane representativeness contract is now explicitly framed as joint coverage against that taxonomy rather than lane-local realism claims.
+- [x] Captured the corrected refinement to the autonomous tuning path: Shuma must first define a canonical non-human taxonomy, then build a shared classifier over simulated and observed traffic, then implement Scrapling and frontier or containerized LLM lane behaviors designed to fulfill those categories before it can truthfully judge representativeness or reopen autonomous tuning.
 - [x] Why:
-  - the previous safety-gate tranche correctly blocked auto-apply on protected evidence and category coverage, but it still left an earlier gap implicit: category coverage itself is not meaningful until Shuma can confidently identify and classify the categories it encounters in live traffic.
-  - this also sharpened lane ownership in the right direction: Scrapling and frontier or LLM lanes should jointly cover the protected taxonomy, but Shuma's observed-traffic model, not either lane alone, must define the categories they are measured against.
-  - the cleanest move was another docs-and-backlog tranche: add a research note and plan for taxonomy-first sequencing, update the mature adversary-sim roadmap and loop-closure plan, and insert `TRAFFIC-TAX-1` and `TRAFFIC-TAX-2` ahead of representativeness and auto-apply work.
+  - the previous same-day refinement over-corrected toward an observed-traffic-first model, which does not fit a pre-launch security product that must be configured before it has enough adversary traffic to learn from.
+  - the corrected model is stronger: taxonomy first, shared classifier second, lane fulfillment third, representativeness fourth, diagnosis and budget judgment fifth, and only then tuning apply.
+  - this also sharpened lane ownership in the right direction: Scrapling and frontier or containerized LLM lanes should jointly cover the protected taxonomy, but Shuma's canonical model, not either lane alone and not only early observed traffic, must define the categories they are measured against.
 - [x] Evidence:
-  - `docs/research/2026-03-22-observed-traffic-taxonomy-and-sim-representativeness-review.md`
-  - `docs/plans/2026-03-22-observed-traffic-taxonomy-and-lane-representativeness-plan.md`
+  - `docs/research/2026-03-22-canonical-non-human-taxonomy-and-sim-representativeness-review.md`
+  - `docs/plans/2026-03-22-canonical-non-human-taxonomy-and-lane-fulfillment-plan.md`
   - `docs/plans/2026-03-22-autonomous-tuning-safety-gates-implementation-plan.md`
   - `docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`
   - `docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`

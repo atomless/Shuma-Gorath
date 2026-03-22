@@ -7,12 +7,12 @@ Related context:
 - [`../research/2026-03-21-agent-first-feedback-loop-sequencing-review.md`](../research/2026-03-21-agent-first-feedback-loop-sequencing-review.md)
 - [`../research/2026-03-21-loop-closure-execution-readiness-review.md`](../research/2026-03-21-loop-closure-execution-readiness-review.md)
 - [`../research/2026-03-22-autonomous-tuning-safety-and-sim-representativeness-review.md`](../research/2026-03-22-autonomous-tuning-safety-and-sim-representativeness-review.md)
-- [`../research/2026-03-22-observed-traffic-taxonomy-and-sim-representativeness-review.md`](../research/2026-03-22-observed-traffic-taxonomy-and-sim-representativeness-review.md)
+- [`../research/2026-03-22-canonical-non-human-taxonomy-and-sim-representativeness-review.md`](../research/2026-03-22-canonical-non-human-taxonomy-and-sim-representativeness-review.md)
 - [`2026-03-21-agent-first-loop-structural-decomposition-implementation-plan.md`](2026-03-21-agent-first-loop-structural-decomposition-implementation-plan.md)
 - [`2026-03-21-agent-first-loop-truth-completion-implementation-plan.md`](2026-03-21-agent-first-loop-truth-completion-implementation-plan.md)
 - [`2026-03-21-agent-first-loop-reconcile-and-agent-implementation-plan.md`](2026-03-21-agent-first-loop-reconcile-and-agent-implementation-plan.md)
 - [`2026-03-22-autonomous-tuning-safety-gates-implementation-plan.md`](2026-03-22-autonomous-tuning-safety-gates-implementation-plan.md)
-- [`2026-03-22-observed-traffic-taxonomy-and-lane-representativeness-plan.md`](2026-03-22-observed-traffic-taxonomy-and-lane-representativeness-plan.md)
+- [`2026-03-22-canonical-non-human-taxonomy-and-lane-fulfillment-plan.md`](2026-03-22-canonical-non-human-taxonomy-and-lane-fulfillment-plan.md)
 - [`2026-03-20-machine-first-operator-snapshot-and-feedback-loop-design.md`](2026-03-20-machine-first-operator-snapshot-and-feedback-loop-design.md)
 - [`2026-03-20-benchmark-suite-v1-design.md`](2026-03-20-benchmark-suite-v1-design.md)
 - [`2026-03-20-mature-adversary-sim-evolution-roadmap.md`](2026-03-20-mature-adversary-sim-evolution-roadmap.md)
@@ -37,8 +37,9 @@ Close the first real Shuma feedback loop and structurally decompose the control-
 7. The next coding tranche should start from the detailed 2026-03-21 execution-ready implementation plans, not only from this high-level sequencing note.
 8. The first truly closed autonomous tuning loop must not use `synthetic_traffic` as tuning evidence; it must depend on protected Scrapling runtime evidence plus replay-promoted or equivalently confirmed frontier or LLM lineage.
 9. Monitoring overhaul should follow the first proven closed loop, not merely the first recommend-only loop, so human surfaces reflect the final protected-evidence and rollback semantics.
-10. The representativeness contract for Scrapling and frontier or LLM lanes must be judged against Shuma's observed traffic taxonomy, not lane-local assumptions.
-11. Category identification confidence must land before lane representativeness is considered trustworthy enough for autonomous tuning.
+10. The representativeness contract for Scrapling and frontier or LLM lanes must be judged against Shuma's canonical non-human taxonomy, not lane-local assumptions.
+11. Category classification confidence must land before lane representativeness is considered trustworthy enough for autonomous tuning.
+12. The taxonomy comes before attackers: Shuma must define the categories it intends to model before it has enough observed adversary traffic to learn them site-locally.
 
 # Target Architecture
 
@@ -200,11 +201,15 @@ This phase must prove:
 
 ### `TRAFFIC-TAX-1`
 
-Define the observed non-human traffic taxonomy that later tuning and lane-representativeness work will use.
+Define the canonical non-human traffic taxonomy that later tuning and lane-representativeness work will use.
 
 ### `TRAFFIC-TAX-2`
 
-Materialize bounded category-confidence and evidence receipts so Shuma can tell when traffic categorization is trustworthy enough to use in tuning decisions.
+Materialize bounded category-confidence and evidence receipts so Shuma can tell when both simulated and observed traffic categorization are trustworthy enough to use in tuning decisions.
+
+### `SIM-FULFILL-1`
+
+Implement the category-to-lane fulfillment matrix across Scrapling and frontier or containerized LLM modes before claiming lane representativeness.
 
 ### `SIM-PROTECTED-1`
 
@@ -212,7 +217,7 @@ Codify protected tuning evidence eligibility and explicitly exclude `synthetic_t
 
 ### `SIM-COVER-1`
 
-Define the representativeness matrix and bounded coverage receipts across Scrapling runtime traffic and replay-promoted frontier or LLM lineage for the non-human categories Shuma intends to optimize over, using the observed traffic taxonomy rather than lane-local labels.
+Define the representativeness matrix and bounded coverage receipts across Scrapling runtime traffic and replay-promoted frontier or LLM lineage for the non-human categories Shuma intends to optimize over, using the canonical taxonomy rather than lane-local labels.
 
 ### `OPS-OBJECTIVES-3`
 

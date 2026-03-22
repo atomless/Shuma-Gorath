@@ -84,16 +84,19 @@ Current stance:
 - Land the first shared-host agent tweaker loop before `MON-OVERHAUL-1` so Monitoring and Tuning can project proven machine-first semantics instead of inventing them early.
 - Treat the verified-identity observability and benchmarking gap as part of this loop-closure track rather than later polish.
 - The next priority is now the safety gate between recommend-only diagnosis and autonomous tuning: protected evidence, category-aware objectives, and category-coverage proof must land before auto-apply and before the Monitoring overhaul is reopened.
-- The next prerequisite now begins one step earlier: Shuma must first define and gain confidence in the observed non-human traffic taxonomy before it can truthfully measure lane representativeness.
+- The next prerequisite now begins one step earlier: Shuma must first define a canonical non-human taxonomy and shared classification contract before it can truthfully measure lane representativeness.
 
-### TRAFFIC-TAX-1: Observed Non-Human Traffic Taxonomy Contract
-- Define the bounded category set for the non-human traffic Shuma actually encounters, how observed signals and verified-identity or provenance inputs map into those categories, and how unknown or mixed cases are represented in machine-first contracts.
+### TRAFFIC-TAX-1: Canonical Non-Human Traffic Taxonomy Contract
+- Define the bounded category set for the non-human traffic Shuma intends to simulate and defend against, before it has enough observed adversary traffic to infer that set site-locally.
 
 ### TRAFFIC-TAX-2: Traffic Category Confidence And Evidence Receipts
-- Add bounded confidence and evidence receipts for Shuma's traffic categorization layer so later benchmark and autonomous tuning logic can fail closed when category assignment is still too weak or too stale to trust.
+- Add bounded confidence and evidence receipts for Shuma's traffic categorization layer so later benchmark and autonomous tuning logic can fail closed when category assignment is still too weak or too stale to trust, and so both simulated and observed traffic can be judged through the same classifier.
+
+### SIM-FULFILL-1: Category-To-Lane Fulfillment Matrix
+- Implement the mapping from the canonical category set into Scrapling modes and frontier or containerized LLM modes, with explicit gaps where no current lane can yet fulfill a category credibly.
 
 ### SIM-COVER-1: Representativeness Matrix And Coverage Receipts
-- Define and materialize the bounded coverage matrix for the non-human categories Shuma intends to optimize over, at minimum indexing bots, automated browsers, AI scraper bots, and agents acting on behalf of human users, with explicit coverage, stale, and partial states across Scrapling runtime traffic and replay-promoted frontier or LLM lineage, judged against the observed traffic taxonomy rather than lane-local assumptions.
+- Define and materialize the bounded coverage matrix for the non-human categories Shuma intends to optimize over, at minimum indexing bots, automated browsers, AI scraper bots, and agents acting on behalf of human users, with explicit coverage, stale, and partial states across Scrapling runtime traffic and replay-promoted frontier or LLM lineage, judged against the canonical taxonomy rather than lane-local assumptions.
 
 ### SIM-PROTECTED-1: Protected Tuning Evidence Eligibility And Synthetic Exclusion
 - Define the machine-first contract that marks which adversary evidence is tuning-eligible, explicitly excludes `synthetic_traffic`, and treats replay-promoted frontier or LLM lineage as the admissible protected path for emergent discoveries.
