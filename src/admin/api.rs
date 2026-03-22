@@ -5334,6 +5334,88 @@ mod admin_config_tests {
     }
 
     #[test]
+    fn adversary_sim_completion_triggers_post_sim_oversight_agent_once() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+        std::env::set_var("SHUMA_API_KEY", "oversight-post-sim-test-key");
+        std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+        let now = now_ts();
+
+        let on_resp = handle_admin_adversary_sim_control(
+            &make_control_request(true, "post-sim-agent-enable"),
+            &store,
+            "default",
+            &auth,
+        );
+        assert_eq!(*on_resp.status(), 200u16);
+
+        let mut state = crate::admin::adversary_sim::load_state(&store, "default");
+        state.phase = crate::admin::adversary_sim::ControlPhase::Running;
+        state.run_id = Some("simrun-post-agent-001".to_string());
+        state.ends_at = Some(now.saturating_sub(1));
+        state.active_run_count = 1;
+        state.active_lane_count = 2;
+        state.generated_tick_count = 1;
+        state.generated_request_count = 4;
+        state.last_generated_at = Some(now.saturating_sub(2));
+        crate::admin::adversary_sim::save_state(&store, "default", &state).unwrap();
+
+        let beat_req = make_internal_beat_request("oversight-post-sim-test-key");
+        let beat_resp = handle_internal_adversary_sim_beat(&beat_req, &store, "default");
+        assert_eq!(*beat_resp.status(), 200u16);
+
+        let status_req = Request::builder()
+            .method(Method::Get)
+            .uri("/admin/oversight/agent/status")
+            .body(Vec::new())
+            .build();
+        let status_resp = handle_admin_oversight_agent_status(&status_req, &store, "default");
+        assert_eq!(*status_resp.status(), 200u16);
+        let status_json: serde_json::Value = serde_json::from_slice(status_resp.body()).unwrap();
+        let latest_run = status_json.get("latest_run").expect("latest run");
+        let latest_run_id = latest_run
+            .get("run_id")
+            .and_then(|value| value.as_str())
+            .expect("run id")
+            .to_string();
+        assert_eq!(
+            latest_run
+                .get("trigger_kind")
+                .and_then(|value| value.as_str()),
+            Some("post_adversary_sim")
+        );
+        assert_eq!(
+            latest_run
+                .get("sim_run_id")
+                .and_then(|value| value.as_str()),
+            Some("simrun-post-agent-001")
+        );
+
+        let second_beat_resp = handle_internal_adversary_sim_beat(&beat_req, &store, "default");
+        assert_eq!(*second_beat_resp.status(), 200u16);
+
+        let second_status_resp =
+            handle_admin_oversight_agent_status(&status_req, &store, "default");
+        let second_status_json: serde_json::Value =
+            serde_json::from_slice(second_status_resp.body()).unwrap();
+        assert_eq!(
+            second_status_json["latest_run"]["run_id"].as_str(),
+            Some(latest_run_id.as_str())
+        );
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+        std::env::remove_var("SHUMA_API_KEY");
+        std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
+    }
+
+    #[test]
     fn adversary_sim_control_enable_recovers_from_stale_expired_running_state() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");

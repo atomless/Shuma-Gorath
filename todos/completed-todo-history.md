@@ -4,6 +4,28 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-21)
 
+### OVR-AGENT-1: Land The First Shared-Host Recommend-Only Agent Loop
+
+- [x] Completed the planned shared-host agent-loop tranche by landing the bounded persisted `oversight_agent_run_v1` contract, the `GET /admin/oversight/agent/status` read surface, the `POST /internal/oversight/agent/run` internal supervisor surface, periodic shared-host wrapper execution, and immediate post-sim triggering through the same `execute_reconcile_cycle` contract already used by `OVR-RECON-1`.
+- [x] Why:
+  - the queue explicitly required the first machine-first agent tweaker loop to land before `MON-OVERHAUL-1` so Monitoring and Tuning can project proven trigger, evidence, and proposal semantics rather than inventing them early.
+  - the first loop needed both periodic live analysis and immediate post-sim analysis, but those trigger modes had to stay one contract, one decision lineage, and one bounded recommend-only output shape.
+  - the cleanest path was to reuse the existing reconcile engine, the adversary-sim trust-boundary style, and the shared-host wrapper model instead of adding a second controller implementation or moving any agent logic onto the request path.
+- [x] Evidence:
+  - `src/admin/oversight_agent.rs`
+  - `src/admin/oversight_api.rs`
+  - `src/admin/adversary_sim_api.rs`
+  - `src/admin/auth.rs`
+  - `src/admin/api.rs`
+  - `scripts/run_with_oversight_supervisor.sh`
+  - `scripts/tests/test_oversight_supervisor.py`
+  - `docs/research/2026-03-21-ovr-agent-1-shared-host-agent-loop-post-implementation-review.md`
+  - `make test-oversight-agent`
+  - `make test-oversight-post-sim-trigger`
+  - `make test-adversary-sim-runtime-surface`
+  - `git diff --check`
+  - review follow-up `OVR-AGENT-1-REVIEW-1` added the missing shared-host-only runtime gate so the internal route and post-sim hook now refuse edge profiles, and no tranche-local shortfall remained open before `MON-OVERHAUL-1`.
+
 ### OVR-RECON-1: Land The First Recommend-Only Reconcile Engine
 
 - [x] Completed the planned recommend-only reconcile tranche by landing a pure reconcile engine, bounded patch-policy layer, durable oversight decision ledger, and admin execution/history surfaces over `operator_snapshot_v1`, `benchmark_results_v1`, replay-promotion state, and `allowed_actions_v1`.

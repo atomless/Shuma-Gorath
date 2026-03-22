@@ -84,7 +84,6 @@ Current stance:
 - Land the first shared-host agent tweaker loop before `MON-OVERHAUL-1` so Monitoring and Tuning can project proven machine-first semantics instead of inventing them early.
 - Treat the verified-identity observability and benchmarking gap as part of this loop-closure track rather than later polish.
 
-- [ ] OVR-AGENT-1 Land the first shared-host agent tweaker harness over `operator_snapshot_v1`, `benchmark_results_v1`, `allowed_actions_v1`, decision evidence, and adversary-sim cost feedback; support both periodic and post-sim triggers through one internal contract, keep the first loop recommend-only, and make its proposal/watch semantics the truth source for later Monitoring and Tuning work.
 
 ## P1 Verified Bot Identity And Web Bot Auth Foundation
 

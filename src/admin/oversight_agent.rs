@@ -16,6 +16,13 @@ const OVERSIGHT_AGENT_HISTORY_PREFIX: &str = "oversight_agent_runs:v1";
 const OVERSIGHT_AGENT_HISTORY_LIMIT: usize = 12;
 const OVERSIGHT_AGENT_LEASE_PREFIX: &str = "oversight_agent:lease:v1:";
 
+pub(crate) fn shared_host_execution_available() -> bool {
+    matches!(
+        crate::config::gateway_deployment_profile(),
+        crate::config::GatewayDeploymentProfile::SharedServer
+    )
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum OversightAgentTriggerKind {
@@ -221,6 +228,9 @@ pub(crate) fn execute_agent_cycle<S: KeyValueStore>(
     site_id: &str,
     trigger: OversightAgentTrigger,
 ) -> Result<OversightAgentExecutionResult, ()> {
+    if !shared_host_execution_available() {
+        return Err(());
+    }
     if trigger.kind == OversightAgentTriggerKind::PostAdversarySim {
         if let Some(sim_run_id) = trigger.sim_run_id.as_deref() {
             if let Some(existing) = matching_post_sim_run(store, site_id, sim_run_id) {
@@ -299,11 +309,51 @@ pub(crate) fn build_status_payload<S: KeyValueStore>(
     }
 }
 
+pub(crate) fn post_sim_trigger_for_state_transition(
+    previous_state: &crate::admin::adversary_sim::ControlState,
+    next_state: &crate::admin::adversary_sim::ControlState,
+    requested_at_ts: u64,
+) -> Option<OversightAgentTrigger> {
+    if previous_state.phase == crate::admin::adversary_sim::ControlPhase::Off
+        || next_state.phase != crate::admin::adversary_sim::ControlPhase::Off
+    {
+        return None;
+    }
+    if next_state.generated_tick_count == 0 && next_state.generated_request_count == 0 {
+        return None;
+    }
+    let sim_run_id = next_state.last_run_id.clone()?;
+    Some(OversightAgentTrigger {
+        kind: OversightAgentTriggerKind::PostAdversarySim,
+        requested_at_ts,
+        sim_run_id: Some(sim_run_id),
+        sim_completion_reason: next_state.last_transition_reason.clone(),
+    })
+}
+
+pub(crate) fn maybe_trigger_post_sim_agent_cycle<S: KeyValueStore>(
+    store: &S,
+    site_id: &str,
+    previous_state: &crate::admin::adversary_sim::ControlState,
+    next_state: &crate::admin::adversary_sim::ControlState,
+    requested_at_ts: u64,
+) -> Result<Option<OversightAgentExecutionResult>, ()> {
+    if !shared_host_execution_available() {
+        return Ok(None);
+    }
+    let Some(trigger) =
+        post_sim_trigger_for_state_transition(previous_state, next_state, requested_at_ts)
+    else {
+        return Ok(None);
+    };
+    execute_agent_cycle(store, site_id, trigger).map(Some)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        execute_agent_cycle, load_latest_agent_run, OversightAgentTrigger,
-        OversightAgentTriggerKind,
+        execute_agent_cycle, load_latest_agent_run, maybe_trigger_post_sim_agent_cycle,
+        OversightAgentTrigger, OversightAgentTriggerKind,
     };
     use crate::challenge::KeyValueStore;
     use crate::config::{defaults, serialize_persisted_kv_config};
@@ -482,5 +532,35 @@ mod tests {
         assert!(!first.replayed);
         assert!(second.replayed);
         assert_eq!(second.run.run_id, first.run.run_id);
+    }
+
+    #[test]
+    fn post_sim_agent_cycle_is_skipped_on_edge_profile() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "edge-fermyon");
+
+        let store = TestStore::new();
+        let previous_state = crate::admin::adversary_sim::ControlState {
+            phase: crate::admin::adversary_sim::ControlPhase::Running,
+            run_id: Some("simrun-edge-skip".to_string()),
+            active_run_count: 1,
+            active_lane_count: 2,
+            ..crate::admin::adversary_sim::ControlState::default()
+        };
+        let next_state = crate::admin::adversary_sim::ControlState {
+            phase: crate::admin::adversary_sim::ControlPhase::Off,
+            last_run_id: Some("simrun-edge-skip".to_string()),
+            last_transition_reason: Some("auto_window_expired".to_string()),
+            generated_tick_count: 1,
+            generated_request_count: 4,
+            ..crate::admin::adversary_sim::ControlState::default()
+        };
+
+        let result =
+            maybe_trigger_post_sim_agent_cycle(&store, "default", &previous_state, &next_state, 1_700_000_400)
+                .expect("edge skip succeeds");
+        assert!(result.is_none());
+
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
     }
 }

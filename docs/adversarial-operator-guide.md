@@ -26,7 +26,7 @@ Runtime-toggle adversary generation is owned by a host-side supervisor heartbeat
 
 1. Dashboard uses control/status endpoints only (`/admin/adversary-sim/control`, `/admin/adversary-sim/status`).
 2. Host-side supervisors call the internal beat endpoint (`POST /internal/adversary-sim/beat`) on cadence and post bounded worker results through `POST /internal/adversary-sim/worker-result` when `scrapling_traffic` is active.
-3. Local make targets (`make dev`, `make dev-prod`, `make run`, `make run-prebuilt`, `make prod`) wrap Spin with `scripts/run_with_adversary_sim_supervisor.sh`.
+3. Local make targets (`make dev`, `make dev-prod`, `make run`, `make run-prebuilt`, `make prod`) wrap Spin with `scripts/run_with_oversight_supervisor.sh`, which chains the existing adversary-sim supervisor wrapper and adds bounded periodic recommend-only oversight runs on shared-host deployments.
 4. Equivalent worker deployment adapters are supported for single-host service managers and container sidecars. External edge supervisor services remain a deferred boundary note, not the current supported full hosted Scrapling runtime target.
 5. Host-side supervisor requests use trusted-forwarding plus the internal supervisor marker so `runtime-prod` deployments can keep HTTPS enforcement and operator IP allowlists without starving the supervisor.
 6. `make setup` and `make setup-runtime` now also provision the repo-owned `.venv-scrapling` runtime used by the real Scrapling worker and its focused verification gates.

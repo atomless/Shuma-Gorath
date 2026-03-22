@@ -300,6 +300,18 @@ pub(crate) fn handle_internal_adversary_sim_beat(
         ));
     }
 
+    if let Err(()) = crate::admin::oversight_agent::maybe_trigger_post_sim_agent_cycle(
+        store,
+        site_id,
+        &previous_state,
+        &state,
+        now,
+    ) {
+        crate::log_line(
+            "[oversight-agent] post-sim trigger failed during internal beat; continuing without agent payload",
+        );
+    }
+
     let generation_active = cfg.adversary_sim_enabled
         && state.phase == crate::admin::adversary_sim::ControlPhase::Running;
     let status = adversary_sim_status_payload(store, site_id, &cfg, &state, now);
@@ -720,6 +732,7 @@ pub(crate) fn handle_admin_adversary_sim_control(
     };
     let mut cfg = snapshot.cfg;
     let mut state = snapshot.state;
+    let previous_state = state.clone();
     let (reconciled_state, _) =
         crate::admin::adversary_sim::reconcile_state(now, cfg.adversary_sim_enabled, &state);
     if reconciled_state != state {
@@ -1139,6 +1152,18 @@ pub(crate) fn handle_admin_adversary_sim_control(
         },
         capabilities.audit_write(),
     );
+
+    if let Err(()) = crate::admin::oversight_agent::maybe_trigger_post_sim_agent_cycle(
+        store,
+        site_id,
+        &previous_state,
+        &state,
+        now,
+    ) {
+        crate::log_line(
+            "[oversight-agent] post-sim trigger failed during control transition; continuing without agent payload",
+        );
+    }
 
     let response = json!({
         "operation_id": operation_id,

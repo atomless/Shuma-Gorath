@@ -266,6 +266,9 @@ pub(crate) fn handle_internal_oversight_agent_run(
     if *req.method() != Method::Post {
         return Response::new(405, "Method Not Allowed");
     }
+    if !crate::admin::oversight_agent::shared_host_execution_available() {
+        return Response::new(404, "Not Found");
+    }
     if !crate::admin::auth::is_internal_oversight_supervisor_request(req) {
         return Response::new(
             401,
@@ -616,5 +619,32 @@ mod tests {
 
         std::env::remove_var("SHUMA_API_KEY");
         std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
+    }
+
+    #[test]
+    fn internal_agent_route_is_unavailable_on_edge_profile() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_API_KEY", "oversight-agent-test-key");
+        std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "edge-fermyon");
+        let store = TestStore::new();
+
+        let internal_request = Request::builder()
+            .method(Method::Post)
+            .uri("/internal/oversight/agent/run")
+            .header("host", "localhost:3000")
+            .header("authorization", "Bearer oversight-agent-test-key")
+            .header("x-shuma-forwarded-secret", "test-forwarded-secret")
+            .header("x-forwarded-proto", "https")
+            .header("x-forwarded-for", "127.0.0.1")
+            .header("x-shuma-internal-supervisor", "oversight-agent")
+            .body(Vec::new())
+            .build();
+        let response = handle_internal_oversight_agent_run(&internal_request, &store, "default");
+        assert_eq!(*response.status(), 404);
+
+        std::env::remove_var("SHUMA_API_KEY");
+        std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
     }
 }
