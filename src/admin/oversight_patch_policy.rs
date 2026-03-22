@@ -110,7 +110,10 @@ fn build_proposal(
         OVERSIGHT_VERIFICATION_WATCH_LIVE_BUDGET_WINDOW.to_string(),
         OVERSIGHT_VERIFICATION_RERUN_ADVERSARY_SIM.to_string(),
     ];
-    if replay_promotion.blocking_required || replay_promotion.pending_owner_review_count > 0 {
+    if !replay_promotion.tuning_eligible
+        || replay_promotion.blocking_required
+        || replay_promotion.pending_owner_review_count > 0
+    {
         required_verification.push(
             OVERSIGHT_VERIFICATION_REVIEW_REPLAY_PROMOTION.to_string(),
         );
@@ -462,6 +465,25 @@ mod tests {
             &["fingerprint_signal".to_string()],
             OversightPressure::ReduceSuspiciousOriginCost,
             &replay,
+        )
+        .expect("proposal builds");
+
+        assert!(proposal
+            .required_verification
+            .contains(&OVERSIGHT_VERIFICATION_REVIEW_REPLAY_PROMOTION.to_string()));
+    }
+
+    #[test]
+    fn advisory_only_replay_promotion_requires_review_verification() {
+        let mut cfg = defaults().clone();
+        cfg.fingerprint_signal_enabled = false;
+
+        let proposal = propose_patch(
+            &cfg,
+            &allowed_actions_v1(),
+            &["fingerprint_signal".to_string()],
+            OversightPressure::ReduceSuspiciousOriginCost,
+            &ReplayPromotionSummary::not_materialized(),
         )
         .expect("proposal builds");
 

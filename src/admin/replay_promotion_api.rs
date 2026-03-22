@@ -272,6 +272,20 @@ mod tests {
                 .and_then(|value| value.as_str()),
             Some("materialized")
         );
+        assert_eq!(
+            post_payload
+                .get("summary")
+                .and_then(|value| value.get("evidence_status"))
+                .and_then(|value| value.as_str()),
+            Some("advisory_only")
+        );
+        assert_eq!(
+            post_payload
+                .get("summary")
+                .and_then(|value| value.get("tuning_eligible"))
+                .and_then(|value| value.as_bool()),
+            Some(false)
+        );
 
         let get_req = replay_request(Method::Get, serde_json::Value::Null);
         let get_resp = handle_admin_replay_promotion(&get_req, &store, "default");

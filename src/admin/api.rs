@@ -2325,6 +2325,20 @@ mod tests {
                 .and_then(|value| value.as_str()),
             Some("not_materialized")
         );
+        assert_eq!(
+            payload
+                .get("replay_promotion")
+                .and_then(|value| value.get("evidence_status"))
+                .and_then(|value| value.as_str()),
+            Some("not_materialized")
+        );
+        assert_eq!(
+            payload
+                .get("replay_promotion")
+                .and_then(|value| value.get("tuning_eligible"))
+                .and_then(|value| value.as_bool()),
+            Some(false)
+        );
         assert!(payload
             .get("families")
             .and_then(|value| value.as_array())

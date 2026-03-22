@@ -4,6 +4,31 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-22)
 
+### SIM-PROTECTED-1: Protected Tuning Evidence Eligibility And Synthetic Exclusion
+
+- [x] Added the first machine-first protected-evidence contract so replay promotion now distinguishes `not_materialized`, `advisory_only`, and `protected` evidence states, benchmark escalation fails closed while evidence is only advisory, and `synthetic_traffic` is explicitly excluded from tuning-grade evidence.
+- [x] Why:
+  - `SIM-COVER-1` proved category coverage, but the closed loop still could not tell whether the evidence behind that coverage was tuning-grade or only contract-test/advisory evidence.
+  - the project needed one bounded source of truth for later controller decisions instead of prose-only rules about replay promotion and synthetic exclusion.
+  - keeping the protected-evidence state on the existing replay-promotion summary lets snapshot, benchmark, and oversight consume one contract without introducing a second persisted evidence document.
+- [x] Evidence:
+  - `src/observability/replay_promotion.rs`
+  - `src/observability/non_human_coverage.rs`
+  - `src/observability/benchmark_results.rs`
+  - `src/admin/oversight_patch_policy.rs`
+  - `src/observability/operator_snapshot.rs`
+  - `src/admin/replay_promotion_api.rs`
+  - `src/admin/api.rs`
+  - `Makefile`
+  - `docs/api.md`
+  - `docs/configuration.md`
+  - `docs/testing.md`
+  - `docs/research/2026-03-22-sim-protected-1-protected-tuning-evidence-post-implementation-review.md`
+  - `make test-protected-tuning-evidence`
+  - `make test-benchmark-results-contract`
+  - `make test-oversight-reconcile`
+  - `git diff --check`
+
 ### SIM-COVER-1: Representativeness Matrix And Coverage Receipts
 
 - [x] Materialized canonical non-human coverage receipts so `operator_snapshot_v1` and `benchmark_results_v1` can now say which mapped categories are `covered`, `partial`, `stale`, `unavailable`, or explicit fulfillment gaps, and so benchmark escalation fails closed when category coverage is not yet ready for later tuning decisions.

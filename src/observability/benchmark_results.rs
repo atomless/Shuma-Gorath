@@ -153,17 +153,30 @@ pub(crate) fn build_benchmark_results_from_snapshot_sections(
             note: "Current benchmark pressure cannot justify tuning because non-human classification readiness is not yet strong enough for protected category-aware decisions."
                 .to_string(),
         }
-    } else if non_human_traffic.coverage.overall_status != "covered" {
-        let mut blockers = vec!["non_human_category_coverage_not_ready".to_string()];
-        blockers.extend(non_human_traffic.coverage.blocking_reasons.iter().cloned());
+    } else if !non_human_traffic.coverage.mapped_categories_are_covered() {
         BenchmarkEscalationHint {
             availability: derived_escalation_hint.availability.clone(),
             decision: "observe_longer".to_string(),
             review_status: "manual_review_required".to_string(),
             trigger_family_ids: derived_escalation_hint.trigger_family_ids.clone(),
             candidate_action_families: Vec::new(),
-            blockers,
+            blockers: non_human_traffic
+                .coverage
+                .protected_tuning_blockers(replay_promotion),
             note: "Current benchmark pressure cannot justify tuning because category fulfillment coverage is not yet complete enough for protected category-aware decisions."
+                .to_string(),
+        }
+    } else if !replay_promotion.tuning_eligible {
+        BenchmarkEscalationHint {
+            availability: derived_escalation_hint.availability.clone(),
+            decision: "observe_longer".to_string(),
+            review_status: "manual_review_required".to_string(),
+            trigger_family_ids: derived_escalation_hint.trigger_family_ids.clone(),
+            candidate_action_families: Vec::new(),
+            blockers: non_human_traffic
+                .coverage
+                .protected_tuning_blockers(replay_promotion),
+            note: "Current benchmark pressure cannot justify tuning because the current adversary evidence is still advisory rather than protected tuning-grade lineage."
                 .to_string(),
         }
     } else {
@@ -214,6 +227,18 @@ mod tests {
     };
     use std::collections::HashMap;
     use std::sync::Mutex;
+
+    fn protected_replay_promotion_summary() -> ReplayPromotionSummary {
+        let mut summary = ReplayPromotionSummary::not_materialized();
+        summary.availability = "materialized".to_string();
+        summary.evidence_status = "protected".to_string();
+        summary.tuning_eligible = true;
+        summary.protected_basis = "replay_promoted_lineage".to_string();
+        summary.protected_lineage_count = 1;
+        summary.ineligible_runtime_lanes = vec!["synthetic_traffic".to_string()];
+        summary.eligibility_blockers.clear();
+        summary
+    }
 
     struct TestStore {
         map: Mutex<HashMap<String, Vec<u8>>>,
@@ -442,7 +467,7 @@ mod tests {
             &summary,
             &defaults(),
             &snapshot.allowed_actions,
-            &ReplayPromotionSummary::not_materialized(),
+            &protected_replay_promotion_summary(),
             None,
         );
         assert_eq!(payload.non_human_classification.status, "ready");
@@ -768,5 +793,133 @@ mod tests {
             .escalation_hint
             .blockers
             .contains(&"mapped_categories_have_unavailable_coverage".to_string()));
+    }
+
+    #[test]
+    fn benchmark_results_fail_closed_when_protected_tuning_evidence_is_not_ready() {
+        let store = TestStore::new();
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::Live,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::PublicContent,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: Some(RequestOutcomeLane {
+                    lane: TrafficLane::LikelyHuman,
+                    exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
+                    basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
+                }),
+                outcome_class: RequestOutcomeClass::ShortCircuited,
+                response_kind: ResponseKind::NotABot,
+                http_status: 200,
+                response_bytes: 45,
+                forward_attempted: false,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::PolicyGraphSecondTranche,
+            },
+        );
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::Live,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::PublicContent,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: Some(RequestOutcomeLane {
+                    lane: TrafficLane::VerifiedBot,
+                    exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
+                    basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
+                }),
+                outcome_class: RequestOutcomeClass::Forwarded,
+                response_kind: ResponseKind::ForwardAllow,
+                http_status: 200,
+                response_bytes: 120,
+                forward_attempted: true,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::PolicyGraphVerifiedIdentityTranche,
+            },
+        );
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::AdversarySim,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::PublicContent,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: Some(RequestOutcomeLane {
+                    lane: TrafficLane::DeclaredCrawler,
+                    exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
+                    basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
+                }),
+                outcome_class: RequestOutcomeClass::Forwarded,
+                response_kind: ResponseKind::ForwardAllow,
+                http_status: 200,
+                response_bytes: 120,
+                forward_attempted: true,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::CleanAllow,
+            },
+        );
+        let summary = summarize_with_store(&store, 24, 10);
+        let mut snapshot = build_operator_snapshot_payload(
+            &store,
+            "default",
+            1_700_000_375,
+            &summary,
+            &[],
+            OperatorSnapshotRecentChanges::default(),
+            1_700_000_375,
+            1_700_000_375,
+            1_700_000_375,
+        );
+        let row = snapshot
+            .budget_distance
+            .rows
+            .iter_mut()
+            .find(|row| row.metric == "likely_human_friction_rate")
+            .expect("likely human friction budget row present");
+        row.status = "outside_budget".to_string();
+        row.current = 0.12;
+        row.delta = 0.10;
+        snapshot.allowed_actions = allowed_actions_v1();
+        snapshot.non_human_traffic.coverage.overall_status = "covered".to_string();
+        snapshot.non_human_traffic.coverage.blocking_reasons.clear();
+        snapshot.non_human_traffic.coverage.blocking_category_ids.clear();
+        snapshot.non_human_traffic.coverage.covered_category_count =
+            snapshot.non_human_traffic.coverage.mapped_category_count;
+        snapshot.non_human_traffic.coverage.partial_category_count = 0;
+        snapshot.non_human_traffic.coverage.stale_category_count = 0;
+        snapshot.non_human_traffic.coverage.unavailable_category_count = 0;
+
+        let payload = build_benchmark_results_from_snapshot_sections(
+            snapshot.generated_at,
+            1_700_000_375,
+            &snapshot.window,
+            &snapshot.live_traffic,
+            &snapshot.adversary_sim,
+            &snapshot.non_human_traffic,
+            &snapshot.budget_distance,
+            &summary,
+            &defaults(),
+            &snapshot.allowed_actions,
+            &ReplayPromotionSummary::not_materialized(),
+            None,
+        );
+
+        assert_eq!(payload.non_human_classification.status, "ready");
+        assert_eq!(payload.non_human_coverage.overall_status, "covered");
+        assert_eq!(payload.escalation_hint.decision, "observe_longer");
+        assert!(payload
+            .escalation_hint
+            .blockers
+            .contains(&"protected_tuning_evidence_not_ready".to_string()));
+        assert!(payload
+            .escalation_hint
+            .blockers
+            .contains(&"replay_promotion_not_materialized".to_string()));
     }
 }

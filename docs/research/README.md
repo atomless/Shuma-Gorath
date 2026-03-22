@@ -200,6 +200,8 @@ Completed archive index:
    Post-implementation review confirming the canonical non-human categories now map explicitly into Scrapling, bounded LLM browser/request modes, or truthful explicit gaps, with the same intent matrix mirrored through adversarial coverage and scenario-review contract surfaces.
 46. [`2026-03-22-sim-cover-1-category-coverage-receipts-post-implementation-review.md`](2026-03-22-sim-cover-1-category-coverage-receipts-post-implementation-review.md)
    Post-implementation review confirming canonical non-human coverage receipts now materialize into `operator_snapshot_v1` and `benchmark_results_v1`, fail escalation closed when mapped categories are not yet covered, and stay within the snapshot size budget after trimming the first overly verbose draft.
+47. [`2026-03-22-sim-protected-1-protected-tuning-evidence-post-implementation-review.md`](2026-03-22-sim-protected-1-protected-tuning-evidence-post-implementation-review.md)
+   Post-implementation review confirming replay-promotion lineage now exposes explicit advisory-versus-protected tuning eligibility, synthetic-lane ineligibility is machine-readable, and benchmark escalation refuses tuning while the evidence basis is still advisory.
 
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 

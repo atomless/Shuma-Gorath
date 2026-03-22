@@ -35,6 +35,7 @@ make test-adversarial-container-isolation # Validate black-box container isolati
 make test-adversarial-container-blackbox # Run containerized black-box adversary worker (Docker required)
 make test-adversarial-llm-fit # Focused bounded LLM fulfillment-plan contract gate
 make test-adversarial-coverage-receipts # Focused canonical category-coverage receipt and gating checks
+make test-protected-tuning-evidence # Focused protected tuning-evidence eligibility and fail-closed benchmark checks
 make test-adversarial-frontier-attempt # Protected-lane frontier provider attempt probe (advisory/non-blocking)
 make test-frontier-governance # Frontier artifact guard (forbidden keys + secret leak checks)
 make test-frontier-unavailability-policy # Frontier degraded-threshold policy tracker + actionability artifact
@@ -197,6 +198,7 @@ Available profiles:
 - `make test-adversarial-coverage-contract` - canonical `full_coverage` contract parity check across SIM2 plan rows, manifests, and runner enforcement
 - `make test-adversarial-llm-fit` - bounded LLM browser/request fulfillment-plan contract proof across runtime beat payloads and frontier/container contract artifacts
 - `make test-adversarial-coverage-receipts` - canonical category-coverage receipt proof across adversarial coverage/scenario contracts, the non-human coverage summary, and fail-closed benchmark gating when mapped categories are not yet covered
+- `make test-protected-tuning-evidence` - protected-evidence proof across replay-promotion summary state, operator-snapshot replay visibility, fail-closed benchmark gating when evidence is only advisory, and replay-review requirements in oversight patch shaping
 - `make test-adversarial-live` - repeated live traffic generator for operator monitoring drills
 - `make test-adversarial-repeatability` - deterministic replay consistency gate across `fast_smoke`, `abuse_regression`, and `full_coverage`
 - `make test-adversarial-promote-candidates` - frontier finding normalization + deterministic replay triage + promotion lineage report
@@ -220,6 +222,7 @@ Structural refactor proof map:
 - `make test-traffic-taxonomy-contract` is the focused taxonomy gate for the seeded canonical non-human category catalog plus its first machine-first operator-snapshot projection.
 - `make test-traffic-classification-contract` is the focused classification gate for lane-to-category receipts, the operator-snapshot non-human readiness surface, and fail-closed benchmark escalation when category evidence is not yet protected enough for tuning.
 - `make test-adversarial-coverage-receipts` is the focused SIM-COVER gate for canonical category-coverage receipts, explicit mapped-category blockers, and fail-closed benchmark escalation when mapped fulfillment coverage is not yet complete enough for tuning.
+- `make test-protected-tuning-evidence` is the focused SIM-PROTECTED gate for advisory-versus-protected replay lineage, explicit synthetic-lane ineligibility, snapshot and benchmark replay-summary visibility, and replay-review requirements before tuning proposals can proceed.
 - `make test-controller-action-surface` is the focused config-side gate for `allowed_actions_v1` and controller patch-family mapping reuse.
 - `make test-benchmark-comparison-contract` is the focused benchmark helper gate for explicit baseline-availability, improvement-status, and escalation comparison semantics.
 - `make test-operator-objectives-contract` is the focused objective-profile and decision-evidence gate for persisted `operator_objectives_v1`, the operator-objectives admin endpoint, the bounded decision ledger, and snapshot wiring.

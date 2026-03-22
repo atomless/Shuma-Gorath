@@ -227,6 +227,20 @@ pub(crate) struct ReplayPromotionPayload {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub(crate) struct ReplayPromotionSummary {
     pub availability: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub evidence_status: String,
+    #[serde(default)]
+    pub tuning_eligible: bool,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub protected_basis: String,
+    #[serde(default)]
+    pub protected_lineage_count: u64,
+    #[serde(default)]
+    pub advisory_lineage_count: u64,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub ineligible_runtime_lanes: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub eligibility_blockers: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub generated_at_unix: Option<u64>,
     #[serde(default, skip_serializing_if = "String::is_empty")]
@@ -261,6 +275,13 @@ impl ReplayPromotionSummary {
     pub(crate) fn not_materialized() -> Self {
         Self {
             availability: "not_materialized".to_string(),
+            evidence_status: "not_materialized".to_string(),
+            tuning_eligible: false,
+            protected_basis: "none".to_string(),
+            protected_lineage_count: 0,
+            advisory_lineage_count: 0,
+            ineligible_runtime_lanes: vec!["synthetic_traffic".to_string()],
+            eligibility_blockers: vec!["replay_promotion_not_materialized".to_string()],
             generated_at_unix: None,
             frontier_mode: String::new(),
             provider_count: 0,
@@ -604,8 +625,45 @@ pub(crate) fn persist_replay_promotion_payload<S: KeyValueStore>(
 }
 
 pub(crate) fn replay_promotion_summary(payload: &ReplayPromotionPayload) -> ReplayPromotionSummary {
+    let protected_lineage_count = payload
+        .lineage
+        .iter()
+        .filter(|row| replay_lineage_row_is_protected(row))
+        .count() as u64;
+    let advisory_lineage_count = payload.lineage.len() as u64 - protected_lineage_count;
+    let tuning_eligible = protected_lineage_count > 0
+        && payload.hybrid_governance.thresholds_passed
+        && payload.summary.pending_owner_review_count == 0;
+    let evidence_status = if tuning_eligible {
+        "protected"
+    } else {
+        "advisory_only"
+    };
+    let protected_basis = if tuning_eligible {
+        "replay_promoted_lineage"
+    } else {
+        "none"
+    };
+    let mut eligibility_blockers = Vec::new();
+    if !payload.hybrid_governance.thresholds_passed {
+        eligibility_blockers.push("replay_promotion_thresholds_not_passed".to_string());
+    }
+    if payload.summary.pending_owner_review_count > 0 {
+        eligibility_blockers.push("replay_promotion_owner_review_pending".to_string());
+    }
+    if payload.summary.promoted_scenario_count == 0 {
+        eligibility_blockers.push("protected_lineage_missing".to_string());
+    }
+
     ReplayPromotionSummary {
         availability: "materialized".to_string(),
+        evidence_status: evidence_status.to_string(),
+        tuning_eligible,
+        protected_basis: protected_basis.to_string(),
+        protected_lineage_count,
+        advisory_lineage_count,
+        ineligible_runtime_lanes: vec!["synthetic_traffic".to_string()],
+        eligibility_blockers,
         generated_at_unix: Some(payload.generated_at_unix),
         frontier_mode: payload.frontier.frontier_mode.clone(),
         provider_count: payload.frontier.provider_count,
@@ -626,6 +684,13 @@ pub(crate) fn replay_promotion_summary(payload: &ReplayPromotionPayload) -> Repl
             .cloned()
             .collect(),
     }
+}
+
+fn replay_lineage_row_is_protected(row: &ReplayPromotionLineageRow) -> bool {
+    row.promoted_scenario_id.is_some()
+        && row.classification == "confirmed_reproducible"
+        && (!row.owner_review_required
+            || matches!(row.owner_disposition.as_str(), "accepted" | "not_required"))
 }
 
 fn build_outcome_summary(request: &ReplayPromotionIngestPayload) -> ReplayPromotionOutcomeSummary {
@@ -926,6 +991,14 @@ mod tests {
         let (summary, refreshed_at_ts) = load_replay_promotion_summary(&store, "default");
 
         assert_eq!(summary.availability, "not_materialized");
+        assert_eq!(summary.evidence_status, "not_materialized");
+        assert!(!summary.tuning_eligible);
+        assert_eq!(summary.protected_basis, "none");
+        assert_eq!(summary.protected_lineage_count, 0);
+        assert_eq!(summary.ineligible_runtime_lanes, vec!["synthetic_traffic"]);
+        assert!(summary
+            .eligibility_blockers
+            .contains(&"replay_promotion_not_materialized".to_string()));
         assert!(summary.generated_at_unix.is_none());
         assert_eq!(refreshed_at_ts, 0);
     }
@@ -950,12 +1023,38 @@ mod tests {
 
         let (summary, refreshed_at_ts) = load_replay_promotion_summary(&store, "default");
         assert_eq!(summary.availability, "materialized");
+        assert_eq!(summary.evidence_status, "advisory_only");
+        assert!(!summary.tuning_eligible);
+        assert_eq!(summary.protected_basis, "none");
+        assert_eq!(summary.protected_lineage_count, 0);
+        assert_eq!(summary.ineligible_runtime_lanes, vec!["synthetic_traffic"]);
+        assert!(summary
+            .eligibility_blockers
+            .contains(&"replay_promotion_owner_review_pending".to_string()));
         assert_eq!(summary.generated_at_unix, Some(1_700_000_200));
         assert_eq!(summary.replay_candidates, 2);
         assert_eq!(summary.pending_owner_review_count, 1);
         assert_eq!(summary.promoted_scenario_count, 1);
         assert_eq!(summary.lineage.len(), 2);
         assert_eq!(refreshed_at_ts, 1_700_000_200);
+    }
+
+    #[test]
+    fn replay_promotion_summary_marks_accepted_promoted_lineage_tuning_eligible() {
+        let store = TestStore::default();
+        let mut payload = sample_ingest_payload();
+        payload.lineage[0].promotion.owner_disposition = "accepted".to_string();
+
+        persist_replay_promotion_payload(&store, "default", payload).expect("payload persists");
+
+        let (summary, _) = load_replay_promotion_summary(&store, "default");
+        assert_eq!(summary.availability, "materialized");
+        assert_eq!(summary.evidence_status, "protected");
+        assert!(summary.tuning_eligible);
+        assert_eq!(summary.protected_basis, "replay_promoted_lineage");
+        assert_eq!(summary.protected_lineage_count, 1);
+        assert_eq!(summary.advisory_lineage_count, 1);
+        assert!(summary.eligibility_blockers.is_empty());
     }
 
     #[test]

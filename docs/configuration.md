@@ -324,6 +324,7 @@ Operator-objectives contract notes:
 - `POST /admin/operator-objectives` is guarded by the same `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=true` switch as other admin writes.
 - `POST /admin/oversight/reconcile` and `GET /admin/oversight/history` are control-plane reads over machine-first evidence, not config-write endpoints. In this recommend-only tranche they must not mutate persisted config and they route every candidate patch back through `POST /admin/config/validate` before a proposal is considered viable.
 - `operator_snapshot_v1.non_human_traffic` now exposes the seeded taxonomy, the bounded decision chain (`fingerprinting_and_evidence` -> `categorization` -> `cumulative_abuse_score_botness` -> `posture_severity`), category receipts, and readiness blockers. `benchmark_results_v1` mirrors that readiness and must fail closed to `observe_longer` when category evidence is not yet strong enough for protected tuning decisions.
+- `replay_promotion.summary` is now the machine-first protected-evidence contract for later tuning work. `evidence_status` must be treated as `not_materialized`, `advisory_only`, or `protected`; `tuning_eligible` must be `true` only for protected replay-promoted lineage; and `ineligible_runtime_lanes` always includes `synthetic_traffic`, which remains valid for harness checks but must not count as tuning-grade evidence.
 - `profile_id` must not be empty.
 - `window_hours` must be between `1` and `720`.
 - `compliance_semantics` must be `max_ratio_budget`.

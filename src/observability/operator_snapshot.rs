@@ -840,6 +840,9 @@ mod tests {
         );
 
         assert_eq!(payload.replay_promotion.availability, "materialized");
+        assert_eq!(payload.replay_promotion.evidence_status, "advisory_only");
+        assert!(!payload.replay_promotion.tuning_eligible);
+        assert_eq!(payload.replay_promotion.protected_basis, "none");
         assert_eq!(payload.replay_promotion.replay_candidates, 1);
         assert_eq!(payload.replay_promotion.pending_owner_review_count, 1);
         assert_eq!(payload.replay_promotion.lineage.len(), 1);
