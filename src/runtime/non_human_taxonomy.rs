@@ -23,7 +23,6 @@ pub(crate) enum NonHumanCategoryId {
     UnknownNonHuman,
 }
 
-#[cfg_attr(not(test), allow(dead_code))]
 impl NonHumanCategoryId {
     pub(crate) fn as_str(self) -> &'static str {
         match self {

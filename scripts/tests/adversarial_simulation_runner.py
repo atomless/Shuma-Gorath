@@ -354,6 +354,76 @@ def validate_coverage_depth_requirements(
     return normalized
 
 
+def validate_non_human_lane_fulfillment(
+    payload: Dict[str, Any], *, path: Path
+) -> Dict[str, Dict[str, Any]]:
+    section = payload.get("non_human_lane_fulfillment")
+    if not isinstance(section, dict):
+        raise RuntimeError("coverage contract non_human_lane_fulfillment must be an object")
+    schema_version = str(section.get("schema_version") or "").strip()
+    if schema_version != "sim-non-human-lane-fulfillment.v1":
+        raise RuntimeError(
+            "coverage contract non_human_lane_fulfillment.schema_version must be "
+            "sim-non-human-lane-fulfillment.v1"
+        )
+    categories = section.get("categories")
+    if not isinstance(categories, dict) or not categories:
+        raise RuntimeError(
+            "coverage contract non_human_lane_fulfillment.categories must be a non-empty object"
+        )
+    normalized: Dict[str, Dict[str, Any]] = {}
+    for category_id, row_payload in categories.items():
+        normalized_category_id = str(category_id or "").strip()
+        if not normalized_category_id:
+            raise RuntimeError(
+                "coverage contract non_human_lane_fulfillment.categories contains empty key"
+            )
+        row = row_payload if isinstance(row_payload, dict) else {}
+        assignment_status = str(row.get("assignment_status") or "").strip()
+        if assignment_status not in {"mapped", "gap"}:
+            raise RuntimeError(
+                "coverage contract non_human_lane_fulfillment.categories."
+                f"{normalized_category_id}.assignment_status must be mapped or gap"
+            )
+        runtime_lane = str(row.get("runtime_lane") or "").strip()
+        fulfillment_mode = str(row.get("fulfillment_mode") or "").strip()
+        if assignment_status == "mapped" and (not runtime_lane or not fulfillment_mode):
+            raise RuntimeError(
+                "coverage contract non_human_lane_fulfillment.categories."
+                f"{normalized_category_id} must define runtime_lane and fulfillment_mode when mapped"
+            )
+        supporting_scenarios = row.get("supporting_scenarios")
+        if supporting_scenarios is None:
+            supporting_scenarios = []
+        if not isinstance(supporting_scenarios, list):
+            raise RuntimeError(
+                "coverage contract non_human_lane_fulfillment.categories."
+                f"{normalized_category_id}.supporting_scenarios must be an array"
+            )
+        for scenario_id in supporting_scenarios:
+            if not str(scenario_id or "").strip():
+                raise RuntimeError(
+                    "coverage contract non_human_lane_fulfillment.categories."
+                    f"{normalized_category_id}.supporting_scenarios must not contain empty values"
+                )
+        notes = str(row.get("notes") or "").strip()
+        if not notes:
+            raise RuntimeError(
+                "coverage contract non_human_lane_fulfillment.categories."
+                f"{normalized_category_id}.notes must be non-empty"
+            )
+        normalized[normalized_category_id] = {
+            "assignment_status": assignment_status,
+            "runtime_lane": runtime_lane,
+            "fulfillment_mode": fulfillment_mode,
+            "supporting_scenarios": [
+                str(item).strip() for item in supporting_scenarios if str(item).strip()
+            ],
+            "notes": notes,
+        }
+    return normalized
+
+
 def load_coverage_contract(path: Optional[Path] = None) -> Tuple[Path, Dict[str, Any]]:
     contract_path = path or resolve_coverage_contract_path()
     if not contract_path.exists():
@@ -418,6 +488,10 @@ def load_coverage_contract(path: Optional[Path] = None) -> Tuple[Path, Dict[str,
     payload["coverage_depth_requirements"] = validate_coverage_depth_requirements(
         payload, path=contract_path, schema_version=schema_version
     )
+    payload["non_human_lane_fulfillment"] = validate_non_human_lane_fulfillment(
+        payload,
+        path=contract_path,
+    )
     if schema_version == "sim-coverage-contract.v1":
         payload["coverage_depth_requirements"] = {}
     return contract_path, payload
@@ -432,6 +506,10 @@ COVERAGE_CONTRACT_REQUIREMENTS = {
 COVERAGE_CONTRACT_DEPTH_REQUIREMENTS = {
     str(row_id): (row if isinstance(row, dict) else {})
     for row_id, row in dict(COVERAGE_CONTRACT.get("coverage_depth_requirements") or {}).items()
+}
+COVERAGE_CONTRACT_NON_HUMAN_LANE_FULFILLMENT = {
+    str(category_id): (row if isinstance(row, dict) else {})
+    for category_id, row in dict(COVERAGE_CONTRACT.get("non_human_lane_fulfillment") or {}).items()
 }
 COVERAGE_CONTRACT_REQUIRED_EVENT_REASONS = [
     str(item).strip().lower()
@@ -567,6 +645,30 @@ def load_scenario_intent_matrix(path: Path = SCENARIO_INTENT_MATRIX_PATH) -> Dic
             raise RuntimeError(
                 f"scenario intent matrix row {scenario_id} required_defense_categories must be unique"
             )
+
+        non_human_category_targets = row.get("non_human_category_targets")
+        if non_human_category_targets is not None:
+            if not isinstance(non_human_category_targets, list):
+                raise RuntimeError(
+                    f"scenario intent matrix row {scenario_id} non_human_category_targets must be an array"
+                )
+            normalized_non_human_targets = []
+            for category in non_human_category_targets:
+                normalized = str(category or "").strip()
+                if not normalized:
+                    raise RuntimeError(
+                        f"scenario intent matrix row {scenario_id} has empty non_human_category_targets entry"
+                    )
+                if normalized not in COVERAGE_CONTRACT_NON_HUMAN_LANE_FULFILLMENT:
+                    raise RuntimeError(
+                        "scenario intent matrix row "
+                        f"{scenario_id} has unsupported non_human_category_targets value: {normalized}"
+                    )
+                normalized_non_human_targets.append(normalized)
+            if len(set(normalized_non_human_targets)) != len(normalized_non_human_targets):
+                raise RuntimeError(
+                    f"scenario intent matrix row {scenario_id} non_human_category_targets must be unique"
+                )
 
         defense_signals = row.get("defense_signals")
         if not isinstance(defense_signals, dict) or not defense_signals:
@@ -1184,6 +1286,7 @@ class Runner:
                 result = self.run_scenario(scenario)
                 scenario_monitoring_after = self.monitoring_snapshot()
                 scenario_events_after = self.simulation_event_snapshot(hours=24, limit=1000)
+                scenario_intent_row = dict_or_empty(SCENARIO_INTENT_MATRIX_ROWS_BY_ID.get(scenario["id"]))
                 scenario_evidence = build_scenario_execution_evidence(
                     scenario_id=scenario["id"],
                     request_count_before=scenario_request_count_before,
@@ -1202,6 +1305,9 @@ class Runner:
                     ),
                     driver_class=scenario_driver_class(scenario),
                     browser_realism=result.realism,
+                    non_human_category_targets=list_or_empty(
+                        scenario_intent_row.get("non_human_category_targets")
+                    ),
                 )
                 result.execution_evidence = scenario_evidence
                 scenario_execution_evidence[result.id] = scenario_evidence
@@ -3953,6 +4059,18 @@ def validate_scenario_intent_matrix_row_alignment(sid: str, scenario: Dict[str, 
             raise SimulationError(
                 "scenario intent matrix row "
                 f"{sid} missing defense_signals entry for category={category}"
+            )
+
+    for category in list_or_empty(row.get("non_human_category_targets")):
+        normalized_category = str(category).strip()
+        if not normalized_category:
+            raise SimulationError(
+                f"scenario intent matrix row {sid} has empty non_human_category_targets entry"
+            )
+        if normalized_category not in COVERAGE_CONTRACT_NON_HUMAN_LANE_FULFILLMENT:
+            raise SimulationError(
+                "scenario intent matrix row "
+                f"{sid} references unknown non_human_category_targets value: {normalized_category}"
             )
 
 

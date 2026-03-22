@@ -48,6 +48,40 @@ class AdversarialCoverageContractUnitTests(unittest.TestCase):
         self.assertNotIn("tarpit_progression_depth", depth_rows)
         self.assertIn("event_stream_health_depth", depth_rows)
 
+    def test_coverage_contract_freezes_non_human_lane_fulfillment_matrix(self):
+        contract = json.loads(
+            Path("scripts/tests/adversarial/coverage_contract.v2.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        section = contract["non_human_lane_fulfillment"]
+        categories = section["categories"]
+
+        self.assertEqual(section["schema_version"], "sim-non-human-lane-fulfillment.v1")
+        self.assertEqual(
+            sorted(categories.keys()),
+            sorted(
+                [
+                    "indexing_bot",
+                    "ai_scraper_bot",
+                    "automated_browser",
+                    "http_agent",
+                    "browser_agent",
+                    "agent_on_behalf_of_human",
+                    "verified_beneficial_bot",
+                    "unknown_non_human",
+                ]
+            ),
+        )
+        self.assertEqual(categories["indexing_bot"]["runtime_lane"], "scrapling_traffic")
+        self.assertEqual(categories["indexing_bot"]["fulfillment_mode"], "scrapling_worker")
+        self.assertEqual(categories["verified_beneficial_bot"]["assignment_status"], "gap")
+        self.assertEqual(categories["unknown_non_human"]["assignment_status"], "gap")
+        self.assertEqual(
+            categories["agent_on_behalf_of_human"]["supporting_scenarios"],
+            ["sim_t1_not_a_bot_pass"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

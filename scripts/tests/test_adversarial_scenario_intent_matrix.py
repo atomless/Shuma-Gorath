@@ -68,6 +68,18 @@ class AdversarialScenarioIntentMatrixUnitTests(unittest.TestCase):
             rows_by_id["sim_t3_header_spoofing_abuse"]["required_defense_categories"],
             ["fingerprint"],
         )
+        self.assertEqual(
+            rows_by_id["sim_t1_not_a_bot_pass"]["non_human_category_targets"],
+            ["agent_on_behalf_of_human"],
+        )
+        self.assertEqual(
+            rows_by_id["sim_t2_geo_challenge"]["non_human_category_targets"],
+            ["automated_browser", "browser_agent"],
+        )
+        self.assertEqual(
+            rows_by_id["sim_t3_replay_abuse"]["non_human_category_targets"],
+            ["http_agent", "ai_scraper_bot"],
+        )
 
 
 if __name__ == "__main__":

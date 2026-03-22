@@ -196,6 +196,8 @@ Completed archive index:
    Post-implementation review confirming the seeded canonical non-human taxonomy now exists as a runtime-owned contract and is projected through `operator_snapshot_v1` as the first shared operator-facing category basis.
 44. [`2026-03-22-traffic-tax-2-classification-confidence-post-implementation-review.md`](2026-03-22-traffic-tax-2-classification-confidence-post-implementation-review.md)
    Post-implementation review confirming Shuma now materializes bounded non-human classification receipts and readiness blockers through `operator_snapshot_v1`, fails benchmark escalation closed when category evidence is not ready, and keeps the snapshot contract bounded with a modest operator-snapshot size-budget increase after trimming redundant taxonomy serialization.
+45. [`2026-03-22-sim-fulfill-1-category-to-lane-fulfillment-post-implementation-review.md`](2026-03-22-sim-fulfill-1-category-to-lane-fulfillment-post-implementation-review.md)
+   Post-implementation review confirming the canonical non-human categories now map explicitly into Scrapling, bounded LLM browser/request modes, or truthful explicit gaps, with the same intent matrix mirrored through adversarial coverage and scenario-review contract surfaces.
 
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 

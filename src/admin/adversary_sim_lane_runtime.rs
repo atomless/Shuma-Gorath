@@ -468,6 +468,7 @@ fn next_scrapling_worker_plan(now: u64, state: &mut ControlState) -> ScraplingWo
         tick_id,
         lane: RuntimeLane::ScraplingTraffic,
         sim_profile: SCRAPLING_SIM_PROFILE.to_string(),
+        category_targets: crate::observability::non_human_lane_fulfillment::scrapling_category_targets(),
         tick_started_at: now,
         max_requests: SCRAPLING_MAX_REQUESTS_PER_TICK,
         max_depth: SCRAPLING_MAX_DEPTH_PER_TICK,

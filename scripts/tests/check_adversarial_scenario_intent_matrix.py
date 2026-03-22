@@ -149,6 +149,19 @@ def validate_scenario_intent_matrix(
                 f"{scenario_id}: manifest={manifest_categories} matrix={matrix_categories}"
             )
 
+        non_human_category_targets = sorted(
+            {
+                str(item).strip()
+                for item in list(row.get("non_human_category_targets") or [])
+                if str(item).strip()
+            }
+        )
+        for category in non_human_category_targets:
+            if category not in sim_runner.COVERAGE_CONTRACT_NON_HUMAN_LANE_FULFILLMENT:
+                errors.append(
+                    f"scenario intent row {scenario_id} has unknown non_human_category_targets value: {category}"
+                )
+
         signals = row.get("defense_signals")
         if not isinstance(signals, dict):
             errors.append(f"scenario intent row {scenario_id} defense_signals must be object")
@@ -221,6 +234,26 @@ def validate_scenario_intent_matrix(
                 "scenario intent redundancy detected for signature "
                 f"{signature}: {', '.join(sorted(scenario_ids))}"
             )
+
+    for category_id, row in sorted(sim_runner.COVERAGE_CONTRACT_NON_HUMAN_LANE_FULFILLMENT.items()):
+        for scenario_id in list(dict(row).get("supporting_scenarios") or []):
+            scenario_row = scenario_rows.get(str(scenario_id))
+            if not isinstance(scenario_row, dict):
+                errors.append(
+                    f"coverage contract non-human category {category_id} references missing supporting scenario: {scenario_id}"
+                )
+                continue
+            category_targets = {
+                str(item).strip()
+                for item in list(scenario_row.get("non_human_category_targets") or [])
+                if str(item).strip()
+            }
+            if category_id not in category_targets:
+                errors.append(
+                    "coverage contract non-human category "
+                    f"{category_id} expects supporting scenario {scenario_id} "
+                    "to declare the same non_human_category_targets value"
+                )
 
     return errors
 

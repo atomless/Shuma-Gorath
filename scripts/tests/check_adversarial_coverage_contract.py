@@ -22,6 +22,16 @@ COVERAGE_CONTRACT_PATHS = (
 SIM2_PLAN_PATH = Path("docs/plans/2026-02-26-adversarial-simulation-v2-plan.md")
 VERIFICATION_MATRIX_PATH = Path("scripts/tests/adversarial/verification_matrix.v1.json")
 FULL_COVERAGE_PROFILE = "full_coverage"
+EXPECTED_NON_HUMAN_CATEGORIES = {
+    "indexing_bot",
+    "ai_scraper_bot",
+    "automated_browser",
+    "http_agent",
+    "browser_agent",
+    "agent_on_behalf_of_human",
+    "verified_beneficial_bot",
+    "unknown_non_human",
+}
 MANIFEST_PATHS = [
     Path("scripts/tests/adversarial/scenario_manifest.v1.json"),
     Path("scripts/tests/adversarial/scenario_manifest.v2.json"),
@@ -241,6 +251,72 @@ def validate_coverage_contract() -> List[str]:
             )
 
     expected_coverage_requirements = {str(key): int(value) for key, value in coverage_requirements.items()}
+    non_human_lane_fulfillment = contract.get("non_human_lane_fulfillment")
+    if not isinstance(non_human_lane_fulfillment, dict):
+        errors.append("coverage contract non_human_lane_fulfillment must be an object")
+        non_human_lane_fulfillment = {}
+    if str(non_human_lane_fulfillment.get("schema_version") or "").strip() != "sim-non-human-lane-fulfillment.v1":
+        errors.append(
+            "coverage contract non_human_lane_fulfillment.schema_version must be "
+            "sim-non-human-lane-fulfillment.v1"
+        )
+    category_rows = dict(non_human_lane_fulfillment.get("categories") or {})
+    compare_sets(
+        "coverage contract non_human_lane_fulfillment categories",
+        EXPECTED_NON_HUMAN_CATEGORIES,
+        set(category_rows.keys()),
+        errors,
+    )
+    for category_id, row_payload in category_rows.items():
+        row = dict(row_payload or {})
+        assignment_status = str(row.get("assignment_status") or "").strip()
+        if assignment_status not in {"mapped", "gap"}:
+            errors.append(
+                "coverage contract non_human_lane_fulfillment.categories."
+                f"{category_id}.assignment_status must be mapped or gap"
+            )
+        runtime_lane = str(row.get("runtime_lane") or "").strip()
+        fulfillment_mode = str(row.get("fulfillment_mode") or "").strip()
+        if assignment_status == "mapped" and (not runtime_lane or not fulfillment_mode):
+            errors.append(
+                "coverage contract non_human_lane_fulfillment.categories."
+                f"{category_id} must define runtime_lane and fulfillment_mode when mapped"
+            )
+        supporting_scenarios = row.get("supporting_scenarios")
+        if supporting_scenarios is None:
+            supporting_scenarios = []
+        if not isinstance(supporting_scenarios, list):
+            errors.append(
+                "coverage contract non_human_lane_fulfillment.categories."
+                f"{category_id}.supporting_scenarios must be an array"
+            )
+        notes = str(row.get("notes") or "").strip()
+        if not notes:
+            errors.append(
+                "coverage contract non_human_lane_fulfillment.categories."
+                f"{category_id}.notes must be non-empty"
+            )
+
+    beneficial_bot_row = dict(category_rows.get("verified_beneficial_bot") or {})
+    if str(beneficial_bot_row.get("assignment_status") or "").strip() != "gap":
+        errors.append(
+            "coverage contract verified_beneficial_bot must remain an explicit gap in this tranche"
+        )
+    unknown_non_human_row = dict(category_rows.get("unknown_non_human") or {})
+    if str(unknown_non_human_row.get("assignment_status") or "").strip() != "gap":
+        errors.append(
+            "coverage contract unknown_non_human must remain an explicit gap in this tranche"
+        )
+    indexing_bot_row = dict(category_rows.get("indexing_bot") or {})
+    if str(indexing_bot_row.get("runtime_lane") or "").strip() != "scrapling_traffic":
+        errors.append(
+            "coverage contract indexing_bot must map to scrapling_traffic in this tranche"
+        )
+    if str(indexing_bot_row.get("fulfillment_mode") or "").strip() != "scrapling_worker":
+        errors.append(
+            "coverage contract indexing_bot must map to scrapling_worker in this tranche"
+        )
+
     verification_matrix = load_json_object(VERIFICATION_MATRIX_PATH)
     matrix_rows = {
         str(dict(row or {}).get("row_id") or "").strip(): dict(row or {})

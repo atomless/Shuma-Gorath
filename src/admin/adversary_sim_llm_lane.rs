@@ -109,17 +109,7 @@ pub(crate) fn llm_fulfillment_mode_for_tick(generated_tick_count: u64) -> LlmFul
 }
 
 fn category_targets_for_mode(mode: LlmFulfillmentMode) -> Vec<String> {
-    match mode {
-        LlmFulfillmentMode::BrowserMode => vec![
-            "automated_browser".to_string(),
-            "browser_agent".to_string(),
-            "agent_on_behalf_of_human".to_string(),
-        ],
-        LlmFulfillmentMode::RequestMode => vec![
-            "http_agent".to_string(),
-            "ai_scraper_bot".to_string(),
-        ],
-    }
+    crate::observability::non_human_lane_fulfillment::llm_category_targets_for_mode(mode.as_str())
 }
 
 fn capability_envelope_for_mode(mode: LlmFulfillmentMode) -> LlmCapabilityEnvelope {

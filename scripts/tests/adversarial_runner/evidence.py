@@ -174,6 +174,7 @@ def build_scenario_execution_evidence(
     simulation_event_reason_counts_after: Optional[Dict[str, Any]] = None,
     driver_class: str = "",
     browser_realism: Optional[Dict[str, Any]] = None,
+    non_human_category_targets: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     runtime_request_count = max(0, int_or_zero(request_count_after) - int_or_zero(request_count_before))
     monitoring_total_delta = max(
@@ -246,6 +247,11 @@ def build_scenario_execution_evidence(
     return {
         "scenario_id": str(scenario_id),
         "driver_class": str(driver_class).strip(),
+        "non_human_category_targets": [
+            str(item).strip()
+            for item in list_or_empty(non_human_category_targets)
+            if str(item).strip()
+        ],
         "runtime_request_count": runtime_request_count,
         "monitoring_total_delta": monitoring_total_delta,
         "coverage_delta_total": coverage_delta_total,

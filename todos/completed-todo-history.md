@@ -4,6 +4,33 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-22)
 
+### SIM-FULFILL-1: Category-To-Lane Fulfillment Matrix
+
+- [x] Froze the canonical non-human category-to-lane fulfillment matrix so Scrapling worker plans, bounded LLM fulfillment plans, the adversarial coverage contract, and the scenario intent matrix now all share one explicit mapping from categories to intended lanes and explicit gaps.
+- [x] Why:
+  - `SIM-LLM-FIT-1` gave the project a bounded LLM lane contract, but the closed-loop sequence still lacked a single place where Shuma could say which canonical categories are intended to be fulfilled by Scrapling, LLM browser mode, LLM request mode, or no credible lane yet.
+  - freezing that mapping now prevents later coverage and protected-evidence work from inferring representativeness from lane names, scenario prose, or ad hoc dashboard copy.
+  - mirroring the same mapping into the adversarial JSON contracts makes scenario-intent evidence and runtime worker planning share one source of truth instead of drifting separately.
+- [x] Evidence:
+  - `src/observability/non_human_lane_fulfillment.rs`
+  - `src/admin/adversary_sim_lane_runtime.rs`
+  - `src/admin/adversary_sim_llm_lane.rs`
+  - `src/admin/adversary_sim_worker_plan.rs`
+  - `src/admin/api.rs`
+  - `scripts/tests/adversarial/coverage_contract.v2.json`
+  - `scripts/tests/adversarial/scenario_intent_matrix.v1.json`
+  - `scripts/tests/adversarial_runner/evidence.py`
+  - `scripts/tests/adversarial_simulation_runner.py`
+  - `scripts/tests/check_adversarial_coverage_contract.py`
+  - `scripts/tests/check_adversarial_scenario_intent_matrix.py`
+  - `docs/adversarial-operator-guide.md`
+  - `docs/research/2026-03-22-sim-fulfill-1-category-to-lane-fulfillment-post-implementation-review.md`
+  - `make test-traffic-taxonomy-contract`
+  - `make test-adversarial-coverage-contract`
+  - `make test-adversarial-scenario-review`
+  - `make test-adversarial-llm-fit`
+  - `git diff --check`
+
 ### SIM-LLM-FIT-1: Bounded LLM Category-Fulfillment Modes
 
 - [x] Added the first bounded LLM category-fulfillment contract for the shared-host `bot_red_team` lane so the runtime can emit typed browser or request fulfillment plans, with explicit backend kind and backend state, before the later full LLM runtime actor is allowed to exist.

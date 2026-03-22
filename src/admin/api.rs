@@ -5051,6 +5051,15 @@ mod admin_config_tests {
         assert_eq!(
             beat_json
                 .get("worker_plan")
+                .and_then(|value| value.get("category_targets"))
+                .and_then(|value| value.as_array())
+                .and_then(|values| values.first())
+                .and_then(|value| value.as_str()),
+            Some("indexing_bot")
+        );
+        assert_eq!(
+            beat_json
+                .get("worker_plan")
                 .and_then(|value| value.get("sim_profile"))
                 .and_then(|value| value.as_str()),
             Some("scrapling_runtime_lane")
@@ -5143,6 +5152,23 @@ mod admin_config_tests {
                 .and_then(|value| value.get("fulfillment_mode"))
                 .and_then(|value| value.as_str()),
             Some("browser_mode")
+        );
+        assert_eq!(
+            beat_json
+                .get("llm_fulfillment_plan")
+                .and_then(|value| value.get("category_targets"))
+                .and_then(|value| value.as_array())
+                .map(|values| {
+                    values
+                        .iter()
+                        .filter_map(|value| value.as_str())
+                        .collect::<Vec<_>>()
+                }),
+            Some(vec![
+                "automated_browser",
+                "browser_agent",
+                "agent_on_behalf_of_human"
+            ])
         );
         assert_eq!(
             beat_json

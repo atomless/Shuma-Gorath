@@ -44,6 +44,9 @@
       "required_defense_categories": [
         "not_a_bot"
       ],
+      "non_human_category_targets": [
+        "agent_on_behalf_of_human"
+      ],
       "minimum_runtime_requests": 1,
       "defense_signals": {
         "not_a_bot": [
@@ -88,6 +91,10 @@
       "required_defense_categories": [
         "geo",
         "challenge"
+      ],
+      "non_human_category_targets": [
+        "automated_browser",
+        "browser_agent"
       ],
       "minimum_runtime_requests": 1,
       "defense_signals": {
@@ -151,6 +158,10 @@
         "geo",
         "maze"
       ],
+      "non_human_category_targets": [
+        "automated_browser",
+        "browser_agent"
+      ],
       "minimum_runtime_requests": 1,
       "defense_signals": {
         "geo": [
@@ -208,6 +219,10 @@
         "honeypot",
         "ban_path"
       ],
+      "non_human_category_targets": [
+        "automated_browser",
+        "browser_agent"
+      ],
       "minimum_runtime_requests": 1,
       "defense_signals": {
         "honeypot": [
@@ -255,6 +270,10 @@
         "not_a_bot",
         "maze",
         "event_stream"
+      ],
+      "non_human_category_targets": [
+        "http_agent",
+        "ai_scraper_bot"
       ],
       "minimum_runtime_requests": 1,
       "defense_signals": {
@@ -324,6 +343,10 @@
         "not_a_bot",
         "maze"
       ],
+      "non_human_category_targets": [
+        "http_agent",
+        "ai_scraper_bot"
+      ],
       "minimum_runtime_requests": 1,
       "defense_signals": {
         "not_a_bot": [
@@ -381,6 +404,10 @@
         "not_a_bot",
         "maze",
         "event_stream"
+      ],
+      "non_human_category_targets": [
+        "http_agent",
+        "ai_scraper_bot"
       ],
       "minimum_runtime_requests": 1,
       "defense_signals": {
@@ -528,6 +555,10 @@
         "rate_limit",
         "ban_path"
       ],
+      "non_human_category_targets": [
+        "http_agent",
+        "ai_scraper_bot"
+      ],
       "minimum_runtime_requests": 1,
       "defense_signals": {
         "rate_limit": [
@@ -585,6 +616,10 @@
       "required_defense_categories": [
         "geo",
         "ban_path"
+      ],
+      "non_human_category_targets": [
+        "automated_browser",
+        "browser_agent"
       ],
       "minimum_runtime_requests": 1,
       "defense_signals": {
@@ -747,6 +782,10 @@
         "maze",
         "event_stream"
       ],
+      "non_human_category_targets": [
+        "automated_browser",
+        "browser_agent"
+      ],
       "minimum_runtime_requests": 1,
       "defense_signals": {
         "challenge": [
@@ -809,6 +848,10 @@
       "required_defense_categories": [
         "not_a_bot",
         "tarpit"
+      ],
+      "non_human_category_targets": [
+        "http_agent",
+        "ai_scraper_bot"
       ],
       "minimum_runtime_requests": 1,
       "defense_signals": {
@@ -873,6 +916,10 @@
         "ban_path",
         "event_stream"
       ],
+      "non_human_category_targets": [
+        "http_agent",
+        "ai_scraper_bot"
+      ],
       "minimum_runtime_requests": 1,
       "defense_signals": {
         "cdp": [
@@ -936,6 +983,10 @@
         "fingerprint",
         "event_stream"
       ],
+      "non_human_category_targets": [
+        "http_agent",
+        "ai_scraper_bot"
+      ],
       "minimum_runtime_requests": 1,
       "defense_signals": {
         "fingerprint": [
@@ -976,6 +1027,10 @@
       "required_defense_categories": [
         "fingerprint"
       ],
+      "non_human_category_targets": [
+        "automated_browser",
+        "browser_agent"
+      ],
       "minimum_runtime_requests": 1,
       "defense_signals": {
         "fingerprint": [
@@ -1005,6 +1060,10 @@
         "rate_limit",
         "ban_path",
         "event_stream"
+      ],
+      "non_human_category_targets": [
+        "http_agent",
+        "ai_scraper_bot"
       ],
       "minimum_runtime_requests": 1,
       "defense_signals": {

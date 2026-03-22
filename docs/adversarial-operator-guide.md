@@ -130,6 +130,17 @@ The same artifacts now also carry the bounded LLM fulfillment contract used by t
    - browser-automation permission,
    - direct-request permission.
 `make test-adversarial-llm-fit` is the focused proof gate for that bounded contract and the internal beat payload it drives.
+The same adversarial contract family now also freezes the first category-to-lane fulfillment basis used by the closed-loop work:
+1. `coverage_contract.v2.json -> non_human_lane_fulfillment`
+   - canonical non-human categories,
+   - `mapped` versus `gap` assignment status,
+   - intended runtime lane and fulfillment mode,
+   - scenario references kept explicitly as intent support rather than coverage proof.
+2. `scenario_intent_matrix.v1.json -> rows[].non_human_category_targets`
+   - scenario-level intended non-human category targets,
+   - alignment checks against the coverage contract,
+   - execution-evidence annotation for later coverage receipts.
+`make test-adversarial-coverage-contract` and `make test-adversarial-scenario-review` are the current proof gates for this frozen fulfillment matrix; `SIM-COVER-1` will later decide whether those intended mappings are actually covered well enough for tuning.
 For loopback-hosted Spin targets, the runner selects the least-surprising reachable Docker transport per host platform: bridge + `host.docker.internal` where that reaches host loopback, and Linux host-network mode when bridge reachability would otherwise fail against a `127.0.0.1`-bound server.
 Signed capability envelopes for executable worker actions are enforced via `scripts/tests/frontier_capability_envelope.py` host/worker validation.
 Browser-lane execution proof is enforced via `latest_report.json -> gates.browser_execution_gates`.

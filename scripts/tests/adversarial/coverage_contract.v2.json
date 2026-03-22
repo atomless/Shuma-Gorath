@@ -53,6 +53,101 @@
     "tarpit"
   ],
   "ip_range_suggestion_seed_required": true,
+  "non_human_lane_fulfillment": {
+    "schema_version": "sim-non-human-lane-fulfillment.v1",
+    "categories": {
+      "indexing_bot": {
+        "assignment_status": "mapped",
+        "runtime_lane": "scrapling_traffic",
+        "fulfillment_mode": "scrapling_worker",
+        "supporting_scenarios": [],
+        "notes": "Shared-host Scrapling is the intended crawler and indexing fulfillment lane; scenario-backed coverage proof is deferred to SIM-COVER-1."
+      },
+      "ai_scraper_bot": {
+        "assignment_status": "mapped",
+        "runtime_lane": "bot_red_team",
+        "fulfillment_mode": "request_mode",
+        "supporting_scenarios": [
+          "sim_t3_replay_abuse",
+          "sim_t3_stale_token_abuse",
+          "sim_t4_ordering_cadence_abuse",
+          "sim_t3_rate_limit_enforce",
+          "sim_t4_tarpit_replay_abuse",
+          "sim_t4_cdp_detection_deny",
+          "sim_t3_fingerprint_inconsistency_abuse",
+          "sim_t4_retry_storm_abuse"
+        ],
+        "notes": "Bounded LLM request mode is the intended fulfillment lane for scraper-style direct request pressure; listed scenarios are intent-aligned references and not yet coverage proof."
+      },
+      "automated_browser": {
+        "assignment_status": "mapped",
+        "runtime_lane": "bot_red_team",
+        "fulfillment_mode": "browser_mode",
+        "supporting_scenarios": [
+          "sim_t2_geo_challenge",
+          "sim_t3_geo_maze",
+          "sim_t4_honeypot_deny_temp",
+          "sim_t3_geo_block",
+          "sim_t2_challenge_puzzle_failure",
+          "sim_t3_header_spoofing_abuse"
+        ],
+        "notes": "Bounded LLM browser mode is the intended fulfillment lane for browser automation pressure; listed scenarios are intent-aligned references and not yet coverage proof."
+      },
+      "http_agent": {
+        "assignment_status": "mapped",
+        "runtime_lane": "bot_red_team",
+        "fulfillment_mode": "request_mode",
+        "supporting_scenarios": [
+          "sim_t3_replay_abuse",
+          "sim_t3_stale_token_abuse",
+          "sim_t4_ordering_cadence_abuse",
+          "sim_t3_rate_limit_enforce",
+          "sim_t4_tarpit_replay_abuse",
+          "sim_t4_cdp_detection_deny",
+          "sim_t3_fingerprint_inconsistency_abuse",
+          "sim_t4_retry_storm_abuse"
+        ],
+        "notes": "Bounded LLM request mode is the intended fulfillment lane for direct HTTP agent behavior; listed scenarios are intent-aligned references and not yet coverage proof."
+      },
+      "browser_agent": {
+        "assignment_status": "mapped",
+        "runtime_lane": "bot_red_team",
+        "fulfillment_mode": "browser_mode",
+        "supporting_scenarios": [
+          "sim_t2_geo_challenge",
+          "sim_t3_geo_maze",
+          "sim_t4_honeypot_deny_temp",
+          "sim_t3_geo_block",
+          "sim_t2_challenge_puzzle_failure",
+          "sim_t3_header_spoofing_abuse"
+        ],
+        "notes": "Bounded LLM browser mode is the intended fulfillment lane for multi-step browser-agent behavior; listed scenarios are intent-aligned references and not yet coverage proof."
+      },
+      "agent_on_behalf_of_human": {
+        "assignment_status": "mapped",
+        "runtime_lane": "bot_red_team",
+        "fulfillment_mode": "browser_mode",
+        "supporting_scenarios": [
+          "sim_t1_not_a_bot_pass"
+        ],
+        "notes": "Bounded LLM browser mode is the intended initial fulfillment lane for delegated browser agents acting for a user; the listed scenario is an intent-aligned reference and not yet coverage proof."
+      },
+      "verified_beneficial_bot": {
+        "assignment_status": "gap",
+        "runtime_lane": "",
+        "fulfillment_mode": "",
+        "supporting_scenarios": [],
+        "notes": "No current adversary lane credibly simulates verified beneficial bot traffic yet."
+      },
+      "unknown_non_human": {
+        "assignment_status": "gap",
+        "runtime_lane": "",
+        "fulfillment_mode": "",
+        "supporting_scenarios": [],
+        "notes": "Unknown non-human traffic remains an explicit gap until recurring traffic or later research justifies a clearer fulfillment mapping."
+      }
+    }
+  },
   "plan_contract_rows": [
     "Honeypot",
     "Challenge failures",

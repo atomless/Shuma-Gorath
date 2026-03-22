@@ -999,6 +999,7 @@ test-traffic-taxonomy-contract: ## Run focused non-human taxonomy and snapshot t
 	@echo "$(CYAN)🧪 Running non-human taxonomy contract checks...$(NC)"
 	@./scripts/set_crate_type.sh rlib
 	@cargo test runtime::traffic_classification::tests::canonical_non_human_taxonomy_exposes_stable_machine_and_operator_facing_metadata -- --exact --nocapture
+	@cargo test observability::non_human_lane_fulfillment::tests:: -- --nocapture
 	@cargo test observability::operator_snapshot_non_human::tests:: -- --nocapture
 	@cargo test observability::hot_read_contract::tests::operator_snapshot_contracts_include_budget_distance_and_runtime_posture -- --exact --nocapture
 	@cargo test observability::operator_snapshot::tests::snapshot_payload_uses_persisted_objective_profile_and_typed_verified_identity_summary -- --exact --nocapture
