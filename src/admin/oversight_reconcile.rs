@@ -336,6 +336,7 @@ mod tests {
         OperatorSnapshotShadowMode,
     };
     use crate::observability::operator_snapshot_objectives::default_operator_objectives;
+    use crate::observability::operator_snapshot_non_human::OperatorSnapshotNonHumanTrafficSummary;
     use crate::observability::operator_snapshot_recent_changes::OperatorSnapshotRecentChanges;
     use crate::observability::operator_snapshot_runtime_posture::OperatorSnapshotRuntimePosture;
     use crate::observability::operator_snapshot_verified_identity::{
@@ -406,6 +407,7 @@ mod tests {
             "live_traffic",
             "adversary_sim",
             "benchmark_results",
+            "non_human_traffic",
             "replay_promotion",
         ] {
             section_metadata.insert(
@@ -486,6 +488,10 @@ mod tests {
                     exactness: "exact".to_string(),
                     basis: "observed".to_string(),
                 }],
+            },
+            non_human_traffic: OperatorSnapshotNonHumanTrafficSummary {
+                availability: "taxonomy_seeded".to_string(),
+                taxonomy: crate::runtime::non_human_taxonomy::canonical_non_human_taxonomy(),
             },
             allowed_actions: allowed_actions_v1(),
             benchmark_results,

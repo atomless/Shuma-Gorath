@@ -4,6 +4,26 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-22)
 
+### TRAFFIC-TAX-1: Canonical Non-Human Traffic Taxonomy Contract
+
+- [x] Landed the seeded canonical non-human taxonomy as a runtime-owned contract and projected it through `operator_snapshot_v1` via the new `non_human_traffic` section so later objectives, coverage, and tuning work can share one stable operator-facing category basis.
+- [x] Why:
+  - the loop needed a single backend-owned taxonomy before classification confidence, lane fulfillment, and category-aware posture work could be implemented without drift.
+  - landing the taxonomy separately keeps `TRAFFIC-TAX-1` clean and reviewable, while leaving classification receipts and tuning blockers to the planned next tranche instead of overloading the first slice.
+  - projecting the taxonomy through the operator snapshot now prevents a later second dashboard-only taxonomy from emerging.
+- [x] Evidence:
+  - `src/runtime/non_human_taxonomy.rs`
+  - `src/observability/operator_snapshot_non_human.rs`
+  - `src/observability/operator_snapshot.rs`
+  - `src/observability/hot_read_contract.rs`
+  - `src/runtime/traffic_classification.rs`
+  - `Makefile`
+  - `docs/api.md`
+  - `docs/testing.md`
+  - `docs/research/2026-03-22-traffic-tax-1-canonical-non-human-taxonomy-post-implementation-review.md`
+  - `make test-traffic-taxonomy-contract`
+  - `git diff --check`
+
 ### LOOP-PLAN-READY-1: Make The Closed-Loop Execution Chain Implementation-Ready
 
 - [x] Reviewed the active closed-loop sequence and converted it from roadmap-level prose into an execution-ready plan chain: taxonomy and classification, lane fulfillment and protected evidence, then category-aware objectives, benchmarks, and first canary apply and rollback.

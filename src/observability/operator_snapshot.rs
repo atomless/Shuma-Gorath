@@ -28,6 +28,7 @@ pub(crate) use super::operator_snapshot_live_traffic::{
 pub(crate) use super::operator_snapshot_objectives::{
     OperatorObjectiveBudget, OperatorObjectivesProfile,
 };
+pub(crate) use super::operator_snapshot_non_human::OperatorSnapshotNonHumanTrafficSummary;
 pub(crate) use super::operator_snapshot_recent_changes::{
     OperatorSnapshotRecentChange, OperatorSnapshotRecentChanges,
 };
@@ -85,6 +86,7 @@ pub(crate) struct OperatorSnapshotHotReadPayload {
     pub runtime_posture: OperatorSnapshotRuntimePosture,
     pub recent_changes: OperatorSnapshotRecentChanges,
     pub budget_distance: OperatorBudgetDistanceSummary,
+    pub non_human_traffic: OperatorSnapshotNonHumanTrafficSummary,
     pub allowed_actions: AllowedActionsSurface,
     pub benchmark_results: BenchmarkResultsPayload,
     pub verified_identity: OperatorSnapshotVerifiedIdentitySummary,
@@ -152,6 +154,8 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
         suspicious_lane.as_ref(),
         human_friction.as_ref(),
     );
+    let non_human_traffic =
+        super::operator_snapshot_non_human::non_human_traffic_summary(summary, recent_sim_runs);
     let allowed_actions = crate::config::allowed_actions_v1();
     let cfg = crate::config::load_runtime_cached(store, site_id)
         .unwrap_or_else(|_| crate::config::defaults().clone());
@@ -192,6 +196,7 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
             recent_changes_refreshed_at_ts,
             benchmark_results_refreshed_at_ts,
             summary_refreshed_at_ts,
+            summary_refreshed_at_ts,
             replay_promotion_refreshed_at_ts,
         ),
         objectives,
@@ -201,6 +206,7 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
         runtime_posture,
         recent_changes,
         budget_distance,
+        non_human_traffic,
         allowed_actions,
         benchmark_results,
         verified_identity,
@@ -224,6 +230,7 @@ fn operator_snapshot_section_metadata(
     recent_sim_runs_refreshed_at_ts: u64,
     recent_changes_refreshed_at_ts: u64,
     benchmark_results_refreshed_at_ts: u64,
+    non_human_traffic_refreshed_at_ts: u64,
     verified_identity_refreshed_at_ts: u64,
     replay_promotion_refreshed_at_ts: u64,
 ) -> BTreeMap<String, OperatorSnapshotSectionMetadata> {
@@ -236,6 +243,7 @@ fn operator_snapshot_section_metadata(
                 "adversary_sim" => recent_sim_runs_refreshed_at_ts,
                 "recent_changes" => recent_changes_refreshed_at_ts,
                 "benchmark_results" => benchmark_results_refreshed_at_ts,
+                "non_human_traffic" => non_human_traffic_refreshed_at_ts,
                 "verified_identity" => verified_identity_refreshed_at_ts,
                 "replay_promotion" => {
                     if replay_promotion_refreshed_at_ts == 0 {
@@ -500,6 +508,16 @@ mod tests {
             .iter()
             .any(|row| row.metric == "likely_human_friction_rate"));
         assert!(payload.recent_changes.rows.is_empty());
+        assert_eq!(
+            payload.non_human_traffic.taxonomy.schema_version,
+            "non_human_taxonomy_v1"
+        );
+        assert!(payload
+            .non_human_traffic
+            .taxonomy
+            .categories
+            .iter()
+            .any(|category| category.category_id.as_str() == "agent_on_behalf_of_human"));
         assert_eq!(payload.allowed_actions.schema_version, "allowed_actions_v1");
         assert!(payload
             .allowed_actions
@@ -698,6 +716,7 @@ mod tests {
         assert!(payload.live_traffic.suspicious_automation.is_none());
         assert_eq!(payload.adversary_sim.traffic_origin, "adversary_sim");
         assert_eq!(payload.adversary_sim.total_requests, 1);
+        assert_eq!(payload.non_human_traffic.taxonomy.categories.len(), 8);
         assert_eq!(
             payload
                 .section_metadata
@@ -705,6 +724,14 @@ mod tests {
                 .expect("budget distance metadata")
                 .exactness,
             crate::observability::hot_read_contract::TelemetryExactness::Derived
+        );
+        assert_eq!(
+            payload
+                .section_metadata
+                .get("non_human_traffic")
+                .expect("non human traffic metadata")
+                .basis,
+            crate::observability::hot_read_contract::TelemetryBasis::Mixed
         );
     }
 

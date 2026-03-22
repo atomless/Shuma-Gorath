@@ -14,6 +14,7 @@ pub(crate) mod key_catalog;
 pub(crate) mod metrics;
 pub(crate) mod monitoring;
 pub(crate) mod operator_objectives_store;
+pub(crate) mod operator_snapshot_non_human;
 pub(crate) mod operator_snapshot_live_traffic;
 pub(crate) mod operator_snapshot_objectives;
 pub(crate) mod operator_snapshot_recent_changes;

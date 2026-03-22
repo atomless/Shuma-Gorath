@@ -40,6 +40,7 @@ make test-sim2-operational-regressions # SIM2 operational regressions for active
 make test-sim2-operational-regressions-strict # Strict SIM2 operational regressions (all failure/prod/retention/cost/security domains required)
 make test-sim2-governance-contract # SIM2 hybrid lane + governance contract conformance diagnostics
 make test-admin-machine-contracts # Focused recent-change ledger + operator snapshot + benchmark admin read contracts
+make test-traffic-taxonomy-contract # Focused non-human taxonomy and snapshot taxonomy-contract checks
 make test-admin-api-routing-contract # Focused admin route-family contract gate for structural API refactors
 make test-controller-action-surface # Focused allowed-actions and controller-family mapping checks
 make test-benchmark-comparison-contract # Focused benchmark comparison helper contract checks
@@ -211,6 +212,7 @@ Shared-host Scrapling proof map:
 Structural refactor proof map:
 
 - `make test-admin-machine-contracts` is the focused admin read-contract gate for the recent-change ledger plus the machine-first operator snapshot and benchmark endpoints.
+- `make test-traffic-taxonomy-contract` is the focused taxonomy gate for the seeded canonical non-human category catalog plus its first machine-first operator-snapshot projection.
 - `make test-controller-action-surface` is the focused config-side gate for `allowed_actions_v1` and controller patch-family mapping reuse.
 - `make test-benchmark-comparison-contract` is the focused benchmark helper gate for explicit baseline-availability, improvement-status, and escalation comparison semantics.
 - `make test-operator-objectives-contract` is the focused objective-profile and decision-evidence gate for persisted `operator_objectives_v1`, the operator-objectives admin endpoint, the bounded decision ledger, and snapshot wiring.

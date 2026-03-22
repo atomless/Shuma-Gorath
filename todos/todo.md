@@ -88,9 +88,6 @@ Current stance:
 - The actively evolving near-term layer should be fingerprinting and categorization quality inside that taxonomy; taxonomy expansion is only a later contingency if important non-human traffic persistently falls outside the existing categories.
 - The next bridge to a genuine LLM-in-the-loop system is not the full later `SIM-LLM-1` runtime actor; it is a bounded category-fulfillment LLM tranche that sits between the taxonomy/classifier work and the first closed config loop, with the later LLM diagnosis harness and code loop still downstream of `OVR-APPLY-1`.
 
-### TRAFFIC-TAX-1: Canonical Non-Human Traffic Taxonomy Contract
-- Define the bounded category set for the non-human traffic Shuma intends to simulate and defend against, before it has enough observed adversary traffic to infer that set site-locally, and give each category stable machine and human-facing metadata so operators later use the same taxonomy when setting posture.
-
 ### TRAFFIC-TAX-2: Traffic Category Confidence And Evidence Receipts
 - Add bounded confidence and evidence receipts for Shuma's traffic categorization layer so later benchmark and autonomous tuning logic can fail closed when category assignment is still too weak or too stale to trust, so both simulated and observed traffic can be judged through the same classifier, and so fingerprinting and categorization quality can improve over time without changing the category model by default.
 

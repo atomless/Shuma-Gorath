@@ -129,7 +129,7 @@ const MONITORING_BOOTSTRAP_COMPONENTS: [HotReadComponentContract; 7] = [
     },
 ];
 
-const OPERATOR_SNAPSHOT_COMPONENTS: [HotReadComponentContract; 11] = [
+const OPERATOR_SNAPSHOT_COMPONENTS: [HotReadComponentContract; 12] = [
     HotReadComponentContract {
         key: "objectives",
         exactness: TelemetryExactness::Exact,
@@ -183,6 +183,15 @@ const OPERATOR_SNAPSHOT_COMPONENTS: [HotReadComponentContract; 11] = [
         canonical_source: HotReadCanonicalSource::MutableCounter,
         projection_model: HotReadProjectionModel::DeterministicRebuild,
         note: "Budget-distance rows are derived from bounded summaries and backend-owned objective budgets rather than raw counters alone.",
+    },
+    HotReadComponentContract {
+        key: "non_human_traffic",
+        exactness: TelemetryExactness::Derived,
+        basis: TelemetryBasis::Mixed,
+        ownership_tier: HotReadOwnershipTier::SupportingSummary,
+        canonical_source: HotReadCanonicalSource::DirectStateSnapshot,
+        projection_model: HotReadProjectionModel::DeterministicRebuild,
+        note: "Non-human traffic section exposes the seeded canonical taxonomy now and later layers classification and coverage truth onto that same operator-facing contract.",
     },
     HotReadComponentContract {
         key: "benchmark_results",
@@ -358,6 +367,7 @@ mod tests {
         assert!(keys.contains(&"objectives"));
         assert!(keys.contains(&"live_traffic"));
         assert!(keys.contains(&"budget_distance"));
+        assert!(keys.contains(&"non_human_traffic"));
         assert!(keys.contains(&"benchmark_results"));
         assert!(keys.contains(&"runtime_posture"));
         assert!(keys.contains(&"replay_promotion"));

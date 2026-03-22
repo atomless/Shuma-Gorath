@@ -248,6 +248,9 @@ fn classify_policy_decision(decision: &PolicyDecision) -> MonitoringTrafficClass
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::runtime::non_human_taxonomy::{
+        canonical_non_human_taxonomy, posture_scale, NonHumanCategoryId,
+    };
 
     #[test]
     fn current_runtime_branch_mapping_keeps_control_and_site_traffic_separate() {
@@ -408,5 +411,27 @@ mod tests {
         });
 
         assert_eq!(lane, VERIFIED_BOT_OBSERVED);
+    }
+
+    #[test]
+    fn canonical_non_human_taxonomy_exposes_stable_machine_and_operator_facing_metadata() {
+        let taxonomy = canonical_non_human_taxonomy();
+        let ids = taxonomy
+            .categories
+            .iter()
+            .map(|category| category.category_id)
+            .collect::<Vec<_>>();
+
+        assert_eq!(taxonomy.schema_version, "non_human_taxonomy_v1");
+        assert_eq!(taxonomy.posture_scale, posture_scale());
+        assert!(ids.contains(&NonHumanCategoryId::IndexingBot));
+        assert!(ids.contains(&NonHumanCategoryId::AiScraperBot));
+        assert!(ids.contains(&NonHumanCategoryId::AutomatedBrowser));
+        assert!(ids.contains(&NonHumanCategoryId::AgentOnBehalfOfHuman));
+        assert!(taxonomy.categories.iter().any(|category| {
+            category.category_id == NonHumanCategoryId::AgentOnBehalfOfHuman
+                && category.label == "Agent on behalf of human"
+                && category.description.contains("acts for a human")
+        }));
     }
 }

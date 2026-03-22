@@ -190,6 +190,8 @@ Completed archive index:
    Review freezing the bridge from today's live recommend-only Scrapling loop to a genuinely closed config loop, then later LLM-backed diagnosis/config and benchmark-driven code-evolution loops, while keeping the first LLM adversary step bounded to category-fulfillment modes behind a pluggable backend contract.
 42. [`2026-03-22-closed-loop-sequence-execution-readiness-review.md`](2026-03-22-closed-loop-sequence-execution-readiness-review.md)
    Readiness review confirming the active closed-loop sequence is architecturally correct but still needed execution-grade plan documents for taxonomy/classification, lane fulfillment/protected evidence, and category-aware objectives/benchmarks/apply-loop work before coding through the chain.
+43. [`2026-03-22-traffic-tax-1-canonical-non-human-taxonomy-post-implementation-review.md`](2026-03-22-traffic-tax-1-canonical-non-human-taxonomy-post-implementation-review.md)
+   Post-implementation review confirming the seeded canonical non-human taxonomy now exists as a runtime-owned contract and is projected through `operator_snapshot_v1` as the first shared operator-facing category basis.
 
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 
