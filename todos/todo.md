@@ -84,6 +84,14 @@ Current stance:
 - Land the first shared-host agent tweaker loop before `MON-OVERHAUL-1` so Monitoring and Tuning can project proven machine-first semantics instead of inventing them early.
 - Treat the verified-identity observability and benchmarking gap as part of this loop-closure track rather than later polish.
 
+### OVR-LIVE-1: Prove The First Shared-Host Feedback Loop On Live Linode
+- Add one truthful Make-backed live verification path for the deployed shared-host feedback loop so current `HEAD`, public agent status truth, shared-host-only internal trigger execution, and post-sim linkage are proved on the active Linode target rather than inferred from local runs.
+- Reference context:
+  - [`docs/research/2026-03-22-live-linode-feedback-loop-verification-readiness-review.md`](../docs/research/2026-03-22-live-linode-feedback-loop-verification-readiness-review.md)
+  - [`docs/plans/2026-03-22-live-linode-feedback-loop-verification-plan.md`](../docs/plans/2026-03-22-live-linode-feedback-loop-verification-plan.md)
+  - [`docs/research/2026-03-21-ovr-agent-1-shared-host-agent-loop-post-implementation-review.md`](../docs/research/2026-03-21-ovr-agent-1-shared-host-agent-loop-post-implementation-review.md)
+  - [`docs/research/2026-03-06-linode-shared-host-live-proof.md`](../docs/research/2026-03-06-linode-shared-host-live-proof.md)
+
 
 ## P1 Verified Bot Identity And Web Bot Auth Foundation
 

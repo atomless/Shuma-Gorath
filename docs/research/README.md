@@ -176,6 +176,8 @@ Completed archive index:
    Post-implementation review confirming the first recommend-only reconcile engine now consumes machine-first evidence, emits bounded typed proposals or explicit refusal outcomes, records durable decision lineage, and fails closed when runtime config is unavailable.
 35. [`2026-03-21-ovr-agent-1-shared-host-agent-loop-post-implementation-review.md`](2026-03-21-ovr-agent-1-shared-host-agent-loop-post-implementation-review.md)
    Post-implementation review confirming the first shared-host recommend-only agent loop now reuses the bounded reconcile contract for periodic and post-sim triggers, exposes durable latest-run status, and enforces the shared-host-only execution boundary.
+36. [`2026-03-22-live-linode-feedback-loop-verification-readiness-review.md`](2026-03-22-live-linode-feedback-loop-verification-readiness-review.md)
+   Readiness review confirming the first shared-host feedback loop still lacked exact live Linode proof, freezing the proof contract, and recommending one Make-backed live remote verification gate before `MON-OVERHAUL-1`.
 
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 
