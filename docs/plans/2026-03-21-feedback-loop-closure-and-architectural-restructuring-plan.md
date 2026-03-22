@@ -42,6 +42,8 @@ Close the first real Shuma feedback loop and structurally decompose the control-
 12. The taxonomy comes before attackers: Shuma must define the categories it intends to model before it has enough observed adversary traffic to learn them site-locally.
 13. The initial taxonomy should stay stable enough for the first closed loop; what should evolve first is the fingerprinting and classification quality within it. Taxonomy expansion is a later contingency only if important non-human traffic persistently falls outside the existing categories.
 14. Taxonomy entries must carry stable machine and human-facing metadata because operator objectives and later tuning surfaces will bind posture directly to those categories.
+15. The next LLM adversary step should be bounded category-fulfillment modes behind a pluggable containerized backend contract; the full first-class LLM runtime actor remains later.
+16. The first genuinely closed loop ends at bounded config tuning and rollback; the later LLM diagnosis harness and later LLM code loop remain downstream phases rather than part of the first closure slice.
 
 # Target Architecture
 
@@ -209,6 +211,10 @@ Define the canonical non-human traffic taxonomy that later tuning and lane-repre
 
 Materialize bounded category-confidence and evidence receipts so Shuma can tell when both simulated and observed traffic categorization are trustworthy enough to use in tuning decisions.
 
+### `SIM-LLM-FIT-1`
+
+Implement the minimum bounded LLM-backed browser or request modes needed for category fulfillment behind a pluggable model-backend contract, with frontier-backed execution as the initial reference path for the highest-capability categories and optional later local-model backends only if evals prove parity.
+
 ### `SIM-FULFILL-1`
 
 Implement the category-to-lane fulfillment matrix across Scrapling and frontier or containerized LLM modes before claiming lane representativeness.
@@ -249,11 +255,11 @@ These phases should not be started early just because the UI can be edited soone
 
 ### `OVR-AGENT-2`
 
-Reopen later broader scheduled or autonomous agent planning only after the first shared-host agent loop, Monitoring projection, Tuning surface, replay-promotion contract, and central-intelligence architecture all exist.
+Reopen the later LLM-backed diagnosis/config harness only after the first shared-host agent loop, the first closed config loop, Monitoring projection, Tuning surface, replay-promotion contract, and central-intelligence architecture all exist.
 
 ### `OVR-CODE-1`
 
-Keep code-evolution or PR-generation planning behind the bounded config loop and benchmark-comparison proof.
+Keep the later benchmark-driven LLM code-evolution or PR-generation path behind the bounded config loop, the later diagnosis harness, and benchmark-comparison proof.
 
 # Scheduling Rules
 

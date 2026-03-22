@@ -4,6 +4,23 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-22)
 
+### LOOP-GATE-5: Capture The Bridge To LLM Adversary And Diagnosis Loops
+
+- [x] Reviewed the current live recommend-only feedback loop and captured the next optimal path to a genuine closed loop: taxonomy and classifier first, bounded LLM adversary category-fulfillment modes second, coverage and protected-evidence gates third, closed config tuning and rollback fourth, and only after that the later LLM diagnosis/config harness and benchmark-driven LLM code loop.
+- [x] Why:
+  - the repo had the right high-level ingredients, but it still lacked a crisp bridge from today's live Scrapling loop to the broader LLM-in-the-loop architecture the product is aiming for.
+  - the important clarification is that the next LLM adversary step should not be the full later `SIM-LLM-1` runtime actor. The better next move is a bounded fulfillment tranche behind a pluggable model-backend contract, with frontier-backed execution as the initial reference path for high-capability categories and optional later local-model backends only if evals prove parity.
+  - the same review also keeps the loop cleanly staged: close the config loop first, then reopen the later LLM diagnosis/config harness, and only after that the benchmark-driven code-evolution path.
+- [x] Evidence:
+  - `docs/research/2026-03-22-path-to-closed-loop-llm-adversary-and-diagnosis-review.md`
+  - `docs/plans/2026-03-22-path-to-closed-loop-llm-adversary-and-diagnosis-implementation-plan.md`
+  - `docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`
+  - `docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`
+  - `docs/research/README.md`
+  - `todos/todo.md`
+  - `todos/blocked-todo.md`
+  - `git diff --check`
+
 ### LOOP-GATE-4: Capture Operator-Facing Taxonomy Metadata And Posture Chain
 
 - [x] Tightened the closed-loop planning chain so the canonical non-human taxonomy now explicitly carries stable machine and human-facing metadata, and so the operator-facing policy model is explicitly framed as fingerprinting plus evidence informing categorization, categorization informing cumulative abuse score, and abuse score determining severity along the bounded posture scale from `allowed` to `blocked`.

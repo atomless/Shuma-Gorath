@@ -30,16 +30,17 @@ Already captured:
 
 1. minimal shared-host scope-and-seed gate,
 2. Scrapling emergent-lane planning,
-3. blocked Scrapling runtime lane,
-4. blocked containerized LLM lane,
-5. deterministic oracle governance,
-6. frontier data-governance work.
+3. bounded category-fulfillment LLM lane planning,
+4. blocked Scrapling runtime lane,
+5. blocked containerized LLM lane,
+6. deterministic oracle governance,
+7. frontier data-governance work.
 
 Current references:
 
 1. [`2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md`](2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md)
 2. [`2026-03-20-minimal-seed-and-telemetry-surface-discovery-design.md`](2026-03-20-minimal-seed-and-telemetry-surface-discovery-design.md)
-3. `SIM-SH-SURFACE-1` in [`../../todos/todo.md`](../../todos/todo.md)
+3. `SIM-SH-SURFACE-1` and `SIM-LLM-FIT-1` in [`../../todos/todo.md`](../../todos/todo.md)
 4. `SIM-SCR-LANE-1` and `SIM-LLM-1` in [`../../todos/blocked-todo.md`](../../todos/blocked-todo.md)
 
 Gap:
@@ -140,6 +141,7 @@ Status update (2026-03-22):
 4. Raw frontier or LLM discoveries remain advisory until replay promotion or equivalent deterministic confirmation makes their lineage part of the protected tuning evidence set.
 5. A new prerequisite now sits even earlier in the chain: Shuma must first define its own canonical non-human taxonomy and classification contract before it can truthfully judge whether Scrapling and frontier or LLM lanes are representative.
 6. The near-term adaptive layer should be fingerprinting and categorization quality within that canonical taxonomy; taxonomy expansion is only a later contingency if important traffic persistently falls outside the existing categories.
+7. The bridge to a genuine LLM-in-the-loop system is now explicit: bounded LLM adversary modes should land first as category-fulfillment slices behind a pluggable containerized backend, the first closed loop should stop at config tuning and rollback, and only after that should the later LLM diagnosis harness and code-evolution loop reopen.
 
 ## B. Tuning Surface Completion
 

@@ -186,6 +186,8 @@ Completed archive index:
    Review freezing the next closed-loop safety gate: autonomous tuning must depend on protected Scrapling and replay-promoted frontier or LLM evidence with category-coverage proof, not on `synthetic_traffic` or raw advisory frontier findings.
 40. [`2026-03-22-canonical-non-human-taxonomy-and-sim-representativeness-review.md`](2026-03-22-canonical-non-human-taxonomy-and-sim-representativeness-review.md)
    Review correcting the sequencing so Shuma first defines a canonical non-human taxonomy and shared classification contract, then implements Scrapling and frontier or containerized LLM lane fulfillment against that taxonomy before autonomous tuning is reopened, while keeping the near-term adaptive focus on improving classification quality rather than expanding taxonomy breadth.
+41. [`2026-03-22-path-to-closed-loop-llm-adversary-and-diagnosis-review.md`](2026-03-22-path-to-closed-loop-llm-adversary-and-diagnosis-review.md)
+   Review freezing the bridge from today's live recommend-only Scrapling loop to a genuinely closed config loop, then later LLM-backed diagnosis/config and benchmark-driven code-evolution loops, while keeping the first LLM adversary step bounded to category-fulfillment modes behind a pluggable backend contract.
 
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 
