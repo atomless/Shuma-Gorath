@@ -1158,6 +1158,64 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         self.assertEqual(evidence["simulation_event_reasons_delta"], ["not_a_bot_pass"])
         self.assertTrue(evidence["has_runtime_telemetry_evidence"])
 
+    def test_derive_coverage_deltas_from_simulation_event_reasons_maps_geo_policy_actions(self):
+        deltas = runner.derive_coverage_deltas_from_simulation_event_reasons(
+            {
+                "geo_policy_challenge": 2,
+                "geo_policy_maze": 3,
+                "geo_policy_block": 4,
+            }
+        )
+        self.assertEqual(deltas["geo_violations"], 9)
+        self.assertEqual(deltas["geo_challenge"], 2)
+        self.assertEqual(deltas["geo_maze"], 3)
+        self.assertEqual(deltas["geo_block"], 4)
+
+    def test_derive_coverage_deltas_from_simulation_event_reasons_maps_rate_enforcement(self):
+        deltas = runner.derive_coverage_deltas_from_simulation_event_reasons(
+            {
+                "rate": 2,
+                "ip_range_policy_rate_limit": 1,
+            }
+        )
+        self.assertEqual(deltas["rate_violations"], 3)
+        self.assertEqual(deltas["rate_banned"], 2)
+        self.assertEqual(deltas["rate_limited"], 1)
+
+    def test_build_scenario_execution_evidence_supplements_geo_coverage_from_sim_reason_delta(self):
+        evidence = runner.build_scenario_execution_evidence(
+            scenario_id="scenario_geo_challenge",
+            request_count_before=2,
+            request_count_after=3,
+            monitoring_before={"monitoring_total": 0, "coverage": {"geo_violations": 0, "geo_challenge": 0}},
+            monitoring_after={"monitoring_total": 0, "coverage": {"geo_violations": 0, "geo_challenge": 0}},
+            simulation_event_count_before=5,
+            simulation_event_count_after=6,
+            simulation_event_reasons_before=["js_verification"],
+            simulation_event_reasons_after=["js_verification", "geo_policy_challenge"],
+        )
+        self.assertEqual(evidence["coverage_deltas"]["geo_violations"], 1)
+        self.assertEqual(evidence["coverage_deltas"]["geo_challenge"], 1)
+        self.assertEqual(evidence["simulation_event_reasons_delta"], ["geo_policy_challenge"])
+        self.assertTrue(evidence["has_runtime_telemetry_evidence"])
+
+    def test_build_scenario_execution_evidence_supplements_rate_coverage_from_sim_reason_delta(self):
+        evidence = runner.build_scenario_execution_evidence(
+            scenario_id="scenario_rate",
+            request_count_before=5,
+            request_count_after=8,
+            monitoring_before={"monitoring_total": 0, "coverage": {"rate_violations": 0, "rate_banned": 0}},
+            monitoring_after={"monitoring_total": 0, "coverage": {"rate_violations": 0, "rate_banned": 0}},
+            simulation_event_count_before=10,
+            simulation_event_count_after=12,
+            simulation_event_reasons_before=["js_verification"],
+            simulation_event_reasons_after=["js_verification", "rate"],
+        )
+        self.assertEqual(evidence["coverage_deltas"]["rate_violations"], 1)
+        self.assertEqual(evidence["coverage_deltas"]["rate_banned"], 1)
+        self.assertEqual(evidence["simulation_event_reasons_delta"], ["rate"])
+        self.assertTrue(evidence["has_runtime_telemetry_evidence"])
+
     def test_build_scenario_execution_evidence_maps_not_a_bot_abuse_reason_to_replay_delta(self):
         evidence = runner.build_scenario_execution_evidence(
             scenario_id="scenario_not_a_bot_abuse",

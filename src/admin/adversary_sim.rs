@@ -204,6 +204,8 @@ mod tests {
 
     #[test]
     fn autonomous_supervisor_runs_initial_tick_when_running_without_history() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "shared-server");
         let store = InMemoryStore::default();
         let mut state = ControlState {
             phase: ControlPhase::Running,
@@ -224,6 +226,7 @@ mod tests {
             deterministic_generated_request_target_for_tick(0)
         );
         assert_eq!(state.last_generated_at, Some(110));
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
     }
 
     #[test]

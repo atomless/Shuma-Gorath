@@ -48,19 +48,31 @@ ADR_REQUIREMENTS = [
 
 IMPLEMENTATION_REQUIREMENTS = [
     {
-        "id": "api_control_endpoint",
+        "id": "api_control_route",
         "path": "src/admin/api.rs",
         "markers": [
             "/admin/adversary-sim/control",
+        ],
+    },
+    {
+        "id": "api_control_origin_validation",
+        "path": "src/admin/adversary_sim_control.rs",
+        "markers": [
             "validate_origin_and_fetch_metadata",
         ],
     },
     {
-        "id": "api_realtime_endpoints",
+        "id": "api_realtime_routes",
         "path": "src/admin/api.rs",
         "markers": [
             "/admin/monitoring/delta",
             "/admin/monitoring/stream",
+        ],
+    },
+    {
+        "id": "api_realtime_ordering",
+        "path": "src/admin/monitoring_api.rs",
+        "markers": [
             "strict_monotonic_cursor_ascending",
         ],
     },

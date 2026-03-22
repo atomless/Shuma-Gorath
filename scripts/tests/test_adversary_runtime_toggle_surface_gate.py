@@ -191,7 +191,46 @@ class RuntimeToggleSurfaceGateTests(unittest.TestCase):
             },
         )
 
-    def test_poll_live_summary_clean_waits_for_zero_live_only_counts(self) -> None:
+    def test_live_summary_leaks_only_report_positive_delta_above_baseline(self) -> None:
+        leaked = runtime_surface_gate.live_summary_leaks(
+            current={
+                "challenge_failures": 2,
+                "pow_attempts": 4,
+                "rate_violations": 3,
+                "geo_violations": 3,
+            },
+            baseline={
+                "challenge_failures": 2,
+                "pow_attempts": 4,
+                "rate_violations": 3,
+                "geo_violations": 3,
+            },
+        )
+        self.assertEqual(leaked, {})
+
+        leaked = runtime_surface_gate.live_summary_leaks(
+            current={
+                "challenge_failures": 3,
+                "pow_attempts": 4,
+                "rate_violations": 5,
+                "geo_violations": 3,
+            },
+            baseline={
+                "challenge_failures": 2,
+                "pow_attempts": 4,
+                "rate_violations": 3,
+                "geo_violations": 3,
+            },
+        )
+        self.assertEqual(
+            leaked,
+            {
+                "challenge_failures": 1,
+                "rate_violations": 2,
+            },
+        )
+
+    def test_poll_live_summary_matches_baseline_waits_for_baseline_live_only_counts(self) -> None:
         gate = runtime_surface_gate.RuntimeToggleSurfaceGate(
             base_url="http://127.0.0.1:3000",
             api_key="test-api-key",
@@ -199,13 +238,24 @@ class RuntimeToggleSurfaceGateTests(unittest.TestCase):
             health_secret="health-secret",
             timeout_seconds=2,
         )
+        baseline = {
+            "challenge_failures": 1,
+            "pow_attempts": 2,
+            "rate_violations": 3,
+            "geo_violations": 4,
+        }
 
         responses = iter(
             [
                 {
                     "status": 200,
                     "body": {
-                        "summary": {"challenge": {"total_failures": 1}},
+                        "summary": {
+                            "challenge": {"total_failures": 2},
+                            "pow": {"total_attempts": 2},
+                            "rate": {"total_violations": 3},
+                            "geo": {"total_violations": 4},
+                        },
                         "details": {
                             "events": {
                                 "recent_events": [
@@ -220,10 +270,10 @@ class RuntimeToggleSurfaceGateTests(unittest.TestCase):
                     "status": 200,
                     "body": {
                         "summary": {
-                            "challenge": {"total_failures": 0},
-                            "pow": {"total_attempts": 0},
-                            "rate": {"total_violations": 0},
-                            "geo": {"total_violations": 0},
+                            "challenge": {"total_failures": 1},
+                            "pow": {"total_attempts": 2},
+                            "rate": {"total_violations": 3},
+                            "geo": {"total_violations": 4},
                         }
                     },
                     "raw": "",
@@ -238,17 +288,9 @@ class RuntimeToggleSurfaceGateTests(unittest.TestCase):
 
         gate.request = fake_request
 
-        counts = gate.poll_live_summary_clean()
+        counts = gate.poll_live_summary_matches_baseline(baseline)
 
-        self.assertEqual(
-            counts,
-            {
-                "challenge_failures": 0,
-                "pow_attempts": 0,
-                "rate_violations": 0,
-                "geo_violations": 0,
-            },
-        )
+        self.assertEqual(counts, baseline)
 
 
 if __name__ == "__main__":

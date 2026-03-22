@@ -4,6 +4,39 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-22)
 
+### TEST-STABILIZE-1: Clear CI And Full-Suite Verification Regressions
+
+- [x] Fixed the failing CI and full-suite verification regressions uncovered after the recent feedback-loop tranche by tightening snapshot serialization, hardening adversary-sim/runtime test contracts against real baseline state and env leakage, extending adversarial evidence fallback mapping, refreshing stale scenario-review metadata, aligning SIM2 ADR conformance checks with the modularized admin surface, and giving the new frontier-confirmation dashboard smoke the same truthful orchestration timeout budget as its neighboring live-control tests.
+- [x] Why:
+  - the first failing CI leg was real: `operator_snapshot_v1` grew past the hot-read budget because the allowed-actions value-constraint payload was serializing empty/default fields.
+  - once that was fixed, the canonical `make test` path exposed additional truthfulness gaps in the surrounding verification harnesses rather than product regressions: the runtime-toggle gate assumed live counters had to return to absolute zero instead of baseline, one adversary-sim unit test was racing shared env state, adversarial intent evidence fallback did not yet map GEO and rate enforcement reasons, the scenario review matrix had aged past its enforced freshness window, the SIM2 ADR checker still pointed at pre-refactor file locations, and the new dashboard frontier-confirmation smoke was left on Playwright's default 30s despite using the same real orchestration path as the neighboring 180s tests.
+  - the cleanest fix was to repair each failing contract at the boundary where it had drifted, prove the fixes with focused `make` targets first, then rerun the full canonical test and coverage paths.
+- [x] Evidence:
+  - `src/config/controller_action_surface.rs`
+  - `src/admin/adversary_sim.rs`
+  - `scripts/tests/adversary_runtime_toggle_surface_gate.py`
+  - `scripts/tests/test_adversary_runtime_toggle_surface_gate.py`
+  - `scripts/tests/adversarial_runner/evidence.py`
+  - `scripts/tests/test_adversarial_simulation_runner.py`
+  - `scripts/tests/check_sim2_adr_conformance.py`
+  - `scripts/tests/adversarial/scenario_intent_matrix.v1.json`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `e2e/dashboard.smoke.spec.js`
+  - `Makefile`
+  - `make test-dashboard-unit`
+  - `make test-operator-snapshot-foundation`
+  - `make test-adversary-sim-runtime-surface-unit`
+  - `make test-adversary-sim-runtime-surface`
+  - `make test-adversary-sim-lifecycle`
+  - `make test-adversarial-scenario-review`
+  - `make test-adversarial-scenario-intent-evidence-unit`
+  - `make test-adversarial-fast`
+  - `make test-sim2-adr-conformance`
+  - `make test-dashboard-e2e-red-team-frontier-warning`
+  - `make test`
+  - `make test-coverage`
+  - `git diff --check`
+
 ### DSH-REDTEAM-1: Remove The Red Team No-Frontier Continue Warning
 
 - [x] Removed the redundant Red Team pane warning shown after an operator explicitly confirms continuing an adversary-sim run without frontier provider calls, and added a focused browser smoke that proves the continue path starts the run without re-showing that warning.

@@ -12,9 +12,13 @@ pub(crate) const ALLOWED_ACTIONS_SCHEMA_VERSION: &str = "allowed_actions_v1";
 pub(crate) struct AllowedActionValueConstraint {
     pub path: String,
     pub value_kind: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub min_inclusive: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_inclusive: Option<f64>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub allowed_values: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rule: Option<String>,
 }
 

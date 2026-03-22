@@ -2140,6 +2140,7 @@ test("adversary sim lane selector keeps off-state desired versus active truth an
 });
 
 test("adversary sim toggle cancel path avoids orchestration request when frontier keys are missing", async ({ page, request }) => {
+  test.setTimeout(180_000);
   const frontierProviderCount = await fetchFrontierProviderCount(request);
   test.skip(
     frontierProviderCount > 0,
@@ -2189,6 +2190,7 @@ test("adversary sim toggle cancel path avoids orchestration request when frontie
 });
 
 test("adversary sim toggle continue path omits the no-frontier warning after confirmation", async ({ page, request }) => {
+  test.setTimeout(180_000);
   await withRestoredAdversarySimConfig(request, async () => {
     await forceAdversarySimDisabled(request);
     await page.route("**/admin/config", async (route) => {

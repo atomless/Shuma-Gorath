@@ -27,6 +27,15 @@ def parse_bool(value: str, default: bool) -> bool:
     return default
 
 
+def live_summary_leaks(current: Dict[str, int], baseline: Dict[str, int]) -> Dict[str, int]:
+    leaked: Dict[str, int] = {}
+    for name, value in current.items():
+        delta = int(value) - int(baseline.get(name, 0))
+        if delta > 0:
+            leaked[name] = delta
+    return leaked
+
+
 class RuntimeToggleSurfaceGate:
     def __init__(
         self,
@@ -137,6 +146,24 @@ class RuntimeToggleSurfaceGate:
             ),
             "geo_violations": self._as_int(self._as_obj(summary.get("geo")).get("total_violations")),
         }
+
+    def read_live_summary_counts(self) -> Dict[str, int]:
+        deadline = time.time() + float(self.timeout_seconds)
+        counts = {
+            "challenge_failures": 0,
+            "pow_attempts": 0,
+            "rate_violations": 0,
+            "geo_violations": 0,
+        }
+
+        while time.time() < deadline:
+            monitoring = self.request("GET", "/admin/monitoring?hours=24&limit=200")
+            if monitoring["status"] != 200:
+                time.sleep(1)
+                continue
+            return self.live_summary_counts(self._as_obj(monitoring["body"]))
+
+        return counts
 
     def ensure_health(self) -> None:
         response = self.request("GET", "/health", extra_headers=self._health_headers())
@@ -292,14 +319,9 @@ class RuntimeToggleSurfaceGate:
 
         return seen
 
-    def poll_live_summary_clean(self) -> Dict[str, int]:
+    def poll_live_summary_matches_baseline(self, baseline: Dict[str, int]) -> Dict[str, int]:
         deadline = time.time() + float(self.timeout_seconds)
-        counts = {
-            "challenge_failures": 0,
-            "pow_attempts": 0,
-            "rate_violations": 0,
-            "geo_violations": 0,
-        }
+        counts = dict(baseline)
 
         while time.time() < deadline:
             monitoring = self.request("GET", "/admin/monitoring?hours=24&limit=200")
@@ -307,7 +329,9 @@ class RuntimeToggleSurfaceGate:
                 time.sleep(1)
                 continue
             counts = self.live_summary_counts(self._as_obj(monitoring["body"]))
-            if all(value == 0 for value in counts.values()):
+            if all(
+                counts.get(name, 0) == baseline.get(name, 0) for name in baseline.keys()
+            ):
                 return counts
             time.sleep(1)
 
@@ -338,11 +362,12 @@ def main() -> int:
     try:
         gate.ensure_health()
         gate.configure_js_required_profile()
+        live_summary_baseline = gate.read_live_summary_counts()
         gate.toggle(True, "on")
         seen = gate.poll_categories(required={"challenge", "js_required"})
         gate.configure_runtime_surface_profile()
         seen = gate.poll_categories(existing=seen)
-        live_summary_counts = gate.poll_live_summary_clean()
+        live_summary_counts = gate.poll_live_summary_matches_baseline(live_summary_baseline)
     except Exception as exc:  # noqa: BLE001
         print(f"[runtime-surface-gate] error: {exc}", file=sys.stderr)
         try:
@@ -366,7 +391,7 @@ def main() -> int:
         print(f"[runtime-surface-gate] observed={json.dumps(seen, sort_keys=True)}", file=sys.stderr)
         return 1
 
-    leaked = {name: value for name, value in live_summary_counts.items() if value > 0}
+    leaked = live_summary_leaks(live_summary_counts, live_summary_baseline)
     if leaked:
         print(
             "[runtime-surface-gate] live-only monitoring summary was polluted by sim traffic: "

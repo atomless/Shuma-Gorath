@@ -5356,7 +5356,7 @@ test('diagnostics tab preserves the bounded legacy monitoring surface', () => {
   assert.match(source, /\$: eventWindowTotal = toNonNegativeIntOrNull\(events\?\.recent_events_window\?\.total_events_in_window\);/);
   assert.match(source, /\$: totalBans = \(\(\) => \{/);
   assert.match(source, /const byEventType = getEventCountByName\(eventCounts, 'Ban'\);/);
-  assert.match(source, /\$: activeBans = bans\.length;/);
+  assert.match(source, /\$: activeBans = banSnapshotStatus === 'unavailable' \? null : bans\.length;/);
   assert.match(source, /eventTypesReadout = EMPTY_HALF_DOUGHNUT_READOUT;/);
 });
 

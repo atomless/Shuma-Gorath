@@ -128,6 +128,21 @@ def derive_coverage_deltas_from_simulation_event_reasons(
             "not_a_bot_abuse"
         ):
             deltas["not_a_bot_replay"] = deltas.get("not_a_bot_replay", 0) + count
+        elif normalized in {"geo_policy_challenge", "geo_policy_challenge_fallback"}:
+            deltas["geo_violations"] = deltas.get("geo_violations", 0) + count
+            deltas["geo_challenge"] = deltas.get("geo_challenge", 0) + count
+        elif normalized in {"geo_policy_maze", "geo_policy_challenge_fallback_maze"}:
+            deltas["geo_violations"] = deltas.get("geo_violations", 0) + count
+            deltas["geo_maze"] = deltas.get("geo_maze", 0) + count
+        elif normalized in {"geo_policy_block", "geo_policy_challenge_disabled_fallback_block"}:
+            deltas["geo_violations"] = deltas.get("geo_violations", 0) + count
+            deltas["geo_block"] = deltas.get("geo_block", 0) + count
+        elif normalized == "rate":
+            deltas["rate_violations"] = deltas.get("rate_violations", 0) + count
+            deltas["rate_banned"] = deltas.get("rate_banned", 0) + count
+        elif normalized == "ip_range_policy_rate_limit":
+            deltas["rate_violations"] = deltas.get("rate_violations", 0) + count
+            deltas["rate_limited"] = deltas.get("rate_limited", 0) + count
     return deltas
 
 
