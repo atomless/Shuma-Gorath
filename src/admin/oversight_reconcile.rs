@@ -321,7 +321,8 @@ mod tests {
     use crate::config::{allowed_actions_v1, defaults};
     use crate::observability::benchmark_results::{
         BenchmarkBaselineReference, BenchmarkEscalationHint, BenchmarkFamilyResult,
-        BenchmarkMetricResult, BenchmarkResultsPayload, BENCHMARK_RESULTS_SCHEMA_VERSION,
+        BenchmarkMetricResult, BenchmarkResultsPayload, BenchmarkTuningEligibility,
+        BENCHMARK_RESULTS_SCHEMA_VERSION,
     };
     use crate::observability::benchmark_suite::BENCHMARK_SUITE_SCHEMA_VERSION;
     use crate::observability::hot_read_contract::{
@@ -392,6 +393,10 @@ mod tests {
                 unavailable_category_count: 0,
                 uncovered_category_count: 2,
                 receipts: Vec::new(),
+            },
+            tuning_eligibility: BenchmarkTuningEligibility {
+                status: "eligible".to_string(),
+                blockers: Vec::new(),
             },
             families: vec![BenchmarkFamilyResult {
                 family_id: "suspicious_origin_cost".to_string(),

@@ -12,9 +12,6 @@ Security finding validity and closure status live in `todos/security-review.md`.
 - [ ] SIM-LLM-1 Full LLM-orchestrated, instruction-driven, containerized adversary lane as a first-class runtime actor.
   Blocker: keep blocked until the first bounded category-fulfillment LLM tranche (`SIM-LLM-FIT-1`) plus `TRAFFIC-TAX-1`, `TRAFFIC-TAX-2`, `SIM-FULFILL-1`, `SIM-COVER-1`, and `SIM-PROTECTED-1` prove which categories actually need LLM-backed adversary modes and how those modes become protected evidence, and until the first closed config loop (`OVR-APPLY-1`) is proven. The full actor should reuse the existing capability-safe container boundary and a pluggable model-backend contract; frontier-backed execution is the initial reference path for high-capability categories, while smaller local-model backends remain optional later only if category-fulfillment evals prove parity and acceptable operational cost.
 
-- [ ] OVR-APPLY-1 First closed autonomous tuning loop with bounded canary apply, watch window, benchmark judgment, and rollback.
-  Blocker: defer execution until `TRAFFIC-TAX-1`, `TRAFFIC-TAX-2`, `SIM-FULFILL-1`, `SIM-COVER-1`, `SIM-PROTECTED-1`, `OPS-OBJECTIVES-3`, and `OPS-BENCH-3` land and prove that auto-apply will operate only on protected, category-aware evidence. `synthetic_traffic` must remain tuning-ineligible, raw frontier or LLM discoveries must remain advisory until replay promotion or equivalent deterministic confirmation makes them protected evidence, lane representativeness must be measured against Shuma's canonical taxonomy rather than lane-local assumptions, and the classification layer must support ongoing refinement without silently redefining the basis of rollback decisions.
-
 ## P1 Blocked by Roadmap Reprioritisation After Deployment Baseline
 
 - [ ] SIM-BREACH-REPLAY-1 External breach to replayable attack pipeline.

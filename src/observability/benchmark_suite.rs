@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::runtime::non_human_taxonomy::canonical_non_human_taxonomy;
+
 pub(crate) const BENCHMARK_SUITE_SCHEMA_VERSION: &str = "benchmark_suite_v1";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -75,6 +77,25 @@ fn family(
             )
             .collect(),
     }
+}
+
+fn non_human_category_posture_metrics() -> Vec<BenchmarkMetricContract> {
+    canonical_non_human_taxonomy()
+        .categories
+        .into_iter()
+        .map(|category| BenchmarkMetricContract {
+            metric_id: format!(
+                "category_posture_alignment:{}",
+                category.category_id.as_str()
+            ),
+            eligible_population: format!(
+                "non_human_category:{}",
+                category.category_id.as_str()
+            ),
+            target_kind: "posture_alignment_ratio".to_string(),
+            capability_gate: "partially_supported".to_string(),
+        })
+        .collect()
 }
 
 pub(crate) fn benchmark_suite_v1() -> BenchmarkSuiteContract {
@@ -215,6 +236,26 @@ pub(crate) fn benchmark_suite_v1() -> BenchmarkSuiteContract {
                     ),
                 ],
             ),
+            BenchmarkFamilyContract {
+                id: "non_human_category_posture".to_string(),
+                decision_question:
+                    "Are observed category outcomes aligning with the operator's persisted per-category non-human posture?"
+                        .to_string(),
+                eligible_population: "non_human_category_receipts".to_string(),
+                comparison_modes: vec![
+                    "prior_window".to_string(),
+                    "baseline".to_string(),
+                    "candidate".to_string(),
+                ],
+                subject_kinds: vec![
+                    "current_instance".to_string(),
+                    "prior_baseline".to_string(),
+                    "candidate_config".to_string(),
+                    "candidate_code".to_string(),
+                ],
+                capability_gate: "partially_supported".to_string(),
+                metrics: non_human_category_posture_metrics(),
+            },
         ],
         decision_boundaries: vec![
             BenchmarkDecisionBoundary {
@@ -247,11 +288,15 @@ mod tests {
         assert_eq!(suite.input_contract, "operator_snapshot_v1");
         assert_eq!(suite.comparison_modes.len(), 3);
         assert_eq!(suite.subject_kinds.len(), 4);
-        assert_eq!(suite.families.len(), 4);
+        assert_eq!(suite.families.len(), 5);
         assert!(suite
             .families
             .iter()
             .any(|family| family.id == "suspicious_origin_cost"));
+        assert!(suite
+            .families
+            .iter()
+            .any(|family| family.id == "non_human_category_posture"));
         assert!(suite
             .decision_boundaries
             .iter()

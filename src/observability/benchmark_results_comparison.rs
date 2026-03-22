@@ -211,6 +211,7 @@ fn benchmark_action_families(family_id: &str) -> &'static [&'static str] {
             "botness",
             "maze_core",
         ],
+        "non_human_category_posture" => &["robots_policy", "verified_identity"],
         _ => &[],
     }
 }

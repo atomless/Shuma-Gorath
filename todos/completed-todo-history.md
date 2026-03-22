@@ -4,6 +4,33 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-22)
 
+### OPS-BENCH-3: Protected-Lane Category-Aware Benchmark Eligibility
+
+- [x] Extended `benchmark_results_v1` so category-aware protected tuning eligibility is explicit, the benchmark suite now includes canonical per-category posture-alignment metrics, and the benchmark payload now exposes the exact blockers that must fail closed before the first autonomous apply loop is allowed to act.
+- [x] Why:
+  - `OPS-OBJECTIVES-3` gave the loop a site-owned per-category utility function, but the benchmark layer still could not judge category posture alignment or expose a single controller-readable eligibility answer for protected tuning.
+  - the first autonomous apply loop needs one bounded benchmark contract that can say both “how are the categories performing against operator posture?” and “is it safe to judge this window at all?” without forcing reconcile or later apply code to reconstruct that logic.
+  - keeping the category-aware rollup inside `benchmark_results_v1` and the static suite registry avoids inventing a second controller-only category summary and preserves one machine-first truth for snapshot, admin reads, reconcile, and later apply.
+- [x] Evidence:
+  - `src/observability/benchmark_non_human_categories.rs`
+  - `src/observability/benchmark_results.rs`
+  - `src/observability/benchmark_results_comparison.rs`
+  - `src/observability/benchmark_comparison.rs`
+  - `src/observability/benchmark_suite.rs`
+  - `src/observability/operator_snapshot.rs`
+  - `src/observability/hot_read_documents.rs`
+  - `src/admin/api.rs`
+  - `src/admin/oversight_reconcile.rs`
+  - `Makefile`
+  - `docs/api.md`
+  - `docs/configuration.md`
+  - `docs/testing.md`
+  - `docs/research/2026-03-22-ops-bench-3-category-aware-benchmark-eligibility-post-implementation-review.md`
+  - `make test-benchmark-category-eligibility`
+  - `make test-operator-snapshot-foundation`
+  - `make test-oversight-reconcile`
+  - `git diff --check`
+
 ### OPS-OBJECTIVES-3: Category-Aware Non-Human Operator Objectives
 
 - [x] Extended `operator_objectives_v1` so operators now declare posture per canonical non-human category on the bounded scale `allowed`, `tolerated`, `cost_reduced`, `restricted`, and `blocked`, and so the controller has a truthful category-aware utility function instead of a single coarse non-human stance.

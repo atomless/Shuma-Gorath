@@ -50,6 +50,7 @@ make test-controller-action-surface # Focused allowed-actions and controller-fam
 make test-benchmark-comparison-contract # Focused benchmark comparison helper contract checks
 make test-operator-objectives-contract # Focused operator objectives, decision-ledger, and snapshot wiring checks
 make test-operator-objectives-category-contract # Focused category-aware operator-objectives contract checks
+make test-benchmark-category-eligibility # Focused category-aware benchmark eligibility and comparison checks
 make test-replay-promotion-contract # Focused replay-promotion lineage and governance checks
 make test-adversarial-runner-architecture # Focused adversarial runner CLI, unit, and validate-only checks
 make test-adversary-sim-domain-contract # Focused adversary-sim lifecycle and lane-domain checks without live runtime-surface traffic
@@ -201,6 +202,7 @@ Available profiles:
 - `make test-adversarial-coverage-receipts` - canonical category-coverage receipt proof across adversarial coverage/scenario contracts, the non-human coverage summary, and fail-closed benchmark gating when mapped categories are not yet covered
 - `make test-protected-tuning-evidence` - protected-evidence proof across replay-promotion summary state, operator-snapshot replay visibility, fail-closed benchmark gating when evidence is only advisory, and replay-review requirements in oversight patch shaping
 - `make test-operator-objectives-category-contract` - category-aware objective proof across persisted objective rows, operator-objectives admin writes, decision lineage, and snapshot projection
+- `make test-benchmark-category-eligibility` - category-aware benchmark proof across the suite registry, current-instance benchmark results, tuning-eligibility blockers, and prior-window or candidate comparison helpers
 - `make test-adversarial-live` - repeated live traffic generator for operator monitoring drills
 - `make test-adversarial-repeatability` - deterministic replay consistency gate across `fast_smoke`, `abuse_regression`, and `full_coverage`
 - `make test-adversarial-promote-candidates` - frontier finding normalization + deterministic replay triage + promotion lineage report
@@ -226,6 +228,7 @@ Structural refactor proof map:
 - `make test-adversarial-coverage-receipts` is the focused SIM-COVER gate for canonical category-coverage receipts, explicit mapped-category blockers, and fail-closed benchmark escalation when mapped fulfillment coverage is not yet complete enough for tuning.
 - `make test-protected-tuning-evidence` is the focused SIM-PROTECTED gate for advisory-versus-protected replay lineage, explicit synthetic-lane ineligibility, snapshot and benchmark replay-summary visibility, and replay-review requirements before tuning proposals can proceed.
 - `make test-operator-objectives-category-contract` is the focused OPS-OBJECTIVES gate for canonical category posture rows, objective validation, admin persistence, decision-ledger targeting, and snapshot projection.
+- `make test-benchmark-category-eligibility` is the focused OPS-BENCH gate for per-category posture alignment metrics, explicit benchmark tuning-eligibility blockers, bounded current-instance benchmark projection, and comparison-helper semantics reused later by canary apply.
 - `make test-controller-action-surface` is the focused config-side gate for `allowed_actions_v1` and controller patch-family mapping reuse.
 - `make test-benchmark-comparison-contract` is the focused benchmark helper gate for explicit baseline-availability, improvement-status, and escalation comparison semantics.
 - `make test-operator-objectives-contract` is the focused objective-profile and decision-evidence gate for persisted `operator_objectives_v1`, the operator-objectives admin endpoint, the bounded decision ledger, and snapshot wiring.

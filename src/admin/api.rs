@@ -2237,6 +2237,14 @@ mod tests {
             }))
             .unwrap_or(false));
         assert!(payload
+            .get("families")
+            .and_then(|value| value.as_array())
+            .map(|rows| rows.iter().any(|row| {
+                row.get("id").and_then(|value| value.as_str())
+                    == Some("non_human_category_posture")
+            }))
+            .unwrap_or(false));
+        assert!(payload
             .get("decision_boundaries")
             .and_then(|value| value.as_array())
             .map(|rows| rows.iter().any(|row| {
@@ -2339,12 +2347,27 @@ mod tests {
                 .and_then(|value| value.as_bool()),
             Some(false)
         );
+        assert_eq!(
+            payload
+                .get("tuning_eligibility")
+                .and_then(|value| value.get("status"))
+                .and_then(|value| value.as_str()),
+            Some("blocked")
+        );
         assert!(payload
             .get("families")
             .and_then(|value| value.as_array())
             .map(|rows| rows.iter().any(|row| {
                 row.get("family_id").and_then(|value| value.as_str())
                     == Some("suspicious_origin_cost")
+            }))
+            .unwrap_or(false));
+        assert!(payload
+            .get("families")
+            .and_then(|value| value.as_array())
+            .map(|rows| rows.iter().any(|row| {
+                row.get("family_id").and_then(|value| value.as_str())
+                    == Some("non_human_category_posture")
             }))
             .unwrap_or(false));
     }

@@ -321,6 +321,10 @@ fn status_rank(status: &str) -> Option<i8> {
 }
 
 fn metric_direction(metric_id: &str) -> Option<MetricDirection> {
+    if metric_id.starts_with("category_posture_alignment:") {
+        return Some(MetricDirection::HigherIsBetter);
+    }
+
     match metric_id {
         "suspicious_forwarded_request_rate"
         | "suspicious_forwarded_byte_rate"
@@ -459,6 +463,10 @@ mod tests {
                 unavailable_category_count: 0,
                 uncovered_category_count: 2,
                 receipts: Vec::new(),
+            },
+            tuning_eligibility: crate::observability::benchmark_results::BenchmarkTuningEligibility {
+                status: "eligible".to_string(),
+                blockers: Vec::new(),
             },
             families: vec![family(metric("allowed_as_intended_rate", Some(1.0), "inside_budget"))],
             escalation_hint: crate::observability::benchmark_results::BenchmarkEscalationHint {

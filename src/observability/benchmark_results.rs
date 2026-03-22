@@ -9,8 +9,10 @@ use crate::observability::operator_snapshot::{
     OperatorBudgetDistanceSummary, OperatorSnapshotAdversarySim, OperatorSnapshotLiveTraffic,
     OperatorSnapshotNonHumanTrafficSummary, OperatorSnapshotWindow, ReplayPromotionSummary,
 };
+use crate::observability::operator_snapshot_objectives::OperatorObjectivesProfile;
 use super::benchmark_adversary_effectiveness::representative_adversary_effectiveness_family;
 use super::benchmark_beneficial_non_human::beneficial_non_human_posture_family;
+use super::benchmark_non_human_categories::non_human_category_posture_family;
 use super::benchmark_comparison::{
     apply_prior_window_comparison, BenchmarkComparableSnapshot,
 };
@@ -90,6 +92,13 @@ pub(crate) struct BenchmarkEscalationHint {
     pub note: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct BenchmarkTuningEligibility {
+    pub status: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub blockers: Vec<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub(crate) struct BenchmarkResultsPayload {
     pub schema_version: String,
@@ -104,6 +113,7 @@ pub(crate) struct BenchmarkResultsPayload {
     pub improvement_status: String,
     pub non_human_classification: NonHumanClassificationReadiness,
     pub non_human_coverage: NonHumanCoverageSummary,
+    pub tuning_eligibility: BenchmarkTuningEligibility,
     pub families: Vec<BenchmarkFamilyResult>,
     pub escalation_hint: BenchmarkEscalationHint,
     pub replay_promotion: ReplayPromotionSummary,
@@ -113,6 +123,7 @@ pub(crate) fn build_benchmark_results_from_snapshot_sections(
     generated_at: u64,
     input_snapshot_generated_at: u64,
     watch_window: &OperatorSnapshotWindow,
+    objectives: &OperatorObjectivesProfile,
     live_traffic: &OperatorSnapshotLiveTraffic,
     adversary_sim: &OperatorSnapshotAdversarySim,
     non_human_traffic: &OperatorSnapshotNonHumanTrafficSummary,
@@ -128,55 +139,30 @@ pub(crate) fn build_benchmark_results_from_snapshot_sections(
     let friction_family = likely_human_friction_family(budget_distance);
     let adversary_family = representative_adversary_effectiveness_family(adversary_sim);
     let non_human_family = beneficial_non_human_posture_family(summary, cfg);
+    let category_posture_family = non_human_category_posture_family(objectives, non_human_traffic);
     let mut families = vec![
         suspicious_family,
         friction_family,
         adversary_family,
         non_human_family,
+        category_posture_family,
     ];
     let (baseline_reference, improvement_status) = apply_prior_window_comparison(
         generated_at,
         families.as_mut_slice(),
         prior_window_reference,
     );
+    let tuning_eligibility = tuning_eligibility(non_human_traffic, replay_promotion);
     let derived_escalation_hint = derive_escalation_hint(allowed_actions, families.as_slice());
-    let escalation_hint = if non_human_traffic.readiness.status != "ready" {
-        let mut blockers = vec!["non_human_classification_not_ready".to_string()];
-        blockers.extend(non_human_traffic.readiness.blockers.iter().cloned());
+    let escalation_hint = if tuning_eligibility.status != "eligible" {
         BenchmarkEscalationHint {
             availability: derived_escalation_hint.availability.clone(),
             decision: "observe_longer".to_string(),
             review_status: "manual_review_required".to_string(),
             trigger_family_ids: derived_escalation_hint.trigger_family_ids.clone(),
             candidate_action_families: Vec::new(),
-            blockers,
-            note: "Current benchmark pressure cannot justify tuning because non-human classification readiness is not yet strong enough for protected category-aware decisions."
-                .to_string(),
-        }
-    } else if !non_human_traffic.coverage.mapped_categories_are_covered() {
-        BenchmarkEscalationHint {
-            availability: derived_escalation_hint.availability.clone(),
-            decision: "observe_longer".to_string(),
-            review_status: "manual_review_required".to_string(),
-            trigger_family_ids: derived_escalation_hint.trigger_family_ids.clone(),
-            candidate_action_families: Vec::new(),
-            blockers: non_human_traffic
-                .coverage
-                .protected_tuning_blockers(replay_promotion),
-            note: "Current benchmark pressure cannot justify tuning because category fulfillment coverage is not yet complete enough for protected category-aware decisions."
-                .to_string(),
-        }
-    } else if !replay_promotion.tuning_eligible {
-        BenchmarkEscalationHint {
-            availability: derived_escalation_hint.availability.clone(),
-            decision: "observe_longer".to_string(),
-            review_status: "manual_review_required".to_string(),
-            trigger_family_ids: derived_escalation_hint.trigger_family_ids.clone(),
-            candidate_action_families: Vec::new(),
-            blockers: non_human_traffic
-                .coverage
-                .protected_tuning_blockers(replay_promotion),
-            note: "Current benchmark pressure cannot justify tuning because the current adversary evidence is still advisory rather than protected tuning-grade lineage."
+            blockers: tuning_eligibility.blockers.clone(),
+            note: "Current benchmark pressure cannot justify tuning because category-aware protected evidence is not yet eligible for controller-grade judgment."
                 .to_string(),
         }
     } else {
@@ -196,9 +182,34 @@ pub(crate) fn build_benchmark_results_from_snapshot_sections(
         improvement_status,
         non_human_classification: non_human_traffic.readiness.clone(),
         non_human_coverage: non_human_traffic.coverage.compact_for_benchmark(),
+        tuning_eligibility,
         escalation_hint,
         replay_promotion: replay_promotion.clone(),
         families,
+    }
+}
+
+fn tuning_eligibility(
+    non_human_traffic: &OperatorSnapshotNonHumanTrafficSummary,
+    replay_promotion: &ReplayPromotionSummary,
+) -> BenchmarkTuningEligibility {
+    let blockers = if non_human_traffic.readiness.status != "ready" {
+        let mut blockers = vec!["non_human_classification_not_ready".to_string()];
+        blockers.extend(non_human_traffic.readiness.blockers.iter().cloned());
+        blockers
+    } else {
+        non_human_traffic
+            .coverage
+            .protected_tuning_blockers(replay_promotion)
+    };
+
+    BenchmarkTuningEligibility {
+        status: if blockers.is_empty() {
+            "eligible".to_string()
+        } else {
+            "blocked".to_string()
+        },
+        blockers,
     }
 }
 
@@ -326,6 +337,7 @@ mod tests {
             snapshot.generated_at,
             1_700_000_100,
             &snapshot.window,
+            &snapshot.objectives,
             &snapshot.live_traffic,
             &snapshot.adversary_sim,
             &snapshot.non_human_traffic,
@@ -347,6 +359,7 @@ mod tests {
         assert_eq!(payload.improvement_status, "not_available");
         assert_eq!(payload.non_human_classification.status, "not_observed");
         assert_eq!(payload.non_human_coverage.overall_status, "unavailable");
+        assert_eq!(payload.tuning_eligibility.status, "blocked");
         assert_eq!(payload.escalation_hint.availability, "partial_support");
         assert_eq!(payload.escalation_hint.decision, "observe_longer");
         assert_eq!(payload.replay_promotion.availability, "not_materialized");
@@ -354,6 +367,10 @@ mod tests {
             payload.escalation_hint.review_status,
             "manual_review_required"
         );
+        assert!(payload
+            .families
+            .iter()
+            .any(|family| family.family_id == "non_human_category_posture"));
     }
 
     #[test]
@@ -460,6 +477,7 @@ mod tests {
             snapshot.generated_at,
             1_700_000_100,
             &snapshot.window,
+            &snapshot.objectives,
             &snapshot.live_traffic,
             &snapshot.adversary_sim,
             &snapshot.non_human_traffic,
@@ -471,6 +489,7 @@ mod tests {
             None,
         );
         assert_eq!(payload.non_human_classification.status, "ready");
+        assert_eq!(payload.tuning_eligibility.status, "eligible");
         assert_eq!(payload.escalation_hint.decision, "config_tuning_candidate");
         assert_eq!(
             payload.escalation_hint.review_status,
@@ -610,6 +629,7 @@ mod tests {
             snapshot.generated_at,
             1_700_000_200,
             &snapshot.window,
+            &snapshot.objectives,
             &snapshot.live_traffic,
             &snapshot.adversary_sim,
             &snapshot.non_human_traffic,
@@ -644,6 +664,15 @@ mod tests {
             .metrics
             .iter()
             .all(|metric| metric.status != "not_yet_supported"));
+        let category_posture = payload
+            .families
+            .iter()
+            .find(|family| family.family_id == "non_human_category_posture")
+            .expect("category posture family");
+        assert!(category_posture
+            .metrics
+            .iter()
+            .any(|metric| metric.metric_id == "category_posture_alignment:indexing_bot"));
     }
 
     #[test]
@@ -688,6 +717,7 @@ mod tests {
             snapshot.generated_at,
             1_700_000_300,
             &snapshot.window,
+            &snapshot.objectives,
             &snapshot.live_traffic,
             &snapshot.adversary_sim,
             &snapshot.non_human_traffic,
@@ -700,6 +730,7 @@ mod tests {
         );
 
         assert_eq!(payload.non_human_classification.status, "not_observed");
+        assert_eq!(payload.tuning_eligibility.status, "blocked");
         assert_eq!(payload.escalation_hint.decision, "observe_longer");
         assert!(payload
             .escalation_hint
@@ -771,6 +802,7 @@ mod tests {
             snapshot.generated_at,
             1_700_000_350,
             &snapshot.window,
+            &snapshot.objectives,
             &snapshot.live_traffic,
             &snapshot.adversary_sim,
             &snapshot.non_human_traffic,
@@ -784,6 +816,7 @@ mod tests {
 
         assert_eq!(payload.non_human_classification.status, "ready");
         assert_eq!(payload.non_human_coverage.overall_status, "partial");
+        assert_eq!(payload.tuning_eligibility.status, "blocked");
         assert_eq!(payload.escalation_hint.decision, "observe_longer");
         assert!(payload
             .escalation_hint
@@ -899,6 +932,7 @@ mod tests {
             snapshot.generated_at,
             1_700_000_375,
             &snapshot.window,
+            &snapshot.objectives,
             &snapshot.live_traffic,
             &snapshot.adversary_sim,
             &snapshot.non_human_traffic,
@@ -912,6 +946,7 @@ mod tests {
 
         assert_eq!(payload.non_human_classification.status, "ready");
         assert_eq!(payload.non_human_coverage.overall_status, "covered");
+        assert_eq!(payload.tuning_eligibility.status, "blocked");
         assert_eq!(payload.escalation_hint.decision, "observe_longer");
         assert!(payload
             .escalation_hint
@@ -921,5 +956,135 @@ mod tests {
             .escalation_hint
             .blockers
             .contains(&"replay_promotion_not_materialized".to_string()));
+    }
+
+    #[test]
+    fn category_posture_family_tracks_alignment_against_persisted_operator_postures() {
+        let store = TestStore::new();
+        for _ in 0..2 {
+            record_request_outcome(
+                &store,
+                &RenderedRequestOutcome {
+                    traffic_origin: TrafficOrigin::Live,
+                    measurement_scope: MeasurementScope::IngressPrimary,
+                    route_action_family: RouteActionFamily::PublicContent,
+                    execution_mode: ExecutionMode::Enforced,
+                    traffic_lane: Some(RequestOutcomeLane {
+                        lane: TrafficLane::VerifiedBot,
+                        exactness:
+                            crate::observability::hot_read_contract::TelemetryExactness::Exact,
+                        basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
+                    }),
+                    outcome_class: RequestOutcomeClass::Forwarded,
+                    response_kind: ResponseKind::ForwardAllow,
+                    http_status: 200,
+                    response_bytes: 120,
+                    forward_attempted: true,
+                    forward_failure_class: None,
+                    intended_action: None,
+                    policy_source: PolicySource::PolicyGraphVerifiedIdentityTranche,
+                },
+            );
+        }
+        for _ in 0..3 {
+            record_request_outcome(
+                &store,
+                &RenderedRequestOutcome {
+                    traffic_origin: TrafficOrigin::AdversarySim,
+                    measurement_scope: MeasurementScope::IngressPrimary,
+                    route_action_family: RouteActionFamily::PublicContent,
+                    execution_mode: ExecutionMode::Enforced,
+                    traffic_lane: Some(RequestOutcomeLane {
+                        lane: TrafficLane::DeclaredCrawler,
+                        exactness:
+                            crate::observability::hot_read_contract::TelemetryExactness::Exact,
+                        basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
+                    }),
+                    outcome_class: RequestOutcomeClass::ShortCircuited,
+                    response_kind: ResponseKind::NotABot,
+                    http_status: 200,
+                    response_bytes: 45,
+                    forward_attempted: false,
+                    forward_failure_class: None,
+                    intended_action: None,
+                    policy_source: PolicySource::PolicyGraphSecondTranche,
+                },
+            );
+        }
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::AdversarySim,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::PublicContent,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: Some(RequestOutcomeLane {
+                    lane: TrafficLane::DeclaredCrawler,
+                    exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
+                    basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
+                }),
+                outcome_class: RequestOutcomeClass::Forwarded,
+                response_kind: ResponseKind::ForwardAllow,
+                http_status: 200,
+                response_bytes: 120,
+                forward_attempted: true,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::CleanAllow,
+            },
+        );
+
+        let summary = summarize_with_store(&store, 24, 10);
+        let snapshot = build_operator_snapshot_payload(
+            &store,
+            "default",
+            1_700_000_450,
+            &summary,
+            &[],
+            OperatorSnapshotRecentChanges::default(),
+            1_700_000_450,
+            1_700_000_450,
+            1_700_000_450,
+        );
+
+        let payload = build_benchmark_results_from_snapshot_sections(
+            snapshot.generated_at,
+            1_700_000_450,
+            &snapshot.window,
+            &snapshot.objectives,
+            &snapshot.live_traffic,
+            &snapshot.adversary_sim,
+            &snapshot.non_human_traffic,
+            &snapshot.budget_distance,
+            &summary,
+            &defaults(),
+            &snapshot.allowed_actions,
+            &protected_replay_promotion_summary(),
+            None,
+        );
+
+        let family = payload
+            .families
+            .iter()
+            .find(|family| family.family_id == "non_human_category_posture")
+            .expect("category posture family");
+
+        let beneficial = family
+            .metrics
+            .iter()
+            .find(|metric| metric.metric_id == "category_posture_alignment:verified_beneficial_bot")
+            .expect("verified beneficial posture metric");
+        assert_eq!(beneficial.status, "inside_budget");
+        assert_eq!(beneficial.current, Some(1.0));
+        assert_eq!(beneficial.target, Some(1.0));
+
+        let indexing = family
+            .metrics
+            .iter()
+            .find(|metric| metric.metric_id == "category_posture_alignment:indexing_bot")
+            .expect("indexing posture metric");
+        assert_eq!(indexing.status, "inside_budget");
+        assert_eq!(indexing.current, Some(0.75));
+        assert_eq!(indexing.target, Some(0.5));
     }
 }

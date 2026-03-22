@@ -1,6 +1,7 @@
 pub(crate) mod benchmark_adversary_effectiveness;
 pub(crate) mod benchmark_comparison;
 pub(crate) mod benchmark_beneficial_non_human;
+pub(crate) mod benchmark_non_human_categories;
 pub(crate) mod benchmark_history;
 pub(crate) mod benchmark_results;
 pub(crate) mod benchmark_results_comparison;
