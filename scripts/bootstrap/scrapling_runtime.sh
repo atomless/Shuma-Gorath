@@ -81,6 +81,10 @@ scrapling_runtime_install() {
     local venv_python=""
     venv_python="$(scrapling_runtime_venv_python)"
 
+    if [[ -x "$venv_python" ]] && ! "$venv_python" -m pip --version >/dev/null 2>&1; then
+        rm -rf "$SCRAPLING_RUNTIME_VENV_DIR"
+    fi
+
     if [[ ! -x "$venv_python" ]]; then
         "$python_bin" -m venv "$SCRAPLING_RUNTIME_VENV_DIR"
     fi

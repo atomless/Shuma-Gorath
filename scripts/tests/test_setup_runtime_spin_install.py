@@ -182,6 +182,19 @@ SQLITE
                 if [ "$1" = "-m" ] && [ "$2" = "venv" ]; then
                   target="$3"
                   if [ ! -f "{venv_ready}" ]; then
+                    mkdir -p "$target/bin"
+                    cat > "$target/bin/python3" <<'PYTHON'
+#!/bin/sh
+if [ "$1" = "-m" ] && [ "$2" = "pip" ]; then
+  printf 'No module named pip\n' >&2
+  exit 1
+fi
+if [ "$1" = "-" ]; then
+  exit 0
+fi
+exit 0
+PYTHON
+                    chmod +x "$target/bin/python3"
                     cat >&2 <<'EOF'
 The virtual environment was not created successfully because ensurepip is not
 available.  On Debian/Ubuntu systems, you need to install the python3.11-venv
