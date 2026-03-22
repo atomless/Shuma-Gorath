@@ -26,6 +26,7 @@ use super::monitoring_api::{
     handle_admin_monitoring, handle_admin_monitoring_delta, handle_admin_monitoring_stream,
 };
 use super::operator_objectives_api::handle_admin_operator_objectives;
+use super::oversight_api::{handle_admin_oversight_history, handle_admin_oversight_reconcile};
 use super::operator_snapshot_api::handle_admin_operator_snapshot;
 use super::replay_promotion_api::handle_admin_replay_promotion;
 #[cfg(test)]
@@ -10476,6 +10477,8 @@ fn sanitize_path(path: &str) -> bool {
             | "/admin/events"
             | "/admin/operator-snapshot"
             | "/admin/operator-objectives"
+            | "/admin/oversight/reconcile"
+            | "/admin/oversight/history"
             | "/admin/replay-promotion"
             | "/admin/benchmark-suite"
             | "/admin/benchmark-results"
@@ -10835,6 +10838,7 @@ fn request_requires_admin_write(path: &str, method: &Method) -> bool {
             | "/admin/unban"
             | "/admin/config"
             | "/admin/operator-objectives"
+            | "/admin/oversight/reconcile"
             | "/admin/replay-promotion"
             | "/admin/config/bootstrap"
             | "/admin/config/validate"
@@ -17074,6 +17078,8 @@ pub fn handle_admin(req: &Request) -> Response {
             handle_admin_operator_snapshot(req, &store)
         }
         "/admin/operator-objectives" => handle_admin_operator_objectives(req, &store, site_id),
+        "/admin/oversight/reconcile" => handle_admin_oversight_reconcile(req, &store, site_id),
+        "/admin/oversight/history" => handle_admin_oversight_history(req, &store, site_id),
         "/admin/replay-promotion" => handle_admin_replay_promotion(req, &store, site_id),
         "/admin/benchmark-suite" => handle_admin_benchmark_suite(req),
         "/admin/benchmark-results" => {
@@ -17299,7 +17305,7 @@ pub fn handle_admin(req: &Request) -> Response {
                     admin: Some(crate::admin::auth::get_admin_id(req)),
                 },
             );
-            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/operator-snapshot, /admin/operator-objectives, /admin/replay-promotion, /admin/benchmark-suite, /admin/benchmark-results, /admin/monitoring, /admin/monitoring/delta, /admin/monitoring/stream, /admin/ip-bans/delta, /admin/ip-bans/stream, /admin/ip-range/suggestions, /admin/config, /admin/config/bootstrap, /admin/config/validate, /admin/config/export, /admin/adversary-sim/control, /admin/adversary-sim/status, /admin/adversary-sim/history/cleanup, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/tarpit/preview (GET non-operational progressive tarpit preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/robots/preview (POST unsaved robots preview patch), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
+            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/operator-snapshot, /admin/operator-objectives, /admin/oversight/reconcile, /admin/oversight/history, /admin/replay-promotion, /admin/benchmark-suite, /admin/benchmark-results, /admin/monitoring, /admin/monitoring/delta, /admin/monitoring/stream, /admin/ip-bans/delta, /admin/ip-bans/stream, /admin/ip-range/suggestions, /admin/config, /admin/config/bootstrap, /admin/config/validate, /admin/config/export, /admin/adversary-sim/control, /admin/adversary-sim/status, /admin/adversary-sim/history/cleanup, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/tarpit/preview (GET non-operational progressive tarpit preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/robots/preview (POST unsaved robots preview patch), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
         }
         "/admin/maze" => {
             // Return maze statistics

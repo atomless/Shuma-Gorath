@@ -4,6 +4,25 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-21)
 
+### OVR-RECON-1: Land The First Recommend-Only Reconcile Engine
+
+- [x] Completed the planned recommend-only reconcile tranche by landing a pure reconcile engine, bounded patch-policy layer, durable oversight decision ledger, and admin execution/history surfaces over `operator_snapshot_v1`, `benchmark_results_v1`, replay-promotion state, and `allowed_actions_v1`.
+- [x] Why:
+  - the first shared-host agent tweaker loop needed a truthful backend contract that can consume existing machine-first evidence and emit bounded typed proposals or explicit no-change outcomes before any periodic or post-sim harness could be trusted.
+  - the plan explicitly required stale, contradictory, or degraded evidence to fail closed and required proposal lineage to be durable enough for later Monitoring and Tuning projection.
+  - the cleanest path was to reuse the existing config-validation surface and the adversary-sim-style lease and idempotency mindset while keeping the entire tranche recommend-only.
+- [x] Evidence:
+  - `src/admin/oversight_reconcile.rs`
+  - `src/admin/oversight_patch_policy.rs`
+  - `src/admin/oversight_decision_ledger.rs`
+  - `src/admin/oversight_api.rs`
+  - `src/admin/api.rs`
+  - `docs/research/2026-03-21-ovr-recon-1-recommend-only-reconcile-post-implementation-review.md`
+  - `make test-oversight-reconcile`
+  - `make test-runtime-preflight-unit`
+  - `git diff --check`
+  - review follow-up `OVR-RECON-1-REVIEW-1` removed an unsafe fallback to default config and made reconcile fail closed as `insufficient_evidence` with `config_unavailable`, and no tranche-local shortfall remained open before `OVR-AGENT-1`.
+
 ### ADV-PROMO-1: Materialize Replay-Promotion Lineage Into Backend Contracts
 
 - [x] Completed the planned replay-promotion tranche by materializing bounded `replay_promotion_v1` state in the backend, exposing `GET/POST /admin/replay-promotion`, wiring bounded replay-promotion summaries into `operator_snapshot_v1` and `benchmark_results_v1`, and making the promotion triage lane fail closed unless backend materialization succeeds.
