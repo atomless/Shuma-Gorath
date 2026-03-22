@@ -202,6 +202,8 @@ Completed archive index:
    Post-implementation review confirming canonical non-human coverage receipts now materialize into `operator_snapshot_v1` and `benchmark_results_v1`, fail escalation closed when mapped categories are not yet covered, and stay within the snapshot size budget after trimming the first overly verbose draft.
 47. [`2026-03-22-sim-protected-1-protected-tuning-evidence-post-implementation-review.md`](2026-03-22-sim-protected-1-protected-tuning-evidence-post-implementation-review.md)
    Post-implementation review confirming replay-promotion lineage now exposes explicit advisory-versus-protected tuning eligibility, synthetic-lane ineligibility is machine-readable, and benchmark escalation refuses tuning while the evidence basis is still advisory.
+48. [`2026-03-22-ops-objectives-3-category-aware-objectives-post-implementation-review.md`](2026-03-22-ops-objectives-3-category-aware-objectives-post-implementation-review.md)
+   Post-implementation review confirming `operator_objectives_v1` now persists canonical category posture rows as the site-owned non-human utility function, records category-aware decision lineage, and keeps `operator_snapshot_v1` bounded with a modest hot-read budget increase after the full posture rows landed.
 
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 

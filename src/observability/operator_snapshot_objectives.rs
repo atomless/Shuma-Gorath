@@ -1,6 +1,10 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
+use crate::runtime::non_human_taxonomy::{
+    canonical_non_human_taxonomy, posture_scale, NonHumanCategoryId,
+};
+
 pub(crate) const OPERATOR_OBJECTIVES_SCHEMA_VERSION: &str = "operator_objectives_v1";
 
 const SITE_DEFAULT_OBJECTIVE_PROFILE_ID: &str = "site_default_v1";
@@ -38,6 +42,12 @@ pub(crate) struct OperatorObjectivesRolloutGuardrails {
     pub code_evolution_status: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct OperatorObjectiveCategoryPosture {
+    pub category_id: NonHumanCategoryId,
+    pub posture: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub(crate) struct OperatorObjectivesProfile {
     pub schema_version: String,
@@ -47,7 +57,7 @@ pub(crate) struct OperatorObjectivesProfile {
     pub source: String,
     pub window_hours: u64,
     pub compliance_semantics: String,
-    pub non_human_posture: String,
+    pub category_postures: Vec<OperatorObjectiveCategoryPosture>,
     pub budgets: Vec<OperatorObjectiveBudget>,
     pub adversary_sim_expectations: OperatorObjectiveAdversarySimExpectations,
     pub rollout_guardrails: OperatorObjectivesRolloutGuardrails,
@@ -58,7 +68,7 @@ pub(crate) struct OperatorObjectivesUpsertRequest {
     pub profile_id: String,
     pub window_hours: u64,
     pub compliance_semantics: String,
-    pub non_human_posture: String,
+    pub category_postures: Vec<OperatorObjectiveCategoryPosture>,
     pub budgets: Vec<OperatorObjectiveBudget>,
     pub adversary_sim_expectations: OperatorObjectiveAdversarySimExpectations,
     pub rollout_guardrails: OperatorObjectivesRolloutGuardrails,
@@ -79,7 +89,7 @@ pub(crate) fn default_operator_objectives(updated_at_ts: u64) -> OperatorObjecti
         source: "seeded_default_profile".to_string(),
         window_hours: DEFAULT_WINDOW_HOURS,
         compliance_semantics: "max_ratio_budget".to_string(),
-        non_human_posture: "allow_only_named_verified_identities".to_string(),
+        category_postures: default_category_postures(),
         budgets: vec![
             OperatorObjectiveBudget {
                 budget_id: "likely_human_friction".to_string(),
@@ -134,7 +144,7 @@ pub(crate) fn persisted_operator_objectives_from_request(
         source: source.to_string(),
         window_hours: request.window_hours,
         compliance_semantics: request.compliance_semantics,
-        non_human_posture: request.non_human_posture,
+        category_postures: request.category_postures,
         budgets: request.budgets,
         adversary_sim_expectations: request.adversary_sim_expectations,
         rollout_guardrails: request.rollout_guardrails,
@@ -164,17 +174,7 @@ pub(crate) fn validate_operator_objectives(
     if profile.compliance_semantics != "max_ratio_budget" {
         return Err("compliance_semantics must be max_ratio_budget".to_string());
     }
-    if !matches!(
-        profile.non_human_posture.as_str(),
-        "deny_all_non_human"
-            | "allow_only_named_verified_identities"
-            | "allow_verified_by_category"
-            | "allow_verified_with_low_cost_representation_only"
-    ) {
-        return Err(
-            "non_human_posture must be one of the documented operator posture values".to_string(),
-        );
-    }
+    validate_category_postures(profile.category_postures.as_slice())?;
     if profile.budgets.is_empty() {
         return Err("budgets must not be empty".to_string());
     }
@@ -269,12 +269,83 @@ fn objective_revision(updated_at_ts: u64) -> String {
     format!("rev-{updated_at_ts}")
 }
 
+fn default_category_postures() -> Vec<OperatorObjectiveCategoryPosture> {
+    vec![
+        category_posture(NonHumanCategoryId::IndexingBot, "cost_reduced"),
+        category_posture(NonHumanCategoryId::AiScraperBot, "blocked"),
+        category_posture(NonHumanCategoryId::AutomatedBrowser, "blocked"),
+        category_posture(NonHumanCategoryId::HttpAgent, "restricted"),
+        category_posture(NonHumanCategoryId::BrowserAgent, "restricted"),
+        category_posture(NonHumanCategoryId::AgentOnBehalfOfHuman, "tolerated"),
+        category_posture(NonHumanCategoryId::VerifiedBeneficialBot, "allowed"),
+        category_posture(NonHumanCategoryId::UnknownNonHuman, "restricted"),
+    ]
+}
+
+fn category_posture(
+    category_id: NonHumanCategoryId,
+    posture: &str,
+) -> OperatorObjectiveCategoryPosture {
+    OperatorObjectiveCategoryPosture {
+        category_id,
+        posture: posture.to_string(),
+    }
+}
+
+fn validate_category_postures(
+    rows: &[OperatorObjectiveCategoryPosture],
+) -> Result<(), String> {
+    let taxonomy = canonical_non_human_taxonomy();
+    let expected_categories: BTreeSet<_> = taxonomy.categories.iter().map(|row| row.category_id).collect();
+    if rows.len() != expected_categories.len() {
+        return Err(format!(
+            "category_postures must contain exactly {} canonical categories",
+            expected_categories.len()
+        ));
+    }
+
+    let posture_scale = posture_scale();
+    let mut seen_categories = BTreeSet::new();
+    for row in rows {
+        if !expected_categories.contains(&row.category_id) {
+            return Err(format!(
+                "category_postures contains unknown category {}",
+                row.category_id.as_str()
+            ));
+        }
+        if !seen_categories.insert(row.category_id) {
+            return Err(format!(
+                "category_postures contains duplicate category {}",
+                row.category_id.as_str()
+            ));
+        }
+        if !posture_scale.iter().any(|value| value == &row.posture) {
+            return Err(format!(
+                "category_postures {} posture must be one of the canonical posture scale values",
+                row.category_id.as_str()
+            ));
+        }
+    }
+
+    for category_id in expected_categories {
+        if !seen_categories.contains(&category_id) {
+            return Err(format!(
+                "category_postures missing canonical category {}",
+                category_id.as_str()
+            ));
+        }
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
         default_operator_objectives, persisted_operator_objectives_from_request,
         validate_operator_objectives, OperatorObjectiveAdversarySimExpectations,
-        OperatorObjectiveBudget, OperatorObjectivesRolloutGuardrails,
+        OperatorObjectiveBudget, OperatorObjectiveCategoryPosture,
+        OperatorObjectivesRolloutGuardrails,
         OperatorObjectivesUpsertRequest, OPERATOR_OBJECTIVES_SCHEMA_VERSION,
     };
 
@@ -289,9 +360,17 @@ mod tests {
         assert_eq!(profile.source, "seeded_default_profile");
         assert_eq!(profile.window_hours, 24);
         assert_eq!(profile.compliance_semantics, "max_ratio_budget");
+        assert_eq!(profile.category_postures.len(), 8);
+        assert_eq!(profile.category_postures[0].category_id.as_str(), "indexing_bot");
+        assert_eq!(profile.category_postures[0].posture, "cost_reduced");
         assert_eq!(
-            profile.non_human_posture,
-            "allow_only_named_verified_identities"
+            profile
+                .category_postures
+                .iter()
+                .find(|row| row.category_id.as_str() == "verified_beneficial_bot")
+                .expect("verified beneficial bot row")
+                .posture,
+            "allowed"
         );
         assert_eq!(profile.budgets.len(), 3);
         assert_eq!(profile.budgets[0].budget_id, "likely_human_friction");
@@ -335,7 +414,40 @@ mod tests {
             profile_id: "custom_profile".to_string(),
             window_hours: 12,
             compliance_semantics: "max_ratio_budget".to_string(),
-            non_human_posture: "allow_verified_by_category".to_string(),
+            category_postures: vec![
+                OperatorObjectiveCategoryPosture {
+                    category_id: crate::runtime::non_human_taxonomy::NonHumanCategoryId::IndexingBot,
+                    posture: "cost_reduced".to_string(),
+                },
+                OperatorObjectiveCategoryPosture {
+                    category_id: crate::runtime::non_human_taxonomy::NonHumanCategoryId::AiScraperBot,
+                    posture: "blocked".to_string(),
+                },
+                OperatorObjectiveCategoryPosture {
+                    category_id: crate::runtime::non_human_taxonomy::NonHumanCategoryId::AutomatedBrowser,
+                    posture: "blocked".to_string(),
+                },
+                OperatorObjectiveCategoryPosture {
+                    category_id: crate::runtime::non_human_taxonomy::NonHumanCategoryId::HttpAgent,
+                    posture: "restricted".to_string(),
+                },
+                OperatorObjectiveCategoryPosture {
+                    category_id: crate::runtime::non_human_taxonomy::NonHumanCategoryId::BrowserAgent,
+                    posture: "restricted".to_string(),
+                },
+                OperatorObjectiveCategoryPosture {
+                    category_id: crate::runtime::non_human_taxonomy::NonHumanCategoryId::AgentOnBehalfOfHuman,
+                    posture: "tolerated".to_string(),
+                },
+                OperatorObjectiveCategoryPosture {
+                    category_id: crate::runtime::non_human_taxonomy::NonHumanCategoryId::VerifiedBeneficialBot,
+                    posture: "allowed".to_string(),
+                },
+                OperatorObjectiveCategoryPosture {
+                    category_id: crate::runtime::non_human_taxonomy::NonHumanCategoryId::UnknownNonHuman,
+                    posture: "restricted".to_string(),
+                },
+            ],
             budgets: vec![OperatorObjectiveBudget {
                 budget_id: "likely_human_friction".to_string(),
                 metric: "likely_human_friction_rate".to_string(),
@@ -367,16 +479,17 @@ mod tests {
         assert_eq!(persisted.revision, "rev-1700000100");
         assert_eq!(persisted.updated_at_ts, 1_700_000_100);
         assert_eq!(persisted.source, "manual_admin_profile");
+        assert_eq!(persisted.category_postures.len(), 8);
     }
 
     #[test]
-    fn validate_operator_objectives_rejects_duplicate_metric_and_bad_posture() {
+    fn validate_operator_objectives_rejects_duplicate_metric_and_bad_category_posture() {
         let mut invalid = default_operator_objectives(1_700_000_000);
-        invalid.non_human_posture = "unknown".to_string();
         invalid.budgets.push(invalid.budgets[0].clone());
+        invalid.category_postures[0].posture = "unknown".to_string();
 
         let error = validate_operator_objectives(&invalid).expect_err("profile rejected");
 
-        assert!(error.contains("non_human_posture") || error.contains("duplicate metric"));
+        assert!(error.contains("category_postures") || error.contains("duplicate metric"));
     }
 }

@@ -503,6 +503,17 @@ mod tests {
         assert_eq!(payload.schema_version, OPERATOR_SNAPSHOT_SCHEMA_VERSION);
         assert_eq!(payload.objectives.profile_id, "site_default_v1");
         assert_eq!(payload.objectives.schema_version, "operator_objectives_v1");
+        assert_eq!(payload.objectives.category_postures.len(), 8);
+        assert_eq!(
+            payload
+                .objectives
+                .category_postures
+                .iter()
+                .find(|row| row.category_id.as_str() == "verified_beneficial_bot")
+                .expect("verified beneficial category posture")
+                .posture,
+            "allowed"
+        );
         assert!(payload
             .budget_distance
             .rows

@@ -328,7 +328,9 @@ Operator-objectives contract notes:
 - `profile_id` must not be empty.
 - `window_hours` must be between `1` and `720`.
 - `compliance_semantics` must be `max_ratio_budget`.
-- `non_human_posture` must be one of `deny_all_non_human`, `allow_only_named_verified_identities`, `allow_verified_by_category`, or `allow_verified_with_low_cost_representation_only`.
+- `category_postures` must contain exactly one row for every canonical non-human category in the seeded taxonomy.
+- Each `category_postures[].category_id` must be one of the canonical seeded category ids.
+- Each `category_postures[].posture` must be one of `allowed`, `tolerated`, `cost_reduced`, `restricted`, or `blocked`.
 - `budgets` must not be empty, must contain at most `8` entries, and each `budget_id` and `metric` must be unique within the document.
 - Each budget `comparator` must be `max_ratio`.
 - Each budget `target` must be between `0.0` and `1.0`.

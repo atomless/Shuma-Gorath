@@ -90,7 +90,10 @@ fn handle_admin_operator_objectives_update(
                 "manual_admin".to_string()
             },
             changed_families: vec!["operator_objectives".to_string()],
-            targets: vec!["operator_objectives.profile".to_string()],
+            targets: vec![
+                "operator_objectives.profile".to_string(),
+                "operator_objectives.category_postures".to_string(),
+            ],
             objective_revision: profile.revision.clone(),
             watch_window_seconds: operator_objectives_watch_window_seconds(&profile),
             expected_impact_summary:
@@ -121,7 +124,7 @@ fn handle_admin_operator_objectives_update(
             updated_at_ts,
             "operator_objectives_update",
             &["operator_objectives"],
-            &["operator_objectives.profile"],
+            &["operator_objectives.profile", "operator_objectives.category_postures"],
             admin_id.as_str(),
             "operator objectives updated",
         ),
@@ -236,7 +239,16 @@ mod tests {
                 "profile_id": "custom_profile",
                 "window_hours": 12,
                 "compliance_semantics": "max_ratio_budget",
-                "non_human_posture": "allow_verified_by_category",
+                "category_postures": [
+                    { "category_id": "indexing_bot", "posture": "cost_reduced" },
+                    { "category_id": "ai_scraper_bot", "posture": "blocked" },
+                    { "category_id": "automated_browser", "posture": "blocked" },
+                    { "category_id": "http_agent", "posture": "restricted" },
+                    { "category_id": "browser_agent", "posture": "restricted" },
+                    { "category_id": "agent_on_behalf_of_human", "posture": "tolerated" },
+                    { "category_id": "verified_beneficial_bot", "posture": "allowed" },
+                    { "category_id": "unknown_non_human", "posture": "restricted" }
+                ],
                 "budgets": [{
                     "budget_id": "likely_human_friction",
                     "metric": "likely_human_friction_rate",
@@ -272,6 +284,14 @@ mod tests {
             .get("decision_id")
             .and_then(|value| value.as_str())
             .is_some());
+        assert_eq!(
+            payload
+                .get("objectives")
+                .and_then(|value| value.get("category_postures"))
+                .and_then(|value| value.as_array())
+                .map(|rows| rows.len()),
+            Some(8)
+        );
         assert_eq!(
             payload
                 .get("objectives")

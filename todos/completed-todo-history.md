@@ -4,6 +4,28 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-22)
 
+### OPS-OBJECTIVES-3: Category-Aware Non-Human Operator Objectives
+
+- [x] Extended `operator_objectives_v1` so operators now declare posture per canonical non-human category on the bounded scale `allowed`, `tolerated`, `cost_reduced`, `restricted`, and `blocked`, and so the controller has a truthful category-aware utility function instead of a single coarse non-human stance.
+- [x] Why:
+  - `SIM-PROTECTED-1` completed the evidence gate, but the closed loop still lacked a site-owned per-category objective contract for later benchmark judgment and bounded apply decisions.
+  - the posture rows needed to remain separate from the canonical taxonomy so the runtime taxonomy can keep owning category meaning and metadata while the operator objective contract owns site policy intent.
+  - making category posture first-class in the persisted objective document prevents later benchmark and tuning work from inventing a second policy surface or inferring intent from prose-only defaults.
+- [x] Evidence:
+  - `src/observability/operator_snapshot_objectives.rs`
+  - `src/observability/operator_snapshot.rs`
+  - `src/observability/hot_read_contract.rs`
+  - `src/observability/hot_read_documents.rs`
+  - `src/admin/operator_objectives_api.rs`
+  - `Makefile`
+  - `docs/api.md`
+  - `docs/configuration.md`
+  - `docs/testing.md`
+  - `docs/research/2026-03-22-ops-objectives-3-category-aware-objectives-post-implementation-review.md`
+  - `make test-operator-objectives-category-contract`
+  - `make test-operator-snapshot-foundation`
+  - `git diff --check`
+
 ### SIM-PROTECTED-1: Protected Tuning Evidence Eligibility And Synthetic Exclusion
 
 - [x] Added the first machine-first protected-evidence contract so replay promotion now distinguishes `not_materialized`, `advisory_only`, and `protected` evidence states, benchmark escalation fails closed while evidence is only advisory, and `synthetic_traffic` is explicitly excluded from tuning-grade evidence.

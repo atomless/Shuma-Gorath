@@ -88,9 +88,6 @@ Current stance:
 - The actively evolving near-term layer should be fingerprinting and categorization quality inside that taxonomy; taxonomy expansion is only a later contingency if important non-human traffic persistently falls outside the existing categories.
 - The next bridge to a genuine LLM-in-the-loop system is not the full later `SIM-LLM-1` runtime actor; it is a bounded category-fulfillment LLM tranche that sits between the taxonomy/classifier work and the first closed config loop, with the later LLM diagnosis harness and code loop still downstream of `OVR-APPLY-1`.
 
-### OPS-OBJECTIVES-3: Category-Aware Non-Human Operator Objectives
-- Extend `operator_objectives_v1` so operators can declare `allowed`, `tolerated`, `cost_reduced`, `restricted`, and `blocked` posture per non-human category, and so the controller has an explicit utility function instead of a category-blind “reduce bot cost” objective.
-
 ### OPS-BENCH-3: Protected-Lane Category-Aware Benchmark Eligibility
 - Extend `benchmark_results_v1` so protected-lane eligibility, category coverage, and category-aware improvement or regression are explicit controller inputs and hard blockers for later autonomous apply.
 
