@@ -1,0 +1,216 @@
+use serde::{Deserialize, Serialize};
+
+use crate::config::FrontierSummary;
+
+use super::adversary_sim::{ControlState, RuntimeLane};
+
+pub(crate) const LLM_FULFILLMENT_PLAN_SCHEMA_VERSION: &str =
+    "adversary-sim-llm-fulfillment-plan.v1";
+pub(crate) const FRONTIER_ACTION_CONTRACT_ID: &str = "frontier_action_contract.v1";
+pub(crate) const CONTAINER_RUNTIME_PROFILE_ID: &str = "container_runtime_profile.v1";
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum LlmFulfillmentMode {
+    BrowserMode,
+    RequestMode,
+}
+
+impl LlmFulfillmentMode {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::BrowserMode => "browser_mode",
+            Self::RequestMode => "request_mode",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum LlmBackendKind {
+    FrontierReference,
+    LocalCandidate,
+}
+
+impl LlmBackendKind {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::FrontierReference => "frontier_reference",
+            Self::LocalCandidate => "local_candidate",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct LlmCapabilityEnvelope {
+    pub allowed_tools: Vec<String>,
+    pub browser_automation_allowed: bool,
+    pub direct_request_emission_allowed: bool,
+    pub max_actions: u64,
+    pub max_time_budget_seconds: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct LlmFulfillmentPlan {
+    pub schema_version: String,
+    pub run_id: String,
+    pub tick_id: String,
+    pub lane: RuntimeLane,
+    pub fulfillment_mode: String,
+    pub backend_kind: String,
+    pub backend_state: String,
+    pub backend_id: String,
+    pub supported_backend_kinds: Vec<String>,
+    pub category_targets: Vec<String>,
+    pub frontier_action_contract_id: String,
+    pub container_runtime_profile_id: String,
+    pub capability_envelope: LlmCapabilityEnvelope,
+}
+
+pub(crate) fn next_llm_fulfillment_plan(
+    now: u64,
+    state: &ControlState,
+    frontier: &FrontierSummary,
+) -> LlmFulfillmentPlan {
+    let run_id = state
+        .run_id
+        .clone()
+        .or_else(|| state.last_run_id.clone())
+        .unwrap_or_else(|| format!("simrun-runtime-{now}"));
+    let mode = llm_fulfillment_mode_for_tick(state.generated_tick_count);
+    let (backend_state, backend_id) = frontier_backend_state(frontier);
+
+    LlmFulfillmentPlan {
+        schema_version: LLM_FULFILLMENT_PLAN_SCHEMA_VERSION.to_string(),
+        run_id,
+        tick_id: format!("llm-fit-tick-{}-{:016x}", now, rand::random::<u64>()),
+        lane: RuntimeLane::BotRedTeam,
+        fulfillment_mode: mode.as_str().to_string(),
+        backend_kind: LlmBackendKind::FrontierReference.as_str().to_string(),
+        backend_state,
+        backend_id,
+        supported_backend_kinds: vec![
+            LlmBackendKind::FrontierReference.as_str().to_string(),
+            LlmBackendKind::LocalCandidate.as_str().to_string(),
+        ],
+        category_targets: category_targets_for_mode(mode),
+        frontier_action_contract_id: FRONTIER_ACTION_CONTRACT_ID.to_string(),
+        container_runtime_profile_id: CONTAINER_RUNTIME_PROFILE_ID.to_string(),
+        capability_envelope: capability_envelope_for_mode(mode),
+    }
+}
+
+pub(crate) fn llm_fulfillment_mode_for_tick(generated_tick_count: u64) -> LlmFulfillmentMode {
+    if generated_tick_count % 2 == 0 {
+        LlmFulfillmentMode::BrowserMode
+    } else {
+        LlmFulfillmentMode::RequestMode
+    }
+}
+
+fn category_targets_for_mode(mode: LlmFulfillmentMode) -> Vec<String> {
+    match mode {
+        LlmFulfillmentMode::BrowserMode => vec![
+            "automated_browser".to_string(),
+            "browser_agent".to_string(),
+            "agent_on_behalf_of_human".to_string(),
+        ],
+        LlmFulfillmentMode::RequestMode => vec![
+            "http_agent".to_string(),
+            "ai_scraper_bot".to_string(),
+        ],
+    }
+}
+
+fn capability_envelope_for_mode(mode: LlmFulfillmentMode) -> LlmCapabilityEnvelope {
+    match mode {
+        LlmFulfillmentMode::BrowserMode => LlmCapabilityEnvelope {
+            allowed_tools: vec![
+                "browser_navigate".to_string(),
+                "browser_snapshot".to_string(),
+                "browser_click".to_string(),
+            ],
+            browser_automation_allowed: true,
+            direct_request_emission_allowed: false,
+            max_actions: 8,
+            max_time_budget_seconds: 90,
+        },
+        LlmFulfillmentMode::RequestMode => LlmCapabilityEnvelope {
+            allowed_tools: vec!["http_get".to_string()],
+            browser_automation_allowed: false,
+            direct_request_emission_allowed: true,
+            max_actions: 24,
+            max_time_budget_seconds: 120,
+        },
+    }
+}
+
+fn frontier_backend_state(frontier: &FrontierSummary) -> (String, String) {
+    if frontier.provider_count == 0 {
+        return (
+            "unavailable".to_string(),
+            "frontier_reference:unconfigured".to_string(),
+        );
+    }
+    let backend_state = if frontier.reduced_diversity_warning {
+        "degraded"
+    } else {
+        "configured"
+    };
+    (
+        backend_state.to_string(),
+        format!("frontier_reference:{}", frontier.mode),
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        llm_fulfillment_mode_for_tick, next_llm_fulfillment_plan, LlmFulfillmentMode,
+    };
+    use crate::admin::adversary_sim::ControlState;
+    use crate::config::frontier_summary;
+
+    #[test]
+    fn llm_fulfillment_modes_alternate_between_browser_and_request_contracts() {
+        assert_eq!(llm_fulfillment_mode_for_tick(0), LlmFulfillmentMode::BrowserMode);
+        assert_eq!(llm_fulfillment_mode_for_tick(1), LlmFulfillmentMode::RequestMode);
+    }
+
+    #[test]
+    fn llm_fulfillment_plan_uses_frontier_reference_when_provider_keys_exist() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_FRONTIER_OPENAI_API_KEY", "test-key");
+        std::env::set_var("SHUMA_FRONTIER_OPENAI_MODEL", "gpt-5-mini");
+        let frontier = frontier_summary();
+        let plan = next_llm_fulfillment_plan(1_700_000_000, &ControlState::default(), &frontier);
+
+        assert_eq!(plan.backend_kind, "frontier_reference");
+        assert_eq!(plan.backend_state, "degraded");
+        assert_eq!(plan.fulfillment_mode, "browser_mode");
+        assert!(plan
+            .supported_backend_kinds
+            .contains(&"local_candidate".to_string()));
+        assert!(plan
+            .capability_envelope
+            .allowed_tools
+            .contains(&"browser_navigate".to_string()));
+
+        std::env::remove_var("SHUMA_FRONTIER_OPENAI_API_KEY");
+        std::env::remove_var("SHUMA_FRONTIER_OPENAI_MODEL");
+    }
+
+    #[test]
+    fn llm_fulfillment_plan_reports_unavailable_frontier_backend_without_provider_keys() {
+        let frontier = frontier_summary();
+        let mut state = ControlState::default();
+        state.generated_tick_count = 1;
+        let plan = next_llm_fulfillment_plan(1_700_000_000, &state, &frontier);
+
+        assert_eq!(plan.backend_kind, "frontier_reference");
+        assert_eq!(plan.backend_state, "unavailable");
+        assert_eq!(plan.fulfillment_mode, "request_mode");
+        assert_eq!(plan.category_targets, vec!["http_agent", "ai_scraper_bot"]);
+        assert_eq!(plan.capability_envelope.allowed_tools, vec!["http_get"]);
+    }
+}

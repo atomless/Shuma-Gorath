@@ -74,6 +74,29 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
             body,
         )
 
+    def test_llm_fit_target_uses_bounded_lane_contract_selectors(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-adversarial-llm-fit:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn(
+            "adversary_sim_internal_beat_returns_llm_fulfillment_plan_for_bot_red_team_lane",
+            body,
+        )
+        self.assertIn(
+            "llm_fulfillment_plan_uses_frontier_reference_when_provider_keys_exist",
+            body,
+        )
+        self.assertIn(
+            "llm_fulfillment_plan_reports_unavailable_frontier_backend_without_provider_keys",
+            body,
+        )
+        self.assertIn("scripts/tests/test_llm_fulfillment.py", body)
+
 
 if __name__ == "__main__":
     unittest.main()

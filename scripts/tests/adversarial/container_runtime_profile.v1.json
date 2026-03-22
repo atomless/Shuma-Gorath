@@ -33,5 +33,20 @@
     "/proc:/",
     "/sys:/"
   ],
-  "required_user_mode": "non_root_image_user"
+  "required_user_mode": "non_root_image_user",
+  "llm_fulfillment_runtime": {
+    "schema_version": "adversary-sim-llm-runtime-profile.v1",
+    "browser_mode": {
+      "browser_automation_allowed": true,
+      "direct_request_emission_allowed": false,
+      "max_actions": 8,
+      "max_time_budget_seconds": 90
+    },
+    "request_mode": {
+      "browser_automation_allowed": false,
+      "direct_request_emission_allowed": true,
+      "max_actions": 24,
+      "max_time_budget_seconds": 120
+    }
+  }
 }

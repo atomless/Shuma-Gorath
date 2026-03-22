@@ -58,6 +58,8 @@ Completed archive index:
    Post-implementation review confirming the adversary-sim control plane is now structurally decomposed across state, corpus, diagnostics, worker-plan, and lane-runtime modules while preserving the live runtime surface required for the later agent-first loop.
 13. [`2026-03-21-adv-run-arch-1-adversarial-runner-structural-decomposition-post-implementation-review.md`](2026-03-21-adv-run-arch-1-adversarial-runner-structural-decomposition-post-implementation-review.md)
    Post-implementation review confirming the adversarial runner now delegates contract loading, state carriers, governance, discovery scoring, evidence shaping, and realism/profile coordination to focused helper modules, and recording the immediate attack-plan extraction follow-up completed during closeout review.
+14. [`2026-03-22-sim-llm-fit-1-bounded-llm-fulfillment-post-implementation-review.md`](2026-03-22-sim-llm-fit-1-bounded-llm-fulfillment-post-implementation-review.md)
+   Post-implementation review confirming the first bounded LLM category-fulfillment contract now exists across the shared-host adversary-sim beat payload and the adversarial Python tooling, with truthful degraded versus unavailable frontier semantics and a focused `make test-adversarial-llm-fit` gate.
 
 ## 🐙 Gateway Deployment Research
 

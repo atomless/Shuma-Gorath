@@ -8,6 +8,12 @@ from typing import Any, Dict
 
 LANE_CONTRACT_PATH = Path("scripts/tests/adversarial/lane_contract.v1.json")
 SIM_TAG_CONTRACT_PATH = Path("scripts/tests/adversarial/sim_tag_contract.v1.json")
+FRONTIER_ACTION_CONTRACT_PATH = Path(
+    "scripts/tests/adversarial/frontier_action_contract.v1.json"
+)
+CONTAINER_RUNTIME_PROFILE_PATH = Path(
+    "scripts/tests/adversarial/container_runtime_profile.v1.json"
+)
 DETERMINISTIC_ATTACK_CORPUS_PATH = Path(
     "scripts/tests/adversarial/deterministic_attack_corpus.v1.json"
 )
@@ -285,4 +291,3 @@ DETERMINISTIC_DRIVER_PATH_HINTS = {
     str(driver_name): str(driver_payload.get("path_hint") or "/").strip() or "/"
     for driver_name, driver_payload in DETERMINISTIC_DRIVER_DEFINITIONS.items()
 }
-

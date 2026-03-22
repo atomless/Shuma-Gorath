@@ -88,9 +88,6 @@ Current stance:
 - The actively evolving near-term layer should be fingerprinting and categorization quality inside that taxonomy; taxonomy expansion is only a later contingency if important non-human traffic persistently falls outside the existing categories.
 - The next bridge to a genuine LLM-in-the-loop system is not the full later `SIM-LLM-1` runtime actor; it is a bounded category-fulfillment LLM tranche that sits between the taxonomy/classifier work and the first closed config loop, with the later LLM diagnosis harness and code loop still downstream of `OVR-APPLY-1`.
 
-### SIM-LLM-FIT-1: Bounded LLM Category-Fulfillment Modes
-- Implement the minimum containerized LLM-backed browser or request modes needed to fulfill the non-human categories Scrapling cannot credibly cover, behind a pluggable model-backend contract with frontier-backed reference execution for high-capability categories and optional later local-model backends only if evals prove parity.
-
 ### SIM-FULFILL-1: Category-To-Lane Fulfillment Matrix
 - Implement the mapping from the canonical category set into Scrapling modes and frontier or containerized LLM modes, with explicit gaps where no current lane can yet fulfill a category credibly.
 

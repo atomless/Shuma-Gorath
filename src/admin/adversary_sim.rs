@@ -8,6 +8,7 @@ pub use super::adversary_sim_diagnostics::{
 pub(crate) use super::adversary_sim_lane_runtime::{
     apply_scrapling_worker_result, run_autonomous_supervisor_ticks,
 };
+pub(crate) use super::adversary_sim_llm_lane::next_llm_fulfillment_plan;
 pub use super::adversary_sim_worker_plan::{
     AutonomousHeartbeatTickSummary, GenerationTickResult, ScraplingWorkerPlan,
     ScraplingWorkerResult,

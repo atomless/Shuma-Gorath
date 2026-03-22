@@ -97,5 +97,37 @@
       },
       "label": "search"
     }
-  ]
+  ],
+  "llm_fulfillment": {
+    "schema_version": "adversary-sim-llm-fulfillment-contract.v1",
+    "backend_kinds": [
+      "frontier_reference",
+      "local_candidate"
+    ],
+    "modes": {
+      "browser_mode": {
+        "reference_backend_kind": "frontier_reference",
+        "allowed_tools": [
+          "browser_navigate",
+          "browser_snapshot",
+          "browser_click"
+        ],
+        "category_targets": [
+          "automated_browser",
+          "browser_agent",
+          "agent_on_behalf_of_human"
+        ]
+      },
+      "request_mode": {
+        "reference_backend_kind": "frontier_reference",
+        "allowed_tools": [
+          "http_get"
+        ],
+        "category_targets": [
+          "http_agent",
+          "ai_scraper_bot"
+        ]
+      }
+    }
+  }
 }

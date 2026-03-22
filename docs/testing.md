@@ -33,6 +33,7 @@ make test-adversarial-repeatability # Deterministic drift gate across smoke/abus
 make test-adversarial-promote-candidates # Frontier finding triage + deterministic replay/promotion checks
 make test-adversarial-container-isolation # Validate black-box container isolation contract (Docker required)
 make test-adversarial-container-blackbox # Run containerized black-box adversary worker (Docker required)
+make test-adversarial-llm-fit # Focused bounded LLM fulfillment-plan contract gate
 make test-adversarial-frontier-attempt # Protected-lane frontier provider attempt probe (advisory/non-blocking)
 make test-frontier-governance # Frontier artifact guard (forbidden keys + secret leak checks)
 make test-frontier-unavailability-policy # Frontier degraded-threshold policy tracker + actionability artifact
@@ -193,6 +194,7 @@ Available profiles:
 - `make test-adversary-sim-scrapling-worker` - focused real Scrapling lane gate covering the internal beat/result contract, bounded worker execution, real signed requests against a local hosted-scope fixture, and host-side supervisor source-contract wiring
 - `make test-adversarial-sim-tag-contract` - signed simulation-tag contract parity check across lane contract, runner, and container worker
 - `make test-adversarial-coverage-contract` - canonical `full_coverage` contract parity check across SIM2 plan rows, manifests, and runner enforcement
+- `make test-adversarial-llm-fit` - bounded LLM browser/request fulfillment-plan contract proof across runtime beat payloads and frontier/container contract artifacts
 - `make test-adversarial-live` - repeated live traffic generator for operator monitoring drills
 - `make test-adversarial-repeatability` - deterministic replay consistency gate across `fast_smoke`, `abuse_regression`, and `full_coverage`
 - `make test-adversarial-promote-candidates` - frontier finding normalization + deterministic replay triage + promotion lineage report

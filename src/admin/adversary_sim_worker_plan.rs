@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 use super::adversary_sim::{RuntimeLane, WorkerFailureClass};
+use super::adversary_sim_llm_lane::LlmFulfillmentPlan;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct ScraplingCrawlStats {
@@ -71,4 +72,5 @@ pub struct AutonomousHeartbeatTickSummary {
     pub last_response_status: Option<u16>,
     pub worker_pending: bool,
     pub worker_plan: Option<ScraplingWorkerPlan>,
+    pub llm_fulfillment_plan: Option<LlmFulfillmentPlan>,
 }

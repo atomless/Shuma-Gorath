@@ -15,10 +15,11 @@ use spin_sdk::http::{Method, Request};
 use crate::challenge::KeyValueStore;
 
 use super::adversary_sim::{
-    AutonomousHeartbeatTickSummary, ControlPhase, ControlState, GenerationTickResult, RuntimeLane,
-    ScraplingWorkerPlan, ScraplingWorkerResult, WorkerFailureClass, SCRAPLING_MAX_BYTES_PER_TICK,
-    SCRAPLING_MAX_DEPTH_PER_TICK, SCRAPLING_MAX_MS_PER_TICK, SCRAPLING_MAX_REQUESTS_PER_TICK,
-    SCRAPLING_SIM_PROFILE, SCRAPLING_WORKER_PLAN_SCHEMA_VERSION,
+    next_llm_fulfillment_plan, AutonomousHeartbeatTickSummary, ControlPhase, ControlState,
+    GenerationTickResult, RuntimeLane, ScraplingWorkerPlan, ScraplingWorkerResult,
+    WorkerFailureClass, SCRAPLING_MAX_BYTES_PER_TICK, SCRAPLING_MAX_DEPTH_PER_TICK,
+    SCRAPLING_MAX_MS_PER_TICK, SCRAPLING_MAX_REQUESTS_PER_TICK, SCRAPLING_SIM_PROFILE,
+    SCRAPLING_WORKER_PLAN_SCHEMA_VERSION,
 };
 use super::adversary_sim_corpus::deterministic_runtime_profile;
 use super::adversary_sim_state::{
@@ -502,11 +503,19 @@ pub(crate) fn run_autonomous_supervisor_ticks(
         }
         Some(RuntimeLane::BotRedTeam) => {
             record_lane_attempt(state, RuntimeLane::BotRedTeam);
+            let frontier = crate::config::frontier_summary();
+            let plan = next_llm_fulfillment_plan(now, state, &frontier);
             let counters = state.lane_diagnostics.lane_mut(RuntimeLane::BotRedTeam);
-            counters.beat_failures = counters.beat_failures.saturating_add(1);
-            counters.last_error = Some("bot_red_team_unimplemented".to_string());
+            counters.last_error = if plan.backend_state == "unavailable" {
+                Some("llm_backend_unavailable".to_string())
+            } else if plan.backend_state == "degraded" {
+                Some("llm_backend_degraded".to_string())
+            } else {
+                None
+            };
             state.last_generation_error = counters.last_error.clone();
             state.updated_at = now;
+            summary.llm_fulfillment_plan = Some(plan);
             return summary;
         }
         None => return summary,

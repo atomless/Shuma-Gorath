@@ -5087,6 +5087,96 @@ mod admin_config_tests {
     }
 
     #[test]
+    fn adversary_sim_internal_beat_returns_llm_fulfillment_plan_for_bot_red_team_lane() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "shared-server");
+        std::env::set_var("SHUMA_API_KEY", "sim-llm-fit-beat-test-key");
+        std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+        std::env::set_var("SHUMA_FRONTIER_OPENAI_API_KEY", "frontier-key");
+        std::env::set_var("SHUMA_FRONTIER_OPENAI_MODEL", "gpt-5-mini");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+
+        let on_resp = handle_admin_adversary_sim_control(
+            &make_control_request(true, "llm-fit-beat-start"),
+            &store,
+            "default",
+            &auth,
+        );
+        assert_eq!(*on_resp.status(), 200u16);
+
+        let lane_resp = handle_admin_adversary_sim_control(
+            &make_control_request_json(
+                br#"{"enabled":true,"lane":"bot_red_team"}"#,
+                "llm-fit-beat-lane",
+            ),
+            &store,
+            "default",
+            &auth,
+        );
+        assert_eq!(*lane_resp.status(), 200u16);
+
+        let beat_req = make_internal_beat_request("sim-llm-fit-beat-test-key");
+        let beat_resp = handle_internal_adversary_sim_beat(&beat_req, &store, "default");
+        assert_eq!(*beat_resp.status(), 200u16);
+        let beat_json: serde_json::Value = serde_json::from_slice(beat_resp.body()).unwrap();
+        assert_eq!(
+            beat_json
+                .get("dispatch_mode")
+                .and_then(|value| value.as_str()),
+            Some("llm_fulfillment_plan")
+        );
+        assert_eq!(
+            beat_json
+                .get("llm_fulfillment_plan")
+                .and_then(|value| value.get("lane"))
+                .and_then(|value| value.as_str()),
+            Some("bot_red_team")
+        );
+        assert_eq!(
+            beat_json
+                .get("llm_fulfillment_plan")
+                .and_then(|value| value.get("fulfillment_mode"))
+                .and_then(|value| value.as_str()),
+            Some("browser_mode")
+        );
+        assert_eq!(
+            beat_json
+                .get("llm_fulfillment_plan")
+                .and_then(|value| value.get("backend_kind"))
+                .and_then(|value| value.as_str()),
+            Some("frontier_reference")
+        );
+        assert_eq!(
+            beat_json
+                .get("llm_fulfillment_plan")
+                .and_then(|value| value.get("backend_state"))
+                .and_then(|value| value.as_str()),
+            Some("degraded")
+        );
+        assert_eq!(
+            beat_json
+                .get("status")
+                .and_then(|value| value.get("active_lane"))
+                .and_then(|value| value.as_str()),
+            Some("bot_red_team")
+        );
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+        std::env::remove_var("SHUMA_API_KEY");
+        std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
+        std::env::remove_var("SHUMA_FRONTIER_OPENAI_API_KEY");
+        std::env::remove_var("SHUMA_FRONTIER_OPENAI_MODEL");
+    }
+
+    #[test]
     fn adversary_sim_worker_result_updates_scrapling_generation_and_lane_diagnostics() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");

@@ -317,6 +317,8 @@ pub(crate) fn handle_internal_adversary_sim_beat(
     let status = adversary_sim_status_payload(store, site_id, &cfg, &state, now);
     let dispatch_mode = if summary.worker_plan.is_some() {
         "scrapling_worker"
+    } else if summary.llm_fulfillment_plan.is_some() {
+        "llm_fulfillment_plan"
     } else if summary.worker_pending {
         "scrapling_worker_pending"
     } else {
@@ -331,6 +333,7 @@ pub(crate) fn handle_internal_adversary_sim_beat(
         "failed_requests": summary.failed_requests,
         "last_response_status": summary.last_response_status,
         "worker_plan": summary.worker_plan,
+        "llm_fulfillment_plan": summary.llm_fulfillment_plan,
         "phase": state.phase.as_str(),
         "generation_active": generation_active,
         "should_exit": !generation_active,

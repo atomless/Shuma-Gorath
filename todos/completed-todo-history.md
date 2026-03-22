@@ -4,6 +4,32 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-22)
 
+### SIM-LLM-FIT-1: Bounded LLM Category-Fulfillment Modes
+
+- [x] Added the first bounded LLM category-fulfillment contract for the shared-host `bot_red_team` lane so the runtime can emit typed browser or request fulfillment plans, with explicit backend kind and backend state, before the later full LLM runtime actor is allowed to exist.
+- [x] Why:
+  - the closed-loop sequence needed a concrete LLM fulfillment contract before lane-to-category coverage and protected-evidence work could proceed without vague “future actor” assumptions.
+  - the bounded contract had to stay capability-safe: planning-only, browser-vs-request explicit, frontier-backed as the current reference path, and honest about degraded single-provider diversity instead of claiming full readiness too early.
+  - putting the same contract into the Python adversarial tooling and the runtime beat payload now gives later fulfillment and coverage tranches one shared source of truth for mode envelopes and backend states.
+- [x] Evidence:
+  - `src/admin/adversary_sim_llm_lane.rs`
+  - `src/admin/adversary_sim_lane_runtime.rs`
+  - `src/admin/adversary_sim_worker_plan.rs`
+  - `src/admin/adversary_sim_api.rs`
+  - `src/admin/api.rs`
+  - `scripts/tests/adversarial_runner/llm_fulfillment.py`
+  - `scripts/tests/adversarial_runner/contracts.py`
+  - `scripts/tests/adversarial/frontier_action_contract.v1.json`
+  - `scripts/tests/adversarial/container_runtime_profile.v1.json`
+  - `Makefile`
+  - `docs/testing.md`
+  - `docs/adversarial-operator-guide.md`
+  - `docs/research/2026-03-22-sim-llm-fit-1-bounded-llm-fulfillment-post-implementation-review.md`
+  - `make test-adversarial-llm-fit`
+  - `make test-adversarial-runner-architecture`
+  - `make test-adversary-sim-runtime-surface`
+  - `git diff --check`
+
 ### TRAFFIC-TAX-2: Traffic Category Confidence And Evidence Receipts
 
 - [x] Added bounded non-human category receipts and readiness gating so `operator_snapshot_v1` now exposes the shared decision chain from fingerprinting to categorization to cumulative abuse score to posture severity, along with live and adversary-sim category receipts, and so `benchmark_results_v1` fails closed to `observe_longer` when category evidence is not yet strong enough for tuning.
