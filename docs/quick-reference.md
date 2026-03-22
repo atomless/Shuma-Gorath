@@ -51,6 +51,7 @@ make remote-start   # Start the active ssh_systemd remote service
 make remote-stop    # Stop the active ssh_systemd remote service
 make remote-open-dashboard # Open the hosted dashboard for the active ssh_systemd remote
 make test-remote-edge-signal-smoke # Live shared-host trusted-edge proof (active ssh_systemd remote)
+make test-live-feedback-loop-remote # Live shared-host feedback-loop proof (active ssh_systemd remote)
 make test-fermyon-edge-signal-smoke # Live Fermyon/Akamai trusted-edge proof (current deploy receipt)
 make telemetry-shared-host-evidence # Capture live telemetry storage/query evidence for the active ssh_systemd remote
 make telemetry-fermyon-edge-evidence # Capture live telemetry hot-read evidence for the current Fermyon edge deploy
@@ -101,6 +102,7 @@ make test-adversarial-live # In terminal 2 (Ctrl+C to stop)
 
 # Live trusted-edge signal proof
 make test-remote-edge-signal-smoke # Shared-host ssh-loopback proof for fingerprint additive/authoritative + trusted GEO challenge/maze/block
+make test-live-feedback-loop-remote # Shared-host ssh-loopback proof for wrapper + oversight status + periodic/post-sim agent linkage
 make test-fermyon-edge-signal-smoke # Fermyon/Akamai proof using the current deploy receipt and real edge identity semantics
 
 # Dashboard e2e smoke tests only (Spin environment required)

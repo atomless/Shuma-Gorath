@@ -15,6 +15,7 @@ make test-gateway-origin-bypass-probe # Optional active direct-origin bypass pro
 make test-gateway-profile-shared-server # Shared-server gateway contract + forwarding checks
 make test-gateway-profile-edge # Edge/Fermyon gateway contract + signed-header origin-auth checks
 make test-remote-edge-signal-smoke # Live shared-host trusted-edge proof (ssh-managed remote)
+make test-live-feedback-loop-remote # Live shared-host feedback-loop proof (active ssh-managed remote)
 make test-fermyon-edge-signal-smoke # Live Fermyon/Akamai trusted-edge proof (current deploy receipt)
 make smoke-gateway-mode # Fast gateway smoke (allow forward, enforcement-local, fail-closed outage)
 make test-adversarial-manifest # Validate adversarial scenario manifest + fixture references
@@ -362,6 +363,12 @@ Simulation telemetry read policy:
 - additive `/fingerprint-report` ingestion,
 - authoritative `/fingerprint-report` ban behavior,
 - trusted GEO country-header routing for challenge, maze, and block.
+`test-live-feedback-loop-remote` is the live ssh-managed-host proof for the first shared-host recommend-only feedback loop. It runs against the active normalized remote, uses public admin endpoints plus SSH loopback to the internal supervisor route, and proves:
+- the running shared-host service is launched through `scripts/run_with_oversight_supervisor.sh`,
+- `GET /admin/operator-snapshot` and `GET /admin/oversight/agent/status` are available on the deployed target,
+- one bounded internal periodic agent trigger executes and becomes visible in the public status projection,
+- one bounded adversary-sim run completes with generated traffic,
+- and a linked `post_adversary_sim` agent run becomes visible in the public status and history surfaces.
 `test-fermyon-edge-signal-smoke` is the live Fermyon/Akamai proof for the same currently implemented surfaces. It runs against the current Fermyon deploy receipt using real edge client identity semantics rather than synthetic `X-Forwarded-For`, and proves:
 - additive `/fingerprint-report` ingestion,
 - trusted GEO country-header routing for challenge, maze, and block,

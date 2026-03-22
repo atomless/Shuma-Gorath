@@ -65,8 +65,9 @@ That means operators should keep one standard receipt whenever they validate or 
    - `guardrails.generation_requires_explicit_enable=true`.
 2. enable the lane once through `POST /admin/adversary-sim/control` or the dashboard `Red Team` toggle and keep the returned ON `operation_id`.
 3. run `make test-adversary-sim-runtime-surface` against the running target and keep the evidence that it proved both deterministic defense-surface coverage and live-summary no-impact.
-4. disable the lane through the same control endpoint and keep the OFF `operation_id` as the production kill-switch receipt.
-5. use `POST /admin/adversary-sim/history/cleanup` only when retained telemetry reset is intentionally required; normal OFF does not imply cleanup.
+4. when the shared-host recommend-only feedback loop is part of the deployed target, run `make test-live-feedback-loop-remote` and keep the evidence that it proved the host is running through `scripts/run_with_oversight_supervisor.sh`, that public oversight status is readable, and that completed adversary-sim traffic produced a linked post-sim agent run.
+5. disable the lane through the same control endpoint and keep the OFF `operation_id` as the production kill-switch receipt.
+6. use `POST /admin/adversary-sim/history/cleanup` only when retained telemetry reset is intentionally required; normal OFF does not imply cleanup.
 
 ## Shared-Host Scrapling Operator Journey
 
