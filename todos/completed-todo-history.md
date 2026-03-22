@@ -4,6 +4,20 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-22)
 
+### DSH-REDTEAM-1: Remove The Red Team No-Frontier Continue Warning
+
+- [x] Removed the redundant Red Team pane warning shown after an operator explicitly confirms continuing an adversary-sim run without frontier provider calls, and added a focused browser smoke that proves the continue path starts the run without re-showing that warning.
+- [x] Why:
+  - the warning added noise after an explicit operator confirmation and did not provide any new information beyond the confirmation dialog itself.
+  - the cleanest fix was to keep the existing confirm-before-start safety gate intact, but clear the pane notice on the confirmed continue path instead of setting a second warning banner.
+  - this path needed rendered browser proof because the regression is visible in the dashboard tab, not just in route-state code.
+- [x] Evidence:
+  - `dashboard/src/routes/+page.svelte`
+  - `e2e/dashboard.smoke.spec.js`
+  - `Makefile`
+  - `make test-dashboard-e2e-red-team-frontier-warning`
+  - `git diff --check`
+
 ### OVR-LIVE-1: Prove The First Shared-Host Feedback Loop On Live Linode
 
 - [x] Completed the planned live-Linode proof tranche by adding one truthful Make-backed live verification gate, fixing the remote deploy/runtime proofing gaps that surfaced under real execution, deploying current `HEAD` to the active Linode receipt, and capturing durable live evidence for both periodic and post-sim feedback-loop execution.

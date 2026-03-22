@@ -813,11 +813,7 @@
         );
         return;
       }
-      setPaneNotice(
-        'red-team',
-        'Continuing without frontier provider calls for this run.',
-        'warning'
-      );
+      setPaneNotice('red-team', '');
     } else {
       setPaneNotice('red-team', '');
     }

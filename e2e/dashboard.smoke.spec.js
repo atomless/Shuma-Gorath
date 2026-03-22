@@ -2188,6 +2188,72 @@ test("adversary sim toggle cancel path avoids orchestration request when frontie
   });
 });
 
+test("adversary sim toggle continue path omits the no-frontier warning after confirmation", async ({ page, request }) => {
+  await withRestoredAdversarySimConfig(request, async () => {
+    await forceAdversarySimDisabled(request);
+    await page.route("**/admin/config", async (route) => {
+      if (route.request().method() !== "GET") {
+        await route.continue();
+        return;
+      }
+      const response = await route.fetch();
+      const payload = await response.json();
+      const runtime = payload && typeof payload.runtime === "object" && payload.runtime
+        ? payload.runtime
+        : {};
+      await route.fulfill({
+        response,
+        json: {
+          ...payload,
+          runtime: {
+            ...runtime,
+            frontier_provider_count: 0,
+            frontier_providers: [],
+            frontier_reduced_diversity_warning: false
+          }
+        }
+      });
+    });
+    await openDashboard(page);
+    await waitForDashboardAdversarySimUiState(page, request, false);
+    await openTab(page, "red-team");
+
+    const toggle = page.locator("#global-adversary-sim-toggle");
+    const toggleSwitch = page.locator("label.toggle-switch[for='global-adversary-sim-toggle']");
+    if (!(await toggle.isEnabled())) {
+      await openTab(page, "status", { waitForReady: true });
+      await openTab(page, "red-team");
+    }
+    await expect(toggle).toBeEnabled({ timeout: 15000 });
+    await expect(toggle).not.toBeChecked();
+
+    let controlRequestCount = 0;
+    page.on("request", (req) => {
+      if (
+        req.url().includes("/admin/adversary-sim/control") &&
+        req.method() === "POST"
+      ) {
+        controlRequestCount += 1;
+      }
+    });
+
+    const dialogHandledPromise = page.waitForEvent("dialog").then(async (dialog) => {
+      expect(dialog.message()).toContain("No frontier model provider keys are configured");
+      await dialog.accept();
+    });
+    await Promise.all([
+      dialogHandledPromise,
+      toggleSwitch.click()
+    ]);
+
+    await waitForDashboardAdversarySimUiState(page, request, true);
+    await expect(page.locator('[data-tab-notice="red-team"]')).not.toContainText(
+      "Continuing without frontier provider calls for this run."
+    );
+    await expect.poll(() => controlRequestCount, { timeout: 5000 }).toBeGreaterThan(0);
+  });
+});
+
 test("diagnostics is manual-refresh only while auto-refresh is limited to ip-bans and red-team", async ({ page }) => {
   await openDashboard(page);
   await openTab(page, "diagnostics");
