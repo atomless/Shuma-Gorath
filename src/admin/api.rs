@@ -26,7 +26,11 @@ use super::monitoring_api::{
     handle_admin_monitoring, handle_admin_monitoring_delta, handle_admin_monitoring_stream,
 };
 use super::operator_objectives_api::handle_admin_operator_objectives;
-use super::oversight_api::{handle_admin_oversight_history, handle_admin_oversight_reconcile};
+use super::oversight_agent::OVERSIGHT_AGENT_INTERNAL_PATH;
+use super::oversight_api::{
+    handle_admin_oversight_agent_status, handle_admin_oversight_history,
+    handle_admin_oversight_reconcile, handle_internal_oversight_agent_run,
+};
 use super::operator_snapshot_api::handle_admin_operator_snapshot;
 use super::replay_promotion_api::handle_admin_replay_promotion;
 #[cfg(test)]
@@ -10479,6 +10483,7 @@ fn sanitize_path(path: &str) -> bool {
             | "/admin/operator-objectives"
             | "/admin/oversight/reconcile"
             | "/admin/oversight/history"
+            | "/admin/oversight/agent/status"
             | "/admin/replay-promotion"
             | "/admin/benchmark-suite"
             | "/admin/benchmark-results"
@@ -16714,6 +16719,9 @@ fn request_bypasses_admin_ip_allowlist(req: &Request, path: &str) -> bool {
         "/admin/adversary-sim/status" => {
             crate::admin::auth::is_internal_adversary_sim_supervisor_request(req)
         }
+        OVERSIGHT_AGENT_INTERNAL_PATH => {
+            crate::admin::auth::is_internal_oversight_supervisor_request(req)
+        }
         INTERNAL_ADVERSARY_SIM_BEAT_PATH => {
             crate::admin::auth::is_internal_adversary_sim_beat_request(req)
         }
@@ -16730,14 +16738,18 @@ fn request_bypasses_admin_ip_allowlist(req: &Request, path: &str) -> bool {
 ///   - POST /internal/adversary-sim/beat: run one bounded host-side autonomous supervisor beat
 ///   - GET /internal/adversary-sim/beat?edge_cron_secret=...: run one bounded edge cron beat
 ///   - POST /internal/adversary-sim/worker-result: persist one bounded Scrapling worker result
+///   - POST /internal/oversight/agent/run: execute one bounded shared-host recommend-only agent cycle
 pub fn handle_internal(req: &Request) -> Response {
     let path = req.path();
     let internal_beat_authorized = path == INTERNAL_ADVERSARY_SIM_BEAT_PATH
         && crate::admin::auth::is_internal_adversary_sim_beat_request(req);
     let internal_worker_result_authorized = path == INTERNAL_ADVERSARY_SIM_WORKER_RESULT_PATH
         && crate::admin::auth::is_internal_adversary_sim_supervisor_request(req);
+    let internal_oversight_agent_authorized = path == OVERSIGHT_AGENT_INTERNAL_PATH
+        && crate::admin::auth::is_internal_oversight_supervisor_request(req);
     if !internal_beat_authorized
         && !internal_worker_result_authorized
+        && !internal_oversight_agent_authorized
         && !request_bypasses_admin_ip_allowlist(req, path)
         && !crate::admin::auth::is_admin_ip_allowed(req)
     {
@@ -16745,6 +16757,7 @@ pub fn handle_internal(req: &Request) -> Response {
     }
     if !internal_beat_authorized
         && !internal_worker_result_authorized
+        && !internal_oversight_agent_authorized
         && !crate::admin::auth::is_admin_api_key_configured()
     {
         return Response::new(503, "Internal API disabled: admin key not configured");
@@ -16764,6 +16777,13 @@ pub fn handle_internal(req: &Request) -> Response {
                 Err(_) => return Response::new(500, "Key-value store error"),
             };
             handle_internal_adversary_sim_worker_result(req, &store, "default")
+        }
+        OVERSIGHT_AGENT_INTERNAL_PATH => {
+            let store = match Store::open_default() {
+                Ok(s) => s,
+                Err(_) => return Response::new(500, "Key-value store error"),
+            };
+            handle_internal_oversight_agent_run(req, &store, "default")
         }
         _ => Response::new(404, "Not Found"),
     }
@@ -17080,6 +17100,9 @@ pub fn handle_admin(req: &Request) -> Response {
         "/admin/operator-objectives" => handle_admin_operator_objectives(req, &store, site_id),
         "/admin/oversight/reconcile" => handle_admin_oversight_reconcile(req, &store, site_id),
         "/admin/oversight/history" => handle_admin_oversight_history(req, &store, site_id),
+        "/admin/oversight/agent/status" => {
+            handle_admin_oversight_agent_status(req, &store, site_id)
+        }
         "/admin/replay-promotion" => handle_admin_replay_promotion(req, &store, site_id),
         "/admin/benchmark-suite" => handle_admin_benchmark_suite(req),
         "/admin/benchmark-results" => {
@@ -17305,7 +17328,7 @@ pub fn handle_admin(req: &Request) -> Response {
                     admin: Some(crate::admin::auth::get_admin_id(req)),
                 },
             );
-            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/operator-snapshot, /admin/operator-objectives, /admin/oversight/reconcile, /admin/oversight/history, /admin/replay-promotion, /admin/benchmark-suite, /admin/benchmark-results, /admin/monitoring, /admin/monitoring/delta, /admin/monitoring/stream, /admin/ip-bans/delta, /admin/ip-bans/stream, /admin/ip-range/suggestions, /admin/config, /admin/config/bootstrap, /admin/config/validate, /admin/config/export, /admin/adversary-sim/control, /admin/adversary-sim/status, /admin/adversary-sim/history/cleanup, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/tarpit/preview (GET non-operational progressive tarpit preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/robots/preview (POST unsaved robots preview patch), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
+            Response::new(200, "WASM Bot Defence Admin API. Endpoints: /admin/ban, /admin/unban?ip=IP, /admin/analytics, /admin/events, /admin/operator-snapshot, /admin/operator-objectives, /admin/oversight/reconcile, /admin/oversight/history, /admin/oversight/agent/status, /admin/replay-promotion, /admin/benchmark-suite, /admin/benchmark-results, /admin/monitoring, /admin/monitoring/delta, /admin/monitoring/stream, /admin/ip-bans/delta, /admin/ip-bans/stream, /admin/ip-range/suggestions, /admin/config, /admin/config/bootstrap, /admin/config/validate, /admin/config/export, /admin/adversary-sim/control, /admin/adversary-sim/status, /admin/adversary-sim/history/cleanup, /admin/maze (GET for maze stats), /admin/maze/preview (GET non-operational maze preview), /admin/tarpit/preview (GET non-operational progressive tarpit preview), /admin/maze/seeds (GET/POST seed source adapters), /admin/maze/seeds/refresh (POST manual seed refresh), /admin/robots (GET for robots.txt config & preview), /admin/robots/preview (POST unsaved robots preview patch), /admin/cdp (GET for CDP detection config & stats), /admin/cdp/events (GET for CDP detection and auto-ban events).")
         }
         "/admin/maze" => {
             // Return maze statistics

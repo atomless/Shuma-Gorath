@@ -421,6 +421,32 @@ pub fn is_internal_adversary_sim_supervisor_request(req: &Request) -> bool {
         .unwrap_or(false)
 }
 
+pub fn is_internal_oversight_supervisor_request(req: &Request) -> bool {
+    let marker = req
+        .header("x-shuma-internal-supervisor")
+        .and_then(|value| value.as_str())
+        .map(str::trim)
+        .unwrap_or("");
+    if marker != "oversight-agent" {
+        return false;
+    }
+
+    if bearer_access_level(req) != Some(AdminAccessLevel::ReadWrite) {
+        return false;
+    }
+
+    if !crate::forwarded_ip_trusted(req) || !crate::request_is_https(req) {
+        return false;
+    }
+
+    req.header("x-forwarded-for")
+        .and_then(|value| value.as_str())
+        .and_then(|value| value.split(',').next())
+        .map(str::trim)
+        .map(|value| value == "127.0.0.1" || value == "::1")
+        .unwrap_or(false)
+}
+
 pub fn is_internal_adversary_sim_edge_cron_request(req: &Request) -> bool {
     if !crate::config::gateway_deployment_profile().is_edge()
         || !matches!(req.method(), &Method::Get | &Method::Post)
@@ -717,6 +743,19 @@ mod tests {
         builder.build()
     }
 
+    fn internal_oversight_supervisor_request() -> Request {
+        let mut builder = Request::builder();
+        builder
+            .method(Method::Post)
+            .uri("/internal/oversight/agent/run")
+            .header("authorization", "Bearer test-admin-key")
+            .header("x-shuma-forwarded-secret", "test-forwarded-secret")
+            .header("x-forwarded-proto", "https")
+            .header("x-forwarded-for", "127.0.0.1")
+            .header("x-shuma-internal-supervisor", "oversight-agent");
+        builder.build()
+    }
+
     #[test]
     fn internal_adversary_sim_supervisor_request_requires_marker_bearer_secret_https_and_loopback() {
         let _lock = crate::test_support::lock_env();
@@ -805,5 +844,42 @@ mod tests {
 
         std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
         std::env::remove_var("SHUMA_ADVERSARY_SIM_EDGE_CRON_SECRET");
+    }
+
+    #[test]
+    fn internal_oversight_supervisor_request_requires_marker_bearer_secret_https_and_loopback() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_API_KEY", "test-admin-key");
+        std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+
+        let req = internal_oversight_supervisor_request();
+        assert!(is_internal_oversight_supervisor_request(&req));
+
+        let mut wrong_marker = Request::builder();
+        wrong_marker
+            .method(Method::Post)
+            .uri("/internal/oversight/agent/run")
+            .header("authorization", "Bearer test-admin-key")
+            .header("x-shuma-forwarded-secret", "test-forwarded-secret")
+            .header("x-forwarded-proto", "https")
+            .header("x-forwarded-for", "127.0.0.1")
+            .header("x-shuma-internal-supervisor", "adversary-sim");
+        assert!(!is_internal_oversight_supervisor_request(
+            &wrong_marker.build()
+        ));
+
+        let mut wrong_ip = Request::builder();
+        wrong_ip
+            .method(Method::Post)
+            .uri("/internal/oversight/agent/run")
+            .header("authorization", "Bearer test-admin-key")
+            .header("x-shuma-forwarded-secret", "test-forwarded-secret")
+            .header("x-forwarded-proto", "https")
+            .header("x-forwarded-for", "203.0.113.10")
+            .header("x-shuma-internal-supervisor", "oversight-agent");
+        assert!(!is_internal_oversight_supervisor_request(&wrong_ip.build()));
+
+        std::env::remove_var("SHUMA_API_KEY");
+        std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
     }
 }

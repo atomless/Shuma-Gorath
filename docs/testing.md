@@ -214,6 +214,7 @@ Structural refactor proof map:
 - `make test-benchmark-comparison-contract` is the focused benchmark helper gate for explicit baseline-availability, improvement-status, and escalation comparison semantics.
 - `make test-operator-objectives-contract` is the focused objective-profile and decision-evidence gate for persisted `operator_objectives_v1`, the operator-objectives admin endpoint, the bounded decision ledger, and snapshot wiring.
 - `make test-oversight-reconcile` is the focused recommend-only oversight gate for bounded patch-policy shaping, stale/contradictory-evidence refusal behavior, the oversight decision ledger, and the admin reconcile/history adapter without touching any config write path.
+- `make test-oversight-agent` is the focused shared-host oversight agent gate for the internal periodic trigger contract, bounded agent-run persistence, latest-run status shaping, and supervisor-auth enforcement without exercising the post-sim hook yet.
 - `make test-replay-promotion-contract` is the focused promotion-lineage and governance gate that stays off the full replay-runner path while still proving the Rust replay-promotion store/API contract, snapshot wiring, Python promotion tooling, and SIM2 governance markers together.
 - `make test-adversarial-runner-architecture` is the focused CLI, unit, and validate-only gate for the Python adversarial runner and closely related governance helpers.
 - `make test-adversary-sim-domain-contract` is the focused backend adversary-sim lifecycle and lane-domain gate that stays off the live runtime-surface path.

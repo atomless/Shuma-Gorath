@@ -2,6 +2,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use spin_sdk::http::{Method, Request, Response};
 
+use super::oversight_agent::{
+    build_status_payload, execute_agent_cycle, OversightAgentTrigger,
+    OversightAgentTriggerKind,
+};
 use super::oversight_decision_ledger::{
     load_recent_decisions, record_decision, OversightDecisionDraft,
     OversightDecisionEvidenceReference, OversightDecisionRecord,
@@ -40,6 +44,14 @@ pub(crate) struct OversightExecutionPayload {
 struct AdminConfigValidationResponse {
     valid: bool,
     issues: Vec<OversightPatchValidationIssue>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+#[serde(default, deny_unknown_fields)]
+struct InternalOversightAgentRunRequest {
+    trigger_kind: Option<String>,
+    sim_run_id: Option<String>,
+    sim_completion_reason: Option<String>,
 }
 
 pub(crate) fn execute_reconcile_cycle(
@@ -228,6 +240,72 @@ pub(crate) fn handle_admin_oversight_history(
         .build()
 }
 
+pub(crate) fn handle_admin_oversight_agent_status(
+    req: &Request,
+    store: &impl crate::challenge::KeyValueStore,
+    site_id: &str,
+) -> Response {
+    if *req.method() != Method::Get {
+        return Response::new(405, "Method Not Allowed");
+    }
+    let payload = build_status_payload(store, site_id);
+    let body = serde_json::to_string(&payload).unwrap_or_else(|_| "{}".to_string());
+    Response::builder()
+        .status(200)
+        .header("Content-Type", "application/json")
+        .header("Cache-Control", "no-store")
+        .body(body)
+        .build()
+}
+
+pub(crate) fn handle_internal_oversight_agent_run(
+    req: &Request,
+    store: &impl crate::challenge::KeyValueStore,
+    site_id: &str,
+) -> Response {
+    if *req.method() != Method::Post {
+        return Response::new(405, "Method Not Allowed");
+    }
+    if !crate::admin::auth::is_internal_oversight_supervisor_request(req) {
+        return Response::new(
+            401,
+            "Unauthorized: Internal oversight supervisor authorization required",
+        );
+    }
+
+    let parsed = if req.body().is_empty() {
+        InternalOversightAgentRunRequest::default()
+    } else {
+        match serde_json::from_slice::<InternalOversightAgentRunRequest>(req.body()) {
+            Ok(parsed) => parsed,
+            Err(_) => return Response::new(400, "Invalid oversight agent trigger payload"),
+        }
+    };
+    let trigger_kind = parsed
+        .trigger_kind
+        .as_deref()
+        .and_then(OversightAgentTriggerKind::parse)
+        .unwrap_or(OversightAgentTriggerKind::PeriodicSupervisor);
+    let trigger = OversightAgentTrigger {
+        kind: trigger_kind,
+        requested_at_ts: crate::admin::now_ts(),
+        sim_run_id: parsed.sim_run_id,
+        sim_completion_reason: parsed.sim_completion_reason,
+    };
+    match execute_agent_cycle(store, site_id, trigger) {
+        Ok(payload) => {
+            let body = serde_json::to_string(&payload).unwrap_or_else(|_| "{}".to_string());
+            Response::builder()
+                .status(200)
+                .header("Content-Type", "application/json")
+                .header("Cache-Control", "no-store")
+                .body(body)
+                .build()
+        }
+        Err(()) => Response::new(500, "Key-value store error"),
+    }
+}
+
 fn validate_reconcile_result(
     store: &impl crate::challenge::KeyValueStore,
     site_id: &str,
@@ -307,7 +385,11 @@ fn apply_validation_to_result(
 
 #[cfg(test)]
 mod tests {
-    use super::{execute_reconcile_cycle, handle_admin_oversight_history, handle_admin_oversight_reconcile};
+    use super::{
+        execute_reconcile_cycle, handle_admin_oversight_agent_status,
+        handle_admin_oversight_history, handle_admin_oversight_reconcile,
+        handle_internal_oversight_agent_run,
+    };
     use crate::challenge::KeyValueStore;
     use crate::config::{defaults, serialize_persisted_kv_config};
     use crate::observability::hot_read_documents::{
@@ -485,5 +567,54 @@ mod tests {
             .refusal_reasons
             .contains(&"config_unavailable".to_string()));
         assert_eq!(payload.validation.status, "skipped");
+    }
+
+    #[test]
+    fn internal_agent_route_records_periodic_run_and_status_surface() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_API_KEY", "oversight-agent-test-key");
+        std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+        let store = TestStore::new();
+        let mut cfg = defaults().clone();
+        cfg.fingerprint_signal_enabled = false;
+        seed_snapshot(&store, cfg);
+
+        let internal_request = Request::builder()
+            .method(Method::Post)
+            .uri("/internal/oversight/agent/run")
+            .header("host", "localhost:3000")
+            .header("authorization", "Bearer oversight-agent-test-key")
+            .header("x-shuma-forwarded-secret", "test-forwarded-secret")
+            .header("x-forwarded-proto", "https")
+            .header("x-forwarded-for", "127.0.0.1")
+            .header("x-shuma-internal-supervisor", "oversight-agent")
+            .body(
+                serde_json::to_vec(&serde_json::json!({
+                    "trigger_kind": "periodic_supervisor"
+                }))
+                .expect("json body"),
+            )
+            .build();
+        let response = handle_internal_oversight_agent_run(&internal_request, &store, "default");
+        assert_eq!(*response.status(), 200);
+
+        let status_request = Request::builder()
+            .method(Method::Get)
+            .uri("/admin/oversight/agent/status")
+            .body(Vec::new())
+            .build();
+        let status_response =
+            handle_admin_oversight_agent_status(&status_request, &store, "default");
+        assert_eq!(*status_response.status(), 200);
+        let payload: serde_json::Value =
+            serde_json::from_slice(status_response.body()).expect("status decodes");
+        assert_eq!(payload["latest_run"]["trigger_kind"], "periodic_supervisor");
+        assert_eq!(
+            payload["latest_run"]["execution"]["reconcile"]["outcome"],
+            "recommend_patch"
+        );
+
+        std::env::remove_var("SHUMA_API_KEY");
+        std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
     }
 }
