@@ -455,6 +455,38 @@ class RemoteTargetTests(unittest.TestCase):
         self.assertIn("SHUMA_FORWARDED_IP_SECRET=remote-forward-secret", env_text)
         self.assertIn("SHUMA_HEALTH_SECRET=remote-health-secret", env_text)
 
+    def test_run_remote_loopback_health_check_waits_for_slow_spin_startup(self) -> None:
+        receipt = remote_target.load_remote_receipt(self.receipts_dir, "blog-prod")
+        attempts_before_ready = 7
+        results = [
+            subprocess.CompletedProcess(args=["ssh"], returncode=1, stdout="", stderr="status=000 body=")
+            for _ in range(attempts_before_ready - 1)
+        ]
+        results.append(subprocess.CompletedProcess(args=["ssh"], returncode=0, stdout="", stderr=""))
+
+        with patch.object(subprocess, "run", side_effect=results) as run, patch.object(
+            remote_target.time, "sleep"
+        ) as sleep:
+            rc = remote_target.run_remote_loopback_health_check(receipt)
+
+        self.assertEqual(rc, 0)
+        self.assertEqual(run.call_count, attempts_before_ready)
+        self.assertEqual(sleep.call_count, attempts_before_ready - 1)
+        sleep.assert_called_with(remote_target.REMOTE_LOOPBACK_HEALTH_RETRY_DELAY_SECONDS)
+
+    def test_run_remote_loopback_health_check_returns_last_failure_after_budget_exhausted(self) -> None:
+        receipt = remote_target.load_remote_receipt(self.receipts_dir, "blog-prod")
+        failure = subprocess.CompletedProcess(args=["ssh"], returncode=1, stdout="", stderr="status=000 body=")
+
+        with patch.object(
+            subprocess, "run", side_effect=[failure] * remote_target.REMOTE_LOOPBACK_HEALTH_ATTEMPTS
+        ) as run, patch.object(remote_target.time, "sleep") as sleep:
+            rc = remote_target.run_remote_loopback_health_check(receipt)
+
+        self.assertEqual(rc, 1)
+        self.assertEqual(run.call_count, remote_target.REMOTE_LOOPBACK_HEALTH_ATTEMPTS)
+        self.assertEqual(sleep.call_count, remote_target.REMOTE_LOOPBACK_HEALTH_ATTEMPTS - 1)
+
     def test_update_builds_uploads_restarts_runs_loopback_health_smokes_and_refreshes_receipt_metadata(self) -> None:
         self.env_file.write_text("SHUMA_ACTIVE_REMOTE=blog-prod\n", encoding="utf-8")
         bundle_dir = self.temp_dir / "bundle-update"

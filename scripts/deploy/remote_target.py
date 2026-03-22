@@ -38,6 +38,8 @@ REMOTE_UPDATE_SURFACE_CATALOG_PATH = "/tmp/shuma-remote-update-surface-catalog.j
 REMOTE_UPDATE_SCRAPLING_SCOPE_PATH = "/tmp/shuma-remote-update-scrapling-scope.json"
 REMOTE_UPDATE_SCRAPLING_SEED_PATH = "/tmp/shuma-remote-update-scrapling-seed.json"
 REMOTE_UPDATE_SCRIPT_PATH = "/tmp/shuma-remote-update.sh"
+REMOTE_LOOPBACK_HEALTH_ATTEMPTS = 20
+REMOTE_LOOPBACK_HEALTH_RETRY_DELAY_SECONDS = 2
 REMOTE_SMOKE_ENV_KEYS = (
     "SHUMA_API_KEY",
     "SHUMA_FORWARDED_IP_SECRET",
@@ -612,7 +614,7 @@ printf 'status=%s body=%s\\n' "${{status}}" "${{body}}" >&2
 exit 1
 """
     remote_command = f"bash -c {shlex.quote(shell_script)}"
-    attempts = 6
+    attempts = REMOTE_LOOPBACK_HEALTH_ATTEMPTS
     for attempt in range(1, attempts + 1):
         result = subprocess.run(
             ssh_command_for_operation(receipt, remote_command),
@@ -629,10 +631,12 @@ exit 1
             print(f"Remote loopback health failed: {message}", file=sys.stderr)
             return int(result.returncode)
         print(
-            f"Remote loopback health attempt {attempt}/{attempts} failed; retrying in 2s...",
+            "Remote loopback health attempt "
+            f"{attempt}/{attempts} failed; retrying in "
+            f"{REMOTE_LOOPBACK_HEALTH_RETRY_DELAY_SECONDS}s...",
             file=sys.stderr,
         )
-        time.sleep(2)
+        time.sleep(REMOTE_LOOPBACK_HEALTH_RETRY_DELAY_SECONDS)
     return 1
 
 
