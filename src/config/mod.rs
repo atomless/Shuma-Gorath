@@ -1073,6 +1073,43 @@ pub(crate) fn normalize_persisted_config(cfg: &mut Config) -> Result<(), String>
     validate_persisted_config(cfg)
 }
 
+pub(crate) fn apply_persisted_patch(
+    cfg: &Config,
+    patch: &serde_json::Value,
+) -> Result<Config, String> {
+    let Some(_) = patch.as_object() else {
+        return Err("config patch must be a JSON object".to_string());
+    };
+    let mut merged = serde_json::to_value(cfg)
+        .map_err(|err| format!("Unable to serialize current config for patching: {}", err))?;
+    merge_json_value(&mut merged, patch)?;
+    let mut updated = serde_json::from_value::<Config>(merged)
+        .map_err(|err| format!("Invalid config payload: {}", err))?;
+    normalize_persisted_config(&mut updated)?;
+    Ok(updated)
+}
+
+fn merge_json_value(target: &mut serde_json::Value, patch: &serde_json::Value) -> Result<(), String> {
+    match (target, patch) {
+        (serde_json::Value::Object(target_object), serde_json::Value::Object(patch_object)) => {
+            for (key, patch_value) in patch_object {
+                match target_object.get_mut(key) {
+                    Some(target_value)
+                        if target_value.is_object() && patch_value.is_object() =>
+                    {
+                        merge_json_value(target_value, patch_value)?;
+                    }
+                    _ => {
+                        target_object.insert(key.clone(), patch_value.clone());
+                    }
+                }
+            }
+            Ok(())
+        }
+        _ => Err("config patch must be a JSON object".to_string()),
+    }
+}
+
 pub(crate) fn validate_persisted_config(cfg: &Config) -> Result<(), String> {
     validate_verified_identity_config(&cfg.verified_identity)
 }

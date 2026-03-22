@@ -70,6 +70,7 @@ class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemo
                     "trigger_kind": "periodic_supervisor",
                     "execution": {
                         "decision": {"decision_id": "decision-periodic-1"},
+                        "apply": {"stage": "refused"},
                         "reconcile": {
                             "outcome": "recommend_patch",
                             "latest_sim_run_id": None,
@@ -83,6 +84,7 @@ class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemo
                         "trigger_kind": "periodic_supervisor",
                         "execution": {
                             "decision": {"decision_id": "decision-periodic-1"},
+                            "apply": {"stage": "refused"},
                             "reconcile": {
                                 "outcome": "recommend_patch",
                                 "latest_sim_run_id": None,
@@ -110,6 +112,7 @@ class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemo
                     "sim_run_id": "sim-run-1",
                     "execution": {
                         "decision": {"decision_id": "decision-post-sim-1"},
+                        "apply": {"stage": "watch_window_open"},
                         "reconcile": {
                             "outcome": "recommend_patch",
                             "latest_sim_run_id": "sim-run-1",
@@ -124,6 +127,7 @@ class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemo
                         "sim_run_id": "sim-run-1",
                         "execution": {
                             "decision": {"decision_id": "decision-post-sim-1"},
+                            "apply": {"stage": "watch_window_open"},
                             "reconcile": {
                                 "outcome": "recommend_patch",
                                 "latest_sim_run_id": "sim-run-1",
@@ -135,6 +139,7 @@ class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemo
                         "trigger_kind": "periodic_supervisor",
                         "execution": {
                             "decision": {"decision_id": "decision-periodic-1"},
+                            "apply": {"stage": "refused"},
                             "reconcile": {
                                 "outcome": "recommend_patch",
                                 "latest_sim_run_id": None,
@@ -151,10 +156,12 @@ class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemo
                     {
                         "decision_id": "decision-post-sim-1",
                         "trigger_source": "post_adversary_sim",
+                        "apply": {"stage": "watch_window_open"},
                     },
                     {
                         "decision_id": "decision-periodic-1",
                         "trigger_source": "periodic_supervisor",
+                        "apply": {"stage": "refused"},
                     },
                 ],
             }
@@ -242,6 +249,7 @@ class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemo
                     "trigger_kind": "periodic_supervisor",
                     "execution": {
                         "decision": {"decision_id": "decision-periodic-1"},
+                        "apply": {"stage": "refused"},
                         "reconcile": {
                             "outcome": "recommend_patch",
                             "latest_sim_run_id": None,
@@ -269,8 +277,11 @@ class LiveFeedbackLoopRemoteTests(unittest.TestCase):
         report = json.loads(runner.report_path.read_text(encoding="utf-8"))
         self.assertEqual(report["result"], "pass")
         self.assertEqual(report["periodic_trigger"]["run_id"], "ovragent-periodic-1")
+        self.assertEqual(report["periodic_trigger"]["apply_stage"], "refused")
         self.assertEqual(report["post_sim_trigger"]["sim_run_id"], "sim-run-1")
         self.assertEqual(report["post_sim_trigger"]["decision_id"], "decision-post-sim-1")
+        self.assertEqual(report["post_sim_trigger"]["apply_stage"], "watch_window_open")
+        self.assertEqual(report["post_sim_trigger"]["history_latest_apply_stage"], "watch_window_open")
         self.assertEqual(runner._control_calls, [{"enabled": True}])
         self.assertGreaterEqual(runner._disabled_calls, 1)
 

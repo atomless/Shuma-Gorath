@@ -1114,6 +1114,16 @@ test-oversight-agent: ## Run focused shared-host oversight agent contract checks
 	@cargo test admin::oversight_agent::tests:: -- --nocapture
 	@cargo test internal_agent_route_records_periodic_run_and_status_surface -- --nocapture
 
+test-oversight-apply: ## Run focused closed-loop oversight canary apply and rollback checks
+	@echo "$(CYAN)🧪 Running oversight apply-loop checks...$(NC)"
+	@./scripts/set_crate_type.sh rlib
+	@cargo test manual_reconcile_route_exposes_apply_eligibility_without_mutating_config -- --nocapture
+	@cargo test agent_cycle_refuses_canary_apply_when_rollout_guardrail_is_manual_only -- --nocapture
+	@cargo test agent_cycle_can_apply_one_canary_when_rollout_guardrail_is_canary_only -- --nocapture
+	@cargo test agent_cycle_reports_watch_window_open_before_candidate_window_ends -- --nocapture
+	@cargo test agent_cycle_rolls_back_canary_when_candidate_window_regresses -- --nocapture
+	@cargo test agent_cycle_keeps_canary_when_candidate_window_improves -- --nocapture
+
 test-oversight-post-sim-trigger: ## Run focused post-sim oversight agent trigger and wrapper checks
 	@echo "$(CYAN)🧪 Running oversight post-sim trigger checks...$(NC)"
 	@./scripts/set_crate_type.sh rlib

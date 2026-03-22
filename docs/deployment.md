@@ -52,8 +52,8 @@ Adversary simulation telemetry is isolated by authenticated tagging and explicit
    - `SHUMA_ADVERSARY_SIM_AVAILABLE` defaults to `true` in both runtime classes so deployed operators can use adversary-sim controls in production.
    - Traffic generation remains off until an operator enables it through `POST /admin/adversary-sim/control` (or the dashboard `Red Team` toggle). `SHUMA_ADVERSARY_SIM_ENABLED` seeds only the initial desired state.
    - `GET /admin/adversary-sim/status` now makes the default production posture explicit: `gateway_deployment_profile`, `guardrails.surface_available_by_default=true`, `guardrails.generation_default=off_until_explicit_enable`, `guardrails.generation_requires_explicit_enable=true`, and deployment-profile-specific supervisor cadence/trigger fields (`deployment_profile`, `trigger_surface`, `cadence_seconds`, `cron_schedule` when edge cron applies).
-   - Shared-host startup paths now run through `scripts/run_with_oversight_supervisor.sh`, which chains the existing adversary-sim supervisor wrapper and adds bounded periodic `POST /internal/oversight/agent/run` calls so the recommend-only agent loop stays off the request path while sharing the same trusted-forwarding contract as the host-side sim supervisor.
-   - Treat that surface as a normal production operating lane, not as a dev-only exception. A deployment receipt should capture one status read while off, an explicit ON operation, the no-impact proof from `make test-adversary-sim-runtime-surface` against the running target, the shared-host feedback-loop proof from `make test-live-feedback-loop-remote` when the recommend-only agent loop is in scope, and the explicit OFF operation used as the kill switch.
+   - Shared-host startup paths now run through `scripts/run_with_oversight_supervisor.sh`, which chains the existing adversary-sim supervisor wrapper and adds bounded periodic `POST /internal/oversight/agent/run` calls so the first canary-apply feedback loop stays off the request path while sharing the same trusted-forwarding contract as the host-side sim supervisor.
+   - Treat that surface as a normal production operating lane, not as a dev-only exception. A deployment receipt should capture one status read while off, an explicit ON operation, the no-impact proof from `make test-adversary-sim-runtime-surface` against the running target, the shared-host feedback-loop proof from `make test-live-feedback-loop-remote` when the bounded apply loop is in scope, and the explicit OFF operation used as the kill switch.
    - Deployments that must hide the surface entirely may set `SHUMA_ADVERSARY_SIM_AVAILABLE=false`.
 
 This separation does not require different admin API keys between dev/prod; isolation is enforced by authenticated simulation metadata, operator-controlled lifecycle state, and deployment environment boundaries.
@@ -242,13 +242,13 @@ make test-adversary-sim-runtime-surface
    - Record that the gate proved both deterministic adversary-sim defense-surface coverage and live-summary no-impact while the run was active.
    - Disable adversary-sim through the same control path, keep the OFF `operation_id` as the production kill-switch receipt, and use `POST /admin/adversary-sim/history/cleanup` only when you intentionally need retained telemetry reset.
 
-6. Verify the first shared-host recommend-only feedback loop when that loop is part of the release target:
+6. Verify the first shared-host bounded feedback loop when that loop is part of the release target:
 
 ```bash
 make test-live-feedback-loop-remote
 ```
 
-   - Record that the live proof confirmed the deployed service is running through `scripts/run_with_oversight_supervisor.sh`, that `GET /admin/operator-snapshot` and `GET /admin/oversight/agent/status` are available, that one internal periodic agent run was recorded, and that one completed adversary-sim run produced a linked `post_adversary_sim` agent run in the status projection.
+   - Record that the live proof confirmed the deployed service is running through `scripts/run_with_oversight_supervisor.sh`, that `GET /admin/operator-snapshot` and `GET /admin/oversight/agent/status` are available, that one internal periodic agent run was recorded with explicit `execution.apply.stage` truth, and that one completed adversary-sim run produced a linked `post_adversary_sim` agent run with matching apply-stage lineage in the status/history projection.
 
 7. Rollback quickly if smoke or adversary-sim verification fails:
 

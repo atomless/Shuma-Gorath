@@ -39,6 +39,8 @@ pub(crate) struct OversightDecisionRecord {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub validation_issues: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub apply: Option<crate::admin::oversight_apply::OversightApplyResult>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub latest_sim_run_id: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub evidence_references: Vec<OversightDecisionEvidenceReference>,
@@ -61,6 +63,7 @@ pub(crate) struct OversightDecisionDraft {
     pub proposal: Option<crate::admin::oversight_patch_policy::OversightPatchProposal>,
     pub validation_status: String,
     pub validation_issues: Vec<String>,
+    pub apply: Option<crate::admin::oversight_apply::OversightApplyResult>,
     pub latest_sim_run_id: Option<String>,
     pub evidence_references: Vec<OversightDecisionEvidenceReference>,
 }
@@ -126,6 +129,7 @@ pub(crate) fn record_decision<S: KeyValueStore>(
             .take(OVERSIGHT_DECISION_LEDGER_MAX_ISSUES)
             .map(|issue| truncate_text(issue.as_str()))
             .collect(),
+        apply: draft.apply,
         latest_sim_run_id: draft.latest_sim_run_id,
         evidence_references: draft
             .evidence_references
@@ -189,6 +193,12 @@ fn decision_id(draft: &OversightDecisionDraft) -> String {
     if let Some(proposal) = draft.proposal.as_ref() {
         proposal.patch_family.hash(&mut hasher);
         proposal.patch.to_string().hash(&mut hasher);
+    }
+    if let Some(apply) = draft.apply.as_ref() {
+        apply.stage.hash(&mut hasher);
+        apply.patch_family.hash(&mut hasher);
+        apply.comparison_status.hash(&mut hasher);
+        apply.rollback_reason.hash(&mut hasher);
     }
     format!("oversight-{}-{:016x}", draft.recorded_at_ts, hasher.finish())
 }
@@ -266,6 +276,7 @@ mod tests {
             proposal: None,
             validation_status: "skipped".to_string(),
             validation_issues: Vec::new(),
+            apply: None,
             latest_sim_run_id: Some("simrun-001".to_string()),
             evidence_references: vec![OversightDecisionEvidenceReference {
                 kind: "operator_snapshot".to_string(),

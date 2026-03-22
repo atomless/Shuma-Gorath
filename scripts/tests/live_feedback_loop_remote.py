@@ -37,6 +37,14 @@ AGENT_RUN_TIMEOUT_SECONDS = 20
 SIM_START_TIMEOUT_SECONDS = 60
 SIM_COMPLETION_TIMEOUT_SECONDS = 420
 POST_SIM_AGENT_TIMEOUT_SECONDS = 120
+ALLOWED_OVERSIGHT_APPLY_STAGES = {
+    "eligible",
+    "canary_applied",
+    "watch_window_open",
+    "improved",
+    "refused",
+    "rollback_applied",
+}
 
 
 class SmokeFailure(RuntimeError):
@@ -264,8 +272,19 @@ PY"""
             "execution_boundary": payload.get("execution_boundary"),
             "latest_run_id": latest_run.get("run_id"),
             "latest_trigger_kind": latest_run.get("trigger_kind"),
+            "latest_apply_stage": (((latest_run.get("execution") or {}).get("apply") or {}).get("stage")),
             "recent_run_count": len(recent_runs),
         }
+
+    def _validated_apply_stage(self, run: dict[str, Any], *, context: str) -> str:
+        execution = run.get("execution") or {}
+        apply = execution.get("apply") or {}
+        stage = str(apply.get("stage") or "").strip()
+        if stage not in ALLOWED_OVERSIGHT_APPLY_STAGES:
+            raise SmokeFailure(
+                f"{context} did not expose a valid oversight apply stage: {stage!r}"
+            )
+        return stage
 
     def _adversary_status_summary(self, payload: dict[str, Any]) -> dict[str, Any]:
         generation = payload.get("generation") or {}
@@ -478,12 +497,17 @@ PY"""
             periodic_run_id = str(periodic_run.get("run_id") or "").strip()
             if not periodic_run_id:
                 raise SmokeFailure("Periodic internal oversight trigger did not return run_id.")
+            periodic_apply_stage = self._validated_apply_stage(
+                periodic_run,
+                context="Periodic internal oversight trigger",
+            )
             periodic_status = self._wait_for_agent_run(periodic_run_id)
             report["periodic_trigger"] = {
                 "run_id": periodic_run_id,
                 "decision_id": (
                     ((periodic_run.get("execution") or {}).get("decision") or {}).get("decision_id")
                 ),
+                "apply_stage": periodic_apply_stage,
                 "status": periodic.get("status"),
                 "latest_status": self._oversight_status_summary(periodic_status),
             }
@@ -501,6 +525,17 @@ PY"""
                     break
             if matching_post_run is None:
                 raise SmokeFailure(f"Post-sim oversight run for {sim_run_id} was not found in status history.")
+            post_sim_apply_stage = self._validated_apply_stage(
+                matching_post_run,
+                context=f"Post-sim oversight run for {sim_run_id}",
+            )
+            history_rows = history.get("rows") or []
+            latest_history_row = history_rows[0] if history_rows else {}
+            history_apply_stage = (((latest_history_row.get("apply") or {}).get("stage")) or "")
+            if history_apply_stage and history_apply_stage not in ALLOWED_OVERSIGHT_APPLY_STAGES:
+                raise SmokeFailure(
+                    f"Oversight history exposed an invalid apply stage: {history_apply_stage!r}"
+                )
             report["adversary_sim"] = {
                 "enable_operation_id": enable_response.get("operation_id"),
                 "running": self._adversary_status_summary(running_status),
@@ -512,9 +547,9 @@ PY"""
                 "decision_id": (
                     ((matching_post_run.get("execution") or {}).get("decision") or {}).get("decision_id")
                 ),
-                "history_latest_decision_id": (
-                    ((history.get("rows") or [{}])[0]).get("decision_id")
-                ),
+                "apply_stage": post_sim_apply_stage,
+                "history_latest_decision_id": latest_history_row.get("decision_id"),
+                "history_latest_apply_stage": history_apply_stage or None,
                 "latest_status": self._oversight_status_summary(post_sim_status),
             }
             report["result"] = "pass"

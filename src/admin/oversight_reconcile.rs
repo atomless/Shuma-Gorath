@@ -204,7 +204,7 @@ fn result_without_proposal(
     }
 }
 
-fn stale_evidence_reasons(snapshot: &OperatorSnapshotHotReadPayload) -> Vec<String> {
+pub(crate) fn stale_evidence_reasons(snapshot: &OperatorSnapshotHotReadPayload) -> Vec<String> {
     let max_age_seconds = snapshot.window.duration_seconds.max(1);
     ["live_traffic", "adversary_sim", "benchmark_results", "replay_promotion"]
         .iter()
@@ -220,7 +220,9 @@ fn stale_evidence_reasons(snapshot: &OperatorSnapshotHotReadPayload) -> Vec<Stri
         .collect()
 }
 
-fn contradictory_evidence_reasons(snapshot: &OperatorSnapshotHotReadPayload) -> Vec<String> {
+pub(crate) fn contradictory_evidence_reasons(
+    snapshot: &OperatorSnapshotHotReadPayload,
+) -> Vec<String> {
     let mut reasons = Vec::new();
     if snapshot.benchmark_results.input_snapshot_generated_at != snapshot.generated_at {
         reasons.push("benchmark_input_snapshot_mismatch".to_string());

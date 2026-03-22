@@ -322,7 +322,8 @@ The following <abbr title="Key-Value">KV</abbr>-backed fields are currently writ
 Operator-objectives contract notes:
 - `operator_objectives_v1` is not part of `POST /admin/config`. It has its own primary-state endpoint at `GET` and `POST /admin/operator-objectives`.
 - `POST /admin/operator-objectives` is guarded by the same `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=true` switch as other admin writes.
-- `POST /admin/oversight/reconcile` and `GET /admin/oversight/history` are control-plane reads over machine-first evidence, not config-write endpoints. In this recommend-only tranche they must not mutate persisted config and they route every candidate patch back through `POST /admin/config/validate` before a proposal is considered viable.
+- `POST /admin/oversight/reconcile` is a control-plane preview over machine-first evidence, not a config-write endpoint. It must not mutate persisted config, even when automated canary apply is enabled, and it routes every candidate patch back through `POST /admin/config/validate` before a proposal is considered viable.
+- `GET /admin/oversight/history` and `GET /admin/oversight/agent/status` now expose the first bounded apply-loop lineage. Operators should expect explicit `apply.stage` values such as `eligible`, `canary_applied`, `watch_window_open`, `improved`, `refused`, and `rollback_applied` rather than inferring controller behavior from summary text alone.
 - `operator_snapshot_v1.non_human_traffic` now exposes the seeded taxonomy, the bounded decision chain (`fingerprinting_and_evidence` -> `categorization` -> `cumulative_abuse_score_botness` -> `posture_severity`), category receipts, and readiness blockers. `benchmark_results_v1` mirrors that readiness, carries explicit `tuning_eligibility` blockers, materializes the canonical `non_human_category_posture` family against persisted `category_postures`, and must fail closed to `observe_longer` when category evidence is not yet strong enough for protected tuning decisions.
 - `replay_promotion.summary` is now the machine-first protected-evidence contract for later tuning work. `evidence_status` must be treated as `not_materialized`, `advisory_only`, or `protected`; `tuning_eligible` must be `true` only for protected replay-promoted lineage; and `ineligible_runtime_lanes` always includes `synthetic_traffic`, which remains valid for harness checks but must not count as tuning-grade evidence.
 - `profile_id` must not be empty.
@@ -340,6 +341,8 @@ Operator-objectives contract notes:
 - `adversary_sim_expectations.min_escalation_rate` must be between `0.0` and `1.0`.
 - `adversary_sim_expectations.regression_status_required` must be `no_goal_successes`.
 - `rollout_guardrails.automated_apply_status` must be `manual_only` or `canary_only`.
+- `rollout_guardrails.automated_apply_status=manual_only` means the agent may diagnose and preview eligibility but must not mutate config.
+- `rollout_guardrails.automated_apply_status=canary_only` means the shared-host agent may apply at most one controller-approved config-family canary, hold it through the protected watch window, and either retain it on improved evidence or restore the exact pre-canary config on rollback.
 - `rollout_guardrails.code_evolution_status` must be `review_required`.
 - Successful objective writes assign a new server-owned revision, record a bounded decision/evidence row for later reconcile reasoning, and refresh `operator_snapshot_v1`.
 

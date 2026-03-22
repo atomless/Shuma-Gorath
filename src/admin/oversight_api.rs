@@ -6,6 +6,7 @@ use super::oversight_agent::{
     build_status_payload, execute_agent_cycle, OversightAgentTrigger,
     OversightAgentTriggerKind,
 };
+use super::oversight_apply::{evaluate_apply_cycle, OversightApplyMode, OversightApplyResult};
 use super::oversight_decision_ledger::{
     load_recent_decisions, record_decision, OversightDecisionDraft,
     OversightDecisionEvidenceReference, OversightDecisionRecord,
@@ -38,6 +39,7 @@ pub(crate) struct OversightExecutionPayload {
     pub decision: OversightDecisionRecord,
     pub reconcile: OversightReconcileResult,
     pub validation: OversightPatchValidation,
+    pub apply: OversightApplyResult,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -59,7 +61,22 @@ pub(crate) fn execute_reconcile_cycle(
     site_id: &str,
     trigger_source: &str,
 ) -> Result<OversightExecutionPayload, ()> {
-    let now = crate::admin::now_ts();
+    execute_oversight_cycle_at(
+        store,
+        site_id,
+        trigger_source,
+        OversightApplyMode::PreviewOnly,
+        crate::admin::now_ts(),
+    )
+}
+
+pub(crate) fn execute_oversight_cycle_at(
+    store: &impl crate::challenge::KeyValueStore,
+    site_id: &str,
+    trigger_source: &str,
+    apply_mode: OversightApplyMode,
+    now: u64,
+) -> Result<OversightExecutionPayload, ()> {
     let snapshot = crate::observability::hot_read_projection::load_operator_snapshot_hot_read(
         store, site_id,
     );
@@ -68,59 +85,59 @@ pub(crate) fn execute_reconcile_cycle(
             store, site_id, now,
         );
 
-    let (reconcile_result, validation) = match snapshot {
-        Some(snapshot) => {
-            match crate::config::load_runtime_cached(store, site_id) {
-                Ok(cfg) => {
-                    let result = reconcile(&cfg, &snapshot.payload, trigger_source);
-                    let validation = validate_reconcile_result(store, site_id, &result);
-                    (result, validation)
-                }
-                Err(_) => (
-                    OversightReconcileResult {
-                        schema_version: crate::admin::oversight_reconcile::OVERSIGHT_RECONCILE_SCHEMA_VERSION
-                            .to_string(),
-                        generated_at: now,
-                        trigger_source: trigger_source.to_string(),
-                        outcome: "insufficient_evidence".to_string(),
-                        summary: "Runtime config is unavailable, so recommend-only reconcile must fail closed.".to_string(),
-                        objective_revision: snapshot.payload.objectives.revision.clone(),
-                        benchmark_overall_status: snapshot.payload.benchmark_results.overall_status.clone(),
-                        improvement_status: snapshot.payload.benchmark_results.improvement_status.clone(),
-                        trigger_family_ids: snapshot
-                            .payload
-                            .benchmark_results
-                            .escalation_hint
-                            .trigger_family_ids
-                            .clone(),
-                        candidate_action_families: snapshot
-                            .payload
-                            .benchmark_results
-                            .escalation_hint
-                            .candidate_action_families
-                            .clone(),
-                        refusal_reasons: vec!["config_unavailable".to_string()],
-                        proposal: None,
-                        latest_sim_run_id: crate::admin::oversight_reconcile::latest_recent_sim_run_id(
-                            &snapshot.payload,
-                        ),
-                        replay_promotion_availability: snapshot.payload.replay_promotion.availability.clone(),
-                        snapshot_generated_at: snapshot.payload.generated_at,
-                        evidence_references: vec![
-                            crate::admin::oversight_reconcile::OversightEvidenceReference {
-                                kind: "operator_snapshot".to_string(),
-                                reference: format!("generated_at:{}", snapshot.payload.generated_at),
-                                note: "Operator snapshot was materialized, but runtime config could not be loaded to shape a truthful proposal.".to_string(),
-                            },
-                        ],
-                    },
-                    OversightPatchValidation {
-                        status: "skipped".to_string(),
-                        issues: Vec::new(),
-                    },
-                ),
+    let mut current_cfg: Option<crate::config::Config> = None;
+    let (reconcile_result, validation) = match snapshot.as_ref() {
+        Some(snapshot) => match crate::config::load_runtime_cached(store, site_id) {
+            Ok(cfg) => {
+                let result = reconcile(&cfg, &snapshot.payload, trigger_source);
+                let validation = validate_reconcile_result(store, site_id, &result);
+                current_cfg = Some(cfg);
+                (result, validation)
             }
-        }
+            Err(_) => (
+                OversightReconcileResult {
+                    schema_version: crate::admin::oversight_reconcile::OVERSIGHT_RECONCILE_SCHEMA_VERSION
+                        .to_string(),
+                    generated_at: now,
+                    trigger_source: trigger_source.to_string(),
+                    outcome: "insufficient_evidence".to_string(),
+                    summary: "Runtime config is unavailable, so recommend-only reconcile must fail closed.".to_string(),
+                    objective_revision: snapshot.payload.objectives.revision.clone(),
+                    benchmark_overall_status: snapshot.payload.benchmark_results.overall_status.clone(),
+                    improvement_status: snapshot.payload.benchmark_results.improvement_status.clone(),
+                    trigger_family_ids: snapshot
+                        .payload
+                        .benchmark_results
+                        .escalation_hint
+                        .trigger_family_ids
+                        .clone(),
+                    candidate_action_families: snapshot
+                        .payload
+                        .benchmark_results
+                        .escalation_hint
+                        .candidate_action_families
+                        .clone(),
+                    refusal_reasons: vec!["config_unavailable".to_string()],
+                    proposal: None,
+                    latest_sim_run_id: crate::admin::oversight_reconcile::latest_recent_sim_run_id(
+                        &snapshot.payload,
+                    ),
+                    replay_promotion_availability: snapshot.payload.replay_promotion.availability.clone(),
+                    snapshot_generated_at: snapshot.payload.generated_at,
+                    evidence_references: vec![
+                        crate::admin::oversight_reconcile::OversightEvidenceReference {
+                            kind: "operator_snapshot".to_string(),
+                            reference: format!("generated_at:{}", snapshot.payload.generated_at),
+                            note: "Operator snapshot was materialized, but runtime config could not be loaded to shape a truthful proposal.".to_string(),
+                        },
+                    ],
+                },
+                OversightPatchValidation {
+                    status: "skipped".to_string(),
+                    issues: Vec::new(),
+                },
+            ),
+        },
         None => (
             OversightReconcileResult {
                 schema_version: crate::admin::oversight_reconcile::OVERSIGHT_RECONCILE_SCHEMA_VERSION
@@ -153,14 +170,38 @@ pub(crate) fn execute_reconcile_cycle(
     };
 
     let recorded_result = apply_validation_to_result(reconcile_result, &validation);
+    let apply = evaluate_apply_cycle(
+        store,
+        site_id,
+        now,
+        snapshot.as_ref().map(|snapshot| &snapshot.payload),
+        current_cfg.as_ref(),
+        &recorded_result,
+        &validation,
+        apply_mode,
+    )?;
+    let decision_outcome = if apply.stage == super::oversight_apply::OVERSIGHT_APPLY_STAGE_REFUSED
+        && recorded_result.outcome != "recommend_patch"
+    {
+        recorded_result.outcome.clone()
+    } else {
+        apply.stage.clone()
+    };
+    let decision_summary = if apply.stage == super::oversight_apply::OVERSIGHT_APPLY_STAGE_REFUSED
+        && recorded_result.outcome != "recommend_patch"
+    {
+        recorded_result.summary.clone()
+    } else {
+        apply.summary.clone()
+    };
     let decision = record_decision(
         store,
         site_id,
         OversightDecisionDraft {
             recorded_at_ts: now,
             trigger_source: trigger_source.to_string(),
-            outcome: recorded_result.outcome.clone(),
-            summary: recorded_result.summary.clone(),
+            outcome: decision_outcome,
+            summary: decision_summary,
             objective_revision: recorded_result.objective_revision.clone(),
             snapshot_generated_at: recorded_result.snapshot_generated_at,
             benchmark_overall_status: recorded_result.benchmark_overall_status.clone(),
@@ -176,6 +217,7 @@ pub(crate) fn execute_reconcile_cycle(
                 .iter()
                 .map(|issue| issue.message.clone())
                 .collect(),
+            apply: Some(apply.clone()),
             latest_sim_run_id: recorded_result.latest_sim_run_id.clone(),
             evidence_references: recorded_result
                 .evidence_references
@@ -194,6 +236,7 @@ pub(crate) fn execute_reconcile_cycle(
         decision,
         reconcile: recorded_result,
         validation,
+        apply,
     })
 }
 
@@ -554,6 +597,119 @@ mod tests {
             .expect("snapshot seed");
     }
 
+    fn seed_apply_ready_snapshot(store: &TestStore, cfg: crate::config::Config) {
+        store
+            .set(
+                "config:default",
+                &serialize_persisted_kv_config(&cfg).expect("cfg serializes"),
+            )
+            .expect("config seed");
+        record_request_outcome(
+            store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::Live,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::PublicContent,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: Some(RequestOutcomeLane {
+                    lane: TrafficLane::SuspiciousAutomation,
+                    exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
+                    basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
+                }),
+                outcome_class: RequestOutcomeClass::Forwarded,
+                response_kind: ResponseKind::ForwardAllow,
+                http_status: 200,
+                response_bytes: 2_000,
+                forward_attempted: true,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::PolicyGraphSecondTranche,
+            },
+        );
+        let summary = summarize_with_store(store, 24, 10);
+        let mut payload = build_operator_snapshot_payload(
+            store,
+            "default",
+            1_700_000_200,
+            &summary,
+            &[],
+            OperatorSnapshotRecentChanges::default(),
+            1_700_000_200,
+            1_700_000_200,
+            1_700_000_200,
+        );
+        payload.non_human_traffic.readiness.status = "ready".to_string();
+        payload.non_human_traffic.readiness.blockers.clear();
+        payload.non_human_traffic.readiness.live_receipt_count = 1;
+        payload.non_human_traffic.readiness.adversary_sim_receipt_count = 1;
+        payload.non_human_traffic.coverage.overall_status = "covered".to_string();
+        payload.non_human_traffic.coverage.blocking_reasons.clear();
+        payload.non_human_traffic.coverage.blocking_category_ids.clear();
+        payload.non_human_traffic.coverage.mapped_category_count = 6;
+        payload.non_human_traffic.coverage.covered_category_count = 6;
+        payload.non_human_traffic.coverage.partial_category_count = 0;
+        payload.non_human_traffic.coverage.stale_category_count = 0;
+        payload.non_human_traffic.coverage.unavailable_category_count = 0;
+        payload.non_human_traffic.coverage.uncovered_category_count = 2;
+        payload.replay_promotion.availability = "materialized".to_string();
+        payload.replay_promotion.evidence_status = "protected".to_string();
+        payload.replay_promotion.tuning_eligible = true;
+        payload.replay_promotion.protected_basis = "replay_promoted_lineage".to_string();
+        payload.replay_promotion.protected_lineage_count = 1;
+        payload.replay_promotion.eligibility_blockers.clear();
+        payload.benchmark_results.coverage_status = "partial_support".to_string();
+        payload.benchmark_results.overall_status = "outside_budget".to_string();
+        payload.benchmark_results.improvement_status = "regressed".to_string();
+        payload.benchmark_results.non_human_classification =
+            payload.non_human_traffic.readiness.clone();
+        payload.benchmark_results.non_human_coverage =
+            payload.non_human_traffic.coverage.compact_for_benchmark();
+        payload.benchmark_results.tuning_eligibility.status = "eligible".to_string();
+        payload.benchmark_results.tuning_eligibility.blockers.clear();
+        payload.benchmark_results.escalation_hint.availability = "partial_support".to_string();
+        payload.benchmark_results.escalation_hint.decision =
+            "config_tuning_candidate".to_string();
+        payload.benchmark_results.escalation_hint.review_status =
+            "manual_review_required".to_string();
+        payload.benchmark_results.escalation_hint.trigger_family_ids =
+            vec!["suspicious_origin_cost".to_string()];
+        payload.benchmark_results.escalation_hint.candidate_action_families =
+            vec!["fingerprint_signal".to_string()];
+        payload.benchmark_results.escalation_hint.blockers.clear();
+        payload.benchmark_results.replay_promotion = payload.replay_promotion.clone();
+        let document = HotReadDocumentEnvelope {
+            metadata: HotReadDocumentMetadata {
+                schema_version: operator_snapshot_document_contract()
+                    .schema_version
+                    .to_string(),
+                site_id: "default".to_string(),
+                generated_at_ts: 1_700_000_200,
+                trigger: HotReadUpdateTrigger::RepairRebuild,
+            },
+            payload,
+        };
+        store
+            .set(
+                operator_snapshot_document_key("default").as_str(),
+                &serde_json::to_vec(&document).expect("document serializes"),
+            )
+            .expect("snapshot seed");
+    }
+
+    fn seed_canary_only_objectives(store: &TestStore) {
+        let mut profile =
+            crate::observability::operator_snapshot_objectives::default_operator_objectives(
+                1_700_000_100,
+            );
+        profile.rollout_guardrails.automated_apply_status = "canary_only".to_string();
+        crate::observability::operator_objectives_store::save_operator_objectives(
+            store,
+            "default",
+            &profile,
+        )
+        .expect("objectives save");
+    }
+
     #[test]
     fn reconcile_cycle_records_insufficient_evidence_when_snapshot_missing() {
         let store = TestStore::new();
@@ -690,5 +846,37 @@ mod tests {
         std::env::remove_var("SHUMA_API_KEY");
         std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
         std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+    }
+
+    #[test]
+    fn manual_reconcile_route_exposes_apply_eligibility_without_mutating_config() {
+        let store = TestStore::new();
+        let mut cfg = defaults().clone();
+        cfg.fingerprint_signal_enabled = false;
+        seed_canary_only_objectives(&store);
+        seed_apply_ready_snapshot(&store, cfg);
+        let original_config = store
+            .get("config:default")
+            .expect("config lookup")
+            .expect("seeded config");
+
+        let request = Request::builder()
+            .method(Method::Post)
+            .uri("/admin/oversight/reconcile")
+            .body(Vec::new())
+            .build();
+        let response = handle_admin_oversight_reconcile(&request, &store, "default");
+
+        assert_eq!(*response.status(), 200);
+        let payload: serde_json::Value =
+            serde_json::from_slice(response.body()).expect("payload decodes");
+        assert_eq!(payload["reconcile"]["outcome"], "recommend_patch");
+        assert_eq!(payload["apply"]["stage"], "eligible");
+
+        let persisted_config = store
+            .get("config:default")
+            .expect("config lookup")
+            .expect("persisted config");
+        assert_eq!(persisted_config, original_config);
     }
 }
