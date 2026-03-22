@@ -4,6 +4,7 @@ use crate::config::AllowedActionsSurface;
 use crate::config::Config;
 use crate::observability::benchmark_suite::BENCHMARK_SUITE_SCHEMA_VERSION;
 use crate::observability::non_human_classification::NonHumanClassificationReadiness;
+use crate::observability::non_human_coverage::NonHumanCoverageSummary;
 use crate::observability::operator_snapshot::{
     OperatorBudgetDistanceSummary, OperatorSnapshotAdversarySim, OperatorSnapshotLiveTraffic,
     OperatorSnapshotNonHumanTrafficSummary, OperatorSnapshotWindow, ReplayPromotionSummary,
@@ -102,6 +103,7 @@ pub(crate) struct BenchmarkResultsPayload {
     pub overall_status: String,
     pub improvement_status: String,
     pub non_human_classification: NonHumanClassificationReadiness,
+    pub non_human_coverage: NonHumanCoverageSummary,
     pub families: Vec<BenchmarkFamilyResult>,
     pub escalation_hint: BenchmarkEscalationHint,
     pub replay_promotion: ReplayPromotionSummary,
@@ -151,6 +153,19 @@ pub(crate) fn build_benchmark_results_from_snapshot_sections(
             note: "Current benchmark pressure cannot justify tuning because non-human classification readiness is not yet strong enough for protected category-aware decisions."
                 .to_string(),
         }
+    } else if non_human_traffic.coverage.overall_status != "covered" {
+        let mut blockers = vec!["non_human_category_coverage_not_ready".to_string()];
+        blockers.extend(non_human_traffic.coverage.blocking_reasons.iter().cloned());
+        BenchmarkEscalationHint {
+            availability: derived_escalation_hint.availability.clone(),
+            decision: "observe_longer".to_string(),
+            review_status: "manual_review_required".to_string(),
+            trigger_family_ids: derived_escalation_hint.trigger_family_ids.clone(),
+            candidate_action_families: Vec::new(),
+            blockers,
+            note: "Current benchmark pressure cannot justify tuning because category fulfillment coverage is not yet complete enough for protected category-aware decisions."
+                .to_string(),
+        }
     } else {
         derived_escalation_hint
     };
@@ -167,6 +182,7 @@ pub(crate) fn build_benchmark_results_from_snapshot_sections(
         overall_status: overall_status(families.as_slice()),
         improvement_status,
         non_human_classification: non_human_traffic.readiness.clone(),
+        non_human_coverage: non_human_traffic.coverage.compact_for_benchmark(),
         escalation_hint,
         replay_promotion: replay_promotion.clone(),
         families,
@@ -305,6 +321,7 @@ mod tests {
         assert_eq!(payload.coverage_status, "partial_support");
         assert_eq!(payload.improvement_status, "not_available");
         assert_eq!(payload.non_human_classification.status, "not_observed");
+        assert_eq!(payload.non_human_coverage.overall_status, "unavailable");
         assert_eq!(payload.escalation_hint.availability, "partial_support");
         assert_eq!(payload.escalation_hint.decision, "observe_longer");
         assert_eq!(payload.replay_promotion.availability, "not_materialized");
@@ -405,6 +422,14 @@ mod tests {
         row.current = 0.12;
         row.delta = 0.10;
         snapshot.allowed_actions = allowed_actions_v1();
+        snapshot.non_human_traffic.coverage.overall_status = "covered".to_string();
+        snapshot.non_human_traffic.coverage.blocking_reasons.clear();
+        snapshot.non_human_traffic.coverage.blocking_category_ids.clear();
+        snapshot.non_human_traffic.coverage.covered_category_count =
+            snapshot.non_human_traffic.coverage.mapped_category_count;
+        snapshot.non_human_traffic.coverage.partial_category_count = 0;
+        snapshot.non_human_traffic.coverage.stale_category_count = 0;
+        snapshot.non_human_traffic.coverage.unavailable_category_count = 0;
 
         let payload = build_benchmark_results_from_snapshot_sections(
             snapshot.generated_at,
@@ -655,5 +680,93 @@ mod tests {
             .escalation_hint
             .blockers
             .contains(&"non_human_classification_not_ready".to_string()));
+    }
+
+    #[test]
+    fn benchmark_results_fail_closed_when_non_human_coverage_is_not_ready() {
+        let store = TestStore::new();
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::Live,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::PublicContent,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: Some(RequestOutcomeLane {
+                    lane: TrafficLane::VerifiedBot,
+                    exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
+                    basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
+                }),
+                outcome_class: RequestOutcomeClass::Forwarded,
+                response_kind: ResponseKind::ForwardAllow,
+                http_status: 200,
+                response_bytes: 120,
+                forward_attempted: true,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::PolicyGraphVerifiedIdentityTranche,
+            },
+        );
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::AdversarySim,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::PublicContent,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: Some(RequestOutcomeLane {
+                    lane: TrafficLane::DeclaredCrawler,
+                    exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
+                    basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
+                }),
+                outcome_class: RequestOutcomeClass::Forwarded,
+                response_kind: ResponseKind::ForwardAllow,
+                http_status: 200,
+                response_bytes: 120,
+                forward_attempted: true,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::CleanAllow,
+            },
+        );
+        let summary = summarize_with_store(&store, 24, 10);
+        let snapshot = build_operator_snapshot_payload(
+            &store,
+            "default",
+            1_700_000_350,
+            &summary,
+            &[],
+            OperatorSnapshotRecentChanges::default(),
+            1_700_000_350,
+            1_700_000_350,
+            1_700_000_350,
+        );
+
+        let payload = build_benchmark_results_from_snapshot_sections(
+            snapshot.generated_at,
+            1_700_000_350,
+            &snapshot.window,
+            &snapshot.live_traffic,
+            &snapshot.adversary_sim,
+            &snapshot.non_human_traffic,
+            &snapshot.budget_distance,
+            &summary,
+            &defaults(),
+            &snapshot.allowed_actions,
+            &ReplayPromotionSummary::not_materialized(),
+            None,
+        );
+
+        assert_eq!(payload.non_human_classification.status, "ready");
+        assert_eq!(payload.non_human_coverage.overall_status, "partial");
+        assert_eq!(payload.escalation_hint.decision, "observe_longer");
+        assert!(payload
+            .escalation_hint
+            .blockers
+            .contains(&"non_human_category_coverage_not_ready".to_string()));
+        assert!(payload
+            .escalation_hint
+            .blockers
+            .contains(&"mapped_categories_have_unavailable_coverage".to_string()));
     }
 }

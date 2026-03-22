@@ -4,6 +4,29 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-22)
 
+### SIM-COVER-1: Representativeness Matrix And Coverage Receipts
+
+- [x] Materialized canonical non-human coverage receipts so `operator_snapshot_v1` and `benchmark_results_v1` can now say which mapped categories are `covered`, `partial`, `stale`, `unavailable`, or explicit fulfillment gaps, and so benchmark escalation fails closed when category coverage is not yet ready for later tuning decisions.
+- [x] Why:
+  - `SIM-FULFILL-1` froze intended lane assignments, but the closed loop still lacked a machine-readable answer to whether those intended categories were actually covered well enough to support later objective and apply decisions.
+  - the coverage contract needed to sit above raw classification receipts so the controller can distinguish “category observed at all” from “category represented credibly enough for tuning.”
+  - failing benchmark escalation closed here prevents later protected-evidence and auto-apply work from inheriting a category-blind assumption about representativeness.
+- [x] Evidence:
+  - `src/observability/non_human_coverage.rs`
+  - `src/observability/operator_snapshot_non_human.rs`
+  - `src/observability/benchmark_results.rs`
+  - `src/observability/benchmark_comparison.rs`
+  - `src/admin/oversight_reconcile.rs`
+  - `Makefile`
+  - `docs/api.md`
+  - `docs/testing.md`
+  - `docs/research/2026-03-22-sim-cover-1-category-coverage-receipts-post-implementation-review.md`
+  - `make test-operator-snapshot-foundation`
+  - `make test-adversarial-coverage-receipts`
+  - `make test-benchmark-results-contract`
+  - `make test-oversight-reconcile`
+  - `git diff --check`
+
 ### SIM-FULFILL-1: Category-To-Lane Fulfillment Matrix
 
 - [x] Froze the canonical non-human category-to-lane fulfillment matrix so Scrapling worker plans, bounded LLM fulfillment plans, the adversarial coverage contract, and the scenario intent matrix now all share one explicit mapping from categories to intended lanes and explicit gaps.

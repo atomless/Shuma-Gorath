@@ -330,6 +330,7 @@ mod tests {
     use crate::observability::non_human_classification::{
         non_human_decision_chain, NonHumanClassificationReadiness,
     };
+    use crate::observability::non_human_coverage::NonHumanCoverageSummary;
     use crate::observability::operator_snapshot::{
         OperatorBudgetDistanceRow, OperatorBudgetDistanceSummary, OperatorSnapshotHotReadPayload,
         OperatorSnapshotSectionMetadata, OperatorSnapshotWindow,
@@ -377,6 +378,20 @@ mod tests {
                 blockers: Vec::new(),
                 live_receipt_count: 1,
                 adversary_sim_receipt_count: 1,
+            },
+            non_human_coverage: NonHumanCoverageSummary {
+                schema_version: "non_human_coverage_v1".to_string(),
+                overall_status: "covered".to_string(),
+                blocking_reasons: Vec::new(),
+                blocking_category_ids: Vec::new(),
+                mapped_category_count: 6,
+                gap_category_count: 2,
+                covered_category_count: 6,
+                partial_category_count: 0,
+                stale_category_count: 0,
+                unavailable_category_count: 0,
+                uncovered_category_count: 2,
+                receipts: Vec::new(),
             },
             families: vec![BenchmarkFamilyResult {
                 family_id: "suspicious_origin_cost".to_string(),
@@ -506,6 +521,20 @@ mod tests {
                     blockers: Vec::new(),
                     live_receipt_count: 1,
                     adversary_sim_receipt_count: 1,
+                },
+                coverage: NonHumanCoverageSummary {
+                    schema_version: "non_human_coverage_v1".to_string(),
+                    overall_status: "covered".to_string(),
+                    blocking_reasons: Vec::new(),
+                    blocking_category_ids: Vec::new(),
+                    mapped_category_count: 6,
+                    gap_category_count: 2,
+                    covered_category_count: 6,
+                    partial_category_count: 0,
+                    stale_category_count: 0,
+                    unavailable_category_count: 0,
+                    uncovered_category_count: 2,
+                    receipts: Vec::new(),
                 },
                 decision_chain: non_human_decision_chain(),
                 receipts: Vec::new(),

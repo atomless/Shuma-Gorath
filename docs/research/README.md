@@ -198,6 +198,8 @@ Completed archive index:
    Post-implementation review confirming Shuma now materializes bounded non-human classification receipts and readiness blockers through `operator_snapshot_v1`, fails benchmark escalation closed when category evidence is not ready, and keeps the snapshot contract bounded with a modest operator-snapshot size-budget increase after trimming redundant taxonomy serialization.
 45. [`2026-03-22-sim-fulfill-1-category-to-lane-fulfillment-post-implementation-review.md`](2026-03-22-sim-fulfill-1-category-to-lane-fulfillment-post-implementation-review.md)
    Post-implementation review confirming the canonical non-human categories now map explicitly into Scrapling, bounded LLM browser/request modes, or truthful explicit gaps, with the same intent matrix mirrored through adversarial coverage and scenario-review contract surfaces.
+46. [`2026-03-22-sim-cover-1-category-coverage-receipts-post-implementation-review.md`](2026-03-22-sim-cover-1-category-coverage-receipts-post-implementation-review.md)
+   Post-implementation review confirming canonical non-human coverage receipts now materialize into `operator_snapshot_v1` and `benchmark_results_v1`, fail escalation closed when mapped categories are not yet covered, and stay within the snapshot size budget after trimming the first overly verbose draft.
 
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 
