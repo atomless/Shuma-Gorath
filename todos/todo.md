@@ -88,7 +88,7 @@ Current stance:
 - The actively evolving near-term layer should be fingerprinting and categorization quality inside that taxonomy; taxonomy expansion is only a later contingency if important non-human traffic persistently falls outside the existing categories.
 
 ### TRAFFIC-TAX-1: Canonical Non-Human Traffic Taxonomy Contract
-- Define the bounded category set for the non-human traffic Shuma intends to simulate and defend against, before it has enough observed adversary traffic to infer that set site-locally.
+- Define the bounded category set for the non-human traffic Shuma intends to simulate and defend against, before it has enough observed adversary traffic to infer that set site-locally, and give each category stable machine and human-facing metadata so operators later use the same taxonomy when setting posture.
 
 ### TRAFFIC-TAX-2: Traffic Category Confidence And Evidence Receipts
 - Add bounded confidence and evidence receipts for Shuma's traffic categorization layer so later benchmark and autonomous tuning logic can fail closed when category assignment is still too weak or too stale to trust, so both simulated and observed traffic can be judged through the same classifier, and so fingerprinting and categorization quality can improve over time without changing the category model by default.
@@ -103,7 +103,7 @@ Current stance:
 - Define the machine-first contract that marks which adversary evidence is tuning-eligible, explicitly excludes `synthetic_traffic`, and treats replay-promoted frontier or LLM lineage as the admissible protected path for emergent discoveries.
 
 ### OPS-OBJECTIVES-3: Category-Aware Non-Human Operator Objectives
-- Extend `operator_objectives_v1` so operators can declare desired, tolerated, restricted, and unwanted non-human categories, and so the controller has an explicit utility function instead of a category-blind “reduce bot cost” objective.
+- Extend `operator_objectives_v1` so operators can declare `allowed`, `tolerated`, `cost_reduced`, `restricted`, and `blocked` posture per non-human category, and so the controller has an explicit utility function instead of a category-blind “reduce bot cost” objective.
 
 ### OPS-BENCH-3: Protected-Lane Category-Aware Benchmark Eligibility
 - Extend `benchmark_results_v1` so protected-lane eligibility, category coverage, and category-aware improvement or regression are explicit controller inputs and hard blockers for later autonomous apply.

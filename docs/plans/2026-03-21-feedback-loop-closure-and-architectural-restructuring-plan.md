@@ -41,6 +41,7 @@ Close the first real Shuma feedback loop and structurally decompose the control-
 11. Category classification confidence must land before lane representativeness is considered trustworthy enough for autonomous tuning.
 12. The taxonomy comes before attackers: Shuma must define the categories it intends to model before it has enough observed adversary traffic to learn them site-locally.
 13. The initial taxonomy should stay stable enough for the first closed loop; what should evolve first is the fingerprinting and classification quality within it. Taxonomy expansion is a later contingency only if important non-human traffic persistently falls outside the existing categories.
+14. Taxonomy entries must carry stable machine and human-facing metadata because operator objectives and later tuning surfaces will bind posture directly to those categories.
 
 # Target Architecture
 
@@ -222,7 +223,7 @@ Define the representativeness matrix and bounded coverage receipts across Scrapl
 
 ### `OPS-OBJECTIVES-3`
 
-Extend `operator_objectives_v1` with category-aware non-human intent so the controller can distinguish desired, tolerated, and unwanted non-human traffic.
+Extend `operator_objectives_v1` with category-aware non-human intent so the controller can distinguish `allowed`, `tolerated`, `cost_reduced`, `restricted`, and `blocked` posture by category.
 
 ### `OPS-BENCH-3`
 
@@ -240,7 +241,7 @@ Rebuild Monitoring as the thin human projection over the machine-first contracts
 
 ### `TUNE-SURFACE-1`
 
-Finish the operator control surface once the controller inputs, safe action families, and first working agent loop semantics are truthful.
+Finish the operator control surface once the controller inputs, safe action families, and first working agent loop semantics are truthful, including per-category posture controls over the stable operator-facing taxonomy.
 
 These phases should not be started early just because the UI can be edited sooner.
 

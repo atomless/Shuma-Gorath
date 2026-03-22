@@ -40,12 +40,15 @@ Must include:
 1. the bounded category set Shuma intends to optimize over before it has observed enough real adversary traffic,
 2. the operator-relevant distinction between categories such as crawler, scraper, automated browser, agent-on-behalf, and verified or beneficial non-human traffic where applicable,
 3. explicit unknown, mixed, and insufficient-evidence states,
-4. machine-first visibility in snapshot or benchmark-adjacent contracts.
+4. stable machine-facing metadata per category,
+5. stable human-facing metadata per category so later operator objectives and tuning surfaces do not need a second taxonomy,
+6. machine-first visibility in snapshot or benchmark-adjacent contracts.
 
 Acceptance:
 
 1. Shuma can say what kinds of non-human traffic it intends to model and defend against,
-2. and that statement is a backend contract, not only a dashboard interpretation.
+2. operators can later see the same categories the backend uses,
+3. and that statement is a backend contract, not only a dashboard interpretation.
 
 ## Task 2: `TRAFFIC-TAX-2`
 
@@ -112,11 +115,12 @@ Make operator objectives and benchmark judgment category-aware.
 
 Must include:
 
-1. operator stance by category,
+1. operator stance by category on the bounded posture scale `allowed`, `tolerated`, `cost_reduced`, `restricted`, `blocked`,
 2. benchmark comparison by category,
-3. diagnosis surfaces that show how defenses perform and what cost they impose per simulated category,
-4. tuning blockers when protected category coverage is incomplete,
-5. classification-confidence and evidence lineage so objectives and benchmark comparisons stay interpretable as the classifier improves.
+3. the explicit chain from fingerprinting and evidence to category assignment to cumulative abuse score to posture severity,
+4. diagnosis surfaces that show how defenses perform and what cost they impose per simulated category,
+5. tuning blockers when protected category coverage is incomplete,
+6. classification-confidence and evidence lineage so objectives and benchmark comparisons stay interpretable as the classifier improves.
 
 ## Task 7: `OVR-APPLY-1`
 

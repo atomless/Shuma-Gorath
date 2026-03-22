@@ -123,14 +123,16 @@ Extend operator objectives with category-aware non-human intent.
 
 Must include:
 
-1. desired versus tolerated versus unwanted category policy,
+1. per-category operator posture on the bounded scale `allowed`, `tolerated`, `cost_reduced`, `restricted`, `blocked`,
 2. explicit operator exclusions or protections for beneficial categories,
-3. objective revisioning and snapshot visibility.
+3. the policy chain from fingerprinting and evidence to category assignment to cumulative abuse score to posture severity,
+4. objective revisioning and snapshot visibility.
 
 Acceptance:
 
 1. the controller has a truthful utility function for category-aware optimization,
-2. beneficial or allowed non-human traffic is no longer only an implicit benchmark concern.
+2. beneficial or allowed non-human traffic is no longer only an implicit benchmark concern,
+3. the operator-facing posture model is explicit before auto-apply is allowed.
 
 ## Task 7: `OPS-BENCH-3`
 

@@ -4,6 +4,22 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-22)
 
+### LOOP-GATE-4: Capture Operator-Facing Taxonomy Metadata And Posture Chain
+
+- [x] Tightened the closed-loop planning chain so the canonical non-human taxonomy now explicitly carries stable machine and human-facing metadata, and so the operator-facing policy model is explicitly framed as fingerprinting plus evidence informing categorization, categorization informing cumulative abuse score, and abuse score determining severity along the bounded posture scale from `allowed` to `blocked`.
+- [x] Why:
+  - the taxonomy was previously framed mostly as a machine-first backend contract, but the host operator will eventually set policy against those same categories, so the plan needed to rule out a second ad hoc UI taxonomy.
+  - the per-category posture model also needed to be more explicit than the earlier “desired versus unwanted” language because the actual control surface is about access and cost-shaping severity, not only preference.
+  - capturing the chain from fingerprinting to category to cumulative abuse score to posture severity now keeps `TRAFFIC-TAX-1`, `OPS-OBJECTIVES-3`, and `TUNE-SURFACE-1` aligned to the same policy model before implementation starts.
+- [x] Evidence:
+  - `docs/research/2026-03-22-canonical-non-human-taxonomy-and-sim-representativeness-review.md`
+  - `docs/plans/2026-03-22-canonical-non-human-taxonomy-and-lane-fulfillment-plan.md`
+  - `docs/plans/2026-03-22-autonomous-tuning-safety-gates-implementation-plan.md`
+  - `docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`
+  - `todos/todo.md`
+  - `todos/blocked-todo.md`
+  - `git diff --check`
+
 ### LOOP-GATE-3: Re-Scope Taxonomy Evolution And Emphasize Classification Improvement
 
 - [x] Refined the closed-loop planning chain so Shuma's canonical non-human taxonomy stays seeded-and-stable for the first loop, while the explicitly evolving near-term layer becomes fingerprinting and categorization quality across both simulated and observed traffic.

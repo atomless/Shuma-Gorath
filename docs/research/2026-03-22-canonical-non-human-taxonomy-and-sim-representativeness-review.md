@@ -96,6 +96,16 @@ That avoids circular reasoning:
 2. observed and simulated traffic are both classified into those categories,
 3. and lane representativeness is then judged by whether the generated traffic actually lands in the intended categories with the expected characteristics.
 
+That same category model also has to survive contact with the human operator surface.
+
+The host operator will eventually use these categories to declare posture, so the taxonomy cannot stay a purely internal label set.
+
+Each category should therefore carry:
+
+1. stable machine-facing identity,
+2. stable human-facing label and meaning,
+3. and enough semantic clarity that a site operator can choose posture without reverse-engineering backend implementation details.
+
 ## 6. Scrapling and frontier or LLM lanes should jointly own category fulfillment
 
 The right contract is not that each lane must independently represent every non-human category.
@@ -126,7 +136,23 @@ the recommend-only diagnoser can already inspect how the defenses perform agains
 
 That keeps the current diagnosis stage useful without prematurely enabling auto-apply.
 
-## 8. Autonomous tuning should optimize only over categories that are both classifiable and represented
+## 8. The policy chain should be fingerprinting to categorization to abuse score to posture severity
+
+The user's framing is also right at the policy level:
+
+1. fingerprinting and other evidence inform traffic categorization,
+2. categorization informs a cumulative abuse score, currently expressed as `botness`,
+3. and that abuse score determines how severe the applied posture should be along the scale from `allowed` to `blocked`.
+
+That means category posture and cumulative score are not competing models.
+
+They are complementary:
+
+1. the taxonomy says what kind of non-human traffic Shuma believes it is handling,
+2. the score says how abusive or risky the current instance of that traffic appears to be,
+3. and the resulting policy severity should be bounded by the operator's declared posture for that category.
+
+## 9. Autonomous tuning should optimize only over categories that are both classifiable and represented
 
 Google's canary guidance is clear that synthetic or unrepresentative traffic is unsafe as a sole basis for rollout judgment.
 
@@ -151,8 +177,9 @@ Observed traffic should later refine confidence and weighting, but it should not
 4. Protected tuning evidence eligibility must be explicit before autonomous tuning is reopened.
 5. The actively evolving near-term layer should be fingerprinting and classification quality within the canonical taxonomy.
 6. Taxonomy expansion is a later contingency only if important non-human traffic persistently falls outside the existing categories.
-7. The recommend-only diagnoser should be extended to judge defenses against those simulated categories before autonomous apply is reopened.
-8. Autonomous tuning remains blocked until category definition, classification confidence, protected-evidence rules, lane fulfillment, and representativeness are all machine-readable.
+7. Each category must carry stable machine and human-facing metadata because operators will later set posture against that taxonomy.
+8. The recommend-only diagnoser should be extended to judge defenses against those simulated categories before autonomous apply is reopened.
+9. Autonomous tuning remains blocked until category definition, classification confidence, protected-evidence rules, lane fulfillment, and representativeness are all machine-readable.
 
 # Required Follow-On Work
 
@@ -161,8 +188,8 @@ Observed traffic should later refine confidence and weighting, but it should not
 3. `SIM-FULFILL-1` to implement the category-to-lane fulfillment matrix across Scrapling and frontier or containerized LLM modes.
 4. `SIM-COVER-1` to measure whether those lanes actually generate traffic that fits the intended categories.
 5. `SIM-PROTECTED-1` to codify which classified adversary evidence is tuning-eligible and which remains advisory or harness-only.
-6. `OPS-OBJECTIVES-3` to let operators declare stance and budget expectations per category.
-7. `OPS-BENCH-3` to make benchmark and diagnosis outputs category-aware while preserving visibility into classification confidence.
+6. `OPS-OBJECTIVES-3` to let operators declare posture and budget expectations per category on the bounded scale from `allowed` through `blocked`.
+7. `OPS-BENCH-3` to make benchmark and diagnosis outputs category-aware while preserving visibility into classification confidence and abuse-score-driven severity.
 8. `OVR-APPLY-1` to add bounded apply and rollback only after the above gates are real.
 
 # Result
@@ -174,7 +201,8 @@ The corrected sequence is now:
 3. build lane behaviors designed to fulfill them,
 4. define which evidence is protected enough to tune against,
 5. improve the fingerprinting and classification quality that maps traffic into those categories,
-6. judge defensive performance against those simulated categories and budgets,
-7. then let the tuning loop recommend, apply, and repeat.
+6. accumulate abuse score and posture severity inside the operator-declared category bounds,
+7. judge defensive performance against those simulated categories and budgets,
+8. then let the tuning loop recommend, apply, and repeat.
 
 Later, if important non-human traffic persistently falls outside the existing categories, Shuma can add a governed taxonomy-expansion path, but that is not a first-loop priority.
