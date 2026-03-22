@@ -206,6 +206,8 @@ Completed archive index:
    Post-implementation review confirming `operator_objectives_v1` now persists canonical category posture rows as the site-owned non-human utility function, records category-aware decision lineage, and keeps `operator_snapshot_v1` bounded with a modest hot-read budget increase after the full posture rows landed.
 49. [`2026-03-22-ops-bench-3-category-aware-benchmark-eligibility-post-implementation-review.md`](2026-03-22-ops-bench-3-category-aware-benchmark-eligibility-post-implementation-review.md)
    Post-implementation review confirming `benchmark_results_v1` now carries explicit category-aware tuning eligibility plus per-category posture alignment metrics, and keeps the nested operator snapshot bounded with a second modest hot-read budget increase after the richer benchmark family landed.
+50. [`2026-03-22-ovr-apply-1-state-machine-readiness-review.md`](2026-03-22-ovr-apply-1-state-machine-readiness-review.md)
+   Readiness review freezing the exact `OVR-APPLY-1` state-machine boundary: recommend-only manual preview, one active shared-host canary, exact pre-canary config restore, candidate-vs-baseline watch-window judgment, and fail-closed rollback on any loss of trustworthy evidence.
 
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 

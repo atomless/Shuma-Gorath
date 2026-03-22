@@ -100,6 +100,10 @@
 
 ## Task 3: `OVR-APPLY-1`
 
+Execution source of truth:
+
+- [`2026-03-22-ovr-apply-1-canary-apply-and-rollback-implementation-plan.md`](2026-03-22-ovr-apply-1-canary-apply-and-rollback-implementation-plan.md)
+
 **Files:**
 - Create: `src/admin/oversight_apply.rs`
 - Modify: `src/admin/oversight_api.rs`

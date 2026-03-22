@@ -4,6 +4,21 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-22)
 
+### OVR-APPLY-PLAN-1: Freeze The First Canary Apply And Rollback State Machine
+
+- [x] Added a dedicated readiness review and execution plan for `OVR-APPLY-1`, freezing the exact shared-host-only closed-loop boundary: recommend-only manual preview, one active canary per site, exact pre-canary config restore, candidate-vs-baseline watch-window judgment, and fail-closed rollback on any loss of trustworthy evidence.
+- [x] Why:
+  - `OPS-BENCH-3` completed the category-aware benchmark gate, but the first closed loop still needed a more precise apply-state design before code could land cleanly.
+  - the highest remaining ambiguity was not whether `OVR-APPLY-1` should exist, but how it should preserve baseline truth, avoid a second controller model, and restore exact prior config on rollback.
+  - landing that readiness note now keeps the code tranche small and reviewable instead of forcing state-machine decisions to emerge piecemeal while editing runtime code.
+- [x] Evidence:
+  - `docs/research/2026-03-22-ovr-apply-1-state-machine-readiness-review.md`
+  - `docs/plans/2026-03-22-ovr-apply-1-canary-apply-and-rollback-implementation-plan.md`
+  - `docs/plans/2026-03-22-category-aware-objectives-benchmarks-and-apply-loop-implementation-plan.md`
+  - `docs/research/README.md`
+  - `todos/todo.md`
+  - `git diff --check`
+
 ### OPS-BENCH-3: Protected-Lane Category-Aware Benchmark Eligibility
 
 - [x] Extended `benchmark_results_v1` so category-aware protected tuning eligibility is explicit, the benchmark suite now includes canonical per-category posture-alignment metrics, and the benchmark payload now exposes the exact blockers that must fail closed before the first autonomous apply loop is allowed to act.

@@ -90,6 +90,7 @@ Current stance:
 
 ### OVR-APPLY-1: First Closed Autonomous Tuning Loop With Canary Apply And Rollback
 - Implement the first bounded shared-host config-apply loop so a recommend-only reconcile result can progress into canary apply, watch-window judgment, and explicit rollback over protected category-aware benchmark evidence.
+- Execution plan: [`../docs/plans/2026-03-22-ovr-apply-1-canary-apply-and-rollback-implementation-plan.md`](../docs/plans/2026-03-22-ovr-apply-1-canary-apply-and-rollback-implementation-plan.md)
 
 ## P1 Verified Bot Identity And Web Bot Auth Foundation
 
