@@ -70,23 +70,7 @@ Must include:
 2. supporting evidence references,
 3. fail-closed semantics when the categorization layer is too weak for tuning.
 
-## Task 3: `SIM-PROTECTED-1`
-
-Codify the protected tuning evidence model.
-
-Must include:
-
-1. explicit `tuning_eligible` or equivalent basis metadata on adversary evidence,
-2. explicit exclusion of `synthetic_traffic` from autonomous tuning,
-3. explicit rule that replay-promoted frontier or LLM lineage can count as protected evidence while raw frontier attempts remain advisory,
-4. snapshot and benchmark visibility of the evidence basis used for any tuning recommendation or future auto-apply.
-
-Acceptance:
-
-1. later reconcile and apply logic can tell the difference between contract-test evidence and tuning-grade evidence,
-2. the contract makes synthetic ineligibility machine-readable rather than prose-only.
-
-## Task 4: `SIM-COVER-1`
+## Task 3: `SIM-COVER-1`
 
 Define and materialize the representativeness matrix and bounded coverage receipts.
 
@@ -101,6 +85,22 @@ Acceptance:
 
 1. the loop can answer whether the current protected evidence set covers the categories it intends to optimize,
 2. autonomous tuning can fail closed when category coverage is incomplete.
+
+## Task 4: `SIM-PROTECTED-1`
+
+Codify the protected tuning evidence model.
+
+Must include:
+
+1. explicit `tuning_eligible` or equivalent basis metadata on adversary evidence,
+2. explicit exclusion of `synthetic_traffic` from autonomous tuning,
+3. explicit rule that replay-promoted frontier or LLM lineage can count as protected evidence while raw frontier attempts remain advisory,
+4. snapshot and benchmark visibility of the evidence basis used for any tuning recommendation or future auto-apply.
+
+Acceptance:
+
+1. later reconcile and apply logic can tell the difference between contract-test evidence and tuning-grade evidence,
+2. the contract makes synthetic ineligibility machine-readable rather than prose-only.
 
 ## Task 5: `OPS-OBJECTIVES-3`
 
