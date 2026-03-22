@@ -88,9 +88,6 @@ Current stance:
 - The actively evolving near-term layer should be fingerprinting and categorization quality inside that taxonomy; taxonomy expansion is only a later contingency if important non-human traffic persistently falls outside the existing categories.
 - The next bridge to a genuine LLM-in-the-loop system is not the full later `SIM-LLM-1` runtime actor; it is a bounded category-fulfillment LLM tranche that sits between the taxonomy/classifier work and the first closed config loop, with the later LLM diagnosis harness and code loop still downstream of `OVR-APPLY-1`.
 
-### TRAFFIC-TAX-2: Traffic Category Confidence And Evidence Receipts
-- Add bounded confidence and evidence receipts for Shuma's traffic categorization layer so later benchmark and autonomous tuning logic can fail closed when category assignment is still too weak or too stale to trust, so both simulated and observed traffic can be judged through the same classifier, and so fingerprinting and categorization quality can improve over time without changing the category model by default.
-
 ### SIM-LLM-FIT-1: Bounded LLM Category-Fulfillment Modes
 - Implement the minimum containerized LLM-backed browser or request modes needed to fulfill the non-human categories Scrapling cannot credibly cover, behind a pluggable model-backend contract with frontier-backed reference execution for high-capability categories and optional later local-model backends only if evals prove parity.
 

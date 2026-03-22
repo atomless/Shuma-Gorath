@@ -2,6 +2,7 @@
 
 use crate::observability::hot_read_contract::{TelemetryBasis, TelemetryExactness};
 use crate::bot_identity::contracts::{IdentityCategory, IdentityScheme, VerifiedIdentityEvidence};
+use crate::runtime::non_human_taxonomy::NonHumanCategoryId;
 use crate::runtime::policy_graph::PolicyDecision;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -38,6 +39,12 @@ pub(crate) struct TrafficLaneAssignment {
     pub lane: TrafficLane,
     pub exactness: TelemetryExactness,
     pub basis: TelemetryBasis,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct NonHumanCategoryAssignment {
+    pub category_id: NonHumanCategoryId,
+    pub assignment_status: &'static str,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -121,6 +128,32 @@ pub(crate) fn verified_identity_lane_assignment(
         SIGNED_AGENT_OBSERVED
     } else {
         VERIFIED_BOT_OBSERVED
+    }
+}
+
+pub(crate) fn non_human_category_assignment_for_lane(
+    lane: TrafficLane,
+) -> Option<NonHumanCategoryAssignment> {
+    match lane {
+        TrafficLane::LikelyHuman | TrafficLane::UnknownInteractive => None,
+        TrafficLane::SuspiciousAutomation => Some(NonHumanCategoryAssignment {
+            category_id: NonHumanCategoryId::UnknownNonHuman,
+            assignment_status: "insufficient_evidence",
+        }),
+        TrafficLane::DeclaredCrawler => Some(NonHumanCategoryAssignment {
+            category_id: NonHumanCategoryId::IndexingBot,
+            assignment_status: "classified",
+        }),
+        TrafficLane::DeclaredUserTriggeredAgent | TrafficLane::SignedAgent => {
+            Some(NonHumanCategoryAssignment {
+                category_id: NonHumanCategoryId::AgentOnBehalfOfHuman,
+                assignment_status: "classified",
+            })
+        }
+        TrafficLane::VerifiedBot => Some(NonHumanCategoryAssignment {
+            category_id: NonHumanCategoryId::VerifiedBeneficialBot,
+            assignment_status: "classified",
+        }),
     }
 }
 
@@ -433,5 +466,34 @@ mod tests {
                 && category.label == "Agent on behalf of human"
                 && category.description.contains("acts for a human")
         }));
+    }
+
+    #[test]
+    fn non_human_lane_assignments_follow_seeded_taxonomy_contract() {
+        assert_eq!(
+            non_human_category_assignment_for_lane(TrafficLane::VerifiedBot),
+            Some(NonHumanCategoryAssignment {
+                category_id: NonHumanCategoryId::VerifiedBeneficialBot,
+                assignment_status: "classified",
+            })
+        );
+        assert_eq!(
+            non_human_category_assignment_for_lane(TrafficLane::DeclaredCrawler),
+            Some(NonHumanCategoryAssignment {
+                category_id: NonHumanCategoryId::IndexingBot,
+                assignment_status: "classified",
+            })
+        );
+        assert_eq!(
+            non_human_category_assignment_for_lane(TrafficLane::SuspiciousAutomation),
+            Some(NonHumanCategoryAssignment {
+                category_id: NonHumanCategoryId::UnknownNonHuman,
+                assignment_status: "insufficient_evidence",
+            })
+        );
+        assert_eq!(
+            non_human_category_assignment_for_lane(TrafficLane::LikelyHuman),
+            None
+        );
     }
 }

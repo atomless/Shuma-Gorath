@@ -479,6 +479,50 @@ mod tests {
                 policy_source: PolicySource::PolicyGraphSecondTranche,
             },
         );
+        record_request_outcome(
+            store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::Live,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::PublicContent,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: Some(RequestOutcomeLane {
+                    lane: TrafficLane::VerifiedBot,
+                    exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
+                    basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
+                }),
+                outcome_class: RequestOutcomeClass::Forwarded,
+                response_kind: ResponseKind::ForwardAllow,
+                http_status: 200,
+                response_bytes: 512,
+                forward_attempted: true,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::PolicyGraphVerifiedIdentityTranche,
+            },
+        );
+        record_request_outcome(
+            store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::AdversarySim,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::PublicContent,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: Some(RequestOutcomeLane {
+                    lane: TrafficLane::DeclaredCrawler,
+                    exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
+                    basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
+                }),
+                outcome_class: RequestOutcomeClass::Forwarded,
+                response_kind: ResponseKind::ForwardAllow,
+                http_status: 200,
+                response_bytes: 512,
+                forward_attempted: true,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::CleanAllow,
+            },
+        );
         let summary = summarize_with_store(store, 24, 10);
         let payload = build_operator_snapshot_payload(
             store,
@@ -522,7 +566,7 @@ mod tests {
     }
 
     #[test]
-    fn manual_reconcile_route_records_a_recommendation_and_history() {
+    fn manual_reconcile_route_records_observe_longer_when_classification_is_not_ready() {
         let store = TestStore::new();
         let mut cfg = defaults().clone();
         cfg.fingerprint_signal_enabled = false;
@@ -538,8 +582,8 @@ mod tests {
         assert_eq!(*response.status(), 200);
         let payload: serde_json::Value =
             serde_json::from_slice(response.body()).expect("payload decodes");
-        assert_eq!(payload["reconcile"]["outcome"], "recommend_patch");
-        assert_eq!(payload["validation"]["status"], "valid");
+        assert_eq!(payload["reconcile"]["outcome"], "observe_longer");
+        assert_eq!(payload["validation"]["status"], "skipped");
 
         let history_request = Request::builder()
             .method(Method::Get)
@@ -573,7 +617,7 @@ mod tests {
     }
 
     #[test]
-    fn internal_agent_route_records_periodic_run_and_status_surface() {
+    fn internal_agent_route_records_periodic_run_and_fail_closed_status_surface() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_API_KEY", "oversight-agent-test-key");
         std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
@@ -614,7 +658,7 @@ mod tests {
         assert_eq!(payload["latest_run"]["trigger_kind"], "periodic_supervisor");
         assert_eq!(
             payload["latest_run"]["execution"]["reconcile"]["outcome"],
-            "recommend_patch"
+            "observe_longer"
         );
 
         std::env::remove_var("SHUMA_API_KEY");

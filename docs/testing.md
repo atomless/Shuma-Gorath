@@ -41,6 +41,7 @@ make test-sim2-operational-regressions-strict # Strict SIM2 operational regressi
 make test-sim2-governance-contract # SIM2 hybrid lane + governance contract conformance diagnostics
 make test-admin-machine-contracts # Focused recent-change ledger + operator snapshot + benchmark admin read contracts
 make test-traffic-taxonomy-contract # Focused non-human taxonomy and snapshot taxonomy-contract checks
+make test-traffic-classification-contract # Focused non-human classification receipts and fail-closed benchmark gating checks
 make test-admin-api-routing-contract # Focused admin route-family contract gate for structural API refactors
 make test-controller-action-surface # Focused allowed-actions and controller-family mapping checks
 make test-benchmark-comparison-contract # Focused benchmark comparison helper contract checks
@@ -213,6 +214,7 @@ Structural refactor proof map:
 
 - `make test-admin-machine-contracts` is the focused admin read-contract gate for the recent-change ledger plus the machine-first operator snapshot and benchmark endpoints.
 - `make test-traffic-taxonomy-contract` is the focused taxonomy gate for the seeded canonical non-human category catalog plus its first machine-first operator-snapshot projection.
+- `make test-traffic-classification-contract` is the focused classification gate for lane-to-category receipts, the operator-snapshot non-human readiness surface, and fail-closed benchmark escalation when category evidence is not yet protected enough for tuning.
 - `make test-controller-action-surface` is the focused config-side gate for `allowed_actions_v1` and controller patch-family mapping reuse.
 - `make test-benchmark-comparison-contract` is the focused benchmark helper gate for explicit baseline-availability, improvement-status, and escalation comparison semantics.
 - `make test-operator-objectives-contract` is the focused objective-profile and decision-evidence gate for persisted `operator_objectives_v1`, the operator-objectives admin endpoint, the bounded decision ledger, and snapshot wiring.

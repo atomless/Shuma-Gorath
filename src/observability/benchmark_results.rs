@@ -1,11 +1,12 @@
 use serde::{Deserialize, Serialize};
 
 use crate::config::AllowedActionsSurface;
-use crate::observability::benchmark_suite::BENCHMARK_SUITE_SCHEMA_VERSION;
 use crate::config::Config;
+use crate::observability::benchmark_suite::BENCHMARK_SUITE_SCHEMA_VERSION;
+use crate::observability::non_human_classification::NonHumanClassificationReadiness;
 use crate::observability::operator_snapshot::{
     OperatorBudgetDistanceSummary, OperatorSnapshotAdversarySim, OperatorSnapshotLiveTraffic,
-    OperatorSnapshotWindow, ReplayPromotionSummary,
+    OperatorSnapshotNonHumanTrafficSummary, OperatorSnapshotWindow, ReplayPromotionSummary,
 };
 use super::benchmark_adversary_effectiveness::representative_adversary_effectiveness_family;
 use super::benchmark_beneficial_non_human::beneficial_non_human_posture_family;
@@ -100,6 +101,7 @@ pub(crate) struct BenchmarkResultsPayload {
     pub coverage_status: String,
     pub overall_status: String,
     pub improvement_status: String,
+    pub non_human_classification: NonHumanClassificationReadiness,
     pub families: Vec<BenchmarkFamilyResult>,
     pub escalation_hint: BenchmarkEscalationHint,
     pub replay_promotion: ReplayPromotionSummary,
@@ -111,6 +113,7 @@ pub(crate) fn build_benchmark_results_from_snapshot_sections(
     watch_window: &OperatorSnapshotWindow,
     live_traffic: &OperatorSnapshotLiveTraffic,
     adversary_sim: &OperatorSnapshotAdversarySim,
+    non_human_traffic: &OperatorSnapshotNonHumanTrafficSummary,
     budget_distance: &OperatorBudgetDistanceSummary,
     summary: &crate::observability::monitoring::MonitoringSummary,
     cfg: &Config,
@@ -134,6 +137,23 @@ pub(crate) fn build_benchmark_results_from_snapshot_sections(
         families.as_mut_slice(),
         prior_window_reference,
     );
+    let derived_escalation_hint = derive_escalation_hint(allowed_actions, families.as_slice());
+    let escalation_hint = if non_human_traffic.readiness.status != "ready" {
+        let mut blockers = vec!["non_human_classification_not_ready".to_string()];
+        blockers.extend(non_human_traffic.readiness.blockers.iter().cloned());
+        BenchmarkEscalationHint {
+            availability: derived_escalation_hint.availability.clone(),
+            decision: "observe_longer".to_string(),
+            review_status: "manual_review_required".to_string(),
+            trigger_family_ids: derived_escalation_hint.trigger_family_ids.clone(),
+            candidate_action_families: Vec::new(),
+            blockers,
+            note: "Current benchmark pressure cannot justify tuning because non-human classification readiness is not yet strong enough for protected category-aware decisions."
+                .to_string(),
+        }
+    } else {
+        derived_escalation_hint
+    };
 
     BenchmarkResultsPayload {
         schema_version: BENCHMARK_RESULTS_SCHEMA_VERSION.to_string(),
@@ -146,7 +166,8 @@ pub(crate) fn build_benchmark_results_from_snapshot_sections(
         coverage_status: overall_coverage_status(families.as_slice()),
         overall_status: overall_status(families.as_slice()),
         improvement_status,
-        escalation_hint: derive_escalation_hint(allowed_actions, families.as_slice()),
+        non_human_classification: non_human_traffic.readiness.clone(),
+        escalation_hint,
         replay_promotion: replay_promotion.clone(),
         families,
     }
@@ -266,6 +287,7 @@ mod tests {
             &snapshot.window,
             &snapshot.live_traffic,
             &snapshot.adversary_sim,
+            &snapshot.non_human_traffic,
             &snapshot.budget_distance,
             &summary,
             &defaults(),
@@ -282,8 +304,9 @@ mod tests {
             .any(|family| family.family_id == "likely_human_friction"));
         assert_eq!(payload.coverage_status, "partial_support");
         assert_eq!(payload.improvement_status, "not_available");
+        assert_eq!(payload.non_human_classification.status, "not_observed");
         assert_eq!(payload.escalation_hint.availability, "partial_support");
-        assert_eq!(payload.escalation_hint.decision, "config_tuning_candidate");
+        assert_eq!(payload.escalation_hint.decision, "observe_longer");
         assert_eq!(payload.replay_promotion.availability, "not_materialized");
         assert_eq!(
             payload.escalation_hint.review_status,
@@ -316,6 +339,50 @@ mod tests {
                 policy_source: PolicySource::PolicyGraphSecondTranche,
             },
         );
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::Live,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::PublicContent,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: Some(RequestOutcomeLane {
+                    lane: TrafficLane::VerifiedBot,
+                    exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
+                    basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
+                }),
+                outcome_class: RequestOutcomeClass::Forwarded,
+                response_kind: ResponseKind::ForwardAllow,
+                http_status: 200,
+                response_bytes: 120,
+                forward_attempted: true,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::PolicyGraphVerifiedIdentityTranche,
+            },
+        );
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::AdversarySim,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::PublicContent,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: Some(RequestOutcomeLane {
+                    lane: TrafficLane::DeclaredCrawler,
+                    exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
+                    basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
+                }),
+                outcome_class: RequestOutcomeClass::Forwarded,
+                response_kind: ResponseKind::ForwardAllow,
+                http_status: 200,
+                response_bytes: 120,
+                forward_attempted: true,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::CleanAllow,
+            },
+        );
         let summary = summarize_with_store(&store, 24, 10);
         let mut snapshot = build_operator_snapshot_payload(
             &store,
@@ -345,6 +412,7 @@ mod tests {
             &snapshot.window,
             &snapshot.live_traffic,
             &snapshot.adversary_sim,
+            &snapshot.non_human_traffic,
             &snapshot.budget_distance,
             &summary,
             &defaults(),
@@ -352,6 +420,7 @@ mod tests {
             &ReplayPromotionSummary::not_materialized(),
             None,
         );
+        assert_eq!(payload.non_human_classification.status, "ready");
         assert_eq!(payload.escalation_hint.decision, "config_tuning_candidate");
         assert_eq!(
             payload.escalation_hint.review_status,
@@ -493,6 +562,7 @@ mod tests {
             &snapshot.window,
             &snapshot.live_traffic,
             &snapshot.adversary_sim,
+            &snapshot.non_human_traffic,
             &snapshot.budget_distance,
             &summary,
             &cfg,
@@ -524,5 +594,66 @@ mod tests {
             .metrics
             .iter()
             .all(|metric| metric.status != "not_yet_supported"));
+    }
+
+    #[test]
+    fn benchmark_results_fail_closed_when_non_human_classification_is_not_ready() {
+        let store = TestStore::new();
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::Live,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::PublicContent,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: Some(RequestOutcomeLane {
+                    lane: TrafficLane::LikelyHuman,
+                    exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
+                    basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
+                }),
+                outcome_class: RequestOutcomeClass::ShortCircuited,
+                response_kind: ResponseKind::NotABot,
+                http_status: 200,
+                response_bytes: 45,
+                forward_attempted: false,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::PolicyGraphSecondTranche,
+            },
+        );
+        let summary = summarize_with_store(&store, 24, 10);
+        let snapshot = build_operator_snapshot_payload(
+            &store,
+            "default",
+            1_700_000_300,
+            &summary,
+            &[],
+            OperatorSnapshotRecentChanges::default(),
+            1_700_000_300,
+            1_700_000_300,
+            1_700_000_300,
+        );
+
+        let payload = build_benchmark_results_from_snapshot_sections(
+            snapshot.generated_at,
+            1_700_000_300,
+            &snapshot.window,
+            &snapshot.live_traffic,
+            &snapshot.adversary_sim,
+            &snapshot.non_human_traffic,
+            &snapshot.budget_distance,
+            &summary,
+            &defaults(),
+            &snapshot.allowed_actions,
+            &ReplayPromotionSummary::not_materialized(),
+            None,
+        );
+
+        assert_eq!(payload.non_human_classification.status, "not_observed");
+        assert_eq!(payload.escalation_hint.decision, "observe_longer");
+        assert!(payload
+            .escalation_hint
+            .blockers
+            .contains(&"non_human_classification_not_ready".to_string()));
     }
 }

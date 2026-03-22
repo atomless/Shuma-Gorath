@@ -44,6 +44,7 @@ pub(crate) struct NonHumanCategoryDescriptor {
     pub category_id: NonHumanCategoryId,
     pub label: String,
     pub description: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub compatible_postures: Vec<String>,
 }
 
@@ -66,27 +67,27 @@ pub(crate) fn canonical_non_human_taxonomy() -> NonHumanTaxonomyCatalog {
             descriptor(
                 NonHumanCategoryId::IndexingBot,
                 "Indexing bot",
-                "Non-human traffic that traverses pages primarily to discover and index content.",
+                "Non-human traffic that primarily discovers and indexes content.",
             ),
             descriptor(
                 NonHumanCategoryId::AiScraperBot,
                 "AI scraper bot",
-                "Non-human traffic that retrieves content in bulk for model training, retrieval, or dataset capture.",
+                "Non-human traffic that retrieves content in bulk for model training or retrieval.",
             ),
             descriptor(
                 NonHumanCategoryId::AutomatedBrowser,
                 "Automated browser",
-                "Browser-driven automation that executes page flows like a user but without a human directly at the keyboard.",
+                "Browser-driven automation that executes page flows without a human at the keyboard.",
             ),
             descriptor(
                 NonHumanCategoryId::HttpAgent,
                 "HTTP agent",
-                "Programmatic request traffic that operates directly at the request layer rather than through a browser.",
+                "Programmatic request traffic that operates directly at the HTTP layer.",
             ),
             descriptor(
                 NonHumanCategoryId::BrowserAgent,
                 "Browser agent",
-                "Agentic automation that drives a browser to gather information, navigate, or act across multi-step flows.",
+                "Agentic automation that drives a browser across multi-step flows.",
             ),
             descriptor(
                 NonHumanCategoryId::AgentOnBehalfOfHuman,
@@ -96,12 +97,12 @@ pub(crate) fn canonical_non_human_taxonomy() -> NonHumanTaxonomyCatalog {
             descriptor(
                 NonHumanCategoryId::VerifiedBeneficialBot,
                 "Verified beneficial bot",
-                "Verified non-human traffic that is beneficial, tolerated, or intentionally allowed by site policy.",
+                "Verified non-human traffic intentionally tolerated or allowed by site policy.",
             ),
             descriptor(
                 NonHumanCategoryId::UnknownNonHuman,
                 "Unknown non-human",
-                "Non-human traffic that Shuma can distinguish from likely humans but cannot yet classify more precisely.",
+                "Non-human traffic Shuma can distinguish from likely humans but not yet classify more precisely.",
             ),
         ],
     }
@@ -116,6 +117,6 @@ fn descriptor(
         category_id,
         label: label.to_string(),
         description: description.to_string(),
-        compatible_postures: posture_scale(),
+        compatible_postures: Vec::new(),
     }
 }

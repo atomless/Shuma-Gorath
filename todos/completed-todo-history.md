@@ -4,6 +4,34 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-22)
 
+### TRAFFIC-TAX-2: Traffic Category Confidence And Evidence Receipts
+
+- [x] Added bounded non-human category receipts and readiness gating so `operator_snapshot_v1` now exposes the shared decision chain from fingerprinting to categorization to cumulative abuse score to posture severity, along with live and adversary-sim category receipts, and so `benchmark_results_v1` fails closed to `observe_longer` when category evidence is not yet strong enough for tuning.
+- [x] Why:
+  - the seeded taxonomy from `TRAFFIC-TAX-1` was not enough on its own for later tuning work because the controller still lacked a machine-readable answer to whether current category evidence was trustworthy enough to act on.
+  - the same classifier contract needed to cover both live and adversary-sim traffic so later representativeness and protected-evidence work can judge both against one backend-owned basis instead of lane-local assumptions.
+  - making benchmark escalation fail closed here prevents the recommend-only loop from normalizing category-blind tuning before the protected evidence and representativeness tranches land.
+- [x] Evidence:
+  - `src/observability/non_human_classification.rs`
+  - `src/observability/operator_snapshot_non_human.rs`
+  - `src/observability/benchmark_results.rs`
+  - `src/runtime/traffic_classification.rs`
+  - `src/runtime/non_human_taxonomy.rs`
+  - `src/admin/oversight_api.rs`
+  - `src/admin/oversight_reconcile.rs`
+  - `src/observability/hot_read_contract.rs`
+  - `src/observability/hot_read_documents.rs`
+  - `Makefile`
+  - `docs/api.md`
+  - `docs/configuration.md`
+  - `docs/testing.md`
+  - `docs/research/2026-03-22-traffic-tax-2-classification-confidence-post-implementation-review.md`
+  - `make test-traffic-classification-contract`
+  - `make test-operator-snapshot-foundation`
+  - `make test-benchmark-results-contract`
+  - `make test-oversight-reconcile`
+  - `git diff --check`
+
 ### TRAFFIC-TAX-1: Canonical Non-Human Traffic Taxonomy Contract
 
 - [x] Landed the seeded canonical non-human taxonomy as a runtime-owned contract and projected it through `operator_snapshot_v1` via the new `non_human_traffic` section so later objectives, coverage, and tuning work can share one stable operator-facing category basis.

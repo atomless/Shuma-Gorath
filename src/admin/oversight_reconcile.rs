@@ -327,6 +327,9 @@ mod tests {
     use crate::observability::hot_read_contract::{
         HotReadOwnershipTier, TelemetryBasis, TelemetryExactness,
     };
+    use crate::observability::non_human_classification::{
+        non_human_decision_chain, NonHumanClassificationReadiness,
+    };
     use crate::observability::operator_snapshot::{
         OperatorBudgetDistanceRow, OperatorBudgetDistanceSummary, OperatorSnapshotHotReadPayload,
         OperatorSnapshotSectionMetadata, OperatorSnapshotWindow,
@@ -369,6 +372,12 @@ mod tests {
             coverage_status: "partial_support".to_string(),
             overall_status: "outside_budget".to_string(),
             improvement_status: "regressed".to_string(),
+            non_human_classification: NonHumanClassificationReadiness {
+                status: "ready".to_string(),
+                blockers: Vec::new(),
+                live_receipt_count: 1,
+                adversary_sim_receipt_count: 1,
+            },
             families: vec![BenchmarkFamilyResult {
                 family_id: "suspicious_origin_cost".to_string(),
                 status: "outside_budget".to_string(),
@@ -492,6 +501,14 @@ mod tests {
             non_human_traffic: OperatorSnapshotNonHumanTrafficSummary {
                 availability: "taxonomy_seeded".to_string(),
                 taxonomy: crate::runtime::non_human_taxonomy::canonical_non_human_taxonomy(),
+                readiness: NonHumanClassificationReadiness {
+                    status: "ready".to_string(),
+                    blockers: Vec::new(),
+                    live_receipt_count: 1,
+                    adversary_sim_receipt_count: 1,
+                },
+                decision_chain: non_human_decision_chain(),
+                receipts: Vec::new(),
             },
             allowed_actions: allowed_actions_v1(),
             benchmark_results,

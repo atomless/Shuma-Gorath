@@ -323,6 +323,7 @@ Operator-objectives contract notes:
 - `operator_objectives_v1` is not part of `POST /admin/config`. It has its own primary-state endpoint at `GET` and `POST /admin/operator-objectives`.
 - `POST /admin/operator-objectives` is guarded by the same `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=true` switch as other admin writes.
 - `POST /admin/oversight/reconcile` and `GET /admin/oversight/history` are control-plane reads over machine-first evidence, not config-write endpoints. In this recommend-only tranche they must not mutate persisted config and they route every candidate patch back through `POST /admin/config/validate` before a proposal is considered viable.
+- `operator_snapshot_v1.non_human_traffic` now exposes the seeded taxonomy, the bounded decision chain (`fingerprinting_and_evidence` -> `categorization` -> `cumulative_abuse_score_botness` -> `posture_severity`), category receipts, and readiness blockers. `benchmark_results_v1` mirrors that readiness and must fail closed to `observe_longer` when category evidence is not yet strong enough for protected tuning decisions.
 - `profile_id` must not be empty.
 - `window_hours` must be between `1` and `720`.
 - `compliance_semantics` must be `max_ratio_budget`.

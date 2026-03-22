@@ -439,6 +439,13 @@ mod tests {
             coverage_status: "supported".to_string(),
             overall_status: "inside_budget".to_string(),
             improvement_status: "not_available".to_string(),
+            non_human_classification:
+                crate::observability::non_human_classification::NonHumanClassificationReadiness {
+                    status: "ready".to_string(),
+                    blockers: Vec::new(),
+                    live_receipt_count: 1,
+                    adversary_sim_receipt_count: 1,
+                },
             families: vec![family(metric("allowed_as_intended_rate", Some(1.0), "inside_budget"))],
             escalation_hint: crate::observability::benchmark_results::BenchmarkEscalationHint {
                 availability: "supported".to_string(),
