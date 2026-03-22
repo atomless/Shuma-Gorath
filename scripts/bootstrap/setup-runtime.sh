@@ -116,6 +116,42 @@ install_sqlite3_with_apt() {
     fi
 }
 
+python_venv_package_name() {
+    local python_bin="$1"
+    "$python_bin" -c 'import sys; print(f"python{sys.version_info.major}.{sys.version_info.minor}-venv")'
+}
+
+install_python_venv_with_apt() {
+    local python_bin="$1"
+    local package_name=""
+    package_name="$(python_venv_package_name "$python_bin" 2>/dev/null || true)"
+    if [[ -z "$package_name" ]]; then
+        package_name="python3-venv"
+    fi
+
+    if command -v sudo >/dev/null 2>&1; then
+        if sudo -n true >/dev/null 2>&1; then
+            sudo -n apt-get update -y
+            if ! sudo -n env DEBIAN_FRONTEND=noninteractive apt-get install -y "$package_name"; then
+                sudo -n env DEBIAN_FRONTEND=noninteractive apt-get install -y python3-venv
+            fi
+        else
+            if [[ ! -t 0 ]]; then
+                error "${package_name} is required for the Scrapling worker runtime. Re-run make setup-runtime in an interactive terminal so sudo can install it."
+            fi
+            sudo apt-get update -y
+            if ! sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y "$package_name"; then
+                sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y python3-venv
+            fi
+        fi
+    else
+        apt-get update -y
+        if ! env DEBIAN_FRONTEND=noninteractive apt-get install -y "$package_name"; then
+            env DEBIAN_FRONTEND=noninteractive apt-get install -y python3-venv
+        fi
+    fi
+}
+
 sqlite3_is_usable() {
     command -v sqlite3 >/dev/null 2>&1 && sqlite3 --version >/dev/null 2>&1
 }
@@ -372,9 +408,16 @@ else
     if [[ -z "$SCRAPLING_RUNTIME_PYTHON" ]]; then
         error "Scrapling worker runtime requires Python ${SCRAPLING_RUNTIME_MIN_MAJOR}.${SCRAPLING_RUNTIME_MIN_MINOR}+ and the repo-local ${SCRAPLING_RUNTIME_VENV_DIR}. Install a compatible python, then re-run make setup-runtime."
     fi
-
     info "Creating/updating ${SCRAPLING_RUNTIME_VENV_DIR} with ${SCRAPLING_RUNTIME_PACKAGE_SPEC}..."
-    scrapling_runtime_install "$SCRAPLING_RUNTIME_PYTHON"
+    if ! scrapling_runtime_install "$SCRAPLING_RUNTIME_PYTHON"; then
+        if command -v apt-get >/dev/null 2>&1; then
+            info "Installing Debian/Ubuntu venv support for the Scrapling worker runtime..."
+            install_python_venv_with_apt "$SCRAPLING_RUNTIME_PYTHON"
+            scrapling_runtime_install "$SCRAPLING_RUNTIME_PYTHON"
+        else
+            error "Scrapling worker runtime install failed. Ensure python venv support is installed for $(basename "$SCRAPLING_RUNTIME_PYTHON"), then re-run make setup-runtime."
+        fi
+    fi
     if scrapling_runtime_ready; then
         success "Scrapling worker runtime ready: $(scrapling_runtime_summary)"
     else
