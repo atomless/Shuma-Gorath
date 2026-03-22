@@ -244,12 +244,17 @@ PY"""
         exec_start = self._run_ssh_command(
             f"systemctl show {shlex.quote(service_name)} --property=ExecStart --no-page"
         ).strip()
-        if "run_with_oversight_supervisor.sh" not in exec_start:
+        if "run_with_oversight_supervisor.sh" in exec_start:
+            return exec_start
+        status_output = self._run_ssh_command(
+            f"systemctl status {shlex.quote(service_name)} --no-pager"
+        ).strip()
+        if "run_with_oversight_supervisor.sh" not in status_output:
             raise SmokeFailure(
                 "Remote service is not using scripts/run_with_oversight_supervisor.sh: "
                 f"{exec_start or 'missing ExecStart output'}"
             )
-        return exec_start
+        return status_output
 
     def _oversight_status_summary(self, payload: dict[str, Any]) -> dict[str, Any]:
         latest_run = payload.get("latest_run") or {}

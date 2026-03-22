@@ -3,6 +3,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Optional
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -14,7 +15,7 @@ SPEC.loader.exec_module(LIVE_FEEDBACK_LOOP_REMOTE)
 
 
 class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemote):
-    def __init__(self, *, temp_dir: Path, service_exec: str) -> None:
+    def __init__(self, *, temp_dir: Path, service_exec: str, service_status: Optional[str] = None) -> None:
         self.report_path = temp_dir / "report.json"
         self.transport_mode = "ssh_loopback"
         self.base_url = "https://shuma.example.com"
@@ -32,6 +33,7 @@ class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemo
             },
         }
         self._service_exec = service_exec
+        self._service_status = service_status or service_exec
         self._oversight_status_queue = [
             {
                 "schema_version": "oversight_agent_status_v1",
@@ -199,6 +201,8 @@ class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemo
     def _run_ssh_command(self, command: str) -> str:
         if "systemctl show" in command:
             return self._service_exec
+        if "systemctl status" in command:
+            return self._service_status
         raise AssertionError(f"Unexpected SSH command: {command}")
 
     def _request_json(self, method: str, path: str, payload=None):
@@ -283,6 +287,24 @@ class LiveFeedbackLoopRemoteTests(unittest.TestCase):
         report = json.loads(runner.report_path.read_text(encoding="utf-8"))
         self.assertEqual(report["result"], "fail")
         self.assertIn("run_with_oversight_supervisor.sh", report["error"])
+
+    def test_run_accepts_service_tree_with_wrapper_below_make_prod_start(self) -> None:
+        temp_dir = Path(tempfile.mkdtemp(prefix="live-feedback-loop-remote-"))
+        runner = _FakeLiveFeedbackLoopRemote(
+            temp_dir=temp_dir,
+            service_exec="ExecStart={ path=/usr/bin/make ; argv[]=/usr/bin/make prod-start ; }",
+            service_status=(
+                "CGroup: /system.slice/shuma-gorath.service\n"
+                "  /usr/bin/make prod-start\n"
+                "  /bin/sh -c ./scripts/run_with_oversight_supervisor.sh spin up\n"
+            ),
+        )
+
+        exit_code = runner.run()
+
+        self.assertEqual(exit_code, 0)
+        report = json.loads(runner.report_path.read_text(encoding="utf-8"))
+        self.assertEqual(report["result"], "pass")
 
 
 if __name__ == "__main__":
