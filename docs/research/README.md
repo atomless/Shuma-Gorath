@@ -182,6 +182,8 @@ Completed archive index:
    Live proof showing the active Linode shared-host deployment at current `HEAD` executed both periodic and post-sim feedback-loop runs, with durable receipts for the live status, sim completion, and linked agent decisions.
 38. [`2026-03-22-live-linode-feedback-loop-post-verification-review.md`](2026-03-22-live-linode-feedback-loop-post-verification-review.md)
    Post-verification review confirming the live proof passed and documenting the two verification-born shortfalls that were fixed immediately: remote loopback startup budget and systemd wrapper-chain inspection.
+39. [`2026-03-22-autonomous-tuning-safety-and-sim-representativeness-review.md`](2026-03-22-autonomous-tuning-safety-and-sim-representativeness-review.md)
+   Review freezing the next closed-loop safety gate: autonomous tuning must depend on protected Scrapling and replay-promoted frontier or LLM evidence with category-coverage proof, not on `synthetic_traffic` or raw advisory frontier findings.
 
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 

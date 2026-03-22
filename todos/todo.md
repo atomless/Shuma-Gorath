@@ -1,6 +1,6 @@
 # TODO Roadmap
 
-Last updated: 2026-03-21
+Last updated: 2026-03-22
 
 This is the active execution-ready work queue.
 Blocked or contingent work lives in `todos/blocked-todo.md`.
@@ -83,6 +83,19 @@ Current stance:
 - Keep the decomposition slices behavior-preserving; semantic expansion begins only after the hotspot modules have focused seams.
 - Land the first shared-host agent tweaker loop before `MON-OVERHAUL-1` so Monitoring and Tuning can project proven machine-first semantics instead of inventing them early.
 - Treat the verified-identity observability and benchmarking gap as part of this loop-closure track rather than later polish.
+- The next priority is now the safety gate between recommend-only diagnosis and autonomous tuning: protected evidence, category-aware objectives, and category-coverage proof must land before auto-apply and before the Monitoring overhaul is reopened.
+
+### SIM-PROTECTED-1: Protected Tuning Evidence Eligibility And Synthetic Exclusion
+- Define the machine-first contract that marks which adversary evidence is tuning-eligible, explicitly excludes `synthetic_traffic`, and treats replay-promoted frontier or LLM lineage as the admissible protected path for emergent discoveries.
+
+### SIM-COVER-1: Representativeness Matrix And Coverage Receipts
+- Define and materialize the bounded coverage matrix for the non-human categories Shuma intends to optimize over, at minimum indexing bots, automated browsers, AI scraper bots, and agents acting on behalf of human users, with explicit coverage, stale, and partial states across Scrapling runtime traffic and replay-promoted frontier or LLM lineage.
+
+### OPS-OBJECTIVES-3: Category-Aware Non-Human Operator Objectives
+- Extend `operator_objectives_v1` so operators can declare desired, tolerated, restricted, and unwanted non-human categories, and so the controller has an explicit utility function instead of a category-blind “reduce bot cost” objective.
+
+### OPS-BENCH-3: Protected-Lane Category-Aware Benchmark Eligibility
+- Extend `benchmark_results_v1` so protected-lane eligibility, category coverage, and category-aware improvement or regression are explicit controller inputs and hard blockers for later autonomous apply.
 
 ## P1 Verified Bot Identity And Web Bot Auth Foundation
 

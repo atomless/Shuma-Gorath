@@ -132,6 +132,13 @@ Status update (2026-03-20):
 6. Reviewed promotion from emergent exploit to deterministic replay case is now an explicit roadmap concept.
 7. The guiding rule for future sim, benchmark, and replay planning is now explicit: telemetry is the map.
 
+Status update (2026-03-22):
+
+1. The next maturity gate is no longer just “first recommend-only agent loop exists.”
+2. Closed autonomous tuning is now explicitly blocked until Shuma can prove protected tuning evidence and category coverage across the non-human categories it intends to optimize.
+3. `synthetic_traffic` remains useful for harness and contract verification, but it must not count as tuning-grade evidence.
+4. Raw frontier or LLM discoveries remain advisory until replay promotion or equivalent deterministic confirmation makes their lineage part of the protected tuning evidence set.
+
 ## B. Tuning Surface Completion
 
 Shuma still needs a plan for completing the Tuning tab as the operator surface for:
@@ -163,7 +170,21 @@ Shuma still needs a monitoring redesign focused on operator questions:
 5. what actually happened while enforcement was active,
 6. and how should those two telemetry modes stay clearly separated without implying a paired live counterfactual for each request.
 
-This is a foundational prerequisite for autonomous tuning. If monitoring remains contributor-diagnostic rather than operator-decisional, the controller will lack the right evidence surface.
+This was the previous expectation, but the sequencing has now tightened: the first closed autonomous tuning loop should precede the Monitoring overhaul. Monitoring still needs operator-grade design, but it should now project the proven protected-evidence, category-aware objective, and rollback semantics of that loop rather than define them in advance.
+
+## H. Protected Tuning Evidence And Category Coverage
+
+Shuma now needs an explicit plan and execution track for protected autonomous tuning.
+
+That track must answer:
+
+1. which evidence sources are tuning-eligible and which remain harness-only,
+2. how Scrapling runtime traffic and replay-promoted frontier or LLM lineage jointly cover the non-human categories Shuma cares about,
+3. how operator objectives express desired, tolerated, and unwanted non-human categories,
+4. how benchmark contracts fail closed when category coverage is incomplete,
+5. and how the first canary apply plus rollback loop proves itself before Monitoring is redesigned around it.
+
+This is now a priority gate ahead of `MON-OVERHAUL-1`.
 
 ## D. Adversary-Sim Telemetry Retention And Disposal
 

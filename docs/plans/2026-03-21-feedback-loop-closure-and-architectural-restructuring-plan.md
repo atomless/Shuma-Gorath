@@ -6,9 +6,11 @@ Related context:
 - [`../research/2026-03-21-feedback-loop-and-architecture-debt-review.md`](../research/2026-03-21-feedback-loop-and-architecture-debt-review.md)
 - [`../research/2026-03-21-agent-first-feedback-loop-sequencing-review.md`](../research/2026-03-21-agent-first-feedback-loop-sequencing-review.md)
 - [`../research/2026-03-21-loop-closure-execution-readiness-review.md`](../research/2026-03-21-loop-closure-execution-readiness-review.md)
+- [`../research/2026-03-22-autonomous-tuning-safety-and-sim-representativeness-review.md`](../research/2026-03-22-autonomous-tuning-safety-and-sim-representativeness-review.md)
 - [`2026-03-21-agent-first-loop-structural-decomposition-implementation-plan.md`](2026-03-21-agent-first-loop-structural-decomposition-implementation-plan.md)
 - [`2026-03-21-agent-first-loop-truth-completion-implementation-plan.md`](2026-03-21-agent-first-loop-truth-completion-implementation-plan.md)
 - [`2026-03-21-agent-first-loop-reconcile-and-agent-implementation-plan.md`](2026-03-21-agent-first-loop-reconcile-and-agent-implementation-plan.md)
+- [`2026-03-22-autonomous-tuning-safety-gates-implementation-plan.md`](2026-03-22-autonomous-tuning-safety-gates-implementation-plan.md)
 - [`2026-03-20-machine-first-operator-snapshot-and-feedback-loop-design.md`](2026-03-20-machine-first-operator-snapshot-and-feedback-loop-design.md)
 - [`2026-03-20-benchmark-suite-v1-design.md`](2026-03-20-benchmark-suite-v1-design.md)
 - [`2026-03-20-mature-adversary-sim-evolution-roadmap.md`](2026-03-20-mature-adversary-sim-evolution-roadmap.md)
@@ -31,6 +33,8 @@ Close the first real Shuma feedback loop and structurally decompose the control-
 5. The first shared-host agent tweaker loop must precede `MON-OVERHAUL-1` so the human surfaces project proven backend semantics rather than invent them ahead of the loop.
 6. Replay-promotion lineage must move from sidecar test tooling into backend contracts before later scheduled-agent planning is reopened.
 7. The next coding tranche should start from the detailed 2026-03-21 execution-ready implementation plans, not only from this high-level sequencing note.
+8. The first truly closed autonomous tuning loop must not use `synthetic_traffic` as tuning evidence; it must depend on protected Scrapling runtime evidence plus replay-promoted or equivalently confirmed frontier or LLM lineage.
+9. Monitoring overhaul should follow the first proven closed loop, not merely the first recommend-only loop, so human surfaces reflect the final protected-evidence and rollback semantics.
 
 # Target Architecture
 
@@ -188,11 +192,33 @@ This phase must prove:
 2. proposal families and evidence semantics are now real enough for human projection,
 3. and later Monitoring/Tuning work can be derived from demonstrated backend behavior instead of speculative UI-first modeling.
 
-## Phase 5: Human Operator Projection
+## Phase 5: Protected Tuning Evidence And Closed-Loop Safety
+
+### `SIM-PROTECTED-1`
+
+Codify protected tuning evidence eligibility and explicitly exclude `synthetic_traffic` from any future auto-apply evidence basis.
+
+### `SIM-COVER-1`
+
+Define the representativeness matrix and bounded coverage receipts across Scrapling runtime traffic and replay-promoted frontier or LLM lineage for the non-human categories Shuma intends to optimize over.
+
+### `OPS-OBJECTIVES-3`
+
+Extend `operator_objectives_v1` with category-aware non-human intent so the controller can distinguish desired, tolerated, and unwanted non-human traffic.
+
+### `OPS-BENCH-3`
+
+Extend `benchmark_results_v1` with protected-lane eligibility and category-aware comparison semantics suitable for canary apply and rollback.
+
+### `OVR-APPLY-1`
+
+Only after the above gates are real, add the first bounded canary apply, watch-window, compare, and rollback loop.
+
+## Phase 6: Human Operator Projection
 
 ### `MON-OVERHAUL-1`
 
-Rebuild Monitoring as the thin human projection over the machine-first contracts after the backend truth and first working agent loop are complete.
+Rebuild Monitoring as the thin human projection over the machine-first contracts after the backend truth and first working closed loop are complete.
 
 ### `TUNE-SURFACE-1`
 
@@ -200,7 +226,7 @@ Finish the operator control surface once the controller inputs, safe action fami
 
 These phases should not be started early just because the UI can be edited sooner.
 
-## Phase 6: Later Scheduled-Agent And Code-Evolution Loops
+## Phase 7: Later Scheduled-Agent And Code-Evolution Loops
 
 ### `OVR-AGENT-2`
 
@@ -216,7 +242,7 @@ Keep code-evolution or PR-generation planning behind the bounded config loop and
 2. Do not blend structural decomposition and semantic expansion in the same tranche.
 3. Keep the first decomposition slices behavior-preserving and test-focused.
 4. Keep one hotspot file as the primary target per refactor tranche wherever practical.
-5. Do not reopen `MON-OVERHAUL-1`, `TUNE-SURFACE-1`, or `OVR-AGENT-2` until the blockers listed in this plan are satisfied.
+5. Do not reopen `MON-OVERHAUL-1`, `TUNE-SURFACE-1`, or `OVR-AGENT-2` until the blockers listed in this plan are satisfied, including protected tuning evidence and category-coverage proof.
 6. Treat periodic scheduling and post-sim triggering as adapter paths over one reconcile or agent contract, not as separate controller implementations.
 
 # File-Length And Separation Guardrails
@@ -240,4 +266,6 @@ This plan is satisfied when:
 5. the first shared-host agent tweaker loop exists and can exercise the backend contracts against sim-cost and benchmark feedback,
 6. replay-promotion lineage is part of the backend control plane rather than sidecar-only tooling,
 7. Monitoring and Tuning consume those contracts rather than parallel semantics,
-8. and only then the later scheduled-agent and code-evolution planning can resume.
+8. the first autonomous tuning loop is blocked until protected evidence and category-aware objective gates are delivered,
+9. Monitoring and Tuning consume the proven closed-loop semantics rather than the earlier recommend-only subset,
+10. and only then the later scheduled-agent and code-evolution planning can resume.

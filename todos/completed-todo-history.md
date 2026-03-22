@@ -4,6 +4,23 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-22)
 
+### LOOP-GATE-1: Capture Protected Autonomous Tuning Gates
+
+- [x] Captured the new safety gate for the first closed autonomous tuning loop: `synthetic_traffic` remains useful for harness and contract verification but is now explicitly ruled out as tuning-grade evidence, and the first auto-apply loop is documented as blocked until protected Scrapling plus replay-promoted frontier or LLM evidence, category-aware operator objectives, and category-coverage receipts are all in place.
+- [x] Why:
+  - the current shared-host loop is recommend-only and truthful, but the next step toward autonomy needed a stronger gate than “some adversary sim evidence exists.”
+  - category-blind tuning would be unsafe because Shuma is explicitly trying to distinguish multiple classes of non-human traffic, including beneficial or operator-allowed classes that can be harmed by optimization against only one attacker family.
+  - the cleanest move was a docs-and-backlog tranche that freezes the policy before any auto-apply work starts: add the research note, add the execution plan, insert the protected-evidence phase into the loop-closure roadmap, and re-block Monitoring and later agent-expansion work on the proven closed loop instead of the earlier recommend-only subset.
+- [x] Evidence:
+  - `docs/research/2026-03-22-autonomous-tuning-safety-and-sim-representativeness-review.md`
+  - `docs/plans/2026-03-22-autonomous-tuning-safety-gates-implementation-plan.md`
+  - `docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`
+  - `docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`
+  - `docs/research/README.md`
+  - `todos/todo.md`
+  - `todos/blocked-todo.md`
+  - `git diff --check`
+
 ### TEST-STABILIZE-1-REVIEW-1: Fix The CI-Only Remount Fan-Out Timeout Gap
 
 - [x] Closed the post-push CI shortfall by giving the `repeated route remount loops keep polling request fan-out bounded` browser smoke the same explicit 90s timeout discipline as the neighboring remount soak, and extended the dashboard unit guard so the test cannot silently fall back to Playwright’s default 30s budget again.
