@@ -4,6 +4,22 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-22)
 
+### TEST-STABILIZE-1-REVIEW-1: Fix The CI-Only Remount Fan-Out Timeout Gap
+
+- [x] Closed the post-push CI shortfall by giving the `repeated route remount loops keep polling request fan-out bounded` browser smoke the same explicit 90s timeout discipline as the neighboring remount soak, and extended the dashboard unit guard so the test cannot silently fall back to Playwright’s default 30s budget again.
+- [x] Why:
+  - the first stabilization commit cleared the previously failing local and remote contracts, but GitHub Actions then exposed one remaining CI-only shortfall: the remount fan-out smoke still carried the default 30s test budget even though it intentionally spans multiple remount cycles and cadence windows.
+  - the failure was not a product regression; the exact assertion body was just timing out inside `page.waitForTimeout(remountObservationWindowMs)` after cumulative remount/setup time on GitHub-hosted runners.
+  - the cleanest fix was to make the test’s timeout budget explicit and enforce that contract in the existing dashboard smoke spec unit guard.
+- [x] Evidence:
+  - `e2e/dashboard.smoke.spec.js`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `gh run view -R atomless/Shuma-Gorath 23402590786 --log-failed`
+  - `make test-dashboard-unit`
+  - `make test-dashboard-e2e PLAYWRIGHT_ARGS="--grep 'repeated route remount loops keep polling request fan-out bounded'"`
+  - `make test`
+  - `git diff --check`
+
 ### TEST-STABILIZE-1: Clear CI And Full-Suite Verification Regressions
 
 - [x] Fixed the failing CI and full-suite verification regressions uncovered after the recent feedback-loop tranche by tightening snapshot serialization, hardening adversary-sim/runtime test contracts against real baseline state and env leakage, extending adversarial evidence fallback mapping, refreshing stale scenario-review metadata, aligning SIM2 ADR conformance checks with the modularized admin surface, and giving the new frontier-confirmation dashboard smoke the same truthful orchestration timeout budget as its neighboring live-control tests.

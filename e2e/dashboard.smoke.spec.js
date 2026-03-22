@@ -2817,6 +2817,7 @@ test("diagnostics manual refresh avoids placeholder flicker and bounds table chu
 });
 
 test("repeated route remount loops keep polling request fan-out bounded", async ({ page }) => {
+  test.setTimeout(90_000);
   const remountObservationWindowMs = 1300;
   const maxExpectedRequestsInWindow = 6;
 

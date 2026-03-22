@@ -5191,6 +5191,10 @@ test('dashboard smoke soak test owns an explicit timeout budget', () => {
 
   assert.match(
     source,
+    /test\("repeated route remount loops keep polling request fan-out bounded", async \(\{ page \}\) => \{\s+test\.setTimeout\(90_000\);/s
+  );
+  assert.match(
+    source,
     /test\("native remount soak keeps refresh p95 and polling cadence within bounds", async \(\{ page \}\) => \{\s+test\.setTimeout\(90_000\);/s
   );
 });
