@@ -160,6 +160,18 @@ The frontier-agent lane is valuable, but it is noisier and costlier. It should d
 
 The first diagnosis harness should consume machine-first contracts directly. Monitoring remains the human projection over those contracts, not the prerequisite for machine analysis.
 
+### 5. Representativeness must be judged against observed traffic taxonomy
+
+The next maturity step is not just "Scrapling runs" or "frontier-agent runs."
+
+Before Shuma treats emergent lanes as autonomous tuning evidence, it should:
+
+1. define the non-human traffic categories it actually observes,
+2. become confident in how it classifies traffic into those categories,
+3. and then judge Scrapling plus frontier-agent coverage jointly against that observed taxonomy.
+
+This means the representativeness contract is partly owned by the lanes, but the taxonomy they are judged against is owned by Shuma's observed traffic model, not by either lane in isolation.
+
 ## Acceptance Standard For This Roadmap
 
 This roadmap should be considered adopted when the backlog and sequence make these things explicit:

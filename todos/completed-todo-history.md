@@ -4,6 +4,25 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-22)
 
+### LOOP-GATE-2: Capture Observed-Traffic Taxonomy Before Lane Representativeness
+
+- [x] Captured the next refinement to the autonomous tuning path: Shuma must first define and gain bounded confidence in the non-human traffic taxonomy it actually observes before it can truthfully judge whether Scrapling and frontier or LLM adversary lanes are representative enough for autonomous tuning, and the lane representativeness contract is now explicitly framed as joint coverage against that taxonomy rather than lane-local realism claims.
+- [x] Why:
+  - the previous safety-gate tranche correctly blocked auto-apply on protected evidence and category coverage, but it still left an earlier gap implicit: category coverage itself is not meaningful until Shuma can confidently identify and classify the categories it encounters in live traffic.
+  - this also sharpened lane ownership in the right direction: Scrapling and frontier or LLM lanes should jointly cover the protected taxonomy, but Shuma's observed-traffic model, not either lane alone, must define the categories they are measured against.
+  - the cleanest move was another docs-and-backlog tranche: add a research note and plan for taxonomy-first sequencing, update the mature adversary-sim roadmap and loop-closure plan, and insert `TRAFFIC-TAX-1` and `TRAFFIC-TAX-2` ahead of representativeness and auto-apply work.
+- [x] Evidence:
+  - `docs/research/2026-03-22-observed-traffic-taxonomy-and-sim-representativeness-review.md`
+  - `docs/plans/2026-03-22-observed-traffic-taxonomy-and-lane-representativeness-plan.md`
+  - `docs/plans/2026-03-22-autonomous-tuning-safety-gates-implementation-plan.md`
+  - `docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`
+  - `docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`
+  - `docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`
+  - `docs/research/README.md`
+  - `todos/todo.md`
+  - `todos/blocked-todo.md`
+  - `git diff --check`
+
 ### LOOP-GATE-1: Capture Protected Autonomous Tuning Gates
 
 - [x] Captured the new safety gate for the first closed autonomous tuning loop: `synthetic_traffic` remains useful for harness and contract verification but is now explicitly ruled out as tuning-grade evidence, and the first auto-apply loop is documented as blocked until protected Scrapling plus replay-promoted frontier or LLM evidence, category-aware operator objectives, and category-coverage receipts are all in place.

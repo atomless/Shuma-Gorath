@@ -138,6 +138,7 @@ Status update (2026-03-22):
 2. Closed autonomous tuning is now explicitly blocked until Shuma can prove protected tuning evidence and category coverage across the non-human categories it intends to optimize.
 3. `synthetic_traffic` remains useful for harness and contract verification, but it must not count as tuning-grade evidence.
 4. Raw frontier or LLM discoveries remain advisory until replay promotion or equivalent deterministic confirmation makes their lineage part of the protected tuning evidence set.
+5. A new prerequisite now sits even earlier in the chain: Shuma must first become good at identifying and categorizing the non-human traffic it actually encounters before it can truthfully judge whether Scrapling and frontier or LLM lanes are representative.
 
 ## B. Tuning Surface Completion
 
@@ -185,6 +186,19 @@ That track must answer:
 5. and how the first canary apply plus rollback loop proves itself before Monitoring is redesigned around it.
 
 This is now a priority gate ahead of `MON-OVERHAUL-1`.
+
+## I. Observed Traffic Taxonomy Before Lane Representativeness
+
+Shuma now also needs an explicit planning and implementation track for observed non-human traffic taxonomy.
+
+That track must answer:
+
+1. what categories of non-human traffic Shuma actually sees,
+2. how confidently it can classify traffic into those categories,
+3. how operator intent attaches to those categories,
+4. and only after that how Scrapling and frontier or LLM traffic jointly represent them well enough for tuning.
+
+This is now a prerequisite for the representativeness contract itself, not only a nice-to-have refinement.
 
 ## D. Adversary-Sim Telemetry Retention And Disposal
 

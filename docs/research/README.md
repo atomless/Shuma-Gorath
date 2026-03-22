@@ -184,6 +184,8 @@ Completed archive index:
    Post-verification review confirming the live proof passed and documenting the two verification-born shortfalls that were fixed immediately: remote loopback startup budget and systemd wrapper-chain inspection.
 39. [`2026-03-22-autonomous-tuning-safety-and-sim-representativeness-review.md`](2026-03-22-autonomous-tuning-safety-and-sim-representativeness-review.md)
    Review freezing the next closed-loop safety gate: autonomous tuning must depend on protected Scrapling and replay-promoted frontier or LLM evidence with category-coverage proof, not on `synthetic_traffic` or raw advisory frontier findings.
+40. [`2026-03-22-observed-traffic-taxonomy-and-sim-representativeness-review.md`](2026-03-22-observed-traffic-taxonomy-and-sim-representativeness-review.md)
+   Review freezing the earlier prerequisite that Shuma must first build bounded confidence in categorizing the non-human traffic it actually sees before it can claim Scrapling and frontier or LLM lanes are representative enough for autonomous tuning.
 
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 
