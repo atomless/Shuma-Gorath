@@ -49,6 +49,7 @@ That gate now has earlier prerequisites:
 3. Autonomous tuning must not optimize against a category-blind non-human aggregate.
 4. The operator must be able to express category intent before auto-apply is allowed.
 5. `MON-OVERHAUL-1` remains blocked until the closed loop is proven through backend behavior and live receipts.
+6. Classification and fingerprinting refinement must be explicit and evidence-backed; taxonomy expansion is later and non-gating for the first closed loop.
 
 # Execution Sequence
 
@@ -70,7 +71,8 @@ Must include:
 
 1. bounded confidence metadata,
 2. supporting evidence references,
-3. fail-closed semantics when the categorization layer is too weak for tuning.
+3. fail-closed semantics when the categorization layer is too weak for tuning,
+4. a design that lets fingerprinting and categorization quality improve over time without changing the category model by default.
 
 ## Task 3: `SIM-FULFILL-1`
 
@@ -170,5 +172,6 @@ This plan is complete when:
 2. Shuma can prove which non-human categories are represented in protected evidence,
 3. operator objectives are category-aware,
 4. benchmark results can authorize or block auto-apply on that basis,
-5. the first canary apply and rollback loop works on live shared-host proof,
-6. and only then `MON-OVERHAUL-1` is reopened.
+5. classification and fingerprinting improvements do not silently invalidate that basis,
+6. the first canary apply and rollback loop works on live shared-host proof,
+7. and only then `MON-OVERHAUL-1` is reopened.

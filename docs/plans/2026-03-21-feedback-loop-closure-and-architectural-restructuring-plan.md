@@ -40,6 +40,7 @@ Close the first real Shuma feedback loop and structurally decompose the control-
 10. The representativeness contract for Scrapling and frontier or LLM lanes must be judged against Shuma's canonical non-human taxonomy, not lane-local assumptions.
 11. Category classification confidence must land before lane representativeness is considered trustworthy enough for autonomous tuning.
 12. The taxonomy comes before attackers: Shuma must define the categories it intends to model before it has enough observed adversary traffic to learn them site-locally.
+13. The initial taxonomy should stay stable enough for the first closed loop; what should evolve first is the fingerprinting and classification quality within it. Taxonomy expansion is a later contingency only if important non-human traffic persistently falls outside the existing categories.
 
 # Target Architecture
 

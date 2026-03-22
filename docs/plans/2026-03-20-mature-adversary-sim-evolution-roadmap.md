@@ -173,6 +173,10 @@ Before Shuma treats emergent lanes as autonomous tuning evidence, it should:
 
 This means the representativeness contract is partly owned by the lanes, but the taxonomy they are judged against is owned by Shuma's canonical traffic model, not by either lane in isolation.
 
+In the near term, the thing that should evolve is the fingerprinting and classification quality inside that taxonomy.
+
+Only later, if important non-human traffic persistently falls outside the existing categories, should Shuma consider a governed taxonomy-expansion path.
+
 ## Acceptance Standard For This Roadmap
 
 This roadmap should be considered adopted when the backlog and sequence make these things explicit:

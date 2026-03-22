@@ -16,7 +16,9 @@ Make the first autonomous tuning loop depend on:
 
 1. a canonical non-human taxonomy defined by Shuma,
 2. a shared classifier that can map both simulated and observed traffic into that taxonomy,
-3. and explicit Scrapling and frontier or containerized LLM lane behaviors designed to fulfill those categories.
+3. explicit Scrapling and frontier or containerized LLM lane behaviors designed to fulfill those categories,
+4. explicit protected-evidence rules,
+5. and a classification or fingerprinting layer that can improve over time without requiring early taxonomy churn.
 
 # Guardrails
 
@@ -25,6 +27,7 @@ Make the first autonomous tuning loop depend on:
 3. Do not require every lane to cover every category independently.
 4. Keep taxonomy, classification, and fulfillment contracts machine-first and bounded.
 5. Preserve the existing rule that `synthetic_traffic` is tuning-ineligible.
+6. Do not make taxonomy expansion part of the first closed-loop critical path.
 
 # Execution Sequence
 
@@ -55,11 +58,13 @@ Must include:
 3. the ability to classify both observed traffic and simulated traffic into the same category set,
 4. stale, degraded, and unavailable states when categorization is weak,
 5. failure-closed semantics for later tuning if the category layer is not trustworthy enough.
+6. a design that allows fingerprinting signals, evidence weighting, and categorization quality to improve over time without changing the core category set by default.
 
 Acceptance:
 
 1. later benchmark and tuning logic can distinguish between "classified" and "best guess",
-2. and lane representativeness can be evaluated using the same classifier that later judges live traffic.
+2. lane representativeness can be evaluated using the same classifier that later judges live traffic,
+3. and category-assignment quality can improve over time without forcing category proliferation.
 
 ## Task 3: `SIM-FULFILL-1`
 
@@ -110,7 +115,8 @@ Must include:
 1. operator stance by category,
 2. benchmark comparison by category,
 3. diagnosis surfaces that show how defenses perform and what cost they impose per simulated category,
-4. tuning blockers when protected category coverage is incomplete.
+4. tuning blockers when protected category coverage is incomplete,
+5. classification-confidence and evidence lineage so objectives and benchmark comparisons stay interpretable as the classifier improves.
 
 ## Task 7: `OVR-APPLY-1`
 
@@ -125,4 +131,5 @@ This plan is complete when:
 3. Scrapling and frontier or containerized LLM lanes have explicit fulfillment paths for the target categories,
 4. protected tuning evidence is category-backed rather than lane-asserted,
 5. benchmark and objective contracts are category-aware,
-6. and only then autonomous tuning is allowed to move beyond recommend-only.
+6. classification quality can improve without invalidating that contract,
+7. and only then autonomous tuning is allowed to move beyond recommend-only.

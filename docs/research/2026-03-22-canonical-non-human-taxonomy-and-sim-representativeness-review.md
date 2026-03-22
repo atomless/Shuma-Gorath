@@ -19,7 +19,8 @@ Freeze the corrected sequencing rule for autonomous tuning:
 1. first define Shuma's own canonical non-human traffic taxonomy,
 2. then build a classification contract that can map both observed and simulated traffic into that taxonomy,
 3. then implement Scrapling and frontier or containerized LLM lane behaviors designed to fulfill those categories,
-4. and only then judge representativeness, diagnosis quality, and tuning readiness.
+4. then govern which evidence is protected and tuning-eligible,
+5. and only then judge representativeness, diagnosis quality, and tuning readiness.
 
 # Findings
 
@@ -66,7 +67,26 @@ Vendor taxonomies are useful seeds, but Shuma needs its own canonical model driv
 
 Observed traffic still matters, but as a later calibration and confidence input, not as the first source of category existence.
 
-## 4. The classification contract should map both live and simulated traffic into the same taxonomy
+## 4. The actively evolving layer should be classification quality, not taxonomy breadth
+
+The user is also right that the system should improve over time.
+
+But the near-term priority is not to make taxonomy evolution itself a first-class gate.
+
+The higher-priority adaptive layer is the fingerprinting, evidence, and categorization quality that decides whether traffic fits the existing categories well enough to act on.
+
+That means the loop should first improve:
+
+1. which signals it trusts,
+2. how it weights or combines those signals,
+3. how confident it is in a category assignment,
+4. and how it distinguishes exact classification from best guess or insufficient evidence.
+
+That classification layer should improve over time for both simulated and observed traffic without requiring category proliferation every time the signal model gets better.
+
+Taxonomy expansion should stay a later contingency only if Shuma persistently encounters important non-human traffic that does not fit the current categories well enough.
+
+## 5. The classification contract should map both live and simulated traffic into the same taxonomy
 
 Before Shuma can judge whether Scrapling and frontier or LLM traffic are representative, it needs a bounded classification layer that can assign both real and simulated traffic into the same canonical category model.
 
@@ -76,7 +96,7 @@ That avoids circular reasoning:
 2. observed and simulated traffic are both classified into those categories,
 3. and lane representativeness is then judged by whether the generated traffic actually lands in the intended categories with the expected characteristics.
 
-## 5. Scrapling and frontier or LLM lanes should jointly own category fulfillment
+## 6. Scrapling and frontier or LLM lanes should jointly own category fulfillment
 
 The right contract is not that each lane must independently represent every non-human category.
 
@@ -94,7 +114,7 @@ That means:
 2. frontier or containerized LLM lanes likely fulfill browser-controlled, multi-step agentic, and higher-capability request behaviors,
 3. and together they should aim to cover the category set the operator cares about.
 
-## 6. Diagnosis should judge defenses against the designed category set before auto-apply exists
+## 7. Diagnosis should judge defenses against the designed category set before auto-apply exists
 
 Once Shuma has:
 
@@ -106,7 +126,7 @@ the recommend-only diagnoser can already inspect how the defenses perform agains
 
 That keeps the current diagnosis stage useful without prematurely enabling auto-apply.
 
-## 7. Autonomous tuning should optimize only over categories that are both classifiable and represented
+## 8. Autonomous tuning should optimize only over categories that are both classifiable and represented
 
 Google's canary guidance is clear that synthetic or unrepresentative traffic is unsafe as a sole basis for rollout judgment.
 
@@ -125,11 +145,14 @@ Observed traffic should later refine confidence and weighting, but it should not
 
 # Decisions
 
-1. The first prerequisite is a canonical non-human taxonomy, not an observed-traffic taxonomy.
+1. The first prerequisite is a seeded canonical non-human taxonomy, not an observed-traffic taxonomy.
 2. The second prerequisite is a classification contract that can map both observed and simulated traffic into that taxonomy.
 3. Scrapling and frontier or containerized LLM lanes jointly own category fulfillment and later representativeness against that taxonomy.
-4. The recommend-only diagnoser should be extended to judge defenses against those simulated categories before autonomous apply is reopened.
-5. Autonomous tuning remains blocked until category definition, classification confidence, lane fulfillment, and representativeness are all machine-readable.
+4. Protected tuning evidence eligibility must be explicit before autonomous tuning is reopened.
+5. The actively evolving near-term layer should be fingerprinting and classification quality within the canonical taxonomy.
+6. Taxonomy expansion is a later contingency only if important non-human traffic persistently falls outside the existing categories.
+7. The recommend-only diagnoser should be extended to judge defenses against those simulated categories before autonomous apply is reopened.
+8. Autonomous tuning remains blocked until category definition, classification confidence, protected-evidence rules, lane fulfillment, and representativeness are all machine-readable.
 
 # Required Follow-On Work
 
@@ -137,9 +160,10 @@ Observed traffic should later refine confidence and weighting, but it should not
 2. `TRAFFIC-TAX-2` to add a classification contract and evidence receipts that can map both observed and simulated traffic into that taxonomy.
 3. `SIM-FULFILL-1` to implement the category-to-lane fulfillment matrix across Scrapling and frontier or containerized LLM modes.
 4. `SIM-COVER-1` to measure whether those lanes actually generate traffic that fits the intended categories.
-5. `OPS-OBJECTIVES-3` to let operators declare stance and budget expectations per category.
-6. `OPS-BENCH-3` to make benchmark and diagnosis outputs category-aware.
-7. `OVR-APPLY-1` to add bounded apply and rollback only after the above gates are real.
+5. `SIM-PROTECTED-1` to codify which classified adversary evidence is tuning-eligible and which remains advisory or harness-only.
+6. `OPS-OBJECTIVES-3` to let operators declare stance and budget expectations per category.
+7. `OPS-BENCH-3` to make benchmark and diagnosis outputs category-aware while preserving visibility into classification confidence.
+8. `OVR-APPLY-1` to add bounded apply and rollback only after the above gates are real.
 
 # Result
 
@@ -148,5 +172,9 @@ The corrected sequence is now:
 1. define the categories Shuma wants to model,
 2. build the classifier that can recognize those categories in both simulated and real traffic,
 3. build lane behaviors designed to fulfill them,
-4. judge defensive performance against those simulated categories and budgets,
-5. then let the tuning loop recommend, apply, and repeat.
+4. define which evidence is protected enough to tune against,
+5. improve the fingerprinting and classification quality that maps traffic into those categories,
+6. judge defensive performance against those simulated categories and budgets,
+7. then let the tuning loop recommend, apply, and repeat.
+
+Later, if important non-human traffic persistently falls outside the existing categories, Shuma can add a governed taxonomy-expansion path, but that is not a first-loop priority.

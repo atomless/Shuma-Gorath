@@ -139,6 +139,7 @@ Status update (2026-03-22):
 3. `synthetic_traffic` remains useful for harness and contract verification, but it must not count as tuning-grade evidence.
 4. Raw frontier or LLM discoveries remain advisory until replay promotion or equivalent deterministic confirmation makes their lineage part of the protected tuning evidence set.
 5. A new prerequisite now sits even earlier in the chain: Shuma must first define its own canonical non-human taxonomy and classification contract before it can truthfully judge whether Scrapling and frontier or LLM lanes are representative.
+6. The near-term adaptive layer should be fingerprinting and categorization quality within that canonical taxonomy; taxonomy expansion is only a later contingency if important traffic persistently falls outside the existing categories.
 
 ## B. Tuning Surface Completion
 
@@ -200,6 +201,8 @@ That track must answer:
 5. and only after that how those lanes jointly represent them well enough for tuning.
 
 This is now a prerequisite for the representativeness contract itself, not only a nice-to-have refinement.
+
+That taxonomy may later need a governed expansion path, but that is not a first-loop priority. The higher-priority work is to improve fingerprinting and categorization quality within the seeded category set.
 
 ## D. Adversary-Sim Telemetry Retention And Disposal
 

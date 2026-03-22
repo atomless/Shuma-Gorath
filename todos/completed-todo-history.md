@@ -4,6 +4,25 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-22)
 
+### LOOP-GATE-3: Re-Scope Taxonomy Evolution And Emphasize Classification Improvement
+
+- [x] Refined the closed-loop planning chain so Shuma's canonical non-human taxonomy stays seeded-and-stable for the first loop, while the explicitly evolving near-term layer becomes fingerprinting and categorization quality across both simulated and observed traffic.
+- [x] Why:
+  - the earlier refinement overstated taxonomy evolution and risked turning a later possibility into a new critical-path gate.
+  - the more accurate architecture is: seed the taxonomy proactively, classify observed and simulated traffic against it, prove lane fulfillment and protected evidence, and let the signal model, confidence model, and categorization quality improve over time inside that category set.
+  - taxonomy expansion remains possible later, but only if important non-human traffic persistently falls outside the existing categories; it is not a priority blocker for the first closed tuning loop.
+- [x] Evidence:
+  - `docs/research/2026-03-22-canonical-non-human-taxonomy-and-sim-representativeness-review.md`
+  - `docs/plans/2026-03-22-canonical-non-human-taxonomy-and-lane-fulfillment-plan.md`
+  - `docs/plans/2026-03-22-autonomous-tuning-safety-gates-implementation-plan.md`
+  - `docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`
+  - `docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`
+  - `docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`
+  - `docs/research/README.md`
+  - `todos/todo.md`
+  - `todos/blocked-todo.md`
+  - `git diff --check`
+
 ### LOOP-GATE-2: Capture Canonical Taxonomy Before Lane Representativeness
 
 - [x] Captured the corrected refinement to the autonomous tuning path: Shuma must first define a canonical non-human taxonomy, then build a shared classifier over simulated and observed traffic, then implement Scrapling and frontier or containerized LLM lane behaviors designed to fulfill those categories before it can truthfully judge representativeness or reopen autonomous tuning.
