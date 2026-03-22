@@ -208,6 +208,8 @@ Completed archive index:
    Post-implementation review confirming `benchmark_results_v1` now carries explicit category-aware tuning eligibility plus per-category posture alignment metrics, and keeps the nested operator snapshot bounded with a second modest hot-read budget increase after the richer benchmark family landed.
 50. [`2026-03-22-ovr-apply-1-state-machine-readiness-review.md`](2026-03-22-ovr-apply-1-state-machine-readiness-review.md)
    Readiness review freezing the exact `OVR-APPLY-1` state-machine boundary: recommend-only manual preview, one active shared-host canary, exact pre-canary config restore, candidate-vs-baseline watch-window judgment, and fail-closed rollback on any loss of trustworthy evidence.
+51. [`2026-03-22-ovr-apply-1-canary-apply-and-rollback-post-implementation-review.md`](2026-03-22-ovr-apply-1-canary-apply-and-rollback-post-implementation-review.md)
+   Post-implementation review confirming the first bounded shared-host canary-apply loop is live-proven, that post-sim triggering now falls back to persisted observed simulation events when terminal control-state counters are absent, and that the remaining adversary-sim diagnostics truth gap is queued separately ahead of Monitoring overhaul.
 
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 

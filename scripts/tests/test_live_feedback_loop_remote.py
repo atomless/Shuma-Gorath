@@ -19,6 +19,10 @@ class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemo
         self.report_path = temp_dir / "report.json"
         self.transport_mode = "ssh_loopback"
         self.base_url = "https://shuma.example.com"
+        self.api_key = "test-admin-key"
+        self.forwarded_ip_secret = "test-forwarded-secret"
+        self.local_env = {"SHUMA_ADMIN_IP_ALLOWLIST": "127.0.0.1/32"}
+        self.remote_env = None
         self.receipt = {
             "identity": {
                 "name": "stub-remote",
@@ -200,6 +204,7 @@ class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemo
             },
         ]
         self._control_calls = []
+        self._control_headers = []
         self._disabled_calls = 0
 
     def _write_report(self, report):
@@ -221,6 +226,16 @@ class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemo
             return {
                 "schema_version": "operator_snapshot_v1",
                 "benchmark_results": {"overall_status": "healthy"},
+            }
+        if path == "/admin/events?hours=2&limit=200":
+            return {
+                "recent_events": [
+                    {
+                        "event": "Challenge",
+                        "is_simulation": True,
+                        "sim_run_id": "sim-run-1",
+                    }
+                ]
             }
         if path == "/admin/oversight/history":
             if len(self._history_queue) > 1:
@@ -259,6 +274,18 @@ class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemo
             }
         raise AssertionError(f"Unexpected internal request: {method} {path}")
 
+    def _loopback_request_json(self, method: str, path: str, headers, payload=None):
+        if path == "/admin/adversary-sim/control":
+            self._control_calls.append(payload)
+            self._control_headers.append(headers)
+            return {
+                "operation_id": "op-enable-1" if payload["enabled"] else "op-disable-1",
+                "decision": "accepted",
+            }
+        if path == "/internal/oversight/agent/run":
+            return self._internal_request_json(method, path, payload)
+        raise AssertionError(f"Unexpected loopback request: {method} {path}")
+
     def _ensure_adversary_sim_disabled(self):
         self._disabled_calls += 1
 
@@ -276,13 +303,19 @@ class LiveFeedbackLoopRemoteTests(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         report = json.loads(runner.report_path.read_text(encoding="utf-8"))
         self.assertEqual(report["result"], "pass")
+        self.assertTrue(report["adversary_sim"]["running_observed"])
         self.assertEqual(report["periodic_trigger"]["run_id"], "ovragent-periodic-1")
         self.assertEqual(report["periodic_trigger"]["apply_stage"], "refused")
         self.assertEqual(report["post_sim_trigger"]["sim_run_id"], "sim-run-1")
         self.assertEqual(report["post_sim_trigger"]["decision_id"], "decision-post-sim-1")
         self.assertEqual(report["post_sim_trigger"]["apply_stage"], "watch_window_open")
         self.assertEqual(report["post_sim_trigger"]["history_latest_apply_stage"], "watch_window_open")
+        self.assertEqual(report["adversary_sim"]["persisted_event_count"], 1)
         self.assertEqual(runner._control_calls, [{"enabled": True}])
+        self.assertEqual(len(runner._control_headers), 1)
+        self.assertEqual(runner._control_headers[0]["Host"], "shuma.example.com")
+        self.assertEqual(runner._control_headers[0]["Origin"], "https://shuma.example.com")
+        self.assertEqual(runner._control_headers[0]["Referer"], "https://shuma.example.com/dashboard")
         self.assertGreaterEqual(runner._disabled_calls, 1)
 
     def test_run_fails_when_remote_service_does_not_use_oversight_wrapper(self) -> None:

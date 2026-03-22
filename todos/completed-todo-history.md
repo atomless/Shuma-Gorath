@@ -4,6 +4,30 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-22)
 
+### OVR-APPLY-1: First Closed Autonomous Tuning Loop With Canary Apply And Rollback
+
+- [x] Implemented the first bounded shared-host canary-apply controller, live-proved the full periodic -> sim -> post-sim loop on Linode, and completed the tranche review with two immediate fixes: post-sim triggering now falls back to persisted observed simulation events when terminal counters are absent, and the live verifier now sends the public origin context required by the admin control trust boundary.
+- [x] Why:
+  - `OPS-OBJECTIVES-3` and `OPS-BENCH-3` gave the loop a truthful category-aware utility function and tuning-eligibility gate, but Shuma still needed the actual bounded config loop: manual preview for direct reads, one active canary per site, watch-window judgment, and exact rollback.
+  - the first runtime implementation landed cleanly, but live verification exposed a real controller gap: on shared-host, persisted event telemetry for a completed `sim_run_id` could be truthful while terminal control-state generation counters were zero, so the original post-sim trigger missed real completed runs.
+  - the same live proof also exposed a verifier-only shortfall in the SSH loopback admin-control path, and fixing it immediately keeps the durable live proof aligned with the real admin trust-boundary contract instead of relying on a weaker transport shortcut.
+- [x] Evidence:
+  - `src/admin/oversight_apply.rs`
+  - `src/admin/oversight_api.rs`
+  - `src/admin/oversight_agent.rs`
+  - `scripts/tests/live_feedback_loop_remote.py`
+  - `scripts/tests/test_live_feedback_loop_remote.py`
+  - `Makefile`
+  - `docs/research/2026-03-22-live-linode-feedback-loop-proof.md`
+  - `docs/research/2026-03-22-ovr-apply-1-canary-apply-and-rollback-post-implementation-review.md`
+  - `make test-oversight-apply`
+  - `make test-oversight-post-sim-trigger`
+  - `make test-oversight-agent`
+  - `make test-live-feedback-loop-remote-unit`
+  - `make remote-update`
+  - `make test-live-feedback-loop-remote`
+  - `git diff --check`
+
 ### OVR-APPLY-PLAN-1: Freeze The First Canary Apply And Rollback State Machine
 
 - [x] Added a dedicated readiness review and execution plan for `OVR-APPLY-1`, freezing the exact shared-host-only closed-loop boundary: recommend-only manual preview, one active canary per site, exact pre-canary config restore, candidate-vs-baseline watch-window judgment, and fail-closed rollback on any loss of trustworthy evidence.

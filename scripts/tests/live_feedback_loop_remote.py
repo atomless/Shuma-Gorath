@@ -8,6 +8,7 @@ import base64
 import json
 import os
 import shlex
+import socket
 import ssl
 import subprocess
 import sys
@@ -37,6 +38,8 @@ AGENT_RUN_TIMEOUT_SECONDS = 20
 SIM_START_TIMEOUT_SECONDS = 60
 SIM_COMPLETION_TIMEOUT_SECONDS = 420
 POST_SIM_AGENT_TIMEOUT_SECONDS = 120
+HTTP_REQUEST_RETRY_ATTEMPTS = 3
+HTTP_REQUEST_RETRY_DELAY_SECONDS = 2.0
 ALLOWED_OVERSIGHT_APPLY_STAGES = {
     "eligible",
     "canary_applied",
@@ -45,6 +48,11 @@ ALLOWED_OVERSIGHT_APPLY_STAGES = {
     "refused",
     "rollback_applied",
 }
+
+
+def _looks_like_timeout(exc: Exception) -> bool:
+    message = str(exc).lower()
+    return "timed out" in message or "timeout" in message
 
 
 class SmokeFailure(RuntimeError):
@@ -147,26 +155,52 @@ class LiveFeedbackLoopRemote:
             headers["Content-Type"] = "application/json"
         return headers
 
+    def _loopback_admin_forwarded_ip(self) -> str:
+        env_values = self.remote_env or self.local_env
+        raw_allowlist = str(env_values.get("SHUMA_ADMIN_IP_ALLOWLIST", "")).strip()
+        if raw_allowlist:
+            first_entry = raw_allowlist.split(",")[0].strip()
+            if first_entry:
+                return first_entry.split("/")[0].strip() or "127.0.0.1"
+        return "127.0.0.1"
+
+    def _public_host_header(self) -> str:
+        parsed = urlparse(self.base_url)
+        return parsed.netloc or "127.0.0.1"
+
     def _request_json(self, method: str, path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         body = None
         headers = self._admin_headers(include_json=payload is not None)
         if payload is not None:
             body = json.dumps(payload).encode("utf-8")
             headers["Idempotency-Key"] = _idempotency_key("live-feedback-loop")
-        request = urllib.request.Request(
-            f"{self.base_url}{path}",
-            data=body,
-            method=method.upper(),
-        )
-        for key, value in headers.items():
-            request.add_header(key, value)
-        try:
-            with urllib.request.urlopen(request, timeout=20, context=self.ssl_context) as response:
-                raw = response.read().decode("utf-8", errors="replace")
-                status = int(response.status)
-        except urllib.error.HTTPError as exc:
-            raw = exc.read().decode("utf-8", errors="replace")
-            status = int(exc.code)
+        last_transport_error: Exception | None = None
+        for attempt in range(1, HTTP_REQUEST_RETRY_ATTEMPTS + 1):
+            request = urllib.request.Request(
+                f"{self.base_url}{path}",
+                data=body,
+                method=method.upper(),
+            )
+            for key, value in headers.items():
+                request.add_header(key, value)
+            try:
+                with urllib.request.urlopen(request, timeout=20, context=self.ssl_context) as response:
+                    raw = response.read().decode("utf-8", errors="replace")
+                    status = int(response.status)
+                break
+            except urllib.error.HTTPError as exc:
+                raw = exc.read().decode("utf-8", errors="replace")
+                status = int(exc.code)
+                break
+            except (urllib.error.URLError, socket.timeout, TimeoutError) as exc:
+                last_transport_error = exc
+                if attempt >= HTTP_REQUEST_RETRY_ATTEMPTS:
+                    raise
+                time.sleep(HTTP_REQUEST_RETRY_DELAY_SECONDS)
+        else:
+            raise SmokeFailure(
+                f"{method} {path} exhausted retry budget without a response: {last_transport_error}"
+            )
         if status != 200:
             raise SmokeFailure(f"{method} {path} returned {status}: {raw[:240]}")
         try:
@@ -174,23 +208,15 @@ class LiveFeedbackLoopRemote:
         except json.JSONDecodeError as exc:
             raise SmokeFailure(f"{method} {path} returned invalid JSON: {exc}") from exc
 
-    def _internal_request_json(
+    def _loopback_request_json(
         self,
         method: str,
         path: str,
+        headers: dict[str, str],
         payload: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         if self.transport_mode != "ssh_loopback":
-            raise SmokeFailure("Internal shared-host proof requires SSH loopback transport.")
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-            "X-Forwarded-For": "127.0.0.1",
-            "X-Forwarded-Proto": "https",
-            "X-Shuma-Internal-Supervisor": "oversight-agent",
-        }
-        if self.forwarded_ip_secret:
-            headers["X-Shuma-Forwarded-Secret"] = self.forwarded_ip_secret
+            raise SmokeFailure("Shared-host loopback proof requires SSH transport.")
         body = json.dumps(payload or {}).encode("utf-8")
         remote_script = """python3 - <<'PY'
 import base64
@@ -244,6 +270,23 @@ PY"""
             raise SmokeFailure(
                 f"Internal {method} {path} returned invalid JSON payload: {exc}"
             ) from exc
+
+    def _internal_request_json(
+        self,
+        method: str,
+        path: str,
+        payload: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+            "X-Forwarded-For": "127.0.0.1",
+            "X-Forwarded-Proto": "https",
+            "X-Shuma-Internal-Supervisor": "oversight-agent",
+        }
+        if self.forwarded_ip_secret:
+            headers["X-Shuma-Forwarded-Secret"] = self.forwarded_ip_secret
+        return self._loopback_request_json(method, path, headers, payload)
 
     def _verify_service_wrapper(self) -> str:
         if self.transport_mode != "ssh_loopback":
@@ -356,6 +399,12 @@ PY"""
             )
         return payload
 
+    def _fetch_recent_events(self) -> dict[str, Any]:
+        payload = self._request_json("GET", "/admin/events?hours=2&limit=200")
+        if "recent_events" not in payload:
+            raise SmokeFailure("Recent events payload did not include recent_events.")
+        return payload
+
     def _trigger_periodic_agent_run(self) -> dict[str, Any]:
         payload = self._internal_request_json(
             "POST",
@@ -383,13 +432,73 @@ PY"""
         )
 
     def _enable_adversary_sim(self) -> dict[str, Any]:
-        payload = self._request_json("POST", "/admin/adversary-sim/control", {"enabled": True})
+        try:
+            if self.transport_mode == "ssh_loopback":
+                payload = self._loopback_request_json(
+                    "POST",
+                    "/admin/adversary-sim/control",
+                    {
+                        "Authorization": f"Bearer {self.api_key}",
+                        "Accept": "application/json",
+                        "Content-Type": "application/json",
+                        "Idempotency-Key": _idempotency_key("live-feedback-loop"),
+                        "Host": self._public_host_header(),
+                        "Origin": self.base_url,
+                        "Referer": f"{self.base_url}/dashboard",
+                        "X-Forwarded-For": self._loopback_admin_forwarded_ip(),
+                        "X-Forwarded-Proto": "https",
+                        "X-Shuma-Forwarded-Secret": self.forwarded_ip_secret,
+                    },
+                    {"enabled": True},
+                )
+            else:
+                payload = self._request_json("POST", "/admin/adversary-sim/control", {"enabled": True})
+        except Exception as exc:
+            if not _looks_like_timeout(exc):
+                raise
+            status = self._fetch_adversary_sim_status()
+            return {
+                "operation_id": ((status.get("controller_lease") or {}).get("operation_id"))
+                or "transport_timeout_pending",
+                "decision": "accepted_via_timeout_fallback",
+                "request_error": str(exc),
+            }
         if not payload.get("operation_id"):
             raise SmokeFailure("Adversary-sim enable response did not include operation_id.")
         return payload
 
     def _disable_adversary_sim(self) -> dict[str, Any]:
-        payload = self._request_json("POST", "/admin/adversary-sim/control", {"enabled": False})
+        try:
+            if self.transport_mode == "ssh_loopback":
+                payload = self._loopback_request_json(
+                    "POST",
+                    "/admin/adversary-sim/control",
+                    {
+                        "Authorization": f"Bearer {self.api_key}",
+                        "Accept": "application/json",
+                        "Content-Type": "application/json",
+                        "Idempotency-Key": _idempotency_key("live-feedback-loop"),
+                        "Host": self._public_host_header(),
+                        "Origin": self.base_url,
+                        "Referer": f"{self.base_url}/dashboard",
+                        "X-Forwarded-For": self._loopback_admin_forwarded_ip(),
+                        "X-Forwarded-Proto": "https",
+                        "X-Shuma-Forwarded-Secret": self.forwarded_ip_secret,
+                    },
+                    {"enabled": False},
+                )
+            else:
+                payload = self._request_json("POST", "/admin/adversary-sim/control", {"enabled": False})
+        except Exception as exc:
+            if not _looks_like_timeout(exc):
+                raise
+            status = self._fetch_adversary_sim_status()
+            return {
+                "operation_id": ((status.get("controller_lease") or {}).get("operation_id"))
+                or "transport_timeout_pending",
+                "decision": "accepted_via_timeout_fallback",
+                "request_error": str(exc),
+            }
         if not payload.get("operation_id"):
             raise SmokeFailure("Adversary-sim disable response did not include operation_id.")
         return payload
@@ -437,11 +546,6 @@ PY"""
             timeout_seconds=SIM_COMPLETION_TIMEOUT_SECONDS,
             description="adversary-sim completion",
         )
-        generation = payload.get("generation") or {}
-        if int(generation.get("tick_count") or 0) <= 0 or int(generation.get("request_count") or 0) <= 0:
-            raise SmokeFailure(
-                "Adversary-sim completed without generated traffic; expected non-zero tick_count and request_count."
-            )
         if not payload.get("last_run_id"):
             raise SmokeFailure("Adversary-sim completion did not expose last_run_id.")
         return payload
@@ -513,9 +617,31 @@ PY"""
             }
 
             enable_response = self._enable_adversary_sim()
-            running_status = self._wait_for_adversary_sim_running()
+            running_observed = True
+            try:
+                running_status = self._wait_for_adversary_sim_running()
+            except SmokeFailure:
+                running_observed = False
+                running_status = {
+                    "phase": "not_observed",
+                    "adversary_sim_enabled": True,
+                    "generation_active": None,
+                    "run_id": None,
+                    "last_run_id": None,
+                    "generation": {"tick_count": None, "request_count": None},
+                }
             completion_status = self._wait_for_adversary_sim_completion()
             sim_run_id = str(completion_status.get("last_run_id") or "").strip()
+            recent_events = self._fetch_recent_events()
+            matching_event_count = sum(
+                1
+                for row in recent_events.get("recent_events") or []
+                if row.get("sim_run_id") == sim_run_id and row.get("is_simulation") is True
+            )
+            if matching_event_count <= 0:
+                raise SmokeFailure(
+                    f"Adversary-sim run {sim_run_id} completed, but recent event surfaces did not expose persisted simulated traffic."
+                )
             post_sim_status = self._wait_for_post_sim_agent_run(sim_run_id)
             history = self._fetch_oversight_history()
             matching_post_run = None
@@ -538,8 +664,10 @@ PY"""
                 )
             report["adversary_sim"] = {
                 "enable_operation_id": enable_response.get("operation_id"),
+                "running_observed": running_observed,
                 "running": self._adversary_status_summary(running_status),
                 "completed": self._adversary_status_summary(completion_status),
+                "persisted_event_count": matching_event_count,
             }
             report["post_sim_trigger"] = {
                 "sim_run_id": sim_run_id,

@@ -83,14 +83,14 @@ Current stance:
 - Keep the decomposition slices behavior-preserving; semantic expansion begins only after the hotspot modules have focused seams.
 - Land the first shared-host agent tweaker loop before `MON-OVERHAUL-1` so Monitoring and Tuning can project proven machine-first semantics instead of inventing them early.
 - Treat the verified-identity observability and benchmarking gap as part of this loop-closure track rather than later polish.
-- The next priority is now the safety gate between recommend-only diagnosis and autonomous tuning: protected evidence, category-aware objectives, and category-coverage proof must land before auto-apply and before the Monitoring overhaul is reopened.
+- The first bounded shared-host closed config loop is now live-proven; the immediate follow-up before `MON-OVERHAUL-1` is to make adversary-sim status diagnostics as truthful as the event log the controller now relies on.
 - The next prerequisite now begins one step earlier: Shuma must first define a canonical non-human taxonomy and shared classification contract before it can truthfully measure lane representativeness.
 - The actively evolving near-term layer should be fingerprinting and categorization quality inside that taxonomy; taxonomy expansion is only a later contingency if important non-human traffic persistently falls outside the existing categories.
 - The next bridge to a genuine LLM-in-the-loop system is not the full later `SIM-LLM-1` runtime actor; it is a bounded category-fulfillment LLM tranche that sits between the taxonomy/classifier work and the first closed config loop, with the later LLM diagnosis harness and code loop still downstream of `OVR-APPLY-1`.
 
-### OVR-APPLY-1: First Closed Autonomous Tuning Loop With Canary Apply And Rollback
-- Implement the first bounded shared-host config-apply loop so a recommend-only reconcile result can progress into canary apply, watch-window judgment, and explicit rollback over protected category-aware benchmark evidence.
-- Execution plan: [`../docs/plans/2026-03-22-ovr-apply-1-canary-apply-and-rollback-implementation-plan.md`](../docs/plans/2026-03-22-ovr-apply-1-canary-apply-and-rollback-implementation-plan.md)
+### ADV-DIAG-1: Reconcile Adversary-Sim Status Diagnostics With Persisted Event Truth
+- Make `/admin/adversary-sim/status` generation and lane-diagnostics fields truthful on shared-host when live simulated traffic is being generated, so operator-facing diagnostics and the future Monitoring overhaul do not conflict with the persisted simulation event log.
+- Follow-up reference: [`../docs/research/2026-03-22-ovr-apply-1-canary-apply-and-rollback-post-implementation-review.md`](../docs/research/2026-03-22-ovr-apply-1-canary-apply-and-rollback-post-implementation-review.md)
 
 ## P1 Verified Bot Identity And Web Bot Auth Foundation
 

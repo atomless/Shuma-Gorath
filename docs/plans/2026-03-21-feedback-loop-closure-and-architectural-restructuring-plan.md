@@ -245,15 +245,21 @@ Extend `benchmark_results_v1` with protected-lane eligibility and category-aware
 
 Only after the above gates are real, add the first bounded canary apply, watch-window, compare, and rollback loop.
 
+Status update (2026-03-22): complete and live-proven on shared-host per [`../research/2026-03-22-ovr-apply-1-canary-apply-and-rollback-post-implementation-review.md`](../research/2026-03-22-ovr-apply-1-canary-apply-and-rollback-post-implementation-review.md).
+
+### `ADV-DIAG-1`
+
+Before Monitoring and Tuning are reopened, reconcile adversary-sim status diagnostics with the persisted event telemetry that the closed loop now correctly treats as authoritative. The live `OVR-APPLY-1` proof showed that `sim_run_id` event evidence can be truthful while shared-host generation counters remain zero.
+
 ## Phase 6: Human Operator Projection
 
 ### `MON-OVERHAUL-1`
 
-Rebuild Monitoring as the thin human projection over the machine-first contracts after the backend truth and first working closed loop are complete.
+Rebuild Monitoring as the thin human projection over the machine-first contracts after the backend truth, first working closed loop, and `ADV-DIAG-1` diagnostics-truth follow-up are complete.
 
 ### `TUNE-SURFACE-1`
 
-Finish the operator control surface once the controller inputs, safe action families, and first working agent loop semantics are truthful, including per-category posture controls over the stable operator-facing taxonomy.
+Finish the operator control surface once the controller inputs, safe action families, first working agent loop semantics, and adversary-sim diagnostics truth are all aligned, including per-category posture controls over the stable operator-facing taxonomy.
 
 These phases should not be started early just because the UI can be edited sooner.
 
