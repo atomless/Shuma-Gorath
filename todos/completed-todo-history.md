@@ -4,6 +4,23 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-22)
 
+### LOOP-PLAN-READY-1: Make The Closed-Loop Execution Chain Implementation-Ready
+
+- [x] Reviewed the active closed-loop sequence and converted it from roadmap-level prose into an execution-ready plan chain: taxonomy and classification, lane fulfillment and protected evidence, then category-aware objectives, benchmarks, and first canary apply and rollback.
+- [x] Why:
+  - the active sequence was already the right architectural path, but most of its tasks were still described at the contract and guardrail level rather than with the exact modules and verification targets needed for atomic coding tranches.
+  - the main execution gaps were the bounded LLM fulfillment actor boundary and the first apply-loop state machine, so the new plans make those concrete before implementation starts.
+  - keeping `OVR-AGENT-2` and `OVR-CODE-1` explicitly later-blocked avoids smuggling in the broader LLM diagnosis or code loop before the first closed config loop is actually proven.
+- [x] Evidence:
+  - `docs/research/2026-03-22-closed-loop-sequence-execution-readiness-review.md`
+  - `docs/plans/2026-03-22-taxonomy-and-classification-implementation-plan.md`
+  - `docs/plans/2026-03-22-lane-fulfillment-and-protected-evidence-implementation-plan.md`
+  - `docs/plans/2026-03-22-category-aware-objectives-benchmarks-and-apply-loop-implementation-plan.md`
+  - `docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`
+  - `docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`
+  - `docs/research/README.md`
+  - `git diff --check`
+
 ### LOOP-GATE-5: Capture The Bridge To LLM Adversary And Diagnosis Loops
 
 - [x] Reviewed the current live recommend-only feedback loop and captured the next optimal path to a genuine closed loop: taxonomy and classifier first, bounded LLM adversary category-fulfillment modes second, coverage and protected-evidence gates third, closed config tuning and rollback fourth, and only after that the later LLM diagnosis/config harness and benchmark-driven LLM code loop.

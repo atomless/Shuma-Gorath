@@ -42,6 +42,7 @@ Current references:
 2. [`2026-03-20-minimal-seed-and-telemetry-surface-discovery-design.md`](2026-03-20-minimal-seed-and-telemetry-surface-discovery-design.md)
 3. `SIM-SH-SURFACE-1` and `SIM-LLM-FIT-1` in [`../../todos/todo.md`](../../todos/todo.md)
 4. `SIM-SCR-LANE-1` and `SIM-LLM-1` in [`../../todos/blocked-todo.md`](../../todos/blocked-todo.md)
+5. the execution-ready closed-loop chain in [`2026-03-22-taxonomy-and-classification-implementation-plan.md`](2026-03-22-taxonomy-and-classification-implementation-plan.md), [`2026-03-22-lane-fulfillment-and-protected-evidence-implementation-plan.md`](2026-03-22-lane-fulfillment-and-protected-evidence-implementation-plan.md), and [`2026-03-22-category-aware-objectives-benchmarks-and-apply-loop-implementation-plan.md`](2026-03-22-category-aware-objectives-benchmarks-and-apply-loop-implementation-plan.md)
 
 Gap:
 

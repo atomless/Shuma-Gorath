@@ -203,6 +203,12 @@ This phase must prove:
 
 ## Phase 5: Protected Tuning Evidence And Closed-Loop Safety
 
+Execution-ready plan chain:
+
+1. [`2026-03-22-taxonomy-and-classification-implementation-plan.md`](2026-03-22-taxonomy-and-classification-implementation-plan.md)
+2. [`2026-03-22-lane-fulfillment-and-protected-evidence-implementation-plan.md`](2026-03-22-lane-fulfillment-and-protected-evidence-implementation-plan.md)
+3. [`2026-03-22-category-aware-objectives-benchmarks-and-apply-loop-implementation-plan.md`](2026-03-22-category-aware-objectives-benchmarks-and-apply-loop-implementation-plan.md)
+
 ### `TRAFFIC-TAX-1`
 
 Define the canonical non-human traffic taxonomy that later tuning and lane-representativeness work will use.
@@ -252,6 +258,8 @@ Finish the operator control surface once the controller inputs, safe action fami
 These phases should not be started early just because the UI can be edited sooner.
 
 ## Phase 7: Later Scheduled-Agent And Code-Evolution Loops
+
+These later items remain intentionally non-execution-ready until the three Phase 5 implementation plans above are complete and live-proved.
 
 ### `OVR-AGENT-2`
 
