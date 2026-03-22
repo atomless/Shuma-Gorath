@@ -178,6 +178,10 @@ Completed archive index:
    Post-implementation review confirming the first shared-host recommend-only agent loop now reuses the bounded reconcile contract for periodic and post-sim triggers, exposes durable latest-run status, and enforces the shared-host-only execution boundary.
 36. [`2026-03-22-live-linode-feedback-loop-verification-readiness-review.md`](2026-03-22-live-linode-feedback-loop-verification-readiness-review.md)
    Readiness review confirming the first shared-host feedback loop still lacked exact live Linode proof, freezing the proof contract, and recommending one Make-backed live remote verification gate before `MON-OVERHAUL-1`.
+37. [`2026-03-22-live-linode-feedback-loop-proof.md`](2026-03-22-live-linode-feedback-loop-proof.md)
+   Live proof showing the active Linode shared-host deployment at current `HEAD` executed both periodic and post-sim feedback-loop runs, with durable receipts for the live status, sim completion, and linked agent decisions.
+38. [`2026-03-22-live-linode-feedback-loop-post-verification-review.md`](2026-03-22-live-linode-feedback-loop-post-verification-review.md)
+   Post-verification review confirming the live proof passed and documenting the two verification-born shortfalls that were fixed immediately: remote loopback startup budget and systemd wrapper-chain inspection.
 
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 

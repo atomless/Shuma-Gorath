@@ -2,6 +2,33 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-03-22)
+
+### OVR-LIVE-1: Prove The First Shared-Host Feedback Loop On Live Linode
+
+- [x] Completed the planned live-Linode proof tranche by adding one truthful Make-backed live verification gate, fixing the remote deploy/runtime proofing gaps that surfaced under real execution, deploying current `HEAD` to the active Linode receipt, and capturing durable live evidence for both periodic and post-sim feedback-loop execution.
+- [x] Why:
+  - the first shared-host agent loop had only local proof, while the queue explicitly required an exact live proof before `MON-OVERHAUL-1`.
+  - the active remote receipts predated `OVR-RECON-1` and `OVR-AGENT-1`, so they could not prove the current machine-first loop was actually live on Linode.
+  - the cleanest path was to reuse the canonical `remote-update` and normalized ssh-managed remote tooling, then harden the live-proof and deploy helpers only where live execution exposed real contract mismatches.
+- [x] Evidence:
+  - `scripts/tests/live_feedback_loop_remote.py`
+  - `scripts/tests/test_live_feedback_loop_remote.py`
+  - `scripts/deploy/remote_target.py`
+  - `scripts/tests/test_remote_target.py`
+  - `docs/research/2026-03-22-live-linode-feedback-loop-proof.md`
+  - `docs/research/2026-03-22-live-linode-feedback-loop-post-verification-review.md`
+  - `.shuma/remotes/dummy-static-site-fresh.json`
+  - `.spin/live_feedback_loop_remote.json`
+  - `make test-remote-target-contract`
+  - `make test-live-feedback-loop-remote-unit`
+  - `make remote-update`
+  - `make test-live-feedback-loop-remote`
+  - `git diff --check`
+  - review follow-up `OVR-LIVE-1-REVIEW-1` widened the post-swap loopback health budget after the live host showed slower Spin startup than the old deploy helper allowed.
+  - review follow-up `OVR-LIVE-1-REVIEW-2` corrected the live verifier to inspect the actual systemd process tree rather than assuming the wrapper would appear in the top-level `ExecStart`.
+  - no tranche-local shortfall remained open after the final live pass at deployed commit `12671c6ef8c153c5af79a308f3c7f663d9474911`.
+
 ## Additional completions (2026-03-21)
 
 ### OVR-AGENT-1: Land The First Shared-Host Recommend-Only Agent Loop
