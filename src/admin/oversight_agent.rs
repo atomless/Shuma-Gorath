@@ -324,7 +324,13 @@ pub(crate) fn post_sim_trigger_for_state_transition(
     {
         return None;
     }
-    if next_state.generated_tick_count == 0 && next_state.generated_request_count == 0 {
+    let had_generated_traffic = next_state.generated_tick_count > 0
+        || next_state.generated_request_count > 0
+        || previous_state.generated_tick_count > 0
+        || previous_state.generated_request_count > 0
+        || next_state.last_generated_at.is_some()
+        || previous_state.last_generated_at.is_some();
+    if !had_generated_traffic {
         return None;
     }
     let sim_run_id = next_state.last_run_id.clone()?;
@@ -358,7 +364,7 @@ pub(crate) fn maybe_trigger_post_sim_agent_cycle<S: KeyValueStore>(
 mod tests {
     use super::{
         execute_agent_cycle, load_latest_agent_run, maybe_trigger_post_sim_agent_cycle,
-        OversightAgentTrigger, OversightAgentTriggerKind,
+        post_sim_trigger_for_state_transition, OversightAgentTrigger, OversightAgentTriggerKind,
     };
     use crate::challenge::KeyValueStore;
     use crate::config::{defaults, serialize_persisted_kv_config};
@@ -696,6 +702,35 @@ mod tests {
         assert!(!first.replayed);
         assert!(second.replayed);
         assert_eq!(second.run.run_id, first.run.run_id);
+    }
+
+    #[test]
+    fn post_sim_trigger_accepts_generation_evidence_from_previous_running_state() {
+        let previous_state = crate::admin::adversary_sim::ControlState {
+            phase: crate::admin::adversary_sim::ControlPhase::Running,
+            run_id: Some("simrun-live-proof".to_string()),
+            active_run_count: 1,
+            active_lane_count: 2,
+            generated_tick_count: 3,
+            generated_request_count: 12,
+            last_generated_at: Some(1_700_000_399),
+            ..crate::admin::adversary_sim::ControlState::default()
+        };
+        let next_state = crate::admin::adversary_sim::ControlState {
+            phase: crate::admin::adversary_sim::ControlPhase::Off,
+            last_run_id: Some("simrun-live-proof".to_string()),
+            last_transition_reason: Some("manual_off".to_string()),
+            generated_tick_count: 0,
+            generated_request_count: 0,
+            ..crate::admin::adversary_sim::ControlState::default()
+        };
+
+        let trigger =
+            post_sim_trigger_for_state_transition(&previous_state, &next_state, 1_700_000_400)
+                .expect("post-sim trigger");
+        assert_eq!(trigger.kind, OversightAgentTriggerKind::PostAdversarySim);
+        assert_eq!(trigger.sim_run_id.as_deref(), Some("simrun-live-proof"));
+        assert_eq!(trigger.sim_completion_reason.as_deref(), Some("manual_off"));
     }
 
     #[test]
