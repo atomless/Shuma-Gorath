@@ -1128,6 +1128,7 @@ test-oversight-post-sim-trigger: ## Run focused post-sim oversight agent trigger
 	@echo "$(CYAN)🧪 Running oversight post-sim trigger checks...$(NC)"
 	@./scripts/set_crate_type.sh rlib
 	@cargo test post_sim_trigger_accepts_generation_evidence_from_previous_running_state -- --nocapture
+	@cargo test post_sim_agent_cycle_accepts_persisted_event_evidence_when_terminal_state_is_zeroed -- --nocapture
 	@cargo test adversary_sim_completion_triggers_post_sim_oversight_agent_once -- --nocapture
 	@python3 -m unittest scripts/tests/test_oversight_supervisor.py
 

@@ -15,6 +15,7 @@ pub(crate) const OVERSIGHT_AGENT_INTERNAL_PATH: &str = "/internal/oversight/agen
 const OVERSIGHT_AGENT_HISTORY_PREFIX: &str = "oversight_agent_runs:v1";
 const OVERSIGHT_AGENT_HISTORY_LIMIT: usize = 12;
 const OVERSIGHT_AGENT_LEASE_PREFIX: &str = "oversight_agent:lease:v1:";
+const POST_SIM_EVENT_EVIDENCE_LOOKBACK_HOURS: u64 = 2;
 
 pub(crate) fn shared_host_execution_available() -> bool {
     matches!(
@@ -319,11 +320,7 @@ pub(crate) fn post_sim_trigger_for_state_transition(
     next_state: &crate::admin::adversary_sim::ControlState,
     requested_at_ts: u64,
 ) -> Option<OversightAgentTrigger> {
-    if previous_state.phase == crate::admin::adversary_sim::ControlPhase::Off
-        || next_state.phase != crate::admin::adversary_sim::ControlPhase::Off
-    {
-        return None;
-    }
+    let sim_run_id = completed_sim_run_id_for_transition(previous_state, next_state)?;
     let had_generated_traffic = next_state.generated_tick_count > 0
         || next_state.generated_request_count > 0
         || previous_state.generated_tick_count > 0
@@ -333,13 +330,46 @@ pub(crate) fn post_sim_trigger_for_state_transition(
     if !had_generated_traffic {
         return None;
     }
-    let sim_run_id = next_state.last_run_id.clone()?;
-    Some(OversightAgentTrigger {
+    Some(build_post_sim_trigger(next_state, requested_at_ts, sim_run_id))
+}
+
+fn completed_sim_run_id_for_transition(
+    previous_state: &crate::admin::adversary_sim::ControlState,
+    next_state: &crate::admin::adversary_sim::ControlState,
+) -> Option<String> {
+    if previous_state.phase == crate::admin::adversary_sim::ControlPhase::Off
+        || next_state.phase != crate::admin::adversary_sim::ControlPhase::Off
+    {
+        return None;
+    }
+    next_state.last_run_id.clone()
+}
+
+fn build_post_sim_trigger(
+    next_state: &crate::admin::adversary_sim::ControlState,
+    requested_at_ts: u64,
+    sim_run_id: String,
+) -> OversightAgentTrigger {
+    OversightAgentTrigger {
         kind: OversightAgentTriggerKind::PostAdversarySim,
         requested_at_ts,
         sim_run_id: Some(sim_run_id),
         sim_completion_reason: next_state.last_transition_reason.clone(),
-    })
+    }
+}
+
+fn has_persisted_post_sim_event_evidence<S: KeyValueStore>(
+    store: &S,
+    requested_at_ts: u64,
+    sim_run_id: &str,
+) -> bool {
+    crate::admin::api::load_recent_monitoring_event_records(
+        store,
+        requested_at_ts,
+        POST_SIM_EVENT_EVIDENCE_LOOKBACK_HOURS,
+    )
+    .into_iter()
+    .any(|record| record.is_simulation && record.sim_run_id.as_deref() == Some(sim_run_id))
 }
 
 pub(crate) fn maybe_trigger_post_sim_agent_cycle<S: KeyValueStore>(
@@ -352,9 +382,15 @@ pub(crate) fn maybe_trigger_post_sim_agent_cycle<S: KeyValueStore>(
     if !shared_host_execution_available() {
         return Ok(None);
     }
-    let Some(trigger) =
-        post_sim_trigger_for_state_transition(previous_state, next_state, requested_at_ts)
-    else {
+    let trigger = post_sim_trigger_for_state_transition(previous_state, next_state, requested_at_ts)
+        .or_else(|| {
+            let sim_run_id = completed_sim_run_id_for_transition(previous_state, next_state)?;
+            if !has_persisted_post_sim_event_evidence(store, requested_at_ts, sim_run_id.as_str()) {
+                return None;
+            }
+            Some(build_post_sim_trigger(next_state, requested_at_ts, sim_run_id))
+        });
+    let Some(trigger) = trigger else {
         return Ok(None);
     };
     execute_agent_cycle(store, site_id, trigger).map(Some)
@@ -731,6 +767,61 @@ mod tests {
         assert_eq!(trigger.kind, OversightAgentTriggerKind::PostAdversarySim);
         assert_eq!(trigger.sim_run_id.as_deref(), Some("simrun-live-proof"));
         assert_eq!(trigger.sim_completion_reason.as_deref(), Some("manual_off"));
+    }
+
+    #[test]
+    fn post_sim_agent_cycle_accepts_persisted_event_evidence_when_terminal_state_is_zeroed() {
+        let store = TestStore::new();
+        let mut cfg = defaults().clone();
+        cfg.fingerprint_signal_enabled = false;
+        seed_snapshot(&store, cfg);
+
+        let sim_run_id = "simrun-persisted-evidence";
+        let _guard = crate::runtime::sim_telemetry::enter(Some(
+            crate::runtime::sim_telemetry::SimulationRequestMetadata {
+                sim_run_id: sim_run_id.to_string(),
+                sim_profile: "runtime_toggle".to_string(),
+                sim_lane: "deterministic_black_box".to_string(),
+            },
+        ));
+        crate::admin::log_event(
+            &store,
+            &crate::admin::EventLogEntry {
+                ts: 1_700_000_399,
+                event: crate::admin::EventType::Challenge,
+                ip: Some("198.51.100.42".to_string()),
+                reason: Some("simulated".to_string()),
+                outcome: Some("served".to_string()),
+                admin: None,
+            },
+        );
+        drop(_guard);
+
+        let previous_state = crate::admin::adversary_sim::ControlState {
+            phase: crate::admin::adversary_sim::ControlPhase::Running,
+            run_id: Some(sim_run_id.to_string()),
+            active_run_count: 1,
+            active_lane_count: 2,
+            ..crate::admin::adversary_sim::ControlState::default()
+        };
+        let next_state = crate::admin::adversary_sim::ControlState {
+            phase: crate::admin::adversary_sim::ControlPhase::Off,
+            last_run_id: Some(sim_run_id.to_string()),
+            last_transition_reason: Some("manual_off".to_string()),
+            ..crate::admin::adversary_sim::ControlState::default()
+        };
+
+        let execution = maybe_trigger_post_sim_agent_cycle(
+            &store,
+            "default",
+            &previous_state,
+            &next_state,
+            1_700_000_400,
+        )
+        .expect("execution succeeds")
+        .expect("post-sim execution triggered");
+        assert_eq!(execution.run.trigger_kind, "post_adversary_sim");
+        assert_eq!(execution.run.sim_run_id.as_deref(), Some(sim_run_id));
     }
 
     #[test]
