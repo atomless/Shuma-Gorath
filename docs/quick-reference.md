@@ -41,9 +41,7 @@ make reset-local-state # Wipe local .spin runtime/test state while preserving du
 ### 🐙 Build & Run: Remote
 ```bash
 make prepare-linode-shared-host # Agent-oriented Linode shared-host setup + receipt generation
-make prepare-fermyon-akamai-edge # Agent-oriented Fermyon/Akamai edge setup + receipt generation
 make deploy-linode-one-shot # Provision Linode VM + deploy runtime in one command
-make deploy-fermyon-akamai-edge # Deploy current committed HEAD to the prepared Fermyon/Akamai edge app
 make remote-update  # Upload exact committed HEAD to the active ssh_systemd remote, restart, smoke, refresh receipt
 make remote-status  # Show systemd status for the active ssh_systemd remote
 make remote-logs    # Show recent journal logs for the active ssh_systemd remote
@@ -52,11 +50,18 @@ make remote-stop    # Stop the active ssh_systemd remote service
 make remote-open-dashboard # Open the hosted dashboard for the active ssh_systemd remote
 make test-remote-edge-signal-smoke # Live shared-host trusted-edge proof (active ssh_systemd remote)
 make test-live-feedback-loop-remote # Live shared-host feedback-loop proof (active ssh_systemd remote)
-make test-fermyon-edge-signal-smoke # Live Fermyon/Akamai trusted-edge proof (current deploy receipt)
 make telemetry-shared-host-evidence # Capture live telemetry storage/query evidence for the active ssh_systemd remote
-make telemetry-fermyon-edge-evidence # Capture live telemetry hot-read evidence for the current Fermyon edge deploy
-make test-telemetry-hot-read-live-evidence # Prove telemetry hot-read budgets on both shared-host and Fermyon
+make test-telemetry-hot-read-live-evidence # Prove current live telemetry hot-read budgets
 ```
+
+### 🐙 Deferred Edge Gateway Commands
+```bash
+make prepare-fermyon-akamai-edge # Deferred gateway-only setup path
+make deploy-fermyon-akamai-edge # Deferred gateway-only deploy path
+make test-fermyon-edge-signal-smoke # Deferred live edge proof against the current deploy receipt
+make telemetry-fermyon-edge-evidence # Deferred live telemetry proof for the edge receipt
+```
+Use these only when explicitly working on the later edge gateway track in [`docs/deferred-edge-gateway.md`](deferred-edge-gateway.md).
 
 ## 🐙 Runtime and Deployment Posture Matrix
 
@@ -103,14 +108,13 @@ make test-adversarial-live # In terminal 2 (Ctrl+C to stop)
 # Live trusted-edge signal proof
 make test-remote-edge-signal-smoke # Shared-host ssh-loopback proof for fingerprint additive/authoritative + trusted GEO challenge/maze/block
 make test-live-feedback-loop-remote # Shared-host ssh-loopback proof for wrapper + oversight status + periodic/post-sim agent linkage
-make test-fermyon-edge-signal-smoke # Fermyon/Akamai proof using the current deploy receipt and real edge identity semantics
 
 # Dashboard e2e smoke tests only (Spin environment required)
 make dev                   # In terminal 1
 make test-dashboard-e2e    # In terminal 2
 ```
 **Important:** Unit tests run in native Rust. Integration and dashboard e2e tests MUST run against a running Spin server; test targets do not start Spin.
-`make test-adversarial-akamai` and `make test-adversarial-fast` use local canned edge payloads; use `make test-fermyon-edge-signal-smoke` for live Fermyon/Akamai proof.
+`make test-adversarial-akamai` and `make test-adversarial-fast` use local canned edge payloads. The later deferred edge-gateway proof remains available through `make test-fermyon-edge-signal-smoke`; see [`docs/deferred-edge-gateway.md`](deferred-edge-gateway.md).
 `make clean` removes reproducible build/test artifacts only. Use `make reset-local-state` when you intentionally want to wipe `.spin` runtime/test state without deleting durable operator artifacts under `.shuma`.
 
 ## 🐙 <abbr title="Application Programming Interface">API</abbr> Endpoints
@@ -191,7 +195,7 @@ Local dev (Makefile): `make dev` sets a dev-only default and passes it to Spin. 
 make dev SHUMA_FORWARDED_IP_SECRET="your-dev-secret"
 ```
 
-Fermyon / Akamai edge (agent path):
+Deferred Fermyon / Akamai edge path:
 1. Define an application variable in `spin.toml`.
 2. Map it into the component environment.
 3. Prepare the Akamai-edge setup receipt.
@@ -210,7 +214,7 @@ Other deploy targets:
 - Set `SHUMA_FORWARDED_IP_SECRET` as an environment variable in your platform's secrets/config (Kubernetes, Docker, systemd, etc.).
 - Ensure your proxy/<abbr title="Content Delivery Network">CDN</abbr> sends `X-Shuma-Forwarded-Secret` with the same value on each request.
 
-Canonical commands:
+Deferred edge-gateway commands:
 
 ```bash
 make prepare-fermyon-akamai-edge PREPARE_FERMYON_ARGS="--upstream-origin https://origin.example.com --surface-catalog-path /abs/path/to/catalog.json --origin-lock-confirmed true --reserved-route-collision-check-passed true --admin-edge-rate-limits-confirmed true --admin-api-key-rotation-confirmed true"
@@ -220,7 +224,7 @@ make deploy-fermyon-akamai-edge
 If PAT login panics, the helper falls back to Fermyon device login in interactive sessions. If browser auth then says `User is not allow-listed!`, provider access is still pending, the setup receipt is left behind in `status=blocked` form, and rerunning setup after provider approval resumes cleanly.
 The deploy helper also provisions the managed five-job adversary-sim edge cron set and verifies both the immediate primed tick and a later cron-driven follow-up tick before treating the deploy as proven.
 
-For more deployment detail, see [`docs/deployment.md`](deployment.md).
+This is not the current mainline rollout path for the closed loop. For more deployment detail, see [`docs/deployment.md`](deployment.md) and [`docs/deferred-edge-gateway.md`](deferred-edge-gateway.md).
 
 ### 🐙 Shadow Mode
 Enable for safe production testing (logs but does not block):

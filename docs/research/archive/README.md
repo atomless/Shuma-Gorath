@@ -12,3 +12,7 @@ Current archived research:
 - `2026-02-15-stage2.5-maze-efficiency-and-asymmetry.md`
 - `2026-02-16-fingerprinting-research-synthesis.md`
 - `2026-02-20-ip-range-policy-research-synthesis.md`
+
+See also:
+
+- [`outdated/README.md`](outdated/README.md) for research and proof notes archived because they no longer reflect the active mainline.

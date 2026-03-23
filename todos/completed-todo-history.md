@@ -4,6 +4,32 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-23)
 
+### Documentation IA Cleanup: Shared-Host-First Mainline, Deferred Edge Archive, And Better Front Doors
+
+- [x] Audited the docs tree, added new topic indexes plus a dedicated deferred-edge explainer, moved the clearly defunct Fermyon/Akamai blocker and proof chain into explicit `archive/outdated` buckets, and rewrote the main entry docs so the shared-host-first closed loop is the default story instead of one option among many.
+- [x] Why:
+  - the docs tree had become daunting because active entry points mixed current shared-host-first truth with deferred edge material and date-sorted historical receipts, making it harder to answer simple questions like “what is the current mainline?” and “where do I start?”
+  - the old Fermyon/Akamai blocker and live-proof notes still mattered historically, but they were no longer the right current entry points and were actively cluttering the docs surface ahead of `MON-OVERHAUL-1`.
+  - the cleanest first slice was to improve information architecture rather than delete history: add better indexes, add one truthful deferred-edge guide, archive defunct edge docs explicitly, and re-center deployment/testing/quick-reference around the live shared-host loop.
+- [x] Evidence:
+  - `docs/research/2026-03-23-documentation-audit-and-information-architecture-review.md`
+  - `docs/plans/2026-03-23-documentation-audit-and-reorganization-plan.md`
+  - `docs/plans/README.md`
+  - `docs/deferred-edge-gateway.md`
+  - `docs/index.md`
+  - `docs/research/README.md`
+  - `docs/deployment.md`
+  - `docs/quick-reference.md`
+  - `docs/testing.md`
+  - `docs/plans/archive/outdated/README.md`
+  - `docs/research/archive/outdated/README.md`
+  - `docs/research/archive/outdated/deferred-edge/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md`
+  - `docs/research/archive/outdated/deferred-edge/2026-03-12-fermyon-akamai-edge-live-proof.md`
+  - `docs/research/archive/outdated/deferred-edge/2026-03-14-fermyon-edge-signal-and-blank-slate-live-proof.md`
+  - `docs/plans/archive/outdated/deferred-edge/2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md`
+  - `docs/plans/archive/outdated/deferred-edge/2026-03-10-fermyon-akamai-edge-skill-implementation-plan.md`
+  - `git diff --check`
+
 ### Dashboard Red Team Lane Control: Rehydrate Partial Runtime Truth Instead Of Staying Disabled
 
 - [x] Tightened Red Team shared-config refresh so a partial `configRuntime` snapshot no longer counts as complete when it is missing `admin_config_write_enabled`, and Red Team auto-refresh now rehydrates shared config on its own when that control-critical runtime truth is incomplete.
@@ -2822,7 +2848,7 @@ Moved from active TODO files on 2026-02-14.
   - `scripts/tests/test_fermyon_edge_signal_smoke.py`
   - `scripts/tests/test_remote_edge_signal_smoke.py`
   - `Makefile`
-  - `docs/research/2026-03-14-fermyon-edge-signal-and-blank-slate-live-proof.md`
+  - `docs/research/archive/outdated/deferred-edge/2026-03-14-fermyon-edge-signal-and-blank-slate-live-proof.md`
   - `docs/research/2026-03-14-compact-event-telemetry-live-evidence.md`
   - `.shuma/shuma-edge-fresh-20260314-112021/fermyon-akamai-edge-deploy.json`
   - `.spin/fermyon_edge_signal_smoke.json`
@@ -3180,7 +3206,7 @@ Moved from active TODO files on 2026-02-14.
   - `scripts/deploy/fermyon_akamai_edge_deploy.py`
   - `src/admin/api.rs`
   - `src/admin/adversary_sim.rs`
-  - `docs/research/2026-03-12-fermyon-akamai-edge-live-proof.md`
+  - `docs/research/archive/outdated/deferred-edge/2026-03-12-fermyon-akamai-edge-live-proof.md`
   - `skills/deploy-shuma-on-akamai-fermyon/SKILL.md`
   - `skills/deploy-shuma-on-akamai-fermyon/references/OPERATIONS.md`
   - `docs/deployment.md`
@@ -3225,7 +3251,7 @@ Moved from active TODO files on 2026-02-14.
   - `src/admin/auth.rs`
   - `src/admin/api.rs`
   - `src/admin/adversary_sim.rs`
-  - `docs/research/2026-03-12-fermyon-akamai-edge-live-proof.md`
+  - `docs/research/archive/outdated/deferred-edge/2026-03-12-fermyon-akamai-edge-live-proof.md`
   - `skills/prepare-shuma-on-akamai-fermyon/SKILL.md`
   - `skills/prepare-shuma-on-akamai-fermyon/references/OPERATIONS.md`
   - `skills/deploy-shuma-on-akamai-fermyon/SKILL.md`
@@ -3403,10 +3429,10 @@ Moved from active TODO files on 2026-02-14.
   - the Akamai-edge-only backlog and UI gating were intentionally blocked on a real `gateway_deployment_profile=edge-fermyon` proof rather than repo-local assumptions
   - the live path exposed real deployment-contract gaps that helper tests alone did not cover: missing defaults propagation into the Python deploy helper, missing full-config bootstrap path for fresh edge apps, and missing edge trust extraction for client IP / HTTPS posture
 - [x] Evidence:
-  - `docs/research/2026-03-12-fermyon-akamai-edge-live-proof.md`
-  - `docs/research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md`
-  - `docs/plans/2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md`
-  - `docs/plans/2026-03-10-fermyon-akamai-edge-skill-implementation-plan.md`
+  - `docs/research/archive/outdated/deferred-edge/2026-03-12-fermyon-akamai-edge-live-proof.md`
+  - `docs/research/archive/outdated/deferred-edge/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md`
+  - `docs/plans/archive/outdated/deferred-edge/2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md`
+  - `docs/plans/archive/outdated/deferred-edge/2026-03-10-fermyon-akamai-edge-skill-implementation-plan.md`
   - `scripts/deploy/fermyon_akamai_edge_setup.py`
   - `scripts/deploy/fermyon_akamai_edge_deploy.py`
   - `scripts/deploy/spin_manifest.py`
@@ -3452,8 +3478,8 @@ Moved from active TODO files on 2026-02-14.
 - [x] FERM-SKILL-1 Create an agent-oriented Fermyon / Akamai edge setup skill that captures the required account, mode, edge property, origin, and secret inputs, and leaves a deploy-ready handoff comparable to the Linode setup path.
 - [x] FERM-SKILL-2 Refactor and tighten the existing Fermyon deploy skill so it is an agent-executable deploy path rather than a human runbook, with truthful mode selection, artifacts, and failure handling.
 - [x] Evidence:
-  - `docs/plans/2026-03-10-fermyon-akamai-edge-skill-implementation-plan.md`
-  - `docs/research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md`
+  - `docs/plans/archive/outdated/deferred-edge/2026-03-10-fermyon-akamai-edge-skill-implementation-plan.md`
+  - `docs/research/archive/outdated/deferred-edge/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md`
   - `scripts/deploy/setup_common.py`
   - `scripts/deploy/fermyon_akamai_edge_setup.py`
   - `scripts/deploy/fermyon_akamai_edge_deploy.py`

@@ -20,3 +20,7 @@ Current archived plans:
 - `2026-02-13-rate-limiting-excellence-plan.md` (superseded by carry-forward plan `2026-02-25-rate-limiting-carry-forward-plan.md`).
 - `2026-02-13-maze-excellence-plan.md` (superseded by carry-forward plan `2026-02-25-maze-carry-forward-plan.md`).
 - `2026-02-13-ssh-tarpit-excellence-plan.md` (superseded by carry-forward plan `2026-02-25-ssh-tarpit-carry-forward-plan.md`).
+
+See also:
+
+- [`outdated/README.md`](outdated/README.md) for plans archived because they no longer reflect the current product posture.

@@ -31,7 +31,7 @@ Reference context:
 - [`../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
 - [`../docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](../docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md)
 - [`../docs/plans/2026-03-09-akamai-rate-geo-integration-semantics-note.md`](../docs/plans/2026-03-09-akamai-rate-geo-integration-semantics-note.md)
-- [`../docs/plans/2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md`](../docs/plans/2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md)
+- [`../docs/plans/archive/outdated/deferred-edge/2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md`](../docs/plans/archive/outdated/deferred-edge/2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md)
 
 - [ ] EDGE-GW-ARCH-1 Plan the later thin edge-gateway plus shared-host control-plane split, including state ownership, signed-forwarding contract, day-2 operations model, and which deployment-local distributed-state guarantees still matter once the edge is gateway-only.
   Blocker: defer until the shared-host-first pre-launch loop is operating cleanly and the product intentionally re-commits to a later edge posture.

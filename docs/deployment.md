@@ -7,8 +7,10 @@ Akamai-specific operator controls belong only to the Akamai edge posture (`SHUMA
 
 The Fermyon / Akamai edge path is now a deferred gateway-only posture. Keep it truthful and supportable for later edge experiments, but do not treat it as the current pre-launch control-plane, hosted Scrapling, or scheduled-agent target.
 
-For the current deployment-track design record (shared-host baseline plus deferred edge/distributed-state follow-on), see:
-[`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md`](plans/2026-02-20-deployment-paths-and-adversarial-simulation-plan.md).
+For the current deployment-track design record, see:
+
+- [`docs/plans/2026-03-21-shared-host-first-control-plane-and-deferred-edge-gateway-plan.md`](plans/2026-03-21-shared-host-first-control-plane-and-deferred-edge-gateway-plan.md)
+- [`docs/deferred-edge-gateway.md`](deferred-edge-gateway.md)
 
 ## 🐙 Runtime Configuration Model
 
@@ -150,6 +152,9 @@ Related repo-local deployment skills:
 - [`../skills/prepare-scrapling-for-deploy/SKILL.md`](../skills/prepare-scrapling-for-deploy/SKILL.md)
 - [`../skills/prepare-shared-host-on-linode/SKILL.md`](../skills/prepare-shared-host-on-linode/SKILL.md)
 - [`../skills/deploy-shuma-on-linode/SKILL.md`](../skills/deploy-shuma-on-linode/SKILL.md)
+
+Deferred edge-gateway-only skills:
+
 - [`../skills/prepare-shuma-on-akamai-fermyon/SKILL.md`](../skills/prepare-shuma-on-akamai-fermyon/SKILL.md)
 - [`../skills/deploy-shuma-on-akamai-fermyon/SKILL.md`](../skills/deploy-shuma-on-akamai-fermyon/SKILL.md)
 
@@ -690,8 +695,8 @@ Current honest boundary:
 
 Historical proof and blockers for this deferred path are recorded in:
 
-- [`research/2026-03-12-fermyon-akamai-edge-live-proof.md`](research/2026-03-12-fermyon-akamai-edge-live-proof.md)
-- [`research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md`](research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md)
+- [`deferred-edge-gateway.md`](deferred-edge-gateway.md)
+- [`research/archive/outdated/README.md`](research/archive/outdated/README.md)
 
 Example variable wiring for the rendered edge manifest:
 

@@ -16,7 +16,6 @@ make test-gateway-profile-shared-server # Shared-server gateway contract + forwa
 make test-gateway-profile-edge # Edge/Fermyon gateway contract + signed-header origin-auth checks
 make test-remote-edge-signal-smoke # Live shared-host trusted-edge proof (ssh-managed remote)
 make test-live-feedback-loop-remote # Live shared-host feedback-loop proof (active ssh-managed remote)
-make test-fermyon-edge-signal-smoke # Live Fermyon/Akamai trusted-edge proof (current deploy receipt)
 make smoke-gateway-mode # Fast gateway smoke (allow forward, enforcement-local, fail-closed outage)
 make test-adversarial-manifest # Validate adversarial scenario manifest + fixture references
 make test-adversarial-coverage-contract # Validate canonical full_coverage contract parity (plan + manifests + runner)
@@ -64,6 +63,13 @@ make test-dashboard-e2e-adversary-sim # Focused Playwright adversary-sim dashboa
 make test-dashboard-e2e # Playwright dashboard smoke tests (waits for existing Spin readiness)
 make seed-dashboard-data # Seed local dashboard sample records against running Spin
 make test-dashboard   # Manual dashboard checklist
+```
+
+Deferred edge-gateway proofs:
+
+```bash
+make test-fermyon-edge-signal-smoke # Later gateway-only edge proof (current deploy receipt)
+make telemetry-fermyon-edge-evidence # Later gateway-only live telemetry proof
 ```
 
 Notes:
@@ -388,7 +394,7 @@ Simulation telemetry read policy:
 - one bounded internal periodic agent trigger executes and becomes visible in the public status projection,
 - one bounded adversary-sim run completes with generated traffic,
 - and a linked `post_adversary_sim` agent run becomes visible in the public status and history surfaces.
-`test-fermyon-edge-signal-smoke` is the live Fermyon/Akamai proof for the same currently implemented surfaces. It runs against the current Fermyon deploy receipt using real edge client identity semantics rather than synthetic `X-Forwarded-For`, and proves:
+`test-fermyon-edge-signal-smoke` remains available for the later deferred edge-gateway track. It runs against the current Fermyon deploy receipt using real edge client identity semantics rather than synthetic `X-Forwarded-For`, and proves:
 - additive `/fingerprint-report` ingestion,
 - trusted GEO country-header routing for challenge, maze, and block,
 - authoritative `/fingerprint-report` either produces a visible ban when state allows it or returns the expected enterprise-state guardrail that is verified via `spin aka logs`.
@@ -407,12 +413,12 @@ Neither target proves future Akamai-native rate or rich-geo augmentations; those
 - payload sizes and latency for `/admin/monitoring`, `/admin/monitoring/delta`, and `/admin/monitoring/stream`,
 - transport gzip benefit for the monitoring snapshot.
 The first live shared-host baseline and compression decision are archived in [`docs/research/2026-03-11-shared-host-telemetry-storage-query-evidence.md`](research/2026-03-11-shared-host-telemetry-storage-query-evidence.md).
-`make telemetry-fermyon-edge-evidence` captures the equivalent live hot-read budget report for the current Fermyon/Akamai-edge deploy receipt at `.spin/telemetry_fermyon_edge_evidence.json`. Use it after deploying the current committed `HEAD` to confirm:
+`make telemetry-fermyon-edge-evidence` captures the equivalent live hot-read budget report for the deferred Fermyon/Akamai-edge deploy receipt at `.spin/telemetry_fermyon_edge_evidence.json`. Use it after deploying the current committed `HEAD` to confirm:
 - bootstrap latency for `/admin/monitoring?bootstrap=1...`,
 - delta latency for `/admin/monitoring/delta`,
 - response shaping still comes from the bounded hot-read path,
 - the live edge app stays within the current budget envelope.
-`make test-telemetry-hot-read-live-evidence` is the canonical cross-target acceptance proof for the TEL-HOT tranche. It must pass against:
+`make test-telemetry-hot-read-live-evidence` remains available for cross-target telemetry acceptance proof work. It must pass against:
 - the active shared-host SSH remote,
 - the current Fermyon/Akamai-edge deploy receipt.
 The unified shared-architecture proof and the decision not to add secondary memoization or cold-tier compression are archived in [`docs/research/2026-03-13-unified-hot-read-telemetry-live-evidence.md`](research/2026-03-13-unified-hot-read-telemetry-live-evidence.md).

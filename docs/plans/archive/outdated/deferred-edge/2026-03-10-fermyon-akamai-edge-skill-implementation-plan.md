@@ -105,5 +105,5 @@ To close `FERM-SKILL-1..3`, the project needs:
 
 Reference:
 
-- [`../research/2026-03-12-fermyon-akamai-edge-live-proof.md`](../research/2026-03-12-fermyon-akamai-edge-live-proof.md)
-- [`../research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md`](../research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md)
+- [`../../../../research/archive/outdated/deferred-edge/2026-03-12-fermyon-akamai-edge-live-proof.md`](../../../../research/archive/outdated/deferred-edge/2026-03-12-fermyon-akamai-edge-live-proof.md)
+- [`../../../../research/archive/outdated/deferred-edge/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md`](../../../../research/archive/outdated/deferred-edge/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md)

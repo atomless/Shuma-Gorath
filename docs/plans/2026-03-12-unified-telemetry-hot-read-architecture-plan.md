@@ -6,7 +6,7 @@ Status: Proposed
 Reference context:
 
 - [Telemetry Storage and Query Efficiency Excellence Plan](./2026-03-11-telemetry-storage-query-efficiency-excellence-plan.md)
-- [Fermyon / Akamai Edge Live Proof](../research/2026-03-12-fermyon-akamai-edge-live-proof.md)
+- [Deferred edge gateway status and archived historical proof notes](../deferred-edge-gateway.md)
 - [Fermyon Wasm Functions key-value store guide](https://developer.fermyon.com/wasm-functions/using-key-value-store)
 - [Fermyon Wasm Functions FAQ](https://developer.fermyon.com/wasm-functions/faq)
 - [Spin key-value store guide](https://spinframework.dev/v2/kv-store-api-guide.md)

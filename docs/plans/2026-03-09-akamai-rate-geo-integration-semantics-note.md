@@ -67,8 +67,8 @@ Future Akamai Rate control modes must mean:
 
 ## Immediate Follow-on Work
 
-- The Fermyon/Akamai edge baseline prerequisite is now satisfied and tracked by the live-proof notes in [`../research/2026-03-12-fermyon-akamai-edge-live-proof.md`](../research/2026-03-12-fermyon-akamai-edge-live-proof.md) and [`../research/2026-03-14-fermyon-edge-signal-and-blank-slate-live-proof.md`](../research/2026-03-14-fermyon-edge-signal-and-blank-slate-live-proof.md).
-- The posture and prerequisite boundary remains defined in [`2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md`](2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md).
+- The historical Fermyon/Akamai edge baseline receipts now live in [`../deferred-edge-gateway.md`](../deferred-edge-gateway.md) and [`../research/archive/outdated/README.md`](../research/archive/outdated/README.md).
+- The historical posture and prerequisite boundary note now lives in [`archive/outdated/deferred-edge/2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md`](archive/outdated/deferred-edge/2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md).
 - `AK-RG-2`: define the config surface and naming for the new Akamai Rate and GEO controls.
 - `AK-RG-3..8`: runtime wiring, dashboard controls, observability, tests, and rollout guidance.
 - Keep the live proof targets focused on the already implemented fingerprint and trusted GEO surfaces until the new controls actually exist.
