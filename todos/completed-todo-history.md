@@ -4,6 +4,30 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-23)
 
+### Monitoring loop-accountability framing and diagnostics-focus planning
+
+- [x] Captured the refinement that the new Monitoring page should primarily present how the closed feedback loop has detected, judged, and responded to non-human traffic, and what effect that had on likely-human and tolerated traffic, rather than acting first as a manual config-tuning cockpit.
+- [x] Wrote the new source-of-truth note in [`docs/research/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-review.md`](../docs/research/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-review.md) and the execution plan in [`docs/plans/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md`](../docs/plans/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md).
+- [x] Split `MON-OVERHAUL-1` in [`todos/todo.md`](../todos/todo.md) into three clearer slices:
+  - `MON-OVERHAUL-1A` for information architecture and Diagnostics refocus,
+  - `MON-OVERHAUL-1B` for loop verdict, outcome frontier, and controller judgment projection,
+  - `MON-OVERHAUL-1C` for taxonomy breakdown and trust/actionability blockers.
+- [x] Synced the new framing into the existing Monitoring ownership and roadmap docs.
+- [x] Why:
+  - the closed loop is now real enough that Monitoring should prove and explain the loop's effectiveness, not merely show a dashboard a human might use to tune manually.
+  - Diagnostics also needed a stronger identity so it becomes clearly about deep inspection, forensic detail, and subsystem understanding rather than just "old Monitoring moved elsewhere."
+  - splitting `MON-OVERHAUL-1` into smaller slices gives the next implementation tranche a much cleaner starting point.
+- [x] Evidence:
+  - `docs/research/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-review.md`
+  - `docs/plans/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md`
+  - `docs/plans/2026-03-20-monitoring-and-diagnostics-tab-ownership-plan.md`
+  - `docs/plans/2026-03-23-dashboard-operator-surfacing-sequencing-plan.md`
+  - `docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`
+  - `docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`
+  - `todos/todo.md`
+  - `git diff --check`
+  - verification intentionally scoped as docs-only; tests not run
+
 ### TEST-TIER-1: Canonical test tiers and target-scope truthfulness
 
 - [x] Defined the canonical automated test tiers in [`docs/testing.md`](../docs/testing.md): static/source-contract checks, local behavior tests, Spin runtime integration tests, rendered dashboard tests, and live operational proofs, with manual dashboard checks explicitly treated as non-canonical proof.

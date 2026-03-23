@@ -10,6 +10,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md) - Forward roadmap and cross-topic sequencing capture
 - [`2026-03-23-documentation-audit-and-reorganization-plan.md`](2026-03-23-documentation-audit-and-reorganization-plan.md) - Documentation cleanup and archive plan for the current docs tree
 - [`2026-03-23-testing-surface-rationalization-plan.md`](2026-03-23-testing-surface-rationalization-plan.md) - Testing-tier cleanup and proof-quality improvement plan
+- [`2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md`](2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md) - Monitoring overhaul reframed as loop-accountability with diagnostics-first deep inspection
 
 ## Current Mainline
 

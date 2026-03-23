@@ -121,7 +121,7 @@ It should prove:
 
 ### Goal
 
-Keep the Monitoring overhaul responsible for projecting the backend machine-first read models rather than sneaking them into local tabs first.
+Keep the Monitoring overhaul responsible for projecting the backend machine-first read models rather than sneaking them into local tabs first, and frame that projection as loop-accountability first rather than generic operator chrome.
 
 ### Monitoring-owned projection scope
 
@@ -133,10 +133,12 @@ Keep the Monitoring overhaul responsible for projecting the backend machine-firs
 ### Required operator stories
 
 1. what the loop currently believes,
-2. whether tuning is eligible,
+2. whether the current window is improving, stable, or regressing against the prior window,
 3. what the last reconcile or apply cycle decided,
 4. whether recent changes improved or regressed the benchmark envelope,
-5. and whether verified or tolerated non-human traffic is being harmed.
+5. where the remaining problem sits in the non-human taxonomy,
+6. whether tuning is eligible,
+7. and whether verified or tolerated non-human traffic is being harmed.
 
 ## `TUNE-SURFACE-1`: Operator Objectives And Category Posture Editor
 

@@ -29,6 +29,8 @@ Shuma will split the current Monitoring surface into two distinct tab contracts:
    - Receives the current Monitoring implementation largely intact as the transitional diagnostic surface.
    - Keeps contributor and deep-inspection value available while Monitoring is rebuilt properly.
 
+As of 2026-03-23, the target is now more specific: Monitoring should become the human-readable accountability surface for the closed loop rather than a manual tuning cockpit, and Diagnostics should become more intentionally diagnostics-first rather than merely preserving the old Monitoring layout elsewhere.
+
 ## Ownership Contract
 
 ### Monitoring
@@ -37,6 +39,10 @@ Shuma will split the current Monitoring surface into two distinct tab contracts:
 
 - traffic mix and lane summaries,
 - attacker-effectiveness versus human-friction visibility,
+- loop verdict and benchmark status,
+- change judgment and watch-window result,
+- category-aware non-human outcome breakdowns,
+- trust and actionability blockers,
 - enforced versus shadow storytelling,
 - bounded benchmark-grade summaries that later tuning and oversight loops can trust.
 
@@ -51,6 +57,8 @@ Until that overhaul lands, the tab should remain intentionally sparse and truthf
 - CDP, maze, tarpit, honeypot, challenge, PoW, rate, GEO, and IP-range detail sections,
 - raw feed and low-level telemetry diagnostics,
 - Prometheus helper and contributor-oriented deep inspection.
+
+As the Monitoring overhaul progresses, Diagnostics should become more intentionally diagnostics-oriented in wording and sectioning rather than remaining a merely transplanted Monitoring page.
 
 The current Monitoring implementation should move here with minimal behavioral change.
 
