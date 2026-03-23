@@ -9,6 +9,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md) - Current mainline architecture and sequencing for the shared-host-first closed-loop path
 - [`2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md) - Forward roadmap and cross-topic sequencing capture
 - [`2026-03-23-documentation-audit-and-reorganization-plan.md`](2026-03-23-documentation-audit-and-reorganization-plan.md) - Documentation cleanup and archive plan for the current docs tree
+- [`2026-03-23-testing-surface-rationalization-plan.md`](2026-03-23-testing-surface-rationalization-plan.md) - Testing-tier cleanup and proof-quality improvement plan
 
 ## Current Mainline
 

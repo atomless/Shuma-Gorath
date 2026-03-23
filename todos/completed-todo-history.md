@@ -4,6 +4,24 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-23)
 
+### Testing surface audit and rationalization planning
+
+- [x] Audited the canonical test surface from the `Makefile` outward and wrote up what each major test layer really proves today: Rust domain tests, Spin integration shell tests, gateway/deploy helper tests, adversarial and SIM2 tests, dashboard Node and Playwright tests, and live shared-host proof targets.
+- [x] Identified the main architecture debt in the suite: too many source-shape checks are still living inside feature-proof lanes, especially in `e2e/dashboard.modules.unit.test.js`, and several feature-oriented targets still include Makefile-wiring or shell-text checks that are not direct behavior proof.
+- [x] Turned the audit into a concrete cleanup plan and queued follow-up TODOs for test-tier truthfulness and wider archaeology reduction.
+- [x] Why:
+  - the repo now has a broad and valuable test surface, but its sprawl makes it hard to answer a simple question: what currently proves behavior, what proves wiring, and what proves live shared-host operation.
+  - the strongest parts of the suite are already behavior-first, but the weaker source-contract pockets dilute confidence and make the test lanes harder to interpret.
+  - clarifying tiers and replacing archaeology incrementally is a better next move than indiscriminately adding more tests.
+- [x] Evidence:
+  - `docs/research/2026-03-23-testing-surface-audit.md`
+  - `docs/plans/2026-03-23-testing-surface-rationalization-plan.md`
+  - `docs/research/README.md`
+  - `docs/plans/README.md`
+  - `todos/todo.md`
+  - `git diff --check`
+  - verification intentionally scoped as docs-only; tests not run
+
 ### UI-RED-1: Red Team truth-basis diagnostics
 
 - [x] Surfaced adversary-sim generation and lane-diagnostics `truth_basis` in the `Red Team` tab so operators can now distinguish direct runtime counters from recovered persisted-event lower-bound evidence.
