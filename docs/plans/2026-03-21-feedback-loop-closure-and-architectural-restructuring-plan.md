@@ -253,6 +253,8 @@ Before Monitoring and Tuning are reopened, reconcile adversary-sim status diagno
 
 Execution reference: [`2026-03-23-adv-diag-1-adversary-sim-status-truth-implementation-plan.md`](2026-03-23-adv-diag-1-adversary-sim-status-truth-implementation-plan.md)
 
+Status update (2026-03-23): complete per [`../research/2026-03-23-adv-diag-1-adversary-sim-status-truth-post-implementation-review.md`](../research/2026-03-23-adv-diag-1-adversary-sim-status-truth-post-implementation-review.md).
+
 ## Phase 6: Human Operator Projection
 
 ### `MON-OVERHAUL-1`

@@ -1,6 +1,6 @@
 # TODO Roadmap
 
-Last updated: 2026-03-22
+Last updated: 2026-03-23
 
 This is the active execution-ready work queue.
 Blocked or contingent work lives in `todos/blocked-todo.md`.
@@ -83,14 +83,14 @@ Current stance:
 - Keep the decomposition slices behavior-preserving; semantic expansion begins only after the hotspot modules have focused seams.
 - Land the first shared-host agent tweaker loop before `MON-OVERHAUL-1` so Monitoring and Tuning can project proven machine-first semantics instead of inventing them early.
 - Treat the verified-identity observability and benchmarking gap as part of this loop-closure track rather than later polish.
-- The first bounded shared-host closed config loop is now live-proven; the immediate follow-up before `MON-OVERHAUL-1` is to make adversary-sim status diagnostics as truthful as the event log the controller now relies on.
+- The first bounded shared-host closed config loop is now live-proven, and the adversary-sim status diagnostics follow-up is now delivered; the next operator-facing execution tranche is `MON-OVERHAUL-1`.
 - The next prerequisite now begins one step earlier: Shuma must first define a canonical non-human taxonomy and shared classification contract before it can truthfully measure lane representativeness.
 - The actively evolving near-term layer should be fingerprinting and categorization quality inside that taxonomy; taxonomy expansion is only a later contingency if important non-human traffic persistently falls outside the existing categories.
 - The next bridge to a genuine LLM-in-the-loop system is not the full later `SIM-LLM-1` runtime actor; it is a bounded category-fulfillment LLM tranche that sits between the taxonomy/classifier work and the first closed config loop, with the later LLM diagnosis harness and code loop still downstream of `OVR-APPLY-1`.
 
-### ADV-DIAG-1: Reconcile Adversary-Sim Status Diagnostics With Persisted Event Truth
-- Make `/admin/adversary-sim/status` generation and lane-diagnostics fields truthful on shared-host when live simulated traffic is being generated, so operator-facing diagnostics and the future Monitoring overhaul do not conflict with the persisted simulation event log.
-- Follow-up reference: [`../docs/research/2026-03-22-ovr-apply-1-canary-apply-and-rollback-post-implementation-review.md`](../docs/research/2026-03-22-ovr-apply-1-canary-apply-and-rollback-post-implementation-review.md)
+### MON-OVERHAUL-1: Monitoring As Thin Operator Projection Over Machine-First Contracts
+- Redesign Monitoring as a thin operator decision surface over the machine-first snapshot contract, with explicit live-versus-shadow-versus-adversary-sim separation and clear attacker-effectiveness versus human-friction visibility.
+- Reference context: [`../docs/plans/2026-03-20-monitoring-and-diagnostics-tab-ownership-plan.md`](../docs/plans/2026-03-20-monitoring-and-diagnostics-tab-ownership-plan.md), [`../docs/research/2026-03-23-adv-diag-1-adversary-sim-status-truth-post-implementation-review.md`](../docs/research/2026-03-23-adv-diag-1-adversary-sim-status-truth-post-implementation-review.md)
 
 ## P1 Verified Bot Identity And Web Bot Auth Foundation
 

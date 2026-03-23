@@ -2,6 +2,34 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-03-23)
+
+### ADV-DIAG-1: Reconcile Adversary-Sim Status Diagnostics With Persisted Event Truth
+
+- [x] Made `/admin/adversary-sim/status` recover lower-bound generation and lane-diagnostics truth from immutable simulation-tagged event evidence on shared-host, added a focused diagnostics-truth regression gate plus live-proof verifier checks, and re-proved the closed loop on the active Linode with completed status now showing non-zero recovered counters instead of the old impossible zeros.
+- [x] Why:
+  - the first bounded shared-host closed loop was already live-proven, but its post-implementation review found one operator-facing truth gap: the controller correctly trusted persisted sim event evidence while `/admin/adversary-sim/status` could still expose `tick_count=0`, `request_count=0`, and zeroed lane diagnostics for the same completed run.
+  - leaving that mismatch in place would have caused `MON-OVERHAUL-1` to project a contradiction between the immutable telemetry Shuma already trusts and the adversary-sim status surface operators would see.
+  - the cleanest fix was to keep the control plane intact and add an event-truth projection step in the status path, so mutable counters remain first-class when present but immutable telemetry can repair under-reporting when it is already stronger.
+- [x] Evidence:
+  - `src/admin/adversary_sim_status_truth.rs`
+  - `src/admin/adversary_sim_api.rs`
+  - `src/admin/api.rs`
+  - `scripts/tests/live_feedback_loop_remote.py`
+  - `scripts/tests/test_live_feedback_loop_remote.py`
+  - `Makefile`
+  - `docs/research/2026-03-23-adv-diag-1-adversary-sim-status-truth-review.md`
+  - `docs/plans/2026-03-23-adv-diag-1-adversary-sim-status-truth-implementation-plan.md`
+  - `docs/research/2026-03-23-adv-diag-1-adversary-sim-status-truth-post-implementation-review.md`
+  - `.spin/live_feedback_loop_remote.json`
+  - `make test-adversary-sim-diagnostics-truth`
+  - `make test-adversary-sim-domain-contract`
+  - `make test-live-feedback-loop-remote-unit`
+  - `make test-oversight-post-sim-trigger`
+  - `make remote-update`
+  - `make test-live-feedback-loop-remote`
+  - `git diff --check`
+
 ## Additional completions (2026-03-22)
 
 ### OVR-APPLY-1: First Closed Autonomous Tuning Loop With Canary Apply And Rollback
