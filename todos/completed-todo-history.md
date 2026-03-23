@@ -4,6 +4,20 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-23)
 
+### README Entrypoint Repair: Align The Repository Front Door With The Docs Reorganization
+
+- [x] Audited the top-level `README.md`, documented the shortfall that the previous docs housekeeping tranche left it untouched, and rewrote the Documentation section so it now points to the current shared-host-first architecture, mainline feedback-loop docs, curated indexes, and explicitly deferred edge track instead of surfacing a stale historical Fermyon blocker note as a top-level destination.
+- [x] Why:
+  - the earlier documentation cleanup improved the docs tree itself, but leaving the repository root README unchanged meant the most visible entry point still projected an older docs shape and stale deferred-edge emphasis.
+  - that undermined the credibility and usability of the reorganization work because readers landing on the repo homepage would still see a documentation map that did not match the current project posture.
+  - the cleanest correction was a focused README-front-door tranche: preserve useful links, regroup them around the current mainline, and route historical/deferred edge readers through the dedicated guide and indexes instead of a one-off historical blocker note.
+- [x] Evidence:
+  - `README.md`
+  - `docs/research/2026-03-23-readme-entrypoint-audit-addendum.md`
+  - `docs/plans/2026-03-23-readme-entrypoint-repair-plan.md`
+  - `todos/completed-todo-history.md`
+  - `git diff --check`
+
 ### Documentation IA Cleanup: Flatten Historical Plan And Research Directories
 
 - [x] Flattened `docs/research/` and `docs/plans/` back to a single date-sorted level by moving all archived dated docs up from nested archive folders, removing the now-redundant archive directories, and rewriting the top-level indexes so they carry the current-versus-historical-versus-deferred-edge distinction themselves.

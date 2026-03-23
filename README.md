@@ -169,35 +169,58 @@ Deployment policy note: `SHUMA_KV_STORE_FAIL_OPEN` is a critical choice (fail-op
 
 ## 🐙 Documentation
 
-- [`docs/index.md`](docs/index.md) - Docs index
-- [`docs/project-principles.md`](docs/project-principles.md) - Project goals and engineering principles
-- [`docs/adr/README.md`](docs/adr/README.md) - Architecture decision record process
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) - Contribution standards and <abbr title="Pull Request">PR</abbr> expectations
-- [`AGENTS.md`](AGENTS.md) - Instructions for coding agents assisting contributors
+Start here:
+
+- [`docs/index.md`](docs/index.md) - Main docs index
+- [`docs/current-system-architecture.md`](docs/current-system-architecture.md) - Current landed architecture and closed-loop shape
 - [`docs/quick-reference.md`](docs/quick-reference.md) - Command and <abbr title="Application Programming Interface">API</abbr> cheat sheet
-- [`docs/testing.md`](docs/testing.md) - Testing guide (Makefile-only)
-- [`docs/dashboard.md`](docs/dashboard.md) - Dashboard and admin <abbr title="User Interface">UI</abbr>
-- [`docs/deployment.md`](docs/deployment.md) - Production/deploy configuration
-- [`skills/prepare-scrapling-for-deploy/SKILL.md`](skills/prepare-scrapling-for-deploy/SKILL.md) - Agent skill for inferring minimal Scrapling deploy artifacts and shared-host-first runtime boundaries
-- [`skills/prepare-shared-host-on-linode/SKILL.md`](skills/prepare-shared-host-on-linode/SKILL.md) - Agent skill for preparing a Linode shared host and surface-catalog handoff before Shuma deploy
-- [`skills/deploy-shuma-on-linode/SKILL.md`](skills/deploy-shuma-on-linode/SKILL.md) - Agent skill for one-command Linode provisioning + deployment
-- [`skills/prepare-shuma-on-akamai-fermyon/SKILL.md`](skills/prepare-shuma-on-akamai-fermyon/SKILL.md) - Agent skill for the deferred Akamai-edge-only Fermyon setup and deploy handoff path
-- [`skills/deploy-shuma-on-akamai-fermyon/SKILL.md`](skills/deploy-shuma-on-akamai-fermyon/SKILL.md) - Deploy-side agent skill for the deferred Akamai-edge-only Fermyon gateway path from a prepared setup receipt
-- [`docs/research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md`](docs/research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md) - Historical Fermyon/Akamai edge proof blockers and recovery path
-- [`docs/api.md`](docs/api.md) - <abbr title="Application Programming Interface">API</abbr> usage and endpoint details
+- [`docs/deployment.md`](docs/deployment.md) - Shared-host-first deployment and remote operations guidance
+- [`docs/testing.md`](docs/testing.md) - Canonical Makefile-only verification paths
 - [`docs/configuration.md`](docs/configuration.md) - Runtime configuration reference
+- [`docs/dashboard.md`](docs/dashboard.md) - Dashboard and admin <abbr title="User Interface">UI</abbr>
+
+Current mainline:
+
+- [`docs/plans/2026-03-21-shared-host-first-control-plane-and-deferred-edge-gateway-plan.md`](docs/plans/2026-03-21-shared-host-first-control-plane-and-deferred-edge-gateway-plan.md) - Shared-host-first direction update
+- [`docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md) - Mainline sequencing through the first closed loop
+- [`docs/research/2026-03-22-live-linode-feedback-loop-proof.md`](docs/research/2026-03-22-live-linode-feedback-loop-proof.md) - Live proof of the current shared-host loop
+- [`docs/research/2026-03-23-adv-diag-1-adversary-sim-status-truth-post-implementation-review.md`](docs/research/2026-03-23-adv-diag-1-adversary-sim-status-truth-post-implementation-review.md) - Latest closeout before the Monitoring overhaul
+- [`docs/plans/README.md`](docs/plans/README.md) - Curated planning index by topic
+- [`docs/research/README.md`](docs/research/README.md) - Curated research index by topic
+
+Product and operator references:
+
+- [`docs/api.md`](docs/api.md) - <abbr title="Application Programming Interface">API</abbr> usage and endpoint details
 - [`docs/security-hardening.md`](docs/security-hardening.md) - Deployment security checklist
 - [`docs/observability.md`](docs/observability.md) - Prometheus/Grafana integration
-- [`docs/bot-defence.md`](docs/bot-defence.md) - Shuma-Gorath layered defence strategy with managed edge bot protection
+- [`docs/bot-defence.md`](docs/bot-defence.md) - Shuma-Gorath layered defence strategy
 - [`docs/value-proposition.md`](docs/value-proposition.md) - Research-backed value map and cost-asymmetry positioning by capability
 - [`docs/features.md`](docs/features.md) - Feature list and roadmap
 - [`docs/challenge-verification.md`](docs/challenge-verification.md) - Human verification strategy
 - [`docs/maze.md`](docs/maze.md) - Maze runtime flow, rollout phases, and cost-asymmetry model
 - [`docs/tarpit.md`](docs/tarpit.md) - Tarpit activation conditions, progression model, and bounded-cost controls
-- [`docs/research/README.md`](docs/research/README.md) - Research index (including tarpit research collection and latest re-review addendum)
+- [`docs/project-principles.md`](docs/project-principles.md) - Project goals and engineering principles
+- [`docs/adr/README.md`](docs/adr/README.md) - Architecture decision record process
+
+Contributor workflow and backlog:
+
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) - Contribution standards and <abbr title="Pull Request">PR</abbr> expectations
+- [`AGENTS.md`](AGENTS.md) - Instructions for coding agents assisting contributors
 - [`todos/todo.md`](todos/todo.md) - Active execution-ready backlog
 - [`todos/blocked-todo.md`](todos/blocked-todo.md) - Blocked and contingent backlog
-- [`todos/security-review.md`](todos/security-review.md) - Security audit notes / backlog
+- [`todos/security-review.md`](todos/security-review.md) - Security audit notes and backlog
+
+Deployment skills:
+
+- [`skills/prepare-scrapling-for-deploy/SKILL.md`](skills/prepare-scrapling-for-deploy/SKILL.md) - Agent skill for inferring minimal Scrapling deploy artifacts and shared-host-first runtime boundaries
+- [`skills/prepare-shared-host-on-linode/SKILL.md`](skills/prepare-shared-host-on-linode/SKILL.md) - Agent skill for preparing a Linode shared host and surface-catalog handoff before Shuma deploy
+- [`skills/deploy-shuma-on-linode/SKILL.md`](skills/deploy-shuma-on-linode/SKILL.md) - Agent skill for one-command Linode provisioning and deployment
+
+Deferred edge gateway track:
+
+- [`docs/deferred-edge-gateway.md`](docs/deferred-edge-gateway.md) - Truthful current status of the later edge gateway track
+- [`skills/prepare-shuma-on-akamai-fermyon/SKILL.md`](skills/prepare-shuma-on-akamai-fermyon/SKILL.md) - Agent skill for the deferred Akamai-edge-only Fermyon setup and deploy handoff path
+- [`skills/deploy-shuma-on-akamai-fermyon/SKILL.md`](skills/deploy-shuma-on-akamai-fermyon/SKILL.md) - Deploy-side agent skill for the deferred Akamai-edge-only Fermyon gateway path from a prepared setup receipt
 
 ## 🐙 Repository Structure (High Level)
 
