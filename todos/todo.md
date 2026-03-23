@@ -8,18 +8,6 @@ Completed work lives in `todos/completed-todo-history.md`.
 Security finding validity and closure status live in `todos/security-review.md`.
 Keep durable workflow and policy guidance in `docs/project-principles.md`, `CONTRIBUTING.md`, and `AGENTS.md`, not in this file.
 
-## P0 Dashboard Auth Flow Truthfulness
-
-Reference context:
-- [`docs/research/2026-03-23-dashboard-auth-shell-flash-review.md`](../docs/research/2026-03-23-dashboard-auth-shell-flash-review.md)
-- [`docs/plans/2026-03-23-dashboard-auth-gate-implementation-plan.md`](../docs/plans/2026-03-23-dashboard-auth-gate-implementation-plan.md)
-- [`docs/dashboard.md`](../docs/dashboard.md)
-
-- [ ] DASH-AUTH-1 Gate the dashboard shell behind authenticated session restore so logged-out navigation to `/dashboard` or `/dashboard/index.html` does not render the dashboard shell before redirecting to `/dashboard/login.html`.
-  - Keep the first slice local to the dashboard auth flow; do not bundle Monitoring-overhaul or broader session-architecture work into it.
-  - Add rendered proof that the shell stays hidden while `/admin/session` is unresolved and then redirects cleanly when unauthenticated.
-  - Preserve existing login-page, `next`, logout, and session-expiry semantics.
-
 ## P0 Monitoring and Config Lifecycle Stabilization
 
 Reference context:

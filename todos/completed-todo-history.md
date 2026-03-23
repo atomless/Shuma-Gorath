@@ -4,6 +4,29 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-23)
 
+### DASH-AUTH-1: Gate dashboard shell rendering behind authenticated session restore
+
+- [x] Added a scoped research note and implementation plan for the logged-out dashboard shell flash, keeping the first remediation slice local to the dashboard auth flow rather than dragging Monitoring or broader session architecture into the fix.
+- [x] Added focused unit and Playwright coverage proving that logged-out navigation to `/dashboard/index.html` keeps a neutral auth gate visible while `/admin/session` is unresolved and redirects cleanly to the login page without rendering the dashboard shell.
+- [x] Changed the dashboard route to prerender and mount through an auth-pending gate, revealing the dashboard shell only after authenticated session restore succeeds.
+- [x] Updated dashboard and testing docs and wrote the tranche post-implementation review.
+- [x] Why:
+  - the dashboard route was rendering the shell first and only learning auth truth afterwards, which created a visible flash of the Monitoring shell for logged-out visitors.
+  - even though the flashed panel was only the current Monitoring placeholder, the auth pattern itself was wrong and would become more problematic as richer operator surfaces land.
+  - the cleanest first fix was to gate the route render locally so the static dashboard HTML and early client boot both stay neutral until session truth is known.
+- [x] Evidence:
+  - `docs/research/2026-03-23-dashboard-auth-shell-flash-review.md`
+  - `docs/plans/2026-03-23-dashboard-auth-gate-implementation-plan.md`
+  - `dashboard/src/routes/+page.svelte`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `e2e/dashboard.smoke.spec.js`
+  - `Makefile`
+  - `docs/dashboard.md`
+  - `docs/testing.md`
+  - `docs/research/2026-03-23-dashboard-auth-gate-post-implementation-review.md`
+  - `make test-dashboard-auth-gate`
+  - `git diff --check`
+
 ### Docs: tighten Advanced-tab parity process and queue a full audit
 
 - [x] Strengthened `AGENTS.md` so config-variable changes must update Dashboard Advanced surfaces in the same tranche, and so the Advanced inventory must stay logically grouped, truthful about writable versus read-only status, and documented when exclusions are intentional.
