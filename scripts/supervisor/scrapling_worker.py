@@ -140,19 +140,20 @@ def _signed_headers(
     seq: int,
     extra_headers: dict[str, str] | None = None,
 ) -> dict[str, str]:
+    sim_profile = f"{profile}.{fulfillment_mode}" if fulfillment_mode else profile
     timestamp = str(int(time.time()))
-    nonce = f"{run_id}:{profile}:{lane}:{seq}:{timestamp}"
+    nonce = f"{run_id}:{sim_profile}:{lane}:{seq}:{timestamp}"
     signature = sim_tag_helpers.sign_sim_tag(
         secret=secret,
         run_id=run_id,
-        profile=profile,
+        profile=sim_profile,
         lane=lane,
         timestamp=timestamp,
         nonce=nonce,
     )
-    return {
+    headers = {
         sim_tag_helpers.SIM_TAG_HEADER_RUN_ID: run_id,
-        sim_tag_helpers.SIM_TAG_HEADER_PROFILE: profile,
+        sim_tag_helpers.SIM_TAG_HEADER_PROFILE: sim_profile,
         sim_tag_helpers.SIM_TAG_HEADER_LANE: lane,
         sim_tag_helpers.SIM_TAG_HEADER_TIMESTAMP: timestamp,
         sim_tag_helpers.SIM_TAG_HEADER_NONCE: nonce,

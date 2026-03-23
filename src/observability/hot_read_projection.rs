@@ -193,6 +193,8 @@ fn operator_snapshot_recent_sim_run(
         run_id: run.run_id.clone(),
         lane: run.lane.clone(),
         profile: run.profile.clone(),
+        observed_fulfillment_modes: run.observed_fulfillment_modes.clone(),
+        observed_category_ids: run.observed_category_ids.clone(),
         first_ts: run.first_ts,
         last_ts: run.last_ts,
         monitoring_event_count: run.monitoring_event_count,

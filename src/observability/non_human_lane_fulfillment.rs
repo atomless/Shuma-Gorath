@@ -14,6 +14,7 @@ const SCRAPLING_OWNED_CATEGORY_TARGETS: [&str; 3] = [
     "ai_scraper_bot",
     "http_agent",
 ];
+const SCRAPLING_RUNTIME_PROFILE_PREFIX: &str = "scrapling_runtime_lane";
 const SCRAPLING_CRAWLER_CATEGORY_TARGETS: [&str; 1] = ["indexing_bot"];
 const SCRAPLING_BULK_SCRAPER_CATEGORY_TARGETS: [&str; 1] = ["ai_scraper_bot"];
 const SCRAPLING_HTTP_AGENT_CATEGORY_TARGETS: [&str; 1] = ["http_agent"];
@@ -81,6 +82,48 @@ pub(crate) fn llm_category_targets_for_mode(mode: &str) -> Vec<String> {
             .collect(),
         _ => Vec::new(),
     }
+}
+
+pub(crate) fn observed_category_targets_for_runtime_profile(
+    runtime_lane: &str,
+    sim_profile: &str,
+) -> (String, Vec<String>, Vec<String>) {
+    let normalized_profile = sim_profile.trim();
+    if runtime_lane != "scrapling_traffic" || normalized_profile.is_empty() {
+        return (normalized_profile.to_string(), Vec::new(), Vec::new());
+    }
+
+    if normalized_profile == SCRAPLING_RUNTIME_PROFILE_PREFIX {
+        return (normalized_profile.to_string(), Vec::new(), Vec::new());
+    }
+
+    let Some(modes_raw) = normalized_profile
+        .strip_prefix(SCRAPLING_RUNTIME_PROFILE_PREFIX)
+        .and_then(|value| value.strip_prefix('.'))
+    else {
+        return (normalized_profile.to_string(), Vec::new(), Vec::new());
+    };
+
+    let mut observed_modes = Vec::new();
+    let mut observed_category_ids = Vec::new();
+    for raw_mode in modes_raw.split('.') {
+        let mode = raw_mode.trim();
+        if mode.is_empty() || observed_modes.iter().any(|value| value == mode) {
+            continue;
+        }
+        observed_modes.push(mode.to_string());
+        for category_id in scrapling_category_targets_for_mode(mode) {
+            if !observed_category_ids.iter().any(|value| value == &category_id) {
+                observed_category_ids.push(category_id);
+            }
+        }
+    }
+
+    (
+        SCRAPLING_RUNTIME_PROFILE_PREFIX.to_string(),
+        observed_modes,
+        observed_category_ids,
+    )
 }
 
 pub(crate) fn canonical_non_human_lane_fulfillment() -> NonHumanLaneFulfillmentSummary {
@@ -174,7 +217,8 @@ fn lane_assignment_for_category(
 mod tests {
     use super::{
         canonical_non_human_lane_fulfillment, llm_category_targets_for_mode,
-        scrapling_category_targets, scrapling_category_targets_for_mode,
+        observed_category_targets_for_runtime_profile, scrapling_category_targets,
+        scrapling_category_targets_for_mode,
     };
 
     #[test]
@@ -256,5 +300,39 @@ mod tests {
             vec!["http_agent", "ai_scraper_bot"]
         );
         assert!(llm_category_targets_for_mode("unknown_mode").is_empty());
+    }
+
+    #[test]
+    fn runtime_profile_observation_helper_normalizes_scrapling_modes_into_categories() {
+        let (profile, modes, categories) = observed_category_targets_for_runtime_profile(
+            "scrapling_traffic",
+            "scrapling_runtime_lane.crawler.bulk_scraper.http_agent",
+        );
+        assert_eq!(profile, "scrapling_runtime_lane");
+        assert_eq!(
+            modes,
+            vec![
+                "crawler".to_string(),
+                "bulk_scraper".to_string(),
+                "http_agent".to_string()
+            ]
+        );
+        assert_eq!(
+            categories,
+            vec![
+                "indexing_bot".to_string(),
+                "ai_scraper_bot".to_string(),
+                "http_agent".to_string()
+            ]
+        );
+
+        let (unchanged_profile, unchanged_modes, unchanged_categories) =
+            observed_category_targets_for_runtime_profile(
+                "deterministic_black_box",
+                "fast_smoke",
+            );
+        assert_eq!(unchanged_profile, "fast_smoke");
+        assert!(unchanged_modes.is_empty());
+        assert!(unchanged_categories.is_empty());
     }
 }

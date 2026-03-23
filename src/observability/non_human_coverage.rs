@@ -299,4 +299,25 @@ mod tests {
         assert_eq!(indexing.coverage_status, "stale");
         assert_eq!(indexing.coverage_basis, "receipt_backed_degraded");
     }
+
+    #[test]
+    fn coverage_summary_marks_scrapling_request_native_categories_covered_when_receipts_exist() {
+        let summary = summarize_non_human_coverage(&[
+            receipt("adversary_sim", "indexing_bot", "classified", "current"),
+            receipt("adversary_sim", "ai_scraper_bot", "classified", "current"),
+            receipt("adversary_sim", "http_agent", "classified", "current"),
+            receipt("live", "verified_beneficial_bot", "classified", "current"),
+        ]);
+
+        assert_eq!(summary.overall_status, "partial");
+        assert_eq!(summary.covered_category_count, 3);
+        assert!(summary
+            .receipts
+            .iter()
+            .any(|row| row.category_id == "ai_scraper_bot" && row.coverage_status == "covered"));
+        assert!(summary
+            .receipts
+            .iter()
+            .any(|row| row.category_id == "http_agent" && row.coverage_status == "covered"));
+    }
 }

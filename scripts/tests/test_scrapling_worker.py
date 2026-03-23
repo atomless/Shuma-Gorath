@@ -256,7 +256,7 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
             )
             self.assertEqual(
                 headers.get(sim_runner.SIM_TAG_HEADER_PROFILE),
-                "scrapling_runtime_lane",
+                "scrapling_runtime_lane.crawler",
             )
             self.assertEqual(
                 headers.get(sim_runner.SIM_TAG_HEADER_LANE),
@@ -290,6 +290,13 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
         self.assertIn("/catalog?page=2", paths)
         self.assertTrue(any(path.startswith("/detail/") for path in paths))
         self.assertTrue(all(entry["method"] == "GET" for entry in self.httpd.requests_seen))
+        self.assertTrue(
+            all(
+                entry["headers"].get(sim_runner.SIM_TAG_HEADER_PROFILE)
+                == "scrapling_runtime_lane.bulk_scraper"
+                for entry in self.httpd.requests_seen
+            )
+        )
 
     def test_execute_worker_plan_http_agent_uses_method_mix_and_redirect_followup(self) -> None:
         self.assertIsNotNone(scrapling_worker, "worker module missing")
@@ -325,6 +332,13 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
         self.assertIn(
             "shuma_agent_mode=http_agent",
             submit["headers"].get("cookie", ""),
+        )
+        self.assertTrue(
+            all(
+                entry["headers"].get(sim_runner.SIM_TAG_HEADER_PROFILE)
+                == "scrapling_runtime_lane.http_agent"
+                for entry in self.httpd.requests_seen
+            )
         )
 
     def test_cli_writes_result_file_for_scrapling_worker_plan(self) -> None:

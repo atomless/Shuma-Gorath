@@ -321,6 +321,8 @@ mod tests {
                 run_id: "run_001".to_string(),
                 lane: "deterministic_black_box".to_string(),
                 profile: "fast_smoke".to_string(),
+                observed_fulfillment_modes: Vec::new(),
+                observed_category_ids: Vec::new(),
                 first_ts: 1_700_000_000,
                 last_ts: 1_700_000_100,
                 monitoring_event_count: 3,
@@ -598,6 +600,8 @@ mod tests {
                     run_id: "run_001".to_string(),
                     lane: "synthetic_traffic".to_string(),
                     profile: "fast_smoke".to_string(),
+                    observed_fulfillment_modes: Vec::new(),
+                    observed_category_ids: Vec::new(),
                     first_ts: 1_700_000_120,
                     last_ts: 1_700_000_140,
                     monitoring_event_count: 4,
@@ -608,6 +612,8 @@ mod tests {
                     run_id: "run_002".to_string(),
                     lane: "synthetic_traffic".to_string(),
                     profile: "abuse_regression".to_string(),
+                    observed_fulfillment_modes: Vec::new(),
+                    observed_category_ids: Vec::new(),
                     first_ts: 1_700_000_150,
                     last_ts: 1_700_000_190,
                     monitoring_event_count: 6,
@@ -956,6 +962,85 @@ mod tests {
             .escalation_hint
             .blockers
             .contains(&"replay_promotion_not_materialized".to_string()));
+    }
+
+    #[test]
+    fn benchmark_results_surface_scrapling_request_native_category_coverage() {
+        let store = TestStore::new();
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::Live,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::PublicContent,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: Some(RequestOutcomeLane {
+                    lane: TrafficLane::VerifiedBot,
+                    exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
+                    basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
+                }),
+                outcome_class: RequestOutcomeClass::Forwarded,
+                response_kind: ResponseKind::ForwardAllow,
+                http_status: 200,
+                response_bytes: 120,
+                forward_attempted: true,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::PolicyGraphVerifiedIdentityTranche,
+            },
+        );
+        let summary = summarize_with_store(&store, 24, 10);
+        let snapshot = build_operator_snapshot_payload(
+            &store,
+            "default",
+            1_700_000_360,
+            &summary,
+            &[OperatorSnapshotRecentSimRun {
+                run_id: "simrun-request-native".to_string(),
+                lane: "scrapling_traffic".to_string(),
+                profile: "scrapling_runtime_lane".to_string(),
+                observed_fulfillment_modes: vec![
+                    "crawler".to_string(),
+                    "bulk_scraper".to_string(),
+                    "http_agent".to_string(),
+                ],
+                observed_category_ids: vec![
+                    "indexing_bot".to_string(),
+                    "ai_scraper_bot".to_string(),
+                    "http_agent".to_string(),
+                ],
+                first_ts: 1_700_000_300,
+                last_ts: 1_700_000_350,
+                monitoring_event_count: 9,
+                defense_delta_count: 2,
+                ban_outcome_count: 0,
+            }],
+            OperatorSnapshotRecentChanges::default(),
+            1_700_000_360,
+            1_700_000_360,
+            1_700_000_360,
+        );
+
+        let payload = build_benchmark_results_from_snapshot_sections(
+            snapshot.generated_at,
+            1_700_000_360,
+            &snapshot.window,
+            &snapshot.objectives,
+            &snapshot.live_traffic,
+            &snapshot.adversary_sim,
+            &snapshot.non_human_traffic,
+            &snapshot.budget_distance,
+            &summary,
+            &defaults(),
+            &snapshot.allowed_actions,
+            &ReplayPromotionSummary::not_materialized(),
+            None,
+        );
+
+        assert_eq!(payload.non_human_classification.status, "ready");
+        assert_eq!(payload.non_human_coverage.covered_category_count, 3);
+        assert_eq!(payload.non_human_coverage.overall_status, "partial");
+        assert_eq!(payload.tuning_eligibility.status, "blocked");
     }
 
     #[test]

@@ -60,13 +60,15 @@
         "assignment_status": "mapped",
         "runtime_lane": "scrapling_traffic",
         "fulfillment_mode": "crawler",
+        "coverage_basis": "recent_sim_telemetry_receipts",
         "supporting_scenarios": [],
-        "notes": "Shared-host Scrapling crawler persona is the intended fulfillment lane for indexing and discovery pressure; scenario-backed coverage proof is deferred to SIM-SCR-COVER-2."
+        "notes": "Shared-host Scrapling crawler persona is the intended fulfillment lane for indexing and discovery pressure, and coverage is now expected to be proved through current recent-sim telemetry receipts rather than intent-only mapping."
       },
       "ai_scraper_bot": {
         "assignment_status": "mapped",
         "runtime_lane": "scrapling_traffic",
         "fulfillment_mode": "bulk_scraper",
+        "coverage_basis": "recent_sim_telemetry_receipts",
         "supporting_scenarios": [
           "sim_t3_replay_abuse",
           "sim_t3_stale_token_abuse",
@@ -77,7 +79,7 @@
           "sim_t3_fingerprint_inconsistency_abuse",
           "sim_t4_retry_storm_abuse"
         ],
-        "notes": "Shared-host Scrapling bulk-scraper persona is the intended fulfillment lane for request-native retrieval and training-style pressure; listed scenarios are intent-aligned references and not yet coverage proof."
+        "notes": "Shared-host Scrapling bulk-scraper persona is the intended fulfillment lane for request-native retrieval and training-style pressure, and coverage is now expected to be proved through current recent-sim telemetry receipts rather than scenario intent alone."
       },
       "automated_browser": {
         "assignment_status": "mapped",
@@ -97,6 +99,7 @@
         "assignment_status": "mapped",
         "runtime_lane": "scrapling_traffic",
         "fulfillment_mode": "http_agent",
+        "coverage_basis": "recent_sim_telemetry_receipts",
         "supporting_scenarios": [
           "sim_t3_replay_abuse",
           "sim_t3_stale_token_abuse",
@@ -107,7 +110,7 @@
           "sim_t3_fingerprint_inconsistency_abuse",
           "sim_t4_retry_storm_abuse"
         ],
-        "notes": "Shared-host Scrapling direct-request persona is the intended fulfillment lane for bounded HTTP agent behavior; listed scenarios are intent-aligned references and not yet coverage proof."
+        "notes": "Shared-host Scrapling direct-request persona is the intended fulfillment lane for bounded HTTP agent behavior, and coverage is now expected to be proved through current recent-sim telemetry receipts rather than scenario intent alone."
       },
       "browser_agent": {
         "assignment_status": "mapped",

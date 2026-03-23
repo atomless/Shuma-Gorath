@@ -4,6 +4,36 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-23)
 
+### SIM-SCR-COVER-2: Prove Scrapling Request-Native Coverage
+
+- [x] Extended the machine-first classification and coverage path so request-native Scrapling traffic is now proved through observed recent-sim telemetry receipts for `indexing_bot`, `ai_scraper_bot`, and `http_agent`, rather than remaining intent-only.
+- [x] Why:
+  - `SIM-SCR-FIT-1` and `SIM-SCR-FIT-2` had frozen ownership and implemented the personas, but the observability path still had no durable way to retain which Scrapling persona actually generated the observed sim traffic.
+  - without that seam, the coverage summary and benchmark gating would have continued to collapse Scrapling proof back toward older crawler-only semantics or generic intent, which would have left Monitoring and later tuning built on stale truth.
+  - the cleanest fix was to reuse the existing signed sim telemetry path: emit mode-specific Scrapling sim profiles on real requests, normalize them back into observed fulfillment modes and category ids in recent-sim summaries, then project those receipt-backed categories into snapshot and benchmark surfaces.
+- [x] Evidence:
+  - `scripts/supervisor/scrapling_worker.py`
+  - `scripts/tests/test_scrapling_worker.py`
+  - `scripts/tests/adversarial/coverage_contract.v2.json`
+  - `scripts/tests/test_adversarial_coverage_contract.py`
+  - `src/observability/non_human_lane_fulfillment.rs`
+  - `src/admin/api.rs`
+  - `src/observability/hot_read_documents.rs`
+  - `src/observability/hot_read_projection.rs`
+  - `src/observability/non_human_classification.rs`
+  - `src/observability/non_human_coverage.rs`
+  - `src/observability/operator_snapshot_non_human.rs`
+  - `src/observability/operator_snapshot.rs`
+  - `src/observability/benchmark_results.rs`
+  - `docs/research/2026-03-23-sim-scr-cover-2-request-native-coverage-post-implementation-review.md`
+  - `make test-adversarial-coverage-receipts`
+  - `make test-operator-snapshot-foundation`
+  - `make test-benchmark-results-contract`
+  - `make test-adversary-sim-scrapling-worker`
+  - `make test-adversary-sim-scrapling-category-fit`
+  - `make test-traffic-classification-contract`
+  - `git diff --check`
+
 ### SIM-SCR-FIT-2: Implement Scrapling Request Personas
 
 - [x] Extended the shared-host Scrapling worker from a single crawler flow into three bounded request-native personas: `crawler`, `bulk_scraper`, and `http_agent`, while preserving the existing scope fence, seed contract, and signed simulation telemetry boundary.

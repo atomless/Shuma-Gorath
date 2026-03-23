@@ -135,6 +135,10 @@ pub(crate) struct MonitoringRecentSimRunSummary {
     pub run_id: String,
     pub lane: String,
     pub profile: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub observed_fulfillment_modes: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub observed_category_ids: Vec<String>,
     pub first_ts: u64,
     pub last_ts: u64,
     pub monitoring_event_count: u64,

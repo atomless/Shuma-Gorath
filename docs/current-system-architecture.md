@@ -102,13 +102,15 @@ flowchart LR
 ```mermaid
 flowchart LR
   Live["Live request outcomes"] --> Mon["Monitoring + event records"]
-  Sim["Adversary-sim runs + sim-tagged traffic"] --> Mon
+  Sim["Adversary-sim runs + sim-tagged traffic<br/>including Scrapling mode-tagged request telemetry"] --> Mon
   Sim --> SimStatus["Adversary-sim status truth<br/>persisted event lower-bound recovery"]
 
   Mon --> HotRead["Hot-read projection"]
+  Mon --> RecentRuns["Recent sim runs<br/>normalized profile, observed modes,<br/>observed category ids"]
   Objectives["Operator objectives store"] --> Snapshot["operator_snapshot_v1"]
   Replay["Replay promotion summary"] --> Snapshot
   Taxonomy["Non-human taxonomy,<br/>classification, coverage, lane fulfillment"] --> Snapshot
+  RecentRuns --> Snapshot
   HotRead --> Snapshot
 
   Snapshot --> Bench["benchmark_results_v1"]

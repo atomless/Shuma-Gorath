@@ -1027,6 +1027,7 @@ test-adversarial-coverage-receipts: ## Run focused canonical category-coverage r
 	@$(MAKE) --no-print-directory test-adversarial-coverage-contract
 	@$(MAKE) --no-print-directory test-adversarial-scenario-review
 	@./scripts/set_crate_type.sh rlib
+	@cargo test admin::api::tests::recent_sim_run_history_normalizes_scrapling_profiles_and_aggregates_observed_categories -- --exact --nocapture
 	@cargo test observability::non_human_coverage::tests:: -- --nocapture
 	@cargo test observability::operator_snapshot_non_human::tests:: -- --nocapture
 	@cargo test observability::benchmark_results::tests::benchmark_results_fail_closed_when_non_human_coverage_is_not_ready -- --exact --nocapture

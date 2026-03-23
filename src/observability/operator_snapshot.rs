@@ -485,6 +485,8 @@ mod tests {
                 run_id: "run_001".to_string(),
                 lane: "deterministic_black_box".to_string(),
                 profile: "fast_smoke".to_string(),
+                observed_fulfillment_modes: Vec::new(),
+                observed_category_ids: Vec::new(),
                 first_ts: 1_699_999_900,
                 last_ts: 1_700_000_000,
                 monitoring_event_count: 3,
@@ -565,6 +567,77 @@ mod tests {
         assert_eq!(payload.verified_identity.availability, "not_configured");
         assert_eq!(payload.verified_identity.attempts, 0);
         assert_eq!(payload.replay_promotion.availability, "not_materialized");
+    }
+
+    #[test]
+    fn snapshot_payload_projects_scrapling_request_native_category_receipts() {
+        let store = TestStore::new();
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::Live,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::PublicContent,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: Some(RequestOutcomeLane {
+                    lane: TrafficLane::VerifiedBot,
+                    exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
+                    basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
+                }),
+                outcome_class: RequestOutcomeClass::Forwarded,
+                response_kind: ResponseKind::ForwardAllow,
+                http_status: 200,
+                response_bytes: 120,
+                forward_attempted: true,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::PolicyGraphVerifiedIdentityTranche,
+            },
+        );
+        let summary = summarize_with_store(&store, 24, 10);
+        let payload = build_operator_snapshot_payload(
+            &store,
+            "default",
+            1_700_000_050,
+            &summary,
+            &[OperatorSnapshotRecentSimRun {
+                run_id: "simrun-request-native".to_string(),
+                lane: "scrapling_traffic".to_string(),
+                profile: "scrapling_runtime_lane".to_string(),
+                observed_fulfillment_modes: vec![
+                    "crawler".to_string(),
+                    "bulk_scraper".to_string(),
+                    "http_agent".to_string(),
+                ],
+                observed_category_ids: vec![
+                    "indexing_bot".to_string(),
+                    "ai_scraper_bot".to_string(),
+                    "http_agent".to_string(),
+                ],
+                first_ts: 1_700_000_000,
+                last_ts: 1_700_000_040,
+                monitoring_event_count: 9,
+                defense_delta_count: 2,
+                ban_outcome_count: 0,
+            }],
+            OperatorSnapshotRecentChanges::default(),
+            1_700_000_050,
+            1_700_000_050,
+            1_700_000_050,
+        );
+
+        assert_eq!(payload.non_human_traffic.readiness.status, "ready");
+        assert_eq!(payload.non_human_traffic.coverage.covered_category_count, 3);
+        assert!(payload
+            .non_human_traffic
+            .receipts
+            .iter()
+            .any(|receipt| receipt.category_id == "ai_scraper_bot"));
+        assert!(payload
+            .non_human_traffic
+            .receipts
+            .iter()
+            .any(|receipt| receipt.category_id == "http_agent"));
     }
 
     #[test]

@@ -40,7 +40,8 @@ pub(super) fn non_human_traffic_summary(
 #[cfg(test)]
 mod tests {
     use super::non_human_traffic_summary;
-    use crate::observability::monitoring::MonitoringSummary;
+    use crate::observability::monitoring::{MonitoringSummary, RequestOutcomeLaneSummaryRow};
+    use crate::observability::operator_snapshot_live_traffic::OperatorSnapshotRecentSimRun;
 
     #[test]
     fn non_human_snapshot_summary_exposes_seeded_taxonomy_catalog() {
@@ -63,5 +64,62 @@ mod tests {
                 "posture_severity".to_string(),
             ]
         );
+    }
+
+    #[test]
+    fn non_human_snapshot_summary_projects_scrapling_request_native_coverage() {
+        let mut monitoring = MonitoringSummary::default();
+        monitoring.request_outcomes.by_lane = vec![RequestOutcomeLaneSummaryRow {
+            traffic_origin: "live".to_string(),
+            measurement_scope: "ingress_primary".to_string(),
+            execution_mode: "enforced".to_string(),
+            lane: "verified_bot".to_string(),
+            exactness: "exact".to_string(),
+            basis: "observed".to_string(),
+            total_requests: 5,
+            forwarded_requests: 5,
+            short_circuited_requests: 0,
+            control_response_requests: 0,
+            response_bytes: 500,
+            forwarded_response_bytes: 500,
+            short_circuited_response_bytes: 0,
+            control_response_bytes: 0,
+        }];
+
+        let summary = non_human_traffic_summary(
+            &monitoring,
+            &[OperatorSnapshotRecentSimRun {
+                run_id: "simrun-request-native".to_string(),
+                lane: "scrapling_traffic".to_string(),
+                profile: "scrapling_runtime_lane".to_string(),
+                observed_fulfillment_modes: vec![
+                    "crawler".to_string(),
+                    "bulk_scraper".to_string(),
+                    "http_agent".to_string(),
+                ],
+                observed_category_ids: vec![
+                    "indexing_bot".to_string(),
+                    "ai_scraper_bot".to_string(),
+                    "http_agent".to_string(),
+                ],
+                first_ts: 1_700_000_000,
+                last_ts: 1_700_000_100,
+                monitoring_event_count: 9,
+                defense_delta_count: 2,
+                ban_outcome_count: 0,
+            }],
+        );
+
+        assert_eq!(summary.readiness.status, "ready");
+        assert_eq!(summary.readiness.adversary_sim_receipt_count, 3);
+        assert_eq!(summary.coverage.covered_category_count, 3);
+        assert!(summary
+            .receipts
+            .iter()
+            .any(|receipt| receipt.category_id == "ai_scraper_bot"));
+        assert!(summary
+            .receipts
+            .iter()
+            .any(|receipt| receipt.category_id == "http_agent"));
     }
 }

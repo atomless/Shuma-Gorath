@@ -90,11 +90,6 @@ Current stance:
 - The actively evolving near-term layer should be fingerprinting and categorization quality inside that taxonomy; taxonomy expansion is only a later contingency if important non-human traffic persistently falls outside the existing categories.
 - The next bridge to a genuine LLM-in-the-loop system is not the full later `SIM-LLM-1` runtime actor; it is a bounded category-fulfillment LLM tranche that sits between the taxonomy/classifier work and the first closed config loop, with the later LLM diagnosis harness and code loop still downstream of `OVR-APPLY-1`.
 
-### SIM-SCR-COVER-2: Prove Scrapling Request-Native Coverage
-- Extend the canonical classification and coverage receipts so Scrapling-generated traffic can be proved for `indexing_bot`, `ai_scraper_bot`, and `http_agent` through the existing machine-first contracts.
-- Keep the later Monitoring overhaul behind this receipt-backed truth so the operator projection uses settled category semantics.
-- Reference context: [`../docs/research/2026-03-23-scrapling-non-human-category-capability-review.md`](../docs/research/2026-03-23-scrapling-non-human-category-capability-review.md), [`../docs/plans/2026-03-23-scrapling-request-native-category-fulfillment-implementation-plan.md`](../docs/plans/2026-03-23-scrapling-request-native-category-fulfillment-implementation-plan.md)
-
 ### VID-TAX-1: Faithful Verified-Identity Category Crosswalk
 - Replace the current collapse of verified traffic into mostly `verified_beneficial_bot` and `agent_on_behalf_of_human` with a tested crosswalk from verified-identity categories into the canonical non-human taxonomy so Web Bot Auth can calibrate category truth instead of only tagging traffic as vaguely beneficial.
 - Keep taxonomy scope stable in this tranche; deepen the mapping and preserve the richer verified-identity category semantics rather than adding new taxonomy categories.

@@ -491,6 +491,8 @@ mod tests {
                     run_id: "simrun-001".to_string(),
                     lane: "deterministic_black_box".to_string(),
                     profile: "fast_smoke".to_string(),
+                    observed_fulfillment_modes: Vec::new(),
+                    observed_category_ids: Vec::new(),
                     first_ts: generated_at - 120,
                     last_ts: generated_at - 30,
                     monitoring_event_count: 8,

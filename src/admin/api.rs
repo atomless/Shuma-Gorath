@@ -1501,6 +1501,62 @@ mod tests {
     }
 
     #[test]
+    fn recent_sim_run_history_normalizes_scrapling_profiles_and_aggregates_observed_categories() {
+        let store = MockStore::new();
+        let now = now_ts();
+        let run_started_at = now.saturating_sub(120);
+
+        for (offset, sim_profile) in [
+            (0u64, "scrapling_runtime_lane.crawler"),
+            (1u64, "scrapling_runtime_lane.bulk_scraper"),
+            (2u64, "scrapling_runtime_lane.http_agent"),
+        ] {
+            let _guard = crate::runtime::sim_telemetry::enter(Some(
+                crate::runtime::sim_telemetry::SimulationRequestMetadata {
+                    sim_run_id: "simrun-scrapling-request-native".to_string(),
+                    sim_profile: sim_profile.to_string(),
+                    sim_lane: "scrapling_traffic".to_string(),
+                },
+            ));
+            log_event(
+                &store,
+                &EventLogEntry {
+                    ts: run_started_at.saturating_add(offset),
+                    event: EventType::Challenge,
+                    ip: Some("198.51.100.50".to_string()),
+                    reason: Some("challenge_required".to_string()),
+                    outcome: Some("challenge".to_string()),
+                    admin: None,
+                },
+            );
+        }
+
+        let recent_runs =
+            monitoring_recent_sim_run_summaries(&store, now, 24, 10);
+        let row = recent_runs
+            .iter()
+            .find(|value| value.run_id == "simrun-scrapling-request-native")
+            .expect("scrapling row");
+        assert_eq!(row.profile, "scrapling_runtime_lane");
+        assert_eq!(
+            row.observed_fulfillment_modes,
+            vec![
+                "bulk_scraper".to_string(),
+                "crawler".to_string(),
+                "http_agent".to_string()
+            ]
+        );
+        assert_eq!(
+            row.observed_category_ids,
+            vec![
+                "ai_scraper_bot".to_string(),
+                "http_agent".to_string(),
+                "indexing_bot".to_string()
+            ]
+        );
+    }
+
+    #[test]
     fn log_event_scrubs_secret_like_fields_before_persistence() {
         let store = MockStore::new();
         let now = now_ts();
@@ -12338,6 +12394,8 @@ struct MonitoringRecentSimRunAccumulator {
     run_id: String,
     lane: String,
     profile: String,
+    observed_fulfillment_modes: HashSet<String>,
+    observed_category_ids: HashSet<String>,
     first_ts: u64,
     last_ts: u64,
     monitoring_event_count: u64,
@@ -12459,6 +12517,11 @@ pub(crate) fn monitoring_recent_sim_run_summaries<S: crate::challenge::KeyValueS
             .filter(|value| !value.is_empty())
             .unwrap_or("unknown")
             .to_string();
+        let (normalized_profile, observed_fulfillment_modes, observed_category_ids) =
+            crate::observability::non_human_lane_fulfillment::observed_category_targets_for_runtime_profile(
+                lane.as_str(),
+                profile.as_str(),
+            );
         let defense = classify_monitoring_sim_run_defense(&stored.record);
         let accumulator =
             grouped
@@ -12466,7 +12529,9 @@ pub(crate) fn monitoring_recent_sim_run_summaries<S: crate::challenge::KeyValueS
                 .or_insert_with(|| MonitoringRecentSimRunAccumulator {
                     run_id: run_id.clone(),
                     lane: lane.clone(),
-                    profile: profile.clone(),
+                    profile: normalized_profile.clone(),
+                    observed_fulfillment_modes: HashSet::new(),
+                    observed_category_ids: HashSet::new(),
                     first_ts: ts,
                     last_ts: ts,
                     monitoring_event_count: 0,
@@ -12485,8 +12550,16 @@ pub(crate) fn monitoring_recent_sim_run_summaries<S: crate::challenge::KeyValueS
         if accumulator.lane == "none" && lane != "none" {
             accumulator.lane = lane;
         }
-        if accumulator.profile == "unknown" && profile != "unknown" {
-            accumulator.profile = profile;
+        if accumulator.profile == "unknown" && normalized_profile != "unknown" {
+            accumulator.profile = normalized_profile;
+        }
+        for fulfillment_mode in observed_fulfillment_modes {
+            accumulator
+                .observed_fulfillment_modes
+                .insert(fulfillment_mode);
+        }
+        for category_id in observed_category_ids {
+            accumulator.observed_category_ids.insert(category_id);
         }
         accumulator.defense_keys.insert(defense);
         if monitoring_sim_run_is_ban_outcome(&stored.record) {
@@ -12497,15 +12570,25 @@ pub(crate) fn monitoring_recent_sim_run_summaries<S: crate::challenge::KeyValueS
     let mut rows: Vec<_> = grouped
         .into_values()
         .map(
-            |row| crate::observability::hot_read_documents::MonitoringRecentSimRunSummary {
-                run_id: row.run_id,
-                lane: row.lane,
-                profile: row.profile,
-                first_ts: row.first_ts,
-                last_ts: row.last_ts,
-                monitoring_event_count: row.monitoring_event_count,
-                defense_delta_count: row.defense_keys.len() as u64,
-                ban_outcome_count: row.ban_outcome_count,
+            |row| {
+                let mut observed_fulfillment_modes: Vec<_> =
+                    row.observed_fulfillment_modes.into_iter().collect();
+                observed_fulfillment_modes.sort();
+                let mut observed_category_ids: Vec<_> =
+                    row.observed_category_ids.into_iter().collect();
+                observed_category_ids.sort();
+                crate::observability::hot_read_documents::MonitoringRecentSimRunSummary {
+                    run_id: row.run_id,
+                    lane: row.lane,
+                    profile: row.profile,
+                    observed_fulfillment_modes,
+                    observed_category_ids,
+                    first_ts: row.first_ts,
+                    last_ts: row.last_ts,
+                    monitoring_event_count: row.monitoring_event_count,
+                    defense_delta_count: row.defense_keys.len() as u64,
+                    ban_outcome_count: row.ban_outcome_count,
+                }
             },
         )
         .collect();
