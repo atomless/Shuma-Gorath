@@ -96,11 +96,13 @@ fn finalize_request_outcome<S: crate::challenge::KeyValueStore>(
     traffic_origin: crate::runtime::request_outcome::TrafficOrigin,
     handled: crate::runtime::request_outcome::HandledRequestResponse,
     verified_identity_lane: Option<crate::runtime::request_outcome::RequestOutcomeLane>,
+    verified_identity_category: Option<crate::runtime::traffic_classification::NonHumanCategoryAssignment>,
 ) -> Response {
     let outcome = crate::runtime::request_outcome::RenderedRequestOutcome::from_handled_response(
         traffic_origin,
         &handled,
         verified_identity_lane,
+        verified_identity_category,
     );
     crate::runtime::effect_intents::execute_request_outcome_intents(vec![
         crate::runtime::effect_intents::EffectIntent::RecordRequestOutcome { outcome },
@@ -189,6 +191,7 @@ pub(crate) fn handle_request(req: &Request) -> Response {
                 traffic_origin,
                 bootstrap_failure_handled_response(resp),
                 None,
+                None,
             )
         }
     };
@@ -206,6 +209,9 @@ pub(crate) fn handle_request(req: &Request) -> Response {
     };
     let verified_identity_lane = verified_identity.as_ref().map(|identity| {
         crate::runtime::traffic_classification::verified_identity_lane_assignment(identity).into()
+    });
+    let verified_identity_category = verified_identity.as_ref().map(|identity| {
+        crate::runtime::traffic_classification::verified_identity_category_assignment(identity)
     });
     let request_effect_context = crate::runtime::effect_intents::EffectExecutionContext {
         req,
@@ -233,6 +239,7 @@ pub(crate) fn handle_request(req: &Request) -> Response {
                 traffic_origin,
                 handled,
                 verified_identity_lane,
+                verified_identity_category,
             )
         };
     let forward_allow_response = |reason: &str| {
@@ -614,6 +621,7 @@ mod tests {
                 "Configuration unavailable",
             )),
             None,
+            None,
         );
 
         assert_eq!(*response.status(), 500);
@@ -660,6 +668,10 @@ mod tests {
                 exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
                 basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
             }),
+            Some(crate::runtime::traffic_classification::NonHumanCategoryAssignment {
+                category_id: crate::runtime::non_human_taxonomy::NonHumanCategoryId::AgentOnBehalfOfHuman,
+                assignment_status: "classified",
+            }),
         );
 
         assert_eq!(*response.status(), 403);
@@ -677,6 +689,18 @@ mod tests {
             })
             .expect("signed agent lane row");
         assert_eq!(row.short_circuited_requests, 1);
+        let category_row = summary
+            .request_outcomes
+            .by_non_human_category
+            .iter()
+            .find(|row| {
+                row.traffic_origin == "live"
+                    && row.measurement_scope == "ingress_primary"
+                    && row.execution_mode == "enforced"
+                    && row.category_id == "agent_on_behalf_of_human"
+            })
+            .expect("signed agent category row");
+        assert_eq!(category_row.short_circuited_requests, 1);
     }
 
     #[test]

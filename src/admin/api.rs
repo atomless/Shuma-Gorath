@@ -1973,6 +1973,7 @@ mod tests {
                     exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
                     basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
                 }),
+                non_human_category: None,
                 outcome_class: crate::runtime::request_outcome::RequestOutcomeClass::ShortCircuited,
                 response_kind: crate::runtime::request_outcome::ResponseKind::NotABot,
                 http_status: 200,
@@ -2083,6 +2084,7 @@ mod tests {
                     exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
                     basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
                 }),
+                non_human_category: None,
                 outcome_class: crate::runtime::request_outcome::RequestOutcomeClass::ShortCircuited,
                 response_kind: crate::runtime::request_outcome::ResponseKind::NotABot,
                 http_status: 200,
@@ -7701,11 +7703,13 @@ mod admin_config_tests {
             &store,
             &crate::bot_identity::telemetry::IdentityVerificationTelemetryRecord {
                 scheme: Some(crate::bot_identity::contracts::IdentityScheme::ProviderSignedAgent),
+                category: Some(crate::bot_identity::contracts::IdentityCategory::UserTriggeredAgent),
                 provenance: crate::bot_identity::contracts::IdentityProvenance::Provider,
                 result_status:
                     crate::bot_identity::verification::IdentityVerificationResultStatus::Verified,
                 failure: None,
                 freshness: crate::bot_identity::verification::IdentityVerificationFreshness::Fresh,
+                end_user_controlled: true,
                 operator: Some("openai".to_string()),
                 stable_identity: Some("chatgpt-agent".to_string()),
             },
@@ -7716,6 +7720,7 @@ mod admin_config_tests {
                 scheme: Some(
                     crate::bot_identity::contracts::IdentityScheme::ProviderVerifiedBot,
                 ),
+                category: Some(crate::bot_identity::contracts::IdentityCategory::Search),
                 provenance: crate::bot_identity::contracts::IdentityProvenance::Provider,
                 result_status:
                     crate::bot_identity::verification::IdentityVerificationResultStatus::Failed,
@@ -7724,6 +7729,7 @@ mod admin_config_tests {
                 ),
                 freshness:
                     crate::bot_identity::verification::IdentityVerificationFreshness::ReplayRejected,
+                end_user_controlled: false,
                 operator: None,
                 stable_identity: None,
             },

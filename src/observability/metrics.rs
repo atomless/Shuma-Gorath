@@ -1294,12 +1294,14 @@ mod tests {
             &store,
             &crate::bot_identity::telemetry::IdentityVerificationTelemetryRecord {
                 scheme: Some(crate::bot_identity::contracts::IdentityScheme::ProviderSignedAgent),
+                category: Some(crate::bot_identity::contracts::IdentityCategory::UserTriggeredAgent),
                 provenance: crate::bot_identity::contracts::IdentityProvenance::Provider,
                 result_status:
                     crate::bot_identity::verification::IdentityVerificationResultStatus::Verified,
                 failure: None,
                 freshness:
                     crate::bot_identity::verification::IdentityVerificationFreshness::Fresh,
+                end_user_controlled: true,
                 operator: Some("openai".to_string()),
                 stable_identity: Some("chatgpt-agent".to_string()),
             },

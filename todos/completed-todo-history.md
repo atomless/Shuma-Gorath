@@ -4,6 +4,26 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-23)
 
+### VID-TAX-1: Faithful Verified-Identity Category Crosswalk
+
+- [x] Replaced the old verified-identity collapse with a tested runtime crosswalk from verified-identity categories into the canonical non-human taxonomy, and carried that truth through request-outcome telemetry, non-human receipts, and the verified-identity snapshot summary.
+- [x] Why:
+  - Web Bot Auth and other verified identities could already prove who was speaking, but Shuma still flattened most of that traffic into `verified_beneficial_bot` or `agent_on_behalf_of_human`, which made the taxonomy too weak to calibrate fingerprinting or later Monitoring.
+  - the cleanest fix was to keep the taxonomy stable and deepen the projection path instead of inventing new categories: crosswalk verified categories at runtime, materialize exact request-outcome category rows, prefer those rows in machine-first non-human receipts, and preserve verified category/provenance/end-user semantics in the typed verified-identity summary.
+- [x] Evidence:
+  - `src/runtime/traffic_classification.rs`
+  - `src/runtime/request_outcome.rs`
+  - `src/runtime/request_flow.rs`
+  - `src/bot_identity/telemetry.rs`
+  - `src/observability/monitoring.rs`
+  - `src/observability/non_human_classification.rs`
+  - `src/observability/operator_snapshot_non_human.rs`
+  - `src/observability/operator_snapshot_verified_identity.rs`
+  - `docs/research/2026-03-23-vid-tax-1-faithful-verified-identity-category-crosswalk-post-implementation-review.md`
+  - `make test-verified-identity-calibration-readiness`
+  - `make test-verified-identity-taxonomy-crosswalk`
+  - `git diff --check`
+
 ### SIM-SCR-COVER-2: Prove Scrapling Request-Native Coverage
 
 - [x] Extended the machine-first classification and coverage path so request-native Scrapling traffic is now proved through observed recent-sim telemetry receipts for `indexing_bot`, `ai_scraper_bot`, and `http_agent`, rather than remaining intent-only.

@@ -30,6 +30,8 @@ pub(crate) struct OperatorSnapshotVerifiedIdentitySummary {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub top_schemes: Vec<CountEntry>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub top_categories: Vec<CountEntry>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub top_provenance: Vec<CountEntry>,
     #[serde(default, skip_serializing_if = "verified_identity_policy_summary_is_empty")]
     pub policy_tranche: OperatorSnapshotVerifiedIdentityPolicySummary,
@@ -63,6 +65,7 @@ pub(super) fn verified_identity_summary(
         unique_verified_identities: summary.verified_identity.unique_verified_identities,
         top_failure_reasons: top_count_entries(&summary.verified_identity.failures),
         top_schemes: top_count_entries(&summary.verified_identity.schemes),
+        top_categories: top_count_entries(&summary.verified_identity.categories),
         top_provenance: top_count_entries(&summary.verified_identity.provenance),
         policy_tranche: OperatorSnapshotVerifiedIdentityPolicySummary {
             total_requests: policy_row.map(|row| row.total_requests).unwrap_or(0),
@@ -128,6 +131,10 @@ mod tests {
             .insert("http_message_signatures".to_string(), 3);
         summary
             .verified_identity
+            .categories
+            .insert("search".to_string(), 2);
+        summary
+            .verified_identity
             .provenance
             .insert("native".to_string(), 4);
         summary.request_outcomes.by_policy_source.push(
@@ -150,6 +157,7 @@ mod tests {
         assert_eq!(snapshot.named_policy_count, 0);
         assert_eq!(snapshot.service_profile_count, 4);
         assert_eq!(snapshot.attempts, 4);
+        assert_eq!(snapshot.top_categories[0].label, "search");
         assert_eq!(snapshot.policy_tranche.forwarded_requests, 3);
         assert_eq!(snapshot.top_failure_reasons[0].label, "directory_stale");
     }

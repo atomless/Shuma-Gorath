@@ -90,11 +90,6 @@ Current stance:
 - The actively evolving near-term layer should be fingerprinting and categorization quality inside that taxonomy; taxonomy expansion is only a later contingency if important non-human traffic persistently falls outside the existing categories.
 - The next bridge to a genuine LLM-in-the-loop system is not the full later `SIM-LLM-1` runtime actor; it is a bounded category-fulfillment LLM tranche that sits between the taxonomy/classifier work and the first closed config loop, with the later LLM diagnosis harness and code loop still downstream of `OVR-APPLY-1`.
 
-### VID-TAX-1: Faithful Verified-Identity Category Crosswalk
-- Replace the current collapse of verified traffic into mostly `verified_beneficial_bot` and `agent_on_behalf_of_human` with a tested crosswalk from verified-identity categories into the canonical non-human taxonomy so Web Bot Auth can calibrate category truth instead of only tagging traffic as vaguely beneficial.
-- Keep taxonomy scope stable in this tranche; deepen the mapping and preserve the richer verified-identity category semantics rather than adding new taxonomy categories.
-- Reference context: [`../docs/research/2026-03-23-verified-identity-taxonomy-calibration-and-tuning-guardrails-review.md`](../docs/research/2026-03-23-verified-identity-taxonomy-calibration-and-tuning-guardrails-review.md), [`../docs/plans/2026-03-23-verified-identity-taxonomy-calibration-and-guardrails-implementation-plan.md`](../docs/plans/2026-03-23-verified-identity-taxonomy-calibration-and-guardrails-implementation-plan.md)
-
 ### VID-TAX-2: Verified-Identity Versus Taxonomy Alignment Receipts
 - Add explicit machine-first receipts that show whether high-confidence verified traffic aligned cleanly with the taxonomy crosswalk, fell back through a degraded mapping, or remained mismatched.
 - Surface bounded alignment summaries in snapshot or benchmark contracts so later Monitoring can project them directly.

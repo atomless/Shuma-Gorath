@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::contracts::{IdentityProvenance, IdentityScheme};
+use super::contracts::{IdentityCategory, IdentityProvenance, IdentityScheme};
 use super::verification::{
     IdentityVerificationFailure, IdentityVerificationFreshness, IdentityVerificationResultStatus,
 };
@@ -28,11 +28,15 @@ impl IdentityVerificationOutcomeClass {
 pub(crate) struct IdentityVerificationTelemetryRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scheme: Option<IdentityScheme>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub category: Option<IdentityCategory>,
     pub provenance: IdentityProvenance,
     pub result_status: IdentityVerificationResultStatus,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub failure: Option<IdentityVerificationFailure>,
     pub freshness: IdentityVerificationFreshness,
+    #[serde(default)]
+    pub end_user_controlled: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub operator: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -52,12 +56,16 @@ impl IdentityVerificationTelemetryRecord {
                 let identity = result.identity.as_ref();
                 Some(Self {
                     scheme: identity.map(|value| value.scheme),
+                    category: identity.map(|value| value.category),
                     provenance: identity
                         .map(|value| value.provenance)
                         .unwrap_or(default_provenance),
                     result_status: result.status,
                     failure: result.failure,
                     freshness: result.freshness,
+                    end_user_controlled: identity
+                        .map(|value| value.end_user_controlled)
+                        .unwrap_or(false),
                     operator: identity.map(|value| value.operator.clone()),
                     stable_identity: identity.map(|value| value.stable_identity.clone()),
                 })

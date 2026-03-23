@@ -564,6 +564,7 @@ mod tests {
                 unique_verified_identities: 0,
                 top_failure_reasons: Vec::new(),
                 top_schemes: Vec::new(),
+                top_categories: Vec::new(),
                 top_provenance: Vec::new(),
                 policy_tranche: OperatorSnapshotVerifiedIdentityPolicySummary::default(),
             },

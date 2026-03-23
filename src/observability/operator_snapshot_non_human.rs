@@ -40,7 +40,9 @@ pub(super) fn non_human_traffic_summary(
 #[cfg(test)]
 mod tests {
     use super::non_human_traffic_summary;
-    use crate::observability::monitoring::{MonitoringSummary, RequestOutcomeLaneSummaryRow};
+    use crate::observability::monitoring::{
+        MonitoringSummary, RequestOutcomeCategorySummaryRow, RequestOutcomeLaneSummaryRow,
+    };
     use crate::observability::operator_snapshot_live_traffic::OperatorSnapshotRecentSimRun;
 
     #[test]
@@ -121,5 +123,35 @@ mod tests {
             .receipts
             .iter()
             .any(|receipt| receipt.category_id == "http_agent"));
+    }
+
+    #[test]
+    fn non_human_snapshot_summary_projects_live_verified_search_into_indexing_bot() {
+        let mut monitoring = MonitoringSummary::default();
+        monitoring.request_outcomes.by_non_human_category = vec![RequestOutcomeCategorySummaryRow {
+            traffic_origin: "live".to_string(),
+            measurement_scope: "ingress_primary".to_string(),
+            execution_mode: "enforced".to_string(),
+            category_id: "indexing_bot".to_string(),
+            assignment_status: "classified".to_string(),
+            exactness: "exact".to_string(),
+            basis: "observed".to_string(),
+            total_requests: 3,
+            forwarded_requests: 3,
+            short_circuited_requests: 0,
+            control_response_requests: 0,
+            response_bytes: 300,
+            forwarded_response_bytes: 300,
+            short_circuited_response_bytes: 0,
+            control_response_bytes: 0,
+        }];
+
+        let summary = non_human_traffic_summary(&monitoring, &[]);
+
+        assert_eq!(summary.readiness.live_receipt_count, 1);
+        assert!(summary
+            .receipts
+            .iter()
+            .any(|receipt| receipt.category_id == "indexing_bot"));
     }
 }

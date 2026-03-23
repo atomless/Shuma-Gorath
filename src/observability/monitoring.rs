@@ -64,6 +64,14 @@ const VERIFIED_IDENTITY_SCHEME_KEYS: [&str; 4] = [
     "provider_signed_agent",
     "mtls",
 ];
+const VERIFIED_IDENTITY_CATEGORY_KEYS: [&str; 6] = [
+    "training",
+    "search",
+    "user_triggered_agent",
+    "preview",
+    "service_agent",
+    "other",
+];
 const SHADOW_ACTION_KEYS: [&str; 8] = [
     "not_a_bot",
     "challenge",
@@ -200,6 +208,9 @@ pub(crate) struct VerifiedIdentitySeenRow {
     pub operator: String,
     pub stable_identity: String,
     pub scheme: String,
+    pub category: String,
+    pub provenance: String,
+    pub end_user_controlled: bool,
     pub count: u64,
 }
 
@@ -214,6 +225,7 @@ pub(crate) struct VerifiedIdentitySummary {
     pub freshness: BTreeMap<String, u64>,
     pub provenance: BTreeMap<String, u64>,
     pub schemes: BTreeMap<String, u64>,
+    pub categories: BTreeMap<String, u64>,
     pub top_verified_identities: Vec<VerifiedIdentitySeenRow>,
 }
 
@@ -238,6 +250,25 @@ pub(crate) struct RequestOutcomeLaneSummaryRow {
     pub measurement_scope: String,
     pub execution_mode: String,
     pub lane: String,
+    pub exactness: String,
+    pub basis: String,
+    pub total_requests: u64,
+    pub forwarded_requests: u64,
+    pub short_circuited_requests: u64,
+    pub control_response_requests: u64,
+    pub response_bytes: u64,
+    pub forwarded_response_bytes: u64,
+    pub short_circuited_response_bytes: u64,
+    pub control_response_bytes: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+pub(crate) struct RequestOutcomeCategorySummaryRow {
+    pub traffic_origin: String,
+    pub measurement_scope: String,
+    pub execution_mode: String,
+    pub category_id: String,
+    pub assignment_status: String,
     pub exactness: String,
     pub basis: String,
     pub total_requests: u64,
@@ -308,6 +339,7 @@ pub(crate) struct DefenceFunnelSummary {
 pub(crate) struct RequestOutcomeSummary {
     pub by_scope: Vec<RequestOutcomeScopeSummaryRow>,
     pub by_lane: Vec<RequestOutcomeLaneSummaryRow>,
+    pub by_non_human_category: Vec<RequestOutcomeCategorySummaryRow>,
     pub by_response_kind: Vec<RequestOutcomeBreakdownSummaryRow>,
     pub by_policy_source: Vec<RequestOutcomeBreakdownSummaryRow>,
     pub by_route_action_family: Vec<RequestOutcomeBreakdownSummaryRow>,
@@ -1046,6 +1078,23 @@ fn request_outcome_lane_cohort(
     })
 }
 
+fn request_outcome_category_cohort(
+    outcome: &crate::runtime::request_outcome::RenderedRequestOutcome,
+) -> Option<String> {
+    let assignment = outcome.non_human_category?;
+    let lane = outcome.traffic_lane?;
+    Some(
+        [
+            request_outcome_scope_cohort(outcome),
+            assignment.category_id.as_str().to_string(),
+            assignment.assignment_status.to_string(),
+            normalize_telemetry_exactness(lane.exactness).to_string(),
+            normalize_telemetry_basis(lane.basis).to_string(),
+        ]
+        .join("|"),
+    )
+}
+
 fn split_last_cohort_segment(value: &str) -> Option<(&str, &str)> {
     value.rsplit_once('|')
 }
@@ -1104,22 +1153,31 @@ struct VerifiedIdentityDimensionLabel {
     operator: String,
     scheme: String,
     stable_identity: String,
+    category: String,
+    provenance: String,
+    end_user_controlled: bool,
 }
 
 fn verified_identity_dimension_label(
     operator: &str,
     scheme: &str,
     stable_identity: &str,
+    category: &str,
+    provenance: &str,
+    end_user_controlled: bool,
 ) -> String {
     serde_json::to_string(&VerifiedIdentityDimensionLabel {
         operator: operator.to_string(),
         scheme: scheme.to_string(),
         stable_identity: stable_identity.to_string(),
+        category: category.to_string(),
+        provenance: provenance.to_string(),
+        end_user_controlled,
     })
     .unwrap_or_else(|_| {
         format!(
-            r#"{{"operator":"{}","scheme":"{}","stable_identity":"{}"}}"#,
-            operator, scheme, stable_identity
+            r#"{{"operator":"{}","scheme":"{}","stable_identity":"{}","category":"{}","provenance":"{}","end_user_controlled":{}}}"#,
+            operator, scheme, stable_identity, category, provenance, end_user_controlled
         )
     })
 }
@@ -1173,6 +1231,31 @@ fn parse_request_outcome_lane_cohort(
         measurement_scope,
         execution_mode,
         lane,
+        exactness,
+        basis,
+    ))
+}
+
+fn parse_request_outcome_category_cohort(
+    cohort: &str,
+) -> Option<(String, String, String, String, String, String, String)> {
+    let mut parts = cohort.split('|');
+    let traffic_origin = parts.next()?.to_string();
+    let measurement_scope = parts.next()?.to_string();
+    let execution_mode = parts.next()?.to_string();
+    let category_id = parts.next()?.to_string();
+    let assignment_status = parts.next()?.to_string();
+    let exactness = parts.next()?.to_string();
+    let basis = parts.next()?.to_string();
+    if parts.next().is_some() {
+        return None;
+    }
+    Some((
+        traffic_origin,
+        measurement_scope,
+        execution_mode,
+        category_id,
+        assignment_status,
         exactness,
         basis,
     ))
@@ -1351,6 +1434,46 @@ pub(crate) fn record_request_outcome<S: crate::challenge::KeyValueStore>(
             Some(
                 request_outcome_nested_cohort(
                     lane_cohort.as_str(),
+                    normalize_request_outcome_class(outcome.outcome_class),
+                )
+                .as_str(),
+            ),
+            outcome.response_bytes,
+        );
+    }
+    if let Some(category_cohort) = request_outcome_category_cohort(outcome) {
+        record_with_dimension(
+            store,
+            "request_outcome",
+            "category_total",
+            Some(category_cohort.as_str()),
+        );
+        record_with_dimension(
+            store,
+            "request_outcome",
+            "category_outcome_class",
+            Some(
+                request_outcome_nested_cohort(
+                    category_cohort.as_str(),
+                    normalize_request_outcome_class(outcome.outcome_class),
+                )
+                .as_str(),
+            ),
+        );
+        record_with_dimension_delta(
+            store,
+            "request_outcome",
+            "category_response_bytes",
+            Some(category_cohort.as_str()),
+            outcome.response_bytes,
+        );
+        record_with_dimension_delta(
+            store,
+            "request_outcome",
+            "category_outcome_class_response_bytes",
+            Some(
+                request_outcome_nested_cohort(
+                    category_cohort.as_str(),
                     normalize_request_outcome_class(outcome.outcome_class),
                 )
                 .as_str(),
@@ -1558,13 +1681,27 @@ pub(crate) fn record_verified_identity_telemetry<S: crate::challenge::KeyValueSt
             Some(origin_nested_cohort(origin, scheme.as_str()).as_str()),
         );
     }
+    if let Some(category) = record.category {
+        record_with_dimension(
+            store,
+            "verified_identity",
+            "category",
+            Some(origin_nested_cohort(origin, category.as_str()).as_str()),
+        );
+    }
     if let (Some(operator), Some(stable_identity), Some(scheme)) = (
         record.operator.as_deref(),
         record.stable_identity.as_deref(),
         record.scheme,
     ) {
-        let identity_label =
-            verified_identity_dimension_label(operator, scheme.as_str(), stable_identity);
+        let identity_label = verified_identity_dimension_label(
+            operator,
+            scheme.as_str(),
+            stable_identity,
+            record.category.map(|value| value.as_str()).unwrap_or("other"),
+            record.provenance.as_str(),
+            record.end_user_controlled,
+        );
         record_with_dimension(
             store,
             "verified_identity",
@@ -1772,6 +1909,7 @@ struct MonitoringAccumulator {
     verified_identity_freshness_by_origin: HashMap<String, HashMap<String, u64>>,
     verified_identity_provenance_by_origin: HashMap<String, HashMap<String, u64>>,
     verified_identity_schemes_by_origin: HashMap<String, HashMap<String, u64>>,
+    verified_identity_categories_by_origin: HashMap<String, HashMap<String, u64>>,
     verified_identity_identity_counts_by_origin: HashMap<String, HashMap<String, u64>>,
     request_outcome_scope_totals: HashMap<String, u64>,
     request_outcome_scope_bytes: HashMap<String, u64>,
@@ -1788,6 +1926,10 @@ struct MonitoringAccumulator {
     request_outcome_lane_response_kinds: HashMap<String, u64>,
     request_outcome_lane_outcomes: HashMap<String, u64>,
     request_outcome_lane_outcome_bytes: HashMap<String, u64>,
+    request_outcome_category_totals: HashMap<String, u64>,
+    request_outcome_category_bytes: HashMap<String, u64>,
+    request_outcome_category_outcomes: HashMap<String, u64>,
+    request_outcome_category_outcome_bytes: HashMap<String, u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -2175,6 +2317,18 @@ impl MonitoringAccumulator {
                         );
                     }
                 }
+                "category" => {
+                    if let Some((origin, category)) =
+                        dimension.and_then(parse_origin_breakdown_cohort)
+                    {
+                        Self::add_nested_count(
+                            &mut self.verified_identity_categories_by_origin,
+                            origin.as_str(),
+                            category.as_str(),
+                            count,
+                        );
+                    }
+                }
                 "identity" => {
                     if let Some((origin, identity)) =
                         dimension.and_then(parse_verified_identity_cohort)
@@ -2183,6 +2337,9 @@ impl MonitoringAccumulator {
                             identity.operator.as_str(),
                             identity.scheme.as_str(),
                             identity.stable_identity.as_str(),
+                            identity.category.as_str(),
+                            identity.provenance.as_str(),
+                            identity.end_user_controlled,
                         );
                         Self::add_nested_count(
                             &mut self.verified_identity_identity_counts_by_origin,
@@ -2284,6 +2441,34 @@ impl MonitoringAccumulator {
                 "lane_outcome_class_response_bytes" => {
                     if let Some(dim) = dimension {
                         Self::add_count(&mut self.request_outcome_lane_outcome_bytes, dim, count);
+                    }
+                }
+                "category_total" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(&mut self.request_outcome_category_totals, dim, count);
+                    }
+                }
+                "category_response_bytes" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(&mut self.request_outcome_category_bytes, dim, count);
+                    }
+                }
+                "category_outcome_class" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(
+                            &mut self.request_outcome_category_outcomes,
+                            dim,
+                            count,
+                        );
+                    }
+                }
+                "category_outcome_class_response_bytes" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(
+                            &mut self.request_outcome_category_outcome_bytes,
+                            dim,
+                            count,
+                        );
                     }
                 }
                 _ => {}
@@ -2410,6 +2595,10 @@ impl MonitoringAccumulator {
             &source.verified_identity_schemes_by_origin,
         );
         Self::merge_nested_count_maps(
+            &mut self.verified_identity_categories_by_origin,
+            &source.verified_identity_categories_by_origin,
+        );
+        Self::merge_nested_count_maps(
             &mut self.verified_identity_identity_counts_by_origin,
             &source.verified_identity_identity_counts_by_origin,
         );
@@ -2472,6 +2661,22 @@ impl MonitoringAccumulator {
         Self::merge_count_maps(
             &mut self.request_outcome_lane_outcome_bytes,
             &source.request_outcome_lane_outcome_bytes,
+        );
+        Self::merge_count_maps(
+            &mut self.request_outcome_category_totals,
+            &source.request_outcome_category_totals,
+        );
+        Self::merge_count_maps(
+            &mut self.request_outcome_category_bytes,
+            &source.request_outcome_category_bytes,
+        );
+        Self::merge_count_maps(
+            &mut self.request_outcome_category_outcomes,
+            &source.request_outcome_category_outcomes,
+        );
+        Self::merge_count_maps(
+            &mut self.request_outcome_category_outcome_bytes,
+            &source.request_outcome_category_outcome_bytes,
         );
     }
 
@@ -2540,6 +2745,17 @@ impl MonitoringAccumulator {
             *entry = entry.saturating_add(value);
         }
 
+        let mut categories = build_seeded_map(&VERIFIED_IDENTITY_CATEGORY_KEYS);
+        for (key, value) in self
+            .verified_identity_categories_by_origin
+            .get(live_origin)
+            .cloned()
+            .unwrap_or_default()
+        {
+            let entry = categories.entry(key).or_insert(0);
+            *entry = entry.saturating_add(value);
+        }
+
         let identity_counts = self
             .verified_identity_identity_counts_by_origin
             .get(live_origin)
@@ -2554,6 +2770,9 @@ impl MonitoringAccumulator {
                     operator: parsed.operator,
                     stable_identity: parsed.stable_identity,
                     scheme: parsed.scheme,
+                    category: parsed.category,
+                    provenance: parsed.provenance,
+                    end_user_controlled: parsed.end_user_controlled,
                     count,
                 })
             })
@@ -2577,6 +2796,7 @@ impl MonitoringAccumulator {
             freshness,
             provenance,
             schemes,
+            categories,
             top_verified_identities,
         }
     }
@@ -3032,6 +3252,182 @@ impl MonitoringAccumulator {
             }
         }
 
+        let mut request_outcome_category_rows: BTreeMap<
+            (String, String, String, String, String, String, String),
+            RequestOutcomeCategorySummaryRow,
+        > = BTreeMap::new();
+        for (cohort, count) in self.request_outcome_category_totals {
+            if let Some((
+                traffic_origin,
+                measurement_scope,
+                execution_mode,
+                category_id,
+                assignment_status,
+                exactness,
+                basis,
+            )) = parse_request_outcome_category_cohort(cohort.as_str())
+            {
+                let row = request_outcome_category_rows
+                    .entry((
+                        traffic_origin.clone(),
+                        measurement_scope.clone(),
+                        execution_mode.clone(),
+                        category_id.clone(),
+                        assignment_status.clone(),
+                        exactness.clone(),
+                        basis.clone(),
+                    ))
+                    .or_insert_with(|| RequestOutcomeCategorySummaryRow {
+                        traffic_origin,
+                        measurement_scope,
+                        execution_mode,
+                        category_id,
+                        assignment_status,
+                        exactness,
+                        basis,
+                        ..RequestOutcomeCategorySummaryRow::default()
+                    });
+                row.total_requests = row.total_requests.saturating_add(count);
+            }
+        }
+        for (cohort, count) in self.request_outcome_category_bytes {
+            if let Some((
+                traffic_origin,
+                measurement_scope,
+                execution_mode,
+                category_id,
+                assignment_status,
+                exactness,
+                basis,
+            )) = parse_request_outcome_category_cohort(cohort.as_str())
+            {
+                let row = request_outcome_category_rows
+                    .entry((
+                        traffic_origin.clone(),
+                        measurement_scope.clone(),
+                        execution_mode.clone(),
+                        category_id.clone(),
+                        assignment_status.clone(),
+                        exactness.clone(),
+                        basis.clone(),
+                    ))
+                    .or_insert_with(|| RequestOutcomeCategorySummaryRow {
+                        traffic_origin,
+                        measurement_scope,
+                        execution_mode,
+                        category_id,
+                        assignment_status,
+                        exactness,
+                        basis,
+                        ..RequestOutcomeCategorySummaryRow::default()
+                    });
+                row.response_bytes = row.response_bytes.saturating_add(count);
+            }
+        }
+        for (nested_cohort, count) in self.request_outcome_category_outcomes {
+            if let Some((category_cohort, outcome_class)) =
+                split_last_cohort_segment(nested_cohort.as_str())
+            {
+                if let Some((
+                    traffic_origin,
+                    measurement_scope,
+                    execution_mode,
+                    category_id,
+                    assignment_status,
+                    exactness,
+                    basis,
+                )) = parse_request_outcome_category_cohort(category_cohort)
+                {
+                    let row = request_outcome_category_rows
+                        .entry((
+                            traffic_origin.clone(),
+                            measurement_scope.clone(),
+                            execution_mode.clone(),
+                            category_id.clone(),
+                            assignment_status.clone(),
+                            exactness.clone(),
+                            basis.clone(),
+                        ))
+                        .or_insert_with(|| RequestOutcomeCategorySummaryRow {
+                            traffic_origin,
+                            measurement_scope,
+                            execution_mode,
+                            category_id,
+                            assignment_status,
+                            exactness,
+                            basis,
+                            ..RequestOutcomeCategorySummaryRow::default()
+                        });
+                    match outcome_class {
+                        "forwarded" => {
+                            row.forwarded_requests = row.forwarded_requests.saturating_add(count)
+                        }
+                        "short_circuited" => {
+                            row.short_circuited_requests =
+                                row.short_circuited_requests.saturating_add(count)
+                        }
+                        "control_response" => {
+                            row.control_response_requests =
+                                row.control_response_requests.saturating_add(count)
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+        for (nested_cohort, count) in self.request_outcome_category_outcome_bytes {
+            if let Some((category_cohort, outcome_class)) =
+                split_last_cohort_segment(nested_cohort.as_str())
+            {
+                if let Some((
+                    traffic_origin,
+                    measurement_scope,
+                    execution_mode,
+                    category_id,
+                    assignment_status,
+                    exactness,
+                    basis,
+                )) = parse_request_outcome_category_cohort(category_cohort)
+                {
+                    let row = request_outcome_category_rows
+                        .entry((
+                            traffic_origin.clone(),
+                            measurement_scope.clone(),
+                            execution_mode.clone(),
+                            category_id.clone(),
+                            assignment_status.clone(),
+                            exactness.clone(),
+                            basis.clone(),
+                        ))
+                        .or_insert_with(|| RequestOutcomeCategorySummaryRow {
+                            traffic_origin,
+                            measurement_scope,
+                            execution_mode,
+                            category_id,
+                            assignment_status,
+                            exactness,
+                            basis,
+                            ..RequestOutcomeCategorySummaryRow::default()
+                        });
+                    match outcome_class {
+                        "forwarded" => {
+                            row.forwarded_response_bytes =
+                                row.forwarded_response_bytes.saturating_add(count)
+                        }
+                        "short_circuited" => {
+                            row.short_circuited_response_bytes =
+                                row.short_circuited_response_bytes.saturating_add(count)
+                        }
+                        "control_response" => {
+                            row.control_response_bytes =
+                                row.control_response_bytes.saturating_add(count)
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+
         let build_request_outcome_breakdown_rows =
             |totals: HashMap<String, u64>,
              outcome_counts: HashMap<String, u64>|
@@ -3450,6 +3846,7 @@ impl MonitoringAccumulator {
             request_outcomes: RequestOutcomeSummary {
                 by_scope: request_outcome_scope_rows.into_values().collect(),
                 by_lane: request_outcome_lane_rows.into_values().collect(),
+                by_non_human_category: request_outcome_category_rows.into_values().collect(),
                 by_response_kind: request_outcome_response_kind_rows,
                 by_policy_source: request_outcome_policy_source_rows,
                 by_route_action_family: request_outcome_route_action_family_rows,
@@ -3724,6 +4121,7 @@ mod tests {
                 exactness: TelemetryExactness::Exact,
                 basis: TelemetryBasis::Observed,
             }),
+                non_human_category: None,
             outcome_class: RequestOutcomeClass::Forwarded,
             response_kind: ResponseKind::ForwardAllow,
             http_status: 200,
@@ -3853,6 +4251,7 @@ mod tests {
             route_action_family: RouteActionFamily::SimPublic,
             execution_mode: ExecutionMode::Enforced,
             traffic_lane: None,
+                non_human_category: None,
             outcome_class: RequestOutcomeClass::ShortCircuited,
             response_kind: ResponseKind::SimPublicResponse,
             http_status: 200,
@@ -3955,6 +4354,7 @@ mod tests {
                 exactness: TelemetryExactness::Exact,
                 basis: TelemetryBasis::Observed,
             }),
+                non_human_category: None,
             outcome_class: RequestOutcomeClass::ShortCircuited,
             response_kind: ResponseKind::NotABot,
             http_status: 200,
@@ -3986,6 +4386,60 @@ mod tests {
     }
 
     #[test]
+    fn record_request_outcome_records_non_human_category_counters_for_verified_crosswalks() {
+        let store = MockStore::default();
+        let hour = now_ts() / 3600;
+        let outcome = RenderedRequestOutcome {
+            traffic_origin: TrafficOrigin::Live,
+            measurement_scope: MeasurementScope::IngressPrimary,
+            route_action_family: RouteActionFamily::PublicContent,
+            execution_mode: ExecutionMode::Enforced,
+            traffic_lane: Some(RequestOutcomeLane {
+                lane: TrafficLane::VerifiedBot,
+                exactness: TelemetryExactness::Exact,
+                basis: TelemetryBasis::Observed,
+            }),
+            non_human_category: Some(
+                crate::runtime::traffic_classification::NonHumanCategoryAssignment {
+                    category_id: crate::runtime::non_human_taxonomy::NonHumanCategoryId::IndexingBot,
+                    assignment_status: "classified",
+                },
+            ),
+            outcome_class: RequestOutcomeClass::Forwarded,
+            response_kind: ResponseKind::ForwardAllow,
+            http_status: 200,
+            response_bytes: 256,
+            forward_attempted: true,
+            forward_failure_class: None,
+            intended_action: None,
+            policy_source: PolicySource::PolicyGraphVerifiedIdentityTranche,
+        };
+
+        record_request_outcome(&store, &outcome);
+
+        let category_cohort = request_outcome_category_cohort(&outcome).expect("category cohort");
+        let key = |metric: &str, dimension: &str| {
+            monitoring_key("request_outcome", metric, Some(dimension), hour)
+        };
+
+        assert_eq!(
+            read_counter(&store, key("category_total", category_cohort.as_str()).as_str()),
+            1
+        );
+        assert_eq!(
+            read_counter(
+                &store,
+                key(
+                    "category_outcome_class",
+                    request_outcome_nested_cohort(category_cohort.as_str(), "forwarded").as_str(),
+                )
+                .as_str(),
+            ),
+            1
+        );
+    }
+
+    #[test]
     fn summarize_exposes_compact_request_outcome_scope_and_lane_rows() {
         let store = MockStore::default();
 
@@ -4001,6 +4455,7 @@ mod tests {
                     exactness: TelemetryExactness::Exact,
                     basis: TelemetryBasis::Observed,
                 }),
+                non_human_category: None,
                 outcome_class: RequestOutcomeClass::Forwarded,
                 response_kind: ResponseKind::ForwardAllow,
                 http_status: 200,
@@ -4019,6 +4474,7 @@ mod tests {
                 route_action_family: RouteActionFamily::SimPublic,
                 execution_mode: ExecutionMode::Enforced,
                 traffic_lane: None,
+                non_human_category: None,
                 outcome_class: RequestOutcomeClass::ShortCircuited,
                 response_kind: ResponseKind::SimPublicResponse,
                 http_status: 200,
@@ -4037,6 +4493,7 @@ mod tests {
                 route_action_family: RouteActionFamily::ControlPlane,
                 execution_mode: ExecutionMode::Enforced,
                 traffic_lane: None,
+                non_human_category: None,
                 outcome_class: RequestOutcomeClass::ControlResponse,
                 response_kind: ResponseKind::ControlPlaneResponse,
                 http_status: 500,
@@ -4148,6 +4605,7 @@ mod tests {
                     exactness: TelemetryExactness::Exact,
                     basis: TelemetryBasis::Observed,
                 }),
+                non_human_category: None,
                 outcome_class: RequestOutcomeClass::Forwarded,
                 response_kind: ResponseKind::ForwardAllow,
                 http_status: 200,
@@ -4166,6 +4624,7 @@ mod tests {
                 route_action_family: RouteActionFamily::SimPublic,
                 execution_mode: ExecutionMode::Enforced,
                 traffic_lane: None,
+                non_human_category: None,
                 outcome_class: RequestOutcomeClass::ShortCircuited,
                 response_kind: ResponseKind::SimPublicResponse,
                 http_status: 200,
@@ -4184,6 +4643,7 @@ mod tests {
                 route_action_family: RouteActionFamily::ControlPlane,
                 execution_mode: ExecutionMode::Enforced,
                 traffic_lane: None,
+                non_human_category: None,
                 outcome_class: RequestOutcomeClass::ControlResponse,
                 response_kind: ResponseKind::ControlPlaneResponse,
                 http_status: 500,
@@ -4265,6 +4725,7 @@ mod tests {
                     exactness: TelemetryExactness::Exact,
                     basis: TelemetryBasis::Observed,
                 }),
+                non_human_category: None,
                 outcome_class: RequestOutcomeClass::Forwarded,
                 response_kind: ResponseKind::ForwardAllow,
                 http_status: 200,
@@ -4287,6 +4748,7 @@ mod tests {
                     exactness: TelemetryExactness::Exact,
                     basis: TelemetryBasis::Observed,
                 }),
+                non_human_category: None,
                 outcome_class: RequestOutcomeClass::ShortCircuited,
                 response_kind: ResponseKind::NotABot,
                 http_status: 200,
@@ -4309,6 +4771,7 @@ mod tests {
                     exactness: TelemetryExactness::Derived,
                     basis: TelemetryBasis::Residual,
                 }),
+                non_human_category: None,
                 outcome_class: RequestOutcomeClass::Forwarded,
                 response_kind: ResponseKind::ForwardAllow,
                 http_status: 200,
@@ -4331,6 +4794,7 @@ mod tests {
                     exactness: TelemetryExactness::Derived,
                     basis: TelemetryBasis::Residual,
                 }),
+                non_human_category: None,
                 outcome_class: RequestOutcomeClass::ShortCircuited,
                 response_kind: ResponseKind::Challenge,
                 http_status: 200,
@@ -4353,6 +4817,7 @@ mod tests {
                     exactness: TelemetryExactness::Derived,
                     basis: TelemetryBasis::Residual,
                 }),
+                non_human_category: None,
                 outcome_class: RequestOutcomeClass::ShortCircuited,
                 response_kind: ResponseKind::JsChallenge,
                 http_status: 200,
@@ -4375,6 +4840,7 @@ mod tests {
                     exactness: TelemetryExactness::Exact,
                     basis: TelemetryBasis::Observed,
                 }),
+                non_human_category: None,
                 outcome_class: RequestOutcomeClass::ShortCircuited,
                 response_kind: ResponseKind::Maze,
                 http_status: 200,
@@ -4462,6 +4928,7 @@ mod tests {
                     exactness: TelemetryExactness::Exact,
                     basis: TelemetryBasis::Observed,
                 }),
+                non_human_category: None,
                 outcome_class: RequestOutcomeClass::ShortCircuited,
                 response_kind: ResponseKind::NotABot,
                 http_status: 200,
@@ -4484,6 +4951,7 @@ mod tests {
                     exactness: TelemetryExactness::Derived,
                     basis: TelemetryBasis::Residual,
                 }),
+                non_human_category: None,
                 outcome_class: RequestOutcomeClass::ShortCircuited,
                 response_kind: ResponseKind::Challenge,
                 http_status: 200,
@@ -4508,6 +4976,7 @@ mod tests {
                     exactness: TelemetryExactness::Exact,
                     basis: TelemetryBasis::Observed,
                 }),
+                non_human_category: None,
                 outcome_class: RequestOutcomeClass::ShortCircuited,
                 response_kind: ResponseKind::JsChallenge,
                 http_status: 200,
@@ -4534,6 +5003,7 @@ mod tests {
                     exactness: TelemetryExactness::Exact,
                     basis: TelemetryBasis::Observed,
                 }),
+                non_human_category: None,
                 outcome_class: RequestOutcomeClass::ShortCircuited,
                 response_kind: ResponseKind::Maze,
                 http_status: 200,
@@ -4637,6 +5107,7 @@ mod tests {
                 route_action_family: RouteActionFamily::SimPublic,
                 execution_mode: ExecutionMode::Enforced,
                 traffic_lane: None,
+                non_human_category: None,
                 outcome_class: RequestOutcomeClass::ShortCircuited,
                 response_kind: ResponseKind::NotABot,
                 http_status: 200,
@@ -5048,16 +5519,19 @@ mod tests {
         let provider_verified_record =
             crate::bot_identity::telemetry::IdentityVerificationTelemetryRecord {
                 scheme: Some(crate::bot_identity::contracts::IdentityScheme::ProviderSignedAgent),
+                category: Some(crate::bot_identity::contracts::IdentityCategory::UserTriggeredAgent),
                 provenance: crate::bot_identity::contracts::IdentityProvenance::Provider,
                 result_status:
                     crate::bot_identity::verification::IdentityVerificationResultStatus::Verified,
                 failure: None,
                 freshness: crate::bot_identity::verification::IdentityVerificationFreshness::Fresh,
+                end_user_controlled: true,
                 operator: Some("openai".to_string()),
                 stable_identity: Some("chatgpt-agent".to_string()),
             };
         let provider_failed_record = crate::bot_identity::telemetry::IdentityVerificationTelemetryRecord {
             scheme: Some(crate::bot_identity::contracts::IdentityScheme::ProviderVerifiedBot),
+            category: Some(crate::bot_identity::contracts::IdentityCategory::Search),
             provenance: crate::bot_identity::contracts::IdentityProvenance::Provider,
             result_status:
                 crate::bot_identity::verification::IdentityVerificationResultStatus::Failed,
@@ -5066,6 +5540,7 @@ mod tests {
             ),
             freshness:
                 crate::bot_identity::verification::IdentityVerificationFreshness::ReplayRejected,
+            end_user_controlled: false,
             operator: None,
             stable_identity: None,
         };
@@ -5122,8 +5597,20 @@ mod tests {
                 operator: "openai".to_string(),
                 stable_identity: "chatgpt-agent".to_string(),
                 scheme: "provider_signed_agent".to_string(),
+                category: "user_triggered_agent".to_string(),
+                provenance: "provider".to_string(),
+                end_user_controlled: true,
                 count: 2,
             })
+        );
+        assert_eq!(
+            summary
+                .verified_identity
+                .categories
+                .get("user_triggered_agent")
+                .copied()
+                .unwrap_or(0),
+            2
         );
     }
 

@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-use crate::observability::monitoring::{MonitoringSummary, RequestOutcomeLaneSummaryRow};
+use crate::observability::monitoring::{
+    MonitoringSummary, RequestOutcomeCategorySummaryRow, RequestOutcomeLaneSummaryRow,
+};
 use crate::observability::operator_snapshot_live_traffic::OperatorSnapshotRecentSimRun;
 use crate::runtime::non_human_taxonomy::{
     canonical_non_human_taxonomy, NonHumanCategoryDescriptor,
@@ -60,13 +62,28 @@ pub(crate) fn summarize_non_human_classification(
     Vec<NonHumanClassificationReceipt>,
 ) {
     let taxonomy = canonical_non_human_taxonomy();
-    let mut receipts: Vec<NonHumanClassificationReceipt> = summary
+    let mut receipts: Vec<NonHumanClassificationReceipt> = if summary
         .request_outcomes
-        .by_lane
+        .by_non_human_category
         .iter()
-        .filter(|row| row.traffic_origin == "live")
-        .filter_map(|row| receipt_from_lane_row(row, recent_sim_runs, &taxonomy.categories))
-        .collect();
+        .any(|row| row.traffic_origin == "live")
+    {
+        summary
+            .request_outcomes
+            .by_non_human_category
+            .iter()
+            .filter(|row| row.traffic_origin == "live")
+            .filter_map(|row| receipt_from_category_row(row, recent_sim_runs, &taxonomy.categories))
+            .collect()
+    } else {
+        summary
+            .request_outcomes
+            .by_lane
+            .iter()
+            .filter(|row| row.traffic_origin == "live")
+            .filter_map(|row| receipt_from_lane_row(row, recent_sim_runs, &taxonomy.categories))
+            .collect()
+    };
     let mut sim_receipts = sim_receipts_from_recent_runs(recent_sim_runs, &taxonomy.categories);
     if sim_receipts.is_empty() {
         sim_receipts = summary
@@ -169,6 +186,41 @@ fn receipt_from_lane_row(
     })
 }
 
+fn receipt_from_category_row(
+    row: &RequestOutcomeCategorySummaryRow,
+    _recent_sim_runs: &[OperatorSnapshotRecentSimRun],
+    categories: &[NonHumanCategoryDescriptor],
+) -> Option<NonHumanClassificationReceipt> {
+    let category = categories
+        .iter()
+        .find(|descriptor| descriptor.category_id.as_str() == row.category_id)?;
+    Some(NonHumanClassificationReceipt {
+        traffic_origin: row.traffic_origin.clone(),
+        measurement_scope: row.measurement_scope.clone(),
+        execution_mode: row.execution_mode.clone(),
+        lane: "category_crosswalk".to_string(),
+        category_id: row.category_id.clone(),
+        category_label: category.label.clone(),
+        assignment_status: row.assignment_status.clone(),
+        exactness: row.exactness.clone(),
+        basis: row.basis.clone(),
+        degradation_status: if row.exactness == "exact"
+            && matches!(row.basis.as_str(), "observed" | "verified")
+        {
+            "current".to_string()
+        } else {
+            "degraded".to_string()
+        },
+        total_requests: row.total_requests,
+        forwarded_requests: row.forwarded_requests,
+        short_circuited_requests: row.short_circuited_requests,
+        evidence_references: vec![format!(
+            "request_outcomes.by_non_human_category:{}:{}:{}:{}",
+            row.traffic_origin, row.measurement_scope, row.execution_mode, row.category_id
+        )],
+    })
+}
+
 fn sim_receipts_from_recent_runs(
     recent_sim_runs: &[OperatorSnapshotRecentSimRun],
     categories: &[NonHumanCategoryDescriptor],
@@ -255,7 +307,9 @@ fn evidence_references(
 #[cfg(test)]
 mod tests {
     use super::summarize_non_human_classification;
-    use crate::observability::monitoring::{MonitoringSummary, RequestOutcomeLaneSummaryRow};
+    use crate::observability::monitoring::{
+        MonitoringSummary, RequestOutcomeCategorySummaryRow, RequestOutcomeLaneSummaryRow,
+    };
     use crate::observability::operator_snapshot_live_traffic::OperatorSnapshotRecentSimRun;
 
     #[test]
@@ -384,5 +438,37 @@ mod tests {
         assert!(receipts
             .iter()
             .any(|receipt| receipt.category_id == "http_agent"));
+    }
+
+    #[test]
+    fn classification_summary_projects_live_verified_category_crosswalk_receipts() {
+        let mut summary = MonitoringSummary::default();
+        summary.request_outcomes.by_non_human_category = vec![RequestOutcomeCategorySummaryRow {
+            traffic_origin: "live".to_string(),
+            measurement_scope: "ingress_primary".to_string(),
+            execution_mode: "enforced".to_string(),
+            category_id: "indexing_bot".to_string(),
+            assignment_status: "classified".to_string(),
+            exactness: "exact".to_string(),
+            basis: "observed".to_string(),
+            total_requests: 4,
+            forwarded_requests: 4,
+            short_circuited_requests: 0,
+            control_response_requests: 0,
+            response_bytes: 400,
+            forwarded_response_bytes: 400,
+            short_circuited_response_bytes: 0,
+            control_response_bytes: 0,
+        }];
+
+        let (readiness, receipts) = summarize_non_human_classification(&summary, &[]);
+
+        assert_eq!(readiness.live_receipt_count, 1);
+        assert_eq!(receipts[0].category_id, "indexing_bot");
+        assert_eq!(receipts[0].lane, "category_crosswalk");
+        assert!(receipts[0]
+            .evidence_references
+            .iter()
+            .any(|reference| reference.contains("request_outcomes.by_non_human_category")));
     }
 }

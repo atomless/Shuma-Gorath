@@ -694,6 +694,7 @@ mod tests {
                     exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
                     basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
                 }),
+                non_human_category: None,
                 outcome_class: crate::runtime::request_outcome::RequestOutcomeClass::Forwarded,
                 response_kind: crate::runtime::request_outcome::ResponseKind::ForwardAllow,
                 http_status: 200,
@@ -718,6 +719,7 @@ mod tests {
                     exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
                     basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
                 }),
+                non_human_category: None,
                 outcome_class:
                     crate::runtime::request_outcome::RequestOutcomeClass::ShortCircuited,
                 response_kind: crate::runtime::request_outcome::ResponseKind::NotABot,
@@ -844,6 +846,7 @@ mod tests {
                     exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
                     basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
                 }),
+                non_human_category: None,
                 outcome_class:
                     crate::runtime::request_outcome::RequestOutcomeClass::ShortCircuited,
                 response_kind: crate::runtime::request_outcome::ResponseKind::NotABot,
@@ -900,6 +903,7 @@ mod tests {
                     exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
                     basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
                 }),
+                non_human_category: None,
                 outcome_class:
                     crate::runtime::request_outcome::RequestOutcomeClass::ShortCircuited,
                 response_kind: crate::runtime::request_outcome::ResponseKind::NotABot,
@@ -988,6 +992,7 @@ mod tests {
                     exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
                     basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
                 }),
+                non_human_category: None,
                 outcome_class:
                     crate::runtime::request_outcome::RequestOutcomeClass::ShortCircuited,
                 response_kind: crate::runtime::request_outcome::ResponseKind::NotABot,
@@ -1014,6 +1019,7 @@ mod tests {
                     exactness: crate::observability::hot_read_contract::TelemetryExactness::Derived,
                     basis: crate::observability::hot_read_contract::TelemetryBasis::Mixed,
                 }),
+                non_human_category: None,
                 outcome_class: crate::runtime::request_outcome::RequestOutcomeClass::Forwarded,
                 response_kind: crate::runtime::request_outcome::ResponseKind::ForwardAllow,
                 http_status: 200,

@@ -131,6 +131,35 @@ pub(crate) fn verified_identity_lane_assignment(
     }
 }
 
+pub(crate) fn verified_identity_category_assignment(
+    identity: &VerifiedIdentityEvidence,
+) -> NonHumanCategoryAssignment {
+    match identity.category {
+        IdentityCategory::Search => NonHumanCategoryAssignment {
+            category_id: NonHumanCategoryId::IndexingBot,
+            assignment_status: "classified",
+        },
+        IdentityCategory::Training => NonHumanCategoryAssignment {
+            category_id: NonHumanCategoryId::AiScraperBot,
+            assignment_status: "classified",
+        },
+        IdentityCategory::UserTriggeredAgent => NonHumanCategoryAssignment {
+            category_id: NonHumanCategoryId::AgentOnBehalfOfHuman,
+            assignment_status: "classified",
+        },
+        IdentityCategory::Preview | IdentityCategory::ServiceAgent => {
+            NonHumanCategoryAssignment {
+                category_id: NonHumanCategoryId::HttpAgent,
+                assignment_status: "classified",
+            }
+        }
+        IdentityCategory::Other => NonHumanCategoryAssignment {
+            category_id: NonHumanCategoryId::VerifiedBeneficialBot,
+            assignment_status: "classified",
+        },
+    }
+}
+
 pub(crate) fn non_human_category_assignment_for_lane(
     lane: TrafficLane,
 ) -> Option<NonHumanCategoryAssignment> {
@@ -444,6 +473,64 @@ mod tests {
         });
 
         assert_eq!(lane, VERIFIED_BOT_OBSERVED);
+    }
+
+    #[test]
+    fn verified_identity_category_assignment_crosswalks_identity_categories_into_taxonomy() {
+        let identity = |category| VerifiedIdentityEvidence {
+            scheme: IdentityScheme::HttpMessageSignatures,
+            stable_identity: "verified.example".to_string(),
+            operator: "example".to_string(),
+            category,
+            verification_strength:
+                crate::bot_identity::contracts::VerificationStrength::Cryptographic,
+            end_user_controlled: false,
+            directory_source: None,
+            provenance: crate::bot_identity::contracts::IdentityProvenance::Native,
+        };
+
+        assert_eq!(
+            verified_identity_category_assignment(&identity(IdentityCategory::Search)),
+            NonHumanCategoryAssignment {
+                category_id: NonHumanCategoryId::IndexingBot,
+                assignment_status: "classified",
+            }
+        );
+        assert_eq!(
+            verified_identity_category_assignment(&identity(IdentityCategory::Training)),
+            NonHumanCategoryAssignment {
+                category_id: NonHumanCategoryId::AiScraperBot,
+                assignment_status: "classified",
+            }
+        );
+        assert_eq!(
+            verified_identity_category_assignment(&identity(IdentityCategory::UserTriggeredAgent)),
+            NonHumanCategoryAssignment {
+                category_id: NonHumanCategoryId::AgentOnBehalfOfHuman,
+                assignment_status: "classified",
+            }
+        );
+        assert_eq!(
+            verified_identity_category_assignment(&identity(IdentityCategory::Preview)),
+            NonHumanCategoryAssignment {
+                category_id: NonHumanCategoryId::HttpAgent,
+                assignment_status: "classified",
+            }
+        );
+        assert_eq!(
+            verified_identity_category_assignment(&identity(IdentityCategory::ServiceAgent)),
+            NonHumanCategoryAssignment {
+                category_id: NonHumanCategoryId::HttpAgent,
+                assignment_status: "classified",
+            }
+        );
+        assert_eq!(
+            verified_identity_category_assignment(&identity(IdentityCategory::Other)),
+            NonHumanCategoryAssignment {
+                category_id: NonHumanCategoryId::VerifiedBeneficialBot,
+                assignment_status: "classified",
+            }
+        );
     }
 
     #[test]

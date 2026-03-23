@@ -5,7 +5,8 @@ use spin_sdk::http::Response;
 use crate::observability::hot_read_contract::{TelemetryBasis, TelemetryExactness};
 use crate::runtime::effect_intents::{ExecutionMode, ShadowAction};
 use crate::runtime::traffic_classification::{
-    classify_current_runtime_branch, CurrentRuntimeBranch, MeasurementScope, PolicySource,
+    classify_current_runtime_branch, non_human_category_assignment_for_lane,
+    CurrentRuntimeBranch, MeasurementScope, NonHumanCategoryAssignment, PolicySource,
     RouteActionFamily, TrafficLane, TrafficLaneAssignment,
 };
 
@@ -131,6 +132,7 @@ pub(crate) struct RenderedRequestOutcome {
     pub route_action_family: RouteActionFamily,
     pub execution_mode: ExecutionMode,
     pub traffic_lane: Option<RequestOutcomeLane>,
+    pub non_human_category: Option<NonHumanCategoryAssignment>,
     pub outcome_class: RequestOutcomeClass,
     pub response_kind: ResponseKind,
     pub http_status: u16,
@@ -146,6 +148,7 @@ impl RenderedRequestOutcome {
         traffic_origin: TrafficOrigin,
         handled: &HandledRequestResponse,
         verified_identity_lane: Option<RequestOutcomeLane>,
+        verified_identity_category: Option<NonHumanCategoryAssignment>,
     ) -> Self {
         let classification = classify_current_runtime_branch(&handled.branch);
         let outcome_class = if matches!(classification.route_action_family, RouteActionFamily::ControlPlane)
@@ -163,6 +166,11 @@ impl RenderedRequestOutcome {
             route_action_family: classification.route_action_family,
             execution_mode: handled.execution_mode,
             traffic_lane: verified_identity_lane.or_else(|| classification.traffic_lane.map(Into::into)),
+            non_human_category: verified_identity_category.or_else(|| {
+                classification
+                    .traffic_lane
+                    .and_then(|lane| non_human_category_assignment_for_lane(lane.lane))
+            }),
             outcome_class,
             response_kind: handled.rendered.response_kind,
             http_status: *handled.rendered.response.status(),
@@ -194,7 +202,7 @@ mod tests {
         };
 
         let outcome =
-            RenderedRequestOutcome::from_handled_response(TrafficOrigin::Live, &handled, None);
+            RenderedRequestOutcome::from_handled_response(TrafficOrigin::Live, &handled, None, None);
 
         assert_eq!(outcome.traffic_origin, TrafficOrigin::Live);
         assert_eq!(outcome.measurement_scope, MeasurementScope::IngressPrimary);
@@ -213,6 +221,7 @@ mod tests {
                 basis: TelemetryBasis::Residual,
             })
         );
+        assert!(outcome.non_human_category.is_none());
     }
 
     #[test]
@@ -226,7 +235,7 @@ mod tests {
         };
 
         let outcome =
-            RenderedRequestOutcome::from_handled_response(TrafficOrigin::Live, &handled, None);
+            RenderedRequestOutcome::from_handled_response(TrafficOrigin::Live, &handled, None, None);
 
         assert_eq!(
             outcome.traffic_lane,
@@ -236,6 +245,7 @@ mod tests {
                 basis: TelemetryBasis::Observed,
             })
         );
+        assert!(outcome.non_human_category.is_none());
     }
 
     #[test]
@@ -258,6 +268,7 @@ mod tests {
             TrafficOrigin::AdversarySim,
             &handled,
             None,
+            None,
         );
 
         assert_eq!(outcome.traffic_origin, TrafficOrigin::AdversarySim);
@@ -271,6 +282,13 @@ mod tests {
                 lane: TrafficLane::SuspiciousAutomation,
                 exactness: TelemetryExactness::Derived,
                 basis: TelemetryBasis::Residual,
+            })
+        );
+        assert_eq!(
+            outcome.non_human_category,
+            Some(NonHumanCategoryAssignment {
+                category_id: crate::runtime::non_human_taxonomy::NonHumanCategoryId::UnknownNonHuman,
+                assignment_status: "insufficient_evidence",
             })
         );
     }
@@ -287,12 +305,13 @@ mod tests {
         };
 
         let outcome =
-            RenderedRequestOutcome::from_handled_response(TrafficOrigin::Live, &handled, None);
+            RenderedRequestOutcome::from_handled_response(TrafficOrigin::Live, &handled, None, None);
 
         assert_eq!(outcome.measurement_scope, MeasurementScope::Excluded);
         assert_eq!(outcome.route_action_family, RouteActionFamily::ControlPlane);
         assert_eq!(outcome.outcome_class, RequestOutcomeClass::ControlResponse);
         assert!(outcome.traffic_lane.is_none());
+        assert!(outcome.non_human_category.is_none());
     }
 
     #[test]
@@ -304,12 +323,13 @@ mod tests {
         };
 
         let outcome =
-            RenderedRequestOutcome::from_handled_response(TrafficOrigin::Live, &handled, None);
+            RenderedRequestOutcome::from_handled_response(TrafficOrigin::Live, &handled, None, None);
 
         assert_eq!(outcome.measurement_scope, MeasurementScope::Excluded);
         assert_eq!(outcome.route_action_family, RouteActionFamily::StaticAsset);
         assert_eq!(outcome.outcome_class, RequestOutcomeClass::Forwarded);
         assert!(outcome.traffic_lane.is_none());
+        assert!(outcome.non_human_category.is_none());
     }
 
     #[test]
@@ -324,13 +344,14 @@ mod tests {
         };
 
         let outcome =
-            RenderedRequestOutcome::from_handled_response(TrafficOrigin::Live, &handled, None);
+            RenderedRequestOutcome::from_handled_response(TrafficOrigin::Live, &handled, None, None);
 
         assert_eq!(outcome.measurement_scope, MeasurementScope::BypassAndControl);
         assert_eq!(outcome.route_action_family, RouteActionFamily::ControlPlane);
         assert_eq!(outcome.policy_source, PolicySource::BootstrapFailure);
         assert_eq!(outcome.outcome_class, RequestOutcomeClass::ControlResponse);
         assert!(outcome.traffic_lane.is_none());
+        assert!(outcome.non_human_category.is_none());
     }
 
     #[test]
@@ -357,6 +378,10 @@ mod tests {
                 exactness: TelemetryExactness::Exact,
                 basis: TelemetryBasis::Observed,
             }),
+            Some(NonHumanCategoryAssignment {
+                category_id: crate::runtime::non_human_taxonomy::NonHumanCategoryId::IndexingBot,
+                assignment_status: "classified",
+            }),
         );
 
         assert_eq!(outcome.outcome_class, RequestOutcomeClass::ShortCircuited);
@@ -367,6 +392,13 @@ mod tests {
                 lane: TrafficLane::SignedAgent,
                 exactness: TelemetryExactness::Exact,
                 basis: TelemetryBasis::Observed,
+            })
+        );
+        assert_eq!(
+            outcome.non_human_category,
+            Some(NonHumanCategoryAssignment {
+                category_id: crate::runtime::non_human_taxonomy::NonHumanCategoryId::IndexingBot,
+                assignment_status: "classified",
             })
         );
     }
