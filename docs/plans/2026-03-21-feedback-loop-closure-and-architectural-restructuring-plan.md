@@ -337,6 +337,13 @@ Monitoring is now explicitly scoped as the human-readable accountability surface
 
 Finish the operator control surface once the controller inputs, safe action families, first working agent loop semantics, and adversary-sim diagnostics truth are all aligned, including the operator-objectives and per-category posture editor over the stable operator-facing taxonomy.
 
+The first concrete UI contract for this tranche is now the taxonomy posture matrix in `Tuning`:
+
+1. `Policy` keeps declarative crawl and exemption rules,
+2. `Tuning` owns active defense posture over canonical non-human categories,
+3. the editor should render one category row against the bounded five-point posture scale,
+4. and optional stance archetypes should only seed the matrix rather than becoming a second persisted policy model.
+
 These phases should not be started early just because the UI can be edited sooner.
 
 ## Phase 7: Later Scheduled-Agent And Code-Evolution Loops

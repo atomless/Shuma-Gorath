@@ -146,12 +146,26 @@ Keep the Monitoring overhaul responsible for projecting the backend machine-firs
 
 Keep primary control-plane editing of site intent in Tuning rather than scattering it across Status or Monitoring.
 
+As of 2026-03-23, the first concrete shape for this work is now settled:
+
+1. the non-human category posture editor should live in `Tuning`, not `Policy`,
+2. because it is active defense posture and controller intent rather than passive `robots.txt`-style declaration,
+3. and the first UI should be a taxonomy posture matrix over the stable canonical categories, optionally seeded from a small set of stance archetypes.
+
 ### Tuning-owned control scope
 
 1. `GET /admin/operator-objectives`
 2. `POST /admin/operator-objectives`
 3. category posture editing over the stable taxonomy
 4. later patch-family and controller posture explanation
+
+First concrete UI contract:
+
+1. one row per canonical non-human category,
+2. one column per posture scale value (`allowed`, `tolerated`, `cost_reduced`, `restricted`, `blocked`),
+3. row labels and descriptions taken directly from the taxonomy contract,
+4. a small optional preset selector above the matrix that seeds row values only and falls back to `custom` after manual edits,
+5. no silent cross-tab writes into `Policy` or `Verification` from this first tuning slice.
 
 # Sequence
 

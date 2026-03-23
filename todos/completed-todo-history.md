@@ -4,6 +4,26 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-23)
 
+### Planning: Tuning tab taxonomy posture matrix and stance archetypes
+
+- [x] Wrote the research note in [`docs/research/2026-03-23-tuning-tab-taxonomy-posture-matrix-and-policy-archetypes-review.md`](../docs/research/2026-03-23-tuning-tab-taxonomy-posture-matrix-and-policy-archetypes-review.md) to settle that non-human category posture is better treated as active defense posture in `Tuning` than as passive `Policy`-tab declaration.
+- [x] Wrote the implementation-ready UI contract in [`docs/plans/2026-03-23-tuning-surface-taxonomy-posture-matrix-implementation-plan.md`](../docs/plans/2026-03-23-tuning-surface-taxonomy-posture-matrix-implementation-plan.md), defining the first `TUNE-SURFACE-1` shape as a taxonomy posture matrix with optional stance archetype seeding.
+- [x] Synced the result into [`docs/plans/2026-03-23-dashboard-operator-surfacing-sequencing-plan.md`](../docs/plans/2026-03-23-dashboard-operator-surfacing-sequencing-plan.md), [`docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](../docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md), and [`todos/blocked-todo.md`](../todos/blocked-todo.md) so later execution starts from the settled UI contract.
+- [x] Why:
+  - the category-posture editor is part of operator intent for the enforcement loop, and it fits the semantics of `Tuning` much better than the declarative `Policy` tab.
+  - a matrix presentation is a better fit than disconnected fieldsets because every canonical non-human category chooses exactly one value from the same bounded posture scale.
+  - presets are useful as a starting convenience, but only if they seed the matrix and do not become a second persisted policy system or silently write across other tabs.
+- [x] Evidence:
+  - `docs/research/2026-03-23-tuning-tab-taxonomy-posture-matrix-and-policy-archetypes-review.md`
+  - `docs/plans/2026-03-23-tuning-surface-taxonomy-posture-matrix-implementation-plan.md`
+  - `docs/research/README.md`
+  - `docs/plans/README.md`
+  - `docs/plans/2026-03-23-dashboard-operator-surfacing-sequencing-plan.md`
+  - `docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`
+  - `todos/blocked-todo.md`
+  - `git diff --check`
+  - verification intentionally scoped as docs-only; tests not run
+
 ### Research: Karpathy `autoresearch` and recursive self-improvement lessons
 
 - [x] Researched Karpathy's upstream `autoresearch` methodology and a focused set of downstream GitHub projects that generalized or extended it, then distilled what is and is not useful to Shuma's later recursive self-improvement path.
