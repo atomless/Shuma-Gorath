@@ -40,9 +40,12 @@ Current references:
 
 1. [`2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md`](2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md)
 2. [`2026-03-20-minimal-seed-and-telemetry-surface-discovery-design.md`](2026-03-20-minimal-seed-and-telemetry-surface-discovery-design.md)
-3. `SIM-SH-SURFACE-1` and `SIM-LLM-FIT-1` in [`../../todos/todo.md`](../../todos/todo.md)
-4. `SIM-SCR-LANE-1` and `SIM-LLM-1` in [`../../todos/blocked-todo.md`](../../todos/blocked-todo.md)
-5. the execution-ready closed-loop chain in [`2026-03-22-taxonomy-and-classification-implementation-plan.md`](2026-03-22-taxonomy-and-classification-implementation-plan.md), [`2026-03-22-lane-fulfillment-and-protected-evidence-implementation-plan.md`](2026-03-22-lane-fulfillment-and-protected-evidence-implementation-plan.md), and [`2026-03-22-category-aware-objectives-benchmarks-and-apply-loop-implementation-plan.md`](2026-03-22-category-aware-objectives-benchmarks-and-apply-loop-implementation-plan.md)
+3. [`2026-03-20-mature-adversary-sim-evolution-roadmap.md`](2026-03-20-mature-adversary-sim-evolution-roadmap.md)
+4. [`../research/2026-03-23-scrapling-non-human-category-capability-review.md`](../research/2026-03-23-scrapling-non-human-category-capability-review.md)
+5. [`2026-03-23-scrapling-request-native-category-fulfillment-implementation-plan.md`](2026-03-23-scrapling-request-native-category-fulfillment-implementation-plan.md)
+6. `SIM-SH-SURFACE-1`, `SIM-SCR-FIT-1`, `SIM-SCR-FIT-2`, `SIM-SCR-COVER-2`, and `SIM-LLM-FIT-1` in [`../../todos/todo.md`](../../todos/todo.md)
+7. `SIM-SCR-BROWSER-1` and `SIM-LLM-1` in [`../../todos/blocked-todo.md`](../../todos/blocked-todo.md)
+8. the execution-ready closed-loop chain in [`2026-03-22-taxonomy-and-classification-implementation-plan.md`](2026-03-22-taxonomy-and-classification-implementation-plan.md), [`2026-03-22-lane-fulfillment-and-protected-evidence-implementation-plan.md`](2026-03-22-lane-fulfillment-and-protected-evidence-implementation-plan.md), and [`2026-03-22-category-aware-objectives-benchmarks-and-apply-loop-implementation-plan.md`](2026-03-22-category-aware-objectives-benchmarks-and-apply-loop-implementation-plan.md)
 
 Gap:
 
@@ -380,7 +383,7 @@ Status update (2026-03-19):
 
 1. Delivered. Outcome-attributed bytes, bounded `response_kind` and `policy_source` and `route_action_family` summaries, origin-safe follow-up telemetry, and the terminal-path truth boundary are now in place.
 2. The backend telemetry foundation is therefore complete enough for the Monitoring overhaul to begin once the section-ownership plan is written.
-3. No further telemetry architecture sweep is required before `MON-OVERHAUL-1`; the next work should move to Monitoring surface design and ownership planning.
+3. No further telemetry architecture sweep is required before `MON-OVERHAUL-1`; the remaining pre-Monitoring work is now the adversary-side truth follow-on that expands Scrapling's request-native category ownership and receipt-backed coverage before the human projection is redesigned around those settled semantics.
 
 Status update (2026-03-20):
 

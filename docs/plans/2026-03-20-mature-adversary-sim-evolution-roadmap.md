@@ -53,10 +53,15 @@ It should not be treated as the primary adaptive diagnosis lane.
 Purpose:
 
 1. first real adaptive discovery lane,
-2. lower-cost crawling and scraping pressure,
+2. lower-cost crawling, scraping, and request-native pressure,
 3. continuous surface discovery and exploit surfacing under bounded scope.
 
 This should be the first primary feedback lane.
+
+Near-term ownership note:
+
+1. Scrapling should be treated as the first truthful lane for crawler and request-native non-human categories.
+2. Browser-like Scrapling automation may become useful later, but it should not be merged into the same truth contract until the shared-host runtime, deploy envelope, and coverage receipts are widened and proven.
 
 ### 3. `frontier_agent`
 

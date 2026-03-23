@@ -255,11 +255,33 @@ Execution reference: [`2026-03-23-adv-diag-1-adversary-sim-status-truth-implemen
 
 Status update (2026-03-23): complete per [`../research/2026-03-23-adv-diag-1-adversary-sim-status-truth-post-implementation-review.md`](../research/2026-03-23-adv-diag-1-adversary-sim-status-truth-post-implementation-review.md).
 
+### `SIM-SCR-FIT-1`
+
+Before Monitoring re-projects adversary semantics, freeze Scrapling's truthful near-term category ownership to the request-native non-human categories it can genuinely own on its current shared-host runtime boundary:
+
+1. `indexing_bot`
+2. `ai_scraper_bot`
+3. `http_agent`
+
+Execution reference: [`2026-03-23-scrapling-request-native-category-fulfillment-implementation-plan.md`](2026-03-23-scrapling-request-native-category-fulfillment-implementation-plan.md)
+
+### `SIM-SCR-FIT-2`
+
+Implement bounded Scrapling request personas for those request-native categories without widening the current worker into a browser-agent runtime.
+
+Execution reference: [`2026-03-23-scrapling-request-native-category-fulfillment-implementation-plan.md`](2026-03-23-scrapling-request-native-category-fulfillment-implementation-plan.md)
+
+### `SIM-SCR-COVER-2`
+
+Prove the expanded Scrapling ownership through the canonical classification and coverage receipts so later Monitoring projects receipt-backed category truth rather than the older indexing-only lane story.
+
+Execution reference: [`2026-03-23-scrapling-request-native-category-fulfillment-implementation-plan.md`](2026-03-23-scrapling-request-native-category-fulfillment-implementation-plan.md)
+
 ## Phase 6: Human Operator Projection
 
 ### `MON-OVERHAUL-1`
 
-Rebuild Monitoring as the thin human projection over the machine-first contracts after the backend truth, first working closed loop, and `ADV-DIAG-1` diagnostics-truth follow-up are complete.
+Rebuild Monitoring as the thin human projection over the machine-first contracts after the backend truth, first working closed loop, `ADV-DIAG-1` diagnostics-truth follow-up, and the Scrapling request-native category follow-ons are complete.
 
 ### `TUNE-SURFACE-1`
 
@@ -285,7 +307,7 @@ Keep the later benchmark-driven LLM code-evolution or PR-generation path behind 
 2. Do not blend structural decomposition and semantic expansion in the same tranche.
 3. Keep the first decomposition slices behavior-preserving and test-focused.
 4. Keep one hotspot file as the primary target per refactor tranche wherever practical.
-5. Do not reopen `MON-OVERHAUL-1`, `TUNE-SURFACE-1`, or `OVR-AGENT-2` until the blockers listed in this plan are satisfied, including protected tuning evidence and category-coverage proof.
+5. Do not reopen `MON-OVERHAUL-1`, `TUNE-SURFACE-1`, or `OVR-AGENT-2` until the blockers listed in this plan are satisfied, including protected tuning evidence, category-coverage proof, and the settled Scrapling request-native ownership follow-ons.
 6. Treat periodic scheduling and post-sim triggering as adapter paths over one reconcile or agent contract, not as separate controller implementations.
 
 # File-Length And Separation Guardrails

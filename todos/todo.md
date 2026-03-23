@@ -83,14 +83,30 @@ Current stance:
 - Keep the decomposition slices behavior-preserving; semantic expansion begins only after the hotspot modules have focused seams.
 - Land the first shared-host agent tweaker loop before `MON-OVERHAUL-1` so Monitoring and Tuning can project proven machine-first semantics instead of inventing them early.
 - Treat the verified-identity observability and benchmarking gap as part of this loop-closure track rather than later polish.
-- The first bounded shared-host closed config loop is now live-proven, and the adversary-sim status diagnostics follow-up is now delivered; the next operator-facing execution tranche is `MON-OVERHAUL-1`.
+- The first bounded shared-host closed config loop is now live-proven, and the adversary-sim status diagnostics follow-up is now delivered.
+- Before `MON-OVERHAUL-1`, settle Scrapling's truthful request-native category ownership and proof so Monitoring does not project the older indexing-only lane semantics.
 - The next prerequisite now begins one step earlier: Shuma must first define a canonical non-human taxonomy and shared classification contract before it can truthfully measure lane representativeness.
 - The actively evolving near-term layer should be fingerprinting and categorization quality inside that taxonomy; taxonomy expansion is only a later contingency if important non-human traffic persistently falls outside the existing categories.
 - The next bridge to a genuine LLM-in-the-loop system is not the full later `SIM-LLM-1` runtime actor; it is a bounded category-fulfillment LLM tranche that sits between the taxonomy/classifier work and the first closed config loop, with the later LLM diagnosis harness and code loop still downstream of `OVR-APPLY-1`.
 
+### SIM-SCR-FIT-1: Freeze Scrapling Request-Native Category Ownership
+- Expand Scrapling's truthful near-term ownership from `indexing_bot` only to the request-native categories it can genuinely own on the current shared-host worker boundary: `indexing_bot`, `ai_scraper_bot`, and `http_agent`.
+- Keep `automated_browser`, `browser_agent`, and `agent_on_behalf_of_human` out of Scrapling ownership until a separate browser-runtime expansion is proven.
+- Reference context: [`../docs/research/2026-03-23-scrapling-non-human-category-capability-review.md`](../docs/research/2026-03-23-scrapling-non-human-category-capability-review.md), [`../docs/plans/2026-03-23-scrapling-request-native-category-fulfillment-implementation-plan.md`](../docs/plans/2026-03-23-scrapling-request-native-category-fulfillment-implementation-plan.md)
+
+### SIM-SCR-FIT-2: Implement Scrapling Request Personas
+- Extend the current Scrapling worker with bounded request personas for crawler, bulk-scraper, and direct HTTP-agent traffic while preserving the current scope fence, seed contract, and signed sim telemetry boundary.
+- Keep this tranche strictly request-native; do not pull browser-runtime dependencies into the current Scrapling lane.
+- Reference context: [`../docs/research/2026-03-23-scrapling-non-human-category-capability-review.md`](../docs/research/2026-03-23-scrapling-non-human-category-capability-review.md), [`../docs/plans/2026-03-23-scrapling-request-native-category-fulfillment-implementation-plan.md`](../docs/plans/2026-03-23-scrapling-request-native-category-fulfillment-implementation-plan.md)
+
+### SIM-SCR-COVER-2: Prove Scrapling Request-Native Coverage
+- Extend the canonical classification and coverage receipts so Scrapling-generated traffic can be proved for `indexing_bot`, `ai_scraper_bot`, and `http_agent` through the existing machine-first contracts.
+- Keep the later Monitoring overhaul behind this receipt-backed truth so the operator projection uses settled category semantics.
+- Reference context: [`../docs/research/2026-03-23-scrapling-non-human-category-capability-review.md`](../docs/research/2026-03-23-scrapling-non-human-category-capability-review.md), [`../docs/plans/2026-03-23-scrapling-request-native-category-fulfillment-implementation-plan.md`](../docs/plans/2026-03-23-scrapling-request-native-category-fulfillment-implementation-plan.md)
+
 ### MON-OVERHAUL-1: Monitoring As Thin Operator Projection Over Machine-First Contracts
 - Redesign Monitoring as a thin operator decision surface over the machine-first snapshot contract, with explicit live-versus-shadow-versus-adversary-sim separation and clear attacker-effectiveness versus human-friction visibility.
-- Reference context: [`../docs/plans/2026-03-20-monitoring-and-diagnostics-tab-ownership-plan.md`](../docs/plans/2026-03-20-monitoring-and-diagnostics-tab-ownership-plan.md), [`../docs/research/2026-03-23-adv-diag-1-adversary-sim-status-truth-post-implementation-review.md`](../docs/research/2026-03-23-adv-diag-1-adversary-sim-status-truth-post-implementation-review.md)
+- Reference context: [`../docs/plans/2026-03-20-monitoring-and-diagnostics-tab-ownership-plan.md`](../docs/plans/2026-03-20-monitoring-and-diagnostics-tab-ownership-plan.md), [`../docs/research/2026-03-23-adv-diag-1-adversary-sim-status-truth-post-implementation-review.md`](../docs/research/2026-03-23-adv-diag-1-adversary-sim-status-truth-post-implementation-review.md), [`../docs/research/2026-03-23-scrapling-non-human-category-capability-review.md`](../docs/research/2026-03-23-scrapling-non-human-category-capability-review.md)
 
 ## P1 Verified Bot Identity And Web Bot Auth Foundation
 

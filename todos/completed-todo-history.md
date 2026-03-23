@@ -4,6 +4,25 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-23)
 
+### Scrapling Capability Planning: Request-Native Taxonomy Expansion Before Monitoring
+
+- [x] Audited the canonical non-human taxonomy against Scrapling's official capability surface and Shuma's current shared-host worker/runtime contract, then wrote a new research note, implementation plan, and backlog sequence for expanding Scrapling only into the request-native categories it can genuinely own before `MON-OVERHAUL-1`.
+- [x] Why:
+  - the current repo contract still treated Scrapling as indexing-only, even though the official Scrapling request surface and Shuma's own worker boundary indicate it can credibly own more of the request-native taxonomy.
+  - Monitoring is supposed to project settled machine-first truth, so letting `MON-OVERHAUL-1` proceed before this review would have risked baking the older indexing-only lane story into the next operator-facing surfaces.
+  - the cleanest path was a planning-only tranche that separates implementation-ready request-native expansion from the still-unproven browser-runtime possibility, rather than silently broadening Scrapling's claim.
+- [x] Evidence:
+  - `docs/research/2026-03-23-scrapling-non-human-category-capability-review.md`
+  - `docs/plans/2026-03-23-scrapling-request-native-category-fulfillment-implementation-plan.md`
+  - `docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`
+  - `docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`
+  - `docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`
+  - `docs/research/README.md`
+  - `docs/plans/README.md`
+  - `todos/todo.md`
+  - `todos/blocked-todo.md`
+  - `git diff --check`
+
 ### Docs Front Door Housekeeping: Rename `docs/index.md` To `docs/README.md`
 
 - [x] Renamed the docs folder front door from `docs/index.md` to `docs/README.md` so GitHub renders it automatically when readers open the `docs/` directory, and repaired the backlinks across the repo so the new filename is the canonical docs entrypoint.
