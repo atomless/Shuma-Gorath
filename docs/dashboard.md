@@ -17,15 +17,15 @@ The dashboard uses URL hash routes:
 
 - `#monitoring` - [`dashboard-tabs/monitoring.md`](dashboard-tabs/monitoring.md)
 - `#ip-bans` - [`dashboard-tabs/ip-bans.md`](dashboard-tabs/ip-bans.md)
-- `#status` - [`dashboard-tabs/status.md`](dashboard-tabs/status.md)
 - `#red-team` - [`dashboard-tabs/red-team.md`](dashboard-tabs/red-team.md)
+- `#tuning` - [`dashboard-tabs/tuning.md`](dashboard-tabs/tuning.md)
 - `#verification` - [`dashboard-tabs/verification.md`](dashboard-tabs/verification.md)
 - `#traps` - [`dashboard-tabs/traps.md`](dashboard-tabs/traps.md)
 - `#rate-limiting` - [`dashboard-tabs/rate-limiting.md`](dashboard-tabs/rate-limiting.md)
 - `#geo` - [`dashboard-tabs/geo.md`](dashboard-tabs/geo.md)
 - `#fingerprinting` - [`dashboard-tabs/fingerprinting.md`](dashboard-tabs/fingerprinting.md)
-- `#robots` - [`dashboard-tabs/robots.md`](dashboard-tabs/robots.md)
-- `#tuning` - [`dashboard-tabs/tuning.md`](dashboard-tabs/tuning.md)
+- `#policy` - [`dashboard-tabs/policy.md`](dashboard-tabs/policy.md)
+- `#status` - [`dashboard-tabs/status.md`](dashboard-tabs/status.md)
 - `#advanced` - [`dashboard-tabs/advanced.md`](dashboard-tabs/advanced.md)
 - `#diagnostics` - [`dashboard-tabs/diagnostics.md`](dashboard-tabs/diagnostics.md)
 

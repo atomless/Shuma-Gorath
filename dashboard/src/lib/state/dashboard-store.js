@@ -22,7 +22,7 @@ export const TAB_REFRESH_INTERVAL_MS = Object.freeze({
   'rate-limiting': 60000,
   geo: 60000,
   fingerprinting: 60000,
-  robots: 60000,
+  policy: 60000,
   tuning: 60000
 });
 export const RUNTIME_TELEMETRY_ROLLING_WINDOW_SIZE = 20;

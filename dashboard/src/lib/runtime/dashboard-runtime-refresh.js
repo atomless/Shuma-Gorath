@@ -1090,12 +1090,12 @@ export function createDashboardRefreshRuntime(options = {}) {
     }
   }
 
-  const refreshRobotsTab = (reason = 'manual', runtimeOptions = {}) =>
+  const refreshPolicyTab = (reason = 'manual', runtimeOptions = {}) =>
     refreshConfigBackedTab(
-      'robots',
+      'policy',
       reason,
-      'Loading robots policy...',
-      'No robots config snapshot available yet.',
+      'Loading policy controls...',
+      'No policy config snapshot available yet.',
       runtimeOptions
     );
 
@@ -1132,7 +1132,7 @@ export function createDashboardRefreshRuntime(options = {}) {
     'rate-limiting': refreshRateLimitingTab,
     geo: refreshGeoTab,
     fingerprinting: refreshFingerprintingTab,
-    robots: refreshRobotsTab,
+    policy: refreshPolicyTab,
     tuning: refreshTuningTab
   });
 
@@ -1190,7 +1190,7 @@ export function createDashboardRefreshRuntime(options = {}) {
     refreshRateLimitingTab,
     refreshGeoTab,
     refreshFingerprintingTab,
-    refreshRobotsTab,
+    refreshPolicyTab,
     refreshTuningTab,
     refreshDashboardForTab,
     refreshActiveTab

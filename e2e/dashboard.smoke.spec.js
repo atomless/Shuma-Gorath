@@ -4,8 +4,8 @@ const { seedDashboardData } = require("./seed-dashboard-data");
 const BASE_URL = process.env.SHUMA_BASE_URL || "http://127.0.0.1:3000";
 const API_KEY = (process.env.SHUMA_API_KEY || "").trim();
 const FORWARDED_IP_SECRET = (process.env.SHUMA_FORWARDED_IP_SECRET || "").trim();
-const DASHBOARD_TABS = Object.freeze(["monitoring", "ip-bans", "red-team", "status", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "robots", "tuning", "advanced", "diagnostics"]);
-const ADMIN_TABS = Object.freeze(["ip-bans", "red-team", "status", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "robots", "tuning", "advanced", "diagnostics"]);
+const DASHBOARD_TABS = Object.freeze(["monitoring", "ip-bans", "red-team", "tuning", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "policy", "status", "advanced", "diagnostics"]);
+const ADMIN_TABS = Object.freeze(["ip-bans", "red-team", "tuning", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "policy", "status", "advanced", "diagnostics"]);
 const VERIFICATION_RESTORE_PATHS = Object.freeze([
   "js_required_enforced"
 ]);
@@ -2998,6 +2998,30 @@ test("tab keyboard navigation updates hash and selected state", async ({ page })
   await assertActiveTabPanelVisibility(page, "monitoring");
 });
 
+test("tab bar reflects the canonical information architecture labels and order", async ({ page }) => {
+  await openDashboard(page);
+
+  const tabLabels = await page.locator(".dashboard-tabs .dashboard-tab-link").evaluateAll((elements) =>
+    elements.map((element) => String(element.textContent || "").replace(/\s+/g, " ").trim())
+  );
+
+  expect(tabLabels).toEqual([
+    "Monitoring",
+    "IP Bans",
+    "Red Team",
+    "Tuning",
+    "Verification",
+    "Traps",
+    "Rate Limiting",
+    "GEO",
+    "Fingerprinting",
+    "Policy",
+    "Status",
+    "Advanced",
+    "Diagnostics"
+  ]);
+});
+
 test("tab states surface loading and data-ready transitions across all tabs", async ({ page }) => {
   await openDashboard(page);
   await openTab(page, "ip-bans");
@@ -3283,10 +3307,10 @@ test("fingerprinting tab hides Akamai controls outside edge-fermyon posture", as
   await expect(page.locator("#save-fingerprinting-config")).toBeHidden();
 });
 
-test("robots tab save flows cover robots serving and AI policy controls", async ({ page, request }) => {
+test("policy tab save flows cover robots serving and AI policy controls", async ({ page, request }) => {
   await withRestoredAdminConfig(request, ROBOTS_RESTORE_PATHS, async () => {
     await openDashboard(page);
-    await openTab(page, "robots");
+    await openTab(page, "policy");
 
     const saveButton = page.locator("#save-robots-config");
     await expect(saveButton).toBeHidden();
@@ -3347,7 +3371,7 @@ test("diagnostics tab surfaces tab-scoped error when consolidated monitoring fet
   );
 });
 
-test("shared config endpoint failures surface per-tab errors for status/verification/advanced/fingerprinting/robots/tuning", async ({ page }) => {
+test("shared config endpoint failures surface per-tab errors for status/verification/advanced/fingerprinting/policy/tuning", async ({ page }) => {
   const assertSharedConfigErrorOnInitialTab = async (tab, message) => {
     await page.route("**/admin/config", async (route) => {
       if (route.request().method() !== "GET") {
@@ -3369,7 +3393,7 @@ test("shared config endpoint failures surface per-tab errors for status/verifica
   await assertSharedConfigErrorOnInitialTab("verification", "config endpoint outage");
   await assertSharedConfigErrorOnInitialTab("advanced", "advanced endpoint outage");
   await assertSharedConfigErrorOnInitialTab("fingerprinting", "fingerprinting endpoint outage");
-  await assertSharedConfigErrorOnInitialTab("robots", "robots endpoint outage");
+  await assertSharedConfigErrorOnInitialTab("policy", "robots endpoint outage");
   await assertSharedConfigErrorOnInitialTab("tuning", "tuning endpoint outage");
 });
 

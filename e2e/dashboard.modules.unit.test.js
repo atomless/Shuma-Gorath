@@ -1258,14 +1258,14 @@ test('dashboard state and store contracts remain immutable and bounded with hear
       'monitoring',
       'ip-bans',
       'red-team',
-      'status',
+      'tuning',
       'verification',
       'traps',
       'rate-limiting',
       'geo',
       'fingerprinting',
-      'robots',
-      'tuning',
+      'policy',
+      'status',
       'advanced',
       'diagnostics'
     ]);
@@ -1273,14 +1273,14 @@ test('dashboard state and store contracts remain immutable and bounded with hear
       'monitoring',
       'ip-bans',
       'red-team',
-      'status',
+      'tuning',
       'verification',
       'traps',
       'rate-limiting',
       'geo',
       'fingerprinting',
-      'robots',
-      'tuning',
+      'policy',
+      'status',
       'advanced',
       'diagnostics'
     ]);
@@ -5273,16 +5273,16 @@ test('dashboard smoke soak test owns an explicit timeout budget', () => {
   );
 });
 
-test('dashboard smoke spec keeps status and red-team tab order aligned with the canonical registry', () => {
+test('dashboard smoke spec keeps the tab information architecture aligned with the canonical registry', () => {
   const source = fs.readFileSync(path.join(__dirname, 'dashboard.smoke.spec.js'), 'utf8');
 
   assert.match(
     source,
-    /const DASHBOARD_TABS = Object\.freeze\(\["monitoring", "ip-bans", "red-team", "status", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "robots", "tuning", "advanced", "diagnostics"\]\);/
+    /const DASHBOARD_TABS = Object\.freeze\(\["monitoring", "ip-bans", "red-team", "tuning", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "policy", "status", "advanced", "diagnostics"\]\);/
   );
   assert.match(
     source,
-    /const ADMIN_TABS = Object\.freeze\(\["ip-bans", "red-team", "status", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "robots", "tuning", "advanced", "diagnostics"\]\);/
+    /const ADMIN_TABS = Object\.freeze\(\["ip-bans", "red-team", "tuning", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "policy", "status", "advanced", "diagnostics"\]\);/
   );
 });
 
@@ -5664,7 +5664,7 @@ test('monitoring overview stats labels retain explicit window semantics', () => 
 test('dashboard native runtime owns session heartbeat, tab normalization, and action exports', () => {
   const source = fs.readFileSync(DASHBOARD_NATIVE_RUNTIME_PATH, 'utf8');
 
-  assert.match(source, /const DASHBOARD_TABS = Object\.freeze\(\['monitoring', 'ip-bans', 'status', 'red-team', 'verification', 'traps', 'rate-limiting', 'geo', 'fingerprinting', 'robots', 'tuning', 'advanced', 'diagnostics'\]\);/);
+  assert.match(source, /const DASHBOARD_TABS = Object\.freeze\(\['monitoring', 'ip-bans', 'red-team', 'tuning', 'verification', 'traps', 'rate-limiting', 'geo', 'fingerprinting', 'policy', 'status', 'advanced', 'diagnostics'\]\);/);
   assert.match(source, /createDashboardRefreshRuntime/);
   assert.match(source, /const CONNECTION_HEARTBEAT_PATH = '\/admin\/session';/);
   assert.match(source, /function runConnectionHeartbeat\(reason = 'manual'\)/);
@@ -5713,6 +5713,9 @@ test('dashboard refresh runtime owns bounded cache, delta, and red-team monitori
   assert.match(source, /if \(!isConfigSnapshotEmpty\(existingConfig\) && !isConfigRuntimeSnapshotEmpty\(existingRuntime\)\) \{/);
   assert.match(source, /const refreshVerificationTab = \(reason = 'manual'/);
   assert.match(source, /const refreshRedTeamTab = async \(reason = 'manual', runtimeOptions = \{\}\) => \{/);
+  assert.match(source, /const refreshPolicyTab = \(reason = 'manual', runtimeOptions = \{\}\) =>/);
+  assert.match(source, /policy:\s*refreshPolicyTab,/);
+  assert.doesNotMatch(source, /refreshRobotsTab/);
   assert.match(source, /if \(reason === 'auto-refresh'\) \{/);
   assert.match(
     source,

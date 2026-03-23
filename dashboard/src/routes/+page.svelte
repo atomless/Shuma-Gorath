@@ -64,7 +64,7 @@
     'rate-limiting': 'Loading rate limiting controls...',
     geo: 'Loading GEO controls...',
     fingerprinting: 'Loading fingerprinting controls...',
-    robots: 'Loading robots policy...',
+    policy: 'Loading policy controls...',
     tuning: 'Loading tuning values...'
   });
   const AUTO_REFRESH_INTERVAL_MS = 1000;
@@ -1045,9 +1045,9 @@
   async function onRobotsPreview(patch = null) {
     return getDashboardRobotsPreview(patch, {
       telemetry: {
-        tab: 'robots',
+        tab: 'policy',
         reason: 'preview',
-        source: 'robots-preview'
+        source: 'policy-preview'
       }
     });
   }
@@ -1168,8 +1168,8 @@
             Rate Limiting
           {:else if tab === 'geo'}
             <abbr title="Geolocation">GEO</abbr>
-          {:else if tab === 'robots'}
-            Robots.txt
+          {:else if tab === 'policy'}
+            Policy
           {:else}
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
           {/if}
@@ -1444,10 +1444,10 @@
         <svelte:component
           this={RobotsTabComponent}
           managed={true}
-          isActive={activeTabKey === 'robots'}
-          tabStatus={tabStatus.robots || {}}
-          noticeText={paneNoticeValues.robots?.text || ''}
-          noticeKind={paneNoticeValues.robots?.kind || 'info'}
+          isActive={activeTabKey === 'policy'}
+          tabStatus={tabStatus.policy || {}}
+          noticeText={paneNoticeValues.policy?.text || ''}
+          noticeKind={paneNoticeValues.policy?.kind || 'info'}
           configSnapshot={snapshots.config}
           configRuntimeSnapshot={snapshots.configRuntime}
           configVersion={snapshotVersions.config || 0}
@@ -1456,14 +1456,14 @@
         />
       {:else}
         <section
-          id="dashboard-panel-robots"
+          id="dashboard-panel-policy"
           class="admin-group"
-          data-dashboard-tab-panel="robots"
-          aria-labelledby="dashboard-tab-robots"
-          hidden={activeTabKey !== 'robots'}
-          aria-hidden={activeTabKey === 'robots' ? 'false' : 'true'}
+          data-dashboard-tab-panel="policy"
+          aria-labelledby="dashboard-tab-policy"
+          hidden={activeTabKey !== 'policy'}
+          aria-hidden={activeTabKey === 'policy' ? 'false' : 'true'}
         >
-          <p class="message info">Loading robots policy...</p>
+          <p class="message info">Loading policy controls...</p>
         </section>
       {/if}
       {#if TuningTabComponent}

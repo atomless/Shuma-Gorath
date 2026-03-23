@@ -4,6 +4,24 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-23)
 
+### Dashboard: Correct tab information architecture before Monitoring overhaul
+
+- [x] Reordered the dashboard tabs so `Tuning` now sits immediately after `Red Team`, `Status` now sits immediately before `Advanced`, and the former `Robots.txt` tab is now presented as `Policy` with a matching `#policy` route and canonical tab contract.
+- [x] Why:
+  - before `MON-OVERHAUL-1`, the dashboard information architecture needed to feel closer to the actual operator workflow: adversary activity next to tuning, lower-level runtime status adjacent to advanced controls, and crawler-policy controls described by their operator meaning instead of by the literal `robots.txt` file name.
+  - the cleanest pre-launch move was to rename the tab contract itself from `robots` to `policy` and update the canonical tab registry, route shell, smoke specs, and dashboard docs together rather than carrying a stale internal tab identifier forward.
+- [x] Evidence:
+  - `dashboard/src/lib/domain/dashboard-state.js`
+  - `dashboard/src/routes/+page.svelte`
+  - `dashboard/src/lib/runtime/dashboard-runtime-refresh.js`
+  - `dashboard/src/lib/runtime/dashboard-native-runtime.js`
+  - `dashboard/src/lib/components/dashboard/RobotsTab.svelte`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `e2e/dashboard.smoke.spec.js`
+  - `docs/dashboard-tabs/README.md`
+  - `docs/dashboard-tabs/policy.md`
+  - `docs/dashboard.md`
+
 ### Docs: Reflect recent adversary and verified-identity truth in operator docs
 
 - [x] Updated the operator-facing docs to reflect the recent adversary and verified-identity truth work: `GET /admin/adversary-sim/status` now documents `truth_basis` and `persisted_event_evidence`, the current architecture reference now calls out verified-identity taxonomy crosswalk and lower-bound status recovery, and configuration notes now explain the landed verified-identity category projection plus the later calibration follow-ons.

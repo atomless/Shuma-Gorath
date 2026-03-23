@@ -1,11 +1,11 @@
-# Dashboard Tab: Robots.txt
+# Dashboard Tab: Policy
 
-Route: `#robots`  
+Route: `#policy`  
 Component: [`dashboard/src/lib/components/dashboard/RobotsTab.svelte`](../../dashboard/src/lib/components/dashboard/RobotsTab.svelte)
 
 Purpose:
 
-- Configure served `robots.txt` policy and preview current/unsaved output.
+- Configure served `robots.txt` policy and preview current or unsaved output.
 
 Panels and controls:
 
@@ -17,7 +17,7 @@ Panels and controls:
   - restrict search engines (`ai_policy_allow_search_engines`, inverse of UI toggle).
 - Preview controls:
   - direct link to `/robots.txt` for current saved policy,
-  - show/hide preview fed by `POST /admin/robots/preview` with unsaved state.
+  - show or hide preview fed by `POST /admin/robots/preview` with unsaved state.
 
 Preview behavior:
 

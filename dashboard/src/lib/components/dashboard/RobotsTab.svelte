@@ -223,15 +223,15 @@
 </script>
 
 <section
-  id="dashboard-panel-robots"
+  id="dashboard-panel-policy"
   class="admin-group config-edit-pane"
   class:config-edit-pane--dirty={hasUnsavedChanges}
-  data-dashboard-tab-panel="robots"
-  aria-labelledby="dashboard-tab-robots"
+  data-dashboard-tab-panel="policy"
+  aria-labelledby="dashboard-tab-policy"
   hidden={managed ? !isActive : false}
   aria-hidden={managed ? (isActive ? 'false' : 'true') : 'true'}
 >
-  <TabStateMessage tab="robots" status={tabStatus} noticeText={noticeText} noticeKind={noticeKind} />
+  <TabStateMessage tab="policy" status={tabStatus} noticeText={noticeText} noticeKind={noticeKind} />
   <div class="controls-grid controls-grid--config">
     <ConfigRobotsSection
       bind:writable
