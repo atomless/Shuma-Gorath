@@ -4,6 +4,25 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-23)
 
+### Docs: Plan dashboard operator surfacing catch-up before Monitoring overhaul
+
+- [x] Added a research note and implementation-ready sequencing plan for which newly landed backend and machine-first capabilities should be surfaced locally before `MON-OVERHAUL-1` and which should stay owned by Monitoring or Tuning.
+- [x] Queued the new local dashboard tranches `UI-VID-1` and `UI-RED-1`, clarified that Monitoring should own human projection of `operator_snapshot_v1`, `benchmark_results_v1`, and oversight read models, and tightened the Tuning blocker so operator objectives and category posture stay owned by `TUNE-SURFACE-1`.
+- [x] Why:
+  - verified identity and adversary-sim status truth have both outgrown their current hidden or backend-only surfaces.
+  - at the same time, operator snapshot, benchmark, oversight, and operator-objectives surfaces are important enough that they should not be scattered into ad hoc cards ahead of Monitoring and Tuning ownership.
+  - the clean answer is to land a small amount of local tab surfacing now, then keep the larger read-model and control-plane projection work inside the planned `MON-OVERHAUL-1` and `TUNE-SURFACE-1` phases.
+- [x] Evidence:
+  - `docs/research/2026-03-23-dashboard-operator-surfacing-gap-review.md`
+  - `docs/plans/2026-03-23-dashboard-operator-surfacing-sequencing-plan.md`
+  - `docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`
+  - `docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`
+  - `docs/research/README.md`
+  - `docs/plans/README.md`
+  - `todos/todo.md`
+  - `todos/blocked-todo.md`
+  - `git diff --check`
+
 ### Docs: Plan host-impact cost proxy work before Monitoring overhaul
 
 - [x] Added a new research note and execution-ready implementation plan for extending the closed loop from request-and-byte-only suspicious-origin cost toward a truthful latency-shaped host-impact proxy.

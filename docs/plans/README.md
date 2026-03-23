@@ -38,6 +38,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-20-benchmark-suite-v1-design.md`](2026-03-20-benchmark-suite-v1-design.md)
 - [`2026-03-20-benchmark-suite-v1-implementation-plan.md`](2026-03-20-benchmark-suite-v1-implementation-plan.md)
 - [`2026-03-20-monitoring-and-diagnostics-tab-ownership-plan.md`](2026-03-20-monitoring-and-diagnostics-tab-ownership-plan.md)
+- [`2026-03-23-dashboard-operator-surfacing-sequencing-plan.md`](2026-03-23-dashboard-operator-surfacing-sequencing-plan.md)
 - [`2026-03-23-host-impact-cost-proxy-and-benchmark-implementation-plan.md`](2026-03-23-host-impact-cost-proxy-and-benchmark-implementation-plan.md)
 - [`2026-03-23-ban-duration-family-truthfulness-implementation-plan.md`](2026-03-23-ban-duration-family-truthfulness-implementation-plan.md)
 

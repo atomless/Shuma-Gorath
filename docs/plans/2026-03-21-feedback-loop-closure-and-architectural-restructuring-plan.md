@@ -315,13 +315,25 @@ Execution reference: [`2026-03-23-host-impact-cost-proxy-and-benchmark-implement
 
 ## Phase 6: Human Operator Projection
 
+### `UI-VID-1`
+
+Before the larger Monitoring rewrite, add a first-class `Verified Identity` pane to `Verification` so native Web Bot Auth and other verified-identity basics are not Advanced-only.
+
+Execution reference: [`2026-03-23-dashboard-operator-surfacing-sequencing-plan.md`](2026-03-23-dashboard-operator-surfacing-sequencing-plan.md)
+
+### `UI-RED-1`
+
+Before the larger Monitoring rewrite, surface adversary-sim status `truth_basis` and persisted-event recovery details in `Red Team` so operators can tell when counters are direct versus recovered lower-bound truth.
+
+Execution reference: [`2026-03-23-dashboard-operator-surfacing-sequencing-plan.md`](2026-03-23-dashboard-operator-surfacing-sequencing-plan.md)
+
 ### `MON-OVERHAUL-1`
 
-Rebuild Monitoring as the thin human projection over the machine-first contracts after the backend truth, first working closed loop, `ADV-DIAG-1` diagnostics-truth follow-up, the Scrapling request-native category follow-ons, the verified-identity calibration track, and the host-impact cost proxy track are complete.
+Rebuild Monitoring as the thin human projection over the machine-first contracts after the backend truth, first working closed loop, `ADV-DIAG-1` diagnostics-truth follow-up, the Scrapling request-native category follow-ons, the verified-identity calibration track, the host-impact cost proxy track, and the local `UI-VID-1` and `UI-RED-1` tab surfacing slices are complete.
 
 ### `TUNE-SURFACE-1`
 
-Finish the operator control surface once the controller inputs, safe action families, first working agent loop semantics, and adversary-sim diagnostics truth are all aligned, including per-category posture controls over the stable operator-facing taxonomy.
+Finish the operator control surface once the controller inputs, safe action families, first working agent loop semantics, and adversary-sim diagnostics truth are all aligned, including the operator-objectives and per-category posture editor over the stable operator-facing taxonomy.
 
 These phases should not be started early just because the UI can be edited sooner.
 
@@ -343,7 +355,7 @@ Keep the later benchmark-driven LLM code-evolution or PR-generation path behind 
 2. Do not blend structural decomposition and semantic expansion in the same tranche.
 3. Keep the first decomposition slices behavior-preserving and test-focused.
 4. Keep one hotspot file as the primary target per refactor tranche wherever practical.
-5. Do not reopen `MON-OVERHAUL-1`, `TUNE-SURFACE-1`, or `OVR-AGENT-2` until the blockers listed in this plan are satisfied, including protected tuning evidence, category-coverage proof, the settled Scrapling request-native ownership follow-ons, the verified-identity calibration tranches, and the host-impact cost proxy tranches.
+5. Do not reopen `MON-OVERHAUL-1`, `TUNE-SURFACE-1`, or `OVR-AGENT-2` until the blockers listed in this plan are satisfied, including protected tuning evidence, category-coverage proof, the settled Scrapling request-native ownership follow-ons, the verified-identity calibration tranches, the host-impact cost proxy tranches, and the ownership split captured in `UI-VID-1` and `UI-RED-1`.
 6. Treat periodic scheduling and post-sim triggering as adapter paths over one reconcile or agent contract, not as separate controller implementations.
 
 # File-Length And Separation Guardrails
