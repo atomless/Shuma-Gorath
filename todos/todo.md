@@ -22,6 +22,18 @@ Reference context:
 - [`docs/configuration.md`](../docs/configuration.md)
 - [`docs/testing.md`](../docs/testing.md)
 
+### BAN-DUR-1: Make Ban Durations truthful for every shipped ban family
+
+- Reference context:
+  - [`docs/research/2026-03-23-ban-duration-family-truthfulness-review.md`](../docs/research/2026-03-23-ban-duration-family-truthfulness-review.md)
+  - [`docs/plans/2026-03-23-ban-duration-family-truthfulness-implementation-plan.md`](../docs/plans/2026-03-23-ban-duration-family-truthfulness-implementation-plan.md)
+  - [`docs/dashboard-tabs/policy.md`](../docs/dashboard-tabs/policy.md)
+  - [`docs/configuration.md`](../docs/configuration.md)
+- [ ] BAN-DUR-1.1 Add focused failing coverage for the full shipped ban-family set across config/admin parity, runtime duration routing, and Policy-tab rendering.
+- [ ] BAN-DUR-1.2 Expand the canonical `ban_durations` config family to cover every currently shipped ban-producing family and route each runtime ban site through its matching family key.
+- [ ] BAN-DUR-1.3 Make the Policy tab render and save one truthful duration row per shipped ban-producing family, using accurate family labels and shared controls.
+- [ ] BAN-DUR-1.4 Update operator/docs surfaces, perform a post-implementation review, and execute any shortfall found immediately.
+
 ### SIM2-R4-4: Config Seeding Lifecycle and Shadow-Mode Semantics
 
 ## P0 Monitoring Telemetry Foundations
