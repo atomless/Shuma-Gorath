@@ -1040,6 +1040,46 @@ test("dashboard login route remains functional after direct navigation and refre
   assertNoRuntimeFailures(page);
 });
 
+test("logged-out dashboard navigation keeps the auth gate visible until redirect", async ({ page }) => {
+  ensureRuntimeGuard(page);
+
+  let releaseSessionResponse;
+  const sessionResponseReleased = new Promise((resolve) => {
+    releaseSessionResponse = resolve;
+  });
+
+  await page.route("**/admin/session", async (route) => {
+    await sessionResponseReleased;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: {
+        "Cache-Control": "no-store"
+      },
+      body: JSON.stringify({
+        authenticated: false,
+        method: "none",
+        csrf_token: null,
+        access: "none",
+        expires_at: null,
+        runtime_environment: "runtime-dev"
+      })
+    });
+  });
+
+  await page.goto(`${BASE_URL}/dashboard/index.html`);
+
+  await expect(page.locator("#dashboard-auth-gate")).toBeVisible();
+  await expect(page.locator("nav.dashboard-tabs")).toHaveCount(0);
+  await expect(page.locator("#dashboard-panel-monitoring")).toHaveCount(0);
+
+  releaseSessionResponse();
+
+  await expect(page).toHaveURL(/\/dashboard\/login\.html\?next=/);
+  await expect(page.locator("#login-form")).toBeVisible();
+  assertNoRuntimeFailures(page);
+});
+
 test("not-a-bot browser lifecycle captures telemetry and rejects replayed submit", async ({ page, request }) => {
   const configHeaders = buildAdminAuthHeaders("127.0.0.1");
   const currentConfigResponse = await request.get(`${BASE_URL}/admin/config`, {

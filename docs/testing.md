@@ -60,6 +60,7 @@ make test-ip-range-suggestions # Focused IP-range suggestion regression gate (ru
 make test-coverage    # Unit coverage to lcov.info (requires cargo-llvm-cov)
 make test-dashboard-unit # Dashboard module unit tests (Node `node:test`)
 make test-dashboard-adversary-sim-lane-contract # Focused dashboard lane-contract checks for the red-team lane selector + diagnostics
+make test-dashboard-auth-gate # Focused dashboard auth-gate checks for logged-out /dashboard entry
 make test-dashboard-tab-information-architecture # Focused dashboard unit checks for tab order and source-of-truth tab registry alignment
 make test-dashboard-policy-pane-ownership # Focused dashboard unit checks that Policy owns the moved panes and Tuning stays botness-only
 make test-ban-duration-family-truth # Focused config/runtime/Policy-tab ban-duration family parity checks

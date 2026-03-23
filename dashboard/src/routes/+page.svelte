@@ -95,6 +95,7 @@
   let runtimeTelemetry = dashboardStore.getRuntimeTelemetry();
   let storeUnsubscribe = () => {};
   let telemetryUnsubscribe = () => {};
+  let authBootstrapState = 'pending';
   let runtimeReady = false;
   let dashboardLoaded = false;
   let runtimeError = '';
@@ -668,11 +669,13 @@
         initialTab: normalizeTab(data?.initialHashTab || ''),
         basePath: dashboardBasePath
       });
+      authBootstrapState = bootstrapped === true ? 'authenticated' : 'redirecting';
       runtimeReady = bootstrapped === true;
       if (bootstrapped === true) {
         await adversarySimController.bootstrap();
       }
     } catch (error) {
+      authBootstrapState = 'error';
       runtimeError = error && error.message ? error.message : 'Dashboard bootstrap failed.';
     }
   });
@@ -1101,6 +1104,22 @@
 <div id="lost-connection" aria-live="polite" aria-hidden={lostConnectionVisible ? 'false' : 'true'}>
   <div id="connection-status">offline!</div>
 </div>
+{#if authBootstrapState !== 'authenticated'}
+  <div
+    id="dashboard-auth-gate"
+    class="container panel panel-border"
+    data-dashboard-runtime-mode="native"
+    aria-live="polite"
+  >
+    <section class="section">
+      {#if authBootstrapState === 'error' && runtimeError}
+        <p class="message error">{runtimeError}</p>
+      {:else}
+        <p class="message info">Checking admin session...</p>
+      {/if}
+    </section>
+  </div>
+{:else}
   <div class="container panel panel-border" data-dashboard-runtime-mode="native">
   <div id="shadow-mode-banner" class="shadow-mode-banner" class:hidden={!shadowModeEnabled}>
     SHADOW MODE ACTIVE - Logging only, no active defences
@@ -1559,3 +1578,4 @@
     <p class="message info">Loading dashboard runtime...</p>
   {/if}
 </div>
+{/if}

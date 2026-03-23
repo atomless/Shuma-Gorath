@@ -5445,6 +5445,22 @@ test('login route syncs disconnected + runtime classes onto html root and gates 
   assert.match(source, /apiKeyInput\.focus\(\)/);
 });
 
+test('dashboard route keeps a neutral auth gate mounted until session bootstrap authenticates', () => {
+  const source = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/routes/+page.svelte'),
+    'utf8'
+  );
+
+  assert.match(source, /let authBootstrapState = 'pending';/);
+  assert.match(source, /id="dashboard-auth-gate"/);
+  assert.match(source, /\{#if authBootstrapState !== 'authenticated'\}/);
+  assert.match(source, /Checking admin session/);
+  assert.match(
+    source,
+    /\{:else\}\s*<div class="container panel panel-border" data-dashboard-runtime-mode="native">/s
+  );
+});
+
 test('login route exposes native password-manager-friendly form-post semantics', () => {
   const source = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/routes/login.html/+page.svelte'),
