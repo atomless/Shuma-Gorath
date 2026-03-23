@@ -4,6 +4,28 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-23)
 
+### SIM-SCR-FIT-2: Implement Scrapling Request Personas
+
+- [x] Extended the shared-host Scrapling worker from a single crawler flow into three bounded request-native personas: `crawler`, `bulk_scraper`, and `http_agent`, while preserving the existing scope fence, seed contract, and signed simulation telemetry boundary.
+- [x] Why:
+  - `SIM-SCR-FIT-1` froze truthful ownership and the typed `fulfillment_mode` seam, but the worker still behaved like one undifferentiated crawler, which would have made the ownership claim too abstract for the next coverage-receipt tranche.
+  - the next Monitoring work is supposed to project proven machine-first semantics, so Shuma needed the actual request-native persona behaviors landed before any later operator-facing surfacing could truthfully describe them.
+  - the cleanest shape for this slice was to keep Scrapling strictly request-native: preserve the crawler path, add bounded bulk-scraper retrieval, add bounded direct HTTP-agent traffic, and keep browser-runtime behavior explicitly out of scope.
+- [x] Evidence:
+  - `scripts/supervisor/scrapling_worker.py`
+  - `scripts/tests/test_scrapling_worker.py`
+  - `scripts/tests/test_adversarial_lane_contract.py`
+  - `src/admin/adversary_sim_worker_plan.rs`
+  - `src/admin/api.rs`
+  - `Makefile`
+  - `docs/adversarial-operator-guide.md`
+  - `docs/testing.md`
+  - `docs/research/2026-03-23-sim-scr-fit-2-request-personas-post-implementation-review.md`
+  - `make test-adversary-sim-scrapling-worker`
+  - `make test-adversarial-lane-contract`
+  - `make test-adversary-sim-scrapling-category-fit`
+  - `git diff --check`
+
 ### SIM-SCR-FIT-1: Freeze Scrapling Request-Native Category Ownership
 
 - [x] Expanded Scrapling's truthful near-term ownership from indexing-only to the request-native categories it can genuinely own on the current shared-host worker boundary: `indexing_bot`, `ai_scraper_bot`, and `http_agent`, while keeping browser-driven and delegated-agent categories outside Scrapling ownership.

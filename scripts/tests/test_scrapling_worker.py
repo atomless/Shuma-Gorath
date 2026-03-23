@@ -12,6 +12,7 @@ import time
 import unittest
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qs, urljoin, urlsplit
 
 import scripts.tests.adversarial_simulation_runner as sim_runner
 import scripts.tests.shared_host_scope as shared_host_scope
@@ -50,10 +51,16 @@ class _RecordingHandler(http.server.BaseHTTPRequestHandler):
         return
 
     def _record(self) -> None:
+        body = b""
+        length = int(self.headers.get("content-length") or "0")
+        if length > 0:
+            body = self.rfile.read(length)
         self.server.requests_seen.append(
             {
+                "method": self.command,
                 "path": self.path,
                 "headers": {key.lower(): value for key, value in self.headers.items()},
+                "body": body.decode("utf-8", errors="replace"),
             }
         )
 
@@ -81,10 +88,80 @@ class _RecordingHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
+        if self.path.startswith("/catalog"):
+            parsed = urlsplit(self.path)
+            page = parse_qs(parsed.query).get("page", ["1"])[0]
+            next_link = ""
+            if page == "1":
+                next_link = '<a href="/catalog?page=2">next</a><a href="/detail/1">detail</a>'
+            elif page == "2":
+                next_link = '<a href="/detail/2">detail</a>'
+            body = f"<html><body>catalog-{page}{next_link}</body></html>".encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        if self.path in {"/detail/1", "/detail/2"}:
+            body = json.dumps({"path": self.path, "kind": "detail"}).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if self.path == "/redirect-out":
             self.send_response(302)
             self.send_header("Location", "http://evil.example/escape")
             self.end_headers()
+            return
+        if self.path.startswith("/agent/ping"):
+            body = json.dumps({"ok": True, "path": self.path}).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        if self.path == "/agent/redirect":
+            self.send_response(302)
+            self.send_header("Location", "/agent/final")
+            self.end_headers()
+            return
+        if self.path == "/agent/final":
+            body = json.dumps({"ok": True, "path": self.path}).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        self.send_response(404)
+        self.end_headers()
+
+    def do_POST(self) -> None:  # noqa: N802
+        self._record()
+        if self.path == "/agent/submit":
+            body = json.dumps({"accepted": True}).encode("utf-8")
+            self.send_response(201)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        self.send_response(404)
+        self.end_headers()
+
+    def do_PUT(self) -> None:  # noqa: N802
+        self._record()
+        if self.path == "/agent/update":
+            body = json.dumps({"updated": True}).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
             return
         self.send_response(404)
         self.end_headers()
@@ -116,7 +193,16 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
         self.inventory_path.write_text(json.dumps(inventory), encoding="utf-8")
         self.crawldir = self.temp_dir / "crawldir"
 
-        self.beat_payload = {
+        self.beat_payload = self._make_beat_payload("crawler", ["indexing_bot"])
+
+    def _make_beat_payload(
+        self,
+        fulfillment_mode: str,
+        category_targets: list[str],
+        *,
+        max_requests: int = 4,
+    ) -> dict[str, Any]:
+        return {
             "dispatch_mode": "scrapling_worker",
             "worker_plan": {
                 "schema_version": "adversary-sim-scrapling-worker-plan.v1",
@@ -124,10 +210,10 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
                 "tick_id": "tick-001",
                 "lane": "scrapling_traffic",
                 "sim_profile": "scrapling_runtime_lane",
-                "fulfillment_mode": "crawler",
-                "category_targets": ["indexing_bot"],
+                "fulfillment_mode": fulfillment_mode,
+                "category_targets": category_targets,
                 "tick_started_at": int(time.time()),
-                "max_requests": 4,
+                "max_requests": max_requests,
                 "max_depth": 2,
                 "max_bytes": 65536,
                 "max_ms": 4000,
@@ -149,6 +235,7 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
             sim_telemetry_secret=SIM_SECRET,
         )
         self.assertEqual(result["lane"], "scrapling_traffic")
+        self.assertEqual(result["fulfillment_mode"], "crawler")
         self.assertEqual(result["failure_class"], None, msg=json.dumps(result, indent=2))
         self.assertGreaterEqual(result["generated_requests"], 2, msg=json.dumps(result, indent=2))
         self.assertEqual(result["scope_rejections"]["host_not_allowed"], 1)
@@ -156,6 +243,7 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
         self.assertIn("/", [entry["path"] for entry in self.httpd.requests_seen])
         self.assertIn("/page", [entry["path"] for entry in self.httpd.requests_seen])
         for entry in self.httpd.requests_seen:
+            self.assertEqual(entry["method"], "GET")
             headers = entry["headers"]
             self.assertNotIn("authorization", headers)
             self.assertNotIn("x-forwarded-for", headers)
@@ -177,6 +265,67 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
             self.assertTrue(headers.get(sim_runner.SIM_TAG_HEADER_TIMESTAMP))
             self.assertTrue(headers.get(sim_runner.SIM_TAG_HEADER_NONCE))
             self.assertTrue(headers.get(sim_runner.SIM_TAG_HEADER_SIGNATURE))
+
+    def test_execute_worker_plan_bulk_scraper_fetches_pagination_targets(self) -> None:
+        self.assertIsNotNone(scrapling_worker, "worker module missing")
+        beat_payload = self._make_beat_payload(
+            "bulk_scraper",
+            ["ai_scraper_bot"],
+            max_requests=5,
+        )
+        result = scrapling_worker.execute_worker_plan(
+            beat_payload,
+            scope_descriptor_path=self.descriptor_path,
+            seed_inventory_path=self.inventory_path,
+            crawldir=self.crawldir,
+            sim_telemetry_secret=SIM_SECRET,
+        )
+
+        self.assertEqual(result["lane"], "scrapling_traffic")
+        self.assertEqual(result["fulfillment_mode"], "bulk_scraper")
+        self.assertEqual(result["failure_class"], None, msg=json.dumps(result, indent=2))
+        self.assertGreaterEqual(result["generated_requests"], 3, msg=json.dumps(result, indent=2))
+        paths = [entry["path"] for entry in self.httpd.requests_seen]
+        self.assertIn("/catalog?page=1", paths)
+        self.assertIn("/catalog?page=2", paths)
+        self.assertTrue(any(path.startswith("/detail/") for path in paths))
+        self.assertTrue(all(entry["method"] == "GET" for entry in self.httpd.requests_seen))
+
+    def test_execute_worker_plan_http_agent_uses_method_mix_and_redirect_followup(self) -> None:
+        self.assertIsNotNone(scrapling_worker, "worker module missing")
+        beat_payload = self._make_beat_payload(
+            "http_agent",
+            ["http_agent"],
+            max_requests=6,
+        )
+        result = scrapling_worker.execute_worker_plan(
+            beat_payload,
+            scope_descriptor_path=self.descriptor_path,
+            seed_inventory_path=self.inventory_path,
+            crawldir=self.crawldir,
+            sim_telemetry_secret=SIM_SECRET,
+        )
+
+        self.assertEqual(result["lane"], "scrapling_traffic")
+        self.assertEqual(result["fulfillment_mode"], "http_agent")
+        self.assertEqual(result["failure_class"], None, msg=json.dumps(result, indent=2))
+        methods = [entry["method"] for entry in self.httpd.requests_seen]
+        self.assertIn("GET", methods)
+        self.assertIn("POST", methods)
+        self.assertIn("PUT", methods)
+        paths = [entry["path"] for entry in self.httpd.requests_seen]
+        self.assertIn("/agent/redirect", paths)
+        self.assertIn("/agent/final", paths)
+        submit = next(entry for entry in self.httpd.requests_seen if entry["path"] == "/agent/submit")
+        self.assertIn('"mode":"http_agent"', submit["body"])
+        self.assertEqual(
+            submit["headers"].get("content-type"),
+            "application/json",
+        )
+        self.assertIn(
+            "shuma_agent_mode=http_agent",
+            submit["headers"].get("cookie", ""),
+        )
 
     def test_cli_writes_result_file_for_scrapling_worker_plan(self) -> None:
         beat_path = self.temp_dir / "beat.json"

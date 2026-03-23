@@ -1215,6 +1215,7 @@ test-adversarial-preflight: ## Validate adversarial required secrets and setup p
 test-adversarial-lane-contract: ## Validate black-box lane capability contract parity across deterministic/container tooling
 	@echo "$(CYAN)🧪 Validating adversarial lane capability contract...$(NC)"
 	@python3 scripts/tests/check_adversarial_lane_contract.py
+	@python3 -m unittest scripts/tests/test_adversarial_lane_contract.py
 
 test-adversarial-runner-architecture: ## Run focused adversarial runner CLI, unit, and validate-only contract checks
 	@echo "$(CYAN)🧪 Running adversarial runner architecture checks...$(NC)"

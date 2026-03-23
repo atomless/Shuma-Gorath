@@ -43,6 +43,7 @@ pub struct ScraplingWorkerResult {
     pub run_id: String,
     pub tick_id: String,
     pub lane: RuntimeLane,
+    pub fulfillment_mode: String,
     pub worker_id: String,
     pub tick_started_at: u64,
     pub tick_completed_at: u64,

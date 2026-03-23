@@ -35,6 +35,9 @@ class WorkerConfigError(ValueError):
     """Raised when required worker inputs are missing or invalid."""
 
 
+SCRAPLING_FULFILLMENT_MODES = {"crawler", "bulk_scraper", "http_agent"}
+
+
 def _load_json(path: Path) -> dict[str, Any]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
@@ -75,6 +78,25 @@ def _env_or_arg(value: str | None, env_name: str) -> str | None:
     return env_value or None
 
 
+def _normalize_category_targets(raw_targets: Any) -> list[str]:
+    if not isinstance(raw_targets, list):
+        return []
+    normalized: list[str] = []
+    for value in raw_targets:
+        item = str(value or "").strip()
+        if item and item not in normalized:
+            normalized.append(item)
+    return normalized
+
+
+def _expected_category_targets_for_mode(fulfillment_mode: str) -> list[str]:
+    return {
+        "crawler": ["indexing_bot"],
+        "bulk_scraper": ["ai_scraper_bot"],
+        "http_agent": ["http_agent"],
+    }.get(fulfillment_mode, [])
+
+
 def _build_failure_result(
     beat_payload: dict[str, Any],
     *,
@@ -88,6 +110,7 @@ def _build_failure_result(
         "run_id": str(plan.get("run_id") or ""),
         "tick_id": str(plan.get("tick_id") or ""),
         "lane": str(plan.get("lane") or "scrapling_traffic"),
+        "fulfillment_mode": str(plan.get("fulfillment_mode") or ""),
         "worker_id": socket.gethostname(),
         "tick_started_at": int(plan.get("tick_started_at") or now),
         "tick_completed_at": now,
@@ -107,7 +130,16 @@ def _build_failure_result(
     }
 
 
-def _signed_headers(secret: str, *, run_id: str, profile: str, lane: str, seq: int) -> dict[str, str]:
+def _signed_headers(
+    secret: str,
+    *,
+    run_id: str,
+    profile: str,
+    lane: str,
+    fulfillment_mode: str,
+    seq: int,
+    extra_headers: dict[str, str] | None = None,
+) -> dict[str, str]:
     timestamp = str(int(time.time()))
     nonce = f"{run_id}:{profile}:{lane}:{seq}:{timestamp}"
     signature = sim_tag_helpers.sign_sim_tag(
@@ -125,8 +157,11 @@ def _signed_headers(secret: str, *, run_id: str, profile: str, lane: str, seq: i
         sim_tag_helpers.SIM_TAG_HEADER_TIMESTAMP: timestamp,
         sim_tag_helpers.SIM_TAG_HEADER_NONCE: nonce,
         sim_tag_helpers.SIM_TAG_HEADER_SIGNATURE: signature,
-        "user-agent": f"ShumaScraplingWorker/1.0 lane={lane}",
+        "user-agent": f"ShumaScraplingWorker/1.0 lane={lane} mode={fulfillment_mode}",
     }
+    if extra_headers:
+        headers.update(extra_headers)
+    return headers
 
 
 def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base: Any):
@@ -157,6 +192,7 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
             self.tick_id = str(plan.get("tick_id") or "")
             self.lane = str(plan.get("lane") or "scrapling_traffic")
             self.sim_profile = str(plan.get("sim_profile") or "scrapling_runtime_lane")
+            self.fulfillment_mode = str(plan.get("fulfillment_mode") or "crawler")
             self.deadline = time.monotonic() + (self.max_ms / 1000.0)
             self.sim_telemetry_secret = sim_telemetry_secret
             self.request_sequence = 0
@@ -195,6 +231,7 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
                 run_id=self.run_id,
                 profile=self.sim_profile,
                 lane=self.lane,
+                fulfillment_mode=self.fulfillment_mode,
                 seq=self.request_sequence,
             )
 
@@ -303,6 +340,317 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
     return ShumaScraplingSpider
 
 
+class _DirectPersonaTracker:
+    def __init__(
+        self,
+        *,
+        plan: dict[str, Any],
+        descriptor: shared_host_scope.SharedHostScopeDescriptor,
+        sim_telemetry_secret: str,
+    ) -> None:
+        self.plan = plan
+        self.descriptor = descriptor
+        self.max_requests = max(1, int(plan.get("max_requests") or 1))
+        self.max_bytes = max(1, int(plan.get("max_bytes") or 1))
+        self.max_ms = max(1, int(plan.get("max_ms") or 1))
+        self.run_id = str(plan.get("run_id") or "")
+        self.tick_id = str(plan.get("tick_id") or "")
+        self.lane = str(plan.get("lane") or "scrapling_traffic")
+        self.sim_profile = str(plan.get("sim_profile") or "scrapling_runtime_lane")
+        self.fulfillment_mode = str(plan.get("fulfillment_mode") or "")
+        self.deadline = time.monotonic() + (self.max_ms / 1000.0)
+        self.sim_telemetry_secret = sim_telemetry_secret
+        self.request_sequence = 0
+        self.generated_requests = 0
+        self.failed_requests = 0
+        self.bytes_observed = 0
+        self.last_response_status: int | None = None
+        self.last_transport_error: str | None = None
+        self.response_status_count: Counter[str] = Counter()
+        self.scope_rejections: Counter[str] = Counter()
+
+    def should_stop(self) -> bool:
+        return (
+            self.generated_requests >= self.max_requests
+            or self.bytes_observed >= self.max_bytes
+            or time.monotonic() >= self.deadline
+        )
+
+    def next_headers(self, extra_headers: dict[str, str] | None = None) -> dict[str, str]:
+        self.request_sequence += 1
+        return _signed_headers(
+            self.sim_telemetry_secret,
+            run_id=self.run_id,
+            profile=self.sim_profile,
+            lane=self.lane,
+            fulfillment_mode=self.fulfillment_mode,
+            seq=self.request_sequence,
+            extra_headers=extra_headers,
+        )
+
+    def record_rejection(self, reason: str | None) -> None:
+        reason_key = str(reason or "malformed_url").strip() or "malformed_url"
+        self.scope_rejections[reason_key] += 1
+
+    def allowed_request(
+        self,
+        current_url: str,
+        raw_target: str,
+        *,
+        is_redirect: bool,
+    ) -> tuple[bool, str | None]:
+        if is_redirect:
+            decision = shared_host_scope.evaluate_redirect_target(
+                current_url, raw_target, self.descriptor
+            )
+        else:
+            decision = shared_host_scope.evaluate_url_candidate(raw_target, self.descriptor)
+        if not decision.allowed or not decision.normalized_url:
+            self.record_rejection(decision.rejection_reason)
+            return False, None
+        return True, decision.normalized_url
+
+    def record_response(self, response: Any) -> None:
+        self.generated_requests += 1
+        self.last_response_status = int(response.status)
+        body_bytes = bytes(response.body)
+        self.bytes_observed += len(body_bytes)
+        status_key = f"status_{int(response.status)}"
+        self.response_status_count[status_key] += 1
+
+    def record_failure(self, error: Exception) -> None:
+        self.failed_requests += 1
+        self.last_transport_error = f"{type(error).__name__}: {error}"
+
+    def result_payload(self) -> dict[str, Any]:
+        failure_class = "transport" if self.last_transport_error else None
+        return {
+            "schema_version": "adversary-sim-scrapling-worker-result.v1",
+            "run_id": self.run_id,
+            "tick_id": self.tick_id,
+            "lane": self.lane,
+            "fulfillment_mode": self.fulfillment_mode,
+            "worker_id": socket.gethostname(),
+            "tick_started_at": int(self.plan.get("tick_started_at") or int(time.time())),
+            "tick_completed_at": int(time.time()),
+            "generated_requests": self.generated_requests,
+            "failed_requests": self.failed_requests,
+            "last_response_status": self.last_response_status,
+            "failure_class": failure_class,
+            "error": self.last_transport_error,
+            "crawl_stats": {
+                "requests_count": self.generated_requests,
+                "offsite_requests_count": 0,
+                "blocked_requests_count": 0,
+                "response_status_count": dict(self.response_status_count),
+                "response_bytes": self.bytes_observed,
+            },
+            "scope_rejections": dict(sorted(self.scope_rejections.items())),
+        }
+
+
+def _bulk_scraper_request_urls(start_urls: list[str]) -> list[str]:
+    if not start_urls:
+        return []
+    base_url = start_urls[0]
+    ordered = [
+        urljoin(base_url, "/catalog?page=1"),
+        urljoin(base_url, "/catalog?page=2"),
+        urljoin(base_url, "/detail/1"),
+        urljoin(base_url, "/detail/2"),
+    ]
+    deduped: list[str] = []
+    for target in ordered:
+        if target not in deduped:
+            deduped.append(target)
+    return deduped
+
+
+def _execute_bulk_scraper_persona(
+    fetcher_session_cls: Any,
+    *,
+    plan: dict[str, Any],
+    descriptor: shared_host_scope.SharedHostScopeDescriptor,
+    seed_inventory: dict[str, Any],
+    sim_telemetry_secret: str,
+) -> dict[str, Any]:
+    tracker = _DirectPersonaTracker(
+        plan=plan,
+        descriptor=descriptor,
+        sim_telemetry_secret=sim_telemetry_secret,
+    )
+    start_urls = _normalized_start_urls(seed_inventory)
+    request_targets = _bulk_scraper_request_urls(start_urls)
+    visited: set[str] = set()
+    with fetcher_session_cls(
+        follow_redirects=False,
+        timeout=max(1.0, min(30.0, tracker.max_ms / 1000.0)),
+        retries=1,
+        headers={"accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"},
+    ) as session:
+        for raw_target in request_targets:
+            if tracker.should_stop():
+                break
+            allowed, normalized_url = tracker.allowed_request(
+                start_urls[0] if start_urls else raw_target,
+                raw_target,
+                is_redirect=False,
+            )
+            if not allowed or not normalized_url or normalized_url in visited:
+                continue
+            try:
+                response = session.get(
+                    normalized_url,
+                    headers=tracker.next_headers(
+                        {"accept-language": "en-GB,en;q=0.8"}
+                    ),
+                )
+                visited.add(normalized_url)
+                tracker.record_response(response)
+                if tracker.should_stop():
+                    break
+                for href in response.css("a::attr(href)").getall():
+                    if tracker.should_stop():
+                        break
+                    candidate = urljoin(response.url, href)
+                    allowed, discovered_url = tracker.allowed_request(
+                        response.url,
+                        candidate,
+                        is_redirect=False,
+                    )
+                    if not allowed or not discovered_url or discovered_url in visited:
+                        continue
+                    discovered_response = session.get(
+                        discovered_url,
+                        headers=tracker.next_headers(
+                            {"accept-language": "en-GB,en;q=0.8"}
+                        ),
+                    )
+                    visited.add(discovered_url)
+                    tracker.record_response(discovered_response)
+            except Exception as exc:
+                tracker.record_failure(exc)
+                break
+    return tracker.result_payload()
+
+
+def _execute_http_agent_persona(
+    fetcher_session_cls: Any,
+    *,
+    plan: dict[str, Any],
+    descriptor: shared_host_scope.SharedHostScopeDescriptor,
+    seed_inventory: dict[str, Any],
+    sim_telemetry_secret: str,
+) -> dict[str, Any]:
+    tracker = _DirectPersonaTracker(
+        plan=plan,
+        descriptor=descriptor,
+        sim_telemetry_secret=sim_telemetry_secret,
+    )
+    start_urls = _normalized_start_urls(seed_inventory)
+    if not start_urls:
+        raise WorkerConfigError("seed inventory must contain at least one accepted start or hint URL")
+    base_url = start_urls[0]
+    cookies = {"shuma_agent_mode": "http_agent"}
+    requests = [
+        (
+            "get",
+            urljoin(base_url, "/agent/ping?mode=http_agent"),
+            {
+                "headers": {"accept": "application/json"},
+                "cookies": cookies,
+            },
+        ),
+        (
+            "post",
+            urljoin(base_url, "/agent/submit"),
+            {
+                "headers": {
+                    "accept": "application/json",
+                    "content-type": "application/json",
+                },
+                "cookies": cookies,
+                "json": {
+                    "mode": "http_agent",
+                    "run_id": tracker.run_id,
+                    "tick_id": tracker.tick_id,
+                },
+            },
+        ),
+        (
+            "put",
+            urljoin(base_url, "/agent/update"),
+            {
+                "headers": {
+                    "accept": "application/json",
+                    "content-type": "application/json",
+                },
+                "cookies": cookies,
+                "json": {
+                    "mode": "http_agent",
+                    "request_sequence": 3,
+                },
+            },
+        ),
+        (
+            "get",
+            urljoin(base_url, "/agent/redirect"),
+            {
+                "headers": {"accept": "application/json"},
+                "cookies": cookies,
+            },
+        ),
+    ]
+    with fetcher_session_cls(
+        follow_redirects=False,
+        timeout=max(1.0, min(30.0, tracker.max_ms / 1000.0)),
+        retries=1,
+        headers={"accept": "application/json"},
+    ) as session:
+        for method_name, raw_target, request_kwargs in requests:
+            if tracker.should_stop():
+                break
+            allowed, normalized_url = tracker.allowed_request(
+                base_url,
+                raw_target,
+                is_redirect=False,
+            )
+            if not allowed or not normalized_url:
+                continue
+            try:
+                response = getattr(session, method_name)(
+                    normalized_url,
+                    headers=tracker.next_headers(dict(request_kwargs.get("headers") or {})),
+                    cookies=request_kwargs.get("cookies"),
+                    json=request_kwargs.get("json"),
+                    follow_redirects=False,
+                )
+                tracker.record_response(response)
+                location = str(response.headers.get("location") or "").strip()
+                if (
+                    300 <= int(response.status) < 400
+                    and location
+                    and not tracker.should_stop()
+                ):
+                    allowed, redirect_url = tracker.allowed_request(
+                        response.url,
+                        location,
+                        is_redirect=True,
+                    )
+                    if allowed and redirect_url:
+                        redirect_response = session.get(
+                            redirect_url,
+                            headers=tracker.next_headers({"accept": "application/json"}),
+                            cookies=cookies,
+                            follow_redirects=False,
+                        )
+                        tracker.record_response(redirect_response)
+            except Exception as exc:
+                tracker.record_failure(exc)
+                break
+    return tracker.result_payload()
+
+
 def execute_worker_plan(
     beat_payload: dict[str, Any],
     *,
@@ -319,6 +667,17 @@ def execute_worker_plan(
             raise WorkerConfigError("worker_plan schema_version must be adversary-sim-scrapling-worker-plan.v1")
         if str(plan.get("lane") or "").strip() != "scrapling_traffic":
             raise WorkerConfigError("worker_plan lane must be scrapling_traffic")
+        fulfillment_mode = str(plan.get("fulfillment_mode") or "").strip()
+        if fulfillment_mode not in SCRAPLING_FULFILLMENT_MODES:
+            raise WorkerConfigError(
+                "worker_plan fulfillment_mode must be one of crawler, bulk_scraper, http_agent"
+            )
+        category_targets = _normalize_category_targets(plan.get("category_targets"))
+        expected_targets = _expected_category_targets_for_mode(fulfillment_mode)
+        if category_targets != expected_targets:
+            raise WorkerConfigError(
+                "worker_plan category_targets must match the bounded fulfillment_mode mapping"
+            )
         if not sim_telemetry_secret.strip():
             raise WorkerConfigError("SHUMA_SIM_TELEMETRY_SECRET is required for Scrapling worker tagging")
 
@@ -329,44 +688,61 @@ def execute_worker_plan(
             raise WorkerConfigError("seed inventory must contain at least one accepted start or hint URL")
 
         fetcher_session_cls, request_cls, spider_cls = _import_scrapling()
-        spider_class = _build_spider_class(fetcher_session_cls, request_cls, spider_cls)
-        crawldir.mkdir(parents=True, exist_ok=True)
-        spider = spider_class(
+        if fulfillment_mode == "crawler":
+            spider_class = _build_spider_class(fetcher_session_cls, request_cls, spider_cls)
+            crawldir.mkdir(parents=True, exist_ok=True)
+            spider = spider_class(
+                plan=plan,
+                descriptor=descriptor,
+                seed_inventory=seed_inventory,
+                crawldir=crawldir,
+                sim_telemetry_secret=sim_telemetry_secret,
+            )
+            crawl_result = spider.start()
+            stats = crawl_result.stats
+            failure_class = None
+            error = None
+            if spider.last_transport_error:
+                failure_class = "transport"
+                error = spider.last_transport_error
+            return {
+                "schema_version": "adversary-sim-scrapling-worker-result.v1",
+                "run_id": str(plan.get("run_id") or ""),
+                "tick_id": str(plan.get("tick_id") or ""),
+                "lane": "scrapling_traffic",
+                "fulfillment_mode": fulfillment_mode,
+                "worker_id": socket.gethostname(),
+                "tick_started_at": int(plan.get("tick_started_at") or int(time.time())),
+                "tick_completed_at": int(time.time()),
+                "generated_requests": int(stats.requests_count),
+                "failed_requests": int(stats.failed_requests_count),
+                "last_response_status": spider.last_response_status,
+                "failure_class": failure_class,
+                "error": error,
+                "crawl_stats": {
+                    "requests_count": int(stats.requests_count),
+                    "offsite_requests_count": int(stats.offsite_requests_count),
+                    "blocked_requests_count": int(stats.blocked_requests_count),
+                    "response_status_count": dict(stats.response_status_count),
+                    "response_bytes": int(stats.response_bytes),
+                },
+                "scope_rejections": dict(sorted(spider.scope_rejections.items())),
+            }
+        if fulfillment_mode == "bulk_scraper":
+            return _execute_bulk_scraper_persona(
+                fetcher_session_cls,
+                plan=plan,
+                descriptor=descriptor,
+                seed_inventory=seed_inventory,
+                sim_telemetry_secret=sim_telemetry_secret,
+            )
+        return _execute_http_agent_persona(
+            fetcher_session_cls,
             plan=plan,
             descriptor=descriptor,
             seed_inventory=seed_inventory,
-            crawldir=crawldir,
             sim_telemetry_secret=sim_telemetry_secret,
         )
-        crawl_result = spider.start()
-        stats = crawl_result.stats
-        failure_class = None
-        error = None
-        if spider.last_transport_error:
-            failure_class = "transport"
-            error = spider.last_transport_error
-        return {
-            "schema_version": "adversary-sim-scrapling-worker-result.v1",
-            "run_id": str(plan.get("run_id") or ""),
-            "tick_id": str(plan.get("tick_id") or ""),
-            "lane": "scrapling_traffic",
-            "worker_id": socket.gethostname(),
-            "tick_started_at": int(plan.get("tick_started_at") or int(time.time())),
-            "tick_completed_at": int(time.time()),
-            "generated_requests": int(stats.requests_count),
-            "failed_requests": int(stats.failed_requests_count),
-            "last_response_status": spider.last_response_status,
-            "failure_class": failure_class,
-            "error": error,
-            "crawl_stats": {
-                "requests_count": int(stats.requests_count),
-                "offsite_requests_count": int(stats.offsite_requests_count),
-                "blocked_requests_count": int(stats.blocked_requests_count),
-                "response_status_count": dict(stats.response_status_count),
-                "response_bytes": int(stats.response_bytes),
-            },
-            "scope_rejections": dict(sorted(spider.scope_rejections.items())),
-        }
     except Exception as exc:
         return _build_failure_result(
             beat_payload,

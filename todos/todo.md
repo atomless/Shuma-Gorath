@@ -90,11 +90,6 @@ Current stance:
 - The actively evolving near-term layer should be fingerprinting and categorization quality inside that taxonomy; taxonomy expansion is only a later contingency if important non-human traffic persistently falls outside the existing categories.
 - The next bridge to a genuine LLM-in-the-loop system is not the full later `SIM-LLM-1` runtime actor; it is a bounded category-fulfillment LLM tranche that sits between the taxonomy/classifier work and the first closed config loop, with the later LLM diagnosis harness and code loop still downstream of `OVR-APPLY-1`.
 
-### SIM-SCR-FIT-2: Implement Scrapling Request Personas
-- Extend the current Scrapling worker with bounded request personas for crawler, bulk-scraper, and direct HTTP-agent traffic while preserving the current scope fence, seed contract, and signed sim telemetry boundary.
-- Keep this tranche strictly request-native; do not pull browser-runtime dependencies into the current Scrapling lane.
-- Reference context: [`../docs/research/2026-03-23-scrapling-non-human-category-capability-review.md`](../docs/research/2026-03-23-scrapling-non-human-category-capability-review.md), [`../docs/plans/2026-03-23-scrapling-request-native-category-fulfillment-implementation-plan.md`](../docs/plans/2026-03-23-scrapling-request-native-category-fulfillment-implementation-plan.md)
-
 ### SIM-SCR-COVER-2: Prove Scrapling Request-Native Coverage
 - Extend the canonical classification and coverage receipts so Scrapling-generated traffic can be proved for `indexing_bot`, `ai_scraper_bot`, and `http_agent` through the existing machine-first contracts.
 - Keep the later Monitoring overhaul behind this receipt-backed truth so the operator projection uses settled category semantics.

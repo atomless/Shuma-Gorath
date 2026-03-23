@@ -146,6 +146,10 @@ For the current request-native expansion, Scrapling now owns these canonical cat
 2. `ai_scraper_bot` via `bulk_scraper`
 3. `http_agent` via `http_agent`
 The internal Scrapling worker plan now carries `fulfillment_mode` plus bounded `category_targets` so the shared-host lane can ask for a specific request-native persona without pretending the whole lane is one undifferentiated crawler.
+That persona split is now implemented in the worker itself:
+1. `crawler` keeps the bounded spider traversal behavior,
+2. `bulk_scraper` performs breadth-first direct retrieval over pagination and detail targets inside the shared-host scope fence,
+3. `http_agent` performs bounded direct request traffic with method mix, cookies, JSON request bodies, and in-scope redirect follow-up.
 `automated_browser`, `browser_agent`, and `agent_on_behalf_of_human` remain outside Scrapling ownership and stay mapped to the bounded LLM/browser track for now.
 For loopback-hosted Spin targets, the runner selects the least-surprising reachable Docker transport per host platform: bridge + `host.docker.internal` where that reaches host loopback, and Linux host-network mode when bridge reachability would otherwise fail against a `127.0.0.1`-bound server.
 Signed capability envelopes for executable worker actions are enforced via `scripts/tests/frontier_capability_envelope.py` host/worker validation.

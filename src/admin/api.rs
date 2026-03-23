@@ -5299,12 +5299,17 @@ mod admin_config_tests {
             .get("tick_started_at")
             .and_then(|value| value.as_u64())
             .expect("tick started at");
+        let fulfillment_mode = worker_plan
+            .get("fulfillment_mode")
+            .and_then(|value| value.as_str())
+            .expect("fulfillment mode");
 
         let result_body = serde_json::to_vec(&serde_json::json!({
             "schema_version": "adversary-sim-scrapling-worker-result.v1",
             "run_id": run_id,
             "tick_id": tick_id,
             "lane": "scrapling_traffic",
+            "fulfillment_mode": fulfillment_mode,
             "worker_id": "scrapling-worker-test",
             "tick_started_at": tick_started_at,
             "tick_completed_at": tick_started_at.saturating_add(1),
@@ -5439,6 +5444,10 @@ mod admin_config_tests {
             .get("tick_started_at")
             .and_then(|value| value.as_u64())
             .expect("tick started at");
+        let fulfillment_mode = worker_plan
+            .get("fulfillment_mode")
+            .and_then(|value| value.as_str())
+            .expect("fulfillment mode");
 
         let running_state = crate::admin::adversary_sim::load_state(&store, "default");
         let now = now_ts();
@@ -5453,6 +5462,7 @@ mod admin_config_tests {
             "run_id": run_id,
             "tick_id": tick_id,
             "lane": "scrapling_traffic",
+            "fulfillment_mode": fulfillment_mode,
             "worker_id": "scrapling-worker-test",
             "tick_started_at": tick_started_at,
             "tick_completed_at": tick_started_at.saturating_add(1),
