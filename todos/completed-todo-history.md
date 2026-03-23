@@ -4,13 +4,48 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-23)
 
+### Documentation IA Cleanup: Flatten Historical Plan And Research Directories
+
+- [x] Flattened `docs/research/` and `docs/plans/` back to a single date-sorted level by moving all archived dated docs up from nested archive folders, removing the now-redundant archive directories, and rewriting the top-level indexes so they carry the current-versus-historical-versus-deferred-edge distinction themselves.
+- [x] Why:
+  - the first housekeeping slice made the docs front door much clearer, but the nested `archive/` layout still made the tree feel more complex than necessary because every historical plan and research note was already date-prefixed.
+  - once the top-level indexes and deferred-edge explainer existed, the meaningful distinction was semantic rather than structural: current mainline docs, historical baselines, and outdated deferred-edge notes all belonged in the same flat dated directories.
+  - flattening the directories removes path noise, keeps links easier to reason about, and makes scanning by date and topic more natural without losing any historical context.
+- [x] Evidence:
+  - `docs/research/2026-03-23-archive-directory-flattening-review.md`
+  - `docs/plans/2026-03-23-archive-directory-flattening-plan.md`
+  - `docs/index.md`
+  - `docs/research/README.md`
+  - `docs/plans/README.md`
+  - `docs/deferred-edge-gateway.md`
+  - `docs/research/2026-02-15-stage2.5-maze-efficiency-and-asymmetry.md`
+  - `docs/research/2026-02-16-fingerprinting-research-synthesis.md`
+  - `docs/research/2026-02-20-ip-range-policy-research-synthesis.md`
+  - `docs/research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md`
+  - `docs/research/2026-03-12-fermyon-akamai-edge-live-proof.md`
+  - `docs/research/2026-03-14-fermyon-edge-signal-and-blank-slate-live-proof.md`
+  - `docs/plans/2026-02-13-defence-excellence-program.md`
+  - `docs/plans/2026-02-13-cdp-detection-excellence-plan.md`
+  - `docs/plans/2026-02-13-http-tarpit-excellence-plan.md`
+  - `docs/plans/2026-02-13-ip-range-policy-excellence-plan.md`
+  - `docs/plans/2026-02-13-js-verification-excellence-plan.md`
+  - `docs/plans/2026-02-13-maze-excellence-plan.md`
+  - `docs/plans/2026-02-13-pow-excellence-plan.md`
+  - `docs/plans/2026-02-13-puzzle-challenge-excellence-plan.md`
+  - `docs/plans/2026-02-13-rate-limiting-excellence-plan.md`
+  - `docs/plans/2026-02-13-ssh-tarpit-excellence-plan.md`
+  - `docs/plans/2026-02-14-stage1-policy-signal-taxonomy-spec.md`
+  - `docs/plans/2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md`
+  - `docs/plans/2026-03-10-fermyon-akamai-edge-skill-implementation-plan.md`
+  - `git diff --check`
+
 ### Documentation IA Cleanup: Shared-Host-First Mainline, Deferred Edge Archive, And Better Front Doors
 
-- [x] Audited the docs tree, added new topic indexes plus a dedicated deferred-edge explainer, moved the clearly defunct Fermyon/Akamai blocker and proof chain into explicit `archive/outdated` buckets, and rewrote the main entry docs so the shared-host-first closed loop is the default story instead of one option among many.
+- [x] Audited the docs tree, added new topic indexes plus a dedicated deferred-edge explainer, staged the clearly defunct Fermyon/Akamai blocker and proof chain behind explicit outdated holding buckets as an intermediate step, and rewrote the main entry docs so the shared-host-first closed loop is the default story instead of one option among many.
 - [x] Why:
   - the docs tree had become daunting because active entry points mixed current shared-host-first truth with deferred edge material and date-sorted historical receipts, making it harder to answer simple questions like “what is the current mainline?” and “where do I start?”
   - the old Fermyon/Akamai blocker and live-proof notes still mattered historically, but they were no longer the right current entry points and were actively cluttering the docs surface ahead of `MON-OVERHAUL-1`.
-  - the cleanest first slice was to improve information architecture rather than delete history: add better indexes, add one truthful deferred-edge guide, archive defunct edge docs explicitly, and re-center deployment/testing/quick-reference around the live shared-host loop.
+  - the cleanest first slice was to improve information architecture rather than delete history: add better indexes, add one truthful deferred-edge guide, stage the defunct edge docs away from the front door, and re-center deployment/testing/quick-reference around the live shared-host loop before the later flattening cleanup removed the extra directory level.
 - [x] Evidence:
   - `docs/research/2026-03-23-documentation-audit-and-information-architecture-review.md`
   - `docs/plans/2026-03-23-documentation-audit-and-reorganization-plan.md`
@@ -21,13 +56,11 @@ Moved from active TODO files on 2026-02-14.
   - `docs/deployment.md`
   - `docs/quick-reference.md`
   - `docs/testing.md`
-  - `docs/plans/archive/outdated/README.md`
-  - `docs/research/archive/outdated/README.md`
-  - `docs/research/archive/outdated/deferred-edge/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md`
-  - `docs/research/archive/outdated/deferred-edge/2026-03-12-fermyon-akamai-edge-live-proof.md`
-  - `docs/research/archive/outdated/deferred-edge/2026-03-14-fermyon-edge-signal-and-blank-slate-live-proof.md`
-  - `docs/plans/archive/outdated/deferred-edge/2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md`
-  - `docs/plans/archive/outdated/deferred-edge/2026-03-10-fermyon-akamai-edge-skill-implementation-plan.md`
+  - `docs/research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md`
+  - `docs/research/2026-03-12-fermyon-akamai-edge-live-proof.md`
+  - `docs/research/2026-03-14-fermyon-edge-signal-and-blank-slate-live-proof.md`
+  - `docs/plans/2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md`
+  - `docs/plans/2026-03-10-fermyon-akamai-edge-skill-implementation-plan.md`
   - `git diff --check`
 
 ### Dashboard Red Team Lane Control: Rehydrate Partial Runtime Truth Instead Of Staying Disabled
@@ -2848,7 +2881,7 @@ Moved from active TODO files on 2026-02-14.
   - `scripts/tests/test_fermyon_edge_signal_smoke.py`
   - `scripts/tests/test_remote_edge_signal_smoke.py`
   - `Makefile`
-  - `docs/research/archive/outdated/deferred-edge/2026-03-14-fermyon-edge-signal-and-blank-slate-live-proof.md`
+  - `docs/research/2026-03-14-fermyon-edge-signal-and-blank-slate-live-proof.md`
   - `docs/research/2026-03-14-compact-event-telemetry-live-evidence.md`
   - `.shuma/shuma-edge-fresh-20260314-112021/fermyon-akamai-edge-deploy.json`
   - `.spin/fermyon_edge_signal_smoke.json`
@@ -3206,7 +3239,7 @@ Moved from active TODO files on 2026-02-14.
   - `scripts/deploy/fermyon_akamai_edge_deploy.py`
   - `src/admin/api.rs`
   - `src/admin/adversary_sim.rs`
-  - `docs/research/archive/outdated/deferred-edge/2026-03-12-fermyon-akamai-edge-live-proof.md`
+  - `docs/research/2026-03-12-fermyon-akamai-edge-live-proof.md`
   - `skills/deploy-shuma-on-akamai-fermyon/SKILL.md`
   - `skills/deploy-shuma-on-akamai-fermyon/references/OPERATIONS.md`
   - `docs/deployment.md`
@@ -3251,7 +3284,7 @@ Moved from active TODO files on 2026-02-14.
   - `src/admin/auth.rs`
   - `src/admin/api.rs`
   - `src/admin/adversary_sim.rs`
-  - `docs/research/archive/outdated/deferred-edge/2026-03-12-fermyon-akamai-edge-live-proof.md`
+  - `docs/research/2026-03-12-fermyon-akamai-edge-live-proof.md`
   - `skills/prepare-shuma-on-akamai-fermyon/SKILL.md`
   - `skills/prepare-shuma-on-akamai-fermyon/references/OPERATIONS.md`
   - `skills/deploy-shuma-on-akamai-fermyon/SKILL.md`
@@ -3429,10 +3462,10 @@ Moved from active TODO files on 2026-02-14.
   - the Akamai-edge-only backlog and UI gating were intentionally blocked on a real `gateway_deployment_profile=edge-fermyon` proof rather than repo-local assumptions
   - the live path exposed real deployment-contract gaps that helper tests alone did not cover: missing defaults propagation into the Python deploy helper, missing full-config bootstrap path for fresh edge apps, and missing edge trust extraction for client IP / HTTPS posture
 - [x] Evidence:
-  - `docs/research/archive/outdated/deferred-edge/2026-03-12-fermyon-akamai-edge-live-proof.md`
-  - `docs/research/archive/outdated/deferred-edge/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md`
-  - `docs/plans/archive/outdated/deferred-edge/2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md`
-  - `docs/plans/archive/outdated/deferred-edge/2026-03-10-fermyon-akamai-edge-skill-implementation-plan.md`
+  - `docs/research/2026-03-12-fermyon-akamai-edge-live-proof.md`
+  - `docs/research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md`
+  - `docs/plans/2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md`
+  - `docs/plans/2026-03-10-fermyon-akamai-edge-skill-implementation-plan.md`
   - `scripts/deploy/fermyon_akamai_edge_setup.py`
   - `scripts/deploy/fermyon_akamai_edge_deploy.py`
   - `scripts/deploy/spin_manifest.py`
@@ -3478,8 +3511,8 @@ Moved from active TODO files on 2026-02-14.
 - [x] FERM-SKILL-1 Create an agent-oriented Fermyon / Akamai edge setup skill that captures the required account, mode, edge property, origin, and secret inputs, and leaves a deploy-ready handoff comparable to the Linode setup path.
 - [x] FERM-SKILL-2 Refactor and tighten the existing Fermyon deploy skill so it is an agent-executable deploy path rather than a human runbook, with truthful mode selection, artifacts, and failure handling.
 - [x] Evidence:
-  - `docs/plans/archive/outdated/deferred-edge/2026-03-10-fermyon-akamai-edge-skill-implementation-plan.md`
-  - `docs/research/archive/outdated/deferred-edge/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md`
+  - `docs/plans/2026-03-10-fermyon-akamai-edge-skill-implementation-plan.md`
+  - `docs/research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md`
   - `scripts/deploy/setup_common.py`
   - `scripts/deploy/fermyon_akamai_edge_setup.py`
   - `scripts/deploy/fermyon_akamai_edge_deploy.py`
@@ -4921,8 +4954,8 @@ Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulat
 - [x] P1.5 slice completed: routed admin auth failure throttling through the provider-selected rate limiter so external distributed rate-limiter mode covers admin auth (`/admin/login`, `/admin/logout`, unauthorized admin endpoints) with safe internal fallback when runtime config/provider selection is unavailable.
 - [x] P1.6 slice completed: added route-class outage posture controls for external rate limiter degradation (`SHUMA_RATE_LIMITER_OUTAGE_MODE_MAIN`, `SHUMA_RATE_LIMITER_OUTAGE_MODE_ADMIN_AUTH`) and shipped limiter degradation observability (`backend_errors`, `outage_decisions`, `usage_fallback`, `state_drift` metrics) with deployment/config docs.
 
-- [x] S1.0 taxonomy spec drafted: canonical escalation levels, signal IDs, transition precedence, and current signal-collection map documented in [`docs/plans/archive/2026-02-14-stage1-policy-signal-taxonomy-spec.md`](../docs/plans/archive/2026-02-14-stage1-policy-signal-taxonomy-spec.md).
-- [x] Add stable detection ID taxonomy and policy matching using canonical escalation/action IDs from [`docs/plans/archive/2026-02-14-stage1-policy-signal-taxonomy-spec.md`](../docs/plans/archive/2026-02-14-stage1-policy-signal-taxonomy-spec.md) (`L0_ALLOW_CLEAN` through `L11_DENY_HARD`) and canonical signal IDs (`S_*`) in logs/metrics/admin events.
+- [x] S1.0 taxonomy spec drafted: canonical escalation levels, signal IDs, transition precedence, and current signal-collection map documented in [`docs/plans/2026-02-14-stage1-policy-signal-taxonomy-spec.md`](../docs/plans/2026-02-14-stage1-policy-signal-taxonomy-spec.md).
+- [x] Add stable detection ID taxonomy and policy matching using canonical escalation/action IDs from [`docs/plans/2026-02-14-stage1-policy-signal-taxonomy-spec.md`](../docs/plans/2026-02-14-stage1-policy-signal-taxonomy-spec.md) (`L0_ALLOW_CLEAN` through `L11_DENY_HARD`) and canonical signal IDs (`S_*`) in logs/metrics/admin events.
 - [x] S1.1 slice completed: added `src/runtime/policy_taxonomy.rs` canonical IDs + deterministic precedence tests, threaded policy-match telemetry through runtime/CDP/external event paths, and exposed canonical policy/signal metrics (`bot_defence_policy_matches_total`, `bot_defence_policy_signals_total`) plus taxonomy-annotated admin event outcomes.
 - [x] Add static-resource bypass defaults to avoid expensive bot checks on obvious static assets.
 - [x] S1.2 slice completed: added early static-asset bypass defaults for obvious `GET`/`HEAD` resource paths/extensions (with admin/challenge/control-path exclusions) to skip expensive JS/botness/geo challenge checks, plus unit + routing-order regression coverage.
@@ -5026,7 +5059,7 @@ Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulat
 - [x] Define platform scope boundaries to avoid overreach by leaning on upstream bot managers (for example Akamai) for features better handled there.
 - [x] Add non-secret runtime config export for deploy handoff (exclude secrets) so dashboard-tuned settings can be applied in immutable redeploys.
 - [x] P3.1 slice completed: documented Akamai-vs-Shuma platform scope ownership boundaries, non-goals, and decision rules in [`docs/bot-defence.md`](../docs/bot-defence.md) to keep edge-vs-app responsibilities explicit.
-- [x] S1.3.a slice completed: defined canonical request-sequence signal IDs (`S_SEQ_*`) and matching detection IDs (`D_SEQ_*`) in `src/runtime/policy_taxonomy.rs` and documented them in [`docs/plans/archive/2026-02-14-stage1-policy-signal-taxonomy-spec.md`](../docs/plans/archive/2026-02-14-stage1-policy-signal-taxonomy-spec.md).
+- [x] S1.3.a slice completed: defined canonical request-sequence signal IDs (`S_SEQ_*`) and matching detection IDs (`D_SEQ_*`) in `src/runtime/policy_taxonomy.rs` and documented them in [`docs/plans/2026-02-14-stage1-policy-signal-taxonomy-spec.md`](../docs/plans/2026-02-14-stage1-policy-signal-taxonomy-spec.md).
 - [x] S1.3.b slice completed: added signed operation-envelope primitives (`operation_id`, `flow_id`, `step_id`, `issued_at`, `expires_at`, `token_version`) for puzzle/PoW challenge seeds with shared integrity validation in `src/challenge/operation_envelope.rs`, enforced token parse-time validation before scoring paths, and added regression coverage.
 - [x] S1.3.c slice completed: added binding/integrity primitives for signed challenge/PoW tokens (`ip_bucket`, `ua_bucket`, `path_class`) with shared request-binding validation, enforced mismatch handling on puzzle/PoW verification paths, and emitted canonical sequence mismatch taxonomy telemetry (`D_SEQ_BINDING_MISMATCH`, `S_SEQ_BINDING_MISMATCH`) instead of silent fallback.
 - [x] S1.3.d slice completed: added ordering-window primitives (`step_index`, expected flow/step/index validation, and bounded step windows) for challenge submit and PoW verify paths, mapped order/window failures to canonical taxonomy transitions (`D_SEQ_ORDER_VIOLATION`, `S_SEQ_ORDER_VIOLATION`, `D_SEQ_WINDOW_EXCEEDED`, `S_SEQ_WINDOW_EXCEEDED`), and added deterministic coverage in challenge, envelope, and policy-taxonomy tests.
@@ -5074,7 +5107,7 @@ Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulat
 
 ### todos/todo.md (Stage 2.5 completion)
 
-- [x] MZ-X0.R through MZ-X10.R completed via Stage 2.5 research synthesis memo in [`/docs/research/archive/2026-02-15-stage2.5-maze-efficiency-and-asymmetry.md`](../docs/research/archive/2026-02-15-stage2.5-maze-efficiency-and-asymmetry.md).
+- [x] MZ-X0.R through MZ-X10.R completed via Stage 2.5 research synthesis memo in [`/docs/research/2026-02-15-stage2.5-maze-efficiency-and-asymmetry.md`](../docs/research/2026-02-15-stage2.5-maze-efficiency-and-asymmetry.md).
 - [x] MZ-X0.I completed: Web Worker-first client expansion now uses compact signed seed bootstrap with deterministic fallback behavior when worker/proof cannot complete.
 - [x] MZ-X1.I + MZ-X5.I completed: exact path commitment, chain marker checks, sibling edge-operation uniqueness, replay enforcement, and branch-budget-aware progressive issuance checks.
 - [x] MZ-X2.I + MZ-X9.I completed: compact maze shell with external versioned shared assets and adaptive styling tiers (full/lite/machine, optional no-CSS deep tier).
@@ -5208,15 +5241,15 @@ Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulat
 - [x] DSH-3 Refactor monolithic dashboard orchestration into tab-scoped controllers/modules with clear lifecycle (`init`, `mount`, `unmount`, `refresh`) and no cross-tab hidden coupling.
 
 #### Fingerprinting, JS Verification, and CDP-Adjacent Detection
-- [x] R-FP-01 Review Peter Eckersley, "How Unique Is Your Web Browser?" (PETS 2010) and extract entropy-design implications for Shuma fingerprint signals and replay windows. https://link.springer.com/chapter/10.1007/978-3-642-14527-8_1 (summarized in [`docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md))
-- [x] R-FP-02 Review Acar et al., "The Web Never Forgets" (CCS 2014) and derive tracking/fingerprint abuse patterns relevant to bot-detection evasion hardening. https://doi.org/10.1145/2660267.2660347 (summarized in [`docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md))
-- [x] R-FP-03 Review Vastel et al., "FP-STALKER" (IEEE S&P 2018) and define time-evolution checks for Shuma fingerprint consistency logic. https://doi.org/10.1109/SP.2018.00008 (summarized in [`docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md))
-- [x] R-FP-04 Review Jonker/Krumnow/Vlot, "Fingerprint Surface-Based Detection of Web Bot Detectors" (ESORICS 2019) and identify detector-surface minimization requirements. https://doi.org/10.1007/978-3-030-29962-0_28 (summarized in [`docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md))
-- [x] R-FP-05 Review Azad et al., "Web Runner 2049: Evaluating Third-Party Anti-bot Services" and extract anti-evasion architecture lessons for internal-vs-edge integration boundaries. https://pmc.ncbi.nlm.nih.gov/articles/PMC7338186/ (summarized in [`docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md))
-- [x] R-FP-06 Review Iliou et al., "Detection of advanced web bots by combining web logs with mouse behavioural biometrics" (DTRAP 2021) and assess feasibility of low-friction behavior features in Shuma. https://doi.org/10.1145/3447815 (summarized in [`docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md))
-- [x] R-FP-07 Review Zhao et al., "Toward the flow-centric detection of browser fingerprinting" (Computers & Security 2024) and evaluate flow-level JS signal extraction options. https://doi.org/10.1016/j.cose.2023.103642 (summarized in [`docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md))
-- [x] R-FP-08 Review Venugopalan et al., "FP-Inconsistent: Detecting Evasive Bots using Browser Fingerprint Inconsistencies" (2024) and define cross-attribute consistency checks for Shuma scoring. https://arxiv.org/abs/2406.07647 (summarized in [`docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md))
-- [x] R-FP-09 Review Bursztein et al., "Picasso: Lightweight Device Class Fingerprinting for Web Clients" (SPSM 2016) and assess replay-resistant challenge-bound fingerprint options. https://doi.org/10.1145/2994459.2994467 (summarized in [`docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/archive/2026-02-16-fingerprinting-research-synthesis.md))
+- [x] R-FP-01 Review Peter Eckersley, "How Unique Is Your Web Browser?" (PETS 2010) and extract entropy-design implications for Shuma fingerprint signals and replay windows. https://link.springer.com/chapter/10.1007/978-3-642-14527-8_1 (summarized in [`docs/research/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/2026-02-16-fingerprinting-research-synthesis.md))
+- [x] R-FP-02 Review Acar et al., "The Web Never Forgets" (CCS 2014) and derive tracking/fingerprint abuse patterns relevant to bot-detection evasion hardening. https://doi.org/10.1145/2660267.2660347 (summarized in [`docs/research/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/2026-02-16-fingerprinting-research-synthesis.md))
+- [x] R-FP-03 Review Vastel et al., "FP-STALKER" (IEEE S&P 2018) and define time-evolution checks for Shuma fingerprint consistency logic. https://doi.org/10.1109/SP.2018.00008 (summarized in [`docs/research/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/2026-02-16-fingerprinting-research-synthesis.md))
+- [x] R-FP-04 Review Jonker/Krumnow/Vlot, "Fingerprint Surface-Based Detection of Web Bot Detectors" (ESORICS 2019) and identify detector-surface minimization requirements. https://doi.org/10.1007/978-3-030-29962-0_28 (summarized in [`docs/research/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/2026-02-16-fingerprinting-research-synthesis.md))
+- [x] R-FP-05 Review Azad et al., "Web Runner 2049: Evaluating Third-Party Anti-bot Services" and extract anti-evasion architecture lessons for internal-vs-edge integration boundaries. https://pmc.ncbi.nlm.nih.gov/articles/PMC7338186/ (summarized in [`docs/research/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/2026-02-16-fingerprinting-research-synthesis.md))
+- [x] R-FP-06 Review Iliou et al., "Detection of advanced web bots by combining web logs with mouse behavioural biometrics" (DTRAP 2021) and assess feasibility of low-friction behavior features in Shuma. https://doi.org/10.1145/3447815 (summarized in [`docs/research/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/2026-02-16-fingerprinting-research-synthesis.md))
+- [x] R-FP-07 Review Zhao et al., "Toward the flow-centric detection of browser fingerprinting" (Computers & Security 2024) and evaluate flow-level JS signal extraction options. https://doi.org/10.1016/j.cose.2023.103642 (summarized in [`docs/research/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/2026-02-16-fingerprinting-research-synthesis.md))
+- [x] R-FP-08 Review Venugopalan et al., "FP-Inconsistent: Detecting Evasive Bots using Browser Fingerprint Inconsistencies" (2024) and define cross-attribute consistency checks for Shuma scoring. https://arxiv.org/abs/2406.07647 (summarized in [`docs/research/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/2026-02-16-fingerprinting-research-synthesis.md))
+- [x] R-FP-09 Review Bursztein et al., "Picasso: Lightweight Device Class Fingerprinting for Web Clients" (SPSM 2016) and assess replay-resistant challenge-bound fingerprint options. https://doi.org/10.1145/2994459.2994467 (summarized in [`docs/research/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/2026-02-16-fingerprinting-research-synthesis.md))
 - [x] Strengthen fingerprinting by hardening internal baseline signals first, then ingesting trusted upstream edge signals (JA3/JA4 and similar) with provenance checks and explicit internal fallback when edge headers are absent or untrusted.
 - [x] Phase 1 completed: normalized fingerprint signals now carry provenance/confidence metadata, family entropy budgeting/caps are enforced, and data-minimization controls (TTL/pseudonymization/export visibility) are wired and documented.
 - [x] Phase 2 completed: cross-layer mismatch heuristics (UA/client-hint/transport), temporal coherence detection IDs, and bounded flow-window fingerprint telemetry are active.

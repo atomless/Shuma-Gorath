@@ -210,4 +210,4 @@ Preview safety guarantees:
 
 - If you do not want crawler trapping, set `maze_enabled` to `false`.
 - Auto-ban uses the `maze_crawler` reason in metrics and events.
-- For deeper implementation detail, see archived baseline [`docs/plans/archive/2026-02-13-maze-excellence-plan.md`](plans/archive/2026-02-13-maze-excellence-plan.md) and active carry-forward work [`docs/plans/2026-02-25-maze-carry-forward-plan.md`](plans/2026-02-25-maze-carry-forward-plan.md).
+- For deeper implementation detail, see archived baseline [`docs/plans/2026-02-13-maze-excellence-plan.md`](plans/2026-02-13-maze-excellence-plan.md) and active carry-forward work [`docs/plans/2026-02-25-maze-carry-forward-plan.md`](plans/2026-02-25-maze-carry-forward-plan.md).

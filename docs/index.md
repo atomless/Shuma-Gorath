@@ -1,6 +1,6 @@
 # 🐙 Documentation Index
 
-Shuma is currently a shared-host-first control plane with a live-proven bounded feedback loop on Linode. Use the docs below as the current source of truth; deferred edge and historical material now lives behind dedicated guide and archive links instead of sharing the same front door.
+Shuma is currently a shared-host-first control plane with a live-proven bounded feedback loop on Linode. Use the docs below as the current source of truth; deferred edge and historical material is still preserved, but it is now surfaced through curated indexes in the flat dated `plans/` and `research/` directories instead of nested archive folders.
 
 ## Start Here
 
@@ -46,10 +46,8 @@ Shuma is currently a shared-host-first control plane with a live-proven bounded 
 ## Deferred And Historical
 
 - [`deferred-edge-gateway.md`](deferred-edge-gateway.md) - Truthful current status of the later edge gateway track
-- [`plans/archive/README.md`](plans/archive/README.md) - Delivered or superseded plans
-- [`plans/archive/outdated/README.md`](plans/archive/outdated/README.md) - Plans archived because they no longer reflect the current posture
-- [`research/archive/README.md`](research/archive/README.md) - Historical research archive
-- [`research/archive/outdated/README.md`](research/archive/outdated/README.md) - Research/proof notes archived because they are no longer active entry points
+- [`plans/README.md`](plans/README.md) - Current planning index plus historical baselines and outdated deferred-edge notes
+- [`research/README.md`](research/README.md) - Current research index plus historical baselines and outdated deferred-edge notes
 
 ## Repo Workflow And Backlog
 

@@ -13,6 +13,10 @@ Related context:
 - [`../../todos/todo.md`](../../todos/todo.md)
 - [`../../todos/blocked-todo.md`](../../todos/blocked-todo.md)
 
+# Historical Note
+
+This review drove the first cleanup slice, which initially introduced explicit `archive/outdated` buckets for deferred-edge material. The same-day follow-on flattening tranche later removed the nested archive directories and kept the same semantic split in the top-level indexes instead. See [`2026-03-23-archive-directory-flattening-review.md`](2026-03-23-archive-directory-flattening-review.md).
+
 # Purpose
 
 Audit the current docs tree after the shared-host-first closed-loop work landed, identify where documentation structure and claims have drifted away from the actual project posture, and define the first cleanup slice that makes the docs easier to navigate before `MON-OVERHAUL-1`.
@@ -46,7 +50,7 @@ They still matter as historical receipts for a later deferred edge track, but th
 
 ## 4. Archive rules exist, but they do not yet distinguish “delivered historical” from “outdated for the current posture”
 
-`docs/plans/archive/` and `docs/research/archive/` exist, but the repository does not yet have a clear home for docs that are not merely delivered, but actively misleading if they remain in the active tree.
+`docs/plans/` and `docs/research/` exist, but the repository does not yet have a clear home for docs that are not merely delivered, but actively misleading if they remain in the active tree.
 
 # Implications
 

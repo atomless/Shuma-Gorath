@@ -2,15 +2,13 @@
 
 Use this index when you want the current research drivers without trawling the full date-sorted folder.
 
-Top-level research in `docs/research/` now serves two purposes:
+Top-level research in `docs/research/` now serves three purposes:
 
 1. current design drivers for upcoming work,
 2. recent proof and closeout notes that still matter to the active planning chain.
+3. dated historical baselines and outdated deferred-edge notes preserved for auditability.
 
-Older or clearly outdated material lives in:
-
-- [`archive/README.md`](archive/README.md)
-- [`archive/outdated/README.md`](archive/outdated/README.md)
+The directory is intentionally flat. Use this index, not nested folders, to distinguish active drivers from historical receipts.
 
 ## Start Here
 
@@ -65,9 +63,17 @@ Older or clearly outdated material lives in:
 ### Deferred edge gateway track
 
 - [`2026-03-21-fermyon-shelving-and-shared-host-control-plane-architecture-review.md`](2026-03-21-fermyon-shelving-and-shared-host-control-plane-architecture-review.md)
-- [`archive/outdated/README.md`](archive/outdated/README.md)
+- [`2026-03-10-fermyon-akamai-edge-live-proof-blockers.md`](2026-03-10-fermyon-akamai-edge-live-proof-blockers.md)
+- [`2026-03-12-fermyon-akamai-edge-live-proof.md`](2026-03-12-fermyon-akamai-edge-live-proof.md)
+- [`2026-03-14-fermyon-edge-signal-and-blank-slate-live-proof.md`](2026-03-14-fermyon-edge-signal-and-blank-slate-live-proof.md)
+
+## Historical Delivered Baselines
+
+- [`2026-02-15-stage2.5-maze-efficiency-and-asymmetry.md`](2026-02-15-stage2.5-maze-efficiency-and-asymmetry.md)
+- [`2026-02-16-fingerprinting-research-synthesis.md`](2026-02-16-fingerprinting-research-synthesis.md)
+- [`2026-02-20-ip-range-policy-research-synthesis.md`](2026-02-20-ip-range-policy-research-synthesis.md)
 
 ## Notes
 
-- If you need older tranche-by-tranche evidence, search the folder directly or use the archive indexes.
-- Deferred edge blocker and proof notes were moved out of the active tree because they are historical context for a later gateway-only track, not current mainline guidance.
+- If you need older tranche-by-tranche evidence, search the folder directly; the dated flat layout is now the canonical filesystem structure.
+- Deferred edge blocker and proof notes stay in this folder as historical context for a later gateway-only track, but they are not current mainline guidance.

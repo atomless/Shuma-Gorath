@@ -35,13 +35,13 @@ It is not the target for:
 
 ## Historical Edge Material
 
-These docs were moved out of the active tree because they are historical receipts for a deferred track, not the right current entry points:
+These docs remain preserved as dated historical receipts for a deferred track, but they are not the right current entry points:
 
-- [`research/archive/outdated/deferred-edge/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md`](research/archive/outdated/deferred-edge/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md)
-- [`research/archive/outdated/deferred-edge/2026-03-12-fermyon-akamai-edge-live-proof.md`](research/archive/outdated/deferred-edge/2026-03-12-fermyon-akamai-edge-live-proof.md)
-- [`research/archive/outdated/deferred-edge/2026-03-14-fermyon-edge-signal-and-blank-slate-live-proof.md`](research/archive/outdated/deferred-edge/2026-03-14-fermyon-edge-signal-and-blank-slate-live-proof.md)
-- [`plans/archive/outdated/deferred-edge/2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md`](plans/archive/outdated/deferred-edge/2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md)
-- [`plans/archive/outdated/deferred-edge/2026-03-10-fermyon-akamai-edge-skill-implementation-plan.md`](plans/archive/outdated/deferred-edge/2026-03-10-fermyon-akamai-edge-skill-implementation-plan.md)
+- [`research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md`](research/2026-03-10-fermyon-akamai-edge-live-proof-blockers.md)
+- [`research/2026-03-12-fermyon-akamai-edge-live-proof.md`](research/2026-03-12-fermyon-akamai-edge-live-proof.md)
+- [`research/2026-03-14-fermyon-edge-signal-and-blank-slate-live-proof.md`](research/2026-03-14-fermyon-edge-signal-and-blank-slate-live-proof.md)
+- [`plans/2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md`](plans/2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md)
+- [`plans/2026-03-10-fermyon-akamai-edge-skill-implementation-plan.md`](plans/2026-03-10-fermyon-akamai-edge-skill-implementation-plan.md)
 
 ## Later Edge References That Still Matter
 

@@ -1,10 +1,12 @@
 # Documentation Audit And Reorganization Implementation Plan
 
+Historical execution note: this plan describes the first cleanup slice, which briefly used explicit `archive/outdated` buckets as an intermediate step. The follow-on flattening tranche later removed those nested directories once the top-level indexes were strong enough; see [`2026-03-23-archive-directory-flattening-plan.md`](2026-03-23-archive-directory-flattening-plan.md).
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Re-center the docs on the shared-host-first mainline, archive clearly outdated deferred-edge docs, and add enough information architecture that readers can find current topics without wading through historical clutter.
 
-**Architecture:** Treat documentation as a product surface with a clear split between current truth, deferred work, and archived history. Keep active operator and contributor entry points short and curated, and move the clearly defunct deferred-edge proof chain into explicit `archive/outdated` buckets rather than leaving it beside current docs.
+**Architecture:** Treat documentation as a product surface with a clear split between current truth, deferred work, and archived history. Keep active operator and contributor entry points short and curated. This first slice used explicit `archive/outdated` buckets as an intermediate step before the later flat-layout cleanup.
 
 **Tech Stack:** Markdown docs, repo-local indexes, archive directories, TODO history
 
@@ -44,8 +46,8 @@
 - Move: `docs/research/2026-03-14-fermyon-edge-signal-and-blank-slate-live-proof.md`
 - Move: `docs/plans/2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md`
 - Move: `docs/plans/2026-03-10-fermyon-akamai-edge-skill-implementation-plan.md`
-- Modify: `docs/plans/archive/README.md`
-- Modify: `docs/research/archive/README.md`
+- Modify: `docs/plans/README.md`
+- Modify: `docs/research/README.md`
 
 **Steps:**
 1. Create explicit outdated archive buckets under plans and research.

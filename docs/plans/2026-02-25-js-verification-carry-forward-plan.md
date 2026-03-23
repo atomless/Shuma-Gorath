@@ -2,7 +2,7 @@
 
 Date: 2026-02-25
 Status: Active (carry-forward)
-Supersedes: Historical baseline in [`docs/plans/archive/2026-02-13-js-verification-excellence-plan.md`](archive/2026-02-13-js-verification-excellence-plan.md)
+Supersedes: Historical baseline in [`docs/plans/2026-02-13-js-verification-excellence-plan.md`](2026-02-13-js-verification-excellence-plan.md)
 
 ## Scope
 

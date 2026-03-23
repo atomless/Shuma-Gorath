@@ -2,6 +2,8 @@
 
 Use this index when you want the current planning chain without scanning the whole date-sorted folder.
 
+The directory is intentionally flat. Use this index to distinguish current execution plans from historical baselines and outdated deferred-edge notes.
+
 ## Start Here
 
 - [`2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md) - Current mainline architecture and sequencing for the shared-host-first closed-loop path
@@ -58,7 +60,21 @@ Use this index when you want the current planning chain without scanning the who
 
 - [`../deferred-edge-gateway.md`](../deferred-edge-gateway.md) - Current status and where the later edge gateway track now lives
 
-## Archives
+## Historical Baselines And Superseded Plans
 
-- [`archive/README.md`](archive/README.md) - Delivered or superseded plans
-- [`archive/outdated/README.md`](archive/outdated/README.md) - Plans archived because they are no longer the right current entry points
+- [`2026-02-13-defence-excellence-program.md`](2026-02-13-defence-excellence-program.md)
+- [`2026-02-13-cdp-detection-excellence-plan.md`](2026-02-13-cdp-detection-excellence-plan.md)
+- [`2026-02-13-http-tarpit-excellence-plan.md`](2026-02-13-http-tarpit-excellence-plan.md)
+- [`2026-02-13-ip-range-policy-excellence-plan.md`](2026-02-13-ip-range-policy-excellence-plan.md)
+- [`2026-02-13-js-verification-excellence-plan.md`](2026-02-13-js-verification-excellence-plan.md)
+- [`2026-02-13-maze-excellence-plan.md`](2026-02-13-maze-excellence-plan.md)
+- [`2026-02-13-pow-excellence-plan.md`](2026-02-13-pow-excellence-plan.md)
+- [`2026-02-13-puzzle-challenge-excellence-plan.md`](2026-02-13-puzzle-challenge-excellence-plan.md)
+- [`2026-02-13-rate-limiting-excellence-plan.md`](2026-02-13-rate-limiting-excellence-plan.md)
+- [`2026-02-13-ssh-tarpit-excellence-plan.md`](2026-02-13-ssh-tarpit-excellence-plan.md)
+- [`2026-02-14-stage1-policy-signal-taxonomy-spec.md`](2026-02-14-stage1-policy-signal-taxonomy-spec.md)
+
+## Outdated Deferred-Edge Plans
+
+- [`2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md`](2026-03-09-fermyon-akamai-edge-baseline-prerequisite-plan.md)
+- [`2026-03-10-fermyon-akamai-edge-skill-implementation-plan.md`](2026-03-10-fermyon-akamai-edge-skill-implementation-plan.md)

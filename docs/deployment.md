@@ -696,7 +696,7 @@ Current honest boundary:
 Historical proof and blockers for this deferred path are recorded in:
 
 - [`deferred-edge-gateway.md`](deferred-edge-gateway.md)
-- [`research/archive/outdated/README.md`](research/archive/outdated/README.md)
+- [`research/README.md`](research/README.md)
 
 Example variable wiring for the rendered edge manifest:
 
