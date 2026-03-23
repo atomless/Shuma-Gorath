@@ -32,6 +32,59 @@ class VerifiedIdentityMakeTargetTests(unittest.TestCase):
         )
         self.assertIn("scripts/tests/test_verified_identity_make_targets.py", body)
 
+    def test_alignment_receipts_target_uses_alignment_selectors(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-verified-identity-alignment-receipts:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn(
+            "observability::non_human_classification::tests::verified_identity_alignment_",
+            body,
+        )
+        self.assertIn(
+            "observability::operator_snapshot_verified_identity::tests::verified_identity_summary_projects_taxonomy_alignment_",
+            body,
+        )
+        self.assertIn("scripts/tests/test_verified_identity_make_targets.py", body)
+
+    def test_botness_conflicts_target_uses_conflict_metric_selectors(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-verified-identity-botness-conflicts:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn(
+            "observability::benchmark_beneficial_non_human::tests::",
+            body,
+        )
+        self.assertIn("scripts/tests/test_verified_identity_make_targets.py", body)
+
+    def test_guardrails_target_uses_reconcile_and_benchmark_selectors(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-verified-identity-guardrails:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn(
+            "verified_identity_guardrails_block_tuning_when_conflicts_are_outside_budget",
+            body,
+        )
+        self.assertIn(
+            "observe_longer_when_verified_identity_guardrail_blocks_candidate",
+            body,
+        )
+        self.assertIn("scripts/tests/test_verified_identity_make_targets.py", body)
+
 
 if __name__ == "__main__":
     unittest.main()

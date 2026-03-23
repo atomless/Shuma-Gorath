@@ -159,7 +159,8 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
     let allowed_actions = crate::config::allowed_actions_v1();
     let cfg = crate::config::load_runtime_cached(store, site_id)
         .unwrap_or_else(|_| crate::config::defaults().clone());
-    let verified_identity = verified_identity_summary(summary, &cfg);
+    let verified_identity =
+        verified_identity_summary(summary, &cfg, non_human_traffic.receipts.as_slice());
     let (replay_promotion, replay_promotion_refreshed_at_ts) =
         load_replay_promotion_summary(store, site_id);
     let prior_window_reference =

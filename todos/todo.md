@@ -85,27 +85,12 @@ Current stance:
 - Treat the verified-identity observability and benchmarking gap as part of this loop-closure track rather than later polish.
 - The first bounded shared-host closed config loop is now live-proven, and the adversary-sim status diagnostics follow-up is now delivered.
 - Before `MON-OVERHAUL-1`, settle Scrapling's truthful request-native category ownership and proof so Monitoring does not project the older indexing-only lane semantics.
-- Before `MON-OVERHAUL-1`, deepen verified identity from a coarse beneficial-traffic signal into a taxonomy-calibration and no-harm guardrail so Monitoring does not bake the current flattened Web Bot Auth semantics into the next operator-facing surface.
+- The verified-identity calibration and no-harm guardrail track is now delivered before `MON-OVERHAUL-1`, so Monitoring can project the settled taxonomy-alignment, conflict-metric, and fail-closed guardrail semantics instead of the earlier flattened Web Bot Auth path.
 - The next prerequisite now begins one step earlier: Shuma must first define a canonical non-human taxonomy and shared classification contract before it can truthfully measure lane representativeness.
 - The actively evolving near-term layer should be fingerprinting and categorization quality inside that taxonomy; taxonomy expansion is only a later contingency if important non-human traffic persistently falls outside the existing categories.
 - The next bridge to a genuine LLM-in-the-loop system is not the full later `SIM-LLM-1` runtime actor; it is a bounded category-fulfillment LLM tranche that sits between the taxonomy/classifier work and the first closed config loop, with the later LLM diagnosis harness and code loop still downstream of `OVR-APPLY-1`.
 - Before `MON-OVERHAUL-1`, extend suspicious-origin cost with a truthful host-impact proxy so Monitoring and later tuning do not project a request-and-byte-only model of unwanted non-human traffic cost.
 - Before `MON-OVERHAUL-1`, expose the already-settled local control truths that no longer belong only in Advanced JSON or backend-only payloads: verified identity in `Verification` and adversary-sim status truth basis in `Red Team`.
-
-### VID-TAX-2: Verified-Identity Versus Taxonomy Alignment Receipts
-- Add explicit machine-first receipts that show whether high-confidence verified traffic aligned cleanly with the taxonomy crosswalk, fell back through a degraded mapping, or remained mismatched.
-- Surface bounded alignment summaries in snapshot or benchmark contracts so later Monitoring can project them directly.
-- Reference context: [`../docs/research/2026-03-23-verified-identity-taxonomy-calibration-and-tuning-guardrails-review.md`](../docs/research/2026-03-23-verified-identity-taxonomy-calibration-and-tuning-guardrails-review.md), [`../docs/plans/2026-03-23-verified-identity-taxonomy-calibration-and-guardrails-implementation-plan.md`](../docs/plans/2026-03-23-verified-identity-taxonomy-calibration-and-guardrails-implementation-plan.md)
-
-### VID-BOT-1: Verified-Identity Versus Botness Conflict Metrics
-- Add benchmark and snapshot metrics that quantify when fingerprinting and cumulative abuse score (`botness`) disagree with high-confidence verified identity, especially for tolerated or allowed verified traffic.
-- Keep the metrics bounded and operator-meaningful: conflict pressure, mismatch-driven short-circuiting, and user-triggered-agent friction drift.
-- Reference context: [`../docs/research/2026-03-23-verified-identity-taxonomy-calibration-and-tuning-guardrails-review.md`](../docs/research/2026-03-23-verified-identity-taxonomy-calibration-and-tuning-guardrails-review.md), [`../docs/plans/2026-03-23-verified-identity-taxonomy-calibration-and-guardrails-implementation-plan.md`](../docs/plans/2026-03-23-verified-identity-taxonomy-calibration-and-guardrails-implementation-plan.md)
-
-### VID-GUARD-1: Hard Verified-Identity Tuning Guardrails
-- Make diagnosis and bounded tuning fail closed when verified-identity friction mismatch or unresolved botness conflicts show likely harm against configured tolerated or allowed verified traffic.
-- Keep this tranche restrictive-by-default: it must add safety guardrails, not implicit allow behavior.
-- Reference context: [`../docs/research/2026-03-23-verified-identity-taxonomy-calibration-and-tuning-guardrails-review.md`](../docs/research/2026-03-23-verified-identity-taxonomy-calibration-and-tuning-guardrails-review.md), [`../docs/plans/2026-03-23-verified-identity-taxonomy-calibration-and-guardrails-implementation-plan.md`](../docs/plans/2026-03-23-verified-identity-taxonomy-calibration-and-guardrails-implementation-plan.md)
 
 ### HOST-COST-1: Bounded Host-Impact Telemetry Foundation
 - Add bounded forwarded-latency telemetry to the request-outcome and monitoring hot-read path so Shuma can measure host-impact proxies that go beyond suspicious forwarded request and byte ratios.

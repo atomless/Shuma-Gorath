@@ -38,6 +38,9 @@ make test-adversarial-coverage-receipts # Focused canonical category-coverage re
 make test-protected-tuning-evidence # Focused protected tuning-evidence eligibility and fail-closed benchmark checks
 make test-verified-identity-calibration-readiness # Focused verified-identity taxonomy/benchmark/reconcile seam gate
 make test-verified-identity-taxonomy-crosswalk # Focused verified-identity taxonomy crosswalk gate
+make test-verified-identity-alignment-receipts # Focused verified-identity taxonomy alignment receipt gate
+make test-verified-identity-botness-conflicts # Focused verified-identity vs botness conflict metric gate
+make test-verified-identity-guardrails # Focused verified-identity no-harm guardrail gate
 make test-adversarial-frontier-attempt # Protected-lane frontier provider attempt probe (advisory/non-blocking)
 make test-frontier-governance # Frontier artifact guard (forbidden keys + secret leak checks)
 make test-frontier-unavailability-policy # Frontier degraded-threshold policy tracker + actionability artifact
@@ -219,6 +222,9 @@ Available profiles:
 - `make test-adversarial-coverage-receipts` - canonical category-coverage receipt proof across adversarial coverage/scenario contracts, recent-sim request-native Scrapling category receipts, the non-human coverage summary, and fail-closed benchmark gating when mapped categories are not yet covered
 - `make test-verified-identity-calibration-readiness` - focused bridge gate for the current verified-identity calibration seams: taxonomy-crosswalk entry point, verified-identity snapshot section, beneficial non-human benchmark materialization, and reconcile fail-closed readiness
 - `make test-verified-identity-taxonomy-crosswalk` - focused `VID-TAX-1` proof for verified-identity category projection through runtime classification, request-outcome telemetry, non-human receipts, and snapshot projection
+- `make test-verified-identity-alignment-receipts` - focused `VID-TAX-2` proof for machine-first verified-identity alignment receipts and bounded snapshot summary materialization
+- `make test-verified-identity-botness-conflicts` - focused `VID-BOT-1` proof for beneficial non-human benchmark conflict metrics across verified taxonomy alignment, protected verified traffic, and user-triggered agent friction drift
+- `make test-verified-identity-guardrails` - focused `VID-GUARD-1` proof for benchmark tuning blockers and reconcile fail-closed behavior when verified traffic is being harmed
 - `make test-protected-tuning-evidence` - protected-evidence proof across replay-promotion summary state, operator-snapshot replay visibility, fail-closed benchmark gating when evidence is only advisory, and replay-review requirements in oversight patch shaping
 - `make test-operator-objectives-category-contract` - category-aware objective proof across persisted objective rows, operator-objectives admin writes, decision lineage, and snapshot projection
 - `make test-benchmark-category-eligibility` - category-aware benchmark proof across the suite registry, current-instance benchmark results, tuning-eligibility blockers, and prior-window or candidate comparison helpers
@@ -254,6 +260,9 @@ Structural refactor proof map:
 - `make test-operator-objectives-contract` is the focused objective-profile and decision-evidence gate for persisted `operator_objectives_v1`, the operator-objectives admin endpoint, the bounded decision ledger, and snapshot wiring.
 - `make test-verified-identity-calibration-readiness` is the focused bridge gate before `VID-TAX-1` through `VID-GUARD-1`; it proves the current verified-identity taxonomy, snapshot, benchmark, and reconcile seams without over-claiming future alignment or conflict behavior.
 - `make test-verified-identity-taxonomy-crosswalk` is the truthful narrow gate for `VID-TAX-1`; it proves the verified-identity category crosswalk lands in request-outcome telemetry and the machine-first non-human snapshot path before later alignment or botness-conflict tranches.
+- `make test-verified-identity-alignment-receipts` is the truthful narrow gate for `VID-TAX-2`; it proves the verified-identity alignment receipt schema and snapshot summary stay wired to the canonical taxonomy projection instead of silently drifting back to coarse beneficial buckets.
+- `make test-verified-identity-botness-conflicts` is the truthful narrow gate for `VID-BOT-1`; it proves the beneficial non-human benchmark family surfaces explicit conflict metrics rather than hiding verified-traffic harm inside coarse totals.
+- `make test-verified-identity-guardrails` is the truthful narrow gate for `VID-GUARD-1`; it proves benchmark tuning eligibility and reconcile both fail closed when tolerated or allowed verified traffic is in conflict with current botness or friction signals.
 - `make test-oversight-reconcile` is the focused recommend-only oversight gate for bounded patch-policy shaping, stale/contradictory-evidence refusal behavior, the oversight decision ledger, and the admin reconcile/history adapter without touching any config write path.
 - `make test-oversight-agent` is the focused shared-host oversight agent gate for the internal periodic trigger contract, bounded agent-run persistence, latest-run status shaping, and supervisor-auth enforcement without exercising the post-sim hook yet.
 - `make test-oversight-apply` is the focused closed-loop oversight gate for manual apply-eligibility preview, shared-host canary refusal/apply semantics, protected watch-window progression, exact rollback, and retained-canary judgment.

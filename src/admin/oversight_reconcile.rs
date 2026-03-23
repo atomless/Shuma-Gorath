@@ -566,6 +566,7 @@ mod tests {
                 top_schemes: Vec::new(),
                 top_categories: Vec::new(),
                 top_provenance: Vec::new(),
+                taxonomy_alignment: crate::observability::non_human_classification::VerifiedIdentityTaxonomyAlignmentSummary::default(),
                 policy_tranche: OperatorSnapshotVerifiedIdentityPolicySummary::default(),
             },
             replay_promotion: ReplayPromotionSummary::not_materialized(),
@@ -639,5 +640,22 @@ mod tests {
 
         assert_eq!(reconcile_outcome(&result), "within_budget");
         assert!(result.proposal.is_none());
+    }
+
+    #[test]
+    fn observe_longer_when_verified_identity_guardrail_blocks_candidate() {
+        let cfg = defaults().clone();
+        let mut snapshot = sample_snapshot();
+        snapshot.benchmark_results.overall_status = "outside_budget".to_string();
+        snapshot.benchmark_results.escalation_hint.decision = "observe_longer".to_string();
+        snapshot.benchmark_results.escalation_hint.blockers =
+            vec!["verified_identity_botness_conflict_guardrail".to_string()];
+
+        let result = reconcile(&cfg, &snapshot, "manual_admin");
+
+        assert_eq!(reconcile_outcome(&result), "observe_longer");
+        assert!(result
+            .refusal_reasons
+            .contains(&"verified_identity_botness_conflict_guardrail".to_string()));
     }
 }

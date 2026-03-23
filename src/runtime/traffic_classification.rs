@@ -134,7 +134,13 @@ pub(crate) fn verified_identity_lane_assignment(
 pub(crate) fn verified_identity_category_assignment(
     identity: &VerifiedIdentityEvidence,
 ) -> NonHumanCategoryAssignment {
-    match identity.category {
+    verified_identity_category_assignment_for_category(identity.category)
+}
+
+pub(crate) fn verified_identity_category_assignment_for_category(
+    category: IdentityCategory,
+) -> NonHumanCategoryAssignment {
+    match category {
         IdentityCategory::Search => NonHumanCategoryAssignment {
             category_id: NonHumanCategoryId::IndexingBot,
             assignment_status: "classified",

@@ -4,6 +4,33 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-23)
 
+### VID-TAX-2, VID-BOT-1, and VID-GUARD-1: verified-identity calibration and no-harm guardrails
+
+- [x] Added bounded verified-identity versus taxonomy alignment receipts and snapshot summaries so the machine-first control plane now records whether verified traffic aligned cleanly with the canonical taxonomy, fell back through `other`, or currently lacks corroborating live classification evidence.
+- [x] Added explicit beneficial-non-human benchmark metrics for verified-identity calibration drift: `taxonomy_alignment_mismatch_rate`, `verified_botness_conflict_rate`, and `user_triggered_agent_friction_mismatch_rate`, with `insufficient_evidence` behavior for too-small verified samples.
+- [x] Added fail-closed tuning blockers and reconcile behavior so the controller now returns `observe_longer` instead of tuning through likely harm to tolerated or allowed verified traffic.
+- [x] Updated the operator and contributor docs so the machine-first API, configuration notes, and focused verification map describe the landed alignment, conflict, and guardrail semantics.
+- [x] Why:
+  - Web Bot Auth and other verified identities had become strong calibration evidence, but the loop was still treating them mostly as a coarse beneficial-traffic signal.
+  - without explicit alignment receipts and conflict metrics, Monitoring would have been forced to infer verified-identity drift after the fact instead of projecting it directly from machine-first contracts.
+  - without hard guardrails, the controller could still recommend tuning even when current botness or friction signals were harming traffic the operator intended to tolerate or allow.
+- [x] Evidence:
+  - `src/observability/non_human_classification.rs`
+  - `src/observability/operator_snapshot_verified_identity.rs`
+  - `src/observability/benchmark_beneficial_non_human.rs`
+  - `src/observability/benchmark_results.rs`
+  - `src/admin/oversight_reconcile.rs`
+  - `Makefile`
+  - `docs/api.md`
+  - `docs/configuration.md`
+  - `docs/testing.md`
+  - `docs/research/2026-03-23-vid-tax-2-bot-1-and-guard-1-calibration-and-no-harm-post-implementation-review.md`
+  - `make test-verified-identity-alignment-receipts`
+  - `make test-verified-identity-botness-conflicts`
+  - `make test-verified-identity-guardrails`
+  - `make test-verified-identity-calibration-readiness`
+  - `git diff --check`
+
 ### Dashboard auth gate follow-up: remove visible auth-copy flash
 
 - [x] Tightened the logged-out dashboard auth gate so it no longer renders any visible message panel during session restoration; the page now shows only the normal striped disconnected background before redirect.

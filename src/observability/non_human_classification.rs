@@ -1,15 +1,18 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+use crate::bot_identity::contracts::IdentityCategory;
 use crate::observability::monitoring::{
     MonitoringSummary, RequestOutcomeCategorySummaryRow, RequestOutcomeLaneSummaryRow,
+    VerifiedIdentitySeenRow,
 };
 use crate::observability::operator_snapshot_live_traffic::OperatorSnapshotRecentSimRun;
 use crate::runtime::non_human_taxonomy::{
     canonical_non_human_taxonomy, NonHumanCategoryDescriptor,
 };
 use crate::runtime::traffic_classification::{
-    non_human_category_assignment_for_lane, TrafficLane,
+    non_human_category_assignment_for_lane, verified_identity_category_assignment_for_category,
+    TrafficLane,
 };
 
 pub(crate) const NON_HUMAN_DECISION_CHAIN: [&str; 4] = [
@@ -47,11 +50,111 @@ pub(crate) struct NonHumanClassificationReceipt {
     pub evidence_references: Vec<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct VerifiedIdentityTaxonomyAlignmentReceipt {
+    pub operator: String,
+    pub stable_identity: String,
+    pub scheme: String,
+    pub verified_identity_category: String,
+    pub projected_category_id: String,
+    pub projected_category_label: String,
+    pub alignment_status: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub degradation_reason: String,
+    pub count: u64,
+    #[serde(default)]
+    pub end_user_controlled: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub evidence_references: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub(crate) struct VerifiedIdentityTaxonomyAlignmentSummary {
+    pub schema_version: String,
+    pub status: String,
+    pub aligned_count: u64,
+    pub fallback_count: u64,
+    pub misaligned_count: u64,
+    pub insufficient_evidence_count: u64,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub receipts: Vec<VerifiedIdentityTaxonomyAlignmentReceipt>,
+}
+
 pub(crate) fn non_human_decision_chain() -> Vec<String> {
     NON_HUMAN_DECISION_CHAIN
         .iter()
         .map(|value| (*value).to_string())
         .collect()
+}
+
+pub(crate) fn summarize_verified_identity_taxonomy_alignment(
+    summary: &MonitoringSummary,
+    non_human_receipts: &[NonHumanClassificationReceipt],
+) -> VerifiedIdentityTaxonomyAlignmentSummary {
+    let categories = canonical_non_human_taxonomy().categories;
+    let live_receipts: Vec<_> = non_human_receipts
+        .iter()
+        .filter(|receipt| receipt.traffic_origin == "live")
+        .collect();
+    let mut receipts: Vec<_> = summary
+        .verified_identity
+        .top_verified_identities
+        .iter()
+        .filter_map(|row| {
+            alignment_receipt_from_seen_row(row, live_receipts.as_slice(), &categories)
+        })
+        .collect();
+    receipts.sort_by(|left, right| {
+        alignment_sort_key(left.alignment_status.as_str())
+            .cmp(&alignment_sort_key(right.alignment_status.as_str()))
+            .then_with(|| right.count.cmp(&left.count))
+            .then_with(|| left.operator.cmp(&right.operator))
+            .then_with(|| left.stable_identity.cmp(&right.stable_identity))
+    });
+
+    let mut summary_row = VerifiedIdentityTaxonomyAlignmentSummary {
+        schema_version: "verified_identity_taxonomy_alignment_v1".to_string(),
+        status: "not_observed".to_string(),
+        aligned_count: 0,
+        fallback_count: 0,
+        misaligned_count: 0,
+        insufficient_evidence_count: 0,
+        receipts,
+    };
+    for receipt in &summary_row.receipts {
+        match receipt.alignment_status.as_str() {
+            "aligned" => {
+                summary_row.aligned_count =
+                    summary_row.aligned_count.saturating_add(receipt.count)
+            }
+            "fallback" => {
+                summary_row.fallback_count =
+                    summary_row.fallback_count.saturating_add(receipt.count)
+            }
+            "misaligned" => {
+                summary_row.misaligned_count =
+                    summary_row.misaligned_count.saturating_add(receipt.count)
+            }
+            "insufficient_evidence" => {
+                summary_row.insufficient_evidence_count = summary_row
+                    .insufficient_evidence_count
+                    .saturating_add(receipt.count)
+            }
+            _ => {}
+        }
+    }
+    summary_row.status = if summary_row.receipts.is_empty() {
+        "not_observed".to_string()
+    } else if summary_row.misaligned_count > 0 {
+        "degraded".to_string()
+    } else if summary_row.insufficient_evidence_count > 0 {
+        "insufficient_evidence".to_string()
+    } else if summary_row.fallback_count > 0 {
+        "fallback_only".to_string()
+    } else {
+        "aligned".to_string()
+    };
+    summary_row
 }
 
 pub(crate) fn summarize_non_human_classification(
@@ -304,11 +407,84 @@ fn evidence_references(
     references
 }
 
+fn alignment_receipt_from_seen_row(
+    row: &VerifiedIdentitySeenRow,
+    live_receipts: &[&NonHumanClassificationReceipt],
+    categories: &[NonHumanCategoryDescriptor],
+) -> Option<VerifiedIdentityTaxonomyAlignmentReceipt> {
+    let identity_category = identity_category_from_str(row.category.as_str())?;
+    let projected = verified_identity_category_assignment_for_category(identity_category);
+    let projected_category = categories
+        .iter()
+        .find(|category| category.category_id == projected.category_id)?;
+    let matching_live_receipt = live_receipts.iter().find(|receipt| {
+        receipt.category_id == projected.category_id.as_str()
+            && receipt.assignment_status == "classified"
+            && receipt.degradation_status == "current"
+    });
+    let (alignment_status, degradation_reason) = if identity_category == IdentityCategory::Other {
+        ("fallback", "verified_identity_category_other")
+    } else if matching_live_receipt.is_some() {
+        ("aligned", "")
+    } else if live_receipts.is_empty() {
+        ("insufficient_evidence", "live_non_human_receipts_missing")
+    } else {
+        ("misaligned", "projected_category_not_observed")
+    };
+
+    let mut evidence_references = vec![format!(
+        "verified_identity.top_verified_identities:{}:{}:{}",
+        row.operator, row.scheme, row.stable_identity
+    )];
+    if let Some(receipt) = matching_live_receipt {
+        evidence_references.extend(receipt.evidence_references.iter().cloned());
+    }
+
+    Some(VerifiedIdentityTaxonomyAlignmentReceipt {
+        operator: row.operator.clone(),
+        stable_identity: row.stable_identity.clone(),
+        scheme: row.scheme.clone(),
+        verified_identity_category: row.category.clone(),
+        projected_category_id: projected.category_id.as_str().to_string(),
+        projected_category_label: projected_category.label.clone(),
+        alignment_status: alignment_status.to_string(),
+        degradation_reason: degradation_reason.to_string(),
+        count: row.count,
+        end_user_controlled: row.end_user_controlled,
+        evidence_references,
+    })
+}
+
+fn identity_category_from_str(value: &str) -> Option<IdentityCategory> {
+    match value {
+        "training" => Some(IdentityCategory::Training),
+        "search" => Some(IdentityCategory::Search),
+        "user_triggered_agent" => Some(IdentityCategory::UserTriggeredAgent),
+        "preview" => Some(IdentityCategory::Preview),
+        "service_agent" => Some(IdentityCategory::ServiceAgent),
+        "other" => Some(IdentityCategory::Other),
+        _ => None,
+    }
+}
+
+fn alignment_sort_key(status: &str) -> u8 {
+    match status {
+        "misaligned" => 0,
+        "insufficient_evidence" => 1,
+        "fallback" => 2,
+        "aligned" => 3,
+        _ => 4,
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::summarize_non_human_classification;
+    use super::{
+        summarize_non_human_classification, summarize_verified_identity_taxonomy_alignment,
+    };
     use crate::observability::monitoring::{
         MonitoringSummary, RequestOutcomeCategorySummaryRow, RequestOutcomeLaneSummaryRow,
+        VerifiedIdentitySeenRow,
     };
     use crate::observability::operator_snapshot_live_traffic::OperatorSnapshotRecentSimRun;
 
@@ -467,6 +643,99 @@ mod tests {
         assert_eq!(receipts[0].category_id, "indexing_bot");
         assert_eq!(receipts[0].lane, "category_crosswalk");
         assert!(receipts[0]
+            .evidence_references
+            .iter()
+            .any(|reference| reference.contains("request_outcomes.by_non_human_category")));
+    }
+
+    #[test]
+    fn verified_identity_alignment_summary_distinguishes_aligned_fallback_and_misaligned_rows() {
+        let mut verified_summary = MonitoringSummary::default();
+        verified_summary.verified_identity.top_verified_identities = vec![
+            VerifiedIdentitySeenRow {
+                operator: "search.example".to_string(),
+                stable_identity: "crawler-1".to_string(),
+                scheme: "http_message_signatures".to_string(),
+                category: "search".to_string(),
+                provenance: "native".to_string(),
+                end_user_controlled: false,
+                count: 5,
+            },
+            VerifiedIdentitySeenRow {
+                operator: "misc.example".to_string(),
+                stable_identity: "misc-1".to_string(),
+                scheme: "http_message_signatures".to_string(),
+                category: "other".to_string(),
+                provenance: "native".to_string(),
+                end_user_controlled: false,
+                count: 3,
+            },
+            VerifiedIdentitySeenRow {
+                operator: "service.example".to_string(),
+                stable_identity: "svc-1".to_string(),
+                scheme: "provider_verified_bot".to_string(),
+                category: "service_agent".to_string(),
+                provenance: "provider".to_string(),
+                end_user_controlled: false,
+                count: 2,
+            },
+        ];
+        let mut classification_summary = MonitoringSummary::default();
+        classification_summary.request_outcomes.by_non_human_category = vec![
+            RequestOutcomeCategorySummaryRow {
+                traffic_origin: "live".to_string(),
+                measurement_scope: "ingress_primary".to_string(),
+                execution_mode: "enforced".to_string(),
+                category_id: "indexing_bot".to_string(),
+                assignment_status: "classified".to_string(),
+                exactness: "exact".to_string(),
+                basis: "observed".to_string(),
+                total_requests: 5,
+                forwarded_requests: 5,
+                short_circuited_requests: 0,
+                control_response_requests: 0,
+                response_bytes: 500,
+                forwarded_response_bytes: 500,
+                short_circuited_response_bytes: 0,
+                control_response_bytes: 0,
+            },
+            RequestOutcomeCategorySummaryRow {
+                traffic_origin: "live".to_string(),
+                measurement_scope: "ingress_primary".to_string(),
+                execution_mode: "enforced".to_string(),
+                category_id: "verified_beneficial_bot".to_string(),
+                assignment_status: "classified".to_string(),
+                exactness: "exact".to_string(),
+                basis: "observed".to_string(),
+                total_requests: 3,
+                forwarded_requests: 3,
+                short_circuited_requests: 0,
+                control_response_requests: 0,
+                response_bytes: 300,
+                forwarded_response_bytes: 300,
+                short_circuited_response_bytes: 0,
+                control_response_bytes: 0,
+            },
+        ];
+
+        let (_, receipts) = summarize_non_human_classification(&classification_summary, &[]);
+        let alignment =
+            summarize_verified_identity_taxonomy_alignment(&verified_summary, receipts.as_slice());
+
+        assert_eq!(alignment.schema_version, "verified_identity_taxonomy_alignment_v1");
+        assert_eq!(alignment.status, "degraded");
+        assert_eq!(alignment.aligned_count, 5);
+        assert_eq!(alignment.fallback_count, 3);
+        assert_eq!(alignment.misaligned_count, 2);
+        assert_eq!(alignment.receipts[0].alignment_status, "misaligned");
+        assert_eq!(alignment.receipts[0].projected_category_id, "http_agent");
+        assert_eq!(alignment.receipts[1].alignment_status, "fallback");
+        assert_eq!(
+            alignment.receipts[1].degradation_reason,
+            "verified_identity_category_other"
+        );
+        assert_eq!(alignment.receipts[2].alignment_status, "aligned");
+        assert!(alignment.receipts[2]
             .evidence_references
             .iter()
             .any(|reference| reference.contains("request_outcomes.by_non_human_category")));

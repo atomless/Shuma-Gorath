@@ -22,6 +22,7 @@ use super::benchmark_results_comparison::{
 use super::benchmark_results_families::{
     likely_human_friction_family, suspicious_origin_cost_family,
 };
+use super::operator_snapshot_verified_identity::OperatorSnapshotVerifiedIdentitySummary;
 
 pub(crate) const BENCHMARK_RESULTS_SCHEMA_VERSION: &str = "benchmark_results_v1";
 
@@ -138,7 +139,19 @@ pub(crate) fn build_benchmark_results_from_snapshot_sections(
         suspicious_origin_cost_family(live_traffic.suspicious_automation.as_ref(), budget_distance);
     let friction_family = likely_human_friction_family(budget_distance);
     let adversary_family = representative_adversary_effectiveness_family(adversary_sim);
-    let non_human_family = beneficial_non_human_posture_family(summary, cfg);
+    let verified_identity =
+        super::operator_snapshot_verified_identity::verified_identity_summary(
+            summary,
+            cfg,
+            non_human_traffic.receipts.as_slice(),
+        );
+    let non_human_family = beneficial_non_human_posture_family(
+        summary,
+        cfg,
+        objectives,
+        non_human_traffic,
+        &verified_identity,
+    );
     let category_posture_family = non_human_category_posture_family(objectives, non_human_traffic);
     let mut families = vec![
         suspicious_family,
@@ -152,7 +165,8 @@ pub(crate) fn build_benchmark_results_from_snapshot_sections(
         families.as_mut_slice(),
         prior_window_reference,
     );
-    let tuning_eligibility = tuning_eligibility(non_human_traffic, replay_promotion);
+    let tuning_eligibility =
+        tuning_eligibility(non_human_traffic, replay_promotion, &verified_identity, families.as_slice());
     let derived_escalation_hint = derive_escalation_hint(allowed_actions, families.as_slice());
     let escalation_hint = if tuning_eligibility.status != "eligible" {
         BenchmarkEscalationHint {
@@ -192,8 +206,10 @@ pub(crate) fn build_benchmark_results_from_snapshot_sections(
 fn tuning_eligibility(
     non_human_traffic: &OperatorSnapshotNonHumanTrafficSummary,
     replay_promotion: &ReplayPromotionSummary,
+    verified_identity: &OperatorSnapshotVerifiedIdentitySummary,
+    families: &[BenchmarkFamilyResult],
 ) -> BenchmarkTuningEligibility {
-    let blockers = if non_human_traffic.readiness.status != "ready" {
+    let mut blockers = if non_human_traffic.readiness.status != "ready" {
         let mut blockers = vec!["non_human_classification_not_ready".to_string()];
         blockers.extend(non_human_traffic.readiness.blockers.iter().cloned());
         blockers
@@ -202,6 +218,12 @@ fn tuning_eligibility(
             .coverage
             .protected_tuning_blockers(replay_promotion)
     };
+    blockers.extend(verified_identity_guardrail_blockers(
+        verified_identity,
+        families,
+    ));
+    blockers.sort();
+    blockers.dedup();
 
     BenchmarkTuningEligibility {
         status: if blockers.is_empty() {
@@ -211,6 +233,46 @@ fn tuning_eligibility(
         },
         blockers,
     }
+}
+
+fn verified_identity_guardrail_blockers(
+    verified_identity: &OperatorSnapshotVerifiedIdentitySummary,
+    families: &[BenchmarkFamilyResult],
+) -> Vec<String> {
+    let mut blockers = Vec::new();
+    if matches!(
+        verified_identity.taxonomy_alignment.status.as_str(),
+        "degraded" | "insufficient_evidence"
+    ) {
+        blockers.push("verified_identity_taxonomy_alignment_guardrail".to_string());
+    }
+    let Some(beneficial_family) = families
+        .iter()
+        .find(|family| family.family_id == "beneficial_non_human_posture")
+    else {
+        return blockers;
+    };
+    for metric in &beneficial_family.metrics {
+        if metric.status != "outside_budget" {
+            continue;
+        }
+        match metric.metric_id.as_str() {
+            "verified_botness_conflict_rate" => {
+                blockers.push("verified_identity_botness_conflict_guardrail".to_string());
+            }
+            "user_triggered_agent_friction_mismatch_rate" => {
+                blockers.push("verified_identity_user_triggered_agent_guardrail".to_string());
+            }
+            "friction_mismatch_rate" => {
+                blockers.push("verified_identity_friction_mismatch_guardrail".to_string());
+            }
+            "taxonomy_alignment_mismatch_rate" => {
+                blockers.push("verified_identity_taxonomy_alignment_guardrail".to_string());
+            }
+            _ => {}
+        }
+    }
+    blockers
 }
 
 #[cfg(test)]
@@ -686,6 +748,139 @@ mod tests {
             .metrics
             .iter()
             .any(|metric| metric.metric_id == "category_posture_alignment:indexing_bot"));
+    }
+
+    #[test]
+    fn verified_identity_guardrails_block_tuning_when_conflicts_are_outside_budget() {
+        let mut cfg = defaults().clone();
+        cfg.verified_identity.enabled = true;
+        let mut summary = crate::observability::monitoring::MonitoringSummary::default();
+        summary.verified_identity.attempts = 6;
+        summary.verified_identity.verified = 6;
+        summary
+            .verified_identity
+            .top_verified_identities
+            .push(crate::observability::monitoring::VerifiedIdentitySeenRow {
+                operator: "openai".to_string(),
+                stable_identity: "chatgpt-agent".to_string(),
+                scheme: "provider_signed_agent".to_string(),
+                category: "user_triggered_agent".to_string(),
+                provenance: "provider".to_string(),
+                end_user_controlled: true,
+                count: 6,
+            });
+        summary.request_outcomes.by_policy_source.push(
+            crate::observability::monitoring::RequestOutcomeBreakdownSummaryRow {
+                traffic_origin: "live".to_string(),
+                measurement_scope: "ingress_primary".to_string(),
+                execution_mode: "enforced".to_string(),
+                value: "policy_graph_verified_identity_tranche".to_string(),
+                total_requests: 6,
+                forwarded_requests: 2,
+                short_circuited_requests: 4,
+                control_response_requests: 0,
+            },
+        );
+        let objectives =
+            crate::observability::operator_snapshot_objectives::default_operator_objectives(
+                1_700_000_500,
+            );
+
+        let payload = build_benchmark_results_from_snapshot_sections(
+            1_700_000_500,
+            1_700_000_500,
+            &crate::observability::operator_snapshot::OperatorSnapshotWindow {
+                start_ts: 1_700_000_000,
+                end_ts: 1_700_000_500,
+                duration_seconds: 500,
+            },
+            &objectives,
+            &crate::observability::operator_snapshot_live_traffic::OperatorSnapshotLiveTraffic {
+                traffic_origin: "live".to_string(),
+                measurement_scope: "ingress_primary".to_string(),
+                execution_mode: "enforced".to_string(),
+                total_requests: 6,
+                forwarded_requests: 2,
+                short_circuited_requests: 4,
+                control_response_requests: 0,
+                forwarded_response_bytes: 200,
+                shuma_served_response_bytes: 400,
+                likely_human: None,
+                suspicious_automation: None,
+                human_friction: None,
+            },
+            &crate::observability::operator_snapshot_live_traffic::OperatorSnapshotAdversarySim {
+                traffic_origin: "adversary_sim".to_string(),
+                measurement_scope: "ingress_primary".to_string(),
+                execution_mode: "enforced".to_string(),
+                total_requests: 0,
+                forwarded_requests: 0,
+                short_circuited_requests: 0,
+                control_response_requests: 0,
+                forwarded_response_bytes: 0,
+                shuma_served_response_bytes: 0,
+                recent_runs: Vec::new(),
+            },
+            &crate::observability::operator_snapshot::OperatorSnapshotNonHumanTrafficSummary {
+                availability: "taxonomy_seeded".to_string(),
+                taxonomy: crate::runtime::non_human_taxonomy::canonical_non_human_taxonomy(),
+                readiness: crate::observability::non_human_classification::NonHumanClassificationReadiness {
+                    status: "ready".to_string(),
+                    blockers: Vec::new(),
+                    live_receipt_count: 1,
+                    adversary_sim_receipt_count: 1,
+                },
+                coverage: crate::observability::non_human_coverage::NonHumanCoverageSummary {
+                    schema_version: "non_human_coverage_v1".to_string(),
+                    overall_status: "covered".to_string(),
+                    blocking_reasons: Vec::new(),
+                    blocking_category_ids: Vec::new(),
+                    mapped_category_count: 6,
+                    gap_category_count: 2,
+                    covered_category_count: 6,
+                    partial_category_count: 0,
+                    stale_category_count: 0,
+                    unavailable_category_count: 0,
+                    uncovered_category_count: 2,
+                    receipts: Vec::new(),
+                },
+                decision_chain: Vec::new(),
+                receipts: vec![crate::observability::non_human_classification::NonHumanClassificationReceipt {
+                    traffic_origin: "live".to_string(),
+                    measurement_scope: "ingress_primary".to_string(),
+                    execution_mode: "enforced".to_string(),
+                    lane: "category_crosswalk".to_string(),
+                    category_id: "agent_on_behalf_of_human".to_string(),
+                    category_label: "Agent On Behalf Of Human".to_string(),
+                    assignment_status: "classified".to_string(),
+                    exactness: "exact".to_string(),
+                    basis: "observed".to_string(),
+                    degradation_status: "current".to_string(),
+                    total_requests: 6,
+                    forwarded_requests: 2,
+                    short_circuited_requests: 4,
+                    evidence_references: Vec::new(),
+                }],
+            },
+            &crate::observability::operator_snapshot::OperatorBudgetDistanceSummary {
+                rows: Vec::new(),
+            },
+            &summary,
+            &cfg,
+            &allowed_actions_v1(),
+            &protected_replay_promotion_summary(),
+            None,
+        );
+
+        assert_eq!(payload.tuning_eligibility.status, "blocked");
+        assert!(payload
+            .tuning_eligibility
+            .blockers
+            .contains(&"verified_identity_botness_conflict_guardrail".to_string()));
+        assert!(payload
+            .tuning_eligibility
+            .blockers
+            .contains(&"verified_identity_user_triggered_agent_guardrail".to_string()));
     }
 
     #[test]
