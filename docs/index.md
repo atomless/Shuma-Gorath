@@ -20,6 +20,7 @@ cd Shuma-Gorath
 - [`dashboard.md`](dashboard.md) - Dashboard and admin <abbr title="User Interface">UI</abbr>
 - [`dashboard-tabs/README.md`](dashboard-tabs/README.md) - Per-tab dashboard operator docs
 - [`deployment.md`](deployment.md) - Production/deploy configuration
+- [`current-system-architecture.md`](current-system-architecture.md) - Current landed system architecture, including request-time runtime, machine-first observability, and the live-proven bounded feedback loop
 - [`../skills/prepare-scrapling-for-deploy/SKILL.md`](../skills/prepare-scrapling-for-deploy/SKILL.md) - Repo-local agent skill for minimal Scrapling deploy prep and shared-host-first runtime boundaries
 - [`../skills/prepare-shared-host-on-linode/SKILL.md`](../skills/prepare-shared-host-on-linode/SKILL.md) - Repo-local agent skill for shared-host Linode setup and deploy handoff preparation
 - [`../skills/deploy-shuma-on-linode/SKILL.md`](../skills/deploy-shuma-on-linode/SKILL.md) - Repo-local agent skill for one-command Linode provisioning + deployment
