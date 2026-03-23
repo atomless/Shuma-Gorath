@@ -4,6 +4,29 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-23)
 
+### SIM-SCR-FIT-1: Freeze Scrapling Request-Native Category Ownership
+
+- [x] Expanded Scrapling's truthful near-term ownership from indexing-only to the request-native categories it can genuinely own on the current shared-host worker boundary: `indexing_bot`, `ai_scraper_bot`, and `http_agent`, while keeping browser-driven and delegated-agent categories outside Scrapling ownership.
+- [x] Why:
+  - the closed-loop lane-fulfillment contract was still telling the older story that only `indexing_bot` belonged to Scrapling, which would have made the next Monitoring surfaces and coverage receipts project stale ownership semantics.
+  - the worker plan was also missing a typed Scrapling persona signal, so the runtime could not yet ask for a specific request-native fulfillment mode even though the next tranche needs that seam.
+  - the cleanest first slice was to freeze ownership and plan shape now, while deliberately leaving the deeper worker behavior changes for `SIM-SCR-FIT-2`.
+- [x] Evidence:
+  - `src/observability/non_human_lane_fulfillment.rs`
+  - `src/admin/adversary_sim_worker_plan.rs`
+  - `src/admin/adversary_sim_lane_runtime.rs`
+  - `src/admin/api.rs`
+  - `scripts/tests/adversarial/coverage_contract.v2.json`
+  - `scripts/tests/check_adversarial_coverage_contract.py`
+  - `scripts/tests/test_adversarial_coverage_contract.py`
+  - `scripts/tests/test_scrapling_worker.py`
+  - `docs/adversarial-operator-guide.md`
+  - `docs/research/2026-03-23-sim-scr-fit-1-request-native-category-ownership-post-implementation-review.md`
+  - `make test-adversary-sim-scrapling-category-fit`
+  - `make test-adversarial-coverage-contract`
+  - `make test-adversary-sim-scrapling-worker`
+  - `git diff --check`
+
 ### Sequence Readiness Prep: Scrapling Category-Fit And Verified-Identity Calibration Gates
 
 - [x] Added the short execution-readiness bridge before `SIM-SCR-FIT-1` through `VID-GUARD-1`: one new readiness research note, tighter implementation-plan ownership for the verified-identity calibration track, and truthful focused Makefile proof targets for the upcoming Scrapling and verified-identity slices.

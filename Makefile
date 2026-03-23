@@ -1275,7 +1275,8 @@ test-adversary-sim-scrapling-category-fit: ## Focused Scrapling category-fit gat
 	@echo "$(CYAN)🧪 Running adversary-sim Scrapling category-fit gate...$(NC)"
 	@./scripts/set_crate_type.sh rlib
 	@cargo test observability::non_human_lane_fulfillment::tests:: -- --nocapture
-	@cargo test admin::api::tests::adversary_sim_internal_beat_returns_scrapling_worker_plan_and_switches_active_lane -- --exact --nocapture
+	@cargo test admin::adversary_sim_lane_runtime::tests::scrapling_fulfillment_modes_cycle_across_request_native_personas -- --exact --nocapture
+	@cargo test admin::api::admin_config_tests::adversary_sim_internal_beat_returns_scrapling_worker_plan_and_switches_active_lane -- --exact --nocapture
 	@python3 -m unittest scripts/tests/test_adversary_sim_make_targets.py
 
 test-adversary-sim-scrapling-worker: ## Focused Scrapling lane worker gate (beat plan/result contract plus real worker/supervisor coverage)
@@ -1336,6 +1337,7 @@ test-adversarial-sim-tag-contract: ## Validate simulation tag signing contract p
 test-adversarial-coverage-contract: ## Validate full-coverage contract parity across plan, manifest, and runner
 	@echo "$(CYAN)🧪 Validating adversarial coverage contract...$(NC)"
 	@python3 scripts/tests/check_adversarial_coverage_contract.py
+	@python3 -m unittest scripts/tests/test_adversarial_coverage_contract.py
 
 test-adversarial-scenario-review: ## Validate scenario intent matrix parity and review freshness governance
 	@echo "$(CYAN)🧪 Validating adversarial scenario intent matrix...$(NC)"

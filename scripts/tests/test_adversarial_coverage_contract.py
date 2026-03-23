@@ -74,7 +74,11 @@ class AdversarialCoverageContractUnitTests(unittest.TestCase):
             ),
         )
         self.assertEqual(categories["indexing_bot"]["runtime_lane"], "scrapling_traffic")
-        self.assertEqual(categories["indexing_bot"]["fulfillment_mode"], "scrapling_worker")
+        self.assertEqual(categories["indexing_bot"]["fulfillment_mode"], "crawler")
+        self.assertEqual(categories["ai_scraper_bot"]["runtime_lane"], "scrapling_traffic")
+        self.assertEqual(categories["ai_scraper_bot"]["fulfillment_mode"], "bulk_scraper")
+        self.assertEqual(categories["http_agent"]["runtime_lane"], "scrapling_traffic")
+        self.assertEqual(categories["http_agent"]["fulfillment_mode"], "http_agent")
         self.assertEqual(categories["verified_beneficial_bot"]["assignment_status"], "gap")
         self.assertEqual(categories["unknown_non_human"]["assignment_status"], "gap")
         self.assertEqual(

@@ -5088,11 +5088,22 @@ mod admin_config_tests {
         assert_eq!(
             beat_json
                 .get("worker_plan")
+                .and_then(|value| value.get("fulfillment_mode"))
+                .and_then(|value| value.as_str()),
+            Some("crawler")
+        );
+        assert_eq!(
+            beat_json
+                .get("worker_plan")
                 .and_then(|value| value.get("category_targets"))
                 .and_then(|value| value.as_array())
-                .and_then(|values| values.first())
-                .and_then(|value| value.as_str()),
-            Some("indexing_bot")
+                .map(|values| {
+                    values
+                        .iter()
+                        .filter_map(|value| value.as_str())
+                        .collect::<Vec<_>>()
+                }),
+            Some(vec!["indexing_bot"])
         );
         assert_eq!(
             beat_json

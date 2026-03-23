@@ -459,6 +459,7 @@ fn next_scrapling_worker_plan(now: u64, state: &mut ControlState) -> ScraplingWo
         .or_else(|| state.last_run_id.clone())
         .unwrap_or_else(|| format!("simrun-runtime-{now}"));
     let tick_id = format!("scrapling-tick-{}-{:016x}", now, random::<u64>());
+    let fulfillment_mode = scrapling_fulfillment_mode_for_tick(state.generated_tick_count);
     state.pending_worker_tick_id = Some(tick_id.clone());
     state.pending_worker_started_at = Some(now);
     state.updated_at = now;
@@ -468,12 +469,37 @@ fn next_scrapling_worker_plan(now: u64, state: &mut ControlState) -> ScraplingWo
         tick_id,
         lane: RuntimeLane::ScraplingTraffic,
         sim_profile: SCRAPLING_SIM_PROFILE.to_string(),
-        category_targets: crate::observability::non_human_lane_fulfillment::scrapling_category_targets(),
+        fulfillment_mode: fulfillment_mode.to_string(),
+        category_targets:
+            crate::observability::non_human_lane_fulfillment::scrapling_category_targets_for_mode(
+                fulfillment_mode,
+            ),
         tick_started_at: now,
         max_requests: SCRAPLING_MAX_REQUESTS_PER_TICK,
         max_depth: SCRAPLING_MAX_DEPTH_PER_TICK,
         max_bytes: SCRAPLING_MAX_BYTES_PER_TICK,
         max_ms: SCRAPLING_MAX_MS_PER_TICK,
+    }
+}
+
+fn scrapling_fulfillment_mode_for_tick(generated_tick_count: u64) -> &'static str {
+    match generated_tick_count % 3 {
+        0 => "crawler",
+        1 => "bulk_scraper",
+        _ => "http_agent",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::scrapling_fulfillment_mode_for_tick;
+
+    #[test]
+    fn scrapling_fulfillment_modes_cycle_across_request_native_personas() {
+        assert_eq!(scrapling_fulfillment_mode_for_tick(0), "crawler");
+        assert_eq!(scrapling_fulfillment_mode_for_tick(1), "bulk_scraper");
+        assert_eq!(scrapling_fulfillment_mode_for_tick(2), "http_agent");
+        assert_eq!(scrapling_fulfillment_mode_for_tick(3), "crawler");
     }
 }
 

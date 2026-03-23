@@ -26,6 +26,7 @@ pub struct ScraplingWorkerPlan {
     pub tick_id: String,
     pub lane: RuntimeLane,
     pub sim_profile: String,
+    pub fulfillment_mode: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub category_targets: Vec<String>,
     pub tick_started_at: u64,

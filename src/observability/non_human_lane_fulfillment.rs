@@ -9,7 +9,14 @@ use crate::runtime::non_human_taxonomy::{
 pub(crate) const NON_HUMAN_LANE_FULFILLMENT_SCHEMA_VERSION: &str =
     "non_human_lane_fulfillment_v1";
 
-const SCRAPLING_CATEGORY_TARGETS: [&str; 1] = ["indexing_bot"];
+const SCRAPLING_OWNED_CATEGORY_TARGETS: [&str; 3] = [
+    "indexing_bot",
+    "ai_scraper_bot",
+    "http_agent",
+];
+const SCRAPLING_CRAWLER_CATEGORY_TARGETS: [&str; 1] = ["indexing_bot"];
+const SCRAPLING_BULK_SCRAPER_CATEGORY_TARGETS: [&str; 1] = ["ai_scraper_bot"];
+const SCRAPLING_HTTP_AGENT_CATEGORY_TARGETS: [&str; 1] = ["http_agent"];
 const LLM_BROWSER_CATEGORY_TARGETS: [&str; 3] = [
     "automated_browser",
     "browser_agent",
@@ -38,10 +45,28 @@ pub(crate) struct NonHumanLaneFulfillmentSummary {
 }
 
 pub(crate) fn scrapling_category_targets() -> Vec<String> {
-    SCRAPLING_CATEGORY_TARGETS
+    SCRAPLING_OWNED_CATEGORY_TARGETS
         .iter()
         .map(|value| (*value).to_string())
         .collect()
+}
+
+pub(crate) fn scrapling_category_targets_for_mode(mode: &str) -> Vec<String> {
+    match mode {
+        "crawler" => SCRAPLING_CRAWLER_CATEGORY_TARGETS
+            .iter()
+            .map(|value| (*value).to_string())
+            .collect(),
+        "bulk_scraper" => SCRAPLING_BULK_SCRAPER_CATEGORY_TARGETS
+            .iter()
+            .map(|value| (*value).to_string())
+            .collect(),
+        "http_agent" => SCRAPLING_HTTP_AGENT_CATEGORY_TARGETS
+            .iter()
+            .map(|value| (*value).to_string())
+            .collect(),
+        _ => Vec::new(),
+    }
 }
 
 pub(crate) fn llm_category_targets_for_mode(mode: &str) -> Vec<String> {
@@ -97,14 +122,14 @@ fn lane_assignment_for_category(
         NonHumanCategoryId::IndexingBot => (
             "mapped",
             "scrapling_traffic",
-            "scrapling_worker",
-            "Shared-host Scrapling is the intended crawler/indexing fulfillment lane.",
+            "crawler",
+            "Shared-host Scrapling crawler persona is the intended fulfillment lane for indexing and discovery pressure.",
         ),
         NonHumanCategoryId::AiScraperBot => (
             "mapped",
-            "bot_red_team",
-            "request_mode",
-            "Bounded LLM request mode is the intended fulfillment lane for direct request scraping pressure.",
+            "scrapling_traffic",
+            "bulk_scraper",
+            "Shared-host Scrapling bulk-scraper persona is the intended fulfillment lane for request-native retrieval and training-style pressure.",
         ),
         NonHumanCategoryId::AutomatedBrowser => (
             "mapped",
@@ -114,9 +139,9 @@ fn lane_assignment_for_category(
         ),
         NonHumanCategoryId::HttpAgent => (
             "mapped",
-            "bot_red_team",
-            "request_mode",
-            "Bounded LLM request mode is the intended fulfillment lane for direct HTTP agent behavior.",
+            "scrapling_traffic",
+            "http_agent",
+            "Shared-host Scrapling direct-request persona is the intended fulfillment lane for bounded HTTP agent behavior.",
         ),
         NonHumanCategoryId::BrowserAgent => (
             "mapped",
@@ -149,7 +174,7 @@ fn lane_assignment_for_category(
 mod tests {
     use super::{
         canonical_non_human_lane_fulfillment, llm_category_targets_for_mode,
-        scrapling_category_targets,
+        scrapling_category_targets, scrapling_category_targets_for_mode,
     };
 
     #[test]
@@ -166,7 +191,25 @@ mod tests {
             .unwrap();
         assert_eq!(indexing_bot.assignment_status, "mapped");
         assert_eq!(indexing_bot.runtime_lane, "scrapling_traffic");
-        assert_eq!(indexing_bot.fulfillment_mode, "scrapling_worker");
+        assert_eq!(indexing_bot.fulfillment_mode, "crawler");
+
+        let ai_scraper_bot = summary
+            .rows
+            .iter()
+            .find(|row| row.category_id == "ai_scraper_bot")
+            .unwrap();
+        assert_eq!(ai_scraper_bot.assignment_status, "mapped");
+        assert_eq!(ai_scraper_bot.runtime_lane, "scrapling_traffic");
+        assert_eq!(ai_scraper_bot.fulfillment_mode, "bulk_scraper");
+
+        let http_agent = summary
+            .rows
+            .iter()
+            .find(|row| row.category_id == "http_agent")
+            .unwrap();
+        assert_eq!(http_agent.assignment_status, "mapped");
+        assert_eq!(http_agent.runtime_lane, "scrapling_traffic");
+        assert_eq!(http_agent.fulfillment_mode, "http_agent");
 
         let beneficial_bot = summary
             .rows
@@ -187,7 +230,23 @@ mod tests {
 
     #[test]
     fn lane_target_helpers_match_bounded_fulfillment_modes() {
-        assert_eq!(scrapling_category_targets(), vec!["indexing_bot"]);
+        assert_eq!(
+            scrapling_category_targets(),
+            vec!["indexing_bot", "ai_scraper_bot", "http_agent"]
+        );
+        assert_eq!(
+            scrapling_category_targets_for_mode("crawler"),
+            vec!["indexing_bot"]
+        );
+        assert_eq!(
+            scrapling_category_targets_for_mode("bulk_scraper"),
+            vec!["ai_scraper_bot"]
+        );
+        assert_eq!(
+            scrapling_category_targets_for_mode("http_agent"),
+            vec!["http_agent"]
+        );
+        assert!(scrapling_category_targets_for_mode("unknown_mode").is_empty());
         assert_eq!(
             llm_category_targets_for_mode("browser_mode"),
             vec!["automated_browser", "browser_agent", "agent_on_behalf_of_human"]

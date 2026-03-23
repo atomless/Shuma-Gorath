@@ -108,7 +108,11 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
         body = match.group(0)
         self.assertIn("observability::non_human_lane_fulfillment::tests::", body)
         self.assertIn(
-            "adversary_sim_internal_beat_returns_scrapling_worker_plan_and_switches_active_lane",
+            "scrapling_fulfillment_modes_cycle_across_request_native_personas",
+            body,
+        )
+        self.assertIn(
+            "admin::api::admin_config_tests::adversary_sim_internal_beat_returns_scrapling_worker_plan_and_switches_active_lane",
             body,
         )
         self.assertIn("scripts/tests/test_adversary_sim_make_targets.py", body)

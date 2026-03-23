@@ -134,13 +134,19 @@ The same adversarial contract family now also freezes the first category-to-lane
 1. `coverage_contract.v2.json -> non_human_lane_fulfillment`
    - canonical non-human categories,
    - `mapped` versus `gap` assignment status,
-   - intended runtime lane and fulfillment mode,
+    - intended runtime lane and fulfillment mode,
    - scenario references kept explicitly as intent support rather than coverage proof.
 2. `scenario_intent_matrix.v1.json -> rows[].non_human_category_targets`
    - scenario-level intended non-human category targets,
    - alignment checks against the coverage contract,
    - execution-evidence annotation for later coverage receipts.
 `make test-adversarial-coverage-contract` and `make test-adversarial-scenario-review` are the current proof gates for this frozen fulfillment matrix; `SIM-COVER-1` will later decide whether those intended mappings are actually covered well enough for tuning.
+For the current request-native expansion, Scrapling now owns these canonical categories in the frozen fulfillment matrix:
+1. `indexing_bot` via `crawler`
+2. `ai_scraper_bot` via `bulk_scraper`
+3. `http_agent` via `http_agent`
+The internal Scrapling worker plan now carries `fulfillment_mode` plus bounded `category_targets` so the shared-host lane can ask for a specific request-native persona without pretending the whole lane is one undifferentiated crawler.
+`automated_browser`, `browser_agent`, and `agent_on_behalf_of_human` remain outside Scrapling ownership and stay mapped to the bounded LLM/browser track for now.
 For loopback-hosted Spin targets, the runner selects the least-surprising reachable Docker transport per host platform: bridge + `host.docker.internal` where that reaches host loopback, and Linux host-network mode when bridge reachability would otherwise fail against a `127.0.0.1`-bound server.
 Signed capability envelopes for executable worker actions are enforced via `scripts/tests/frontier_capability_envelope.py` host/worker validation.
 Browser-lane execution proof is enforced via `latest_report.json -> gates.browser_execution_gates`.

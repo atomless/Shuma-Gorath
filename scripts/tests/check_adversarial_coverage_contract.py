@@ -312,9 +312,27 @@ def validate_coverage_contract() -> List[str]:
         errors.append(
             "coverage contract indexing_bot must map to scrapling_traffic in this tranche"
         )
-    if str(indexing_bot_row.get("fulfillment_mode") or "").strip() != "scrapling_worker":
+    if str(indexing_bot_row.get("fulfillment_mode") or "").strip() != "crawler":
         errors.append(
-            "coverage contract indexing_bot must map to scrapling_worker in this tranche"
+            "coverage contract indexing_bot must map to crawler in this tranche"
+        )
+    ai_scraper_bot_row = dict(category_rows.get("ai_scraper_bot") or {})
+    if str(ai_scraper_bot_row.get("runtime_lane") or "").strip() != "scrapling_traffic":
+        errors.append(
+            "coverage contract ai_scraper_bot must map to scrapling_traffic in this tranche"
+        )
+    if str(ai_scraper_bot_row.get("fulfillment_mode") or "").strip() != "bulk_scraper":
+        errors.append(
+            "coverage contract ai_scraper_bot must map to bulk_scraper in this tranche"
+        )
+    http_agent_row = dict(category_rows.get("http_agent") or {})
+    if str(http_agent_row.get("runtime_lane") or "").strip() != "scrapling_traffic":
+        errors.append(
+            "coverage contract http_agent must map to scrapling_traffic in this tranche"
+        )
+    if str(http_agent_row.get("fulfillment_mode") or "").strip() != "http_agent":
+        errors.append(
+            "coverage contract http_agent must map to http_agent in this tranche"
         )
 
     verification_matrix = load_json_object(VERIFICATION_MATRIX_PATH)

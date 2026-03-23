@@ -124,6 +124,8 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
                 "tick_id": "tick-001",
                 "lane": "scrapling_traffic",
                 "sim_profile": "scrapling_runtime_lane",
+                "fulfillment_mode": "crawler",
+                "category_targets": ["indexing_bot"],
                 "tick_started_at": int(time.time()),
                 "max_requests": 4,
                 "max_depth": 2,

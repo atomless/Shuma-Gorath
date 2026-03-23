@@ -59,14 +59,14 @@
       "indexing_bot": {
         "assignment_status": "mapped",
         "runtime_lane": "scrapling_traffic",
-        "fulfillment_mode": "scrapling_worker",
+        "fulfillment_mode": "crawler",
         "supporting_scenarios": [],
-        "notes": "Shared-host Scrapling is the intended crawler and indexing fulfillment lane; scenario-backed coverage proof is deferred to SIM-COVER-1."
+        "notes": "Shared-host Scrapling crawler persona is the intended fulfillment lane for indexing and discovery pressure; scenario-backed coverage proof is deferred to SIM-SCR-COVER-2."
       },
       "ai_scraper_bot": {
         "assignment_status": "mapped",
-        "runtime_lane": "bot_red_team",
-        "fulfillment_mode": "request_mode",
+        "runtime_lane": "scrapling_traffic",
+        "fulfillment_mode": "bulk_scraper",
         "supporting_scenarios": [
           "sim_t3_replay_abuse",
           "sim_t3_stale_token_abuse",
@@ -77,7 +77,7 @@
           "sim_t3_fingerprint_inconsistency_abuse",
           "sim_t4_retry_storm_abuse"
         ],
-        "notes": "Bounded LLM request mode is the intended fulfillment lane for scraper-style direct request pressure; listed scenarios are intent-aligned references and not yet coverage proof."
+        "notes": "Shared-host Scrapling bulk-scraper persona is the intended fulfillment lane for request-native retrieval and training-style pressure; listed scenarios are intent-aligned references and not yet coverage proof."
       },
       "automated_browser": {
         "assignment_status": "mapped",
@@ -95,8 +95,8 @@
       },
       "http_agent": {
         "assignment_status": "mapped",
-        "runtime_lane": "bot_red_team",
-        "fulfillment_mode": "request_mode",
+        "runtime_lane": "scrapling_traffic",
+        "fulfillment_mode": "http_agent",
         "supporting_scenarios": [
           "sim_t3_replay_abuse",
           "sim_t3_stale_token_abuse",
@@ -107,7 +107,7 @@
           "sim_t3_fingerprint_inconsistency_abuse",
           "sim_t4_retry_storm_abuse"
         ],
-        "notes": "Bounded LLM request mode is the intended fulfillment lane for direct HTTP agent behavior; listed scenarios are intent-aligned references and not yet coverage proof."
+        "notes": "Shared-host Scrapling direct-request persona is the intended fulfillment lane for bounded HTTP agent behavior; listed scenarios are intent-aligned references and not yet coverage proof."
       },
       "browser_agent": {
         "assignment_status": "mapped",

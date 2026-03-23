@@ -203,10 +203,10 @@ Available profiles:
 - `make test-shared-host-seed-contract` - minimal shared-host seed inventory contract parity check, including required primary URL handling, bounded `robots.txt` hint ingestion, provenance merge, and rejection diagnostics
 - `make prepare-scrapling-deploy` - shared-host deploy-prep helper that infers the fail-closed scope fence, root-only seed, runtime env mappings, and deploy-time receipt from the canonical public base URL
 - `make test-scrapling-deploy-shared-host` - focused shared-host deploy proof for the Scrapling prep helper, Linode deploy wiring, normalized `ssh_systemd` receipt extension, and `make remote-update` preservation of the same scope/seed artifact contract
-- `make test-adversary-sim-scrapling-category-fit` - focused Scrapling ownership-contract proof for canonical lane fulfillment rows plus the bounded worker-plan `category_targets` contract
+- `make test-adversary-sim-scrapling-category-fit` - focused Scrapling ownership-contract proof for canonical lane fulfillment rows, request-native `fulfillment_mode` rotation, and the bounded worker-plan `category_targets` contract
 - `make test-adversary-sim-scrapling-worker` - focused real Scrapling lane gate covering the internal beat/result contract, bounded worker execution, real signed requests against a local hosted-scope fixture, and host-side supervisor source-contract wiring
 - `make test-adversarial-sim-tag-contract` - signed simulation-tag contract parity check across lane contract, runner, and container worker
-- `make test-adversarial-coverage-contract` - canonical `full_coverage` contract parity check across SIM2 plan rows, manifests, and runner enforcement
+- `make test-adversarial-coverage-contract` - canonical `full_coverage` contract parity check across SIM2 plan rows, manifests, runner enforcement, and the frozen unit-level coverage-contract matrix
 - `make test-adversarial-llm-fit` - bounded LLM browser/request fulfillment-plan contract proof across runtime beat payloads and frontier/container contract artifacts
 - `make test-adversarial-coverage-receipts` - canonical category-coverage receipt proof across adversarial coverage/scenario contracts, the non-human coverage summary, and fail-closed benchmark gating when mapped categories are not yet covered
 - `make test-verified-identity-calibration-readiness` - focused bridge gate for the current verified-identity calibration seams: taxonomy-crosswalk entry point, verified-identity snapshot section, beneficial non-human benchmark materialization, and reconcile fail-closed readiness
