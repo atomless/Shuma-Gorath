@@ -4,6 +4,24 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-23)
 
+### Dashboard: Move ban durations, browser policy, and path allowlist into Policy
+
+- [x] Moved the `Ban Durations`, `Browser Policy`, and `Path Allowlist` panes out of `Tuning` and into `Policy`, keeping `Tuning` focused on botness scoring and shifting the save ownership for those panes into the policy tab.
+- [x] Why:
+  - after the recent tab information-architecture cleanup, the `Policy` tab still only owned `robots.txt` and AI policy while other policy-shaped controls were stranded under `Tuning`, which made the tab boundaries feel inconsistent and made operator intent harder to find.
+  - the cleanest pre-launch move was to keep the existing tab shells, reuse the shared durations and browser-policy section components, extract `Path Allowlist` into a reusable shared section, and give `Policy` one truthful save surface for all of those controls together.
+- [x] Evidence:
+  - `dashboard/src/lib/components/dashboard/RobotsTab.svelte`
+  - `dashboard/src/lib/components/dashboard/TuningTab.svelte`
+  - `dashboard/src/lib/components/dashboard/config/ConfigPathAllowlistSection.svelte`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `e2e/dashboard.smoke.spec.js`
+  - `docs/dashboard-tabs/tuning.md`
+  - `docs/dashboard-tabs/policy.md`
+  - `make test-dashboard-policy-pane-ownership`
+  - `make test-dashboard-e2e-policy-pane-ownership`
+  - `git diff --check`
+
 ### Dashboard: Correct tab information architecture before Monitoring overhaul
 
 - [x] Reordered the dashboard tabs so `Tuning` now sits immediately after `Red Team`, `Status` now sits immediately before `Advanced`, and the former `Robots.txt` tab is now presented as `Policy` with a matching `#policy` route and canonical tab contract.

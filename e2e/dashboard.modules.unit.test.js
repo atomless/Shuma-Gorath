@@ -4784,6 +4784,10 @@ test('dashboard config tabs reuse shared panels, save flows, and owned controls'
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/config/ConfigDurationsSection.svelte'),
     'utf8'
   );
+  const configPathAllowlistSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/config/ConfigPathAllowlistSection.svelte'),
+    'utf8'
+  );
   const monitoringCdpSource = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/monitoring/CdpSection.svelte'),
     'utf8'
@@ -4832,6 +4836,9 @@ test('dashboard config tabs reuse shared panels, save flows, and owned controls'
   const robotsSurfaceSource = [
     robotsSource,
     configRobotsSource,
+    configNetworkSource,
+    configDurationsSource,
+    configPathAllowlistSource,
     saveChangesBarSource
   ].join('\n');
   const fingerprintingSurfaceSource = [
@@ -4844,8 +4851,6 @@ test('dashboard config tabs reuse shared panels, save flows, and owned controls'
   );
   const tuningSurfaceSource = [
     tuningSource,
-    configNetworkSource,
-    configDurationsSource,
     saveChangesBarSource
   ].join('\n');
 
@@ -4941,10 +4946,10 @@ test('dashboard config tabs reuse shared panels, save flows, and owned controls'
   assert.match(configSurfaceSource, /id="verification-cdp-threshold-slider"/);
   assert.equal(configSource.includes('{@html'), false);
 
-  assert.match(tuningSource, /id="path-allowlist"/);
-  assert.match(tuningSource, /id="path-allowlist-enabled-toggle"/);
-  assert.match(tuningSource, /payload\.path_allowlist_enabled = pathAllowlistEnabled === true;/);
-  assert.match(tuningSource, /payload\.path_allowlist = parseListTextarea\(pathAllowlist\);/);
+  assert.match(robotsSurfaceSource, /id="path-allowlist"/);
+  assert.match(robotsSurfaceSource, /id="path-allowlist-enabled-toggle"/);
+  assert.match(robotsSource, /payload\.path_allowlist_enabled = pathAllowlistEnabled === true;/);
+  assert.match(robotsSource, /payload\.path_allowlist = parseListTextarea\(pathAllowlist\);/);
 
   assert.match(trapsSource, /export let onSaveConfig = null;/);
   assert.match(trapsSource, /await onSaveConfig\(payload/);
@@ -5000,13 +5005,21 @@ test('dashboard config tabs reuse shared panels, save flows, and owned controls'
 
   assert.match(robotsSource, /export let onSaveConfig = null;/);
   assert.match(robotsSource, /export let onFetchRobotsPreview = null;/);
+  assert.match(robotsSource, /import ConfigDurationsSection from '\.\/config\/ConfigDurationsSection\.svelte';/);
+  assert.match(robotsSource, /import ConfigNetworkSection from '\.\/config\/ConfigNetworkSection\.svelte';/);
+  assert.match(robotsSource, /import ConfigPathAllowlistSection from '\.\/config\/ConfigPathAllowlistSection\.svelte';/);
   assert.match(robotsSource, /const buildRobotsPreviewPatch = \(\) => \{/);
   assert.match(robotsSource, /await onSaveConfig\(payload/);
   assert.match(robotsSource, /await onFetchRobotsPreview\(patch\);/);
-  assert.match(robotsSource, /buttonId="save-robots-config"/);
+  assert.match(robotsSource, /buttonId="save-policy-config"/);
   assert.match(robotsSource, /window\.addEventListener\('beforeunload'/);
   assert.match(robotsSurfaceSource, /id="open-robots-txt-link"/);
   assert.match(robotsSurfaceSource, /id="preview-robots"/);
+  assert.match(robotsSurfaceSource, /dayId="dur-honeypot-days"/);
+  assert.match(robotsSurfaceSource, /id="browser-policy-toggle"/);
+  assert.match(robotsSurfaceSource, /id="browser-block-rules"/);
+  assert.match(robotsSurfaceSource, /id="path-allowlist-enabled-toggle"/);
+  assert.match(robotsSurfaceSource, /id="path-allowlist"/);
 
   assert.match(fingerprintingSource, /export let onSaveConfig = null;/);
   assert.match(fingerprintingSource, /await onSaveConfig\(payload/);
@@ -5035,21 +5048,19 @@ test('dashboard config tabs reuse shared panels, save flows, and owned controls'
 
   assert.match(tuningSource, /export let onSaveConfig = null;/);
   assert.match(tuningSource, /await onSaveConfig\(payload/);
-  assert.match(tuningSource, /import ConfigDurationsSection from '\.\/config\/ConfigDurationsSection\.svelte';/);
-  assert.match(tuningSource, /import ConfigNetworkSection from '\.\/config\/ConfigNetworkSection\.svelte';/);
-  assert.match(tuningSource, /<ConfigDurationsSection/);
-  assert.match(tuningSource, /<ConfigNetworkSection/);
-  assert.match(tuningSource, /showHoneypot=\{false\}/);
-  assert.match(tuningSource, /showBrowserPolicy=\{true\}/);
-  assert.match(tuningSource, /browser_policy_enabled/);
-  assert.match(tuningSource, /ban_durations/);
+  assert.doesNotMatch(tuningSource, /import ConfigDurationsSection from '\.\/config\/ConfigDurationsSection\.svelte';/);
+  assert.doesNotMatch(tuningSource, /import ConfigNetworkSection from '\.\/config\/ConfigNetworkSection\.svelte';/);
+  assert.doesNotMatch(tuningSource, /ban_durations/);
+  assert.doesNotMatch(tuningSource, /browser_policy_enabled/);
+  assert.doesNotMatch(tuningSource, /path_allowlist_enabled/);
   assert.match(tuningSource, /buttonId="save-tuning-all"/);
   assert.match(tuningSource, /import SaveChangesBar from '\.\/primitives\/SaveChangesBar\.svelte';/);
   assert.match(tuningSource, /window\.addEventListener\('beforeunload'/);
-  assert.match(tuningSurfaceSource, /dayId="dur-honeypot-days"/);
-  assert.match(tuningSurfaceSource, /dayId="dur-rate-limit-days"/);
-  assert.match(tuningSurfaceSource, /id="browser-policy-toggle"/);
-  assert.match(tuningSurfaceSource, /id="browser-block-rules"/);
+  assert.doesNotMatch(tuningSurfaceSource, /dayId="dur-honeypot-days"/);
+  assert.doesNotMatch(tuningSurfaceSource, /dayId="dur-rate-limit-days"/);
+  assert.doesNotMatch(tuningSurfaceSource, /id="browser-policy-toggle"/);
+  assert.doesNotMatch(tuningSurfaceSource, /id="browser-block-rules"/);
+  assert.doesNotMatch(tuningSurfaceSource, /id="path-allowlist"/);
 });
 
 test('config panel provides the shared writable-hide and dirty-state chrome for edit panes', () => {

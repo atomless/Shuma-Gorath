@@ -5,26 +5,15 @@ Component: [`dashboard/src/lib/components/dashboard/TuningTab.svelte`](../../das
 
 Purpose:
 
-- Tune risk thresholds, signal weights, and ban durations.
+- Tune botness thresholds and signal weights.
 
 Panels:
 
 - `Botness Scoring`:
   - thresholds: `not_a_bot_risk_threshold`, `challenge_puzzle_risk_threshold`, `botness_maze_threshold`.
   - signal weights: `botness_weights.js_required`, `botness_weights.geo_risk`, `botness_weights.rate_medium`, `botness_weights.rate_high`.
-- `Ban Durations`:
-  - per-trigger duration tuples for `honeypot`, `rate_limit`, `cdp`, `admin`.
-- `Browser Policy`:
-  - toggle (`browser_policy_enabled`),
-  - minimum-version signal rules (`browser_block`).
-- `Path Allowlist`:
-  - toggle (`path_allowlist_enabled`) to enable/disable path-bypass matching,
-  - trusted bypass paths (`path_allowlist`) for webhook/integration endpoints,
-  - supports exact paths (for example `/webhook/stripe`) and prefix wildcards (for example `/api/integrations/*`),
-  - entries are preserved while disabled and take effect when re-enabled.
 
 Validation:
 
 - Threshold ordering is validated.
 - Weights are clamped by explicit numeric ranges.
-- Duration tuples are validated against bounded minimum/maximum seconds.

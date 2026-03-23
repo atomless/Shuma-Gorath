@@ -3144,7 +3144,7 @@ test("verification save roundtrip clears dirty state after successful write", as
   });
 });
 
-test("geo and tuning save flows cover GEO lists, botness controls, and browser policy controls", async ({ page, request }) => {
+test("geo and tuning save flows cover GEO lists and botness controls", async ({ page, request }) => {
   await withRestoredAdminConfig(request, GEO_AND_TUNING_RESTORE_PATHS, async () => {
     await openDashboard(page);
     await openTab(page, "geo");
@@ -3201,50 +3201,6 @@ test("geo and tuning save flows cover GEO lists, botness controls, and browser p
       await submitConfigSave(page, tuningSave);
     }
 
-    const browserPolicyToggle = page.locator("#browser-policy-toggle");
-    const browserPolicySwitch = page.locator("label.toggle-switch[for='browser-policy-toggle']");
-    if (await browserPolicySwitch.isVisible() && await browserPolicyToggle.isEnabled()) {
-      await browserPolicySwitch.click();
-      await submitConfigSave(page, tuningSave);
-    }
-
-    const browserBlockRules = page.locator("#browser-block-rules");
-    if (await browserBlockRules.isVisible() && await browserBlockRules.isEnabled()) {
-      const initialBrowserRules = await browserBlockRules.inputValue();
-      const candidateRule = "Brave,120";
-      const existingRules = initialBrowserRules
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0);
-      const nextBrowserRules = existingRules.includes(candidateRule)
-        ? existingRules.filter((line) => line !== candidateRule).join("\n")
-        : [...existingRules, candidateRule].join("\n");
-      await browserBlockRules.fill(nextBrowserRules);
-      await browserBlockRules.dispatchEvent("input");
-      await submitConfigSave(page, tuningSave);
-    }
-
-    const pathAllowlist = page.locator("#path-allowlist");
-    const pathAllowlistToggle = page.locator("#path-allowlist-enabled-toggle");
-    const pathAllowlistSwitch = page.locator("label.toggle-switch[for='path-allowlist-enabled-toggle']");
-    if (await pathAllowlist.isVisible() && await pathAllowlist.isEnabled()) {
-      const initialPathAllowlist = await pathAllowlist.inputValue();
-      const candidatePath = "/webhook/stripe";
-      const existingPaths = initialPathAllowlist
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0);
-      const nextPathAllowlist = existingPaths.includes(candidatePath)
-        ? existingPaths.filter((line) => line !== candidatePath).join("\n")
-        : [...existingPaths, candidatePath].join("\n");
-      await pathAllowlist.fill(nextPathAllowlist);
-      await pathAllowlist.dispatchEvent("input");
-      await submitConfigSave(page, tuningSave);
-    }
-    if (await pathAllowlistSwitch.isVisible() && await pathAllowlistToggle.isEnabled()) {
-      await pathAllowlistSwitch.click();
-      await submitConfigSave(page, tuningSave);
-    }
   });
 });
 
@@ -3307,12 +3263,12 @@ test("fingerprinting tab hides Akamai controls outside edge-fermyon posture", as
   await expect(page.locator("#save-fingerprinting-config")).toBeHidden();
 });
 
-test("policy tab save flows cover robots serving and AI policy controls", async ({ page, request }) => {
+test("policy tab save flows cover robots serving, durations, browser policy, and path allowlist controls", async ({ page, request }) => {
   await withRestoredAdminConfig(request, ROBOTS_RESTORE_PATHS, async () => {
     await openDashboard(page);
     await openTab(page, "policy");
 
-    const saveButton = page.locator("#save-robots-config");
+    const saveButton = page.locator("#save-policy-config");
     await expect(saveButton).toBeHidden();
 
     const robotsCrawlDelay = page.locator("#robots-crawl-delay");
@@ -3331,6 +3287,61 @@ test("policy tab save flows cover robots serving and AI policy controls", async 
     const aiToggleSwitch = page.locator("label.toggle-switch[for='robots-block-training-toggle']");
     if (await aiToggleSwitch.isVisible() && await aiToggle.isEnabled()) {
       await aiToggleSwitch.click();
+      await submitConfigSave(page, saveButton);
+    }
+
+    const durationHours = page.locator("#dur-rate-limit-hours");
+    if (await durationHours.isVisible() && await durationHours.isEnabled()) {
+      const initialDurationHours = await durationHours.inputValue();
+      const nextDurationHours = String(Math.min(23, Number(initialDurationHours || "1") + 1));
+      await durationHours.fill(nextDurationHours);
+      await durationHours.dispatchEvent("input");
+      await submitConfigSave(page, saveButton);
+    }
+
+    const browserPolicyToggle = page.locator("#browser-policy-toggle");
+    const browserPolicySwitch = page.locator("label.toggle-switch[for='browser-policy-toggle']");
+    if (await browserPolicySwitch.isVisible() && await browserPolicyToggle.isEnabled()) {
+      await browserPolicySwitch.click();
+      await submitConfigSave(page, saveButton);
+    }
+
+    const browserBlockRules = page.locator("#browser-block-rules");
+    if (await browserBlockRules.isVisible() && await browserBlockRules.isEnabled()) {
+      const initialBrowserRules = await browserBlockRules.inputValue();
+      const candidateRule = "Brave,120";
+      const existingRules = initialBrowserRules
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+      const nextBrowserRules = existingRules.includes(candidateRule)
+        ? existingRules.filter((line) => line !== candidateRule).join("\n")
+        : [...existingRules, candidateRule].join("\n");
+      await browserBlockRules.fill(nextBrowserRules);
+      await browserBlockRules.dispatchEvent("input");
+      await submitConfigSave(page, saveButton);
+    }
+
+    const pathAllowlist = page.locator("#path-allowlist");
+    if (await pathAllowlist.isVisible() && await pathAllowlist.isEnabled()) {
+      const initialPathAllowlist = await pathAllowlist.inputValue();
+      const candidatePath = "/webhook/stripe";
+      const existingPaths = initialPathAllowlist
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+      const nextPathAllowlist = existingPaths.includes(candidatePath)
+        ? existingPaths.filter((line) => line !== candidatePath).join("\n")
+        : [...existingPaths, candidatePath].join("\n");
+      await pathAllowlist.fill(nextPathAllowlist);
+      await pathAllowlist.dispatchEvent("input");
+      await submitConfigSave(page, saveButton);
+    }
+
+    const pathAllowlistToggle = page.locator("#path-allowlist-enabled-toggle");
+    const pathAllowlistSwitch = page.locator("label.toggle-switch[for='path-allowlist-enabled-toggle']");
+    if (await pathAllowlistSwitch.isVisible() && await pathAllowlistToggle.isEnabled()) {
+      await pathAllowlistSwitch.click();
       await submitConfigSave(page, saveButton);
     }
   });

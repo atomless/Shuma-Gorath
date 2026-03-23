@@ -61,10 +61,12 @@ make test-coverage    # Unit coverage to lcov.info (requires cargo-llvm-cov)
 make test-dashboard-unit # Dashboard module unit tests (Node `node:test`)
 make test-dashboard-adversary-sim-lane-contract # Focused dashboard lane-contract checks for the red-team lane selector + diagnostics
 make test-dashboard-tab-information-architecture # Focused dashboard unit checks for tab order and source-of-truth tab registry alignment
+make test-dashboard-policy-pane-ownership # Focused dashboard unit checks that Policy owns the moved panes and Tuning stays botness-only
 make test-dashboard-budgets # Dashboard /_app bundle-size ceilings report (warn-only by default)
 make test-dashboard-budgets-strict # Dashboard /_app bundle-size ceilings (hard-fail)
 make test-dashboard-e2e-adversary-sim # Focused Playwright adversary-sim dashboard smoke checks
 make test-dashboard-e2e-tab-information-architecture # Focused Playwright tab label/order and keyboard-navigation smoke checks
+make test-dashboard-e2e-policy-pane-ownership # Focused Playwright smoke for Tuning and Policy save flows after the pane move
 make test-dashboard-e2e # Playwright dashboard smoke tests (waits for existing Spin readiness)
 make seed-dashboard-data # Seed local dashboard sample records against running Spin
 make test-dashboard   # Manual dashboard checklist
