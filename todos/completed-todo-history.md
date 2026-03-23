@@ -4,6 +4,30 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-23)
 
+### UI-RED-1: Red Team truth-basis diagnostics
+
+- [x] Surfaced adversary-sim generation and lane-diagnostics `truth_basis` in the `Red Team` tab so operators can now distinguish direct runtime counters from recovered persisted-event lower-bound evidence.
+- [x] Added bounded persisted-event evidence rendering in `Red Team`, including run id, lane, profile, monitoring-event count, defense-delta count, ban-outcome count, and first/last observed timestamps.
+- [x] Preserved the existing compact `Recent Red Team Runs` ownership instead of pulling Monitoring projection forward into the tab.
+- [x] Added a focused make gate that proves the status adapter, runtime normalization, and rendered lower-bound state together.
+- [x] Why:
+  - `ADV-DIAG-1` had already made adversary-sim status truthful at the backend, but the dashboard still hid that truth seam from operators.
+  - `MON-OVERHAUL-1` should project the machine-first read models, but this narrower status-truth distinction was already local, stable, and important enough to surface now.
+  - the cleanest path was to extend the existing adversary-sim status flow end to end rather than inventing a side channel or turning Red Team into an early Monitoring clone.
+- [x] Evidence:
+  - `dashboard/src/lib/components/dashboard/RedTeamTab.svelte`
+  - `dashboard/src/lib/domain/api-client.js`
+  - `dashboard/src/lib/runtime/dashboard-adversary-sim.js`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `e2e/dashboard.smoke.spec.js`
+  - `Makefile`
+  - `docs/dashboard-tabs/red-team.md`
+  - `docs/dashboard.md`
+  - `docs/testing.md`
+  - `docs/research/2026-03-23-ui-red-1-red-team-truth-basis-post-implementation-review.md`
+  - `make test-dashboard-red-team-truth-basis`
+  - `git diff --check`
+
 ### UI-VID-1: Verified Identity pane in Verification tab
 
 - [x] Added a first-class `Verified Identity` pane to the `Verification` tab so the stable mechanics for native Web Bot Auth and provider assertions are no longer trapped in Advanced JSON.

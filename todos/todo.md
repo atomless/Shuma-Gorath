@@ -89,12 +89,7 @@ Current stance:
 - The next prerequisite now begins one step earlier: Shuma must first define a canonical non-human taxonomy and shared classification contract before it can truthfully measure lane representativeness.
 - The actively evolving near-term layer should be fingerprinting and categorization quality inside that taxonomy; taxonomy expansion is only a later contingency if important non-human traffic persistently falls outside the existing categories.
 - The next bridge to a genuine LLM-in-the-loop system is not the full later `SIM-LLM-1` runtime actor; it is a bounded category-fulfillment LLM tranche that sits between the taxonomy/classifier work and the first closed config loop, with the later LLM diagnosis harness and code loop still downstream of `OVR-APPLY-1`.
-- Before `MON-OVERHAUL-1`, expose the already-settled local control truths that no longer belong only in Advanced JSON or backend-only payloads: verified identity in `Verification` and adversary-sim status truth basis in `Red Team`.
-
-### UI-RED-1: Red Team Truth-Basis Diagnostics
-- Surface adversary-sim status `truth_basis` and bounded `persisted_event_evidence` in `Red Team` so operators can tell when a completed run summary is coming from direct counters versus recovered lower-bound event truth.
-- Keep this tranche local to `Red Team`; do not turn it into a Monitoring substitute.
-- Reference context: [`../docs/research/2026-03-23-dashboard-operator-surfacing-gap-review.md`](../docs/research/2026-03-23-dashboard-operator-surfacing-gap-review.md), [`../docs/plans/2026-03-23-dashboard-operator-surfacing-sequencing-plan.md`](../docs/plans/2026-03-23-dashboard-operator-surfacing-sequencing-plan.md)
+- Before `MON-OVERHAUL-1`, expose the already-settled local control truths that no longer belong only in Advanced JSON or backend-only payloads. Verified identity in `Verification` and adversary-sim status truth basis in `Red Team` are now delivered, so the next step is the Monitoring projection itself.
 
 ### MON-OVERHAUL-1: Monitoring As Thin Operator Projection Over Machine-First Contracts
 - Redesign Monitoring as a thin operator decision surface over the machine-first snapshot contract, including truthful projection of `operator_snapshot_v1`, `benchmark_results_v1`, and the bounded oversight status or history contracts, with explicit live-versus-shadow-versus-adversary-sim separation, clear attacker-effectiveness versus human-friction visibility, and the settled host-impact cost proxy semantics from the delivered closed-loop backend.

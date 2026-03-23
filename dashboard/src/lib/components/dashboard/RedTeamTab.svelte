@@ -62,6 +62,34 @@
       .join(', ');
   };
   const formatOptionalTime = (rawTs) => rawTs > 0 ? formatTime(rawTs) : '-';
+  const humanizeToken = (value) => String(value || '')
+    .trim()
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+  const formatTruthBasisLabel = (value) => {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (normalized === 'persisted_event_lower_bound') {
+      return 'Recovered persisted-event lower bound';
+    }
+    if (normalized === 'control_state') {
+      return 'Direct runtime control counters';
+    }
+    return normalized ? humanizeToken(normalized) : 'Unavailable';
+  };
+  const truthStateKind = (generationBasis, laneBasis, persistedEvidence) => {
+    if (
+      generationBasis === 'persisted_event_lower_bound' ||
+      laneBasis === 'persisted_event_lower_bound' ||
+      persistedEvidence?.truthBasis === 'persisted_event_lower_bound'
+    ) {
+      return 'lower_bound';
+    }
+    if (generationBasis === 'control_state' && laneBasis === 'control_state') {
+      return 'direct';
+    }
+    return 'unavailable';
+  };
 
   function handleToggleChange(event) {
     if (typeof onToggleChange === 'function') {
@@ -124,6 +152,13 @@
   $: failureClassesText = formatFailureClasses(
     normalizedStatus.laneDiagnostics.requestFailureClasses
   );
+  $: generationTruthBasis = String(normalizedStatus.generationDiagnostics.truthBasis || '').trim().toLowerCase();
+  $: laneDiagnosticsTruthBasis = String(normalizedStatus.laneDiagnostics.truthBasis || '').trim().toLowerCase();
+  $: persistedEventEvidence = normalizedStatus.persistedEventEvidence;
+  $: generationTruthBasisLabel = formatTruthBasisLabel(generationTruthBasis);
+  $: laneDiagnosticsTruthBasisLabel = formatTruthBasisLabel(laneDiagnosticsTruthBasis);
+  $: persistedEvidenceLaneLabel = formatLaneLabel(persistedEventEvidence?.lane, '-');
+  $: truthState = truthStateKind(generationTruthBasis, laneDiagnosticsTruthBasis, persistedEventEvidence);
   $: progressWidth = `${Number(progressState.progressPercent || 0).toFixed(3)}%`;
   $: shouldTickProgress = progressState.active === true && (managed ? isActive : true);
   $: syncProgressTimer(shouldTickProgress);
@@ -273,6 +308,71 @@
             <span class="status-value">{failureClassesText}</span>
           </div>
         </div>
+      </div>
+      <div class="status-item">
+        <h3>Status Truth</h3>
+        <p class="control-desc text-muted">
+          These markers distinguish direct runtime counters from bounded lower-bound recovery based on persisted monitoring evidence.
+        </p>
+        <div class="status-rows">
+          <div class="info-row">
+            <span class="info-label text-muted">Generation counters:</span>
+            <span id="adversary-sim-generation-truth-basis" class="status-value">{generationTruthBasisLabel}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label text-muted">Lane diagnostics:</span>
+            <span id="adversary-sim-lane-diagnostics-truth-basis" class="status-value">{laneDiagnosticsTruthBasisLabel}</span>
+          </div>
+        </div>
+        {#if truthState === 'lower_bound'}
+          <p id="adversary-sim-truth-state-lower-bound" class="message warning">
+            Recovered lower-bound evidence from persisted monitoring events.
+          </p>
+        {:else if truthState === 'direct'}
+          <p id="adversary-sim-truth-state-direct" class="message info">
+            Direct runtime control counters.
+          </p>
+        {:else}
+          <p id="adversary-sim-truth-state-unavailable" class="message warning">
+            Truth basis is unavailable for one or more adversary-sim counters.
+          </p>
+        {/if}
+        {#if persistedEventEvidence}
+          <div id="adversary-sim-persisted-event-evidence" class="status-rows">
+            <div class="info-row">
+              <span class="info-label text-muted">Evidence run:</span>
+              <span class="status-value">{persistedEventEvidence.runId || '-'}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label text-muted">Evidence lane:</span>
+              <span class="status-value">{persistedEvidenceLaneLabel}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label text-muted">Profile:</span>
+              <span class="status-value">{persistedEventEvidence.profile || '-'}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label text-muted">Monitoring events:</span>
+              <span class="status-value">{persistedEventEvidence.monitoringEventCount}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label text-muted">Defense deltas:</span>
+              <span class="status-value">{persistedEventEvidence.defenseDeltaCount}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label text-muted">Ban outcomes:</span>
+              <span class="status-value">{persistedEventEvidence.banOutcomeCount}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label text-muted">First observed at:</span>
+              <span class="status-value">{formatOptionalTime(persistedEventEvidence.firstObservedAt)}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label text-muted">Last observed at:</span>
+              <span class="status-value">{formatOptionalTime(persistedEventEvidence.lastObservedAt)}</span>
+            </div>
+          </div>
+        {/if}
       </div>
     </ConfigPanel>
   </div>

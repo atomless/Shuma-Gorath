@@ -662,8 +662,30 @@ test('dashboard API client preserves adversary-sim lane status and diagnostics f
       lane_switch_seq: 3,
       last_lane_switch_at: 1720,
       last_lane_switch_reason: 'beat_boundary_reconciliation',
+      generation_diagnostics: {
+        health: 'ok',
+        reason: 'persisted_events_observed',
+        recommended_action: 'No action required.',
+        generated_tick_count: 1,
+        generated_request_count: 235,
+        last_generated_at: 1715,
+        last_generation_error: '',
+        truth_basis: 'persisted_event_lower_bound'
+      },
+      persisted_event_evidence: {
+        run_id: 'simrun-red-team-truth',
+        lane: 'scrapling_traffic',
+        profile: 'baseline',
+        monitoring_event_count: 235,
+        defense_delta_count: 4,
+        ban_outcome_count: 1,
+        first_observed_at: 1700,
+        last_observed_at: 1715,
+        truth_basis: 'persisted_event_lower_bound'
+      },
       lane_diagnostics: {
         schema_version: 'v1',
+        truth_basis: 'persisted_event_lower_bound',
         lanes: {
           synthetic_traffic: {
             beat_attempts: 4,
@@ -716,11 +738,16 @@ test('dashboard API client preserves adversary-sim lane status and diagnostics f
     assert.equal(adapted.lane_switch_seq, 3);
     assert.equal(adapted.last_lane_switch_at, 1720);
     assert.equal(adapted.last_lane_switch_reason, 'beat_boundary_reconciliation');
+    assert.equal(adapted.generation_diagnostics.generated_request_count, 235);
+    assert.equal(adapted.generation_diagnostics.truth_basis, 'persisted_event_lower_bound');
     assert.equal(adapted.lane_diagnostics.schema_version, 'v1');
+    assert.equal(adapted.lane_diagnostics.truth_basis, 'persisted_event_lower_bound');
     assert.equal(adapted.lane_diagnostics.lanes.scrapling_traffic.generated_requests, 3);
     assert.equal(adapted.lane_diagnostics.lanes.scrapling_traffic.offsite_requests, 2);
     assert.equal(adapted.lane_diagnostics.request_failure_classes.timeout.count, 1);
     assert.equal(adapted.lane_diagnostics.request_failure_classes.http.last_seen_at, 1715);
+    assert.equal(adapted.persisted_event_evidence.run_id, 'simrun-red-team-truth');
+    assert.equal(adapted.persisted_event_evidence.monitoring_event_count, 235);
   });
 });
 
@@ -3700,10 +3727,23 @@ test('dashboard adversary-sim runtime normalizes orchestration status', { concur
         generated_tick_count: 3,
         generated_request_count: 12,
         last_generated_at: 1100,
-        last_generation_error: ''
+        last_generation_error: '',
+        truth_basis: 'persisted_event_lower_bound'
+      },
+      persisted_event_evidence: {
+        run_id: 'simrun-123',
+        lane: 'scrapling_traffic',
+        profile: 'baseline',
+        monitoring_event_count: 12,
+        defense_delta_count: 2,
+        ban_outcome_count: 1,
+        first_observed_at: 1090,
+        last_observed_at: 1100,
+        truth_basis: 'persisted_event_lower_bound'
       },
       lane_diagnostics: {
         schema_version: 'v1',
+        truth_basis: 'persisted_event_lower_bound',
         lanes: {
           synthetic_traffic: {
             beat_attempts: 6,
@@ -3777,10 +3817,14 @@ test('dashboard adversary-sim runtime normalizes orchestration status', { concur
     assert.equal(normalized.generationDiagnostics.health, 'ok');
     assert.equal(normalized.generationDiagnostics.generatedTickCount, 3);
     assert.equal(normalized.generationDiagnostics.generatedRequestCount, 12);
+    assert.equal(normalized.generationDiagnostics.truthBasis, 'persisted_event_lower_bound');
     assert.equal(normalized.laneDiagnostics.schemaVersion, 'v1');
+    assert.equal(normalized.laneDiagnostics.truthBasis, 'persisted_event_lower_bound');
     assert.equal(normalized.laneDiagnostics.lanes.scraplingTraffic.generatedRequests, 0);
     assert.equal(normalized.laneDiagnostics.lanes.scraplingTraffic.lastError, 'timeout');
     assert.equal(normalized.laneDiagnostics.requestFailureClasses.timeout.count, 1);
+    assert.equal(normalized.persistedEventEvidence.runId, 'simrun-123');
+    assert.equal(normalized.persistedEventEvidence.monitoringEventCount, 12);
 
     const renormalized = adversaryModule.normalizeAdversarySimStatus(normalized);
     assert.equal(renormalized.enabled, true);
@@ -3790,9 +3834,12 @@ test('dashboard adversary-sim runtime normalizes orchestration status', { concur
     assert.equal(renormalized.endsAt, 1180);
     assert.equal(renormalized.remainingSeconds, 120);
     assert.equal(renormalized.generationDiagnostics.health, 'ok');
+    assert.equal(renormalized.generationDiagnostics.truthBasis, 'persisted_event_lower_bound');
     assert.equal(renormalized.desiredLane, 'scrapling_traffic');
     assert.equal(renormalized.activeLane, 'synthetic_traffic');
     assert.equal(renormalized.laneDiagnostics.lanes.syntheticTraffic.beatAttempts, 6);
+    assert.equal(renormalized.laneDiagnostics.truthBasis, 'persisted_event_lower_bound');
+    assert.equal(renormalized.persistedEventEvidence.runId, 'simrun-123');
   });
 });
 
@@ -5671,6 +5718,12 @@ test('red team tab renders the recent adversary runs panel with red-team-specifi
   assert.match(source, /summaryLabel="Active bans linked to recent runs"/);
   assert.match(source, /emptyText="No recent adversary simulation runs are currently retained in the compact run history\."/);
   assert.match(source, /degradedText="Monitoring freshness is degraded or stale\. Missing red team run rows may indicate delayed telemetry rather than no simulation activity\."/);
+  assert.match(source, /<h3>Status Truth<\/h3>/);
+  assert.match(source, /id="adversary-sim-generation-truth-basis"/);
+  assert.match(source, /id="adversary-sim-lane-diagnostics-truth-basis"/);
+  assert.match(source, /id="adversary-sim-persisted-event-evidence"/);
+  assert.match(source, /Recovered lower-bound evidence from persisted monitoring events\./);
+  assert.match(source, /Direct runtime control counters\./);
 });
 
 test('primary charts reuse the shared half doughnut shell for event-type readouts', () => {

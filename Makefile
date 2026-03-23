@@ -1823,6 +1823,29 @@ test-dashboard-verified-identity-pane: ## Run focused Verification-tab verified-
 		exit 1; \
 	fi
 
+test-dashboard-red-team-truth-basis: ## Run focused Red Team truth-basis surfacing checks
+	@echo "$(CYAN)🧪 Running focused dashboard Red Team truth-basis checks...$(NC)"
+	@if ! command -v corepack >/dev/null 2>&1; then \
+		echo "$(RED)❌ Error: corepack not found (install Node.js 18+).$(NC)"; \
+		exit 1; \
+	fi
+	@corepack enable > /dev/null 2>&1 || true
+	@if [ ! -d node_modules/.pnpm ] || [ ! -x node_modules/.bin/vite ] || [ ! -x node_modules/.bin/svelte-check ] || [ ! -d node_modules/svelte ] || [ ! -d node_modules/@sveltejs/kit ] || [ ! -d node_modules/@playwright/test ]; then \
+		corepack pnpm install --offline --frozen-lockfile || corepack pnpm install --frozen-lockfile; \
+	fi
+	@$(MAKE) --no-print-directory test-dashboard-svelte-check
+	@node --test \
+		--test-name-pattern='dashboard API client preserves adversary-sim lane status and diagnostics fields|dashboard adversary-sim runtime normalizes orchestration status|red team tab renders the recent adversary runs panel with red-team-specific copy' \
+		e2e/dashboard.modules.unit.test.js
+	@if $(MAKE) --no-print-directory spin-wait-ready; then \
+		$(MAKE) --no-print-directory seed-dashboard-data || exit 1; \
+		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) ./scripts/tests/run_dashboard_e2e.sh --grep "red team tab surfaces recovered adversary-sim truth basis and persisted event evidence"; \
+	else \
+		echo "$(RED)❌ Error: Spin server not ready$(NC)"; \
+		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \
+		exit 1; \
+	fi
+
 test-ban-duration-family-truth: ## Run focused ban-duration family parity checks across config, runtime, and Policy tab
 	@echo "$(CYAN)🧪 Running focused ban-duration family truthfulness checks...$(NC)"
 	@./scripts/set_crate_type.sh rlib

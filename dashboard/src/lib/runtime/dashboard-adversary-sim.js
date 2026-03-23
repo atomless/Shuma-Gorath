@@ -174,6 +174,7 @@ function normalizeLaneDiagnostics(value) {
   );
   return {
     schemaVersion: String(pick(source, 'schema_version', 'schemaVersion', '') || ''),
+    truthBasis: String(pick(source, 'truth_basis', 'truthBasis', '') || ''),
     lanes: {
       syntheticTraffic: normalizeLaneCounterState(
         asRecord(pick(lanesRaw, 'synthetic_traffic', 'syntheticTraffic', {}))
@@ -199,6 +200,51 @@ function normalizeLaneDiagnostics(value) {
         asRecord(pick(failureClassesRaw, 'http', 'http', {}))
       )
     }
+  };
+}
+
+/**
+ * @param {unknown} value
+ * @returns {{
+ *   runId: string,
+ *   lane: string,
+ *   profile: string,
+ *   monitoringEventCount: number,
+ *   defenseDeltaCount: number,
+ *   banOutcomeCount: number,
+ *   firstObservedAt: number,
+ *   lastObservedAt: number,
+ *   truthBasis: string
+ * } | null}
+ */
+function normalizePersistedEventEvidence(value) {
+  if (!value || typeof value !== 'object') return null;
+  const source = /** @type {Record<string, unknown>} */ (value);
+  return {
+    runId: String(pick(source, 'run_id', 'runId', '') || ''),
+    lane: normalizeOptionalLane(pick(source, 'lane', 'lane', '')),
+    profile: String(pick(source, 'profile', 'profile', '') || ''),
+    monitoringEventCount: Math.max(
+      0,
+      Math.floor(toSafeNumber(pick(source, 'monitoring_event_count', 'monitoringEventCount', 0), 0))
+    ),
+    defenseDeltaCount: Math.max(
+      0,
+      Math.floor(toSafeNumber(pick(source, 'defense_delta_count', 'defenseDeltaCount', 0), 0))
+    ),
+    banOutcomeCount: Math.max(
+      0,
+      Math.floor(toSafeNumber(pick(source, 'ban_outcome_count', 'banOutcomeCount', 0), 0))
+    ),
+    firstObservedAt: Math.max(
+      0,
+      Math.floor(toSafeNumber(pick(source, 'first_observed_at', 'firstObservedAt', 0), 0))
+    ),
+    lastObservedAt: Math.max(
+      0,
+      Math.floor(toSafeNumber(pick(source, 'last_observed_at', 'lastObservedAt', 0), 0))
+    ),
+    truthBasis: String(pick(source, 'truth_basis', 'truthBasis', '') || '')
   };
 }
 
@@ -256,8 +302,10 @@ function normalizePhase(value) {
  *     generatedTickCount: number,
  *     generatedRequestCount: number,
  *     lastGeneratedAt: number,
- *     lastGenerationError: string
- *   }
+ *     lastGenerationError: string,
+ *     truthBasis: string
+ *   },
+ *   persistedEventEvidence: ReturnType<typeof normalizePersistedEventEvidence>
  * }}
  */
 export function normalizeAdversarySimStatus(payload) {
@@ -391,8 +439,14 @@ export function normalizeAdversarySimStatus(payload) {
       ),
       lastGenerationError: String(
         pick(generationDiagnostics, 'last_generation_error', 'lastGenerationError', '') || ''
+      ),
+      truthBasis: String(
+        pick(generationDiagnostics, 'truth_basis', 'truthBasis', '') || ''
       )
-    }
+    },
+    persistedEventEvidence: normalizePersistedEventEvidence(
+      pick(source, 'persisted_event_evidence', 'persistedEventEvidence', null)
+    )
   };
 }
 

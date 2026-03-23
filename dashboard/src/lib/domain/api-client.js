@@ -186,6 +186,7 @@ const adaptLaneDiagnostics = (value) => {
   const requestFailureClasses = asRecord(source.request_failure_classes);
   return {
     schema_version: String(source.schema_version || ''),
+    truth_basis: String(source.truth_basis || ''),
     lanes: {
       synthetic_traffic: adaptLaneCounterState(lanes.synthetic_traffic),
       scrapling_traffic: adaptLaneCounterState(lanes.scrapling_traffic),
@@ -543,6 +544,7 @@ export const adaptAdversarySimStatus = (payload) => {
   const lanes = asRecord(source.lanes);
   const historyRetention = asRecord(source.history_retention);
   const generationDiagnostics = asRecord(source.generation_diagnostics);
+  const persistedEventEvidence = asRecord(source.persisted_event_evidence);
   const supervisor = asRecord(source.supervisor);
   return {
     runtime_environment: String(source.runtime_environment || ''),
@@ -607,8 +609,22 @@ export const adaptAdversarySimStatus = (payload) => {
       generated_tick_count: Number(generationDiagnostics.generated_tick_count || 0),
       generated_request_count: Number(generationDiagnostics.generated_request_count || 0),
       last_generated_at: Number(generationDiagnostics.last_generated_at || 0),
-      last_generation_error: String(generationDiagnostics.last_generation_error || '')
-    }
+      last_generation_error: String(generationDiagnostics.last_generation_error || ''),
+      truth_basis: String(generationDiagnostics.truth_basis || '')
+    },
+    persisted_event_evidence: source.persisted_event_evidence == null
+      ? null
+      : {
+        run_id: String(persistedEventEvidence.run_id || ''),
+        lane: normalizeOptionalAdversarySimLane(persistedEventEvidence.lane),
+        profile: String(persistedEventEvidence.profile || ''),
+        monitoring_event_count: Number(persistedEventEvidence.monitoring_event_count || 0),
+        defense_delta_count: Number(persistedEventEvidence.defense_delta_count || 0),
+        ban_outcome_count: Number(persistedEventEvidence.ban_outcome_count || 0),
+        first_observed_at: Number(persistedEventEvidence.first_observed_at || 0),
+        last_observed_at: Number(persistedEventEvidence.last_observed_at || 0),
+        truth_basis: String(persistedEventEvidence.truth_basis || '')
+      }
   };
 };
 

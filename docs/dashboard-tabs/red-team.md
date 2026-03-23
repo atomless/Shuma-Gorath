@@ -13,7 +13,9 @@ Panel:
 - `Adversary Simulation`:
   - on/off toggle backed by `POST /admin/adversary-sim/control`,
   - lifecycle copy rendered from backend status plus controller phase,
-  - backend-timed run progress bar derived from `started_at`, `ends_at`, and `remaining_seconds`.
+  - backend-timed run progress bar derived from `started_at`, `ends_at`, and `remaining_seconds`,
+  - `Status Truth` readout showing whether generation counters and lane diagnostics come directly from runtime control state or from recovered persisted-event lower-bound evidence,
+  - bounded persisted-event evidence summary when recent monitoring facts were used to recover completed-run truth.
 - `Recent Red Team Runs`:
   - recent adversary simulation run identifiers derived from a compact monitoring-backed run-history summary,
   - run-id linkage back to `Diagnostics` and `IP Bans`,
@@ -28,7 +30,8 @@ Behavior:
 - Backend truth remains separate:
   - lifecycle copy uses backend phase/status,
   - the root `adversary-sim` class follows backend truth only,
-  - submit/converge failures snap the switch back to the last backend-confirmed desired state.
+  - submit/converge failures snap the switch back to the last backend-confirmed desired state,
+  - truth-basis markers now distinguish direct runtime counters from recovered persisted-event lower-bound evidence instead of leaving operators to infer that distinction.
 - Enabling with zero configured frontier providers shows a confirmation dialog:
   - continue without frontier calls, or
   - cancel, add `SHUMA_FRONTIER_*_API_KEY` values, and restart the runtime.
@@ -42,4 +45,5 @@ Reads and writes:
 Notes:
 
 - Retained simulation telemetry remains queryable after auto-off until retention expiry or explicit cleanup.
+- Persisted-event evidence is intentionally bounded and lower-bound only; it proves observed monitoring facts for a run, not exact full runtime totals.
 - Cleanup is intentionally not part of the tab UI; use `make telemetry-clean` or `POST /admin/adversary-sim/history/cleanup` when destructive retained-history removal is required.

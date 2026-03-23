@@ -45,7 +45,8 @@ Behavior:
 - The `Red Team` adversary-sim controller is page-scoped rather than tab-scoped:
   - it forces a status refresh on dashboard bootstrap, `Red Team` tab activation, and page-visibility resume,
   - it keeps status polling alive while a control request is submitting/converging and while backend truth reports the sim as `running` or `stopping`,
-  - hiding the `Red Team` panel does not pause a running sim or let backend status go stale.
+  - hiding the `Red Team` panel does not pause a running sim or let backend status go stale,
+  - and the tab now surfaces whether generation/lane counters come directly from runtime control state or from recovered persisted-event lower-bound evidence.
 - Diagnostics and IP-bans snapshots use bounded local cache to reduce repeated admin API load on rapid remount/revisit.
 
 ## 🐙 Runtime Architecture
