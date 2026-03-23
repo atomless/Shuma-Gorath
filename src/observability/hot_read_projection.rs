@@ -699,6 +699,7 @@ mod tests {
                 response_kind: crate::runtime::request_outcome::ResponseKind::ForwardAllow,
                 http_status: 200,
                 response_bytes: 123,
+                forwarded_upstream_latency_ms: Some(31),
                 forward_attempted: true,
                 forward_failure_class: None,
                 intended_action: None,
@@ -725,6 +726,7 @@ mod tests {
                 response_kind: crate::runtime::request_outcome::ResponseKind::NotABot,
                 http_status: 200,
                 response_bytes: 45,
+                forwarded_upstream_latency_ms: None,
                 forward_attempted: false,
                 forward_failure_class: None,
                 intended_action: None,
@@ -756,6 +758,7 @@ mod tests {
         assert_eq!(live_scope.forwarded_requests, 1);
         assert_eq!(live_scope.short_circuited_requests, 1);
         assert_eq!(live_scope.response_bytes, 168);
+        assert_eq!(live_scope.forwarded_upstream_latency_ms_total, 31);
         let summary_human_friction = summary
             .payload
             .human_friction
@@ -803,6 +806,7 @@ mod tests {
         assert_eq!(bootstrap_lane.forwarded_requests, 1);
         assert_eq!(bootstrap_lane.short_circuited_requests, 1);
         assert_eq!(bootstrap_lane.response_bytes, 168);
+        assert_eq!(bootstrap_lane.forwarded_upstream_latency_ms_total, 31);
         let bootstrap_human_friction = bootstrap
             .payload
             .summary
@@ -852,6 +856,7 @@ mod tests {
                 response_kind: crate::runtime::request_outcome::ResponseKind::NotABot,
                 http_status: 200,
                 response_bytes: 45,
+                forwarded_upstream_latency_ms: None,
                 forward_attempted: false,
                 forward_failure_class: None,
                 intended_action: None,
@@ -909,6 +914,7 @@ mod tests {
                 response_kind: crate::runtime::request_outcome::ResponseKind::NotABot,
                 http_status: 200,
                 response_bytes: 45,
+                forwarded_upstream_latency_ms: None,
                 forward_attempted: false,
                 forward_failure_class: None,
                 intended_action: None,
@@ -998,6 +1004,7 @@ mod tests {
                 response_kind: crate::runtime::request_outcome::ResponseKind::NotABot,
                 http_status: 200,
                 response_bytes: 45,
+                forwarded_upstream_latency_ms: None,
                 forward_attempted: false,
                 forward_failure_class: None,
                 intended_action: None,
@@ -1024,6 +1031,7 @@ mod tests {
                 response_kind: crate::runtime::request_outcome::ResponseKind::ForwardAllow,
                 http_status: 200,
                 response_bytes: 256,
+                forwarded_upstream_latency_ms: Some(18),
                 forward_attempted: true,
                 forward_failure_class: None,
                 intended_action: None,

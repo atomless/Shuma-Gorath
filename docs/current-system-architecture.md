@@ -143,10 +143,11 @@ flowchart LR
   ConfigState --> Live
 ```
 
-The live control loop now also depends on two newer truth-preserving seams:
+The live control loop now also depends on three newer truth-preserving seams:
 
 1. request-native Scrapling coverage receipts for `indexing_bot`, `ai_scraper_bot`, and `http_agent`,
-2. and adversary-sim status read recovery from persisted monitoring-event lower bounds, surfaced as `truth_basis` plus bounded `persisted_event_evidence` when mutable counters under-report completed runs.
+2. forwarded-latency host-impact telemetry and the derived `suspicious_forwarded_latency_share` benchmark proxy inside the existing suspicious-origin cost family,
+3. and adversary-sim status read recovery from persisted monitoring-event lower bounds, surfaced as `truth_basis` plus bounded `persisted_event_evidence` when mutable counters under-report completed runs.
 
 ## 🐙 Domain Map
 

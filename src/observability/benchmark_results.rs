@@ -368,6 +368,7 @@ mod tests {
                 response_kind: ResponseKind::NotABot,
                 http_status: 200,
                 response_bytes: 45,
+                forwarded_upstream_latency_ms: None,
                 forward_attempted: false,
                 forward_failure_class: None,
                 intended_action: None,
@@ -458,6 +459,7 @@ mod tests {
                 response_kind: ResponseKind::NotABot,
                 http_status: 200,
                 response_bytes: 45,
+                forwarded_upstream_latency_ms: None,
                 forward_attempted: false,
                 forward_failure_class: None,
                 intended_action: None,
@@ -481,6 +483,7 @@ mod tests {
                 response_kind: ResponseKind::ForwardAllow,
                 http_status: 200,
                 response_bytes: 120,
+                forwarded_upstream_latency_ms: None,
                 forward_attempted: true,
                 forward_failure_class: None,
                 intended_action: None,
@@ -504,6 +507,7 @@ mod tests {
                 response_kind: ResponseKind::ForwardAllow,
                 http_status: 200,
                 response_bytes: 120,
+                forwarded_upstream_latency_ms: None,
                 forward_attempted: true,
                 forward_failure_class: None,
                 intended_action: None,
@@ -637,6 +641,7 @@ mod tests {
                 response_kind: ResponseKind::ForwardAllow,
                 http_status: 200,
                 response_bytes: 512,
+                forwarded_upstream_latency_ms: None,
                 forward_attempted: true,
                 forward_failure_class: None,
                 intended_action: None,
@@ -751,6 +756,108 @@ mod tests {
     }
 
     #[test]
+    fn benchmark_results_materialize_host_impact_metrics_in_suspicious_origin_cost_family() {
+        let store = TestStore::new();
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::Live,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::PublicContent,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: Some(RequestOutcomeLane {
+                    lane: TrafficLane::LikelyHuman,
+                    exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
+                    basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
+                }),
+                non_human_category: None,
+                outcome_class: RequestOutcomeClass::Forwarded,
+                response_kind: ResponseKind::ForwardAllow,
+                http_status: 200,
+                response_bytes: 80,
+                forwarded_upstream_latency_ms: Some(30),
+                forward_attempted: true,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::CleanAllow,
+            },
+        );
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::Live,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::PublicContent,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: Some(RequestOutcomeLane {
+                    lane: TrafficLane::SuspiciousAutomation,
+                    exactness: crate::observability::hot_read_contract::TelemetryExactness::Derived,
+                    basis: crate::observability::hot_read_contract::TelemetryBasis::Mixed,
+                }),
+                non_human_category: None,
+                outcome_class: RequestOutcomeClass::Forwarded,
+                response_kind: ResponseKind::ForwardAllow,
+                http_status: 200,
+                response_bytes: 120,
+                forwarded_upstream_latency_ms: Some(70),
+                forward_attempted: true,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::CleanAllow,
+            },
+        );
+        let summary = summarize_with_store(&store, 24, 10);
+        let snapshot = build_operator_snapshot_payload(
+            &store,
+            "default",
+            1_700_000_210,
+            &summary,
+            &[],
+            OperatorSnapshotRecentChanges::default(),
+            1_700_000_210,
+            1_700_000_210,
+            1_700_000_210,
+        );
+
+        let payload = build_benchmark_results_from_snapshot_sections(
+            snapshot.generated_at,
+            1_700_000_210,
+            &snapshot.window,
+            &snapshot.objectives,
+            &snapshot.live_traffic,
+            &snapshot.adversary_sim,
+            &snapshot.non_human_traffic,
+            &snapshot.budget_distance,
+            &summary,
+            &defaults(),
+            &snapshot.allowed_actions,
+            &ReplayPromotionSummary::not_materialized(),
+            None,
+        );
+
+        let suspicious = payload
+            .families
+            .iter()
+            .find(|family| family.family_id == "suspicious_origin_cost")
+            .expect("suspicious origin cost family");
+        let latency_share = suspicious
+            .metrics
+            .iter()
+            .find(|metric| metric.metric_id == "suspicious_forwarded_latency_share")
+            .expect("latency share metric");
+        let average_latency = suspicious
+            .metrics
+            .iter()
+            .find(|metric| metric.metric_id == "suspicious_average_forward_latency_ms")
+            .expect("average latency metric");
+
+        assert_eq!(latency_share.status, "outside_budget");
+        assert!((latency_share.current.expect("latency share current") - 0.7).abs() < 0.000_001);
+        assert_eq!(average_latency.status, "tracking_only");
+        assert!((average_latency.current.expect("average latency current") - 70.0).abs() < 0.000_001);
+    }
+
+    #[test]
     fn verified_identity_guardrails_block_tuning_when_conflicts_are_outside_budget() {
         let mut cfg = defaults().clone();
         cfg.verified_identity.enabled = true;
@@ -803,6 +910,7 @@ mod tests {
                 forwarded_requests: 2,
                 short_circuited_requests: 4,
                 control_response_requests: 0,
+                forwarded_upstream_latency_ms_total: 0,
                 forwarded_response_bytes: 200,
                 shuma_served_response_bytes: 400,
                 likely_human: None,
@@ -817,6 +925,7 @@ mod tests {
                 forwarded_requests: 0,
                 short_circuited_requests: 0,
                 control_response_requests: 0,
+                forwarded_upstream_latency_ms_total: 0,
                 forwarded_response_bytes: 0,
                 shuma_served_response_bytes: 0,
                 recent_runs: Vec::new(),
@@ -903,6 +1012,7 @@ mod tests {
                 response_kind: ResponseKind::NotABot,
                 http_status: 200,
                 response_bytes: 45,
+                forwarded_upstream_latency_ms: None,
                 forward_attempted: false,
                 forward_failure_class: None,
                 intended_action: None,
@@ -967,6 +1077,7 @@ mod tests {
                 response_kind: ResponseKind::ForwardAllow,
                 http_status: 200,
                 response_bytes: 120,
+                forwarded_upstream_latency_ms: None,
                 forward_attempted: true,
                 forward_failure_class: None,
                 intended_action: None,
@@ -990,6 +1101,7 @@ mod tests {
                 response_kind: ResponseKind::ForwardAllow,
                 http_status: 200,
                 response_bytes: 120,
+                forwarded_upstream_latency_ms: None,
                 forward_attempted: true,
                 forward_failure_class: None,
                 intended_action: None,
@@ -1059,6 +1171,7 @@ mod tests {
                 response_kind: ResponseKind::NotABot,
                 http_status: 200,
                 response_bytes: 45,
+                forwarded_upstream_latency_ms: None,
                 forward_attempted: false,
                 forward_failure_class: None,
                 intended_action: None,
@@ -1082,6 +1195,7 @@ mod tests {
                 response_kind: ResponseKind::ForwardAllow,
                 http_status: 200,
                 response_bytes: 120,
+                forwarded_upstream_latency_ms: None,
                 forward_attempted: true,
                 forward_failure_class: None,
                 intended_action: None,
@@ -1105,6 +1219,7 @@ mod tests {
                 response_kind: ResponseKind::ForwardAllow,
                 http_status: 200,
                 response_bytes: 120,
+                forwarded_upstream_latency_ms: None,
                 forward_attempted: true,
                 forward_failure_class: None,
                 intended_action: None,
@@ -1192,6 +1307,7 @@ mod tests {
                 response_kind: ResponseKind::ForwardAllow,
                 http_status: 200,
                 response_bytes: 120,
+                forwarded_upstream_latency_ms: None,
                 forward_attempted: true,
                 forward_failure_class: None,
                 intended_action: None,
@@ -1274,6 +1390,7 @@ mod tests {
                     response_kind: ResponseKind::ForwardAllow,
                     http_status: 200,
                     response_bytes: 120,
+                    forwarded_upstream_latency_ms: None,
                     forward_attempted: true,
                     forward_failure_class: None,
                     intended_action: None,
@@ -1300,6 +1417,7 @@ mod tests {
                     response_kind: ResponseKind::NotABot,
                     http_status: 200,
                     response_bytes: 45,
+                    forwarded_upstream_latency_ms: None,
                     forward_attempted: false,
                     forward_failure_class: None,
                     intended_action: None,
@@ -1324,6 +1442,7 @@ mod tests {
                 response_kind: ResponseKind::ForwardAllow,
                 http_status: 200,
                 response_bytes: 120,
+                forwarded_upstream_latency_ms: None,
                 forward_attempted: true,
                 forward_failure_class: None,
                 intended_action: None,

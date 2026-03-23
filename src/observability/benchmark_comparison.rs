@@ -328,6 +328,8 @@ fn metric_direction(metric_id: &str) -> Option<MetricDirection> {
     match metric_id {
         "suspicious_forwarded_request_rate"
         | "suspicious_forwarded_byte_rate"
+        | "suspicious_forwarded_latency_share"
+        | "suspicious_average_forward_latency_ms"
         | "likely_human_friction_rate"
         | "interactive_friction_rate"
         | "likely_human_hard_block_rate"
@@ -418,6 +420,76 @@ mod tests {
         assert_eq!(families[0].comparison_status, "improved");
         assert_eq!(families[0].metrics[0].baseline_current, Some(1.0));
         assert_eq!(families[0].metrics[0].comparison_status, "improved");
+    }
+
+    #[test]
+    fn prior_window_comparison_marks_host_impact_metrics_as_lower_is_better() {
+        let reference = BenchmarkComparableSnapshot {
+            generated_at: 100,
+            subject_kind: "current_instance".to_string(),
+            watch_window: OperatorSnapshotWindow {
+                start_ts: 1,
+                end_ts: 100,
+                duration_seconds: 100,
+            },
+            coverage_status: "supported".to_string(),
+            overall_status: "outside_budget".to_string(),
+            families: vec![super::BenchmarkComparableFamily {
+                family_id: "suspicious_origin_cost".to_string(),
+                status: "outside_budget".to_string(),
+                capability_gate: "supported".to_string(),
+                metrics: vec![
+                    super::BenchmarkComparableMetric {
+                        metric_id: "suspicious_forwarded_latency_share".to_string(),
+                        status: "outside_budget".to_string(),
+                        current: Some(0.7),
+                        capability_gate: "supported".to_string(),
+                    },
+                    super::BenchmarkComparableMetric {
+                        metric_id: "suspicious_average_forward_latency_ms".to_string(),
+                        status: "tracking_only".to_string(),
+                        current: Some(140.0),
+                        capability_gate: "supported".to_string(),
+                    },
+                ],
+            }],
+        };
+        let mut families = vec![super::BenchmarkFamilyResult {
+            family_id: "suspicious_origin_cost".to_string(),
+            status: "inside_budget".to_string(),
+            capability_gate: "supported".to_string(),
+            note: "test".to_string(),
+            baseline_status: None,
+            comparison_status: "not_available".to_string(),
+            metrics: vec![
+                metric(
+                    "suspicious_forwarded_latency_share",
+                    Some(0.2),
+                    "inside_budget",
+                ),
+                BenchmarkMetricResult {
+                    metric_id: "suspicious_average_forward_latency_ms".to_string(),
+                    status: "tracking_only".to_string(),
+                    current: Some(90.0),
+                    target: None,
+                    delta: None,
+                    exactness: "exact".to_string(),
+                    basis: "observed".to_string(),
+                    capability_gate: "supported".to_string(),
+                    baseline_current: None,
+                    comparison_delta: None,
+                    comparison_status: "not_available".to_string(),
+                },
+            ],
+        }];
+
+        let (_, improvement) =
+            apply_prior_window_comparison(200, families.as_mut_slice(), Some(&reference));
+
+        assert_eq!(improvement, "improved");
+        assert_eq!(families[0].comparison_status, "improved");
+        assert_eq!(families[0].metrics[0].comparison_status, "improved");
+        assert_eq!(families[0].metrics[1].comparison_status, "improved");
     }
 
     #[test]

@@ -15,6 +15,10 @@ pub(super) fn suspicious_origin_cost_family(
         budget_distance.rows.as_slice(),
         "suspicious_forwarded_byte_rate",
     );
+    let latency_budget = budget_row(
+        budget_distance.rows.as_slice(),
+        "suspicious_forwarded_latency_share",
+    );
     let metrics = vec![
         budget_metric_result(
             "suspicious_forwarded_request_rate",
@@ -22,6 +26,11 @@ pub(super) fn suspicious_origin_cost_family(
             "supported",
         ),
         budget_metric_result("suspicious_forwarded_byte_rate", byte_budget, "supported"),
+        budget_metric_result(
+            "suspicious_forwarded_latency_share",
+            latency_budget,
+            "supported",
+        ),
         tracking_ratio_metric(
             "suspicious_short_circuit_rate",
             lane,
@@ -36,6 +45,21 @@ pub(super) fn suspicious_origin_cost_family(
                     .saturating_add(row.shuma_served_response_bytes);
                 ratio(row.shuma_served_response_bytes, total_bytes)
             }),
+        ),
+        tracking_average_metric(
+            "suspicious_average_forward_latency_ms",
+            lane,
+            lane.map(|row| {
+                if row.forwarded_requests == 0 {
+                    None
+                } else {
+                    Some(
+                        row.forwarded_upstream_latency_ms_total as f64
+                            / row.forwarded_requests as f64,
+                    )
+                }
+            })
+            .flatten(),
         ),
     ];
     BenchmarkFamilyResult {
@@ -161,6 +185,54 @@ pub(super) fn tracking_ratio_metric(
 ) -> BenchmarkMetricResult {
     match (lane, current) {
         (Some(value), Some(current)) if value.total_requests > 0 => BenchmarkMetricResult {
+            metric_id: metric_id.to_string(),
+            status: "tracking_only".to_string(),
+            current: Some(current),
+            target: None,
+            delta: None,
+            exactness: value.exactness.clone(),
+            basis: value.basis.clone(),
+            capability_gate: "supported".to_string(),
+            baseline_current: None,
+            comparison_delta: None,
+            comparison_status: "not_available".to_string(),
+        },
+        (Some(value), _) => BenchmarkMetricResult {
+            metric_id: metric_id.to_string(),
+            status: "insufficient_evidence".to_string(),
+            current: None,
+            target: None,
+            delta: None,
+            exactness: value.exactness.clone(),
+            basis: value.basis.clone(),
+            capability_gate: "supported".to_string(),
+            baseline_current: None,
+            comparison_delta: None,
+            comparison_status: "not_available".to_string(),
+        },
+        (None, _) => BenchmarkMetricResult {
+            metric_id: metric_id.to_string(),
+            status: "insufficient_evidence".to_string(),
+            current: None,
+            target: None,
+            delta: None,
+            exactness: "derived".to_string(),
+            basis: "observed".to_string(),
+            capability_gate: "supported".to_string(),
+            baseline_current: None,
+            comparison_delta: None,
+            comparison_status: "not_available".to_string(),
+        },
+    }
+}
+
+pub(super) fn tracking_average_metric(
+    metric_id: &str,
+    lane: Option<&OperatorSnapshotLane>,
+    current: Option<f64>,
+) -> BenchmarkMetricResult {
+    match (lane, current) {
+        (Some(value), Some(current)) if value.forwarded_requests > 0 => BenchmarkMetricResult {
             metric_id: metric_id.to_string(),
             status: "tracking_only".to_string(),
             current: Some(current),

@@ -43,7 +43,7 @@ Current references:
 3. [`2026-03-20-mature-adversary-sim-evolution-roadmap.md`](2026-03-20-mature-adversary-sim-evolution-roadmap.md)
 4. [`../research/2026-03-23-scrapling-non-human-category-capability-review.md`](../research/2026-03-23-scrapling-non-human-category-capability-review.md)
 5. [`2026-03-23-scrapling-request-native-category-fulfillment-implementation-plan.md`](2026-03-23-scrapling-request-native-category-fulfillment-implementation-plan.md)
-6. `SIM-SH-SURFACE-1`, `SIM-SCR-FIT-1`, `SIM-SCR-FIT-2`, `SIM-SCR-COVER-2`, `VID-TAX-1`, `VID-TAX-2`, `VID-BOT-1`, `VID-GUARD-1`, `HOST-COST-1`, `HOST-COST-2`, `UI-VID-1`, `UI-RED-1`, and `SIM-LLM-FIT-1` in [`../../todos/todo.md`](../../todos/todo.md)
+6. `SIM-SH-SURFACE-1`, `SIM-SCR-FIT-1`, `SIM-SCR-FIT-2`, `SIM-SCR-COVER-2`, `VID-TAX-1`, `VID-TAX-2`, `VID-BOT-1`, `VID-GUARD-1`, `UI-VID-1`, `UI-RED-1`, and `SIM-LLM-FIT-1` in [`../../todos/todo.md`](../../todos/todo.md)
 7. `SIM-SCR-BROWSER-1` and `SIM-LLM-1` in [`../../todos/blocked-todo.md`](../../todos/blocked-todo.md)
 8. the execution-ready closed-loop chain in [`2026-03-22-taxonomy-and-classification-implementation-plan.md`](2026-03-22-taxonomy-and-classification-implementation-plan.md), [`2026-03-22-lane-fulfillment-and-protected-evidence-implementation-plan.md`](2026-03-22-lane-fulfillment-and-protected-evidence-implementation-plan.md), and [`2026-03-22-category-aware-objectives-benchmarks-and-apply-loop-implementation-plan.md`](2026-03-22-category-aware-objectives-benchmarks-and-apply-loop-implementation-plan.md)
 

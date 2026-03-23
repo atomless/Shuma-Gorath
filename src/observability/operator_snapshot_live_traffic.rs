@@ -15,6 +15,7 @@ pub(crate) struct OperatorSnapshotLane {
     pub forwarded_requests: u64,
     pub short_circuited_requests: u64,
     pub control_response_requests: u64,
+    pub forwarded_upstream_latency_ms_total: u64,
     pub forwarded_response_bytes: u64,
     pub shuma_served_response_bytes: u64,
 }
@@ -40,6 +41,7 @@ pub(crate) struct OperatorSnapshotLiveTraffic {
     pub forwarded_requests: u64,
     pub short_circuited_requests: u64,
     pub control_response_requests: u64,
+    pub forwarded_upstream_latency_ms_total: u64,
     pub forwarded_response_bytes: u64,
     pub shuma_served_response_bytes: u64,
     pub likely_human: Option<OperatorSnapshotLane>,
@@ -80,6 +82,7 @@ pub(crate) struct OperatorSnapshotAdversarySim {
     pub forwarded_requests: u64,
     pub short_circuited_requests: u64,
     pub control_response_requests: u64,
+    pub forwarded_upstream_latency_ms_total: u64,
     pub forwarded_response_bytes: u64,
     pub shuma_served_response_bytes: u64,
     pub recent_runs: Vec<OperatorSnapshotRecentSimRun>,
@@ -134,6 +137,7 @@ fn lane_snapshot(row: &RequestOutcomeLaneSummaryRow) -> OperatorSnapshotLane {
         forwarded_requests: row.forwarded_requests,
         short_circuited_requests: row.short_circuited_requests,
         control_response_requests: row.control_response_requests,
+        forwarded_upstream_latency_ms_total: row.forwarded_upstream_latency_ms_total,
         forwarded_response_bytes: row.forwarded_response_bytes,
         shuma_served_response_bytes: row
             .short_circuited_response_bytes
@@ -181,6 +185,7 @@ pub(super) fn live_traffic_section(
         forwarded_requests: scope.forwarded_requests,
         short_circuited_requests: scope.short_circuited_requests,
         control_response_requests: scope.control_response_requests,
+        forwarded_upstream_latency_ms_total: scope.forwarded_upstream_latency_ms_total,
         forwarded_response_bytes: scope.forwarded_response_bytes,
         shuma_served_response_bytes: scope
             .short_circuited_response_bytes
@@ -216,6 +221,7 @@ pub(super) fn adversary_sim_section(
         forwarded_requests: scope.forwarded_requests,
         short_circuited_requests: scope.short_circuited_requests,
         control_response_requests: scope.control_response_requests,
+        forwarded_upstream_latency_ms_total: scope.forwarded_upstream_latency_ms_total,
         forwarded_response_bytes: scope.forwarded_response_bytes,
         shuma_served_response_bytes: scope
             .short_circuited_response_bytes

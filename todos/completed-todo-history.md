@@ -4,6 +4,32 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-23)
 
+### HOST-COST-1 and HOST-COST-2: bounded host-impact telemetry and benchmark proxy
+
+- [x] Added bounded forwarded upstream latency truth to rendered request outcomes and propagated it through monitoring scope, lane, and non-human-category summaries as `forwarded_upstream_latency_ms_total`.
+- [x] Extended `operator_snapshot_v1`, the default operator-objective profile, and `benchmark_results_v1` with the host-impact proxy `suspicious_forwarded_latency_share` plus the tracking metric `suspicious_average_forward_latency_ms`.
+- [x] Updated prior-window comparison and reconcile so suspicious-origin pressure can now be triggered by host-impact latency-share misses without inventing a second cost family or controller path.
+- [x] Added focused `make` gates for telemetry, benchmark, and oversight host-impact proof, and updated the operator/contributor docs to describe the new proxy honestly.
+- [x] Why:
+  - the first closed loop was still reasoning about unwanted non-human cost mostly as forwarded request and byte share, which under-described the real host impact of suspicious forwarded work.
+  - Monitoring and later tuning needed the backend to settle a truthful latency-shaped proxy before any UI overhaul projected host-impact semantics for operators.
+  - the cleanest architecture was to extend the existing suspicious-origin family with observed forwarded latency, not to invent speculative cost units or a parallel cost controller.
+- [x] Evidence:
+  - `src/runtime/request_outcome.rs`
+  - `src/runtime/effect_intents/response_renderer.rs`
+  - `src/observability/monitoring.rs`
+  - `src/observability/operator_snapshot.rs`
+  - `src/observability/benchmark_results_families.rs`
+  - `src/observability/benchmark_results.rs`
+  - `src/admin/oversight_reconcile.rs`
+  - `Makefile`
+  - `scripts/tests/test_host_impact_make_targets.py`
+  - `docs/research/2026-03-23-host-cost-1-and-2-host-impact-proxy-post-implementation-review.md`
+  - `make test-host-impact-telemetry`
+  - `make test-host-impact-benchmark`
+  - `make test-oversight-host-impact`
+  - `git diff --check`
+
 ### VID-TAX-2, VID-BOT-1, and VID-GUARD-1: verified-identity calibration and no-harm guardrails
 
 - [x] Added bounded verified-identity versus taxonomy alignment receipts and snapshot summaries so the machine-first control plane now records whether verified traffic aligned cleanly with the canonical taxonomy, fell back through `other`, or currently lacks corroborating live classification evidence.

@@ -89,18 +89,7 @@ Current stance:
 - The next prerequisite now begins one step earlier: Shuma must first define a canonical non-human taxonomy and shared classification contract before it can truthfully measure lane representativeness.
 - The actively evolving near-term layer should be fingerprinting and categorization quality inside that taxonomy; taxonomy expansion is only a later contingency if important non-human traffic persistently falls outside the existing categories.
 - The next bridge to a genuine LLM-in-the-loop system is not the full later `SIM-LLM-1` runtime actor; it is a bounded category-fulfillment LLM tranche that sits between the taxonomy/classifier work and the first closed config loop, with the later LLM diagnosis harness and code loop still downstream of `OVR-APPLY-1`.
-- Before `MON-OVERHAUL-1`, extend suspicious-origin cost with a truthful host-impact proxy so Monitoring and later tuning do not project a request-and-byte-only model of unwanted non-human traffic cost.
 - Before `MON-OVERHAUL-1`, expose the already-settled local control truths that no longer belong only in Advanced JSON or backend-only payloads: verified identity in `Verification` and adversary-sim status truth basis in `Red Team`.
-
-### HOST-COST-1: Bounded Host-Impact Telemetry Foundation
-- Add bounded forwarded-latency telemetry to the request-outcome and monitoring hot-read path so Shuma can measure host-impact proxies that go beyond suspicious forwarded request and byte ratios.
-- Keep this tranche telemetry-first and proxy-first: no speculative route weights, no fake cost units, and no direct CPU or memory budgets yet.
-- Reference context: [`../docs/research/2026-03-23-host-impact-cost-proxy-and-benchmark-review.md`](../docs/research/2026-03-23-host-impact-cost-proxy-and-benchmark-review.md), [`../docs/plans/2026-03-23-host-impact-cost-proxy-and-benchmark-implementation-plan.md`](../docs/plans/2026-03-23-host-impact-cost-proxy-and-benchmark-implementation-plan.md)
-
-### HOST-COST-2: Host-Impact Snapshot And Benchmark Integration
-- Thread the new host-impact proxy through `operator_snapshot_v1`, `operator_objectives_v1`, and `benchmark_results_v1`, including a budgetable `suspicious_forwarded_latency_share` metric and bounded comparison semantics.
-- Keep this tranche inside the existing suspicious-origin family and existing controller model; do not invent a second cost loop or new patch-family surface.
-- Reference context: [`../docs/research/2026-03-23-host-impact-cost-proxy-and-benchmark-review.md`](../docs/research/2026-03-23-host-impact-cost-proxy-and-benchmark-review.md), [`../docs/plans/2026-03-23-host-impact-cost-proxy-and-benchmark-implementation-plan.md`](../docs/plans/2026-03-23-host-impact-cost-proxy-and-benchmark-implementation-plan.md)
 
 ### UI-VID-1: Verified Identity Pane In Verification Tab
 - Add a first-class `Verified Identity` pane to `Verification` so native Web Bot Auth and the broader verified-identity mechanics are no longer Advanced-only for operators.

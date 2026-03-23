@@ -13,6 +13,7 @@ const DEFAULT_NEAR_LIMIT_RATIO: f64 = 0.75;
 const LIKELY_HUMAN_FRICTION_TARGET: f64 = 0.02;
 const SUSPICIOUS_FORWARDED_REQUEST_TARGET: f64 = 0.10;
 const SUSPICIOUS_FORWARDED_BYTE_TARGET: f64 = 0.10;
+const SUSPICIOUS_FORWARDED_LATENCY_SHARE_TARGET: f64 = 0.10;
 const DEFAULT_MAX_GOAL_SUCCESS_RATE: f64 = 0.0;
 const DEFAULT_MIN_ESCALATION_RATE: f64 = 0.25;
 const MAX_OBJECTIVE_BUDGET_ROWS: usize = 8;
@@ -113,6 +114,15 @@ pub(crate) fn default_operator_objectives(updated_at_ts: u64) -> OperatorObjecti
                 metric: "suspicious_forwarded_byte_rate".to_string(),
                 comparator: "max_ratio".to_string(),
                 target: SUSPICIOUS_FORWARDED_BYTE_TARGET,
+                near_limit_ratio: DEFAULT_NEAR_LIMIT_RATIO,
+                eligible_population: "live:ingress_primary:enforced:suspicious_automation"
+                    .to_string(),
+            },
+            OperatorObjectiveBudget {
+                budget_id: "suspicious_forwarded_latency".to_string(),
+                metric: "suspicious_forwarded_latency_share".to_string(),
+                comparator: "max_ratio".to_string(),
+                target: SUSPICIOUS_FORWARDED_LATENCY_SHARE_TARGET,
                 near_limit_ratio: DEFAULT_NEAR_LIMIT_RATIO,
                 eligible_population: "live:ingress_primary:enforced:suspicious_automation"
                     .to_string(),
@@ -372,10 +382,11 @@ mod tests {
                 .posture,
             "allowed"
         );
-        assert_eq!(profile.budgets.len(), 3);
+        assert_eq!(profile.budgets.len(), 4);
         assert_eq!(profile.budgets[0].budget_id, "likely_human_friction");
         assert_eq!(profile.budgets[1].metric, "suspicious_forwarded_request_rate");
         assert_eq!(profile.budgets[2].metric, "suspicious_forwarded_byte_rate");
+        assert_eq!(profile.budgets[3].metric, "suspicious_forwarded_latency_share");
     }
 
     #[test]

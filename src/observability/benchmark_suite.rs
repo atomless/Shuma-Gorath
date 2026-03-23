@@ -133,6 +133,12 @@ pub(crate) fn benchmark_suite_v1() -> BenchmarkSuiteContract {
                         "supported",
                     ),
                     (
+                        "suspicious_forwarded_latency_share",
+                        "live:ingress_primary:enforced:suspicious_automation",
+                        "max_ratio_budget",
+                        "supported",
+                    ),
+                    (
                         "suspicious_short_circuit_rate",
                         "live:ingress_primary:enforced:suspicious_automation",
                         "maximize_ratio",
@@ -142,6 +148,12 @@ pub(crate) fn benchmark_suite_v1() -> BenchmarkSuiteContract {
                         "suspicious_locally_served_byte_share",
                         "live:ingress_primary:enforced:suspicious_automation",
                         "maximize_ratio",
+                        "supported",
+                    ),
+                    (
+                        "suspicious_average_forward_latency_ms",
+                        "live:ingress_primary:enforced:suspicious_automation",
+                        "minimize_tracking",
                         "supported",
                     ),
                 ],
@@ -293,6 +305,19 @@ mod tests {
             .families
             .iter()
             .any(|family| family.id == "suspicious_origin_cost"));
+        let suspicious_origin_cost = suite
+            .families
+            .iter()
+            .find(|family| family.id == "suspicious_origin_cost")
+            .expect("suspicious origin cost family");
+        assert!(suspicious_origin_cost
+            .metrics
+            .iter()
+            .any(|metric| metric.metric_id == "suspicious_forwarded_latency_share"));
+        assert!(suspicious_origin_cost
+            .metrics
+            .iter()
+            .any(|metric| metric.metric_id == "suspicious_average_forward_latency_ms"));
         assert!(suite
             .families
             .iter()

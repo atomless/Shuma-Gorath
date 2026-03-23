@@ -11,6 +11,7 @@ use crate::observability::hot_read_contract::{
 };
 use crate::observability::monitoring::{
     HumanFrictionSegmentRow, MonitoringSummary, RequestOutcomeLaneSummaryRow,
+    RequestOutcomeScopeSummaryRow,
 };
 use super::operator_objectives_store::load_or_seed_operator_objectives;
 use super::operator_snapshot_live_traffic::{
@@ -150,6 +151,7 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
     let runtime_posture = runtime_posture(store, site_id);
     let budget_distance = budget_distance_summary(
         &objectives,
+        live_scope.as_ref(),
         likely_human_lane.as_ref(),
         suspicious_lane.as_ref(),
         human_friction.as_ref(),
@@ -273,6 +275,7 @@ fn operator_snapshot_section_metadata(
 
 fn budget_distance_summary(
     objectives: &OperatorObjectivesProfile,
+    live_scope: Option<&RequestOutcomeScopeSummaryRow>,
     likely_human_lane: Option<&RequestOutcomeLaneSummaryRow>,
     suspicious_lane: Option<&RequestOutcomeLaneSummaryRow>,
     human_friction: Option<&HumanFrictionSegmentRow>,
@@ -288,6 +291,9 @@ fn budget_distance_summary(
             }
             "suspicious_forwarded_byte_rate" => {
                 build_suspicious_forwarded_byte_budget_row(budget, suspicious_lane)
+            }
+            "suspicious_forwarded_latency_share" => {
+                build_suspicious_forwarded_latency_budget_row(budget, live_scope, suspicious_lane)
             }
             _ => None,
         };
@@ -346,6 +352,26 @@ fn build_suspicious_forwarded_byte_budget_row(
     Some(budget_row(
         budget,
         lane.total_requests,
+        current,
+        lane.exactness.clone(),
+        lane.basis.clone(),
+    ))
+}
+
+fn build_suspicious_forwarded_latency_budget_row(
+    budget: &OperatorObjectiveBudget,
+    live_scope: Option<&RequestOutcomeScopeSummaryRow>,
+    suspicious_lane: Option<&RequestOutcomeLaneSummaryRow>,
+) -> Option<OperatorBudgetDistanceRow> {
+    let scope = live_scope?;
+    let lane = suspicious_lane?;
+    let current = ratio(
+        lane.forwarded_upstream_latency_ms_total,
+        scope.forwarded_upstream_latency_ms_total,
+    );
+    Some(budget_row(
+        budget,
+        lane.forwarded_requests,
         current,
         lane.exactness.clone(),
         lane.basis.clone(),
@@ -470,6 +496,7 @@ mod tests {
                 response_kind: ResponseKind::NotABot,
                 http_status: 200,
                 response_bytes: 45,
+                forwarded_upstream_latency_ms: None,
                 forward_attempted: false,
                 forward_failure_class: None,
                 intended_action: None,
@@ -591,6 +618,7 @@ mod tests {
                 response_kind: ResponseKind::ForwardAllow,
                 http_status: 200,
                 response_bytes: 120,
+                forwarded_upstream_latency_ms: None,
                 forward_attempted: true,
                 forward_failure_class: None,
                 intended_action: None,
@@ -644,6 +672,93 @@ mod tests {
     }
 
     #[test]
+    fn snapshot_payload_projects_suspicious_forwarded_latency_budget_row() {
+        let store = TestStore::new();
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::Live,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::PublicContent,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: Some(RequestOutcomeLane {
+                    lane: TrafficLane::LikelyHuman,
+                    exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
+                    basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
+                }),
+                non_human_category: None,
+                outcome_class: RequestOutcomeClass::Forwarded,
+                response_kind: ResponseKind::ForwardAllow,
+                http_status: 200,
+                response_bytes: 90,
+                forwarded_upstream_latency_ms: Some(30),
+                forward_attempted: true,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::CleanAllow,
+            },
+        );
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::Live,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::PublicContent,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: Some(RequestOutcomeLane {
+                    lane: TrafficLane::SuspiciousAutomation,
+                    exactness: crate::observability::hot_read_contract::TelemetryExactness::Derived,
+                    basis: crate::observability::hot_read_contract::TelemetryBasis::Mixed,
+                }),
+                non_human_category: None,
+                outcome_class: RequestOutcomeClass::Forwarded,
+                response_kind: ResponseKind::ForwardAllow,
+                http_status: 200,
+                response_bytes: 120,
+                forwarded_upstream_latency_ms: Some(70),
+                forward_attempted: true,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::CleanAllow,
+            },
+        );
+
+        let summary = summarize_with_store(&store, 24, 10);
+        let payload = build_operator_snapshot_payload(
+            &store,
+            "default",
+            1_700_000_075,
+            &summary,
+            &[],
+            OperatorSnapshotRecentChanges::default(),
+            1_700_000_075,
+            1_700_000_075,
+            1_700_000_075,
+        );
+
+        let row = payload
+            .budget_distance
+            .rows
+            .iter()
+            .find(|row| row.metric == "suspicious_forwarded_latency_share")
+            .expect("latency-share budget row");
+
+        assert_eq!(payload.live_traffic.forwarded_upstream_latency_ms_total, 100);
+        assert_eq!(
+            payload
+                .live_traffic
+                .suspicious_automation
+                .as_ref()
+                .expect("suspicious lane")
+                .forwarded_upstream_latency_ms_total,
+            70
+        );
+        assert_eq!(row.eligible_requests, 1);
+        assert!((row.current - 0.7).abs() < 0.000_001);
+        assert_eq!(row.status, "outside_budget");
+    }
+
+    #[test]
     fn snapshot_payload_uses_prior_operator_snapshot_as_benchmark_reference_when_available() {
         let store = TestStore::new();
         record_request_outcome(
@@ -663,6 +778,7 @@ mod tests {
                 response_kind: ResponseKind::NotABot,
                 http_status: 200,
                 response_bytes: 45,
+                forwarded_upstream_latency_ms: None,
                 forward_attempted: false,
                 forward_failure_class: None,
                 intended_action: None,
@@ -748,6 +864,7 @@ mod tests {
                 response_kind: ResponseKind::NotABot,
                 http_status: 200,
                 response_bytes: 45,
+                forwarded_upstream_latency_ms: None,
                 forward_attempted: false,
                 forward_failure_class: None,
                 intended_action: None,
@@ -771,6 +888,7 @@ mod tests {
                 response_kind: ResponseKind::ForwardAllow,
                 http_status: 200,
                 response_bytes: 256,
+                forwarded_upstream_latency_ms: None,
                 forward_attempted: true,
                 forward_failure_class: None,
                 intended_action: None,

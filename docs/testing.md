@@ -41,6 +41,9 @@ make test-verified-identity-taxonomy-crosswalk # Focused verified-identity taxon
 make test-verified-identity-alignment-receipts # Focused verified-identity taxonomy alignment receipt gate
 make test-verified-identity-botness-conflicts # Focused verified-identity vs botness conflict metric gate
 make test-verified-identity-guardrails # Focused verified-identity no-harm guardrail gate
+make test-host-impact-telemetry # Focused forwarded-latency telemetry and hot-read projection gate
+make test-host-impact-benchmark # Focused host-impact snapshot and benchmark gate
+make test-oversight-host-impact # Focused host-impact reconcile gate
 make test-adversarial-frontier-attempt # Protected-lane frontier provider attempt probe (advisory/non-blocking)
 make test-frontier-governance # Frontier artifact guard (forbidden keys + secret leak checks)
 make test-frontier-unavailability-policy # Frontier degraded-threshold policy tracker + actionability artifact
@@ -103,6 +106,7 @@ Notes:
 - `make test-sim2-operational-regressions` enforces retention/cost/security domains and treats `failure_injection` + `prod_mode_monitoring` as optional when absent from the active deterministic profile artifact. Use `make test-sim2-operational-regressions-strict` when you need full-domain enforcement.
 - `make test` keeps the fast adversarial matrix in the routine local/full-suite path and runs the SIM2 matrix in advisory mode against the resulting fast-profile artifact.
 - `make test-adversarial-coverage` and `make test-adversarial-soak` remain the strict deterministic `full_coverage` oracle paths for deeper protected-lane verification.
+- `make test-host-impact-telemetry`, `make test-host-impact-benchmark`, and `make test-oversight-host-impact` are the narrow pre-Monitoring proof path for the host-impact proxy track; use them instead of broader monitoring/controller suites when only the forwarded-latency cost proxy changed.
 - `make test-dashboard-e2e` now verifies the running Spin instance is serving the current `dist/dashboard/index.html` before Playwright runs; restart Spin after `make dashboard-build` if this check fails.
 - `make test` now reseeds dashboard sample data at the end, so charts/tables stay populated for local inspection after the run.
 

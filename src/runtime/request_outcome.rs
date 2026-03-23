@@ -65,6 +65,7 @@ pub(crate) struct RenderedResponseEvidence {
     pub response: Response,
     pub response_kind: ResponseKind,
     pub forward_attempted: bool,
+    pub forward_latency_ms: Option<u64>,
     pub forward_failure_class: Option<&'static str>,
     pub intended_action: Option<ShadowAction>,
 }
@@ -75,6 +76,7 @@ impl RenderedResponseEvidence {
             response,
             response_kind,
             forward_attempted: false,
+            forward_latency_ms: None,
             forward_failure_class: None,
             intended_action: None,
         }
@@ -93,6 +95,7 @@ impl RenderedResponseEvidence {
                 ResponseKind::ForwardAllow
             },
             forward_attempted: true,
+            forward_latency_ms: None,
             forward_failure_class: failure_class,
             intended_action,
         }
@@ -103,6 +106,7 @@ impl RenderedResponseEvidence {
             response,
             response_kind: ResponseKind::SyntheticShadowAllow,
             forward_attempted: false,
+            forward_latency_ms: None,
             forward_failure_class: None,
             intended_action: None,
         }
@@ -113,6 +117,7 @@ impl RenderedResponseEvidence {
             response,
             response_kind: ResponseKind::SyntheticShadowAction,
             forward_attempted: false,
+            forward_latency_ms: None,
             forward_failure_class: None,
             intended_action: Some(intended_action),
         }
@@ -137,6 +142,7 @@ pub(crate) struct RenderedRequestOutcome {
     pub response_kind: ResponseKind,
     pub http_status: u16,
     pub response_bytes: u64,
+    pub forwarded_upstream_latency_ms: Option<u64>,
     pub forward_attempted: bool,
     pub forward_failure_class: Option<&'static str>,
     pub intended_action: Option<ShadowAction>,
@@ -175,6 +181,7 @@ impl RenderedRequestOutcome {
             response_kind: handled.rendered.response_kind,
             http_status: *handled.rendered.response.status(),
             response_bytes: handled.rendered.response.body().len() as u64,
+            forwarded_upstream_latency_ms: handled.rendered.forward_latency_ms,
             forward_attempted: handled.rendered.forward_attempted,
             forward_failure_class: handled.rendered.forward_failure_class,
             intended_action: handled.rendered.intended_action,
@@ -212,6 +219,7 @@ mod tests {
         assert_eq!(outcome.response_kind, ResponseKind::ForwardAllow);
         assert_eq!(outcome.http_status, 200);
         assert_eq!(outcome.response_bytes, 2);
+        assert_eq!(outcome.forwarded_upstream_latency_ms, None);
         assert!(outcome.forward_attempted);
         assert_eq!(
             outcome.traffic_lane,
@@ -246,6 +254,24 @@ mod tests {
             })
         );
         assert!(outcome.non_human_category.is_none());
+    }
+
+    #[test]
+    fn forwarded_outcome_preserves_forwarded_upstream_latency() {
+        let mut rendered = RenderedResponseEvidence::forwarded(response(200, "ok"), None, None);
+        rendered.forward_latency_ms = Some(47);
+        let handled = HandledRequestResponse {
+            branch: CurrentRuntimeBranch::CleanAllow {
+                not_a_bot_marker_valid: false,
+            },
+            execution_mode: ExecutionMode::Enforced,
+            rendered,
+        };
+
+        let outcome =
+            RenderedRequestOutcome::from_handled_response(TrafficOrigin::Live, &handled, None, None);
+
+        assert_eq!(outcome.forwarded_upstream_latency_ms, Some(47));
     }
 
     #[test]

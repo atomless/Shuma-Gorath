@@ -241,9 +241,13 @@ fn primary_pressure(snapshot: &OperatorSnapshotHotReadPayload) -> Option<Oversig
         snapshot.budget_distance.rows.as_slice(),
         "likely_human_friction_rate",
     ) == Some("outside_budget");
-    let suspicious_outside_budget = ["suspicious_forwarded_request_rate", "suspicious_forwarded_byte_rate"]
-        .iter()
-        .any(|metric| budget_row_status(snapshot.budget_distance.rows.as_slice(), metric) == Some("outside_budget"));
+    let suspicious_outside_budget = [
+        "suspicious_forwarded_request_rate",
+        "suspicious_forwarded_byte_rate",
+        "suspicious_forwarded_latency_share",
+    ]
+    .iter()
+    .any(|metric| budget_row_status(snapshot.budget_distance.rows.as_slice(), metric) == Some("outside_budget"));
 
     if likely_human_outside_budget {
         Some(OversightPressure::ReduceLikelyHumanFriction)
@@ -465,6 +469,7 @@ mod tests {
                 forwarded_requests: 60,
                 short_circuited_requests: 60,
                 control_response_requests: 0,
+                forwarded_upstream_latency_ms_total: 0,
                 forwarded_response_bytes: 12_000,
                 shuma_served_response_bytes: 8_000,
                 likely_human: None,
@@ -485,6 +490,7 @@ mod tests {
                 forwarded_requests: 20,
                 short_circuited_requests: 20,
                 control_response_requests: 0,
+                forwarded_upstream_latency_ms_total: 0,
                 forwarded_response_bytes: 4_000,
                 shuma_served_response_bytes: 3_000,
                 recent_runs: vec![OperatorSnapshotRecentSimRun {
@@ -640,6 +646,28 @@ mod tests {
 
         assert_eq!(reconcile_outcome(&result), "within_budget");
         assert!(result.proposal.is_none());
+    }
+
+    #[test]
+    fn primary_pressure_treats_latency_share_budget_miss_as_suspicious_origin_cost() {
+        let mut snapshot = sample_snapshot();
+        snapshot.budget_distance.rows.push(OperatorBudgetDistanceRow {
+            budget_id: "suspicious_forwarded_latency".to_string(),
+            metric: "suspicious_forwarded_latency_share".to_string(),
+            eligible_requests: 1,
+            current: 0.6,
+            target: 0.1,
+            delta: 0.5,
+            near_limit: 0.075,
+            status: "outside_budget".to_string(),
+            exactness: "derived".to_string(),
+            basis: "observed".to_string(),
+        });
+
+        assert_eq!(
+            super::primary_pressure(&snapshot),
+            Some(super::OversightPressure::ReduceSuspiciousOriginCost)
+        );
     }
 
     #[test]

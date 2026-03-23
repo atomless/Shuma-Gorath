@@ -239,6 +239,7 @@ pub(crate) struct RequestOutcomeScopeSummaryRow {
     pub short_circuited_requests: u64,
     pub control_response_requests: u64,
     pub response_bytes: u64,
+    pub forwarded_upstream_latency_ms_total: u64,
     pub forwarded_response_bytes: u64,
     pub short_circuited_response_bytes: u64,
     pub control_response_bytes: u64,
@@ -257,6 +258,7 @@ pub(crate) struct RequestOutcomeLaneSummaryRow {
     pub short_circuited_requests: u64,
     pub control_response_requests: u64,
     pub response_bytes: u64,
+    pub forwarded_upstream_latency_ms_total: u64,
     pub forwarded_response_bytes: u64,
     pub short_circuited_response_bytes: u64,
     pub control_response_bytes: u64,
@@ -276,6 +278,7 @@ pub(crate) struct RequestOutcomeCategorySummaryRow {
     pub short_circuited_requests: u64,
     pub control_response_requests: u64,
     pub response_bytes: u64,
+    pub forwarded_upstream_latency_ms_total: u64,
     pub forwarded_response_bytes: u64,
     pub short_circuited_response_bytes: u64,
     pub control_response_bytes: u64,
@@ -1388,6 +1391,20 @@ pub(crate) fn record_request_outcome<S: crate::challenge::KeyValueStore>(
         ),
         outcome.response_bytes,
     );
+    if matches!(
+        outcome.outcome_class,
+        crate::runtime::request_outcome::RequestOutcomeClass::Forwarded
+    ) {
+        if let Some(latency_ms) = outcome.forwarded_upstream_latency_ms {
+            record_with_dimension_delta(
+                store,
+                "request_outcome",
+                "forwarded_latency_ms_total",
+                Some(scope_cohort.as_str()),
+                latency_ms,
+            );
+        }
+    }
 
     if let Some(lane_cohort) = request_outcome_lane_cohort(outcome) {
         record_with_dimension(
@@ -1440,6 +1457,20 @@ pub(crate) fn record_request_outcome<S: crate::challenge::KeyValueStore>(
             ),
             outcome.response_bytes,
         );
+        if matches!(
+            outcome.outcome_class,
+            crate::runtime::request_outcome::RequestOutcomeClass::Forwarded
+        ) {
+            if let Some(latency_ms) = outcome.forwarded_upstream_latency_ms {
+                record_with_dimension_delta(
+                    store,
+                    "request_outcome",
+                    "lane_forwarded_latency_ms_total",
+                    Some(lane_cohort.as_str()),
+                    latency_ms,
+                );
+            }
+        }
     }
     if let Some(category_cohort) = request_outcome_category_cohort(outcome) {
         record_with_dimension(
@@ -1480,6 +1511,20 @@ pub(crate) fn record_request_outcome<S: crate::challenge::KeyValueStore>(
             ),
             outcome.response_bytes,
         );
+        if matches!(
+            outcome.outcome_class,
+            crate::runtime::request_outcome::RequestOutcomeClass::Forwarded
+        ) {
+            if let Some(latency_ms) = outcome.forwarded_upstream_latency_ms {
+                record_with_dimension_delta(
+                    store,
+                    "request_outcome",
+                    "category_forwarded_latency_ms_total",
+                    Some(category_cohort.as_str()),
+                    latency_ms,
+                );
+            }
+        }
     }
 }
 
@@ -1913,6 +1958,7 @@ struct MonitoringAccumulator {
     verified_identity_identity_counts_by_origin: HashMap<String, HashMap<String, u64>>,
     request_outcome_scope_totals: HashMap<String, u64>,
     request_outcome_scope_bytes: HashMap<String, u64>,
+    request_outcome_scope_forwarded_latency_ms: HashMap<String, u64>,
     request_outcome_scope_outcomes: HashMap<String, u64>,
     request_outcome_scope_outcome_bytes: HashMap<String, u64>,
     request_outcome_scope_response_kinds: HashMap<String, u64>,
@@ -1923,11 +1969,13 @@ struct MonitoringAccumulator {
     request_outcome_scope_route_action_family_outcomes: HashMap<String, u64>,
     request_outcome_lane_totals: HashMap<String, u64>,
     request_outcome_lane_bytes: HashMap<String, u64>,
+    request_outcome_lane_forwarded_latency_ms: HashMap<String, u64>,
     request_outcome_lane_response_kinds: HashMap<String, u64>,
     request_outcome_lane_outcomes: HashMap<String, u64>,
     request_outcome_lane_outcome_bytes: HashMap<String, u64>,
     request_outcome_category_totals: HashMap<String, u64>,
     request_outcome_category_bytes: HashMap<String, u64>,
+    request_outcome_category_forwarded_latency_ms: HashMap<String, u64>,
     request_outcome_category_outcomes: HashMap<String, u64>,
     request_outcome_category_outcome_bytes: HashMap<String, u64>,
 }
@@ -2362,6 +2410,15 @@ impl MonitoringAccumulator {
                         Self::add_count(&mut self.request_outcome_scope_bytes, dim, count);
                     }
                 }
+                "forwarded_latency_ms_total" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(
+                            &mut self.request_outcome_scope_forwarded_latency_ms,
+                            dim,
+                            count,
+                        );
+                    }
+                }
                 "response_kind" => {
                     if let Some(dim) = dimension {
                         Self::add_count(&mut self.request_outcome_scope_response_kinds, dim, count);
@@ -2428,6 +2485,15 @@ impl MonitoringAccumulator {
                         Self::add_count(&mut self.request_outcome_lane_bytes, dim, count);
                     }
                 }
+                "lane_forwarded_latency_ms_total" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(
+                            &mut self.request_outcome_lane_forwarded_latency_ms,
+                            dim,
+                            count,
+                        );
+                    }
+                }
                 "lane_response_kind" => {
                     if let Some(dim) = dimension {
                         Self::add_count(&mut self.request_outcome_lane_response_kinds, dim, count);
@@ -2451,6 +2517,15 @@ impl MonitoringAccumulator {
                 "category_response_bytes" => {
                     if let Some(dim) = dimension {
                         Self::add_count(&mut self.request_outcome_category_bytes, dim, count);
+                    }
+                }
+                "category_forwarded_latency_ms_total" => {
+                    if let Some(dim) = dimension {
+                        Self::add_count(
+                            &mut self.request_outcome_category_forwarded_latency_ms,
+                            dim,
+                            count,
+                        );
                     }
                 }
                 "category_outcome_class" => {
@@ -2611,6 +2686,10 @@ impl MonitoringAccumulator {
             &source.request_outcome_scope_bytes,
         );
         Self::merge_count_maps(
+            &mut self.request_outcome_scope_forwarded_latency_ms,
+            &source.request_outcome_scope_forwarded_latency_ms,
+        );
+        Self::merge_count_maps(
             &mut self.request_outcome_scope_response_kinds,
             &source.request_outcome_scope_response_kinds,
         );
@@ -2651,6 +2730,10 @@ impl MonitoringAccumulator {
             &source.request_outcome_lane_bytes,
         );
         Self::merge_count_maps(
+            &mut self.request_outcome_lane_forwarded_latency_ms,
+            &source.request_outcome_lane_forwarded_latency_ms,
+        );
+        Self::merge_count_maps(
             &mut self.request_outcome_lane_response_kinds,
             &source.request_outcome_lane_response_kinds,
         );
@@ -2669,6 +2752,10 @@ impl MonitoringAccumulator {
         Self::merge_count_maps(
             &mut self.request_outcome_category_bytes,
             &source.request_outcome_category_bytes,
+        );
+        Self::merge_count_maps(
+            &mut self.request_outcome_category_forwarded_latency_ms,
+            &source.request_outcome_category_forwarded_latency_ms,
         );
         Self::merge_count_maps(
             &mut self.request_outcome_category_outcomes,
@@ -3014,6 +3101,27 @@ impl MonitoringAccumulator {
                 row.response_bytes = row.response_bytes.saturating_add(count);
             }
         }
+        for (cohort, count) in self.request_outcome_scope_forwarded_latency_ms {
+            if let Some((traffic_origin, measurement_scope, execution_mode)) =
+                parse_request_outcome_scope_cohort(cohort.as_str())
+            {
+                let row = request_outcome_scope_rows
+                    .entry((
+                        traffic_origin.clone(),
+                        measurement_scope.clone(),
+                        execution_mode.clone(),
+                    ))
+                    .or_insert_with(|| RequestOutcomeScopeSummaryRow {
+                        traffic_origin,
+                        measurement_scope,
+                        execution_mode,
+                        ..RequestOutcomeScopeSummaryRow::default()
+                    });
+                row.forwarded_upstream_latency_ms_total = row
+                    .forwarded_upstream_latency_ms_total
+                    .saturating_add(count);
+            }
+        }
         for (nested_cohort, count) in self.request_outcome_scope_outcomes {
             if let Some((scope_cohort, outcome_class)) =
                 split_last_cohort_segment(nested_cohort.as_str())
@@ -3152,6 +3260,39 @@ impl MonitoringAccumulator {
                         ..RequestOutcomeLaneSummaryRow::default()
                     });
                 row.response_bytes = row.response_bytes.saturating_add(count);
+            }
+        }
+        for (cohort, count) in self.request_outcome_lane_forwarded_latency_ms {
+            if let Some((
+                traffic_origin,
+                measurement_scope,
+                execution_mode,
+                lane,
+                exactness,
+                basis,
+            )) = parse_request_outcome_lane_cohort(cohort.as_str())
+            {
+                let row = request_outcome_lane_rows
+                    .entry((
+                        traffic_origin.clone(),
+                        measurement_scope.clone(),
+                        execution_mode.clone(),
+                        lane.clone(),
+                        exactness.clone(),
+                        basis.clone(),
+                    ))
+                    .or_insert_with(|| RequestOutcomeLaneSummaryRow {
+                        traffic_origin,
+                        measurement_scope,
+                        execution_mode,
+                        lane,
+                        exactness,
+                        basis,
+                        ..RequestOutcomeLaneSummaryRow::default()
+                    });
+                row.forwarded_upstream_latency_ms_total = row
+                    .forwarded_upstream_latency_ms_total
+                    .saturating_add(count);
             }
         }
         for (nested_cohort, count) in self.request_outcome_lane_outcomes {
@@ -3322,6 +3463,42 @@ impl MonitoringAccumulator {
                         ..RequestOutcomeCategorySummaryRow::default()
                     });
                 row.response_bytes = row.response_bytes.saturating_add(count);
+            }
+        }
+        for (cohort, count) in self.request_outcome_category_forwarded_latency_ms {
+            if let Some((
+                traffic_origin,
+                measurement_scope,
+                execution_mode,
+                category_id,
+                assignment_status,
+                exactness,
+                basis,
+            )) = parse_request_outcome_category_cohort(cohort.as_str())
+            {
+                let row = request_outcome_category_rows
+                    .entry((
+                        traffic_origin.clone(),
+                        measurement_scope.clone(),
+                        execution_mode.clone(),
+                        category_id.clone(),
+                        assignment_status.clone(),
+                        exactness.clone(),
+                        basis.clone(),
+                    ))
+                    .or_insert_with(|| RequestOutcomeCategorySummaryRow {
+                        traffic_origin,
+                        measurement_scope,
+                        execution_mode,
+                        category_id,
+                        assignment_status,
+                        exactness,
+                        basis,
+                        ..RequestOutcomeCategorySummaryRow::default()
+                    });
+                row.forwarded_upstream_latency_ms_total = row
+                    .forwarded_upstream_latency_ms_total
+                    .saturating_add(count);
             }
         }
         for (nested_cohort, count) in self.request_outcome_category_outcomes {
@@ -4126,6 +4303,7 @@ mod tests {
             response_kind: ResponseKind::ForwardAllow,
             http_status: 200,
             response_bytes: 321,
+            forwarded_upstream_latency_ms: Some(42),
             forward_attempted: true,
             forward_failure_class: None,
             intended_action: None,
@@ -4207,6 +4385,13 @@ mod tests {
             321
         );
         assert_eq!(
+            read_counter(
+                &store,
+                key("forwarded_latency_ms_total", scope_cohort.as_str()).as_str(),
+            ),
+            42
+        );
+        assert_eq!(
             read_counter(&store, key("lane_total", lane_cohort.as_str()).as_str()),
             1
         );
@@ -4239,6 +4424,13 @@ mod tests {
             ),
             321
         );
+        assert_eq!(
+            read_counter(
+                &store,
+                key("lane_forwarded_latency_ms_total", lane_cohort.as_str()).as_str(),
+            ),
+            42
+        );
     }
 
     #[test]
@@ -4256,6 +4448,7 @@ mod tests {
             response_kind: ResponseKind::SimPublicResponse,
             http_status: 200,
             response_bytes: 77,
+            forwarded_upstream_latency_ms: None,
             forward_attempted: false,
             forward_failure_class: None,
             intended_action: None,
@@ -4359,6 +4552,7 @@ mod tests {
             response_kind: ResponseKind::NotABot,
             http_status: 200,
             response_bytes: 111,
+            forwarded_upstream_latency_ms: None,
             forward_attempted: false,
             forward_failure_class: None,
             intended_action: None,
@@ -4409,6 +4603,7 @@ mod tests {
             response_kind: ResponseKind::ForwardAllow,
             http_status: 200,
             response_bytes: 256,
+            forwarded_upstream_latency_ms: Some(55),
             forward_attempted: true,
             forward_failure_class: None,
             intended_action: None,
@@ -4437,6 +4632,81 @@ mod tests {
             ),
             1
         );
+        assert_eq!(
+            read_counter(
+                &store,
+                key("category_forwarded_latency_ms_total", category_cohort.as_str()).as_str(),
+            ),
+            55
+        );
+    }
+
+    #[test]
+    fn record_request_outcome_does_not_increment_latency_for_non_forwarded_outcomes() {
+        let store = MockStore::default();
+        let hour = now_ts() / 3600;
+        let short_circuit = RenderedRequestOutcome {
+            traffic_origin: TrafficOrigin::Live,
+            measurement_scope: MeasurementScope::IngressPrimary,
+            route_action_family: RouteActionFamily::PublicContent,
+            execution_mode: ExecutionMode::Enforced,
+            traffic_lane: Some(RequestOutcomeLane {
+                lane: TrafficLane::SuspiciousAutomation,
+                exactness: TelemetryExactness::Derived,
+                basis: TelemetryBasis::Mixed,
+            }),
+            non_human_category: None,
+            outcome_class: RequestOutcomeClass::ShortCircuited,
+            response_kind: ResponseKind::Maze,
+            http_status: 200,
+            response_bytes: 64,
+            forwarded_upstream_latency_ms: Some(999),
+            forward_attempted: false,
+            forward_failure_class: None,
+            intended_action: None,
+            policy_source: PolicySource::PolicyGraphSecondTranche,
+        };
+        let control = RenderedRequestOutcome {
+            traffic_origin: TrafficOrigin::Live,
+            measurement_scope: MeasurementScope::BypassAndControl,
+            route_action_family: RouteActionFamily::ControlPlane,
+            execution_mode: ExecutionMode::Enforced,
+            traffic_lane: None,
+            non_human_category: None,
+            outcome_class: RequestOutcomeClass::ControlResponse,
+            response_kind: ResponseKind::ControlPlaneResponse,
+            http_status: 200,
+            response_bytes: 12,
+            forwarded_upstream_latency_ms: Some(999),
+            forward_attempted: false,
+            forward_failure_class: None,
+            intended_action: None,
+            policy_source: PolicySource::BootstrapFailure,
+        };
+
+        record_request_outcome(&store, &short_circuit);
+        record_request_outcome(&store, &control);
+
+        let short_scope = request_outcome_scope_cohort(&short_circuit);
+        let control_scope = request_outcome_scope_cohort(&control);
+        let key = |metric: &str, dimension: &str| {
+            monitoring_key("request_outcome", metric, Some(dimension), hour)
+        };
+
+        assert_eq!(
+            read_counter(
+                &store,
+                key("forwarded_latency_ms_total", short_scope.as_str()).as_str(),
+            ),
+            0
+        );
+        assert_eq!(
+            read_counter(
+                &store,
+                key("forwarded_latency_ms_total", control_scope.as_str()).as_str(),
+            ),
+            0
+        );
     }
 
     #[test]
@@ -4460,6 +4730,7 @@ mod tests {
                 response_kind: ResponseKind::ForwardAllow,
                 http_status: 200,
                 response_bytes: 321,
+                forwarded_upstream_latency_ms: Some(42),
                 forward_attempted: true,
                 forward_failure_class: None,
                 intended_action: None,
@@ -4479,6 +4750,7 @@ mod tests {
                 response_kind: ResponseKind::SimPublicResponse,
                 http_status: 200,
                 response_bytes: 77,
+                forwarded_upstream_latency_ms: None,
                 forward_attempted: false,
                 forward_failure_class: None,
                 intended_action: None,
@@ -4498,6 +4770,7 @@ mod tests {
                 response_kind: ResponseKind::ControlPlaneResponse,
                 http_status: 500,
                 response_bytes: 9,
+                forwarded_upstream_latency_ms: None,
                 forward_attempted: false,
                 forward_failure_class: None,
                 intended_action: None,
@@ -4524,6 +4797,7 @@ mod tests {
         assert_eq!(live_scope.short_circuited_requests, 0);
         assert_eq!(live_scope.control_response_requests, 0);
         assert_eq!(live_scope.response_bytes, 321);
+        assert_eq!(live_scope.forwarded_upstream_latency_ms_total, 42);
         assert_eq!(live_scope.forwarded_response_bytes, 321);
         assert_eq!(live_scope.short_circuited_response_bytes, 0);
         assert_eq!(live_scope.control_response_bytes, 0);
@@ -4543,6 +4817,7 @@ mod tests {
         assert_eq!(sim_scope.short_circuited_requests, 1);
         assert_eq!(sim_scope.control_response_requests, 0);
         assert_eq!(sim_scope.response_bytes, 77);
+        assert_eq!(sim_scope.forwarded_upstream_latency_ms_total, 0);
         assert_eq!(sim_scope.forwarded_response_bytes, 0);
         assert_eq!(sim_scope.short_circuited_response_bytes, 77);
         assert_eq!(sim_scope.control_response_bytes, 0);
@@ -4562,6 +4837,7 @@ mod tests {
         assert_eq!(control_scope.short_circuited_requests, 0);
         assert_eq!(control_scope.control_response_requests, 1);
         assert_eq!(control_scope.response_bytes, 9);
+        assert_eq!(control_scope.forwarded_upstream_latency_ms_total, 0);
         assert_eq!(control_scope.forwarded_response_bytes, 0);
         assert_eq!(control_scope.short_circuited_response_bytes, 0);
         assert_eq!(control_scope.control_response_bytes, 9);
@@ -4584,6 +4860,7 @@ mod tests {
         assert_eq!(live_lane.short_circuited_requests, 0);
         assert_eq!(live_lane.control_response_requests, 0);
         assert_eq!(live_lane.response_bytes, 321);
+        assert_eq!(live_lane.forwarded_upstream_latency_ms_total, 42);
         assert_eq!(live_lane.forwarded_response_bytes, 321);
         assert_eq!(live_lane.short_circuited_response_bytes, 0);
         assert_eq!(live_lane.control_response_bytes, 0);
@@ -4610,6 +4887,7 @@ mod tests {
                 response_kind: ResponseKind::ForwardAllow,
                 http_status: 200,
                 response_bytes: 321,
+                forwarded_upstream_latency_ms: Some(42),
                 forward_attempted: true,
                 forward_failure_class: None,
                 intended_action: None,
@@ -4629,6 +4907,7 @@ mod tests {
                 response_kind: ResponseKind::SimPublicResponse,
                 http_status: 200,
                 response_bytes: 77,
+                forwarded_upstream_latency_ms: None,
                 forward_attempted: false,
                 forward_failure_class: None,
                 intended_action: None,
@@ -4648,6 +4927,7 @@ mod tests {
                 response_kind: ResponseKind::ControlPlaneResponse,
                 http_status: 500,
                 response_bytes: 9,
+                forwarded_upstream_latency_ms: None,
                 forward_attempted: false,
                 forward_failure_class: None,
                 intended_action: None,
@@ -4730,6 +5010,7 @@ mod tests {
                 response_kind: ResponseKind::ForwardAllow,
                 http_status: 200,
                 response_bytes: 321,
+                forwarded_upstream_latency_ms: Some(42),
                 forward_attempted: true,
                 forward_failure_class: None,
                 intended_action: None,
@@ -4753,6 +5034,7 @@ mod tests {
                 response_kind: ResponseKind::NotABot,
                 http_status: 200,
                 response_bytes: 111,
+                forwarded_upstream_latency_ms: None,
                 forward_attempted: false,
                 forward_failure_class: None,
                 intended_action: None,
@@ -4776,6 +5058,7 @@ mod tests {
                 response_kind: ResponseKind::ForwardAllow,
                 http_status: 200,
                 response_bytes: 222,
+                forwarded_upstream_latency_ms: Some(24),
                 forward_attempted: true,
                 forward_failure_class: None,
                 intended_action: None,
@@ -4799,6 +5082,7 @@ mod tests {
                 response_kind: ResponseKind::Challenge,
                 http_status: 200,
                 response_bytes: 95,
+                forwarded_upstream_latency_ms: None,
                 forward_attempted: false,
                 forward_failure_class: None,
                 intended_action: None,
@@ -4822,6 +5106,7 @@ mod tests {
                 response_kind: ResponseKind::JsChallenge,
                 http_status: 200,
                 response_bytes: 50,
+                forwarded_upstream_latency_ms: None,
                 forward_attempted: false,
                 forward_failure_class: None,
                 intended_action: Some(ShadowAction::JsChallenge),
@@ -4845,6 +5130,7 @@ mod tests {
                 response_kind: ResponseKind::Maze,
                 http_status: 200,
                 response_bytes: 77,
+                forwarded_upstream_latency_ms: None,
                 forward_attempted: false,
                 forward_failure_class: None,
                 intended_action: None,
@@ -4933,6 +5219,7 @@ mod tests {
                 response_kind: ResponseKind::NotABot,
                 http_status: 200,
                 response_bytes: 111,
+                forwarded_upstream_latency_ms: None,
                 forward_attempted: false,
                 forward_failure_class: None,
                 intended_action: None,
@@ -4956,6 +5243,7 @@ mod tests {
                 response_kind: ResponseKind::Challenge,
                 http_status: 200,
                 response_bytes: 95,
+                forwarded_upstream_latency_ms: None,
                 forward_attempted: false,
                 forward_failure_class: None,
                 intended_action: None,
@@ -4981,6 +5269,7 @@ mod tests {
                 response_kind: ResponseKind::JsChallenge,
                 http_status: 200,
                 response_bytes: 50,
+                forwarded_upstream_latency_ms: None,
                 forward_attempted: false,
                 forward_failure_class: None,
                 intended_action: Some(ShadowAction::JsChallenge),
@@ -5008,6 +5297,7 @@ mod tests {
                 response_kind: ResponseKind::Maze,
                 http_status: 200,
                 response_bytes: 70,
+                forwarded_upstream_latency_ms: None,
                 forward_attempted: false,
                 forward_failure_class: None,
                 intended_action: None,
@@ -5112,6 +5402,7 @@ mod tests {
                 response_kind: ResponseKind::NotABot,
                 http_status: 200,
                 response_bytes: 111,
+                forwarded_upstream_latency_ms: None,
                 forward_attempted: false,
                 forward_failure_class: None,
                 intended_action: None,

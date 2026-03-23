@@ -23,7 +23,10 @@ pub(crate) fn render_forward_allow_response(
     } else {
         crate::observability::metrics::record_forward_success(context.store, latency_ms);
     }
-    RenderedResponseEvidence::forwarded(forward.response, forward.failure_class, None)
+    let mut evidence =
+        RenderedResponseEvidence::forwarded(forward.response, forward.failure_class, None);
+    evidence.forward_latency_ms = Some(latency_ms);
+    evidence
 }
 
 pub(crate) fn render_shadow_allow_response(
