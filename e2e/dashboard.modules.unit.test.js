@@ -4941,6 +4941,19 @@ test('dashboard config tabs reuse shared panels, save flows, and owned controls'
   assert.match(configSurfaceSource, /max=\{notABotScoreFailMaxCap\}/);
   assert.match(configSurfaceSource, /Any scores above Fail and below Pass will be shown a tougher challenge\./);
   assert.match(configSource, /buttonId="save-verification-all"/);
+  assert.match(configSource, /export let operatorSnapshot = null;/);
+  assert.match(configSource, /title="Verified Identity"/);
+  assert.match(configSource, /id="verified-identity-enabled-toggle"/);
+  assert.match(configSource, /id="verified-identity-native-web-bot-auth-toggle"/);
+  assert.match(configSource, /id="verified-identity-provider-assertions-toggle"/);
+  assert.match(configSource, /id="verified-identity-replay-window"/);
+  assert.match(configSource, /id="verified-identity-clock-skew"/);
+  assert.match(configSource, /id="verified-identity-directory-cache-ttl"/);
+  assert.match(configSource, /id="verified-identity-directory-freshness-requirement"/);
+  assert.match(configSource, /id="verified-identity-top-failure-reasons"/);
+  assert.match(configSource, /id="verified-identity-top-schemes"/);
+  assert.match(configSource, /id="verified-identity-top-categories"/);
+  assert.match(configSource, /patch\.verified_identity = \{/);
   assert.match(configSource, /saveAllConfig\(/);
   assert.match(configSource, /window\.addEventListener\('beforeunload'/);
   assert.match(configSurfaceSource, /id="verification-cdp-enabled-toggle"/);
@@ -5825,7 +5838,10 @@ test('dashboard refresh runtime owns bounded cache, delta, and red-team monitori
   assert.match(source, /updateFreshnessSnapshot\(/);
   assert.match(source, /writeCache\(MONITORING_CACHE_KEY, \{ monitoring: compactMonitoring \}\);/);
   assert.match(source, /if \(!isConfigSnapshotEmpty\(existingConfig\) && !isConfigRuntimeSnapshotEmpty\(existingRuntime\)\) \{/);
-  assert.match(source, /const refreshVerificationTab = \(reason = 'manual'/);
+  assert.match(source, /async function refreshVerificationTab\(reason = 'manual', runtimeOptions = \{\}\)/);
+  assert.match(source, /dashboardApiClient && typeof dashboardApiClient\.getOperatorSnapshot === 'function'/);
+  assert.match(source, /applySnapshots\(\{ operatorSnapshot \}\);/);
+  assert.match(source, /applySnapshots\(\{ operatorSnapshot: null \}\);/);
   assert.match(source, /const refreshRedTeamTab = async \(reason = 'manual', runtimeOptions = \{\}\) => \{/);
   assert.match(source, /const refreshPolicyTab = \(reason = 'manual', runtimeOptions = \{\}\) =>/);
   assert.match(source, /policy:\s*refreshPolicyTab,/);
@@ -5850,6 +5866,30 @@ test('dashboard refresh runtime owns bounded cache, delta, and red-team monitori
     source,
     /includeConfigRefresh \? refreshSharedConfig\(reason, runtimeOptions\) : Promise\.resolve\(null\)/
   );
+});
+
+test('dashboard verification tab wires verified identity operator snapshot and store state', () => {
+  const apiClientSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/domain/api-client.js'),
+    'utf8'
+  );
+  const stateSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/domain/dashboard-state.js'),
+    'utf8'
+  );
+  const routeSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/routes/+page.svelte'),
+    'utf8'
+  );
+
+  assert.match(apiClientSource, /export const adaptOperatorSnapshot = \(payload\) => \{/);
+  assert.match(apiClientSource, /const getOperatorSnapshot = async \(requestOptions = \{\}\) =>/);
+  assert.match(apiClientSource, /getOperatorSnapshot,/);
+  assert.match(stateSource, /'operatorSnapshot'/);
+  assert.match(stateSource, /operatorSnapshot: null/);
+  assert.match(routeSource, /operatorSnapshot=\{snapshots\.operatorSnapshot\}/);
+  assert.match(routeSource, /if \(normalized === 'verification'\) \{/);
+  assert.match(routeSource, /state\.snapshots \? state\.snapshots\.operatorSnapshot : null/);
 });
 
 test('dashboard route wires native runtime actions with separate manual and auto refresh tab sets', () => {

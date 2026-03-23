@@ -131,6 +131,24 @@ const adaptCountMap = (value) => {
 
 /**
  * @param {unknown} value
+ * @returns {Array<{ label: string, count: number }>}
+ */
+const adaptCountEntries = (value) => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((entry) => entry && typeof entry === 'object')
+    .map((entry) => {
+      const record = asRecord(entry);
+      return {
+        label: String(record.label || ''),
+        count: Number(record.count || 0)
+      };
+    })
+    .filter((entry) => entry.label);
+};
+
+/**
+ * @param {unknown} value
  */
 const adaptLaneCounterState = (value) => {
   const source = asRecord(value);
@@ -469,6 +487,50 @@ export const adaptConfigEnvelope = (payload) => {
   return {
     config: asRecord(source.config),
     runtime: asRecord(source.runtime)
+  };
+};
+
+/**
+ * @param {unknown} payload
+ */
+export const adaptOperatorSnapshot = (payload) => {
+  const source = asRecord(payload);
+  const verifiedIdentity = asRecord(source.verified_identity);
+  const taxonomyAlignment = asRecord(verifiedIdentity.taxonomy_alignment);
+  const policyTranche = asRecord(verifiedIdentity.policy_tranche);
+  return {
+    schema_version: String(source.schema_version || ''),
+    generated_at: Number(source.generated_at || 0),
+    section_metadata: asRecord(source.section_metadata),
+    verified_identity: {
+      availability: String(verifiedIdentity.availability || ''),
+      enabled: verifiedIdentity.enabled === true,
+      native_web_bot_auth_enabled: verifiedIdentity.native_web_bot_auth_enabled === true,
+      provider_assertions_enabled: verifiedIdentity.provider_assertions_enabled === true,
+      non_human_traffic_stance: String(verifiedIdentity.non_human_traffic_stance || ''),
+      named_policy_count: Number(verifiedIdentity.named_policy_count || 0),
+      service_profile_count: Number(verifiedIdentity.service_profile_count || 0),
+      attempts: Number(verifiedIdentity.attempts || 0),
+      verified: Number(verifiedIdentity.verified || 0),
+      failed: Number(verifiedIdentity.failed || 0),
+      unique_verified_identities: Number(verifiedIdentity.unique_verified_identities || 0),
+      top_failure_reasons: adaptCountEntries(verifiedIdentity.top_failure_reasons),
+      top_schemes: adaptCountEntries(verifiedIdentity.top_schemes),
+      top_categories: adaptCountEntries(verifiedIdentity.top_categories),
+      top_provenance: adaptCountEntries(verifiedIdentity.top_provenance),
+      taxonomy_alignment: {
+        status: String(taxonomyAlignment.status || ''),
+        aligned_count: Number(taxonomyAlignment.aligned_count || 0),
+        mismatched_count: Number(taxonomyAlignment.mismatched_count || 0),
+        insufficient_evidence_count: Number(taxonomyAlignment.insufficient_evidence_count || 0),
+        receipts: Array.isArray(taxonomyAlignment.receipts) ? taxonomyAlignment.receipts : []
+      },
+      policy_tranche: {
+        total_requests: Number(policyTranche.total_requests || 0),
+        forwarded_requests: Number(policyTranche.forwarded_requests || 0),
+        short_circuited_requests: Number(policyTranche.short_circuited_requests || 0)
+      }
+    }
   };
 };
 
@@ -900,6 +962,15 @@ export const create = (options = {}) => {
   /**
    * @param {RequestOptions} [requestOptions]
    */
+  const getOperatorSnapshot = async (requestOptions = {}) =>
+    adaptOperatorSnapshot(await request('/admin/operator-snapshot', {
+      ...requestOptions,
+      cache: 'no-store'
+    }));
+
+  /**
+   * @param {RequestOptions} [requestOptions]
+   */
   const getAdversarySimStatus = async (requestOptions = {}) =>
     adaptAdversarySimStatus(await request('/admin/adversary-sim/status', {
       ...requestOptions,
@@ -1119,6 +1190,7 @@ export const create = (options = {}) => {
     getIpBansStreamUrl,
     getIpRangeSuggestions,
     getConfig,
+    getOperatorSnapshot,
     getAdversarySimStatus,
     getRobotsPreview,
     updateConfig,

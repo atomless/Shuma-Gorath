@@ -41,6 +41,7 @@ Behavior:
 - Manual refresh is available on `Diagnostics`, `IP Bans`, and `Red Team`.
 - Auto-refresh is available only on `IP Bans` and `Red Team`.
 - Most tabs refresh on initial load, on explicit refresh events, and after relevant save flows.
+- `Verification` now refreshes both shared config and the bounded `operator_snapshot_v1` verified-identity summary when the tab activates and that summary is not already present locally.
 - The `Red Team` adversary-sim controller is page-scoped rather than tab-scoped:
   - it forces a status refresh on dashboard bootstrap, `Red Team` tab activation, and page-visibility resume,
   - it keeps status polling alive while a control request is submitting/converging and while backend truth reports the sim as `running` or `stopping`,
@@ -88,6 +89,7 @@ Notes:
 - `POST /admin/unban`
 - `GET /admin/cdp`
 - `GET /admin/config`
+- `GET /admin/operator-snapshot`
 - `POST /admin/config`
 - `POST /admin/config/validate`
 - `POST /admin/adversary-sim/control`

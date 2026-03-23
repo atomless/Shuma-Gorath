@@ -2,6 +2,7 @@
   import ConfigChallengeSection from './config/ConfigChallengeSection.svelte';
   import ConfigPanel from './primitives/ConfigPanel.svelte';
   import ConfigPanelHeading from './primitives/ConfigPanelHeading.svelte';
+  import NumericInputRow from './primitives/NumericInputRow.svelte';
   import { onMount } from 'svelte';
   import SaveChangesBar from './primitives/SaveChangesBar.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
@@ -15,6 +16,7 @@
   export let tabStatus = null;
   export let configSnapshot = null;
   export let configRuntimeSnapshot = null;
+  export let operatorSnapshot = null;
   export let configVersion = 0;
   export let onSaveConfig = null;
   export let noticeText = '';
@@ -44,6 +46,13 @@
   let notABotMarkerTtl = 600;
   let notABotAttemptLimit = 6;
   let notABotAttemptWindow = 300;
+  let verifiedIdentityEnabled = false;
+  let verifiedIdentityNativeWebBotAuthEnabled = false;
+  let verifiedIdentityProviderAssertionsEnabled = true;
+  let verifiedIdentityReplayWindowSeconds = 120;
+  let verifiedIdentityClockSkewSeconds = 30;
+  let verifiedIdentityDirectoryCacheTtlSeconds = 3600;
+  let verifiedIdentityDirectoryFreshnessRequirementSeconds = 86400;
 
   let baseline = {
     jsRequired: { enforced: true },
@@ -58,6 +67,15 @@
       markerTtl: 600,
       attemptLimit: 6,
       attemptWindow: 300
+    },
+    verifiedIdentity: {
+      enabled: false,
+      nativeWebBotAuthEnabled: false,
+      providerAssertionsEnabled: true,
+      replayWindowSeconds: 120,
+      clockSkewSeconds: 30,
+      directoryCacheTtlSeconds: 3600,
+      directoryFreshnessRequirementSeconds: 86400
     }
   };
 
@@ -96,6 +114,28 @@
     notABotMarkerTtl = parseInteger(config.not_a_bot_marker_ttl_seconds, 600);
     notABotAttemptLimit = parseInteger(config.not_a_bot_attempt_limit_per_window, 6);
     notABotAttemptWindow = parseInteger(config.not_a_bot_attempt_window_seconds, 300);
+    const verifiedIdentityConfig = config.verified_identity && typeof config.verified_identity === 'object'
+      ? config.verified_identity
+      : {};
+    verifiedIdentityEnabled = verifiedIdentityConfig.enabled === true;
+    verifiedIdentityNativeWebBotAuthEnabled = verifiedIdentityConfig.native_web_bot_auth_enabled === true;
+    verifiedIdentityProviderAssertionsEnabled = verifiedIdentityConfig.provider_assertions_enabled !== false;
+    verifiedIdentityReplayWindowSeconds = parseInteger(
+      verifiedIdentityConfig.replay_window_seconds,
+      120
+    );
+    verifiedIdentityClockSkewSeconds = parseInteger(
+      verifiedIdentityConfig.clock_skew_seconds,
+      30
+    );
+    verifiedIdentityDirectoryCacheTtlSeconds = parseInteger(
+      verifiedIdentityConfig.directory_cache_ttl_seconds,
+      3600
+    );
+    verifiedIdentityDirectoryFreshnessRequirementSeconds = parseInteger(
+      verifiedIdentityConfig.directory_freshness_requirement_seconds,
+      86400
+    );
 
     baseline = {
       jsRequired: { enforced: jsRequiredEnforced },
@@ -120,6 +160,15 @@
         markerTtl: Number(notABotMarkerTtl),
         attemptLimit: Number(notABotAttemptLimit),
         attemptWindow: Number(notABotAttemptWindow)
+      },
+      verifiedIdentity: {
+        enabled: verifiedIdentityEnabled,
+        nativeWebBotAuthEnabled: verifiedIdentityNativeWebBotAuthEnabled,
+        providerAssertionsEnabled: verifiedIdentityProviderAssertionsEnabled,
+        replayWindowSeconds: Number(verifiedIdentityReplayWindowSeconds),
+        clockSkewSeconds: Number(verifiedIdentityClockSkewSeconds),
+        directoryCacheTtlSeconds: Number(verifiedIdentityDirectoryCacheTtlSeconds),
+        directoryFreshnessRequirementSeconds: Number(verifiedIdentityDirectoryFreshnessRequirementSeconds)
       }
     };
 
@@ -155,6 +204,17 @@
         patch.not_a_bot_attempt_limit_per_window = Number(notABotAttemptLimit);
         patch.not_a_bot_attempt_window_seconds = Number(notABotAttemptWindow);
       }
+    }
+    if (includeAll || verifiedIdentityDirty) {
+      patch.verified_identity = {
+        enabled: verifiedIdentityEnabled === true,
+        native_web_bot_auth_enabled: verifiedIdentityNativeWebBotAuthEnabled === true,
+        provider_assertions_enabled: verifiedIdentityProviderAssertionsEnabled === true,
+        replay_window_seconds: Number(verifiedIdentityReplayWindowSeconds),
+        clock_skew_seconds: Number(verifiedIdentityClockSkewSeconds),
+        directory_cache_ttl_seconds: Number(verifiedIdentityDirectoryCacheTtlSeconds),
+        directory_freshness_requirement_seconds: Number(verifiedIdentityDirectoryFreshnessRequirementSeconds)
+      };
     }
     return patch;
   };
@@ -227,12 +287,76 @@
     Number(notABotScoreFailMax) !== baseline.notABot.scoreFailMax
   );
 
+  $: verifiedIdentityVerifierPathValid = (
+    readBool(verifiedIdentityEnabled) !== true ||
+    readBool(verifiedIdentityNativeWebBotAuthEnabled) === true ||
+    readBool(verifiedIdentityProviderAssertionsEnabled) === true
+  );
+  $: verifiedIdentityReplayWindowValid = inRange(verifiedIdentityReplayWindowSeconds, 30, 3600);
+  $: verifiedIdentityClockSkewValid = (
+    inRange(verifiedIdentityClockSkewSeconds, 0, 300) &&
+    Number(verifiedIdentityClockSkewSeconds) <= Number(verifiedIdentityReplayWindowSeconds)
+  );
+  $: verifiedIdentityDirectoryCacheTtlValid = inRange(verifiedIdentityDirectoryCacheTtlSeconds, 60, 86400);
+  $: verifiedIdentityDirectoryFreshnessRequirementValid = inRange(
+    verifiedIdentityDirectoryFreshnessRequirementSeconds,
+    60,
+    604800
+  );
+  $: verifiedIdentityValid = (
+    verifiedIdentityVerifierPathValid &&
+    verifiedIdentityReplayWindowValid &&
+    verifiedIdentityClockSkewValid &&
+    verifiedIdentityDirectoryCacheTtlValid &&
+    verifiedIdentityDirectoryFreshnessRequirementValid
+  );
+  $: verifiedIdentityDirty = (
+    readBool(verifiedIdentityEnabled) !== baseline.verifiedIdentity.enabled ||
+    readBool(verifiedIdentityNativeWebBotAuthEnabled) !== baseline.verifiedIdentity.nativeWebBotAuthEnabled ||
+    readBool(verifiedIdentityProviderAssertionsEnabled) !== baseline.verifiedIdentity.providerAssertionsEnabled ||
+    Number(verifiedIdentityReplayWindowSeconds) !== baseline.verifiedIdentity.replayWindowSeconds ||
+    Number(verifiedIdentityClockSkewSeconds) !== baseline.verifiedIdentity.clockSkewSeconds ||
+    Number(verifiedIdentityDirectoryCacheTtlSeconds) !== baseline.verifiedIdentity.directoryCacheTtlSeconds ||
+    Number(verifiedIdentityDirectoryFreshnessRequirementSeconds) !== baseline.verifiedIdentity.directoryFreshnessRequirementSeconds
+  );
+
+  const readOperatorSnapshotVerifiedIdentity = (snapshot) => {
+    if (!snapshot || typeof snapshot !== 'object') return {};
+    return snapshot.verified_identity && typeof snapshot.verified_identity === 'object'
+      ? snapshot.verified_identity
+      : {};
+  };
+  const readCountEntries = (value) => (
+    Array.isArray(value)
+      ? value.filter((entry) => entry && typeof entry === 'object')
+      : []
+  );
+  const formatAvailability = (value) => {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (normalized === 'supported') return 'Supported';
+    if (normalized === 'not_configured') return 'Not configured';
+    return normalized ? normalized.replace(/_/g, ' ') : '-';
+  };
+  const formatCountEntryLabel = (value) =>
+    String(value || '')
+      .split('_')
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ') || '-';
+
+  $: verifiedIdentitySummary = readOperatorSnapshotVerifiedIdentity(operatorSnapshot);
+  $: verifiedIdentityTopFailureReasons = readCountEntries(verifiedIdentitySummary.top_failure_reasons);
+  $: verifiedIdentityTopSchemes = readCountEntries(verifiedIdentitySummary.top_schemes);
+  $: verifiedIdentityTopCategories = readCountEntries(verifiedIdentitySummary.top_categories);
+  $: verifiedIdentitySummaryAvailable = Object.keys(verifiedIdentitySummary).length > 0;
+
   $: dirtySections = [
     { label: 'JavaScript required', dirty: jsRequiredDirty, valid: true },
     { label: 'Internal CDP probe', dirty: cdpDirty, valid: cdpValid },
     { label: 'Proof of Work', dirty: powDirty, valid: powValid },
     { label: 'Challenge puzzle', dirty: challengePuzzleDirty, valid: challengePuzzleValid },
-    { label: 'Not-a-Bot', dirty: notABotDirty, valid: notABotValid }
+    { label: 'Not-a-Bot', dirty: notABotDirty, valid: notABotValid },
+    { label: 'Verified Identity', dirty: verifiedIdentityDirty, valid: verifiedIdentityValid }
   ];
   $: dirtySectionEntries = dirtySections.filter((section) => section.dirty === true);
   $: invalidDirtySectionEntries = dirtySectionEntries.filter((section) => section.valid !== true);
@@ -369,6 +493,181 @@
     </ConfigPanel>
 
     <ConfigChallengeSection bind:writable bind:notABotDirty bind:challengePuzzleDirty bind:notABotEnabled bind:challengePuzzleEnabled bind:notABotScorePassMinFloor bind:notABotScorePassMin bind:notABotScoreFailMaxCap bind:notABotScoreFailMax notABotPassScoreValid={notABotPassScoreValid} notABotFailScoreValid={notABotFailScoreValid} />
+
+    <ConfigPanel writable={writable} dirty={verifiedIdentityDirty}>
+      <ConfigPanelHeading title="Verified Identity">
+        <label class="toggle-switch" for="verified-identity-enabled-toggle">
+          <input type="checkbox" id="verified-identity-enabled-toggle" aria-label="Enable verified identity" bind:checked={verifiedIdentityEnabled}>
+          <span class="toggle-slider"></span>
+        </label>
+      </ConfigPanelHeading>
+      <p class="control-desc text-muted">
+        Configure verified-identity mechanics for native Web Bot Auth and trusted provider assertions. Policy posture and richer category rules stay out of this pane until the dedicated editor lands.
+      </p>
+      <div class="admin-controls">
+        <ToggleRow
+          id="verified-identity-native-web-bot-auth-toggle"
+          label="Native Web Bot Auth"
+          labelClass="control-label control-label--wide"
+          ariaLabel="Enable native Web Bot Auth verification"
+          bind:checked={verifiedIdentityNativeWebBotAuthEnabled}
+          disabled={!verifiedIdentityEnabled}
+          rowClass={!verifiedIdentityEnabled ? 'toggle-row--disabled' : ''}
+        />
+        <ToggleRow
+          id="verified-identity-provider-assertions-toggle"
+          label="Provider Assertions"
+          labelClass="control-label control-label--wide"
+          ariaLabel="Enable provider assertion verification"
+          bind:checked={verifiedIdentityProviderAssertionsEnabled}
+          disabled={!verifiedIdentityEnabled}
+          rowClass={!verifiedIdentityEnabled ? 'toggle-row--disabled' : ''}
+        />
+        <NumericInputRow
+          id="verified-identity-replay-window"
+          label="Replay Window (seconds)"
+          labelClass="control-label control-label--wide"
+          min="30"
+          max="3600"
+          step="1"
+          inputmode="numeric"
+          ariaLabel="Verified identity replay window seconds"
+          ariaInvalid={verifiedIdentityReplayWindowValid ? 'false' : 'true'}
+          bind:value={verifiedIdentityReplayWindowSeconds}
+          disabled={!verifiedIdentityEnabled}
+        />
+        <NumericInputRow
+          id="verified-identity-clock-skew"
+          label="Clock Skew (seconds)"
+          labelClass="control-label control-label--wide"
+          min="0"
+          max="300"
+          step="1"
+          inputmode="numeric"
+          ariaLabel="Verified identity clock skew seconds"
+          ariaInvalid={verifiedIdentityClockSkewValid ? 'false' : 'true'}
+          bind:value={verifiedIdentityClockSkewSeconds}
+          disabled={!verifiedIdentityEnabled}
+        />
+        <NumericInputRow
+          id="verified-identity-directory-cache-ttl"
+          label="Directory Cache TTL (seconds)"
+          labelClass="control-label control-label--wide"
+          min="60"
+          max="86400"
+          step="1"
+          inputmode="numeric"
+          ariaLabel="Verified identity directory cache time to live seconds"
+          ariaInvalid={verifiedIdentityDirectoryCacheTtlValid ? 'false' : 'true'}
+          bind:value={verifiedIdentityDirectoryCacheTtlSeconds}
+          disabled={!verifiedIdentityEnabled}
+        />
+        <NumericInputRow
+          id="verified-identity-directory-freshness-requirement"
+          label="Directory Freshness Requirement (seconds)"
+          labelClass="control-label control-label--wide"
+          min="60"
+          max="604800"
+          step="1"
+          inputmode="numeric"
+          ariaLabel="Verified identity directory freshness requirement seconds"
+          ariaInvalid={verifiedIdentityDirectoryFreshnessRequirementValid ? 'false' : 'true'}
+          bind:value={verifiedIdentityDirectoryFreshnessRequirementSeconds}
+          disabled={!verifiedIdentityEnabled}
+        />
+      </div>
+      {#if verifiedIdentityEnabled && !verifiedIdentityVerifierPathValid}
+        <p id="verified-identity-verifier-warning" class="message warning">
+          Verified identity must keep at least one verifier path enabled: Native Web Bot Auth or Provider Assertions.
+        </p>
+      {/if}
+      {#if verifiedIdentityEnabled && !verifiedIdentityClockSkewValid}
+        <p id="verified-identity-clock-skew-warning" class="message warning">
+          Clock skew must stay between 0 and 300 seconds and must not exceed the replay window.
+        </p>
+      {/if}
+    </ConfigPanel>
+
+    <ConfigPanel writable={true} dirty={false}>
+      <ConfigPanelHeading title="Verified Identity Health" />
+      <p class="control-desc text-muted">
+        Bounded operator snapshot summary for recent verified-identity activity and the main failure or category signals currently observed.
+      </p>
+      {#if verifiedIdentitySummaryAvailable}
+        <div class="status-item">
+          <div class="status-rows">
+            <div class="info-row">
+              <span class="info-label text-muted">Availability:</span>
+              <span id="verified-identity-availability" class="status-value">{formatAvailability(verifiedIdentitySummary.availability)}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label text-muted">Attempts:</span>
+              <span id="verified-identity-attempts" class="status-value">{verifiedIdentitySummary.attempts}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label text-muted">Verified:</span>
+              <span id="verified-identity-verified" class="status-value">{verifiedIdentitySummary.verified}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label text-muted">Failed:</span>
+              <span id="verified-identity-failed" class="status-value">{verifiedIdentitySummary.failed}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label text-muted">Unique identities:</span>
+              <span id="verified-identity-unique-identities" class="status-value">{verifiedIdentitySummary.unique_verified_identities}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label text-muted">Named policies:</span>
+              <span id="verified-identity-named-policy-count" class="status-value">{verifiedIdentitySummary.named_policy_count}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label text-muted">Service profiles:</span>
+              <span id="verified-identity-service-profile-count" class="status-value">{verifiedIdentitySummary.service_profile_count}</span>
+            </div>
+          </div>
+        </div>
+        <div class="status-item">
+          <h3>Top Failure Reasons</h3>
+          <ul id="verified-identity-top-failure-reasons" class="metric-list">
+            {#if verifiedIdentityTopFailureReasons.length > 0}
+              {#each verifiedIdentityTopFailureReasons as entry}
+                <li><strong>{formatCountEntryLabel(entry.label)}:</strong> {entry.count}</li>
+              {/each}
+            {:else}
+              <li>No recent verification failures.</li>
+            {/if}
+          </ul>
+        </div>
+        <div class="status-item">
+          <h3>Top Schemes</h3>
+          <ul id="verified-identity-top-schemes" class="metric-list">
+            {#if verifiedIdentityTopSchemes.length > 0}
+              {#each verifiedIdentityTopSchemes as entry}
+                <li><strong>{formatCountEntryLabel(entry.label)}:</strong> {entry.count}</li>
+              {/each}
+            {:else}
+              <li>No recent verified-identity scheme activity.</li>
+            {/if}
+          </ul>
+        </div>
+        <div class="status-item">
+          <h3>Top Categories</h3>
+          <ul id="verified-identity-top-categories" class="metric-list">
+            {#if verifiedIdentityTopCategories.length > 0}
+              {#each verifiedIdentityTopCategories as entry}
+                <li><strong>{formatCountEntryLabel(entry.label)}:</strong> {entry.count}</li>
+              {/each}
+            {:else}
+              <li>No recent verified-identity category activity.</li>
+            {/if}
+          </ul>
+        </div>
+      {:else}
+        <p id="verified-identity-summary-empty" class="message info">
+          Verified-identity summary is not materialized yet.
+        </p>
+      {/if}
+    </ConfigPanel>
 
     <SaveChangesBar containerId="verification-save-all-bar" isHidden={!writable || !hasUnsavedChanges} summaryId="verification-unsaved-summary" summaryText={saveAllSummaryText} summaryClass="text-unsaved-changes" invalidId="verification-invalid-summary" invalidText={saveAllInvalidText} buttonId="save-verification-all" buttonLabel={saveAllConfigLabel} buttonDisabled={saveAllConfigDisabled} onSave={saveAllConfig} />
   </div>

@@ -1019,14 +1019,42 @@ export function createDashboardRefreshRuntime(options = {}) {
     ]);
   };
 
-  const refreshVerificationTab = (reason = 'manual', runtimeOptions = {}) =>
-    refreshConfigBackedTab(
-      'verification',
+  async function refreshVerificationTab(reason = 'manual', runtimeOptions = {}) {
+    if (reason !== 'auto-refresh') {
+      showTabLoading('verification', 'Loading verification controls...');
+    }
+
+    const configEnvelope = await refreshSharedConfig(reason, runtimeOptions);
+    if (isConfigSnapshotEmpty(configEnvelope.config)) {
+      applySnapshots({ operatorSnapshot: null });
+      showTabEmpty('verification', 'No verification config snapshot available yet.');
+      return;
+    }
+
+    const dashboardApiClient = getApiClient();
+    const dashboardState = getStateStore();
+    const configRuntimeSnapshot = dashboardState ? dashboardState.getSnapshot('configRuntime') : {};
+    const requestBudgets = deriveDashboardRequestBudgets(configRuntimeSnapshot);
+    const requestOptions = toRequestOptions(runtimeOptions, {
+      tab: 'verification',
       reason,
-      'Loading verification controls...',
-      'No verification config snapshot available yet.',
-      runtimeOptions
-    );
+      source: 'verification-operator-snapshot-refresh'
+    });
+
+    if (dashboardApiClient && typeof dashboardApiClient.getOperatorSnapshot === 'function') {
+      try {
+        const operatorSnapshot = await dashboardApiClient.getOperatorSnapshot({
+          ...requestOptions,
+          timeoutMs: requestBudgets.monitoringRequestTimeoutMs
+        });
+        applySnapshots({ operatorSnapshot });
+      } catch (_error) {
+        applySnapshots({ operatorSnapshot: null });
+      }
+    }
+
+    clearTabStateMessage('verification');
+  }
 
   const refreshTrapsTab = (reason = 'manual', runtimeOptions = {}) =>
     refreshConfigBackedTab(

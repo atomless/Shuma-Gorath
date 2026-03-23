@@ -6,6 +6,7 @@ Component: [`dashboard/src/lib/components/dashboard/VerificationTab.svelte`](../
 Purpose:
 
 - Configure core verification and challenge controls.
+- Review bounded verified-identity health without leaving the Verification tab.
 
 Panels:
 
@@ -22,8 +23,27 @@ Panels:
   - fail score (`not_a_bot_fail_score`).
   - UI enforces `fail < pass` and `pass > fail`.
 - `Challenge: Puzzle` toggle (`challenge_puzzle_enabled`).
+- `Verified Identity`:
+  - enable toggle (`verified_identity.enabled`),
+  - native Web Bot Auth toggle (`verified_identity.native_web_bot_auth_enabled`),
+  - provider assertions toggle (`verified_identity.provider_assertions_enabled`),
+  - replay window (`verified_identity.replay_window_seconds`),
+  - clock skew (`verified_identity.clock_skew_seconds`),
+  - directory cache TTL (`verified_identity.directory_cache_ttl_seconds`),
+  - directory freshness requirement (`verified_identity.directory_freshness_requirement_seconds`).
+- `Verified Identity Health`:
+  - availability,
+  - attempts,
+  - verified,
+  - failed,
+  - unique identities,
+  - named policy and service-profile counts,
+  - top failure reasons,
+  - top schemes,
+  - top categories.
 
 Notes:
 
 - Challenge and PoW advanced controls remain in [`advanced.md`](advanced.md).
 - This tab no longer includes IP range policy controls (those are in [`ip-bans.md`](ip-bans.md)).
+- This pane is intentionally mechanics-and-health only. Verified-identity posture, category defaults, and richer policy editing stay out of the tab until the dedicated editor lands.

@@ -9,6 +9,15 @@ const ADMIN_TABS = Object.freeze(["ip-bans", "red-team", "tuning", "verification
 const VERIFICATION_RESTORE_PATHS = Object.freeze([
   "js_required_enforced"
 ]);
+const VERIFIED_IDENTITY_RESTORE_PATHS = Object.freeze([
+  "verified_identity.enabled",
+  "verified_identity.native_web_bot_auth_enabled",
+  "verified_identity.provider_assertions_enabled",
+  "verified_identity.replay_window_seconds",
+  "verified_identity.clock_skew_seconds",
+  "verified_identity.directory_cache_ttl_seconds",
+  "verified_identity.directory_freshness_requirement_seconds"
+]);
 const SHADOW_MODE_RESTORE_PATHS = Object.freeze([
   "shadow_mode"
 ]);
@@ -1975,6 +1984,83 @@ test("verification save-all button reflects shared dirty-state behavior", async 
     }
     await expect(configSave).toBeHidden();
   }
+});
+
+test("verification tab surfaces verified identity controls and health summary", async ({ page, request }) => {
+  await page.route("**/admin/operator-snapshot", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "operator_snapshot_v1",
+        generated_at: 1774224000,
+        verified_identity: {
+          availability: "supported",
+          enabled: true,
+          native_web_bot_auth_enabled: true,
+          provider_assertions_enabled: true,
+          non_human_traffic_stance: "allow_verified_by_category",
+          named_policy_count: 2,
+          service_profile_count: 4,
+          attempts: 12,
+          verified: 9,
+          failed: 3,
+          unique_verified_identities: 5,
+          top_failure_reasons: [{ label: "directory_stale", count: 2 }],
+          top_schemes: [{ label: "http_message_signatures", count: 9 }],
+          top_categories: [{ label: "search", count: 6 }]
+        }
+      })
+    });
+  });
+
+  await withRestoredAdminConfig(
+    request,
+    [...VERIFICATION_RESTORE_PATHS, ...VERIFIED_IDENTITY_RESTORE_PATHS],
+    async () => {
+      await openDashboard(page);
+      await openTab(page, "verification", { waitForReady: true });
+
+      await expect(page.locator("h3")).toContainText(["Verified Identity"]);
+      await expect(page.locator("label.toggle-switch[for='verified-identity-enabled-toggle']")).toBeVisible();
+      await expect(page.locator("label.toggle-switch[for='verified-identity-native-web-bot-auth-toggle']")).toBeVisible();
+      await expect(page.locator("label.toggle-switch[for='verified-identity-provider-assertions-toggle']")).toBeVisible();
+      await expect(page.locator("#verified-identity-replay-window")).toBeVisible();
+      await expect(page.locator("#verified-identity-attempts")).toHaveText("12");
+      await expect(page.locator("#verified-identity-verified")).toHaveText("9");
+      await expect(page.locator("#verified-identity-failed")).toHaveText("3");
+      await expect(page.locator("#verified-identity-top-failure-reasons")).toContainText("Directory Stale");
+      await expect(page.locator("#verified-identity-top-schemes")).toContainText("Http Message Signatures");
+      await expect(page.locator("#verified-identity-top-categories")).toContainText("Search");
+
+      const replayWindow = page.locator("#verified-identity-replay-window");
+      const configSave = page.locator("#save-verification-all");
+
+      if (!(await replayWindow.isVisible()) || !(await replayWindow.isEnabled())) {
+        await expect(configSave).toBeHidden();
+        return;
+      }
+
+      const initialReplayWindow = await replayWindow.inputValue();
+      const nextReplayWindow = String(Number(initialReplayWindow || "120") === 120 ? 180 : 120);
+      await replayWindow.fill(nextReplayWindow);
+      await replayWindow.dispatchEvent("input");
+      await expect(configSave).toBeVisible();
+      await expect(configSave).toBeEnabled();
+
+      await Promise.all([
+        page.waitForResponse((resp) => (
+          resp.url().includes("/admin/config") &&
+          resp.request().method() === "POST" &&
+          resp.status() >= 200 &&
+          resp.status() < 300
+        )),
+        configSave.click()
+      ]);
+
+      await expect(configSave).toBeHidden();
+    }
+  );
 });
 
 test("advanced tab save flow validates and persists advanced JSON edits", async ({ page }) => {

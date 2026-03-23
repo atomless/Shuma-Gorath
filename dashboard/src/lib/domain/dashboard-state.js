@@ -14,6 +14,7 @@ const SNAPSHOT_KEYS = Object.freeze([
   'monitoringFreshness',
   'ipBansFreshness',
   'ipRangeSuggestions',
+  'operatorSnapshot',
   'config',
   'configRuntime'
 ]);
@@ -92,6 +93,7 @@ export const createInitialState = (initialTab = DEFAULT_TAB) => ({
     monitoringFreshness: null,
     ipBansFreshness: null,
     ipRangeSuggestions: null,
+    operatorSnapshot: null,
     config: null,
     configRuntime: null
   },

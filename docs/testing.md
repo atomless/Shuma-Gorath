@@ -69,6 +69,7 @@ make test-dashboard-adversary-sim-lane-contract # Focused dashboard lane-contrac
 make test-dashboard-auth-gate # Focused dashboard auth-gate checks for logged-out /dashboard entry
 make test-dashboard-tab-information-architecture # Focused dashboard unit checks for tab order and source-of-truth tab registry alignment
 make test-dashboard-policy-pane-ownership # Focused dashboard unit checks that Policy owns the moved panes and Tuning stays botness-only
+make test-dashboard-verified-identity-pane # Focused Verification-tab surfacing checks for verified identity controls + health summary
 make test-ban-duration-family-truth # Focused config/runtime/Policy-tab ban-duration family parity checks
 make test-dashboard-e2e-ban-duration-family-truth # Focused Playwright smoke for Ban Durations coverage in Policy
 make test-dashboard-budgets # Dashboard /_app bundle-size ceilings report (warn-only by default)
@@ -107,6 +108,7 @@ Notes:
 - `make test` keeps the fast adversarial matrix in the routine local/full-suite path and runs the SIM2 matrix in advisory mode against the resulting fast-profile artifact.
 - `make test-adversarial-coverage` and `make test-adversarial-soak` remain the strict deterministic `full_coverage` oracle paths for deeper protected-lane verification.
 - `make test-host-impact-telemetry`, `make test-host-impact-benchmark`, and `make test-oversight-host-impact` are the narrow pre-Monitoring proof path for the host-impact proxy track; use them instead of broader monitoring/controller suites when only the forwarded-latency cost proxy changed.
+- `make test-dashboard-verified-identity-pane` is the narrow proof path for the first-class `Verified Identity` pane in `Verification`; it covers source wiring, operator-snapshot hydration, and a rendered config-save round-trip without dragging in broader Monitoring work.
 - `make test-dashboard-e2e` now verifies the running Spin instance is serving the current `dist/dashboard/index.html` before Playwright runs; restart Spin after `make dashboard-build` if this check fails.
 - `make test` now reseeds dashboard sample data at the end, so charts/tables stay populated for local inspection after the run.
 

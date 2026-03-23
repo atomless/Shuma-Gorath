@@ -4,6 +4,32 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-23)
 
+### UI-VID-1: Verified Identity pane in Verification tab
+
+- [x] Added a first-class `Verified Identity` pane to the `Verification` tab so the stable mechanics for native Web Bot Auth and provider assertions are no longer trapped in Advanced JSON.
+- [x] Added a bounded `Verified Identity Health` panel backed by `operator_snapshot_v1`, including availability, attempts, verified/failed counts, unique identities, named-policy and service-profile counts, and bounded top failure-reason, scheme, and category summaries.
+- [x] Updated the dashboard refresh lifecycle so activating `Verification` now refreshes until its local operator-snapshot truth exists instead of treating shared config alone as sufficient.
+- [x] Added a focused make gate and rendered smoke proof for the new pane, including a config save round-trip and operator-snapshot-driven summary rendering.
+- [x] Why:
+  - verified identity had become important operator-facing truth, but the dashboard still forced operators into Advanced JSON for the stable mechanics and hid the bounded read-model health entirely.
+  - the cleanest pre-Monitoring catch-up was a local Verification-tab surface that reused the existing config/save flow and read-only operator-snapshot truth, rather than pulling Monitoring projection work forward.
+  - a small route-controller refresh adjustment was needed so the new summary actually hydrates when the tab is activated after shared config already exists.
+- [x] Evidence:
+  - `dashboard/src/lib/components/dashboard/VerificationTab.svelte`
+  - `dashboard/src/lib/domain/api-client.js`
+  - `dashboard/src/lib/runtime/dashboard-runtime-refresh.js`
+  - `dashboard/src/routes/+page.svelte`
+  - `dashboard/src/lib/domain/dashboard-state.js`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `e2e/dashboard.smoke.spec.js`
+  - `Makefile`
+  - `docs/dashboard-tabs/verification.md`
+  - `docs/dashboard.md`
+  - `docs/testing.md`
+  - `docs/research/2026-03-23-ui-vid-1-verified-identity-pane-post-implementation-review.md`
+  - `make test-dashboard-verified-identity-pane`
+  - `git diff --check`
+
 ### HOST-COST-1 and HOST-COST-2: bounded host-impact telemetry and benchmark proxy
 
 - [x] Added bounded forwarded upstream latency truth to rendered request outcomes and propagated it through monitoring scope, lane, and non-human-category summaries as `forwarded_upstream_latency_ms_total`.

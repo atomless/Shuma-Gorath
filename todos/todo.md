@@ -91,11 +91,6 @@ Current stance:
 - The next bridge to a genuine LLM-in-the-loop system is not the full later `SIM-LLM-1` runtime actor; it is a bounded category-fulfillment LLM tranche that sits between the taxonomy/classifier work and the first closed config loop, with the later LLM diagnosis harness and code loop still downstream of `OVR-APPLY-1`.
 - Before `MON-OVERHAUL-1`, expose the already-settled local control truths that no longer belong only in Advanced JSON or backend-only payloads: verified identity in `Verification` and adversary-sim status truth basis in `Red Team`.
 
-### UI-VID-1: Verified Identity Pane In Verification Tab
-- Add a first-class `Verified Identity` pane to `Verification` so native Web Bot Auth and the broader verified-identity mechanics are no longer Advanced-only for operators.
-- Keep the first pane focused on the already-stable basics: enablement, native versus provider verification toggles, replay and freshness windows, bounded directory controls, and a bounded read-only health summary.
-- Reference context: [`../docs/research/2026-03-23-dashboard-operator-surfacing-gap-review.md`](../docs/research/2026-03-23-dashboard-operator-surfacing-gap-review.md), [`../docs/plans/2026-03-23-dashboard-operator-surfacing-sequencing-plan.md`](../docs/plans/2026-03-23-dashboard-operator-surfacing-sequencing-plan.md)
-
 ### UI-RED-1: Red Team Truth-Basis Diagnostics
 - Surface adversary-sim status `truth_basis` and bounded `persisted_event_evidence` in `Red Team` so operators can tell when a completed run summary is coming from direct counters versus recovered lower-bound event truth.
 - Keep this tranche local to `Red Team`; do not turn it into a Monitoring substitute.

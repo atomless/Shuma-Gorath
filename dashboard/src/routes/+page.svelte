@@ -503,6 +503,16 @@
       if (!configSnapshot || Object.keys(configSnapshot).length === 0) {
         return true;
       }
+      if (normalized === 'verification') {
+        const operatorSnapshot = state && state.snapshots ? state.snapshots.operatorSnapshot : null;
+        const hasVerifiedIdentitySummary =
+          operatorSnapshot &&
+          typeof operatorSnapshot === 'object' &&
+          operatorSnapshot.verified_identity &&
+          typeof operatorSnapshot.verified_identity === 'object' &&
+          Object.keys(operatorSnapshot.verified_identity).length > 0;
+        return !hasVerifiedIdentitySummary;
+      }
       if (normalized === 'status') {
         const monitoringSnapshot = state && state.snapshots ? state.snapshots.monitoring : null;
         const monitoringFreshness = state && state.snapshots ? state.snapshots.monitoringFreshness : null;
@@ -1337,6 +1347,7 @@
           noticeKind={paneNoticeValues.verification?.kind || 'info'}
           configSnapshot={snapshots.config}
           configRuntimeSnapshot={snapshots.configRuntime}
+          operatorSnapshot={snapshots.operatorSnapshot}
           configVersion={snapshotVersions.config || 0}
           onSaveConfig={onSaveConfig}
         />
