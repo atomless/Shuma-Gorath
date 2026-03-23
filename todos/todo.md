@@ -89,6 +89,7 @@ Current stance:
 - The next prerequisite now begins one step earlier: Shuma must first define a canonical non-human taxonomy and shared classification contract before it can truthfully measure lane representativeness.
 - The actively evolving near-term layer should be fingerprinting and categorization quality inside that taxonomy; taxonomy expansion is only a later contingency if important non-human traffic persistently falls outside the existing categories.
 - The next bridge to a genuine LLM-in-the-loop system is not the full later `SIM-LLM-1` runtime actor; it is a bounded category-fulfillment LLM tranche that sits between the taxonomy/classifier work and the first closed config loop, with the later LLM diagnosis harness and code loop still downstream of `OVR-APPLY-1`.
+- Before `MON-OVERHAUL-1`, extend suspicious-origin cost with a truthful host-impact proxy so Monitoring and later tuning do not project a request-and-byte-only model of unwanted non-human traffic cost.
 
 ### VID-TAX-2: Verified-Identity Versus Taxonomy Alignment Receipts
 - Add explicit machine-first receipts that show whether high-confidence verified traffic aligned cleanly with the taxonomy crosswalk, fell back through a degraded mapping, or remained mismatched.
@@ -105,9 +106,19 @@ Current stance:
 - Keep this tranche restrictive-by-default: it must add safety guardrails, not implicit allow behavior.
 - Reference context: [`../docs/research/2026-03-23-verified-identity-taxonomy-calibration-and-tuning-guardrails-review.md`](../docs/research/2026-03-23-verified-identity-taxonomy-calibration-and-tuning-guardrails-review.md), [`../docs/plans/2026-03-23-verified-identity-taxonomy-calibration-and-guardrails-implementation-plan.md`](../docs/plans/2026-03-23-verified-identity-taxonomy-calibration-and-guardrails-implementation-plan.md)
 
+### HOST-COST-1: Bounded Host-Impact Telemetry Foundation
+- Add bounded forwarded-latency telemetry to the request-outcome and monitoring hot-read path so Shuma can measure host-impact proxies that go beyond suspicious forwarded request and byte ratios.
+- Keep this tranche telemetry-first and proxy-first: no speculative route weights, no fake cost units, and no direct CPU or memory budgets yet.
+- Reference context: [`../docs/research/2026-03-23-host-impact-cost-proxy-and-benchmark-review.md`](../docs/research/2026-03-23-host-impact-cost-proxy-and-benchmark-review.md), [`../docs/plans/2026-03-23-host-impact-cost-proxy-and-benchmark-implementation-plan.md`](../docs/plans/2026-03-23-host-impact-cost-proxy-and-benchmark-implementation-plan.md)
+
+### HOST-COST-2: Host-Impact Snapshot And Benchmark Integration
+- Thread the new host-impact proxy through `operator_snapshot_v1`, `operator_objectives_v1`, and `benchmark_results_v1`, including a budgetable `suspicious_forwarded_latency_share` metric and bounded comparison semantics.
+- Keep this tranche inside the existing suspicious-origin family and existing controller model; do not invent a second cost loop or new patch-family surface.
+- Reference context: [`../docs/research/2026-03-23-host-impact-cost-proxy-and-benchmark-review.md`](../docs/research/2026-03-23-host-impact-cost-proxy-and-benchmark-review.md), [`../docs/plans/2026-03-23-host-impact-cost-proxy-and-benchmark-implementation-plan.md`](../docs/plans/2026-03-23-host-impact-cost-proxy-and-benchmark-implementation-plan.md)
+
 ### MON-OVERHAUL-1: Monitoring As Thin Operator Projection Over Machine-First Contracts
-- Redesign Monitoring as a thin operator decision surface over the machine-first snapshot contract, with explicit live-versus-shadow-versus-adversary-sim separation and clear attacker-effectiveness versus human-friction visibility.
-- Reference context: [`../docs/plans/2026-03-20-monitoring-and-diagnostics-tab-ownership-plan.md`](../docs/plans/2026-03-20-monitoring-and-diagnostics-tab-ownership-plan.md), [`../docs/research/2026-03-23-adv-diag-1-adversary-sim-status-truth-post-implementation-review.md`](../docs/research/2026-03-23-adv-diag-1-adversary-sim-status-truth-post-implementation-review.md), [`../docs/research/2026-03-23-scrapling-non-human-category-capability-review.md`](../docs/research/2026-03-23-scrapling-non-human-category-capability-review.md), [`../docs/research/2026-03-23-verified-identity-taxonomy-calibration-and-tuning-guardrails-review.md`](../docs/research/2026-03-23-verified-identity-taxonomy-calibration-and-tuning-guardrails-review.md)
+- Redesign Monitoring as a thin operator decision surface over the machine-first snapshot contract, with explicit live-versus-shadow-versus-adversary-sim separation, clear attacker-effectiveness versus human-friction visibility, and the settled host-impact cost proxy semantics from the delivered closed-loop backend.
+- Reference context: [`../docs/plans/2026-03-20-monitoring-and-diagnostics-tab-ownership-plan.md`](../docs/plans/2026-03-20-monitoring-and-diagnostics-tab-ownership-plan.md), [`../docs/research/2026-03-23-adv-diag-1-adversary-sim-status-truth-post-implementation-review.md`](../docs/research/2026-03-23-adv-diag-1-adversary-sim-status-truth-post-implementation-review.md), [`../docs/research/2026-03-23-scrapling-non-human-category-capability-review.md`](../docs/research/2026-03-23-scrapling-non-human-category-capability-review.md), [`../docs/research/2026-03-23-verified-identity-taxonomy-calibration-and-tuning-guardrails-review.md`](../docs/research/2026-03-23-verified-identity-taxonomy-calibration-and-tuning-guardrails-review.md), [`../docs/research/2026-03-23-host-impact-cost-proxy-and-benchmark-review.md`](../docs/research/2026-03-23-host-impact-cost-proxy-and-benchmark-review.md)
 
 ## P1 Verified Bot Identity And Web Bot Auth Foundation
 

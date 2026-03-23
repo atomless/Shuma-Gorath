@@ -4,6 +4,24 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-23)
 
+### Docs: Plan host-impact cost proxy work before Monitoring overhaul
+
+- [x] Added a new research note and execution-ready implementation plan for extending the closed loop from request-and-byte-only suspicious-origin cost toward a truthful latency-shaped host-impact proxy.
+- [x] Queued the new pre-Monitoring tranches `HOST-COST-1` and `HOST-COST-2` in the active backlog and synced the mainline sequencing docs so Monitoring and later Tuning stay blocked on those backend truths.
+- [x] Why:
+  - the current loop can already judge suspicious forwarded request and byte share, but it still lacks a benchmark-grade proxy for how much host time suspicious traffic is consuming while it reaches the origin.
+  - the cleanest next move is not speculative cost units or direct CPU accounting; it is to extend the existing machine-first request-outcome, snapshot, and benchmark contracts with bounded forwarded-latency telemetry and a ratio-shaped suspicious host-impact metric that the current controller can already consume.
+- [x] Evidence:
+  - `docs/research/2026-03-23-host-impact-cost-proxy-and-benchmark-review.md`
+  - `docs/plans/2026-03-23-host-impact-cost-proxy-and-benchmark-implementation-plan.md`
+  - `docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`
+  - `docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`
+  - `docs/research/README.md`
+  - `docs/plans/README.md`
+  - `todos/todo.md`
+  - `todos/blocked-todo.md`
+  - `git diff --check`
+
 ### BAN-DUR-1: Make Ban Durations truthful for every shipped ban family
 
 - [x] Added focused failing and then passing coverage for the full shipped ban-family set across config/admin parity, runtime duration routing, and Policy-tab rendering.

@@ -301,11 +301,23 @@ Make diagnosis and bounded tuning fail closed when verified-identity friction mi
 
 Execution reference: [`2026-03-23-verified-identity-taxonomy-calibration-and-guardrails-implementation-plan.md`](2026-03-23-verified-identity-taxonomy-calibration-and-guardrails-implementation-plan.md)
 
+### `HOST-COST-1`
+
+Add bounded forwarded-latency telemetry to the machine-first request-outcome path so Shuma can measure host-impact proxies that go beyond suspicious request and byte rates.
+
+Execution reference: [`2026-03-23-host-impact-cost-proxy-and-benchmark-implementation-plan.md`](2026-03-23-host-impact-cost-proxy-and-benchmark-implementation-plan.md)
+
+### `HOST-COST-2`
+
+Thread the new host-impact proxy through `operator_snapshot_v1`, `operator_objectives_v1`, and `benchmark_results_v1` so reconcile and later Monitoring can consume a truthful suspicious host-impact metric.
+
+Execution reference: [`2026-03-23-host-impact-cost-proxy-and-benchmark-implementation-plan.md`](2026-03-23-host-impact-cost-proxy-and-benchmark-implementation-plan.md)
+
 ## Phase 6: Human Operator Projection
 
 ### `MON-OVERHAUL-1`
 
-Rebuild Monitoring as the thin human projection over the machine-first contracts after the backend truth, first working closed loop, `ADV-DIAG-1` diagnostics-truth follow-up, the Scrapling request-native category follow-ons, and the verified-identity calibration track are complete.
+Rebuild Monitoring as the thin human projection over the machine-first contracts after the backend truth, first working closed loop, `ADV-DIAG-1` diagnostics-truth follow-up, the Scrapling request-native category follow-ons, the verified-identity calibration track, and the host-impact cost proxy track are complete.
 
 ### `TUNE-SURFACE-1`
 
@@ -331,7 +343,7 @@ Keep the later benchmark-driven LLM code-evolution or PR-generation path behind 
 2. Do not blend structural decomposition and semantic expansion in the same tranche.
 3. Keep the first decomposition slices behavior-preserving and test-focused.
 4. Keep one hotspot file as the primary target per refactor tranche wherever practical.
-5. Do not reopen `MON-OVERHAUL-1`, `TUNE-SURFACE-1`, or `OVR-AGENT-2` until the blockers listed in this plan are satisfied, including protected tuning evidence, category-coverage proof, the settled Scrapling request-native ownership follow-ons, and the verified-identity calibration tranches.
+5. Do not reopen `MON-OVERHAUL-1`, `TUNE-SURFACE-1`, or `OVR-AGENT-2` until the blockers listed in this plan are satisfied, including protected tuning evidence, category-coverage proof, the settled Scrapling request-native ownership follow-ons, the verified-identity calibration tranches, and the host-impact cost proxy tranches.
 6. Treat periodic scheduling and post-sim triggering as adapter paths over one reconcile or agent contract, not as separate controller implementations.
 
 # File-Length And Separation Guardrails
