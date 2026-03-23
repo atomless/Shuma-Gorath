@@ -4,6 +4,34 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-23)
 
+### Research: Karpathy `autoresearch` and recursive self-improvement lessons
+
+- [x] Researched Karpathy's upstream `autoresearch` methodology and a focused set of downstream GitHub projects that generalized or extended it, then distilled what is and is not useful to Shuma's later recursive self-improvement path.
+- [x] Wrote the source-of-truth note in [`docs/research/2026-03-23-karpathy-autoresearch-and-recursive-self-improvement-review.md`](../docs/research/2026-03-23-karpathy-autoresearch-and-recursive-self-improvement-review.md) and indexed it in [`docs/research/README.md`](../docs/research/README.md).
+- [x] Captured the most relevant methodological takeaways for Shuma:
+  - keep the mutable surface tiny and bounded,
+  - keep the evaluator and guardrails more sacred than the mutator,
+  - treat search-policy/"org code" as a separate layer from target code,
+  - add noise-aware selection and explicit proposer-versus-critic separation for later LLM phases,
+  - and keep synthetic-only evaluation out of autonomous tuning truth.
+- [x] Why:
+  - the repo's next major loop-expansion stages (`OVR-AGENT-2` and `OVR-CODE-1`) will benefit from a clearer methodology for recursive improvement before they are reopened.
+  - Karpathy's work and its descendants are most useful to Shuma when treated as a discipline for bounded experiment loops, not as a license for broad unconstrained self-modification.
+  - recording the lessons now gives later planning a durable reference instead of forcing the same survey work to be repeated when the broader LLM controller phases begin.
+- [x] Evidence:
+  - `docs/research/2026-03-23-karpathy-autoresearch-and-recursive-self-improvement-review.md`
+  - `docs/research/README.md`
+  - inspected primary sources:
+    - `https://github.com/karpathy/autoresearch`
+    - `https://github.com/aiming-lab/AutoResearchClaw`
+    - `https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep`
+    - `https://github.com/davebcn87/pi-autoresearch`
+    - `https://github.com/uditgoenka/autoresearch`
+    - `https://github.com/trevin-creator/autoresearch-mlx`
+    - `https://github.com/Techris93/secops-autoresearch`
+  - `git diff --check`
+  - verification intentionally scoped as docs-only; tests not run
+
 ### Monitoring loop-accountability framing and diagnostics-focus planning
 
 - [x] Captured the refinement that the new Monitoring page should primarily present how the closed feedback loop has detected, judged, and responded to non-human traffic, and what effect that had on likely-human and tolerated traffic, rather than acting first as a manual config-tuning cockpit.
