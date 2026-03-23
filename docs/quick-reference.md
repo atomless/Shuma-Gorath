@@ -1,6 +1,6 @@
 # 🐙 Quick Reference - <abbr title="WebAssembly">WASM</abbr> Bot Defence
 
-For full documentation, see [`docs/index.md`](index.md).
+For full documentation, see [`docs/README.md`](README.md).
 
 ## 🐙 Common Commands
 

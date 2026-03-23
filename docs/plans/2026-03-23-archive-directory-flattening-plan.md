@@ -40,7 +40,7 @@
 ### Task 3: Rebuild The Information Architecture In The Top-Level Indexes
 
 **Files:**
-- Modify: `docs/index.md`
+- Modify: `docs/README.md`
 - Modify: `docs/research/README.md`
 - Modify: `docs/plans/README.md`
 - Modify: `docs/deferred-edge-gateway.md`

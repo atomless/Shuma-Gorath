@@ -27,7 +27,7 @@ Historical execution note: this plan describes the first cleanup slice, which br
 **Files:**
 - Create: `docs/plans/README.md`
 - Create: `docs/deferred-edge-gateway.md`
-- Modify: `docs/index.md`
+- Modify: `docs/README.md`
 - Modify: `docs/research/README.md`
 
 **Steps:**

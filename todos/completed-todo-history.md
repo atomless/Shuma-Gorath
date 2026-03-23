@@ -4,6 +4,26 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-23)
 
+### Docs Front Door Housekeeping: Rename `docs/index.md` To `docs/README.md`
+
+- [x] Renamed the docs folder front door from `docs/index.md` to `docs/README.md` so GitHub renders it automatically when readers open the `docs/` directory, and repaired the backlinks across the repo so the new filename is the canonical docs entrypoint.
+- [x] Why:
+  - the docs reorganization had improved the content and indexing, but leaving the file named `index.md` meant the `docs/` directory still did not present that front door naturally on GitHub.
+  - the rename reduces friction for readers navigating the repository tree and makes the docs folder behave like the rest of the repo’s README-driven entry surfaces.
+  - the important part of the slice was not just the move itself, but repairing references in README, docs notes, plans, and completion history so the docs graph stayed coherent.
+- [x] Evidence:
+  - `docs/README.md`
+  - `README.md`
+  - `docs/quick-reference.md`
+  - `docs/research/2026-03-23-documentation-audit-and-information-architecture-review.md`
+  - `docs/research/2026-03-23-archive-directory-flattening-review.md`
+  - `docs/research/2026-03-23-readme-entrypoint-audit-addendum.md`
+  - `docs/plans/2026-03-23-documentation-audit-and-reorganization-plan.md`
+  - `docs/plans/2026-03-23-archive-directory-flattening-plan.md`
+  - `docs/plans/2026-03-23-readme-entrypoint-repair-plan.md`
+  - `todos/completed-todo-history.md`
+  - `git diff --check`
+
 ### README Entrypoint Repair: Align The Repository Front Door With The Docs Reorganization
 
 - [x] Audited the top-level `README.md`, documented the shortfall that the previous docs housekeeping tranche left it untouched, and rewrote the Documentation section so it now points to the current shared-host-first architecture, mainline feedback-loop docs, curated indexes, and explicitly deferred edge track instead of surfacing a stale historical Fermyon blocker note as a top-level destination.
@@ -28,7 +48,7 @@ Moved from active TODO files on 2026-02-14.
 - [x] Evidence:
   - `docs/research/2026-03-23-archive-directory-flattening-review.md`
   - `docs/plans/2026-03-23-archive-directory-flattening-plan.md`
-  - `docs/index.md`
+  - `docs/README.md`
   - `docs/research/README.md`
   - `docs/plans/README.md`
   - `docs/deferred-edge-gateway.md`
@@ -65,7 +85,7 @@ Moved from active TODO files on 2026-02-14.
   - `docs/plans/2026-03-23-documentation-audit-and-reorganization-plan.md`
   - `docs/plans/README.md`
   - `docs/deferred-edge-gateway.md`
-  - `docs/index.md`
+  - `docs/README.md`
   - `docs/research/README.md`
   - `docs/deployment.md`
   - `docs/quick-reference.md`
@@ -1128,7 +1148,7 @@ Moved from active TODO files on 2026-02-14.
   - `README.md`
   - `docs/deployment.md`
   - `docs/bot-defence.md`
-  - `docs/index.md`
+  - `docs/README.md`
   - `docs/research/README.md`
   - `skills/prepare-shuma-on-akamai-fermyon/SKILL.md`
   - `skills/deploy-shuma-on-akamai-fermyon/SKILL.md`
@@ -1288,11 +1308,11 @@ Moved from active TODO files on 2026-02-14.
   - `skills/deploy-shuma-on-akamai-fermyon/SKILL.md`
   - `skills/deploy-shuma-on-akamai-fermyon/references/OPERATIONS.md`
   - `README.md`
-  - `docs/index.md`
+  - `docs/README.md`
   - `docs/deployment.md`
   - `docs/research/2026-03-21-sim-scr-8-agent-skill-integration-post-implementation-review.md`
   - `git diff --check`
-  - post-tranche review: this slice was docs-only, so behavior tests were intentionally skipped. The review found one tranche-local shortfall before completion: the new skill was not yet discoverable from the repo’s canonical skill lists. That was corrected by updating `README.md`, `docs/index.md`, and `docs/deployment.md`. No remaining tranche-local shortfall remains inside `SIM-SCR-8-3`; the next optimal work is `SIM-SCR-8-4` for the final operator/doc closeout and broader edge-boundary truthfulness outside the skill surface.
+  - post-tranche review: this slice was docs-only, so behavior tests were intentionally skipped. The review found one tranche-local shortfall before completion: the new skill was not yet discoverable from the repo’s canonical skill lists. That was corrected by updating `README.md`, `docs/README.md`, and `docs/deployment.md`. No remaining tranche-local shortfall remains inside `SIM-SCR-8-3`; the next optimal work is `SIM-SCR-8-4` for the final operator/doc closeout and broader edge-boundary truthfulness outside the skill surface.
 
 ### SIM-SCR-8: Shared-Host Scrapling Deploy Automation
 
@@ -1425,7 +1445,7 @@ Moved from active TODO files on 2026-02-14.
 - [x] Evidence:
   - `docs/research/2026-03-20-sim-scr-lane-1-readiness-review.md`
   - `docs/plans/2026-03-20-sim-scr-lane-1-runtime-migration-plan.md`
-  - `docs/index.md`
+  - `docs/README.md`
   - `docs/research/README.md`
   - `todos/todo.md`
   - docs-only slice: tests intentionally skipped
@@ -1449,7 +1469,7 @@ Moved from active TODO files on 2026-02-14.
   - `docs/adversarial-operator-guide.md`
   - `docs/research/2026-03-20-shared-host-seed-contract-post-implementation-review.md`
   - `docs/research/README.md`
-  - `docs/index.md`
+  - `docs/README.md`
   - `todos/todo.md`
   - `todos/blocked-todo.md`
   - `make test-shared-host-seed-contract`
@@ -1467,7 +1487,7 @@ Moved from active TODO files on 2026-02-14.
 - [x] Evidence:
   - `docs/plans/2026-03-20-shared-host-seed-contract.md`
   - `docs/plans/2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md`
-  - `docs/index.md`
+  - `docs/README.md`
   - `todos/todo.md`
   - docs-only slice: tests intentionally skipped
   - `git diff --check`
@@ -1489,7 +1509,7 @@ Moved from active TODO files on 2026-02-14.
   - `docs/testing.md`
   - `docs/research/2026-03-20-shared-host-scope-contract-post-implementation-review.md`
   - `docs/research/README.md`
-  - `docs/index.md`
+  - `docs/README.md`
   - `make test-shared-host-scope-contract`
   - `make test-adversarial-python-unit`
   - `git diff --check`
@@ -1505,7 +1525,7 @@ Moved from active TODO files on 2026-02-14.
 - [x] Evidence:
   - `docs/plans/2026-03-20-shared-host-scope-fence-contract.md`
   - `docs/plans/2026-03-04-scrapling-surface-catalog-and-emergent-lane-implementation-plan.md`
-  - `docs/index.md`
+  - `docs/README.md`
   - `todos/todo.md`
   - docs-only slice: tests intentionally skipped
   - `git diff --check`
@@ -1960,7 +1980,7 @@ Moved from active TODO files on 2026-02-14.
   - writing that down first keeps the controller-facing telemetry disciplined and avoids reintroducing per-widget bespoke storytelling just before the Monitoring overhaul.
 - [x] Evidence:
   - `docs/plans/2026-03-19-monitoring-defence-funnel-plan.md`
-  - `docs/index.md`
+  - `docs/README.md`
   - `todos/todo.md`
   - docs-only slice: tests intentionally skipped
   - `git diff --check`
@@ -1988,7 +2008,7 @@ Moved from active TODO files on 2026-02-14.
   - locking that choice in writing preserves the project rhythm the user asked to enforce: research, then plan, then implementation.
 - [x] Evidence:
   - `docs/plans/2026-03-19-monitoring-human-friction-denominator-plan.md`
-  - `docs/index.md`
+  - `docs/README.md`
   - `todos/todo.md`
   - docs-only slice: tests intentionally skipped
   - `git diff --check`
@@ -2048,7 +2068,7 @@ Moved from active TODO files on 2026-02-14.
 - [x] Evidence:
   - `AGENTS.md`
   - `docs/plans/2026-03-19-controller-grade-monitoring-telemetry-foundation-follow-on-plan.md`
-  - `docs/index.md`
+  - `docs/README.md`
   - `todos/todo.md`
   - docs-only slice: tests intentionally skipped
   - `git diff --check`
@@ -2066,7 +2086,7 @@ Moved from active TODO files on 2026-02-14.
   - `docs/research/2026-03-19-controller-readiness-telemetry-foundation-review.md`
   - `docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`
   - `docs/research/README.md`
-  - `docs/index.md`
+  - `docs/README.md`
   - `todos/todo.md`
   - `todos/blocked-todo.md`
   - docs-only slice: tests intentionally skipped
@@ -2175,7 +2195,7 @@ Moved from active TODO files on 2026-02-14.
   - `docs/plans/2026-03-18-monitoring-telemetry-foundations-architectural-necessities.md`
   - `docs/plans/2026-03-18-monitoring-traffic-lane-and-denominator-contract.md`
   - `docs/plans/2026-03-18-monitoring-request-outcome-telemetry-hook-contract.md`
-  - `docs/index.md`
+  - `docs/README.md`
   - `todos/todo.md`
   - `todos/blocked-todo.md`
   - docs-only slice: tests intentionally skipped
@@ -2190,7 +2210,7 @@ Moved from active TODO files on 2026-02-14.
   - making shadow-mode truth, forward-failure fallback handling, and response-byte accounting explicit now reduces the risk that `MON-TEL-1-2` and `MON-TEL-1-4` duplicate logic across response branches or accidentally muddy operator summaries.
 - [x] Evidence:
   - `docs/plans/2026-03-18-monitoring-request-outcome-telemetry-hook-contract.md`
-  - `docs/index.md`
+  - `docs/README.md`
   - `todos/todo.md`
   - docs-only slice: tests intentionally skipped
   - `git diff --check`
@@ -2204,7 +2224,7 @@ Moved from active TODO files on 2026-02-14.
   - defining simulation as a separate origin dimension, separating defence follow-up flows from the primary ingress denominator, and reserving future verified and declared non-human lanes now reduces later drift when the verified-identity and mature monitoring tranches land.
 - [x] Evidence:
   - `docs/plans/2026-03-18-monitoring-traffic-lane-and-denominator-contract.md`
-  - `docs/index.md`
+  - `docs/README.md`
   - `todos/todo.md`
   - docs-only slice: tests intentionally skipped
   - `git diff --check`
@@ -2218,7 +2238,7 @@ Moved from active TODO files on 2026-02-14.
   - capturing them repo-natively keeps the active backlog honest: `MON-TEL-1` is execution-ready, but it is now clearly gated by a small set of architecture decisions instead of leaving those decisions implicit.
 - [x] Evidence:
   - `docs/plans/2026-03-18-monitoring-telemetry-foundations-architectural-necessities.md`
-  - `docs/index.md`
+  - `docs/README.md`
   - `todos/todo.md`
   - docs-only slice: tests intentionally skipped
   - `git diff --check`
@@ -2233,7 +2253,7 @@ Moved from active TODO files on 2026-02-14.
 - [x] Evidence:
   - `docs/research/2026-03-18-cost-aware-operator-telemetry-gap-analysis.md`
   - `docs/research/README.md`
-  - `docs/index.md`
+  - `docs/README.md`
   - `todos/blocked-todo.md`
   - `docs/plans/2026-03-12-unified-telemetry-hot-read-architecture-plan.md`
   - `docs/plans/2026-03-13-compact-event-telemetry-implementation-plan.md`
@@ -2270,7 +2290,7 @@ Moved from active TODO files on 2026-02-14.
 - [x] Evidence:
   - `docs/research/2026-03-18-agentic-era-operator-telemetry-research-synthesis.md`
   - `docs/research/README.md`
-  - `docs/index.md`
+  - `docs/README.md`
   - `todos/blocked-todo.md`
   - docs-only slice: tests intentionally skipped
   - `git diff --check`
@@ -2300,7 +2320,7 @@ Moved from active TODO files on 2026-02-14.
 - [x] Evidence:
   - `docs/research/2026-03-17-operator-decision-support-telemetry-audit.md`
   - `docs/research/README.md`
-  - `docs/index.md`
+  - `docs/README.md`
   - `todos/blocked-todo.md`
   - `src/observability/monitoring.rs`
   - `src/observability/metrics.rs`
@@ -2539,7 +2559,7 @@ Moved from active TODO files on 2026-02-14.
   - `docs/plans/2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-design.md`
   - `docs/plans/2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-implementation-plan.md`
   - `docs/research/README.md`
-  - `docs/index.md`
+  - `docs/README.md`
   - `git diff --check`
   - verification intentionally scoped as docs-only; tests not run
 
@@ -2595,7 +2615,7 @@ Moved from active TODO files on 2026-02-14.
 - [x] Evidence:
   - `docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`
   - `todos/blocked-todo.md`
-  - `docs/index.md`
+  - `docs/README.md`
   - `git diff --check`
   - verification intentionally scoped as docs-only; tests not run
 
@@ -2613,7 +2633,7 @@ Moved from active TODO files on 2026-02-14.
   - `docs/research/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-research-synthesis.md`
   - `docs/plans/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-design.md`
   - `docs/plans/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-implementation-plan.md`
-  - `docs/index.md`
+  - `docs/README.md`
   - `docs/research/README.md`
   - `git diff --check`
   - verification intentionally scoped as docs-only; tests not run
@@ -2751,7 +2771,7 @@ Moved from active TODO files on 2026-02-14.
   - `docs/plans/2026-03-15-agentic-era-oversight-design.md`
   - `docs/plans/2026-03-15-agentic-era-oversight-implementation-plan.md`
   - `docs/research/README.md`
-  - `docs/index.md`
+  - `docs/README.md`
   - docs-only slice: verification intentionally skipped per repo policy
   - external sources captured in the new research synthesis
 
@@ -3541,7 +3561,7 @@ Moved from active TODO files on 2026-02-14.
   - `skills/deploy-shuma-on-akamai-fermyon/references/OPERATIONS.md`
   - `docs/deployment.md`
   - `docs/quick-reference.md`
-  - `docs/index.md`
+  - `docs/README.md`
   - `README.md`
   - `make test-deploy-fermyon`
   - live proof reached the real Fermyon device-login boundary after the helper automatically handled the known `spin aka` PAT-login panic; the remaining external blocker is recorded separately under `FERM-SKILL-3`
@@ -3700,7 +3720,7 @@ Moved from active TODO files on 2026-02-14.
   - `skills/deploy-shuma-on-linode/references/OPERATIONS.md`
   - `docs/deployment.md`
   - `README.md`
-  - `docs/index.md`
+  - `docs/README.md`
   - `scripts/README.md`
 
 #### DEP-SH-1: Align Shared-Host Deployment Artifacts with the Gateway-First Production Contract

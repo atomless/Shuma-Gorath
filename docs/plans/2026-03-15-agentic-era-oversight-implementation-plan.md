@@ -28,7 +28,7 @@
 **Files:**
 - Create: `docs/adr/0011-agentic-era-oversight-controller.md`
 - Modify: `docs/adr/README.md`
-- Modify: `docs/index.md`
+- Modify: `docs/README.md`
 
 **Work:**
 1. Record the three-plane model (`request`, `evidence`, `oversight`).
@@ -268,7 +268,7 @@
 
 **Files:**
 - Modify: `docs/deployment.md`
-- Modify: `docs/index.md`
+- Modify: `docs/README.md`
 
 **Work:**
 1. Document how a cron-triggered Spin/Fermyon adapter should invoke the reconcile path.

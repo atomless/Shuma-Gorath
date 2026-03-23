@@ -9,7 +9,7 @@ Related context:
 - [`../../README.md`](../../README.md)
 - [`../../docs/deployment.md`](../../docs/deployment.md)
 - [`../../docs/bot-defence.md`](../../docs/bot-defence.md)
-- [`../../docs/index.md`](../../docs/index.md)
+- [`../../docs/README.md`](../../docs/README.md)
 - [`../../todos/todo.md`](../../todos/todo.md)
 - [`../../todos/blocked-todo.md`](../../todos/blocked-todo.md)
 

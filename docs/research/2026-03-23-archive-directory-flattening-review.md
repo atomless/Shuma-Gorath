@@ -5,7 +5,7 @@ Related context:
 
 - [`2026-03-23-documentation-audit-and-information-architecture-review.md`](2026-03-23-documentation-audit-and-information-architecture-review.md)
 - [`../plans/2026-03-23-documentation-audit-and-reorganization-plan.md`](../plans/2026-03-23-documentation-audit-and-reorganization-plan.md)
-- [`../index.md`](../index.md)
+- [`../README.md`](../README.md)
 - [`README.md`](README.md)
 - [`../plans/README.md`](../plans/README.md)
 - [`../deferred-edge-gateway.md`](../deferred-edge-gateway.md)
@@ -45,7 +45,7 @@ What matters is preserving that status in indexes and entry docs, not preserving
 
 ## 4. The indexes are now strong enough to carry that meaning
 
-`docs/index.md`, `docs/research/README.md`, `docs/plans/README.md`, and `docs/deferred-edge-gateway.md` can carry the “current vs historical vs outdated deferred-edge” split without needing separate archive folders. That keeps the filesystem flat while still keeping the information architecture explicit.
+`docs/README.md`, `docs/research/README.md`, `docs/plans/README.md`, and `docs/deferred-edge-gateway.md` can carry the “current vs historical vs outdated deferred-edge” split without needing separate archive folders. That keeps the filesystem flat while still keeping the information architecture explicit.
 
 # Implications
 

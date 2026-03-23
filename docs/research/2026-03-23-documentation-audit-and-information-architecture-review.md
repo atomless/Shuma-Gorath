@@ -3,7 +3,7 @@ Status: Research review
 
 Related context:
 
-- [`../index.md`](../index.md)
+- [`../README.md`](../README.md)
 - [`../deployment.md`](../deployment.md)
 - [`../quick-reference.md`](../quick-reference.md)
 - [`../testing.md`](../testing.md)
@@ -25,7 +25,7 @@ Audit the current docs tree after the shared-host-first closed-loop work landed,
 
 ## 1. The entry docs mix current truth with deferred or historical material
 
-`docs/index.md`, `docs/deployment.md`, `docs/quick-reference.md`, and `docs/testing.md` all still surface the Fermyon/Akamai path and its live-proof commands close to the main shared-host/Linode workflow. That makes the current pre-launch posture harder to read even though the roadmap already says the real adaptive loop is shared-host-first and that the edge path is deferred.
+`docs/README.md`, `docs/deployment.md`, `docs/quick-reference.md`, and `docs/testing.md` all still surface the Fermyon/Akamai path and its live-proof commands close to the main shared-host/Linode workflow. That makes the current pre-launch posture harder to read even though the roadmap already says the real adaptive loop is shared-host-first and that the edge path is deferred.
 
 ## 2. A clearly defunct deferred-edge proof chain is still sitting in active locations
 
@@ -68,7 +68,7 @@ The first cleanup slice should:
 1. Add a concise `docs/plans/README.md` so the plan folder has a navigable front door.
 2. Add one dedicated `docs/deferred-edge-gateway.md` explainer that tells the truth about the later edge posture and points to archived historical material.
 3. Create `docs/research/archive/outdated/` and `docs/plans/archive/outdated/` as explicit homes for defunct deferred-edge docs.
-4. Rewrite `docs/index.md`, `docs/deployment.md`, `docs/quick-reference.md`, and `docs/testing.md` so current shared-host-first workflows come first and deferred edge material is grouped separately.
+4. Rewrite `docs/README.md`, `docs/deployment.md`, `docs/quick-reference.md`, and `docs/testing.md` so current shared-host-first workflows come first and deferred edge material is grouped separately.
 5. Update link targets so the active roadmap and backlogs point to the new archive locations where needed.
 
 # Non-Goals For This First Slice

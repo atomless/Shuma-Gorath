@@ -3,7 +3,7 @@ Status: Research review
 
 Related context:
 
-- [`../index.md`](../index.md)
+- [`../README.md`](../README.md)
 - [`../current-system-architecture.md`](../current-system-architecture.md)
 - [`README.md`](README.md)
 - [`../../README.md`](../../README.md)
@@ -18,7 +18,7 @@ Capture the follow-on shortfall in the documentation housekeeping work: the repo
 
 ## 1. The main README remained outside the previous cleanup scope
 
-The 2026-03-23 documentation cleanup tranches improved `docs/index.md`, `docs/research/README.md`, `docs/plans/README.md`, and related entry docs, but they did not revise the repository root `README.md`.
+The 2026-03-23 documentation cleanup tranches improved `docs/README.md`, `docs/research/README.md`, `docs/plans/README.md`, and related entry docs, but they did not revise the repository root `README.md`.
 
 ## 2. The README Documentation section still projects stale emphasis
 

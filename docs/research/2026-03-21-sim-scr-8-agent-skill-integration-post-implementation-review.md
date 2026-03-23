@@ -11,7 +11,7 @@ The deploy skill surface now has an explicit Scrapling handoff layer instead of 
 2. the shared-host Linode setup/deploy skills now point agents at that skill and explicitly say the common path must not ask for manual scope, seed, or `ADVERSARY_SIM_SCRAPLING_*` env artifacts,
 3. the Fermyon/Akamai setup/deploy skills now say plainly that edge deploy does not make the full hosted Scrapling runtime operational.
 
-The skill discovery surfaces in `README.md`, `docs/index.md`, and `docs/deployment.md` were updated as part of the same slice so the new skill is not hidden from future agents.
+The skill discovery surfaces in `README.md`, `docs/README.md`, and `docs/deployment.md` were updated as part of the same slice so the new skill is not hidden from future agents.
 
 ## Verification
 
@@ -30,7 +30,7 @@ The first edit pass updated the skill files but left the new Scrapling deploy sk
 Resolution:
 
 - added the new skill to `README.md`,
-- added it to `docs/index.md`,
+- added it to `docs/README.md`,
 - and added it to `docs/deployment.md`.
 
 ### 2. No remaining tranche-local shortfall inside `SIM-SCR-8-3`

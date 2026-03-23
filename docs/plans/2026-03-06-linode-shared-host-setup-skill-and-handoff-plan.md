@@ -68,7 +68,7 @@ Steps:
 - Create: `skills/prepare-shared-host-on-linode/SKILL.md`
 - Create: `skills/prepare-shared-host-on-linode/references/OPERATIONS.md`
 - Modify: `README.md`
-- Modify: `docs/index.md`
+- Modify: `docs/README.md`
 - Modify: `docs/deployment.md`
 - Modify: `skills/deploy-shuma-on-linode/SKILL.md`
 - Modify: `skills/deploy-shuma-on-linode/references/OPERATIONS.md`

@@ -171,7 +171,7 @@ Deployment policy note: `SHUMA_KV_STORE_FAIL_OPEN` is a critical choice (fail-op
 
 Start here:
 
-- [`docs/index.md`](docs/index.md) - Main docs index
+- [`docs/README.md`](docs/README.md) - Main docs index
 - [`docs/current-system-architecture.md`](docs/current-system-architecture.md) - Current landed architecture and closed-loop shape
 - [`docs/quick-reference.md`](docs/quick-reference.md) - Command and <abbr title="Application Programming Interface">API</abbr> cheat sheet
 - [`docs/deployment.md`](docs/deployment.md) - Shared-host-first deployment and remote operations guidance
