@@ -4,6 +4,22 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-23)
 
+### Dashboard auth gate follow-up: remove visible auth-copy flash
+
+- [x] Tightened the logged-out dashboard auth gate so it no longer renders any visible message panel during session restoration; the page now shows only the normal striped disconnected background before redirect.
+- [x] Extended the focused auth-gate proof so it asserts both the absence of visible auth-copy and the presence of the root `disconnected` class while the gate is active.
+- [x] Why:
+  - the first auth-gate fix removed the dashboard-shell flash, but it still replaced it with a visible “Checking admin session...” panel.
+  - the cleaner operator experience is to show no transient copy at all and let the existing disconnected visual language carry the holding state.
+- [x] Evidence:
+  - `dashboard/src/routes/+page.svelte`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `e2e/dashboard.smoke.spec.js`
+  - `docs/dashboard.md`
+  - `docs/research/2026-03-23-dashboard-auth-gate-post-implementation-review.md`
+  - `make test-dashboard-auth-gate`
+  - `git diff --check`
+
 ### DASH-AUTH-1: Gate dashboard shell rendering behind authenticated session restore
 
 - [x] Added a scoped research note and implementation plan for the logged-out dashboard shell flash, keeping the first remediation slice local to the dashboard auth flow rather than dragging Monitoring or broader session architecture into the fix.

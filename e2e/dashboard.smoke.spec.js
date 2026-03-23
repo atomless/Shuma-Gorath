@@ -1069,9 +1069,16 @@ test("logged-out dashboard navigation keeps the auth gate visible until redirect
 
   await page.goto(`${BASE_URL}/dashboard/index.html`);
 
-  await expect(page.locator("#dashboard-auth-gate")).toBeVisible();
+  await expect(page.locator("#dashboard-auth-gate")).toBeAttached();
   await expect(page.locator("nav.dashboard-tabs")).toHaveCount(0);
   await expect(page.locator("#dashboard-panel-monitoring")).toHaveCount(0);
+  await expect(page.locator("#dashboard-auth-gate")).toHaveText("");
+  await expect
+    .poll(async () => {
+      const rootClassList = await page.locator("html").evaluate((node) => Array.from(node.classList));
+      return rootClassList.includes("disconnected");
+    })
+    .toBe(true);
 
   releaseSessionResponse();
 

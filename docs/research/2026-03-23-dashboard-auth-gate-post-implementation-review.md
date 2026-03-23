@@ -7,7 +7,7 @@
 ## Delivered
 
 1. Added a route-local auth bootstrap state in [`dashboard/src/routes/+page.svelte`](../../dashboard/src/routes/+page.svelte).
-2. Changed the prerendered dashboard route to emit a neutral auth-pending gate instead of the dashboard shell until authenticated session restore succeeds.
+2. Changed the prerendered dashboard route to emit a no-copy auth gate instead of the dashboard shell until authenticated session restore succeeds.
 3. Added focused source-contract and rendered Playwright coverage proving:
    - the auth gate exists in the route contract,
    - logged-out dashboard entry does not render the tab shell while `/admin/session` is unresolved,
@@ -28,7 +28,7 @@ The fix stayed within the local dashboard auth flow:
 - no broader route/polling/auth architecture refactor,
 - no server-side static asset serving changes.
 
-That was the correct first slice because the root cause was the prerendered client route exposing the shell before auth truth, and the rendered auth-pending gate removes that exposure cleanly.
+That was the correct first slice because the root cause was the prerendered client route exposing the shell before auth truth, and the rendered no-copy auth gate removes that exposure cleanly without inventing a second login-like screen.
 
 ## Shortfall Check
 

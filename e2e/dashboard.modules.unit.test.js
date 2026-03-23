@@ -5454,11 +5454,10 @@ test('dashboard route keeps a neutral auth gate mounted until session bootstrap 
   assert.match(source, /let authBootstrapState = 'pending';/);
   assert.match(source, /id="dashboard-auth-gate"/);
   assert.match(source, /\{#if authBootstrapState !== 'authenticated'\}/);
-  assert.match(source, /Checking admin session/);
-  assert.match(
-    source,
-    /\{:else\}\s*<div class="container panel panel-border" data-dashboard-runtime-mode="native">/s
-  );
+  assert.doesNotMatch(source, /Checking admin session/);
+  assert.match(source, /aria-hidden="true"/);
+  assert.match(source, /class="dashboard-auth-gate"/);
+  assert.match(source, /\{:else\}\s*<div class="container panel panel-border" data-dashboard-runtime-mode="native">/s);
 });
 
 test('login route exposes native password-manager-friendly form-post semantics', () => {

@@ -66,7 +66,7 @@ Development:
 Notes:
 
 - Login page: `/dashboard/login.html`
-- Logged-out navigation to `/dashboard` or `/dashboard/index.html` now renders a neutral auth-pending gate while the dashboard restores session truth, and only reveals the dashboard shell after authentication is confirmed.
+- Logged-out navigation to `/dashboard` or `/dashboard/index.html` now keeps the dashboard shell hidden while session truth is restored and leaves only the normal disconnected striped page state visible before redirect.
 - Login form uses a native form `POST` to `/admin/login`, a visible readonly `Account` field with `autocomplete="username"`, and `current-password` semantics for the API key field so browsers/password managers can recognize it as a normal sign-in flow and associate the saved key with the dashboard account for this origin.
 - When the login page is ready for a new session, it focuses the API key field automatically so operators can paste the key immediately on local and remote dashboards.
 - Both dashboard entry routes advertise an explicit dashboard-scoped favicon under `/dashboard/assets/...` so browsers do not fall back to probing `/favicon.ico` at the protected site root.

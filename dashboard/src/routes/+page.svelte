@@ -1107,17 +1107,10 @@
 {#if authBootstrapState !== 'authenticated'}
   <div
     id="dashboard-auth-gate"
-    class="container panel panel-border"
-    data-dashboard-runtime-mode="native"
+    class="dashboard-auth-gate"
     aria-live="polite"
+    aria-hidden="true"
   >
-    <section class="section">
-      {#if authBootstrapState === 'error' && runtimeError}
-        <p class="message error">{runtimeError}</p>
-      {:else}
-        <p class="message info">Checking admin session...</p>
-      {/if}
-    </section>
   </div>
 {:else}
   <div class="container panel panel-border" data-dashboard-runtime-mode="native">
