@@ -277,11 +277,35 @@ Prove the expanded Scrapling ownership through the canonical classification and 
 
 Execution reference: [`2026-03-23-scrapling-request-native-category-fulfillment-implementation-plan.md`](2026-03-23-scrapling-request-native-category-fulfillment-implementation-plan.md)
 
+### `VID-TAX-1`
+
+Before Monitoring is redesigned, replace the current flattened verified-identity category collapse with a tested crosswalk from verified-identity categories into the canonical non-human taxonomy.
+
+Execution reference: [`2026-03-23-verified-identity-taxonomy-calibration-and-guardrails-implementation-plan.md`](2026-03-23-verified-identity-taxonomy-calibration-and-guardrails-implementation-plan.md)
+
+### `VID-TAX-2`
+
+Add explicit verified-identity versus taxonomy alignment receipts so later machine-first contracts can show whether high-confidence verified traffic is being categorized faithfully or through degraded fallback.
+
+Execution reference: [`2026-03-23-verified-identity-taxonomy-calibration-and-guardrails-implementation-plan.md`](2026-03-23-verified-identity-taxonomy-calibration-and-guardrails-implementation-plan.md)
+
+### `VID-BOT-1`
+
+Add benchmark and snapshot metrics that quantify verified-identity versus botness conflicts so Shuma can detect calibration drift rather than tuning through it blindly.
+
+Execution reference: [`2026-03-23-verified-identity-taxonomy-calibration-and-guardrails-implementation-plan.md`](2026-03-23-verified-identity-taxonomy-calibration-and-guardrails-implementation-plan.md)
+
+### `VID-GUARD-1`
+
+Make diagnosis and bounded tuning fail closed when verified-identity friction mismatch or unresolved botness conflicts show likely harm against configured tolerated or allowed verified traffic.
+
+Execution reference: [`2026-03-23-verified-identity-taxonomy-calibration-and-guardrails-implementation-plan.md`](2026-03-23-verified-identity-taxonomy-calibration-and-guardrails-implementation-plan.md)
+
 ## Phase 6: Human Operator Projection
 
 ### `MON-OVERHAUL-1`
 
-Rebuild Monitoring as the thin human projection over the machine-first contracts after the backend truth, first working closed loop, `ADV-DIAG-1` diagnostics-truth follow-up, and the Scrapling request-native category follow-ons are complete.
+Rebuild Monitoring as the thin human projection over the machine-first contracts after the backend truth, first working closed loop, `ADV-DIAG-1` diagnostics-truth follow-up, the Scrapling request-native category follow-ons, and the verified-identity calibration track are complete.
 
 ### `TUNE-SURFACE-1`
 
@@ -307,7 +331,7 @@ Keep the later benchmark-driven LLM code-evolution or PR-generation path behind 
 2. Do not blend structural decomposition and semantic expansion in the same tranche.
 3. Keep the first decomposition slices behavior-preserving and test-focused.
 4. Keep one hotspot file as the primary target per refactor tranche wherever practical.
-5. Do not reopen `MON-OVERHAUL-1`, `TUNE-SURFACE-1`, or `OVR-AGENT-2` until the blockers listed in this plan are satisfied, including protected tuning evidence, category-coverage proof, and the settled Scrapling request-native ownership follow-ons.
+5. Do not reopen `MON-OVERHAUL-1`, `TUNE-SURFACE-1`, or `OVR-AGENT-2` until the blockers listed in this plan are satisfied, including protected tuning evidence, category-coverage proof, the settled Scrapling request-native ownership follow-ons, and the verified-identity calibration tranches.
 6. Treat periodic scheduling and post-sim triggering as adapter paths over one reconcile or agent contract, not as separate controller implementations.
 
 # File-Length And Separation Guardrails
@@ -332,5 +356,5 @@ This plan is satisfied when:
 6. replay-promotion lineage is part of the backend control plane rather than sidecar-only tooling,
 7. Monitoring and Tuning consume those contracts rather than parallel semantics,
 8. the first autonomous tuning loop is blocked until protected evidence and category-aware objective gates are delivered,
-9. Monitoring and Tuning consume the proven closed-loop semantics rather than the earlier recommend-only subset,
+9. Monitoring and Tuning consume the proven closed-loop semantics plus faithful verified-identity calibration rather than the earlier recommend-only subset,
 10. and only then the later scheduled-agent and code-evolution planning can resume.

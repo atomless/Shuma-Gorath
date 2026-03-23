@@ -4,6 +4,24 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-23)
 
+### Verified-Identity Calibration Planning: Taxonomy Crosswalk, Conflict Metrics, And Closed-Loop Guardrails
+
+- [x] Audited how verified identity and native Web Bot Auth currently flow through taxonomy, benchmark, and reconcile code, then added a dedicated planning chain that treats verified identity as a calibration anchor and no-harm guardrail for the closed loop rather than only a coarse beneficial-traffic signal.
+- [x] Why:
+  - the current runtime already treats verified identity as exact observed evidence, but the taxonomy crosswalk still flattens too much of that truth into two broad buckets, which would make the Monitoring overhaul project weaker semantics than the backend can and should support.
+  - the benchmark and controller layers still lacked explicit verified-identity-versus-taxonomy alignment receipts, verified-identity-versus-botness conflict metrics, and hard fail-closed guardrails for harming tolerated or allowed verified traffic.
+  - the cleanest next step was a planning-only tranche that inserted a verified-identity calibration track ahead of `MON-OVERHAUL-1`, so the human projection can later reuse faithful machine-first semantics instead of inventing them after the fact.
+- [x] Evidence:
+  - `docs/research/2026-03-23-verified-identity-taxonomy-calibration-and-tuning-guardrails-review.md`
+  - `docs/plans/2026-03-23-verified-identity-taxonomy-calibration-and-guardrails-implementation-plan.md`
+  - `docs/research/README.md`
+  - `docs/plans/README.md`
+  - `docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`
+  - `docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`
+  - `todos/todo.md`
+  - `todos/completed-todo-history.md`
+  - `git diff --check`
+
 ### Scrapling Capability Planning: Request-Native Taxonomy Expansion Before Monitoring
 
 - [x] Audited the canonical non-human taxonomy against Scrapling's official capability surface and Shuma's current shared-host worker/runtime contract, then wrote a new research note, implementation plan, and backlog sequence for expanding Scrapling only into the request-native categories it can genuinely own before `MON-OVERHAUL-1`.
