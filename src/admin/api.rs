@@ -9494,7 +9494,7 @@ mod admin_config_tests {
     }
 
     #[test]
-    fn admin_config_updates_lists_and_cdp_ban_duration() {
+    fn admin_config_updates_lists_and_full_ban_duration_family_set() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
         let store = TestStore::default();
@@ -9512,7 +9512,18 @@ mod admin_config_tests {
                 "allowlist": ["203.0.113.0/24", "198.51.100.9"],
                 "path_allowlist_enabled": false,
                 "path_allowlist": ["/status", "/assets/*"],
-                "ban_durations": {"cdp": 777}
+                "ban_durations": {
+                    "honeypot": 771,
+                    "ip_range_honeypot": 772,
+                    "maze_crawler": 773,
+                    "rate_limit": 774,
+                    "cdp": 775,
+                    "edge_fingerprint": 776,
+                    "tarpit_persistence": 777,
+                    "not_a_bot_abuse": 778,
+                    "challenge_puzzle_abuse": 779,
+                    "admin": 780
+                }
             }"#
             .to_vec(),
         );
@@ -9558,9 +9569,63 @@ mod admin_config_tests {
         );
         assert_eq!(
             cfg.get("ban_durations")
+                .and_then(|v| v.get("honeypot"))
+                .and_then(|v| v.as_u64()),
+            Some(771)
+        );
+        assert_eq!(
+            cfg.get("ban_durations")
+                .and_then(|v| v.get("ip_range_honeypot"))
+                .and_then(|v| v.as_u64()),
+            Some(772)
+        );
+        assert_eq!(
+            cfg.get("ban_durations")
+                .and_then(|v| v.get("maze_crawler"))
+                .and_then(|v| v.as_u64()),
+            Some(773)
+        );
+        assert_eq!(
+            cfg.get("ban_durations")
+                .and_then(|v| v.get("rate_limit"))
+                .and_then(|v| v.as_u64()),
+            Some(774)
+        );
+        assert_eq!(
+            cfg.get("ban_durations")
                 .and_then(|v| v.get("cdp"))
                 .and_then(|v| v.as_u64()),
+            Some(775)
+        );
+        assert_eq!(
+            cfg.get("ban_durations")
+                .and_then(|v| v.get("edge_fingerprint"))
+                .and_then(|v| v.as_u64()),
+            Some(776)
+        );
+        assert_eq!(
+            cfg.get("ban_durations")
+                .and_then(|v| v.get("tarpit_persistence"))
+                .and_then(|v| v.as_u64()),
             Some(777)
+        );
+        assert_eq!(
+            cfg.get("ban_durations")
+                .and_then(|v| v.get("not_a_bot_abuse"))
+                .and_then(|v| v.as_u64()),
+            Some(778)
+        );
+        assert_eq!(
+            cfg.get("ban_durations")
+                .and_then(|v| v.get("challenge_puzzle_abuse"))
+                .and_then(|v| v.as_u64()),
+            Some(779)
+        );
+        assert_eq!(
+            cfg.get("ban_durations")
+                .and_then(|v| v.get("admin"))
+                .and_then(|v| v.as_u64()),
+            Some(780)
         );
 
         let saved_bytes = store.get("config:default").unwrap().unwrap();
@@ -9589,9 +9654,27 @@ mod admin_config_tests {
             saved_cfg.path_allowlist,
             vec!["/status".to_string(), "/assets/*".to_string()]
         );
-        assert_eq!(saved_cfg.ban_durations.cdp, 777);
+        assert_eq!(saved_cfg.ban_durations.honeypot, 771);
+        assert_eq!(saved_cfg.ban_durations.ip_range_honeypot, 772);
+        assert_eq!(saved_cfg.ban_durations.maze_crawler, 773);
+        assert_eq!(saved_cfg.ban_durations.rate_limit, 774);
+        assert_eq!(saved_cfg.ban_durations.cdp, 775);
+        assert_eq!(saved_cfg.ban_durations.edge_fingerprint, 776);
+        assert_eq!(saved_cfg.ban_durations.tarpit_persistence, 777);
+        assert_eq!(saved_cfg.ban_durations.not_a_bot_abuse, 778);
+        assert_eq!(saved_cfg.ban_durations.challenge_puzzle_abuse, 779);
+        assert_eq!(saved_cfg.ban_durations.admin, 780);
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+    }
+
+    #[test]
+    fn manual_ban_uses_configured_admin_default_duration_when_duration_is_omitted() {
+        let _lock = crate::test_support::lock_env();
+        let mut cfg = crate::config::defaults().clone();
+        cfg.ban_durations.admin = 3210;
+        let json = serde_json::json!({ "ip": "198.51.100.41" });
+        assert_eq!(resolve_manual_ban_duration_seconds(&json, &cfg), 3210);
     }
 
     #[test]
@@ -13133,6 +13216,14 @@ pub(super) fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(Str
             cfg.ban_durations.honeypot.to_string(),
         ),
         (
+            "SHUMA_BAN_DURATION_IP_RANGE_HONEYPOT".to_string(),
+            cfg.ban_durations.ip_range_honeypot.to_string(),
+        ),
+        (
+            "SHUMA_BAN_DURATION_MAZE_CRAWLER".to_string(),
+            cfg.ban_durations.maze_crawler.to_string(),
+        ),
+        (
             "SHUMA_BAN_DURATION_RATE_LIMIT".to_string(),
             cfg.ban_durations.rate_limit.to_string(),
         ),
@@ -13143,6 +13234,22 @@ pub(super) fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(Str
         (
             "SHUMA_BAN_DURATION_CDP".to_string(),
             cfg.ban_durations.cdp.to_string(),
+        ),
+        (
+            "SHUMA_BAN_DURATION_EDGE_FINGERPRINT".to_string(),
+            cfg.ban_durations.edge_fingerprint.to_string(),
+        ),
+        (
+            "SHUMA_BAN_DURATION_TARPIT_PERSISTENCE".to_string(),
+            cfg.ban_durations.tarpit_persistence.to_string(),
+        ),
+        (
+            "SHUMA_BAN_DURATION_NOT_A_BOT_ABUSE".to_string(),
+            cfg.ban_durations.not_a_bot_abuse.to_string(),
+        ),
+        (
+            "SHUMA_BAN_DURATION_CHALLENGE_PUZZLE_ABUSE".to_string(),
+            cfg.ban_durations.challenge_puzzle_abuse.to_string(),
         ),
         ("SHUMA_RATE_LIMIT".to_string(), cfg.rate_limit.to_string()),
         (
@@ -14068,9 +14175,15 @@ fn admin_config_response_payload(
 #[serde(default, deny_unknown_fields)]
 struct AdminBanDurationsPatch {
     honeypot: Option<u64>,
+    ip_range_honeypot: Option<u64>,
+    maze_crawler: Option<u64>,
     rate_limit: Option<u64>,
     admin: Option<u64>,
     cdp: Option<u64>,
+    edge_fingerprint: Option<u64>,
+    tarpit_persistence: Option<u64>,
+    not_a_bot_abuse: Option<u64>,
+    challenge_puzzle_abuse: Option<u64>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -14728,6 +14841,18 @@ pub(super) fn handle_admin_config_internal(
                 cfg.ban_durations.honeypot = honeypot;
                 changed = true;
             }
+            if let Some(ip_range_honeypot) = ban_durations
+                .get("ip_range_honeypot")
+                .and_then(|v| v.as_u64())
+            {
+                cfg.ban_durations.ip_range_honeypot = ip_range_honeypot;
+                changed = true;
+            }
+            if let Some(maze_crawler) = ban_durations.get("maze_crawler").and_then(|v| v.as_u64())
+            {
+                cfg.ban_durations.maze_crawler = maze_crawler;
+                changed = true;
+            }
             if let Some(rate_limit) = ban_durations.get("rate_limit").and_then(|v| v.as_u64()) {
                 cfg.ban_durations.rate_limit = rate_limit;
                 changed = true;
@@ -14738,6 +14863,34 @@ pub(super) fn handle_admin_config_internal(
             }
             if let Some(cdp) = ban_durations.get("cdp").and_then(|v| v.as_u64()) {
                 cfg.ban_durations.cdp = cdp;
+                changed = true;
+            }
+            if let Some(edge_fingerprint) = ban_durations
+                .get("edge_fingerprint")
+                .and_then(|v| v.as_u64())
+            {
+                cfg.ban_durations.edge_fingerprint = edge_fingerprint;
+                changed = true;
+            }
+            if let Some(tarpit_persistence) = ban_durations
+                .get("tarpit_persistence")
+                .and_then(|v| v.as_u64())
+            {
+                cfg.ban_durations.tarpit_persistence = tarpit_persistence;
+                changed = true;
+            }
+            if let Some(not_a_bot_abuse) = ban_durations
+                .get("not_a_bot_abuse")
+                .and_then(|v| v.as_u64())
+            {
+                cfg.ban_durations.not_a_bot_abuse = not_a_bot_abuse;
+                changed = true;
+            }
+            if let Some(challenge_puzzle_abuse) = ban_durations
+                .get("challenge_puzzle_abuse")
+                .and_then(|v| v.as_u64())
+            {
+                cfg.ban_durations.challenge_puzzle_abuse = challenge_puzzle_abuse;
                 changed = true;
             }
         }
@@ -17327,6 +17480,73 @@ fn finalize_manual_ban_result<S: crate::challenge::KeyValueStore>(
     Response::new(200, json!({"status": "banned", "ip": ip}).to_string())
 }
 
+fn resolve_manual_ban_duration_seconds(
+    json: &serde_json::Value,
+    cfg: &crate::config::Config,
+) -> u64 {
+    json.get("duration")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(cfg.get_ban_duration("admin"))
+        .clamp(ADMIN_BAN_DURATION_MIN, ADMIN_BAN_DURATION_MAX)
+}
+
+fn handle_admin_ban_route(
+    req: &Request,
+    store: &Store,
+    site_id: &str,
+    cfg: &crate::config::Config,
+    provider_registry: &crate::providers::registry::ProviderRegistry,
+) -> Response {
+    if *req.method() == spin_sdk::http::Method::Post {
+        let json = match crate::request_validation::parse_json_body(
+            req.body(),
+            crate::request_validation::MAX_ADMIN_JSON_BYTES,
+        ) {
+            Ok(v) => v,
+            Err(e) => return Response::new(400, e),
+        };
+
+        let ip_raw = match json.get("ip").and_then(|v| v.as_str()) {
+            Some(v) => v,
+            None => return Response::new(400, "Missing 'ip' field in request body"),
+        };
+        let ip = match crate::request_validation::parse_ip_addr(ip_raw) {
+            Some(v) => v,
+            None => return Response::new(400, "Invalid IP address"),
+        };
+        let reason = "manual_ban".to_string();
+        let duration = resolve_manual_ban_duration_seconds(&json, cfg);
+
+        let sync_result = provider_registry
+            .ban_store_provider()
+            .ban_ip_with_fingerprint(
+                store,
+                site_id,
+                ip.as_str(),
+                reason.as_str(),
+                duration,
+                Some(crate::enforcement::ban::BanFingerprint {
+                    score: None,
+                    signals: vec!["manual_admin".to_string()],
+                    summary: Some("manual_admin_ban".to_string()),
+                }),
+            );
+        return finalize_manual_ban_result(
+            store,
+            req,
+            ip.as_str(),
+            reason.as_str(),
+            sync_result,
+        );
+    }
+
+    response_for_active_ban_list(
+        provider_registry
+            .ban_store_provider()
+            .list_active_bans(store, site_id),
+    )
+}
+
 fn finalize_manual_unban_result<S: crate::challenge::KeyValueStore>(
     store: &S,
     req: &Request,
@@ -17665,61 +17885,7 @@ pub fn handle_admin(req: &Request) -> Response {
                 Err(err) => return Response::new(500, err.user_message()),
             };
             let provider_registry = crate::providers::registry::ProviderRegistry::from_config(&cfg);
-
-            // POST: Manually ban an IP
-            if *req.method() == spin_sdk::http::Method::Post {
-                let json = match crate::request_validation::parse_json_body(
-                    req.body(),
-                    crate::request_validation::MAX_ADMIN_JSON_BYTES,
-                ) {
-                    Ok(v) => v,
-                    Err(e) => return Response::new(400, e),
-                };
-
-                let ip_raw = match json.get("ip").and_then(|v| v.as_str()) {
-                    Some(v) => v,
-                    None => return Response::new(400, "Missing 'ip' field in request body"),
-                };
-                let ip = match crate::request_validation::parse_ip_addr(ip_raw) {
-                    Some(v) => v,
-                    None => return Response::new(400, "Invalid IP address"),
-                };
-                // Manual bans are always tagged with a fixed reason to prevent client-side tampering.
-                let reason = "manual_ban".to_string();
-                let duration = json
-                    .get("duration")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(21600)
-                    .clamp(ADMIN_BAN_DURATION_MIN, ADMIN_BAN_DURATION_MAX);
-
-                let sync_result = provider_registry
-                    .ban_store_provider()
-                    .ban_ip_with_fingerprint(
-                        &store,
-                        site_id,
-                        ip.as_str(),
-                        reason.as_str(),
-                        duration,
-                        Some(crate::enforcement::ban::BanFingerprint {
-                            score: None,
-                            signals: vec!["manual_admin".to_string()],
-                            summary: Some("manual_admin_ban".to_string()),
-                        }),
-                    );
-                return finalize_manual_ban_result(
-                    &store,
-                    req,
-                    ip.as_str(),
-                    reason.as_str(),
-                    sync_result,
-                );
-            }
-            // GET: List all bans for this site (keys starting with ban:site_id:)
-            response_for_active_ban_list(
-                provider_registry
-                    .ban_store_provider()
-                    .list_active_bans(&store, site_id),
-            )
+            handle_admin_ban_route(req, &store, site_id, &cfg, &provider_registry)
         }
         "/admin/unban" => {
             if *req.method() != spin_sdk::http::Method::Post {

@@ -62,6 +62,8 @@ make test-dashboard-unit # Dashboard module unit tests (Node `node:test`)
 make test-dashboard-adversary-sim-lane-contract # Focused dashboard lane-contract checks for the red-team lane selector + diagnostics
 make test-dashboard-tab-information-architecture # Focused dashboard unit checks for tab order and source-of-truth tab registry alignment
 make test-dashboard-policy-pane-ownership # Focused dashboard unit checks that Policy owns the moved panes and Tuning stays botness-only
+make test-ban-duration-family-truth # Focused config/runtime/Policy-tab ban-duration family parity checks
+make test-dashboard-e2e-ban-duration-family-truth # Focused Playwright smoke for Ban Durations coverage in Policy
 make test-dashboard-budgets # Dashboard /_app bundle-size ceilings report (warn-only by default)
 make test-dashboard-budgets-strict # Dashboard /_app bundle-size ceilings (hard-fail)
 make test-dashboard-e2e-adversary-sim # Focused Playwright adversary-sim dashboard smoke checks

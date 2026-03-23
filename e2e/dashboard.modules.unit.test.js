@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
+const WORKSPACE_ROOT = path.resolve(__dirname, '..');
 const DASHBOARD_ROOT = path.resolve(__dirname, '..', 'dashboard');
 const DASHBOARD_NATIVE_RUNTIME_PATH = path.join(
   DASHBOARD_ROOT,
@@ -5016,6 +5017,8 @@ test('dashboard config tabs reuse shared panels, save flows, and owned controls'
   assert.match(robotsSurfaceSource, /id="open-robots-txt-link"/);
   assert.match(robotsSurfaceSource, /id="preview-robots"/);
   assert.match(robotsSurfaceSource, /dayId="dur-honeypot-days"/);
+  assert.match(robotsSurfaceSource, /dayId="dur-ip-range-honeypot-days"/);
+  assert.match(robotsSurfaceSource, /dayId="dur-maze-crawler-days"/);
   assert.match(robotsSurfaceSource, /id="browser-policy-toggle"/);
   assert.match(robotsSurfaceSource, /id="browser-block-rules"/);
   assert.match(robotsSurfaceSource, /id="path-allowlist-enabled-toggle"/);
@@ -5061,6 +5064,91 @@ test('dashboard config tabs reuse shared panels, save flows, and owned controls'
   assert.doesNotMatch(tuningSurfaceSource, /id="browser-policy-toggle"/);
   assert.doesNotMatch(tuningSurfaceSource, /id="browser-block-rules"/);
   assert.doesNotMatch(tuningSurfaceSource, /id="path-allowlist"/);
+});
+
+test('ban duration families remain aligned across runtime, config, and policy surfaces', () => {
+  const configSource = fs.readFileSync(
+    path.join(WORKSPACE_ROOT, 'src/config/mod.rs'),
+    'utf8'
+  );
+  const adminApiSource = fs.readFileSync(
+    path.join(WORKSPACE_ROOT, 'src/admin/api.rs'),
+    'utf8'
+  );
+  const requestRouterSource = fs.readFileSync(
+    path.join(WORKSPACE_ROOT, 'src/runtime/request_router.rs'),
+    'utf8'
+  );
+  const planBuilderSource = fs.readFileSync(
+    path.join(WORKSPACE_ROOT, 'src/runtime/effect_intents/plan_builder.rs'),
+    'utf8'
+  );
+  const libSource = fs.readFileSync(
+    path.join(WORKSPACE_ROOT, 'src/lib.rs'),
+    'utf8'
+  );
+  const internalProviderSource = fs.readFileSync(
+    path.join(WORKSPACE_ROOT, 'src/providers/internal.rs'),
+    'utf8'
+  );
+  const externalProviderSource = fs.readFileSync(
+    path.join(WORKSPACE_ROOT, 'src/providers/external.rs'),
+    'utf8'
+  );
+  const policyTabSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/RobotsTab.svelte'),
+    'utf8'
+  );
+  const durationsPaneSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/config/ConfigDurationsSection.svelte'),
+    'utf8'
+  );
+  const configSchemaSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/domain/config-schema.js'),
+    'utf8'
+  );
+  const statusVarMeanings = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'static/assets/status-var-meanings.json'),
+    'utf8'
+  );
+
+  const families = [
+    'honeypot',
+    'ip_range_honeypot',
+    'maze_crawler',
+    'rate_limit',
+    'cdp',
+    'edge_fingerprint',
+    'tarpit_persistence',
+    'not_a_bot_abuse',
+    'challenge_puzzle_abuse',
+    'admin'
+  ];
+
+  families.forEach((family) => {
+    assert.match(configSource, new RegExp(`pub ${family}: u64`));
+    assert.match(adminApiSource, new RegExp(`${family}: Option<u64>`));
+    assert.equal(configSchemaSource.includes(`ban_durations.${family}`), true);
+    assert.equal(statusVarMeanings.includes(`ban_durations.${family}`), true);
+  });
+
+  assert.match(planBuilderSource, /get_ban_duration\("ip_range_honeypot"\)/);
+  assert.match(planBuilderSource, /get_ban_duration\("honeypot"\)/);
+  assert.match(planBuilderSource, /get_ban_duration\("rate_limit"\)/);
+  assert.match(libSource, /get_ban_duration\("maze_crawler"\)/);
+  assert.match(requestRouterSource, /get_ban_duration\(ban_reason\)/);
+  assert.doesNotMatch(requestRouterSource, /duration_seconds: CHALLENGE_ABUSE_SHORT_BAN_SECONDS/);
+  assert.match(internalProviderSource, /get_ban_duration\("tarpit_persistence"\)/);
+  assert.doesNotMatch(internalProviderSource, /TARPIT_ESCALATION_SHORT_BAN_SECONDS/);
+  assert.match(externalProviderSource, /get_ban_duration\("edge_fingerprint"\)/);
+  assert.match(adminApiSource, /unwrap_or\(cfg\.get_ban_duration\("admin"\)\)/);
+
+  assert.match(policyTabSource, /payload\.ban_durations = \{/);
+  assert.match(durationsPaneSource, /Maze Threshold Exceeded/);
+  assert.match(durationsPaneSource, /Not-a-Bot Abuse/);
+  assert.match(durationsPaneSource, /Challenge Puzzle Abuse/);
+  assert.match(durationsPaneSource, /Tarpit Persistence/);
+  assert.match(durationsPaneSource, /Edge Fingerprint Automation/);
 });
 
 test('config panel provides the shared writable-hide and dirty-state chrome for edit panes', () => {

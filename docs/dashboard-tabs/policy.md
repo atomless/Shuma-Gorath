@@ -20,7 +20,7 @@ Panels and controls:
   - direct link to `/robots.txt` for current saved policy,
   - show or hide preview fed by `POST /admin/robots/preview` with unsaved state.
 - `Ban Durations`:
-  - per-trigger duration tuples for `honeypot`, `rate_limit`, `cdp`, `admin`.
+  - per-trigger duration tuples for `honeypot`, `ip_range_honeypot`, `maze_crawler`, `rate_limit`, `cdp`, `edge_fingerprint`, `tarpit_persistence`, `not_a_bot_abuse`, `challenge_puzzle_abuse`, and `admin`.
 - `Browser Policy`:
   - toggle (`browser_policy_enabled`),
   - minimum-version signal rules (`browser_block`).

@@ -1399,7 +1399,7 @@ impl FingerprintSignalProvider for ExternalFingerprintSignalProvider {
                     "default",
                     &ip,
                     "edge_fingerprint_automation",
-                    cfg.get_ban_duration("cdp"),
+                    cfg.get_ban_duration("edge_fingerprint"),
                     Some(crate::enforcement::ban::BanFingerprint {
                         score: Some((cdp_report.score * 2.0).round().clamp(0.0, 10.0) as u8),
                         signals: vec!["edge_fingerprint".to_string()],

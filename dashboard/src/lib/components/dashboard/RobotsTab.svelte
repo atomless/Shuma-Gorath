@@ -53,12 +53,30 @@
   let durHoneypotDays = 1;
   let durHoneypotHours = 0;
   let durHoneypotMinutes = 0;
+  let durIpRangeHoneypotDays = 1;
+  let durIpRangeHoneypotHours = 0;
+  let durIpRangeHoneypotMinutes = 0;
+  let durMazeCrawlerDays = 1;
+  let durMazeCrawlerHours = 0;
+  let durMazeCrawlerMinutes = 0;
   let durRateLimitDays = 0;
   let durRateLimitHours = 1;
   let durRateLimitMinutes = 0;
   let durCdpDays = 0;
   let durCdpHours = 12;
   let durCdpMinutes = 0;
+  let durEdgeFingerprintDays = 0;
+  let durEdgeFingerprintHours = 12;
+  let durEdgeFingerprintMinutes = 0;
+  let durTarpitPersistenceDays = 0;
+  let durTarpitPersistenceHours = 0;
+  let durTarpitPersistenceMinutes = 10;
+  let durNotABotAbuseDays = 0;
+  let durNotABotAbuseHours = 0;
+  let durNotABotAbuseMinutes = 10;
+  let durChallengePuzzleAbuseDays = 0;
+  let durChallengePuzzleAbuseHours = 0;
+  let durChallengePuzzleAbuseMinutes = 10;
   let durAdminDays = 0;
   let durAdminHours = 6;
   let durAdminMinutes = 0;
@@ -85,8 +103,14 @@
     },
     durations: {
       honeypot: 86400,
+      ipRangeHoneypot: 86400,
+      mazeCrawler: 86400,
       rateLimit: 3600,
       cdp: 43200,
+      edgeFingerprint: 43200,
+      tarpitPersistence: 600,
+      notABotAbuse: 600,
+      challengePuzzleAbuse: 600,
       admin: 21600
     },
     browserPolicy: {
@@ -105,11 +129,18 @@
     const durations = config && typeof config.ban_durations === 'object'
       ? config.ban_durations
       : {};
+    const readDuration = (key, fallbackSeconds) => parseInteger(durations[key], fallbackSeconds);
     return {
-      honeypot: parseInteger(durations.honeypot, 86400),
-      rateLimit: parseInteger(durations.rate_limit, 3600),
-      cdp: parseInteger(durations.cdp, 43200),
-      admin: parseInteger(durations.admin, 21600)
+      honeypot: readDuration('honeypot', 86400),
+      ipRangeHoneypot: readDuration('ip_range_honeypot', 86400),
+      mazeCrawler: readDuration('maze_crawler', 86400),
+      rateLimit: readDuration('rate_limit', 3600),
+      cdp: readDuration('cdp', 43200),
+      edgeFingerprint: readDuration('edge_fingerprint', 43200),
+      tarpitPersistence: readDuration('tarpit_persistence', 600),
+      notABotAbuse: readDuration('not_a_bot_abuse', 600),
+      challengePuzzleAbuse: readDuration('challenge_puzzle_abuse', 600),
+      admin: readDuration('admin', 21600)
     };
   };
 
@@ -151,6 +182,16 @@
     durHoneypotHours = honeypotParts.hours;
     durHoneypotMinutes = honeypotParts.minutes;
 
+    const ipRangeHoneypotParts = durationPartsFromSeconds(durations.ipRangeHoneypot, 86400);
+    durIpRangeHoneypotDays = ipRangeHoneypotParts.days;
+    durIpRangeHoneypotHours = ipRangeHoneypotParts.hours;
+    durIpRangeHoneypotMinutes = ipRangeHoneypotParts.minutes;
+
+    const mazeCrawlerParts = durationPartsFromSeconds(durations.mazeCrawler, 86400);
+    durMazeCrawlerDays = mazeCrawlerParts.days;
+    durMazeCrawlerHours = mazeCrawlerParts.hours;
+    durMazeCrawlerMinutes = mazeCrawlerParts.minutes;
+
     const rateLimitParts = durationPartsFromSeconds(durations.rateLimit, 3600);
     durRateLimitDays = rateLimitParts.days;
     durRateLimitHours = rateLimitParts.hours;
@@ -160,6 +201,26 @@
     durCdpDays = cdpParts.days;
     durCdpHours = cdpParts.hours;
     durCdpMinutes = cdpParts.minutes;
+
+    const edgeFingerprintParts = durationPartsFromSeconds(durations.edgeFingerprint, 43200);
+    durEdgeFingerprintDays = edgeFingerprintParts.days;
+    durEdgeFingerprintHours = edgeFingerprintParts.hours;
+    durEdgeFingerprintMinutes = edgeFingerprintParts.minutes;
+
+    const tarpitPersistenceParts = durationPartsFromSeconds(durations.tarpitPersistence, 600);
+    durTarpitPersistenceDays = tarpitPersistenceParts.days;
+    durTarpitPersistenceHours = tarpitPersistenceParts.hours;
+    durTarpitPersistenceMinutes = tarpitPersistenceParts.minutes;
+
+    const notABotAbuseParts = durationPartsFromSeconds(durations.notABotAbuse, 600);
+    durNotABotAbuseDays = notABotAbuseParts.days;
+    durNotABotAbuseHours = notABotAbuseParts.hours;
+    durNotABotAbuseMinutes = notABotAbuseParts.minutes;
+
+    const challengePuzzleAbuseParts = durationPartsFromSeconds(durations.challengePuzzleAbuse, 600);
+    durChallengePuzzleAbuseDays = challengePuzzleAbuseParts.days;
+    durChallengePuzzleAbuseHours = challengePuzzleAbuseParts.hours;
+    durChallengePuzzleAbuseMinutes = challengePuzzleAbuseParts.minutes;
 
     const adminParts = durationPartsFromSeconds(durations.admin, 21600);
     durAdminDays = adminParts.days;
@@ -206,8 +267,14 @@
     if (durationsDirty) {
       payload.ban_durations = {
         honeypot: honeypotDurationSeconds,
+        ip_range_honeypot: ipRangeHoneypotDurationSeconds,
+        maze_crawler: mazeCrawlerDurationSeconds,
         rate_limit: rateDurationSeconds,
         cdp: cdpDurationSeconds,
+        edge_fingerprint: edgeFingerprintDurationSeconds,
+        tarpit_persistence: tarpitPersistenceDurationSeconds,
+        not_a_bot_abuse: notABotAbuseDurationSeconds,
+        challenge_puzzle_abuse: challengePuzzleAbuseDurationSeconds,
         admin: adminDurationSeconds
       };
     }
@@ -238,8 +305,14 @@
           },
           durations: {
             honeypot: honeypotDurationSeconds,
+            ipRangeHoneypot: ipRangeHoneypotDurationSeconds,
+            mazeCrawler: mazeCrawlerDurationSeconds,
             rateLimit: rateDurationSeconds,
             cdp: cdpDurationSeconds,
+            edgeFingerprint: edgeFingerprintDurationSeconds,
+            tarpitPersistence: tarpitPersistenceDurationSeconds,
+            notABotAbuse: notABotAbuseDurationSeconds,
+            challengePuzzleAbuse: challengePuzzleAbuseDurationSeconds,
             admin: adminDurationSeconds
           },
           browserPolicy: {
@@ -331,14 +404,56 @@
   );
 
   $: honeypotDurationSeconds = durationSeconds(durHoneypotDays, durHoneypotHours, durHoneypotMinutes);
+  $: ipRangeHoneypotDurationSeconds = durationSeconds(
+    durIpRangeHoneypotDays,
+    durIpRangeHoneypotHours,
+    durIpRangeHoneypotMinutes
+  );
+  $: mazeCrawlerDurationSeconds = durationSeconds(
+    durMazeCrawlerDays,
+    durMazeCrawlerHours,
+    durMazeCrawlerMinutes
+  );
   $: rateDurationSeconds = durationSeconds(durRateLimitDays, durRateLimitHours, durRateLimitMinutes);
   $: cdpDurationSeconds = durationSeconds(durCdpDays, durCdpHours, durCdpMinutes);
+  $: edgeFingerprintDurationSeconds = durationSeconds(
+    durEdgeFingerprintDays,
+    durEdgeFingerprintHours,
+    durEdgeFingerprintMinutes
+  );
+  $: tarpitPersistenceDurationSeconds = durationSeconds(
+    durTarpitPersistenceDays,
+    durTarpitPersistenceHours,
+    durTarpitPersistenceMinutes
+  );
+  $: notABotAbuseDurationSeconds = durationSeconds(
+    durNotABotAbuseDays,
+    durNotABotAbuseHours,
+    durNotABotAbuseMinutes
+  );
+  $: challengePuzzleAbuseDurationSeconds = durationSeconds(
+    durChallengePuzzleAbuseDays,
+    durChallengePuzzleAbuseHours,
+    durChallengePuzzleAbuseMinutes
+  );
   $: adminDurationSeconds = durationSeconds(durAdminDays, durAdminHours, durAdminMinutes);
 
   $: durHoneypotValid = isDurationTupleValid(
     durHoneypotDays,
     durHoneypotHours,
     durHoneypotMinutes,
+    DURATION_VALIDATION_BOUNDS
+  );
+  $: durIpRangeHoneypotValid = isDurationTupleValid(
+    durIpRangeHoneypotDays,
+    durIpRangeHoneypotHours,
+    durIpRangeHoneypotMinutes,
+    DURATION_VALIDATION_BOUNDS
+  );
+  $: durMazeCrawlerValid = isDurationTupleValid(
+    durMazeCrawlerDays,
+    durMazeCrawlerHours,
+    durMazeCrawlerMinutes,
     DURATION_VALIDATION_BOUNDS
   );
   $: durRateLimitValid = isDurationTupleValid(
@@ -353,6 +468,30 @@
     durCdpMinutes,
     DURATION_VALIDATION_BOUNDS
   );
+  $: durEdgeFingerprintValid = isDurationTupleValid(
+    durEdgeFingerprintDays,
+    durEdgeFingerprintHours,
+    durEdgeFingerprintMinutes,
+    DURATION_VALIDATION_BOUNDS
+  );
+  $: durTarpitPersistenceValid = isDurationTupleValid(
+    durTarpitPersistenceDays,
+    durTarpitPersistenceHours,
+    durTarpitPersistenceMinutes,
+    DURATION_VALIDATION_BOUNDS
+  );
+  $: durNotABotAbuseValid = isDurationTupleValid(
+    durNotABotAbuseDays,
+    durNotABotAbuseHours,
+    durNotABotAbuseMinutes,
+    DURATION_VALIDATION_BOUNDS
+  );
+  $: durChallengePuzzleAbuseValid = isDurationTupleValid(
+    durChallengePuzzleAbuseDays,
+    durChallengePuzzleAbuseHours,
+    durChallengePuzzleAbuseMinutes,
+    DURATION_VALIDATION_BOUNDS
+  );
   $: durAdminValid = isDurationTupleValid(
     durAdminDays,
     durAdminHours,
@@ -361,14 +500,26 @@
   );
   $: durationsValid = (
     durHoneypotValid &&
+    durIpRangeHoneypotValid &&
+    durMazeCrawlerValid &&
     durRateLimitValid &&
     durCdpValid &&
+    durEdgeFingerprintValid &&
+    durTarpitPersistenceValid &&
+    durNotABotAbuseValid &&
+    durChallengePuzzleAbuseValid &&
     durAdminValid
   );
   $: durationsDirty = (
     honeypotDurationSeconds !== baseline.durations.honeypot ||
+    ipRangeHoneypotDurationSeconds !== baseline.durations.ipRangeHoneypot ||
+    mazeCrawlerDurationSeconds !== baseline.durations.mazeCrawler ||
     rateDurationSeconds !== baseline.durations.rateLimit ||
     cdpDurationSeconds !== baseline.durations.cdp ||
+    edgeFingerprintDurationSeconds !== baseline.durations.edgeFingerprint ||
+    tarpitPersistenceDurationSeconds !== baseline.durations.tarpitPersistence ||
+    notABotAbuseDurationSeconds !== baseline.durations.notABotAbuse ||
+    challengePuzzleAbuseDurationSeconds !== baseline.durations.challengePuzzleAbuse ||
     adminDurationSeconds !== baseline.durations.admin
   );
 
@@ -468,18 +619,42 @@
       bind:durHoneypotDays
       bind:durHoneypotHours
       bind:durHoneypotMinutes
+      bind:durIpRangeHoneypotDays
+      bind:durIpRangeHoneypotHours
+      bind:durIpRangeHoneypotMinutes
+      bind:durMazeCrawlerDays
+      bind:durMazeCrawlerHours
+      bind:durMazeCrawlerMinutes
       bind:durRateLimitDays
       bind:durRateLimitHours
       bind:durRateLimitMinutes
       bind:durCdpDays
       bind:durCdpHours
       bind:durCdpMinutes
+      bind:durEdgeFingerprintDays
+      bind:durEdgeFingerprintHours
+      bind:durEdgeFingerprintMinutes
+      bind:durTarpitPersistenceDays
+      bind:durTarpitPersistenceHours
+      bind:durTarpitPersistenceMinutes
+      bind:durNotABotAbuseDays
+      bind:durNotABotAbuseHours
+      bind:durNotABotAbuseMinutes
+      bind:durChallengePuzzleAbuseDays
+      bind:durChallengePuzzleAbuseHours
+      bind:durChallengePuzzleAbuseMinutes
       bind:durAdminDays
       bind:durAdminHours
       bind:durAdminMinutes
       durHoneypotValid={durHoneypotValid}
+      durIpRangeHoneypotValid={durIpRangeHoneypotValid}
+      durMazeCrawlerValid={durMazeCrawlerValid}
       durRateLimitValid={durRateLimitValid}
       durCdpValid={durCdpValid}
+      durEdgeFingerprintValid={durEdgeFingerprintValid}
+      durTarpitPersistenceValid={durTarpitPersistenceValid}
+      durNotABotAbuseValid={durNotABotAbuseValid}
+      durChallengePuzzleAbuseValid={durChallengePuzzleAbuseValid}
       durAdminValid={durAdminValid}
     />
 

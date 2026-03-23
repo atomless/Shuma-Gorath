@@ -4,6 +4,32 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-23)
 
+### BAN-DUR-1: Make Ban Durations truthful for every shipped ban family
+
+- [x] Added focused failing and then passing coverage for the full shipped ban-family set across config/admin parity, runtime duration routing, and Policy-tab rendering.
+- [x] Expanded the canonical `ban_durations` config family to cover every currently shipped ban-producing family and routed each shipped runtime ban site through its matching family key instead of neighboring buckets or hardcoded short-ban constants.
+- [x] Made the Policy tab render and save one truthful duration row per shipped ban-producing family, corrected the misleading `honeypot` label, and kept the manual admin ban default aligned with `ban_durations.admin`.
+- [x] Why:
+  - the operator-facing `Ban Durations` pane was incomplete and misleading: it omitted several shipped ban causes, mislabeled the `honeypot` bucket as the maze threshold bucket, and could not configure the same duration families the runtime was actually using.
+  - the cleanest pre-launch fix was to align the contract end-to-end rather than layering exceptions on top: expand the canonical config family, route every shipped ban site through it, surface the exact family set in the Policy tab, and keep the admin/manual default on that same truth path.
+- [x] Evidence:
+  - `src/config/mod.rs`
+  - `src/runtime/effect_intents/plan_builder.rs`
+  - `src/runtime/request_router.rs`
+  - `src/lib.rs`
+  - `src/providers/internal.rs`
+  - `src/providers/external.rs`
+  - `src/admin/api.rs`
+  - `dashboard/src/lib/components/dashboard/RobotsTab.svelte`
+  - `dashboard/src/lib/components/dashboard/config/ConfigDurationsSection.svelte`
+  - `dashboard/src/lib/domain/config-schema.js`
+  - `dashboard/static/assets/status-var-meanings.json`
+  - `docs/research/2026-03-23-ban-duration-family-truthfulness-post-implementation-review.md`
+  - `make test-ban-duration-family-truth`
+  - `make config-seed`
+  - `make test-dashboard-e2e-ban-duration-family-truth`
+  - `git diff --check`
+
 ### Dashboard: Move ban durations, browser policy, and path allowlist into Policy
 
 - [x] Moved the `Ban Durations`, `Browser Policy`, and `Path Allowlist` panes out of `Tuning` and into `Policy`, keeping `Tuning` focused on botness scoring and shifting the save ownership for those panes into the policy tab.

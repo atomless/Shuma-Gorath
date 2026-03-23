@@ -2,7 +2,6 @@ use spin_sdk::http::{Method, Request, Response};
 use spin_sdk::key_value::Store;
 
 const SITE_ID_DEFAULT: &str = "default";
-const CHALLENGE_ABUSE_SHORT_BAN_SECONDS: u64 = 600;
 
 fn request_user_agent(req: &Request) -> &str {
     req.header("user-agent")
@@ -157,7 +156,7 @@ fn enforce_tarpit_or_short_ban(
             crate::runtime::effect_intents::EffectIntent::Ban(
                 crate::runtime::effect_intents::BanIntent {
                     reason: ban_reason.to_string(),
-                    duration_seconds: CHALLENGE_ABUSE_SHORT_BAN_SECONDS,
+                    duration_seconds: cfg.get_ban_duration(ban_reason),
                     score: None,
                     signals: signals.iter().map(|value| (*value).to_string()).collect(),
                     summary: Some(summary.to_string()),
@@ -174,7 +173,7 @@ fn enforce_tarpit_or_short_ban(
             crate::runtime::effect_intents::EffectIntent::LogEvent {
                 event: crate::admin::EventType::Ban,
                 reason: ban_reason.to_string(),
-                outcome: format!("short_ban_{}s", CHALLENGE_ABUSE_SHORT_BAN_SECONDS),
+                outcome: format!("short_ban_{}s", cfg.get_ban_duration(ban_reason)),
             },
         ],
     );

@@ -122,9 +122,15 @@ cat > "${tmp_json}" <<EOF
   "ban_duration": ${SHUMA_BAN_DURATION},
   "ban_durations": {
     "honeypot": ${SHUMA_BAN_DURATION_HONEYPOT},
+    "ip_range_honeypot": ${SHUMA_BAN_DURATION_IP_RANGE_HONEYPOT},
+    "maze_crawler": ${SHUMA_BAN_DURATION_MAZE_CRAWLER},
     "rate_limit": ${SHUMA_BAN_DURATION_RATE_LIMIT},
     "admin": ${SHUMA_BAN_DURATION_ADMIN},
-    "cdp": ${SHUMA_BAN_DURATION_CDP}
+    "cdp": ${SHUMA_BAN_DURATION_CDP},
+    "edge_fingerprint": ${SHUMA_BAN_DURATION_EDGE_FINGERPRINT},
+    "tarpit_persistence": ${SHUMA_BAN_DURATION_TARPIT_PERSISTENCE},
+    "not_a_bot_abuse": ${SHUMA_BAN_DURATION_NOT_A_BOT_ABUSE},
+    "challenge_puzzle_abuse": ${SHUMA_BAN_DURATION_CHALLENGE_PUZZLE_ABUSE}
   },
   "rate_limit": ${SHUMA_RATE_LIMIT},
   "honeypot_enabled": $(bool_norm "${SHUMA_HONEYPOT_ENABLED}"),

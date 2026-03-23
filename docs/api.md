@@ -144,7 +144,7 @@ When `SHUMA_DEBUG_HEADERS=true`, the health response includes:
 - `GET /admin/session` - Current auth/session state
 - `POST /admin/logout` - Clear admin session cookie
 - `GET /admin/ban` - List active bans. Under strict external ban-store outage posture, this returns `503` instead of serving local-only fallback state when authoritative reads are unavailable.
-- `POST /admin/ban` - Ban an <abbr title="Internet Protocol">IP</abbr> (<abbr title="JavaScript Object Notation">JSON</abbr> body: `{"ip":"x.x.x.x","duration":3600}`; reason is always `manual_ban`). Under strict external outage posture, this returns `503` instead of claiming success when external sync fails.
+- `POST /admin/ban` - Ban an <abbr title="Internet Protocol">IP</abbr> (<abbr title="JavaScript Object Notation">JSON</abbr> body: `{"ip":"x.x.x.x","duration":3600}`; reason is always `manual_ban`; `duration` is optional and defaults to `ban_durations.admin`). Under strict external outage posture, this returns `503` instead of claiming success when external sync fails.
 - `POST /admin/unban?ip=x.x.x.x` - Unban an <abbr title="Internet Protocol">IP</abbr>. Under strict external outage posture, this returns `503` instead of claiming success when external sync fails.
 - `GET /admin/analytics` - Ban/event statistics plus explicit ban-store availability markers (`ban_store_status`, `ban_store_message`).
 - `GET /admin/events?hours=N` - Recent events + summary stats (simulation rows are included when present and tagged per row). Default view is pseudonymized; forensic raw view requires `forensic=1&forensic_ack=I_UNDERSTAND_FORENSIC`.

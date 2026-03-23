@@ -2133,6 +2133,38 @@ fn load_config_defaults_honeypot_enabled_when_key_missing() {
 }
 
 #[test]
+fn ban_duration_lookup_covers_shipped_families_and_legacy_fallback() {
+    let mut cfg = defaults().clone();
+    cfg.ban_duration = 999;
+    cfg.ban_durations.honeypot = 101;
+    cfg.ban_durations.ip_range_honeypot = 102;
+    cfg.ban_durations.maze_crawler = 103;
+    cfg.ban_durations.rate_limit = 104;
+    cfg.ban_durations.cdp = 105;
+    cfg.ban_durations.edge_fingerprint = 106;
+    cfg.ban_durations.tarpit_persistence = 107;
+    cfg.ban_durations.not_a_bot_abuse = 108;
+    cfg.ban_durations.challenge_puzzle_abuse = 109;
+    cfg.ban_durations.admin = 110;
+
+    assert_eq!(cfg.get_ban_duration("honeypot"), 101);
+    assert_eq!(cfg.get_ban_duration("ip_range_honeypot"), 102);
+    assert_eq!(cfg.get_ban_duration("maze_crawler"), 103);
+    assert_eq!(cfg.get_ban_duration("rate"), 104);
+    assert_eq!(cfg.get_ban_duration("rate_limit"), 104);
+    assert_eq!(cfg.get_ban_duration("cdp"), 105);
+    assert_eq!(cfg.get_ban_duration("cdp_automation"), 105);
+    assert_eq!(cfg.get_ban_duration("edge_fingerprint"), 106);
+    assert_eq!(cfg.get_ban_duration("edge_fingerprint_automation"), 106);
+    assert_eq!(cfg.get_ban_duration("tarpit_persistence"), 107);
+    assert_eq!(cfg.get_ban_duration("not_a_bot_abuse"), 108);
+    assert_eq!(cfg.get_ban_duration("challenge_puzzle_abuse"), 109);
+    assert_eq!(cfg.get_ban_duration("admin"), 110);
+    assert_eq!(cfg.get_ban_duration("manual_ban"), 110);
+    assert_eq!(cfg.get_ban_duration("unknown_family"), 999);
+}
+
+#[test]
 fn runtime_config_cache_hits_within_ttl() {
     let _lock = crate::test_support::lock_env();
     clear_runtime_cache_for_tests();

@@ -1187,8 +1187,14 @@ test("dashboard clean-state renders explicit empty placeholders", async ({ page 
     },
     ban_durations: {
       honeypot: 86400,
+      ip_range_honeypot: 86400,
+      maze_crawler: 86400,
       rate_limit: 3600,
       cdp: 43200,
+      edge_fingerprint: 43200,
+      tarpit_persistence: 600,
+      not_a_bot_abuse: 600,
+      challenge_puzzle_abuse: 600,
       admin: 21600
     },
     honeypot_enabled: true,
@@ -3268,6 +3274,17 @@ test("policy tab save flows cover robots serving, durations, browser policy, and
     await openDashboard(page);
     await openTab(page, "policy");
 
+    await expect(page.locator("#dur-honeypot-days")).toBeVisible();
+    await expect(page.locator("#dur-ip-range-honeypot-days")).toBeVisible();
+    await expect(page.locator("#dur-maze-crawler-days")).toBeVisible();
+    await expect(page.locator("#dur-rate-limit-days")).toBeVisible();
+    await expect(page.locator("#dur-cdp-days")).toBeVisible();
+    await expect(page.locator("#dur-edge-fingerprint-days")).toBeVisible();
+    await expect(page.locator("#dur-tarpit-persistence-days")).toBeVisible();
+    await expect(page.locator("#dur-not-a-bot-abuse-days")).toBeVisible();
+    await expect(page.locator("#dur-challenge-puzzle-abuse-days")).toBeVisible();
+    await expect(page.locator("#dur-admin-days")).toBeVisible();
+
     const saveButton = page.locator("#save-policy-config");
     await expect(saveButton).toBeHidden();
 
@@ -3296,6 +3313,15 @@ test("policy tab save flows cover robots serving, durations, browser policy, and
       const nextDurationHours = String(Math.min(23, Number(initialDurationHours || "1") + 1));
       await durationHours.fill(nextDurationHours);
       await durationHours.dispatchEvent("input");
+      await submitConfigSave(page, saveButton);
+    }
+
+    const tarpitDurationMinutes = page.locator("#dur-tarpit-persistence-minutes");
+    if (await tarpitDurationMinutes.isVisible() && await tarpitDurationMinutes.isEnabled()) {
+      const initialTarpitMinutes = await tarpitDurationMinutes.inputValue();
+      const nextTarpitMinutes = String((Number(initialTarpitMinutes || "10") + 5) % 60);
+      await tarpitDurationMinutes.fill(nextTarpitMinutes);
+      await tarpitDurationMinutes.dispatchEvent("input");
       await submitConfigSave(page, saveButton);
     }
 

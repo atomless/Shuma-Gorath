@@ -274,7 +274,7 @@ pub(crate) fn plan_for_decision(
                     )),
                     EffectIntent::Ban(BanIntent {
                         reason: "ip_range_honeypot".to_string(),
-                        duration_seconds: cfg.get_ban_duration("honeypot"),
+                        duration_seconds: cfg.get_ban_duration("ip_range_honeypot"),
                         score: None,
                         signals: vec!["ip_range_policy".to_string()],
                         summary: Some(base_outcome.clone()),
@@ -430,7 +430,7 @@ pub(crate) fn plan_for_decision(
                     EffectIntent::RecordPolicyMatch(PolicyTransition::RateLimitHit),
                     EffectIntent::Ban(BanIntent {
                         reason: "rate".to_string(),
-                        duration_seconds: cfg.get_ban_duration("rate"),
+                        duration_seconds: cfg.get_ban_duration("rate_limit"),
                         score: None,
                         signals: vec!["rate_limit_exceeded".to_string()],
                         summary: Some(format!("rate_limit={}", cfg.rate_limit)),

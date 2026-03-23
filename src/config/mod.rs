@@ -599,33 +599,60 @@ pub struct DefenceModesEffective {
 pub struct BanDurations {
     #[serde(default = "default_ban_duration_honeypot")]
     pub honeypot: u64,
+    #[serde(default = "default_ban_duration_ip_range_honeypot")]
+    pub ip_range_honeypot: u64,
+    #[serde(default = "default_ban_duration_maze_crawler")]
+    pub maze_crawler: u64,
     #[serde(default = "default_ban_duration_rate_limit")]
     pub rate_limit: u64,
     #[serde(default = "default_ban_duration_admin")]
     pub admin: u64,
     #[serde(default = "default_ban_duration_cdp")]
     pub cdp: u64,
+    #[serde(default = "default_ban_duration_edge_fingerprint")]
+    pub edge_fingerprint: u64,
+    #[serde(default = "default_ban_duration_tarpit_persistence")]
+    pub tarpit_persistence: u64,
+    #[serde(default = "default_ban_duration_not_a_bot_abuse")]
+    pub not_a_bot_abuse: u64,
+    #[serde(default = "default_ban_duration_challenge_puzzle_abuse")]
+    pub challenge_puzzle_abuse: u64,
 }
 
 impl Default for BanDurations {
     fn default() -> Self {
         BanDurations {
             honeypot: default_ban_duration_honeypot(),
+            ip_range_honeypot: default_ban_duration_ip_range_honeypot(),
+            maze_crawler: default_ban_duration_maze_crawler(),
             rate_limit: default_ban_duration_rate_limit(),
             admin: default_ban_duration_admin(),
             cdp: default_ban_duration_cdp(),
+            edge_fingerprint: default_ban_duration_edge_fingerprint(),
+            tarpit_persistence: default_ban_duration_tarpit_persistence(),
+            not_a_bot_abuse: default_ban_duration_not_a_bot_abuse(),
+            challenge_puzzle_abuse: default_ban_duration_challenge_puzzle_abuse(),
         }
     }
 }
 
 impl BanDurations {
-    /// Get duration for a specific ban type, with fallback to admin duration.
-    pub fn get(&self, ban_type: &str) -> u64 {
+    /// Get the configured duration for a specific ban family.
+    pub fn get(&self, ban_type: &str) -> Option<u64> {
         match ban_type {
-            "honeypot" => self.honeypot,
-            "rate" | "rate_limit" => self.rate_limit,
-            "cdp" | "cdp_automation" => self.cdp,
-            _ => self.admin,
+            "honeypot" => Some(self.honeypot),
+            "ip_range_honeypot" => Some(self.ip_range_honeypot),
+            "maze_crawler" => Some(self.maze_crawler),
+            "rate" | "rate_limit" => Some(self.rate_limit),
+            "cdp" | "cdp_automation" => Some(self.cdp),
+            "edge_fingerprint" | "edge_fingerprint_automation" => Some(self.edge_fingerprint),
+            "tarpit_persistence" => Some(self.tarpit_persistence),
+            "not_a_bot_abuse" => Some(self.not_a_bot_abuse),
+            "challenge_puzzle_abuse" | "challenge_submit_abuse" => {
+                Some(self.challenge_puzzle_abuse)
+            }
+            "admin" | "manual_ban" => Some(self.admin),
+            _ => None,
         }
     }
 }
@@ -918,7 +945,7 @@ impl Config {
 
     /// Returns ban duration for a specific ban type.
     pub fn get_ban_duration(&self, ban_type: &str) -> u64 {
-        self.ban_durations.get(ban_type)
+        self.ban_durations.get(ban_type).unwrap_or(self.ban_duration)
     }
 
     pub fn rate_signal_enabled(&self) -> bool {
@@ -1405,9 +1432,15 @@ static DEFAULT_CONFIG: Lazy<Config> = Lazy::new(|| {
         ban_duration: defaults_u64("SHUMA_BAN_DURATION"),
         ban_durations: BanDurations {
             honeypot: defaults_u64("SHUMA_BAN_DURATION_HONEYPOT"),
+            ip_range_honeypot: defaults_u64("SHUMA_BAN_DURATION_IP_RANGE_HONEYPOT"),
+            maze_crawler: defaults_u64("SHUMA_BAN_DURATION_MAZE_CRAWLER"),
             rate_limit: defaults_u64("SHUMA_BAN_DURATION_RATE_LIMIT"),
             admin: defaults_u64("SHUMA_BAN_DURATION_ADMIN"),
             cdp: defaults_u64("SHUMA_BAN_DURATION_CDP"),
+            edge_fingerprint: defaults_u64("SHUMA_BAN_DURATION_EDGE_FINGERPRINT"),
+            tarpit_persistence: defaults_u64("SHUMA_BAN_DURATION_TARPIT_PERSISTENCE"),
+            not_a_bot_abuse: defaults_u64("SHUMA_BAN_DURATION_NOT_A_BOT_ABUSE"),
+            challenge_puzzle_abuse: defaults_u64("SHUMA_BAN_DURATION_CHALLENGE_PUZZLE_ABUSE"),
         },
         rate_limit: defaults_u32("SHUMA_RATE_LIMIT"),
         honeypot_enabled: defaults_bool("SHUMA_HONEYPOT_ENABLED"),
@@ -3413,6 +3446,14 @@ fn default_ban_duration_honeypot() -> u64 {
     defaults_u64("SHUMA_BAN_DURATION_HONEYPOT")
 }
 
+fn default_ban_duration_ip_range_honeypot() -> u64 {
+    defaults_u64("SHUMA_BAN_DURATION_IP_RANGE_HONEYPOT")
+}
+
+fn default_ban_duration_maze_crawler() -> u64 {
+    defaults_u64("SHUMA_BAN_DURATION_MAZE_CRAWLER")
+}
+
 fn default_ban_duration_rate_limit() -> u64 {
     defaults_u64("SHUMA_BAN_DURATION_RATE_LIMIT")
 }
@@ -3423,6 +3464,22 @@ fn default_ban_duration_admin() -> u64 {
 
 fn default_ban_duration_cdp() -> u64 {
     defaults_u64("SHUMA_BAN_DURATION_CDP")
+}
+
+fn default_ban_duration_edge_fingerprint() -> u64 {
+    defaults_u64("SHUMA_BAN_DURATION_EDGE_FINGERPRINT")
+}
+
+fn default_ban_duration_tarpit_persistence() -> u64 {
+    defaults_u64("SHUMA_BAN_DURATION_TARPIT_PERSISTENCE")
+}
+
+fn default_ban_duration_not_a_bot_abuse() -> u64 {
+    defaults_u64("SHUMA_BAN_DURATION_NOT_A_BOT_ABUSE")
+}
+
+fn default_ban_duration_challenge_puzzle_abuse() -> u64 {
+    defaults_u64("SHUMA_BAN_DURATION_CHALLENGE_PUZZLE_ABUSE")
 }
 
 fn default_rate_limit() -> u32 {

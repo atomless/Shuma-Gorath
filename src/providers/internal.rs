@@ -23,8 +23,6 @@ pub(crate) const FINGERPRINT_SIGNAL: InternalFingerprintSignalProvider =
 pub(crate) const VERIFIED_IDENTITY: InternalVerifiedIdentityProvider =
     InternalVerifiedIdentityProvider;
 
-const TARPIT_ESCALATION_SHORT_BAN_SECONDS: u64 = 600;
-
 pub(crate) fn tarpit_budget_global_active_key(site_id: &str) -> String {
     crate::tarpit::runtime::tarpit_budget_global_active_key(site_id)
 }
@@ -95,6 +93,7 @@ fn render_tarpit_budget_fallback(
 
 fn maybe_escalate_persistent_tarpit_client(
     store: &Store,
+    cfg: &crate::config::Config,
     site_id: &str,
     ip: &str,
     user_agent: &str,
@@ -140,7 +139,7 @@ fn maybe_escalate_persistent_tarpit_client(
         site_id,
         ip,
         "tarpit_persistence",
-        TARPIT_ESCALATION_SHORT_BAN_SECONDS,
+        cfg.get_ban_duration("tarpit_persistence"),
         Some(crate::enforcement::ban::BanFingerprint {
             score: None,
             signals: vec!["tarpit_persistence".to_string()],
@@ -166,7 +165,8 @@ fn maybe_escalate_persistent_tarpit_client(
             reason: Some("tarpit_persistence".to_string()),
             outcome: Some(format!(
                 "short_ban_{}s count={}",
-                TARPIT_ESCALATION_SHORT_BAN_SECONDS, persistence_count
+                cfg.get_ban_duration("tarpit_persistence"),
+                persistence_count
             )),
             admin: None,
         },
@@ -418,6 +418,7 @@ impl MazeTarpitProvider for InternalMazeTarpitProvider {
         let escalation = crate::tarpit::runtime::persistence_escalation(cfg, persistence_count);
         if let Some(response) = maybe_escalate_persistent_tarpit_client(
             store,
+            cfg,
             site_id,
             ip,
             user_agent,

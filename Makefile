@@ -1732,6 +1732,44 @@ test-dashboard-policy-pane-ownership: ## Run focused dashboard policy/tuning pan
 		--test-name-pattern='dashboard config tabs reuse shared panels, save flows, and owned controls' \
 		e2e/dashboard.modules.unit.test.js
 
+test-ban-duration-family-truth: ## Run focused ban-duration family parity checks across config, runtime, and Policy tab
+	@echo "$(CYAN)🧪 Running focused ban-duration family truthfulness checks...$(NC)"
+	@./scripts/set_crate_type.sh rlib
+	@cargo test config::tests::ban_duration_lookup_covers_shipped_families_and_legacy_fallback -- --exact --nocapture
+	@cargo test admin::api::admin_config_tests::admin_config_updates_lists_and_full_ban_duration_family_set -- --exact --nocapture
+	@cargo test admin::api::admin_config_tests::manual_ban_uses_configured_admin_default_duration_when_duration_is_omitted -- --exact --nocapture
+	@if ! command -v corepack >/dev/null 2>&1; then \
+		echo "$(RED)❌ Error: corepack not found (install Node.js 18+).$(NC)"; \
+		exit 1; \
+	fi
+	@corepack enable > /dev/null 2>&1 || true
+	@if [ ! -d node_modules/.pnpm ] || [ ! -x node_modules/.bin/vite ] || [ ! -x node_modules/.bin/svelte-check ] || [ ! -d node_modules/svelte ] || [ ! -d node_modules/@sveltejs/kit ] || [ ! -d node_modules/@playwright/test ]; then \
+		corepack pnpm install --offline --frozen-lockfile || corepack pnpm install --frozen-lockfile; \
+	fi
+	@$(MAKE) --no-print-directory test-dashboard-svelte-check
+	@node --test \
+		--test-name-pattern='ban duration families remain aligned across runtime, config, and policy surfaces' \
+		e2e/dashboard.modules.unit.test.js
+
+test-dashboard-e2e-ban-duration-family-truth: ## Run focused Playwright Policy-tab ban-duration truth smoke
+	@echo "$(CYAN)🧪 Running focused dashboard ban-duration truth smoke...$(NC)"
+	@if $(MAKE) --no-print-directory spin-wait-ready; then \
+		if ! command -v corepack >/dev/null 2>&1; then \
+			echo "$(RED)❌ Error: corepack not found (install Node.js 18+).$(NC)"; \
+			exit 1; \
+		fi; \
+		corepack enable > /dev/null 2>&1 || true; \
+		if [ ! -d node_modules/.pnpm ] || [ ! -x node_modules/.bin/vite ] || [ ! -x node_modules/.bin/svelte-check ] || [ ! -d node_modules/svelte ] || [ ! -d node_modules/@sveltejs/kit ] || [ ! -d node_modules/@playwright/test ]; then \
+			corepack pnpm install --offline --frozen-lockfile || corepack pnpm install --frozen-lockfile; \
+		fi; \
+		$(MAKE) --no-print-directory seed-dashboard-data || exit 1; \
+		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) ./scripts/tests/run_dashboard_e2e.sh --grep "policy tab save flows cover robots serving, durations, browser policy, and path allowlist controls"; \
+	else \
+		echo "$(RED)❌ Error: Spin server not ready$(NC)"; \
+		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \
+		exit 1; \
+	fi
+
 test-dashboard-budgets: ## Report /dashboard/_app bundle size ceilings (non-blocking by default)
 	@echo "$(CYAN)🧪 Checking dashboard bundle-size budgets...$(NC)"
 	@if [ "$${SHUMA_DASHBOARD_BUDGET_SKIP_BUILD:-0}" != "1" ]; then \

@@ -1000,7 +1000,7 @@ pub(crate) fn serve_maze_with_tracking(
             ),
             runtime::effect_intents::EffectIntent::Ban(runtime::effect_intents::BanIntent {
                 reason: "maze_crawler".to_string(),
-                duration_seconds: cfg.get_ban_duration("honeypot"),
+                duration_seconds: cfg.get_ban_duration("maze_crawler"),
                 score: None,
                 signals: vec!["maze_crawler_threshold".to_string()],
                 summary: Some(format!(
