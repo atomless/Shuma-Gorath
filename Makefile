@@ -1669,7 +1669,7 @@ test-dashboard-adversary-sim-lane-contract: ## Run focused dashboard lane-contra
 	fi
 	@$(MAKE) --no-print-directory test-dashboard-svelte-check
 	@node --test \
-		--test-name-pattern='dashboard API client preserves adversary-sim lane status and diagnostics fields|dashboard API client sends optional adversary-sim lane selection in control writes|dashboard adversary-sim runtime normalizes orchestration status|dashboard red team controller can replace backend status after lane-only control writes|red team tab reuses verification-style config panel primitives for its adversary sim pane|dashboard route lazily loads heavy tabs and keeps orchestration local' \
+		--test-name-pattern='dashboard API client preserves adversary-sim lane status and diagnostics fields|dashboard API client sends optional adversary-sim lane selection in control writes|dashboard adversary-sim runtime normalizes orchestration status|dashboard red team controller can replace backend status after lane-only control writes|red team auto-refresh rehydrates missing config runtime write truth for lane controls|red team tab reuses verification-style config panel primitives for its adversary sim pane|dashboard route lazily loads heavy tabs and keeps orchestration local' \
 		e2e/dashboard.modules.unit.test.js
 
 test-dashboard-budgets: ## Report /dashboard/_app bundle size ceilings (non-blocking by default)

@@ -1764,6 +1764,13 @@ test('red-team auto-refresh refreshes monitoring-backed run snapshots without ex
     const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
 
     const store = storeModule.createDashboardStore({ initialTab: 'red-team' });
+    store.setSnapshot('config', { adversary_sim_duration_seconds: 180 });
+    store.setSnapshot('configRuntime', {
+      runtime_environment: 'runtime-prod',
+      gateway_deployment_profile: 'shared-server',
+      admin_config_write_enabled: true,
+      adversary_sim_available: true
+    });
     const storage = {
       getItem() {
         return null;
@@ -2226,6 +2233,73 @@ test('monitoring bootstrap does not wait for cursor seeding before config-backed
     assert.equal(monitoringFetchCount, 1);
     assert.equal(configFetchCount, 1);
     assert.equal(deferredSeedCursorCount, 1);
+    assert.equal(
+      (store.getSnapshot('configRuntime') || {}).admin_config_write_enabled,
+      true
+    );
+  });
+});
+
+test('red team auto-refresh rehydrates missing config runtime write truth for lane controls', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
+    const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
+
+    const store = storeModule.createDashboardStore({ initialTab: 'red-team' });
+    store.setSnapshot('config', { adversary_sim_duration_seconds: 180 });
+    store.setSnapshot('configRuntime', {
+      runtime_environment: 'runtime-prod',
+      adversary_sim_available: true
+    });
+
+    let monitoringCallCount = 0;
+    let configCallCount = 0;
+    const apiClient = {
+      async getMonitoring() {
+        monitoringCallCount += 1;
+        return {
+          summary: {},
+          freshness: { state: 'fresh', transport: 'snapshot_poll' },
+          details: {
+            analytics: { ban_count: 0, shadow_mode: false, fail_mode: 'open' },
+            events: { recent_events: [] },
+            bans: { bans: [] },
+            maze: {},
+            cdp: {},
+            cdp_events: { events: [] }
+          }
+        };
+      },
+      async getConfig() {
+        configCallCount += 1;
+        return {
+          config: { adversary_sim_duration_seconds: 180 },
+          runtime: {
+            runtime_environment: 'runtime-prod',
+            gateway_deployment_profile: 'shared-server',
+            admin_config_write_enabled: true,
+            adversary_sim_available: true
+          }
+        };
+      }
+    };
+
+    const runtime = refreshModule.createDashboardRefreshRuntime({
+      normalizeTab: (value) => String(value || ''),
+      getApiClient: () => apiClient,
+      getStateStore: () => store,
+      deriveMonitoringAnalytics: (_configSnapshot, _configRuntimeSnapshot, analyticsResponse = {}) => ({
+        ban_count: Number(analyticsResponse.ban_count || 0),
+        shadow_mode: analyticsResponse.shadow_mode === true,
+        fail_mode: String(analyticsResponse.fail_mode || 'open')
+      }),
+      storage: null
+    });
+
+    await runtime.refreshRedTeamTab('auto-refresh');
+
+    assert.equal(monitoringCallCount, 1);
+    assert.equal(configCallCount, 1);
     assert.equal(
       (store.getSnapshot('configRuntime') || {}).admin_config_write_enabled,
       true
@@ -5639,7 +5713,11 @@ test('dashboard refresh runtime owns bounded cache, delta, and red-team monitori
   assert.match(source, /if \(!isConfigSnapshotEmpty\(existingConfig\) && !isConfigRuntimeSnapshotEmpty\(existingRuntime\)\) \{/);
   assert.match(source, /const refreshVerificationTab = \(reason = 'manual'/);
   assert.match(source, /const refreshRedTeamTab = async \(reason = 'manual', runtimeOptions = \{\}\) => \{/);
-  assert.match(source, /if \(reason === 'auto-refresh'\) \{\s*await refreshMonitoringTab\(reason, runtimeOptions\);/s);
+  assert.match(source, /if \(reason === 'auto-refresh'\) \{/);
+  assert.match(
+    source,
+    /if \(isConfigSnapshotEmpty\(existingConfig\) \|\| isConfigRuntimeSnapshotEmpty\(existingRuntime\)\) \{\s*await Promise\.all\(\[\s*refreshMonitoringTab\(reason, runtimeOptions\),\s*refreshSharedConfig\(reason, runtimeOptions\)\s*\]\);/s
+  );
   assert.match(source, /async function refreshFingerprintingTab\(reason = 'manual'/);
   assert.match(source, /dashboardApiClient\.getCdp\(requestOptions\)/);
   assert.match(

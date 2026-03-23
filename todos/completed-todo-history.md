@@ -4,6 +4,21 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-23)
 
+### Dashboard Red Team Lane Control: Rehydrate Partial Runtime Truth Instead Of Staying Disabled
+
+- [x] Tightened Red Team shared-config refresh so a partial `configRuntime` snapshot no longer counts as complete when it is missing `admin_config_write_enabled`, and Red Team auto-refresh now rehydrates shared config on its own when that control-critical runtime truth is incomplete.
+- [x] Why:
+  - the live Linode investigation showed the lane selector could appear stuck disabled even though the control plane was healthy, because the dropdown gate depends on `admin_config_write_enabled` while adversary-sim status polling can only backfill `runtime_environment` and `adversary_sim_available`.
+  - the old dashboard logic treated any non-empty `configRuntime` snapshot as reusable, so once a partial runtime snapshot existed the Red Team tab could keep auto-refreshing monitoring data without ever asking `/admin/config` for the missing writeability truth.
+  - the smallest clean fix was to keep the change local to shared config completeness and Red Team refresh behavior, so the control self-heals on the next Red Team refresh cycle instead of relying on unrelated dashboard lifecycles.
+- [x] Evidence:
+  - `dashboard/src/lib/runtime/dashboard-runtime-refresh.js`
+  - `e2e/dashboard.modules.unit.test.js`
+  - `Makefile`
+  - `make test-dashboard-adversary-sim-lane-contract`
+  - `make test-dashboard-unit`
+  - `git diff --check`
+
 ### ADV-DIAG-1: Reconcile Adversary-Sim Status Diagnostics With Persisted Event Truth
 
 - [x] Made `/admin/adversary-sim/status` recover lower-bound generation and lane-diagnostics truth from immutable simulation-tagged event evidence on shared-host, added a focused diagnostics-truth regression gate plus live-proof verifier checks, and re-proved the closed loop on the active Linode with completed status now showing non-zero recovered counters instead of the old impossible zeros.

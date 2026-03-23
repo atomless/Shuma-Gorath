@@ -65,8 +65,16 @@ export function createDashboardRefreshRuntime(options = {}) {
 
   const isConfigSnapshotEmpty = (config) =>
     !config || typeof config !== 'object' || Object.keys(config).length === 0;
+  const hasRequiredSharedConfigRuntimeTruth = (runtime) => {
+    if (!runtime || typeof runtime !== 'object') return false;
+    if (!Object.prototype.hasOwnProperty.call(runtime, 'admin_config_write_enabled')) return false;
+    return typeof runtime.runtime_environment === 'string' && runtime.runtime_environment.trim().length > 0;
+  };
   const isConfigRuntimeSnapshotEmpty = (runtime) =>
-    !runtime || typeof runtime !== 'object' || Object.keys(runtime).length === 0;
+    !runtime ||
+    typeof runtime !== 'object' ||
+    Object.keys(runtime).length === 0 ||
+    !hasRequiredSharedConfigRuntimeTruth(runtime);
   const hasConfigEnvelope = (configEnvelope) => {
     const source = configEnvelope && typeof configEnvelope === 'object' ? configEnvelope : {};
     return !isConfigSnapshotEmpty(source.config) && !isConfigRuntimeSnapshotEmpty(source.runtime);
@@ -992,6 +1000,16 @@ export function createDashboardRefreshRuntime(options = {}) {
 
   const refreshRedTeamTab = async (reason = 'manual', runtimeOptions = {}) => {
     if (reason === 'auto-refresh') {
+      const dashboardState = getStateStore();
+      const existingConfig = dashboardState ? dashboardState.getSnapshot('config') : null;
+      const existingRuntime = dashboardState ? dashboardState.getSnapshot('configRuntime') : null;
+      if (isConfigSnapshotEmpty(existingConfig) || isConfigRuntimeSnapshotEmpty(existingRuntime)) {
+        await Promise.all([
+          refreshMonitoringTab(reason, runtimeOptions),
+          refreshSharedConfig(reason, runtimeOptions)
+        ]);
+        return;
+      }
       await refreshMonitoringTab(reason, runtimeOptions);
       return;
     }
