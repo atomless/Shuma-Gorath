@@ -25,6 +25,8 @@ Current pre-launch Shuma is a shared-host-first Rust control plane with:
 
 The current closed loop is for bounded config tuning. The later broader LLM diagnosis and code-evolution loops are intentionally not part of the landed architecture yet.
 
+The current request-time truth path also preserves canonical non-human category assignment, not only coarse lane labels. Verified identity is now a first-class taxonomy input: verified `search`, `training`, `preview`, `service_agent`, and `user_triggered_agent` traffic is crosswalked into the canonical non-human taxonomy before request outcomes, hot-read projection, and benchmark evaluation are materialized.
+
 ## 🐙 System Context
 
 ```mermaid
@@ -97,6 +99,13 @@ flowchart LR
   Enforce --> Resp["Rendered response"]
 ```
 
+At request time, Shuma now preserves explicit non-human category truth alongside the older lane-oriented signals. The live path is:
+
+1. fingerprinting and evidence collection,
+2. verified-identity crosswalk into the seeded canonical taxonomy when high-confidence identity exists,
+3. cumulative abuse-score (`botness`) and posture evaluation,
+4. and request-outcome materialization that carries the selected canonical category into monitoring and snapshot projection.
+
 ## 🐙 Control And Feedback Loop
 
 ```mermaid
@@ -109,7 +118,7 @@ flowchart LR
   Mon --> RecentRuns["Recent sim runs<br/>normalized profile, observed modes,<br/>observed category ids"]
   Objectives["Operator objectives store"] --> Snapshot["operator_snapshot_v1"]
   Replay["Replay promotion summary"] --> Snapshot
-  Taxonomy["Non-human taxonomy,<br/>classification, coverage, lane fulfillment"] --> Snapshot
+  Taxonomy["Non-human taxonomy,<br/>classification, verified-identity crosswalk,<br/>coverage, lane fulfillment"] --> Snapshot
   RecentRuns --> Snapshot
   HotRead --> Snapshot
 
@@ -133,6 +142,11 @@ flowchart LR
   Apply --> Ledger["Decision ledger + recent changes"]
   ConfigState --> Live
 ```
+
+The live control loop now also depends on two newer truth-preserving seams:
+
+1. request-native Scrapling coverage receipts for `indexing_bot`, `ai_scraper_bot`, and `http_agent`,
+2. and adversary-sim status read recovery from persisted monitoring-event lower bounds, surfaced as `truth_basis` plus bounded `persisted_event_evidence` when mutable counters under-report completed runs.
 
 ## 🐙 Domain Map
 

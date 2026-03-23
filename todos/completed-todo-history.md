@@ -4,6 +4,18 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-23)
 
+### Docs: Reflect recent adversary and verified-identity truth in operator docs
+
+- [x] Updated the operator-facing docs to reflect the recent adversary and verified-identity truth work: `GET /admin/adversary-sim/status` now documents `truth_basis` and `persisted_event_evidence`, the current architecture reference now calls out verified-identity taxonomy crosswalk and lower-bound status recovery, and configuration notes now explain the landed verified-identity category projection plus the later calibration follow-ons.
+- [x] Why:
+  - the recent backend slices were already represented in tranche reviews and some API/testing docs, but the main operator-facing references still understated two important truths: completed sim status can now recover lower-bound counts from persisted event evidence, and verified identity no longer remains a coarse beneficial-only signal in the machine-first taxonomy path.
+  - tightening those core docs now keeps the pre-`MON-OVERHAUL-1` documentation honest, easier to navigate, and less likely to freeze stale mental models into the next Monitoring design pass.
+- [x] Evidence:
+  - `docs/api.md`
+  - `docs/current-system-architecture.md`
+  - `docs/configuration.md`
+  - `git diff --check`
+
 ### VID-TAX-1: Faithful Verified-Identity Category Crosswalk
 
 - [x] Replaced the old verified-identity collapse with a tested runtime crosswalk from verified-identity categories into the canonical non-human taxonomy, and carried that truth through request-outcome telemetry, non-human receipts, and the verified-identity snapshot summary.
