@@ -176,7 +176,14 @@ class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemo
                 "generation_active": False,
                 "phase": "off",
                 "last_run_id": None,
-                "generation": {"tick_count": 0, "request_count": 0},
+                "generation": {"tick_count": 0, "request_count": 0, "truth_basis": "control_state"},
+                "lane_diagnostics": {
+                    "truth_basis": "control_state",
+                    "lanes": {
+                        "synthetic_traffic": {"generated_requests": 0, "beat_successes": 0}
+                    },
+                },
+                "persisted_event_evidence": None,
             },
             {
                 "adversary_sim_enabled": True,
@@ -184,7 +191,21 @@ class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemo
                 "phase": "running",
                 "run_id": "sim-run-1",
                 "last_run_id": None,
-                "generation": {"tick_count": 1, "request_count": 3},
+                "generation": {
+                    "tick_count": 1,
+                    "request_count": 3,
+                    "truth_basis": "control_state",
+                },
+                "lane_diagnostics": {
+                    "truth_basis": "control_state",
+                    "lanes": {
+                        "synthetic_traffic": {"generated_requests": 3, "beat_successes": 1}
+                    },
+                },
+                "persisted_event_evidence": {
+                    "run_id": "sim-run-1",
+                    "monitoring_event_count": 3,
+                },
             },
             {
                 "adversary_sim_enabled": False,
@@ -192,7 +213,21 @@ class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemo
                 "phase": "off",
                 "run_id": None,
                 "last_run_id": "sim-run-1",
-                "generation": {"tick_count": 2, "request_count": 6},
+                "generation": {
+                    "tick_count": 2,
+                    "request_count": 6,
+                    "truth_basis": "persisted_event_lower_bound",
+                },
+                "lane_diagnostics": {
+                    "truth_basis": "persisted_event_lower_bound",
+                    "lanes": {
+                        "synthetic_traffic": {"generated_requests": 6, "beat_successes": 1}
+                    },
+                },
+                "persisted_event_evidence": {
+                    "run_id": "sim-run-1",
+                    "monitoring_event_count": 1,
+                },
             },
             {
                 "adversary_sim_enabled": False,
@@ -200,7 +235,21 @@ class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemo
                 "phase": "off",
                 "run_id": None,
                 "last_run_id": "sim-run-1",
-                "generation": {"tick_count": 2, "request_count": 6},
+                "generation": {
+                    "tick_count": 2,
+                    "request_count": 6,
+                    "truth_basis": "persisted_event_lower_bound",
+                },
+                "lane_diagnostics": {
+                    "truth_basis": "persisted_event_lower_bound",
+                    "lanes": {
+                        "synthetic_traffic": {"generated_requests": 6, "beat_successes": 1}
+                    },
+                },
+                "persisted_event_evidence": {
+                    "run_id": "sim-run-1",
+                    "monitoring_event_count": 1,
+                },
             },
         ]
         self._control_calls = []
@@ -311,12 +360,49 @@ class LiveFeedbackLoopRemoteTests(unittest.TestCase):
         self.assertEqual(report["post_sim_trigger"]["apply_stage"], "watch_window_open")
         self.assertEqual(report["post_sim_trigger"]["history_latest_apply_stage"], "watch_window_open")
         self.assertEqual(report["adversary_sim"]["persisted_event_count"], 1)
+        self.assertEqual(
+            report["adversary_sim"]["completed"]["generation_truth_basis"],
+            "persisted_event_lower_bound",
+        )
+        self.assertEqual(
+            report["adversary_sim"]["completed"]["lane_diagnostics_truth_basis"],
+            "persisted_event_lower_bound",
+        )
         self.assertEqual(runner._control_calls, [{"enabled": True}])
         self.assertEqual(len(runner._control_headers), 1)
         self.assertEqual(runner._control_headers[0]["Host"], "shuma.example.com")
         self.assertEqual(runner._control_headers[0]["Origin"], "https://shuma.example.com")
         self.assertEqual(runner._control_headers[0]["Referer"], "https://shuma.example.com/dashboard")
         self.assertGreaterEqual(runner._disabled_calls, 1)
+
+    def test_run_fails_when_completed_status_still_under_reports_generation_truth(self) -> None:
+        temp_dir = Path(tempfile.mkdtemp(prefix="live-feedback-loop-remote-"))
+        runner = _FakeLiveFeedbackLoopRemote(
+            temp_dir=temp_dir,
+            service_exec="/bin/bash /opt/shuma-gorath/scripts/run_with_oversight_supervisor.sh spin up",
+        )
+        runner._adversary_status_queue[2] = {
+            "adversary_sim_enabled": False,
+            "generation_active": False,
+            "phase": "off",
+            "run_id": None,
+            "last_run_id": "sim-run-1",
+            "generation": {"tick_count": 0, "request_count": 0, "truth_basis": "control_state"},
+            "lane_diagnostics": {
+                "truth_basis": "control_state",
+                "lanes": {
+                    "synthetic_traffic": {"generated_requests": 0, "beat_successes": 0}
+                },
+            },
+            "persisted_event_evidence": None,
+        }
+
+        exit_code = runner.run()
+
+        self.assertEqual(exit_code, 1)
+        report = json.loads(runner.report_path.read_text(encoding="utf-8"))
+        self.assertEqual(report["result"], "fail")
+        self.assertIn("under-reported completion counters", report["error"])
 
     def test_run_fails_when_remote_service_does_not_use_oversight_wrapper(self) -> None:
         temp_dir = Path(tempfile.mkdtemp(prefix="live-feedback-loop-remote-"))

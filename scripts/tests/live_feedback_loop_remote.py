@@ -331,6 +331,8 @@ PY"""
 
     def _adversary_status_summary(self, payload: dict[str, Any]) -> dict[str, Any]:
         generation = payload.get("generation") or {}
+        lane_diagnostics = payload.get("lane_diagnostics") or {}
+        persisted_event_evidence = payload.get("persisted_event_evidence") or {}
         return {
             "phase": payload.get("phase"),
             "enabled": payload.get("adversary_sim_enabled"),
@@ -339,6 +341,10 @@ PY"""
             "last_run_id": payload.get("last_run_id"),
             "tick_count": generation.get("tick_count"),
             "request_count": generation.get("request_count"),
+            "generation_truth_basis": generation.get("truth_basis"),
+            "lane_diagnostics_truth_basis": lane_diagnostics.get("truth_basis"),
+            "persisted_event_run_id": persisted_event_evidence.get("run_id"),
+            "persisted_event_count": persisted_event_evidence.get("monitoring_event_count"),
         }
 
     def _status_is_off(self, payload: dict[str, Any]) -> bool:
@@ -567,6 +573,15 @@ PY"""
             description=f"post-sim agent run for {sim_run_id}",
         )
 
+    def _status_has_lane_generation(self, payload: dict[str, Any]) -> bool:
+        lanes = ((payload.get("lane_diagnostics") or {}).get("lanes") or {})
+        for lane_payload in lanes.values():
+            generated_requests = int((lane_payload or {}).get("generated_requests") or 0)
+            beat_successes = int((lane_payload or {}).get("beat_successes") or 0)
+            if generated_requests > 0 or beat_successes > 0:
+                return True
+        return False
+
     def _write_report(self, report: dict[str, Any]) -> None:
         self.report_path.parent.mkdir(parents=True, exist_ok=True)
         self.report_path.write_text(
@@ -641,6 +656,26 @@ PY"""
             if matching_event_count <= 0:
                 raise SmokeFailure(
                     f"Adversary-sim run {sim_run_id} completed, but recent event surfaces did not expose persisted simulated traffic."
+                )
+            completed_generation = completion_status.get("generation") or {}
+            completed_tick_count = int(completed_generation.get("tick_count") or 0)
+            completed_request_count = int(completed_generation.get("request_count") or 0)
+            persisted_event_evidence = completion_status.get("persisted_event_evidence") or {}
+            persisted_event_evidence_count = int(
+                persisted_event_evidence.get("monitoring_event_count") or 0
+            )
+            if completed_tick_count <= 0 or completed_request_count <= 0:
+                raise SmokeFailure(
+                    f"Adversary-sim status still under-reported completion counters for {sim_run_id}: "
+                    f"tick_count={completed_tick_count} request_count={completed_request_count}"
+                )
+            if persisted_event_evidence.get("run_id") != sim_run_id or persisted_event_evidence_count <= 0:
+                raise SmokeFailure(
+                    f"Adversary-sim status did not surface persisted event evidence for completed run {sim_run_id}."
+                )
+            if not self._status_has_lane_generation(completion_status):
+                raise SmokeFailure(
+                    f"Adversary-sim status did not recover lane diagnostics for completed run {sim_run_id}."
                 )
             post_sim_status = self._wait_for_post_sim_agent_run(sim_run_id)
             history = self._fetch_oversight_history()

@@ -47,35 +47,58 @@ pub(crate) fn adversary_sim_status_payload(
     state: &crate::admin::adversary_sim::ControlState,
     now: u64,
 ) -> serde_json::Value {
+    let truth_projection =
+        crate::admin::adversary_sim_status_truth::project_status_truth(store, site_id, now, state);
+    let projected_state = &truth_projection.projected_state;
     let mut payload = crate::admin::adversary_sim::status_payload(
         now,
         crate::config::runtime_environment(),
         crate::config::adversary_sim_available(),
         cfg.adversary_sim_enabled,
         cfg.adversary_sim_duration_seconds,
-        state,
+        projected_state,
     );
     let reconciliation_required = crate::admin::adversary_sim_control::status_reconciliation_needed(
         now,
         cfg.adversary_sim_enabled,
-        state,
+        projected_state,
     );
-    let generation_diagnostics =
-        crate::admin::adversary_sim::generation_diagnostics(now, cfg.adversary_sim_enabled, state);
+    let generation_diagnostics = crate::admin::adversary_sim::generation_diagnostics(
+        now,
+        cfg.adversary_sim_enabled,
+        projected_state,
+    );
     let supervisor = crate::admin::adversary_sim::supervisor_status_payload(
         now,
         cfg.adversary_sim_enabled,
-        state,
+        projected_state,
     );
     let lease = crate::admin::adversary_sim_control::load_controller_lease(store, site_id);
     let lease_operation_id = lease.as_ref().map(|value| value.operation_id.clone());
     let lease_expires_at = lease.as_ref().map(|value| value.expires_at);
-    let seconds_since_last_successful_beat = state
+    let seconds_since_last_successful_beat = projected_state
         .last_generated_at
         .map(|last_generated_at| now.saturating_sub(last_generated_at));
     let generation_active = cfg.adversary_sim_enabled
-        && state.phase == crate::admin::adversary_sim::ControlPhase::Running;
+        && projected_state.phase == crate::admin::adversary_sim::ControlPhase::Running;
     if let Some(object) = payload.as_object_mut() {
+        if let Some(generation) = object.get_mut("generation").and_then(|value| value.as_object_mut()) {
+            generation.insert(
+                "truth_basis".to_string(),
+                serde_json::Value::String(truth_projection.generation_truth_basis.to_string()),
+            );
+        }
+        if let Some(lane_diagnostics) = object
+            .get_mut("lane_diagnostics")
+            .and_then(|value| value.as_object_mut())
+        {
+            lane_diagnostics.insert(
+                "truth_basis".to_string(),
+                serde_json::Value::String(
+                    truth_projection.lane_diagnostics_truth_basis.to_string(),
+                ),
+            );
+        }
         object.insert(
             "desired_state".to_string(),
             serde_json::Value::String(if cfg.adversary_sim_enabled {
@@ -87,7 +110,8 @@ pub(crate) fn adversary_sim_status_payload(
         object.insert(
             "actual_state".to_string(),
             serde_json::Value::String(
-                crate::admin::adversary_sim_control::actual_phase_label(state.phase).to_string(),
+                crate::admin::adversary_sim_control::actual_phase_label(projected_state.phase)
+                    .to_string(),
             ),
         );
         object.insert(
@@ -121,7 +145,8 @@ pub(crate) fn adversary_sim_status_payload(
                 "generated_tick_count": generation_diagnostics.generated_tick_count,
                 "generated_request_count": generation_diagnostics.generated_request_count,
                 "last_generated_at": generation_diagnostics.last_generated_at,
-                "last_generation_error": generation_diagnostics.last_generation_error
+                "last_generation_error": generation_diagnostics.last_generation_error,
+                "truth_basis": truth_projection.generation_truth_basis
             }),
         );
         object.insert("supervisor".to_string(), supervisor);
@@ -139,24 +164,31 @@ pub(crate) fn adversary_sim_status_payload(
             json!({
                 "control": {
                     "desired_enabled": cfg.adversary_sim_enabled,
-                    "actual_phase": state.phase.as_str(),
+                    "actual_phase": projected_state.phase.as_str(),
                     "controller_reconciliation_required": reconciliation_required,
                     "runtime_instance_id": crate::admin::adversary_sim::process_instance_id(),
-                    "owner_instance_id": state.owner_instance_id.clone(),
-                    "last_transition_reason": state.last_transition_reason.clone(),
-                    "last_terminal_failure_reason": state.last_terminal_failure_reason.clone(),
+                    "owner_instance_id": projected_state.owner_instance_id.clone(),
+                    "last_transition_reason": projected_state.last_transition_reason.clone(),
+                    "last_terminal_failure_reason": projected_state.last_terminal_failure_reason.clone(),
                     "last_control_operation_id": lease_operation_id,
                     "lease_expires_at": lease_expires_at
                 },
                 "supervisor": {
                     "heartbeat_expected": generation_active,
-                    "generated_tick_count": state.generated_tick_count,
-                    "generated_request_count": state.generated_request_count,
-                    "last_successful_beat_at": state.last_generated_at,
+                    "generated_tick_count": projected_state.generated_tick_count,
+                    "generated_request_count": projected_state.generated_request_count,
+                    "last_successful_beat_at": projected_state.last_generated_at,
                     "seconds_since_last_successful_beat": seconds_since_last_successful_beat,
-                    "last_generation_error": state.last_generation_error.clone()
+                    "last_generation_error": projected_state.last_generation_error.clone(),
+                    "truth_basis": truth_projection.generation_truth_basis
                 }
             }),
+        );
+        object.insert(
+            "persisted_event_evidence".to_string(),
+            truth_projection
+                .persisted_event_evidence
+                .unwrap_or(serde_json::Value::Null),
         );
         object.insert(
             "controller_lease".to_string(),

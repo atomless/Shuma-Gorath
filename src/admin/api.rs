@@ -5728,6 +5728,150 @@ mod admin_config_tests {
     }
 
     #[test]
+    fn adversary_sim_status_recovers_generation_truth_from_persisted_sim_event_evidence() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "shared-server");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+        let now = now_ts();
+        let run_id = "simrun-status-truth-001";
+
+        let state = crate::admin::adversary_sim::ControlState {
+            phase: crate::admin::adversary_sim::ControlPhase::Off,
+            desired_enabled: false,
+            desired_lane: crate::admin::adversary_sim::RuntimeLane::SyntheticTraffic,
+            owner_instance_id: Some("simproc-status-truth".to_string()),
+            run_id: None,
+            started_at: None,
+            ends_at: None,
+            stop_deadline: None,
+            active_run_count: 0,
+            active_lane_count: 0,
+            active_lane: None,
+            lane_switch_seq: 0,
+            last_lane_switch_at: None,
+            last_lane_switch_reason: None,
+            last_transition_reason: Some("auto_window_expired".to_string()),
+            last_terminal_failure_reason: None,
+            last_run_id: Some(run_id.to_string()),
+            generated_tick_count: 0,
+            generated_request_count: 0,
+            last_generated_at: None,
+            last_generation_error: None,
+            pending_worker_tick_id: None,
+            pending_worker_started_at: None,
+            lane_diagnostics: crate::admin::adversary_sim::LaneDiagnosticsState::default(),
+            updated_at: now,
+        };
+        crate::admin::adversary_sim::save_state(&store, "default", &state).unwrap();
+
+        {
+            let _guard = crate::runtime::sim_telemetry::enter(Some(
+                crate::runtime::sim_telemetry::SimulationRequestMetadata {
+                    sim_run_id: run_id.to_string(),
+                    sim_profile: "runtime_toggle".to_string(),
+                    sim_lane: "deterministic_black_box".to_string(),
+                },
+            ));
+            for offset in 0..3u64 {
+                log_event(
+                    &store,
+                    &EventLogEntry {
+                        ts: now.saturating_sub(10).saturating_add(offset),
+                        event: EventType::Challenge,
+                        ip: Some(format!("198.51.100.{}", 90 + offset)),
+                        reason: Some("challenge_required".to_string()),
+                        outcome: Some("challenge".to_string()),
+                        admin: None,
+                    },
+                );
+            }
+        }
+
+        let status_req = make_request(Method::Get, "/admin/adversary-sim/status", Vec::new());
+        let status_resp = handle_admin_adversary_sim_status(&status_req, &store, "default", &auth);
+        assert_eq!(*status_resp.status(), 200u16);
+        let status_json: serde_json::Value = serde_json::from_slice(status_resp.body()).unwrap();
+        assert_eq!(
+            status_json
+                .get("generation")
+                .and_then(|value| value.get("tick_count"))
+                .and_then(|value| value.as_u64()),
+            Some(1)
+        );
+        assert_eq!(
+            status_json
+                .get("generation")
+                .and_then(|value| value.get("request_count"))
+                .and_then(|value| value.as_u64()),
+            Some(3)
+        );
+        assert_eq!(
+            status_json
+                .get("generation")
+                .and_then(|value| value.get("truth_basis"))
+                .and_then(|value| value.as_str()),
+            Some("persisted_event_lower_bound")
+        );
+        assert_eq!(
+            status_json
+                .get("generation_diagnostics")
+                .and_then(|value| value.get("generated_request_count"))
+                .and_then(|value| value.as_u64()),
+            Some(3)
+        );
+        assert_eq!(
+            status_json
+                .get("lifecycle_diagnostics")
+                .and_then(|value| value.get("supervisor"))
+                .and_then(|value| value.get("generated_request_count"))
+                .and_then(|value| value.as_u64()),
+            Some(3)
+        );
+        assert_eq!(
+            status_json
+                .get("lane_diagnostics")
+                .and_then(|value| value.get("truth_basis"))
+                .and_then(|value| value.as_str()),
+            Some("persisted_event_lower_bound")
+        );
+        assert_eq!(
+            status_json
+                .get("lane_diagnostics")
+                .and_then(|value| value.get("lanes"))
+                .and_then(|value| value.get("synthetic_traffic"))
+                .and_then(|value| value.get("beat_successes"))
+                .and_then(|value| value.as_u64()),
+            Some(1)
+        );
+        assert_eq!(
+            status_json
+                .get("lane_diagnostics")
+                .and_then(|value| value.get("lanes"))
+                .and_then(|value| value.get("synthetic_traffic"))
+                .and_then(|value| value.get("generated_requests"))
+                .and_then(|value| value.as_u64()),
+            Some(3)
+        );
+        assert_eq!(
+            status_json
+                .get("persisted_event_evidence")
+                .and_then(|value| value.get("run_id"))
+                .and_then(|value| value.as_str()),
+            Some(run_id)
+        );
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+    }
+
+    #[test]
     fn adversary_sim_auto_off_preserves_historical_monitoring_visibility() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
