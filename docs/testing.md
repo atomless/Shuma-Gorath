@@ -83,6 +83,28 @@ make seed-dashboard-data # Seed local dashboard sample records against running S
 make test-dashboard   # Manual dashboard checklist
 ```
 
+## 🐙 Canonical Test Tiers
+
+Shuma now treats automated verification as five distinct proof tiers plus optional manual checks:
+
+1. Static and source-contract checks
+   - Examples: `make test-dashboard-svelte-check`, `make test-config-lifecycle`, focused contract or wiring guards
+   - Purpose: fail fast on schema drift, source-shape contracts, and static diagnostics
+2. Local behavior tests
+   - Examples: `make test-unit`, `make test-gateway-harness`, focused domain/contract targets
+   - Purpose: prove behavior in-process or in subprocess harnesses without a running Spin server
+3. Spin runtime integration tests
+   - Examples: `make test-integration`, `make test-adversarial-fast`, `make test-adversary-sim-runtime-surface`
+   - Purpose: prove live local runtime behavior against a running `make dev` instance
+4. Rendered dashboard tests
+   - Examples: `make test-dashboard-unit`, `make test-dashboard-e2e`, focused dashboard Playwright targets
+   - Purpose: prove operator-visible dashboard behavior and rendered contracts
+5. Live operational proofs
+   - Examples: `make test-live-feedback-loop-remote`, `make test-remote-edge-signal-smoke`, `make test-dashboard-e2e-external`
+   - Purpose: prove current hosted/shared-host operational behavior against a real deployment
+
+Manual checks such as `make test-dashboard` are useful for contributor inspection, but they are not a canonical automated proof tier.
+
 Deferred edge-gateway proofs:
 
 ```bash
@@ -93,6 +115,8 @@ make telemetry-fermyon-edge-evidence # Later gateway-only live telemetry proof
 Notes:
 - Use Makefile commands only (avoid running scripts directly)
 - Integration tests require a running Spin server; targeted integration-only commands can run against `make dev` or `make dev-prod`, but the full umbrella `make test` contract requires `make dev` (`runtime-dev`).
+- `make test` is the canonical local and CI pre-merge suite. It intentionally does not include live hosted or ssh-managed operational proofs.
+- Live hosted/shared-host proof is a separate tier. Use `make test-live-feedback-loop-remote`, `make test-remote-edge-signal-smoke`, or `make test-dashboard-e2e-external` when you need deployment-level evidence.
 - `make test`, `make test-integration`, and `make test-dashboard-e2e` wait for `/health` readiness before failing.
 - `make test` now also checks `/admin/session` and fails fast if the running server is `runtime-prod`, because the full adversarial/dashboard contract is defined against `make dev`.
 - `make test` includes maze asymmetry benchmark gating, the adversary runtime-surface gate, the mandatory fast adversarial matrix (`smoke + abuse + Akamai`), SIM2 realtime/advisory gates, and Playwright dashboard e2e. If Docker is unavailable, the container black-box lane degrades to the advisory SIM2 verification matrix path instead of hard-failing the umbrella run.
@@ -116,14 +140,15 @@ Notes:
 
 ## 🐙 Test Layers
 
-This project uses six distinct test environments, each optimized for its scope:
+This project uses the following practical environments inside the canonical tiers above:
 
-1. Unit tests (native Rust)
-2. Integration tests (Spin environment)
-3. Adversarial simulation profiles (Spin environment + manifest-driven runner)
-4. Dashboard module unit tests (Node `node:test`)
-5. Dashboard e2e smoke tests (Playwright)
-6. Dashboard checks (manual)
+1. Native Rust unit and crate-internal tests
+2. Subprocess and helper harness tests
+3. Spin integration and adversarial runtime tests against a running local server
+4. Dashboard module tests in Node `node:test`
+5. Dashboard rendered smoke tests in Playwright
+6. Live hosted or ssh-managed remote operational proofs
+7. Optional manual dashboard checks for contributor inspection
 
 ## 🐙 Test Layout Conventions
 

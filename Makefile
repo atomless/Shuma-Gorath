@@ -557,7 +557,7 @@ remote-open-dashboard: ## Open the hosted dashboard for the active normalized ss
 test-remote-edge-signal-smoke: ## Run live trusted-edge signal smoke against the active ssh_systemd remote (Akamai fingerprint fixtures + GEO headers)
 	@python3 ./scripts/tests/remote_edge_signal_smoke.py --env-file "$(ENV_LOCAL)" --receipts-dir "$(REMOTE_RECEIPTS_DIR)" $(REMOTE_NAME_ARG)
 
-test-live-feedback-loop-remote: ## Run live shared-host feedback-loop proof against the active ssh_systemd remote
+test-live-feedback-loop-remote: ## Run live shared-host operational proof against the active ssh_systemd remote (separate from make test)
 	@python3 ./scripts/tests/live_feedback_loop_remote.py --env-file "$(ENV_LOCAL)" --receipts-dir "$(REMOTE_RECEIPTS_DIR)" $(REMOTE_NAME_ARG)
 
 test-live-feedback-loop-remote-unit: ## Validate the live shared-host feedback-loop verifier contract locally
@@ -567,7 +567,7 @@ test-live-feedback-loop-remote-unit: ## Validate the live shared-host feedback-l
 test-fermyon-edge-signal-smoke: ## Run live trusted-edge signal smoke against the current Fermyon/Akamai deploy receipt
 	@python3 ./scripts/tests/fermyon_edge_signal_smoke.py --env-file "$(ENV_LOCAL)" --deploy-receipt "$(FERMYON_AKAMAI_DEPLOY_RECEIPT)" --report-path "$(FERMYON_EDGE_SIGNAL_SMOKE_REPORT)"
 
-test: ## Run umbrella tests in series: unit, maze benchmark, integration, adversarial matrix, SIM2 realtime gates, and dashboard e2e
+test: ## Run the canonical local/CI pre-merge suite: unit, maze benchmark, Spin integration, adversarial matrix, SIM2 gates, and dashboard e2e (excludes live remote proofs)
 	@echo "$(CYAN)============================================$(NC)"
 	@echo "$(CYAN)  RUNNING ALL TESTS$(NC)"
 	@echo "$(CYAN)============================================$(NC)"
@@ -796,7 +796,7 @@ test-runtime-preflight: ## Verify existing server runtime matches the full-suite
 
 unit-test: test-unit ## Alias for Rust unit tests
 
-test-integration: ## Run integration tests only (21 scenarios, requires running server)
+test-integration: ## Run local Spin integration tests only (28 scenarios, requires running server)
 	@echo "$(CYAN)🧪 Running integration tests...$(NC)"
 	@$(MAKE) --no-print-directory test-integration-script-unit
 	@if $(MAKE) --no-print-directory spin-wait-ready; then \
@@ -1998,7 +1998,7 @@ test-dashboard-e2e-policy-pane-ownership: ## Run focused Playwright policy/tunin
 		exit 1; \
 	fi
 
-test-dashboard-e2e-external: ## Run focused live dashboard smoke against an already-hosted external deployment (requires SHUMA_BASE_URL and auth env)
+test-dashboard-e2e-external: ## Run focused live hosted-dashboard smoke against an already-hosted deployment (separate from make test)
 	@echo "$(CYAN)🧪 Running external dashboard live smoke against $(SHUMA_BASE_URL)...$(NC)"
 	@if [ -z "$(SHUMA_BASE_URL)" ]; then \
 		echo "$(RED)❌ Error: SHUMA_BASE_URL must be set for test-dashboard-e2e-external.$(NC)"; \

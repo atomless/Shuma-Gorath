@@ -4,6 +4,23 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-23)
 
+### TEST-TIER-1: Canonical test tiers and target-scope truthfulness
+
+- [x] Defined the canonical automated test tiers in [`docs/testing.md`](../docs/testing.md): static/source-contract checks, local behavior tests, Spin runtime integration tests, rendered dashboard tests, and live operational proofs, with manual dashboard checks explicitly treated as non-canonical proof.
+- [x] Updated `Makefile` target descriptions so the local/CI pre-merge suite and live operational proofs are distinguished more truthfully, including correcting the integration scenario count and marking live hosted/remote targets as separate from `make test`.
+- [x] Wrote the tranche closeout in [`docs/research/2026-03-23-test-tier-1-post-implementation-review.md`](../docs/research/2026-03-23-test-tier-1-post-implementation-review.md).
+- [x] Why:
+  - the testing-surface audit showed that the repo had valuable proof layers, but contributors still lacked a crisp tier model for answering which targets prove local correctness versus hosted operational truth.
+  - stale help text like the integration scenario count undermined confidence in the suite and made the test surface harder to navigate than necessary.
+  - clarifying target scope before the Monitoring overhaul gives the next UI and test-hygiene slices a more truthful base to work from.
+- [x] Evidence:
+  - `Makefile`
+  - `docs/testing.md`
+  - `docs/research/2026-03-23-test-tier-1-post-implementation-review.md`
+  - `docs/research/README.md`
+  - `make help`
+  - `git diff --check`
+
 ### Testing surface audit and rationalization planning
 
 - [x] Audited the canonical test surface from the `Makefile` outward and wrote up what each major test layer really proves today: Rust domain tests, Spin integration shell tests, gateway/deploy helper tests, adversarial and SIM2 tests, dashboard Node and Playwright tests, and live shared-host proof targets.
