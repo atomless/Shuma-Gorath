@@ -210,6 +210,8 @@ Completed archive index:
    Readiness review freezing the exact `OVR-APPLY-1` state-machine boundary: recommend-only manual preview, one active shared-host canary, exact pre-canary config restore, candidate-vs-baseline watch-window judgment, and fail-closed rollback on any loss of trustworthy evidence.
 51. [`2026-03-22-ovr-apply-1-canary-apply-and-rollback-post-implementation-review.md`](2026-03-22-ovr-apply-1-canary-apply-and-rollback-post-implementation-review.md)
    Post-implementation review confirming the first bounded shared-host canary-apply loop is live-proven, that post-sim triggering now falls back to persisted observed simulation events when terminal control-state counters are absent, and that the remaining adversary-sim diagnostics truth gap is queued separately ahead of Monitoring overhaul.
+52. [`2026-03-23-adv-diag-1-adversary-sim-status-truth-review.md`](2026-03-23-adv-diag-1-adversary-sim-status-truth-review.md)
+   Review freezing the `ADV-DIAG-1` diagnostics contract: `/admin/adversary-sim/status` must recover lower-bound generation and lane truth from immutable simulation-tagged event evidence when mutable shared-host control-state counters under-report.
 
 ## 🐙 SIM2 Post-Implementation Shortfalls (2026-02-27)
 

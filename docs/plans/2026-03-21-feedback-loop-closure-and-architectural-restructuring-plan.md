@@ -251,6 +251,8 @@ Status update (2026-03-22): complete and live-proven on shared-host per [`../res
 
 Before Monitoring and Tuning are reopened, reconcile adversary-sim status diagnostics with the persisted event telemetry that the closed loop now correctly treats as authoritative. The live `OVR-APPLY-1` proof showed that `sim_run_id` event evidence can be truthful while shared-host generation counters remain zero.
 
+Execution reference: [`2026-03-23-adv-diag-1-adversary-sim-status-truth-implementation-plan.md`](2026-03-23-adv-diag-1-adversary-sim-status-truth-implementation-plan.md)
+
 ## Phase 6: Human Operator Projection
 
 ### `MON-OVERHAUL-1`
