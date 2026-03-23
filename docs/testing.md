@@ -33,8 +33,10 @@ make test-adversarial-promote-candidates # Frontier finding triage + determinist
 make test-adversarial-container-isolation # Validate black-box container isolation contract (Docker required)
 make test-adversarial-container-blackbox # Run containerized black-box adversary worker (Docker required)
 make test-adversarial-llm-fit # Focused bounded LLM fulfillment-plan contract gate
+make test-adversary-sim-scrapling-category-fit # Focused Scrapling category-ownership and worker-plan contract gate
 make test-adversarial-coverage-receipts # Focused canonical category-coverage receipt and gating checks
 make test-protected-tuning-evidence # Focused protected tuning-evidence eligibility and fail-closed benchmark checks
+make test-verified-identity-calibration-readiness # Focused verified-identity taxonomy/benchmark/reconcile seam gate
 make test-adversarial-frontier-attempt # Protected-lane frontier provider attempt probe (advisory/non-blocking)
 make test-frontier-governance # Frontier artifact guard (forbidden keys + secret leak checks)
 make test-frontier-unavailability-policy # Frontier degraded-threshold policy tracker + actionability artifact
@@ -201,11 +203,13 @@ Available profiles:
 - `make test-shared-host-seed-contract` - minimal shared-host seed inventory contract parity check, including required primary URL handling, bounded `robots.txt` hint ingestion, provenance merge, and rejection diagnostics
 - `make prepare-scrapling-deploy` - shared-host deploy-prep helper that infers the fail-closed scope fence, root-only seed, runtime env mappings, and deploy-time receipt from the canonical public base URL
 - `make test-scrapling-deploy-shared-host` - focused shared-host deploy proof for the Scrapling prep helper, Linode deploy wiring, normalized `ssh_systemd` receipt extension, and `make remote-update` preservation of the same scope/seed artifact contract
+- `make test-adversary-sim-scrapling-category-fit` - focused Scrapling ownership-contract proof for canonical lane fulfillment rows plus the bounded worker-plan `category_targets` contract
 - `make test-adversary-sim-scrapling-worker` - focused real Scrapling lane gate covering the internal beat/result contract, bounded worker execution, real signed requests against a local hosted-scope fixture, and host-side supervisor source-contract wiring
 - `make test-adversarial-sim-tag-contract` - signed simulation-tag contract parity check across lane contract, runner, and container worker
 - `make test-adversarial-coverage-contract` - canonical `full_coverage` contract parity check across SIM2 plan rows, manifests, and runner enforcement
 - `make test-adversarial-llm-fit` - bounded LLM browser/request fulfillment-plan contract proof across runtime beat payloads and frontier/container contract artifacts
 - `make test-adversarial-coverage-receipts` - canonical category-coverage receipt proof across adversarial coverage/scenario contracts, the non-human coverage summary, and fail-closed benchmark gating when mapped categories are not yet covered
+- `make test-verified-identity-calibration-readiness` - focused bridge gate for the current verified-identity calibration seams: taxonomy-crosswalk entry point, verified-identity snapshot section, beneficial non-human benchmark materialization, and reconcile fail-closed readiness
 - `make test-protected-tuning-evidence` - protected-evidence proof across replay-promotion summary state, operator-snapshot replay visibility, fail-closed benchmark gating when evidence is only advisory, and replay-review requirements in oversight patch shaping
 - `make test-operator-objectives-category-contract` - category-aware objective proof across persisted objective rows, operator-objectives admin writes, decision lineage, and snapshot projection
 - `make test-benchmark-category-eligibility` - category-aware benchmark proof across the suite registry, current-instance benchmark results, tuning-eligibility blockers, and prior-window or candidate comparison helpers
@@ -222,6 +226,7 @@ Shared-host Scrapling proof map:
 
 - `make prepare-scrapling-deploy` proves deploy-time inference and receipt generation only.
 - `make test-scrapling-deploy-shared-host` proves the shared-host deploy/update automation carries the same inferred scope/seed/env contract end to end.
+- `make test-adversary-sim-scrapling-category-fit` proves the bounded category-ownership and worker-plan target contract for the current request-native Scrapling track.
 - `make test-adversary-sim-scrapling-worker` proves the hosted worker lane itself.
 - `make test-adversary-sim-runtime-surface` proves the running target keeps the defense surface live while adversary simulation remains no-impact to normal user traffic.
 - none of those targets make Fermyon/Akamai edge a supported full hosted Scrapling worker target; that edge runtime remains outside the current supported contract.
@@ -238,6 +243,7 @@ Structural refactor proof map:
 - `make test-controller-action-surface` is the focused config-side gate for `allowed_actions_v1` and controller patch-family mapping reuse.
 - `make test-benchmark-comparison-contract` is the focused benchmark helper gate for explicit baseline-availability, improvement-status, and escalation comparison semantics.
 - `make test-operator-objectives-contract` is the focused objective-profile and decision-evidence gate for persisted `operator_objectives_v1`, the operator-objectives admin endpoint, the bounded decision ledger, and snapshot wiring.
+- `make test-verified-identity-calibration-readiness` is the focused bridge gate before `VID-TAX-1` through `VID-GUARD-1`; it proves the current verified-identity taxonomy, snapshot, benchmark, and reconcile seams without over-claiming future alignment or conflict behavior.
 - `make test-oversight-reconcile` is the focused recommend-only oversight gate for bounded patch-policy shaping, stale/contradictory-evidence refusal behavior, the oversight decision ledger, and the admin reconcile/history adapter without touching any config write path.
 - `make test-oversight-agent` is the focused shared-host oversight agent gate for the internal periodic trigger contract, bounded agent-run persistence, latest-run status shaping, and supervisor-auth enforcement without exercising the post-sim hook yet.
 - `make test-oversight-apply` is the focused closed-loop oversight gate for manual apply-eligibility preview, shared-host canary refusal/apply semantics, protected watch-window progression, exact rollback, and retained-canary judgment.

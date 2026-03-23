@@ -40,9 +40,35 @@ Reason:
 1. Monitoring should project the settled meaning of verified beneficial traffic, not the current flattened approximation.
 2. The closed loop should not continue tuning against botness and category pressure without a hard guardrail for verified-identity harm.
 
+# Task 0: Focused Verification Prep And Ownership Freeze
+
+**Files:**
+- Modify: `Makefile`
+- Modify: `docs/testing.md`
+- Create or modify: focused Make-target source-contract tests under `scripts/tests/`
+
+**Work:**
+1. Add a truthful focused target for the current verified-identity calibration seam, `test-verified-identity-calibration-readiness`.
+2. Freeze ownership for the later tranches:
+   - `VID-TAX-1`: runtime crosswalk first, in `src/runtime/traffic_classification.rs`
+   - `VID-TAX-2`: receipt and summarized projection work in verified-identity/non-human observability surfaces
+   - `VID-BOT-1`: benchmark and snapshot conflict metrics in the beneficial non-human benchmark family plus benchmark aggregation
+   - `VID-GUARD-1`: fail-closed controller behavior in the oversight reconcile path and its admin adapter
+3. Keep this readiness target limited to current seams; do not claim future alignment receipts, conflict metrics, or guardrail behaviors before the tranches land.
+
+**Acceptance:**
+1. The verified-identity calibration track has a narrow `make` proof path before implementation starts.
+2. The plan names concrete owning modules for crosswalk, observability, benchmark, and reconcile work.
+3. Contributors can execute the `VID-*` sequence without reopening core ownership questions mid-tranche.
+
 # Task 1: `VID-TAX-1` Faithful Verified-Identity Category Crosswalk
 
 Define and implement an explicit, tested projection from verified-identity categories into the canonical non-human taxonomy.
+
+Primary ownership:
+
+1. `src/runtime/traffic_classification.rs`
+2. related classification/annotation consumers that already materialize taxonomy consequences
 
 Must include:
 
@@ -67,6 +93,12 @@ Acceptance:
 
 Add explicit receipts that compare verified identity to the chosen taxonomy category.
 
+Primary ownership:
+
+1. `src/observability/non_human_classification.rs`
+2. `src/observability/operator_snapshot_verified_identity.rs`
+3. related snapshot or benchmark summary adapters reused by Monitoring later
+
 Must include:
 
 1. a machine-readable alignment receipt per relevant verified request or summarized row,
@@ -90,6 +122,12 @@ Acceptance:
 
 Add benchmark and snapshot metrics that expose when botness and verified identity disagree in important ways.
 
+Primary ownership:
+
+1. `src/observability/benchmark_beneficial_non_human.rs`
+2. `src/observability/benchmark_results.rs`
+3. supporting verified-identity snapshot projection where operator-facing bounded summaries are needed
+
 Must include:
 
 1. a bounded conflict metric family for high-confidence verified traffic that is simultaneously classified or pressured as suspicious automation,
@@ -109,6 +147,12 @@ Acceptance:
 # Task 4: `VID-GUARD-1` Hard Verified-Identity Guardrails In Diagnosis
 
 Make diagnosis and bounded tuning fail closed when verified-identity mismatch indicates likely harm to tolerated or allowed verified traffic.
+
+Primary ownership:
+
+1. `src/admin/oversight_reconcile.rs`
+2. `src/admin/oversight_api.rs`
+3. any benchmark-eligibility helper reused by reconcile when the blocker semantics belong in the benchmark layer
 
 Must include:
 
@@ -132,10 +176,11 @@ Acceptance:
 
 When these tranches execute, add focused Makefile-backed verification for:
 
-1. verified-identity taxonomy crosswalk behavior,
-2. alignment receipt materialization,
-3. verified-identity versus botness conflict metrics,
-4. oversight reconcile fail-closed behavior under verified-identity mismatch.
+1. verified-identity calibration-readiness seam coverage,
+2. verified-identity taxonomy crosswalk behavior,
+3. alignment receipt materialization,
+4. verified-identity versus botness conflict metrics,
+5. oversight reconcile fail-closed behavior under verified-identity mismatch.
 
 # Exit Criteria
 

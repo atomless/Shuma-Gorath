@@ -4,6 +4,25 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-23)
 
+### Sequence Readiness Prep: Scrapling Category-Fit And Verified-Identity Calibration Gates
+
+- [x] Added the short execution-readiness bridge before `SIM-SCR-FIT-1` through `VID-GUARD-1`: one new readiness research note, tighter implementation-plan ownership for the verified-identity calibration track, and truthful focused Makefile proof targets for the upcoming Scrapling and verified-identity slices.
+- [x] Why:
+  - the Scrapling request-native plan already assumed a focused category-fit gate, but the Makefile only exposed the broader worker runtime gate, which would have made the first ownership-contract tranche harder to prove cleanly.
+  - the verified-identity calibration plan had the right direction but was still too implicit about ownership boundaries across runtime crosswalk, observability, benchmark, and reconcile layers, which would have created unnecessary ambiguity when the `VID-*` sequence started.
+  - the cleanest fix was a small readiness tranche that adds honest narrow proof paths and tightens the plan docs before any category-ownership or verified-identity calibration code moves.
+- [x] Evidence:
+  - `docs/research/2026-03-23-scrapling-and-verified-identity-sequence-readiness-review.md`
+  - `docs/plans/2026-03-23-scrapling-request-native-category-fulfillment-implementation-plan.md`
+  - `docs/plans/2026-03-23-verified-identity-taxonomy-calibration-and-guardrails-implementation-plan.md`
+  - `Makefile`
+  - `docs/testing.md`
+  - `scripts/tests/test_adversary_sim_make_targets.py`
+  - `scripts/tests/test_verified_identity_make_targets.py`
+  - `make test-adversary-sim-scrapling-category-fit`
+  - `make test-verified-identity-calibration-readiness`
+  - `git diff --check`
+
 ### Verified-Identity Calibration Planning: Taxonomy Crosswalk, Conflict Metrics, And Closed-Loop Guardrails
 
 - [x] Audited how verified identity and native Web Bot Auth currently flow through taxonomy, benchmark, and reconcile code, then added a dedicated planning chain that treats verified identity as a calibration anchor and no-harm guardrail for the closed loop rather than only a coarse beneficial-traffic signal.

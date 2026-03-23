@@ -97,6 +97,23 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
         )
         self.assertIn("scripts/tests/test_llm_fulfillment.py", body)
 
+    def test_scrapling_category_fit_target_uses_bounded_selectors(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-adversary-sim-scrapling-category-fit:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn("observability::non_human_lane_fulfillment::tests::", body)
+        self.assertIn(
+            "adversary_sim_internal_beat_returns_scrapling_worker_plan_and_switches_active_lane",
+            body,
+        )
+        self.assertIn("scripts/tests/test_adversary_sim_make_targets.py", body)
+        self.assertNotIn("scripts/tests/test_scrapling_worker.py", body)
+
 
 if __name__ == "__main__":
     unittest.main()

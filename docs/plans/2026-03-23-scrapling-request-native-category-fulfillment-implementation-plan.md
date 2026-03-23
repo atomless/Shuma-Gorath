@@ -23,14 +23,17 @@
 **Files:**
 - Modify: `Makefile`
 - Modify: `docs/testing.md`
+- Modify: `scripts/tests/test_adversary_sim_make_targets.py`
 
 **Work:**
 1. Add a truthful focused target for Scrapling request-native fulfillment contract work, for example `test-adversary-sim-scrapling-category-fit`.
 2. Add or refine a truthful focused target for the expanded Scrapling worker persona coverage, for example `test-adversary-sim-scrapling-worker`.
 3. Add or refine a truthful focused target for the receipt-backed coverage follow-on, for example `test-adversarial-coverage-receipts`.
+4. Add selector-truth regression coverage for the new category-fit target so later target drift fails fast.
 
 **Acceptance criteria:**
 1. Each request-native Scrapling slice has a narrow `make` proof path.
+2. The new focused target name is enforced by a source-contract test rather than only convention.
 
 ## Task 1: `SIM-SCR-FIT-1`
 
