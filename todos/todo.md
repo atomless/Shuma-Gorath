@@ -227,6 +227,19 @@ Architecture alignment reference:
 ## P3 Platform and Configuration Clarity
 
 - [ ] Centralize dashboard tab metadata (tab ids, loading copy, refresh defaults, and invalidation scopes) into one shared registry consumed by route, route-controller, refresh-runtime, and native-runtime code so stale fallback tabs/messages cannot drift.
+- [ ] ADV-JSON-1 Audit the Dashboard Advanced tab runtime-variable inventory and Advanced JSON seed for full parity and organization.
+  - Reference context:
+    - [`docs/dashboard-tabs/advanced.md`](../docs/dashboard-tabs/advanced.md)
+    - [`dashboard/src/lib/domain/config-schema.js`](../dashboard/src/lib/domain/config-schema.js)
+    - [`dashboard/src/lib/components/dashboard/AdvancedTab.svelte`](../dashboard/src/lib/components/dashboard/AdvancedTab.svelte)
+    - [`src/admin/api.rs`](../src/admin/api.rs)
+    - [`docs/configuration.md`](../docs/configuration.md)
+  - Acceptance criteria:
+    - every admin-writable KV config var accepted by `POST /admin/config` appears in Advanced JSON,
+    - runtime-visible read-only vars surfaced in Advanced are truthfully classified,
+    - stale, missing, or misleading entries are corrected,
+    - variables are logically grouped and ordered so the Advanced surface remains navigable as the config surface grows,
+    - docs and parity tests are updated so drift fails fast.
 - [ ] Resolve the `ip_range_suggestions_*` classification exception so the documented config model stays honest: either make those runtime-visible KV knobs admin-writable with Advanced JSON parity, or move them out of the persisted read-only exception path and document the chosen contract.
 - [ ] Write objective criteria for future repository splits (API stability, release cadence, ownership, operational coupling).
 - [ ] Design runtime-agnostic architecture that keeps core detection logic portable while preserving the shared-host-first control plane and a later thin edge-gateway adapter path.

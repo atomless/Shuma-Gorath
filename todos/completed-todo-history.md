@@ -4,6 +4,18 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-23)
 
+### Docs: tighten Advanced-tab parity process and queue a full audit
+
+- [x] Strengthened `AGENTS.md` so config-variable changes must update Dashboard Advanced surfaces in the same tranche, and so the Advanced inventory must stay logically grouped, truthful about writable versus read-only status, and documented when exclusions are intentional.
+- [x] Added a dedicated active backlog item `ADV-JSON-1` to audit the Dashboard Advanced tab runtime inventory and Advanced JSON seed for parity, truthfulness, and organization.
+- [x] Why:
+  - the repo already required parity between admin-writable config and Advanced JSON, but the process rule did not explicitly force same-tranche updates for newly added or reclassified vars, nor did it explicitly require the Advanced surface to stay organized and truthful as it grows.
+  - a dedicated audit task is now warranted so the current Advanced surface can be reviewed holistically rather than only opportunistically when individual vars change.
+- [x] Evidence:
+  - `AGENTS.md`
+  - `todos/todo.md`
+  - `git diff --check`
+
 ### Docs: Plan dashboard operator surfacing catch-up before Monitoring overhaul
 
 - [x] Added a research note and implementation-ready sequencing plan for which newly landed backend and machine-first capabilities should be surfaced locally before `MON-OVERHAUL-1` and which should stay owned by Monitoring or Tuning.

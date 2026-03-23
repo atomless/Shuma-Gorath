@@ -102,6 +102,9 @@ Planning-first workflow is mandatory unless the user explicitly stipulates a dif
 15. Keep admin-writable config and Dashboard Advanced JSON in strict parity:
    - every KV-editable key accepted by `POST /admin/config` must appear in `dashboard/src/lib/domain/config-schema.js` Advanced JSON paths,
    - env-only keys remain excluded,
+   - whenever adding, removing, or reclassifying config variables, agents MUST update the Dashboard Advanced tab surfaces in the same tranche, including `dashboard/src/lib/domain/config-schema.js` and any Advanced runtime-inventory metadata or docs that describe those variables,
+   - Dashboard Advanced tab inventory and Advanced JSON paths MUST stay organized by logical family, truthful about writable versus read-only classification, and free of stale or misleading groupings,
+   - if a variable is intentionally excluded from Advanced JSON or from the Advanced runtime inventory, agents MUST document the reason in the relevant config or operator docs and keep tests aligned to that contract,
    - maintain/update parity tests so drift fails fast.
 16. Non-negotiable whole-system evidence rule for usage/coverage claims:
    - agents MUST NOT claim that code/endpoint/functionality is "unused", "dead", "not exercised", or "only used by X" from partial inspection;
