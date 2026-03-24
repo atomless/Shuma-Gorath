@@ -48,6 +48,7 @@ Put more simply, the later contract should make it explicit that Shuma's recursi
 7. The earlier reference-stance and run-to-homeostasis methodology should be implemented as part of this game contract, not separately from it.
 8. Later execution-ready player planning should consume separate contracts for judge score semantics, player protocol schemas, and held-out evaluation separation rather than letting those details remain implicit inside the broader game contract.
 9. Episode memory alone is not enough; later recursive-improvement phases also need a canonical audit and provenance contract that links judge outcomes to config and later GitHub-backed code lineage.
+10. Judge-side game-contract work can proceed before fuller attacker-side runtime maturity, but broader player-side game-loop execution must remain blocked until Scrapling-owned defense surfaces are attacker-faithful and receipt-backed.
 
 ## Task 0: Focused Verification Prep
 
@@ -219,6 +220,12 @@ Put more simply, the later contract should make it explicit that Shuma's recursi
 3. Monitoring remains the human-readable projection of that judge,
 4. and later autonomy cannot widen the rules, evaluator, or move set by implication.
 
+Additional prerequisite note:
+
+1. `RSI-ROLES-1` may still be planned before the fuller attacker-side runtime is ready,
+2. but execution-ready attacker/defender phases must wait until `SIM-SCR-CHALLENGE-1` proves attacker-faithful Scrapling coverage for Scrapling-owned surfaces,
+3. and, where the owned-surface matrix requires it, `SIM-SCR-BROWSER-1` is also complete.
+
 # Sequencing
 
 1. Finish `CTRL-SURFACE-1..3` before `RSI-GAME-1A`.
@@ -229,6 +236,7 @@ Put more simply, the later contract should make it explicit that Shuma's recursi
 6. Reopen `OVR-CODE-1` only after `OVR-AGENT-2`, the game contract, and the strict-reference regression-anchor expectations are all explicit.
 7. Land `RSI-SCORE-1`, `RSI-PROTO-1`, and `RSI-EVAL-1` before any later player-side runtime planning is treated as protocol-complete.
 8. Land `RSI-AUDIT-1` before later autonomous defender runtime work is treated as operationally accountable, and before `OVR-CODE-1` is treated as execution-ready.
+9. Keep judge-side planning allowed to proceed, but do not treat broader attacker/defender game-loop execution as ready until `SIM-SCR-CHALLENGE-1` is complete and any owned-surface browser or stealth requirement from that matrix has been satisfied through `SIM-SCR-BROWSER-1`.
 
 # Definition Of Done
 

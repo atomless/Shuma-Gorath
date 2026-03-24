@@ -17,6 +17,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-24-scorecard-protocol-and-held-out-eval-separation-plan.md`](2026-03-24-scorecard-protocol-and-held-out-eval-separation-plan.md) - Freezes the remaining protocol-level contracts for later recursive improvement: scorecard, player schemas, and held-out evaluation separation
 - [`2026-03-24-game-loop-audit-trail-and-github-provenance-plan.md`](2026-03-24-game-loop-audit-trail-and-github-provenance-plan.md) - Freezes recursive-improvement audit lineage and makes GitHub the canonical code-provenance spine where feasible
 - [`2026-03-24-game-loop-budget-visualization-and-category-target-achievement-plan.md`](2026-03-24-game-loop-budget-visualization-and-category-target-achievement-plan.md) - Refines Game Loop so true budgets and category target-achievement are shown distinctly
+- [`2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md`](2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md) - Makes attacker-faithful Scrapling coverage an explicit prerequisite for fuller player-side game-loop execution
 - [`2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md`](2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md) - Separates widened Scrapling defense-surface evaluation from the broader later browser-runtime question
 - [`2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-plan.md`](2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-plan.md) - Refines Monitoring-vs-Diagnostics ordering so Monitoring reuses shared transitional surfaces before Diagnostics cleanup
 - [`2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md`](2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md) - Introduces a dedicated Traffic tab and narrows Diagnostics to furniture-operational proof
@@ -67,6 +68,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-24-scorecard-protocol-and-held-out-eval-separation-plan.md`](2026-03-24-scorecard-protocol-and-held-out-eval-separation-plan.md)
 - [`2026-03-24-game-loop-audit-trail-and-github-provenance-plan.md`](2026-03-24-game-loop-audit-trail-and-github-provenance-plan.md)
 - [`2026-03-24-game-loop-budget-visualization-and-category-target-achievement-plan.md`](2026-03-24-game-loop-budget-visualization-and-category-target-achievement-plan.md)
+- [`2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md`](2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md)
 - [`2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md`](2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md)
 - [`2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md`](2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md)
 - [`2026-03-24-identification-tab-rename-and-taxonomy-distinction-plan.md`](2026-03-24-identification-tab-rename-and-taxonomy-distinction-plan.md)

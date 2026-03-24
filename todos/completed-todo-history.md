@@ -4,6 +4,25 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### Planning: make attacker-faithful Scrapling coverage a game-loop prerequisite
+
+- [x] Added the new sequencing review and implementation-plan notes:
+  - [`docs/research/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-review.md`](../docs/research/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-review.md)
+  - [`docs/plans/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md`](../docs/plans/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md)
+- [x] Tightened the blocked backlog so the fuller player-side game loop now explicitly waits for:
+  - `SIM-SCR-CHALLENGE-1`
+  - and, where the owned-surface matrix requires it, `SIM-SCR-BROWSER-1`
+- [x] Synced that prerequisite into:
+  - [`docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](../docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md)
+  - [`docs/plans/2026-03-24-llm-player-role-decomposition-plan.md`](../docs/plans/2026-03-24-llm-player-role-decomposition-plan.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`docs/plans/README.md`](../docs/plans/README.md)
+- [x] Why:
+  - the user clarified the right prerequisite precisely: not all Scrapling features, but all attacker-relevant Scrapling capability for Scrapling-owned surfaces, proven with receipts and explicit lane assignment for remaining gaps
+  - that changes the readiness bar for the fuller attacker/defender game loop, not for judge-side planning
+- [x] Evidence:
+  - docs-only change; verification intentionally limited to `git diff --check`
+
 ### Planning: add an ongoing Scrapling upstream-capability watch rule
 
 - [x] Tightened the new Scrapling challenge-expansion plan in [`docs/plans/2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md`](../docs/plans/2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md) with an explicit ongoing hygiene rule:

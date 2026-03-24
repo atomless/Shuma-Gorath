@@ -40,6 +40,7 @@ Decompose the two later LLM-backed player roles so the recursive-improvement gam
    2. `RSI-PROTO-1` for canonical player wire schemas,
    3. `RSI-EVAL-1` for held-out evaluation separation,
    4. and `RSI-AUDIT-1` for shared episode and proposal provenance.
+7. The later player-side runtime tracks must not be treated as execution-ready until Scrapling-owned defense surfaces are attacker-faithful and receipt-backed; that prerequisite belongs to `SIM-SCR-CHALLENGE-1` and, where needed by the owned-surface matrix, `SIM-SCR-BROWSER-1`.
 
 ## Task 1: `SIM-LLM-1A`
 
@@ -225,6 +226,7 @@ Decompose the two later LLM-backed player roles so the recursive-improvement gam
 7. Land `OVR-AGENT-2A` before any defender-agent runtime planning is treated as execution-ready.
 8. Land `OVR-AGENT-2B` before `OVR-AGENT-2C`.
 9. Keep `OVR-CODE-1` downstream of the settled defender-agent track rather than folding it into defender planning.
+10. Do not treat the fuller attacker or defender runtime tracks as execution-ready until `SIM-SCR-CHALLENGE-1` proves attacker-faithful Scrapling coverage for Scrapling-owned surfaces and, where that matrix requires browser or stealth Scrapling, `SIM-SCR-BROWSER-1` is also complete.
 
 # Definition Of Done
 
