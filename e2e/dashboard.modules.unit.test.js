@@ -5673,16 +5673,36 @@ test('diagnostics tab is decomposed into focused subsection components', () => {
   assert.match(disclosureSource, /<summary/);
 });
 
-test('monitoring tab is intentionally a clean-slate placeholder during the overhaul transition', () => {
-  const source = fs.readFileSync(
+test('monitoring and diagnostics tabs make the accountability-vs-diagnostics split explicit', () => {
+  const monitoringSource = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/MonitoringTab.svelte'),
     'utf8'
   );
+  const diagnosticsSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/DiagnosticsTab.svelte'),
+    'utf8'
+  );
 
-  assert.match(source, /Monitoring Overhaul In Progress/);
-  assert.match(source, /href="#diagnostics"/);
-  assert.doesNotMatch(source, /import DiagnosticsSection from '\.\/monitoring\/DiagnosticsSection\.svelte';/);
-  assert.doesNotMatch(source, /export let autoRefreshEnabled = false;/);
+  assert.match(monitoringSource, /Closed-Loop Accountability/);
+  assert.match(monitoringSource, /data-monitoring-section=\{section\.id\}/);
+  assert.match(monitoringSource, /id: 'current-status'/);
+  assert.match(monitoringSource, /id: 'recent-loop-progress'/);
+  assert.match(monitoringSource, /id: 'outcome-frontier'/);
+  assert.match(monitoringSource, /id: 'change-judgment'/);
+  assert.match(monitoringSource, /id: 'pressure-sits'/);
+  assert.match(monitoringSource, /id: 'trust-and-blockers'/);
+  assert.match(monitoringSource, /href="#diagnostics"/);
+  assert.doesNotMatch(monitoringSource, /Monitoring Overhaul In Progress/);
+
+  assert.match(diagnosticsSource, /data-diagnostics-section="deep-inspection-intro"/);
+  assert.match(diagnosticsSource, /data-diagnostics-section="traffic-overview"/);
+  assert.match(diagnosticsSource, /data-diagnostics-section="defense-breakdown"/);
+  assert.match(diagnosticsSource, /data-diagnostics-section="recent-external-traffic"/);
+  assert.match(diagnosticsSource, /data-diagnostics-section="defense-specific-diagnostics"/);
+  assert.match(diagnosticsSource, /data-diagnostics-section="telemetry-diagnostics"/);
+  assert.match(diagnosticsSource, /data-diagnostics-section="external-monitoring"/);
+  assert.match(diagnosticsSource, />Diagnostics</);
+  assert.match(diagnosticsSource, /deep inspection/i);
 });
 
 test('tarpit monitoring section centers progression and outcome telemetry', () => {

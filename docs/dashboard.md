@@ -35,9 +35,12 @@ Behavior:
 - Reload preserves selected tab.
 - Keyboard tab navigation is supported (`Left`, `Right`, `Home`, `End`).
 - Each tab exposes explicit loading, empty, and error state messaging.
+- `Monitoring` now owns the closed-loop accountability story.
+- `Diagnostics` now owns deep subsystem inspection and contributor-focused telemetry detail.
 
 ## 🐙 Refresh Model
 
+- `Monitoring` currently exposes the first accountability information architecture only; richer loop projection lands in later `MON-OVERHAUL-1B` and `MON-OVERHAUL-1C` slices.
 - Manual refresh is available on `Diagnostics`, `IP Bans`, and `Red Team`.
 - Auto-refresh is available only on `IP Bans` and `Red Team`.
 - Most tabs refresh on initial load, on explicit refresh events, and after relevant save flows.

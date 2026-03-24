@@ -67,7 +67,7 @@ make test-coverage    # Unit coverage to lcov.info (requires cargo-llvm-cov)
 make test-dashboard-unit # Dashboard module unit tests (Node `node:test`)
 make test-dashboard-adversary-sim-lane-contract # Focused dashboard lane-contract checks for the red-team lane selector + diagnostics
 make test-dashboard-auth-gate # Focused dashboard auth-gate checks for logged-out /dashboard entry
-make test-dashboard-tab-information-architecture # Focused dashboard unit checks for tab order and source-of-truth tab registry alignment
+make test-dashboard-tab-information-architecture # Focused dashboard source + rendered IA proof for tab registry alignment and Monitoring/Diagnostics ownership
 make test-dashboard-policy-pane-ownership # Focused dashboard unit checks that Policy owns the moved panes and Tuning stays botness-only
 make test-dashboard-verified-identity-pane # Focused Verification-tab surfacing checks for verified identity controls + health summary
 make test-dashboard-red-team-truth-basis # Focused Red Team truth-basis surfacing checks for recovered persisted-event evidence

@@ -1419,10 +1419,49 @@ test("dashboard clean-state renders explicit empty placeholders", async ({ page 
   await expect(page.locator('[data-tab-state="ip-bans"]')).toHaveText("");
 });
 
-test("monitoring tab is a clean-slate placeholder that points to diagnostics", async ({ page }) => {
+test("monitoring and diagnostics tabs expose the loop-accountability split", async ({ page }) => {
   await openDashboard(page);
-  await expect(page.locator("#dashboard-panel-monitoring")).toContainText("Monitoring Overhaul In Progress");
+
+  await expect(page.locator("#dashboard-panel-monitoring")).toContainText("Closed-Loop Accountability");
+  await expect(
+    page.locator('#dashboard-panel-monitoring [data-monitoring-section="current-status"]')
+  ).toContainText("Current Status");
+  await expect(
+    page.locator('#dashboard-panel-monitoring [data-monitoring-section="recent-loop-progress"]')
+  ).toContainText("Recent Loop Progress");
+  await expect(
+    page.locator('#dashboard-panel-monitoring [data-monitoring-section="outcome-frontier"]')
+  ).toContainText("Outcome Frontier");
+  await expect(
+    page.locator('#dashboard-panel-monitoring [data-monitoring-section="change-judgment"]')
+  ).toContainText("What The Loop Decided");
+  await expect(
+    page.locator('#dashboard-panel-monitoring [data-monitoring-section="pressure-sits"]')
+  ).toContainText("Where The Pressure Sits");
+  await expect(
+    page.locator('#dashboard-panel-monitoring [data-monitoring-section="trust-and-blockers"]')
+  ).toContainText("Trust And Blockers");
   await expect(page.locator('#dashboard-panel-monitoring a[href="#diagnostics"]')).toBeVisible();
+
+  await openTab(page, "diagnostics");
+  await expect(
+    page.locator('#dashboard-panel-diagnostics [data-diagnostics-section="deep-inspection-intro"]')
+  ).toContainText("Diagnostics");
+  await expect(
+    page.locator('#dashboard-panel-diagnostics [data-diagnostics-section="traffic-overview"]')
+  ).toContainText("Traffic Overview");
+  await expect(
+    page.locator('#dashboard-panel-diagnostics [data-diagnostics-section="defense-breakdown"]')
+  ).toContainText("Defense Breakdown");
+  await expect(
+    page.locator('#dashboard-panel-diagnostics [data-diagnostics-section="recent-external-traffic"]')
+  ).toContainText("Recent External Traffic");
+  await expect(
+    page.locator('#dashboard-panel-diagnostics [data-diagnostics-section="defense-specific-diagnostics"]')
+  ).toContainText("Defense-Specific Diagnostics");
+  await expect(
+    page.locator('#dashboard-panel-diagnostics [data-diagnostics-section="telemetry-diagnostics"]')
+  ).toContainText("Telemetry Diagnostics");
 });
 
 test("diagnostics manual refresh renders detailed monitoring sections and caps oversized result lists", async ({ page }) => {

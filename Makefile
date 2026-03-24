@@ -1782,8 +1782,16 @@ test-dashboard-tab-information-architecture: ## Run focused dashboard tab inform
 	fi
 	@$(MAKE) --no-print-directory test-dashboard-svelte-check
 	@node --test \
-		--test-name-pattern='dashboard state and store contracts remain immutable and bounded with heartbeat-owned connection telemetry|dashboard smoke spec keeps the tab information architecture aligned with the canonical registry' \
+		--test-name-pattern='dashboard state and store contracts remain immutable and bounded with heartbeat-owned connection telemetry|dashboard smoke spec keeps the tab information architecture aligned with the canonical registry|monitoring and diagnostics tabs make the accountability-vs-diagnostics split explicit' \
 		e2e/dashboard.modules.unit.test.js
+	@if $(MAKE) --no-print-directory spin-wait-ready; then \
+		$(MAKE) --no-print-directory seed-dashboard-data || exit 1; \
+		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) ./scripts/tests/run_dashboard_e2e.sh --grep "monitoring and diagnostics tabs expose the loop-accountability split"; \
+	else \
+		echo "$(RED)❌ Error: Spin server not ready$(NC)"; \
+		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \
+		exit 1; \
+	fi
 
 test-dashboard-policy-pane-ownership: ## Run focused dashboard policy/tuning pane-ownership contract checks
 	@echo "$(CYAN)🧪 Running focused dashboard policy/tuning pane-ownership checks...$(NC)"

@@ -4,6 +4,32 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### MON-OVERHAUL-1A: Monitoring loop-accountability information architecture and diagnostics refocus
+
+- [x] Replaced the old Monitoring placeholder with the first explicit loop-accountability scaffold in [`dashboard/src/lib/components/dashboard/MonitoringTab.svelte`](../dashboard/src/lib/components/dashboard/MonitoringTab.svelte), headed by `Closed-Loop Accountability` and sectioned into:
+  - `Current Status`
+  - `Recent Loop Progress`
+  - `Outcome Frontier`
+  - `What The Loop Decided`
+  - `Where The Pressure Sits`
+  - `Trust And Blockers`
+- [x] Refocused [`dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte`](../dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte) so it now advertises itself as the deep-inspection surface and wraps the retained legacy monitoring content into explicit subsections for traffic overview, defense breakdown, recent external traffic, defense-specific diagnostics, telemetry diagnostics, and external monitoring.
+- [x] Upgraded the focused dashboard information-architecture verification path so [`Makefile`](../Makefile) target `test-dashboard-tab-information-architecture` now proves both:
+  - source-contract ownership assertions in [`e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - and rendered Monitoring/Diagnostics identity through [`e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+- [x] Updated operator docs so the dashboard tab references now describe Monitoring as the closed-loop accountability surface and Diagnostics as the deeper contributor-style investigation surface:
+  - [`docs/dashboard-tabs/monitoring.md`](../docs/dashboard-tabs/monitoring.md)
+  - [`docs/dashboard-tabs/diagnostics.md`](../docs/dashboard-tabs/diagnostics.md)
+  - [`docs/dashboard.md`](../docs/dashboard.md)
+  - [`docs/testing.md`](../docs/testing.md)
+- [x] Why:
+  - `MON-OVERHAUL-1A` was the contract-setting tranche for the later Monitoring rebuild, so the first job was to make the ownership split visible and testable before projecting live machine-first benchmark/status/history data.
+  - this also creates the right stable surface for `TEST-HYGIENE-6`, which now has explicit rendered contracts to anchor on instead of placeholder-era assumptions.
+- [x] Evidence:
+  - `make test-dashboard-tab-information-architecture`
+  - `git diff --check`
+  - `docs/research/2026-03-24-mon-overhaul-1a-monitoring-ia-post-implementation-review.md`
+
 ### Planning refinement: make the remaining recursive-improvement protocol contracts explicit
 
 - [x] Wrote a dedicated research note and companion plan to capture the three remaining underplanned protocol layers on the path to the full recursive-improvement game:

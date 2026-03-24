@@ -92,13 +92,6 @@ Current stance:
 - Before `MON-OVERHAUL-1`, expose the already-settled local control truths that no longer belong only in Advanced JSON or backend-only payloads. Verified identity in `Verification` and adversary-sim status truth basis in `Red Team` are now delivered, so the next step is the Monitoring projection itself.
 - Keep the operator-facing product stance distinct from the later recursive-improvement development reference stance: `MON-OVERHAUL-1` and later `TUNE-SURFACE-1` should project and edit the current operator-selected posture, while run-to-homeostasis episodes remain blocked with `OVR-AGENT-2` and `RSI-METH-1`.
 
-### MON-OVERHAUL-1A: Monitoring loop-accountability information architecture and diagnostics refocus
-- Reframe Monitoring as the human-readable accountability surface for the closed loop rather than as a manual tuning console: lead with loop verdict, outcome frontier, change judgment, category breakdown, and trust or actionability blockers.
-- Make the page contract explicit that Monitoring owns both current status and bounded recent loop progress, so the tab does not collapse into a latest-result-only snapshot.
-- Tighten Diagnostics so it becomes more explicitly diagnostics-first in wording and section ownership rather than remaining a generic transplanted legacy Monitoring page.
-- Keep Monitoring anchored to the current operator-selected product stance; if later recursive-improvement reference-stance episodes are ever surfaced, they must be labeled as separate training or evaluation runs rather than presented as the live site posture.
-- Reference context: [`../docs/plans/2026-03-20-monitoring-and-diagnostics-tab-ownership-plan.md`](../docs/plans/2026-03-20-monitoring-and-diagnostics-tab-ownership-plan.md), [`../docs/research/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-review.md`](../docs/research/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-review.md), [`../docs/plans/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md`](../docs/plans/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md)
-
 ### MON-OVERHAUL-1B: Monitoring projection of loop verdict, outcome frontier, and controller judgment
 - Project `operator_snapshot_v1`, `benchmark_results_v1`, and bounded oversight status/history into Monitoring so operators can see current vs prior-window budget status, suspicious-origin cost vs likely-human friction, beneficial or verified posture, and what the controller last recommended, applied, retained, or rolled back.
 - Show bounded progress over recent completed loops against benchmark families plus recent controller action history, not just the latest loop result.

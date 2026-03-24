@@ -997,126 +997,182 @@
 >
   <TabStateMessage tab="diagnostics" status={tabStatus} />
 
-  <OverviewStats
-    loading={tabStatus?.loading === true}
-    {totalBans}
-    {activeBans}
-    {eventCount}
-    {uniqueIps}
-  />
-  {#if banSnapshotUnavailableMessage}
-    <p id="diagnostics-ban-state-unavailable" class="message warning">
-      {banSnapshotUnavailableMessage}
+  <section class="section" data-diagnostics-section="deep-inspection-intro">
+    <div class="panel panel-soft">
+      <h2>Diagnostics</h2>
+      <p class="text-muted">
+        Use this tab for deep inspection of subsystem telemetry, external-traffic traces, and
+        freshness or transport detail.
+      </p>
+      <p class="text-muted">
+        Monitoring now owns the loop-accountability story for the live stance. Diagnostics keeps
+        the contributor-style investigation surface.
+      </p>
+    </div>
+  </section>
+
+  <section class="section" data-diagnostics-section="traffic-overview">
+    <h2>Traffic Overview</h2>
+    <p class="text-muted">
+      Inspect the bounded external-traffic summary and enforced-event charts that still power
+      deep diagnostics while Monitoring is rebuilt.
     </p>
-  {/if}
+    <OverviewStats
+      loading={tabStatus?.loading === true}
+      {totalBans}
+      {activeBans}
+      {eventCount}
+      {uniqueIps}
+    />
+    {#if banSnapshotUnavailableMessage}
+      <p id="diagnostics-ban-state-unavailable" class="message warning">
+        {banSnapshotUnavailableMessage}
+      </p>
+    {/if}
 
-  <PrimaryCharts
-    {selectedTimeRange}
-    {eventTypesReadout}
-    onSelectTimeRange={selectTimeRange}
-    bind:eventTypesCanvas
-    bind:topIpsCanvas
-    bind:timeSeriesCanvas
-  />
+    <PrimaryCharts
+      {selectedTimeRange}
+      {eventTypesReadout}
+      onSelectTimeRange={selectTimeRange}
+      bind:eventTypesCanvas
+      bind:topIpsCanvas
+      bind:timeSeriesCanvas
+    />
+  </section>
 
-  <DefenseTrendBlocks
-    loading={tabStatus?.loading === true}
-    trendRows={defenseTrendRows}
-  />
+  <section class="section" data-diagnostics-section="defense-breakdown">
+    <h2>Defense Breakdown</h2>
+    <p class="text-muted">
+      Review per-defense trend blocks and execution-mode splits without turning Monitoring back
+      into a subsystem-by-subsystem dashboard.
+    </p>
+    <DefenseTrendBlocks
+      loading={tabStatus?.loading === true}
+      trendRows={defenseTrendRows}
+    />
+  </section>
 
-  <RecentEventsTable
-    {recentEvents}
-    filterOptions={eventFilterOptions}
-    filters={eventFilters}
-    onFilterChange={onEventFilterChange}
-    emptyState={monitoringEventEmptyState}
-    {formatTime}
-    {eventBadgeClass}
-  />
+  <section class="section" data-diagnostics-section="recent-external-traffic">
+    <h2>Recent External Traffic</h2>
+    <p class="text-muted">
+      Filter recent external-traffic events directly when you need to inspect concrete request and
+      defense outcomes.
+    </p>
+    <RecentEventsTable
+      {recentEvents}
+      filterOptions={eventFilterOptions}
+      filters={eventFilters}
+      onFilterChange={onEventFilterChange}
+      emptyState={monitoringEventEmptyState}
+      {formatTime}
+      {eventBadgeClass}
+    />
+  </section>
 
-  <CdpSection
-    loading={tabStatus?.loading === true}
-    {cdpDetections}
-    {cdpAutoBans}
-    {cdpFingerprintUaClientHintMismatch}
-    {cdpFingerprintUaTransportMismatch}
-    {cdpFingerprintTemporalTransitions}
-    {cdpFingerprintFlowViolations}
-    {recentCdpEvents}
-    {formatTime}
-    {readCdpField}
-  />
+  <section class="section" data-diagnostics-section="defense-specific-diagnostics">
+    <h2>Defense-Specific Diagnostics</h2>
+    <p class="text-muted">
+      Dive into per-defense sections when you need subsystem detail rather than the higher-level
+      loop-accountability narrative.
+    </p>
+    <CdpSection
+      loading={tabStatus?.loading === true}
+      {cdpDetections}
+      {cdpAutoBans}
+      {cdpFingerprintUaClientHintMismatch}
+      {cdpFingerprintUaTransportMismatch}
+      {cdpFingerprintTemporalTransitions}
+      {cdpFingerprintFlowViolations}
+      {recentCdpEvents}
+      {formatTime}
+      {readCdpField}
+    />
 
-  <MazeSection
-    loading={tabStatus?.loading === true}
-    {mazeStats}
-  />
+    <MazeSection
+      loading={tabStatus?.loading === true}
+      {mazeStats}
+    />
 
-  <TarpitSection
-    loading={tabStatus?.loading === true}
-    {tarpitSummary}
-  />
+    <TarpitSection
+      loading={tabStatus?.loading === true}
+      {tarpitSummary}
+    />
 
-  <HoneypotSection
-    loading={tabStatus?.loading === true}
-    honeypot={monitoringSummary.honeypot}
-    topPaths={honeypotTopPaths}
-  />
+    <HoneypotSection
+      loading={tabStatus?.loading === true}
+      honeypot={monitoringSummary.honeypot}
+      topPaths={honeypotTopPaths}
+    />
 
-  <ChallengeSection
-    loading={tabStatus?.loading === true}
-    challengeSummary={monitoringSummary.challenge}
-    notABotSummary={monitoringSummary.notABot}
-    {challengeReasonRows}
-    {notABotOutcomeRows}
-    {notABotLatencyRows}
-    bind:challengeTrendCanvas
-  />
+    <ChallengeSection
+      loading={tabStatus?.loading === true}
+      challengeSummary={monitoringSummary.challenge}
+      notABotSummary={monitoringSummary.notABot}
+      {challengeReasonRows}
+      {notABotOutcomeRows}
+      {notABotLatencyRows}
+      bind:challengeTrendCanvas
+    />
 
-  <PowSection
-    loading={tabStatus?.loading === true}
-    powSummary={monitoringSummary.pow}
-    {powReasonRows}
-    {powOutcomeRows}
-    bind:powTrendCanvas
-  />
+    <PowSection
+      loading={tabStatus?.loading === true}
+      powSummary={monitoringSummary.pow}
+      {powReasonRows}
+      {powOutcomeRows}
+      bind:powTrendCanvas
+    />
 
-  <RateSection
-    loading={tabStatus?.loading === true}
-    rateSummary={monitoringSummary.rate}
-    {rateOutcomeRows}
-  />
+    <RateSection
+      loading={tabStatus?.loading === true}
+      rateSummary={monitoringSummary.rate}
+      {rateOutcomeRows}
+    />
 
-  <GeoSection
-    loading={tabStatus?.loading === true}
-    geoSummary={monitoringSummary.geo}
-    {geoTopCountries}
-  />
+    <GeoSection
+      loading={tabStatus?.loading === true}
+      geoSummary={monitoringSummary.geo}
+      {geoTopCountries}
+    />
 
-  <IpRangeSection
-    loading={tabStatus?.loading === true}
-    summary={ipRangeSummary}
-    reasonRows={ipRangeReasonRows}
-    sourceRows={ipRangeSourceRows}
-    actionRows={ipRangeActionRows}
-    detectionRows={ipRangeDetectionRows}
-    sourceIdRows={ipRangeSourceIdRows}
-    fallbackRows={ipRangeFallbackRows}
-    trendRows={ipRangeTrendRows}
-  />
+    <IpRangeSection
+      loading={tabStatus?.loading === true}
+      summary={ipRangeSummary}
+      reasonRows={ipRangeReasonRows}
+      sourceRows={ipRangeSourceRows}
+      actionRows={ipRangeActionRows}
+      detectionRows={ipRangeDetectionRows}
+      sourceIdRows={ipRangeSourceIdRows}
+      fallbackRows={ipRangeFallbackRows}
+      trendRows={ipRangeTrendRows}
+    />
+  </section>
 
-  <DiagnosticsSection
-    monitoringFreshnessSnapshot={monitoringFreshnessSnapshot}
-    ipBansFreshnessSnapshot={ipBansFreshnessSnapshot}
-    rawTelemetryFeed={rawTelemetryFeed}
-    rawFeedMaxLines={RAW_FEED_MAX_LINES}
-  />
+  <section class="section" data-diagnostics-section="telemetry-diagnostics">
+    <h2>Telemetry Diagnostics</h2>
+    <p class="text-muted">
+      Freshness, transport-path notes, and bounded raw-feed diagnostics stay here rather than
+      leaking back into Monitoring.
+    </p>
+    <DiagnosticsSection
+      monitoringFreshnessSnapshot={monitoringFreshnessSnapshot}
+      ipBansFreshnessSnapshot={ipBansFreshnessSnapshot}
+      rawTelemetryFeed={rawTelemetryFeed}
+      rawFeedMaxLines={RAW_FEED_MAX_LINES}
+    />
+  </section>
 
-  <ExternalMonitoringSection
-    {prometheusHelper}
-    {copyButtonLabel}
-    copyCurlButtonLabel={copyCurlButtonLabel}
-    onCopyJs={(text) => copyToClipboard(text, 'js')}
-    onCopyCurl={(text) => copyToClipboard(text, 'curl')}
-  />
+  <section class="section" data-diagnostics-section="external-monitoring">
+    <h2>External Monitoring</h2>
+    <p class="text-muted">
+      Use the bounded helper examples here when you need to export or mirror diagnostics into
+      external monitoring systems.
+    </p>
+    <ExternalMonitoringSection
+      {prometheusHelper}
+      {copyButtonLabel}
+      copyCurlButtonLabel={copyCurlButtonLabel}
+      onCopyJs={(text) => copyToClipboard(text, 'js')}
+      onCopyCurl={(text) => copyToClipboard(text, 'curl')}
+    />
+  </section>
 </section>
