@@ -98,6 +98,7 @@ Current stance:
   - `Traffic Overview`
   - `Recent External Traffic`
 - Add a light traffic-telemetry health strip in `Traffic`, derived from the existing freshness truth, without moving the full contributor-style `Telemetry Diagnostics` block out of `Diagnostics`.
+- When the traffic event section moves, keep the visible section title as `Recent Events` rather than `Recent External Traffic` plus the inner `Recent Events` title.
 - Keep `Traffic` focused on proving traffic telemetry collection is operational and showing what traffic is hitting Shuma and the host now, with manual refresh and bounded auto-refresh.
 - Reference context: [`../docs/plans/2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md`](../docs/plans/2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md)
 
@@ -105,6 +106,9 @@ Current stance:
 - After `TRAFFIC-TAB-1` lands, remove the migrated traffic-facing sections from Diagnostics so it becomes clearly diagnostics-first and furniture-operational.
 - Keep `Defense Breakdown` as a concise overview of the furniture shown below, and keep `Defense-Specific Diagnostics`, full `Telemetry Diagnostics`, and `External Monitoring` as the core Diagnostics surface.
 - Tighten copy and ownership so Diagnostics no longer reads like a traffic dashboard.
+- Fix the current doubled or surplus headings while cleaning ownership:
+  - keep `Defense Breakdown`, not `Defense Breakdown` plus `Defense Trends`
+  - keep `Telemetry Diagnostics` only once
 - Clean up any now-redundant helper or view-model code that existed only because Diagnostics temporarily hosted the traffic visibility surface.
 - Reference context: [`../docs/plans/2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md`](../docs/plans/2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md)
 

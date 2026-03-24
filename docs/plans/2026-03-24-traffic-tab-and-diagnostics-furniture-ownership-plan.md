@@ -87,7 +87,9 @@ Scope:
 4. add a light traffic-telemetry health strip derived from the existing freshness truth without moving the full contributor diagnostics block out of Diagnostics,
 5. reuse the existing traffic-oriented components and supporting view-model code where possible,
 6. give `Traffic` manual refresh and bounded auto-refresh behavior appropriate for a live traffic picture,
-7. keep the tab clearly about traffic visibility rather than subsystem internals.
+7. keep the tab clearly about traffic visibility rather than subsystem internals,
+8. remove doubled or surplus section-title pairings while the sections move:
+   - keep `Recent Events`, not `Recent External Traffic` plus `Recent Events`.
 
 Verification:
 
@@ -108,7 +110,10 @@ Scope:
 2. keep `Defense Breakdown` as a concise overview of the furniture shown below,
 3. retain the full `Telemetry Diagnostics` section as contributor/furniture proof,
 4. tighten copy and section names so Diagnostics reads as furniture-operational and subsystem-investigation-first,
-5. clean up helper/view-model ownership that only existed because Diagnostics temporarily hosted the traffic dashboard.
+5. clean up helper/view-model ownership that only existed because Diagnostics temporarily hosted the traffic dashboard,
+6. remove the current doubled or surplus section-title pairings:
+   - keep `Defense Breakdown`, not `Defense Breakdown` plus `Defense Trends`,
+   - keep `Telemetry Diagnostics` only once.
 
 Verification:
 
@@ -143,3 +148,4 @@ Sequencing refinement:
 2. The reuse-first principle still applies, but the rightful reuse target is now `Traffic` for traffic visibility and `Diagnostics` for furniture overview.
 3. `Defense Breakdown` stays in Diagnostics because it works better as a concise overview of the subsystem furniture shown below.
 4. `Telemetry Diagnostics` stays in Diagnostics as the full contributor/furniture proof surface; `Traffic` should only project a lighter traffic-health summary if needed.
+5. Title cleanup is part of the ownership cleanup, not optional polish, because the current doubled headings make the tabs read as accidental composites.
