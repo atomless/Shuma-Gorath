@@ -4,6 +4,29 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### UI: restore diagnostics breakdown richness and finish the shared section cleanup
+
+- [x] Restored `Defense Breakdown` as a diagnostics-first surface in:
+  - [`dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte`](../dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte)
+  - [`dashboard/src/lib/components/dashboard/monitoring-view-model.js`](../dashboard/src/lib/components/dashboard/monitoring-view-model.js)
+  - [`dashboard/src/lib/components/dashboard/monitoring/DefenseTrendBlocks.svelte`](../dashboard/src/lib/components/dashboard/monitoring/DefenseTrendBlocks.svelte)
+- [x] Combined furniture-state facts with recent trigger, mode, source, and handling context so the cards no longer read like sparse generic monitoring summaries.
+- [x] Removed the leftover unused `events` class from the shared [`dashboard/src/lib/components/dashboard/primitives/SectionBlock.svelte`](../dashboard/src/lib/components/dashboard/primitives/SectionBlock.svelte) primitive so the rendered DOM stays cleaner and more intentional.
+- [x] Tightened focused diagnostics proof in:
+  - [`e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+- [x] Updated the diagnostics tab reference in [`docs/dashboard-tabs/diagnostics.md`](../docs/dashboard-tabs/diagnostics.md).
+- [x] Added the tranche review receipt in [`docs/research/2026-03-24-diagnostics-breakdown-and-dom-review-post-implementation.md`](../docs/research/2026-03-24-diagnostics-breakdown-and-dom-review-post-implementation.md).
+- [x] Why:
+  - the first repair fixed the missing-defense regression but flattened the cards into sparse summaries that no longer felt diagnostic
+  - the shared section primitive still carried stale class noise after the DOM cleanup work
+- [x] Evidence:
+  - `make test-dashboard-diagnostics-pane`
+  - `make test-dashboard-traffic-pane`
+  - `make test-dashboard-game-loop-accountability`
+  - `make test-dashboard-tab-information-architecture`
+  - `git diff --check`
+
 ### UI: de-shell Traffic, Game Loop, and Diagnostics DOM ownership
 
 - [x] Removed redundant outer section shells from:

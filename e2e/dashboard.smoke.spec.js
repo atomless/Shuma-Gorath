@@ -1444,7 +1444,7 @@ test("game loop, traffic, and diagnostics tabs expose their ownership split", as
     "Advanced",
     "Diagnostics"
   ]);
-  await expect(page.locator("#dashboard-panel-game-loop")).toHaveClass(/admin-group/);
+  await expect(page.locator("#dashboard-panel-game-loop")).not.toHaveClass(/admin-group/);
   await expect(page.locator('#dashboard-panel-game-loop [data-game-loop-intro]')).toHaveCount(0);
   await expect(page.locator("#dashboard-panel-game-loop")).not.toContainText("Closed-Loop Accountability");
   await expect(
@@ -1453,9 +1453,6 @@ test("game loop, traffic, and diagnostics tabs expose their ownership split", as
   await expect(
     page.locator('#dashboard-panel-game-loop [data-game-loop-section="recent-loop-progress"]')
   ).toContainText("Recent Loop Progress");
-  await expect(
-    page.locator('#dashboard-panel-game-loop [data-game-loop-section="recent-loop-progress"] .section')
-  ).toHaveCount(0);
   await expect(
     page.locator('#dashboard-panel-game-loop [data-game-loop-section="outcome-frontier"]')
   ).toContainText("Outcome Frontier");
@@ -1470,7 +1467,7 @@ test("game loop, traffic, and diagnostics tabs expose their ownership split", as
   ).toContainText("Trust And Blockers");
 
   await openTab(page, "traffic");
-  await expect(page.locator("#dashboard-panel-traffic")).toHaveClass(/admin-group/);
+  await expect(page.locator("#dashboard-panel-traffic")).not.toHaveClass(/admin-group/);
   await expect(page.locator('#dashboard-panel-traffic [data-traffic-intro]')).toHaveCount(0);
   await expect(
     page.locator('#dashboard-panel-traffic [data-traffic-section="telemetry-health"]')
@@ -1493,22 +1490,243 @@ test("game loop, traffic, and diagnostics tabs expose their ownership split", as
   await expect(page.locator('#dashboard-panel-traffic .section .section')).toHaveCount(0);
 
   await openTab(page, "diagnostics");
-  await expect(page.locator("#dashboard-panel-diagnostics")).toHaveClass(/admin-group/);
+  await expect(page.locator("#dashboard-panel-diagnostics")).not.toHaveClass(/admin-group/);
   await expect(page.locator('#dashboard-panel-diagnostics [data-diagnostics-intro]')).toHaveCount(0);
   await expect(
     page.locator('#dashboard-panel-diagnostics [data-diagnostics-section="defense-breakdown"]')
   ).toContainText("Defense Breakdown");
-  await expect(
-    page.locator('#dashboard-panel-diagnostics [data-diagnostics-section="defense-specific-diagnostics"]')
-  ).not.toContainText("Defense-Specific Diagnostics");
-  await expect(
-    page.locator('#dashboard-panel-diagnostics [data-diagnostics-section="defense-specific-diagnostics"]')
-  ).not.toContainText("Dive into per-defense sections");
-  await expect(
-    page.locator('#dashboard-panel-diagnostics [data-diagnostics-section="telemetry-diagnostics"]')
-  ).toContainText("Telemetry Diagnostics");
+  await expect(page.locator('#dashboard-panel-traffic .section-copy-block')).toHaveCount(0);
+  await expect(page.locator('#dashboard-panel-game-loop .section-copy-block')).toHaveCount(0);
+  await expect(page.locator('#dashboard-panel-diagnostics .section-copy-block')).toHaveCount(0);
   await expect(page.locator('#dashboard-panel-diagnostics .section .section')).toHaveCount(0);
   await expect(page.locator('#dashboard-panel-game-loop .section .section')).toHaveCount(0);
+});
+
+test("diagnostics defense breakdown summarizes full defense furniture, not just recent event classes", async ({ page }) => {
+  await page.route("**/admin/monitoring?**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        summary: {
+          honeypot: {
+            total_hits: 4,
+            unique_crawlers: 2,
+            top_crawlers: [{ label: "crawler-1", count: 4 }],
+            top_paths: [{ path: "/trap", count: 4 }]
+          },
+          challenge: {
+            total_failures: 9,
+            unique_offenders: 3,
+            top_offenders: [{ label: "solver-1", count: 9 }],
+            reasons: { incorrect: 6 },
+            trend: []
+          },
+          not_a_bot: {
+            served: 10,
+            submitted: 8,
+            pass: 6,
+            escalate: 2,
+            fail: 1,
+            replay: 1,
+            abandonments_estimated: 1,
+            solve_latency_buckets: {},
+            outcomes: {}
+          },
+          pow: {
+            total_failures: 2,
+            total_successes: 6,
+            total_attempts: 8,
+            success_ratio: 0.75,
+            unique_offenders: 2,
+            top_offenders: [{ label: "pow-1", count: 6 }],
+            reasons: {},
+            outcomes: {},
+            trend: []
+          },
+          rate: {
+            total_violations: 5,
+            unique_offenders: 2,
+            top_offenders: [{ label: "ratelimit-1", count: 5 }],
+            outcomes: { limited: 5 }
+          },
+          geo: {
+            total_violations: 3,
+            actions: { block: 1, challenge: 1, maze: 1 },
+            top_countries: [["GB", 2]]
+          }
+        },
+        details: {
+          analytics: { ban_count: 0, shadow_mode: false, fail_mode: "open" },
+          events: {
+            recent_events: [
+              {
+                ts: Math.floor(Date.now() / 1000),
+                event: "Challenge",
+                ip: "198.51.100.44",
+                reason: "challenge_reason_1",
+                outcome: "served",
+                execution_mode: "enforced"
+              },
+              {
+                ts: Math.floor(Date.now() / 1000) - 1,
+                event: "CDP Detection",
+                ip: "198.51.100.45",
+                reason: "cdp_detected",
+                outcome: "ban",
+                execution_mode: "enforced"
+              }
+            ],
+            event_counts: { Challenge: 1, "CDP Detection": 1 },
+            top_ips: [["198.51.100.44", 1], ["198.51.100.45", 1]],
+            unique_ips: 2
+          },
+          bans: { bans: [] },
+          maze: {
+            total_hits: 12,
+            unique_crawlers: 5,
+            maze_auto_bans: 2,
+            top_crawlers: [{ ip: "198.51.100.55", hits: 7 }]
+          },
+          cdp: {
+            stats: { total_detections: 13, auto_bans: 2 },
+            config: {},
+            fingerprint_stats: { flow_violation: 4 }
+          },
+          cdp_events: { events: [] }
+        },
+        prometheus: { endpoint: "/metrics", notes: [] }
+      })
+    });
+  });
+  await page.route("**/admin/events?**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        recent_events: [
+          {
+            ts: Math.floor(Date.now() / 1000),
+            event: "Challenge",
+            ip: "198.51.100.44",
+            reason: "challenge_reason_1",
+            outcome: "served",
+            execution_mode: "enforced"
+          },
+          {
+            ts: Math.floor(Date.now() / 1000) - 1,
+            event: "CDP Detection",
+            ip: "198.51.100.45",
+            reason: "cdp_detected",
+            outcome: "ban",
+            execution_mode: "enforced"
+          }
+        ],
+        event_counts: { Challenge: 1, "CDP Detection": 1 },
+        top_ips: [["198.51.100.44", 1], ["198.51.100.45", 1]],
+        unique_ips: 2
+      })
+    });
+  });
+  await page.route("**/admin/cdp", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        stats: { total_detections: 13, auto_bans: 2 },
+        config: {},
+        fingerprint_stats: {
+          ua_client_hint_mismatch: 3,
+          ua_transport_mismatch: 2,
+          flow_violation: 4
+        }
+      })
+    });
+  });
+  await page.route("**/admin/cdp/events?**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ events: [] })
+    });
+  });
+  await page.route("**/admin/config", async (route) => {
+    if (route.request().method() !== "GET") {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        config: {
+          ip_range_policy_mode: "enforce",
+          ip_range_custom_rules: [{ enabled: true }],
+          ip_range_emergency_allowlist: ["203.0.113.0/24"]
+        },
+        runtime: {}
+      })
+    });
+  });
+  await page.route("**/admin/ban", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ bans: [] })
+    });
+  });
+  await page.route("**/admin/ip-range/suggestions?hours=*&limit=*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        generated_at: 0,
+        hours: 24,
+        summary: {
+          suggestions_total: 0,
+          low_risk: 0,
+          medium_risk: 0,
+          high_risk: 0
+        },
+        suggestions: []
+      })
+    });
+  });
+  await page.route("**/admin/ip-bans/delta?*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        events: [],
+        active_bans: [],
+        next_cursor: "",
+        window_end_cursor: "",
+        has_more: false,
+        overflow: "none"
+      })
+    });
+  });
+
+  await openDashboard(page);
+  await openTab(page, "diagnostics");
+  await page.click("#refresh-now-btn");
+  const breakdown = page.locator('#dashboard-panel-diagnostics [data-diagnostics-section="defense-breakdown"]');
+  await expect(breakdown).toContainText("CDP");
+  await expect(breakdown).toContainText("Maze");
+  await expect(breakdown).toContainText("Tarpit");
+  await expect(breakdown).toContainText("Honeypot");
+  await expect(breakdown).toContainText("Puzzle");
+  await expect(breakdown).toContainText("Not-a-Bot");
+  await expect(breakdown).toContainText("Proof of Work");
+  await expect(breakdown).toContainText("Rate Limiting");
+  await expect(breakdown).toContainText("GEO");
+  await expect(breakdown).toContainText("IP Range");
+  await expect(breakdown).toContainText("Top Reason");
+  await expect(breakdown).toContainText("Abandonment Rate");
+  await expect(breakdown).toContainText("Recent Triggers");
+  await expect(breakdown).toContainText("Recent Modes");
+  await expect(breakdown).toContainText("Mode");
+  await expect(breakdown).toContainText("Custom Rules");
 });
 
 test("game loop projects benchmark and oversight accountability from machine-first contracts", async ({ page }) => {

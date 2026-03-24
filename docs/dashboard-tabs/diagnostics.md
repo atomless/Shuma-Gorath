@@ -11,7 +11,7 @@ Purpose:
 
 What it shows:
 
-- `Defense Breakdown` as the concise cross-furniture overview above the deeper sections.
+- `Defense Breakdown` as the concise cross-furniture overview above the deeper sections, combining furniture-state facts with recent trigger, mode, and source context.
 - CDP detections table and summary cards, including total detections, detection-triggered bans, and fingerprint mismatch/transition counters.
 - Maze, honeypot, challenge, PoW, rate-limiting, GEO, and IP-range monitoring sections.
 - Explicit subsection ownership:

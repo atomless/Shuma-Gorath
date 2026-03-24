@@ -3246,6 +3246,138 @@ test('monitoring view model and status module remain pure snapshot transforms', 
     assert.equal(accumulatedChallenge?.triggerCount, 2);
     assert.equal(accumulatedPow?.triggerCount, 1);
 
+    const defenseBreakdownRows = monitoringModelModule.deriveDefenseBreakdownRows({
+      trendRows: [
+        {
+          defense: 'challenge',
+          triggerCount: 7,
+          passCount: 0,
+          failCount: 4,
+          escalationCount: 3,
+          banOutcomeCount: 1,
+          hasOutcomeBreakdown: true,
+          modeRows: [{ mode: 'enforced', label: 'Enforced', count: 5 }],
+          sourceRows: [{ source: 'sim', label: 'Simulation', count: 2 }]
+        }
+      ],
+      cdpDetections: 13,
+      cdpAutoBans: 2,
+      cdpFlowViolations: 4,
+      mazeStats: {
+        totalHits: '12',
+        uniqueCrawlers: '5',
+        mazeAutoBans: '2'
+      },
+      tarpitSummary: {
+        activationsProgressive: '7',
+        fallbackMaze: '3',
+        escalationBlock: '1'
+      },
+      monitoringSummary: {
+        honeypot: {
+          totalHits: '4',
+          uniqueCrawlers: '2',
+          topOffender: { label: 'Top Offender (4 hits)', value: 'crawler-1' },
+          topPaths: [{ path: '/trap', count: 4 }]
+        },
+        challenge: {
+          totalFailures: '9',
+          uniqueOffenders: '3',
+          topOffender: { label: 'Top Offender (9 hits)', value: 'solver-1' },
+          reasons: [['incorrect', 6]]
+        },
+        notABot: {
+          served: '10',
+          submitted: '8',
+          pass: '6',
+          escalate: '2',
+          fail: '1',
+          abandonmentRate: '10.0%'
+        },
+        pow: {
+          totalSuccesses: '6',
+          totalFailures: '2',
+          totalAttempts: '8',
+          successRate: '75.0%',
+          uniqueOffenders: '2',
+          topOffender: { label: 'Top Offender (6 hits)', value: 'pow-1' }
+        },
+        rate: {
+          totalViolations: '5',
+          uniqueOffenders: '2',
+          topOffender: { label: 'Top Offender (5 hits)', value: 'ratelimit-1' },
+          outcomes: [['limited', 5]]
+        },
+        geo: {
+          totalViolations: '3',
+          actionMix: { block: '1', challenge: '1', maze: '1' },
+          topCountries: [{ country: 'GB', count: 2 }]
+        }
+      },
+      ipRangeSummary: {
+        mode: 'enforce',
+        totalMatches: 11,
+        totalFallbacks: 4,
+        uniqueSourceIds: 2,
+        catalog: {
+          customRuleCount: 1,
+          emergencyAllowlistCount: 1
+        }
+      }
+    });
+    assert.deepEqual(
+      defenseBreakdownRows.map((row) => row.defense),
+      ['cdp', 'maze', 'tarpit', 'honeypot', 'challenge', 'not_a_bot', 'pow', 'rate_limit', 'geo', 'ip_range']
+    );
+    assert.equal(
+      defenseBreakdownRows.find((row) => row.defense === 'challenge')?.factRows.some(
+        (fact) => fact.label === 'Failures' && fact.value === '9'
+      ),
+      true
+    );
+    assert.equal(
+      defenseBreakdownRows.find((row) => row.defense === 'challenge')?.factRows.some(
+        (fact) => fact.label === 'Recent Triggers' && fact.value === '7'
+      ),
+      true
+    );
+    assert.equal(
+      defenseBreakdownRows.find((row) => row.defense === 'challenge')?.factRows.some(
+        (fact) => fact.label === 'Recent Modes' && fact.value === 'Enforced: 5'
+      ),
+      true
+    );
+    assert.equal(
+      defenseBreakdownRows.find((row) => row.defense === 'challenge')?.factRows.some(
+        (fact) => fact.label === 'Recent Sources' && fact.value === 'Simulation: 2'
+      ),
+      true
+    );
+    assert.equal(
+      defenseBreakdownRows.find((row) => row.defense === 'pow')?.factRows.some(
+        (fact) => fact.label === 'Success Rate' && fact.value === '75.0%'
+      ),
+      true
+    );
+    assert.equal(
+      defenseBreakdownRows.find((row) => row.defense === 'ip_range')?.factRows.some(
+        (fact) => fact.label === 'Mode' && fact.value === 'Enforce'
+      ),
+      true
+    );
+    assert.equal(
+      defenseBreakdownRows.find((row) => row.defense === 'not_a_bot')?.factRows.some(
+        (fact) => fact.label === 'Abandonment Rate' && fact.value === '10.0%'
+      ),
+      true
+    );
+    assert.equal(
+      defenseBreakdownRows.find((row) => row.defense === 'ip_range')?.factRows.some(
+        (fact) => fact.label === 'Custom Rules' && fact.value === '1'
+      ),
+      true
+    );
+
     const runSummary = monitoringModelModule.deriveAdversaryRunRows(gc10Events, [
       { ip: '198.51.100.200' },
       { ip: '203.0.113.200' }
@@ -5725,6 +5857,10 @@ test('game loop, traffic, and diagnostics tabs make ownership boundaries explici
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/DiagnosticsTab.svelte'),
     'utf8'
   );
+  const defenseBreakdownSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/monitoring/DefenseTrendBlocks.svelte'),
+    'utf8'
+  );
   const tabStateSource = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/primitives/TabStateMessage.svelte'),
     'utf8'
@@ -5738,11 +5874,14 @@ test('game loop, traffic, and diagnostics tabs make ownership boundaries explici
     'utf8'
   );
 
-  assert.match(monitoringSource, /class="admin-group dashboard-tab-panel"/);
+  assert.match(monitoringSource, /class="dashboard-tab-panel"/);
+  assert.doesNotMatch(monitoringSource, /class="admin-group dashboard-tab-panel"/);
   assert.match(monitoringSource, /data-dashboard-tab-panel="game-loop"/);
   assert.match(monitoringSource, /aria-labelledby="dashboard-tab-game-loop"/);
   assert.match(monitoringSource, /data-game-loop-section=\{section\.id\}/);
-  assert.doesNotMatch(monitoringSource, /<SectionBlock title=\{section\.title\} description=\{section\.description\} rootClass="section">/);
+  assert.doesNotMatch(monitoringSource, /import SectionBlock from '\.\/primitives\/SectionBlock\.svelte';/);
+  assert.doesNotMatch(monitoringSource, /section-copy-block/);
+  assert.doesNotMatch(monitoringSource, /<div[^>]*class="[^"]*\bsection\b[^"]*"/);
   assert.match(monitoringSource, /id: 'current-status'/);
   assert.match(monitoringSource, /id: 'recent-loop-progress'/);
   assert.match(monitoringSource, /id: 'outcome-frontier'/);
@@ -5757,7 +5896,8 @@ test('game loop, traffic, and diagnostics tabs make ownership boundaries explici
   assert.match(monitoringSource, /title: ''/);
   assert.match(sectionBlockSource, /\{#if title\}/);
 
-  assert.match(trafficSource, /class="admin-group dashboard-tab-panel"/);
+  assert.match(trafficSource, /class="dashboard-tab-panel"/);
+  assert.doesNotMatch(trafficSource, /class="admin-group dashboard-tab-panel"/);
   assert.match(trafficSource, /data-traffic-section="telemetry-health"/);
   assert.match(trafficSource, /data-traffic-section="traffic-overview"/);
   assert.match(trafficSource, /data-traffic-section="recent-events"/);
@@ -5769,26 +5909,35 @@ test('game loop, traffic, and diagnostics tabs make ownership boundaries explici
     trafficSource,
     /Inspect the bounded traffic summary and enforced-event charts for traffic reaching Shuma and/
   );
+  assert.doesNotMatch(trafficSource, /<div[^>]*class="[^"]*\bsection\b[^"]*"/);
   assert.doesNotMatch(trafficSource, /<section class="section" data-traffic-section="recent-events">/);
+  assert.doesNotMatch(primaryChartsSource, /section-copy-block/);
   assert.doesNotMatch(primaryChartsSource, /rootClass="section"/);
 
-  assert.match(diagnosticsSource, /class="admin-group dashboard-tab-panel"/);
+  assert.match(diagnosticsSource, /class="dashboard-tab-panel"/);
+  assert.doesNotMatch(diagnosticsSource, /class="admin-group dashboard-tab-panel"/);
   assert.doesNotMatch(diagnosticsSource, /<section class="section" data-diagnostics-section="defense-breakdown">/);
   assert.doesNotMatch(diagnosticsSource, /<section class="section" data-diagnostics-section="telemetry-diagnostics">/);
   assert.doesNotMatch(diagnosticsSource, /<section class="section" data-diagnostics-section="external-monitoring">/);
   assert.match(diagnosticsSource, /data-diagnostics-section="defense-breakdown"/);
-  assert.match(diagnosticsSource, /data-diagnostics-section="defense-specific-diagnostics"/);
+  assert.doesNotMatch(diagnosticsSource, /data-diagnostics-section="defense-specific-diagnostics"/);
   assert.match(diagnosticsSource, /data-diagnostics-section="telemetry-diagnostics"/);
   assert.match(diagnosticsSource, /data-diagnostics-section="external-monitoring"/);
   assert.doesNotMatch(diagnosticsSource, /data-diagnostics-intro/);
   assert.doesNotMatch(diagnosticsSource, /data-diagnostics-section="deep-inspection-intro"/);
   assert.doesNotMatch(diagnosticsSource, />Diagnostics</);
   assert.doesNotMatch(diagnosticsSource, /deep inspection/i);
+  assert.doesNotMatch(diagnosticsSource, /<div[^>]*class="[^"]*\bsection\b[^"]*"/);
+  assert.match(diagnosticsSource, /\$: defenseBreakdownRows = deriveDefenseBreakdownRows\(\{/);
+  assert.match(defenseBreakdownSource, /<strong>\{fact\.label\}:<\/strong> \{fact\.value\}/);
   assert.match(tabStateSource, /\{#if paneNoticeText\}/);
   assert.doesNotMatch(tabStateSource, /hidden=\{!paneNoticeText\}/);
+  assert.match(sectionBlockSource, /<section class=\{rootClass\} \{\.\.\.\$\$restProps\}>/);
+  assert.match(sectionBlockSource, /export let rootClass = 'section';/);
   assert.match(styleSource, /\.dashboard-tab-panel > \.section:first-of-type \{/);
   assert.match(styleSource, /padding-top: 0;/);
   assert.match(styleSource, /border-top: none;/);
+  assert.doesNotMatch(styleSource, /\.section-copy-block/);
 });
 
 test('tarpit monitoring section centers progression and outcome telemetry', () => {

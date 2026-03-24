@@ -685,7 +685,7 @@
 
 <section
   id="dashboard-panel-traffic"
-  class="admin-group dashboard-tab-panel"
+  class="dashboard-tab-panel"
   data-dashboard-tab-panel="traffic"
   aria-labelledby="dashboard-tab-traffic"
   hidden={managed ? !isActive : false}

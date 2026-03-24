@@ -919,15 +919,6 @@ h1 {
   margin-bottom: 20px;
 }
 
-.section-copy-block h2 {
-  font-size: var(--text-3xl);
-  color: var(--color-front);
-}
-
-.section-copy-block .section-desc {
-  margin-bottom: 20px;
-}
-
 /* Outer admin section should not carry panel chrome; inner control groups keep their panels */
 .section.admin-section {
   border: none;

@@ -11,6 +11,7 @@
     POW_REASON_LABELS,
     RATE_OUTCOME_LABELS,
     deriveDefenseTrendRows,
+    deriveDefenseBreakdownRows,
     deriveIpRangeMonitoringViewModel,
     deriveMazeStatsViewModel,
     deriveMonitoringSummaryViewModel,
@@ -76,6 +77,7 @@
   let rawRecentEvents = [];
   let rawTelemetryFeed = [];
   let defenseTrendRows = [];
+  let defenseBreakdownRows = [];
 
   let copyButtonLabel = 'Copy JavaScript Example';
   let copyCurlButtonLabel = 'Copy Curl Example';
@@ -377,6 +379,18 @@
   $: rateOutcomeRows = normalizePairRows(monitoringSummary.rate.outcomes, RATE_OUTCOME_LABELS);
   $: geoTopCountries = normalizeTopCountries(monitoringSummary.geo.topCountries);
   $: ipRangeSummary = deriveIpRangeMonitoringViewModel(rawRecentEvents, config);
+  $: defenseBreakdownRows = deriveDefenseBreakdownRows({
+    trendRows: defenseTrendRows,
+    cdpDetections,
+    cdpAutoBans,
+    cdpUaClientHintMismatch: cdpFingerprintUaClientHintMismatch,
+    cdpUaTransportMismatch: cdpFingerprintUaTransportMismatch,
+    cdpFlowViolations: cdpFingerprintFlowViolations,
+    mazeStats,
+    tarpitSummary,
+    monitoringSummary,
+    ipRangeSummary
+  });
   $: ipRangeReasonRows = normalizeDimensionRows(
     ipRangeSummary.reasons,
     (key) => formatIpRangeReasonLabel(key)
@@ -465,7 +479,7 @@
 
 <section
   id="dashboard-panel-diagnostics"
-  class="admin-group dashboard-tab-panel"
+  class="dashboard-tab-panel"
   data-dashboard-tab-panel="diagnostics"
   aria-labelledby="dashboard-tab-diagnostics"
   hidden={managed ? !isActive : false}
@@ -477,81 +491,79 @@
   <DefenseTrendBlocks
     data-diagnostics-section="defense-breakdown"
     loading={tabStatus?.loading === true}
-    trendRows={defenseTrendRows}
+    rows={defenseBreakdownRows}
   />
 
-  <div data-diagnostics-section="defense-specific-diagnostics">
-    <CdpSection
-      loading={tabStatus?.loading === true}
-      {cdpDetections}
-      {cdpAutoBans}
-      {cdpFingerprintUaClientHintMismatch}
-      {cdpFingerprintUaTransportMismatch}
-      {cdpFingerprintTemporalTransitions}
-      {cdpFingerprintFlowViolations}
-      {recentCdpEvents}
-      {formatTime}
-      {readCdpField}
-    />
+  <CdpSection
+    loading={tabStatus?.loading === true}
+    {cdpDetections}
+    {cdpAutoBans}
+    {cdpFingerprintUaClientHintMismatch}
+    {cdpFingerprintUaTransportMismatch}
+    {cdpFingerprintTemporalTransitions}
+    {cdpFingerprintFlowViolations}
+    {recentCdpEvents}
+    {formatTime}
+    {readCdpField}
+  />
 
-    <MazeSection
-      loading={tabStatus?.loading === true}
-      {mazeStats}
-    />
+  <MazeSection
+    loading={tabStatus?.loading === true}
+    {mazeStats}
+  />
 
-    <TarpitSection
-      loading={tabStatus?.loading === true}
-      {tarpitSummary}
-    />
+  <TarpitSection
+    loading={tabStatus?.loading === true}
+    {tarpitSummary}
+  />
 
-    <HoneypotSection
-      loading={tabStatus?.loading === true}
-      honeypot={monitoringSummary.honeypot}
-      topPaths={honeypotTopPaths}
-    />
+  <HoneypotSection
+    loading={tabStatus?.loading === true}
+    honeypot={monitoringSummary.honeypot}
+    topPaths={honeypotTopPaths}
+  />
 
-    <ChallengeSection
-      loading={tabStatus?.loading === true}
-      challengeSummary={monitoringSummary.challenge}
-      notABotSummary={monitoringSummary.notABot}
-      {challengeReasonRows}
-      {notABotOutcomeRows}
-      {notABotLatencyRows}
-      bind:challengeTrendCanvas
-    />
+  <ChallengeSection
+    loading={tabStatus?.loading === true}
+    challengeSummary={monitoringSummary.challenge}
+    notABotSummary={monitoringSummary.notABot}
+    {challengeReasonRows}
+    {notABotOutcomeRows}
+    {notABotLatencyRows}
+    bind:challengeTrendCanvas
+  />
 
-    <PowSection
-      loading={tabStatus?.loading === true}
-      powSummary={monitoringSummary.pow}
-      {powReasonRows}
-      {powOutcomeRows}
-      bind:powTrendCanvas
-    />
+  <PowSection
+    loading={tabStatus?.loading === true}
+    powSummary={monitoringSummary.pow}
+    {powReasonRows}
+    {powOutcomeRows}
+    bind:powTrendCanvas
+  />
 
-    <RateSection
-      loading={tabStatus?.loading === true}
-      rateSummary={monitoringSummary.rate}
-      {rateOutcomeRows}
-    />
+  <RateSection
+    loading={tabStatus?.loading === true}
+    rateSummary={monitoringSummary.rate}
+    {rateOutcomeRows}
+  />
 
-    <GeoSection
-      loading={tabStatus?.loading === true}
-      geoSummary={monitoringSummary.geo}
-      {geoTopCountries}
-    />
+  <GeoSection
+    loading={tabStatus?.loading === true}
+    geoSummary={monitoringSummary.geo}
+    {geoTopCountries}
+  />
 
-    <IpRangeSection
-      loading={tabStatus?.loading === true}
-      summary={ipRangeSummary}
-      reasonRows={ipRangeReasonRows}
-      sourceRows={ipRangeSourceRows}
-      actionRows={ipRangeActionRows}
-      detectionRows={ipRangeDetectionRows}
-      sourceIdRows={ipRangeSourceIdRows}
-      fallbackRows={ipRangeFallbackRows}
-      trendRows={ipRangeTrendRows}
-    />
-  </div>
+  <IpRangeSection
+    loading={tabStatus?.loading === true}
+    summary={ipRangeSummary}
+    reasonRows={ipRangeReasonRows}
+    sourceRows={ipRangeSourceRows}
+    actionRows={ipRangeActionRows}
+    detectionRows={ipRangeDetectionRows}
+    sourceIdRows={ipRangeSourceIdRows}
+    fallbackRows={ipRangeFallbackRows}
+    trendRows={ipRangeTrendRows}
+  />
 
   <DiagnosticsSection
     data-diagnostics-section="telemetry-diagnostics"

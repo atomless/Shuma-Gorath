@@ -581,6 +581,190 @@ export const deriveDefenseTrendRowsFromAccumulator = (accumulator) => {
     }));
 };
 
+const asDisplayValue = (value, fallback = '0') => {
+  if (value === null || value === undefined || value === '') return fallback;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed || fallback;
+  }
+  const numeric = Number(value);
+  if (Number.isFinite(numeric)) return formatCompactNumber(numeric, fallback);
+  return String(value);
+};
+
+const asTopOffenderValue = (value) => {
+  const normalized = String(value || '').trim();
+  return normalized || 'None';
+};
+
+const createFactRow = (label, value) => ({
+  label,
+  value: asDisplayValue(value, 'None')
+});
+
+const asSummaryFact = (summary = {}, fallbackLabel = 'Top Offender') => {
+  const value = String(summary?.value || '').trim();
+  if (!value) return null;
+  const label = String(summary?.label || '').trim() || fallbackLabel;
+  return createFactRow(label, value);
+};
+
+const asTopCountEntryFact = (entries = [], label, fallbackMap = null) => {
+  const firstEntry = Array.isArray(entries) && entries.length > 0 ? entries[0] : null;
+  const key = Array.isArray(firstEntry) ? String(firstEntry[0] || '').trim() : '';
+  const count = Array.isArray(firstEntry) ? Number(firstEntry[1] || 0) : 0;
+  if (!key || !Number.isFinite(count) || count <= 0) return null;
+  return createFactRow(
+    `${label} (${formatCompactNumber(count, '0')})`,
+    formatMetricLabel(key, fallbackMap)
+  );
+};
+
+const asTopCountryFact = (rows = []) => {
+  const firstRow = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+  const country = String(firstRow?.country || '').trim();
+  const count = Number(firstRow?.count || 0);
+  if (!country || !Number.isFinite(count) || count <= 0) return null;
+  return createFactRow(`Top Country (${formatCompactNumber(count, '0')})`, country);
+};
+
+const asTopPathFact = (rows = []) => {
+  const firstRow = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+  const path = String(firstRow?.path || '').trim();
+  const count = Number(firstRow?.count || 0);
+  if (!path || !Number.isFinite(count) || count <= 0) return null;
+  return createFactRow(`Top Path (${formatCompactNumber(count, '0')})`, path);
+};
+
+const asCountMixFact = (rows = [], label) => {
+  const normalizedRows = Array.isArray(rows) ? rows : [];
+  if (normalizedRows.length === 0) return null;
+  const value = normalizedRows
+    .filter((row) => String(row?.label || '').trim().length > 0)
+    .map((row) => `${row.label}: ${formatCompactNumber(row?.count || 0, '0')}`)
+    .join(', ');
+  if (!value) return null;
+  return createFactRow(label, value);
+};
+
+const deriveTrendContextFacts = (trendRows = [], defense) => {
+  const trendRow = (Array.isArray(trendRows) ? trendRows : []).find((row) => row?.defense === defense);
+  if (!trendRow) return [];
+  return [
+    createFactRow('Recent Triggers', trendRow.triggerCount),
+    trendRow.hasOutcomeBreakdown ? createFactRow('Recent Pass', trendRow.passCount) : null,
+    trendRow.hasOutcomeBreakdown ? createFactRow('Recent Fail', trendRow.failCount) : null,
+    trendRow.hasOutcomeBreakdown ? createFactRow('Recent Escalate', trendRow.escalationCount) : null,
+    createFactRow('Recent Ban Outcomes', trendRow.banOutcomeCount),
+    asCountMixFact(trendRow.modeRows, 'Recent Modes'),
+    asCountMixFact(trendRow.sourceRows, 'Recent Sources')
+  ].filter(Boolean);
+};
+
+const createDefenseBreakdownRow = (defense, label, factRows) => ({
+  defense,
+  label,
+  factRows: (Array.isArray(factRows) ? factRows : []).filter((fact) =>
+    fact
+    && String(fact.label || '').trim().length > 0
+    && String(fact.value || '').trim().length > 0
+  )
+});
+
+export const deriveDefenseBreakdownRows = ({
+  trendRows = [],
+  cdpDetections = 0,
+  cdpAutoBans = 0,
+  cdpUaClientHintMismatch = 0,
+  cdpUaTransportMismatch = 0,
+  cdpFlowViolations = 0,
+  mazeStats = {},
+  tarpitSummary = {},
+  monitoringSummary = {},
+  ipRangeSummary = {}
+} = {}) => [
+  createDefenseBreakdownRow('cdp', DEFENSE_LABELS.cdp, [
+    createFactRow('Detections', cdpDetections),
+    createFactRow('Auto Bans', cdpAutoBans),
+    createFactRow('UA/Hint Mismatch', cdpUaClientHintMismatch),
+    createFactRow('UA/Transport Mismatch', cdpUaTransportMismatch),
+    createFactRow('Flow Violations', cdpFlowViolations),
+    ...deriveTrendContextFacts(trendRows, 'cdp')
+  ]),
+  createDefenseBreakdownRow('maze', DEFENSE_LABELS.maze, [
+    createFactRow('Hits', mazeStats?.totalHits),
+    createFactRow('Unique Crawlers', mazeStats?.uniqueCrawlers),
+    createFactRow('Auto Bans', mazeStats?.mazeAutoBans),
+    asSummaryFact(mazeStats?.topOffender),
+    ...deriveTrendContextFacts(trendRows, 'maze')
+  ]),
+  createDefenseBreakdownRow('tarpit', DEFENSE_LABELS.tarpit, [
+    createFactRow('Activations', tarpitSummary?.activationsProgressive),
+    createFactRow('Progress Advanced', tarpitSummary?.progressAdvanced),
+    createFactRow('Fallback Maze', tarpitSummary?.fallbackMaze),
+    createFactRow('Fallback Block', tarpitSummary?.fallbackBlock),
+    createFactRow('Escalation Short Ban', tarpitSummary?.escalationShortBan),
+    createFactRow('Escalation Block', tarpitSummary?.escalationBlock),
+    ...deriveTrendContextFacts(trendRows, 'tarpit')
+  ]),
+  createDefenseBreakdownRow('honeypot', DEFENSE_LABELS.honeypot, [
+    createFactRow('Hits', monitoringSummary?.honeypot?.totalHits),
+    createFactRow('Unique Crawlers', monitoringSummary?.honeypot?.uniqueCrawlers),
+    asSummaryFact(monitoringSummary?.honeypot?.topOffender),
+    asTopPathFact(monitoringSummary?.honeypot?.topPaths),
+    ...deriveTrendContextFacts(trendRows, 'honeypot')
+  ]),
+  createDefenseBreakdownRow('challenge', DEFENSE_LABELS.challenge, [
+    createFactRow('Failures', monitoringSummary?.challenge?.totalFailures),
+    createFactRow('Unique Offenders', monitoringSummary?.challenge?.uniqueOffenders),
+    asSummaryFact(monitoringSummary?.challenge?.topOffender),
+    asTopCountEntryFact(monitoringSummary?.challenge?.reasons, 'Top Reason', CHALLENGE_REASON_LABELS),
+    ...deriveTrendContextFacts(trendRows, 'challenge')
+  ]),
+  createDefenseBreakdownRow('not_a_bot', DEFENSE_LABELS.not_a_bot, [
+    createFactRow('Served', monitoringSummary?.notABot?.served),
+    createFactRow('Submitted', monitoringSummary?.notABot?.submitted),
+    createFactRow('Pass', monitoringSummary?.notABot?.pass),
+    createFactRow('Escalate', monitoringSummary?.notABot?.escalate),
+    createFactRow('Fail', monitoringSummary?.notABot?.fail),
+    createFactRow('Abandonment Rate', monitoringSummary?.notABot?.abandonmentRate),
+    ...deriveTrendContextFacts(trendRows, 'not_a_bot')
+  ]),
+  createDefenseBreakdownRow('pow', DEFENSE_LABELS.pow, [
+    createFactRow('Attempts', monitoringSummary?.pow?.totalAttempts),
+    createFactRow('Successes', monitoringSummary?.pow?.totalSuccesses),
+    createFactRow('Failures', monitoringSummary?.pow?.totalFailures),
+    createFactRow('Success Rate', monitoringSummary?.pow?.successRate),
+    createFactRow('Unique Offenders', monitoringSummary?.pow?.uniqueOffenders),
+    asSummaryFact(monitoringSummary?.pow?.topOffender),
+    ...deriveTrendContextFacts(trendRows, 'pow')
+  ]),
+  createDefenseBreakdownRow('rate_limit', DEFENSE_LABELS.rate_limit, [
+    createFactRow('Violations', monitoringSummary?.rate?.totalViolations),
+    createFactRow('Unique Offenders', monitoringSummary?.rate?.uniqueOffenders),
+    asSummaryFact(monitoringSummary?.rate?.topOffender),
+    asTopCountEntryFact(monitoringSummary?.rate?.outcomes, 'Top Outcome', RATE_OUTCOME_LABELS),
+    ...deriveTrendContextFacts(trendRows, 'rate_limit')
+  ]),
+  createDefenseBreakdownRow('geo', DEFENSE_LABELS.geo, [
+    createFactRow('Violations', monitoringSummary?.geo?.totalViolations),
+    createFactRow('Blocks', monitoringSummary?.geo?.actionMix?.block),
+    createFactRow('Challenge', monitoringSummary?.geo?.actionMix?.challenge),
+    createFactRow('Maze', monitoringSummary?.geo?.actionMix?.maze),
+    asTopCountryFact(monitoringSummary?.geo?.topCountries),
+    ...deriveTrendContextFacts(trendRows, 'geo')
+  ]),
+  createDefenseBreakdownRow('ip_range', 'IP Range', [
+    createFactRow('Mode', formatMetricLabel(ipRangeSummary?.mode || 'off')),
+    createFactRow('Matches', ipRangeSummary?.totalMatches),
+    createFactRow('Fallbacks', ipRangeSummary?.totalFallbacks),
+    createFactRow('Source IDs', ipRangeSummary?.uniqueSourceIds),
+    createFactRow('Custom Rules', ipRangeSummary?.catalog?.customRuleCount),
+    createFactRow('Emergency Allowlist', ipRangeSummary?.catalog?.emergencyAllowlistCount),
+    ...deriveTrendContextFacts(trendRows, 'ip_range')
+  ])
+];
+
 const shapeAdversaryRunRows = (rows = [], activeBans = []) => {
   const normalizedRows = Array.isArray(rows) ? rows : [];
   const normalizedBans = Array.isArray(activeBans) ? activeBans : [];

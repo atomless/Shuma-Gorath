@@ -1,10 +1,10 @@
 <script>
   export let title = '';
   export let description = '';
-  export let rootClass = 'section events';
+  export let rootClass = 'section';
 </script>
 
-<div class={rootClass} {...$$restProps}>
+<section class={rootClass} {...$$restProps}>
   {#if title}
     <h2>{@html title}</h2>
   {/if}
@@ -12,4 +12,4 @@
     <p class="section-desc text-muted">{@html description}</p>
   {/if}
   <slot />
-</div>
+</section>
