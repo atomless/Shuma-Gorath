@@ -126,7 +126,7 @@ pub(super) fn derive_escalation_hint(
 
         let mapped_families = benchmark_action_families(family.family_id.as_str());
         if mapped_families.is_empty() {
-            blockers.insert("no_matching_config_surface".to_string());
+            blockers.insert("no_matching_controller_tunable_surface".to_string());
             continue;
         }
 
@@ -137,28 +137,33 @@ pub(super) fn derive_escalation_hint(
             .collect();
 
         if matching_surface_families.is_empty() {
-            blockers.insert("no_matching_config_surface".to_string());
+            blockers.insert("no_matching_controller_tunable_surface".to_string());
             continue;
         }
 
-        let has_addressable_surface = matching_surface_families.iter().any(|allowed_family| {
+        let has_controller_tunable_surface = matching_surface_families.iter().any(|allowed_family| {
+            allowed_family.auto_proposal_status != "not_applicable"
+        });
+        let has_auto_proposable_surface = matching_surface_families.iter().any(|allowed_family| {
             matches!(
-                allowed_family.controller_status.as_str(),
-                "allowed" | "manual_only"
+                allowed_family.auto_proposal_status.as_str(),
+                "supported" | "partial_support"
             )
         });
 
-        if has_addressable_surface {
+        if has_auto_proposable_surface {
             for allowed_family in matching_surface_families {
                 if matches!(
-                    allowed_family.controller_status.as_str(),
-                    "allowed" | "manual_only"
+                    allowed_family.auto_proposal_status.as_str(),
+                    "supported" | "partial_support"
                 ) {
                     candidate_action_families.insert(allowed_family.family.clone());
                 }
             }
+        } else if has_controller_tunable_surface {
+            blockers.insert("controller_tunable_not_auto_proposable".to_string());
         } else {
-            blockers.insert("no_matching_config_surface".to_string());
+            blockers.insert("no_matching_controller_tunable_surface".to_string());
         }
     }
 
@@ -311,5 +316,23 @@ mod tests {
         assert_eq!(hint.decision, "observe_longer");
         assert_eq!(hint.review_status, "manual_review_required");
         assert!(hint.blockers.contains(&"near_limit_only".to_string()));
+    }
+
+    #[test]
+    fn escalation_hint_does_not_surface_operator_owned_policy_families_as_tuning_candidates() {
+        let hint = derive_escalation_hint(
+            &allowed_actions_v1(),
+            &[family(
+                "non_human_category_posture",
+                "outside_budget",
+                "supported",
+            )],
+        );
+
+        assert_eq!(hint.decision, "code_evolution_candidate");
+        assert!(hint.candidate_action_families.is_empty());
+        assert!(hint
+            .blockers
+            .contains(&"no_matching_controller_tunable_surface".to_string()));
     }
 }

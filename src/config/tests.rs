@@ -254,7 +254,7 @@ fn allowed_actions_v1_exposes_conservative_controller_write_surface() {
         .allowed_group_ids
         .contains(&"not_a_bot.policy".to_string()));
     assert!(surface
-        .manual_only_group_ids
+        .forbidden_group_ids
         .contains(&"shadow_mode.state".to_string()));
     assert!(surface
         .forbidden_group_ids
@@ -277,7 +277,11 @@ fn allowed_actions_v1_exposes_conservative_controller_write_surface() {
         .expect("not_a_bot policy group");
     assert_eq!(not_a_bot.controller_status, "allowed");
     assert_eq!(not_a_bot.controller_mutability, "controller_tunable");
+    assert_eq!(not_a_bot.auto_proposal_status, "partial_support");
     assert_eq!(not_a_bot.canary_requirement, "required");
+    assert!(not_a_bot
+        .proposable_patch_paths
+        .contains(&"not_a_bot_risk_threshold".to_string()));
     assert!(not_a_bot
         .value_constraints
         .iter()
@@ -343,6 +347,60 @@ fn allowed_actions_v1_surfaces_group_and_family_mutability_from_canonical_policy
         .find(|family| family.family == "core_policy")
         .expect("core_policy family");
     assert_eq!(core_policy.controller_mutability, "mixed");
+    assert_eq!(core_policy.auto_proposal_status, "supported");
+}
+
+#[test]
+fn allowed_actions_v1_surfaces_auto_proposal_support_for_tunable_paths() {
+    let surface = allowed_actions_v1();
+
+    let challenge = surface
+        .groups
+        .iter()
+        .find(|group| group.group_id == "challenge.policy")
+        .expect("challenge group");
+    assert_eq!(challenge.auto_proposal_status, "partial_support");
+    assert_eq!(
+        challenge.proposable_patch_paths,
+        vec!["challenge_puzzle_enabled".to_string()]
+    );
+
+    let botness = surface
+        .groups
+        .iter()
+        .find(|group| group.group_id == "botness.thresholds")
+        .expect("botness thresholds group");
+    assert_eq!(botness.auto_proposal_status, "partial_support");
+    assert_eq!(
+        botness.proposable_patch_paths,
+        vec!["challenge_puzzle_risk_threshold".to_string()]
+    );
+
+    let verified_identity = surface
+        .groups
+        .iter()
+        .find(|group| group.group_id == "verified_identity.policy")
+        .expect("verified identity group");
+    assert_eq!(verified_identity.auto_proposal_status, "not_applicable");
+    assert!(verified_identity.proposable_patch_paths.is_empty());
+}
+
+#[test]
+fn allowed_action_group_status_tracks_canonical_mutability_ring() {
+    let surface = allowed_actions_v1();
+
+    for group in &surface.groups {
+        let expected_status = match group.controller_mutability.as_str() {
+            "controller_tunable" => "allowed",
+            "manual_only" => "manual_only",
+            "never" => "forbidden",
+            other => panic!(
+                "unexpected controller mutability {other} for group {}",
+                group.group_id
+            ),
+        };
+        assert_eq!(group.controller_status, expected_status, "{}", group.group_id);
+    }
 }
 
 #[test]
@@ -632,10 +690,10 @@ fn verified_identity_validation_rejects_empty_policy_matcher_and_unknown_profile
 }
 
 #[test]
-fn verified_identity_allowed_actions_surface_is_manual_only() {
+fn verified_identity_allowed_actions_surface_is_forbidden() {
     let surface = allowed_actions_v1();
     assert!(surface
-        .manual_only_group_ids
+        .forbidden_group_ids
         .contains(&"verified_identity.policy".to_string()));
 
     let family = surface
@@ -643,7 +701,8 @@ fn verified_identity_allowed_actions_surface_is_manual_only() {
         .iter()
         .find(|family| family.family == "verified_identity")
         .expect("verified_identity family");
-    assert_eq!(family.controller_status, "manual_only");
+    assert_eq!(family.controller_status, "forbidden");
+    assert_eq!(family.controller_mutability, "never");
     assert_eq!(
         family.targets,
         vec!["beneficial_non_human_posture".to_string()]

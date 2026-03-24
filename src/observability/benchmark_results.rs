@@ -545,6 +545,11 @@ mod tests {
         snapshot.non_human_traffic.coverage.partial_category_count = 0;
         snapshot.non_human_traffic.coverage.stale_category_count = 0;
         snapshot.non_human_traffic.coverage.unavailable_category_count = 0;
+        snapshot.objectives.category_postures.clear();
+        let mut cfg = defaults().clone();
+        cfg.verified_identity.enabled = false;
+        cfg.verified_identity.native_web_bot_auth_enabled = false;
+        cfg.verified_identity.provider_assertions_enabled = false;
 
         let payload = build_benchmark_results_from_snapshot_sections(
             snapshot.generated_at,
@@ -556,7 +561,7 @@ mod tests {
             &snapshot.non_human_traffic,
             &snapshot.budget_distance,
             &summary,
-            &defaults(),
+            &cfg,
             &snapshot.allowed_actions,
             &protected_replay_promotion_summary(),
             None,
@@ -618,7 +623,7 @@ mod tests {
         assert_eq!(hint.review_status, "manual_review_required");
         assert!(hint
             .blockers
-            .contains(&"no_matching_config_surface".to_string()));
+            .contains(&"no_matching_controller_tunable_surface".to_string()));
         assert!(hint.blockers.contains(&"family_capability_gap".to_string()));
     }
 

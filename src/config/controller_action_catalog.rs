@@ -15,6 +15,7 @@ pub(super) struct AllowedActionGroupDefinition {
     pub(super) controller_status: &'static str,
     pub(super) canary_requirement: &'static str,
     pub(super) patch_paths: &'static [&'static str],
+    pub(super) proposable_patch_paths: &'static [&'static str],
     pub(super) targets: &'static [&'static str],
     pub(super) value_constraints: &'static [AllowedActionValueConstraintDefinition],
     pub(super) note: &'static str,
@@ -558,9 +559,10 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "shadow_mode.state",
         family: "shadow_mode",
-        controller_status: "manual_only",
+        controller_status: "forbidden",
         canary_requirement: "not_applicable",
         patch_paths: &["shadow_mode"],
+        proposable_patch_paths: &[],
         targets: &[],
         value_constraints: &[],
         note: "Execution-mode switches must remain a deliberate manual operator decision.",
@@ -568,9 +570,10 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "adversary_sim.duration",
         family: "adversary_sim_config",
-        controller_status: "manual_only",
+        controller_status: "forbidden",
         canary_requirement: "not_applicable",
         patch_paths: &["adversary_sim_duration_seconds"],
+        proposable_patch_paths: &[],
         targets: &["representative_adversary_effectiveness"],
         value_constraints: &[],
         note: "Adversary-sim scheduling and runtime posture must remain manual until the benchmark loop is defined end to end.",
@@ -581,6 +584,7 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
         controller_status: "allowed",
         canary_requirement: "required",
         patch_paths: &["js_required_enforced"],
+        proposable_patch_paths: &["js_required_enforced"],
         targets: &["likely_human_friction", "suspicious_forwarded_requests"],
         value_constraints: CORE_POLICY_JS_REQUIRED_CONSTRAINTS,
         note: "Controller may propose bounded JS-required posture changes because they directly shape likely-human friction and suspicious leakage.",
@@ -591,6 +595,7 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
         controller_status: "manual_only",
         canary_requirement: "not_applicable",
         patch_paths: &["rate_limit"],
+        proposable_patch_paths: &[],
         targets: &["suspicious_forwarded_requests"],
         value_constraints: &[],
         note: "Rate-limit thresholds do not yet expose a dedicated safe numeric envelope, so they remain manual-only.",
@@ -598,9 +603,10 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "core_policy.ban_durations",
         family: "core_policy",
-        controller_status: "manual_only",
+        controller_status: "forbidden",
         canary_requirement: "not_applicable",
         patch_paths: &["ban_duration", "ban_durations"],
+        proposable_patch_paths: &[],
         targets: &["suspicious_forwarded_requests"],
         value_constraints: &[],
         note: "Ban-duration posture remains manual-only because it changes punishment horizons rather than bounded detection sensitivity.",
@@ -608,7 +614,7 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "geo_policy.country_lists",
         family: "geo_policy",
-        controller_status: "manual_only",
+        controller_status: "forbidden",
         canary_requirement: "not_applicable",
         patch_paths: &[
             "geo_risk",
@@ -618,6 +624,7 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
             "geo_block",
             "geo_edge_headers_enabled",
         ],
+        proposable_patch_paths: &[],
         targets: &["likely_human_friction", "suspicious_forwarded_requests"],
         value_constraints: &[],
         note: "Country and edge-header posture remains manual-only because it is site- and deployment-specific trust policy.",
@@ -625,9 +632,10 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "honeypot.surface",
         family: "honeypot",
-        controller_status: "manual_only",
+        controller_status: "forbidden",
         canary_requirement: "not_applicable",
         patch_paths: &["honeypot_enabled", "honeypots"],
+        proposable_patch_paths: &[],
         targets: &["suspicious_forwarded_requests"],
         value_constraints: &[],
         note: "Honeypot paths and surface placement remain manual-only because they depend on the protected site's navigation model.",
@@ -635,9 +643,10 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "browser_policy.allowlists",
         family: "browser_policy",
-        controller_status: "manual_only",
+        controller_status: "forbidden",
         canary_requirement: "not_applicable",
         patch_paths: &["browser_policy_enabled", "browser_block", "browser_allowlist"],
+        proposable_patch_paths: &[],
         targets: &["likely_human_friction", "suspicious_forwarded_requests"],
         value_constraints: &[],
         note: "Browser allowlists and deny rules remain manual-only because they sit on a trust-boundary surface.",
@@ -645,7 +654,7 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "allowlists.surface",
         family: "allowlists",
-        controller_status: "manual_only",
+        controller_status: "forbidden",
         canary_requirement: "not_applicable",
         patch_paths: &[
             "bypass_allowlists_enabled",
@@ -653,6 +662,7 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
             "path_allowlist_enabled",
             "path_allowlist",
         ],
+        proposable_patch_paths: &[],
         targets: &["likely_human_friction", "suspicious_forwarded_requests"],
         value_constraints: &[],
         note: "Emergency and path allowlists remain manual-only because they are explicit trust exceptions.",
@@ -660,13 +670,14 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "ip_range_policy",
         family: "ip_range_policy",
-        controller_status: "manual_only",
+        controller_status: "forbidden",
         canary_requirement: "not_applicable",
         patch_paths: &[
             "ip_range_policy_mode",
             "ip_range_emergency_allowlist",
             "ip_range_custom_rules",
         ],
+        proposable_patch_paths: &[],
         targets: &["likely_human_friction", "suspicious_forwarded_requests"],
         value_constraints: &[],
         note: "IP-range policy remains manual-only because it carries high collateral-risk and trust-boundary implications.",
@@ -677,6 +688,7 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
         controller_status: "allowed",
         canary_requirement: "required",
         patch_paths: &["maze_enabled", "maze_auto_ban", "maze_rollout_phase"],
+        proposable_patch_paths: &["maze_enabled", "maze_auto_ban", "maze_rollout_phase"],
         targets: &["suspicious_forwarded_bytes", "suspicious_forwarded_requests"],
         value_constraints: MAZE_ROLLOUT_CONSTRAINTS,
         note: "Controller may propose bounded maze rollout posture changes, but only through the explicit canary-required rollout surface.",
@@ -684,7 +696,7 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "maze_core.content_and_budget",
         family: "maze_core",
-        controller_status: "manual_only",
+        controller_status: "forbidden",
         canary_requirement: "not_applicable",
         patch_paths: &[
             "maze_auto_ban_threshold",
@@ -716,6 +728,7 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
             "maze_seed_refresh_max_sources",
             "maze_seed_metadata_only",
         ],
+        proposable_patch_paths: &[],
         targets: &["suspicious_forwarded_bytes", "suspicious_forwarded_requests"],
         value_constraints: &[],
         note: "Maze content, seed, and capacity tuning remain manual-only until Shuma has explicit benchmark evidence for safe autonomous adjustment.",
@@ -723,7 +736,7 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "tarpit.core",
         family: "tarpit",
-        controller_status: "manual_only",
+        controller_status: "forbidden",
         canary_requirement: "not_applicable",
         patch_paths: &[
             "tarpit_enabled",
@@ -746,6 +759,7 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
             "tarpit_max_concurrent_per_ip_bucket",
             "tarpit_fallback_action",
         ],
+        proposable_patch_paths: &[],
         targets: &["suspicious_forwarded_bytes", "suspicious_forwarded_requests"],
         value_constraints: &[],
         note: "Tarpit cost-shaping remains manual-only until benchmark loops can prove safe asymmetric gains across real traffic and adversary-sim evidence.",
@@ -756,6 +770,7 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
         controller_status: "allowed",
         canary_requirement: "required",
         patch_paths: &["pow_enabled", "pow_difficulty", "pow_ttl_seconds"],
+        proposable_patch_paths: &["pow_enabled", "pow_difficulty"],
         targets: &[
             "likely_human_friction",
             "suspicious_forwarded_bytes",
@@ -776,6 +791,7 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
             "challenge_puzzle_attempt_limit_per_window",
             "challenge_puzzle_attempt_window_seconds",
         ],
+        proposable_patch_paths: &["challenge_puzzle_enabled"],
         targets: &[
             "likely_human_friction",
             "suspicious_forwarded_bytes",
@@ -799,6 +815,7 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
             "not_a_bot_attempt_limit_per_window",
             "not_a_bot_attempt_window_seconds",
         ],
+        proposable_patch_paths: &["not_a_bot_enabled", "not_a_bot_risk_threshold"],
         targets: &["likely_human_friction"],
         value_constraints: NOT_A_BOT_CONSTRAINTS,
         note: "Not-a-bot posture is controller-tunable because it is bounded and directly tied to likely-human friction budgets.",
@@ -813,6 +830,7 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
             "botness_maze_threshold",
             "botness_weights",
         ],
+        proposable_patch_paths: &["challenge_puzzle_risk_threshold"],
         targets: &[
             "likely_human_friction",
             "suspicious_forwarded_bytes",
@@ -824,9 +842,10 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "botness.defence_modes",
         family: "botness",
-        controller_status: "manual_only",
+        controller_status: "forbidden",
         canary_requirement: "not_applicable",
         patch_paths: &["defence_modes"],
+        proposable_patch_paths: &[],
         targets: &[
             "likely_human_friction",
             "suspicious_forwarded_bytes",
@@ -838,7 +857,7 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "robots_policy",
         family: "robots_policy",
-        controller_status: "manual_only",
+        controller_status: "forbidden",
         canary_requirement: "not_applicable",
         patch_paths: &[
             "robots_enabled",
@@ -847,6 +866,7 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
             "ai_policy_allow_search_engines",
             "robots_crawl_delay",
         ],
+        proposable_patch_paths: &[],
         targets: &["beneficial_non_human_posture"],
         value_constraints: &[],
         note: "Beneficial non-human posture and robots policy remain manual-only because they are explicit local authorization choices.",
@@ -862,6 +882,7 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
             "cdp_detection_threshold",
             "cdp_probe_rollout_percent",
         ],
+        proposable_patch_paths: &["cdp_detection_enabled"],
         targets: &[
             "likely_human_friction",
             "suspicious_forwarded_bytes",
@@ -873,9 +894,10 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "cdp_detection.probe_family",
         family: "cdp_detection",
-        controller_status: "manual_only",
+        controller_status: "forbidden",
         canary_requirement: "not_applicable",
         patch_paths: &["cdp_probe_family"],
+        proposable_patch_paths: &[],
         targets: &[
             "likely_human_friction",
             "suspicious_forwarded_bytes",
@@ -901,6 +923,7 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
             "fingerprint_family_cap_persistence",
             "fingerprint_family_cap_behavior",
         ],
+        proposable_patch_paths: &["fingerprint_signal_enabled"],
         targets: &[
             "likely_human_friction",
             "suspicious_forwarded_bytes",
@@ -912,9 +935,10 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "fingerprint_signal.privacy",
         family: "fingerprint_signal",
-        controller_status: "manual_only",
+        controller_status: "forbidden",
         canary_requirement: "not_applicable",
         patch_paths: &["fingerprint_pseudonymize"],
+        proposable_patch_paths: &[],
         targets: &[],
         value_constraints: &[],
         note: "Fingerprint privacy posture remains manual-only because it changes observability/privacy policy, not tuning sensitivity.",
@@ -922,9 +946,10 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "verified_identity.policy",
         family: "verified_identity",
-        controller_status: "manual_only",
+        controller_status: "forbidden",
         canary_requirement: "not_applicable",
         patch_paths: &["verified_identity"],
+        proposable_patch_paths: &[],
         targets: &["beneficial_non_human_posture"],
         value_constraints: &[],
         note: "Verified-identity trust posture remains manual-only because it changes local authorization and trust-boundary policy.",
@@ -935,6 +960,7 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
         controller_status: "forbidden",
         canary_requirement: "not_applicable",
         patch_paths: &["provider_backends", "edge_integration_mode"],
+        proposable_patch_paths: &[],
         targets: &[],
         value_constraints: &[],
         note: "Provider and edge-backend selection is permanently outside the first controller write surface.",

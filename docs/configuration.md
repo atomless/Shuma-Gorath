@@ -327,6 +327,8 @@ Shuma now treats admin writability and controller eligibility as separate truths
   - `controller_mutability_schema_version`
   - `admin_config_path_mutability`
   - `operator_objectives_path_mutability`
+  - per-group and per-family `auto_proposal_status`
+  - per-group and per-family `proposable_patch_paths`
 - Each path is classified as exactly one of:
   - `controller_tunable`
   - `manual_only`
@@ -343,6 +345,13 @@ Current high-level stance:
   - runtime harness controls such as `shadow_mode` and `adversary_sim_duration_seconds`
   - explicit trust and allowlist policy
   - verified-identity policy
+
+Current auto-proposal stance:
+
+- `auto_proposal_status=supported` means the current bounded config loop can already emit patches for every controller-tunable path in that group or family.
+- `auto_proposal_status=partial_support` means the surface is controller-tunable but the current bounded proposer only supports a subset of those paths.
+- `auto_proposal_status=not_supported` means the surface is controller-tunable in principle but the current bounded proposer does not yet emit patches for it.
+- `auto_proposal_status=not_applicable` means the surface is not controller-tunable, so the current loop must never attempt it.
   - provider and edge topology
   - robots and AI policy
   - privacy posture

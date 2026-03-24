@@ -37,8 +37,10 @@ pub(crate) struct AllowedActionGroup {
     pub family: String,
     pub controller_status: String,
     pub controller_mutability: String,
+    pub auto_proposal_status: String,
     pub canary_requirement: String,
     pub patch_paths: Vec<String>,
+    pub proposable_patch_paths: Vec<String>,
     pub targets: Vec<String>,
     pub value_constraints: Vec<AllowedActionValueConstraint>,
     pub note: String,
@@ -49,7 +51,9 @@ pub(crate) struct AllowedActionFamily {
     pub family: String,
     pub controller_status: String,
     pub controller_mutability: String,
+    pub auto_proposal_status: String,
     pub group_ids: Vec<String>,
+    pub proposable_patch_paths: Vec<String>,
     pub targets: Vec<String>,
 }
 
@@ -144,17 +148,29 @@ fn build_group(
     definition: &AllowedActionGroupDefinition,
     admin_config_path_mutability: &[ControllerMutabilityPath],
 ) -> AllowedActionGroup {
+    let controller_mutability = definition_path_mutability(
+        definition,
+        admin_config_path_mutability,
+    );
+    let auto_proposal_status = proposal_support_status(
+        controller_mutability.as_str(),
+        definition.patch_paths,
+        definition.proposable_patch_paths,
+    );
     AllowedActionGroup {
         group_id: definition.group_id.to_string(),
         family: definition.family.to_string(),
         controller_status: definition.controller_status.to_string(),
-        controller_mutability: definition_path_mutability(
-            definition,
-            admin_config_path_mutability,
-        ),
+        controller_mutability,
+        auto_proposal_status,
         canary_requirement: definition.canary_requirement.to_string(),
         patch_paths: definition
             .patch_paths
+            .iter()
+            .map(|path| path.to_string())
+            .collect(),
+        proposable_patch_paths: definition
+            .proposable_patch_paths
             .iter()
             .map(|path| path.to_string())
             .collect(),
@@ -169,6 +185,28 @@ fn build_group(
             .map(build_value_constraint)
             .collect(),
         note: definition.note.to_string(),
+    }
+}
+
+fn proposal_support_status(
+    controller_mutability: &str,
+    patch_paths: &[&str],
+    proposable_patch_paths: &[&str],
+) -> String {
+    if controller_mutability != "controller_tunable" {
+        return "not_applicable".to_string();
+    }
+
+    if proposable_patch_paths.is_empty() {
+        "not_supported".to_string()
+    } else if proposable_patch_paths.len() == patch_paths.len()
+        && proposable_patch_paths
+            .iter()
+            .all(|path| patch_paths.contains(path))
+    {
+        "supported".to_string()
+    } else {
+        "partial_support".to_string()
     }
 }
 

@@ -51,6 +51,7 @@ pub(crate) fn propose_patch(
     let priority = match pressure {
         OversightPressure::ReduceLikelyHumanFriction => &[
             "proof_of_work",
+            "botness",
             "challenge",
             "not_a_bot",
             "maze_core",
@@ -60,6 +61,7 @@ pub(crate) fn propose_patch(
             "fingerprint_signal",
             "cdp_detection",
             "proof_of_work",
+            "botness",
             "challenge",
             "not_a_bot",
             "maze_core",
@@ -133,7 +135,11 @@ fn build_proposal(
             "medium".to_string(),
         ),
         ("challenge", OversightPressure::ReduceLikelyHumanFriction) => (
-            "Raise challenge thresholds slightly to reduce likely-human challenge exposure.".to_string(),
+            "Relax challenge enablement slightly to reduce likely-human challenge exposure.".to_string(),
+            "medium".to_string(),
+        ),
+        ("botness", OversightPressure::ReduceLikelyHumanFriction) => (
+            "Raise the challenge-escalation threshold slightly so likely humans stay on the lower-friction path more often.".to_string(),
             "medium".to_string(),
         ),
         ("not_a_bot", OversightPressure::ReduceLikelyHumanFriction) => (
@@ -153,7 +159,11 @@ fn build_proposal(
             "medium".to_string(),
         ),
         ("challenge", OversightPressure::ReduceSuspiciousOriginCost) => (
-            "Tighten challenge posture slightly to reduce suspicious forwarded cost while keeping the change bounded.".to_string(),
+            "Enable the puzzle challenge as a bounded next step to reduce suspicious forwarded cost while keeping the change reviewable.".to_string(),
+            "medium".to_string(),
+        ),
+        ("botness", OversightPressure::ReduceSuspiciousOriginCost) => (
+            "Lower the challenge-escalation threshold slightly so suspicious traffic hits the puzzle lane earlier.".to_string(),
             "medium".to_string(),
         ),
         ("not_a_bot", OversightPressure::ReduceSuspiciousOriginCost) => (
@@ -227,6 +237,17 @@ fn family_patch(
             }
         }
         ("challenge", OversightPressure::ReduceLikelyHumanFriction) => {
+            cfg.challenge_puzzle_enabled
+                .then(|| json!({ "challenge_puzzle_enabled": false }))
+        }
+        ("challenge", OversightPressure::ReduceSuspiciousOriginCost) => {
+            if !cfg.challenge_puzzle_enabled {
+                Some(json!({ "challenge_puzzle_enabled": true }))
+            } else {
+                None
+            }
+        }
+        ("botness", OversightPressure::ReduceLikelyHumanFriction) => {
             step_numeric_path(
                 allowed_actions,
                 "challenge_puzzle_risk_threshold",
@@ -235,19 +256,15 @@ fn family_patch(
             )
             .map(|value| json!({ "challenge_puzzle_risk_threshold": value }))
         }
-        ("challenge", OversightPressure::ReduceSuspiciousOriginCost) => {
-            if !cfg.challenge_puzzle_enabled {
-                Some(json!({ "challenge_puzzle_enabled": true }))
-            } else {
-                step_numeric_path(
-                    allowed_actions,
-                    "challenge_puzzle_risk_threshold",
-                    cfg.challenge_puzzle_risk_threshold as u64,
-                    StepDirection::Down,
-                )
-                .filter(|value| *value > cfg.not_a_bot_risk_threshold as u64)
-                .map(|value| json!({ "challenge_puzzle_risk_threshold": value }))
-            }
+        ("botness", OversightPressure::ReduceSuspiciousOriginCost) => {
+            step_numeric_path(
+                allowed_actions,
+                "challenge_puzzle_risk_threshold",
+                cfg.challenge_puzzle_risk_threshold as u64,
+                StepDirection::Down,
+            )
+            .filter(|value| *value > cfg.not_a_bot_risk_threshold as u64)
+            .map(|value| json!({ "challenge_puzzle_risk_threshold": value }))
         }
         ("not_a_bot", OversightPressure::ReduceLikelyHumanFriction) => {
             let upper_bound = cfg
@@ -307,7 +324,8 @@ fn family_patch(
 fn family_is_proposable(allowed_actions: &AllowedActionsSurface, family: &str) -> bool {
     allowed_actions.groups.iter().any(|group| {
         group.family == family
-            && matches!(group.controller_status.as_str(), "allowed" | "manual_only")
+            && group.controller_status == "allowed"
+            && !group.proposable_patch_paths.is_empty()
     })
 }
 
@@ -323,8 +341,8 @@ fn matched_groups_for_patch<'a>(
             .iter()
             .find(|group| {
                 group.family == family
-                    && group.patch_paths.iter().any(|path| path == key)
-                    && matches!(group.controller_status.as_str(), "allowed" | "manual_only")
+                    && group.proposable_patch_paths.iter().any(|path| path == key)
+                    && group.controller_status == "allowed"
             })
             .ok_or_else(|| OversightPatchPolicyError::InvalidPatch(key.clone()))?;
         if !groups
@@ -450,6 +468,25 @@ mod tests {
 
         assert_eq!(proposal.patch_family, "not_a_bot");
         assert_eq!(proposal.patch["not_a_bot_risk_threshold"], 3);
+    }
+
+    #[test]
+    fn challenge_threshold_tuning_routes_through_botness_family() {
+        let mut cfg = defaults().clone();
+        cfg.not_a_bot_risk_threshold = 2;
+        cfg.challenge_puzzle_risk_threshold = 4;
+
+        let proposal = propose_patch(
+            &cfg,
+            &allowed_actions_v1(),
+            &["botness".to_string()],
+            OversightPressure::ReduceLikelyHumanFriction,
+            &ReplayPromotionSummary::not_materialized(),
+        )
+        .expect("proposal builds");
+
+        assert_eq!(proposal.patch_family, "botness");
+        assert_eq!(proposal.patch["challenge_puzzle_risk_threshold"], 5);
     }
 
     #[test]

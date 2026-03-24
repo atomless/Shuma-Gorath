@@ -4,6 +4,36 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### CTRL-SURFACE-2: Allowed-action and proposer parity over the ratified tunable set
+
+- [x] Reconciled hard-never group statuses in [`src/config/controller_action_catalog.rs`](../src/config/controller_action_catalog.rs) so surfaces classified as canonical `never` now expose `controller_status="forbidden"` instead of stale `manual_only` values.
+- [x] Added explicit bounded proposer truth to [`src/config/controller_action_catalog.rs`](../src/config/controller_action_catalog.rs) and [`src/config/controller_action_surface.rs`](../src/config/controller_action_surface.rs):
+  - per-group `proposable_patch_paths`
+  - per-group `auto_proposal_status`
+  - per-family `proposable_patch_paths`
+  - per-family `auto_proposal_status`
+- [x] Updated [`src/config/controller_action_guardrails.rs`](../src/config/controller_action_guardrails.rs) so family summaries now describe auto-proposal support across the controller-tunable portion of each family instead of collapsing everything to the older allowed/manual-only/forbidden framing.
+- [x] Narrowed benchmark escalation in [`src/observability/benchmark_results_comparison.rs`](../src/observability/benchmark_results_comparison.rs) so config-tuning candidates are emitted only for explicitly auto-proposable controller-tunable families, while operator-owned or hard-never families now fail visible as blockers.
+- [x] Fixed the patch-policy family drift in [`src/admin/oversight_patch_policy.rs`](../src/admin/oversight_patch_policy.rs) so `challenge_puzzle_risk_threshold` now routes through `botness`, and proposer validation now checks against `proposable_patch_paths` instead of the broader catalog patch-path set.
+- [x] Tightened controller-surface and benchmark tests in:
+  - [`src/config/tests.rs`](../src/config/tests.rs)
+  - [`src/observability/benchmark_results.rs`](../src/observability/benchmark_results.rs)
+  - [`src/observability/benchmark_results_comparison.rs`](../src/observability/benchmark_results_comparison.rs)
+- [x] Added the truthful focused parity target `test-controller-action-surface-parity` in [`Makefile`](../Makefile) and updated supporting docs in:
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`docs/configuration.md`](../docs/configuration.md)
+  - [`docs/api.md`](../docs/api.md)
+  - [`docs/research/2026-03-24-ctrl-surface-2-action-surface-and-proposer-parity-post-implementation-review.md`](../docs/research/2026-03-24-ctrl-surface-2-action-surface-and-proposer-parity-post-implementation-review.md)
+- [x] Why:
+  - `CTRL-SURFACE-1` gave the repo canonical mutability rings, but the live loop still had silent drift between those rings, escalation hints, and the bounded proposer.
+  - This slice makes “controller-tunable but not yet auto-proposable” explicit instead of accidental, and removes policy-owned families from tuning candidates.
+- [x] Evidence:
+  - `make test-controller-action-surface-parity`
+  - `make test-oversight-reconcile`
+  - `make test-oversight-apply`
+  - `make test-benchmark-results-contract`
+  - `git diff --check`
+
 ### CTRL-SURFACE-1: Canonical controller mutability policy and hard-never surface
 
 - [x] Added canonical controller mutability rings in [`src/config/controller_action_catalog.rs`](../src/config/controller_action_catalog.rs), classifying the full admin-writable config surface into:
