@@ -4,6 +4,26 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### Planning: recursive self-improvement game loop definition and move-selection
+
+- [x] Wrote the research note in [`docs/research/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-review.md`](../docs/research/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-review.md) to inspect whether Shuma's planned recursive-improvement game is defined clearly enough in its current state.
+- [x] Wrote the companion plan in [`docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](../docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md), defining the later game-contract, move-selection, episode-archive, and reference-stance integration tasks.
+- [x] Updated the main loop-closure and blocked backlog docs so later `OVR-AGENT-2`, `OVR-CODE-1`, and `RSI-METH-1` now explicitly depend on a canonical recursive-improvement game contract rather than inventing rules, evaluator, and move-selection semantics inside a later autonomous loop.
+- [x] Why:
+  - Shuma already has strong pieces of a recursive-improvement loop, but they are still distributed across objectives, benchmarks, reconcile logic, and patch heuristics rather than being named as one explicit game contract.
+  - The Meta `HyperAgents` paper is most useful to Shuma for evaluator sacredness, archive-based search, and durable performance tracking, while the released code is a caution against broad mutation and under-specified move selection.
+  - The main current architectural gap is not "more autonomy" but a more explicit shortfall-attribution and move-selection layer between benchmark misses and bounded patches.
+- [x] Evidence:
+  - `docs/research/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-review.md`
+  - `docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`
+  - `docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`
+  - `docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`
+  - `docs/research/README.md`
+  - `docs/plans/README.md`
+  - `todos/blocked-todo.md`
+  - `git diff --check`
+  - verification intentionally scoped as docs-only; tests not run
+
 ### Planning refinement: Identification category distinction should omit non-useful entries
 
 - [x] Updated the Identification planning docs so the first `Category Distinction` surface no longer implies a dense matrix full of `not useful` entries.

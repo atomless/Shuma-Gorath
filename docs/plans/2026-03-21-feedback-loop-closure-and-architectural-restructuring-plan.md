@@ -370,6 +370,16 @@ These phases should not be started early just because the UI can be edited soone
 
 These later items remain intentionally non-execution-ready until the three Phase 5 implementation plans above are complete and live-proved.
 
+### `RSI-GAME-1`
+
+Before reopening the later recursive-improvement phases, codify the missing game contract explicitly:
+
+1. immutable rules built from `operator_objectives_v1` plus the canonical controller-mutability policy,
+2. sacred evaluator scorecard over benchmark families, safety gates, and regression anchors,
+3. bounded legal move ring,
+4. explicit shortfall-attribution and move-selection policy rather than only coarse pressure heuristics,
+5. and an episode archive or stepping-stone memory that later run-to-homeostasis episodes can use.
+
 ### `OVR-AGENT-2`
 
 Reopen the later LLM-backed diagnosis/config harness only after the first shared-host agent loop, the first closed config loop, Monitoring projection, Tuning surface, replay-promotion contract, and central-intelligence architecture all exist.
@@ -381,11 +391,15 @@ Later controller planning should also adopt the recursive-improvement methodolog
 3. define homeostasis over recent completed watch-window cycles,
 4. and only later broaden into preset sweeps over relaxed operator stances.
 
+It should also consume the canonical game-contract and move-selection plan captured in [`2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md) rather than reconstructing its own implicit rules, evaluator, or move set.
+
 ### `OVR-CODE-1`
 
 Keep the later benchmark-driven LLM code-evolution or PR-generation path behind the bounded config loop, the later diagnosis harness, and benchmark-comparison proof.
 
 When this phase reopens, code-evolution proposals should treat the strict reference stance as a mandatory regression anchor even when optimizing more permissive target stances.
+
+They should also inherit the canonical game contract and move-selection boundaries rather than invent a second notion of objective, legal move scope, or progress.
 
 # Scheduling Rules
 
