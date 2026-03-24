@@ -380,6 +380,17 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
                 "rate_limit": 1,
             },
         )
+        coverage_contract = json.loads(
+            (
+                REPO_ROOT / "scripts" / "tests" / "adversarial" / "coverage_contract.v2.json"
+            ).read_text(encoding="utf-8")
+        )
+        owned_surfaces = set(
+            coverage_contract["scrapling_owned_defense_surfaces"]["surfaces"].keys()
+        )
+        observed_surfaces = set(result["surface_interactions"].keys())
+        self.assertEqual(sorted(owned_surfaces - observed_surfaces), ["geo_ip_policy"])
+        self.assertEqual(sorted(observed_surfaces - owned_surfaces), [])
         methods = [entry["method"] for entry in self.httpd.requests_seen]
         self.assertIn("GET", methods)
         self.assertIn("POST", methods)

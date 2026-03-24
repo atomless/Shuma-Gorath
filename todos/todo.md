@@ -113,6 +113,7 @@ Reference context:
 - Add focused verification and receipts so any remaining uncovered surface is explicit and intentionally assigned to another lane.
 - Treat this as the next active tranche after `SIM-SCR-CHALLENGE-2B`: use the new worker-result and lane-diagnostics `surface_interactions` receipts to close the proof gap before reopening browser or stealth Scrapling.
 - Recent sim runs and operator snapshot now expose matrix-aligned `observed_defense_keys`; the remaining work is to compare those receipts against the owned-surface matrix and make any mismatch fail visible.
+- Current focused worker proof now shows six of seven owned request-native surfaces directly (`challenge_routing`, `rate_limit`, `honeypot`, `not_a_bot`, `challenge_puzzle`, `proof_of_work`); the remaining uncovered surface is `geo_ip_policy`, which likely needs truthful source-IP diversification or proxy-backed Scrapling rather than browser or stealth runtime.
 
 ### RSI-GAME-MAINLINE-1: First working self-improving loop over attacker-faithful Scrapling
 - After the Scrapling-owned surfaces are attacker-faithful and receipt-backed, execute the first explicit self-improving loop over that truthful attacker basis.

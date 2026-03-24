@@ -52,6 +52,7 @@ Moved from active TODO files on 2026-02-14.
 - [x] Why:
   - `SIM-SCR-CHALLENGE-2D` needs exact, machine-readable defense receipts before it can compare observed Scrapling coverage against the owned-surface matrix and make remaining gaps explicit
   - the old `defense_delta_count` plus generic `challenge` naming was not precise enough for that job
+- [x] The focused worker proof now also makes the current remaining uncovered owned surface explicit: `geo_ip_policy` is the only matrix row not directly touched by the present request-native worker, which points to a future source-IP diversification or proxy-backed Scrapling tranche rather than a browser/stealth follow-on.
 - [x] Evidence:
   - `make test-adversarial-coverage-receipts`
   - `git diff --check`

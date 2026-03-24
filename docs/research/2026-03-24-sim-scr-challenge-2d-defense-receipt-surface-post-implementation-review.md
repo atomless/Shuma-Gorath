@@ -46,3 +46,9 @@ Still remaining:
 - compare the observed-defense receipt set against the owned-surface matrix explicitly,
 - make any missing owned surfaces fail visible,
 - and decide whether any remaining gap truly requires `SIM-SCR-CHALLENGE-2C` browser or stealth Scrapling rather than more request-native coverage or telemetry refinement.
+
+The current worker proof now makes one specific remaining uncovered owned surface explicit:
+
+- `geo_ip_policy`
+
+That looks like a source-IP diversification or proxy-truth problem, not a browser or stealth-runtime problem.
