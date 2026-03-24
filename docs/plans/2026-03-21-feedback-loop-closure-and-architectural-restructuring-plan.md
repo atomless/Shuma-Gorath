@@ -355,6 +355,13 @@ The first concrete UI contract for this tranche is now the taxonomy posture matr
 2. `Tuning` owns active defense posture over canonical non-human categories,
 3. the editor should render one category row against the bounded five-point posture scale,
 4. and optional stance archetypes should only seed the matrix rather than becoming a second persisted policy model.
+5. this first matrix section should be visually primary so the tab reads as the home of operator-owned tuning rather than as a threshold appendix.
+
+Follow-on ownership after the matrix lands:
+
+1. ratified controller-tunable botness and fingerprint controls should consolidate into `Tuning`,
+2. `Fingerprinting` should keep provider-source posture plus effective scoring diagnostics,
+3. and the later budget/controller-explanation layer should land only after that ownership split is settled.
 
 These phases should not be started early just because the UI can be edited sooner.
 

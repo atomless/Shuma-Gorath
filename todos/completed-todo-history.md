@@ -4,6 +4,31 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### Planning: tuning-surface visibility and fingerprint-control ownership
+
+- [x] Wrote the research note in [`docs/research/2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-review.md`](../docs/research/2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-review.md) to settle the ownership split between `Tuning` and `Fingerprinting`.
+- [x] Wrote the companion sequencing plan in [`docs/plans/2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md`](../docs/plans/2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md), defining the order for making `Tuning` visually primary and later consolidating ratified botness and fingerprint controls there.
+- [x] Updated the main tuning and roadmap chain so `TUNE-SURFACE-1` now reflects three sub-slices:
+  - `TUNE-SURFACE-1A` taxonomy posture matrix and visibility uplift,
+  - `TUNE-SURFACE-1B` botness and fingerprint control consolidation into `Tuning`,
+  - `TUNE-SURFACE-1C` later budget and controller-explanation expansion.
+- [x] Why:
+  - the current `Tuning` tab already edits active botness controls, but it still reads like a narrow threshold editor rather than the main operator-owned tuning surface.
+  - the `Fingerprinting` tab's read-only botness bars are a runtime scoring projection, not a truthful long-term ownership boundary, because some of those inputs are already editable in `Tuning` and more fingerprint knobs may become controller-tunable once `CTRL-SURFACE-1..3` lands.
+  - the clean split is by operator intent: `Tuning` should own editable posture and ratified tuning controls, while `Fingerprinting` should keep provider-source posture plus effective scoring diagnostics.
+- [x] Evidence:
+  - `docs/research/2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-review.md`
+  - `docs/plans/2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md`
+  - `docs/plans/2026-03-23-tuning-surface-taxonomy-posture-matrix-implementation-plan.md`
+  - `docs/plans/2026-03-23-dashboard-operator-surfacing-sequencing-plan.md`
+  - `docs/plans/2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md`
+  - `docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`
+  - `docs/research/README.md`
+  - `docs/plans/README.md`
+  - `todos/blocked-todo.md`
+  - `git diff --check`
+  - verification intentionally scoped as docs-only; tests not run
+
 ### Planning: canonical controller mutability policy and hard boundaries
 
 - [x] Wrote the research note in [`docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md`](../docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md) to classify the writable surface into operator-target-only, hard-never, and candidate controller-tunable areas.

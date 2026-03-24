@@ -4,6 +4,7 @@ Status: Proposed
 Related context:
 
 - [`../research/2026-03-23-tuning-tab-taxonomy-posture-matrix-and-policy-archetypes-review.md`](../research/2026-03-23-tuning-tab-taxonomy-posture-matrix-and-policy-archetypes-review.md)
+- [`2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md`](2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md)
 - [`2026-03-23-dashboard-operator-surfacing-sequencing-plan.md`](2026-03-23-dashboard-operator-surfacing-sequencing-plan.md)
 - [`2026-03-20-monitoring-and-diagnostics-tab-ownership-plan.md`](2026-03-20-monitoring-and-diagnostics-tab-ownership-plan.md)
 - [`2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md)
@@ -149,12 +150,14 @@ It should prove:
 
 # Backlog Refinement
 
-`TUNE-SURFACE-1` should now be understood as starting with two sub-slices:
+`TUNE-SURFACE-1` should now be understood as starting with three sub-slices:
 
 1. `TUNE-SURFACE-1A`
-   - taxonomy posture matrix and preset seeding
+   - taxonomy posture matrix, preset seeding, and a visibly primary section layout
 2. `TUNE-SURFACE-1B`
-   - later objective-budget and controller-explanation expansion, after the canonical controller mutability policy is ratified
+   - controller-tunable botness and fingerprint control consolidation into `Tuning`, plus the matching `Fingerprinting` ownership cleanup, after the canonical controller mutability policy is ratified
+3. `TUNE-SURFACE-1C`
+   - later objective-budget and controller-explanation expansion, after `1B` settles the operator-owned editing surface
 
 The first UI slice should land `1A` only.
 

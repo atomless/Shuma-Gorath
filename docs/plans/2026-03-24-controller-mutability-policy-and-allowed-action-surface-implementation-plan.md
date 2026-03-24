@@ -170,7 +170,7 @@ Make the controller action space explicit, narrow, and enforceable so the feedba
 1. Execute `CTRL-SURFACE-1` first.
 2. Then execute `CTRL-SURFACE-2`.
 3. Then execute `CTRL-SURFACE-3`.
-4. Keep `MON-OVERHAUL-1` and `TUNE-SURFACE-1A` independent of this work where possible, but require this mutability policy before later controller-explanation or patch-family-surfacing work in `TUNE-SURFACE-1B`, `OVR-AGENT-2`, and `OVR-CODE-1`.
+4. Keep `MON-OVERHAUL-1` and `TUNE-SURFACE-1A` independent of this work where possible, but require this mutability policy before later botness or fingerprint control consolidation in `TUNE-SURFACE-1B`, before controller-explanation expansion in `TUNE-SURFACE-1C`, and before the later recursive phases `OVR-AGENT-2` and `OVR-CODE-1`.
 
 # Definition Of Done
 

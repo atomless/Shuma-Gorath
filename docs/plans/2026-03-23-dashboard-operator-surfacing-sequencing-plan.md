@@ -7,6 +7,7 @@ Related context:
 - [`2026-03-20-monitoring-and-diagnostics-tab-ownership-plan.md`](2026-03-20-monitoring-and-diagnostics-tab-ownership-plan.md)
 - [`2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md)
 - [`2026-03-23-verified-identity-taxonomy-calibration-and-guardrails-implementation-plan.md`](2026-03-23-verified-identity-taxonomy-calibration-and-guardrails-implementation-plan.md)
+- [`2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md`](2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md)
 - [`../../dashboard/src/lib/components/dashboard/VerificationTab.svelte`](../../dashboard/src/lib/components/dashboard/VerificationTab.svelte)
 - [`../../dashboard/src/lib/components/dashboard/RedTeamTab.svelte`](../../dashboard/src/lib/components/dashboard/RedTeamTab.svelte)
 - [`../../dashboard/src/lib/domain/api-client.js`](../../dashboard/src/lib/domain/api-client.js)
@@ -169,6 +170,13 @@ First concrete UI contract:
 3. row labels and descriptions taken directly from the taxonomy contract,
 4. a small optional preset selector above the matrix that seeds row values only and falls back to `custom` after manual edits,
 5. no silent cross-tab writes into `Policy` or `Verification` from this first tuning slice.
+6. this first slice should read as visually primary inside `Tuning`; the matrix must not be buried under lower-level threshold controls.
+
+Follow-on ownership after `TUNE-SURFACE-1A`:
+
+1. `Tuning` should become the canonical editable home for ratified controller-tunable botness and fingerprint controls,
+2. `Fingerprinting` should retain provider-topology and signal-source posture plus a read-only effective scoring diagnostic view,
+3. and that consolidation should execute only after `CTRL-SURFACE-1..3` ratifies which fingerprint controls are genuinely in-bounds.
 
 # Sequence
 
@@ -177,7 +185,9 @@ First concrete UI contract:
 3. Land `UI-RED-1`.
 4. Then execute `MON-OVERHAUL-1`.
 5. Then ratify the controller mutability policy and hard-no-touch boundary (`CTRL-SURFACE-1..3`).
-6. Then execute `TUNE-SURFACE-1`.
+6. Then execute `TUNE-SURFACE-1A`.
+7. Then execute `TUNE-SURFACE-1B`.
+8. Then execute `TUNE-SURFACE-1C`.
 
 # Definition Of Done
 

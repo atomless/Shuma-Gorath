@@ -12,6 +12,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-23-testing-surface-rationalization-plan.md`](2026-03-23-testing-surface-rationalization-plan.md) - Testing-tier cleanup and proof-quality improvement plan
 - [`2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md`](2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md) - Monitoring overhaul reframed as loop-accountability with diagnostics-first deep inspection
 - [`2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md`](2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md) - Canonical hard-boundary and controller-tunable config-surface plan
+- [`2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md`](2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md) - Sequence for making Tuning primary and narrowing Fingerprinting to provider posture plus diagnostics
 
 ## Current Mainline
 
@@ -48,6 +49,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-24-open-backlog-and-plan-reference-stance-alignment-plan.md`](2026-03-24-open-backlog-and-plan-reference-stance-alignment-plan.md)
 - [`2026-03-24-monitoring-multi-loop-benchmark-progress-plan.md`](2026-03-24-monitoring-multi-loop-benchmark-progress-plan.md)
 - [`2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md`](2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md)
+- [`2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md`](2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md)
 - [`2026-03-23-host-impact-cost-proxy-and-benchmark-implementation-plan.md`](2026-03-23-host-impact-cost-proxy-and-benchmark-implementation-plan.md)
 - [`2026-03-23-ban-duration-family-truthfulness-implementation-plan.md`](2026-03-23-ban-duration-family-truthfulness-implementation-plan.md)
 
