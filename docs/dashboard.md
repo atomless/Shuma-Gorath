@@ -40,7 +40,12 @@ Behavior:
 
 ## 🐙 Refresh Model
 
-- `Monitoring` currently exposes the first accountability information architecture only; richer loop projection lands in later `MON-OVERHAUL-1B` and `MON-OVERHAUL-1C` slices.
+- `Monitoring` now projects the first real machine-first accountability layer:
+  - `operator_snapshot_v1`
+  - `benchmark_results_v1`
+  - bounded oversight status/history
+  - current verdict, multi-loop progress, outcome frontier, controller judgment, and bounded trust/blocker context
+- The remaining Monitoring follow-on is `MON-OVERHAUL-1C`, which adds the fuller category-aware pressure and final trust/actionability surface.
 - Manual refresh is available on `Diagnostics`, `IP Bans`, and `Red Team`.
 - Auto-refresh is available only on `IP Bans` and `Red Team`.
 - Most tabs refresh on initial load, on explicit refresh events, and after relevant save flows.
@@ -94,6 +99,9 @@ Notes:
 - `GET /admin/cdp`
 - `GET /admin/config`
 - `GET /admin/operator-snapshot`
+- `GET /admin/benchmark-results`
+- `GET /admin/oversight/history`
+- `GET /admin/oversight/agent/status`
 - `POST /admin/config`
 - `POST /admin/config/validate`
 - `POST /admin/adversary-sim/control`

@@ -4,6 +4,43 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### MON-OVERHAUL-1B: Monitoring projection of loop verdict, outcome frontier, and controller judgment
+
+- [x] Wired new dashboard machine-contract reads for Monitoring through:
+  - [`dashboard/src/lib/domain/api-client.js`](../dashboard/src/lib/domain/api-client.js)
+  - [`dashboard/src/lib/domain/dashboard-state.js`](../dashboard/src/lib/domain/dashboard-state.js)
+  - [`dashboard/src/lib/runtime/dashboard-runtime-refresh.js`](../dashboard/src/lib/runtime/dashboard-runtime-refresh.js)
+  - [`dashboard/src/routes/+page.svelte`](../dashboard/src/routes/+page.svelte)
+- [x] Added bounded dashboard adapters and snapshot wiring for:
+  - `benchmark_results_v1`
+  - `oversight_history_v1`
+  - `oversight_agent_status_v1`
+  - plus the additional `operator_snapshot_v1` Monitoring fields needed for runtime posture, traffic stance, adversary-sim context, and recent change context.
+- [x] Replaced the Monitoring placeholder copy in [`dashboard/src/lib/components/dashboard/MonitoringTab.svelte`](../dashboard/src/lib/components/dashboard/MonitoringTab.svelte) with a real read-only accountability projection that now shows:
+  - current benchmark overall status, improvement status, tuning eligibility, and latest controller action,
+  - bounded recent oversight history across multiple completed loops,
+  - the first real outcome frontier over `suspicious_origin_cost` and `likely_human_friction`,
+  - current benchmark escalation decision plus candidate action families and latest oversight context,
+  - a bounded preview of remaining pressure families and recent config-change context,
+  - and explicit trust or blocker rows for classification readiness, coverage, replay evidence, and tuning blockers.
+- [x] Kept live, shadow, and adversary-sim semantics explicit through the Monitoring status context instead of collapsing them into one synthetic score.
+- [x] Added a new focused verification path in [`Makefile`](../Makefile):
+  - `make test-dashboard-monitoring-accountability`
+- [x] Added focused proof in:
+  - [`e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+- [x] Updated operator and testing docs in:
+  - [`docs/dashboard-tabs/monitoring.md`](../docs/dashboard-tabs/monitoring.md)
+  - [`docs/dashboard.md`](../docs/dashboard.md)
+  - [`docs/testing.md`](../docs/testing.md)
+- [x] Why:
+  - `MON-OVERHAUL-1B` was the first tranche where Monitoring needed to stop being a scaffold and start proving the closed-loop story from the real machine-first contracts.
+  - landing the benchmark and oversight projection before `DIAG-CLEANUP-1` preserves the agreed reuse-first sequencing and lets later Diagnostics cleanup remove transitional aggregate ownership more confidently.
+- [x] Evidence:
+  - `make test-dashboard-monitoring-accountability`
+  - `git diff --check`
+  - `docs/research/2026-03-24-mon-overhaul-1b-monitoring-accountability-post-implementation-review.md`
+
 ### Planning refinement: make future `Identification` sit immediately after `Tuning`
 
 - [x] Updated the future `Identification` rename and ownership plans so the scheduled tab change now explicitly includes a tab-order move: when `Fingerprinting` becomes `Identification`, it should appear immediately after `Tuning`.

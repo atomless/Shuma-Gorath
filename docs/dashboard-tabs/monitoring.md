@@ -12,20 +12,32 @@ Purpose:
 Current behavior:
 
 - Shows a top-level `Closed-Loop Accountability` framing panel that makes the tab's role explicit.
-- Exposes the first bounded Monitoring information architecture for the overhaul:
+- Exposes the bounded Monitoring accountability sections:
   - `Current Status`
   - `Recent Loop Progress`
   - `Outcome Frontier`
   - `What The Loop Decided`
   - `Where The Pressure Sits`
   - `Trust And Blockers`
-- Keeps these sections intentionally explanatory and static in `MON-OVERHAUL-1A`; machine-first data projection belongs to `MON-OVERHAUL-1B` and `MON-OVERHAUL-1C`.
+- Projects current machine-first feedback-loop reads from:
+  - `operator_snapshot_v1`
+  - `benchmark_results_v1`
+  - `oversight_history_v1`
+  - `oversight_agent_status_v1`
+- Surfaces:
+  - current benchmark overall status, improvement status, tuning eligibility, and latest controller action,
+  - bounded recent multi-loop oversight history rather than only the latest cycle,
+  - suspicious-origin-cost versus likely-human-friction benchmark families as the first outcome-frontier slice,
+  - benchmark escalation decision, candidate action families, and latest oversight apply or refusal context,
+  - a bounded preview of remaining benchmark pressure plus recent config-change context from the operator snapshot,
+  - and explicit trust or blocker rows for classification readiness, coverage, protected replay status, and tuning blockers.
+- Full category-aware pressure breakdown and the richer final trust/actionability layer still belong to `MON-OVERHAUL-1C`.
 - Directs operators and contributors to `#diagnostics` for deep subsystem inspection and rawer contributor-facing telemetry.
 
 Refresh behavior:
 
 - No tab-local manual or auto-refresh controls are exposed yet.
-- Shared config/bootstrap state still loads through the dashboard runtime so global controls remain available while the Monitoring contract is being rebuilt.
+- On Monitoring activation, the dashboard runtime now refreshes shared config plus the bounded machine-first accountability reads listed above.
 
 Writes:
 

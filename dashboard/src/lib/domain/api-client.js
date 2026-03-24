@@ -496,6 +496,13 @@ export const adaptConfigEnvelope = (payload) => {
  */
 export const adaptOperatorSnapshot = (payload) => {
   const source = asRecord(payload);
+  const objectives = asRecord(source.objectives);
+  const runtimePosture = asRecord(source.runtime_posture);
+  const liveTraffic = asRecord(source.live_traffic);
+  const liveTrafficHumanFriction = asRecord(liveTraffic.human_friction);
+  const shadowMode = asRecord(source.shadow_mode);
+  const adversarySim = asRecord(source.adversary_sim);
+  const recentChanges = asRecord(source.recent_changes);
   const verifiedIdentity = asRecord(source.verified_identity);
   const taxonomyAlignment = asRecord(verifiedIdentity.taxonomy_alignment);
   const policyTranche = asRecord(verifiedIdentity.policy_tranche);
@@ -503,6 +510,56 @@ export const adaptOperatorSnapshot = (payload) => {
     schema_version: String(source.schema_version || ''),
     generated_at: Number(source.generated_at || 0),
     section_metadata: asRecord(source.section_metadata),
+    objectives: {
+      profile_id: String(objectives.profile_id || ''),
+      revision: String(objectives.revision || ''),
+      window_hours: Number(objectives.window_hours || 0)
+    },
+    runtime_posture: {
+      shadow_mode: runtimePosture.shadow_mode === true,
+      fail_mode: String(runtimePosture.fail_mode || ''),
+      runtime_environment: String(runtimePosture.runtime_environment || ''),
+      gateway_deployment_profile: String(runtimePosture.gateway_deployment_profile || ''),
+      adversary_sim_available: runtimePosture.adversary_sim_available === true
+    },
+    live_traffic: {
+      traffic_origin: String(liveTraffic.traffic_origin || ''),
+      execution_mode: String(liveTraffic.execution_mode || ''),
+      total_requests: Number(liveTraffic.total_requests || 0),
+      forwarded_requests: Number(liveTraffic.forwarded_requests || 0),
+      short_circuited_requests: Number(liveTraffic.short_circuited_requests || 0),
+      human_friction: {
+        friction_rate: Number(liveTrafficHumanFriction.friction_rate || 0)
+      }
+    },
+    shadow_mode: {
+      enabled: shadowMode.enabled === true,
+      total_actions: Number(shadowMode.total_actions || 0),
+      pass_through_total: Number(shadowMode.pass_through_total || 0)
+    },
+    adversary_sim: {
+      traffic_origin: String(adversarySim.traffic_origin || ''),
+      execution_mode: String(adversarySim.execution_mode || ''),
+      total_requests: Number(adversarySim.total_requests || 0),
+      forwarded_requests: Number(adversarySim.forwarded_requests || 0),
+      short_circuited_requests: Number(adversarySim.short_circuited_requests || 0),
+      recent_runs: asObjectArray(adversarySim.recent_runs)
+    },
+    recent_changes: {
+      lookback_seconds: Number(recentChanges.lookback_seconds || 0),
+      watch_window_seconds: Number(recentChanges.watch_window_seconds || 0),
+      rows: asObjectArray(recentChanges.rows).map((entry) => {
+        const record = asRecord(entry);
+        return {
+          changed_at_ts: Number(record.changed_at_ts || 0),
+          change_summary: String(record.change_summary || record.summary || ''),
+          change_reason: String(record.change_reason || ''),
+          source: String(record.source || ''),
+          watch_window_status: String(record.watch_window_status || ''),
+          expected_impact_summary: String(record.expected_impact_summary || '')
+        };
+      })
+    },
     verified_identity: {
       availability: String(verifiedIdentity.availability || ''),
       enabled: verifiedIdentity.enabled === true,
@@ -532,6 +589,216 @@ export const adaptOperatorSnapshot = (payload) => {
         short_circuited_requests: Number(policyTranche.short_circuited_requests || 0)
       }
     }
+  };
+};
+
+const adaptBenchmarkMetricResult = (value) => {
+  const source = asRecord(value);
+  return {
+    metric_id: String(source.metric_id || ''),
+    status: String(source.status || ''),
+    current: adaptOptionalNumber(source.current),
+    target: adaptOptionalNumber(source.target),
+    delta: adaptOptionalNumber(source.delta),
+    baseline_current: adaptOptionalNumber(source.baseline_current),
+    comparison_delta: adaptOptionalNumber(source.comparison_delta),
+    comparison_status: String(source.comparison_status || ''),
+    capability_gate: String(source.capability_gate || ''),
+    exactness: String(source.exactness || ''),
+    basis: String(source.basis || '')
+  };
+};
+
+const adaptBenchmarkFamilyResult = (value) => {
+  const source = asRecord(value);
+  return {
+    family_id: String(source.family_id || ''),
+    status: String(source.status || ''),
+    capability_gate: String(source.capability_gate || ''),
+    note: String(source.note || ''),
+    baseline_status: String(source.baseline_status || ''),
+    comparison_status: String(source.comparison_status || ''),
+    metrics: asObjectArray(source.metrics).map(adaptBenchmarkMetricResult)
+  };
+};
+
+export const adaptBenchmarkResults = (payload) => {
+  const source = asRecord(payload);
+  const watchWindow = asRecord(source.watch_window);
+  const baselineReference = asRecord(source.baseline_reference);
+  const nonHumanClassification = asRecord(source.non_human_classification);
+  const nonHumanCoverage = asRecord(source.non_human_coverage);
+  const tuningEligibility = asRecord(source.tuning_eligibility);
+  const escalationHint = asRecord(source.escalation_hint);
+  const replayPromotion = asRecord(source.replay_promotion);
+  return {
+    schema_version: String(source.schema_version || ''),
+    generated_at: Number(source.generated_at || 0),
+    input_snapshot_generated_at: Number(source.input_snapshot_generated_at || 0),
+    subject_kind: String(source.subject_kind || ''),
+    coverage_status: String(source.coverage_status || ''),
+    overall_status: String(source.overall_status || ''),
+    improvement_status: String(source.improvement_status || ''),
+    watch_window: {
+      start_ts: Number(watchWindow.start_ts || 0),
+      end_ts: Number(watchWindow.end_ts || 0),
+      duration_seconds: Number(watchWindow.duration_seconds || 0)
+    },
+    baseline_reference: {
+      reference_kind: String(baselineReference.reference_kind || ''),
+      status: String(baselineReference.status || ''),
+      subject_kind: String(baselineReference.subject_kind || ''),
+      generated_at: adaptOptionalNumber(baselineReference.generated_at),
+      note: String(baselineReference.note || '')
+    },
+    non_human_classification: {
+      status: String(nonHumanClassification.status || ''),
+      blockers: Array.isArray(nonHumanClassification.blockers)
+        ? nonHumanClassification.blockers.map((value) => String(value || ''))
+        : [],
+      live_receipt_count: Number(nonHumanClassification.live_receipt_count || 0),
+      adversary_sim_receipt_count: Number(nonHumanClassification.adversary_sim_receipt_count || 0)
+    },
+    non_human_coverage: {
+      overall_status: String(nonHumanCoverage.overall_status || ''),
+      blocking_reasons: Array.isArray(nonHumanCoverage.blocking_reasons)
+        ? nonHumanCoverage.blocking_reasons.map((value) => String(value || ''))
+        : [],
+      blocking_category_ids: Array.isArray(nonHumanCoverage.blocking_category_ids)
+        ? nonHumanCoverage.blocking_category_ids.map((value) => String(value || ''))
+        : []
+    },
+    tuning_eligibility: {
+      status: String(tuningEligibility.status || ''),
+      blockers: Array.isArray(tuningEligibility.blockers)
+        ? tuningEligibility.blockers.map((value) => String(value || ''))
+        : []
+    },
+    escalation_hint: {
+      decision: String(escalationHint.decision || ''),
+      review_status: String(escalationHint.review_status || ''),
+      trigger_family_ids: Array.isArray(escalationHint.trigger_family_ids)
+        ? escalationHint.trigger_family_ids.map((value) => String(value || ''))
+        : [],
+      candidate_action_families: Array.isArray(escalationHint.candidate_action_families)
+        ? escalationHint.candidate_action_families.map((value) => String(value || ''))
+        : [],
+      blockers: Array.isArray(escalationHint.blockers)
+        ? escalationHint.blockers.map((value) => String(value || ''))
+        : [],
+      note: String(escalationHint.note || '')
+    },
+    replay_promotion: {
+      availability: String(replayPromotion.availability || ''),
+      evidence_status: String(replayPromotion.evidence_status || ''),
+      tuning_eligible: replayPromotion.tuning_eligible === true,
+      protected_lineage_count: Number(replayPromotion.protected_lineage_count || 0),
+      eligibility_blockers: Array.isArray(replayPromotion.eligibility_blockers)
+        ? replayPromotion.eligibility_blockers.map((value) => String(value || ''))
+        : []
+    },
+    families: asObjectArray(source.families).map(adaptBenchmarkFamilyResult)
+  };
+};
+
+const adaptOversightApply = (value) => {
+  const source = asRecord(value);
+  return {
+    stage: String(source.stage || ''),
+    summary: String(source.summary || ''),
+    refusal_reasons: Array.isArray(source.refusal_reasons)
+      ? source.refusal_reasons.map((entry) => String(entry || ''))
+      : [],
+    patch_family: String(source.patch_family || ''),
+    watch_window_seconds: adaptOptionalNumber(source.watch_window_seconds),
+    watch_window_started_at: adaptOptionalNumber(source.watch_window_started_at),
+    watch_window_end_at: adaptOptionalNumber(source.watch_window_end_at),
+    baseline_generated_at: adaptOptionalNumber(source.baseline_generated_at),
+    candidate_generated_at: adaptOptionalNumber(source.candidate_generated_at),
+    comparison_status: String(source.comparison_status || ''),
+    rollback_reason: String(source.rollback_reason || '')
+  };
+};
+
+const adaptOversightDecision = (value) => {
+  const source = asRecord(value);
+  const proposal = asRecord(source.proposal);
+  return {
+    decision_id: String(source.decision_id || ''),
+    recorded_at_ts: Number(source.recorded_at_ts || 0),
+    trigger_source: String(source.trigger_source || ''),
+    outcome: String(source.outcome || ''),
+    summary: String(source.summary || ''),
+    benchmark_overall_status: String(source.benchmark_overall_status || ''),
+    improvement_status: String(source.improvement_status || ''),
+    replay_promotion_availability: String(source.replay_promotion_availability || ''),
+    trigger_family_ids: Array.isArray(source.trigger_family_ids)
+      ? source.trigger_family_ids.map((entry) => String(entry || ''))
+      : [],
+    candidate_action_families: Array.isArray(source.candidate_action_families)
+      ? source.candidate_action_families.map((entry) => String(entry || ''))
+      : [],
+    refusal_reasons: Array.isArray(source.refusal_reasons)
+      ? source.refusal_reasons.map((entry) => String(entry || ''))
+      : [],
+    validation_status: String(source.validation_status || ''),
+    validation_issues: Array.isArray(source.validation_issues)
+      ? source.validation_issues.map((entry) => String(entry || ''))
+      : [],
+    latest_sim_run_id: String(source.latest_sim_run_id || ''),
+    proposal: {
+      patch_family: String(proposal.patch_family || ''),
+      expected_impact: String(proposal.expected_impact || ''),
+      confidence: String(proposal.confidence || ''),
+      note: String(proposal.note || '')
+    },
+    apply: adaptOversightApply(source.apply)
+  };
+};
+
+export const adaptOversightHistory = (payload) => {
+  const source = asRecord(payload);
+  return {
+    schema_version: String(source.schema_version || ''),
+    rows: asObjectArray(source.rows).map(adaptOversightDecision)
+  };
+};
+
+const adaptOversightAgentRun = (value) => {
+  const source = asRecord(value);
+  const execution = asRecord(source.execution);
+  return {
+    run_id: String(source.run_id || ''),
+    trigger_kind: String(source.trigger_kind || ''),
+    requested_at_ts: Number(source.requested_at_ts || 0),
+    started_at_ts: Number(source.started_at_ts || 0),
+    completed_at_ts: Number(source.completed_at_ts || 0),
+    execution: {
+      apply: adaptOversightApply(execution.apply)
+    }
+  };
+};
+
+export const adaptOversightAgentStatus = (payload) => {
+  const source = asRecord(payload);
+  const periodicTrigger = asRecord(source.periodic_trigger);
+  const postSimTrigger = asRecord(source.post_sim_trigger);
+  return {
+    schema_version: String(source.schema_version || ''),
+    execution_boundary: String(source.execution_boundary || ''),
+    periodic_trigger: {
+      surface: String(periodicTrigger.surface || ''),
+      wrapper_command: String(periodicTrigger.wrapper_command || ''),
+      default_interval_seconds: Number(periodicTrigger.default_interval_seconds || 0)
+    },
+    post_sim_trigger: {
+      surface: String(postSimTrigger.surface || ''),
+      qualifying_completion: String(postSimTrigger.qualifying_completion || ''),
+      dedupe_key: String(postSimTrigger.dedupe_key || '')
+    },
+    latest_run: adaptOversightAgentRun(source.latest_run),
+    latest_decision: adaptOversightDecision(source.latest_decision),
+    recent_runs: asObjectArray(source.recent_runs).map(adaptOversightAgentRun)
   };
 };
 
@@ -987,6 +1254,33 @@ export const create = (options = {}) => {
   /**
    * @param {RequestOptions} [requestOptions]
    */
+  const getBenchmarkResults = async (requestOptions = {}) =>
+    adaptBenchmarkResults(await request('/admin/benchmark-results', {
+      ...requestOptions,
+      cache: 'no-store'
+    }));
+
+  /**
+   * @param {RequestOptions} [requestOptions]
+   */
+  const getOversightHistory = async (requestOptions = {}) =>
+    adaptOversightHistory(await request('/admin/oversight/history', {
+      ...requestOptions,
+      cache: 'no-store'
+    }));
+
+  /**
+   * @param {RequestOptions} [requestOptions]
+   */
+  const getOversightAgentStatus = async (requestOptions = {}) =>
+    adaptOversightAgentStatus(await request('/admin/oversight/agent/status', {
+      ...requestOptions,
+      cache: 'no-store'
+    }));
+
+  /**
+   * @param {RequestOptions} [requestOptions]
+   */
   const getAdversarySimStatus = async (requestOptions = {}) =>
     adaptAdversarySimStatus(await request('/admin/adversary-sim/status', {
       ...requestOptions,
@@ -1207,6 +1501,9 @@ export const create = (options = {}) => {
     getIpRangeSuggestions,
     getConfig,
     getOperatorSnapshot,
+    getBenchmarkResults,
+    getOversightHistory,
+    getOversightAgentStatus,
     getAdversarySimStatus,
     getRobotsPreview,
     updateConfig,

@@ -1238,6 +1238,10 @@
     managed={true}
     isActive={activeTabKey === 'monitoring'}
     tabStatus={tabStatus.monitoring || {}}
+    operatorSnapshot={snapshots.operatorSnapshot}
+    benchmarkResults={snapshots.benchmarkResults}
+    oversightHistory={snapshots.oversightHistory}
+    oversightAgentStatus={snapshots.oversightAgentStatus}
   />
 
   <div

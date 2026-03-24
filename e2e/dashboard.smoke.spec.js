@@ -1464,6 +1464,292 @@ test("monitoring and diagnostics tabs expose the loop-accountability split", asy
   ).toContainText("Telemetry Diagnostics");
 });
 
+test("monitoring projects benchmark and oversight accountability from machine-first contracts", async ({ page }) => {
+  await page.route("**/admin/operator-snapshot", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "operator_snapshot_v1",
+        generated_at: 1774306800,
+        objectives: {
+          profile_id: "site_default_v1",
+          revision: "objective-1774306800",
+          window_hours: 24
+        },
+        runtime_posture: {
+          shadow_mode: false,
+          fail_mode: "closed",
+          runtime_environment: "runtime-prod",
+          gateway_deployment_profile: "shared_server",
+          adversary_sim_available: true
+        },
+        live_traffic: {
+          traffic_origin: "live",
+          execution_mode: "enforced",
+          total_requests: 1200,
+          forwarded_requests: 860,
+          short_circuited_requests: 340,
+          human_friction: {
+            friction_rate: 0.018
+          }
+        },
+        shadow_mode: {
+          enabled: false,
+          total_actions: 0,
+          pass_through_total: 0
+        },
+        adversary_sim: {
+          traffic_origin: "adversary_sim",
+          execution_mode: "enforced",
+          total_requests: 180,
+          forwarded_requests: 9,
+          short_circuited_requests: 171,
+          recent_runs: [
+            {
+              run_id: "sim-42",
+              lane: "scrapling_traffic",
+              profile: "reference",
+              monitoring_event_count: 64
+            }
+          ]
+        },
+        recent_changes: {
+          rows: [
+            {
+              changed_at_ts: 1774303200,
+              summary: "Enabled stricter fingerprint evidence for suspicious automation."
+            }
+          ]
+        }
+      })
+    });
+  });
+
+  await page.route("**/admin/benchmark-results", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "benchmark_results_v1",
+        generated_at: 1774306800,
+        overall_status: "outside_budget",
+        improvement_status: "improved",
+        coverage_status: "supported",
+        watch_window: {
+          start_ts: 1774220400,
+          end_ts: 1774306799,
+          duration_seconds: 86400
+        },
+        baseline_reference: {
+          reference_kind: "prior_window",
+          status: "available",
+          subject_kind: "prior_window",
+          generated_at: 1774220400,
+          note: "Compared against the previous watch window."
+        },
+        tuning_eligibility: {
+          status: "blocked",
+          blockers: ["verified_identity_taxonomy_alignment_guardrail"]
+        },
+        non_human_classification: {
+          status: "ready",
+          blockers: [],
+          live_receipt_count: 6,
+          adversary_sim_receipt_count: 3
+        },
+        non_human_coverage: {
+          overall_status: "partial",
+          blocking_reasons: ["mapped_categories_have_partial_coverage"],
+          blocking_category_ids: ["ai_scraper_bot"]
+        },
+        escalation_hint: {
+          decision: "observe_longer",
+          review_status: "manual_review_required",
+          trigger_family_ids: ["suspicious_origin_cost"],
+          candidate_action_families: ["fingerprint_signal"],
+          blockers: ["verified_identity_taxonomy_alignment_guardrail"],
+          note: "Wait for more protected evidence."
+        },
+        replay_promotion: {
+          availability: "materialized",
+          evidence_status: "protected",
+          tuning_eligible: true,
+          protected_lineage_count: 2,
+          eligibility_blockers: []
+        },
+        families: [
+          {
+            family_id: "suspicious_origin_cost",
+            status: "outside_budget",
+            capability_gate: "supported",
+            comparison_status: "improved",
+            note: "Suspicious origin cost is still above target.",
+            metrics: [
+              {
+                metric_id: "suspicious_forwarded_request_rate",
+                status: "outside_budget",
+                current: 0.33,
+                target: 0.1,
+                delta: 0.23,
+                baseline_current: 0.41,
+                comparison_delta: -0.08,
+                comparison_status: "improved"
+              }
+            ]
+          },
+          {
+            family_id: "likely_human_friction",
+            status: "inside_budget",
+            capability_gate: "supported",
+            comparison_status: "improved",
+            note: "Likely-human friction is inside budget.",
+            metrics: [
+              {
+                metric_id: "likely_human_friction_rate",
+                status: "inside_budget",
+                current: 0.018,
+                target: 0.02,
+                delta: -0.002,
+                baseline_current: 0.024,
+                comparison_delta: -0.006,
+                comparison_status: "improved"
+              }
+            ]
+          },
+          {
+            family_id: "representative_adversary_effectiveness",
+            status: "outside_budget",
+            capability_gate: "supported",
+            comparison_status: "regressed",
+            note: "Adversary goal success remains too high.",
+            metrics: [
+              {
+                metric_id: "goal_success_rate",
+                status: "outside_budget",
+                current: 0.11,
+                target: 0,
+                delta: 0.11,
+                baseline_current: 0.07,
+                comparison_delta: 0.04,
+                comparison_status: "regressed"
+              }
+            ]
+          }
+        ]
+      })
+    });
+  });
+
+  await page.route("**/admin/oversight/history", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "oversight_history_v1",
+        rows: [
+          {
+            decision_id: "ovr-2",
+            recorded_at_ts: 1774306800,
+            trigger_source: "periodic_supervisor",
+            outcome: "canary_applied",
+            summary: "Applied a bounded fingerprint tightening patch.",
+            benchmark_overall_status: "outside_budget",
+            improvement_status: "improved",
+            replay_promotion_availability: "materialized",
+            trigger_family_ids: ["suspicious_origin_cost"],
+            candidate_action_families: ["fingerprint_signal"],
+            refusal_reasons: [],
+            validation_status: "valid",
+            validation_issues: [],
+            apply: {
+              stage: "canary_applied",
+              summary: "Canary opened for bounded fingerprint tuning.",
+              patch_family: "fingerprint_signal",
+              watch_window_seconds: 86400,
+              comparison_status: "improved"
+            }
+          },
+          {
+            decision_id: "ovr-1",
+            recorded_at_ts: 1774220400,
+            trigger_source: "post_adversary_sim",
+            outcome: "observe_longer",
+            summary: "Held position because protected evidence was incomplete.",
+            benchmark_overall_status: "near_limit",
+            improvement_status: "not_available",
+            replay_promotion_availability: "advisory_only",
+            trigger_family_ids: ["suspicious_origin_cost"],
+            candidate_action_families: [],
+            refusal_reasons: ["protected_tuning_evidence_not_ready"],
+            validation_status: "skipped",
+            validation_issues: [],
+            apply: {
+              stage: "refused",
+              summary: "Current oversight cycle is not allowed to mutate config automatically.",
+              refusal_reasons: ["protected_tuning_evidence_not_ready"]
+            }
+          }
+        ]
+      })
+    });
+  });
+
+  await page.route("**/admin/oversight/agent/status", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "oversight_agent_status_v1",
+        execution_boundary: "shared_host_only",
+        periodic_trigger: {
+          surface: "host_supervisor_wrapper",
+          wrapper_command: "scripts/run_with_oversight_supervisor.sh",
+          default_interval_seconds: 300
+        },
+        post_sim_trigger: {
+          surface: "internal_adversary_sim_completion_hook",
+          qualifying_completion: "transition_to_off_with_completed_run_id_and_generated_traffic",
+          dedupe_key: "sim_run_id"
+        },
+        latest_decision: {
+          decision_id: "ovr-2",
+          recorded_at_ts: 1774306800,
+          trigger_source: "periodic_supervisor",
+          outcome: "canary_applied",
+          summary: "Applied a bounded fingerprint tightening patch."
+        },
+        recent_runs: [
+          {
+            run_id: "run-1",
+            trigger_kind: "periodic_supervisor",
+            requested_at_ts: 1774306800,
+            started_at_ts: 1774306800,
+            completed_at_ts: 1774306805,
+            execution: {
+              apply: {
+                stage: "canary_applied",
+                summary: "Canary opened."
+              }
+            }
+          }
+        ]
+      })
+    });
+  });
+
+  await openDashboard(page);
+
+  await expect(page.locator("#monitoring-current-status-overall-status")).toHaveText(/Outside Budget/i);
+  await expect(page.locator("#monitoring-current-status-improvement")).toHaveText(/Improved/i);
+  await expect(page.locator("#monitoring-current-status-controller-action")).toHaveText(/Canary Applied/i);
+  await expect(page.locator("#monitoring-loop-progress-history")).toContainText("Applied a bounded fingerprint tightening patch.");
+  await expect(page.locator("#monitoring-outcome-frontier")).toContainText("Suspicious Origin Cost");
+  await expect(page.locator("#monitoring-outcome-frontier")).toContainText("Likely Human Friction");
+  await expect(page.locator("#monitoring-change-judgment")).toContainText("Observe Longer");
+  await expect(page.locator("#monitoring-trust-blockers")).toContainText("verified identity taxonomy alignment guardrail");
+});
+
 test("diagnostics manual refresh renders detailed monitoring sections and caps oversized result lists", async ({ page }) => {
   const buildCountEntries = (prefix, count, start = 1) =>
     Array.from({ length: count }, (_, index) => ({

@@ -5971,6 +5971,216 @@ test('dashboard verification tab wires verified identity operator snapshot and s
   assert.match(routeSource, /state\.snapshots \? state\.snapshots\.operatorSnapshot : null/);
 });
 
+test('dashboard monitoring accountability adapters normalize benchmark and oversight payloads safely', async () => {
+  const apiModule = await importBrowserModule('dashboard/src/lib/domain/api-client.js');
+
+  assert.equal(typeof apiModule.adaptBenchmarkResults, 'function');
+  assert.equal(typeof apiModule.adaptOversightHistory, 'function');
+  assert.equal(typeof apiModule.adaptOversightAgentStatus, 'function');
+
+  const benchmarkResults = apiModule.adaptBenchmarkResults({
+    schema_version: 'benchmark_results_v1',
+    generated_at: 1774306800,
+    overall_status: 'outside_budget',
+    improvement_status: 'improved',
+    coverage_status: 'supported',
+    watch_window: {
+      start_ts: 1774220400,
+      end_ts: 1774306799,
+      duration_seconds: 86400
+    },
+    baseline_reference: {
+      reference_kind: 'prior_window',
+      status: 'available',
+      subject_kind: 'prior_window',
+      generated_at: 1774220400,
+      note: 'Compared against the previous watch window.'
+    },
+    tuning_eligibility: {
+      status: 'blocked',
+      blockers: ['verified_identity_taxonomy_alignment_guardrail']
+    },
+    non_human_classification: {
+      status: 'ready',
+      blockers: [],
+      live_receipt_count: 4,
+      adversary_sim_receipt_count: 3
+    },
+    non_human_coverage: {
+      overall_status: 'partial',
+      blocking_reasons: ['mapped_categories_have_partial_coverage'],
+      blocking_category_ids: ['ai_scraper_bot']
+    },
+    escalation_hint: {
+      decision: 'observe_longer',
+      review_status: 'manual_review_required',
+      trigger_family_ids: ['suspicious_origin_cost'],
+      candidate_action_families: ['fingerprint_signal'],
+      blockers: ['verified_identity_taxonomy_alignment_guardrail'],
+      note: 'Wait for more protected evidence.'
+    },
+    replay_promotion: {
+      availability: 'materialized',
+      evidence_status: 'protected',
+      tuning_eligible: true,
+      protected_lineage_count: 2,
+      eligibility_blockers: []
+    },
+    families: [
+      {
+        family_id: 'suspicious_origin_cost',
+        status: 'outside_budget',
+        capability_gate: 'supported',
+        comparison_status: 'improved',
+        note: 'Suspicious cost remains above target.',
+        metrics: [
+          {
+            metric_id: 'suspicious_forwarded_request_rate',
+            status: 'outside_budget',
+            current: 0.33,
+            target: 0.1,
+            delta: 0.23,
+            baseline_current: 0.41,
+            comparison_delta: -0.08,
+            comparison_status: 'improved'
+          }
+        ]
+      }
+    ]
+  });
+
+  assert.equal(benchmarkResults.schema_version, 'benchmark_results_v1');
+  assert.equal(benchmarkResults.overall_status, 'outside_budget');
+  assert.equal(benchmarkResults.tuning_eligibility.status, 'blocked');
+  assert.deepEqual(benchmarkResults.tuning_eligibility.blockers, [
+    'verified_identity_taxonomy_alignment_guardrail'
+  ]);
+  assert.equal(benchmarkResults.families[0].family_id, 'suspicious_origin_cost');
+  assert.equal(benchmarkResults.families[0].metrics[0].comparison_delta, -0.08);
+
+  const oversightHistory = apiModule.adaptOversightHistory({
+    schema_version: 'oversight_history_v1',
+    rows: [
+      {
+        decision_id: 'ovr-1',
+        recorded_at_ts: 1774306800,
+        trigger_source: 'periodic_supervisor',
+        outcome: 'canary_applied',
+        summary: 'Applied a bounded fingerprint tightening patch.',
+        benchmark_overall_status: 'outside_budget',
+        improvement_status: 'improved',
+        replay_promotion_availability: 'materialized',
+        trigger_family_ids: ['suspicious_origin_cost'],
+        candidate_action_families: ['fingerprint_signal'],
+        refusal_reasons: [],
+        validation_status: 'valid',
+        validation_issues: [],
+        apply: {
+          stage: 'canary_applied',
+          summary: 'Canary opened for bounded fingerprint tuning.',
+          patch_family: 'fingerprint_signal',
+          watch_window_seconds: 86400,
+          comparison_status: 'improved'
+        }
+      }
+    ]
+  });
+
+  assert.equal(oversightHistory.schema_version, 'oversight_history_v1');
+  assert.equal(oversightHistory.rows.length, 1);
+  assert.equal(oversightHistory.rows[0].apply.stage, 'canary_applied');
+
+  const oversightStatus = apiModule.adaptOversightAgentStatus({
+    schema_version: 'oversight_agent_status_v1',
+    execution_boundary: 'shared_host_only',
+    periodic_trigger: {
+      surface: 'host_supervisor_wrapper',
+      wrapper_command: 'scripts/run_with_oversight_supervisor.sh',
+      default_interval_seconds: 300
+    },
+    post_sim_trigger: {
+      surface: 'internal_adversary_sim_completion_hook',
+      qualifying_completion: 'transition_to_off_with_completed_run_id_and_generated_traffic',
+      dedupe_key: 'sim_run_id'
+    },
+    latest_decision: {
+      decision_id: 'ovr-1',
+      recorded_at_ts: 1774306800,
+      trigger_source: 'periodic_supervisor',
+      outcome: 'canary_applied',
+      summary: 'Applied a bounded fingerprint tightening patch.'
+    },
+    recent_runs: [
+      {
+        run_id: 'run-1',
+        trigger_kind: 'periodic_supervisor',
+        requested_at_ts: 1774306800,
+        started_at_ts: 1774306800,
+        completed_at_ts: 1774306805,
+        execution: {
+          apply: {
+            stage: 'canary_applied',
+            summary: 'Canary opened.'
+          }
+        }
+      }
+    ]
+  });
+
+  assert.equal(oversightStatus.schema_version, 'oversight_agent_status_v1');
+  assert.equal(oversightStatus.latest_decision.outcome, 'canary_applied');
+  assert.equal(oversightStatus.recent_runs[0].execution.apply.stage, 'canary_applied');
+});
+
+test('dashboard monitoring tab wires benchmark and oversight machine contracts through state and refresh runtime', () => {
+  const apiClientSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/domain/api-client.js'),
+    'utf8'
+  );
+  const stateSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/domain/dashboard-state.js'),
+    'utf8'
+  );
+  const refreshSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/runtime/dashboard-runtime-refresh.js'),
+    'utf8'
+  );
+  const routeSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/routes/+page.svelte'),
+    'utf8'
+  );
+
+  assert.match(apiClientSource, /export const adaptBenchmarkResults = \(payload\) => \{/);
+  assert.match(apiClientSource, /export const adaptOversightHistory = \(payload\) => \{/);
+  assert.match(apiClientSource, /export const adaptOversightAgentStatus = \(payload\) => \{/);
+  assert.match(apiClientSource, /const getBenchmarkResults = async \(requestOptions = \{\}\) =>/);
+  assert.match(apiClientSource, /const getOversightHistory = async \(requestOptions = \{\}\) =>/);
+  assert.match(apiClientSource, /const getOversightAgentStatus = async \(requestOptions = \{\}\) =>/);
+  assert.match(apiClientSource, /getBenchmarkResults,/);
+  assert.match(apiClientSource, /getOversightHistory,/);
+  assert.match(apiClientSource, /getOversightAgentStatus,/);
+
+  assert.match(stateSource, /'benchmarkResults'/);
+  assert.match(stateSource, /'oversightHistory'/);
+  assert.match(stateSource, /'oversightAgentStatus'/);
+  assert.match(stateSource, /benchmarkResults: null/);
+  assert.match(stateSource, /oversightHistory: null/);
+  assert.match(stateSource, /oversightAgentStatus: null/);
+
+  assert.match(refreshSource, /refreshMonitoringAccountabilityData/);
+  assert.match(refreshSource, /getBenchmarkResults/);
+  assert.match(refreshSource, /getOversightHistory/);
+  assert.match(refreshSource, /getOversightAgentStatus/);
+  assert.match(
+    refreshSource,
+    /applySnapshots\(\{ benchmarkResults: null, oversightHistory: null, oversightAgentStatus: null \}\)/
+  );
+
+  assert.match(routeSource, /benchmarkResults=\{snapshots\.benchmarkResults\}/);
+  assert.match(routeSource, /oversightHistory=\{snapshots\.oversightHistory\}/);
+  assert.match(routeSource, /oversightAgentStatus=\{snapshots\.oversightAgentStatus\}/);
+});
+
 test('dashboard route wires native runtime actions with separate manual and auto refresh tab sets', () => {
   const source = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/routes/+page.svelte'),

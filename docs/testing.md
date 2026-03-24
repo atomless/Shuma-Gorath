@@ -68,6 +68,7 @@ make test-dashboard-unit # Dashboard module unit tests (Node `node:test`)
 make test-dashboard-adversary-sim-lane-contract # Focused dashboard lane-contract checks for the red-team lane selector + diagnostics
 make test-dashboard-auth-gate # Focused dashboard auth-gate checks for logged-out /dashboard entry
 make test-dashboard-tab-information-architecture # Focused dashboard source + rendered IA proof for tab registry alignment and Monitoring/Diagnostics ownership
+make test-dashboard-monitoring-accountability # Focused dashboard source + rendered proof for Monitoring benchmark/oversight accountability projection
 make test-dashboard-policy-pane-ownership # Focused dashboard unit checks that Policy owns the moved panes and Tuning stays botness-only
 make test-dashboard-verified-identity-pane # Focused Verification-tab surfacing checks for verified identity controls + health summary
 make test-dashboard-red-team-truth-basis # Focused Red Team truth-basis surfacing checks for recovered persisted-event evidence
@@ -135,6 +136,7 @@ Notes:
 - `make test-host-impact-telemetry`, `make test-host-impact-benchmark`, and `make test-oversight-host-impact` are the narrow pre-Monitoring proof path for the host-impact proxy track; use them instead of broader monitoring/controller suites when only the forwarded-latency cost proxy changed.
 - `make test-dashboard-verified-identity-pane` is the narrow proof path for the first-class `Verified Identity` pane in `Verification`; it covers source wiring, operator-snapshot hydration, and a rendered config-save round-trip without dragging in broader Monitoring work.
 - `make test-dashboard-red-team-truth-basis` is the narrow proof path for Red Team status-truth surfacing; it covers status adaptation, runtime normalization, and a rendered persisted-event lower-bound state without turning the slice into early Monitoring work.
+- `make test-dashboard-monitoring-accountability` is the narrow proof path for `MON-OVERHAUL-1B`; it covers dashboard adapters, bounded snapshot wiring, and a rendered Playwright proof that Monitoring projects benchmark and oversight machine contracts rather than placeholder copy.
 - `make test-dashboard-e2e` now verifies the running Spin instance is serving the current `dist/dashboard/index.html` before Playwright runs; restart Spin after `make dashboard-build` if this check fails.
 - `make test` now reseeds dashboard sample data at the end, so charts/tables stay populated for local inspection after the run.
 

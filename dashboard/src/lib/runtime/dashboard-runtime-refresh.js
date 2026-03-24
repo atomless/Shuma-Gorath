@@ -1056,6 +1056,50 @@ export function createDashboardRefreshRuntime(options = {}) {
     clearTabStateMessage('verification');
   }
 
+  async function refreshMonitoringAccountabilityData(reason = 'manual', runtimeOptions = {}) {
+    const dashboardApiClient = getApiClient();
+    if (!dashboardApiClient) {
+      applySnapshots({ benchmarkResults: null, oversightHistory: null, oversightAgentStatus: null });
+      return;
+    }
+
+    const dashboardState = getStateStore();
+    const configRuntimeSnapshot = dashboardState ? dashboardState.getSnapshot('configRuntime') : {};
+    const requestBudgets = deriveDashboardRequestBudgets(configRuntimeSnapshot);
+    const requestOptions = toRequestOptions(runtimeOptions, {
+      tab: 'monitoring',
+      reason,
+      source: 'monitoring-accountability-refresh'
+    });
+    const accountabilityRequestOptions = {
+      ...requestOptions,
+      timeoutMs: requestBudgets.monitoringRequestTimeoutMs
+    };
+
+    const readOptional = async (reader) => {
+      if (typeof reader !== 'function') return null;
+      try {
+        return await reader(accountabilityRequestOptions);
+      } catch (_error) {
+        return null;
+      }
+    };
+
+    const [operatorSnapshot, benchmarkResults, oversightHistory, oversightAgentStatus] = await Promise.all([
+      readOptional(dashboardApiClient.getOperatorSnapshot),
+      readOptional(dashboardApiClient.getBenchmarkResults),
+      readOptional(dashboardApiClient.getOversightHistory),
+      readOptional(dashboardApiClient.getOversightAgentStatus)
+    ]);
+
+    applySnapshots({
+      operatorSnapshot,
+      benchmarkResults,
+      oversightHistory,
+      oversightAgentStatus
+    });
+  }
+
   const refreshTrapsTab = (reason = 'manual', runtimeOptions = {}) =>
     refreshConfigBackedTab(
       'traps',
@@ -1138,7 +1182,13 @@ export function createDashboardRefreshRuntime(options = {}) {
 
   const TAB_REFRESH_HANDLERS = Object.freeze({
     monitoring: async (reason = 'manual', runtimeOptions = {}) => {
-      await refreshSharedConfig(reason, runtimeOptions);
+      if (reason !== 'auto-refresh') {
+        showTabLoading('monitoring', 'Loading closed-loop accountability...');
+      }
+      await Promise.all([
+        refreshSharedConfig(reason, runtimeOptions),
+        refreshMonitoringAccountabilityData(reason, runtimeOptions)
+      ]);
       clearTabStateMessage('monitoring');
     },
     diagnostics: async (reason = 'manual', runtimeOptions = {}) => {
