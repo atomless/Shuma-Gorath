@@ -344,11 +344,11 @@ Execution reference: [`2026-03-23-dashboard-operator-surfacing-sequencing-plan.m
 
 Rebuild Monitoring as the thin human projection over the machine-first contracts after the backend truth, first working closed loop, `ADV-DIAG-1` diagnostics-truth follow-up, the Scrapling request-native category follow-ons, the verified-identity calibration track, the host-impact cost proxy track, and the local `UI-VID-1` and `UI-RED-1` tab surfacing slices are complete.
 
-Monitoring is now explicitly scoped as the human-readable accountability surface for the closed loop rather than the primary manual tuning cockpit: it should lead with loop verdict, outcome frontier, controller judgment, category breakdown, and trust or actionability blockers, while Diagnostics becomes more explicitly diagnostics-first.
+Monitoring is now explicitly scoped as the human-readable accountability surface for the closed loop rather than the primary manual tuning cockpit: it should lead with loop verdict, outcome frontier, controller judgment, category breakdown, and trust or actionability blockers. Live and recent traffic visibility should now move into a dedicated `Traffic` tab, while Diagnostics becomes more explicitly diagnostics-first and furniture-operational.
 
 It should also show bounded progress over recent completed loops against benchmark families and controller action history, not only the latest loop outcome.
 
-The Monitoring follow-on sequence is now explicitly reuse-first: `MON-OVERHAUL-1B` should adopt or extract any still-shared aggregate chart and view-model surface from the current transitional Diagnostics implementation before `DIAG-CLEANUP-1` removes the remaining aggregate Monitoring leftovers from Diagnostics more aggressively.
+The Monitoring follow-on sequence is now explicitly three-way: after `MON-OVERHAUL-1B` makes loop accountability real, `TRAFFIC-TAB-1` should move the current traffic-facing Diagnostics surface into a dedicated `Traffic` tab, `DIAG-CLEANUP-1` should then narrow Diagnostics to furniture-operational proof, and only then should `MON-OVERHAUL-1C` land against the cleaned ownership boundary.
 
 ### `CTRL-SURFACE-1..3`
 

@@ -16,6 +16,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-24-llm-player-role-decomposition-plan.md`](2026-03-24-llm-player-role-decomposition-plan.md) - Decomposes the later LLM attacker and defender roles under the independent judge
 - [`2026-03-24-scorecard-protocol-and-held-out-eval-separation-plan.md`](2026-03-24-scorecard-protocol-and-held-out-eval-separation-plan.md) - Freezes the remaining protocol-level contracts for later recursive improvement: scorecard, player schemas, and held-out evaluation separation
 - [`2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-plan.md`](2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-plan.md) - Refines Monitoring-vs-Diagnostics ordering so Monitoring reuses shared transitional surfaces before Diagnostics cleanup
+- [`2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md`](2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md) - Introduces a dedicated Traffic tab and narrows Diagnostics to furniture-operational proof
 - [`2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md`](2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md) - Sequence for making Tuning primary and narrowing Fingerprinting to provider posture plus diagnostics
 - [`2026-03-24-identification-tab-rename-and-taxonomy-distinction-plan.md`](2026-03-24-identification-tab-rename-and-taxonomy-distinction-plan.md) - Rename Fingerprinting to Identification and add taxonomy-distinction explanation
 
@@ -54,6 +55,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-24-open-backlog-and-plan-reference-stance-alignment-plan.md`](2026-03-24-open-backlog-and-plan-reference-stance-alignment-plan.md)
 - [`2026-03-24-monitoring-multi-loop-benchmark-progress-plan.md`](2026-03-24-monitoring-multi-loop-benchmark-progress-plan.md)
 - [`2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-plan.md`](2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-plan.md)
+- [`2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md`](2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md)
 - [`2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md`](2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md)
 - [`2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md)
 - [`2026-03-24-llm-player-role-decomposition-plan.md`](2026-03-24-llm-player-role-decomposition-plan.md)

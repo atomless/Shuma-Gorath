@@ -4,6 +4,27 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### Planning refinement: add a dedicated Traffic tab and narrow Diagnostics to furniture-operational proof
+
+- [x] Wrote a new ownership review and plan defining the three-way split between:
+  - `Monitoring` as loop-accountability,
+  - `Traffic` as live and recent traffic visibility,
+  - `Diagnostics` as furniture-operational and subsystem-investigation proof.
+- [x] Updated the active planning chain so the old assumption that Diagnostics traffic charts should be reused into Monitoring is replaced with the cleaner `Traffic`-tab destination.
+- [x] Re-sequenced the active backlog so the next ownership refactor is now:
+  - `TRAFFIC-TAB-1`
+  - `DIAG-CLEANUP-1`
+  - `MON-OVERHAUL-1C`
+- [x] Synced the change into the dashboard operator-surfacing, Monitoring/Diagnostics ownership, main loop-closure, and roadmap sequencing docs.
+- [x] Why:
+  - the prior two-way Monitoring/Diagnostics split was still leaving traffic visibility in the wrong place.
+  - a dedicated `Traffic` tab gives traffic telemetry a truthful home without turning Monitoring into a generic chart dashboard or leaving Diagnostics as an overloaded hybrid.
+- [x] Evidence:
+  - `docs/research/2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-review.md`
+  - `docs/plans/2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md`
+  - `todos/todo.md`
+  - verification intentionally scoped as docs-only; tests not run
+
 ### Dashboard tab chrome consistency: Monitoring and Diagnostics intro reuse
 
 - [x] Replaced the bespoke top-of-tab intro wrappers in [`dashboard/src/lib/components/dashboard/MonitoringTab.svelte`](../dashboard/src/lib/components/dashboard/MonitoringTab.svelte) and [`dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte`](../dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte) with the existing shared dashboard panel language:

@@ -92,17 +92,26 @@ Current stance:
 - Before `MON-OVERHAUL-1`, expose the already-settled local control truths that no longer belong only in Advanced JSON or backend-only payloads. Verified identity in `Verification` and adversary-sim status truth basis in `Red Team` are now delivered, so the next step is the Monitoring projection itself.
 - Keep the operator-facing product stance distinct from the later recursive-improvement development reference stance: `MON-OVERHAUL-1` and later `TUNE-SURFACE-1` should project and edit the current operator-selected posture, while run-to-homeostasis episodes remain blocked with `OVR-AGENT-2` and `RSI-METH-1`.
 
-### DIAG-CLEANUP-1: Diagnostics ownership cleanup after Monitoring reuse
-- Once `MON-OVERHAUL-1B` has claimed any reusable aggregate chart and view-model surface, remove the remaining aggregate Monitoring leftovers from Diagnostics so it becomes more clearly diagnostics-first.
-- Keep `Recent External Traffic`, `Defense-Specific Diagnostics`, and `Telemetry Diagnostics` as the core Diagnostics surface, and remove or demote transitional aggregate sections that no longer belong there.
-- Clean up any now-redundant helper or view-model code that existed only to support the transitional mixed-ownership tab shape.
-- Reference context: [`../docs/plans/2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-plan.md`](../docs/plans/2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-plan.md)
+### TRAFFIC-TAB-1: Dedicated Traffic tab and migration of current traffic-facing Diagnostics surfaces
+- Introduce a first-class `Traffic` tab, placed after `Monitoring` and before `Diagnostics`, so live and recent traffic visibility stops competing with both loop accountability and furniture diagnostics.
+- Move the current Diagnostics traffic-facing sections into `Traffic`, reusing the existing components where truthful:
+  - `Traffic Overview`
+  - `Defense Breakdown`
+  - `Recent External Traffic`
+- Keep `Traffic` focused on proving traffic telemetry collection is operational and showing what traffic is hitting Shuma and the host now, with manual refresh and bounded auto-refresh.
+- Reference context: [`../docs/plans/2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md`](../docs/plans/2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md)
+
+### DIAG-CLEANUP-1: Diagnostics furniture-operational cleanup after Traffic split
+- After `TRAFFIC-TAB-1` lands, remove the migrated traffic-facing sections from Diagnostics so it becomes clearly diagnostics-first and furniture-operational.
+- Keep `Defense-Specific Diagnostics`, `Telemetry Diagnostics`, and `External Monitoring` as the core Diagnostics surface, and tighten copy and ownership so Diagnostics no longer reads like a traffic dashboard.
+- Clean up any now-redundant helper or view-model code that existed only because Diagnostics temporarily hosted the traffic visibility surface.
+- Reference context: [`../docs/plans/2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md`](../docs/plans/2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md)
 
 ### MON-OVERHAUL-1C: Monitoring category breakdown and trust/actionability surface
 - Add the category-aware non-human taxonomy breakdown plus evidence quality, tuning eligibility, protected-evidence readiness, verified-identity guardrails, and other blockers so Monitoring shows where the remaining problem sits and how trustworthy the loop's conclusion is.
 - Keep any category-level trend bounded and accountability-oriented rather than turning Monitoring into a raw long-range history explorer.
-- Execute this after `DIAG-CLEANUP-1` so category/trust projection lands against the cleaned final Monitoring-vs-Diagnostics ownership boundary rather than the transitional mixed surface.
-- Reference context: [`../docs/plans/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md`](../docs/plans/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md)
+- Execute this after `TRAFFIC-TAB-1` and `DIAG-CLEANUP-1` so category/trust projection lands against the cleaned final Monitoring-vs-Traffic-vs-Diagnostics ownership boundary rather than the transitional mixed surface.
+- Reference context: [`../docs/plans/2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md`](../docs/plans/2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md)
 
 ### CTRL-SURFACE-1: Canonical controller mutability policy and hard-never surface
 - Define one canonical mutability policy across admin-writable config and `operator_objectives_v1`, classifying every path as `never`, `manual_only`, or `controller_tunable`.

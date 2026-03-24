@@ -4,18 +4,23 @@ Date: 2026-03-23
 
 ## Goal
 
-Redefine `MON-OVERHAUL-1` so Monitoring becomes the human-readable accountability surface for the closed loop, while Diagnostics becomes a more explicitly diagnostics-first deep-inspection surface.
+Redefine the operator-facing tab ownership so:
+
+1. Monitoring becomes the human-readable accountability surface for the closed loop,
+2. Traffic becomes the live and recent traffic visibility surface,
+3. and Diagnostics becomes a more explicitly diagnostics-first and furniture-operational deep-inspection surface.
 
 ## Principles
 
 1. Monitoring must project machine-first truth, not invent a parallel human-only interpretation layer.
 2. Monitoring should show observed outcomes and loop judgment separately.
-3. Diagnostics should keep subsystem and forensic depth without dominating the operator narrative.
-4. Tuning and posture editing stay out of Monitoring and remain later `TUNE-SURFACE-1` work.
-5. Monitoring should describe accountability against the current operator-selected product stance; the later development reference stance belongs to later recursive-improvement methodology, not to the first Monitoring contract.
-6. Monitoring should show bounded progress over recent completed loops against benchmark families, not only the latest loop outcome.
-7. Monitoring is the human-readable projection of the loop's independent judge or evaluator, not one of the players in the later attacker-defender game.
-8. Diagnostics cleanup should be reuse-first: if the current Diagnostics surface still hosts shared aggregate chart or view-model pieces that Monitoring may need, Monitoring should adopt or extract them before Diagnostics removes them more aggressively.
+3. Traffic visibility should not be forced into Monitoring merely because it uses charts.
+4. Diagnostics should keep subsystem and forensic depth without dominating the operator narrative.
+5. Tuning and posture editing stay out of Monitoring and remain later `TUNE-SURFACE-1` work.
+6. Monitoring should describe accountability against the current operator-selected product stance; the later development reference stance belongs to later recursive-improvement methodology, not to the first Monitoring contract.
+7. Monitoring should show bounded progress over recent completed loops against benchmark families, not only the latest loop outcome.
+8. Monitoring is the human-readable projection of the loop's independent judge or evaluator, not one of the players in the later attacker-defender game.
+9. Reuse-first still applies, but traffic-oriented aggregate chart and view-model surfaces should move to `Traffic` unless they directly serve loop accountability.
 
 ## Execution Slices
 
@@ -64,7 +69,20 @@ Scope:
    - last rollback or retain result,
    - refusal or blocker reasons,
 7. keep live, shadow, and adversary-sim semantics clearly separated,
-8. reuse or extract the transitional shared aggregate chart and view-model surface from Diagnostics where that reuse is truthful, rather than deleting it first and rebuilding it twice.
+8. do not pull traffic-oriented aggregate charts into Monitoring unless they directly serve loop-accountability truth.
+
+### TRAFFIC-TAB-1: Dedicated Traffic Visibility Surface
+
+Objective:
+
+Introduce a first-class `Traffic` tab so live and recent traffic visibility stops competing with both Monitoring and Diagnostics ownership.
+
+Scope:
+
+1. move the current traffic-oriented Diagnostics sections into `Traffic`,
+2. keep the reused components truthful to traffic visibility rather than loop-accountability or subsystem furniture proof,
+3. add manual refresh plus bounded auto-refresh for this live traffic view,
+4. keep the tab distinct from both Monitoring and Diagnostics in copy and ownership.
 
 Verification:
 
@@ -96,31 +114,31 @@ Verification:
 
 Objective:
 
-Remove the remaining aggregate Monitoring leftovers from Diagnostics only after Monitoring has had a clean chance to reuse or extract the shared chart and view-model surface it genuinely needs.
+Remove the remaining traffic-facing and aggregate leftovers from Diagnostics only after `Traffic` has claimed the traffic visibility surface and Monitoring has kept only the loop-accountability views it genuinely needs.
 
 Scope:
 
-1. remove or demote transitional aggregate sections that no longer belong in Diagnostics once Monitoring owns their accountability projection,
+1. remove or demote transitional aggregate and traffic-facing sections that no longer belong in Diagnostics once `Traffic` owns traffic visibility and Monitoring owns loop accountability,
 2. retain the clearly diagnostics-first sections:
-   - recent external traffic,
    - defense-specific diagnostics,
    - telemetry diagnostics,
+   - external monitoring helper/export material,
 3. clean up redundant helper or view-model code that only existed to support the transitional mixed-ownership shape,
 4. keep the cleanup narrow and ownership-focused rather than turning it into a second redesign.
 
 Verification:
 
 1. focused dashboard unit and rendered proof for retained Diagnostics section ownership,
-2. focused rendered proof that the removed aggregate sections now appear only in Monitoring if still operator-visible,
+2. focused rendered proof that the removed traffic-facing sections now appear only in `Traffic`, while any remaining loop-accountability surfaces appear only in Monitoring,
 3. `git diff --check`.
 
 ## Sequencing
 
 1. execute `MON-OVERHAUL-1A` first,
-2. then `MON-OVERHAUL-1B` so Monitoring can reuse or extract the still-shared aggregate chart and view-model surface before Diagnostics drops it,
-3. then `TEST-HYGIENE-6` against the more settled rendered Monitoring contract,
-4. then `DIAG-CLEANUP-1`,
-5. then `MON-OVERHAUL-1C`,
+2. then `MON-OVERHAUL-1B` so the loop-accountability surface becomes real,
+3. then execute `TRAFFIC-TAB-1` so the traffic visibility surface gets its own truthful home,
+4. then execute `DIAG-CLEANUP-1`,
+5. then execute `MON-OVERHAUL-1C`,
 6. then later `TUNE-SURFACE-1`.
 
 ## Notes
@@ -128,4 +146,4 @@ Verification:
 1. Do not let Monitoring become a pure self-report from the controller. It must show observed outcome truth and controller judgment as distinct surfaces.
 2. Do not pull raw event feeds, Prometheus helper internals, or deep subsystem telemetry into the top Monitoring flow.
 3. If a surface is primarily about "what happened inside one subsystem?", it belongs in Diagnostics unless it is directly part of the loop-accountability narrative.
-4. Do not delete shared aggregate diagnostics helpers just to make Diagnostics look cleaner before Monitoring has had one clean chance to adopt them.
+4. Do not delete shared traffic or aggregate diagnostics helpers just to make Diagnostics look cleaner before `Traffic` and Monitoring have had one clean chance to adopt the pieces they genuinely need.

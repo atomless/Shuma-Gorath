@@ -132,7 +132,7 @@ Keep the Monitoring overhaul responsible for projecting the backend machine-firs
 2. `GET /admin/benchmark-results`
 3. `GET /admin/oversight/history`
 4. `GET /admin/oversight/agent/status`
-5. any reused or extracted shared aggregate chart/view-model surface currently living in the transitional Diagnostics implementation
+5. any chart or summary surface that directly serves loop accountability rather than generic traffic visibility
 
 ### Required operator stories
 
@@ -147,7 +147,21 @@ Keep the Monitoring overhaul responsible for projecting the backend machine-firs
 
 ### Sequencing note
 
-`MON-OVERHAUL-1B` should land before a ruthless Diagnostics cleanup so Monitoring can first reuse or extract the current shared aggregate chart and view-model surface. A focused `DIAG-CLEANUP-1` tranche should then remove the remaining aggregate leftovers from Diagnostics once Monitoring owns the pieces it still needs.
+`MON-OVERHAUL-1B` should land before a ruthless Diagnostics cleanup so the loop-accountability surface is real first. The next tab refactor should then introduce a dedicated `Traffic` tab to own the current traffic-facing Diagnostics sections. Only after that should a focused `DIAG-CLEANUP-1` tranche narrow Diagnostics to furniture-operational proof.
+
+## `TRAFFIC-TAB-1`: Traffic Visibility Surface
+
+### Goal
+
+Give live and recent traffic visibility a truthful first-class home instead of forcing it into either Monitoring or Diagnostics.
+
+### Traffic-owned scope
+
+1. bounded traffic overview cards,
+2. primary traffic charts,
+3. defense breakdown as traffic-handling evidence,
+4. recent external traffic browsing,
+5. manual refresh plus bounded auto-refresh.
 
 ## `TUNE-SURFACE-1`: Operator Objectives And Category Posture Editor
 
@@ -192,10 +206,12 @@ Follow-on ownership after `TUNE-SURFACE-1A`:
 2. Land `UI-VID-1`.
 3. Land `UI-RED-1`.
 4. Then execute `MON-OVERHAUL-1`.
-5. Then ratify the controller mutability policy and hard-no-touch boundary (`CTRL-SURFACE-1..3`).
-6. Then execute `TUNE-SURFACE-1A`.
-7. Then execute `TUNE-SURFACE-1B`.
-8. Then execute `TUNE-SURFACE-1C`.
+5. Then execute `TRAFFIC-TAB-1`.
+6. Then execute `DIAG-CLEANUP-1`.
+7. Then ratify the controller mutability policy and hard-no-touch boundary (`CTRL-SURFACE-1..3`).
+8. Then execute `TUNE-SURFACE-1A`.
+9. Then execute `TUNE-SURFACE-1B`.
+10. Then execute `TUNE-SURFACE-1C`.
 
 # Definition Of Done
 
@@ -204,5 +220,7 @@ This plan is satisfied when:
 1. verified identity is no longer Advanced-only for basic operator use,
 2. Red Team exposes its status truth basis explicitly,
 3. Monitoring owns the human projection of snapshot, benchmark, and oversight read models,
-4. Tuning owns operator-objective and category-posture editing,
-5. and the dashboard no longer lags the backend in these operator-critical areas.
+4. Traffic owns live and recent traffic visibility,
+5. Diagnostics owns furniture-operational proof and subsystem investigation,
+6. Tuning owns operator-objective and category-posture editing,
+7. and the dashboard no longer lags the backend in these operator-critical areas.

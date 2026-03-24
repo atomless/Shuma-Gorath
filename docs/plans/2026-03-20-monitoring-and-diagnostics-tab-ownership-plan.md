@@ -17,19 +17,21 @@ This note settles the immediate UI ownership question before `MON-OVERHAUL-1` be
 
 ## Decision
 
-Shuma will split the current Monitoring surface into two distinct tab contracts:
+Shuma is now committed to a three-way split:
 
 1. `Monitoring`
-   - Reserved for the new operator decision surface.
-   - Starts as a clean, intentionally minimal placeholder rather than a hybrid with legacy diagnostics.
-   - Must not inherit the current subsystem-by-subsystem layout.
+   - Human-readable accountability surface for the closed loop.
+   - Must not inherit generic traffic-dashboard or subsystem-by-subsystem ownership by default.
 
-2. `Diagnostics`
-   - New tab placed after `Advanced`.
-   - Receives the current Monitoring implementation largely intact as the transitional diagnostic surface.
-   - Keeps contributor and deep-inspection value available while Monitoring is rebuilt properly.
+2. `Traffic`
+   - Live and recent traffic visibility surface.
+   - Owns the traffic picture and traffic-handling overview that does not belong in loop accountability or furniture diagnostics.
 
-As of 2026-03-23, the target is now more specific: Monitoring should become the human-readable accountability surface for the closed loop rather than a manual tuning cockpit, and Diagnostics should become more intentionally diagnostics-first rather than merely preserving the old Monitoring layout elsewhere.
+3. `Diagnostics`
+   - Contributor and deep-inspection diagnostics surface.
+   - Owns furniture-operational proof and subsystem investigation.
+
+The older two-way `Monitoring`/`Diagnostics` transitional split was a useful bridge, but it is no longer the final target.
 
 ## Ownership Contract
 
@@ -37,7 +39,6 @@ As of 2026-03-23, the target is now more specific: Monitoring should become the 
 
 `Monitoring` now owns only the future operator-facing contract:
 
-- traffic mix and lane summaries,
 - attacker-effectiveness versus human-friction visibility,
 - loop verdict and benchmark status,
 - bounded recent benchmark progress over completed loops,
@@ -48,21 +49,27 @@ As of 2026-03-23, the target is now more specific: Monitoring should become the 
 - enforced versus shadow storytelling,
 - bounded benchmark-grade summaries that later tuning and oversight loops can trust.
 
-Until that overhaul lands, the tab should remain intentionally sparse and truthful about its status.
+Until the remaining overhaul lands, the tab should remain accountability-first and truthful about its status.
+
+### Traffic
+
+`Traffic` owns the traffic visibility surface:
+
+- bounded traffic totals and request mix,
+- traffic charts and time series,
+- traffic-handling breakdowns,
+- recent external traffic browsing,
+- manual and bounded auto-refresh for the live traffic picture.
 
 ### Diagnostics
 
-`Diagnostics` owns the legacy detailed surface during the transition:
+`Diagnostics` owns the furniture-operational and subsystem investigation surface:
 
-- subsystem trend blocks,
-- detailed recent events filtering,
 - CDP, maze, tarpit, honeypot, challenge, PoW, rate, GEO, and IP-range detail sections,
 - raw feed and low-level telemetry diagnostics,
 - Prometheus helper and contributor-oriented deep inspection.
 
-As the Monitoring overhaul progresses, Diagnostics should become more intentionally diagnostics-oriented in wording and sectioning rather than remaining a merely transplanted Monitoring page.
-
-The current Monitoring implementation should move here with minimal behavioral change.
+As the new `Traffic` tab lands, Diagnostics should stop acting as the main traffic dashboard and narrow to proving that Shuma's furniture is operational.
 
 ### Status
 
@@ -83,11 +90,12 @@ It should not absorb the full legacy Monitoring surface.
 
 During the transition:
 
-- `Diagnostics` keeps the bounded monitoring refresh path but exposes manual refresh only.
+- `Traffic` should own the live traffic refresh behavior.
+- `Diagnostics` should remain contributor-oriented and need only the refresh behavior required for furniture and subsystem investigation.
 - auto-refresh remains available only on `IP Bans` and `Red Team`.
 - `Monitoring` no longer needs auto-refresh for the placeholder stage.
 - the backend monitoring data source remains shared; the split is surface ownership, not a telemetry fork.
-- dashboard request/runtime telemetry should describe `Diagnostics` truthfully where the legacy Monitoring surface now lives.
+- dashboard request/runtime telemetry should describe `Traffic` and `Diagnostics` truthfully once the split is complete.
 
 ## Why This Is Better Than Wiping
 
@@ -98,11 +106,11 @@ During the transition:
 
 ## Implementation Notes
 
-1. Move the current `MonitoringTab.svelte` implementation to `DiagnosticsTab.svelte`.
-2. Add a new minimal `MonitoringTab.svelte` placeholder using existing shared dashboard styles only.
-3. Insert `Diagnostics` into the canonical tab registry after `Advanced`.
-4. Route Diagnostics refresh through the existing bounded monitoring snapshot/delta flow.
-5. Update docs and tests so the legacy diagnostic expectations point at `Diagnostics`, not `Monitoring`.
+1. Keep `Monitoring` loop-accountability-first.
+2. Introduce `Traffic` as the home for the traffic-oriented transitional sections.
+3. Narrow `Diagnostics` to furniture-operational proof.
+4. Route `Traffic` and `Diagnostics` through the existing bounded monitoring snapshot/delta flow with truthful ownership.
+5. Update docs and tests so traffic expectations point at `Traffic`, not `Diagnostics`, and subsystem/furniture expectations point at `Diagnostics`.
 
 ## Out Of Scope
 
