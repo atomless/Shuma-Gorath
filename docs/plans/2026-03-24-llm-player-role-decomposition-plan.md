@@ -4,7 +4,9 @@ Status: Proposed
 Related context:
 
 - [`../research/2026-03-24-llm-player-role-decomposition-review.md`](../research/2026-03-24-llm-player-role-decomposition-review.md)
+- [`../research/2026-03-24-scorecard-protocol-and-held-out-eval-separation-review.md`](../research/2026-03-24-scorecard-protocol-and-held-out-eval-separation-review.md)
 - [`2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md)
+- [`2026-03-24-scorecard-protocol-and-held-out-eval-separation-plan.md`](2026-03-24-scorecard-protocol-and-held-out-eval-separation-plan.md)
 - [`2026-03-22-path-to-closed-loop-llm-adversary-and-diagnosis-implementation-plan.md`](2026-03-22-path-to-closed-loop-llm-adversary-and-diagnosis-implementation-plan.md)
 - [`2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md)
 - [`../../todos/blocked-todo.md`](../../todos/blocked-todo.md)
@@ -31,6 +33,10 @@ Decompose the two later LLM-backed player roles so the recursive-improvement gam
    2. recommendation-only runtime,
    3. later bounded autonomous episode controller.
 5. The judge contract remains in `RSI-GAME-1A..1C` and must not be merged into either player track.
+6. Later player-side execution planning must consume:
+   1. `RSI-SCORE-1` for the judge scorecard semantics,
+   2. `RSI-PROTO-1` for canonical player wire schemas,
+   3. and `RSI-EVAL-1` for held-out evaluation separation.
 
 ## Task 1: `SIM-LLM-1A`
 
@@ -209,11 +215,12 @@ Decompose the two later LLM-backed player roles so the recursive-improvement gam
 
 1. Keep the current mainline operator-facing work first: `MON-OVERHAUL-1`, `CTRL-SURFACE-1..3`, and `TUNE-SURFACE-1`.
 2. Keep the judge decomposition first: `RSI-GAME-1A`, `RSI-GAME-1B`, and `RSI-GAME-1C`.
-3. Define `RSI-ROLES-1` and the player-role decomposition before reopening the later autonomous LLM lanes.
-4. Land `SIM-LLM-1A` and `SIM-LLM-1B` before treating the full attacker runtime as execution-ready.
-5. Land `OVR-AGENT-2A` before any defender-agent runtime planning is treated as execution-ready.
-6. Land `OVR-AGENT-2B` before `OVR-AGENT-2C`.
-7. Keep `OVR-CODE-1` downstream of the settled defender-agent track rather than folding it into defender planning.
+3. Land `RSI-SCORE-1`, `RSI-PROTO-1`, and `RSI-EVAL-1` before any player role is treated as protocol-complete.
+4. Define `RSI-ROLES-1` and the player-role decomposition before reopening the later autonomous LLM lanes.
+5. Land `SIM-LLM-1A` and `SIM-LLM-1B` before treating the full attacker runtime as execution-ready.
+6. Land `OVR-AGENT-2A` before any defender-agent runtime planning is treated as execution-ready.
+7. Land `OVR-AGENT-2B` before `OVR-AGENT-2C`.
+8. Keep `OVR-CODE-1` downstream of the settled defender-agent track rather than folding it into defender planning.
 
 # Definition Of Done
 

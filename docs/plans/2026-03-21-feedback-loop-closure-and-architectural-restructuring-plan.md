@@ -394,6 +394,12 @@ Before reopening the later recursive-improvement phases, codify the missing game
 6. attacker/defender/judge role separation for later recursive-improvement phases,
 7. and an episode archive or stepping-stone memory that later run-to-homeostasis episodes can use.
 
+The remaining protocol-level contracts under that game should also stay explicit rather than implicit:
+
+1. `RSI-SCORE-1` for the canonical judge scorecard over optimization targets, hard guardrails, regression anchors, and homeostasis inputs,
+2. `RSI-PROTO-1` for canonical attacker and defender observation, action, proposal, refusal, and receipt schemas,
+3. and `RSI-EVAL-1` for the boundary between player-visible protected evidence and judge-held-out evaluation contexts.
+
 ### `OVR-AGENT-2A..2C`
 
 Reopen the later LLM-backed defender-agent track only after the first shared-host agent loop, the first closed config loop, Monitoring projection, Tuning surface, replay-promotion contract, and central-intelligence architecture all exist.
@@ -412,6 +418,8 @@ Later controller planning should also adopt the recursive-improvement methodolog
 4. and only later broaden into preset sweeps over relaxed operator stances.
 
 It should also consume the canonical game-contract and move-selection plan captured in [`2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md) rather than reconstructing its own implicit rules, evaluator, or move set.
+
+It should further consume the later protocol contracts captured in [`2026-03-24-scorecard-protocol-and-held-out-eval-separation-plan.md`](2026-03-24-scorecard-protocol-and-held-out-eval-separation-plan.md) rather than inventing its own score semantics, player wire formats, or evaluation-visibility rules.
 
 When this later phase is designed, treat it as only one player in a larger triad:
 

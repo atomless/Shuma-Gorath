@@ -14,6 +14,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md`](2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md) - Canonical hard-boundary and controller-tunable config-surface plan
 - [`2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md) - Canonical game-contract and move-selection plan for later recursive self-improvement
 - [`2026-03-24-llm-player-role-decomposition-plan.md`](2026-03-24-llm-player-role-decomposition-plan.md) - Decomposes the later LLM attacker and defender roles under the independent judge
+- [`2026-03-24-scorecard-protocol-and-held-out-eval-separation-plan.md`](2026-03-24-scorecard-protocol-and-held-out-eval-separation-plan.md) - Freezes the remaining protocol-level contracts for later recursive improvement: scorecard, player schemas, and held-out evaluation separation
 - [`2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md`](2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md) - Sequence for making Tuning primary and narrowing Fingerprinting to provider posture plus diagnostics
 - [`2026-03-24-identification-tab-rename-and-taxonomy-distinction-plan.md`](2026-03-24-identification-tab-rename-and-taxonomy-distinction-plan.md) - Rename Fingerprinting to Identification and add taxonomy-distinction explanation
 
@@ -54,6 +55,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md`](2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md)
 - [`2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md)
 - [`2026-03-24-llm-player-role-decomposition-plan.md`](2026-03-24-llm-player-role-decomposition-plan.md)
+- [`2026-03-24-scorecard-protocol-and-held-out-eval-separation-plan.md`](2026-03-24-scorecard-protocol-and-held-out-eval-separation-plan.md)
 - [`2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md`](2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md)
 - [`2026-03-24-identification-tab-rename-and-taxonomy-distinction-plan.md`](2026-03-24-identification-tab-rename-and-taxonomy-distinction-plan.md)
 - [`2026-03-23-host-impact-cost-proxy-and-benchmark-implementation-plan.md`](2026-03-23-host-impact-cost-proxy-and-benchmark-implementation-plan.md)

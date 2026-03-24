@@ -6,8 +6,10 @@ Related context:
 - [`../research/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-review.md`](../research/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-review.md)
 - [`../research/2026-03-24-reference-stance-and-run-to-homeostasis-review.md`](../research/2026-03-24-reference-stance-and-run-to-homeostasis-review.md)
 - [`../research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md`](../research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md)
+- [`../research/2026-03-24-scorecard-protocol-and-held-out-eval-separation-review.md`](../research/2026-03-24-scorecard-protocol-and-held-out-eval-separation-review.md)
 - [`2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md)
 - [`2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md)
+- [`2026-03-24-scorecard-protocol-and-held-out-eval-separation-plan.md`](2026-03-24-scorecard-protocol-and-held-out-eval-separation-plan.md)
 - [`2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md`](2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md)
 - [`../../src/observability/operator_snapshot_objectives.rs`](../../src/observability/operator_snapshot_objectives.rs)
 - [`../../src/observability/benchmark_results_comparison.rs`](../../src/observability/benchmark_results_comparison.rs)
@@ -42,6 +44,7 @@ Put more simply, the later contract should make it explicit that Shuma's recursi
 5. Later recursive-improvement episodes should search over a bounded archive of outcomes, not just the latest config state.
 6. Later recursive-improvement architecture should be modeled as attacker agent, defender agent, and independent judge rather than only two agent roles.
 7. The earlier reference-stance and run-to-homeostasis methodology should be implemented as part of this game contract, not separately from it.
+8. Later execution-ready player planning should consume separate contracts for judge score semantics, player protocol schemas, and held-out evaluation separation rather than letting those details remain implicit inside the broader game contract.
 
 ## Task 0: Focused Verification Prep
 
@@ -220,6 +223,7 @@ Put more simply, the later contract should make it explicit that Shuma's recursi
 4. Land `RSI-GAME-1C` before implementing `RSI-METH-1`.
 5. Land `RSI-ROLES-1` before any later dual-agent or triadic autonomous-loop design is treated as execution-ready.
 6. Reopen `OVR-CODE-1` only after `OVR-AGENT-2`, the game contract, and the strict-reference regression-anchor expectations are all explicit.
+7. Land `RSI-SCORE-1`, `RSI-PROTO-1`, and `RSI-EVAL-1` before any later player-side runtime planning is treated as protocol-complete.
 
 # Definition Of Done
 

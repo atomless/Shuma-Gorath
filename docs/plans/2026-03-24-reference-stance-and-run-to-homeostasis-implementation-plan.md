@@ -5,8 +5,10 @@ Related context:
 
 - [`../research/2026-03-24-reference-stance-and-run-to-homeostasis-review.md`](../research/2026-03-24-reference-stance-and-run-to-homeostasis-review.md)
 - [`../research/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-review.md`](../research/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-review.md)
+- [`../research/2026-03-24-scorecard-protocol-and-held-out-eval-separation-review.md`](../research/2026-03-24-scorecard-protocol-and-held-out-eval-separation-review.md)
 - [`2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md)
 - [`2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md)
+- [`2026-03-24-scorecard-protocol-and-held-out-eval-separation-plan.md`](2026-03-24-scorecard-protocol-and-held-out-eval-separation-plan.md)
 - [`2026-03-23-tuning-surface-taxonomy-posture-matrix-implementation-plan.md`](2026-03-23-tuning-surface-taxonomy-posture-matrix-implementation-plan.md)
 - [`../../src/observability/operator_snapshot_objectives.rs`](../../src/observability/operator_snapshot_objectives.rs)
 - [`../../src/admin/oversight_apply.rs`](../../src/admin/oversight_apply.rs)
@@ -23,6 +25,7 @@ Carry the reference-stance and run-to-homeostasis methodology into the later rec
 3. Later recursive-improvement runs should execute as bounded episodes that continue until homeostasis rather than as single-shot recommendations.
 4. Relaxed preset sweeps should be added only after the strict reference stance has already proven useful.
 5. Later code evolution must continue to pass the strict reference stance as a regression anchor.
+6. Homeostasis inputs and later episode judgment must come from the canonical judge scorecard and held-out-evaluation boundaries rather than from agent-defined heuristics.
 
 # Execution Shape
 
@@ -31,6 +34,8 @@ Carry the reference-stance and run-to-homeostasis methodology into the later rec
 This later methodology slice should land before or together with execution-ready `OVR-AGENT-2` planning.
 
 It should consume the canonical recursive-improvement game contract from [`2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md) rather than defining its own implicit rules, evaluator, or move-selection surface.
+
+It should also consume the later scorecard and evaluation-separation contracts from [`2026-03-24-scorecard-protocol-and-held-out-eval-separation-plan.md`](2026-03-24-scorecard-protocol-and-held-out-eval-separation-plan.md) so homeostasis and preset sweeps are judged through the same canonical score semantics and held-out contexts as the broader game.
 
 It should define:
 
@@ -67,6 +72,8 @@ Initial required behavior:
 
 This detector should initially remain machine-first and operator-visible in Monitoring rather than hidden inside agent prose.
 
+Its inputs should be drawn from the canonical judge scorecard, and later withheld evaluation contexts must remain capable of overruling apparently positive player-visible trends when held-out evidence shows overfitting or hidden harm.
+
 ## Preset sweep regimen
 
 After the strict reference stance stabilizes, later recursive-improvement planning should add a small preset sweep set.
@@ -97,7 +104,8 @@ This should be explicit in both planning and benchmark acceptance criteria.
 1. Update `OVR-AGENT-2` planning to consume the reference-stance and run-to-homeostasis contract.
 2. Update `OVR-CODE-1` planning to require strict-reference-stance regression proof.
 3. Make both later phases also consume the canonical recursive-improvement game contract and move-selection policy.
-4. Keep this methodology blocked until the broader later controller phases are reopened; do not retrofit the current proven bounded config loop into an indefinite autonomous runner prematurely.
+4. Make the methodology consume `RSI-SCORE-1` and `RSI-EVAL-1` so reference-stance episodes do not drift into player-defined scoring or fully visible evaluation surfaces.
+5. Keep this methodology blocked until the broader later controller phases are reopened; do not retrofit the current proven bounded config loop into an indefinite autonomous runner prematurely.
 
 # Definition Of Done
 

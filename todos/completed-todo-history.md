@@ -4,6 +4,29 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### Planning refinement: make the remaining recursive-improvement protocol contracts explicit
+
+- [x] Wrote a dedicated research note and companion plan to capture the three remaining underplanned protocol layers on the path to the full recursive-improvement game:
+  - `RSI-SCORE-1` for the canonical judge scorecard,
+  - `RSI-PROTO-1` for canonical attacker and defender protocol schemas,
+  - `RSI-EVAL-1` for protected-vs-held-out evaluation separation.
+- [x] Updated the recursive-improvement planning chain so the main loop-closure plan, the broader game-contract plan, the LLM player-role plan, the reference-stance methodology plan, and the roadmap sequencing doc now point at those contracts explicitly.
+- [x] Rewired the blocked later backlog so attacker, defender, methodology, and code-evolution phases now depend on the new protocol contracts rather than leaving score semantics, wire formats, and held-out evaluation boundaries implicit.
+- [x] Why:
+  - the architecture-level game design had become strong, but the remaining risk was still protocol-level ambiguity: what exactly the judge scores, what shapes the player-side messages take, and what evaluation contexts remain withheld from the players.
+  - later LLM attacker and defender roles should not be considered execution-ready while those contracts remain inferred from prose spread across multiple plans.
+- [x] Evidence:
+  - `docs/research/2026-03-24-scorecard-protocol-and-held-out-eval-separation-review.md`
+  - `docs/plans/2026-03-24-scorecard-protocol-and-held-out-eval-separation-plan.md`
+  - `docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`
+  - `docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`
+  - `docs/plans/2026-03-24-llm-player-role-decomposition-plan.md`
+  - `docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`
+  - `docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`
+  - `todos/blocked-todo.md`
+  - `git diff --check`
+  - verification intentionally scoped as docs-only; tests not run
+
 ### Planning refinement: decompose the LLM attacker and defender roles under the independent judge
 
 - [x] Wrote a dedicated research note and companion plan to make it explicit that, in Shuma's later recursive-improvement game, the attacker and defender are the two LLM-backed player roles while the judge remains non-LLM and machine-first.
