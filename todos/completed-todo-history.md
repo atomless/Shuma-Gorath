@@ -4,6 +4,35 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### UI-GAME-LOOP-1: Rename Monitoring tab to Game Loop and reorder it after Red Team
+
+- [x] Canonically renamed the dashboard tab identity from `Monitoring` / `#monitoring` to `Game Loop` / `#game-loop` across:
+  - [`dashboard/src/lib/domain/dashboard-state.js`](../dashboard/src/lib/domain/dashboard-state.js)
+  - [`dashboard/src/lib/state/dashboard-store.js`](../dashboard/src/lib/state/dashboard-store.js)
+  - [`dashboard/src/lib/runtime/dashboard-native-runtime.js`](../dashboard/src/lib/runtime/dashboard-native-runtime.js)
+  - [`dashboard/src/lib/runtime/dashboard-route-controller.js`](../dashboard/src/lib/runtime/dashboard-route-controller.js)
+  - [`dashboard/src/lib/runtime/dashboard-runtime-refresh.js`](../dashboard/src/lib/runtime/dashboard-runtime-refresh.js)
+  - [`dashboard/src/routes/+page.svelte`](../dashboard/src/routes/+page.svelte)
+  - [`dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
+- [x] Moved the canonical tab ordering so `Game Loop` now sits immediately after `Red Team`.
+- [x] Renamed the tab component and docs surface:
+  - deleted [`dashboard/src/lib/components/dashboard/MonitoringTab.svelte`](../dashboard/src/lib/components/dashboard/MonitoringTab.svelte)
+  - added [`dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
+  - deleted [`docs/dashboard-tabs/monitoring.md`](../docs/dashboard-tabs/monitoring.md)
+  - added [`docs/dashboard-tabs/game-loop.md`](../docs/dashboard-tabs/game-loop.md)
+- [x] Updated the focused proof paths, rendered selectors, and supporting docs so they now assert and describe `Game Loop` rather than `Monitoring`.
+- [x] Kept backend monitoring endpoints and underlying telemetry-contract naming unchanged where they refer to the shared monitoring substrate rather than the dashboard tab identity.
+- [x] Fixed one tranche-local Playwright helper regression discovered during closeout, where the special-cased `game-loop` top panel was still being re-checked as if it were a hidden admin-section panel.
+- [x] Why:
+  - the tab now represents the bounded loop-accountability surface rather than generic monitoring
+  - the user explicitly wanted the rename to be canonical and to place the tab immediately after `Red Team`
+  - the repo is pre-launch, so a clean cut was preferable to compatibility aliases
+- [x] Evidence:
+  - `make test-dashboard-tab-information-architecture`
+  - `make test-dashboard-game-loop-accountability`
+  - `git diff --check`
+  - [`docs/research/2026-03-24-ui-game-loop-1-tab-rename-post-implementation-review.md`](../docs/research/2026-03-24-ui-game-loop-1-tab-rename-post-implementation-review.md)
+
 ### TRAFFIC-TAB-1: Dedicated Traffic tab and migration of current traffic-facing Diagnostics surfaces
 
 - [x] Landed a first-class [`Traffic` tab](../docs/dashboard-tabs/traffic.md) and wired it into the canonical tab registry in:
@@ -77,7 +106,7 @@ Moved from active TODO files on 2026-02-14.
 
 ### Dashboard tab chrome consistency: Monitoring and Diagnostics intro reuse
 
-- [x] Replaced the bespoke top-of-tab intro wrappers in [`dashboard/src/lib/components/dashboard/MonitoringTab.svelte`](../dashboard/src/lib/components/dashboard/MonitoringTab.svelte) and [`dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte`](../dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte) with the existing shared dashboard panel language:
+- [x] Replaced the bespoke top-of-tab intro wrappers in [`dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte) and [`dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte`](../dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte) with the existing shared dashboard panel language:
   - `admin-group` tab root chrome
   - `control-group panel-soft pad-md` intro panels
   - canonical `control-desc text-muted` descriptive copy
@@ -106,7 +135,7 @@ Moved from active TODO files on 2026-02-14.
   - replacing them first gives the biggest trust improvement with the smallest focused dashboard-only change.
 - [x] Evidence:
   - `make test-dashboard-runtime-unit-contracts`
-  - `make test-dashboard-monitoring-accountability`
+  - `make test-dashboard-game-loop-accountability`
   - `make test-dashboard-verified-identity-pane`
   - `git diff --check`
   - `docs/research/2026-03-24-test-hygiene-6a-dashboard-behavior-proof-post-implementation-review.md`
@@ -123,7 +152,7 @@ Moved from active TODO files on 2026-02-14.
   - `oversight_history_v1`
   - `oversight_agent_status_v1`
   - plus the additional `operator_snapshot_v1` Monitoring fields needed for runtime posture, traffic stance, adversary-sim context, and recent change context.
-- [x] Replaced the Monitoring placeholder copy in [`dashboard/src/lib/components/dashboard/MonitoringTab.svelte`](../dashboard/src/lib/components/dashboard/MonitoringTab.svelte) with a real read-only accountability projection that now shows:
+- [x] Replaced the Monitoring placeholder copy in [`dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte) with a real read-only accountability projection that now shows:
   - current benchmark overall status, improvement status, tuning eligibility, and latest controller action,
   - bounded recent oversight history across multiple completed loops,
   - the first real outcome frontier over `suspicious_origin_cost` and `likely_human_friction`,
@@ -132,19 +161,19 @@ Moved from active TODO files on 2026-02-14.
   - and explicit trust or blocker rows for classification readiness, coverage, replay evidence, and tuning blockers.
 - [x] Kept live, shadow, and adversary-sim semantics explicit through the Monitoring status context instead of collapsing them into one synthetic score.
 - [x] Added a new focused verification path in [`Makefile`](../Makefile):
-  - `make test-dashboard-monitoring-accountability`
+  - `make test-dashboard-game-loop-accountability`
 - [x] Added focused proof in:
   - [`e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
   - [`e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
 - [x] Updated operator and testing docs in:
-  - [`docs/dashboard-tabs/monitoring.md`](../docs/dashboard-tabs/monitoring.md)
+  - [`docs/dashboard-tabs/game-loop.md`](../docs/dashboard-tabs/game-loop.md)
   - [`docs/dashboard.md`](../docs/dashboard.md)
   - [`docs/testing.md`](../docs/testing.md)
 - [x] Why:
   - `MON-OVERHAUL-1B` was the first tranche where Monitoring needed to stop being a scaffold and start proving the closed-loop story from the real machine-first contracts.
   - landing the benchmark and oversight projection before `DIAG-CLEANUP-1` preserves the agreed reuse-first sequencing and lets later Diagnostics cleanup remove transitional aggregate ownership more confidently.
 - [x] Evidence:
-  - `make test-dashboard-monitoring-accountability`
+  - `make test-dashboard-game-loop-accountability`
   - `git diff --check`
   - `docs/research/2026-03-24-mon-overhaul-1b-monitoring-accountability-post-implementation-review.md`
 
@@ -205,7 +234,7 @@ Moved from active TODO files on 2026-02-14.
 
 ### MON-OVERHAUL-1A: Monitoring loop-accountability information architecture and diagnostics refocus
 
-- [x] Replaced the old Monitoring placeholder with the first explicit loop-accountability scaffold in [`dashboard/src/lib/components/dashboard/MonitoringTab.svelte`](../dashboard/src/lib/components/dashboard/MonitoringTab.svelte), headed by `Closed-Loop Accountability` and sectioned into:
+- [x] Replaced the old Monitoring placeholder with the first explicit loop-accountability scaffold in [`dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte), headed by `Closed-Loop Accountability` and sectioned into:
   - `Current Status`
   - `Recent Loop Progress`
   - `Outcome Frontier`
@@ -217,7 +246,7 @@ Moved from active TODO files on 2026-02-14.
   - source-contract ownership assertions in [`e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
   - and rendered Monitoring/Diagnostics identity through [`e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
 - [x] Updated operator docs so the dashboard tab references now describe Monitoring as the closed-loop accountability surface and Diagnostics as the deeper contributor-style investigation surface:
-  - [`docs/dashboard-tabs/monitoring.md`](../docs/dashboard-tabs/monitoring.md)
+  - [`docs/dashboard-tabs/game-loop.md`](../docs/dashboard-tabs/game-loop.md)
   - [`docs/dashboard-tabs/diagnostics.md`](../docs/dashboard-tabs/diagnostics.md)
   - [`docs/dashboard.md`](../docs/dashboard.md)
   - [`docs/testing.md`](../docs/testing.md)
@@ -2924,14 +2953,14 @@ Moved from active TODO files on 2026-02-14.
 
 - [x] Complete `MON-OWN-1-1` and `MON-OWN-1-2` by moving the legacy subsystem-by-subsystem Monitoring implementation into a new `Diagnostics` tab after `Advanced`, replacing `Monitoring` with a clean transitional placeholder, and updating docs/tests/runtime ownership so the legacy surface and auto-refresh behavior now live under Diagnostics.
 - [x] Why:
-  - the backend telemetry foundation was complete enough for the Monitoring overhaul to begin, but the old Monitoring tab was still contributor-oriented and would have muddied the operator-facing redesign if left in place.
+  - the backend telemetry foundation was complete enough for the Monitoring overhaul to begin, but the old Game Loop surface was still contributor-oriented and would have muddied the operator-facing redesign if left in place.
   - the right transition was not to delete useful diagnostics; it was to give them a truthful home while preserving a genuinely clean slate for the later operator decision surface.
   - landing the ownership split now keeps the project on the planned sequence and sets up the next substantive design discussion around the real Monitoring overhaul rather than transition mechanics.
 - [x] Evidence:
   - `docs/plans/2026-03-20-monitoring-and-diagnostics-tab-ownership-plan.md`
   - `docs/research/2026-03-20-monitoring-diagnostics-ownership-post-implementation-review.md`
   - `dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte`
-  - `dashboard/src/lib/components/dashboard/MonitoringTab.svelte`
+  - `dashboard/src/lib/components/dashboard/GameLoopTab.svelte`
   - `dashboard/src/routes/+page.svelte`
   - `make test-dashboard-unit`
   - `make test-dashboard-e2e PLAYWRIGHT_ARGS='--grep "monitoring tab is a clean-slate placeholder that points to diagnostics|dashboard clean-state renders explicit empty placeholders|auto refresh defaults off and is only available on diagnostics, ip-bans, and red-team tabs"'`
@@ -3342,7 +3371,7 @@ Moved from active TODO files on 2026-02-14.
   - `src/observability/hot_read_documents.rs`
   - `src/observability/hot_read_projection.rs`
   - `src/admin/api.rs`
-  - `dashboard/src/lib/components/dashboard/MonitoringTab.svelte`
+  - `dashboard/src/lib/components/dashboard/GameLoopTab.svelte`
   - `dashboard/src/lib/components/dashboard/monitoring-view-model.js`
   - `dashboard/src/lib/components/dashboard/StatusTab.svelte`
   - docs-only slice: tests intentionally skipped
@@ -3411,7 +3440,7 @@ Moved from active TODO files on 2026-02-14.
   - `src/admin/api.rs`
   - `dashboard/src/lib/components/dashboard/monitoring/RecentEventsTable.svelte`
   - `dashboard/src/lib/components/dashboard/monitoring/RawTelemetryFeed.svelte`
-  - `docs/dashboard-tabs/monitoring.md`
+  - `docs/dashboard-tabs/game-loop.md`
   - `docs/dashboard-tabs/ip-bans.md`
   - `Makefile`
   - `e2e/dashboard.modules.unit.test.js`
@@ -3443,11 +3472,11 @@ Moved from active TODO files on 2026-02-14.
   - `dashboard/src/lib/components/dashboard/primitives/DisclosureSection.svelte`
   - `dashboard/src/lib/components/dashboard/monitoring/DiagnosticsSection.svelte`
   - `dashboard/src/lib/components/dashboard/monitoring/RawTelemetryFeed.svelte`
-  - `dashboard/src/lib/components/dashboard/MonitoringTab.svelte`
+  - `dashboard/src/lib/components/dashboard/GameLoopTab.svelte`
   - `dashboard/src/lib/components/dashboard/IpBansTab.svelte`
   - `dashboard/src/routes/+page.svelte`
   - `dashboard/style.css`
-  - `docs/dashboard-tabs/monitoring.md`
+  - `docs/dashboard-tabs/game-loop.md`
   - `docs/dashboard-tabs/ip-bans.md`
   - `e2e/dashboard.modules.unit.test.js`
   - `make test-dashboard-unit`
@@ -3514,7 +3543,7 @@ Moved from active TODO files on 2026-02-14.
   - `dashboard/src/lib/components/dashboard/StatusTab.svelte`
   - `dashboard/src/lib/domain/status.js`
   - `dashboard/src/lib/domain/telemetry-freshness.js`
-  - `dashboard/src/lib/components/dashboard/MonitoringTab.svelte`
+  - `dashboard/src/lib/components/dashboard/GameLoopTab.svelte`
   - `dashboard/src/lib/components/dashboard/IpBansTab.svelte`
   - `dashboard/src/routes/+page.svelte`
   - `docs/dashboard-tabs/status.md`
@@ -3678,7 +3707,7 @@ Moved from active TODO files on 2026-02-14.
 
 ### Dashboard Monitoring Cleanup: Remove Duplicated Tarpit State Chrome
 
-- [x] Remove the `State` and active-bucket/top-offender cards from the Monitoring tab's `Tarpit Progression` section, leaving only progression and outcome telemetry that is actionable in monitoring.
+- [x] Remove the `State` and active-bucket/top-offender cards from the Game Loop tab's `Tarpit Progression` section, leaving only progression and outcome telemetry that is actionable in monitoring.
 - [x] Why:
   - tarpit enabled/disabled state already belongs in `Traps` and `Status`, so repeating it in Monitoring added duplication without helping operators diagnose behavior.
   - the active-bucket card mixed ephemeral live budget state into a section otherwise dominated by cumulative outcome counters, which made the tarpit surface read as contradictory.
@@ -3729,12 +3758,12 @@ Moved from active TODO files on 2026-02-14.
   - removing the now-unused reactive defaults and signal-definition wiring keeps the `Tuning` component honest and avoids carrying dead local state for UI that no longer exists.
 - [x] Evidence:
   - `dashboard/src/lib/components/dashboard/FingerprintingTab.svelte`
-  - `dashboard/src/lib/components/dashboard/MonitoringTab.svelte`
+  - `dashboard/src/lib/components/dashboard/GameLoopTab.svelte`
   - `dashboard/src/lib/components/dashboard/monitoring/CdpSection.svelte`
   - `dashboard/src/routes/+page.svelte`
   - `dashboard/src/lib/components/dashboard/TuningTab.svelte`
   - `docs/dashboard-tabs/fingerprinting.md`
-  - `docs/dashboard-tabs/monitoring.md`
+  - `docs/dashboard-tabs/game-loop.md`
   - `docs/dashboard-tabs/tuning.md`
   - `e2e/dashboard.modules.unit.test.js`
   - `make test-dashboard-unit`
@@ -3752,7 +3781,7 @@ Moved from active TODO files on 2026-02-14.
   - `e2e/dashboard.modules.unit.test.js`
   - `e2e/dashboard.smoke.spec.js`
   - `docs/dashboard-tabs/red-team.md`
-  - `docs/dashboard-tabs/monitoring.md`
+  - `docs/dashboard-tabs/game-loop.md`
   - `make test-dashboard-unit`
   - `make test-dashboard-e2e`
 
@@ -3765,11 +3794,11 @@ Moved from active TODO files on 2026-02-14.
   - the copy refresh clarifies that the panel is about recent adversary-simulation runs and preserves freshness-aware empty-state messaging so delayed telemetry is not mistaken for no activity.
 - [x] Evidence:
   - `dashboard/src/lib/components/dashboard/RedTeamTab.svelte`
-  - `dashboard/src/lib/components/dashboard/MonitoringTab.svelte`
+  - `dashboard/src/lib/components/dashboard/GameLoopTab.svelte`
   - `dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte`
   - `dashboard/src/routes/+page.svelte`
   - `docs/dashboard-tabs/red-team.md`
-  - `docs/dashboard-tabs/monitoring.md`
+  - `docs/dashboard-tabs/game-loop.md`
   - `e2e/dashboard.modules.unit.test.js`
   - `make test-dashboard-unit`
   - `make test-dashboard-e2e`
@@ -4003,7 +4032,7 @@ Moved from active TODO files on 2026-02-14.
   - `src/lib.rs`
   - `src/admin/api.rs`
   - `src/observability/hot_read_documents.rs`
-  - `dashboard/src/lib/components/dashboard/MonitoringTab.svelte`
+  - `dashboard/src/lib/components/dashboard/GameLoopTab.svelte`
   - `dashboard/src/lib/components/dashboard/monitoring-view-model.js`
   - `dashboard/src/lib/domain/ip-range-policy.js`
   - `dashboard/src/lib/components/dashboard/monitoring/RawTelemetryFeed.svelte`
@@ -4269,7 +4298,7 @@ Moved from active TODO files on 2026-02-14.
 
 ### Ad Hoc Fermyon Reliability: Live Dashboard Control Convergence and Monitoring Truthfulness
 
-- [x] Raise edge-specific dashboard request budgets, add retry-aware adversary-sim control handling, and extend the canonical Fermyon proof so success requires the real dashboard UI and Monitoring tab to behave correctly on the deployed edge app.
+- [x] Raise edge-specific dashboard request budgets, add retry-aware adversary-sim control handling, and extend the canonical Fermyon proof so success requires the real dashboard UI and Game Loop tab to behave correctly on the deployed edge app.
 - [x] Why:
   - the earlier Fermyon proof was still incomplete because endpoint-level success and cron generation did not prove that the real dashboard UI worked under edge latency and controller-lease behavior.
   - on the deployed edge app, Shadow Mode and Adversary Sim writes could take longer than shared-host/local defaults and adversary-sim control could transiently return controller-lease `409` responses with `Retry-After`.
@@ -4361,7 +4390,7 @@ Moved from active TODO files on 2026-02-14.
   - `src/admin/api.rs`
   - `docs/configuration.md`
   - `docs/observability.md`
-  - `docs/dashboard-tabs/monitoring.md`
+  - `docs/dashboard-tabs/game-loop.md`
   - `make test-shadow-mode`
   - `make test-integration`
   - `make test`
@@ -4393,7 +4422,7 @@ Moved from active TODO files on 2026-02-14.
   - `src/runtime/request_router.rs`
   - `src/observability/monitoring.rs`
   - `src/admin/api.rs`
-  - `dashboard/src/lib/components/dashboard/MonitoringTab.svelte`
+  - `dashboard/src/lib/components/dashboard/GameLoopTab.svelte`
   - `dashboard/src/lib/components/dashboard/monitoring-view-model.js`
   - `dashboard/src/lib/components/dashboard/monitoring/ShadowSection.svelte`
   - `dashboard/src/lib/components/dashboard/monitoring/RecentEventsTable.svelte`
@@ -4406,7 +4435,7 @@ Moved from active TODO files on 2026-02-14.
   - `scripts/tests/test_config_lifecycle.py`
   - `docs/configuration.md`
   - `docs/observability.md`
-  - `docs/dashboard-tabs/monitoring.md`
+  - `docs/dashboard-tabs/game-loop.md`
   - `make test-shadow-mode`
   - `make test-dashboard-unit`
   - `make test-integration`
@@ -6286,7 +6315,7 @@ Reference plan: [`docs/plans/2026-02-20-deployment-paths-and-adversarial-simulat
 
 ##### Tabbed SPA shell and structure (frameworkless path)
 - [x] DSH-1 Implement tabbed SPA shell in `dashboard/index.html` + `dashboard/dashboard.js` with canonical tabs: `Monitoring`, `IP Bans`, `Status`, `Config`, `Tuning`.
-- [x] DSH-2 Add URL-backed tab routing (`#monitoring`, `#ip-bans`, `#status`, `#config`, `#tuning`) with refresh-safe deep links and history navigation.
+- [x] DSH-2 Add URL-backed tab routing (`#game-loop`, `#ip-bans`, `#status`, `#config`, `#tuning`) with refresh-safe deep links and history navigation.
 - [x] DSH-3 Refactor monolithic dashboard orchestration into tab-scoped controllers/modules with clear lifecycle (`init`, `mount`, `unmount`, `refresh`) and no cross-tab hidden coupling.
 
 #### Fingerprinting, JS Verification, and CDP-Adjacent Detection
@@ -6540,7 +6569,7 @@ Policy stance for this section: no backward DOM-ID compatibility is required pre
 
 #### P1 Dashboard SvelteKit Excellence Continuation
 - [x] DSH-SX-17 Extract route orchestration from `dashboard/src/routes/+page.svelte` into a dedicated runtime controller module (`dashboard/src/lib/runtime/dashboard-route-controller.js`) while preserving hash/polling/session behavior contracts.
-- [x] DSH-SX-18 Decompose `dashboard/src/lib/components/dashboard/MonitoringTab.svelte` into focused monitoring subsection components under `dashboard/src/lib/components/dashboard/monitoring/` and keep existing monitoring DOM ID contracts for smoke/e2e assertions.
+- [x] DSH-SX-18 Decompose `dashboard/src/lib/components/dashboard/GameLoopTab.svelte` into focused monitoring subsection components under `dashboard/src/lib/components/dashboard/monitoring/` and keep existing monitoring DOM ID contracts for smoke/e2e assertions.
 - [x] DSH-SX-19 Update dashboard architecture guard tests to enforce controller/module decomposition and monitoring subsection component usage.
 
 ## Additional completions (2026-02-19, section-preserving archive)

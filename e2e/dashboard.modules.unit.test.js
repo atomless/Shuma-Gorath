@@ -1007,7 +1007,7 @@ test('dashboard API client classifies AbortError as cancelled and does not emit 
     const requestPromise = client.getEvents(24, {
       signal: controller.signal,
       telemetry: {
-        tab: 'monitoring',
+        tab: 'game-loop',
         reason: 'auto-refresh',
         source: 'tab-refresh'
       }
@@ -1291,9 +1291,9 @@ test('dashboard state and store contracts remain immutable and bounded with hear
 
     assert.deepEqual(toPlain(stateModule.DASHBOARD_TABS), [
       'traffic',
-      'monitoring',
       'ip-bans',
       'red-team',
+      'game-loop',
       'tuning',
       'verification',
       'traps',
@@ -1307,9 +1307,9 @@ test('dashboard state and store contracts remain immutable and bounded with hear
     ]);
     assert.deepEqual(toPlain(storeModule.DASHBOARD_TABS), [
       'traffic',
-      'monitoring',
       'ip-bans',
       'red-team',
+      'game-loop',
       'tuning',
       'verification',
       'traps',
@@ -1323,15 +1323,15 @@ test('dashboard state and store contracts remain immutable and bounded with hear
     ]);
     assert.equal(stateModule.normalizeTab('red-team'), 'red-team');
 
-    const initial = stateModule.createInitialState('monitoring');
+    const initial = stateModule.createInitialState('game-loop');
     const next = stateModule.reduceState(initial, { type: 'set-active-tab', tab: 'verification' });
     assert.notEqual(initial, next);
-    assert.equal(initial.activeTab, 'monitoring');
+    assert.equal(initial.activeTab, 'game-loop');
     assert.equal(next.activeTab, 'verification');
     assert.equal(Object.prototype.hasOwnProperty.call(initial.snapshots, 'configRuntime'), true);
     assert.equal(initial.snapshots.configRuntime, null);
 
-    const store = storeModule.createDashboardStore({ initialTab: 'monitoring' });
+    const store = storeModule.createDashboardStore({ initialTab: 'game-loop' });
     store.recordRefreshMetrics({ tab: 'traffic', reason: 'manual', fetchLatencyMs: 100, renderTimingMs: 10 });
     store.recordRefreshMetrics({ tab: 'traffic', reason: 'manual', fetchLatencyMs: 200, renderTimingMs: 20 });
     store.recordRefreshMetrics({ tab: 'status', reason: 'manual', fetchLatencyMs: 999, renderTimingMs: 999 });
@@ -1339,7 +1339,7 @@ test('dashboard state and store contracts remain immutable and bounded with hear
       requestId: 'req-failure-1',
       path: '/admin/events?hours=24',
       method: 'GET',
-      tab: 'monitoring',
+      tab: 'game-loop',
       reason: 'auto-refresh',
       source: 'tab-refresh',
       outcome: 'failure',
@@ -1391,7 +1391,7 @@ test('dashboard state and store contracts remain immutable and bounded with hear
 test('dashboard store heartbeat failure hysteresis transitions connected -> degraded -> disconnected and ignores cancelled failures', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
-    const store = storeModule.createDashboardStore({ initialTab: 'monitoring' });
+    const store = storeModule.createDashboardStore({ initialTab: 'game-loop' });
 
     store.recordHeartbeatSuccess({ requestId: 'hb-start', path: '/admin/session', method: 'GET' });
     assert.equal(store.getRuntimeTelemetry().connection.state, 'connected');
@@ -1444,7 +1444,7 @@ test('dashboard store heartbeat failure hysteresis transitions connected -> degr
 test('dashboard store heartbeat controller reset clears failure budget without inventing a failure', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
-    const store = storeModule.createDashboardStore({ initialTab: 'monitoring' });
+    const store = storeModule.createDashboardStore({ initialTab: 'game-loop' });
 
     store.recordHeartbeatSuccess({ requestId: 'hb-start', path: '/admin/session', method: 'GET' });
     store.recordHeartbeatFailure({
@@ -1478,7 +1478,7 @@ test('refresh runtime bootstraps monitoring baseline before cursor deltas and ke
     const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
     const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
 
-    const store = storeModule.createDashboardStore({ initialTab: 'monitoring' });
+    const store = storeModule.createDashboardStore({ initialTab: 'game-loop' });
     const storage = {
       getItem() {
         return null;
@@ -1616,7 +1616,7 @@ test('monitoring auto-refresh refreshes monitoring snapshots without extra ip-ba
     const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
     const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
 
-    const store = storeModule.createDashboardStore({ initialTab: 'monitoring' });
+    const store = storeModule.createDashboardStore({ initialTab: 'game-loop' });
     const storage = {
       getItem() {
         return null;
@@ -2005,7 +2005,7 @@ test('refresh runtime seeds monitoring cursor from window end instead of replayi
     const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
     const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
 
-    const store = storeModule.createDashboardStore({ initialTab: 'monitoring' });
+    const store = storeModule.createDashboardStore({ initialTab: 'game-loop' });
     const storage = {
       getItem() {
         return null;
@@ -2079,7 +2079,7 @@ test('manual refresh bypasses monitoring cache while passive reasons honor cache
     const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
     const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
 
-    const store = storeModule.createDashboardStore({ initialTab: 'monitoring' });
+    const store = storeModule.createDashboardStore({ initialTab: 'game-loop' });
     const storageState = new Map();
     const storage = {
       getItem(key) {
@@ -2193,7 +2193,7 @@ test('monitoring bootstrap does not wait for cursor seeding before config-backed
     const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
     const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
 
-    const store = storeModule.createDashboardStore({ initialTab: 'monitoring' });
+    const store = storeModule.createDashboardStore({ initialTab: 'game-loop' });
     let configFetchCount = 0;
     let monitoringFetchCount = 0;
     let deferredSeedCursorCount = 0;
@@ -2445,7 +2445,7 @@ test('monitoring tab shows bootstrap telemetry before slow full monitoring detai
     const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
     const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
 
-    const store = storeModule.createDashboardStore({ initialTab: 'monitoring' });
+    const store = storeModule.createDashboardStore({ initialTab: 'game-loop' });
     let resolveBootstrapMonitoring;
     const bootstrapMonitoringPromise = new Promise((resolve) => {
       resolveBootstrapMonitoring = resolve;
@@ -2588,7 +2588,7 @@ test('monitoring tab surfaces bootstrap failure as a tab-scoped error when delta
     const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
     const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
 
-    const store = storeModule.createDashboardStore({ initialTab: 'monitoring' });
+    const store = storeModule.createDashboardStore({ initialTab: 'game-loop' });
     const apiClient = {
       async getMonitoringBootstrap() {
         const error = new Error('monitoring pipeline unavailable');
@@ -2651,7 +2651,7 @@ test('monitoring refresh recovers cleanly after transient failure without synthe
     const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
     const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
 
-    const store = storeModule.createDashboardStore({ initialTab: 'monitoring' });
+    const store = storeModule.createDashboardStore({ initialTab: 'game-loop' });
     store.setSnapshot('monitoringFreshness', {
       state: 'stale',
       lag_ms: 212000,
@@ -2806,7 +2806,7 @@ test('monitoring refresh preserves extended operator summary families in the das
     const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
     const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
 
-    const store = storeModule.createDashboardStore({ initialTab: 'monitoring' });
+    const store = storeModule.createDashboardStore({ initialTab: 'game-loop' });
     const apiClient = {
       async getConfig() {
         return {
@@ -5449,11 +5449,11 @@ test('dashboard smoke spec keeps the tab information architecture aligned with t
 
   assert.match(
     source,
-    /const DASHBOARD_TABS = Object\.freeze\(\["traffic", "monitoring", "ip-bans", "red-team", "tuning", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "policy", "status", "advanced", "diagnostics"\]\);/
+    /const DASHBOARD_TABS = Object\.freeze\(\["traffic", "ip-bans", "red-team", "game-loop", "tuning", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "policy", "status", "advanced", "diagnostics"\]\);/
   );
   assert.match(
     source,
-    /const ADMIN_TABS = Object\.freeze\(\["traffic", "ip-bans", "red-team", "tuning", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "policy", "status", "advanced", "diagnostics"\]\);/
+    /const ADMIN_TABS = Object\.freeze\(\["traffic", "ip-bans", "red-team", "game-loop", "tuning", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "policy", "status", "advanced", "diagnostics"\]\);/
   );
 });
 
@@ -5698,9 +5698,9 @@ test('traffic and diagnostics tabs decompose traffic visibility and furniture di
   assert.match(disclosureSource, /<summary/);
 });
 
-test('monitoring, traffic, and diagnostics tabs make ownership boundaries explicit', () => {
+test('game loop, traffic, and diagnostics tabs make ownership boundaries explicit', () => {
   const monitoringSource = fs.readFileSync(
-    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/MonitoringTab.svelte'),
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/GameLoopTab.svelte'),
     'utf8'
   );
   const trafficSource = fs.readFileSync(
@@ -5713,10 +5713,12 @@ test('monitoring, traffic, and diagnostics tabs make ownership boundaries explic
   );
 
   assert.match(monitoringSource, /class="admin-group dashboard-tab-panel"/);
+  assert.match(monitoringSource, /data-dashboard-tab-panel="game-loop"/);
+  assert.match(monitoringSource, /aria-labelledby="dashboard-tab-game-loop"/);
   assert.match(monitoringSource, /Closed-Loop Accountability/);
-  assert.match(monitoringSource, /data-monitoring-intro/);
-  assert.match(monitoringSource, /<div class="control-group panel-soft pad-md" data-monitoring-intro>/);
-  assert.match(monitoringSource, /data-monitoring-section=\{section\.id\}/);
+  assert.match(monitoringSource, /data-game-loop-intro/);
+  assert.match(monitoringSource, /<div class="control-group panel-soft pad-md" data-game-loop-intro>/);
+  assert.match(monitoringSource, /data-game-loop-section=\{section\.id\}/);
   assert.match(monitoringSource, /id: 'current-status'/);
   assert.match(monitoringSource, /id: 'recent-loop-progress'/);
   assert.match(monitoringSource, /id: 'outcome-frontier'/);
@@ -5955,11 +5957,11 @@ test('dashboard native runtime restores session, normalizes tabs, and invalidate
     try {
       await runtimeModule.mountDashboardApp({ store, initialTab: 'unknown-tab' });
 
-      assert.equal(runtimeModule.getDashboardActiveTab(), 'monitoring');
+      assert.equal(runtimeModule.getDashboardActiveTab(), 'game-loop');
       assert.equal(runtimeModule.setDashboardActiveTab('verification'), 'verification');
-      assert.equal(runtimeModule.setDashboardActiveTab('not-a-real-tab'), 'monitoring');
+      assert.equal(runtimeModule.setDashboardActiveTab('not-a-real-tab'), 'game-loop');
 
-      store.markTabUpdated('monitoring');
+      store.markTabUpdated('game-loop');
       store.markTabUpdated('ip-bans');
       store.markTabUpdated('verification');
 
@@ -5990,7 +5992,7 @@ test('dashboard native runtime restores session, normalizes tabs, and invalidate
       assert.deepEqual(JSON.parse(configRequest.bodyText), { pow_enabled: false });
       assert.equal((store.getSnapshot('config') || {}).pow_enabled, false);
       assert.equal((store.getSnapshot('configRuntime') || {}).runtime_environment, 'runtime-prod');
-      assert.equal(store.isTabStale('monitoring'), true);
+      assert.equal(store.isTabStale('game-loop'), true);
       assert.equal(store.isTabStale('ip-bans'), true);
       assert.equal(store.isTabStale('verification'), true);
 
@@ -6013,7 +6015,7 @@ test('dashboard refresh runtime clears caches and resets freshness snapshots thr
     const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
     const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
 
-    const store = storeModule.createDashboardStore({ initialTab: 'monitoring' });
+    const store = storeModule.createDashboardStore({ initialTab: 'game-loop' });
     const storageState = new Map([
       ['shuma_dashboard_cache_monitoring_v2', '{"cachedAt":1,"payload":{"monitoring":{}}}'],
       ['shuma_dashboard_cache_ip_bans_v1', '{"cachedAt":1,"payload":{"bans":{}}}']
@@ -6100,7 +6102,7 @@ test('dashboard verification tab wires verified identity operator snapshot and s
   assert.match(routeSource, /state\.snapshots \? state\.snapshots\.operatorSnapshot : null/);
 });
 
-test('dashboard monitoring accountability adapters normalize benchmark and oversight payloads safely', async () => {
+test('dashboard game loop accountability adapters normalize benchmark and oversight payloads safely', async () => {
   const apiModule = await importBrowserModule('dashboard/src/lib/domain/api-client.js');
 
   assert.equal(typeof apiModule.adaptBenchmarkResults, 'function');
@@ -6261,12 +6263,12 @@ test('dashboard monitoring accountability adapters normalize benchmark and overs
   assert.equal(oversightStatus.recent_runs[0].execution.apply.stage, 'canary_applied');
 });
 
-test('dashboard monitoring accountability refresh populates machine snapshots through behavior', { concurrency: false }, async () => {
+test('dashboard game loop accountability refresh populates machine snapshots through behavior', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
     const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
 
-    const store = storeModule.createDashboardStore({ initialTab: 'monitoring' });
+    const store = storeModule.createDashboardStore({ initialTab: 'game-loop' });
     const calls = [];
     const apiClient = {
       async getConfig() {
@@ -6328,7 +6330,7 @@ test('dashboard monitoring accountability refresh populates machine snapshots th
       getStateStore: () => store
     });
 
-    await runtime.refreshDashboardForTab('monitoring', 'manual-refresh');
+    await runtime.refreshDashboardForTab('game-loop', 'manual-refresh');
 
     assert.deepEqual(calls.sort(), [
       'benchmarkResults',
@@ -6343,8 +6345,8 @@ test('dashboard monitoring accountability refresh populates machine snapshots th
     assert.equal((store.getSnapshot('benchmarkResults') || {}).families?.[0]?.family_id, 'suspicious_origin_cost');
     assert.equal((store.getSnapshot('oversightHistory') || {}).rows?.[0]?.apply?.stage, 'canary_applied');
     assert.equal((store.getSnapshot('oversightAgentStatus') || {}).latest_decision?.outcome, 'canary_applied');
-    assert.equal(store.getState().tabStatus.monitoring.loading, false);
-    assert.equal(store.getState().tabStatus.monitoring.error, '');
+    assert.equal(store.getState().tabStatus['game-loop'].loading, false);
+    assert.equal(store.getState().tabStatus['game-loop'].error, '');
   });
 });
 

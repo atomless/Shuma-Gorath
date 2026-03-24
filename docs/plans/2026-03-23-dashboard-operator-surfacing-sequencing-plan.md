@@ -104,7 +104,7 @@ Expose the recently landed adversary-sim status truth seam so operators can see 
    - generation counters
    - lane diagnostics
 2. Render bounded `persisted_event_evidence` when present.
-3. Keep the new details subordinate to the existing lifecycle and recent-runs surfaces; do not turn Red Team into a mini Monitoring tab.
+3. Keep the new details subordinate to the existing lifecycle and recent-runs surfaces; do not turn Red Team into a mini Game Loop tab.
 4. Use warning or info messaging that clearly distinguishes:
    - direct runtime counters,
    - recovered lower-bound evidence,

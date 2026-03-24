@@ -4,8 +4,8 @@ const { seedDashboardData } = require("./seed-dashboard-data");
 const BASE_URL = process.env.SHUMA_BASE_URL || "http://127.0.0.1:3000";
 const API_KEY = (process.env.SHUMA_API_KEY || "").trim();
 const FORWARDED_IP_SECRET = (process.env.SHUMA_FORWARDED_IP_SECRET || "").trim();
-const DASHBOARD_TABS = Object.freeze(["traffic", "monitoring", "ip-bans", "red-team", "tuning", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "policy", "status", "advanced", "diagnostics"]);
-const ADMIN_TABS = Object.freeze(["traffic", "ip-bans", "red-team", "tuning", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "policy", "status", "advanced", "diagnostics"]);
+const DASHBOARD_TABS = Object.freeze(["traffic", "ip-bans", "red-team", "game-loop", "tuning", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "policy", "status", "advanced", "diagnostics"]);
+const ADMIN_TABS = Object.freeze(["traffic", "ip-bans", "red-team", "game-loop", "tuning", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "policy", "status", "advanced", "diagnostics"]);
 const VERIFICATION_RESTORE_PATHS = Object.freeze([
   "js_required_enforced"
 ]);
@@ -217,16 +217,19 @@ async function assertActiveTabPanelVisibility(page, activeTab) {
     );
   }
 
-  if (activeTab === "monitoring") {
-    await expect(page.locator("#dashboard-panel-monitoring")).toBeVisible();
+  if (activeTab === "game-loop") {
+    await expect(page.locator("#dashboard-panel-game-loop")).toBeVisible();
     await expect(page.locator("#dashboard-admin-section")).toBeHidden();
     for (const tab of ADMIN_TABS) {
+      if (tab === "game-loop") {
+        continue;
+      }
       await expect(page.locator(`#dashboard-panel-${tab}`)).toBeHidden();
     }
     return;
   }
 
-  await expect(page.locator("#dashboard-panel-monitoring")).toBeHidden();
+  await expect(page.locator("#dashboard-panel-game-loop")).toBeHidden();
   await expect(page.locator("#dashboard-admin-section")).toHaveJSProperty("hidden", false);
   await expect(page.locator("#dashboard-admin-section")).toHaveAttribute("aria-hidden", "false");
   for (const tab of ADMIN_TABS) {
@@ -681,7 +684,7 @@ async function bootstrapDashboardSession(page, targetUrl) {
 }
 
 async function openDashboard(page, options = {}) {
-  const initialTab = typeof options.initialTab === "string" ? options.initialTab : "monitoring";
+  const initialTab = typeof options.initialTab === "string" ? options.initialTab : "game-loop";
   const targetUrl = `${BASE_URL}/dashboard/index.html#${initialTab}`;
   ensureRuntimeGuard(page);
   let lastError = null;
@@ -703,7 +706,7 @@ async function openDashboard(page, options = {}) {
       await waitForDashboardSessionAuthenticated(page, 15000);
       await page.waitForSelector("#logout-btn", { timeout: 15000 });
       await expect(page.locator("#logout-btn")).toBeEnabled();
-      if (initialTab === "monitoring") {
+      if (initialTab === "game-loop") {
         await page.waitForFunction(() => {
           const total = document.getElementById("total-events")?.textContent?.trim();
           return Boolean(total && total !== "-" && total !== "...");
@@ -1080,7 +1083,7 @@ test("logged-out dashboard navigation keeps the auth gate visible until redirect
 
   await expect(page.locator("#dashboard-auth-gate")).toBeAttached();
   await expect(page.locator("nav.dashboard-tabs")).toHaveCount(0);
-  await expect(page.locator("#dashboard-panel-monitoring")).toHaveCount(0);
+  await expect(page.locator("#dashboard-panel-game-loop")).toHaveCount(0);
   await expect(page.locator("#dashboard-auth-gate")).toHaveText("");
   await expect
     .poll(async () => {
@@ -1421,33 +1424,50 @@ test("dashboard clean-state renders explicit empty placeholders", async ({ page 
   await expect(page.locator('[data-tab-state="ip-bans"]')).toHaveText("");
 });
 
-test("monitoring, traffic, and diagnostics tabs expose their ownership split", async ({ page }) => {
+test("game loop, traffic, and diagnostics tabs expose their ownership split", async ({ page }) => {
   await openDashboard(page);
 
-  await expect(page.locator("#dashboard-panel-monitoring")).toHaveClass(/admin-group/);
-  await expect(page.locator('#dashboard-panel-monitoring [data-monitoring-intro]')).toHaveClass(
+  await expect(page.locator("#dashboard-tab-game-loop")).toHaveText("Game Loop");
+  await expect(page.locator(".dashboard-tabs .dashboard-tab-link")).toHaveText([
+    "Traffic",
+    "IP Bans",
+    "Red Team",
+    "Game Loop",
+    "Tuning",
+    "Verification",
+    "Traps",
+    "Rate Limiting",
+    "GEO",
+    "Fingerprinting",
+    "Policy",
+    "Status",
+    "Advanced",
+    "Diagnostics"
+  ]);
+  await expect(page.locator("#dashboard-panel-game-loop")).toHaveClass(/admin-group/);
+  await expect(page.locator('#dashboard-panel-game-loop [data-game-loop-intro]')).toHaveClass(
     /control-group/
   );
-  await expect(page.locator("#dashboard-panel-monitoring")).toContainText("Closed-Loop Accountability");
+  await expect(page.locator("#dashboard-panel-game-loop")).toContainText("Closed-Loop Accountability");
   await expect(
-    page.locator('#dashboard-panel-monitoring [data-monitoring-section="current-status"]')
+    page.locator('#dashboard-panel-game-loop [data-game-loop-section="current-status"]')
   ).toContainText("Current Status");
   await expect(
-    page.locator('#dashboard-panel-monitoring [data-monitoring-section="recent-loop-progress"]')
+    page.locator('#dashboard-panel-game-loop [data-game-loop-section="recent-loop-progress"]')
   ).toContainText("Recent Loop Progress");
   await expect(
-    page.locator('#dashboard-panel-monitoring [data-monitoring-section="outcome-frontier"]')
+    page.locator('#dashboard-panel-game-loop [data-game-loop-section="outcome-frontier"]')
   ).toContainText("Outcome Frontier");
   await expect(
-    page.locator('#dashboard-panel-monitoring [data-monitoring-section="change-judgment"]')
+    page.locator('#dashboard-panel-game-loop [data-game-loop-section="change-judgment"]')
   ).toContainText("What The Loop Decided");
   await expect(
-    page.locator('#dashboard-panel-monitoring [data-monitoring-section="pressure-sits"]')
+    page.locator('#dashboard-panel-game-loop [data-game-loop-section="pressure-sits"]')
   ).toContainText("Where The Pressure Sits");
   await expect(
-    page.locator('#dashboard-panel-monitoring [data-monitoring-section="trust-and-blockers"]')
+    page.locator('#dashboard-panel-game-loop [data-game-loop-section="trust-and-blockers"]')
   ).toContainText("Trust And Blockers");
-  await expect(page.locator('#dashboard-panel-monitoring a[href="#diagnostics"]')).toBeVisible();
+  await expect(page.locator('#dashboard-panel-game-loop a[href="#diagnostics"]')).toBeVisible();
 
   await openTab(page, "traffic");
   await expect(page.locator("#dashboard-panel-traffic")).toHaveClass(/admin-group/);
@@ -1483,7 +1503,7 @@ test("monitoring, traffic, and diagnostics tabs expose their ownership split", a
   ).toContainText("Telemetry Diagnostics");
 });
 
-test("monitoring projects benchmark and oversight accountability from machine-first contracts", async ({ page }) => {
+test("game loop projects benchmark and oversight accountability from machine-first contracts", async ({ page }) => {
   await page.route("**/admin/operator-snapshot", async (route) => {
     await route.fulfill({
       status: 200,
@@ -1759,14 +1779,14 @@ test("monitoring projects benchmark and oversight accountability from machine-fi
 
   await openDashboard(page);
 
-  await expect(page.locator("#monitoring-current-status-overall-status")).toHaveText(/Outside Budget/i);
-  await expect(page.locator("#monitoring-current-status-improvement")).toHaveText(/Improved/i);
-  await expect(page.locator("#monitoring-current-status-controller-action")).toHaveText(/Canary Applied/i);
-  await expect(page.locator("#monitoring-loop-progress-history")).toContainText("Applied a bounded fingerprint tightening patch.");
-  await expect(page.locator("#monitoring-outcome-frontier")).toContainText("Suspicious Origin Cost");
-  await expect(page.locator("#monitoring-outcome-frontier")).toContainText("Likely Human Friction");
-  await expect(page.locator("#monitoring-change-judgment")).toContainText("Observe Longer");
-  await expect(page.locator("#monitoring-trust-blockers")).toContainText("verified identity taxonomy alignment guardrail");
+  await expect(page.locator("#game-loop-current-status-overall-status")).toHaveText(/Outside Budget/i);
+  await expect(page.locator("#game-loop-current-status-improvement")).toHaveText(/Improved/i);
+  await expect(page.locator("#game-loop-current-status-controller-action")).toHaveText(/Canary Applied/i);
+  await expect(page.locator("#game-loop-progress-history")).toContainText("Applied a bounded fingerprint tightening patch.");
+  await expect(page.locator("#game-loop-outcome-frontier")).toContainText("Suspicious Origin Cost");
+  await expect(page.locator("#game-loop-outcome-frontier")).toContainText("Likely Human Friction");
+  await expect(page.locator("#game-loop-change-judgment")).toContainText("Observe Longer");
+  await expect(page.locator("#game-loop-trust-blockers")).toContainText("verified identity taxonomy alignment guardrail");
 });
 
 test("traffic manual refresh renders bounded traffic sections and preserves furniture diagnostics separately", async ({ page }) => {
@@ -3253,7 +3273,7 @@ test("route remount preserves keyboard navigation, ban/unban, verification save,
   await page.goto("about:blank");
   await openDashboard(page);
 
-  const monitoringTab = page.locator("#dashboard-tab-monitoring");
+  const monitoringTab = page.locator("#dashboard-tab-game-loop");
   await monitoringTab.focus();
   await page.keyboard.press("ArrowRight");
   await expect(page).toHaveURL(/#ip-bans$/);
@@ -3596,7 +3616,7 @@ test("tab hash route persists selected panel across reload", async ({ page }) =>
   await openDashboard(page);
   await openTab(page, "verification");
   await expect(page.locator("#dashboard-panel-verification")).toBeVisible();
-  await expect(page.locator("#dashboard-panel-monitoring")).toBeHidden();
+  await expect(page.locator("#dashboard-panel-game-loop")).toBeHidden();
 
   await page.reload();
   await expect(page).toHaveURL(/\/dashboard\/index\.html#verification/);
@@ -3606,17 +3626,17 @@ test("tab hash route persists selected panel across reload", async ({ page }) =>
 
 test("tab keyboard navigation updates hash and selected state", async ({ page }) => {
   await openDashboard(page);
-  const monitoringTab = page.locator("#dashboard-tab-monitoring");
+  const monitoringTab = page.locator("#dashboard-tab-game-loop");
   await monitoringTab.focus();
   await expect(monitoringTab).toHaveAttribute("aria-selected", "true");
 
   await page.keyboard.press("ArrowRight");
-  await expect(page).toHaveURL(/#ip-bans$/);
-  await expect(page.locator("#dashboard-tab-ip-bans")).toHaveAttribute("aria-selected", "true");
-  await expect(page.locator("#dashboard-panel-ip-bans")).toBeVisible();
-  await assertActiveTabPanelVisibility(page, "ip-bans");
+  await expect(page).toHaveURL(/#tuning$/);
+  await expect(page.locator("#dashboard-tab-tuning")).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#dashboard-panel-tuning")).toBeVisible();
+  await assertActiveTabPanelVisibility(page, "tuning");
 
-  await page.locator("#dashboard-tab-ip-bans").focus();
+  await page.locator("#dashboard-tab-tuning").focus();
   await page.keyboard.press("End");
   await expect(page).toHaveURL(/#diagnostics$/);
   await expect(page.locator("#dashboard-tab-diagnostics")).toHaveAttribute("aria-selected", "true");
@@ -3638,9 +3658,9 @@ test("tab bar reflects the canonical information architecture labels and order",
 
   expect(tabLabels).toEqual([
     "Traffic",
-    "Monitoring",
     "IP Bans",
     "Red Team",
+    "Game Loop",
     "Tuning",
     "Verification",
     "Traps",

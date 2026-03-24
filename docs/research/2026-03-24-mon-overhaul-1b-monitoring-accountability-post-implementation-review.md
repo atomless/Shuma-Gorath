@@ -5,7 +5,7 @@ Tranche: `MON-OVERHAUL-1B`
 
 ## Goal
 
-Project the machine-first loop-accountability contracts into the Monitoring tab so the operator can see:
+Project the machine-first loop-accountability contracts into the Game Loop tab so the operator can see:
 
 - current benchmark verdict,
 - bounded progress over recent completed loops,
@@ -15,13 +15,13 @@ Project the machine-first loop-accountability contracts into the Monitoring tab 
 
 ## What landed
 
-1. Dashboard Monitoring now reads real machine contracts instead of placeholder copy:
+1. Dashboard Game Loop now reads real machine contracts instead of placeholder copy:
    - `operator_snapshot_v1`
    - `benchmark_results_v1`
    - `oversight_history_v1`
    - `oversight_agent_status_v1`
-2. The dashboard state and refresh runtime gained dedicated bounded snapshot paths for those Monitoring reads.
-3. The Monitoring tab now renders:
+2. The dashboard state and refresh runtime gained dedicated bounded snapshot paths for those Game Loop reads.
+3. The Game Loop tab now renders:
    - current status cards,
    - recent loop progress from bounded oversight history,
    - the first real outcome frontier over `suspicious_origin_cost` and `likely_human_friction`,
@@ -34,7 +34,7 @@ Project the machine-first loop-accountability contracts into the Monitoring tab 
 
 - Full category-aware pressure breakdown remains for `MON-OVERHAUL-1C`.
 - Diagnostics cleanup was intentionally not mixed into this tranche.
-- The new Monitoring projection reused shared primitives and preserved the agreed sequencing, but it did not forcibly pull across irrelevant transitional Diagnostics charts that do not fit the loop-accountability surface truthfully.
+- The new Game Loop projection reused shared primitives and preserved the agreed sequencing, but it did not forcibly pull across irrelevant transitional Diagnostics charts that do not fit the loop-accountability surface truthfully.
 
 ## Review against plan
 
@@ -46,11 +46,11 @@ Project the machine-first loop-accountability contracts into the Monitoring tab 
 ## Residual follow-on
 
 1. `DIAG-CLEANUP-1`
-   - remove the remaining aggregate Monitoring leftovers from Diagnostics now that Monitoring owns the accountability story.
+   - remove the remaining aggregate Game Loop leftovers from Diagnostics now that Game Loop owns the accountability story.
 2. `MON-OVERHAUL-1C`
    - add the fuller category-aware pressure and trust/actionability surface.
 
 ## Evidence
 
-- `make test-dashboard-monitoring-accountability`
+- `make test-dashboard-game-loop-accountability`
 - `git diff --check`

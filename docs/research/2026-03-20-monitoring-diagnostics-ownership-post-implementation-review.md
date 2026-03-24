@@ -4,7 +4,7 @@ Date: 2026-03-20
 
 ## Scope Reviewed
 
-- `dashboard/src/lib/components/dashboard/MonitoringTab.svelte`
+- `dashboard/src/lib/components/dashboard/GameLoopTab.svelte`
 - `dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte`
 - `dashboard/src/routes/+page.svelte`
 - `dashboard/src/lib/runtime/dashboard-runtime-refresh.js`

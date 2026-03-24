@@ -4,7 +4,7 @@
 
 **Goal:** Build the machine-first objective and operator-snapshot foundations that future Monitoring, Tuning, and scheduled controller work will consume.
 
-**Architecture:** Keep the current telemetry foundation as the source of truth, add a bounded `operator_objectives_v1` and `operator_snapshot_v1` layer above it, treat the human Monitoring tab as a later projection over that backend contract instead of inventing UI-first semantics, and preserve a separate later benchmark-driven code-evolution loop so Shuma can evolve its own code as part of the arms race rather than only per-instance config.
+**Architecture:** Keep the current telemetry foundation as the source of truth, add a bounded `operator_objectives_v1` and `operator_snapshot_v1` layer above it, treat the human Game Loop tab as a later projection over that backend contract instead of inventing UI-first semantics, and preserve a separate later benchmark-driven code-evolution loop so Shuma can evolve its own code as part of the arms race rather than only per-instance config.
 
 **Tech Stack:** Rust hot-read documents and admin APIs, existing monitoring summary materialization, dashboard read-model consumers, Markdown planning and backlog docs.
 
@@ -182,7 +182,7 @@ This should not yet enable automation; it just defines the boundary.
 
 Make Monitoring explicitly a projection over `operator_snapshot_v1`.
 
-The future Monitoring tab should answer:
+The future Game Loop tab should answer:
 
 1. Are we meeting targets?
 2. Where is suspicious traffic still getting through?

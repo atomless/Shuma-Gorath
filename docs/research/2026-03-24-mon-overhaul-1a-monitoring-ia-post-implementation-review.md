@@ -7,7 +7,7 @@ Related context:
 
 - [`2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-review.md`](2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-review.md)
 - [`../plans/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md`](../plans/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md)
-- [`../../dashboard/src/lib/components/dashboard/MonitoringTab.svelte`](../../dashboard/src/lib/components/dashboard/MonitoringTab.svelte)
+- [`../../dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
 - [`../../dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte`](../../dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte)
 - [`../../e2e/dashboard.modules.unit.test.js`](../../e2e/dashboard.modules.unit.test.js)
 - [`../../e2e/dashboard.smoke.spec.js`](../../e2e/dashboard.smoke.spec.js)
@@ -46,7 +46,7 @@ This closeout reviewed the delivered `MON-OVERHAUL-1A` slice:
 The delivered tranche matches the intended `MON-OVERHAUL-1A` contract:
 
 1. Monitoring now reads as the accountability surface for the closed loop rather than as a blank placeholder or a transplanted diagnostics page.
-2. Diagnostics now reads as a contributor-facing deep-inspection surface rather than a vague second Monitoring tab.
+2. Diagnostics now reads as a contributor-facing deep-inspection surface rather than a vague second Game Loop tab.
 3. The implementation stayed scope-locked to information architecture and wording:
    - no new machine-first projection logic was pulled forward from `MON-OVERHAUL-1B`,
    - no diagnostics telemetry contracts were rewritten,
@@ -56,11 +56,11 @@ The delivered tranche matches the intended `MON-OVERHAUL-1A` contract:
 
 One tranche-local shortfall appeared during implementation:
 
-1. the first red test correctly failed on the old placeholder content, but the first green attempt still used a unit assertion that expected literal rendered `data-monitoring-section="..."` strings even though the Svelte template now loops over a static section array.
+1. the first red test correctly failed on the old placeholder content, but the first green attempt still used a unit assertion that expected literal rendered `data-game-loop-section="..."` strings even though the Svelte template now loops over a static section array.
 
 That assertion was corrected in the same tranche by proving both:
 
-- the shared `data-monitoring-section={section.id}` template contract,
+- the shared `data-game-loop-section={section.id}` template contract,
 - and the presence of the named section ids in the source-of-truth section array.
 
 No further tranche-local shortfall remains open.

@@ -11,14 +11,14 @@ This is not a protected-data leak today because the rendered default panel is th
 - [`dashboard/src/routes/+page.svelte`](../../dashboard/src/routes/+page.svelte)
 - [`dashboard/src/lib/runtime/dashboard-route-controller.js`](../../dashboard/src/lib/runtime/dashboard-route-controller.js)
 - [`dashboard/src/lib/runtime/dashboard-native-runtime.js`](../../dashboard/src/lib/runtime/dashboard-native-runtime.js)
-- [`dashboard/src/lib/components/dashboard/MonitoringTab.svelte`](../../dashboard/src/lib/components/dashboard/MonitoringTab.svelte)
+- [`dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
 - [`src/runtime/request_router.rs`](../../src/runtime/request_router.rs)
 - [`src/admin/api.rs`](../../src/admin/api.rs)
 
 Concrete traced behavior:
 
-1. The dashboard store initializes with `initialTab: 'monitoring'`.
-2. The route renders the dashboard shell and `MonitoringTab` unconditionally.
+1. The dashboard store initializes with `initialTab: 'game-loop'`.
+2. The route renders the dashboard shell and `GameLoopTab` unconditionally.
 3. `bootstrapRuntime()` mounts the dashboard runtime before checking session state.
 4. `bootstrapSession()` then performs `GET /admin/session`.
 5. If unauthenticated, the client redirects to the login page.

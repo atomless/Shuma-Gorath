@@ -105,7 +105,6 @@ Current stance:
 - Add the category-aware non-human taxonomy breakdown plus evidence quality, tuning eligibility, protected-evidence readiness, verified-identity guardrails, and other blockers so Monitoring shows where the remaining problem sits and how trustworthy the loop's conclusion is.
 - Keep any category-level trend bounded and accountability-oriented rather than turning Monitoring into a raw long-range history explorer.
 - Execute this after `TRAFFIC-TAB-1` and `DIAG-CLEANUP-1` so category/trust projection lands against the cleaned final Monitoring-vs-Traffic-vs-Diagnostics ownership boundary rather than the transitional mixed surface.
-- Reference context: [`../docs/plans/2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md`](../docs/plans/2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md)
 
 ### CTRL-SURFACE-1: Canonical controller mutability policy and hard-never surface
 - Define one canonical mutability policy across admin-writable config and `operator_objectives_v1`, classifying every path as `never`, `manual_only`, or `controller_tunable`.

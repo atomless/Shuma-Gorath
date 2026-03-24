@@ -1,7 +1,7 @@
-# Monitoring Prometheus Parity Audit
+# Dashboard Summary Prometheus Parity Audit
 
 Date: 2026-02-19
-Scope: Dashboard Monitoring tab parity against `/metrics` Prometheus output.
+Scope: Dashboard summary-surface parity against `/metrics` Prometheus output.
 
 Status values used in this audit:
 - `already_exported`: direct equivalent series exists in `/metrics`.
@@ -10,7 +10,7 @@ Status values used in this audit:
 
 ## Parity Matrix
 
-| Monitoring widget/signal | Dashboard source | Parity status | Prometheus mapping | Notes |
+| Dashboard widget/signal | Dashboard source | Parity status | Prometheus mapping | Notes |
 | --- | --- | --- | --- | --- |
 | Total Bans | `details.analytics.ban_count` / bans list | `derivable_from_existing_series` | `sum(bot_defence_bans_total{reason=...})` | Cumulative counter; not a point-in-time active value. |
 | Active Bans | `details.bans.bans` | `already_exported` | `bot_defence_active_bans` | Direct gauge parity. |

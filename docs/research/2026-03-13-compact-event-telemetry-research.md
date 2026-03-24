@@ -24,7 +24,7 @@ The motivating symptom was the size of Monitoring raw-feed rows such as challeng
 
 The dashboard feed is built in:
 
-- [`dashboard/src/lib/components/dashboard/MonitoringTab.svelte`](/Users/jamestindall/Projects/Shuma-Gorath/dashboard/src/lib/components/dashboard/MonitoringTab.svelte)
+- [`dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](/Users/jamestindall/Projects/Shuma-Gorath/dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
 - [`dashboard/src/lib/components/dashboard/monitoring-view-model.js`](/Users/jamestindall/Projects/Shuma-Gorath/dashboard/src/lib/components/dashboard/monitoring-view-model.js)
 
 It normalizes events for display before serializing them into the “raw” feed, including fields such as:

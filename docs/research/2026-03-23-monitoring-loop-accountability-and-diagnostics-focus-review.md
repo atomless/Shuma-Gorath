@@ -55,7 +55,7 @@ Diagnostics should answer subsystem, transport, and forensic questions:
 5. telemetry freshness or overflow mechanics,
 6. contributor and incident-debug inspection.
 
-This means the transition note from 2026-03-20 remains directionally correct, but Diagnostics should now be made more intentionally diagnostics-first, not merely "the old Monitoring tab moved elsewhere."
+This means the transition note from 2026-03-20 remains directionally correct, but Diagnostics should now be made more intentionally diagnostics-first, not merely "the old Game Loop tab moved elsewhere."
 
 ## Recommended Monitoring Page Shape
 

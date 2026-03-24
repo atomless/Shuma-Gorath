@@ -221,7 +221,7 @@ Initial target envelope for the shared design:
 1. `/admin/monitoring?bootstrap=1...`
    - Fermyon edge: target p95 under 2s
    - Linode/shared-host: target p95 under 750ms
-2. Monitoring tab first visible rows:
+2. Game Loop tab first visible rows:
    - Fermyon edge: under 1.5s after tab activation
    - Linode/shared-host: under 500ms
 3. `/admin/monitoring/delta`

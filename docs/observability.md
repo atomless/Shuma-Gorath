@@ -10,9 +10,9 @@ GET /metrics
 
 This endpoint is unauthenticated for Prometheus compatibility. Restrict access at the network edge if required.
 
-## 🐙 Dashboard Monitoring Summary <abbr title="Application Programming Interface">API</abbr>
+## 🐙 Dashboard Summary <abbr title="Application Programming Interface">API</abbr>
 
-The Monitoring tab now consumes a consolidated admin summary endpoint:
+The dashboard traffic, diagnostics, and Game Loop surfaces now consume a consolidated admin summary endpoint:
 
 ```
 GET /admin/monitoring?hours=24&limit=10

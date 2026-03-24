@@ -6,12 +6,12 @@ Component: [`dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte`](../.
 Purpose:
 
 - Deep-inspection and contributor diagnostics surface.
-- Home for subsystem-by-subsystem monitoring detail that no longer belongs in either the Traffic picture or the top Monitoring accountability flow.
+- Home for subsystem-by-subsystem monitoring detail that no longer belongs in either the Traffic picture or the top Game Loop accountability flow.
 - Contributor-style proof that Shuma's telemetry and defence furniture is operational.
 
 What it shows:
 
-- Intro panel clarifying that `Diagnostics` owns subsystem investigation while `Monitoring` owns closed-loop accountability and `Traffic` owns the live traffic picture.
+- Intro panel clarifying that `Diagnostics` owns subsystem investigation while `Game Loop` owns closed-loop accountability and `Traffic` owns the live traffic picture.
 - `Defense Breakdown` as the concise cross-furniture overview above the deeper sections.
 - CDP detections table and summary cards, including total detections, detection-triggered bans, and fingerprint mismatch/transition counters.
 - Maze, honeypot, challenge, PoW, rate-limiting, GEO, and IP-range monitoring sections.

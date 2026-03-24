@@ -309,7 +309,7 @@ That keeps one semantic model for machine and human consumers.
 
 ## Relationship To Monitoring
 
-The future Monitoring tab should render benchmark-family status and supporting snapshot sections.
+The future Game Loop tab should render benchmark-family status and supporting snapshot sections.
 
 It should not define its own alternative headline semantics for:
 

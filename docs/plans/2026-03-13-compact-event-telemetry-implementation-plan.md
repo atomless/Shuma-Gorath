@@ -141,7 +141,7 @@ Steps:
 ### Task 3: Rework the dashboard feed contract
 
 **Files:**
-- Modify: `/Users/jamestindall/Projects/Shuma-Gorath/dashboard/src/lib/components/dashboard/MonitoringTab.svelte`
+- Modify: `/Users/jamestindall/Projects/Shuma-Gorath/dashboard/src/lib/components/dashboard/GameLoopTab.svelte`
 - Modify: `/Users/jamestindall/Projects/Shuma-Gorath/dashboard/src/lib/components/dashboard/monitoring-view-model.js`
 - Modify: `/Users/jamestindall/Projects/Shuma-Gorath/dashboard/src/lib/components/dashboard/monitoring/RecentEventsTable.svelte`
 - Test: `/Users/jamestindall/Projects/Shuma-Gorath/e2e/dashboard.modules.unit.test.js`

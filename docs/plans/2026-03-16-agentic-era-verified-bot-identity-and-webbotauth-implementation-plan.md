@@ -273,7 +273,7 @@ Update:
 
 1. `docs/configuration.md`
 2. `docs/api.md`
-3. `docs/dashboard-tabs/monitoring.md`
+3. `docs/dashboard-tabs/game-loop.md`
 4. `docs/dashboard-tabs/robots.md` or the successor policy doc
 5. `docs/observability.md`
 6. `docs/bot-defence.md`

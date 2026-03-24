@@ -1,7 +1,7 @@
-# Dashboard Tab: Monitoring
+# Dashboard Tab: Game Loop
 
-Route: `#monitoring`  
-Component: [`dashboard/src/lib/components/dashboard/MonitoringTab.svelte`](../../dashboard/src/lib/components/dashboard/MonitoringTab.svelte)
+Route: `#game-loop`  
+Component: [`dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
 
 Purpose:
 
@@ -12,7 +12,7 @@ Purpose:
 Current behavior:
 
 - Shows a top-level `Closed-Loop Accountability` framing panel that makes the tab's role explicit.
-- Exposes the bounded Monitoring accountability sections:
+- Exposes the bounded Game Loop accountability sections:
   - `Current Status`
   - `Recent Loop Progress`
   - `Outcome Frontier`
@@ -37,7 +37,7 @@ Current behavior:
 Refresh behavior:
 
 - No tab-local manual or auto-refresh controls are exposed yet.
-- On Monitoring activation, the dashboard runtime now refreshes shared config plus the bounded machine-first accountability reads listed above.
+- On Game Loop activation, the dashboard runtime now refreshes shared config plus the bounded machine-first accountability reads listed above.
 
 Writes:
 

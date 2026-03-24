@@ -7,11 +7,11 @@ Reference context:
 
 - [`docs/configuration.md`](../configuration.md)
 - [`docs/observability.md`](../observability.md)
-- [`docs/dashboard-tabs/monitoring.md`](../dashboard-tabs/monitoring.md)
+- [`docs/dashboard-tabs/game-loop.md`](../dashboard-tabs/game-loop.md)
 - [`src/runtime/shadow_mode/mod.rs`](../../src/runtime/shadow_mode/mod.rs)
 - [`src/runtime/request_flow.rs`](../../src/runtime/request_flow.rs)
 - [`src/admin/api.rs`](../../src/admin/api.rs)
-- [`dashboard/src/lib/components/dashboard/MonitoringTab.svelte`](../../dashboard/src/lib/components/dashboard/MonitoringTab.svelte)
+- [`dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
 - [`dashboard/src/lib/components/dashboard/monitoring-view-model.js`](../../dashboard/src/lib/components/dashboard/monitoring-view-model.js)
 - [`todos/todo.md`](../../todos/todo.md)
 

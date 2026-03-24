@@ -12,7 +12,7 @@ export { DASHBOARD_TABS, DEFAULT_TAB, normalizeTab };
 
 export const TAB_REFRESH_INTERVAL_MS = Object.freeze({
   traffic: 30000,
-  monitoring: 30000,
+  'game-loop': 30000,
   diagnostics: 30000,
   'ip-bans': 45000,
   status: 60000,
@@ -327,7 +327,7 @@ export function createDashboardStore(options = {}) {
 
   const selectRefreshInterval = (tab) => {
     const key = normalizeTab(tab);
-    return TAB_REFRESH_INTERVAL_MS[key] || TAB_REFRESH_INTERVAL_MS.monitoring;
+    return TAB_REFRESH_INTERVAL_MS[key] || TAB_REFRESH_INTERVAL_MS['game-loop'];
   };
 
   const getRuntimeTelemetry = () => get(runtimeTelemetryStore);

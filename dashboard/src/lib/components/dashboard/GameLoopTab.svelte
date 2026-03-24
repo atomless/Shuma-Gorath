@@ -13,7 +13,7 @@
   export let oversightHistory = null;
   export let oversightAgentStatus = null;
 
-  const monitoringSections = Object.freeze([
+  const gameLoopSections = Object.freeze([
     {
       id: 'current-status',
       title: 'Current Status',
@@ -144,7 +144,7 @@
   $: currentStatusCards = [
     {
       title: 'Overall Status',
-      valueId: 'monitoring-current-status-overall-status',
+      valueId: 'game-loop-current-status-overall-status',
       value: humanizeToken(benchmarkResults?.overall_status),
       note: benchmarkResults?.coverage_status
         ? `Coverage ${humanizeToken(benchmarkResults.coverage_status, 'sentence')}`
@@ -152,13 +152,13 @@
     },
     {
       title: 'Improvement',
-      valueId: 'monitoring-current-status-improvement',
+      valueId: 'game-loop-current-status-improvement',
       value: humanizeToken(benchmarkResults?.improvement_status),
       note: benchmarkResults?.baseline_reference?.note || 'Awaiting a comparable prior-window reference.'
     },
     {
       title: 'Tuning Eligibility',
-      valueId: 'monitoring-current-status-tuning-eligibility',
+      valueId: 'game-loop-current-status-tuning-eligibility',
       value: humanizeToken(benchmarkResults?.tuning_eligibility?.status),
       note: benchmarkResults?.tuning_eligibility?.blockers?.length
         ? `${benchmarkResults.tuning_eligibility.blockers.length} blocker(s) active`
@@ -166,7 +166,7 @@
     },
     {
       title: 'Latest Controller Action',
-      valueId: 'monitoring-current-status-controller-action',
+      valueId: 'game-loop-current-status-controller-action',
       value: humanizeToken(latestHistoryRow?.apply?.stage || latestDecision?.outcome),
       note: latestHistoryRow?.summary || latestDecision?.summary || 'No oversight decision has been recorded yet.'
     }
@@ -180,20 +180,20 @@
 </script>
 
 <section
-  id="dashboard-panel-monitoring"
+  id="dashboard-panel-game-loop"
   class="admin-group dashboard-tab-panel"
-  data-dashboard-tab-panel="monitoring"
-  aria-labelledby="dashboard-tab-monitoring"
+  data-dashboard-tab-panel="game-loop"
+  aria-labelledby="dashboard-tab-game-loop"
   hidden={managed ? !isActive : false}
   aria-hidden={managed ? (isActive ? 'false' : 'true') : 'false'}
   tabindex="-1"
 >
-  <TabStateMessage tab="monitoring" status={tabStatus} />
+  <TabStateMessage tab="game-loop" status={tabStatus} />
 
-  <div class="control-group panel-soft pad-md" data-monitoring-intro>
+  <div class="control-group panel-soft pad-md" data-game-loop-intro>
     <h3>Closed-Loop Accountability</h3>
     <p class="control-desc text-muted">
-      Monitoring now frames how Shuma&apos;s closed feedback loop is performing against the current
+      Game Loop now frames how Shuma&apos;s closed feedback loop is performing against the current
       operator-selected live stance.
     </p>
     <p class="control-desc text-muted">
@@ -201,7 +201,7 @@
       in <a href="#diagnostics">Diagnostics</a>.
     </p>
     {#if operatorSnapshot?.objectives?.profile_id}
-      <p class="control-desc text-muted" id="monitoring-accountability-context">
+      <p class="control-desc text-muted" id="game-loop-accountability-context">
         Profile <code>{operatorSnapshot.objectives.profile_id}</code> revision
         <code>{operatorSnapshot.objectives.revision || 'n/a'}</code> over a
         <strong>{formatNumber(operatorSnapshot.objectives.window_hours, '0')}h</strong> window.
@@ -209,8 +209,8 @@
     {/if}
   </div>
 
-  {#each monitoringSections as section (section.id)}
-    <section class="section" data-monitoring-section={section.id}>
+  {#each gameLoopSections as section (section.id)}
+    <section class="section" data-game-loop-section={section.id}>
       <SectionBlock title={section.title} description={section.description} rootClass="section">
         {#if section.id === 'current-status'}
           <div class="stats-cards">
@@ -270,7 +270,7 @@
               </div>
             </div>
           </div>
-          <div id="monitoring-loop-progress-history" class="panel panel-soft pad-md">
+          <div id="game-loop-progress-history" class="panel panel-soft pad-md">
             {#if latestHistoryRows.length === 0}
               <p class="text-muted">No bounded loop history is available yet.</p>
             {:else}
@@ -291,7 +291,7 @@
             {/if}
           </div>
         {:else if section.id === 'outcome-frontier'}
-          <div id="monitoring-outcome-frontier" class="stats-cards">
+          <div id="game-loop-outcome-frontier" class="stats-cards">
             {#each [suspiciousOriginCostFamily, likelyHumanFrictionFamily] as family}
               <article class="card panel panel-border pad-md-b">
                 <h3 class="caps-label">{humanizeToken(family?.family_id)}</h3>
@@ -317,7 +317,7 @@
             {/each}
           </div>
         {:else if section.id === 'change-judgment'}
-          <div id="monitoring-change-judgment" class="panel panel-soft pad-md">
+          <div id="game-loop-change-judgment" class="panel panel-soft pad-md">
             <div class="status-rows">
               <div class="info-row">
                 <span class="info-label text-muted">Benchmark decision:</span>
@@ -391,7 +391,7 @@
             </article>
           </div>
         {:else if section.id === 'trust-and-blockers'}
-          <div id="monitoring-trust-blockers" class="panel panel-soft pad-md">
+          <div id="game-loop-trust-blockers" class="panel panel-soft pad-md">
             <div class="status-rows">
               <div class="info-row">
                 <span class="info-label text-muted">Classification:</span>

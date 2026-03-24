@@ -15,7 +15,7 @@
 **Files:**
 - Modify: `docs/plans/2026-03-12-shadow-mode-telemetry-monitoring-truthfulness-plan.md`
 - Modify: `docs/configuration.md`
-- Modify: `docs/dashboard-tabs/monitoring.md`
+- Modify: `docs/dashboard-tabs/game-loop.md`
 
 **Step 1: Write the failing doc assertions**
 
@@ -101,7 +101,7 @@ Expected: telemetry/runtime tests for shadow execution pass with the smaller con
 ### Task 4: Clean up dashboard monitoring semantics
 
 **Files:**
-- Modify: `dashboard/src/lib/components/dashboard/MonitoringTab.svelte`
+- Modify: `dashboard/src/lib/components/dashboard/GameLoopTab.svelte`
 - Modify: `dashboard/src/lib/components/dashboard/monitoring-view-model.js`
 - Modify: `dashboard/src/lib/components/dashboard/monitoring/ShadowSection.svelte`
 - Modify: `e2e/dashboard.modules.unit.test.js`

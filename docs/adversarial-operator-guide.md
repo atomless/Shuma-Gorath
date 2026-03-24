@@ -542,11 +542,11 @@ Operators must triage in this order:
 7. Realism gate failures in `realism_gates.checks` and persona/runtime evidence in `realism_metrics`.
 8. Scenario intent gate failures in `scenario_intent_gates.checks` where per-scenario category evidence or progression constraints failed.
 9. Seeded IP-range evidence in `ip_range_suggestions`.
-10. Tarpit progression/fallback/escalation counters in Monitoring tab (`Tarpit Progression` section) and `monitoring_after.tarpit.metrics` in report artifacts.
+10. Tarpit progression/fallback/escalation counters in Diagnostics (`Tarpit Progression` section) and `monitoring_after.tarpit.metrics` in report artifacts.
 
 ## Dashboard Triage/Replay/Tuning/Validation Loop (SIM2-GC-10)
 
-When triaging adversary activity from `#monitoring`, operators must use this loop:
+When triaging adversary activity from `#game-loop`, operators must use this loop:
 
 1. Triage:
    - You must start in `Recent Adversary Runs` and pick the latest `run_id` with unexpected ban outcomes or defense deltas.

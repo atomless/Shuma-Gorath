@@ -16,7 +16,7 @@ import {
   resolveDashboardBasePathFromLocation
 } from './dashboard-paths.js';
 
-const DASHBOARD_TABS = Object.freeze(['traffic', 'monitoring', 'ip-bans', 'red-team', 'tuning', 'verification', 'traps', 'rate-limiting', 'geo', 'fingerprinting', 'policy', 'status', 'advanced', 'diagnostics']);
+const DASHBOARD_TABS = Object.freeze(['traffic', 'ip-bans', 'red-team', 'game-loop', 'tuning', 'verification', 'traps', 'rate-limiting', 'geo', 'fingerprinting', 'policy', 'status', 'advanced', 'diagnostics']);
 const CONNECTION_HEARTBEAT_PATH = '/admin/session';
 const CONNECTION_HEARTBEAT_METHOD = 'GET';
 const CONNECTION_HEARTBEAT_INTERVAL_MS = 1000;
@@ -63,7 +63,7 @@ function resolveDashboardStateStore(options = {}) {
 
 function normalizeTab(value) {
   const normalized = String(value || '').trim().toLowerCase();
-  return DASHBOARD_TABS.includes(normalized) ? normalized : 'monitoring';
+  return DASHBOARD_TABS.includes(normalized) ? normalized : 'game-loop';
 }
 
 function parseBoolLike(value, fallback = false) {
@@ -103,7 +103,7 @@ function normalizeRuntimeMountOptions(options = {}) {
   );
   return {
     basePath,
-    initialTab: normalizeTab(source.initialTab || 'monitoring')
+    initialTab: normalizeTab(source.initialTab || 'game-loop')
   };
 }
 
@@ -404,7 +404,7 @@ function invalidateAfterConfigSave(nextConfig = null, nextRuntime = null) {
   if (!dashboardState) return;
   applyConfigEnvelopeSnapshots(nextConfig, nextRuntime);
   dashboardState.invalidate('securityConfig');
-  dashboardState.invalidate('monitoring');
+  dashboardState.invalidate('game-loop');
   dashboardState.invalidate('ip-bans');
 }
 
@@ -450,7 +450,7 @@ function applyAdversarySimStatusSnapshot(status = null) {
 function invalidateAfterBanMutation() {
   if (!dashboardState) return;
   dashboardState.invalidate('ip-bans');
-  dashboardState.invalidate('monitoring');
+  dashboardState.invalidate('game-loop');
 }
 
 export async function mountDashboardApp(options = {}) {
@@ -493,7 +493,7 @@ export async function mountDashboardApp(options = {}) {
 }
 
 export function getDashboardActiveTab() {
-  if (!dashboardState) return 'monitoring';
+  if (!dashboardState) return 'game-loop';
   return normalizeTab(dashboardState.getActiveTab());
 }
 

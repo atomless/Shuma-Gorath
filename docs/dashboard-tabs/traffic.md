@@ -6,12 +6,12 @@ Component: [`dashboard/src/lib/components/dashboard/TrafficTab.svelte`](../../da
 Purpose:
 
 - Live and recent traffic visibility surface.
-- Home for the bounded traffic picture that no longer belongs in either loop-accountability Monitoring or furniture-focused Diagnostics.
+- Home for the bounded traffic picture that no longer belongs in either loop-accountability Game Loop or furniture-focused Diagnostics.
 - Proof that traffic telemetry collection is alive and readable without dropping into contributor-style subsystem diagnostics.
 
 What it shows:
 
-- Intro panel clarifying that `Traffic` owns the live traffic picture while `Monitoring` owns loop accountability and `Diagnostics` owns furniture investigation.
+- Intro panel clarifying that `Traffic` owns the live traffic picture while `Game Loop` owns loop accountability and `Diagnostics` owns furniture investigation.
 - `Traffic Telemetry Health`:
   - freshness state,
   - lag and last-event timing,

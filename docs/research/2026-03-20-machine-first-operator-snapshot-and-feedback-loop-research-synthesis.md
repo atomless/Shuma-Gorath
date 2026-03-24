@@ -149,7 +149,7 @@ Important lessons:
 Taken together, the external evidence points toward one clear direction:
 
 1. Monitoring should become a machine-first operator-state contract.
-2. The human Monitoring tab should be a thin projection of that same contract.
+2. The human Game Loop tab should be a thin projection of that same contract.
 3. Raw subsystem detail should stay in Diagnostics.
 4. Autonomous tuning should operate on explicit objectives, budgets, and bounded action families.
 5. Verification and rollback posture must be part of the feedback loop from the start.
@@ -200,7 +200,7 @@ It should also converge on two benchmark artifacts for the project-evolution loo
 5. `benchmark_results_v1`
    - bounded benchmark outputs across adversary-sim, representative live-traffic summaries, and later central-intelligence evidence.
 
-The future human Monitoring tab should not invent a separate semantic model. It should simply render selected parts of `operator_snapshot_v1`.
+The future human Game Loop tab should not invent a separate semantic model. It should simply render selected parts of `operator_snapshot_v1`.
 
 ## What This Means For Shuma Now
 

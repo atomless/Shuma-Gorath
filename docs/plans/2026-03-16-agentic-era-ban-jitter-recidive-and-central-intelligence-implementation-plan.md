@@ -315,7 +315,7 @@ Update:
 
 1. `docs/configuration.md`
 2. `docs/api.md`
-3. `docs/dashboard-tabs/monitoring.md`
+3. `docs/dashboard-tabs/game-loop.md`
 4. `docs/dashboard-tabs/ip-bans.md`
 5. `docs/adversarial-operator-guide.md`
 6. `docs/value-proposition.md`

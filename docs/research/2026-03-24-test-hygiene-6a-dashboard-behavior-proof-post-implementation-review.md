@@ -62,6 +62,6 @@ This slice achieved the intended first dashboard cleanup:
 ## Verification
 
 - `make test-dashboard-runtime-unit-contracts`
-- `make test-dashboard-monitoring-accountability`
+- `make test-dashboard-game-loop-accountability`
 - `make test-dashboard-verified-identity-pane`
 - `git diff --check`

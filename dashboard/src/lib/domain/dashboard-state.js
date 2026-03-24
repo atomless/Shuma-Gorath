@@ -1,7 +1,7 @@
 // @ts-check
 
-export const DASHBOARD_TABS = Object.freeze(['traffic', 'monitoring', 'ip-bans', 'red-team', 'tuning', 'verification', 'traps', 'rate-limiting', 'geo', 'fingerprinting', 'policy', 'status', 'advanced', 'diagnostics']);
-export const DEFAULT_TAB = 'monitoring';
+export const DASHBOARD_TABS = Object.freeze(['traffic', 'ip-bans', 'red-team', 'game-loop', 'tuning', 'verification', 'traps', 'rate-limiting', 'geo', 'fingerprinting', 'policy', 'status', 'advanced', 'diagnostics']);
+export const DEFAULT_TAB = 'game-loop';
 
 const SNAPSHOT_KEYS = Object.freeze([
   'analytics',
@@ -32,7 +32,7 @@ const TAB_STATUS_DEFAULT = Object.freeze({
 
 const INVALIDATION_SCOPES = Object.freeze({
   all: DASHBOARD_TABS,
-  monitoring: ['traffic', 'monitoring'],
+  'game-loop': ['traffic', 'game-loop'],
   traffic: ['traffic'],
   'ip-bans': ['ip-bans'],
   status: ['status'],

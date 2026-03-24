@@ -30,7 +30,7 @@ The following live checks passed after deploy:
 - `GET /index.html` returned `200`
 - authenticated `GET /admin/config` returned `200`
 - live dashboard readiness completed in roughly `2.1s - 2.3s` on the deployed edge app
-- the live Monitoring tab rendered its first real feed rows in roughly `2.6s`
+- the live Game Loop tab rendered its first real feed rows in roughly `2.6s`
 - toggling Shadow Mode from the real dashboard UI converged successfully on the deployed edge app
 - toggling Adversary Sim from the real dashboard UI converged successfully on the deployed edge app
 - enabling adversary sim immediately produced a bounded first tick on the live edge app

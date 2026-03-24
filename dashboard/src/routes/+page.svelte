@@ -1,6 +1,6 @@
 <script>
   import { onDestroy, onMount } from 'svelte';
-  import MonitoringTab from '$lib/components/dashboard/MonitoringTab.svelte';
+  import GameLoopTab from '$lib/components/dashboard/GameLoopTab.svelte';
   import {
     buildDashboardLoginPath,
     dashboardIndexPath,
@@ -54,7 +54,7 @@
   export let data;
   const TAB_LOADING_MESSAGES = Object.freeze({
     traffic: 'Loading traffic visibility...',
-    monitoring: 'Loading monitoring data...',
+    'game-loop': 'Loading game loop data...',
     diagnostics: 'Loading diagnostics...',
     'ip-bans': 'Loading ban list...',
     status: 'Loading status signals...',
@@ -90,7 +90,7 @@
     'assets/shuma-gorath-pencil-closed.png'
   );
 
-  const dashboardStore = createDashboardStore({ initialTab: 'monitoring' });
+  const dashboardStore = createDashboardStore({ initialTab: 'game-loop' });
 
   let dashboardState = dashboardStore.getState();
   let runtimeTelemetry = dashboardStore.getRuntimeTelemetry();
@@ -1191,6 +1191,8 @@
             <abbr title="Internet Protocol">IP</abbr>&nbsp;Bans
           {:else if tab === 'red-team'}
             Red Team
+          {:else if tab === 'game-loop'}
+            Game Loop
           {:else if tab === 'rate-limiting'}
             Rate Limiting
           {:else if tab === 'geo'}
@@ -1239,10 +1241,10 @@
     {/if}
   </header>
 
-  <MonitoringTab
+  <GameLoopTab
     managed={true}
-    isActive={activeTabKey === 'monitoring'}
-    tabStatus={tabStatus.monitoring || {}}
+    isActive={activeTabKey === 'game-loop'}
+    tabStatus={tabStatus['game-loop'] || {}}
     operatorSnapshot={snapshots.operatorSnapshot}
     benchmarkResults={snapshots.benchmarkResults}
     oversightHistory={snapshots.oversightHistory}
@@ -1252,8 +1254,8 @@
   <div
     id="dashboard-admin-section"
     class="section admin-section"
-    hidden={activeTabKey === 'monitoring'}
-    aria-hidden={activeTabKey === 'monitoring' ? 'true' : 'false'}
+    hidden={activeTabKey === 'game-loop'}
+    aria-hidden={activeTabKey === 'game-loop' ? 'true' : 'false'}
   >
     <div class="admin-groups">
       {#if TrafficTabComponent}

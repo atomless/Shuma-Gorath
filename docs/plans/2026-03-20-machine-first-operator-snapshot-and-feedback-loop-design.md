@@ -16,7 +16,7 @@ Related context:
 
 ## Objectives
 
-1. Give Shuma one machine-readable operator contract that can later feed both a scheduled frontier-model controller and a thin human Monitoring tab.
+1. Give Shuma one machine-readable operator contract that can later feed both a scheduled frontier-model controller and a thin human Game Loop tab.
 2. Let Shuma optimize toward explicit bot-exclusion, suspicious-cost, and human-friction budgets instead of ad hoc dashboard interpretation.
 3. Keep request-path behavior deterministic and Rust-owned.
 4. Keep Diagnostics as the place for raw subsystem inspection, transport detail, and bounded drill-downs.
@@ -48,7 +48,7 @@ That snapshot is:
 4. windowed,
 5. and structured around operator objectives and budget distance.
 
-The future human Monitoring tab is then a projection over selected `operator_snapshot_v1` sections.
+The future human Game Loop tab is then a projection over selected `operator_snapshot_v1` sections.
 
 ## Two Feedback Loops
 
@@ -296,9 +296,9 @@ The benchmark section should therefore answer:
 
 Later fleet or central-intelligence inputs should not rewrite that benchmark section. They should arrive through a separate advisory enrichment layer, as captured in [`2026-03-20-benchmark-fleet-and-intelligence-enrichment-contract.md`](./2026-03-20-benchmark-fleet-and-intelligence-enrichment-contract.md), so that local snapshot truth and later shared emphasis stay separate.
 
-## Human Monitoring Implication
+## Human Game Loop Implication
 
-The human Monitoring tab should become a thin projection of `operator_snapshot_v1`.
+The human Game Loop tab should become a thin projection of `operator_snapshot_v1`.
 
 That means:
 

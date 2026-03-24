@@ -70,7 +70,7 @@
               </td>
               <td>{formatCompactNumber(row.banOutcomeCount, '0')}</td>
               <td>
-                <a href={row.monitoringHref || '#monitoring'}>Monitoring</a>
+                <a href={row.monitoringHref || '#game-loop'}>Game Loop</a>
                 ·
                 <a href={row.ipBansHref || '#ip-bans'}>IP Bans</a>
               </td>

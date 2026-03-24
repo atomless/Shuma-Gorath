@@ -610,7 +610,7 @@ const shapeAdversaryRunRows = (rows = [], activeBans = []) => {
         defenseDeltaCount,
         defenseRows,
         banOutcomeCount: row.banOutcomeCount,
-        monitoringHref: '#monitoring',
+        monitoringHref: '#game-loop',
         ipBansHref: '#ip-bans'
       };
     });

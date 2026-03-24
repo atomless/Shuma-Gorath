@@ -4,7 +4,7 @@ Status: Active audit
 Related context:
 
 - [`../observability.md`](../observability.md)
-- [`../dashboard-tabs/monitoring.md`](../dashboard-tabs/monitoring.md)
+- [`../dashboard-tabs/game-loop.md`](../dashboard-tabs/game-loop.md)
 - [`../plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
 - [`../../todos/blocked-todo.md`](../../todos/blocked-todo.md)
 - [`../../src/observability/monitoring.rs`](../../src/observability/monitoring.rs)
@@ -12,7 +12,7 @@ Related context:
 - [`../../src/observability/hot_read_documents.rs`](../../src/observability/hot_read_documents.rs)
 - [`../../src/observability/hot_read_projection.rs`](../../src/observability/hot_read_projection.rs)
 - [`../../src/admin/api.rs`](../../src/admin/api.rs)
-- [`../../dashboard/src/lib/components/dashboard/MonitoringTab.svelte`](../../dashboard/src/lib/components/dashboard/MonitoringTab.svelte)
+- [`../../dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
 - [`../../dashboard/src/lib/components/dashboard/monitoring-view-model.js`](../../dashboard/src/lib/components/dashboard/monitoring-view-model.js)
 - [`../../dashboard/src/lib/components/dashboard/StatusTab.svelte`](../../dashboard/src/lib/components/dashboard/StatusTab.svelte)
 
@@ -142,7 +142,7 @@ This is useful, but it mixes very different classes of information:
 3. storage and query governance,
 4. forensic/security hygiene.
 
-That mixing is one reason the Monitoring tab still feels more contributor-diagnostic than operator-decisional.
+That mixing is one reason the Game Loop tab still feels more contributor-diagnostic than operator-decisional.
 
 ## 4. Prometheus-only or Prometheus-first telemetry
 

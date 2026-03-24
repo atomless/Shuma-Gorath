@@ -126,7 +126,7 @@ Scope:
 Primary touchpoints:
 - `src/admin/api.rs`
 - `dashboard/src/lib/runtime/dashboard-runtime-refresh.js`
-- `dashboard/src/lib/components/dashboard/MonitoringTab.svelte`
+- `dashboard/src/lib/components/dashboard/GameLoopTab.svelte`
 - `dashboard/src/lib/components/dashboard/IpBansTab.svelte`
 - `e2e/dashboard.modules.unit.test.js`
 

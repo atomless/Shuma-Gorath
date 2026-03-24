@@ -2,7 +2,7 @@
 
 ## 🐙 Overview
 
-The dashboard is a tabbed SvelteKit admin UI for monitoring and runtime configuration of Shuma-Gorath.
+The dashboard is a tabbed SvelteKit admin UI for traffic visibility, closed-loop accountability, and runtime configuration of Shuma-Gorath.
 
 Canonical tab behavior and controls are documented in [`docs/dashboard-tabs/README.md`](dashboard-tabs/README.md).
 
@@ -16,9 +16,9 @@ Related terminology and architecture docs:
 The dashboard uses URL hash routes:
 
 - `#traffic` - [`dashboard-tabs/traffic.md`](dashboard-tabs/traffic.md)
-- `#monitoring` - [`dashboard-tabs/monitoring.md`](dashboard-tabs/monitoring.md)
 - `#ip-bans` - [`dashboard-tabs/ip-bans.md`](dashboard-tabs/ip-bans.md)
 - `#red-team` - [`dashboard-tabs/red-team.md`](dashboard-tabs/red-team.md)
+- `#game-loop` - [`dashboard-tabs/game-loop.md`](dashboard-tabs/game-loop.md)
 - `#tuning` - [`dashboard-tabs/tuning.md`](dashboard-tabs/tuning.md)
 - `#verification` - [`dashboard-tabs/verification.md`](dashboard-tabs/verification.md)
 - `#traps` - [`dashboard-tabs/traps.md`](dashboard-tabs/traps.md)
@@ -38,17 +38,17 @@ Behavior:
 - Each tab exposes explicit loading, empty, and error state messaging.
 - `Traffic` is now the first visible tab in the canonical tab ordering.
 - `Traffic` now owns the live traffic picture.
-- `Monitoring` now owns the closed-loop accountability story.
+- `Game Loop` now owns the closed-loop accountability story.
 - `Diagnostics` now owns deep subsystem inspection and contributor-focused telemetry detail.
 
 ## 🐙 Refresh Model
 
-- `Monitoring` now projects the first real machine-first accountability layer:
+- `Game Loop` now projects the first real machine-first accountability layer:
   - `operator_snapshot_v1`
   - `benchmark_results_v1`
   - bounded oversight status/history
   - current verdict, multi-loop progress, outcome frontier, controller judgment, and bounded trust/blocker context
-- The remaining Monitoring follow-on is `MON-OVERHAUL-1C`, which adds the fuller category-aware pressure and final trust/actionability surface.
+- The remaining Game Loop follow-on is `MON-OVERHAUL-1C`, which adds the fuller category-aware pressure and final trust/actionability surface.
 - `Traffic` now shares the top-level refresh bar and uses the bounded monitoring refresh path for cost-effective traffic reads.
 - Manual refresh is available on `Traffic`, `Diagnostics`, `IP Bans`, and `Red Team`.
 - Auto-refresh is available on `Traffic`, `IP Bans`, and `Red Team`.

@@ -586,7 +586,7 @@ export function createDashboardRefreshRuntime(options = {}) {
     return applyConfigEnvelope(configEnvelope);
   }
 
-  async function refreshMonitoringTab(reason = 'manual', runtimeOptions = {}, surfaceTab = 'monitoring') {
+  async function refreshMonitoringTab(reason = 'manual', runtimeOptions = {}, surfaceTab = 'game-loop') {
     const dashboardApiClient = getApiClient();
     if (!dashboardApiClient) return;
 
@@ -596,11 +596,11 @@ export function createDashboardRefreshRuntime(options = {}) {
         ? 'Loading traffic visibility...'
         : (surfaceTab === 'diagnostics'
           ? 'Loading diagnostics...'
-          : 'Loading monitoring data...');
+          : 'Loading game loop data...');
     const emptyMessage =
       surfaceTab === 'traffic'
         ? 'No traffic events are visible yet. Traffic will populate as telemetry arrives.'
-        : 'No operational events yet. Monitoring will populate as traffic arrives.';
+        : 'No operational events yet. Game Loop will populate as traffic arrives.';
     if (!isAutoRefresh) {
       showTabLoading(surfaceTab, loadingMessage);
     }
@@ -1080,9 +1080,9 @@ export function createDashboardRefreshRuntime(options = {}) {
     const configRuntimeSnapshot = dashboardState ? dashboardState.getSnapshot('configRuntime') : {};
     const requestBudgets = deriveDashboardRequestBudgets(configRuntimeSnapshot);
     const requestOptions = toRequestOptions(runtimeOptions, {
-      tab: 'monitoring',
+      tab: 'game-loop',
       reason,
-      source: 'monitoring-accountability-refresh'
+      source: 'game-loop-accountability-refresh'
     });
     const accountabilityRequestOptions = {
       ...requestOptions,
@@ -1195,15 +1195,15 @@ export function createDashboardRefreshRuntime(options = {}) {
 
   const TAB_REFRESH_HANDLERS = Object.freeze({
     traffic: refreshTrafficTab,
-    monitoring: async (reason = 'manual', runtimeOptions = {}) => {
+    'game-loop': async (reason = 'manual', runtimeOptions = {}) => {
       if (reason !== 'auto-refresh') {
-        showTabLoading('monitoring', 'Loading closed-loop accountability...');
+        showTabLoading('game-loop', 'Loading closed-loop accountability...');
       }
       await Promise.all([
         refreshSharedConfig(reason, runtimeOptions),
         refreshMonitoringAccountabilityData(reason, runtimeOptions)
       ]);
-      clearTabStateMessage('monitoring');
+      clearTabStateMessage('game-loop');
     },
     diagnostics: async (reason = 'manual', runtimeOptions = {}) => {
       if (reason === 'auto-refresh') {
@@ -1239,7 +1239,7 @@ export function createDashboardRefreshRuntime(options = {}) {
       activeRealtimeTab = '';
     }
     try {
-      const handler = TAB_REFRESH_HANDLERS[activeTab] || TAB_REFRESH_HANDLERS.monitoring;
+      const handler = TAB_REFRESH_HANDLERS[activeTab] || TAB_REFRESH_HANDLERS['game-loop'];
       await handler(reason, runtimeOptions);
       const dashboardState = getStateStore();
       if (dashboardState) {
@@ -1264,7 +1264,7 @@ export function createDashboardRefreshRuntime(options = {}) {
 
   function refreshActiveTab(reason = 'manual') {
     const dashboardState = getStateStore();
-    const activeTab = dashboardState ? dashboardState.getActiveTab() : 'monitoring';
+    const activeTab = dashboardState ? dashboardState.getActiveTab() : 'game-loop';
     return refreshDashboardForTab(activeTab, reason);
   }
 
