@@ -4,6 +4,28 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### Planning refinement: decompose the LLM attacker and defender roles under the independent judge
+
+- [x] Wrote a dedicated research note and companion plan to make it explicit that, in Shuma's later recursive-improvement game, the attacker and defender are the two LLM-backed player roles while the judge remains non-LLM and machine-first.
+- [x] Decomposed the later player-side backlog so:
+  - `SIM-LLM-1` now reads as the LLM attacker-agent track with concrete blocked slices `SIM-LLM-1A`, `SIM-LLM-1B`, and `SIM-LLM-1C`,
+  - `OVR-AGENT-2` now reads as the LLM defender-agent track with concrete blocked slices `OVR-AGENT-2A`, `OVR-AGENT-2B`, and `OVR-AGENT-2C`.
+- [x] Updated the active recursive-improvement planning chain so the main loop-closure plan, roadmap sequencing, and recursive-game plan now state plainly that:
+  - the two player roles are LLM-backed,
+  - the judge is the machine-first benchmark stack plus Monitoring projection,
+  - and `OVR-CODE-1` remains separate from the defender role.
+- [x] Why:
+  - the judge side had become more concrete than the player sides, which made the three-role architecture conceptually right but unevenly actionable.
+  - later autonomous work needs the attacker and defender to be planned as explicit bounded roles rather than as large umbrella placeholders.
+- [x] Evidence:
+  - `docs/research/2026-03-24-llm-player-role-decomposition-review.md`
+  - `docs/plans/2026-03-24-llm-player-role-decomposition-plan.md`
+  - `docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`
+  - `docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`
+  - `todos/blocked-todo.md`
+  - `git diff --check`
+  - verification intentionally scoped as docs-only; tests not run
+
 ### Planning refinement: decompose the recursive-improvement game umbrella into real blocked TODO slices
 
 - [x] Split the previously broad `RSI-GAME-1` blocker into concrete later execution slices:

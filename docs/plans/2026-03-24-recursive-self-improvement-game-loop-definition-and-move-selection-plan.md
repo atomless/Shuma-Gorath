@@ -197,8 +197,8 @@ Put more simply, the later contract should make it explicit that Shuma's recursi
 **Work:**
 
 1. Define the formal roles of:
-   1. attacker agent in the sim harness,
-   2. defender agent over bounded moves,
+   1. LLM-backed attacker agent in the sim harness,
+   2. LLM-backed defender agent over bounded moves,
    3. and the machine-first benchmark stack as the independent judge.
 2. Make `RSI-METH-1`, `OVR-AGENT-2`, and `OVR-CODE-1` consume that triadic role contract rather than float as self-defining later phases.
 3. Make Monitoring remain the human-readable projection of the independent judge rather than one of the players.

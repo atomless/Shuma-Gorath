@@ -234,6 +234,18 @@ Codify protected tuning evidence eligibility and explicitly exclude `synthetic_t
 
 Define the representativeness matrix and bounded coverage receipts across Scrapling runtime traffic and replay-promoted frontier or LLM lineage for the non-human categories Shuma intends to optimize over, using the canonical taxonomy rather than lane-local labels.
 
+### `SIM-LLM-1A..1C`
+
+Keep the later full LLM attacker-agent track explicitly separate from the bounded `SIM-LLM-FIT-1` fulfillment tranche.
+
+When this blocked work is eventually reopened, decompose it as:
+
+1. `SIM-LLM-1A` attacker-agent black-box contract,
+2. `SIM-LLM-1B` attacker-agent episode harness and bounded memory contract,
+3. `SIM-LLM-1C` full first-class attacker runtime actor.
+
+Treat this later track as the LLM-backed player in the sim harness rather than as a generic future actor.
+
 ### `OPS-OBJECTIVES-3`
 
 Extend `operator_objectives_v1` with category-aware non-human intent so the controller can distinguish `allowed`, `tolerated`, `cost_reduced`, `restricted`, and `blocked` posture by category.
@@ -382,9 +394,15 @@ Before reopening the later recursive-improvement phases, codify the missing game
 6. attacker/defender/judge role separation for later recursive-improvement phases,
 7. and an episode archive or stepping-stone memory that later run-to-homeostasis episodes can use.
 
-### `OVR-AGENT-2`
+### `OVR-AGENT-2A..2C`
 
-Reopen the later LLM-backed diagnosis/config harness only after the first shared-host agent loop, the first closed config loop, Monitoring projection, Tuning surface, replay-promotion contract, and central-intelligence architecture all exist.
+Reopen the later LLM-backed defender-agent track only after the first shared-host agent loop, the first closed config loop, Monitoring projection, Tuning surface, replay-promotion contract, and central-intelligence architecture all exist.
+
+When this blocked work is eventually reopened, decompose it as:
+
+1. `OVR-AGENT-2A` sacred input and bounded output contract,
+2. `OVR-AGENT-2B` recommendation-only defender runtime,
+3. `OVR-AGENT-2C` later bounded autonomous defender episode controller.
 
 Later controller planning should also adopt the recursive-improvement methodology captured in [`2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md):
 
@@ -397,8 +415,8 @@ It should also consume the canonical game-contract and move-selection plan captu
 
 When this later phase is designed, treat it as only one player in a larger triad:
 
-1. attacker agent in the sim harness,
-2. defender agent in the diagnosis/config loop,
+1. LLM-backed attacker agent in the sim harness,
+2. LLM-backed defender agent in the diagnosis/config loop,
 3. and the machine-first benchmark stack plus Monitoring projection as the independent judge.
 
 ### `OVR-CODE-1`

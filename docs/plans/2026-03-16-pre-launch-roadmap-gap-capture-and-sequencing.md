@@ -284,7 +284,7 @@ That methodology says:
 2. later controller expansion should then begin from `Human-only / private` as a development reference stance,
 3. later runs should continue as bounded run-to-homeostasis episodes rather than as one-shot recommendations,
 4. later relaxed preset sweeps should come after strict-reference stabilization,
-5. later automation should be modeled as attacker agent, defender agent, and independent judge rather than only two frontier-model roles,
+5. later automation should be modeled as an LLM-backed attacker agent, an LLM-backed defender agent, and an independent judge rather than only two frontier-model roles,
 6. and later code evolution should keep the strict reference stance as a regression anchor.
 
 This does **not** change:
@@ -293,7 +293,7 @@ This does **not** change:
 2. the meaning of operator-facing stance presets in `Tuning`,
 3. or the product-facing role of `Monitoring`.
 
-It changes only the methodology for the later blocked recursive-improvement phases such as `OVR-AGENT-2`, `OVR-CODE-1`, and `RSI-METH-1`.
+It changes only the methodology for the later blocked recursive-improvement phases such as `SIM-LLM-1`, `OVR-AGENT-2`, `OVR-CODE-1`, and `RSI-METH-1`.
 
 ## G. Edge-Instance Ban Sync And Distributed State Correctness
 
