@@ -4,6 +4,24 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### Planning refinement: Identification category distinction should omit non-useful entries
+
+- [x] Updated the Identification planning docs so the first `Category Distinction` surface no longer implies a dense matrix full of `not useful` entries.
+- [x] Made the first-wave contract explicit:
+  - show only meaningful signal families per category,
+  - group them by bounded explanatory roles such as `primary`, `supporting`, or `disambiguating`,
+  - and leave irrelevant combinations unrendered by default.
+- [x] Mirrored that decision into the blocked `TUNE-SURFACE-1B` backlog wording so the implementation sequence stays aligned with the cleaner, lower-noise presentation.
+- [x] Why:
+  - explicit `not useful` entries would add visual noise without helping operators understand how Shuma distinguishes the taxonomy categories.
+  - the important operator-facing truth is which signals matter and how they matter, not a spreadsheet of absent relationships.
+- [x] Evidence:
+  - `docs/research/2026-03-24-identification-tab-remit-and-taxonomy-distinction-review.md`
+  - `docs/plans/2026-03-24-identification-tab-rename-and-taxonomy-distinction-plan.md`
+  - `todos/blocked-todo.md`
+  - `git diff --check`
+  - verification intentionally scoped as docs-only; tests not run
+
 ### Planning: Identification tab remit and taxonomy distinction
 
 - [x] Wrote the research note in [`docs/research/2026-03-24-identification-tab-remit-and-taxonomy-distinction-review.md`](../docs/research/2026-03-24-identification-tab-remit-and-taxonomy-distinction-review.md) to refine the earlier Tuning/Fingerprinting ownership plan into a clearer future `Identification` tab remit.

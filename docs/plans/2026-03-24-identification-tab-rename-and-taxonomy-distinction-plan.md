@@ -23,6 +23,7 @@ Make the future `Fingerprinting` tab truthfully reflect its remit by renaming it
 3. The category-distinction story is part of the tab’s first-class remit, not optional later garnish.
 4. The tab should distinguish between available, active, and influential evidence where the backend truth supports that distinction.
 5. This work should execute inside the later `TUNE-SURFACE-1B` ownership cleanup rather than as a detached rename-only slice.
+6. The first version of `Category Distinction` should omit explicit `not useful` entries and show only meaningful signal families per category.
 
 # Required Behavior
 
@@ -52,8 +53,20 @@ The tab should aim to contain:
 The `Category Distinction` section should:
 
 1. use canonical taxonomy labels and descriptions,
-2. show which signal families are primary, corroborative, negative, or currently not useful for each category,
-3. stay bounded and explanatory rather than pretending the classification system is more deterministic than it really is.
+2. show only meaningful signal families for each category rather than rendering a full noise-heavy matrix of absences,
+3. group those visible signal families with bounded explanatory roles such as `primary`, `supporting`, or `disambiguating`,
+4. leave irrelevant or currently non-helpful combinations unrendered in the first version,
+5. stay bounded and explanatory rather than pretending the classification system is more deterministic than it really is.
+
+## First-wave presentation preference
+
+The first implementation should prefer a sparse per-category presentation over a dense full matrix.
+
+That means:
+
+1. each category row should list only the evidence families that materially help distinguish it,
+2. the UI should not render repeated `not useful` or empty cells by default,
+3. and later broader matrix views should be added only if operators genuinely need cross-category comparison at that density.
 
 ## Editing boundary
 
@@ -86,5 +99,5 @@ This plan is satisfied when:
 
 1. the tab is renamed to `Identification`,
 2. its remit clearly explains how Shuma identifies non-human traffic,
-3. it shows how the taxonomy categories are made distinct through the available signals,
+3. it shows how the taxonomy categories are made distinct through the available meaningful signals without cluttering the surface with explicit non-useful entries,
 4. and the rename does not blur the editing boundary that keeps tuning controls in `Tuning`.

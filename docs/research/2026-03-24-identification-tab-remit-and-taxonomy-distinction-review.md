@@ -58,19 +58,20 @@ For the tab to be genuinely useful, it should also show how those signals help s
 
 Without that, the operator can see ingredients but not understand how the taxonomy is actually being differentiated.
 
-## 4. The right category-distinction surface is a signal-to-category matrix, not freeform prose
+## 4. The right category-distinction surface is bounded role-based explanation, not a noisy full matrix
 
-The cleanest explanatory surface is a bounded matrix where:
+The important thing is not to render every possible category-to-signal combination.
+
+The cleanest first explanatory surface is a bounded role-based view where:
 
 1. rows are canonical non-human taxonomy categories,
-2. columns are signal or evidence families,
-3. cells explain whether a family is:
+2. each row shows only the signal or evidence families that meaningfully help distinguish that category,
+3. those visible families are labeled by explanatory role, for example:
    1. primary,
-   2. corroborative,
-   3. negative or disambiguating,
-   4. or currently not useful.
+   2. supporting,
+   3. disambiguating.
 
-This is much more informative than a single long signal list because it shows how Shuma’s category boundaries are made distinct.
+This is more informative than a single long signal list because it shows how Shuma’s category boundaries are made distinct, without cluttering the tab with explicit `not useful` combinations.
 
 ## 5. The tab should distinguish between available, active, and influential evidence
 
@@ -83,6 +84,18 @@ The tab should instead distinguish:
 3. signals that are actually influential in distinguishing categories.
 
 That will keep the surface honest and prevent it from becoming a decorative inventory rather than an explanatory tool.
+
+## 6. Explicitly rendering `not useful` entries would add more noise than value in the first version
+
+There is an internal modeling value in recognizing that some signal families are irrelevant for some categories.
+
+But the operator-facing surface does not need to render that absence explicitly in the first version.
+
+Leaving non-helpful combinations blank or unrendered is better because it:
+
+1. keeps attention on the evidence that actually matters,
+2. reduces visual clutter,
+3. and avoids making the category-distinction surface feel like a sparse spreadsheet instead of an explanation.
 
 # Recommended Direction
 
