@@ -104,7 +104,11 @@ Current stance:
 ### MON-OVERHAUL-1C: Monitoring category breakdown and trust/actionability surface
 - Add the category-aware non-human taxonomy breakdown plus evidence quality, tuning eligibility, protected-evidence readiness, verified-identity guardrails, and other blockers so Monitoring shows where the remaining problem sits and how trustworthy the loop's conclusion is.
 - Keep any category-level trend bounded and accountability-oriented rather than turning Monitoring into a raw long-range history explorer.
+- Keep the current high-level overall top line, but stop relying on wording-only budget state as the primary signal.
+- Add explicit target-vs-current visualization for the true numeric objective budgets (`likely_human_friction`, suspicious forwarded requests/bytes/latency).
+- Express taxonomy categories as `Category target achievement` or equivalent target-vs-achieved rows derived from the category posture benchmarks, rather than pretending those rows are separately configured budgets.
 - Execute this after `TRAFFIC-TAB-1` and `DIAG-CLEANUP-1` so category/trust projection lands against the cleaned final Monitoring-vs-Traffic-vs-Diagnostics ownership boundary rather than the transitional mixed surface.
+- Reference context: [`../docs/research/2026-03-24-game-loop-budget-visualization-and-category-target-achievement-review.md`](../docs/research/2026-03-24-game-loop-budget-visualization-and-category-target-achievement-review.md), [`../docs/plans/2026-03-24-game-loop-budget-visualization-and-category-target-achievement-plan.md`](../docs/plans/2026-03-24-game-loop-budget-visualization-and-category-target-achievement-plan.md)
 
 ### CTRL-SURFACE-1: Canonical controller mutability policy and hard-never surface
 - Define one canonical mutability policy across admin-writable config and `operator_objectives_v1`, classifying every path as `never`, `manual_only`, or `controller_tunable`.

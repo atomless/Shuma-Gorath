@@ -21,6 +21,7 @@ Redefine the operator-facing tab ownership so:
 7. Monitoring should show bounded progress over recent completed loops against benchmark families, not only the latest loop outcome.
 8. Monitoring is the human-readable projection of the loop's independent judge or evaluator, not one of the players in the later attacker-defender game.
 9. Reuse-first still applies, but traffic-oriented aggregate chart and view-model surfaces should move to `Traffic` unless they directly serve loop accountability.
+10. Monitoring should distinguish real numeric objective budgets from per-category posture outcomes; both may use target-vs-current presentation, but only the former should be framed as budget usage.
 
 ## Execution Slices
 
@@ -104,6 +105,8 @@ Scope:
 4. keep raw subsystem detail in Diagnostics rather than leaking it back into Monitoring.
 5. if later recursive-improvement reference-stance runs are ever shown here, label them explicitly as separate evaluation context rather than the live product stance.
 6. where the machine-first contract already supports it, category surfaces may show bounded recent trend, but Monitoring must remain a bounded accountability view rather than a full history browser.
+7. keep the current high-level overall top line, but make real numeric budgets more explicit with target-vs-current visual budget usage rather than relying on wording like `inside_budget` as the primary signal.
+8. express taxonomy categories as `Category target achievement` or equivalent target-vs-achieved language, not as fake per-category configured budgets.
 
 Verification:
 

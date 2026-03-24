@@ -348,7 +348,7 @@ Monitoring is now explicitly scoped as the human-readable accountability surface
 
 It should also show bounded progress over recent completed loops against benchmark families and controller action history, not only the latest loop outcome.
 
-The Monitoring follow-on sequence is now explicitly three-way: after `MON-OVERHAUL-1B` makes loop accountability real, `TRAFFIC-TAB-1` should move the current traffic-facing Diagnostics surface into a dedicated `Traffic` tab, `DIAG-CLEANUP-1` should then narrow Diagnostics to furniture-operational proof, and only then should `MON-OVERHAUL-1C` land against the cleaned ownership boundary.
+The Monitoring follow-on sequence is now explicitly three-way: after `MON-OVERHAUL-1B` makes loop accountability real, `TRAFFIC-TAB-1` should move the current traffic-facing Diagnostics surface into a dedicated `Traffic` tab, `DIAG-CLEANUP-1` should then narrow Diagnostics to furniture-operational proof, and only then should `MON-OVERHAUL-1C` land against the cleaned ownership boundary. That later Game Loop slice should keep the existing overall top line, make the true numeric objective budgets readable as target-vs-current budget usage, and express taxonomy categories as target-achievement rows rather than inventing fake per-category budgets.
 
 ### `CTRL-SURFACE-1..3`
 

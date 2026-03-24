@@ -4,6 +4,22 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### Planning: refine Game Loop budget usage vs category target-achievement contract
+
+- [x] Added research and implementation-plan notes that make the Game Loop distinction explicit:
+  - [`docs/research/2026-03-24-game-loop-budget-visualization-and-category-target-achievement-review.md`](../docs/research/2026-03-24-game-loop-budget-visualization-and-category-target-achievement-review.md)
+  - [`docs/plans/2026-03-24-game-loop-budget-visualization-and-category-target-achievement-plan.md`](../docs/plans/2026-03-24-game-loop-budget-visualization-and-category-target-achievement-plan.md)
+- [x] Tightened the active monitoring plan and backlog so `MON-OVERHAUL-1C` now explicitly:
+  - keeps the current high-level overall top line,
+  - shows true numeric budgets as target-vs-current budget usage,
+  - and shows taxonomy categories as target-achievement rows rather than fake configured budgets.
+- [x] Synced the new contract into the current monitoring/mainline planning chain and the research/plan indexes.
+- [x] Why:
+  - the Game Loop tab needed a sharper distinction between real numeric budgets and the already target-based but differently-shaped category posture metrics
+  - without that, the next UI tranche would be too likely to either keep weak wording-only budget state or invent a misleading per-category budget model
+- [x] Evidence:
+  - docs-only change; verification intentionally limited to `git diff --check`
+
 ### UI: restore diagnostics breakdown richness and finish the shared section cleanup
 
 - [x] Restored `Defense Breakdown` as a diagnostics-first surface in:
