@@ -4,6 +4,29 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### Planning refinement: make Monitoring reuse transitional Diagnostics surfaces before cleanup
+
+- [x] Wrote a dedicated sequencing review and companion plan to capture the new Monitoring-vs-Diagnostics decision: `MON-OVERHAUL-1B` should land before ruthless Diagnostics cleanup so Monitoring can reuse or extract the current shared aggregate chart and view-model surface.
+- [x] Added a new active backlog slice, `DIAG-CLEANUP-1`, so the later Diagnostics cleanup is explicit rather than implied.
+- [x] Updated the Monitoring overhaul plan, main feedback-loop plan, dashboard operator-surfacing sequence, roadmap sequencing, and active TODO queue so the order is now:
+  - `MON-OVERHAUL-1B`
+  - `TEST-HYGIENE-6`
+  - `DIAG-CLEANUP-1`
+  - `MON-OVERHAUL-1C`
+- [x] Why:
+  - current Diagnostics still owns reusable aggregate components and helpers such as `OverviewStats`, `PrimaryCharts`, `DefenseTrendBlocks`, and the shared monitoring view-model surface.
+  - cleaning Diagnostics too aggressively first would either delete reusable UI/code prematurely or preserve it defensively without really simplifying ownership.
+- [x] Evidence:
+  - `docs/research/2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-review.md`
+  - `docs/plans/2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-plan.md`
+  - `docs/plans/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md`
+  - `docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`
+  - `docs/plans/2026-03-23-dashboard-operator-surfacing-sequencing-plan.md`
+  - `docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`
+  - `todos/todo.md`
+  - `git diff --check`
+  - verification intentionally scoped as docs-only; tests not run
+
 ### Ad hoc defaults: enable verified identity and make Scrapling the default sim lane
 
 - [x] Flipped the seeded verified-identity default on in [`config/defaults.env`](../config/defaults.env) and updated [`docs/configuration.md`](../docs/configuration.md) so the live config contract now matches the intended posture.

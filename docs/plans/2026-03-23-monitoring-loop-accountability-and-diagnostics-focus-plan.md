@@ -15,6 +15,7 @@ Redefine `MON-OVERHAUL-1` so Monitoring becomes the human-readable accountabilit
 5. Monitoring should describe accountability against the current operator-selected product stance; the later development reference stance belongs to later recursive-improvement methodology, not to the first Monitoring contract.
 6. Monitoring should show bounded progress over recent completed loops against benchmark families, not only the latest loop outcome.
 7. Monitoring is the human-readable projection of the loop's independent judge or evaluator, not one of the players in the later attacker-defender game.
+8. Diagnostics cleanup should be reuse-first: if the current Diagnostics surface still hosts shared aggregate chart or view-model pieces that Monitoring may need, Monitoring should adopt or extract them before Diagnostics removes them more aggressively.
 
 ## Execution Slices
 
@@ -62,7 +63,8 @@ Scope:
    - latest apply stage,
    - last rollback or retain result,
    - refusal or blocker reasons,
-7. keep live, shadow, and adversary-sim semantics clearly separated.
+7. keep live, shadow, and adversary-sim semantics clearly separated,
+8. reuse or extract the transitional shared aggregate chart and view-model surface from Diagnostics where that reuse is truthful, rather than deleting it first and rebuilding it twice.
 
 Verification:
 
@@ -90,16 +92,40 @@ Verification:
 1. focused dashboard unit and rendered proof for category tables and trust blockers,
 2. `git diff --check`.
 
+### DIAG-CLEANUP-1: Diagnostics Ownership Cleanup After Monitoring Reuse
+
+Objective:
+
+Remove the remaining aggregate Monitoring leftovers from Diagnostics only after Monitoring has had a clean chance to reuse or extract the shared chart and view-model surface it genuinely needs.
+
+Scope:
+
+1. remove or demote transitional aggregate sections that no longer belong in Diagnostics once Monitoring owns their accountability projection,
+2. retain the clearly diagnostics-first sections:
+   - recent external traffic,
+   - defense-specific diagnostics,
+   - telemetry diagnostics,
+3. clean up redundant helper or view-model code that only existed to support the transitional mixed-ownership shape,
+4. keep the cleanup narrow and ownership-focused rather than turning it into a second redesign.
+
+Verification:
+
+1. focused dashboard unit and rendered proof for retained Diagnostics section ownership,
+2. focused rendered proof that the removed aggregate sections now appear only in Monitoring if still operator-visible,
+3. `git diff --check`.
+
 ## Sequencing
 
 1. execute `MON-OVERHAUL-1A` first,
-2. then `TEST-HYGIENE-6` and the remaining dashboard archaeology cleanup against the settled Monitoring or Diagnostics contracts,
-3. then `MON-OVERHAUL-1B`,
-4. then `MON-OVERHAUL-1C`,
-5. then later `TUNE-SURFACE-1`.
+2. then `MON-OVERHAUL-1B` so Monitoring can reuse or extract the still-shared aggregate chart and view-model surface before Diagnostics drops it,
+3. then `TEST-HYGIENE-6` against the more settled rendered Monitoring contract,
+4. then `DIAG-CLEANUP-1`,
+5. then `MON-OVERHAUL-1C`,
+6. then later `TUNE-SURFACE-1`.
 
 ## Notes
 
 1. Do not let Monitoring become a pure self-report from the controller. It must show observed outcome truth and controller judgment as distinct surfaces.
 2. Do not pull raw event feeds, Prometheus helper internals, or deep subsystem telemetry into the top Monitoring flow.
 3. If a surface is primarily about "what happened inside one subsystem?", it belongs in Diagnostics unless it is directly part of the loop-accountability narrative.
+4. Do not delete shared aggregate diagnostics helpers just to make Diagnostics look cleaner before Monitoring has had one clean chance to adopt them.

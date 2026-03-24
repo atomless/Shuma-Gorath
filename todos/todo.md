@@ -95,12 +95,20 @@ Current stance:
 ### MON-OVERHAUL-1B: Monitoring projection of loop verdict, outcome frontier, and controller judgment
 - Project `operator_snapshot_v1`, `benchmark_results_v1`, and bounded oversight status/history into Monitoring so operators can see current vs prior-window budget status, suspicious-origin cost vs likely-human friction, beneficial or verified posture, and what the controller last recommended, applied, retained, or rolled back.
 - Show bounded progress over recent completed loops against benchmark families plus recent controller action history, not just the latest loop result.
+- Reuse or extract any still-shared aggregate chart and view-model surface from the transitional Diagnostics implementation rather than deleting it first and rebuilding it twice.
 - Keep live, shadow, and adversary-sim semantics explicit and separate.
 - Reference context: [`../docs/plans/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md`](../docs/plans/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md)
+
+### DIAG-CLEANUP-1: Diagnostics ownership cleanup after Monitoring reuse
+- Once `MON-OVERHAUL-1B` has claimed any reusable aggregate chart and view-model surface, remove the remaining aggregate Monitoring leftovers from Diagnostics so it becomes more clearly diagnostics-first.
+- Keep `Recent External Traffic`, `Defense-Specific Diagnostics`, and `Telemetry Diagnostics` as the core Diagnostics surface, and remove or demote transitional aggregate sections that no longer belong there.
+- Clean up any now-redundant helper or view-model code that existed only to support the transitional mixed-ownership tab shape.
+- Reference context: [`../docs/plans/2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-plan.md`](../docs/plans/2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-plan.md)
 
 ### MON-OVERHAUL-1C: Monitoring category breakdown and trust/actionability surface
 - Add the category-aware non-human taxonomy breakdown plus evidence quality, tuning eligibility, protected-evidence readiness, verified-identity guardrails, and other blockers so Monitoring shows where the remaining problem sits and how trustworthy the loop's conclusion is.
 - Keep any category-level trend bounded and accountability-oriented rather than turning Monitoring into a raw long-range history explorer.
+- Execute this after `DIAG-CLEANUP-1` so category/trust projection lands against the cleaned final Monitoring-vs-Diagnostics ownership boundary rather than the transitional mixed surface.
 - Reference context: [`../docs/plans/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md`](../docs/plans/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md)
 
 ### CTRL-SURFACE-1: Canonical controller mutability policy and hard-never surface

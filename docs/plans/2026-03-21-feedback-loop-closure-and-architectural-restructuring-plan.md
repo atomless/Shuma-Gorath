@@ -348,6 +348,8 @@ Monitoring is now explicitly scoped as the human-readable accountability surface
 
 It should also show bounded progress over recent completed loops against benchmark families and controller action history, not only the latest loop outcome.
 
+The Monitoring follow-on sequence is now explicitly reuse-first: `MON-OVERHAUL-1B` should adopt or extract any still-shared aggregate chart and view-model surface from the current transitional Diagnostics implementation before `DIAG-CLEANUP-1` removes the remaining aggregate Monitoring leftovers from Diagnostics more aggressively.
+
 ### `CTRL-SURFACE-1..3`
 
 Before the later operator-control and broader recursive-improvement phases are reopened, codify the controller mutability policy explicitly:

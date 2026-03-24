@@ -132,6 +132,7 @@ Keep the Monitoring overhaul responsible for projecting the backend machine-firs
 2. `GET /admin/benchmark-results`
 3. `GET /admin/oversight/history`
 4. `GET /admin/oversight/agent/status`
+5. any reused or extracted shared aggregate chart/view-model surface currently living in the transitional Diagnostics implementation
 
 ### Required operator stories
 
@@ -143,6 +144,10 @@ Keep the Monitoring overhaul responsible for projecting the backend machine-firs
 6. whether tuning is eligible,
 7. and whether verified or tolerated non-human traffic is being harmed.
 8. and all of that should be expressed against the current operator-selected product stance rather than against the later development reference stance.
+
+### Sequencing note
+
+`MON-OVERHAUL-1B` should land before a ruthless Diagnostics cleanup so Monitoring can first reuse or extract the current shared aggregate chart and view-model surface. A focused `DIAG-CLEANUP-1` tranche should then remove the remaining aggregate leftovers from Diagnostics once Monitoring owns the pieces it still needs.
 
 ## `TUNE-SURFACE-1`: Operator Objectives And Category Posture Editor
 
