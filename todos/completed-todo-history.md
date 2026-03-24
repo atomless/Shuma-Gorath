@@ -2,6 +2,32 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-03-24)
+
+### Planning: reference stance and run-to-homeostasis for later recursive improvement
+
+- [x] Wrote the research note in [`docs/research/2026-03-24-reference-stance-and-run-to-homeostasis-review.md`](../docs/research/2026-03-24-reference-stance-and-run-to-homeostasis-review.md) to distinguish product stance from development reference stance and to capture `Human-only / private` as the cleanest first reference game for later recursive-improvement work.
+- [x] Wrote the execution-ready planning note in [`docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](../docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md), defining run-to-homeostasis episodes, a rolling 10-cycle homeostasis detector, later relaxed preset sweeps, and the strict reference stance as a regression anchor for later code evolution.
+- [x] Synced the methodology into [`docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](../docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md) and [`todos/blocked-todo.md`](../todos/blocked-todo.md), including a dedicated later blocked item `RSI-METH-1`.
+- [x] Why:
+  - the recursive-improvement loop needs a cleaner first game than the full combinatorial space of product stances.
+  - `Human-only / private` is the narrowest useful development reference stance because every non-human category is adversarial while likely-human friction still remains a hard constraint.
+  - the right adaptation of Karpathy's "never stop" insight for Shuma is not literal infinity, but bounded run-to-homeostasis episodes that continue while the target is unmet and recent improvement remains above the noise floor.
+  - later permissive stance work should be deliberate sweeps from this strict reference stance, and later code evolution should keep the strict stance as a standing regression anchor.
+- [x] Evidence:
+  - `docs/research/2026-03-24-reference-stance-and-run-to-homeostasis-review.md`
+  - `docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`
+  - `docs/research/README.md`
+  - `docs/plans/README.md`
+  - `docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`
+  - `todos/blocked-todo.md`
+  - external references:
+    - `https://pubmed.ncbi.nlm.nih.gov/30523106/`
+    - `https://openai.com/index/competitive-self-play/`
+    - `https://www.jmlr.org/papers/v21/20-212.html`
+  - `git diff --check`
+  - verification intentionally scoped as docs-only; tests not run
+
 ## Additional completions (2026-03-23)
 
 ### Planning: Tuning tab taxonomy posture matrix and stance archetypes

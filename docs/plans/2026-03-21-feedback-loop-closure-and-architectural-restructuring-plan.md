@@ -354,9 +354,18 @@ These later items remain intentionally non-execution-ready until the three Phase
 
 Reopen the later LLM-backed diagnosis/config harness only after the first shared-host agent loop, the first closed config loop, Monitoring projection, Tuning surface, replay-promotion contract, and central-intelligence architecture all exist.
 
+Later controller planning should also adopt the recursive-improvement methodology captured in [`2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md):
+
+1. use `Human-only / private` as the first development reference stance,
+2. run bounded optimization episodes until target-not-met and progress-not-flat are both true,
+3. define homeostasis over recent completed watch-window cycles,
+4. and only later broaden into preset sweeps over relaxed operator stances.
+
 ### `OVR-CODE-1`
 
 Keep the later benchmark-driven LLM code-evolution or PR-generation path behind the bounded config loop, the later diagnosis harness, and benchmark-comparison proof.
+
+When this phase reopens, code-evolution proposals should treat the strict reference stance as a mandatory regression anchor even when optimizing more permissive target stances.
 
 # Scheduling Rules
 
