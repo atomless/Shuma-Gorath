@@ -4,6 +4,37 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### Planning and contract: freeze the first Scrapling-owned defense-surface matrix
+
+- [x] Added the new owned-surface review and implementation plan:
+  - [`docs/research/2026-03-24-scrapling-owned-defense-surface-matrix-and-success-contract-review.md`](../docs/research/2026-03-24-scrapling-owned-defense-surface-matrix-and-success-contract-review.md)
+  - [`docs/plans/2026-03-24-scrapling-owned-defense-surface-matrix-and-success-contract-plan.md`](../docs/plans/2026-03-24-scrapling-owned-defense-surface-matrix-and-success-contract-plan.md)
+- [x] Froze the first request-native Scrapling-owned surface set and success semantics in the machine-readable coverage contract at [`scripts/tests/adversarial/coverage_contract.v2.json`](../scripts/tests/adversarial/coverage_contract.v2.json):
+  - `honeypot`
+  - `rate_limit`
+  - `geo_ip_policy`
+  - `challenge_routing`
+  - `not_a_bot`
+  - `challenge_puzzle`
+  - `proof_of_work`
+- [x] Added validator and focused unit proof in:
+  - [`scripts/tests/check_adversarial_coverage_contract.py`](../scripts/tests/check_adversarial_coverage_contract.py)
+  - [`scripts/tests/test_adversarial_coverage_contract.py`](../scripts/tests/test_adversarial_coverage_contract.py)
+  so drift in the owned-surface matrix now fails fast through the existing coverage-contract Make target.
+- [x] Synced the new contract into:
+  - [`docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`](../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md)
+  - [`docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](../docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md)
+  - [`docs/plans/2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md`](../docs/plans/2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`docs/plans/README.md`](../docs/plans/README.md)
+  - [`todos/todo.md`](../todos/todo.md)
+- [x] Why:
+  - the mainline needed one explicit answer to “which defenses does request-native Scrapling actually own?”
+  - and each owned surface needed a truthful first success contract before later runtime changes could be judged as faithful or incomplete
+- [x] Evidence:
+  - `make test-adversarial-coverage-contract`
+  - `git diff --check`
+
 ### Planning: tighten the later LLM attacker to true outside-attacker public knowledge
 
 - [x] Refined the later LLM attacker contract in:

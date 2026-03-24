@@ -151,6 +151,53 @@
       }
     }
   },
+  "scrapling_owned_defense_surfaces": {
+    "schema_version": "sim-scrapling-owned-defense-surfaces.v1",
+    "surfaces": {
+      "honeypot": {
+        "runtime_requirement": "request_native",
+        "interaction_requirement": "must_touch",
+        "success_contract": "must_fail_or_escalate",
+        "notes": "Request-native Scrapling crawler and scraper personas should be expected to encounter hostile lure paths and trip them rather than cleanly bypass them in this first tranche."
+      },
+      "rate_limit": {
+        "runtime_requirement": "request_native",
+        "interaction_requirement": "must_touch",
+        "success_contract": "must_touch",
+        "notes": "Request-native Scrapling personas must be able to generate the pressure that reaches rate enforcement, but passing the limiter is not required by this first owned-surface contract."
+      },
+      "geo_ip_policy": {
+        "runtime_requirement": "request_native",
+        "interaction_requirement": "must_touch",
+        "success_contract": "must_touch",
+        "notes": "Request-native Scrapling must be able to hit geo and IP policy routing decisions so Shuma can observe challenge or block behavior against hostile request-native traffic."
+      },
+      "challenge_routing": {
+        "runtime_requirement": "request_native",
+        "interaction_requirement": "must_touch",
+        "success_contract": "must_touch",
+        "notes": "Scrapling-owned request-native traffic must be able to trigger challenge-family routing decisions before later browser or stealth adoption is considered."
+      },
+      "not_a_bot": {
+        "runtime_requirement": "request_native",
+        "interaction_requirement": "must_touch",
+        "success_contract": "must_fail_or_escalate",
+        "notes": "The first attacker-faithful request-native contract requires explicit hostile fail or escalate interaction with not-a-bot flows, not a claim that Scrapling can already solve them."
+      },
+      "challenge_puzzle": {
+        "runtime_requirement": "request_native",
+        "interaction_requirement": "must_touch",
+        "success_contract": "must_fail_or_escalate",
+        "notes": "Puzzle interaction is owned at the request-native hostile-failure level first. Clean puzzle solving should remain a later black-box proof obligation only if an outside attacker could plausibly do it with public host knowledge."
+      },
+      "proof_of_work": {
+        "runtime_requirement": "request_native",
+        "interaction_requirement": "must_touch",
+        "success_contract": "must_fail_or_escalate",
+        "notes": "PoW coverage is owned first as verify-abuse and hostile-failure interaction. Passing PoW should only be required later if Shuma proves that a black-box attacker-faithful Scrapling path can do so."
+      }
+    }
+  },
   "plan_contract_rows": [
     "Honeypot",
     "Challenge failures",

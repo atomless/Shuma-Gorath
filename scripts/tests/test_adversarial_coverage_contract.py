@@ -98,6 +98,44 @@ class AdversarialCoverageContractUnitTests(unittest.TestCase):
             ["sim_t1_not_a_bot_pass"],
         )
 
+    def test_coverage_contract_freezes_scrapling_owned_defense_surface_matrix(self):
+        contract = json.loads(
+            Path("scripts/tests/adversarial/coverage_contract.v2.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        section = contract["scrapling_owned_defense_surfaces"]
+        surfaces = section["surfaces"]
+
+        self.assertEqual(section["schema_version"], "sim-scrapling-owned-defense-surfaces.v1")
+        self.assertEqual(
+            sorted(surfaces.keys()),
+            sorted(
+                [
+                    "honeypot",
+                    "rate_limit",
+                    "geo_ip_policy",
+                    "challenge_routing",
+                    "not_a_bot",
+                    "challenge_puzzle",
+                    "proof_of_work",
+                ]
+            ),
+        )
+        self.assertEqual(surfaces["honeypot"]["runtime_requirement"], "request_native")
+        self.assertEqual(surfaces["honeypot"]["success_contract"], "must_fail_or_escalate")
+        self.assertEqual(surfaces["rate_limit"]["success_contract"], "must_touch")
+        self.assertEqual(surfaces["challenge_routing"]["success_contract"], "must_touch")
+        self.assertEqual(surfaces["not_a_bot"]["success_contract"], "must_fail_or_escalate")
+        self.assertEqual(
+            surfaces["challenge_puzzle"]["success_contract"],
+            "must_fail_or_escalate",
+        )
+        self.assertEqual(
+            surfaces["proof_of_work"]["success_contract"],
+            "must_fail_or_escalate",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

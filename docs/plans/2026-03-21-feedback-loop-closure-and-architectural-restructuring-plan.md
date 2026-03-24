@@ -363,6 +363,8 @@ The Monitoring follow-on sequence is now explicitly three-way: after `MON-OVERHA
 
 That operator-surface follow-on is no longer the immediate mainline. The active execution order now moves first through attacker-faithful Scrapling (`SIM-SCR-CHALLENGE-2A..2D`), then the legal move ring (`CTRL-SURFACE-1..3`), then the first judge-side game-contract slices (`RSI-GAME-1A`, `RSI-GAME-1B`, `RSI-SCORE-1`, `RSI-GAME-1C`), and only then the first explicit self-improving loop before returning to deferred dashboard follow-ons.
 
+The first concrete attacker-faithfulness contract for that Scrapling track is now the owned defense-surface matrix: request-native Scrapling must explicitly own and attack the frozen surface set, and each owned surface must say whether faithful success means touching it, failing or escalating against it, or later proving that black-box hostile traffic can actually pass it.
+
 ### `CTRL-SURFACE-1..3`
 
 Before the later operator-control and broader recursive-improvement phases are reopened, codify the controller mutability policy explicitly:

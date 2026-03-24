@@ -32,6 +32,36 @@ EXPECTED_NON_HUMAN_CATEGORIES = {
     "verified_beneficial_bot",
     "unknown_non_human",
 }
+EXPECTED_SCRAPLING_OWNED_DEFENSE_SURFACES = {
+    "honeypot": {
+        "runtime_requirement": "request_native",
+        "success_contract": "must_fail_or_escalate",
+    },
+    "rate_limit": {
+        "runtime_requirement": "request_native",
+        "success_contract": "must_touch",
+    },
+    "geo_ip_policy": {
+        "runtime_requirement": "request_native",
+        "success_contract": "must_touch",
+    },
+    "challenge_routing": {
+        "runtime_requirement": "request_native",
+        "success_contract": "must_touch",
+    },
+    "not_a_bot": {
+        "runtime_requirement": "request_native",
+        "success_contract": "must_fail_or_escalate",
+    },
+    "challenge_puzzle": {
+        "runtime_requirement": "request_native",
+        "success_contract": "must_fail_or_escalate",
+    },
+    "proof_of_work": {
+        "runtime_requirement": "request_native",
+        "success_contract": "must_fail_or_escalate",
+    },
+}
 MANIFEST_PATHS = [
     Path("scripts/tests/adversarial/scenario_manifest.v1.json"),
     Path("scripts/tests/adversarial/scenario_manifest.v2.json"),
@@ -334,6 +364,70 @@ def validate_coverage_contract() -> List[str]:
         errors.append(
             "coverage contract http_agent must map to http_agent in this tranche"
         )
+
+    owned_surfaces = contract.get("scrapling_owned_defense_surfaces")
+    if not isinstance(owned_surfaces, dict):
+        errors.append("coverage contract scrapling_owned_defense_surfaces must be an object")
+        owned_surfaces = {}
+    if (
+        str(owned_surfaces.get("schema_version") or "").strip()
+        != "sim-scrapling-owned-defense-surfaces.v1"
+    ):
+        errors.append(
+            "coverage contract scrapling_owned_defense_surfaces.schema_version must be "
+            "sim-scrapling-owned-defense-surfaces.v1"
+        )
+    owned_surface_rows = dict(owned_surfaces.get("surfaces") or {})
+    compare_sets(
+        "coverage contract scrapling_owned_defense_surfaces surfaces",
+        set(EXPECTED_SCRAPLING_OWNED_DEFENSE_SURFACES.keys()),
+        set(owned_surface_rows.keys()),
+        errors,
+    )
+    for surface_id, expected in EXPECTED_SCRAPLING_OWNED_DEFENSE_SURFACES.items():
+        row = dict(owned_surface_rows.get(surface_id) or {})
+        runtime_requirement = str(row.get("runtime_requirement") or "").strip()
+        if runtime_requirement not in {"request_native", "browser_or_stealth", "assigned_elsewhere"}:
+            errors.append(
+                "coverage contract scrapling_owned_defense_surfaces.surfaces."
+                f"{surface_id}.runtime_requirement must be request_native, "
+                "browser_or_stealth, or assigned_elsewhere"
+            )
+        interaction_requirement = str(row.get("interaction_requirement") or "").strip()
+        if interaction_requirement not in {"must_touch", "must_avoid"}:
+            errors.append(
+                "coverage contract scrapling_owned_defense_surfaces.surfaces."
+                f"{surface_id}.interaction_requirement must be must_touch or must_avoid"
+            )
+        success_contract = str(row.get("success_contract") or "").strip()
+        if success_contract not in {
+            "must_touch",
+            "must_fail_or_escalate",
+            "must_pass_when_publicly_solved",
+        }:
+            errors.append(
+                "coverage contract scrapling_owned_defense_surfaces.surfaces."
+                f"{surface_id}.success_contract must be must_touch, "
+                "must_fail_or_escalate, or must_pass_when_publicly_solved"
+            )
+        if runtime_requirement != expected["runtime_requirement"]:
+            errors.append(
+                "coverage contract scrapling_owned_defense_surfaces.surfaces."
+                f"{surface_id}.runtime_requirement expected={expected['runtime_requirement']} "
+                f"got={runtime_requirement}"
+            )
+        if success_contract != expected["success_contract"]:
+            errors.append(
+                "coverage contract scrapling_owned_defense_surfaces.surfaces."
+                f"{surface_id}.success_contract expected={expected['success_contract']} "
+                f"got={success_contract}"
+            )
+        notes = str(row.get("notes") or "").strip()
+        if not notes:
+            errors.append(
+                "coverage contract scrapling_owned_defense_surfaces.surfaces."
+                f"{surface_id}.notes must be non-empty"
+            )
 
     verification_matrix = load_json_object(VERIFICATION_MATRIX_PATH)
     matrix_rows = {

@@ -174,6 +174,7 @@ Attacker-faithfulness principle:
 1. adversary lanes must behave the way real attackers would behave for the surfaces they claim to represent,
 2. not as neutered half-sims that merely prove a tool can make requests,
 3. while still remaining inside Shuma's scope, safety, and evidentiary boundaries.
+4. the first operational expression of that rule for Scrapling is a frozen owned defense-surface matrix that says which request-native surfaces Scrapling must touch, fail, or later prove pass-capable.
 
 Upstream capability watch rule:
 

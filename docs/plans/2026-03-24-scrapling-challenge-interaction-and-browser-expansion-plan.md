@@ -73,10 +73,12 @@ When a meaningful upstream delta appears:
    - request-native,
    - browser or stealth,
    - or intentionally out of Scrapling scope.
+4. The first execution-ready follow-on should freeze the request-native owned-surface subset as `SIM-SCR-CHALLENGE-2A` before any wider runtime behavior is changed.
 
 **Acceptance criteria:**
 1. Shuma has a named representativeness matrix for defense surfaces, not only categories.
 2. The matrix can explain why a missing Scrapling interaction is a real gap, not just an unstated expectation.
+3. The first request-native owned-surface subset is frozen separately from later browser or stealth decisions.
 
 ## Task 3: `SIM-SCR-CHALLENGE-1C`
 
