@@ -104,15 +104,6 @@ Reference context:
 - [`docs/plans/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md`](../docs/plans/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md)
 - [`docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](../docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md)
 
-### SIM-SCR-CHALLENGE-2B: Malicious request-native Scrapling interactions
-- Extend the current Scrapling worker so it behaves the way a malicious Scrapling-powered attacker would for request-native owned surfaces.
-- Add explicit malicious interaction coverage where applicable for:
-  - challenge routing pressure,
-  - `not_a_bot`,
-  - puzzle escalation or submit paths,
-  - PoW abuse,
-  - and other owned request-native defenses.
-
 ### SIM-SCR-CHALLENGE-2C: Browser or stealth Scrapling where the matrix requires it
 - Where the owned-surface matrix says request-native Scrapling is not enough, adopt Scrapling browser or stealth fetchers rather than leaving the lane underpowered.
 - Keep this bounded to surfaces Scrapling actually owns rather than broadening into unrelated browser-agent behavior.
@@ -120,6 +111,7 @@ Reference context:
 ### SIM-SCR-CHALLENGE-2D: Receipt-backed coverage closure and explicit gap assignment
 - Prove that Scrapling now touches every defense surface it owns and can pass the ones a real attacker should be able to pass.
 - Add focused verification and receipts so any remaining uncovered surface is explicit and intentionally assigned to another lane.
+- Treat this as the next active tranche after `SIM-SCR-CHALLENGE-2B`: use the new worker-result and lane-diagnostics `surface_interactions` receipts to close the proof gap before reopening browser or stealth Scrapling.
 
 ### RSI-GAME-MAINLINE-1: First working self-improving loop over attacker-faithful Scrapling
 - After the Scrapling-owned surfaces are attacker-faithful and receipt-backed, execute the first explicit self-improving loop over that truthful attacker basis.
@@ -127,15 +119,14 @@ Reference context:
 - Keep this ahead of later LLM attacker or defender runtime work, and ahead of secondary dashboard cleanup follow-ons.
 
 Mainline execution order:
-1. `SIM-SCR-CHALLENGE-2B`
-2. `SIM-SCR-CHALLENGE-2C` only if the owned-surface matrix requires browser or stealth Scrapling
-3. `SIM-SCR-CHALLENGE-2D`
-4. `CTRL-SURFACE-1..3`
-5. `RSI-GAME-1A`
-6. `RSI-GAME-1B`
-7. `RSI-SCORE-1`
-8. `RSI-GAME-1C`
-9. `RSI-GAME-MAINLINE-1`
+1. `SIM-SCR-CHALLENGE-2D`
+2. `SIM-SCR-CHALLENGE-2C` only if receipt-backed closure proves request-native Scrapling is still insufficient for an owned surface
+3. `CTRL-SURFACE-1..3`
+4. `RSI-GAME-1A`
+5. `RSI-GAME-1B`
+6. `RSI-SCORE-1`
+7. `RSI-GAME-1C`
+8. `RSI-GAME-MAINLINE-1`
 
 ### DIAG-CLEANUP-1: Diagnostics furniture-operational cleanup after Traffic split
 - After `TRAFFIC-TAB-1` lands, remove the migrated traffic-facing sections from Diagnostics so it becomes clearly diagnostics-first and furniture-operational.

@@ -4,6 +4,33 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### SIM-SCR-CHALLENGE-2B: Malicious request-native Scrapling interactions
+
+- [x] Extended the existing Scrapling `http_agent` worker persona in [`scripts/supervisor/scrapling_worker.py`](../scripts/supervisor/scrapling_worker.py) so it no longer stops at benign helper traffic and now performs hostile request-native interaction against public owned surfaces:
+  - challenge-routing pressure through public search,
+  - hostile `not_a_bot` submit,
+  - hostile puzzle submit,
+  - hostile PoW verify submit.
+- [x] Kept the implementation inside the existing bounded persona contract instead of inventing a new mode or widening the worker into browser-runtime behavior.
+- [x] Tightened the proof so it matches runtime truth by fitting the hostile request sequence inside the real per-tick request budget rather than a larger unit-test-only allowance.
+- [x] Added first-class `surface_interactions` receipts to:
+  - [`scripts/supervisor/scrapling_worker.py`](../scripts/supervisor/scrapling_worker.py)
+  - [`src/admin/adversary_sim_worker_plan.rs`](../src/admin/adversary_sim_worker_plan.rs)
+  - [`src/admin/adversary_sim_diagnostics.rs`](../src/admin/adversary_sim_diagnostics.rs)
+  - [`src/admin/adversary_sim_lane_runtime.rs`](../src/admin/adversary_sim_lane_runtime.rs)
+  so hostile Scrapling touches are now persisted through worker-result acceptance and lane diagnostics rather than inferred only from unit-local request capture.
+- [x] Added and tightened proof in:
+  - [`scripts/tests/test_scrapling_worker.py`](../scripts/tests/test_scrapling_worker.py)
+  - [`src/admin/api.rs`](../src/admin/api.rs)
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`docs/research/2026-03-24-sim-scr-challenge-2b-malicious-request-native-post-implementation-review.md`](../docs/research/2026-03-24-sim-scr-challenge-2b-malicious-request-native-post-implementation-review.md)
+- [x] Why:
+  - Scrapling needed to behave like a malicious request-native attacker on the owned public challenge surfaces before the game loop can be trusted,
+  - and those interactions needed a persisted receipt surface so later coverage closure and gap assignment can be evidence-based rather than narrative.
+- [x] Evidence:
+  - `make test-adversary-sim-scrapling-worker`
+  - `git diff --check`
+
 ### Test hygiene: restore Scrapling make-target truth after the default-lane flip
 
 - [x] Fixed the focused Scrapling admin tests in [`src/admin/api.rs`](../src/admin/api.rs) so they no longer redundantly re-select `scrapling_traffic` immediately after start now that Scrapling is the default desired lane.

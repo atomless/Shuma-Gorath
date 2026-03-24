@@ -393,6 +393,10 @@ pub(crate) fn apply_scrapling_worker_result(
         let entry = counters.response_status_count.entry(status.clone()).or_insert(0);
         *entry = entry.saturating_add(*count);
     }
+    for (surface, count) in &result.surface_interactions {
+        let entry = counters.surface_interactions.entry(surface.clone()).or_insert(0);
+        *entry = entry.saturating_add(*count);
+    }
     counters.last_generated_at = Some(result.tick_completed_at);
     let last_error = counters.last_error.clone();
     let _ = counters;

@@ -53,6 +53,8 @@ pub struct LaneCounterState {
     #[serde(default)]
     pub response_status_count: BTreeMap<String, u64>,
     #[serde(default)]
+    pub surface_interactions: BTreeMap<String, u64>,
+    #[serde(default)]
     pub last_generated_at: Option<u64>,
     #[serde(default)]
     pub last_error: Option<String>,
@@ -99,6 +101,7 @@ impl LaneDiagnosticsState {
                 "offsite_requests": lane.offsite_requests,
                 "response_bytes": lane.response_bytes,
                 "response_status_count": lane.response_status_count,
+                "surface_interactions": lane.surface_interactions,
                 "last_generated_at": lane.last_generated_at,
                 "last_error": lane.last_error
             })

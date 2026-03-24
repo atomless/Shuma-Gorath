@@ -5369,6 +5369,12 @@ mod admin_config_tests {
                 },
                 "response_bytes": 512
             },
+            "surface_interactions": {
+                "challenge_routing": 1,
+                "not_a_bot": 1,
+                "challenge_puzzle": 1,
+                "proof_of_work": 1
+            },
             "scope_rejections": {
                 "host_not_allowed": 1,
                 "redirect_target_out_of_scope": 1
@@ -5416,6 +5422,28 @@ mod admin_config_tests {
                 .and_then(|value| value.get("generated_requests"))
                 .and_then(|value| value.as_u64()),
             Some(3)
+        );
+        assert_eq!(
+            result_json
+                .get("status")
+                .and_then(|value| value.get("lane_diagnostics"))
+                .and_then(|value| value.get("lanes"))
+                .and_then(|value| value.get("scrapling_traffic"))
+                .and_then(|value| value.get("surface_interactions"))
+                .and_then(|value| value.get("not_a_bot"))
+                .and_then(|value| value.as_u64()),
+            Some(1)
+        );
+        assert_eq!(
+            result_json
+                .get("status")
+                .and_then(|value| value.get("lane_diagnostics"))
+                .and_then(|value| value.get("lanes"))
+                .and_then(|value| value.get("scrapling_traffic"))
+                .and_then(|value| value.get("surface_interactions"))
+                .and_then(|value| value.get("proof_of_work"))
+                .and_then(|value| value.as_u64()),
+            Some(1)
         );
 
         let persisted = crate::admin::adversary_sim::load_state(&store, "default");

@@ -37,6 +37,11 @@ class WorkerConfigError(ValueError):
 
 SCRAPLING_FULFILLMENT_MODES = {"crawler", "bulk_scraper", "http_agent"}
 
+HTTP_AGENT_PUBLIC_SEARCH_PATH = "/sim/public/search?q=challenge-pressure"
+HTTP_AGENT_NOT_A_BOT_PATH = "/challenge/not-a-bot-checkbox"
+HTTP_AGENT_CHALLENGE_PUZZLE_PATH = "/challenge/puzzle"
+HTTP_AGENT_POW_VERIFY_PATH = "/pow/verify"
+
 
 def _load_json(path: Path) -> dict[str, Any]:
     payload = json.loads(path.read_text(encoding="utf-8"))
@@ -126,6 +131,7 @@ def _build_failure_result(
             "response_status_count": {},
             "response_bytes": 0,
         },
+        "surface_interactions": {},
         "scope_rejections": {},
     }
 
@@ -368,6 +374,7 @@ class _DirectPersonaTracker:
         self.last_response_status: int | None = None
         self.last_transport_error: str | None = None
         self.response_status_count: Counter[str] = Counter()
+        self.surface_interactions: Counter[str] = Counter()
         self.scope_rejections: Counter[str] = Counter()
 
     def should_stop(self) -> bool:
@@ -419,6 +426,11 @@ class _DirectPersonaTracker:
         status_key = f"status_{int(response.status)}"
         self.response_status_count[status_key] += 1
 
+    def record_surface_interaction(self, surface: str) -> None:
+        surface_key = str(surface or "").strip()
+        if surface_key:
+            self.surface_interactions[surface_key] += 1
+
     def record_failure(self, error: Exception) -> None:
         self.failed_requests += 1
         self.last_transport_error = f"{type(error).__name__}: {error}"
@@ -446,6 +458,7 @@ class _DirectPersonaTracker:
                 "response_status_count": dict(self.response_status_count),
                 "response_bytes": self.bytes_observed,
             },
+            "surface_interactions": dict(sorted(self.surface_interactions.items())),
             "scope_rejections": dict(sorted(self.scope_rejections.items())),
         }
 
@@ -556,6 +569,15 @@ def _execute_http_agent_persona(
     requests = [
         (
             "get",
+            urljoin(base_url, HTTP_AGENT_PUBLIC_SEARCH_PATH),
+            {
+                "headers": {"accept": "text/html,application/xhtml+xml"},
+                "cookies": cookies,
+                "surface": "challenge_routing",
+            },
+        ),
+        (
+            "get",
             urljoin(base_url, "/agent/ping?mode=http_agent"),
             {
                 "headers": {"accept": "application/json"},
@@ -579,8 +601,45 @@ def _execute_http_agent_persona(
             },
         ),
         (
-            "put",
-            urljoin(base_url, "/agent/update"),
+            "get",
+            urljoin(base_url, "/agent/redirect"),
+            {
+                "headers": {"accept": "application/json"},
+                "cookies": cookies,
+            },
+        ),
+        (
+            "post",
+            urljoin(base_url, HTTP_AGENT_NOT_A_BOT_PATH),
+            {
+                "headers": {
+                    "accept": "application/json",
+                    "content-type": "application/x-www-form-urlencoded",
+                },
+                "cookies": cookies,
+                "data": (
+                    "seed=invalid-seed&checked=1"
+                    "&telemetry=%7B%22has_pointer%22%3Afalse%2C%22activation_trusted%22%3Afalse%7D"
+                ),
+                "surface": "not_a_bot",
+            },
+        ),
+        (
+            "post",
+            urljoin(base_url, HTTP_AGENT_CHALLENGE_PUZZLE_PATH),
+            {
+                "headers": {
+                    "accept": "application/json",
+                    "content-type": "application/x-www-form-urlencoded",
+                },
+                "cookies": cookies,
+                "data": "seed=invalid-seed&output=0000000000000000",
+                "surface": "challenge_puzzle",
+            },
+        ),
+        (
+            "post",
+            urljoin(base_url, HTTP_AGENT_POW_VERIFY_PATH),
             {
                 "headers": {
                     "accept": "application/json",
@@ -588,17 +647,10 @@ def _execute_http_agent_persona(
                 },
                 "cookies": cookies,
                 "json": {
-                    "mode": "http_agent",
-                    "request_sequence": 3,
+                    "seed": "invalid-seed",
+                    "nonce": "invalid-nonce",
                 },
-            },
-        ),
-        (
-            "get",
-            urljoin(base_url, "/agent/redirect"),
-            {
-                "headers": {"accept": "application/json"},
-                "cookies": cookies,
+                "surface": "proof_of_work",
             },
         ),
     ]
@@ -619,14 +671,18 @@ def _execute_http_agent_persona(
             if not allowed or not normalized_url:
                 continue
             try:
+                surface = str(request_kwargs.get("surface") or "").strip()
                 response = getattr(session, method_name)(
                     normalized_url,
                     headers=tracker.next_headers(dict(request_kwargs.get("headers") or {})),
                     cookies=request_kwargs.get("cookies"),
+                    data=request_kwargs.get("data"),
                     json=request_kwargs.get("json"),
                     follow_redirects=False,
                 )
                 tracker.record_response(response)
+                if surface:
+                    tracker.record_surface_interaction(surface)
                 location = str(response.headers.get("location") or "").strip()
                 if (
                     300 <= int(response.status) < 400

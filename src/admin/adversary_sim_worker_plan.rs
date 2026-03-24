@@ -57,6 +57,8 @@ pub struct ScraplingWorkerResult {
     #[serde(default)]
     pub crawl_stats: ScraplingCrawlStats,
     #[serde(default)]
+    pub surface_interactions: BTreeMap<String, u64>,
+    #[serde(default)]
     pub scope_rejections: BTreeMap<String, u64>,
 }
 

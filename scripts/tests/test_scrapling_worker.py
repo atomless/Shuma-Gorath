@@ -137,6 +137,27 @@ class _RecordingHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
+        if self.path.startswith("/sim/public/search"):
+            body = (
+                "<html><body>"
+                '<a href="/challenge/not-a-bot-checkbox">not-a-bot</a>'
+                '<a href="/pow">pow</a>'
+                "</body></html>"
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        if self.path == "/pow":
+            body = b"<html><body>pow challenge</body></html>"
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         self.send_response(404)
         self.end_headers()
 
@@ -145,6 +166,30 @@ class _RecordingHandler(http.server.BaseHTTPRequestHandler):
         if self.path == "/agent/submit":
             body = json.dumps({"accepted": True}).encode("utf-8")
             self.send_response(201)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        if self.path == "/challenge/not-a-bot-checkbox":
+            body = json.dumps({"accepted": False, "reason": "invalid_seed"}).encode("utf-8")
+            self.send_response(403)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        if self.path == "/challenge/puzzle":
+            body = json.dumps({"accepted": False, "reason": "invalid_output"}).encode("utf-8")
+            self.send_response(403)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        if self.path == "/pow/verify":
+            body = json.dumps({"accepted": False, "reason": "invalid_proof"}).encode("utf-8")
+            self.send_response(403)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
@@ -298,12 +343,12 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
             )
         )
 
-    def test_execute_worker_plan_http_agent_uses_method_mix_and_redirect_followup(self) -> None:
+    def test_execute_worker_plan_http_agent_uses_method_mix_redirect_followup_and_hostile_challenge_submits(self) -> None:
         self.assertIsNotNone(scrapling_worker, "worker module missing")
         beat_payload = self._make_beat_payload(
             "http_agent",
             ["http_agent"],
-            max_requests=6,
+            max_requests=8,
         )
         result = scrapling_worker.execute_worker_plan(
             beat_payload,
@@ -316,13 +361,25 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
         self.assertEqual(result["lane"], "scrapling_traffic")
         self.assertEqual(result["fulfillment_mode"], "http_agent")
         self.assertEqual(result["failure_class"], None, msg=json.dumps(result, indent=2))
+        self.assertEqual(
+            result["surface_interactions"],
+            {
+                "challenge_puzzle": 1,
+                "challenge_routing": 1,
+                "not_a_bot": 1,
+                "proof_of_work": 1,
+            },
+        )
         methods = [entry["method"] for entry in self.httpd.requests_seen]
         self.assertIn("GET", methods)
         self.assertIn("POST", methods)
-        self.assertIn("PUT", methods)
         paths = [entry["path"] for entry in self.httpd.requests_seen]
         self.assertIn("/agent/redirect", paths)
         self.assertIn("/agent/final", paths)
+        self.assertIn("/sim/public/search?q=challenge-pressure", paths)
+        self.assertIn("/challenge/not-a-bot-checkbox", paths)
+        self.assertIn("/challenge/puzzle", paths)
+        self.assertIn("/pow/verify", paths)
         submit = next(entry for entry in self.httpd.requests_seen if entry["path"] == "/agent/submit")
         self.assertIn('"mode":"http_agent"', submit["body"])
         self.assertEqual(
@@ -333,6 +390,31 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
             "shuma_agent_mode=http_agent",
             submit["headers"].get("cookie", ""),
         )
+        not_a_bot_submit = next(
+            entry for entry in self.httpd.requests_seen if entry["path"] == "/challenge/not-a-bot-checkbox"
+        )
+        self.assertEqual(
+            not_a_bot_submit["headers"].get("content-type"),
+            "application/x-www-form-urlencoded",
+        )
+        self.assertIn("seed=invalid-seed", not_a_bot_submit["body"])
+        self.assertIn("checked=1", not_a_bot_submit["body"])
+        challenge_submit = next(
+            entry for entry in self.httpd.requests_seen if entry["path"] == "/challenge/puzzle"
+        )
+        self.assertEqual(
+            challenge_submit["headers"].get("content-type"),
+            "application/x-www-form-urlencoded",
+        )
+        self.assertIn("seed=invalid-seed", challenge_submit["body"])
+        self.assertIn("output=0000000000000000", challenge_submit["body"])
+        pow_submit = next(entry for entry in self.httpd.requests_seen if entry["path"] == "/pow/verify")
+        self.assertEqual(
+            pow_submit["headers"].get("content-type"),
+            "application/json",
+        )
+        self.assertIn('"seed":"invalid-seed"', pow_submit["body"])
+        self.assertIn('"nonce":"invalid-nonce"', pow_submit["body"])
         self.assertTrue(
             all(
                 entry["headers"].get(sim_runner.SIM_TAG_HEADER_PROFILE)
