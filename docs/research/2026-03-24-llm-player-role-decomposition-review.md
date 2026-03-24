@@ -60,7 +60,8 @@ The missing explicit attacker-agent contract is:
 3. what the black-box boundary forbids,
 4. what an episode looks like,
 5. what receipts or traces are persisted,
-6. and how strategy memory is bounded.
+6. how strategy memory is bounded,
+7. and how the system enforces that the attacker is limited to the same public knowledge an outside attacker could obtain from the attacked host rather than from Shuma repos, docs, or hidden internal context.
 
 Without that split, `SIM-LLM-1` still sounds like a large future actor rather than a sequence of implementation slices.
 

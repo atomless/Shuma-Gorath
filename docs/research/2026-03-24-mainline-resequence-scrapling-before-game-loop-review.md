@@ -50,14 +50,17 @@ Its starting knowledge should be:
 
 1. the host site's root entrypoint,
 2. the category or category family it is supposed to fulfill,
-3. and the instruction to behave maliciously where that category implies malicious behavior.
+3. any bounded public hints discoverable from the host itself, such as `robots.txt`, sitemap references, or traversal-visible pages,
+4. and the instruction to behave maliciously where that category implies malicious behavior.
 
 It should not receive:
 
 1. Shuma-specific internals,
 2. Shuma route maps,
 3. Shuma defense descriptions,
-4. or any hidden judge or defender state.
+4. Shuma repo or documentation knowledge obtained out of band from the attacked host,
+5. web-search access that could reveal Shuma-specific internals,
+6. or any hidden judge or defender state.
 
 That requirement belongs in the later `SIM-LLM-1A` black-box contract.
 

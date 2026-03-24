@@ -9,8 +9,11 @@
 LLM attacker black-box note:
 
 1. the later LLM attacker must start from the host site's root entrypoint and category objective only,
-2. it must know nothing about Shuma internals, routes, or defenses,
-3. and it should be primed to fulfill the remaining non-human categories and to behave maliciously where those categories imply malicious behavior.
+2. it must be placed in the same knowledge position as an outside attacker with no internal access,
+3. its initial knowledge may include only what a public attacker could derive from the host itself, for example the root URL plus any publicly reachable `robots.txt`, sitemap hints, or traversal-discovered pages,
+4. it must know nothing about Shuma internals, routes, defenses, source code, or docs,
+5. it must not be allowed to search the web or otherwise retrieve Shuma-specific repo or documentation material,
+6. and it should be primed to fulfill the remaining non-human categories and to behave maliciously where those categories imply malicious behavior.
 
 **Tech Stack:** Rust control plane, Python adversarial runner/orchestration, Scrapling worker, capability-safe containerized adversary actor runtime, external frontier LLM APIs, optional later local model backends, Makefile verification.
 

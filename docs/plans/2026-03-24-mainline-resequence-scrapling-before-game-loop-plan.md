@@ -4,7 +4,7 @@
 
 **Goal:** Reorder the active backlog so attacker-faithful Scrapling becomes the immediate mainline, followed by the first working self-improving loop, before later LLM attacker/defender runtime work or secondary dashboard follow-ons.
 
-**Architecture:** Keep the previously written Scrapling and game-loop contract work, but change execution order. Promote the Scrapling challenge-expansion work from a deferred conceptual lane into the next active implementation queue, add execution-ready checklist items for the malicious/receipt-backed expansion, and update the later LLM attacker contract so it remains host-root-only and black-box with no Shuma knowledge.
+**Architecture:** Keep the previously written Scrapling and game-loop contract work, but change execution order. Promote the Scrapling challenge-expansion work from a deferred conceptual lane into the next active implementation queue, add execution-ready checklist items for the malicious/receipt-backed expansion, and update the later LLM attacker contract so it remains host-root-only, black-box, and confined to the same public knowledge an outside attacker could obtain from the attacked host itself.
 
 **Tech Stack:** Planning docs, active and blocked TODO backlog, adversary-sim roadmap, later LLM player-role plans.
 
@@ -14,7 +14,7 @@
 
 1. Do not widen this into “all Scrapling features”; the active queue should target only attacker-relevant capability for Scrapling-owned surfaces.
 2. Do not reopen the later LLM runtime actors ahead of the first proven game-loop run over attacker-faithful Scrapling.
-3. Keep the LLM attacker explicitly black-box: host-root only, no Shuma internals.
+3. Keep the LLM attacker explicitly black-box: host-root only, no Shuma internals, and no Shuma repo or docs lookup.
 4. Preserve the distinction between judge-side planning and player-side execution readiness.
 
 ## Task 1: Reorder The Active Backlog
@@ -46,12 +46,14 @@
 
 **Work:**
 1. State explicitly that the later LLM attacker starts from only the host site's root entrypoint and category-fulfillment objective.
-2. State explicitly that it must know nothing about Shuma internals, routes, or defenses.
-3. Keep the malicious-category priming explicit for categories where malicious behavior is the point.
+2. State explicitly that it is confined to the same public-knowledge position as an outside attacker and may only use host-derived public hints such as `robots.txt`, sitemap references, and traversal-visible pages.
+3. State explicitly that it must know nothing about Shuma internals, routes, defenses, source code, or docs, and must not be allowed to search the web for them.
+4. Keep the malicious-category priming explicit for categories where malicious behavior is the point.
 
 **Acceptance criteria:**
 1. The later LLM attacker contract is unmistakably black-box.
 2. The plan no longer leaves room for Shuma-aware attacker priming.
+3. The repo explicitly says the attacker is limited to outside-attacker public knowledge, not product-internal awareness.
 
 ## Task 3: Record The Resequence In The Indexes And Completion History
 

@@ -4,6 +4,24 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### Planning: tighten the later LLM attacker to true outside-attacker public knowledge
+
+- [x] Refined the later LLM attacker contract in:
+  - [`docs/plans/2026-03-22-path-to-closed-loop-llm-adversary-and-diagnosis-implementation-plan.md`](../docs/plans/2026-03-22-path-to-closed-loop-llm-adversary-and-diagnosis-implementation-plan.md)
+  - [`docs/plans/2026-03-24-llm-player-role-decomposition-plan.md`](../docs/plans/2026-03-24-llm-player-role-decomposition-plan.md)
+  - [`docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md`](../docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md)
+  - [`docs/research/2026-03-24-mainline-resequence-scrapling-before-game-loop-review.md`](../docs/research/2026-03-24-mainline-resequence-scrapling-before-game-loop-review.md)
+  - [`docs/research/2026-03-24-llm-player-role-decomposition-review.md`](../docs/research/2026-03-24-llm-player-role-decomposition-review.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+  so it now explicitly means:
+  - only host-root and host-derived public knowledge,
+  - optional `robots.txt`, sitemap, and traversal-visible hints from the attacked host,
+  - and no Shuma repo, docs, internals, or web lookup path that could reveal them.
+- [x] Why:
+  - the user clarified that “Shuma-blind” must mean the same knowledge position as an outside attacker, not merely “no admin creds” or “no internal routes”
+- [x] Evidence:
+  - docs-only change; verification intentionally limited to `git diff --check`
+
 ### Planning: resequence the active mainline to Scrapling first, then the game loop
 
 - [x] Added the new resequencing review and implementation-plan notes:
