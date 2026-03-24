@@ -1,6 +1,6 @@
 # TODO Roadmap
 
-Last updated: 2026-03-23
+Last updated: 2026-03-24
 
 This is the active execution-ready work queue.
 Blocked or contingent work lives in `todos/blocked-todo.md`.
@@ -90,10 +90,12 @@ Current stance:
 - The actively evolving near-term layer should be fingerprinting and categorization quality inside that taxonomy; taxonomy expansion is only a later contingency if important non-human traffic persistently falls outside the existing categories.
 - The next bridge to a genuine LLM-in-the-loop system is not the full later `SIM-LLM-1` runtime actor; it is a bounded category-fulfillment LLM tranche that sits between the taxonomy/classifier work and the first closed config loop, with the later LLM diagnosis harness and code loop still downstream of `OVR-APPLY-1`.
 - Before `MON-OVERHAUL-1`, expose the already-settled local control truths that no longer belong only in Advanced JSON or backend-only payloads. Verified identity in `Verification` and adversary-sim status truth basis in `Red Team` are now delivered, so the next step is the Monitoring projection itself.
+- Keep the operator-facing product stance distinct from the later recursive-improvement development reference stance: `MON-OVERHAUL-1` and later `TUNE-SURFACE-1` should project and edit the current operator-selected posture, while run-to-homeostasis episodes remain blocked with `OVR-AGENT-2` and `RSI-METH-1`.
 
 ### MON-OVERHAUL-1A: Monitoring loop-accountability information architecture and diagnostics refocus
 - Reframe Monitoring as the human-readable accountability surface for the closed loop rather than as a manual tuning console: lead with loop verdict, outcome frontier, change judgment, category breakdown, and trust or actionability blockers.
 - Tighten Diagnostics so it becomes more explicitly diagnostics-first in wording and section ownership rather than remaining a generic transplanted legacy Monitoring page.
+- Keep Monitoring anchored to the current operator-selected product stance; if later recursive-improvement reference-stance episodes are ever surfaced, they must be labeled as separate training or evaluation runs rather than presented as the live site posture.
 - Reference context: [`../docs/plans/2026-03-20-monitoring-and-diagnostics-tab-ownership-plan.md`](../docs/plans/2026-03-20-monitoring-and-diagnostics-tab-ownership-plan.md), [`../docs/research/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-review.md`](../docs/research/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-review.md), [`../docs/plans/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md`](../docs/plans/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md)
 
 ### MON-OVERHAUL-1B: Monitoring projection of loop verdict, outcome frontier, and controller judgment

@@ -12,6 +12,7 @@ Redefine `MON-OVERHAUL-1` so Monitoring becomes the human-readable accountabilit
 2. Monitoring should show observed outcomes and loop judgment separately.
 3. Diagnostics should keep subsystem and forensic depth without dominating the operator narrative.
 4. Tuning and posture editing stay out of Monitoring and remain later `TUNE-SURFACE-1` work.
+5. Monitoring should describe accountability against the current operator-selected product stance; the later development reference stance belongs to later recursive-improvement methodology, not to the first Monitoring contract.
 
 ## Execution Slices
 
@@ -32,6 +33,7 @@ Scope:
 2. tighten Diagnostics language and sectioning so it reads as diagnostics-first rather than a leftover Monitoring clone.
 3. update Monitoring and Diagnostics docs to reflect the sharper ownership contract.
 4. add focused rendered tests that prove the new tab framing and section ownership.
+5. ensure the page language stays product-facing: it should explain performance against the current live stance, not imply that later reference-stance training episodes are the same thing.
 
 Verification:
 
@@ -74,6 +76,7 @@ Scope:
 2. project verified-identity and beneficial-non-human guardrail state,
 3. project tuning eligibility, protected-evidence readiness, and coverage blockers,
 4. keep raw subsystem detail in Diagnostics rather than leaking it back into Monitoring.
+5. if later recursive-improvement reference-stance runs are ever shown here, label them explicitly as separate evaluation context rather than the live product stance.
 
 Verification:
 

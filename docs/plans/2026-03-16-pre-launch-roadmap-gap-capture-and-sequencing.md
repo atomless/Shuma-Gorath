@@ -167,6 +167,12 @@ The plan must define:
 3. which are read-only diagnostics,
 4. and which are safe for future autonomous recommendation or bounded auto-apply.
 
+Status update (2026-03-24):
+
+1. The first concrete Tuning shape is now the taxonomy posture matrix plus optional stance-archetype seeding in [`2026-03-23-tuning-surface-taxonomy-posture-matrix-implementation-plan.md`](2026-03-23-tuning-surface-taxonomy-posture-matrix-implementation-plan.md).
+2. Those stance archetypes are operator-facing product presets, not the later recursive-improvement development reference stance contract.
+3. The later development reference stance and run-to-homeostasis methodology are now tracked separately in [`../research/2026-03-24-reference-stance-and-run-to-homeostasis-review.md`](../research/2026-03-24-reference-stance-and-run-to-homeostasis-review.md) and [`2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md).
+
 ## C. Monitoring Overhaul For Operators, Not Contributors
 
 Shuma still needs a monitoring redesign focused on operator questions:
@@ -179,6 +185,12 @@ Shuma still needs a monitoring redesign focused on operator questions:
 6. and how should those two telemetry modes stay clearly separated without implying a paired live counterfactual for each request.
 
 This was the previous expectation, but the sequencing has now tightened: the first closed autonomous tuning loop should precede the Monitoring overhaul. Monitoring still needs operator-grade design, but it should now project the proven protected-evidence, category-aware objective, and rollback semantics of that loop rather than define them in advance.
+
+Status update (2026-03-24):
+
+1. Monitoring is now explicitly being redesigned as a loop-accountability surface over the current operator-selected product stance.
+2. The later development reference stance should not leak into the first Monitoring contract except, much later, as clearly labeled separate evaluation context.
+3. See [`2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md`](2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md) and [`2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md).
 
 ## H. Protected Tuning Evidence And Category Coverage
 
@@ -261,6 +273,25 @@ Reason:
 1. adversary-sim should be able to exercise both legitimate verified agents and spoofed or replayed signed-agent attempts,
 2. central intelligence must remain separate from identity and must not mint it,
 3. and the future agent loop must not be asked to tune or reason about trust-boundary controls before they are formalized.
+
+## J. Later Recursive-Improvement Methodology
+
+Shuma now also has an explicit methodology for the later recursive-improvement phases, and that methodology should constrain how remaining open roadmap items are interpreted.
+
+That methodology says:
+
+1. later controller expansion should begin from `Human-only / private` as a development reference stance,
+2. later runs should continue as bounded run-to-homeostasis episodes rather than as one-shot recommendations,
+3. later relaxed preset sweeps should come after strict-reference stabilization,
+4. and later code evolution should keep the strict reference stance as a regression anchor.
+
+This does **not** change:
+
+1. the current seeded product default,
+2. the meaning of operator-facing stance presets in `Tuning`,
+3. or the product-facing role of `Monitoring`.
+
+It changes only the methodology for the later blocked recursive-improvement phases such as `OVR-AGENT-2`, `OVR-CODE-1`, and `RSI-METH-1`.
 
 ## G. Edge-Instance Ban Sync And Distributed State Correctness
 

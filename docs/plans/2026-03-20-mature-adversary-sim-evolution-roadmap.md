@@ -83,6 +83,12 @@ Purpose:
 
 The first version should be recommend-only.
 
+Later recursive-improvement methodology note:
+
+1. when this role grows beyond the first recommend-only bounded loop, it should begin from `Human-only / private` as a development reference stance,
+2. continue bounded episodes while target-not-met and progress-not-flat are both true,
+3. and only later broaden into relaxed preset sweeps over operator product stances.
+
 ## Promotion Pipeline: Discovery To Memory
 
 This is the most important roadmap addition.
@@ -165,7 +171,19 @@ The frontier-agent lane is valuable, but it is noisier and costlier. It should d
 
 The first diagnosis harness should consume machine-first contracts directly. Monitoring remains the human projection over those contracts, not the prerequisite for machine analysis.
 
-### 5. Representativeness must be judged against a canonical non-human taxonomy
+### 5. Product stances and the development reference stance are not the same thing
+
+The later recursive-improvement program may begin from a strict development reference stance.
+
+That does not make the operator-facing stance presets into training controls.
+
+The clean division is:
+
+1. operator presets define live site intent,
+2. the later development reference stance defines the first recursive-improvement environment,
+3. and later relaxed preset sweeps broaden that environment only after the strict reference loop has stabilized.
+
+### 6. Representativeness must be judged against a canonical non-human taxonomy
 
 The next maturity step is not just "Scrapling runs" or "frontier-agent runs."
 

@@ -25,6 +25,7 @@ Define the first implementation-ready UI contract for `TUNE-SURFACE-1` so the Tu
 3. The persisted source of truth remains `operator_objectives_v1.category_postures`.
 4. Presets are optional seed actions only; they do not become persisted first-class policy objects.
 5. The first version must not silently modify `Policy`-tab or `Verification`-tab settings.
+6. The preset set is an operator-facing product contract and must remain distinct from the later recursive-improvement development reference stance methodology, even if one label overlaps.
 
 # Scope
 
@@ -71,6 +72,7 @@ Required semantics:
 2. Preset selection must be reversible before save.
 3. Manual row edits after preset application must change the visible preset state to `Custom`.
 4. Persisted save payload remains raw `category_postures` rows; do not persist a separate preset id.
+5. Do not couple preset choice to later recursive-improvement reference-stance logic; this surface edits the live operator stance only.
 
 ## Matrix layout
 

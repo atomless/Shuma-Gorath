@@ -153,9 +153,13 @@ Execution source of truth:
 
 Keep the later LLM diagnosis/config harness blocked until this plan is complete and live-proved.
 
+When it reopens, it should consume the later reference-stance and run-to-homeostasis methodology in [`2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md) rather than broadening immediately into stance-agnostic or one-shot automation.
+
 ### `OVR-CODE-1`
 
 Keep the later benchmark-driven code-evolution loop blocked until `OVR-AGENT-2` exists and the closed config loop has already demonstrated stable utility.
+
+When it reopens, code-evolution acceptance should continue to treat the strict development reference stance as a regression anchor even when optimizing more permissive target stances.
 
 ## Exit Criteria
 

@@ -4,6 +4,31 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### Planning: audit open backlog and plan alignment against the reference-stance methodology
+
+- [x] Audited all still-open backlog files in [`todos/todo.md`](../todos/todo.md), [`todos/blocked-todo.md`](../todos/blocked-todo.md), and [`todos/security-review.md`](../todos/security-review.md) against the new recursive-improvement goal and captured the results in [`docs/research/2026-03-24-open-backlog-and-plan-reference-stance-alignment-review.md`](../docs/research/2026-03-24-open-backlog-and-plan-reference-stance-alignment-review.md).
+- [x] Wrote the companion execution note in [`docs/plans/2026-03-24-open-backlog-and-plan-reference-stance-alignment-plan.md`](../docs/plans/2026-03-24-open-backlog-and-plan-reference-stance-alignment-plan.md) and used it to tighten the still-open backlog plus the main planning docs that govern Monitoring, Tuning, mature adversary-sim evolution, and later controller/code phases.
+- [x] Updated the open backlog and linked plans so they now state explicitly that:
+  - `Monitoring` and `Tuning` stay product-facing,
+  - operator stance presets stay distinct from the later development reference stance,
+  - and later recursive-improvement work remains blocked behind `OVR-AGENT-2`, `OVR-CODE-1`, and `RSI-METH-1`.
+- [x] Why:
+  - the new methodology is strong, but without this audit the repo still risked blurring product-facing operator stances with the later recursive-training reference stance.
+  - the active near-term work did not need resequencing, but the planning chain needed a cleaner distinction between current UI ownership and later autonomous-learning methodology.
+- [x] Evidence:
+  - `docs/research/2026-03-24-open-backlog-and-plan-reference-stance-alignment-review.md`
+  - `docs/plans/2026-03-24-open-backlog-and-plan-reference-stance-alignment-plan.md`
+  - `docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`
+  - `docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`
+  - `docs/plans/2026-03-22-category-aware-objectives-benchmarks-and-apply-loop-implementation-plan.md`
+  - `docs/plans/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md`
+  - `docs/plans/2026-03-23-dashboard-operator-surfacing-sequencing-plan.md`
+  - `docs/plans/2026-03-23-tuning-surface-taxonomy-posture-matrix-implementation-plan.md`
+  - `todos/todo.md`
+  - `todos/blocked-todo.md`
+  - `git diff --check`
+  - verification intentionally scoped as docs-only; tests not run
+
 ### Planning: reference stance and run-to-homeostasis for later recursive improvement
 
 - [x] Wrote the research note in [`docs/research/2026-03-24-reference-stance-and-run-to-homeostasis-review.md`](../docs/research/2026-03-24-reference-stance-and-run-to-homeostasis-review.md) to distinguish product stance from development reference stance and to capture `Human-only / private` as the cleanest first reference game for later recursive-improvement work.

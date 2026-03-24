@@ -22,6 +22,7 @@ Queue the missing operator-facing surfaces in the cleanest ownership buckets so 
 3. Keep operator-objective editing inside `TUNE-SURFACE-1`.
 4. Do not add raw JSON panes as a substitute for proper operator surfaces.
 5. Treat verified identity as a broader product surface than native Web Bot Auth alone.
+6. Keep operator-facing product stance surfaces distinct from the later recursive-improvement development reference stance.
 
 # Tranche Plan
 
@@ -139,6 +140,7 @@ Keep the Monitoring overhaul responsible for projecting the backend machine-firs
 5. where the remaining problem sits in the non-human taxonomy,
 6. whether tuning is eligible,
 7. and whether verified or tolerated non-human traffic is being harmed.
+8. and all of that should be expressed against the current operator-selected product stance rather than against the later development reference stance.
 
 ## `TUNE-SURFACE-1`: Operator Objectives And Category Posture Editor
 
@@ -151,6 +153,7 @@ As of 2026-03-23, the first concrete shape for this work is now settled:
 1. the non-human category posture editor should live in `Tuning`, not `Policy`,
 2. because it is active defense posture and controller intent rather than passive `robots.txt`-style declaration,
 3. and the first UI should be a taxonomy posture matrix over the stable canonical categories, optionally seeded from a small set of stance archetypes.
+4. Those archetypes are operator-facing product presets and must not be silently reinterpreted as the later recursive-improvement reference-stance mechanism.
 
 ### Tuning-owned control scope
 

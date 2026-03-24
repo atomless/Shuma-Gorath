@@ -44,6 +44,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-23-dashboard-operator-surfacing-sequencing-plan.md`](2026-03-23-dashboard-operator-surfacing-sequencing-plan.md)
 - [`2026-03-23-tuning-surface-taxonomy-posture-matrix-implementation-plan.md`](2026-03-23-tuning-surface-taxonomy-posture-matrix-implementation-plan.md)
 - [`2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md)
+- [`2026-03-24-open-backlog-and-plan-reference-stance-alignment-plan.md`](2026-03-24-open-backlog-and-plan-reference-stance-alignment-plan.md)
 - [`2026-03-23-host-impact-cost-proxy-and-benchmark-implementation-plan.md`](2026-03-23-host-impact-cost-proxy-and-benchmark-implementation-plan.md)
 - [`2026-03-23-ban-duration-family-truthfulness-implementation-plan.md`](2026-03-23-ban-duration-family-truthfulness-implementation-plan.md)
 
