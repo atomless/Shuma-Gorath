@@ -62,6 +62,7 @@ Near-term ownership note:
 
 1. Scrapling should be treated as the first truthful lane for crawler and request-native non-human categories.
 2. Browser-like Scrapling automation may become useful later, but it should not be merged into the same truth contract until the shared-host runtime, deploy envelope, and coverage receipts are widened and proven.
+3. A separate intermediate follow-on is now required: Shuma should first evaluate which request-native defense surfaces Scrapling ought to exercise, such as challenge routing and challenge-submit flows, before assuming every missing interaction implies browser-runtime adoption.
 
 ### 3. `frontier_agent`
 
@@ -162,6 +163,22 @@ It does not remain the primary adaptive feedback lane.
 ### 2. Scrapling moves earlier in importance
 
 Scrapling should be treated as the first primary adaptive lane, not just a later optional crawler variant.
+
+That does not mean the current worker already captures all of Scrapling's upstream capability. The widened question now has two parts:
+
+1. which Shuma defense surfaces request-native Scrapling should exercise,
+2. and which later capabilities truly require Scrapling browser or stealth runtime.
+
+Attacker-faithfulness principle:
+
+1. adversary lanes must behave the way real attackers would behave for the surfaces they claim to represent,
+2. not as neutered half-sims that merely prove a tool can make requests,
+3. while still remaining inside Shuma's scope, safety, and evidentiary boundaries.
+
+Upstream capability watch rule:
+
+1. because Scrapling is an external rapidly evolving attacker-grade tool, Shuma should keep a standing watch on new Scrapling releases and official docs,
+2. and when upstream adds attacker-relevant capability, Shuma should explicitly decide whether to adopt it rather than letting the lane silently drift behind the real attacker capability frontier.
 
 ### 3. Frontier lane remains later, not first
 

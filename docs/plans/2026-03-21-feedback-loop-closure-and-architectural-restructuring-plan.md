@@ -234,6 +234,17 @@ Codify protected tuning evidence eligibility and explicitly exclude `synthetic_t
 
 Define the representativeness matrix and bounded coverage receipts across Scrapling runtime traffic and replay-promoted frontier or LLM lineage for the non-human categories Shuma intends to optimize over, using the canonical taxonomy rather than lane-local labels.
 
+### `SIM-SCR-CHALLENGE-1`
+
+After the request-native Scrapling category tranches land, add a separate blocked evaluation for widened Scrapling defense-surface coverage:
+
+1. which Shuma request-native defenses Scrapling should be able to hit,
+2. which missing interactions can stay inside the current fetcher boundary,
+3. which truly require browser or stealth fetchers,
+4. and how those claims become receipt-backed rather than aspirational.
+
+This follow-on should remain distinct from the broader `automated_browser` ownership question.
+
 ### `SIM-LLM-1A..1C`
 
 Keep the later full LLM attacker-agent track explicitly separate from the bounded `SIM-LLM-FIT-1` fulfillment tranche.

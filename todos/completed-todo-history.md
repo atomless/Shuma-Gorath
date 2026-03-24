@@ -4,6 +4,22 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### Planning: add an ongoing Scrapling upstream-capability watch rule
+
+- [x] Tightened the new Scrapling challenge-expansion plan in [`docs/plans/2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md`](../docs/plans/2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md) with an explicit ongoing hygiene rule:
+  - track upstream Scrapling releases and official docs continuously,
+  - judge new capability against attacker-faithfulness,
+  - and refresh the research/plan/backlog chain whenever a meaningful attacker-relevant delta appears.
+- [x] Synced that rule into the mature adversary roadmap in [`docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`](../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md) and into the blocked backlog semantics for [`todos/blocked-todo.md`](../todos/blocked-todo.md).
+- [x] Updated the research and plan indexes so the new Scrapling challenge-expansion docs are discoverable from the current planning chain:
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`docs/plans/README.md`](../docs/plans/README.md)
+- [x] Why:
+  - the user wanted the external automation backed by repo truth rather than existing only outside the codebase
+  - Scrapling is evolving quickly enough that without an explicit watch rule, Shuma could silently drift behind real attacker capability
+- [x] Evidence:
+  - docs-only change; verification intentionally limited to `git diff --check`
+
 ### Planning: refine Game Loop budget usage vs category target-achievement contract
 
 - [x] Added research and implementation-plan notes that make the Game Loop distinction explicit:

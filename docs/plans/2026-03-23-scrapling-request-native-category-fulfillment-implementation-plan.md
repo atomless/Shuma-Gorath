@@ -143,6 +143,16 @@
 
 ## Out Of Scope And Blocked Follow-On
 
+### `SIM-SCR-CHALLENGE-1`
+
+Do not implement broader Scrapling challenge-surface interaction in this plan.
+
+That follow-on should stay blocked until:
+
+1. request-native Scrapling expansion is landed and proven,
+2. a defense-surface representativeness matrix exists for which Shuma challenge and friction surfaces Scrapling should be expected to hit,
+3. and Shuma can distinguish what still fits the current request-native fetcher boundary from what would genuinely require Scrapling browser or stealth fetchers.
+
 ### `SIM-SCR-BROWSER-1`
 
 Do not implement browser-like Scrapling fulfillment in this plan.
@@ -150,8 +160,9 @@ Do not implement browser-like Scrapling fulfillment in this plan.
 That follow-on should stay blocked until:
 
 1. request-native Scrapling expansion is landed and proven,
-2. a truthful shared-host runtime and deploy contract exists for browser dependencies,
-3. and `automated_browser` can be covered without collapsing into `browser_agent` or `agent_on_behalf_of_human`.
+2. `SIM-SCR-CHALLENGE-1` has clarified which missing defense interactions actually require browser or stealth runtime rather than request-native expansion,
+3. a truthful shared-host runtime and deploy contract exists for browser dependencies,
+4. and `automated_browser` can be covered without collapsing into `browser_agent` or `agent_on_behalf_of_human`.
 
 ## Exit Criteria
 
