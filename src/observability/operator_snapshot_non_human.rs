@@ -105,6 +105,7 @@ mod tests {
                     "ai_scraper_bot".to_string(),
                     "http_agent".to_string(),
                 ],
+                observed_defense_keys: Vec::new(),
                 first_ts: 1_700_000_000,
                 last_ts: 1_700_000_100,
                 monitoring_event_count: 9,

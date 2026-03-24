@@ -195,6 +195,7 @@ fn operator_snapshot_recent_sim_run(
         profile: run.profile.clone(),
         observed_fulfillment_modes: run.observed_fulfillment_modes.clone(),
         observed_category_ids: run.observed_category_ids.clone(),
+        observed_defense_keys: run.observed_defense_keys.clone(),
         first_ts: run.first_ts,
         last_ts: run.last_ts,
         monitoring_event_count: run.monitoring_event_count,

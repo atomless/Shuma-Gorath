@@ -499,6 +499,7 @@ mod tests {
                     profile: "fast_smoke".to_string(),
                     observed_fulfillment_modes: Vec::new(),
                     observed_category_ids: Vec::new(),
+                    observed_defense_keys: Vec::new(),
                     first_ts: generated_at - 120,
                     last_ts: generated_at - 30,
                     monitoring_event_count: 8,

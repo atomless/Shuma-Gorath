@@ -1554,6 +1554,56 @@ mod tests {
                 "indexing_bot".to_string()
             ]
         );
+        assert_eq!(row.observed_defense_keys, vec!["challenge_routing".to_string()]);
+    }
+
+    #[test]
+    fn recent_sim_run_history_surfaces_owned_defense_keys_with_matrix_aligned_names() {
+        let store = MockStore::new();
+        let now = now_ts();
+        let run_started_at = now.saturating_sub(120);
+
+        let _guard = crate::runtime::sim_telemetry::enter(Some(
+            crate::runtime::sim_telemetry::SimulationRequestMetadata {
+                sim_run_id: "simrun-scrapling-defense-surface".to_string(),
+                sim_profile: "scrapling_runtime_lane.http_agent".to_string(),
+                sim_lane: "scrapling_traffic".to_string(),
+            },
+        ));
+
+        for (offset, reason) in [
+            (0u64, "challenge_required"),
+            (1u64, "not_a_bot_fail"),
+            (2u64, "challenge_submit"),
+            (3u64, "pow_verify_sequence_violation"),
+        ] {
+            log_event(
+                &store,
+                &EventLogEntry {
+                    ts: run_started_at.saturating_add(offset),
+                    event: EventType::Challenge,
+                    ip: Some("198.51.100.77".to_string()),
+                    reason: Some(reason.to_string()),
+                    outcome: Some("rejected".to_string()),
+                    admin: None,
+                },
+            );
+        }
+
+        let recent_runs = monitoring_recent_sim_run_summaries(&store, now, 24, 10);
+        let row = recent_runs
+            .iter()
+            .find(|value| value.run_id == "simrun-scrapling-defense-surface")
+            .expect("scrapling row");
+        assert_eq!(
+            row.observed_defense_keys,
+            vec![
+                "challenge_puzzle".to_string(),
+                "challenge_routing".to_string(),
+                "not_a_bot".to_string(),
+                "proof_of_work".to_string(),
+            ]
+        );
     }
 
     #[test]
@@ -12488,10 +12538,10 @@ struct MonitoringRecentSimRunAccumulator {
     profile: String,
     observed_fulfillment_modes: HashSet<String>,
     observed_category_ids: HashSet<String>,
+    defense_keys: HashSet<String>,
     first_ts: u64,
     last_ts: u64,
     monitoring_event_count: u64,
-    defense_keys: HashSet<String>,
     ban_outcome_count: u64,
 }
 
@@ -12509,6 +12559,12 @@ fn classify_monitoring_sim_run_defense(record: &EventLogRecord) -> String {
     let outcome = normalize_monitoring_event_token(record.entry.outcome.as_deref());
     let outcome_code = normalize_monitoring_event_token(record.outcome_code.as_deref());
     let combined = format!("{event_type} {reason} {outcome_code} {outcome}");
+    if combined.contains("challenge_submit") {
+        return "challenge_puzzle".to_string();
+    }
+    if combined.contains("challenge_required") || combined.contains("challenge_served") {
+        return "challenge_routing".to_string();
+    }
     if combined.contains("honeypot") {
         return "honeypot".to_string();
     }
@@ -12522,13 +12578,13 @@ fn classify_monitoring_sim_run_defense(record: &EventLogRecord) -> String {
         return "not_a_bot".to_string();
     }
     if combined.contains("pow") || combined.contains("proof") {
-        return "pow".to_string();
+        return "proof_of_work".to_string();
     }
     if combined.contains("rate") {
         return "rate_limit".to_string();
     }
     if combined.contains("geo") {
-        return "geo".to_string();
+        return "geo_ip_policy".to_string();
     }
     if combined.contains("cdp") {
         return "cdp".to_string();
@@ -12537,7 +12593,7 @@ fn classify_monitoring_sim_run_defense(record: &EventLogRecord) -> String {
         return "fingerprint".to_string();
     }
     if combined.contains("challenge") {
-        return "challenge".to_string();
+        return "challenge_routing".to_string();
     }
     if combined.contains("ban") || combined.contains("deny_temp") || combined.contains("block") {
         return "ban_path".to_string();
@@ -12669,16 +12725,20 @@ pub(crate) fn monitoring_recent_sim_run_summaries<S: crate::challenge::KeyValueS
                 let mut observed_category_ids: Vec<_> =
                     row.observed_category_ids.into_iter().collect();
                 observed_category_ids.sort();
+                let mut observed_defense_keys: Vec<_> = row.defense_keys.into_iter().collect();
+                observed_defense_keys.sort();
+                let defense_delta_count = observed_defense_keys.len() as u64;
                 crate::observability::hot_read_documents::MonitoringRecentSimRunSummary {
                     run_id: row.run_id,
                     lane: row.lane,
                     profile: row.profile,
                     observed_fulfillment_modes,
                     observed_category_ids,
+                    observed_defense_keys,
                     first_ts: row.first_ts,
                     last_ts: row.last_ts,
                     monitoring_event_count: row.monitoring_event_count,
-                    defense_delta_count: row.defense_keys.len() as u64,
+                    defense_delta_count,
                     ban_outcome_count: row.ban_outcome_count,
                 }
             },

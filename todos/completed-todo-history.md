@@ -31,6 +31,29 @@ Moved from active TODO files on 2026-02-14.
   - `make test-adversary-sim-scrapling-worker`
   - `git diff --check`
 
+### SIM-SCR-CHALLENGE-2D follow-on: matrix-aligned defense receipts in recent sim runs
+
+- [x] Extended the recent-run and operator-snapshot receipt surface in:
+  - [`src/observability/hot_read_documents.rs`](../src/observability/hot_read_documents.rs)
+  - [`src/observability/operator_snapshot_live_traffic.rs`](../src/observability/operator_snapshot_live_traffic.rs)
+  - [`src/observability/hot_read_projection.rs`](../src/observability/hot_read_projection.rs)
+  - [`src/admin/api.rs`](../src/admin/api.rs)
+  so recent sim runs now expose exact `observed_defense_keys` rather than only a coarse defense-count total.
+- [x] Tightened the defense classifier so telemetry-derived recent-run receipts use matrix-aligned names where the owned-surface contract needs them:
+  - `challenge_routing`
+  - `challenge_puzzle`
+  - `not_a_bot`
+  - `proof_of_work`
+  - `rate_limit`
+  - `geo_ip_policy`
+- [x] Added focused proof that recent-run summaries can now distinguish the owned challenge-family surfaces from observed telemetry rather than collapsing them into a single generic challenge bucket.
+- [x] Why:
+  - `SIM-SCR-CHALLENGE-2D` needs exact, machine-readable defense receipts before it can compare observed Scrapling coverage against the owned-surface matrix and make remaining gaps explicit
+  - the old `defense_delta_count` plus generic `challenge` naming was not precise enough for that job
+- [x] Evidence:
+  - `make test-adversarial-coverage-receipts`
+  - `git diff --check`
+
 ### Test hygiene: restore Scrapling make-target truth after the default-lane flip
 
 - [x] Fixed the focused Scrapling admin tests in [`src/admin/api.rs`](../src/admin/api.rs) so they no longer redundantly re-select `scrapling_traffic` immediately after start now that Scrapling is the default desired lane.
