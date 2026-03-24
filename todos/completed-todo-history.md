@@ -4,6 +4,29 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### Planning: canonical controller mutability policy and hard boundaries
+
+- [x] Wrote the research note in [`docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md`](../docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md) to classify the writable surface into operator-target-only, hard-never, and candidate controller-tunable areas.
+- [x] Wrote the companion implementation plan in [`docs/plans/2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md`](../docs/plans/2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md), defining `CTRL-SURFACE-1`, `CTRL-SURFACE-2`, and `CTRL-SURFACE-3`.
+- [x] Updated the active and blocked backlog plus the main sequencing docs so later Monitoring, Tuning, and recursive-controller phases explicitly depend on a canonical mutability policy rather than inferring controller eligibility from admin writability.
+- [x] Why:
+  - the repo had the right ingredients (`operator_objectives_v1`, `allowed_actions_v1`, the patch proposer, and the full admin-config surface), but not one explicit contract stating what the loop may never mutate.
+  - operator objectives are the rule set for the game and must remain outside the loop's move set.
+  - security-topology, trust-boundary, privacy, and defender-safety controls need a harder no-touch boundary than the current partial `forbidden` family classification.
+  - later controller explanation in Monitoring or Tuning would be misleading unless the mutability boundary is canonical first.
+- [x] Evidence:
+  - `docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md`
+  - `docs/plans/2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md`
+  - `docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`
+  - `docs/plans/2026-03-23-dashboard-operator-surfacing-sequencing-plan.md`
+  - `docs/plans/2026-03-23-tuning-surface-taxonomy-posture-matrix-implementation-plan.md`
+  - `docs/plans/README.md`
+  - `docs/research/README.md`
+  - `todos/todo.md`
+  - `todos/blocked-todo.md`
+  - `git diff --check`
+  - verification intentionally scoped as docs-only; tests not run
+
 ### Planning: monitoring should show bounded benchmark progress across loops
 
 - [x] Wrote the research note in [`docs/research/2026-03-24-monitoring-multi-loop-benchmark-progress-review.md`](../docs/research/2026-03-24-monitoring-multi-loop-benchmark-progress-review.md) to capture the decision that Monitoring should show bounded progress over recent loops against benchmark families, not just the latest loop result.

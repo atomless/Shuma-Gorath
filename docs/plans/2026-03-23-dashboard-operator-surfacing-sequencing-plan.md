@@ -160,7 +160,7 @@ As of 2026-03-23, the first concrete shape for this work is now settled:
 1. `GET /admin/operator-objectives`
 2. `POST /admin/operator-objectives`
 3. category posture editing over the stable taxonomy
-4. later patch-family and controller posture explanation
+4. later patch-family and controller posture explanation derived from the canonical controller mutability policy, not from raw admin-config writability
 
 First concrete UI contract:
 
@@ -176,7 +176,8 @@ First concrete UI contract:
 2. Land `UI-VID-1`.
 3. Land `UI-RED-1`.
 4. Then execute `MON-OVERHAUL-1`.
-5. Then execute `TUNE-SURFACE-1`.
+5. Then ratify the controller mutability policy and hard-no-touch boundary (`CTRL-SURFACE-1..3`).
+6. Then execute `TUNE-SURFACE-1`.
 
 # Definition Of Done
 

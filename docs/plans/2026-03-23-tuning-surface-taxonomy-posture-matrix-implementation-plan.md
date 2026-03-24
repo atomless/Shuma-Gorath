@@ -26,6 +26,7 @@ Define the first implementation-ready UI contract for `TUNE-SURFACE-1` so the Tu
 4. Presets are optional seed actions only; they do not become persisted first-class policy objects.
 5. The first version must not silently modify `Policy`-tab or `Verification`-tab settings.
 6. The preset set is an operator-facing product contract and must remain distinct from the later recursive-improvement development reference stance methodology, even if one label overlaps.
+7. Later controller-patch-family explanation in `Tuning` must derive from the canonical controller mutability policy rather than from raw admin-config writability.
 
 # Scope
 
@@ -153,7 +154,7 @@ It should prove:
 1. `TUNE-SURFACE-1A`
    - taxonomy posture matrix and preset seeding
 2. `TUNE-SURFACE-1B`
-   - later objective-budget and controller-explanation expansion
+   - later objective-budget and controller-explanation expansion, after the canonical controller mutability policy is ratified
 
 The first UI slice should land `1A` only.
 

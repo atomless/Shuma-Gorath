@@ -32,18 +32,19 @@ Close the first real Shuma feedback loop and structurally decompose the control-
 2. Structural decomposition must happen in behavior-preserving slices before more benchmark, operator-snapshot, or oversight logic is added to the current hotspot files.
 3. The first controller remains recommend-only. It must not apply or schedule changes until benchmark comparison, objectives, and decision lineage are truthful.
 4. Monitoring and Tuning remain projections and control surfaces over machine-first contracts, not separate semantic systems.
-5. The first shared-host agent tweaker loop must precede `MON-OVERHAUL-1` so the human surfaces project proven backend semantics rather than invent them ahead of the loop.
-6. Replay-promotion lineage must move from sidecar test tooling into backend contracts before later scheduled-agent planning is reopened.
-7. The next coding tranche should start from the detailed 2026-03-21 execution-ready implementation plans, not only from this high-level sequencing note.
-8. The first truly closed autonomous tuning loop must not use `synthetic_traffic` as tuning evidence; it must depend on protected Scrapling runtime evidence plus replay-promoted or equivalently confirmed frontier or LLM lineage.
-9. Monitoring overhaul should follow the first proven closed loop, not merely the first recommend-only loop, so human surfaces reflect the final protected-evidence and rollback semantics.
-10. The representativeness contract for Scrapling and frontier or LLM lanes must be judged against Shuma's canonical non-human taxonomy, not lane-local assumptions.
-11. Category classification confidence must land before lane representativeness is considered trustworthy enough for autonomous tuning.
-12. The taxonomy comes before attackers: Shuma must define the categories it intends to model before it has enough observed adversary traffic to learn them site-locally.
-13. The initial taxonomy should stay stable enough for the first closed loop; what should evolve first is the fingerprinting and classification quality within it. Taxonomy expansion is a later contingency only if important non-human traffic persistently falls outside the existing categories.
-14. Taxonomy entries must carry stable machine and human-facing metadata because operator objectives and later tuning surfaces will bind posture directly to those categories.
-15. The next LLM adversary step should be bounded category-fulfillment modes behind a pluggable containerized backend contract; the full first-class LLM runtime actor remains later.
-16. The first genuinely closed loop ends at bounded config tuning and rollback; the later LLM diagnosis harness and later LLM code loop remain downstream phases rather than part of the first closure slice.
+5. Operator objectives and hard-never config rings must remain outside the controller move set; admin writability must never be treated as controller eligibility by default.
+6. The first shared-host agent tweaker loop must precede `MON-OVERHAUL-1` so the human surfaces project proven backend semantics rather than invent them ahead of the loop.
+7. Replay-promotion lineage must move from sidecar test tooling into backend contracts before later scheduled-agent planning is reopened.
+8. The next coding tranche should start from the detailed 2026-03-21 execution-ready implementation plans, not only from this high-level sequencing note.
+9. The first truly closed autonomous tuning loop must not use `synthetic_traffic` as tuning evidence; it must depend on protected Scrapling runtime evidence plus replay-promoted or equivalently confirmed frontier or LLM lineage.
+10. Monitoring overhaul should follow the first proven closed loop, not merely the first recommend-only loop, so human surfaces reflect the final protected-evidence and rollback semantics.
+11. The representativeness contract for Scrapling and frontier or LLM lanes must be judged against Shuma's canonical non-human taxonomy, not lane-local assumptions.
+12. Category classification confidence must land before lane representativeness is considered trustworthy enough for autonomous tuning.
+13. The taxonomy comes before attackers: Shuma must define the categories it intends to model before it has enough observed adversary traffic to learn them site-locally.
+14. The initial taxonomy should stay stable enough for the first closed loop; what should evolve first is the fingerprinting and classification quality within it. Taxonomy expansion is a later contingency only if important non-human traffic persistently falls outside the existing categories.
+15. Taxonomy entries must carry stable machine and human-facing metadata because operator objectives and later tuning surfaces will bind posture directly to those categories.
+16. The next LLM adversary step should be bounded category-fulfillment modes behind a pluggable containerized backend contract; the full first-class LLM runtime actor remains later.
+17. The first genuinely closed loop ends at bounded config tuning and rollback; the later LLM diagnosis harness and later LLM code loop remain downstream phases rather than part of the first closure slice.
 
 # Target Architecture
 
@@ -335,9 +336,18 @@ Monitoring is now explicitly scoped as the human-readable accountability surface
 
 It should also show bounded progress over recent completed loops against benchmark families and controller action history, not only the latest loop outcome.
 
+### `CTRL-SURFACE-1..3`
+
+Before the later operator-control and broader recursive-improvement phases are reopened, codify the controller mutability policy explicitly:
+
+1. `operator_objectives_v1` remains the rule set for the game and is never controller-mutable,
+2. hard-never config rings such as provider topology, trust exceptions, privacy posture, and defender safety budgets stay outside the loop,
+3. `allowed_actions_v1`, benchmark escalation, and the patch proposer must agree on one bounded controller-tunable surface,
+4. and later Monitoring, Tuning, and recursive phases must consume that canonical mutability truth rather than inferring mutability from admin writability.
+
 ### `TUNE-SURFACE-1`
 
-Finish the operator control surface once the controller inputs, safe action families, first working agent loop semantics, and adversary-sim diagnostics truth are all aligned, including the operator-objectives and per-category posture editor over the stable operator-facing taxonomy.
+Finish the operator control surface once the controller inputs, safe action families, canonical mutability policy, first working agent loop semantics, and adversary-sim diagnostics truth are all aligned, including the operator-objectives and per-category posture editor over the stable operator-facing taxonomy.
 
 The first concrete UI contract for this tranche is now the taxonomy posture matrix in `Tuning`:
 
@@ -375,7 +385,7 @@ When this phase reopens, code-evolution proposals should treat the strict refere
 2. Do not blend structural decomposition and semantic expansion in the same tranche.
 3. Keep the first decomposition slices behavior-preserving and test-focused.
 4. Keep one hotspot file as the primary target per refactor tranche wherever practical.
-5. Do not reopen `MON-OVERHAUL-1`, `TUNE-SURFACE-1`, or `OVR-AGENT-2` until the blockers listed in this plan are satisfied, including protected tuning evidence, category-coverage proof, the settled Scrapling request-native ownership follow-ons, the verified-identity calibration tranches, the host-impact cost proxy tranches, and the ownership split captured in `UI-VID-1` and `UI-RED-1`.
+5. Do not reopen `MON-OVERHAUL-1`, `TUNE-SURFACE-1`, or `OVR-AGENT-2` until the blockers listed in this plan are satisfied, including protected tuning evidence, category-coverage proof, the settled Scrapling request-native ownership follow-ons, the verified-identity calibration tranches, the host-impact cost proxy tranches, the controller-mutability tranches, and the ownership split captured in `UI-VID-1` and `UI-RED-1`.
 6. Treat periodic scheduling and post-sim triggering as adapter paths over one reconcile or agent contract, not as separate controller implementations.
 
 # File-Length And Separation Guardrails

@@ -110,6 +110,21 @@ Current stance:
 - Keep any category-level trend bounded and accountability-oriented rather than turning Monitoring into a raw long-range history explorer.
 - Reference context: [`../docs/plans/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md`](../docs/plans/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md)
 
+### CTRL-SURFACE-1: Canonical controller mutability policy and hard-never surface
+- Define one canonical mutability policy across admin-writable config and `operator_objectives_v1`, classifying every path as `never`, `manual_only`, or `controller_tunable`.
+- Make the hard-never ring explicit for operator targets, runtime harness controls, provider and edge topology, verified-identity policy, trust exceptions, privacy posture, punishment horizon, and defender safety-budget controls.
+- Reference context: [`../docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md`](../docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md), [`../docs/plans/2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md`](../docs/plans/2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md)
+
+### CTRL-SURFACE-2: Allowed-action and proposer parity over the ratified tunable set
+- Align `allowed_actions_v1`, benchmark escalation, and `oversight_patch_policy` so the declared controller-tunable families and actually proposable patch paths tell the same truth.
+- Fix family or path drift such as the current `challenge_puzzle_risk_threshold` ownership mismatch and eliminate accidental eligibility inherited from the broader admin-config surface.
+- Reference context: [`../docs/plans/2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md`](../docs/plans/2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md)
+
+### CTRL-SURFACE-3: Enforce and surface controller mutability truth
+- Add explicit code and test enforcement for hard-never surfaces and thread the canonical mutability classification into docs and later operator surfaces.
+- Make later controller-explanation work in Monitoring, Tuning, and Advanced consume the canonical mutability policy instead of inferring mutability from admin writability.
+- Reference context: [`../docs/plans/2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md`](../docs/plans/2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md)
+
 ## P1 Verified Bot Identity And Web Bot Auth Foundation
 
 Reference context:
