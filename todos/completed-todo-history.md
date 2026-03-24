@@ -4,6 +4,17 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### Process hardening: require whole-tab DOM review before dashboard completion
+
+- [x] Tightened [`AGENTS.md`](../AGENTS.md) so dashboard UI work now explicitly requires whole-tab or whole-panel DOM inspection before completion, rather than only local subtree edits.
+- [x] Added an explicit prohibition against repeated divider lines caused by stacked wrappers, alongside the existing bans on duplicate titles and nested section shells.
+- [x] Strengthened the dashboard UI completion-proof rule so it now explicitly requires checking the whole rendered tab/panel for repeated divider lines and surrounding wrapper interactions, not just the edited local subtree.
+- [x] Why:
+  - the recent dashboard regressions came from composing local DOM in isolation without stepping back to inspect the wider rendered structure
+  - the earlier DOM-composition directives were directionally right but still too easy to satisfy without doing a proper whole-page check
+- [x] Evidence:
+  - docs-only change; verification intentionally limited to `git diff --check`
+
 ### UI: remove redundant dashboard section shells and framing copy
 
 - [x] Removed the redundant Diagnostics intro pane and the redundant `Defense-Specific Diagnostics` title/subtitle from [`dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte`](../dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte).
