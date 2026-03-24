@@ -7,9 +7,11 @@ Related context:
 - [`../research/2026-03-24-reference-stance-and-run-to-homeostasis-review.md`](../research/2026-03-24-reference-stance-and-run-to-homeostasis-review.md)
 - [`../research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md`](../research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md)
 - [`../research/2026-03-24-scorecard-protocol-and-held-out-eval-separation-review.md`](../research/2026-03-24-scorecard-protocol-and-held-out-eval-separation-review.md)
+- [`../research/2026-03-24-game-loop-audit-trail-and-github-provenance-review.md`](../research/2026-03-24-game-loop-audit-trail-and-github-provenance-review.md)
 - [`2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md)
 - [`2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md)
 - [`2026-03-24-scorecard-protocol-and-held-out-eval-separation-plan.md`](2026-03-24-scorecard-protocol-and-held-out-eval-separation-plan.md)
+- [`2026-03-24-game-loop-audit-trail-and-github-provenance-plan.md`](2026-03-24-game-loop-audit-trail-and-github-provenance-plan.md)
 - [`2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md`](2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md)
 - [`../../src/observability/operator_snapshot_objectives.rs`](../../src/observability/operator_snapshot_objectives.rs)
 - [`../../src/observability/benchmark_results_comparison.rs`](../../src/observability/benchmark_results_comparison.rs)
@@ -45,6 +47,7 @@ Put more simply, the later contract should make it explicit that Shuma's recursi
 6. Later recursive-improvement architecture should be modeled as attacker agent, defender agent, and independent judge rather than only two agent roles.
 7. The earlier reference-stance and run-to-homeostasis methodology should be implemented as part of this game contract, not separately from it.
 8. Later execution-ready player planning should consume separate contracts for judge score semantics, player protocol schemas, and held-out evaluation separation rather than letting those details remain implicit inside the broader game contract.
+9. Episode memory alone is not enough; later recursive-improvement phases also need a canonical audit and provenance contract that links judge outcomes to config and later GitHub-backed code lineage.
 
 ## Task 0: Focused Verification Prep
 
@@ -174,6 +177,7 @@ Put more simply, the later contract should make it explicit that Shuma's recursi
 3. Make recent accepted and rejected episodes available as the stepping-stone substrate for later recursive-improvement phases.
 4. Make the archive machine-first first; later Monitoring should project it, but the archive must not begin as a UI-only concept.
 5. Feed the last 10 completed cycle judgments into the later run-to-homeostasis detector described in the reference-stance methodology.
+6. Preserve stable episode and proposal identifiers plus provenance refs so the later audit contract can link current config episodes and later code-evolution lineage to the same machine-first history.
 
 **Acceptance criteria:**
 
@@ -224,6 +228,7 @@ Put more simply, the later contract should make it explicit that Shuma's recursi
 5. Land `RSI-ROLES-1` before any later dual-agent or triadic autonomous-loop design is treated as execution-ready.
 6. Reopen `OVR-CODE-1` only after `OVR-AGENT-2`, the game contract, and the strict-reference regression-anchor expectations are all explicit.
 7. Land `RSI-SCORE-1`, `RSI-PROTO-1`, and `RSI-EVAL-1` before any later player-side runtime planning is treated as protocol-complete.
+8. Land `RSI-AUDIT-1` before later autonomous defender runtime work is treated as operationally accountable, and before `OVR-CODE-1` is treated as execution-ready.
 
 # Definition Of Done
 

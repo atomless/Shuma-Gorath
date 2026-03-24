@@ -400,7 +400,8 @@ The remaining protocol-level contracts under that game should also stay explicit
 
 1. `RSI-SCORE-1` for the canonical judge scorecard over optimization targets, hard guardrails, regression anchors, and homeostasis inputs,
 2. `RSI-PROTO-1` for canonical attacker and defender observation, action, proposal, refusal, and receipt schemas,
-3. and `RSI-EVAL-1` for the boundary between player-visible protected evidence and judge-held-out evaluation contexts.
+3. `RSI-EVAL-1` for the boundary between player-visible protected evidence and judge-held-out evaluation contexts,
+4. and `RSI-AUDIT-1` for canonical config and later GitHub-backed code provenance across recursive-improvement episodes.
 
 ### `OVR-AGENT-2A..2C`
 
@@ -423,6 +424,8 @@ It should also consume the canonical game-contract and move-selection plan captu
 
 It should further consume the later protocol contracts captured in [`2026-03-24-scorecard-protocol-and-held-out-eval-separation-plan.md`](2026-03-24-scorecard-protocol-and-held-out-eval-separation-plan.md) rather than inventing its own score semantics, player wire formats, or evaluation-visibility rules.
 
+It should also consume the audit and provenance contract captured in [`2026-03-24-game-loop-audit-trail-and-github-provenance-plan.md`](2026-03-24-game-loop-audit-trail-and-github-provenance-plan.md) so later defender episodes leave stable receipt lineage instead of only transient recommendation prose.
+
 When this later phase is designed, treat it as only one player in a larger triad:
 
 1. LLM-backed attacker agent in the sim harness,
@@ -436,6 +439,8 @@ Keep the later benchmark-driven LLM code-evolution or PR-generation path behind 
 When this phase reopens, code-evolution proposals should treat the strict reference stance as a mandatory regression anchor even when optimizing more permissive target stances.
 
 They should also inherit the canonical game contract and move-selection boundaries rather than invent a second notion of objective, legal move scope, or progress.
+
+They should further lean on GitHub as the canonical code-lineage ledger for branch, PR, review, check, merge, revert, and later artifact-attestation provenance wherever feasible, while leaving benchmark and no-harm outcome truth with the machine-first judge.
 
 # Scheduling Rules
 

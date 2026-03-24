@@ -4,6 +4,34 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### Planning refinement: recursive-improvement audit trail and GitHub-backed provenance contract
+
+- [x] Wrote a new research driver and implementation plan for the missing recursive-improvement audit and provenance contract:
+  - [`docs/research/2026-03-24-game-loop-audit-trail-and-github-provenance-review.md`](../docs/research/2026-03-24-game-loop-audit-trail-and-github-provenance-review.md)
+  - [`docs/plans/2026-03-24-game-loop-audit-trail-and-github-provenance-plan.md`](../docs/plans/2026-03-24-game-loop-audit-trail-and-github-provenance-plan.md)
+- [x] Made the key architectural split explicit:
+  - Shuma remains the authoritative judge and episode-outcome ledger
+  - GitHub should become the canonical code-lineage ledger for later code-evolution phases wherever feasible
+- [x] Added blocked recursive-improvement backlog slices for:
+  - `RSI-AUDIT-1`
+  - `RSI-AUDIT-1A`
+  - `RSI-AUDIT-1B`
+  - `RSI-AUDIT-1C`
+- [x] Updated the later recursive-improvement planning chain so the new provenance contract is now threaded through:
+  - the broader game-contract plan
+  - the scorecard/protocol/eval contract plan
+  - the player-role decomposition plan
+  - the reference-stance methodology plan
+  - the main loop-closure plan
+  - the broader roadmap sequencing note
+- [x] Updated `OVR-CODE-1` to require the new audit/provenance contract and to lean on GitHub for PR, review, check, merge, revert, and later artifact-attestation lineage rather than inventing a shadow review system inside Shuma.
+- [x] Why:
+  - the repo already had meaningful config-loop lineage and a planned episode archive, but it did not yet have one canonical provenance contract across config episodes and later code evolution
+  - the user explicitly wanted Shuma to lean on GitHub where possible, following the discipline seen in `autoresearch`
+- [x] Evidence:
+  - `git diff --check`
+  - verification intentionally scoped as docs-only; tests not run
+
 ### UI-GAME-LOOP-1: Rename Monitoring tab to Game Loop and reorder it after Red Team
 
 - [x] Canonically renamed the dashboard tab identity from `Monitoring` / `#monitoring` to `Game Loop` / `#game-loop` across:

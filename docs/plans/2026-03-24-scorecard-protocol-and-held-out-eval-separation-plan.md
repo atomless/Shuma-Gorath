@@ -4,9 +4,11 @@ Status: Proposed
 Related context:
 
 - [`../research/2026-03-24-scorecard-protocol-and-held-out-eval-separation-review.md`](../research/2026-03-24-scorecard-protocol-and-held-out-eval-separation-review.md)
+- [`../research/2026-03-24-game-loop-audit-trail-and-github-provenance-review.md`](../research/2026-03-24-game-loop-audit-trail-and-github-provenance-review.md)
 - [`2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md)
 - [`2026-03-24-llm-player-role-decomposition-plan.md`](2026-03-24-llm-player-role-decomposition-plan.md)
 - [`2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md)
+- [`2026-03-24-game-loop-audit-trail-and-github-provenance-plan.md`](2026-03-24-game-loop-audit-trail-and-github-provenance-plan.md)
 - [`../../todos/blocked-todo.md`](../../todos/blocked-todo.md)
 
 # Objective
@@ -25,7 +27,8 @@ Freeze the three remaining cross-cutting contracts that the later full recursive
 4. These contracts should remain separate from:
    1. the broader game contract,
    2. the broader role contract,
-   3. and the broader methodology contract.
+   3. the broader methodology contract,
+   4. and the later audit and provenance contract.
 
 ## Task 1: `RSI-SCORE-1`
 
@@ -121,6 +124,7 @@ Freeze the three remaining cross-cutting contracts that the later full recursive
 3. Land `RSI-SCORE-1` before `OVR-AGENT-2B`, `OVR-AGENT-2C`, and `RSI-METH-1`.
 4. Land `RSI-PROTO-1` before `SIM-LLM-1A` and `OVR-AGENT-2A` are treated as execution-ready.
 5. Land `RSI-EVAL-1` before `SIM-LLM-1B`, `SIM-LLM-1C`, `OVR-AGENT-2B`, `OVR-AGENT-2C`, and `OVR-CODE-1` are treated as execution-ready.
+6. Land `RSI-AUDIT-1` after these contracts so provenance can bind to settled scorecard, protocol, and evaluation revisions instead of inventing independent ids and meanings.
 
 # Definition Of Done
 

@@ -282,7 +282,7 @@ Shuma now also has an explicit methodology for the later recursive-improvement p
 That methodology says:
 
 1. later controller expansion should first consume a canonical recursive-improvement game contract defining immutable rules, sacred evaluator, bounded legal move ring, shortfall-attribution policy, and episode archive,
-2. later controller expansion should also consume explicit contracts for the judge scorecard, player protocol schemas, and held-out evaluation separation rather than leaving those details implicit inside role-specific planning,
+2. later controller expansion should also consume explicit contracts for the judge scorecard, player protocol schemas, held-out evaluation separation, and canonical audit or provenance lineage rather than leaving those details implicit inside role-specific planning,
 3. later controller expansion should then begin from `Human-only / private` as a development reference stance,
 4. later runs should continue as bounded run-to-homeostasis episodes rather than as one-shot recommendations,
 5. later relaxed preset sweeps should come after strict-reference stabilization,
