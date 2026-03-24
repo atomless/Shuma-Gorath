@@ -8,6 +8,8 @@ Moved from active TODO files on 2026-02-14.
 
 - [x] Extended the existing Scrapling `http_agent` worker persona in [`scripts/supervisor/scrapling_worker.py`](../scripts/supervisor/scrapling_worker.py) so it no longer stops at benign helper traffic and now performs hostile request-native interaction against public owned surfaces:
   - challenge-routing pressure through public search,
+  - explicit rate-pressure generation,
+  - explicit honeypot trip behavior,
   - hostile `not_a_bot` submit,
   - hostile puzzle submit,
   - hostile PoW verify submit.

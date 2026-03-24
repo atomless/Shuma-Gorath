@@ -38,6 +38,8 @@ class WorkerConfigError(ValueError):
 SCRAPLING_FULFILLMENT_MODES = {"crawler", "bulk_scraper", "http_agent"}
 
 HTTP_AGENT_PUBLIC_SEARCH_PATH = "/sim/public/search?q=challenge-pressure"
+HTTP_AGENT_RATE_PRESSURE_PATH = "/sim/public/search?q=rate-pressure"
+HTTP_AGENT_HONEYPOT_PATH = "/instaban"
 HTTP_AGENT_NOT_A_BOT_PATH = "/challenge/not-a-bot-checkbox"
 HTTP_AGENT_CHALLENGE_PUZZLE_PATH = "/challenge/puzzle"
 HTTP_AGENT_POW_VERIFY_PATH = "/pow/verify"
@@ -578,34 +580,20 @@ def _execute_http_agent_persona(
         ),
         (
             "get",
-            urljoin(base_url, "/agent/ping?mode=http_agent"),
+            urljoin(base_url, HTTP_AGENT_RATE_PRESSURE_PATH),
             {
-                "headers": {"accept": "application/json"},
+                "headers": {"accept": "text/html,application/xhtml+xml"},
                 "cookies": cookies,
-            },
-        ),
-        (
-            "post",
-            urljoin(base_url, "/agent/submit"),
-            {
-                "headers": {
-                    "accept": "application/json",
-                    "content-type": "application/json",
-                },
-                "cookies": cookies,
-                "json": {
-                    "mode": "http_agent",
-                    "run_id": tracker.run_id,
-                    "tick_id": tracker.tick_id,
-                },
+                "surface": "rate_limit",
             },
         ),
         (
             "get",
-            urljoin(base_url, "/agent/redirect"),
+            urljoin(base_url, HTTP_AGENT_HONEYPOT_PATH),
             {
-                "headers": {"accept": "application/json"},
+                "headers": {"accept": "text/html,application/xhtml+xml"},
                 "cookies": cookies,
+                "surface": "honeypot",
             },
         ),
         (

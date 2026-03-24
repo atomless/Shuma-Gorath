@@ -9,6 +9,8 @@ Date: 2026-03-24
 - the existing `http_agent` persona now performs hostile request-native interaction against public Scrapling-owned challenge surfaces rather than only benign JSON helper routes,
 - those interactions include:
   - challenge-routing pressure via public search,
+  - explicit rate-pressure generation,
+  - explicit honeypot trip behavior,
   - hostile `not_a_bot` submit,
   - hostile puzzle submit,
   - hostile PoW verify submit,
@@ -16,7 +18,7 @@ Date: 2026-03-24
 
 ## Why this is better
 
-Before this tranche, the request-native Scrapling lane still behaved too politely for the owned challenge surfaces. It could generate request-native traffic and fulfill category mapping, but it did not actually use Scrapling the way a malicious request-native attacker would use it against Shuma's public challenge endpoints.
+Before this tranche, the request-native Scrapling lane still behaved too politely for the owned request-native surfaces. It could generate request-native traffic and fulfill category mapping, but it did not actually use Scrapling the way a malicious request-native attacker would use it against Shuma's public hostile surfaces.
 
 This slice makes the lane materially more attacker-faithful without widening into browser-runtime adoption or privileged internal knowledge:
 

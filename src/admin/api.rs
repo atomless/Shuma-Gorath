@@ -5421,6 +5421,8 @@ mod admin_config_tests {
             },
             "surface_interactions": {
                 "challenge_routing": 1,
+                "rate_limit": 1,
+                "honeypot": 1,
                 "not_a_bot": 1,
                 "challenge_puzzle": 1,
                 "proof_of_work": 1
@@ -5460,6 +5462,28 @@ mod admin_config_tests {
                 .and_then(|value| value.get("lanes"))
                 .and_then(|value| value.get("scrapling_traffic"))
                 .and_then(|value| value.get("beat_successes"))
+                .and_then(|value| value.as_u64()),
+            Some(1)
+        );
+        assert_eq!(
+            result_json
+                .get("status")
+                .and_then(|value| value.get("lane_diagnostics"))
+                .and_then(|value| value.get("lanes"))
+                .and_then(|value| value.get("scrapling_traffic"))
+                .and_then(|value| value.get("surface_interactions"))
+                .and_then(|value| value.get("rate_limit"))
+                .and_then(|value| value.as_u64()),
+            Some(1)
+        );
+        assert_eq!(
+            result_json
+                .get("status")
+                .and_then(|value| value.get("lane_diagnostics"))
+                .and_then(|value| value.get("lanes"))
+                .and_then(|value| value.get("scrapling_traffic"))
+                .and_then(|value| value.get("surface_interactions"))
+                .and_then(|value| value.get("honeypot"))
                 .and_then(|value| value.as_u64()),
             Some(1)
         );

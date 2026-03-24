@@ -150,6 +150,14 @@ class _RecordingHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
+        if self.path == "/instaban":
+            body = b"<html><body>honeypot tripped</body></html>"
+            self.send_response(403)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if self.path == "/pow":
             body = b"<html><body>pow challenge</body></html>"
             self.send_response(200)
@@ -343,7 +351,7 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
             )
         )
 
-    def test_execute_worker_plan_http_agent_uses_method_mix_redirect_followup_and_hostile_challenge_submits(self) -> None:
+    def test_execute_worker_plan_http_agent_hits_owned_surfaces_with_hostile_request_native_traffic(self) -> None:
         self.assertIsNotNone(scrapling_worker, "worker module missing")
         beat_payload = self._make_beat_payload(
             "http_agent",
@@ -366,30 +374,25 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
             {
                 "challenge_puzzle": 1,
                 "challenge_routing": 1,
+                "honeypot": 1,
                 "not_a_bot": 1,
                 "proof_of_work": 1,
+                "rate_limit": 1,
             },
         )
         methods = [entry["method"] for entry in self.httpd.requests_seen]
         self.assertIn("GET", methods)
         self.assertIn("POST", methods)
         paths = [entry["path"] for entry in self.httpd.requests_seen]
-        self.assertIn("/agent/redirect", paths)
-        self.assertIn("/agent/final", paths)
         self.assertIn("/sim/public/search?q=challenge-pressure", paths)
+        self.assertIn("/sim/public/search?q=rate-pressure", paths)
+        self.assertIn("/instaban", paths)
         self.assertIn("/challenge/not-a-bot-checkbox", paths)
         self.assertIn("/challenge/puzzle", paths)
         self.assertIn("/pow/verify", paths)
-        submit = next(entry for entry in self.httpd.requests_seen if entry["path"] == "/agent/submit")
-        self.assertIn('"mode":"http_agent"', submit["body"])
-        self.assertEqual(
-            submit["headers"].get("content-type"),
-            "application/json",
-        )
-        self.assertIn(
-            "shuma_agent_mode=http_agent",
-            submit["headers"].get("cookie", ""),
-        )
+        honeypot = next(entry for entry in self.httpd.requests_seen if entry["path"] == "/instaban")
+        self.assertEqual(honeypot["method"], "GET")
+        self.assertIn("shuma_agent_mode=http_agent", honeypot["headers"].get("cookie", ""))
         not_a_bot_submit = next(
             entry for entry in self.httpd.requests_seen if entry["path"] == "/challenge/not-a-bot-checkbox"
         )
