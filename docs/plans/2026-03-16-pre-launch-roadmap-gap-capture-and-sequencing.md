@@ -190,8 +190,9 @@ Status update (2026-03-24):
 
 1. Monitoring is now explicitly being redesigned as a loop-accountability surface over the current operator-selected product stance.
 2. The later development reference stance should not leak into the first Monitoring contract except, much later, as clearly labeled separate evaluation context.
-3. The next ownership refinement should now introduce a dedicated `Traffic` tab so the current traffic-facing Diagnostics surface does not get forced into Monitoring. After that, `DIAG-CLEANUP-1` can narrow Diagnostics to furniture-operational proof.
-4. See [`2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md`](2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md), [`2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-plan.md`](2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-plan.md), and [`2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md).
+3. When the operator-surface mainline resumes, the next ownership refinement should introduce a dedicated `Traffic` tab so the current traffic-facing Diagnostics surface does not get forced into Monitoring. After that, `DIAG-CLEANUP-1` can narrow Diagnostics to furniture-operational proof.
+4. That operator-surface cleanup is no longer the immediate mainline. Attacker-faithful Scrapling and the first explicit self-improving loop now sit ahead of `TRAFFIC-TAB-1`, `DIAG-CLEANUP-1`, and `MON-OVERHAUL-1C`.
+5. See [`2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md`](2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md), [`2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-plan.md`](2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-plan.md), [`2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md`](2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md), and [`2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md).
 
 ## H. Protected Tuning Evidence And Category Coverage
 

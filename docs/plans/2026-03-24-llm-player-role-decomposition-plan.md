@@ -59,12 +59,17 @@ Decompose the two later LLM-backed player roles so the recursive-improvement gam
    1. no admin credentials,
    2. no privileged secrets,
    3. no silent access to the judge or controller state,
-   4. only ratified environment observations and tools.
+   4. only ratified environment observations and tools,
+   5. and no Shuma-specific route, defense, or implementation knowledge.
 3. Define the attacker-agent action surface:
    1. request generation,
    2. browser or automation actions where allowed,
    3. tool invocations,
    4. episode and token budgets.
+4. Define the initial attacker context:
+   1. host-site root entrypoint only,
+   2. the non-human category or category family it is meant to fulfill,
+   3. and malicious-category priming where the category should behave maliciously.
 4. Define the receipt model:
    1. prompts or instructions lineage where safe,
    2. action trace,
@@ -75,7 +80,8 @@ Decompose the two later LLM-backed player roles so the recursive-improvement gam
 
 1. the repo has one canonical answer to "what is the later LLM attacker agent allowed to see and do?",
 2. the attacker role is clearly subordinate to the independent judge,
-3. and the black-box boundary is explicit enough to prevent quiet privilege drift.
+3. the black-box boundary is explicit enough to prevent quiet privilege drift,
+4. and the attacker is clearly host-root-first and Shuma-blind rather than secretly Shuma-aware.
 
 ## Task 2: `SIM-LLM-1B`
 

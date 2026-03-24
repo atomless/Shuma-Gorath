@@ -6,6 +6,12 @@
 
 **Architecture:** Keep the current machine-first snapshot, benchmark, replay-promotion, and reconcile contracts as the core control plane. Add the missing category, classifier, and adversary-lane representativeness gates first, close the loop at config tuning before code changes, and keep the LLM adversary lane and LLM diagnosis lane as separate bounded roles. Use one capability-safe container boundary and a pluggable model-backend contract for bounded LLM adversary modes, with frontier-backed execution as the initial reference path for the highest-capability categories and optional later local-model backends only if evals prove parity.
 
+LLM attacker black-box note:
+
+1. the later LLM attacker must start from the host site's root entrypoint and category objective only,
+2. it must know nothing about Shuma internals, routes, or defenses,
+3. and it should be primed to fulfill the remaining non-human categories and to behave maliciously where those categories imply malicious behavior.
+
 **Tech Stack:** Rust control plane, Python adversarial runner/orchestration, Scrapling worker, capability-safe containerized adversary actor runtime, external frontier LLM APIs, optional later local model backends, Makefile verification.
 
 ---

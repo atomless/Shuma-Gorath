@@ -163,12 +163,12 @@ Freeze the missing audit and provenance contract for Shuma's later recursive-imp
 
 # Sequencing
 
-1. Keep the current operator-facing mainline first: `TRAFFIC-TAB-1`, `DIAG-CLEANUP-1`, `MON-OVERHAUL-1C`, `CTRL-SURFACE-1..3`, and `TUNE-SURFACE-1A`.
-2. Land the broader recursive-improvement contract first: `RSI-GAME-1A`, `RSI-GAME-1B`, `RSI-GAME-1C`, and `RSI-ROLES-1`.
-3. Land `RSI-SCORE-1`, `RSI-PROTO-1`, and `RSI-EVAL-1` before treating provenance as protocol-complete.
-4. Land `RSI-AUDIT-1A` before `OVR-AGENT-2B` or `OVR-AGENT-2C` are treated as execution-ready.
-5. Land `RSI-AUDIT-1B` before `OVR-CODE-1` is treated as execution-ready.
-6. Land `RSI-AUDIT-1C` before later operator-facing loop history or code-evolution audit surfaces are considered complete.
+1. Keep the attacker-faithful mainline first: `SIM-SCR-CHALLENGE-2A..2D`, `CTRL-SURFACE-1..3`, `RSI-GAME-1A`, `RSI-GAME-1B`, `RSI-SCORE-1`, `RSI-GAME-1C`, and `RSI-GAME-MAINLINE-1`.
+2. Land the broader recursive-improvement role and protocol contract after that: `RSI-ROLES-1`, `RSI-PROTO-1`, and `RSI-EVAL-1`.
+3. Land `RSI-AUDIT-1A` before `OVR-AGENT-2B` or `OVR-AGENT-2C` are treated as execution-ready.
+4. Land `RSI-AUDIT-1B` before `OVR-CODE-1` is treated as execution-ready.
+5. Land `RSI-AUDIT-1C` before later operator-facing loop history or code-evolution audit surfaces are considered complete.
+6. Return to deferred operator-surface cleanup and follow-ons only after the first working loop is proven against the truthful attacker basis.
 
 # Definition Of Done
 

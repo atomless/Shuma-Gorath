@@ -89,8 +89,60 @@ Current stance:
 - The next prerequisite now begins one step earlier: Shuma must first define a canonical non-human taxonomy and shared classification contract before it can truthfully measure lane representativeness.
 - The actively evolving near-term layer should be fingerprinting and categorization quality inside that taxonomy; taxonomy expansion is only a later contingency if important non-human traffic persistently falls outside the existing categories.
 - The next bridge to a genuine LLM-in-the-loop system is not the full later `SIM-LLM-1` runtime actor; it is a bounded category-fulfillment LLM tranche that sits between the taxonomy/classifier work and the first closed config loop, with the later LLM diagnosis harness and code loop still downstream of `OVR-APPLY-1`.
-- Before `MON-OVERHAUL-1`, expose the already-settled local control truths that no longer belong only in Advanced JSON or backend-only payloads. Verified identity in `Verification` and adversary-sim status truth basis in `Red Team` are now delivered, so the next step is the Monitoring projection itself.
+- The active mainline is now reprioritized: before further operator-surface cleanup or later player-side game-loop execution, make Scrapling attacker-faithful for the defense surfaces it owns, prove that coverage with receipts, and then run the first explicit self-improving loop over that truthful attacker basis.
+- Before `MON-OVERHAUL-1`, expose the already-settled local control truths that no longer belong only in Advanced JSON or backend-only payloads. Verified identity in `Verification` and adversary-sim status truth basis in `Red Team` are now delivered, but the immediate mainline now moves first through attacker-faithful Scrapling and the first working game loop rather than dashboard cleanup.
 - Keep the operator-facing product stance distinct from the later recursive-improvement development reference stance: `MON-OVERHAUL-1` and later `TUNE-SURFACE-1` should project and edit the current operator-selected posture, while run-to-homeostasis episodes remain blocked with `OVR-AGENT-2` and `RSI-METH-1`.
+
+## P0 Attacker-Faithful Scrapling And First Game Loop
+
+Reference context:
+- [`docs/research/2026-03-24-scrapling-challenge-surface-and-defense-coverage-review.md`](../docs/research/2026-03-24-scrapling-challenge-surface-and-defense-coverage-review.md)
+- [`docs/plans/2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md`](../docs/plans/2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md)
+- [`docs/research/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-review.md`](../docs/research/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-review.md)
+- [`docs/plans/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md`](../docs/plans/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md)
+- [`docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](../docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md)
+
+### SIM-SCR-CHALLENGE-2A: Scrapling owned-surface matrix and success contract
+- Freeze the exact defense surfaces the Scrapling lane owns and must attack faithfully.
+- For each owned surface, define whether Scrapling should:
+  - touch it,
+  - fail against it,
+  - or be able to pass it like a real attacker.
+- Use that matrix to decide what remains request-native and what genuinely requires browser or stealth Scrapling.
+
+### SIM-SCR-CHALLENGE-2B: Malicious request-native Scrapling interactions
+- Extend the current Scrapling worker so it behaves the way a malicious Scrapling-powered attacker would for request-native owned surfaces.
+- Add explicit malicious interaction coverage where applicable for:
+  - challenge routing pressure,
+  - `not_a_bot`,
+  - puzzle escalation or submit paths,
+  - PoW abuse,
+  - and other owned request-native defenses.
+
+### SIM-SCR-CHALLENGE-2C: Browser or stealth Scrapling where the matrix requires it
+- Where the owned-surface matrix says request-native Scrapling is not enough, adopt Scrapling browser or stealth fetchers rather than leaving the lane underpowered.
+- Keep this bounded to surfaces Scrapling actually owns rather than broadening into unrelated browser-agent behavior.
+
+### SIM-SCR-CHALLENGE-2D: Receipt-backed coverage closure and explicit gap assignment
+- Prove that Scrapling now touches every defense surface it owns and can pass the ones a real attacker should be able to pass.
+- Add focused verification and receipts so any remaining uncovered surface is explicit and intentionally assigned to another lane.
+
+### RSI-GAME-MAINLINE-1: First working self-improving loop over attacker-faithful Scrapling
+- After the Scrapling-owned surfaces are attacker-faithful and receipt-backed, execute the first explicit self-improving loop over that truthful attacker basis.
+- Before broadening that loop, land `CTRL-SURFACE-1..3` and the judge-side game-contract work (`RSI-GAME-1A`, `RSI-GAME-1B`, `RSI-SCORE-1`, and `RSI-GAME-1C`) so the loop runs over a settled legal move ring and explicit judge semantics.
+- Keep this ahead of later LLM attacker or defender runtime work, and ahead of secondary dashboard cleanup follow-ons.
+
+Mainline execution order:
+1. `SIM-SCR-CHALLENGE-2A`
+2. `SIM-SCR-CHALLENGE-2B`
+3. `SIM-SCR-CHALLENGE-2C` only if the owned-surface matrix requires browser or stealth Scrapling
+4. `SIM-SCR-CHALLENGE-2D`
+5. `CTRL-SURFACE-1..3`
+6. `RSI-GAME-1A`
+7. `RSI-GAME-1B`
+8. `RSI-SCORE-1`
+9. `RSI-GAME-1C`
+10. `RSI-GAME-MAINLINE-1`
 
 ### DIAG-CLEANUP-1: Diagnostics furniture-operational cleanup after Traffic split
 - After `TRAFFIC-TAB-1` lands, remove the migrated traffic-facing sections from Diagnostics so it becomes clearly diagnostics-first and furniture-operational.

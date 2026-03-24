@@ -4,6 +4,34 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### Planning: resequence the active mainline to Scrapling first, then the game loop
+
+- [x] Added the new resequencing review and implementation-plan notes:
+  - [`docs/research/2026-03-24-mainline-resequence-scrapling-before-game-loop-review.md`](../docs/research/2026-03-24-mainline-resequence-scrapling-before-game-loop-review.md)
+  - [`docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md`](../docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md)
+- [x] Updated the active backlog in [`todos/todo.md`](../todos/todo.md) so the immediate mainline is now:
+  - attacker-faithful Scrapling owned-surface contract,
+  - malicious request-native expansion,
+  - browser/stealth Scrapling where required,
+  - receipt-backed coverage closure,
+  - and only then the first working self-improving loop.
+- [x] Synced the higher-level planning chain in:
+  - [`docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
+  - [`docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](../docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md)
+  - [`docs/plans/2026-03-24-game-loop-audit-trail-and-github-provenance-plan.md`](../docs/plans/2026-03-24-game-loop-audit-trail-and-github-provenance-plan.md)
+  so older notes no longer imply dashboard/operator-surface cleanup remains the immediate mainline ahead of attacker-faithful Scrapling and the first working loop.
+- [x] Tightened the later LLM attacker contract in:
+  - [`docs/plans/2026-03-24-llm-player-role-decomposition-plan.md`](../docs/plans/2026-03-24-llm-player-role-decomposition-plan.md)
+  - [`docs/plans/2026-03-22-path-to-closed-loop-llm-adversary-and-diagnosis-implementation-plan.md`](../docs/plans/2026-03-22-path-to-closed-loop-llm-adversary-and-diagnosis-implementation-plan.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+  so it is explicitly host-root-only, category-primed, malicious where appropriate, and knows nothing about Shuma internals.
+- [x] Updated the research and plan indexes so the new mainline resequencing docs are discoverable from the active planning chain.
+- [x] Why:
+  - the user set a clearer top priority: get Scrapling fully malicious and verified first, then make the self-improving loop work, then return to the later LLM attacker/defender runtime tracks and secondary scheduled work
+  - that required turning the earlier sequencing principle into the actual active queue rather than leaving it only in blocked-game-loop notes
+- [x] Evidence:
+  - docs-only change; verification intentionally limited to `git diff --check`
+
 ### Planning: make attacker-faithful Scrapling coverage a game-loop prerequisite
 
 - [x] Added the new sequencing review and implementation-plan notes:
