@@ -102,6 +102,10 @@ function toPlain(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function waitForMacrotask() {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 function createMutableClassList(initial = []) {
   const classes = new Set(Array.isArray(initial) ? initial : []);
   return {
@@ -5867,84 +5871,176 @@ test('monitoring overview stats labels retain explicit window semantics', () => 
   assert.match(source, /title="Events \(24h\)"/);
 });
 
-test('dashboard native runtime owns session heartbeat, tab normalization, and action exports', () => {
-  const source = fs.readFileSync(DASHBOARD_NATIVE_RUNTIME_PATH, 'utf8');
+test('dashboard native runtime restores session, normalizes tabs, and invalidates config mutations through behavior', { concurrency: false }, async () => {
+  await withBrowserGlobals({
+    window: {
+      Chart: function Chart() {}
+    }
+  }, async () => {
+    const runtimeModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-native-runtime.js');
+    const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
 
-  assert.match(source, /const DASHBOARD_TABS = Object\.freeze\(\['monitoring', 'ip-bans', 'red-team', 'tuning', 'verification', 'traps', 'rate-limiting', 'geo', 'fingerprinting', 'policy', 'status', 'advanced', 'diagnostics'\]\);/);
-  assert.match(source, /createDashboardRefreshRuntime/);
-  assert.match(source, /const CONNECTION_HEARTBEAT_PATH = '\/admin\/session';/);
-  assert.match(source, /function runConnectionHeartbeat\(reason = 'manual'\)/);
-  assert.match(source, /recordHeartbeatAttemptStarted/);
-  assert.match(source, /recordHeartbeatSuccess/);
-  assert.match(source, /recordHeartbeatFailure/);
-  assert.match(source, /recordHeartbeatControllerReset/);
-  assert.doesNotMatch(source, /setBackendConnectionState/);
-  assert.match(source, /function hasRuntimeEnvironment\(\)/);
-  assert.match(source, /if \(!hasRuntimeEnvironment\(\)\) return false;/);
-  assert.match(source, /export async function updateDashboardConfig/);
-  assert.match(source, /export async function validateDashboardConfigPatch/);
-  assert.match(source, /export async function banDashboardIp/);
-  assert.match(source, /export async function unbanDashboardIp/);
-  assert.match(source, /dashboardRefreshRuntime\.clearAllCaches/);
+    const store = storeModule.createDashboardStore({ initialTab: 'status' });
+    const requestLog = [];
+    const fetchStub = async (input, init = {}) => {
+      const url = String(input || '');
+      const method = String(init.method || 'GET').toUpperCase();
+      const headers = new Headers(init.headers || {});
+      const bodyText = typeof init.body === 'string' ? init.body : '';
+      requestLog.push({ url, method, headers, bodyText });
+
+      if (url.endsWith('/admin/session')) {
+        return new Response(JSON.stringify({
+          authenticated: true,
+          csrf_token: 'csrf-123',
+          expires_at: 1_900_000_000,
+          runtime_environment: 'runtime-prod'
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+      if (url.endsWith('/admin/config')) {
+        return new Response(JSON.stringify({
+          config: { pow_enabled: false },
+          runtime: {
+            admin_config_write_enabled: true,
+            runtime_environment: 'runtime-prod'
+          }
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+      if (url.endsWith('/admin/logout')) {
+        return new Response('', { status: 204 });
+      }
+      throw new Error(`Unexpected fetch: ${method} ${url}`);
+    };
+
+    const restoreFetch = setGlobalValue('fetch', fetchStub);
+    try {
+      await runtimeModule.mountDashboardApp({ store, initialTab: 'unknown-tab' });
+
+      assert.equal(runtimeModule.getDashboardActiveTab(), 'monitoring');
+      assert.equal(runtimeModule.setDashboardActiveTab('verification'), 'verification');
+      assert.equal(runtimeModule.setDashboardActiveTab('not-a-real-tab'), 'monitoring');
+
+      store.markTabUpdated('monitoring');
+      store.markTabUpdated('ip-bans');
+      store.markTabUpdated('verification');
+
+      const restored = await runtimeModule.restoreDashboardSession();
+      assert.equal(restored, true);
+      await waitForMacrotask();
+
+      assert.deepEqual(runtimeModule.getDashboardSessionState(), {
+        authenticated: true,
+        csrfToken: 'csrf-123',
+        expiresAt: 1_900_000_000,
+        runtimeEnvironment: 'runtime-prod'
+      });
+      assert.equal(store.getSession().authenticated, true);
+      assert.equal(store.getRuntimeTelemetry().connection.state, 'connected');
+      assert.equal(
+        requestLog.filter((entry) => entry.url.endsWith('/admin/session')).length >= 2,
+        true
+      );
+
+      const nextConfig = await runtimeModule.updateDashboardConfig({ pow_enabled: false });
+      assert.deepEqual(nextConfig, { pow_enabled: false });
+
+      const configRequest = requestLog.find((entry) => entry.url.endsWith('/admin/config'));
+      assert.ok(configRequest);
+      assert.equal(configRequest.method, 'POST');
+      assert.equal(configRequest.headers.get('X-Shuma-CSRF'), 'csrf-123');
+      assert.deepEqual(JSON.parse(configRequest.bodyText), { pow_enabled: false });
+      assert.equal((store.getSnapshot('config') || {}).pow_enabled, false);
+      assert.equal((store.getSnapshot('configRuntime') || {}).runtime_environment, 'runtime-prod');
+      assert.equal(store.isTabStale('monitoring'), true);
+      assert.equal(store.isTabStale('ip-bans'), true);
+      assert.equal(store.isTabStale('verification'), true);
+
+      await runtimeModule.logoutDashboardSession();
+      const logoutRequest = requestLog.find((entry) => entry.url.endsWith('/admin/logout'));
+      assert.ok(logoutRequest);
+      assert.equal(logoutRequest.method, 'POST');
+      assert.equal(logoutRequest.headers.get('X-Shuma-CSRF'), 'csrf-123');
+      assert.equal(runtimeModule.getDashboardSessionState().authenticated, false);
+      assert.equal(store.getSession().authenticated, false);
+    } finally {
+      restoreFetch();
+      runtimeModule.unmountDashboardApp();
+    }
+  });
 });
 
-test('dashboard refresh runtime owns bounded cache, delta, and red-team monitoring refresh flows', () => {
-  const source = fs.readFileSync(DASHBOARD_REFRESH_RUNTIME_PATH, 'utf8');
+test('dashboard refresh runtime clears caches and resets freshness snapshots through behavior', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
+    const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
 
-  assert.match(source, /const MONITORING_CACHE_KEY = 'shuma_dashboard_cache_monitoring_v2';/);
-  assert.match(source, /const IP_BANS_CACHE_KEY = 'shuma_dashboard_cache_ip_bans_v1';/);
-  assert.match(source, /const MONITORING_CACHE_MAX_RECENT_EVENTS = 25;/);
-  assert.match(source, /const MONITORING_CACHE_MAX_CDP_EVENTS = 50;/);
-  assert.match(source, /const MONITORING_CACHE_MAX_BANS = 100;/);
-  assert.match(source, /const IP_BANS_CACHE_MAX_SUGGESTIONS = 50;/);
-  assert.match(source, /const MONITORING_DELTA_LIMIT = 120;/);
-  assert.match(source, /const IP_BANS_DELTA_LIMIT = 120;/);
-  assert.match(source, /const MONITORING_FULL_RECENT_EVENTS_LIMIT = 200;/);
-  assert.match(source, /const IP_RANGE_SUGGESTIONS_HOURS = 24;/);
-  assert.match(source, /const IP_RANGE_SUGGESTIONS_LIMIT = 20;/);
-  assert.match(source, /const STREAMABLE_TABS = Object\.freeze\(new Set\(\['monitoring', 'ip-bans'\]\)\);/);
-  assert.match(source, /function clearAllCaches\(\) \{/);
-  assert.match(source, /closeAllStreams\(\);/);
-  assert.match(source, /monitoringFreshness/);
-  assert.match(source, /ipBansFreshness/);
-  assert.match(source, /dashboardApiClient\.getMonitoringDelta\(/);
-  assert.match(source, /dashboardApiClient\.getIpBansDelta\(/);
-  assert.match(source, /function startRealtimeStream\(tab\) \{/);
-  assert.match(source, /typeof EventSource !== 'function'/);
-  assert.match(source, /new EventSource\(streamUrl, \{ withCredentials: true \}\)/);
-  assert.match(source, /applyMonitoringDeltaSnapshots\(payload, 'sse'\)/);
-  assert.match(source, /applyIpBansDeltaSnapshots\(payload, 'sse'\)/);
-  assert.match(source, /updateFreshnessSnapshot\(/);
-  assert.match(source, /writeCache\(MONITORING_CACHE_KEY, \{ monitoring: compactMonitoring \}\);/);
-  assert.match(source, /if \(!isConfigSnapshotEmpty\(existingConfig\) && !isConfigRuntimeSnapshotEmpty\(existingRuntime\)\) \{/);
-  assert.match(source, /async function refreshVerificationTab\(reason = 'manual', runtimeOptions = \{\}\)/);
-  assert.match(source, /dashboardApiClient && typeof dashboardApiClient\.getOperatorSnapshot === 'function'/);
-  assert.match(source, /applySnapshots\(\{ operatorSnapshot \}\);/);
-  assert.match(source, /applySnapshots\(\{ operatorSnapshot: null \}\);/);
-  assert.match(source, /const refreshRedTeamTab = async \(reason = 'manual', runtimeOptions = \{\}\) => \{/);
-  assert.match(source, /const refreshPolicyTab = \(reason = 'manual', runtimeOptions = \{\}\) =>/);
-  assert.match(source, /policy:\s*refreshPolicyTab,/);
-  assert.doesNotMatch(source, /refreshRobotsTab/);
-  assert.match(source, /if \(reason === 'auto-refresh'\) \{/);
-  assert.match(
-    source,
-    /if \(isConfigSnapshotEmpty\(existingConfig\) \|\| isConfigRuntimeSnapshotEmpty\(existingRuntime\)\) \{\s*await Promise\.all\(\[\s*refreshMonitoringTab\(reason, runtimeOptions\),\s*refreshSharedConfig\(reason, runtimeOptions\)\s*\]\);/s
-  );
-  assert.match(source, /async function refreshFingerprintingTab\(reason = 'manual'/);
-  assert.match(source, /dashboardApiClient\.getCdp\(requestOptions\)/);
-  assert.match(
-    source,
-    /dashboardApiClient\.getIpRangeSuggestions\(\s*\{ hours: IP_RANGE_SUGGESTIONS_HOURS, limit: IP_RANGE_SUGGESTIONS_LIMIT \},\s*requestOptions\s*\)/
-  );
-  assert.match(
-    source,
-    /writeCache\(IP_BANS_CACHE_KEY, \{\s*bans: compactBans,\s*ipRangeSuggestions: compactSuggestions\s*\}\);/m
-  );
-  assert.match(source, /const includeConfigRefresh = reason !== 'auto-refresh';/);
-  assert.match(
-    source,
-    /includeConfigRefresh \? refreshSharedConfig\(reason, runtimeOptions\) : Promise\.resolve\(null\)/
-  );
+    const store = storeModule.createDashboardStore({ initialTab: 'monitoring' });
+    const storageState = new Map([
+      ['shuma_dashboard_cache_monitoring_v2', '{"cachedAt":1,"payload":{"monitoring":{}}}'],
+      ['shuma_dashboard_cache_ip_bans_v1', '{"cachedAt":1,"payload":{"bans":{}}}']
+    ]);
+    const removedKeys = [];
+    const storage = {
+      getItem(key) {
+        return storageState.has(key) ? storageState.get(key) : null;
+      },
+      setItem(key, value) {
+        storageState.set(key, String(value));
+      },
+      removeItem(key) {
+        removedKeys.push(String(key));
+        storageState.delete(key);
+      }
+    };
+
+    store.setSnapshot('monitoringFreshness', {
+      state: 'fresh',
+      lag_ms: 12,
+      last_event_ts: 1_700_000_000,
+      slow_consumer_lag_state: 'normal',
+      overflow: 'none',
+      transport: 'sse',
+      query_budget_requests_per_second_per_client: 4,
+      refreshed_at: '2026-03-24T12:00:00.000Z'
+    });
+    store.setSnapshot('ipBansFreshness', {
+      state: 'degraded',
+      lag_ms: 55,
+      last_event_ts: 1_700_000_050,
+      slow_consumer_lag_state: 'elevated',
+      overflow: 'none',
+      transport: 'cursor_delta_poll',
+      query_budget_requests_per_second_per_client: 2,
+      refreshed_at: '2026-03-24T12:00:10.000Z'
+    });
+
+    const runtime = refreshModule.createDashboardRefreshRuntime({
+      normalizeTab: (value) => String(value || ''),
+      getApiClient: () => null,
+      getStateStore: () => store,
+      storage
+    });
+
+    runtime.clearAllCaches();
+
+    assert.deepEqual(removedKeys.sort(), [
+      'shuma_dashboard_cache_ip_bans_v1',
+      'shuma_dashboard_cache_monitoring_v2'
+    ]);
+    assert.equal(storageState.size, 0);
+    assert.equal((store.getSnapshot('monitoringFreshness') || {}).state, 'stale');
+    assert.equal((store.getSnapshot('monitoringFreshness') || {}).transport, 'polling');
+    assert.equal((store.getSnapshot('monitoringFreshness') || {}).lag_ms, null);
+    assert.equal((store.getSnapshot('ipBansFreshness') || {}).state, 'stale');
+    assert.equal((store.getSnapshot('ipBansFreshness') || {}).transport, 'polling');
+    assert.equal((store.getSnapshot('ipBansFreshness') || {}).lag_ms, null);
+  });
 });
 
 test('dashboard verification tab wires verified identity operator snapshot and store state', () => {
@@ -6132,53 +6228,91 @@ test('dashboard monitoring accountability adapters normalize benchmark and overs
   assert.equal(oversightStatus.recent_runs[0].execution.apply.stage, 'canary_applied');
 });
 
-test('dashboard monitoring tab wires benchmark and oversight machine contracts through state and refresh runtime', () => {
-  const apiClientSource = fs.readFileSync(
-    path.join(DASHBOARD_ROOT, 'src/lib/domain/api-client.js'),
-    'utf8'
-  );
-  const stateSource = fs.readFileSync(
-    path.join(DASHBOARD_ROOT, 'src/lib/domain/dashboard-state.js'),
-    'utf8'
-  );
-  const refreshSource = fs.readFileSync(
-    path.join(DASHBOARD_ROOT, 'src/lib/runtime/dashboard-runtime-refresh.js'),
-    'utf8'
-  );
-  const routeSource = fs.readFileSync(
-    path.join(DASHBOARD_ROOT, 'src/routes/+page.svelte'),
-    'utf8'
-  );
+test('dashboard monitoring accountability refresh populates machine snapshots through behavior', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
+    const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
 
-  assert.match(apiClientSource, /export const adaptBenchmarkResults = \(payload\) => \{/);
-  assert.match(apiClientSource, /export const adaptOversightHistory = \(payload\) => \{/);
-  assert.match(apiClientSource, /export const adaptOversightAgentStatus = \(payload\) => \{/);
-  assert.match(apiClientSource, /const getBenchmarkResults = async \(requestOptions = \{\}\) =>/);
-  assert.match(apiClientSource, /const getOversightHistory = async \(requestOptions = \{\}\) =>/);
-  assert.match(apiClientSource, /const getOversightAgentStatus = async \(requestOptions = \{\}\) =>/);
-  assert.match(apiClientSource, /getBenchmarkResults,/);
-  assert.match(apiClientSource, /getOversightHistory,/);
-  assert.match(apiClientSource, /getOversightAgentStatus,/);
+    const store = storeModule.createDashboardStore({ initialTab: 'monitoring' });
+    const calls = [];
+    const apiClient = {
+      async getConfig() {
+        calls.push('config');
+        return {
+          config: { pow_enabled: true },
+          runtime: {
+            admin_config_write_enabled: true,
+            runtime_environment: 'runtime-prod'
+          }
+        };
+      },
+      async getOperatorSnapshot() {
+        calls.push('operatorSnapshot');
+        return {
+          schema_version: 'operator_snapshot_v1',
+          operator_profile: { profile_id: 'human_only_private' }
+        };
+      },
+      async getBenchmarkResults() {
+        calls.push('benchmarkResults');
+        return {
+          schema_version: 'benchmark_results_v1',
+          overall_status: 'outside_budget',
+          families: [
+            {
+              family_id: 'suspicious_origin_cost',
+              status: 'outside_budget'
+            }
+          ]
+        };
+      },
+      async getOversightHistory() {
+        calls.push('oversightHistory');
+        return {
+          schema_version: 'oversight_history_v1',
+          rows: [
+            {
+              decision_id: 'ovr-1',
+              apply: { stage: 'canary_applied' }
+            }
+          ]
+        };
+      },
+      async getOversightAgentStatus() {
+        calls.push('oversightAgentStatus');
+        return {
+          schema_version: 'oversight_agent_status_v1',
+          latest_decision: {
+            outcome: 'canary_applied'
+          }
+        };
+      }
+    };
 
-  assert.match(stateSource, /'benchmarkResults'/);
-  assert.match(stateSource, /'oversightHistory'/);
-  assert.match(stateSource, /'oversightAgentStatus'/);
-  assert.match(stateSource, /benchmarkResults: null/);
-  assert.match(stateSource, /oversightHistory: null/);
-  assert.match(stateSource, /oversightAgentStatus: null/);
+    const runtime = refreshModule.createDashboardRefreshRuntime({
+      normalizeTab: (value) => String(value || ''),
+      getApiClient: () => apiClient,
+      getStateStore: () => store
+    });
 
-  assert.match(refreshSource, /refreshMonitoringAccountabilityData/);
-  assert.match(refreshSource, /getBenchmarkResults/);
-  assert.match(refreshSource, /getOversightHistory/);
-  assert.match(refreshSource, /getOversightAgentStatus/);
-  assert.match(
-    refreshSource,
-    /applySnapshots\(\{ benchmarkResults: null, oversightHistory: null, oversightAgentStatus: null \}\)/
-  );
+    await runtime.refreshDashboardForTab('monitoring', 'manual-refresh');
 
-  assert.match(routeSource, /benchmarkResults=\{snapshots\.benchmarkResults\}/);
-  assert.match(routeSource, /oversightHistory=\{snapshots\.oversightHistory\}/);
-  assert.match(routeSource, /oversightAgentStatus=\{snapshots\.oversightAgentStatus\}/);
+    assert.deepEqual(calls.sort(), [
+      'benchmarkResults',
+      'config',
+      'operatorSnapshot',
+      'oversightAgentStatus',
+      'oversightHistory'
+    ]);
+    assert.equal((store.getSnapshot('configRuntime') || {}).runtime_environment, 'runtime-prod');
+    assert.equal((store.getSnapshot('operatorSnapshot') || {}).schema_version, 'operator_snapshot_v1');
+    assert.equal((store.getSnapshot('benchmarkResults') || {}).schema_version, 'benchmark_results_v1');
+    assert.equal((store.getSnapshot('benchmarkResults') || {}).families?.[0]?.family_id, 'suspicious_origin_cost');
+    assert.equal((store.getSnapshot('oversightHistory') || {}).rows?.[0]?.apply?.stage, 'canary_applied');
+    assert.equal((store.getSnapshot('oversightAgentStatus') || {}).latest_decision?.outcome, 'canary_applied');
+    assert.equal(store.getState().tabStatus.monitoring.loading, false);
+    assert.equal(store.getState().tabStatus.monitoring.error, '');
+  });
 });
 
 test('dashboard route wires native runtime actions with separate manual and auto refresh tab sets', () => {

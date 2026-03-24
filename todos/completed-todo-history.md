@@ -4,6 +4,25 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### TEST-HYGIENE-6A: Dashboard runtime and monitoring archaeology replacement
+
+- [x] Replaced the audit-cited dashboard Node source-regex tests for native runtime ownership, refresh runtime ownership, and Monitoring accountability wiring with behavior-first module tests in [`e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js).
+- [x] Added a new focused verification path in [`Makefile`](../Makefile):
+  - `make test-dashboard-runtime-unit-contracts`
+- [x] Narrowed [`docs/testing.md`](../docs/testing.md) and the existing verified-identity make target so dashboard runtime behavior proof now lives in its own explicit lane instead of being dragged through unrelated pane-target wording.
+- [x] Split the remaining non-dashboard `TEST-HYGIENE-6` work in [`todos/todo.md`](../todos/todo.md) into:
+  - `TEST-HYGIENE-6B` for shell-wrapper and integration-cleanup archaeology
+  - `TEST-HYGIENE-6C` for feature-specific Makefile selector microtests
+- [x] Why:
+  - the testing audit identified these dashboard regex tests as the clearest examples of low-signal archaeology pretending to be behavior proof.
+  - replacing them first gives the biggest trust improvement with the smallest focused dashboard-only change.
+- [x] Evidence:
+  - `make test-dashboard-runtime-unit-contracts`
+  - `make test-dashboard-monitoring-accountability`
+  - `make test-dashboard-verified-identity-pane`
+  - `git diff --check`
+  - `docs/research/2026-03-24-test-hygiene-6a-dashboard-behavior-proof-post-implementation-review.md`
+
 ### MON-OVERHAUL-1B: Monitoring projection of loop verdict, outcome frontier, and controller judgment
 
 - [x] Wired new dashboard machine-contract reads for Monitoring through:

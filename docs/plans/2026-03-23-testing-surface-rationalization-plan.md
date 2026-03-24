@@ -32,7 +32,33 @@ Verification:
 - docs-only tranche unless `Makefile` help text changes.
 - `git diff --check`
 
-### TEST-HYGIENE-6: Replace or reclassify source archaeology outside explicit contract lanes
+### TEST-HYGIENE-6A: Replace dashboard runtime and monitoring archaeology with behavior proof
+
+Status:
+
+- delivered on 2026-03-24
+
+Objective:
+
+- replace the audit-cited dashboard Node source-regex tests with real module or runtime behavior proof,
+- while leaving explicit source-contract lanes intact where file shape is itself the contract.
+
+Scope:
+
+- replace native-runtime source regex ownership checks with behavior proof for session restore, tab normalization, and config-mutation invalidation,
+- replace refresh-runtime source regex ownership checks with behavior proof for cache clearing and freshness reset,
+- replace Monitoring accountability wiring regex checks with behavior proof that the refresh runtime materializes benchmark and oversight snapshots into store state,
+- add a truthful focused Make target for the new non-rendered runtime behavior checks,
+- remove unrelated source-regex checks from focused pane targets whose names no longer match their real blast radius.
+
+Verification:
+
+- `make test-dashboard-runtime-unit-contracts`
+- `make test-dashboard-monitoring-accountability`
+- `make test-dashboard-verified-identity-pane`
+- `git diff --check`
+
+### TEST-HYGIENE-6B: Replace or reclassify shell-wrapper archaeology outside explicit contract lanes
 
 Objective:
 
@@ -41,17 +67,33 @@ Objective:
 
 Scope:
 
-- continue replacing dashboard source archaeology with rendered or runtime behavior checks where feasible.
 - audit and improve shell-script and Makefile selector tests including:
   - supervisor wrapper tests,
-  - integration cleanup tests,
-  - feature-specific Makefile selector microtests.
+  - integration cleanup tests.
 - where source-shape checks remain necessary, move or rename them into explicit `contract` or `wiring` lanes rather than feature-behavior lanes.
 
 Verification:
 
 - focused `make` targets per converted area.
 - avoid broad `make test` reruns unless the touched surface genuinely needs it.
+
+### TEST-HYGIENE-6C: Reclassify feature-specific Makefile selector microtests into explicit contract lanes
+
+Objective:
+
+- keep genuinely useful target-truthfulness guards,
+- while making sure feature-oriented proof targets do not quietly rely on selector-only or shell-text-only microtests.
+
+Scope:
+
+- audit small Python tests such as verified-identity, host-impact, and adversary-sim make-target selector checks,
+- move retained selector checks into explicit `contract` or `wiring` lanes,
+- refresh Make help and docs when target names or scope statements need to become more truthful.
+
+Verification:
+
+- focused `make` targets for the touched selector or wiring lanes
+- `git diff --check`
 
 ### TEST-HYGIENE-2: Keep full-suite verification worktree-clean
 
@@ -71,11 +113,13 @@ Verification:
 ## Proposed Execution Order
 
 1. `TEST-TIER-1`
-2. `TEST-HYGIENE-6`
-3. existing `TEST-HYGIENE-3`
-4. existing `TEST-HYGIENE-4`
-5. existing `TEST-HYGIENE-5`
-6. existing `TEST-HYGIENE-2`
+2. `TEST-HYGIENE-6A` (delivered)
+3. `TEST-HYGIENE-6B`
+4. `TEST-HYGIENE-6C`
+5. existing `TEST-HYGIENE-3`
+6. existing `TEST-HYGIENE-4`
+7. existing `TEST-HYGIENE-5`
+8. existing `TEST-HYGIENE-2`
 
 ## Notes
 
