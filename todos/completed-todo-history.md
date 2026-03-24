@@ -4,6 +4,21 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### Process hardening: dashboard DOM-composition and section-ownership directives in AGENTS
+
+- [x] Tightened [`AGENTS.md`](../AGENTS.md) with explicit dashboard DOM-composition directives so future UI work must keep tab/panel markup shallow, semantically owned, and free of stacked section chrome.
+- [x] Added an explicit prohibition against:
+  - duplicate titles,
+  - nested section-inside-section shells,
+  - empty heading wrappers,
+  - and border-only containers whose only child is another full panel/section using the same chrome.
+- [x] Strengthened the dashboard completion-proof rules so UI slices now require an explicit check for duplicate section chrome, redundant headings, nested shells, and border wrappers without meaningful owned content even when tests pass.
+- [x] Why:
+  - the user identified a real quality failure in the recent dashboard DOM composition, especially in `Traffic`, `Red Team`, and `Diagnostics`
+  - the previous instructions were strong on style reuse but not explicit enough about DOM cleanliness and section ownership
+- [x] Evidence:
+  - docs-only change; verification intentionally limited to `git diff --check`
+
 ### UI: trim redundant framing copy from Traffic, Game Loop, and Diagnostics
 
 - [x] Removed redundant top framing panes and section-copy clutter from:
