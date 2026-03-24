@@ -1454,6 +1454,9 @@ test("game loop, traffic, and diagnostics tabs expose their ownership split", as
     page.locator('#dashboard-panel-game-loop [data-game-loop-section="recent-loop-progress"]')
   ).toContainText("Recent Loop Progress");
   await expect(
+    page.locator('#dashboard-panel-game-loop [data-game-loop-section="recent-loop-progress"] .section')
+  ).toHaveCount(0);
+  await expect(
     page.locator('#dashboard-panel-game-loop [data-game-loop-section="outcome-frontier"]')
   ).toContainText("Outcome Frontier");
   await expect(
@@ -1490,18 +1493,16 @@ test("game loop, traffic, and diagnostics tabs expose their ownership split", as
 
   await openTab(page, "diagnostics");
   await expect(page.locator("#dashboard-panel-diagnostics")).toHaveClass(/admin-group/);
-  await expect(page.locator('#dashboard-panel-diagnostics [data-diagnostics-intro]')).toHaveClass(
-    /control-group/
-  );
-  await expect(
-    page.locator('#dashboard-panel-diagnostics [data-diagnostics-section="deep-inspection-intro"]')
-  ).toContainText("Diagnostics");
+  await expect(page.locator('#dashboard-panel-diagnostics [data-diagnostics-intro]')).toHaveCount(0);
   await expect(
     page.locator('#dashboard-panel-diagnostics [data-diagnostics-section="defense-breakdown"]')
   ).toContainText("Defense Breakdown");
   await expect(
     page.locator('#dashboard-panel-diagnostics [data-diagnostics-section="defense-specific-diagnostics"]')
-  ).toContainText("Defense-Specific Diagnostics");
+  ).not.toContainText("Defense-Specific Diagnostics");
+  await expect(
+    page.locator('#dashboard-panel-diagnostics [data-diagnostics-section="defense-specific-diagnostics"]')
+  ).not.toContainText("Dive into per-defense sections");
   await expect(
     page.locator('#dashboard-panel-diagnostics [data-diagnostics-section="telemetry-diagnostics"]')
   ).toContainText("Telemetry Diagnostics");

@@ -5725,11 +5725,16 @@ test('game loop, traffic, and diagnostics tabs make ownership boundaries explici
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/primitives/SectionBlock.svelte'),
     'utf8'
   );
+  const styleSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'style.css'),
+    'utf8'
+  );
 
   assert.match(monitoringSource, /class="admin-group dashboard-tab-panel"/);
   assert.match(monitoringSource, /data-dashboard-tab-panel="game-loop"/);
   assert.match(monitoringSource, /aria-labelledby="dashboard-tab-game-loop"/);
   assert.match(monitoringSource, /data-game-loop-section=\{section\.id\}/);
+  assert.doesNotMatch(monitoringSource, /<SectionBlock title=\{section\.title\} description=\{section\.description\} rootClass="section">/);
   assert.match(monitoringSource, /id: 'current-status'/);
   assert.match(monitoringSource, /id: 'recent-loop-progress'/);
   assert.match(monitoringSource, /id: 'outcome-frontier'/);
@@ -5762,11 +5767,13 @@ test('game loop, traffic, and diagnostics tabs make ownership boundaries explici
   assert.match(diagnosticsSource, /data-diagnostics-section="defense-specific-diagnostics"/);
   assert.match(diagnosticsSource, /data-diagnostics-section="telemetry-diagnostics"/);
   assert.match(diagnosticsSource, /data-diagnostics-section="external-monitoring"/);
-  assert.match(diagnosticsSource, /data-diagnostics-intro/);
-  assert.match(diagnosticsSource, /class="control-group panel-soft pad-md"[\s\S]*data-diagnostics-intro/);
-  assert.match(diagnosticsSource, /data-diagnostics-section="deep-inspection-intro"/);
-  assert.match(diagnosticsSource, />Diagnostics</);
-  assert.match(diagnosticsSource, /deep inspection/i);
+  assert.doesNotMatch(diagnosticsSource, /data-diagnostics-intro/);
+  assert.doesNotMatch(diagnosticsSource, /data-diagnostics-section="deep-inspection-intro"/);
+  assert.doesNotMatch(diagnosticsSource, />Diagnostics</);
+  assert.doesNotMatch(diagnosticsSource, /deep inspection/i);
+  assert.match(styleSource, /\.dashboard-tab-panel > \.section:first-of-type \{/);
+  assert.match(styleSource, /padding-top: 0;/);
+  assert.match(styleSource, /border-top: none;/);
 });
 
 test('tarpit monitoring section centers progression and outcome telemetry', () => {

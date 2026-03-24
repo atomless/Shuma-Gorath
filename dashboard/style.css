@@ -905,6 +905,11 @@ h1 {
   border-top: var(--border-hairline);
 }
 
+.dashboard-tab-panel > .section:first-of-type {
+  padding-top: 0;
+  border-top: none;
+}
+
 .section h2 {
   font-size: var(--text-3xl);
   color: var(--color-front);

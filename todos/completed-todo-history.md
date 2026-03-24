@@ -4,6 +4,23 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### UI: remove redundant dashboard section shells and framing copy
+
+- [x] Removed the redundant Diagnostics intro pane and the redundant `Defense-Specific Diagnostics` title/subtitle from [`dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte`](../dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte).
+- [x] Removed the redundant inner `.section` shell from [`dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte) so Game Loop no longer renders repeated divider lines between sections.
+- [x] Preserved the top-of-tab first-section border suppression in [`dashboard/style.css`](../dashboard/style.css) to avoid stray leading dividers on tab pages.
+- [x] Tightened focused source/rendered proof in:
+  - [`e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+- [x] Updated the Diagnostics tab reference in [`docs/dashboard-tabs/diagnostics.md`](../docs/dashboard-tabs/diagnostics.md).
+- [x] Added the tranche review receipt in [`docs/research/2026-03-24-dashboard-section-shell-cleanup-post-implementation-review.md`](../docs/research/2026-03-24-dashboard-section-shell-cleanup-post-implementation-review.md).
+- [x] Why:
+  - user review identified a real DOM-composition failure: needless nested section shells and redundant framing copy were creating stray borders and repeated divider lines
+  - the first remediation attempt drifted toward the wrong area, so this follow-up kept the fix strictly scoped to section ownership and top-of-page framing only
+- [x] Evidence:
+  - `make test-dashboard-tab-information-architecture`
+  - `git diff --check`
+
 ### UI: exact restore of Diagnostics intro ownership content
 
 - [x] Restored the exact prior Diagnostics intro block in [`dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte`](../dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte) after it was incorrectly removed in the framing-copy cleanup.
