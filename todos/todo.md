@@ -92,22 +92,11 @@ Current stance:
 - Before `MON-OVERHAUL-1`, expose the already-settled local control truths that no longer belong only in Advanced JSON or backend-only payloads. Verified identity in `Verification` and adversary-sim status truth basis in `Red Team` are now delivered, so the next step is the Monitoring projection itself.
 - Keep the operator-facing product stance distinct from the later recursive-improvement development reference stance: `MON-OVERHAUL-1` and later `TUNE-SURFACE-1` should project and edit the current operator-selected posture, while run-to-homeostasis episodes remain blocked with `OVR-AGENT-2` and `RSI-METH-1`.
 
-### TRAFFIC-TAB-1: Dedicated Traffic tab and migration of current traffic-facing Diagnostics surfaces
-- Introduce a first-class `Traffic` tab, placed after `Monitoring` and before `Diagnostics`, so live and recent traffic visibility stops competing with both loop accountability and furniture diagnostics.
-- Move the current Diagnostics traffic-facing sections into `Traffic`, reusing the existing components where truthful:
-  - `Traffic Overview`
-  - `Recent External Traffic`
-- Add a light traffic-telemetry health strip in `Traffic`, derived from the existing freshness truth, without moving the full contributor-style `Telemetry Diagnostics` block out of `Diagnostics`.
-- When the traffic event section moves, keep the visible section title as `Recent Events` rather than `Recent External Traffic` plus the inner `Recent Events` title.
-- Keep `Traffic` focused on proving traffic telemetry collection is operational and showing what traffic is hitting Shuma and the host now, with manual refresh and bounded auto-refresh.
-- Reference context: [`../docs/plans/2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md`](../docs/plans/2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md)
-
 ### DIAG-CLEANUP-1: Diagnostics furniture-operational cleanup after Traffic split
 - After `TRAFFIC-TAB-1` lands, remove the migrated traffic-facing sections from Diagnostics so it becomes clearly diagnostics-first and furniture-operational.
 - Keep `Defense Breakdown` as a concise overview of the furniture shown below, and keep `Defense-Specific Diagnostics`, full `Telemetry Diagnostics`, and `External Monitoring` as the core Diagnostics surface.
 - Tighten copy and ownership so Diagnostics no longer reads like a traffic dashboard.
 - Fix the current doubled or surplus headings while cleaning ownership:
-  - keep `Defense Breakdown`, not `Defense Breakdown` plus `Defense Trends`
   - keep `Telemetry Diagnostics` only once
 - Clean up any now-redundant helper or view-model code that existed only because Diagnostics temporarily hosted the traffic visibility surface.
 - Reference context: [`../docs/plans/2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md`](../docs/plans/2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md)

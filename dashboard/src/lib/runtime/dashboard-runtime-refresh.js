@@ -591,8 +591,18 @@ export function createDashboardRefreshRuntime(options = {}) {
     if (!dashboardApiClient) return;
 
     const isAutoRefresh = reason === 'auto-refresh';
+    const loadingMessage =
+      surfaceTab === 'traffic'
+        ? 'Loading traffic visibility...'
+        : (surfaceTab === 'diagnostics'
+          ? 'Loading diagnostics...'
+          : 'Loading monitoring data...');
+    const emptyMessage =
+      surfaceTab === 'traffic'
+        ? 'No traffic events are visible yet. Traffic will populate as telemetry arrives.'
+        : 'No operational events yet. Monitoring will populate as traffic arrives.';
     if (!isAutoRefresh) {
-      showTabLoading(surfaceTab, surfaceTab === 'diagnostics' ? 'Loading diagnostics...' : 'Loading monitoring data...');
+      showTabLoading(surfaceTab, loadingMessage);
     }
 
     const dashboardState = getStateStore();
@@ -610,7 +620,7 @@ export function createDashboardRefreshRuntime(options = {}) {
         applySnapshots(buildMonitoringSnapshots(monitoringData, configSnapshot, configRuntimeSnapshot));
         baselineState.monitoring = true;
         if (dashboardState && dashboardState.getDerivedState().monitoringEmpty) {
-          showTabEmpty(surfaceTab, 'No operational events yet. Monitoring will populate as traffic arrives.');
+          showTabEmpty(surfaceTab, emptyMessage);
         } else {
           clearTabStateMessage(surfaceTab);
         }
@@ -665,7 +675,7 @@ export function createDashboardRefreshRuntime(options = {}) {
     };
     const showMonitoringStateMessage = () => {
       if (dashboardState && dashboardState.getDerivedState().monitoringEmpty) {
-        showTabEmpty(surfaceTab, 'No operational events yet. Monitoring will populate as traffic arrives.');
+        showTabEmpty(surfaceTab, emptyMessage);
       } else {
         clearTabStateMessage(surfaceTab);
       }
@@ -807,6 +817,9 @@ export function createDashboardRefreshRuntime(options = {}) {
 
     showMonitoringStateMessage();
   }
+
+  const refreshTrafficTab = (reason = 'manual', runtimeOptions = {}) =>
+    refreshMonitoringTab(reason, runtimeOptions, 'traffic');
 
   const refreshDiagnosticsTab = (reason = 'manual', runtimeOptions = {}) =>
     refreshMonitoringTab(reason, runtimeOptions, 'diagnostics');
@@ -1181,6 +1194,7 @@ export function createDashboardRefreshRuntime(options = {}) {
     );
 
   const TAB_REFRESH_HANDLERS = Object.freeze({
+    traffic: refreshTrafficTab,
     monitoring: async (reason = 'manual', runtimeOptions = {}) => {
       if (reason !== 'auto-refresh') {
         showTabLoading('monitoring', 'Loading closed-loop accountability...');

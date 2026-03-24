@@ -11,10 +11,6 @@
     POW_REASON_LABELS,
     RATE_OUTCOME_LABELS,
     deriveDefenseTrendRows,
-    deriveEnforcedMonitoringChartRows,
-    deriveMonitoringEventDisplay,
-    deriveRecentEventFilterOptions,
-    filterRecentEvents,
     deriveIpRangeMonitoringViewModel,
     deriveMazeStatsViewModel,
     deriveMonitoringSummaryViewModel,
@@ -22,16 +18,13 @@
     derivePrometheusHelperViewModel
   } from './monitoring-view-model.js';
   import {
-    buildTimeSeries,
-    hoursForRange,
     normalizeDimensionRows,
     normalizePairRows,
     normalizeReasonRows,
     normalizeTopCountries,
     normalizeTopPaths,
     normalizeTrendRows,
-    normalizeTrendSeries,
-    shouldFetchRange
+    normalizeTrendSeries
   } from '../../domain/monitoring-normalizers.js';
   import {
     buildMonitoringCountYAxis,
@@ -40,21 +33,10 @@
   } from '../../domain/monitoring-chart-presets.js';
   import { formatUnixSecondsLocal } from '../../domain/core/date-time.js';
   import { arraysEqualShallow } from '../../domain/core/format.js';
-  import {
-    buildHalfDoughnutSeries,
-    EMPTY_HALF_DOUGHNUT_READOUT,
-    HALF_DOUGHNUT_LEGEND_OFFSET_PLUGIN,
-    buildHalfDoughnutOptions,
-    syncHalfDoughnutReadout
-  } from '../../domain/half-doughnut-chart.js';
-  import { normalizeLowerTrimmed } from '../../domain/core/strings.js';
   import { formatIpRangeReasonLabel } from '../../domain/ip-range-policy.js';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
-  import OverviewStats from './monitoring/OverviewStats.svelte';
-  import PrimaryCharts from './monitoring/PrimaryCharts.svelte';
   import DiagnosticsSection from './monitoring/DiagnosticsSection.svelte';
   import DefenseTrendBlocks from './monitoring/DefenseTrendBlocks.svelte';
-  import RecentEventsTable from './monitoring/RecentEventsTable.svelte';
   import CdpSection from './monitoring/CdpSection.svelte';
   import MazeSection from './monitoring/MazeSection.svelte';
   import TarpitSection from './monitoring/TarpitSection.svelte';
@@ -66,26 +48,18 @@
   import IpRangeSection from './monitoring/IpRangeSection.svelte';
   import ExternalMonitoringSection from './monitoring/ExternalMonitoringSection.svelte';
 
-  const EVENT_ROW_RENDER_LIMIT = 100;
   const RAW_FEED_MAX_LINES = 200;
   const CDP_ROW_RENDER_LIMIT = 500;
-  const RANGE_EVENTS_FETCH_LIMIT = 5000;
-  const RANGE_EVENTS_REQUEST_TIMEOUT_MS = 10000;
-  const RANGE_EVENTS_AUTO_REFRESH_INTERVAL_MS = 180000;
   const CHART_RESIZE_REDRAW_DEBOUNCE_MS = 180;
   const POW_OUTCOME_LABELS = Object.freeze({
     success: 'Success',
     failure: 'Failure'
   });
-  const TIME_RANGES = Object.freeze(['hour', 'day', 'week', 'month']);
-  const RANGE_CACHEABLE_WINDOWS = Object.freeze(['week', 'month']);
 
   export let managed = false;
   export let isActive = true;
   export let tabStatus = null;
-  export let analyticsSnapshot = null;
   export let eventsSnapshot = null;
-  export let bansSnapshot = null;
   export let mazeSnapshot = null;
   export let cdpSnapshot = null;
   export let cdpEventsSnapshot = null;
@@ -93,41 +67,15 @@
   export let monitoringFreshnessSnapshot = null;
   export let ipBansFreshnessSnapshot = null;
   export let configSnapshot = null;
-  export let onFetchEventsRange = null;
-  export let autoRefreshEnabled = false;
 
-  let eventTypesCanvas = null;
-  let topIpsCanvas = null;
-  let timeSeriesCanvas = null;
   let challengeTrendCanvas = null;
   let powTrendCanvas = null;
-  let eventTypesChart = null;
-  let topIpsChart = null;
-  let timeSeriesChart = null;
   let challengeTrendChart = null;
   let powTrendChart = null;
 
-  let selectedTimeRange = 'hour';
-  let eventFilters = {
-    origin: 'all',
-    mode: 'all',
-    scenario: 'all',
-    lane: 'all',
-    defense: 'all',
-    outcome: 'all'
-  };
-  let rangeEventsByWindow = {
-    week: { recent_events: [], fetchedAtMs: 0, loading: false },
-    month: { recent_events: [], fetchedAtMs: 0, loading: false }
-  };
-  let rangeEventsAbortController = null;
-  let lastRequestedRange = '';
-  let lastRangeTabUpdateAnchor = '';
   let rawRecentEvents = [];
-  let filteredRecentEvents = [];
   let rawTelemetryFeed = [];
   let defenseTrendRows = [];
-  let eventTypesReadout = EMPTY_HALF_DOUGHNUT_READOUT;
 
   let copyButtonLabel = 'Copy JavaScript Example';
   let copyCurlButtonLabel = 'Copy Curl Example';
@@ -201,35 +149,7 @@
     scheduleCopyLabelReset(kind);
   };
 
-  const eventBadgeClass = (eventType) => {
-    const normalized = normalizeLowerTrimmed(eventType).replace(/[^a-z_]/g, '');
-    return normalized ? `badge ${normalized}` : 'badge';
-  };
-
   const formatTime = (rawTs) => formatUnixSecondsLocal(rawTs, '-');
-  const toNonNegativeIntOrNull = (value) => {
-    const numeric = Number(value);
-    if (!Number.isFinite(numeric) || numeric < 0) return null;
-    return Math.floor(numeric);
-  };
-  const normalizeEventCounts = (value) =>
-    value && typeof value === 'object' && !Array.isArray(value) ? value : {};
-  const sumEventCounts = (eventCounts = {}) =>
-    Object.values(eventCounts).reduce((total, value) => {
-      const next = toNonNegativeIntOrNull(value);
-      return next === null ? total : total + next;
-    }, 0);
-  const getEventCountByName = (eventCounts = {}, eventName = '') => {
-    const target = normalizeLowerTrimmed(eventName);
-    if (!target) return null;
-    const direct = toNonNegativeIntOrNull(eventCounts[eventName]);
-    if (direct !== null) return direct;
-    const matchedKey = Object.keys(eventCounts).find(
-      (key) => normalizeLowerTrimmed(key) === target
-    );
-    if (!matchedKey) return null;
-    return toNonNegativeIntOrNull(eventCounts[matchedKey]);
-  };
 
   const rawFeedKey = (event = {}) => {
     const source = event && typeof event === 'object' ? event : {};
@@ -401,303 +321,7 @@
     return stampChartRefresh(chart, refreshNonce);
   };
 
-  const updateDoughnutChart = (
-    chart,
-    canvas,
-    counts,
-    refreshNonce = 0,
-    onReadoutChange = null
-  ) => {
-    const chartCtor = getChartConstructor();
-    if (!canvas || !chartCtor) return chart;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return chart;
-    const chartTheme = resolveMonitoringChartTheme();
-    const palette = chartTheme.palette;
-    const { labels, values: data } = buildHalfDoughnutSeries(counts);
-    const colors = data.map((_, index) => palette[index % palette.length]);
-
-    if (!chart) {
-      const nextChart = stampChartRefresh(new chartCtor(ctx, {
-        type: 'doughnut',
-        plugins: [HALF_DOUGHNUT_LEGEND_OFFSET_PLUGIN],
-        data: {
-          labels,
-          datasets: [{
-            data,
-            backgroundColor: colors,
-            borderColor: 'rgba(0, 0, 0, 0)',
-            borderWidth: 0,
-            hoverBorderWidth: 0
-          }]
-        },
-        options: buildHalfDoughnutOptions({
-          legendColor: chartTheme.legendColor,
-          maintainAspectRatio: false,
-          onReadoutChange
-        })
-      }), refreshNonce);
-      syncHalfDoughnutReadout(nextChart, onReadoutChange);
-      return nextChart;
-    }
-
-    const needsRefresh = chartNeedsRefresh(chart, refreshNonce);
-    const hasSameSeries = sameSeries(chart, labels, data);
-    const hasSameColors = sameColorSeries(chart.data.datasets?.[0]?.backgroundColor, colors);
-    if (!needsRefresh && hasSameSeries && hasSameColors) {
-      return chart;
-    }
-    resizeChartIfNeeded(chart, needsRefresh);
-    chart.data.labels = labels;
-    chart.data.datasets[0].data = data;
-    chart.data.datasets[0].backgroundColor = colors;
-    chart.data.datasets[0].borderColor = 'rgba(0, 0, 0, 0)';
-    chart.data.datasets[0].borderWidth = 0;
-    chart.data.datasets[0].hoverBorderWidth = 0;
-    const halfDoughnutOptions = buildHalfDoughnutOptions({
-      legendColor: chartTheme.legendColor,
-      maintainAspectRatio: false,
-      onReadoutChange
-    });
-    chart.options.rotation = halfDoughnutOptions.rotation;
-    chart.options.circumference = halfDoughnutOptions.circumference;
-    chart.options.cutout = halfDoughnutOptions.cutout;
-    chart.options.aspectRatio = halfDoughnutOptions.aspectRatio;
-    chart.options.maintainAspectRatio = halfDoughnutOptions.maintainAspectRatio;
-    chart.options.onHover = halfDoughnutOptions.onHover;
-    if (chart.options?.plugins?.tooltip) {
-      chart.options.plugins.tooltip.enabled = false;
-    }
-    if (chart.options?.plugins?.legend) {
-      chart.options.plugins.legend.position = halfDoughnutOptions.plugins.legend.position;
-    }
-    if (chart.options?.plugins?.legend?.labels) {
-      chart.options.plugins.legend.labels.color = chartTheme.legendColor;
-    }
-    chart.update('none');
-    const nextChart = stampChartRefresh(chart, refreshNonce);
-    syncHalfDoughnutReadout(nextChart, onReadoutChange);
-    return nextChart;
-  };
-
-  const updateTopIpsChart = (chart, canvas, topIps, refreshNonce = 0) => {
-    const chartCtor = getChartConstructor();
-    if (!canvas || !chartCtor) return chart;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return chart;
-    const chartTheme = resolveMonitoringChartTheme();
-    const palette = chartTheme.palette;
-    const pairs = Array.isArray(topIps) ? topIps : [];
-    const labels = pairs.map(([ip]) => String(ip || '-'));
-    const data = pairs.map(([, count]) => Number(count || 0));
-    const colors = data.map((_, index) => palette[index % palette.length]);
-
-    if (!chart) {
-      return stampChartRefresh(new chartCtor(ctx, {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [{
-            label: 'Events',
-            data,
-            backgroundColor: colors,
-            borderColor: 'rgba(0, 0, 0, 0)',
-            borderWidth: 0
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: true,
-          aspectRatio: 2.2,
-          scales: {
-            y: buildMonitoringCountYAxis(data)
-          },
-          plugins: { legend: { display: false } }
-        }
-      }), refreshNonce);
-    }
-
-    const needsRefresh = chartNeedsRefresh(chart, refreshNonce);
-    const hasSameSeries = sameSeries(chart, labels, data);
-    const hasSameColors = sameColorSeries(chart.data.datasets?.[0]?.backgroundColor, colors);
-    if (!needsRefresh && hasSameSeries && hasSameColors) {
-      return chart;
-    }
-    resizeChartIfNeeded(chart, needsRefresh);
-    chart.data.labels = labels;
-    chart.data.datasets[0].data = data;
-    chart.data.datasets[0].backgroundColor = colors;
-    chart.data.datasets[0].borderColor = 'rgba(0, 0, 0, 0)';
-    chart.data.datasets[0].borderWidth = 0;
-    if (chart.options?.scales) {
-      chart.options.scales.y = buildMonitoringCountYAxis(data);
-    }
-    chart.update('none');
-    return stampChartRefresh(chart, refreshNonce);
-  };
-
-  const updateTimeSeriesChart = (chart, canvas, series, refreshNonce = 0) => {
-    const chartCtor = getChartConstructor();
-    if (!canvas || !chartCtor) return chart;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return chart;
-    const chartTheme = resolveMonitoringChartTheme();
-    const fillColor = chartTheme.timeSeriesFill.events;
-
-    if (!chart) {
-      return stampChartRefresh(new chartCtor(ctx, {
-        type: 'line',
-        data: {
-          labels: series.labels,
-          datasets: [{
-            label: 'Events',
-            data: series.data,
-            fill: true,
-            tension: 0.4,
-            borderWidth: 0,
-            pointRadius: 0,
-            pointHoverRadius: 0,
-            borderColor: 'rgba(0, 0, 0, 0)',
-            backgroundColor: fillColor
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: true,
-          scales: {
-            x: buildMonitoringTimeSeriesXAxis(),
-            y: buildMonitoringCountYAxis(series.data)
-          },
-          plugins: { legend: { display: false } }
-        }
-      }), refreshNonce);
-    }
-
-    const needsRefresh = chartNeedsRefresh(chart, refreshNonce);
-    const hasSameSeries = sameSeries(chart, series.labels, series.data);
-    const hasSameColor = sameColorSeries(chart.data.datasets?.[0]?.backgroundColor, fillColor);
-    if (!needsRefresh && hasSameSeries && hasSameColor) {
-      return chart;
-    }
-    resizeChartIfNeeded(chart, needsRefresh);
-    chart.data.labels = series.labels;
-    chart.data.datasets[0].data = series.data;
-    chart.data.datasets[0].backgroundColor = fillColor;
-    if (chart.options?.scales) {
-      chart.options.scales.y = buildMonitoringCountYAxis(series.data);
-    }
-    chart.update('none');
-    return stampChartRefresh(chart, refreshNonce);
-  };
-
-  function selectTimeRange(range) {
-    if (!TIME_RANGES.includes(range)) return;
-    if (selectedTimeRange === range) return;
-    selectedTimeRange = range;
-    if (!shouldFetchRange(range)) return;
-    lastRequestedRange = '';
-  }
-
-  function onEventFilterChange(key, value) {
-    const normalizedKey = String(key || '').trim();
-    if (!normalizedKey || !Object.prototype.hasOwnProperty.call(eventFilters, normalizedKey)) return;
-    eventFilters = {
-      ...eventFilters,
-      [normalizedKey]: String(value || 'all').trim() || 'all'
-    };
-  }
-
-  function abortRangeEventsFetch() {
-    if (!rangeEventsAbortController) return;
-    rangeEventsAbortController.abort();
-    rangeEventsAbortController = null;
-  }
-
-  function normalizeRangeWindowKey(range) {
-    const value = String(range || '').trim();
-    return RANGE_CACHEABLE_WINDOWS.includes(value) ? value : '';
-  }
-
-  function readRangeWindowState(range) {
-    const key = normalizeRangeWindowKey(range);
-    if (!key) return { recent_events: [], fetchedAtMs: 0, loading: false };
-    const snapshot = rangeEventsByWindow[key] || {};
-    return {
-      recent_events: Array.isArray(snapshot.recent_events) ? snapshot.recent_events : [],
-      fetchedAtMs: Number(snapshot.fetchedAtMs || 0),
-      loading: snapshot.loading === true
-    };
-  }
-
-  function writeRangeWindowState(range, nextState = {}) {
-    const key = normalizeRangeWindowKey(range);
-    if (!key) return;
-    const previous = readRangeWindowState(key);
-    rangeEventsByWindow = {
-      ...rangeEventsByWindow,
-      [key]: {
-        ...previous,
-        ...nextState,
-        recent_events: Array.isArray(nextState.recent_events)
-          ? nextState.recent_events
-          : previous.recent_events,
-        fetchedAtMs: Number.isFinite(Number(nextState.fetchedAtMs))
-          ? Number(nextState.fetchedAtMs)
-          : previous.fetchedAtMs,
-        loading: nextState.loading === true
-      }
-    };
-  }
-
-  async function fetchRangeEvents(range) {
-    if (!browser || !shouldFetchRange(range)) return;
-    const targetRange = normalizeRangeWindowKey(range);
-    if (!targetRange) return;
-    const hours = hoursForRange(range);
-    if (!Number.isFinite(hours)) return;
-    if (typeof onFetchEventsRange !== 'function') {
-      writeRangeWindowState(targetRange, {
-        recent_events: [],
-        fetchedAtMs: Date.now(),
-        loading: false
-      });
-      return;
-    }
-    abortRangeEventsFetch();
-    const abortController = new AbortController();
-    writeRangeWindowState(targetRange, { loading: true });
-    const timeoutId = setTimeout(() => {
-      abortController.abort();
-    }, RANGE_EVENTS_REQUEST_TIMEOUT_MS);
-    rangeEventsAbortController = abortController;
-    try {
-      const payload = await onFetchEventsRange(hours, {
-        signal: abortController.signal
-      });
-      if (rangeEventsAbortController !== abortController) return;
-      writeRangeWindowState(targetRange, {
-        recent_events: Array.isArray(payload?.recent_events)
-          ? payload.recent_events.slice(0, RANGE_EVENTS_FETCH_LIMIT)
-          : [],
-        fetchedAtMs: Date.now(),
-        loading: false
-      });
-    } catch (error) {
-      if (error && error.name === 'AbortError') return;
-      if (rangeEventsAbortController !== abortController) return;
-      writeRangeWindowState(targetRange, { loading: false });
-    } finally {
-      clearTimeout(timeoutId);
-      if (rangeEventsAbortController === abortController) {
-        rangeEventsAbortController = null;
-        writeRangeWindowState(targetRange, { loading: false });
-      }
-    }
-  }
-
-  $: analytics = analyticsSnapshot && typeof analyticsSnapshot === 'object' ? analyticsSnapshot : {};
   $: events = eventsSnapshot && typeof eventsSnapshot === 'object' ? eventsSnapshot : {};
-  $: bans = Array.isArray(bansSnapshot?.bans) ? bansSnapshot.bans : [];
   $: maze = mazeSnapshot && typeof mazeSnapshot === 'object' ? mazeSnapshot : {};
   $: cdp = cdpSnapshot && typeof cdpSnapshot === 'object' ? cdpSnapshot : {};
   $: cdpEventsData = cdpEventsSnapshot && typeof cdpEventsSnapshot === 'object'
@@ -709,46 +333,15 @@
   $: monitoring = monitoringSnapshot && typeof monitoringSnapshot === 'object'
     ? monitoringSnapshot
     : {};
-  $: banSnapshotStatus = String(
-    bansSnapshot?.status || analytics?.ban_store_status || 'available'
-  ).trim().toLowerCase() || 'available';
-  $: banSnapshotUnavailableMessage = banSnapshotStatus === 'unavailable'
-    ? String(bansSnapshot?.message || analytics?.ban_store_message || '').trim()
-    : '';
-  $: freshnessStateKey = String(monitoringFreshnessSnapshot?.state || '').trim().toLowerCase();
 
   $: rawRecentEvents = Array.isArray(events.recent_events)
     ? events.recent_events.slice(0, RAW_FEED_MAX_LINES)
     : [];
   $: rawTelemetryFeed = buildRawTelemetryFeed(rawRecentEvents);
   $: defenseTrendRows = deriveDefenseTrendRows(rawRecentEvents);
-  $: eventFilterOptions = deriveRecentEventFilterOptions(rawRecentEvents);
-  $: filteredRecentEvents = filterRecentEvents(rawRecentEvents.slice(0, EVENT_ROW_RENDER_LIMIT), eventFilters);
-  $: recentEvents = filteredRecentEvents.map((event) => deriveMonitoringEventDisplay(event));
   $: recentCdpEvents = Array.isArray(cdpEventsData.events)
     ? cdpEventsData.events.slice(0, CDP_ROW_RENDER_LIMIT)
     : [];
-
-  $: eventCounts = normalizeEventCounts(events.event_counts);
-  $: eventWindowTotal = toNonNegativeIntOrNull(events?.recent_events_window?.total_events_in_window);
-  $: eventCount = eventWindowTotal !== null
-    ? eventWindowTotal
-    : (() => {
-      const summed = sumEventCounts(eventCounts);
-      return summed > 0 ? summed : rawRecentEvents.length;
-    })();
-  $: totalBans = (() => {
-    const byEventType = getEventCountByName(eventCounts, 'Ban');
-    if (byEventType !== null) return byEventType;
-    const analyticsBanCount = toNonNegativeIntOrNull(analytics.ban_count);
-    if (analyticsBanCount !== null) return analyticsBanCount;
-    if (banSnapshotStatus === 'unavailable') return null;
-    return bans.length;
-  })();
-  $: activeBans = banSnapshotStatus === 'unavailable' ? null : bans.length;
-  $: uniqueIps = Number.isFinite(Number(events.unique_ips))
-    ? Number(events.unique_ips)
-    : (Array.isArray(events.top_ips) ? events.top_ips.length : 0);
 
   $: cdpDetections = Number(cdp?.stats?.total_detections || 0);
   $: cdpAutoBans = Number(cdp?.stats?.auto_bans || 0);
@@ -801,86 +394,8 @@
   );
   $: ipRangeTrendRows = normalizeTrendRows(ipRangeSummary.trend);
 
-  $: monitoringEventEmptyState = (() => {
-    if (tabStatus?.error) {
-      return {
-        kind: 'error',
-        message: `Monitoring refresh error: ${String(tabStatus.error)}`
-      };
-    }
-    if (rawRecentEvents.length === 0 && (freshnessStateKey === 'degraded' || freshnessStateKey === 'stale')) {
-      return {
-        kind: 'degraded',
-        message: 'No events loaded while freshness is degraded/stale. Data may be delayed.'
-      };
-    }
-    if (rawRecentEvents.length > 0 && recentEvents.length === 0) {
-      return {
-        kind: 'filtered-empty',
-        message: 'No events match the current filter combination.'
-      };
-    }
-    return {
-      kind: 'empty',
-      message: 'No recent events'
-    };
-  })();
-
   $: challengeTrendSeries = normalizeTrendSeries(monitoringSummary.challenge.trend);
   $: powTrendSeries = normalizeTrendSeries(monitoringSummary.pow.trend);
-
-  $: defaultRangeEvents = Array.isArray(events.recent_events)
-    ? events.recent_events.slice(0, RANGE_EVENTS_FETCH_LIMIT)
-    : [];
-  $: selectedRangeWindowState = shouldFetchRange(selectedTimeRange)
-    ? readRangeWindowState(selectedTimeRange)
-    : { recent_events: [], fetchedAtMs: 0, loading: false };
-  $: selectedRangeEvents = shouldFetchRange(selectedTimeRange)
-    ? (
-      selectedRangeWindowState.recent_events.length > 0 || selectedRangeWindowState.fetchedAtMs > 0
-        ? selectedRangeWindowState.recent_events
-        : defaultRangeEvents
-    )
-    : defaultRangeEvents;
-  $: enforcedRecentChartRows = deriveEnforcedMonitoringChartRows(defaultRangeEvents, { topIpLimit: 10 });
-  $: enforcedSelectedRangeEvents =
-    deriveEnforcedMonitoringChartRows(selectedRangeEvents, { topIpLimit: 10 }).events;
-  $: timeSeries = buildTimeSeries(enforcedSelectedRangeEvents, selectedTimeRange, {
-    maxEvents: RANGE_EVENTS_FETCH_LIMIT
-  });
-
-  $: if (browser && !isActive) {
-    abortRangeEventsFetch();
-  }
-
-  $: if (browser && !autoRefreshEnabled) {
-    lastRangeTabUpdateAnchor = '';
-  }
-
-  $: if (browser && isActive && autoRefreshEnabled && shouldFetchRange(selectedTimeRange)) {
-    const currentUpdatedAt = String(tabStatus?.updatedAt || '');
-    if (currentUpdatedAt && currentUpdatedAt !== lastRangeTabUpdateAnchor) {
-      lastRangeTabUpdateAnchor = currentUpdatedAt;
-      const selectedFetchedAtMs = Number(selectedRangeWindowState.fetchedAtMs || 0);
-      const isRangeFetchInFlight = selectedRangeWindowState.loading === true;
-      if (
-        !isRangeFetchInFlight &&
-        (Date.now() - selectedFetchedAtMs) >= RANGE_EVENTS_AUTO_REFRESH_INTERVAL_MS
-      ) {
-        lastRequestedRange = '';
-      }
-    }
-  }
-
-  $: if (browser && isActive && shouldFetchRange(selectedTimeRange) && lastRequestedRange !== selectedTimeRange) {
-    const selectedFetchedAtMs = Number(selectedRangeWindowState.fetchedAtMs || 0);
-    if (selectedFetchedAtMs > 0 && (Date.now() - selectedFetchedAtMs) < RANGE_EVENTS_AUTO_REFRESH_INTERVAL_MS) {
-      lastRequestedRange = selectedTimeRange;
-    } else {
-      lastRequestedRange = selectedTimeRange;
-      void fetchRangeEvents(selectedTimeRange);
-    }
-  }
 
   $: if (browser) {
     const nextActive = isActive === true;
@@ -888,31 +403,6 @@
       requestChartRefresh();
     }
     wasActive = nextActive;
-  }
-
-  $: if (browser && eventTypesCanvas) {
-    eventTypesChart = updateDoughnutChart(
-      eventTypesChart,
-      eventTypesCanvas,
-      enforcedRecentChartRows.eventCounts,
-      chartRefreshNonce,
-      (nextReadout) => {
-        eventTypesReadout = nextReadout;
-      }
-    );
-  }
-
-  $: if (browser && topIpsCanvas) {
-    topIpsChart = updateTopIpsChart(
-      topIpsChart,
-      topIpsCanvas,
-      enforcedRecentChartRows.topIps,
-      chartRefreshNonce
-    );
-  }
-
-  $: if (browser && timeSeriesCanvas) {
-    timeSeriesChart = updateTimeSeriesChart(timeSeriesChart, timeSeriesCanvas, timeSeries, chartRefreshNonce);
   }
 
   $: if (browser && challengeTrendCanvas) {
@@ -962,25 +452,12 @@
       detachColorSchemeListener();
       detachColorSchemeListener = () => {};
     }
-    abortRangeEventsFetch();
-    if (eventTypesChart && typeof eventTypesChart.destroy === 'function') {
-      eventTypesChart.destroy();
-    }
-    if (topIpsChart && typeof topIpsChart.destroy === 'function') {
-      topIpsChart.destroy();
-    }
-    if (timeSeriesChart && typeof timeSeriesChart.destroy === 'function') {
-      timeSeriesChart.destroy();
-    }
     if (challengeTrendChart && typeof challengeTrendChart.destroy === 'function') {
       challengeTrendChart.destroy();
     }
     if (powTrendChart && typeof powTrendChart.destroy === 'function') {
       powTrendChart.destroy();
     }
-    eventTypesChart = null;
-    topIpsChart = null;
-    timeSeriesChart = null;
     challengeTrendChart = null;
     powTrendChart = null;
   });
@@ -1004,70 +481,19 @@
   >
     <h3>Diagnostics</h3>
     <p class="control-desc text-muted">
-      Use this tab for deep inspection of subsystem telemetry, external-traffic traces, and
-      freshness or transport detail.
+      Use this tab for deep inspection of subsystem telemetry, furniture health, and freshness or
+      transport detail.
     </p>
     <p class="control-desc text-muted">
-      Monitoring now owns the loop-accountability story for the live stance. Diagnostics keeps
-      the contributor-style investigation surface.
+      Monitoring owns loop accountability, and Traffic owns the live traffic picture. Diagnostics
+      keeps the contributor-style investigation surface.
     </p>
   </div>
 
-  <section class="section" data-diagnostics-section="traffic-overview">
-    <h2>Traffic Overview</h2>
-    <p class="text-muted">
-      Inspect the bounded external-traffic summary and enforced-event charts that still power
-      deep diagnostics while Monitoring is rebuilt.
-    </p>
-    <OverviewStats
-      loading={tabStatus?.loading === true}
-      {totalBans}
-      {activeBans}
-      {eventCount}
-      {uniqueIps}
-    />
-    {#if banSnapshotUnavailableMessage}
-      <p id="diagnostics-ban-state-unavailable" class="message warning">
-        {banSnapshotUnavailableMessage}
-      </p>
-    {/if}
-
-    <PrimaryCharts
-      {selectedTimeRange}
-      {eventTypesReadout}
-      onSelectTimeRange={selectTimeRange}
-      bind:eventTypesCanvas
-      bind:topIpsCanvas
-      bind:timeSeriesCanvas
-    />
-  </section>
-
   <section class="section" data-diagnostics-section="defense-breakdown">
-    <h2>Defense Breakdown</h2>
-    <p class="text-muted">
-      Review per-defense trend blocks and execution-mode splits without turning Monitoring back
-      into a subsystem-by-subsystem dashboard.
-    </p>
     <DefenseTrendBlocks
       loading={tabStatus?.loading === true}
       trendRows={defenseTrendRows}
-    />
-  </section>
-
-  <section class="section" data-diagnostics-section="recent-external-traffic">
-    <h2>Recent External Traffic</h2>
-    <p class="text-muted">
-      Filter recent external-traffic events directly when you need to inspect concrete request and
-      defense outcomes.
-    </p>
-    <RecentEventsTable
-      {recentEvents}
-      filterOptions={eventFilterOptions}
-      filters={eventFilters}
-      onFilterChange={onEventFilterChange}
-      emptyState={monitoringEventEmptyState}
-      {formatTime}
-      {eventBadgeClass}
     />
   </section>
 
@@ -1150,11 +576,6 @@
   </section>
 
   <section class="section" data-diagnostics-section="telemetry-diagnostics">
-    <h2>Telemetry Diagnostics</h2>
-    <p class="text-muted">
-      Freshness, transport-path notes, and bounded raw-feed diagnostics stay here rather than
-      leaking back into Monitoring.
-    </p>
     <DiagnosticsSection
       monitoringFreshnessSnapshot={monitoringFreshnessSnapshot}
       ipBansFreshnessSnapshot={ipBansFreshnessSnapshot}
@@ -1164,7 +585,6 @@
   </section>
 
   <section class="section" data-diagnostics-section="external-monitoring">
-    <h2>External Monitoring</h2>
     <p class="text-muted">
       Use the bounded helper examples here when you need to export or mirror diagnostics into
       external monitoring systems.

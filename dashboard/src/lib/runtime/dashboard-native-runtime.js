@@ -16,7 +16,7 @@ import {
   resolveDashboardBasePathFromLocation
 } from './dashboard-paths.js';
 
-const DASHBOARD_TABS = Object.freeze(['monitoring', 'ip-bans', 'red-team', 'tuning', 'verification', 'traps', 'rate-limiting', 'geo', 'fingerprinting', 'policy', 'status', 'advanced', 'diagnostics']);
+const DASHBOARD_TABS = Object.freeze(['traffic', 'monitoring', 'ip-bans', 'red-team', 'tuning', 'verification', 'traps', 'rate-limiting', 'geo', 'fingerprinting', 'policy', 'status', 'advanced', 'diagnostics']);
 const CONNECTION_HEARTBEAT_PATH = '/admin/session';
 const CONNECTION_HEARTBEAT_METHOD = 'GET';
 const CONNECTION_HEARTBEAT_INTERVAL_MS = 1000;

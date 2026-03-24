@@ -7,8 +7,8 @@
 </script>
 
 <SectionBlock
-  title="Defense Trends"
-  description="Per-defense trigger and outcome trends grouped by source labels."
+  title="Defense Breakdown"
+  description="Per-defense trigger and outcome breakdown grouped by source labels."
 >
   {#if !loading && trendRows.length === 0}
     <p id="defense-trend-state-empty" class="text-muted">

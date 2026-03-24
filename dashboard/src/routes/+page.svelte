@@ -53,6 +53,7 @@
 
   export let data;
   const TAB_LOADING_MESSAGES = Object.freeze({
+    traffic: 'Loading traffic visibility...',
     monitoring: 'Loading monitoring data...',
     diagnostics: 'Loading diagnostics...',
     'ip-bans': 'Loading ban list...',
@@ -68,8 +69,8 @@
     tuning: 'Loading tuning values...'
   });
   const AUTO_REFRESH_INTERVAL_MS = 1000;
-  const MANUAL_REFRESH_TABS = new Set(['diagnostics', 'ip-bans', 'red-team']);
-  const AUTO_REFRESH_TABS = new Set(['ip-bans', 'red-team']);
+  const MANUAL_REFRESH_TABS = new Set(['traffic', 'diagnostics', 'ip-bans', 'red-team']);
+  const AUTO_REFRESH_TABS = new Set(['traffic', 'ip-bans', 'red-team']);
   const AUTO_REFRESH_PREF_KEY = 'shuma_dashboard_auto_refresh_v1';
   const DASHBOARD_LOADED_CLASS = 'dashboard-loaded';
   const ADVERSARY_SIM_SELECTABLE_LANES = new Set(['synthetic_traffic', 'scrapling_traffic']);
@@ -115,6 +116,7 @@
   let IpBansTabComponent = null;
   let StatusTabComponent = null;
   let RedTeamTabComponent = null;
+  let TrafficTabComponent = null;
   let VerificationTabComponent = null;
   let TrapsTabComponent = null;
   let AdvancedTabComponent = null;
@@ -637,6 +639,7 @@
     try {
       const [
         { default: loadedRedTeamTab },
+        { default: loadedTrafficTab },
         { default: loadedIpBansTab },
         { default: loadedStatusTab },
         { default: loadedVerificationTab },
@@ -650,6 +653,7 @@
         { default: loadedTuningTab }
       ] = await Promise.all([
         import('$lib/components/dashboard/RedTeamTab.svelte'),
+        import('$lib/components/dashboard/TrafficTab.svelte'),
         import('$lib/components/dashboard/IpBansTab.svelte'),
         import('$lib/components/dashboard/StatusTab.svelte'),
         import('$lib/components/dashboard/VerificationTab.svelte'),
@@ -663,6 +667,7 @@
         import('$lib/components/dashboard/TuningTab.svelte')
       ]);
       RedTeamTabComponent = loadedRedTeamTab;
+      TrafficTabComponent = loadedTrafficTab;
       IpBansTabComponent = loadedIpBansTab;
       StatusTabComponent = loadedStatusTab;
       VerificationTabComponent = loadedVerificationTab;
@@ -1070,9 +1075,9 @@
       ? { ...options }
       : {};
     requestOptions.telemetry = {
-      tab: 'diagnostics',
+      tab: 'traffic',
       reason: 'range-fetch',
-      source: 'diagnostics-range',
+      source: 'traffic-range',
       ...(requestOptions.telemetry && typeof requestOptions.telemetry === 'object'
         ? requestOptions.telemetry
         : {})
@@ -1251,6 +1256,31 @@
     aria-hidden={activeTabKey === 'monitoring' ? 'true' : 'false'}
   >
     <div class="admin-groups">
+      {#if TrafficTabComponent}
+        <svelte:component
+          this={TrafficTabComponent}
+          managed={true}
+          isActive={activeTabKey === 'traffic'}
+          autoRefreshEnabled={autoRefreshEnabled}
+          tabStatus={tabStatus.traffic || {}}
+          analyticsSnapshot={snapshots.analytics}
+          eventsSnapshot={snapshots.events}
+          bansSnapshot={snapshots.bans}
+          monitoringFreshnessSnapshot={snapshots.monitoringFreshness}
+          onFetchEventsRange={onFetchEventsRange}
+        />
+      {:else}
+        <section
+          id="dashboard-panel-traffic"
+          class="admin-group"
+          data-dashboard-tab-panel="traffic"
+          aria-labelledby="dashboard-tab-traffic"
+          hidden={activeTabKey !== 'traffic'}
+          aria-hidden={activeTabKey === 'traffic' ? 'false' : 'true'}
+        >
+          <p class="message info">Loading traffic visibility...</p>
+        </section>
+      {/if}
       {#if RedTeamTabComponent}
         <svelte:component
           this={RedTeamTabComponent}
@@ -1550,11 +1580,8 @@
           this={DiagnosticsTabComponent}
           managed={true}
           isActive={activeTabKey === 'diagnostics'}
-          autoRefreshEnabled={autoRefreshEnabled}
           tabStatus={tabStatus.diagnostics || {}}
-          analyticsSnapshot={snapshots.analytics}
           eventsSnapshot={snapshots.events}
-          bansSnapshot={snapshots.bans}
           mazeSnapshot={snapshots.maze}
           cdpSnapshot={snapshots.cdp}
           cdpEventsSnapshot={snapshots.cdpEvents}

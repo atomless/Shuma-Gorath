@@ -4,6 +4,51 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### TRAFFIC-TAB-1: Dedicated Traffic tab and migration of current traffic-facing Diagnostics surfaces
+
+- [x] Landed a first-class [`Traffic` tab](../docs/dashboard-tabs/traffic.md) and wired it into the canonical tab registry in:
+  - [`dashboard/src/lib/domain/dashboard-state.js`](../dashboard/src/lib/domain/dashboard-state.js)
+  - [`dashboard/src/lib/runtime/dashboard-native-runtime.js`](../dashboard/src/lib/runtime/dashboard-native-runtime.js)
+  - [`dashboard/src/lib/runtime/dashboard-route-controller.js`](../dashboard/src/lib/runtime/dashboard-route-controller.js)
+  - [`dashboard/src/lib/state/dashboard-store.js`](../dashboard/src/lib/state/dashboard-store.js)
+  - [`dashboard/src/routes/+page.svelte`](../dashboard/src/routes/+page.svelte)
+- [x] Moved `Traffic` to the first visible top-level tab slot while keeping the current default landing tab behavior unchanged.
+- [x] Moved the traffic-facing surface out of Diagnostics into [`dashboard/src/lib/components/dashboard/TrafficTab.svelte`](../dashboard/src/lib/components/dashboard/TrafficTab.svelte):
+  - `Traffic Telemetry Health`
+  - `Traffic Overview`
+  - `Recent Events`
+- [x] Reused the existing traffic components rather than rebuilding them:
+  - [`OverviewStats.svelte`](../dashboard/src/lib/components/dashboard/monitoring/OverviewStats.svelte)
+  - [`PrimaryCharts.svelte`](../dashboard/src/lib/components/dashboard/monitoring/PrimaryCharts.svelte)
+  - [`RecentEventsTable.svelte`](../dashboard/src/lib/components/dashboard/monitoring/RecentEventsTable.svelte)
+- [x] Kept `Traffic` on the shared bounded monitoring read path, including bootstrap/delta/cache behavior, so the tab gained shared refresh-bar support without inventing a second heavyweight traffic-read model.
+- [x] Narrowed [`DiagnosticsTab.svelte`](../dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte) toward furniture proof by removing the traffic overview and recent-events surfaces while retaining:
+  - `Defense Breakdown`
+  - `Defense-Specific Diagnostics`
+  - `Telemetry Diagnostics`
+  - `External Monitoring`
+- [x] Fixed the first duplicate-title cases that became obvious during the split:
+  - `Defense Breakdown` now renders once because [`DefenseTrendBlocks.svelte`](../dashboard/src/lib/components/dashboard/monitoring/DefenseTrendBlocks.svelte) no longer titles itself `Defense Trends`
+  - `External Monitoring` now renders once because the outer duplicate heading was removed from [`DiagnosticsTab.svelte`](../dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte)
+- [x] Updated focused proof paths and docs in:
+  - [`Makefile`](../Makefile)
+  - [`e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`docs/dashboard.md`](../docs/dashboard.md)
+  - [`docs/dashboard-tabs/README.md`](../docs/dashboard-tabs/README.md)
+  - [`docs/dashboard-tabs/traffic.md`](../docs/dashboard-tabs/traffic.md)
+  - [`docs/dashboard-tabs/diagnostics.md`](../docs/dashboard-tabs/diagnostics.md)
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`docs/research/2026-03-24-traffic-tab-1-post-implementation-review.md`](../docs/research/2026-03-24-traffic-tab-1-post-implementation-review.md)
+- [x] Why:
+  - live traffic visibility no longer belonged in either loop-accountability Monitoring or furniture-operational Diagnostics
+  - the user explicitly wanted `Traffic` first in the tab ordering, sharing the refresh bar, and staying cost-effective in its reads
+  - the split also exposed duplicate headings that were worth fixing immediately rather than carrying into `DIAG-CLEANUP-1`
+- [x] Evidence:
+  - `make test-dashboard-traffic-pane`
+  - `make test-dashboard-tab-information-architecture`
+  - `git diff --check`
+
 ### Planning refinement: add a dedicated Traffic tab and narrow Diagnostics to furniture-operational proof
 
 - [x] Wrote a new ownership review and plan defining the three-way split between:

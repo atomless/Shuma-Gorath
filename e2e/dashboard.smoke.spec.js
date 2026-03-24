@@ -4,8 +4,8 @@ const { seedDashboardData } = require("./seed-dashboard-data");
 const BASE_URL = process.env.SHUMA_BASE_URL || "http://127.0.0.1:3000";
 const API_KEY = (process.env.SHUMA_API_KEY || "").trim();
 const FORWARDED_IP_SECRET = (process.env.SHUMA_FORWARDED_IP_SECRET || "").trim();
-const DASHBOARD_TABS = Object.freeze(["monitoring", "ip-bans", "red-team", "tuning", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "policy", "status", "advanced", "diagnostics"]);
-const ADMIN_TABS = Object.freeze(["ip-bans", "red-team", "tuning", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "policy", "status", "advanced", "diagnostics"]);
+const DASHBOARD_TABS = Object.freeze(["traffic", "monitoring", "ip-bans", "red-team", "tuning", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "policy", "status", "advanced", "diagnostics"]);
+const ADMIN_TABS = Object.freeze(["traffic", "ip-bans", "red-team", "tuning", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "policy", "status", "advanced", "diagnostics"]);
 const VERIFICATION_RESTORE_PATHS = Object.freeze([
   "js_required_enforced"
 ]);
@@ -1397,11 +1397,13 @@ test("dashboard clean-state renders explicit empty placeholders", async ({ page 
   });
 
   await openDashboard(page);
-  await openTab(page, "diagnostics");
+  await openTab(page, "traffic");
   await expect(page.locator("#total-events")).toHaveText("0");
   await expect(page.locator("#monitoring-events tbody")).toContainText(
     /No (recent events|events loaded while freshness is degraded\/stale)/i
   );
+
+  await openTab(page, "diagnostics");
   await expect(page.locator("#cdp-events tbody")).toContainText(
     "No CDP detections or detection-triggered bans in the selected window"
   );
@@ -1419,7 +1421,7 @@ test("dashboard clean-state renders explicit empty placeholders", async ({ page 
   await expect(page.locator('[data-tab-state="ip-bans"]')).toHaveText("");
 });
 
-test("monitoring and diagnostics tabs expose the loop-accountability split", async ({ page }) => {
+test("monitoring, traffic, and diagnostics tabs expose their ownership split", async ({ page }) => {
   await openDashboard(page);
 
   await expect(page.locator("#dashboard-panel-monitoring")).toHaveClass(/admin-group/);
@@ -1447,6 +1449,21 @@ test("monitoring and diagnostics tabs expose the loop-accountability split", asy
   ).toContainText("Trust And Blockers");
   await expect(page.locator('#dashboard-panel-monitoring a[href="#diagnostics"]')).toBeVisible();
 
+  await openTab(page, "traffic");
+  await expect(page.locator("#dashboard-panel-traffic")).toHaveClass(/admin-group/);
+  await expect(page.locator('#dashboard-panel-traffic [data-traffic-intro]')).toHaveClass(
+    /control-group/
+  );
+  await expect(
+    page.locator('#dashboard-panel-traffic [data-traffic-section="telemetry-health"]')
+  ).toContainText("Traffic Telemetry Health");
+  await expect(
+    page.locator('#dashboard-panel-traffic [data-traffic-section="traffic-overview"]')
+  ).toContainText("Traffic Overview");
+  await expect(
+    page.locator('#dashboard-panel-traffic [data-traffic-section="recent-events"]')
+  ).toContainText("Recent Events");
+
   await openTab(page, "diagnostics");
   await expect(page.locator("#dashboard-panel-diagnostics")).toHaveClass(/admin-group/);
   await expect(page.locator('#dashboard-panel-diagnostics [data-diagnostics-intro]')).toHaveClass(
@@ -1456,14 +1473,8 @@ test("monitoring and diagnostics tabs expose the loop-accountability split", asy
     page.locator('#dashboard-panel-diagnostics [data-diagnostics-section="deep-inspection-intro"]')
   ).toContainText("Diagnostics");
   await expect(
-    page.locator('#dashboard-panel-diagnostics [data-diagnostics-section="traffic-overview"]')
-  ).toContainText("Traffic Overview");
-  await expect(
     page.locator('#dashboard-panel-diagnostics [data-diagnostics-section="defense-breakdown"]')
   ).toContainText("Defense Breakdown");
-  await expect(
-    page.locator('#dashboard-panel-diagnostics [data-diagnostics-section="recent-external-traffic"]')
-  ).toContainText("Recent External Traffic");
   await expect(
     page.locator('#dashboard-panel-diagnostics [data-diagnostics-section="defense-specific-diagnostics"]')
   ).toContainText("Defense-Specific Diagnostics");
@@ -1758,7 +1769,7 @@ test("monitoring projects benchmark and oversight accountability from machine-fi
   await expect(page.locator("#monitoring-trust-blockers")).toContainText("verified identity taxonomy alignment guardrail");
 });
 
-test("diagnostics manual refresh renders detailed monitoring sections and caps oversized result lists", async ({ page }) => {
+test("traffic manual refresh renders bounded traffic sections and preserves furniture diagnostics separately", async ({ page }) => {
   const buildCountEntries = (prefix, count, start = 1) =>
     Array.from({ length: count }, (_, index) => ({
       label: `${prefix}-${index + start}`,
@@ -1896,6 +1907,8 @@ test("diagnostics manual refresh renders detailed monitoring sections and caps o
   await expect(page.locator("#challenge-failure-reasons tr")).toHaveCount(10);
   await expect(page.locator("#pow-failure-reasons tr")).toHaveCount(10);
   await expect(page.locator("#geo-top-countries .crawler-item")).toHaveCount(10);
+
+  await openTab(page, "traffic");
   await expect(page.locator("#monitoring-events tbody")).toContainText("Shadow");
   await expect(page.locator("#monitoring-events tbody")).toContainText("Would Challenge");
 });
@@ -1934,7 +1947,7 @@ test("status/verification/rate-limiting/geo/fingerprinting/tuning show empty sta
 
 test("dashboard loads and shows seeded operational data", async ({ page }) => {
   await openDashboard(page);
-  await openTab(page, "diagnostics");
+  await openTab(page, "traffic");
   await assertChartsFillPanels(page);
 
   await expect(page.locator("h1")).toHaveText("Shuma-Gorath");
@@ -1946,6 +1959,7 @@ test("dashboard loads and shows seeded operational data", async ({ page }) => {
   await expect(page.locator("#monitoring-events tbody tr").first()).toBeVisible();
   await expect(page.locator("#monitoring-events tbody")).not.toContainText("undefined");
 
+  await openTab(page, "diagnostics");
   await expect(page.locator("#cdp-events tbody tr").first()).toBeVisible();
   await expect(page.locator("#cdp-total-detections")).not.toHaveText("-");
   await expect(page.locator('label[for="global-shadow-mode-toggle"]')).toBeVisible();
@@ -2437,9 +2451,9 @@ test("advanced tab save flow validates and persists advanced JSON edits", async 
 test("session survives reload and time-range controls refresh chart data", async ({ page }) => {
   await openDashboard(page);
 
-  await openTab(page, "diagnostics");
+  await openTab(page, "traffic");
   await page.reload();
-  await expect(page).toHaveURL(/\/dashboard\/index\.html#diagnostics/);
+  await expect(page).toHaveURL(/\/dashboard\/index\.html#traffic/);
   await expect(page.locator("#logout-btn")).toBeEnabled();
 
   await Promise.all([
@@ -2862,8 +2876,18 @@ test("adversary sim toggle continue path omits the no-frontier warning after con
   });
 });
 
-test("diagnostics is manual-refresh only while auto-refresh is limited to ip-bans and red-team", async ({ page }) => {
+test("traffic shares the auto-refresh bar while diagnostics remains manual-refresh only", async ({ page }) => {
   await openDashboard(page);
+  await openTab(page, "traffic");
+  await expect(page.locator('label[for="auto-refresh-toggle"]')).toBeVisible();
+  await expect(page.locator("#auto-refresh-toggle")).not.toBeChecked();
+  await expect(page.locator("#refresh-now-btn")).toBeVisible();
+  await setAutoRefresh(page, true);
+  await expect(page.locator("#refresh-now-btn")).toBeHidden();
+  await expect(page.locator("#refresh-mode")).toContainText("ON");
+  await setAutoRefresh(page, false);
+  await expect(page.locator("#refresh-now-btn")).toBeVisible();
+
   await openTab(page, "diagnostics");
   await expect(page.locator('label[for="auto-refresh-toggle"]')).toBeHidden();
   await expect(page.locator("#refresh-now-btn")).toBeVisible();
@@ -2894,7 +2918,7 @@ test("diagnostics is manual-refresh only while auto-refresh is limited to ip-ban
   await expect(page.locator("#refresh-mode")).toContainText("Manual refresh only");
 });
 
-test("diagnostics manual refresh hydrates full snapshot even when first delta page is empty", async ({ page }) => {
+test("traffic manual refresh hydrates full snapshot even when first delta page is empty", async ({ page }) => {
   const now = Math.floor(Date.now() / 1000);
   const buildMonitoringPayload = (reason) => ({
     summary: {
@@ -2964,7 +2988,7 @@ test("diagnostics manual refresh hydrates full snapshot even when first delta pa
   });
 
   await openDashboard(page);
-  await openTab(page, "diagnostics");
+  await openTab(page, "traffic");
   await page.click("#refresh-now-btn");
   await expect(page.locator("#monitoring-events tbody")).toContainText("historical-baseline-visible");
 });
@@ -3188,8 +3212,9 @@ test("manual refresh button appends new monitoring delta events when auto-refres
   });
 
   await openDashboard(page);
-  await openTab(page, "diagnostics");
+  await openTab(page, "traffic");
   await expect(page.locator('label[for="auto-refresh-toggle"]')).toBeHidden();
+  await expect(page.locator('label[for="auto-refresh-toggle"]')).toBeVisible();
   await expect(page.locator("#refresh-now-btn")).toBeVisible();
   await expect(page.locator("#monitoring-events tbody")).not.toContainText("manual-refresh-delta-event");
 
@@ -3199,9 +3224,9 @@ test("manual refresh button appends new monitoring delta events when auto-refres
   expect(deltaRequestCount).toBeGreaterThan(beforeRefreshDeltaCalls);
 });
 
-test("diagnostics recent-event filters use canonical shared control classes", async ({ page }) => {
+test("traffic recent-event filters use canonical shared control classes", async ({ page }) => {
   await openDashboard(page);
-  await openTab(page, "diagnostics");
+  await openTab(page, "traffic");
 
   await expect(page.locator("#monitoring-event-filters .input-row")).toHaveCount(6);
   await expect(page.locator("#monitoring-event-filters .field-row")).toHaveCount(0);
@@ -3288,7 +3313,7 @@ test("route remount preserves keyboard navigation, ban/unban, verification save,
   expect(ipBansRefreshRequests).toBeGreaterThan(beforePollWait);
 });
 
-test("diagnostics manual refresh avoids placeholder flicker and bounds table churn", async ({ page }) => {
+test("traffic manual refresh avoids placeholder flicker and bounds table churn", async ({ page }) => {
   let monitoringSnapshotRequests = 0;
   let monitoringDeltaRequests = 0;
   await page.route("**/admin/monitoring?hours=*&limit=*", async (route) => {
@@ -3374,8 +3399,8 @@ test("diagnostics manual refresh avoids placeholder flicker and bounds table chu
   });
 
   await openDashboard(page);
-  await openTab(page, "diagnostics");
-  await expect(page.locator('label[for="auto-refresh-toggle"]')).toBeHidden();
+  await openTab(page, "traffic");
+  await expect(page.locator('label[for="auto-refresh-toggle"]')).toBeVisible();
   await expect(page.locator("#refresh-now-btn")).toBeVisible();
   await expect(page.locator("#honeypot-total-hits")).not.toHaveText("...");
 
@@ -3545,7 +3570,7 @@ test("native remount soak keeps refresh p95 and polling cadence within bounds", 
 
 test("dashboard tables keep sticky headers", async ({ page }) => {
   await openDashboard(page);
-  await openTab(page, "diagnostics");
+  await openTab(page, "traffic");
 
   const eventsHeaderPosition = await page
     .locator("#monitoring-events thead th")
@@ -3599,9 +3624,9 @@ test("tab keyboard navigation updates hash and selected state", async ({ page })
 
   await page.locator("#dashboard-tab-diagnostics").focus();
   await page.keyboard.press("Home");
-  await expect(page).toHaveURL(/#monitoring$/);
-  await expect(page.locator("#dashboard-tab-monitoring")).toHaveAttribute("aria-selected", "true");
-  await assertActiveTabPanelVisibility(page, "monitoring");
+  await expect(page).toHaveURL(/#traffic$/);
+  await expect(page.locator("#dashboard-tab-traffic")).toHaveAttribute("aria-selected", "true");
+  await assertActiveTabPanelVisibility(page, "traffic");
 });
 
 test("tab bar reflects the canonical information architecture labels and order", async ({ page }) => {
@@ -3612,6 +3637,7 @@ test("tab bar reflects the canonical information architecture labels and order",
   );
 
   expect(tabLabels).toEqual([
+    "Traffic",
     "Monitoring",
     "IP Bans",
     "Red Team",
@@ -3717,6 +3743,9 @@ test("tab states surface loading and data-ready transitions across all tabs", as
   releaseIpBansDeltaResponse();
   await expect(page.locator("#bans-table tbody")).toContainText("198.51.100.250");
   await expect(page.locator('[data-tab-state="ip-bans"]')).toBeHidden();
+
+  await openTab(page, "traffic");
+  await expect(page.locator('[data-tab-state="traffic"]')).toBeHidden();
 
   await openTab(page, "diagnostics");
   await expect(page.locator('[data-tab-state="diagnostics"]')).toBeHidden();

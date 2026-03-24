@@ -67,8 +67,9 @@ make test-coverage    # Unit coverage to lcov.info (requires cargo-llvm-cov)
 make test-dashboard-unit # Dashboard module unit tests (Node `node:test`)
 make test-dashboard-adversary-sim-lane-contract # Focused dashboard lane-contract checks for the red-team lane selector + diagnostics
 make test-dashboard-auth-gate # Focused dashboard auth-gate checks for logged-out /dashboard entry
-make test-dashboard-tab-information-architecture # Focused dashboard source + rendered IA proof for tab registry alignment and Monitoring/Diagnostics ownership
+make test-dashboard-tab-information-architecture # Focused dashboard source + rendered IA proof for tab registry alignment and Monitoring/Traffic/Diagnostics ownership
 make test-dashboard-monitoring-accountability # Focused dashboard behavior + rendered proof for Monitoring benchmark/oversight accountability projection
+make test-dashboard-traffic-pane # Focused dashboard behavior + rendered proof for Traffic ownership, traffic-first ordering, and shared refresh-bar wiring
 make test-dashboard-runtime-unit-contracts # Focused dashboard native/refresh runtime behavior checks
 make test-dashboard-policy-pane-ownership # Focused dashboard unit checks that Policy owns the moved panes and Tuning stays botness-only
 make test-dashboard-verified-identity-pane # Focused Verification-tab surfacing checks for verified identity controls + health summary
@@ -138,6 +139,7 @@ Notes:
 - `make test-dashboard-verified-identity-pane` is the narrow proof path for the first-class `Verified Identity` pane in `Verification`; it covers operator-snapshot hydration, shared config-surface ownership, and a rendered config-save round-trip without dragging in broader Monitoring work.
 - `make test-dashboard-red-team-truth-basis` is the narrow proof path for Red Team status-truth surfacing; it covers status adaptation, runtime normalization, and a rendered persisted-event lower-bound state without turning the slice into early Monitoring work.
 - `make test-dashboard-monitoring-accountability` is the narrow proof path for `MON-OVERHAUL-1B`; it covers dashboard adapters, bounded snapshot wiring through the refresh runtime, and a rendered Playwright proof that Monitoring projects benchmark and oversight machine contracts rather than placeholder copy.
+- `make test-dashboard-traffic-pane` is the narrow proof path for `TRAFFIC-TAB-1`; it covers traffic-first tab ordering, shared refresh-bar eligibility, and a rendered Playwright proof that Traffic owns the traffic picture while Diagnostics narrows toward furniture proof.
 - `make test-dashboard-runtime-unit-contracts` is the narrow non-rendered proof path for dashboard native-runtime and refresh-runtime behavior; use it when auth/session restore, cache invalidation, or config-mutation invalidation logic changes without needing broader Playwright churn.
 - `make test-dashboard-e2e` now verifies the running Spin instance is serving the current `dist/dashboard/index.html` before Playwright runs; restart Spin after `make dashboard-build` if this check fails.
 - `make test` now reseeds dashboard sample data at the end, so charts/tables stay populated for local inspection after the run.

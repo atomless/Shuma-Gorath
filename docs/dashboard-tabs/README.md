@@ -4,6 +4,7 @@ Canonical tab reference for the dashboard. These docs are intentionally tab-spec
 
 Top-level tabs and routes:
 
+- [`traffic.md`](traffic.md) - `#traffic`
 - [`monitoring.md`](monitoring.md) - `#monitoring`
 - [`ip-bans.md`](ip-bans.md) - `#ip-bans`
 - [`red-team.md`](red-team.md) - `#red-team`

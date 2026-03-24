@@ -15,6 +15,7 @@ Related terminology and architecture docs:
 
 The dashboard uses URL hash routes:
 
+- `#traffic` - [`dashboard-tabs/traffic.md`](dashboard-tabs/traffic.md)
 - `#monitoring` - [`dashboard-tabs/monitoring.md`](dashboard-tabs/monitoring.md)
 - `#ip-bans` - [`dashboard-tabs/ip-bans.md`](dashboard-tabs/ip-bans.md)
 - `#red-team` - [`dashboard-tabs/red-team.md`](dashboard-tabs/red-team.md)
@@ -35,6 +36,8 @@ Behavior:
 - Reload preserves selected tab.
 - Keyboard tab navigation is supported (`Left`, `Right`, `Home`, `End`).
 - Each tab exposes explicit loading, empty, and error state messaging.
+- `Traffic` is now the first visible tab in the canonical tab ordering.
+- `Traffic` now owns the live traffic picture.
 - `Monitoring` now owns the closed-loop accountability story.
 - `Diagnostics` now owns deep subsystem inspection and contributor-focused telemetry detail.
 
@@ -46,8 +49,9 @@ Behavior:
   - bounded oversight status/history
   - current verdict, multi-loop progress, outcome frontier, controller judgment, and bounded trust/blocker context
 - The remaining Monitoring follow-on is `MON-OVERHAUL-1C`, which adds the fuller category-aware pressure and final trust/actionability surface.
-- Manual refresh is available on `Diagnostics`, `IP Bans`, and `Red Team`.
-- Auto-refresh is available only on `IP Bans` and `Red Team`.
+- `Traffic` now shares the top-level refresh bar and uses the bounded monitoring refresh path for cost-effective traffic reads.
+- Manual refresh is available on `Traffic`, `Diagnostics`, `IP Bans`, and `Red Team`.
+- Auto-refresh is available on `Traffic`, `IP Bans`, and `Red Team`.
 - Most tabs refresh on initial load, on explicit refresh events, and after relevant save flows.
 - `Verification` now refreshes both shared config and the bounded `operator_snapshot_v1` verified-identity summary when the tab activates and that summary is not already present locally.
 - The `Red Team` adversary-sim controller is page-scoped rather than tab-scoped:

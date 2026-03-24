@@ -1290,6 +1290,7 @@ test('dashboard state and store contracts remain immutable and bounded with hear
     const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
 
     assert.deepEqual(toPlain(stateModule.DASHBOARD_TABS), [
+      'traffic',
       'monitoring',
       'ip-bans',
       'red-team',
@@ -1305,6 +1306,7 @@ test('dashboard state and store contracts remain immutable and bounded with hear
       'diagnostics'
     ]);
     assert.deepEqual(toPlain(storeModule.DASHBOARD_TABS), [
+      'traffic',
       'monitoring',
       'ip-bans',
       'red-team',
@@ -1330,8 +1332,8 @@ test('dashboard state and store contracts remain immutable and bounded with hear
     assert.equal(initial.snapshots.configRuntime, null);
 
     const store = storeModule.createDashboardStore({ initialTab: 'monitoring' });
-    store.recordRefreshMetrics({ tab: 'diagnostics', reason: 'manual', fetchLatencyMs: 100, renderTimingMs: 10 });
-    store.recordRefreshMetrics({ tab: 'diagnostics', reason: 'manual', fetchLatencyMs: 200, renderTimingMs: 20 });
+    store.recordRefreshMetrics({ tab: 'traffic', reason: 'manual', fetchLatencyMs: 100, renderTimingMs: 10 });
+    store.recordRefreshMetrics({ tab: 'traffic', reason: 'manual', fetchLatencyMs: 200, renderTimingMs: 20 });
     store.recordRefreshMetrics({ tab: 'status', reason: 'manual', fetchLatencyMs: 999, renderTimingMs: 999 });
     store.recordRequestTelemetry({
       requestId: 'req-failure-1',
@@ -1368,7 +1370,7 @@ test('dashboard state and store contracts remain immutable and bounded with hear
     const telemetry = store.getRuntimeTelemetry();
     assert.equal(telemetry.refresh.fetchLatencyMs.last, 200);
     assert.equal(telemetry.refresh.renderTimingMs.last, 20);
-    assert.equal(telemetry.refresh.lastTab, 'diagnostics');
+    assert.equal(telemetry.refresh.lastTab, 'traffic');
     assert.equal(telemetry.refresh.fetchLatencyMs.totalSamples, 2);
     assert.equal(telemetry.refresh.fetchLatencyMs.window.length > 0, true);
     assert.equal(telemetry.connection.state, 'connected');
@@ -5447,15 +5449,15 @@ test('dashboard smoke spec keeps the tab information architecture aligned with t
 
   assert.match(
     source,
-    /const DASHBOARD_TABS = Object\.freeze\(\["monitoring", "ip-bans", "red-team", "tuning", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "policy", "status", "advanced", "diagnostics"\]\);/
+    /const DASHBOARD_TABS = Object\.freeze\(\["traffic", "monitoring", "ip-bans", "red-team", "tuning", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "policy", "status", "advanced", "diagnostics"\]\);/
   );
   assert.match(
     source,
-    /const ADMIN_TABS = Object\.freeze\(\["ip-bans", "red-team", "tuning", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "policy", "status", "advanced", "diagnostics"\]\);/
+    /const ADMIN_TABS = Object\.freeze\(\["traffic", "ip-bans", "red-team", "tuning", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "policy", "status", "advanced", "diagnostics"\]\);/
   );
 });
 
-test('dashboard route exposes manual refresh on diagnostics and auto-refresh only on ip-bans and red-team', () => {
+test('dashboard route exposes live traffic refresh controls without changing other tab semantics', () => {
   const source = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/routes/+page.svelte'),
     'utf8'
@@ -5463,11 +5465,11 @@ test('dashboard route exposes manual refresh on diagnostics and auto-refresh onl
 
   assert.match(
     source,
-    /const MANUAL_REFRESH_TABS = new Set\(\['diagnostics', 'ip-bans', 'red-team'\]\);/
+    /const MANUAL_REFRESH_TABS = new Set\(\['traffic', 'diagnostics', 'ip-bans', 'red-team'\]\);/
   );
   assert.match(
     source,
-    /const AUTO_REFRESH_TABS = new Set\(\['ip-bans', 'red-team'\]\);/
+    /const AUTO_REFRESH_TABS = new Set\(\['traffic', 'ip-bans', 'red-team'\]\);/
   );
 });
 
@@ -5581,9 +5583,9 @@ test('dashboard routes advertise an explicit dashboard-scoped favicon', () => {
   assert.match(mainSource, /<link rel="icon" type="image\/png" href=\{faviconHref\}>/);
 });
 
-test('diagnostics tab preserves the bounded legacy monitoring surface', () => {
+test('traffic tab preserves the bounded traffic visibility surface', () => {
   const source = fs.readFileSync(
-    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/DiagnosticsTab.svelte'),
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/TrafficTab.svelte'),
     'utf8'
   );
 
@@ -5611,10 +5613,7 @@ test('diagnostics tab preserves the bounded legacy monitoring surface', () => {
   assert.match(source, /deriveMonitoringEventDisplay/);
   assert.match(source, /const rawFeedPayload = \(event = \{\}\) =>/);
   assert.match(source, /Object\.keys\(source\)/);
-  assert.match(source, /const buildRawTelemetryFeed = \(events = \[\]\) =>/);
-  assert.match(source, /'Puzzle Outcomes'/);
   assert.match(source, /\$: rawRecentEvents = Array\.isArray\(events\.recent_events\)/);
-  assert.match(source, /\$: rawTelemetryFeed = buildRawTelemetryFeed\(rawRecentEvents\);/);
   assert.match(source, /\$: eventWindowTotal = toNonNegativeIntOrNull\(events\?\.recent_events_window\?\.total_events_in_window\);/);
   assert.match(source, /\$: totalBans = \(\(\) => \{/);
   assert.match(source, /const byEventType = getEventCountByName\(eventCounts, 'Ban'\);/);
@@ -5622,8 +5621,12 @@ test('diagnostics tab preserves the bounded legacy monitoring surface', () => {
   assert.match(source, /eventTypesReadout = EMPTY_HALF_DOUGHNUT_READOUT;/);
 });
 
-test('diagnostics tab is decomposed into focused subsection components', () => {
-  const source = fs.readFileSync(
+test('traffic and diagnostics tabs decompose traffic visibility and furniture diagnostics into focused subsection components', () => {
+  const trafficSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/TrafficTab.svelte'),
+    'utf8'
+  );
+  const diagnosticsTabSource = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/DiagnosticsTab.svelte'),
     'utf8'
   );
@@ -5640,32 +5643,44 @@ test('diagnostics tab is decomposed into focused subsection components', () => {
     'utf8'
   );
 
-  assert.match(source, /import DiagnosticsSection from '\.\/monitoring\/DiagnosticsSection\.svelte';/);
-  assert.match(source, /import OverviewStats from '\.\/monitoring\/OverviewStats\.svelte';/);
-  assert.match(source, /import PrimaryCharts from '\.\/monitoring\/PrimaryCharts\.svelte';/);
-  assert.match(source, /import DefenseTrendBlocks from '\.\/monitoring\/DefenseTrendBlocks\.svelte';/);
-  assert.match(source, /import RecentEventsTable from '\.\/monitoring\/RecentEventsTable\.svelte';/);
-  assert.match(source, /import ExternalMonitoringSection from '\.\/monitoring\/ExternalMonitoringSection\.svelte';/);
-  assert.match(source, /import IpRangeSection from '\.\/monitoring\/IpRangeSection\.svelte';/);
-  assert.match(source, /export let ipBansFreshnessSnapshot = null;/);
-  assert.match(source, /<OverviewStats/);
-  assert.match(source, /<DiagnosticsSection/);
-  assert.match(source, /monitoringFreshnessSnapshot=\{monitoringFreshnessSnapshot\}/);
-  assert.match(source, /ipBansFreshnessSnapshot=\{ipBansFreshnessSnapshot\}/);
-  assert.match(source, /rawTelemetryFeed=\{rawTelemetryFeed\}/);
-  assert.match(source, /<PrimaryCharts/);
-  assert.match(source, /\{eventTypesReadout\}/);
-  assert.match(source, /<DefenseTrendBlocks/);
-  assert.match(source, /<ChallengeSection/);
-  assert.match(source, /<PowSection/);
-  assert.match(source, /<IpRangeSection/);
-  assert.equal(source.indexOf('<DiagnosticsSection') < source.indexOf('<ExternalMonitoringSection'), true);
-  assert.match(source, /<ExternalMonitoringSection/);
-  assert.match(source, /filterOptions=\{eventFilterOptions\}/);
-  assert.match(source, /onFilterChange=\{onEventFilterChange\}/);
-  assert.match(source, /RAW_FEED_MAX_LINES = 200/);
-  assert.doesNotMatch(source, /id="monitoring-freshness-state"/);
-  assert.doesNotMatch(source, /id="monitoring-freshness-meta"/);
+  assert.match(trafficSource, /import OverviewStats from '\.\/monitoring\/OverviewStats\.svelte';/);
+  assert.match(trafficSource, /import PrimaryCharts from '\.\/monitoring\/PrimaryCharts\.svelte';/);
+  assert.match(trafficSource, /import RecentEventsTable from '\.\/monitoring\/RecentEventsTable\.svelte';/);
+  assert.match(trafficSource, /export let monitoringFreshnessSnapshot = null;/);
+  assert.match(trafficSource, /<OverviewStats/);
+  assert.match(trafficSource, /<PrimaryCharts/);
+  assert.match(trafficSource, /\{eventTypesReadout\}/);
+  assert.match(trafficSource, /<RecentEventsTable/);
+  assert.match(trafficSource, /filterOptions=\{eventFilterOptions\}/);
+  assert.match(trafficSource, /onFilterChange=\{onEventFilterChange\}/);
+  assert.match(trafficSource, /Traffic Telemetry Health/);
+  assert.match(trafficSource, /Traffic Overview/);
+  assert.match(trafficSource, /Recent Events/);
+
+  assert.match(diagnosticsTabSource, /import DiagnosticsSection from '\.\/monitoring\/DiagnosticsSection\.svelte';/);
+  assert.match(diagnosticsTabSource, /import DefenseTrendBlocks from '\.\/monitoring\/DefenseTrendBlocks\.svelte';/);
+  assert.match(diagnosticsTabSource, /import ExternalMonitoringSection from '\.\/monitoring\/ExternalMonitoringSection\.svelte';/);
+  assert.match(diagnosticsTabSource, /import IpRangeSection from '\.\/monitoring\/IpRangeSection\.svelte';/);
+  assert.match(diagnosticsTabSource, /export let ipBansFreshnessSnapshot = null;/);
+  assert.match(diagnosticsTabSource, /<DefenseTrendBlocks/);
+  assert.match(diagnosticsTabSource, /<DiagnosticsSection/);
+  assert.match(diagnosticsTabSource, /monitoringFreshnessSnapshot=\{monitoringFreshnessSnapshot\}/);
+  assert.match(diagnosticsTabSource, /ipBansFreshnessSnapshot=\{ipBansFreshnessSnapshot\}/);
+  assert.match(diagnosticsTabSource, /rawTelemetryFeed=\{rawTelemetryFeed\}/);
+  assert.match(diagnosticsTabSource, /<ChallengeSection/);
+  assert.match(diagnosticsTabSource, /<PowSection/);
+  assert.match(diagnosticsTabSource, /<IpRangeSection/);
+  assert.equal(
+    diagnosticsTabSource.indexOf('<DiagnosticsSection') < diagnosticsTabSource.indexOf('<ExternalMonitoringSection'),
+    true
+  );
+  assert.match(diagnosticsTabSource, /<ExternalMonitoringSection/);
+  assert.match(diagnosticsTabSource, /RAW_FEED_MAX_LINES = 200/);
+  assert.doesNotMatch(diagnosticsTabSource, /import OverviewStats from '\.\/monitoring\/OverviewStats\.svelte';/);
+  assert.doesNotMatch(diagnosticsTabSource, /import PrimaryCharts from '\.\/monitoring\/PrimaryCharts\.svelte';/);
+  assert.doesNotMatch(diagnosticsTabSource, /import RecentEventsTable from '\.\/monitoring\/RecentEventsTable\.svelte';/);
+  assert.doesNotMatch(diagnosticsTabSource, /id="monitoring-freshness-state"/);
+  assert.doesNotMatch(diagnosticsTabSource, /id="monitoring-freshness-meta"/);
 
   assert.match(diagnosticsSource, /import DisclosureSection from '\.\.\/primitives\/DisclosureSection\.svelte';/);
   assert.match(diagnosticsSource, /import RawTelemetryFeed from '\.\/RawTelemetryFeed\.svelte';/);
@@ -5683,9 +5698,13 @@ test('diagnostics tab is decomposed into focused subsection components', () => {
   assert.match(disclosureSource, /<summary/);
 });
 
-test('monitoring and diagnostics tabs make the accountability-vs-diagnostics split explicit', () => {
+test('monitoring, traffic, and diagnostics tabs make ownership boundaries explicit', () => {
   const monitoringSource = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/MonitoringTab.svelte'),
+    'utf8'
+  );
+  const trafficSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/TrafficTab.svelte'),
     'utf8'
   );
   const diagnosticsSource = fs.readFileSync(
@@ -5707,13 +5726,21 @@ test('monitoring and diagnostics tabs make the accountability-vs-diagnostics spl
   assert.match(monitoringSource, /href="#diagnostics"/);
   assert.doesNotMatch(monitoringSource, /Monitoring Overhaul In Progress/);
 
+  assert.match(trafficSource, /class="admin-group dashboard-tab-panel"/);
+  assert.match(trafficSource, /data-traffic-intro/);
+  assert.match(trafficSource, /Traffic Visibility/);
+  assert.match(trafficSource, /data-traffic-section="telemetry-health"/);
+  assert.match(trafficSource, /data-traffic-section="traffic-overview"/);
+  assert.match(trafficSource, /data-traffic-section="recent-events"/);
+  assert.match(trafficSource, /import OverviewStats from '\.\/monitoring\/OverviewStats\.svelte';/);
+  assert.match(trafficSource, /import PrimaryCharts from '\.\/monitoring\/PrimaryCharts\.svelte';/);
+  assert.match(trafficSource, /import RecentEventsTable from '\.\/monitoring\/RecentEventsTable\.svelte';/);
+
   assert.match(diagnosticsSource, /class="admin-group dashboard-tab-panel"/);
   assert.match(diagnosticsSource, /data-diagnostics-intro/);
   assert.match(diagnosticsSource, /class="control-group panel-soft pad-md"[\s\S]*data-diagnostics-intro/);
   assert.match(diagnosticsSource, /data-diagnostics-section="deep-inspection-intro"/);
-  assert.match(diagnosticsSource, /data-diagnostics-section="traffic-overview"/);
   assert.match(diagnosticsSource, /data-diagnostics-section="defense-breakdown"/);
-  assert.match(diagnosticsSource, /data-diagnostics-section="recent-external-traffic"/);
   assert.match(diagnosticsSource, /data-diagnostics-section="defense-specific-diagnostics"/);
   assert.match(diagnosticsSource, /data-diagnostics-section="telemetry-diagnostics"/);
   assert.match(diagnosticsSource, /data-diagnostics-section="external-monitoring"/);
@@ -6333,8 +6360,8 @@ test('dashboard route wires native runtime actions with separate manual and auto
   assert.match(source, /banDashboardIp/);
   assert.match(source, /unbanDashboardIp/);
   assert.match(source, /getDashboardRobotsPreview/);
-  assert.match(source, /const MANUAL_REFRESH_TABS = new Set\(\['diagnostics', 'ip-bans', 'red-team'\]\);/);
-  assert.match(source, /const AUTO_REFRESH_TABS = new Set\(\['ip-bans', 'red-team'\]\);/);
+  assert.match(source, /const MANUAL_REFRESH_TABS = new Set\(\['traffic', 'diagnostics', 'ip-bans', 'red-team'\]\);/);
+  assert.match(source, /const AUTO_REFRESH_TABS = new Set\(\['traffic', 'ip-bans', 'red-team'\]\);/);
 });
 
 test('dashboard route keeps the shadow-mode eye overlay mounted and lets CSS reveal it when enabled', () => {

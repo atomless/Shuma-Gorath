@@ -17,6 +17,8 @@ Introduce a dedicated `Traffic` tab and refactor the current Diagnostics-owned t
 3. Keep Diagnostics focused on furniture-operational proof and subsystem investigation.
 4. Make `Traffic` the primary home for live and recent traffic visibility.
 5. Keep the split product-facing and truthful: loop accountability is not the same question as traffic visibility or diagnostics.
+6. Keep `Traffic` first in the visible tab order so the live traffic picture is easy to reach before deeper loop-accountability or furniture diagnostics views.
+7. Reuse the shared refresh bar and existing bounded monitoring read path rather than inventing a bespoke polling model for `Traffic`.
 
 ## Target ownership
 
@@ -80,23 +82,25 @@ Introduce the new `Traffic` tab and move the current traffic-facing Diagnostics 
 Scope:
 
 1. add a first-class `Traffic` tab to the canonical dashboard tab order,
-2. place it after `Monitoring` and before `Diagnostics`,
+2. place it first in the visible dashboard tab ordering,
 3. move the current traffic-oriented sections from Diagnostics into `Traffic`:
    - `Traffic Overview`
    - `Recent External Traffic`
 4. add a light traffic-telemetry health strip derived from the existing freshness truth without moving the full contributor diagnostics block out of Diagnostics,
 5. reuse the existing traffic-oriented components and supporting view-model code where possible,
-6. give `Traffic` manual refresh and bounded auto-refresh behavior appropriate for a live traffic picture,
+6. give `Traffic` shared refresh-bar ownership with manual refresh and bounded auto-refresh behavior appropriate for a live traffic picture,
 7. keep the tab clearly about traffic visibility rather than subsystem internals,
-8. remove doubled or surplus section-title pairings while the sections move:
-   - keep `Recent Events`, not `Recent External Traffic` plus `Recent Events`.
+8. keep Traffic refreshes cost-effective by reusing the bounded monitoring bootstrap/delta/cache path rather than forcing an extra heavyweight read model,
+9. keep the visible event section title as `Recent Events`, not `Recent External Traffic`,
+10. remove doubled or surplus section-title pairings while the sections move.
 
 Verification:
 
 1. focused dashboard tab IA proof for the new tab ordering and section ownership,
 2. focused rendered proof that the traffic sections now live in `Traffic`,
 3. focused refresh-behavior proof for manual and bounded auto-refresh,
-4. `git diff --check`.
+4. focused proof that `Traffic` reuses the shared bounded monitoring read path,
+5. `git diff --check`.
 
 ### `DIAG-CLEANUP-1`
 
@@ -112,7 +116,6 @@ Scope:
 4. tighten copy and section names so Diagnostics reads as furniture-operational and subsystem-investigation-first,
 5. clean up helper/view-model ownership that only existed because Diagnostics temporarily hosted the traffic dashboard,
 6. remove the current doubled or surplus section-title pairings:
-   - keep `Defense Breakdown`, not `Defense Breakdown` plus `Defense Trends`,
    - keep `Telemetry Diagnostics` only once.
 
 Verification:
@@ -149,3 +152,4 @@ Sequencing refinement:
 3. `Defense Breakdown` stays in Diagnostics because it works better as a concise overview of the subsystem furniture shown below.
 4. `Telemetry Diagnostics` stays in Diagnostics as the full contributor/furniture proof surface; `Traffic` should only project a lighter traffic-health summary if needed.
 5. Title cleanup is part of the ownership cleanup, not optional polish, because the current doubled headings make the tabs read as accidental composites.
+6. The delivered `TRAFFIC-TAB-1` implementation additionally settles that `Traffic` should sit first in the top-level ordering and share the existing refresh bar, while still reading through the bounded monitoring refresh path for cost discipline.
