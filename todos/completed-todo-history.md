@@ -4,6 +4,18 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### Test hygiene: restore Scrapling make-target truth after the default-lane flip
+
+- [x] Fixed the focused Scrapling admin tests in [`src/admin/api.rs`](../src/admin/api.rs) so they no longer redundantly re-select `scrapling_traffic` immediately after start now that Scrapling is the default desired lane.
+- [x] Updated the stale lane-switch expectation in the same test file so the proof matches the current runtime truth: starting into the default Scrapling lane should not increment `lane_switch_seq`.
+- [x] Why:
+  - the recent default-lane change made the existing Scrapling proof targets fail with a `429` debounce rejection and a stale lane-switch expectation
+  - those make targets needed to be truthful again before the next malicious request-native expansion slice
+- [x] Evidence:
+  - `make test-adversary-sim-scrapling-category-fit`
+  - `make test-adversary-sim-scrapling-worker`
+  - `git diff --check`
+
 ### Planning and contract: freeze the first Scrapling-owned defense-surface matrix
 
 - [x] Added the new owned-surface review and implementation plan:

@@ -5114,17 +5114,6 @@ mod admin_config_tests {
         );
         assert_eq!(*on_resp.status(), 200u16);
 
-        let lane_resp = handle_admin_adversary_sim_control(
-            &make_control_request_json(
-                br#"{"enabled":true,"lane":"scrapling_traffic"}"#,
-                "scrapling-beat-lane",
-            ),
-            &store,
-            "default",
-            &auth,
-        );
-        assert_eq!(*lane_resp.status(), 200u16);
-
         let beat_req = make_internal_beat_request("sim-scrapling-beat-test-key");
         let beat_resp = handle_internal_adversary_sim_beat(&beat_req, &store, "default");
         assert_eq!(*beat_resp.status(), 200u16);
@@ -5195,7 +5184,7 @@ mod admin_config_tests {
             persisted.active_lane,
             Some(crate::admin::adversary_sim::RuntimeLane::ScraplingTraffic)
         );
-        assert_eq!(persisted.lane_switch_seq, 1);
+        assert_eq!(persisted.lane_switch_seq, 0);
         assert!(persisted.pending_worker_tick_id.is_some());
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
@@ -5334,17 +5323,6 @@ mod admin_config_tests {
         );
         assert_eq!(*on_resp.status(), 200u16);
 
-        let lane_resp = handle_admin_adversary_sim_control(
-            &make_control_request_json(
-                br#"{"enabled":true,"lane":"scrapling_traffic"}"#,
-                "scrapling-result-lane",
-            ),
-            &store,
-            "default",
-            &auth,
-        );
-        assert_eq!(*lane_resp.status(), 200u16);
-
         let beat_req = make_internal_beat_request("sim-scrapling-result-test-key");
         let beat_resp = handle_internal_adversary_sim_beat(&beat_req, &store, "default");
         assert_eq!(*beat_resp.status(), 200u16);
@@ -5478,17 +5456,6 @@ mod admin_config_tests {
             &auth,
         );
         assert_eq!(*on_resp.status(), 200u16);
-
-        let lane_resp = handle_admin_adversary_sim_control(
-            &make_control_request_json(
-                br#"{"enabled":true,"lane":"scrapling_traffic"}"#,
-                "scrapling-stale-lane",
-            ),
-            &store,
-            "default",
-            &auth,
-        );
-        assert_eq!(*lane_resp.status(), 200u16);
 
         let beat_req = make_internal_beat_request("sim-scrapling-stale-test-key");
         let beat_resp = handle_internal_adversary_sim_beat(&beat_req, &store, "default");
