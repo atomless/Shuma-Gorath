@@ -4,6 +4,20 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### Planning refinement: make future `Identification` sit immediately after `Tuning`
+
+- [x] Updated the future `Identification` rename and ownership plans so the scheduled tab change now explicitly includes a tab-order move: when `Fingerprinting` becomes `Identification`, it should appear immediately after `Tuning`.
+- [x] Mirrored that requirement into the dashboard operator-surfacing sequence and the blocked `TUNE-SURFACE-1B` backlog item so the later implementation tranche cannot miss it as an incidental UI detail.
+- [x] Why:
+  - once the tab becomes `Identification`, it belongs adjacent to `Tuning`, because `Tuning` owns the editable control surface and `Identification` becomes the adjacent explanatory diagnostics surface for how non-human traffic is recognized.
+- [x] Evidence:
+  - `docs/plans/2026-03-24-identification-tab-rename-and-taxonomy-distinction-plan.md`
+  - `docs/plans/2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md`
+  - `docs/plans/2026-03-23-dashboard-operator-surfacing-sequencing-plan.md`
+  - `todos/blocked-todo.md`
+  - `git diff --check`
+  - verification intentionally scoped as docs-only; tests not run
+
 ### Planning refinement: make Monitoring reuse transitional Diagnostics surfaces before cleanup
 
 - [x] Wrote a dedicated sequencing review and companion plan to capture the new Monitoring-vs-Diagnostics decision: `MON-OVERHAUL-1B` should land before ruthless Diagnostics cleanup so Monitoring can reuse or extract the current shared aggregate chart and view-model surface.

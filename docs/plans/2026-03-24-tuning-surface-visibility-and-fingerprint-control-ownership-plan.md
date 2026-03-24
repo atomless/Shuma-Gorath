@@ -49,14 +49,15 @@ Move the ratified controller-tunable botness and fingerprint controls into `Tuni
 
 1. Keep `provider_backends.fingerprint_signal` and `edge_integration_mode` in `Identification`.
 2. Rename the tab from `Fingerprinting` to `Identification`.
-3. Keep the read-only runtime scoring-definition panel in `Identification`, but rename and document it as a diagnostic projection rather than a mutability claim.
-4. Add a bounded `Category Distinction` explanatory surface showing how the available signals distinguish canonical non-human taxonomy categories.
-5. Move or add into `Tuning` the botness and fingerprint knobs that `CTRL-SURFACE-1..3` ratifies as controller-tunable.
-6. Keep the moved controls grouped by operator meaning, for example:
+3. Move `Identification` so it sits immediately after `Tuning` in the dashboard tab ordering.
+4. Keep the read-only runtime scoring-definition panel in `Identification`, but rename and document it as a diagnostic projection rather than a mutability claim.
+5. Add a bounded `Category Distinction` explanatory surface showing how the available signals distinguish canonical non-human taxonomy categories.
+6. Move or add into `Tuning` the botness and fingerprint knobs that `CTRL-SURFACE-1..3` ratifies as controller-tunable.
+7. Keep the moved controls grouped by operator meaning, for example:
    1. botness thresholds,
    2. cross-signal weights,
    3. fingerprint sensitivity and caps.
-7. Make the Tuning tab the canonical editable home for those controls; do not leave the same writable control split across tabs.
+8. Make the Tuning tab the canonical editable home for those controls; do not leave the same writable control split across tabs.
 
 ### Files
 
@@ -87,9 +88,10 @@ Add focused make targets such as:
 They should prove:
 
 1. the ratified editable botness and fingerprint controls render only in `Tuning`,
-2. `Identification` still renders provider-topology controls, effective scoring diagnostics, and the category-distinction section,
-3. the read-only scoring panel does not regress into a second writable editor,
-4. and save payloads remain truthful to the canonical config or objective contracts.
+2. `Identification` appears immediately after `Tuning` in the dashboard tab ordering,
+3. `Identification` still renders provider-topology controls, effective scoring diagnostics, and the category-distinction section,
+4. the read-only scoring panel does not regress into a second writable editor,
+5. and save payloads remain truthful to the canonical config or objective contracts.
 
 ## `TUNE-SURFACE-1C`
 
@@ -123,5 +125,6 @@ This plan is satisfied when:
 1. `Tuning` clearly reads as the operator-owned tuning surface from first render,
 2. the taxonomy posture matrix is the primary section of that tab,
 3. ratified botness and fingerprint tuning controls live in `Tuning`,
-4. `Identification` keeps provider-source posture, effective scoring diagnostics, and category-distinction explanation,
-5. and the read-only scoring panel in `Identification` is framed as a diagnostic projection rather than as a hard mutability boundary.
+4. `Identification` appears immediately after `Tuning` in the dashboard tab order,
+5. `Identification` keeps provider-source posture, effective scoring diagnostics, and category-distinction explanation,
+6. and the read-only scoring panel in `Identification` is framed as a diagnostic projection rather than as a hard mutability boundary.

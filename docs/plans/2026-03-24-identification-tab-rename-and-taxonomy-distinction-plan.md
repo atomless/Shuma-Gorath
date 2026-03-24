@@ -24,6 +24,7 @@ Make the future `Fingerprinting` tab truthfully reflect its remit by renaming it
 4. The tab should distinguish between available, active, and influential evidence where the backend truth supports that distinction.
 5. This work should execute inside the later `TUNE-SURFACE-1B` ownership cleanup rather than as a detached rename-only slice.
 6. The first version of `Category Distinction` should omit explicit `not useful` entries and show only meaningful signal families per category.
+7. When the rename lands, `Identification` should move to sit immediately after `Tuning` in the dashboard tab ordering.
 
 # Required Behavior
 
@@ -31,6 +32,7 @@ Make the future `Fingerprinting` tab truthfully reflect its remit by renaming it
 
 1. Rename the tab label and route key from the old fingerprinting concept to `Identification`.
 2. Frame the tab as “how Shuma identifies non-human traffic” rather than “browser or transport fingerprinting.”
+3. Move the tab so `Identification` appears immediately after `Tuning` in the top-level dashboard ordering.
 
 ## Section ownership
 
@@ -81,6 +83,7 @@ That means:
 3. `TUNE-SURFACE-1A`
 4. `TUNE-SURFACE-1B`
    - rename `Fingerprinting` to `Identification`
+   - move `Identification` to sit immediately after `Tuning`
    - move ratified editable controls into `Tuning`
    - reframe the identification tab around signal sources, effective signals, and taxonomy distinction
 5. `TUNE-SURFACE-1C`
@@ -91,7 +94,8 @@ That means:
 
 1. the tab rename from `Fingerprinting` to `Identification`,
 2. the identification remit clarification,
-3. and the first category-distinction read surface over the canonical taxonomy.
+3. the tab-order move so `Identification` sits directly after `Tuning`,
+4. and the first category-distinction read surface over the canonical taxonomy.
 
 # Definition Of Done
 
@@ -100,4 +104,5 @@ This plan is satisfied when:
 1. the tab is renamed to `Identification`,
 2. its remit clearly explains how Shuma identifies non-human traffic,
 3. it shows how the taxonomy categories are made distinct through the available meaningful signals without cluttering the surface with explicit non-useful entries,
-4. and the rename does not blur the editing boundary that keeps tuning controls in `Tuning`.
+4. it appears immediately after `Tuning` in the dashboard tab order,
+5. and the rename does not blur the editing boundary that keeps tuning controls in `Tuning`.

@@ -183,7 +183,8 @@ Follow-on ownership after `TUNE-SURFACE-1A`:
 1. `Tuning` should become the canonical editable home for ratified controller-tunable botness and fingerprint controls,
 2. the current `Fingerprinting` tab should be renamed to `Identification` and retain provider-topology and signal-source posture plus a read-only effective scoring diagnostic view,
 3. `Identification` should also explain how the available signals distinguish the canonical non-human taxonomy categories,
-4. and that consolidation should execute only after `CTRL-SURFACE-1..3` ratifies which fingerprint controls are genuinely in-bounds.
+4. `Identification` should move to sit immediately after `Tuning` in the dashboard tab ordering,
+5. and that consolidation should execute only after `CTRL-SURFACE-1..3` ratifies which fingerprint controls are genuinely in-bounds.
 
 # Sequence
 
