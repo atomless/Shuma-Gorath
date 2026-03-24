@@ -1422,6 +1422,10 @@ test("dashboard clean-state renders explicit empty placeholders", async ({ page 
 test("monitoring and diagnostics tabs expose the loop-accountability split", async ({ page }) => {
   await openDashboard(page);
 
+  await expect(page.locator("#dashboard-panel-monitoring")).toHaveClass(/admin-group/);
+  await expect(page.locator('#dashboard-panel-monitoring [data-monitoring-intro]')).toHaveClass(
+    /control-group/
+  );
   await expect(page.locator("#dashboard-panel-monitoring")).toContainText("Closed-Loop Accountability");
   await expect(
     page.locator('#dashboard-panel-monitoring [data-monitoring-section="current-status"]')
@@ -1444,6 +1448,10 @@ test("monitoring and diagnostics tabs expose the loop-accountability split", asy
   await expect(page.locator('#dashboard-panel-monitoring a[href="#diagnostics"]')).toBeVisible();
 
   await openTab(page, "diagnostics");
+  await expect(page.locator("#dashboard-panel-diagnostics")).toHaveClass(/admin-group/);
+  await expect(page.locator('#dashboard-panel-diagnostics [data-diagnostics-intro]')).toHaveClass(
+    /control-group/
+  );
   await expect(
     page.locator('#dashboard-panel-diagnostics [data-diagnostics-section="deep-inspection-intro"]')
   ).toContainText("Diagnostics");

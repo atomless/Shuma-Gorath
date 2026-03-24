@@ -5693,7 +5693,10 @@ test('monitoring and diagnostics tabs make the accountability-vs-diagnostics spl
     'utf8'
   );
 
+  assert.match(monitoringSource, /class="admin-group dashboard-tab-panel"/);
   assert.match(monitoringSource, /Closed-Loop Accountability/);
+  assert.match(monitoringSource, /data-monitoring-intro/);
+  assert.match(monitoringSource, /<div class="control-group panel-soft pad-md" data-monitoring-intro>/);
   assert.match(monitoringSource, /data-monitoring-section=\{section\.id\}/);
   assert.match(monitoringSource, /id: 'current-status'/);
   assert.match(monitoringSource, /id: 'recent-loop-progress'/);
@@ -5704,6 +5707,9 @@ test('monitoring and diagnostics tabs make the accountability-vs-diagnostics spl
   assert.match(monitoringSource, /href="#diagnostics"/);
   assert.doesNotMatch(monitoringSource, /Monitoring Overhaul In Progress/);
 
+  assert.match(diagnosticsSource, /class="admin-group dashboard-tab-panel"/);
+  assert.match(diagnosticsSource, /data-diagnostics-intro/);
+  assert.match(diagnosticsSource, /class="control-group panel-soft pad-md"[\s\S]*data-diagnostics-intro/);
   assert.match(diagnosticsSource, /data-diagnostics-section="deep-inspection-intro"/);
   assert.match(diagnosticsSource, /data-diagnostics-section="traffic-overview"/);
   assert.match(diagnosticsSource, /data-diagnostics-section="defense-breakdown"/);

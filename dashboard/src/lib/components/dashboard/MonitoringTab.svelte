@@ -181,7 +181,7 @@
 
 <section
   id="dashboard-panel-monitoring"
-  class="dashboard-tab-panel"
+  class="admin-group dashboard-tab-panel"
   data-dashboard-tab-panel="monitoring"
   aria-labelledby="dashboard-tab-monitoring"
   hidden={managed ? !isActive : false}
@@ -190,26 +190,24 @@
 >
   <TabStateMessage tab="monitoring" status={tabStatus} />
 
-  <section class="section">
-    <div class="panel panel-soft">
-      <h2>Closed-Loop Accountability</h2>
-      <p class="text-muted">
-        Monitoring now frames how Shuma&apos;s closed feedback loop is performing against the current
-        operator-selected live stance.
+  <div class="control-group panel-soft pad-md" data-monitoring-intro>
+    <h3>Closed-Loop Accountability</h3>
+    <p class="control-desc text-muted">
+      Monitoring now frames how Shuma&apos;s closed feedback loop is performing against the current
+      operator-selected live stance.
+    </p>
+    <p class="control-desc text-muted">
+      Deep subsystem telemetry, recent raw traffic, and contributor-style freshness details stay
+      in <a href="#diagnostics">Diagnostics</a>.
+    </p>
+    {#if operatorSnapshot?.objectives?.profile_id}
+      <p class="control-desc text-muted" id="monitoring-accountability-context">
+        Profile <code>{operatorSnapshot.objectives.profile_id}</code> revision
+        <code>{operatorSnapshot.objectives.revision || 'n/a'}</code> over a
+        <strong>{formatNumber(operatorSnapshot.objectives.window_hours, '0')}h</strong> window.
       </p>
-      <p class="text-muted">
-        Deep subsystem telemetry, recent raw traffic, and contributor-style freshness details stay
-        in <a href="#diagnostics">Diagnostics</a>.
-      </p>
-      {#if operatorSnapshot?.objectives?.profile_id}
-        <p class="text-muted" id="monitoring-accountability-context">
-          Profile <code>{operatorSnapshot.objectives.profile_id}</code> revision
-          <code>{operatorSnapshot.objectives.revision || 'n/a'}</code> over a
-          <strong>{formatNumber(operatorSnapshot.objectives.window_hours, '0')}h</strong> window.
-        </p>
-      {/if}
-    </div>
-  </section>
+    {/if}
+  </div>
 
   {#each monitoringSections as section (section.id)}
     <section class="section" data-monitoring-section={section.id}>

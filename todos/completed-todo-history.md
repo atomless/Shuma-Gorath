@@ -4,6 +4,23 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### Dashboard tab chrome consistency: Monitoring and Diagnostics intro reuse
+
+- [x] Replaced the bespoke top-of-tab intro wrappers in [`dashboard/src/lib/components/dashboard/MonitoringTab.svelte`](../dashboard/src/lib/components/dashboard/MonitoringTab.svelte) and [`dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte`](../dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte) with the existing shared dashboard panel language:
+  - `admin-group` tab root chrome
+  - `control-group panel-soft pad-md` intro panels
+  - canonical `control-desc text-muted` descriptive copy
+- [x] Kept the new Monitoring and Diagnostics information architecture intact while removing the one-off hero-style treatment that drifted from the rest of the dashboard.
+- [x] Tightened the focused source and rendered proof in:
+  - [`e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+- [x] Why:
+  - the top of Monitoring and Diagnostics had started inventing a local design idiom even though the dashboard already had a clear shared tab-top pattern.
+  - reusing the existing panel language keeps the UI consistent and avoids entrenching avoidable design drift before later `DIAG-CLEANUP-1` work.
+- [x] Evidence:
+  - `make test-dashboard-tab-information-architecture`
+  - `git diff --check`
+
 ### TEST-HYGIENE-6A: Dashboard runtime and monitoring archaeology replacement
 
 - [x] Replaced the audit-cited dashboard Node source-regex tests for native runtime ownership, refresh runtime ownership, and Monitoring accountability wiring with behavior-first module tests in [`e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js).

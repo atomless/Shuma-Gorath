@@ -988,7 +988,7 @@
 
 <section
   id="dashboard-panel-diagnostics"
-  class="dashboard-tab-panel"
+  class="admin-group dashboard-tab-panel"
   data-dashboard-tab-panel="diagnostics"
   aria-labelledby="dashboard-tab-diagnostics"
   hidden={managed ? !isActive : false}
@@ -997,19 +997,21 @@
 >
   <TabStateMessage tab="diagnostics" status={tabStatus} />
 
-  <section class="section" data-diagnostics-section="deep-inspection-intro">
-    <div class="panel panel-soft">
-      <h2>Diagnostics</h2>
-      <p class="text-muted">
-        Use this tab for deep inspection of subsystem telemetry, external-traffic traces, and
-        freshness or transport detail.
-      </p>
-      <p class="text-muted">
-        Monitoring now owns the loop-accountability story for the live stance. Diagnostics keeps
-        the contributor-style investigation surface.
-      </p>
-    </div>
-  </section>
+  <div
+    class="control-group panel-soft pad-md"
+    data-diagnostics-intro
+    data-diagnostics-section="deep-inspection-intro"
+  >
+    <h3>Diagnostics</h3>
+    <p class="control-desc text-muted">
+      Use this tab for deep inspection of subsystem telemetry, external-traffic traces, and
+      freshness or transport detail.
+    </p>
+    <p class="control-desc text-muted">
+      Monitoring now owns the loop-accountability story for the live stance. Diagnostics keeps
+      the contributor-style investigation surface.
+    </p>
+  </div>
 
   <section class="section" data-diagnostics-section="traffic-overview">
     <h2>Traffic Overview</h2>
