@@ -16,9 +16,8 @@
   const gameLoopSections = Object.freeze([
     {
       id: 'current-status',
-      title: 'Current Status',
-      description:
-        'Loop verdict, budget state, latest controller action, and current runtime posture for the live operator-selected stance.'
+      title: '',
+      description: ''
     },
     {
       id: 'recent-loop-progress',
@@ -189,25 +188,6 @@
   tabindex="-1"
 >
   <TabStateMessage tab="game-loop" status={tabStatus} />
-
-  <div class="control-group panel-soft pad-md" data-game-loop-intro>
-    <h3>Closed-Loop Accountability</h3>
-    <p class="control-desc text-muted">
-      Game Loop now frames how Shuma&apos;s closed feedback loop is performing against the current
-      operator-selected live stance.
-    </p>
-    <p class="control-desc text-muted">
-      Deep subsystem telemetry, recent raw traffic, and contributor-style freshness details stay
-      in <a href="#diagnostics">Diagnostics</a>.
-    </p>
-    {#if operatorSnapshot?.objectives?.profile_id}
-      <p class="control-desc text-muted" id="game-loop-accountability-context">
-        Profile <code>{operatorSnapshot.objectives.profile_id}</code> revision
-        <code>{operatorSnapshot.objectives.revision || 'n/a'}</code> over a
-        <strong>{formatNumber(operatorSnapshot.objectives.window_hours, '0')}h</strong> window.
-      </p>
-    {/if}
-  </div>
 
   {#each gameLoopSections as section (section.id)}
     <section class="section" data-game-loop-section={section.id}>

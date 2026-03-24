@@ -4,6 +4,33 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### UI: trim redundant framing copy from Traffic, Game Loop, and Diagnostics
+
+- [x] Removed redundant top framing panes and section-copy clutter from:
+  - [`dashboard/src/lib/components/dashboard/TrafficTab.svelte`](../dashboard/src/lib/components/dashboard/TrafficTab.svelte)
+  - [`dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
+  - [`dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte`](../dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte)
+- [x] Removed the `Traffic Overview` section title/subtitle and the `Traffic Telemetry Health` heading copy while preserving the actual traffic cards, charts, recent events, and freshness/read-path strip.
+- [x] Moved the traffic freshness/read-path strip to the bottom of the `Traffic` tab.
+- [x] Removed the `Closed-Loop Accountability` intro pane plus the `Current Status` heading/description from `Game Loop` while keeping the accountability content intact.
+- [x] Updated the shared section primitive in [`dashboard/src/lib/components/dashboard/primitives/SectionBlock.svelte`](../dashboard/src/lib/components/dashboard/primitives/SectionBlock.svelte) so empty titles do not render a blank heading shell.
+- [x] Updated focused dashboard source/rendered proof in:
+  - [`e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+- [x] Updated the tab docs and added a post-implementation review:
+  - [`docs/dashboard-tabs/traffic.md`](../docs/dashboard-tabs/traffic.md)
+  - [`docs/dashboard-tabs/game-loop.md`](../docs/dashboard-tabs/game-loop.md)
+  - [`docs/dashboard-tabs/diagnostics.md`](../docs/dashboard-tabs/diagnostics.md)
+  - [`docs/research/2026-03-24-dashboard-tab-framing-copy-cleanup-post-implementation-review.md`](../docs/research/2026-03-24-dashboard-tab-framing-copy-cleanup-post-implementation-review.md)
+- [x] Why:
+  - the tab tops had drifted into redundant, bespoke framing language even though the rest of the dashboard already had a stable reusable section pattern
+  - the user explicitly wanted the copy stripped back rather than replaced with another design idiom
+- [x] Evidence:
+  - `make test-dashboard-tab-information-architecture`
+  - `make test-dashboard-game-loop-accountability`
+  - `make test-dashboard-traffic-pane`
+  - `git diff --check`
+
 ### Planning refinement: recursive-improvement audit trail and GitHub-backed provenance contract
 
 - [x] Wrote a new research driver and implementation plan for the missing recursive-improvement audit and provenance contract:

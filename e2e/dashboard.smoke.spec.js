@@ -1445,13 +1445,11 @@ test("game loop, traffic, and diagnostics tabs expose their ownership split", as
     "Diagnostics"
   ]);
   await expect(page.locator("#dashboard-panel-game-loop")).toHaveClass(/admin-group/);
-  await expect(page.locator('#dashboard-panel-game-loop [data-game-loop-intro]')).toHaveClass(
-    /control-group/
-  );
-  await expect(page.locator("#dashboard-panel-game-loop")).toContainText("Closed-Loop Accountability");
+  await expect(page.locator('#dashboard-panel-game-loop [data-game-loop-intro]')).toHaveCount(0);
+  await expect(page.locator("#dashboard-panel-game-loop")).not.toContainText("Closed-Loop Accountability");
   await expect(
     page.locator('#dashboard-panel-game-loop [data-game-loop-section="current-status"]')
-  ).toContainText("Current Status");
+  ).not.toContainText("Current Status");
   await expect(
     page.locator('#dashboard-panel-game-loop [data-game-loop-section="recent-loop-progress"]')
   ).toContainText("Recent Loop Progress");
@@ -1467,31 +1465,32 @@ test("game loop, traffic, and diagnostics tabs expose their ownership split", as
   await expect(
     page.locator('#dashboard-panel-game-loop [data-game-loop-section="trust-and-blockers"]')
   ).toContainText("Trust And Blockers");
-  await expect(page.locator('#dashboard-panel-game-loop a[href="#diagnostics"]')).toBeVisible();
 
   await openTab(page, "traffic");
   await expect(page.locator("#dashboard-panel-traffic")).toHaveClass(/admin-group/);
-  await expect(page.locator('#dashboard-panel-traffic [data-traffic-intro]')).toHaveClass(
-    /control-group/
-  );
+  await expect(page.locator('#dashboard-panel-traffic [data-traffic-intro]')).toHaveCount(0);
   await expect(
     page.locator('#dashboard-panel-traffic [data-traffic-section="telemetry-health"]')
-  ).toContainText("Traffic Telemetry Health");
+  ).not.toContainText("Traffic Telemetry Health");
   await expect(
     page.locator('#dashboard-panel-traffic [data-traffic-section="traffic-overview"]')
-  ).toContainText("Traffic Overview");
+  ).not.toContainText("Traffic Overview");
+  await expect(
+    page.locator('#dashboard-panel-traffic [data-traffic-section="traffic-overview"]')
+  ).not.toContainText("Inspect the bounded traffic summary");
   await expect(
     page.locator('#dashboard-panel-traffic [data-traffic-section="recent-events"]')
   ).toContainText("Recent Events");
+  await expect(
+    page.locator('#dashboard-panel-traffic [data-traffic-section="telemetry-health"]')
+  ).toContainText("Freshness:");
+  await expect(
+    page.locator('#dashboard-panel-traffic [data-traffic-section="telemetry-health"]')
+  ).toContainText("Read path:");
 
   await openTab(page, "diagnostics");
   await expect(page.locator("#dashboard-panel-diagnostics")).toHaveClass(/admin-group/);
-  await expect(page.locator('#dashboard-panel-diagnostics [data-diagnostics-intro]')).toHaveClass(
-    /control-group/
-  );
-  await expect(
-    page.locator('#dashboard-panel-diagnostics [data-diagnostics-section="deep-inspection-intro"]')
-  ).toContainText("Diagnostics");
+  await expect(page.locator('#dashboard-panel-diagnostics [data-diagnostics-intro]')).toHaveCount(0);
   await expect(
     page.locator('#dashboard-panel-diagnostics [data-diagnostics-section="defense-breakdown"]')
   ).toContainText("Defense Breakdown");

@@ -5,7 +5,9 @@
 </script>
 
 <div class={rootClass}>
-  <h2>{@html title}</h2>
+  {#if title}
+    <h2>{@html title}</h2>
+  {/if}
   {#if description}
     <p class="section-desc text-muted">{@html description}</p>
   {/if}

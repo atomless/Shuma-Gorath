@@ -5653,9 +5653,19 @@ test('traffic and diagnostics tabs decompose traffic visibility and furniture di
   assert.match(trafficSource, /<RecentEventsTable/);
   assert.match(trafficSource, /filterOptions=\{eventFilterOptions\}/);
   assert.match(trafficSource, /onFilterChange=\{onEventFilterChange\}/);
-  assert.match(trafficSource, /Traffic Telemetry Health/);
-  assert.match(trafficSource, /Traffic Overview/);
   assert.match(trafficSource, /Recent Events/);
+  assert.doesNotMatch(trafficSource, /Traffic Visibility/);
+  assert.doesNotMatch(trafficSource, /Traffic Telemetry Health/);
+  assert.doesNotMatch(trafficSource, />Traffic Overview</);
+  assert.doesNotMatch(
+    trafficSource,
+    /Inspect the bounded traffic summary and enforced-event charts for traffic reaching Shuma and/
+  );
+  assert.equal(
+    trafficSource.indexOf('data-traffic-section="recent-events"') <
+      trafficSource.indexOf('data-traffic-section="telemetry-health"'),
+    true
+  );
 
   assert.match(diagnosticsTabSource, /import DiagnosticsSection from '\.\/monitoring\/DiagnosticsSection\.svelte';/);
   assert.match(diagnosticsTabSource, /import DefenseTrendBlocks from '\.\/monitoring\/DefenseTrendBlocks\.svelte';/);
@@ -5711,13 +5721,14 @@ test('game loop, traffic, and diagnostics tabs make ownership boundaries explici
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/DiagnosticsTab.svelte'),
     'utf8'
   );
+  const sectionBlockSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/primitives/SectionBlock.svelte'),
+    'utf8'
+  );
 
   assert.match(monitoringSource, /class="admin-group dashboard-tab-panel"/);
   assert.match(monitoringSource, /data-dashboard-tab-panel="game-loop"/);
   assert.match(monitoringSource, /aria-labelledby="dashboard-tab-game-loop"/);
-  assert.match(monitoringSource, /Closed-Loop Accountability/);
-  assert.match(monitoringSource, /data-game-loop-intro/);
-  assert.match(monitoringSource, /<div class="control-group panel-soft pad-md" data-game-loop-intro>/);
   assert.match(monitoringSource, /data-game-loop-section=\{section\.id\}/);
   assert.match(monitoringSource, /id: 'current-status'/);
   assert.match(monitoringSource, /id: 'recent-loop-progress'/);
@@ -5725,29 +5736,35 @@ test('game loop, traffic, and diagnostics tabs make ownership boundaries explici
   assert.match(monitoringSource, /id: 'change-judgment'/);
   assert.match(monitoringSource, /id: 'pressure-sits'/);
   assert.match(monitoringSource, /id: 'trust-and-blockers'/);
-  assert.match(monitoringSource, /href="#diagnostics"/);
+  assert.doesNotMatch(monitoringSource, /Closed-Loop Accountability/);
+  assert.doesNotMatch(monitoringSource, /data-game-loop-intro/);
+  assert.doesNotMatch(monitoringSource, /Current Status/);
+  assert.doesNotMatch(monitoringSource, /Loop verdict, budget state/);
   assert.doesNotMatch(monitoringSource, /Monitoring Overhaul In Progress/);
+  assert.match(monitoringSource, /title: ''/);
+  assert.match(sectionBlockSource, /\{#if title\}/);
 
   assert.match(trafficSource, /class="admin-group dashboard-tab-panel"/);
-  assert.match(trafficSource, /data-traffic-intro/);
-  assert.match(trafficSource, /Traffic Visibility/);
   assert.match(trafficSource, /data-traffic-section="telemetry-health"/);
   assert.match(trafficSource, /data-traffic-section="traffic-overview"/);
   assert.match(trafficSource, /data-traffic-section="recent-events"/);
   assert.match(trafficSource, /import OverviewStats from '\.\/monitoring\/OverviewStats\.svelte';/);
   assert.match(trafficSource, /import PrimaryCharts from '\.\/monitoring\/PrimaryCharts\.svelte';/);
   assert.match(trafficSource, /import RecentEventsTable from '\.\/monitoring\/RecentEventsTable\.svelte';/);
+  assert.doesNotMatch(trafficSource, /data-traffic-intro/);
+  assert.doesNotMatch(
+    trafficSource,
+    /Inspect the bounded traffic summary and enforced-event charts for traffic reaching Shuma and/
+  );
 
   assert.match(diagnosticsSource, /class="admin-group dashboard-tab-panel"/);
-  assert.match(diagnosticsSource, /data-diagnostics-intro/);
-  assert.match(diagnosticsSource, /class="control-group panel-soft pad-md"[\s\S]*data-diagnostics-intro/);
-  assert.match(diagnosticsSource, /data-diagnostics-section="deep-inspection-intro"/);
   assert.match(diagnosticsSource, /data-diagnostics-section="defense-breakdown"/);
   assert.match(diagnosticsSource, /data-diagnostics-section="defense-specific-diagnostics"/);
   assert.match(diagnosticsSource, /data-diagnostics-section="telemetry-diagnostics"/);
   assert.match(diagnosticsSource, /data-diagnostics-section="external-monitoring"/);
-  assert.match(diagnosticsSource, />Diagnostics</);
-  assert.match(diagnosticsSource, /deep inspection/i);
+  assert.doesNotMatch(diagnosticsSource, /data-diagnostics-intro/);
+  assert.doesNotMatch(diagnosticsSource, /data-diagnostics-section="deep-inspection-intro"/);
+  assert.doesNotMatch(diagnosticsSource, /<h3>Diagnostics<\/h3>/);
 });
 
 test('tarpit monitoring section centers progression and outcome telemetry', () => {

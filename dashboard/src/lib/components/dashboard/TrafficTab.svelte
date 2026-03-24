@@ -695,55 +695,7 @@
 >
   <TabStateMessage tab="traffic" status={tabStatus} />
 
-  <div class="control-group panel-soft pad-md" data-traffic-intro>
-    <h3>Traffic Visibility</h3>
-    <p class="control-desc text-muted">
-      Use this tab for the bounded live traffic picture: event volume, enforced-event charts,
-      recent request outcomes, and a light telemetry-health summary.
-    </p>
-    <p class="control-desc text-muted">
-      Monitoring owns loop accountability. Deep subsystem and furniture diagnostics stay in
-      <a href="#diagnostics">Diagnostics</a>.
-    </p>
-  </div>
-
-  <section class="section" data-traffic-section="telemetry-health">
-    <SectionBlock
-      title="Traffic Telemetry Health"
-      description="Freshness and read-path truth for the traffic picture shown below."
-      rootClass="section"
-    >
-      <div class="control-group panel-soft pad-sm">
-        <div class="status-rows">
-          <div class="info-row">
-            <span class="info-label text-muted">Freshness:</span>
-            <span class="status-value">
-              <strong>{freshnessSummary.stateLabel}</strong> | lag: {freshnessSummary.lagText} | last event: {freshnessSummary.lastEventText}
-            </span>
-          </div>
-          <div class="info-row">
-            <span class="info-label text-muted">Read path:</span>
-            <span class="status-value">
-              transport: <code>{freshnessSummary.transportCode}</code> | slow consumer: <code>{freshnessSummary.slowConsumerState}</code> | overflow: <code>{freshnessSummary.overflow}</code>
-            </span>
-          </div>
-          {#if freshnessSummary.partialDataWarning}
-            <div class="info-row">
-              <span class="info-label text-muted">Note:</span>
-              <span class="status-value">{freshnessSummary.partialDataWarning}</span>
-            </div>
-          {/if}
-        </div>
-      </div>
-    </SectionBlock>
-  </section>
-
   <section class="section" data-traffic-section="traffic-overview">
-    <h2>Traffic Overview</h2>
-    <p class="text-muted">
-      Inspect the bounded traffic summary and enforced-event charts for traffic reaching Shuma and
-      the host.
-    </p>
     <OverviewStats
       loading={tabStatus?.loading === true}
       {totalBans}
@@ -776,5 +728,30 @@
       {formatTime}
       {eventBadgeClass}
     />
+  </section>
+
+  <section class="section" data-traffic-section="telemetry-health">
+    <div class="control-group panel-soft pad-sm">
+      <div class="status-rows">
+        <div class="info-row">
+          <span class="info-label text-muted">Freshness:</span>
+          <span class="status-value">
+            <strong>{freshnessSummary.stateLabel}</strong> | lag: {freshnessSummary.lagText} | last event: {freshnessSummary.lastEventText}
+          </span>
+        </div>
+        <div class="info-row">
+          <span class="info-label text-muted">Read path:</span>
+          <span class="status-value">
+            transport: <code>{freshnessSummary.transportCode}</code> | slow consumer: <code>{freshnessSummary.slowConsumerState}</code> | overflow: <code>{freshnessSummary.overflow}</code>
+          </span>
+        </div>
+        {#if freshnessSummary.partialDataWarning}
+          <div class="info-row">
+            <span class="info-label text-muted">Note:</span>
+            <span class="status-value">{freshnessSummary.partialDataWarning}</span>
+          </div>
+        {/if}
+      </div>
+    </div>
   </section>
 </section>

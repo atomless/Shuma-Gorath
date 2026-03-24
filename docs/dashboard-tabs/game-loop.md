@@ -11,9 +11,8 @@ Purpose:
 
 Current behavior:
 
-- Shows a top-level `Closed-Loop Accountability` framing panel that makes the tab's role explicit.
 - Exposes the bounded Game Loop accountability sections:
-  - `Current Status`
+  - top status cards and runtime posture rows with no extra framing pane
   - `Recent Loop Progress`
   - `Outcome Frontier`
   - `What The Loop Decided`

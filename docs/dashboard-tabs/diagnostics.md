@@ -11,7 +11,6 @@ Purpose:
 
 What it shows:
 
-- Intro panel clarifying that `Diagnostics` owns subsystem investigation while `Game Loop` owns closed-loop accountability and `Traffic` owns the live traffic picture.
 - `Defense Breakdown` as the concise cross-furniture overview above the deeper sections.
 - CDP detections table and summary cards, including total detections, detection-triggered bans, and fingerprint mismatch/transition counters.
 - Maze, honeypot, challenge, PoW, rate-limiting, GEO, and IP-range monitoring sections.

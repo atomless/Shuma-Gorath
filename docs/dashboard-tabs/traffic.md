@@ -11,13 +11,7 @@ Purpose:
 
 What it shows:
 
-- Intro panel clarifying that `Traffic` owns the live traffic picture while `Game Loop` owns loop accountability and `Diagnostics` owns furniture investigation.
-- `Traffic Telemetry Health`:
-  - freshness state,
-  - lag and last-event timing,
-  - transport/read-path truth,
-  - slow-consumer and overflow summary.
-- `Traffic Overview`:
+- `Traffic Overview` without extra framing copy:
   - bounded overview cards,
   - enforced-event charts,
   - time-range switching for the bounded event picture.
@@ -25,6 +19,11 @@ What it shows:
   - recent event rows,
   - shared filters for origin, mode, scenario, lane, defense, and outcome,
   - explicit empty-state handling when freshness is degraded or no events match filters.
+- Bottom freshness/read-path strip:
+  - freshness state,
+  - lag and last-event timing,
+  - transport/read-path truth,
+  - slow-consumer and overflow summary.
 
 Refresh behavior:
 
