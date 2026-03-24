@@ -7,6 +7,7 @@ Moved from active TODO files on 2026-02-14.
 ### Process hardening: dashboard DOM-composition and section-ownership directives in AGENTS
 
 - [x] Tightened [`AGENTS.md`](../AGENTS.md) with explicit dashboard DOM-composition directives so future UI work must keep tab/panel markup shallow, semantically owned, and free of stacked section chrome.
+- [x] Clarified the directive wording so it explicitly targets needless nesting rather than legitimate semantic nesting.
 - [x] Added an explicit prohibition against:
   - duplicate titles,
   - nested section-inside-section shells,
