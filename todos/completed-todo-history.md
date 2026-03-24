@@ -4,6 +4,21 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### UI: exact restore of Diagnostics intro ownership content
+
+- [x] Restored the exact prior Diagnostics intro block in [`dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte`](../dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte) after it was incorrectly removed in the framing-copy cleanup.
+- [x] Restored the matching documentation note in [`docs/dashboard-tabs/diagnostics.md`](../docs/dashboard-tabs/diagnostics.md).
+- [x] Restored the focused source/rendered proof in:
+  - [`e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+- [x] Added a rollback receipt in [`docs/research/2026-03-24-diagnostics-intro-restore-post-implementation-review.md`](../docs/research/2026-03-24-diagnostics-intro-restore-post-implementation-review.md).
+- [x] Why:
+  - the earlier copy-trim slice removed meaningful Diagnostics ownership/signposting content rather than merely redundant framing copy
+  - this restore was performed from authoritative git history rather than reconstructed by guesswork
+- [x] Evidence:
+  - `make test-dashboard-tab-information-architecture`
+  - `git diff --check`
+
 ### Process hardening: dashboard DOM-composition and section-ownership directives in AGENTS
 
 - [x] Tightened [`AGENTS.md`](../AGENTS.md) with explicit dashboard DOM-composition directives so future UI work must keep tab/panel markup shallow, semantically owned, and free of stacked section chrome.

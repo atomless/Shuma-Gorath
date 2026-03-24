@@ -5762,9 +5762,11 @@ test('game loop, traffic, and diagnostics tabs make ownership boundaries explici
   assert.match(diagnosticsSource, /data-diagnostics-section="defense-specific-diagnostics"/);
   assert.match(diagnosticsSource, /data-diagnostics-section="telemetry-diagnostics"/);
   assert.match(diagnosticsSource, /data-diagnostics-section="external-monitoring"/);
-  assert.doesNotMatch(diagnosticsSource, /data-diagnostics-intro/);
-  assert.doesNotMatch(diagnosticsSource, /data-diagnostics-section="deep-inspection-intro"/);
-  assert.doesNotMatch(diagnosticsSource, /<h3>Diagnostics<\/h3>/);
+  assert.match(diagnosticsSource, /data-diagnostics-intro/);
+  assert.match(diagnosticsSource, /class="control-group panel-soft pad-md"[\s\S]*data-diagnostics-intro/);
+  assert.match(diagnosticsSource, /data-diagnostics-section="deep-inspection-intro"/);
+  assert.match(diagnosticsSource, />Diagnostics</);
+  assert.match(diagnosticsSource, /deep inspection/i);
 });
 
 test('tarpit monitoring section centers progression and outcome telemetry', () => {

@@ -1490,7 +1490,12 @@ test("game loop, traffic, and diagnostics tabs expose their ownership split", as
 
   await openTab(page, "diagnostics");
   await expect(page.locator("#dashboard-panel-diagnostics")).toHaveClass(/admin-group/);
-  await expect(page.locator('#dashboard-panel-diagnostics [data-diagnostics-intro]')).toHaveCount(0);
+  await expect(page.locator('#dashboard-panel-diagnostics [data-diagnostics-intro]')).toHaveClass(
+    /control-group/
+  );
+  await expect(
+    page.locator('#dashboard-panel-diagnostics [data-diagnostics-section="deep-inspection-intro"]')
+  ).toContainText("Diagnostics");
   await expect(
     page.locator('#dashboard-panel-diagnostics [data-diagnostics-section="defense-breakdown"]')
   ).toContainText("Defense Breakdown");

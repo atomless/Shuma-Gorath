@@ -474,6 +474,22 @@
 >
   <TabStateMessage tab="diagnostics" status={tabStatus} />
 
+  <div
+    class="control-group panel-soft pad-md"
+    data-diagnostics-intro
+    data-diagnostics-section="deep-inspection-intro"
+  >
+    <h3>Diagnostics</h3>
+    <p class="control-desc text-muted">
+      Use this tab for deep inspection of subsystem telemetry, furniture health, and freshness or
+      transport detail.
+    </p>
+    <p class="control-desc text-muted">
+      Monitoring owns loop accountability, and Traffic owns the live traffic picture. Diagnostics
+      keeps the contributor-style investigation surface.
+    </p>
+  </div>
+
   <section class="section" data-diagnostics-section="defense-breakdown">
     <DefenseTrendBlocks
       loading={tabStatus?.loading === true}
