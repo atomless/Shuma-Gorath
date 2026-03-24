@@ -360,8 +360,9 @@ The first concrete UI contract for this tranche is now the taxonomy posture matr
 Follow-on ownership after the matrix lands:
 
 1. ratified controller-tunable botness and fingerprint controls should consolidate into `Tuning`,
-2. `Fingerprinting` should keep provider-source posture plus effective scoring diagnostics,
-3. and the later budget/controller-explanation layer should land only after that ownership split is settled.
+2. the current `Fingerprinting` tab should be renamed to `Identification` and keep provider-source posture plus effective scoring diagnostics,
+3. `Identification` should also explain how the available signals distinguish the canonical non-human taxonomy categories,
+4. and the later budget/controller-explanation layer should land only after that ownership split is settled.
 
 These phases should not be started early just because the UI can be edited sooner.
 

@@ -8,6 +8,7 @@ Related context:
 - [`2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md)
 - [`2026-03-23-verified-identity-taxonomy-calibration-and-guardrails-implementation-plan.md`](2026-03-23-verified-identity-taxonomy-calibration-and-guardrails-implementation-plan.md)
 - [`2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md`](2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md)
+- [`2026-03-24-identification-tab-rename-and-taxonomy-distinction-plan.md`](2026-03-24-identification-tab-rename-and-taxonomy-distinction-plan.md)
 - [`../../dashboard/src/lib/components/dashboard/VerificationTab.svelte`](../../dashboard/src/lib/components/dashboard/VerificationTab.svelte)
 - [`../../dashboard/src/lib/components/dashboard/RedTeamTab.svelte`](../../dashboard/src/lib/components/dashboard/RedTeamTab.svelte)
 - [`../../dashboard/src/lib/domain/api-client.js`](../../dashboard/src/lib/domain/api-client.js)
@@ -175,8 +176,9 @@ First concrete UI contract:
 Follow-on ownership after `TUNE-SURFACE-1A`:
 
 1. `Tuning` should become the canonical editable home for ratified controller-tunable botness and fingerprint controls,
-2. `Fingerprinting` should retain provider-topology and signal-source posture plus a read-only effective scoring diagnostic view,
-3. and that consolidation should execute only after `CTRL-SURFACE-1..3` ratifies which fingerprint controls are genuinely in-bounds.
+2. the current `Fingerprinting` tab should be renamed to `Identification` and retain provider-topology and signal-source posture plus a read-only effective scoring diagnostic view,
+3. `Identification` should also explain how the available signals distinguish the canonical non-human taxonomy categories,
+4. and that consolidation should execute only after `CTRL-SURFACE-1..3` ratifies which fingerprint controls are genuinely in-bounds.
 
 # Sequence
 

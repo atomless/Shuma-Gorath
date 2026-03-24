@@ -4,6 +4,29 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### Planning: Identification tab remit and taxonomy distinction
+
+- [x] Wrote the research note in [`docs/research/2026-03-24-identification-tab-remit-and-taxonomy-distinction-review.md`](../docs/research/2026-03-24-identification-tab-remit-and-taxonomy-distinction-review.md) to refine the earlier Tuning/Fingerprinting ownership plan into a clearer future `Identification` tab remit.
+- [x] Wrote the companion plan in [`docs/plans/2026-03-24-identification-tab-rename-and-taxonomy-distinction-plan.md`](../docs/plans/2026-03-24-identification-tab-rename-and-taxonomy-distinction-plan.md), defining the future rename from `Fingerprinting` to `Identification` and the requirement that the tab explain both identification signals and taxonomy distinction.
+- [x] Updated the active planning chain and blocked backlog so `TUNE-SURFACE-1B` now explicitly includes:
+  - renaming the tab to `Identification`,
+  - keeping editable controls in `Tuning`,
+  - and making the renamed tab the explanatory surface for signal sources, effective identification signals, and category distinction.
+- [x] Why:
+  - `Fingerprinting` is too narrow and undersells the real job of the tab in Shuma, which is to explain how non-human traffic is identified rather than only how browser or transport fingerprints work.
+  - a useful operator-facing identification surface must not only list signals; it must also show how the canonical non-human taxonomy categories are made distinct through those available signals.
+  - the rename improves explanatory clarity without undoing the earlier ownership split that keeps editable tuning controls in `Tuning`.
+- [x] Evidence:
+  - `docs/research/2026-03-24-identification-tab-remit-and-taxonomy-distinction-review.md`
+  - `docs/plans/2026-03-24-identification-tab-rename-and-taxonomy-distinction-plan.md`
+  - `docs/research/2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-review.md`
+  - `docs/plans/2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md`
+  - `docs/plans/2026-03-23-dashboard-operator-surfacing-sequencing-plan.md`
+  - `docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`
+  - `todos/blocked-todo.md`
+  - `git diff --check`
+  - verification intentionally scoped as docs-only; tests not run
+
 ### Planning: tuning-surface visibility and fingerprint-control ownership
 
 - [x] Wrote the research note in [`docs/research/2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-review.md`](../docs/research/2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-review.md) to settle the ownership split between `Tuning` and `Fingerprinting`.

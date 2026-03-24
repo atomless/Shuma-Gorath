@@ -9,6 +9,7 @@ Related context:
 - [`../plans/2026-03-23-dashboard-operator-surfacing-sequencing-plan.md`](../plans/2026-03-23-dashboard-operator-surfacing-sequencing-plan.md)
 - [`../research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md`](2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md)
 - [`../plans/2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md`](../plans/2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md)
+- [`2026-03-24-identification-tab-remit-and-taxonomy-distinction-review.md`](2026-03-24-identification-tab-remit-and-taxonomy-distinction-review.md)
 
 # Objective
 
@@ -105,15 +106,16 @@ That gives the tab a coherent progression:
 2. what the loop may tune to pursue that intent,
 3. how the controller understands and applies those knobs.
 
-## 2. Keep `Fingerprinting` as provider posture plus diagnostics
+## 2. Keep the future `Identification` tab as provider posture plus diagnostics
 
-`Fingerprinting` should not remain a second quasi-tuning tab.
+The current `Fingerprinting` tab should not remain a second quasi-tuning tab, and its future name should be `Identification`.
 
 Its settled job should be:
 
 1. provider-source and edge-trust posture,
 2. effective scoring or runtime-signal diagnostics,
-3. bounded read-only explanations of active fingerprint contributions.
+3. bounded read-only explanations of active identification contributions,
+4. and later a truthful category-distinction view over the canonical taxonomy.
 
 The current `Botness Scoring Signals` panel should be renamed in that direction, for example to:
 
@@ -141,6 +143,6 @@ The repo should not treat the current `Fingerprinting` read model as proof that 
 The truthful long-term split is:
 
 1. `Tuning` for editable posture and ratified tuning controls,
-2. `Fingerprinting` for provider/source posture and effective scoring diagnostics.
+2. `Identification` for provider/source posture, effective scoring diagnostics, and category-distinction explanation.
 
 The only reason not to move more of that surface immediately is sequencing discipline: the mutability policy must settle which fingerprint knobs are genuinely in-bounds before the dashboard promises that they are part of the tuning surface.

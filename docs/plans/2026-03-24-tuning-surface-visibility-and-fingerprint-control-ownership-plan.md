@@ -4,6 +4,7 @@ Status: Proposed
 Related context:
 
 - [`../research/2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-review.md`](../research/2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-review.md)
+- [`2026-03-24-identification-tab-rename-and-taxonomy-distinction-plan.md`](2026-03-24-identification-tab-rename-and-taxonomy-distinction-plan.md)
 - [`2026-03-23-tuning-surface-taxonomy-posture-matrix-implementation-plan.md`](2026-03-23-tuning-surface-taxonomy-posture-matrix-implementation-plan.md)
 - [`2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md`](2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md)
 - [`2026-03-23-dashboard-operator-surfacing-sequencing-plan.md`](2026-03-23-dashboard-operator-surfacing-sequencing-plan.md)
@@ -12,12 +13,12 @@ Related context:
 
 # Objective
 
-Define the clean execution sequence that makes the `Tuning` tab more visible and consolidates ratified botness and fingerprint tuning controls there, while reducing `Fingerprinting` to truthful provider-source posture and read-only effective scoring diagnostics.
+Define the clean execution sequence that makes the `Tuning` tab more visible and consolidates ratified botness and fingerprint tuning controls there, while reducing the current `Fingerprinting` tab, later renamed `Identification`, to truthful provider-source posture and read-only effective scoring diagnostics.
 
 # Core Decisions
 
 1. `Tuning` is the operator-owned enforcement and tuning surface, not merely a small threshold editor.
-2. `Fingerprinting` keeps provider-topology and signal-source posture, not controller-tunable scoring ownership.
+2. the future `Identification` tab keeps provider-topology, signal-source posture, effective identification diagnostics, and category-distinction explanation, not controller-tunable scoring ownership.
 3. The current `Fingerprinting` signal bars remain read-only diagnostics, but they must no longer imply that the underlying controls are permanently immutable or owned by that tab.
 4. No editable fingerprint control should move into `Tuning` until `CTRL-SURFACE-1..3` ratifies that it is genuinely inside the bounded controller-tunable ring.
 5. The first Tuning work remains the taxonomy posture matrix; botness and fingerprint control consolidation comes immediately after that, not before.
@@ -42,18 +43,20 @@ This tranche is already specified in [`2026-03-23-tuning-surface-taxonomy-postur
 
 ### Goal
 
-Move the ratified controller-tunable botness and fingerprint controls into `Tuning`, and narrow `Fingerprinting` to provider-source posture plus effective scoring diagnostics.
+Move the ratified controller-tunable botness and fingerprint controls into `Tuning`, rename `Fingerprinting` to `Identification`, and narrow that tab to provider-source posture plus effective identification diagnostics and taxonomy-distinction explanation.
 
 ### Required behavior
 
-1. Keep `provider_backends.fingerprint_signal` and `edge_integration_mode` in `Fingerprinting`.
-2. Keep the read-only runtime scoring-definition panel in `Fingerprinting`, but rename and document it as a diagnostic projection rather than a mutability claim.
-3. Move or add into `Tuning` the botness and fingerprint knobs that `CTRL-SURFACE-1..3` ratifies as controller-tunable.
-4. Keep the moved controls grouped by operator meaning, for example:
+1. Keep `provider_backends.fingerprint_signal` and `edge_integration_mode` in `Identification`.
+2. Rename the tab from `Fingerprinting` to `Identification`.
+3. Keep the read-only runtime scoring-definition panel in `Identification`, but rename and document it as a diagnostic projection rather than a mutability claim.
+4. Add a bounded `Category Distinction` explanatory surface showing how the available signals distinguish canonical non-human taxonomy categories.
+5. Move or add into `Tuning` the botness and fingerprint knobs that `CTRL-SURFACE-1..3` ratifies as controller-tunable.
+6. Keep the moved controls grouped by operator meaning, for example:
    1. botness thresholds,
    2. cross-signal weights,
    3. fingerprint sensitivity and caps.
-5. Make the Tuning tab the canonical editable home for those controls; do not leave the same writable control split across tabs.
+7. Make the Tuning tab the canonical editable home for those controls; do not leave the same writable control split across tabs.
 
 ### Files
 
@@ -79,12 +82,12 @@ Update docs:
 Add focused make targets such as:
 
 1. `make test-dashboard-tuning-control-ownership`
-2. `make test-dashboard-fingerprinting-diagnostics-ownership`
+2. `make test-dashboard-identification-diagnostics-ownership`
 
 They should prove:
 
 1. the ratified editable botness and fingerprint controls render only in `Tuning`,
-2. `Fingerprinting` still renders provider-topology controls and effective scoring diagnostics,
+2. `Identification` still renders provider-topology controls, effective scoring diagnostics, and the category-distinction section,
 3. the read-only scoring panel does not regress into a second writable editor,
 4. and save payloads remain truthful to the canonical config or objective contracts.
 
@@ -120,5 +123,5 @@ This plan is satisfied when:
 1. `Tuning` clearly reads as the operator-owned tuning surface from first render,
 2. the taxonomy posture matrix is the primary section of that tab,
 3. ratified botness and fingerprint tuning controls live in `Tuning`,
-4. `Fingerprinting` keeps only provider-source posture plus effective scoring diagnostics,
-5. and the read-only scoring panel in `Fingerprinting` is framed as a diagnostic projection rather than as a hard mutability boundary.
+4. `Identification` keeps provider-source posture, effective scoring diagnostics, and category-distinction explanation,
+5. and the read-only scoring panel in `Identification` is framed as a diagnostic projection rather than as a hard mutability boundary.
