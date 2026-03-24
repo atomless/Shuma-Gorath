@@ -1237,8 +1237,6 @@ code.env-var {
 }
 
 .config-export-pane {
-  margin-block: 24px;
-  border-top: var(--border-hairline);
   border-bottom: var(--border-hairline);
 }
 
