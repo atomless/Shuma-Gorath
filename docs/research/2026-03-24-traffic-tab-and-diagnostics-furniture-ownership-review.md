@@ -21,6 +21,7 @@ Observed current state:
    - `Traffic Overview`
    - `Defense Breakdown`
    - `Recent External Traffic`
+   - plus the only traffic-health proof the operator can currently see lives inside `Telemetry Diagnostics`
 3. Those sections are not really proving that the closed loop is working, and they are not purely proving that Shuma's internal furniture is operational either.
 4. As a result, `Diagnostics` is still doing three jobs at once:
    - traffic picture,
@@ -52,11 +53,11 @@ If a chart or table does not help answer whether the loop is operational and imp
 
 1. bounded traffic totals and request mix,
 2. time-series and top-dimension traffic charts,
-3. defense breakdown as traffic-handling evidence,
-4. recent external traffic events,
+3. recent external traffic events,
+4. a light traffic-telemetry health strip proving that traffic collection is alive,
 5. manual refresh and bounded auto-refresh because this is the traffic picture rather than deep diagnostics.
 
-This is the natural home for the current Diagnostics-owned aggregate traffic components.
+This is the natural home for the current Diagnostics-owned traffic picture, but not for all furniture summary material.
 
 ### Diagnostics
 
@@ -71,26 +72,32 @@ The key point is that Diagnostics should prove that Shuma's furniture is working
 
 ## Component ownership implication
 
-The current reusable traffic-oriented surfaces should move to `Traffic`, not be forced into Monitoring:
+The current reusable traffic-oriented surfaces that should move to `Traffic` are:
 
 1. `OverviewStats`
 2. `PrimaryCharts`
-3. `DefenseTrendBlocks`
-4. `RecentEventsTable`
+3. `RecentEventsTable`
 
-The current diagnostics-first surfaces should stay in `Diagnostics`:
+The current reusable furniture-oriented overview that should stay in `Diagnostics` is:
+
+1. `DefenseTrendBlocks`
+
+The current diagnostics-first surfaces that should stay in `Diagnostics` are:
 
 1. `DiagnosticsSection`
-2. `CdpSection`
-3. `MazeSection`
-4. `TarpitSection`
-5. `HoneypotSection`
-6. `ChallengeSection`
-7. `PowSection`
-8. `RateSection`
-9. `GeoSection`
-10. `IpRangeSection`
-11. `ExternalMonitoringSection`
+2. `DefenseTrendBlocks`
+3. `CdpSection`
+4. `MazeSection`
+5. `TarpitSection`
+6. `HoneypotSection`
+7. `ChallengeSection`
+8. `PowSection`
+9. `RateSection`
+10. `GeoSection`
+11. `IpRangeSection`
+12. `ExternalMonitoringSection`
+
+`Telemetry Diagnostics` should remain in Diagnostics as the full contributor/furniture surface, but `Traffic` may later project a lighter top-level traffic-health summary derived from the same freshness truth.
 
 ## Sequencing implication
 

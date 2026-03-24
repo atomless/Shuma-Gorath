@@ -96,14 +96,15 @@ Current stance:
 - Introduce a first-class `Traffic` tab, placed after `Monitoring` and before `Diagnostics`, so live and recent traffic visibility stops competing with both loop accountability and furniture diagnostics.
 - Move the current Diagnostics traffic-facing sections into `Traffic`, reusing the existing components where truthful:
   - `Traffic Overview`
-  - `Defense Breakdown`
   - `Recent External Traffic`
+- Add a light traffic-telemetry health strip in `Traffic`, derived from the existing freshness truth, without moving the full contributor-style `Telemetry Diagnostics` block out of `Diagnostics`.
 - Keep `Traffic` focused on proving traffic telemetry collection is operational and showing what traffic is hitting Shuma and the host now, with manual refresh and bounded auto-refresh.
 - Reference context: [`../docs/plans/2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md`](../docs/plans/2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md)
 
 ### DIAG-CLEANUP-1: Diagnostics furniture-operational cleanup after Traffic split
 - After `TRAFFIC-TAB-1` lands, remove the migrated traffic-facing sections from Diagnostics so it becomes clearly diagnostics-first and furniture-operational.
-- Keep `Defense-Specific Diagnostics`, `Telemetry Diagnostics`, and `External Monitoring` as the core Diagnostics surface, and tighten copy and ownership so Diagnostics no longer reads like a traffic dashboard.
+- Keep `Defense Breakdown` as a concise overview of the furniture shown below, and keep `Defense-Specific Diagnostics`, full `Telemetry Diagnostics`, and `External Monitoring` as the core Diagnostics surface.
+- Tighten copy and ownership so Diagnostics no longer reads like a traffic dashboard.
 - Clean up any now-redundant helper or view-model code that existed only because Diagnostics temporarily hosted the traffic visibility surface.
 - Reference context: [`../docs/plans/2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md`](../docs/plans/2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md)
 

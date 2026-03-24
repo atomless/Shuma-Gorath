@@ -10,6 +10,11 @@ Moved from active TODO files on 2026-02-14.
   - `Monitoring` as loop-accountability,
   - `Traffic` as live and recent traffic visibility,
   - `Diagnostics` as furniture-operational and subsystem-investigation proof.
+- [x] Refined that split immediately afterward so:
+  - `Traffic` keeps `Traffic Overview` and `Recent External Traffic`,
+  - `Traffic` gets only a light traffic-health strip rather than the full contributor diagnostics block,
+  - `Defense Breakdown` stays in `Diagnostics` as a concise overview of the furniture shown below,
+  - and full `Telemetry Diagnostics` stays in `Diagnostics`.
 - [x] Updated the active planning chain so the old assumption that Diagnostics traffic charts should be reused into Monitoring is replaced with the cleaner `Traffic`-tab destination.
 - [x] Re-sequenced the active backlog so the next ownership refactor is now:
   - `TRAFFIC-TAB-1`

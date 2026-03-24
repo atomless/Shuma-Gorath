@@ -43,30 +43,31 @@ Owns:
 
 1. bounded traffic overview cards,
 2. primary traffic charts,
-3. defense breakdown as traffic-handling evidence,
-4. recent external traffic browsing and filters,
+3. recent external traffic browsing and filters,
+4. a light traffic-telemetry health strip proving traffic collection is alive,
 5. manual refresh plus bounded auto-refresh.
 
 Expected first-wave migrated surfaces:
 
 1. `Traffic Overview`
-2. `Defense Breakdown`
-3. `Recent External Traffic`
+2. `Recent External Traffic`
 
 ### Diagnostics
 
 Owns:
 
-1. telemetry freshness and read-path diagnostics,
-2. defence-specific diagnostic sections,
-3. raw feed and contributor-style investigation surfaces,
-4. export/helper material proving telemetry furniture is operational.
+1. a brief cross-furniture overview of the defense estate,
+2. telemetry freshness and read-path diagnostics,
+3. defence-specific diagnostic sections,
+4. raw feed and contributor-style investigation surfaces,
+5. export/helper material proving telemetry furniture is operational.
 
 Expected retained surfaces:
 
-1. `Defense-Specific Diagnostics`
-2. `Telemetry Diagnostics`
-3. `External Monitoring`
+1. `Defense Breakdown`
+2. `Defense-Specific Diagnostics`
+3. `Telemetry Diagnostics`
+4. `External Monitoring`
 
 ## Execution slices
 
@@ -80,10 +81,13 @@ Scope:
 
 1. add a first-class `Traffic` tab to the canonical dashboard tab order,
 2. place it after `Monitoring` and before `Diagnostics`,
-3. move the current traffic-oriented sections from Diagnostics into `Traffic`,
-4. reuse the existing traffic-oriented components and supporting view-model code where possible,
-5. give `Traffic` manual refresh and bounded auto-refresh behavior appropriate for a live traffic picture,
-6. keep the tab clearly about traffic visibility rather than subsystem internals.
+3. move the current traffic-oriented sections from Diagnostics into `Traffic`:
+   - `Traffic Overview`
+   - `Recent External Traffic`
+4. add a light traffic-telemetry health strip derived from the existing freshness truth without moving the full contributor diagnostics block out of Diagnostics,
+5. reuse the existing traffic-oriented components and supporting view-model code where possible,
+6. give `Traffic` manual refresh and bounded auto-refresh behavior appropriate for a live traffic picture,
+7. keep the tab clearly about traffic visibility rather than subsystem internals.
 
 Verification:
 
@@ -101,9 +105,10 @@ Narrow Diagnostics to furniture-operational proof after the traffic split lands.
 Scope:
 
 1. remove the migrated traffic-facing sections from Diagnostics,
-2. tighten copy and section names so Diagnostics reads as furniture-operational and subsystem-investigation-first,
-3. retain only the sections that prove telemetry and defence furniture is operational,
-4. clean up helper/view-model ownership that only existed because Diagnostics temporarily hosted the traffic dashboard.
+2. keep `Defense Breakdown` as a concise overview of the furniture shown below,
+3. retain the full `Telemetry Diagnostics` section as contributor/furniture proof,
+4. tighten copy and section names so Diagnostics reads as furniture-operational and subsystem-investigation-first,
+5. clean up helper/view-model ownership that only existed because Diagnostics temporarily hosted the traffic dashboard.
 
 Verification:
 
@@ -135,5 +140,6 @@ Sequencing refinement:
 ## Notes
 
 1. This plan supersedes the idea that the current Diagnostics traffic charts must automatically move into Monitoring.
-2. The reuse-first principle still applies, but the rightful reuse target is now `Traffic`.
-3. If later Monitoring needs a specific chart, it should adopt only the chart that directly serves loop accountability rather than inheriting a generic traffic dashboard.
+2. The reuse-first principle still applies, but the rightful reuse target is now `Traffic` for traffic visibility and `Diagnostics` for furniture overview.
+3. `Defense Breakdown` stays in Diagnostics because it works better as a concise overview of the subsystem furniture shown below.
+4. `Telemetry Diagnostics` stays in Diagnostics as the full contributor/furniture proof surface; `Traffic` should only project a lighter traffic-health summary if needed.
