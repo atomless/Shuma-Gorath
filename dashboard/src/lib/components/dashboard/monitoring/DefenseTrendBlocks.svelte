@@ -7,6 +7,7 @@
 </script>
 
 <SectionBlock
+  {...$$restProps}
   title="Defense Breakdown"
   description="Per-defense trigger and outcome breakdown grouped by source labels."
 >

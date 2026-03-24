@@ -16,6 +16,7 @@
   export let copyCurlButtonLabel = 'Copy Curl Example';
   export let onCopyJs = null;
   export let onCopyCurl = null;
+  export let description = '';
 
   const copyJs = () => {
     if (typeof onCopyJs === 'function') {
@@ -31,7 +32,9 @@
 </script>
 
 <SectionBlock
+  {...$$restProps}
   title="External Monitoring"
+  {description}
   rootClass="section panel panel-border"
 >
   <ul id="monitoring-prometheus-facts" class="prometheus-facts text-muted">

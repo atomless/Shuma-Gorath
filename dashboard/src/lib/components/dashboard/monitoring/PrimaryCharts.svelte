@@ -1,7 +1,5 @@
 <script>
   import HalfDoughnutChart from '../primitives/HalfDoughnutChart.svelte';
-  import SectionBlock from '../primitives/SectionBlock.svelte';
-
   export let selectedTimeRange = 'hour';
   export let onSelectTimeRange = null;
   export let eventTypesCanvas = null;
@@ -32,11 +30,9 @@
   </div>
 </div>
 
-<SectionBlock
-  title="Events Over Time"
-  description="Enforced events plotted over various time windows"
-  rootClass="section"
->
+<div class="section-copy-block">
+  <h2>Events Over Time</h2>
+  <p class="section-desc text-muted">Enforced events plotted over various time windows</p>
   <div class="chart-header">
     <div class="time-range-buttons">
       <button type="button" class="btn time-btn" class:active={selectedTimeRange === 'hour'} data-range="hour" on:click={() => selectRange('hour')}>60 Mins</button>
@@ -48,4 +44,4 @@
   <div class="chart-container panel-soft panel-border pad-md">
     <canvas id="timeSeriesChart" bind:this={timeSeriesCanvas}></canvas>
   </div>
-</SectionBlock>
+</div>

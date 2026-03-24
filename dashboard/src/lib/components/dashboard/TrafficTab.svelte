@@ -29,7 +29,6 @@
   } from '../../domain/half-doughnut-chart.js';
   import { normalizeLowerTrimmed } from '../../domain/core/strings.js';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
-  import SectionBlock from './primitives/SectionBlock.svelte';
   import OverviewStats from './monitoring/OverviewStats.svelte';
   import PrimaryCharts from './monitoring/PrimaryCharts.svelte';
   import RecentEventsTable from './monitoring/RecentEventsTable.svelte';
@@ -718,17 +717,16 @@
     />
   </section>
 
-  <section class="section" data-traffic-section="recent-events">
-    <RecentEventsTable
-      {recentEvents}
-      filterOptions={eventFilterOptions}
-      filters={eventFilters}
-      onFilterChange={onEventFilterChange}
-      emptyState={monitoringEventEmptyState}
-      {formatTime}
-      {eventBadgeClass}
-    />
-  </section>
+  <RecentEventsTable
+    data-traffic-section="recent-events"
+    {recentEvents}
+    filterOptions={eventFilterOptions}
+    filters={eventFilters}
+    onFilterChange={onEventFilterChange}
+    emptyState={monitoringEventEmptyState}
+    {formatTime}
+    {eventBadgeClass}
+  />
 
   <section class="section" data-traffic-section="telemetry-health">
     <div class="control-group panel-soft pad-sm">

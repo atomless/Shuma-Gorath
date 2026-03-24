@@ -30,6 +30,7 @@
 </script>
 
 <SectionBlock
+  {...$$restProps}
   title="Recent Events"
   description="Last 100 recorded events with adversary-source filters."
 >

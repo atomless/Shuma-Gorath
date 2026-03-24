@@ -474,14 +474,13 @@
 >
   <TabStateMessage tab="diagnostics" status={tabStatus} />
 
-  <section class="section" data-diagnostics-section="defense-breakdown">
-    <DefenseTrendBlocks
-      loading={tabStatus?.loading === true}
-      trendRows={defenseTrendRows}
-    />
-  </section>
+  <DefenseTrendBlocks
+    data-diagnostics-section="defense-breakdown"
+    loading={tabStatus?.loading === true}
+    trendRows={defenseTrendRows}
+  />
 
-  <section class="section" data-diagnostics-section="defense-specific-diagnostics">
+  <div data-diagnostics-section="defense-specific-diagnostics">
     <CdpSection
       loading={tabStatus?.loading === true}
       {cdpDetections}
@@ -552,28 +551,23 @@
       fallbackRows={ipRangeFallbackRows}
       trendRows={ipRangeTrendRows}
     />
-  </section>
+  </div>
 
-  <section class="section" data-diagnostics-section="telemetry-diagnostics">
-    <DiagnosticsSection
-      monitoringFreshnessSnapshot={monitoringFreshnessSnapshot}
-      ipBansFreshnessSnapshot={ipBansFreshnessSnapshot}
-      rawTelemetryFeed={rawTelemetryFeed}
-      rawFeedMaxLines={RAW_FEED_MAX_LINES}
-    />
-  </section>
+  <DiagnosticsSection
+    data-diagnostics-section="telemetry-diagnostics"
+    monitoringFreshnessSnapshot={monitoringFreshnessSnapshot}
+    ipBansFreshnessSnapshot={ipBansFreshnessSnapshot}
+    rawTelemetryFeed={rawTelemetryFeed}
+    rawFeedMaxLines={RAW_FEED_MAX_LINES}
+  />
 
-  <section class="section" data-diagnostics-section="external-monitoring">
-    <p class="text-muted">
-      Use the bounded helper examples here when you need to export or mirror diagnostics into
-      external monitoring systems.
-    </p>
-    <ExternalMonitoringSection
-      {prometheusHelper}
-      {copyButtonLabel}
-      copyCurlButtonLabel={copyCurlButtonLabel}
-      onCopyJs={(text) => copyToClipboard(text, 'js')}
-      onCopyCurl={(text) => copyToClipboard(text, 'curl')}
-    />
-  </section>
+  <ExternalMonitoringSection
+    data-diagnostics-section="external-monitoring"
+    description="Use the bounded helper examples here when you need to export or mirror diagnostics into external monitoring systems."
+    {prometheusHelper}
+    {copyButtonLabel}
+    copyCurlButtonLabel={copyCurlButtonLabel}
+    onCopyJs={(text) => copyToClipboard(text, 'js')}
+    onCopyCurl={(text) => copyToClipboard(text, 'curl')}
+  />
 </section>

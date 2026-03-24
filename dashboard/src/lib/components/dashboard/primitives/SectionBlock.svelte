@@ -4,7 +4,7 @@
   export let rootClass = 'section events';
 </script>
 
-<div class={rootClass}>
+<div class={rootClass} {...$$restProps}>
   {#if title}
     <h2>{@html title}</h2>
   {/if}

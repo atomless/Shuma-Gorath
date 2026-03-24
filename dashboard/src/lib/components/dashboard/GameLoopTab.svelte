@@ -191,7 +191,7 @@
 
   {#each gameLoopSections as section (section.id)}
     <section class="section" data-game-loop-section={section.id}>
-      <SectionBlock title={section.title} description={section.description} rootClass="game-loop-section-block">
+      <SectionBlock title={section.title} description={section.description} rootClass="section-copy-block">
         {#if section.id === 'current-status'}
           <div class="stats-cards">
             {#each currentStatusCards as card (card.valueId)}

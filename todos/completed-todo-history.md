@@ -4,6 +4,33 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### UI: de-shell Traffic, Game Loop, and Diagnostics DOM ownership
+
+- [x] Removed redundant outer section shells from:
+  - [`dashboard/src/lib/components/dashboard/TrafficTab.svelte`](../dashboard/src/lib/components/dashboard/TrafficTab.svelte)
+  - [`dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte`](../dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte)
+- [x] Removed the nested section-owner shell inside [`dashboard/src/lib/components/dashboard/monitoring/PrimaryCharts.svelte`](../dashboard/src/lib/components/dashboard/monitoring/PrimaryCharts.svelte) and replaced it with plain shared section-copy markup.
+- [x] Forwarded ownership/data-marker props through the shared primitives and section components so tabs can attach markers to the real section-owning node:
+  - [`dashboard/src/lib/components/dashboard/primitives/SectionBlock.svelte`](../dashboard/src/lib/components/dashboard/primitives/SectionBlock.svelte)
+  - [`dashboard/src/lib/components/dashboard/primitives/DisclosureSection.svelte`](../dashboard/src/lib/components/dashboard/primitives/DisclosureSection.svelte)
+  - [`dashboard/src/lib/components/dashboard/monitoring/RecentEventsTable.svelte`](../dashboard/src/lib/components/dashboard/monitoring/RecentEventsTable.svelte)
+  - [`dashboard/src/lib/components/dashboard/monitoring/DefenseTrendBlocks.svelte`](../dashboard/src/lib/components/dashboard/monitoring/DefenseTrendBlocks.svelte)
+  - [`dashboard/src/lib/components/dashboard/monitoring/DiagnosticsSection.svelte`](../dashboard/src/lib/components/dashboard/monitoring/DiagnosticsSection.svelte)
+  - [`dashboard/src/lib/components/dashboard/monitoring/ExternalMonitoringSection.svelte`](../dashboard/src/lib/components/dashboard/monitoring/ExternalMonitoringSection.svelte)
+- [x] Stopped [`dashboard/src/lib/components/dashboard/primitives/TabStateMessage.svelte`](../dashboard/src/lib/components/dashboard/primitives/TabStateMessage.svelte) from always rendering an empty hidden pane-notice shell.
+- [x] Added focused source/rendered proof in:
+  - [`e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+- [x] Added the tranche review receipt in [`docs/research/2026-03-24-dashboard-dom-de-shelling-post-implementation-review.md`](../docs/research/2026-03-24-dashboard-dom-de-shelling-post-implementation-review.md).
+- [x] Why:
+  - user review identified repeated divider lines and needless nested section shells across `Traffic`, `Game Loop`, and `Diagnostics`
+  - the correct fix was to remove redundant outer shells while preserving meaningful owned content rather than deleting panels wholesale
+- [x] Evidence:
+  - `make test-dashboard-tab-information-architecture`
+  - `make test-dashboard-traffic-pane`
+  - `make test-dashboard-game-loop-accountability`
+  - `git diff --check`
+
 ### Process hardening: require whole-tab DOM review before dashboard completion
 
 - [x] Tightened [`AGENTS.md`](../AGENTS.md) so dashboard UI work now explicitly requires whole-tab or whole-panel DOM inspection before completion, rather than only local subtree edits.

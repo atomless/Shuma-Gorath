@@ -5717,8 +5717,16 @@ test('game loop, traffic, and diagnostics tabs make ownership boundaries explici
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/TrafficTab.svelte'),
     'utf8'
   );
+  const primaryChartsSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/monitoring/PrimaryCharts.svelte'),
+    'utf8'
+  );
   const diagnosticsSource = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/DiagnosticsTab.svelte'),
+    'utf8'
+  );
+  const tabStateSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/primitives/TabStateMessage.svelte'),
     'utf8'
   );
   const sectionBlockSource = fs.readFileSync(
@@ -5761,8 +5769,13 @@ test('game loop, traffic, and diagnostics tabs make ownership boundaries explici
     trafficSource,
     /Inspect the bounded traffic summary and enforced-event charts for traffic reaching Shuma and/
   );
+  assert.doesNotMatch(trafficSource, /<section class="section" data-traffic-section="recent-events">/);
+  assert.doesNotMatch(primaryChartsSource, /rootClass="section"/);
 
   assert.match(diagnosticsSource, /class="admin-group dashboard-tab-panel"/);
+  assert.doesNotMatch(diagnosticsSource, /<section class="section" data-diagnostics-section="defense-breakdown">/);
+  assert.doesNotMatch(diagnosticsSource, /<section class="section" data-diagnostics-section="telemetry-diagnostics">/);
+  assert.doesNotMatch(diagnosticsSource, /<section class="section" data-diagnostics-section="external-monitoring">/);
   assert.match(diagnosticsSource, /data-diagnostics-section="defense-breakdown"/);
   assert.match(diagnosticsSource, /data-diagnostics-section="defense-specific-diagnostics"/);
   assert.match(diagnosticsSource, /data-diagnostics-section="telemetry-diagnostics"/);
@@ -5771,6 +5784,8 @@ test('game loop, traffic, and diagnostics tabs make ownership boundaries explici
   assert.doesNotMatch(diagnosticsSource, /data-diagnostics-section="deep-inspection-intro"/);
   assert.doesNotMatch(diagnosticsSource, />Diagnostics</);
   assert.doesNotMatch(diagnosticsSource, /deep inspection/i);
+  assert.match(tabStateSource, /\{#if paneNoticeText\}/);
+  assert.doesNotMatch(tabStateSource, /hidden=\{!paneNoticeText\}/);
   assert.match(styleSource, /\.dashboard-tab-panel > \.section:first-of-type \{/);
   assert.match(styleSource, /padding-top: 0;/);
   assert.match(styleSource, /border-top: none;/);

@@ -20,6 +20,7 @@
 </script>
 
 <DisclosureSection
+  {...$$restProps}
   title="Telemetry Diagnostics"
   description="Low-level freshness, transport, overflow, and raw telemetry diagnostics for contributor debugging."
   rootClass="section panel panel-border"

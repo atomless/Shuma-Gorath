@@ -5,7 +5,7 @@
   export let open = false;
 </script>
 
-<details class={`${rootClass} disclosure-section`} {open}>
+<details class={`${rootClass} disclosure-section`} {open} {...$$restProps}>
   <summary class="disclosure-summary">
     <div class="disclosure-summary-copy">
       <h2>{title}</h2>

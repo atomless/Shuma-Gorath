@@ -35,10 +35,11 @@
   hidden={!stateKind}
 >{message}</div>
 
-<div
-  class={`message ${paneNoticeKind}`}
-  data-tab-notice={tab}
-  role={paneNoticeKind === 'error' ? 'alert' : 'status'}
-  aria-live={paneNoticeKind === 'error' ? 'assertive' : 'polite'}
-  hidden={!paneNoticeText}
->{paneNoticeText}</div>
+{#if paneNoticeText}
+  <div
+    class={`message ${paneNoticeKind}`}
+    data-tab-notice={tab}
+    role={paneNoticeKind === 'error' ? 'alert' : 'status'}
+    aria-live={paneNoticeKind === 'error' ? 'assertive' : 'polite'}
+  >{paneNoticeText}</div>
+{/if}

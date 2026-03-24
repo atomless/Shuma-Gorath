@@ -1490,6 +1490,7 @@ test("game loop, traffic, and diagnostics tabs expose their ownership split", as
   await expect(
     page.locator('#dashboard-panel-traffic [data-traffic-section="telemetry-health"]')
   ).toContainText("Read path:");
+  await expect(page.locator('#dashboard-panel-traffic .section .section')).toHaveCount(0);
 
   await openTab(page, "diagnostics");
   await expect(page.locator("#dashboard-panel-diagnostics")).toHaveClass(/admin-group/);
@@ -1506,6 +1507,8 @@ test("game loop, traffic, and diagnostics tabs expose their ownership split", as
   await expect(
     page.locator('#dashboard-panel-diagnostics [data-diagnostics-section="telemetry-diagnostics"]')
   ).toContainText("Telemetry Diagnostics");
+  await expect(page.locator('#dashboard-panel-diagnostics .section .section')).toHaveCount(0);
+  await expect(page.locator('#dashboard-panel-game-loop .section .section')).toHaveCount(0);
 });
 
 test("game loop projects benchmark and oversight accountability from machine-first contracts", async ({ page }) => {
