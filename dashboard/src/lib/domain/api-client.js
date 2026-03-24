@@ -91,7 +91,7 @@ const ADVERSARY_SIM_LANES = Object.freeze([
  * @param {string} fallback
  * @returns {string}
  */
-const normalizeAdversarySimLane = (value, fallback = 'synthetic_traffic') => {
+const normalizeAdversarySimLane = (value, fallback = 'scrapling_traffic') => {
   const normalized = String(value || '').trim().toLowerCase();
   return ADVERSARY_SIM_LANES.includes(normalized) ? normalized : fallback;
 };

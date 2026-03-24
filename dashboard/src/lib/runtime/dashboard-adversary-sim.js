@@ -63,7 +63,7 @@ function asRecord(value) {
  * @param {string} fallback
  * @returns {string}
  */
-function normalizeLane(value, fallback = 'synthetic_traffic') {
+function normalizeLane(value, fallback = 'scrapling_traffic') {
   const normalized = String(value || '').trim().toLowerCase();
   return ADVERSARY_SIM_LANES.includes(normalized) ? normalized : fallback;
 }
@@ -371,7 +371,7 @@ export function normalizeAdversarySimStatus(payload) {
       0,
       Math.floor(toSafeNumber(pick(source, 'active_lane_count', 'activeLaneCount', 0), 0))
     ),
-    desiredLane: normalizeLane(pick(source, 'desired_lane', 'desiredLane', 'synthetic_traffic')),
+    desiredLane: normalizeLane(pick(source, 'desired_lane', 'desiredLane', 'scrapling_traffic')),
     activeLane: normalizeOptionalLane(pick(source, 'active_lane', 'activeLane', '')),
     laneSwitchSeq: Math.max(
       0,

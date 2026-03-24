@@ -17,7 +17,7 @@
   export let toggleEnabled = false;
   export let toggleDisabled = false;
   export let toggleDisabledReason = '';
-  export let laneValue = 'synthetic_traffic';
+  export let laneValue = 'scrapling_traffic';
   export let laneDisabled = false;
   export let laneDisabledReason = '';
   export let adversarySimStatus = null;

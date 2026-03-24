@@ -4619,7 +4619,7 @@ mod admin_config_tests {
                 .get("status")
                 .and_then(|v| v.get("active_lane_count"))
                 .and_then(|v| v.as_u64()),
-            Some(2)
+            Some(1)
         );
         // Simulate a new runtime instance where in-memory ephemeral overrides are not retained.
         crate::config::clear_runtime_cache_for_tests();
@@ -4777,11 +4777,11 @@ mod admin_config_tests {
         let status = on_json.get("status").expect("status payload");
         assert_eq!(
             status.get("desired_lane").and_then(|value| value.as_str()),
-            Some("synthetic_traffic")
+            Some("scrapling_traffic")
         );
         assert_eq!(
             status.get("active_lane").and_then(|value| value.as_str()),
-            Some("synthetic_traffic")
+            Some("scrapling_traffic")
         );
         assert_eq!(
             status
@@ -4831,7 +4831,7 @@ mod admin_config_tests {
             off_status
                 .get("desired_lane")
                 .and_then(|value| value.as_str()),
-            Some("synthetic_traffic")
+            Some("scrapling_traffic")
         );
         assert_eq!(
             off_status.get("active_lane"),
@@ -4914,7 +4914,10 @@ mod admin_config_tests {
         let auth = bearer_rw_auth();
 
         let on_resp = handle_admin_adversary_sim_control(
-            &make_control_request(true, "tick-start"),
+            &make_control_request_json(
+                br#"{"enabled":true,"lane":"synthetic_traffic"}"#,
+                "tick-start",
+            ),
             &store,
             "default",
             &auth,
@@ -6821,7 +6824,10 @@ mod admin_config_tests {
         let auth = bearer_rw_auth();
 
         let start = handle_admin_adversary_sim_control(
-            &make_control_request(true, "lane-running-start"),
+            &make_control_request_json(
+                br#"{"enabled":true,"lane":"synthetic_traffic"}"#,
+                "lane-running-start",
+            ),
             &store,
             "default",
             &auth,

@@ -748,6 +748,9 @@ test('dashboard API client preserves adversary-sim lane status and diagnostics f
     assert.equal(adapted.lane_diagnostics.request_failure_classes.http.last_seen_at, 1715);
     assert.equal(adapted.persisted_event_evidence.run_id, 'simrun-red-team-truth');
     assert.equal(adapted.persisted_event_evidence.monitoring_event_count, 235);
+
+    const defaulted = apiModule.adaptAdversarySimStatus({});
+    assert.equal(defaulted.desired_lane, 'scrapling_traffic');
   });
 });
 
@@ -3840,6 +3843,9 @@ test('dashboard adversary-sim runtime normalizes orchestration status', { concur
     assert.equal(renormalized.laneDiagnostics.lanes.syntheticTraffic.beatAttempts, 6);
     assert.equal(renormalized.laneDiagnostics.truthBasis, 'persisted_event_lower_bound');
     assert.equal(renormalized.persistedEventEvidence.runId, 'simrun-123');
+
+    const defaulted = adversaryModule.normalizeAdversarySimStatus({});
+    assert.equal(defaulted.desiredLane, 'scrapling_traffic');
   });
 });
 
@@ -5245,7 +5251,7 @@ test('red team tab reuses verification-style config panel primitives for its adv
   assert.match(redTeamTabSource, /<p id="adversary-sim-lifecycle-copy" class="control-desc text-muted">\{lifecycleCopy\}<\/p>/);
   assert.match(redTeamTabSource, /class="dashboard-adversary-sim-progress"/);
   assert.match(redTeamTabSource, /class="dashboard-adversary-sim-progress__fill"/);
-  assert.match(redTeamTabSource, /export let laneValue = 'synthetic_traffic';/);
+  assert.match(redTeamTabSource, /export let laneValue = 'scrapling_traffic';/);
   assert.match(redTeamTabSource, /export let laneDisabled = false;/);
   assert.match(redTeamTabSource, /export let laneDisabledReason = '';/);
   assert.match(redTeamTabSource, /export let onLaneChange = null;/);

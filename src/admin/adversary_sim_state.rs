@@ -121,7 +121,7 @@ impl Default for ControlState {
         Self {
             phase: ControlPhase::Off,
             desired_enabled: false,
-            desired_lane: RuntimeLane::SyntheticTraffic,
+            desired_lane: RuntimeLane::ScraplingTraffic,
             owner_instance_id: None,
             run_id: None,
             started_at: None,
@@ -287,8 +287,8 @@ pub fn start_state(
         ends_at: Some(now.saturating_add(clamp_duration_seconds(duration_seconds))),
         stop_deadline: None,
         active_run_count: 1,
-        active_lane_count: deterministic_runtime_profile().active_lane_count,
-        active_lane: Some(RuntimeLane::SyntheticTraffic),
+        active_lane_count: active_lane_count_for_lane(desired_lane),
+        active_lane: Some(desired_lane),
         lane_switch_seq: current.lane_switch_seq,
         last_lane_switch_at: current.last_lane_switch_at,
         last_lane_switch_reason: current.last_lane_switch_reason.clone(),
@@ -441,7 +441,7 @@ pub(crate) fn lane_phase(phase: ControlPhase) -> &'static str {
 
 pub fn effective_active_lane(state: &ControlState) -> Option<RuntimeLane> {
     match state.phase {
-        ControlPhase::Running => state.active_lane.or(Some(RuntimeLane::SyntheticTraffic)),
+        ControlPhase::Running => state.active_lane.or(Some(state.desired_lane)),
         ControlPhase::Off | ControlPhase::Stopping => None,
     }
 }

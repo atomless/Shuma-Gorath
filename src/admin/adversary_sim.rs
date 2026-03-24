@@ -91,7 +91,7 @@ mod tests {
             start_state(now, 180, &ControlState::default()).expect("start");
         assert_eq!(started.phase, ControlPhase::Running);
         assert_eq!(started.active_run_count, 1);
-        assert_eq!(started.active_lane_count, 2);
+        assert_eq!(started.active_lane_count, 1);
         assert_eq!(started_transitions.len(), 1);
         assert_eq!(started_transitions[0].reason, "manual_on");
 
@@ -113,17 +113,17 @@ mod tests {
     fn start_and_stop_transitions_track_additive_lane_contract() {
         let now = 1_000u64;
         let (started, _) = start_state(now, 180, &ControlState::default()).expect("start");
-        assert_eq!(started.desired_lane.as_str(), "synthetic_traffic");
+        assert_eq!(started.desired_lane.as_str(), "scrapling_traffic");
         assert_eq!(
             started.active_lane.map(RuntimeLane::as_str),
-            Some("synthetic_traffic")
+            Some("scrapling_traffic")
         );
         assert_eq!(started.lane_switch_seq, 0);
         assert_eq!(started.last_lane_switch_at, None);
         assert_eq!(started.last_lane_switch_reason, None);
 
         let (stopping, _) = stop_state(now + 1, "manual_off", &started);
-        assert_eq!(stopping.desired_lane.as_str(), "synthetic_traffic");
+        assert_eq!(stopping.desired_lane.as_str(), "scrapling_traffic");
         assert_eq!(stopping.active_lane, None);
         assert_eq!(stopping.lane_switch_seq, 0);
         assert_eq!(stopping.last_lane_switch_at, None);
@@ -210,6 +210,7 @@ mod tests {
         let store = InMemoryStore::default();
         let mut state = ControlState {
             phase: ControlPhase::Running,
+            desired_lane: RuntimeLane::SyntheticTraffic,
             owner_instance_id: Some(process_instance_id().to_string()),
             run_id: Some("run-supervisor".to_string()),
             started_at: Some(100),
@@ -237,6 +238,7 @@ mod tests {
         let store = InMemoryStore::default();
         let mut state = ControlState {
             phase: ControlPhase::Running,
+            desired_lane: RuntimeLane::SyntheticTraffic,
             owner_instance_id: Some(process_instance_id().to_string()),
             run_id: Some("run-catchup".to_string()),
             started_at: Some(10),
@@ -454,13 +456,13 @@ mod tests {
             payload
                 .get("desired_lane")
                 .and_then(|value| value.as_str()),
-            Some("synthetic_traffic")
+            Some("scrapling_traffic")
         );
         assert_eq!(
             payload
                 .get("active_lane")
                 .and_then(|value| value.as_str()),
-            Some("synthetic_traffic")
+            Some("scrapling_traffic")
         );
         assert_eq!(
             payload

@@ -4,6 +4,24 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### Ad hoc defaults: enable verified identity and make Scrapling the default sim lane
+
+- [x] Flipped the seeded verified-identity default on in [`config/defaults.env`](../config/defaults.env) and updated [`docs/configuration.md`](../docs/configuration.md) so the live config contract now matches the intended posture.
+- [x] Made `scrapling_traffic` the actual default adversary-sim lane across:
+  - runtime state defaults in [`src/admin/adversary_sim_state.rs`](../src/admin/adversary_sim_state.rs),
+  - start-state lane activation and effective-lane fallback semantics,
+  - dashboard Red Team defaults and normalization in [`dashboard/src/lib/components/dashboard/RedTeamTab.svelte`](../dashboard/src/lib/components/dashboard/RedTeamTab.svelte), [`dashboard/src/lib/domain/api-client.js`](../dashboard/src/lib/domain/api-client.js), and [`dashboard/src/lib/runtime/dashboard-adversary-sim.js`](../dashboard/src/lib/runtime/dashboard-adversary-sim.js).
+- [x] Tightened the existing focused tests so they now prove the new defaults truthfully and explicitly mark the places where Synthetic behavior is still being tested by choice rather than by incidental default.
+- [x] Why:
+  - verified identity now has both verifier paths enabled already, so leaving the subsystem off by default no longer matched the intended product posture.
+  - Scrapling is the more truthful request-native lane for normal sim use, while Synthetic remains available as an explicit deterministic harness lane rather than the implicit default.
+- [x] Evidence:
+  - `make test-verified-identity-config`
+  - `make test-adversary-sim-domain-contract`
+  - `make test-dashboard-adversary-sim-lane-contract`
+  - `git diff --check`
+  - `docs/research/2026-03-24-default-flips-verified-identity-and-scrapling-lane-post-implementation-review.md`
+
 ### MON-OVERHAUL-1A: Monitoring loop-accountability information architecture and diagnostics refocus
 
 - [x] Replaced the old Monitoring placeholder with the first explicit loop-accountability scaffold in [`dashboard/src/lib/components/dashboard/MonitoringTab.svelte`](../dashboard/src/lib/components/dashboard/MonitoringTab.svelte), headed by `Closed-Loop Accountability` and sectioned into:

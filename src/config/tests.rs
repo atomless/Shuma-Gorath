@@ -487,7 +487,7 @@ fn defaults_enable_both_signal_and_action_paths() {
         cfg.provider_backends.fingerprint_signal,
         ProviderBackend::Internal
     );
-    assert!(!cfg.verified_identity.enabled);
+    assert!(cfg.verified_identity.enabled);
     assert!(cfg.verified_identity.native_web_bot_auth_enabled);
     assert!(cfg.verified_identity.provider_assertions_enabled);
     assert_eq!(
@@ -501,7 +501,7 @@ fn defaults_enable_both_signal_and_action_paths() {
 fn verified_identity_defaults_are_seeded_and_restrictive() {
     let cfg = defaults().clone();
 
-    assert!(!cfg.verified_identity.enabled);
+    assert!(cfg.verified_identity.enabled);
     assert!(cfg.verified_identity.native_web_bot_auth_enabled);
     assert!(cfg.verified_identity.provider_assertions_enabled);
     assert_eq!(

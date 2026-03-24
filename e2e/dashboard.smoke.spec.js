@@ -399,9 +399,9 @@ function adversarySimStatusState(payload) {
       source.generation_active === true ||
       source.generationActive === true,
     phase: String(source.phase || "off").trim().toLowerCase(),
-    desiredLane: String(source.desired_lane || source.desiredLane || "synthetic_traffic")
+    desiredLane: String(source.desired_lane || source.desiredLane || "scrapling_traffic")
       .trim()
-      .toLowerCase() || "synthetic_traffic"
+      .toLowerCase() || "scrapling_traffic"
   };
 }
 
