@@ -36,6 +36,14 @@ This review focuses on four questions:
 
 # Executive Summary
 
+What makes Shuma's bot-defence loop a real game is:
+
+1. fixed rules,
+2. fixed payoffs,
+3. legal moves,
+4. an independent judge,
+5. and memory of prior episodes.
+
 Shuma already has many of the right pieces for a recursive-improvement game:
 
 1. an operator-owned target contract in `operator_objectives_v1`,
@@ -74,7 +82,8 @@ It is:
 2. keep the evaluator sacred,
 3. keep the move set narrow,
 4. make move selection more deliberate than the current heuristic pressure buckets,
-5. and only then reopen later LLM-backed diagnosis or code-evolution phases.
+5. model later automation as attacker, defender, and judge rather than as two unconstrained agents,
+6. and only then reopen later LLM-backed diagnosis or code-evolution phases.
 
 # Findings
 
@@ -258,7 +267,74 @@ Conclusion:
 1. Shuma needs a canonical shortfall-attribution and move-selection contract,
 2. not just a family-name bridge and a static priority list.
 
-## 8. Real recursive self-improvement in Shuma needs an episode archive, not just latest-run state
+## 8. Missed target -> exact config or code is tractable in tiers, not as one global problem
+
+The user's "do missed targets point to the exact config to tweak or code that may need changing?" question has a real answer:
+this is **partly tractable**, but only if Shuma treats it as a tiered problem.
+
+There are three useful tractability bands:
+
+1. **high tractability**
+   - bounded monotonic knobs with small blast radius,
+   - where a missed target can justify an exact next move such as stepping one threshold up or down.
+2. **medium tractability**
+   - the miss points to a problem class and a bounded family set,
+   - but not one exact path,
+   - so the system needs an intermediate action policy to choose among safe candidate families.
+3. **low tractability**
+   - the miss is real, but config-space moves are exhausted, ambiguous, or repeatedly ineffective,
+   - so the issue belongs in code evolution, simulator quality, or identification quality rather than in another config tweak.
+
+That means later recursive-improvement planning should not chase a fantasy where every benchmark miss deterministically names one exact variable.
+It should instead:
+
+1. be exact when the move really is exact,
+2. be family-level when the causal surface is broader,
+3. and escalate to code or capability gaps when config-space evidence is exhausted.
+
+Conclusion:
+
+1. exact config selection is tractable for some bounded local knobs,
+2. family-level move selection is the main tractable middle layer,
+3. and repeated unresolved misses should be treated as code, capability, or simulator problems rather than disguised config problems.
+
+## 9. Two agents alone do not make the right game; Shuma needs attacker, defender, and judge
+
+The user is directionally right that putting frontier-model agents on both sides would make Shuma much closer to a real arms race.
+
+But two agents by themselves are not enough.
+What makes the loop a proper game is:
+
+1. fixed rules,
+2. bounded legal moves,
+3. payoffs or scorecard,
+4. and an independent judge.
+
+For Shuma, the right later structure is:
+
+1. **attacker agent**
+   - evolves adversary behavior inside the sim harness,
+2. **defender agent**
+   - proposes bounded config moves and later reviewed code moves,
+3. **judge**
+   - remains the machine-first evaluator over budgets, adversary effectiveness, no-harm guardrails, replay evidence, and regression anchors.
+
+This is the right analogue of the manual real-world loop:
+
+1. attackers evolve,
+2. operators observe outcomes,
+3. defenders adapt,
+4. and reality judges the result.
+
+Automation accelerates that loop, but only if the judge stays outside both players.
+
+Conclusion:
+
+1. later frontier-model agents on both sides would make Shuma's loop more realistic and much faster,
+2. but the crucial architecture is triadic, not merely dual-agent,
+3. because the judge must remain independent of both players.
+
+## 10. Real recursive self-improvement in Shuma needs an episode archive, not just latest-run state
 
 The earlier `run-to-homeostasis` work already identified the need to reason over recent completed cycles.
 This review sharpens that into a structural requirement:
@@ -284,7 +360,7 @@ Conclusion:
 1. later recursive self-improvement in Shuma should be archive-backed and episode-shaped,
 2. not merely a perpetual stream of local one-step decisions.
 
-## 9. The strict reference stance should become both a curriculum and a regression anchor
+## 11. The strict reference stance should become both a curriculum and a regression anchor
 
 The earlier reference-stance review remains right:
 
@@ -318,9 +394,10 @@ Conclusion:
 3. Treat the machine-first benchmark and snapshot stack as the sacred evaluator; the loop must not redefine success.
 4. Add an explicit shortfall-attribution and move-selection policy between benchmark misses and bounded patch proposals.
 5. Keep the legal move set narrow and config-bounded until that policy is explicit and proven.
-6. Add an episode archive or stepping-stone ledger before later LLM-backed recursive-improvement phases.
-7. Carry the earlier `Human-only / private` reference-stance and run-to-homeostasis methodology forward as part of that game contract, not as a floating later idea.
-8. Require later code-evolution work to optimize target stances while continuing to pass the strict reference stance as a regression anchor.
+6. Treat later recursive-improvement architecture as attacker agent, defender agent, and independent judge rather than only two agent roles.
+7. Add an episode archive or stepping-stone ledger before later LLM-backed recursive-improvement phases.
+8. Carry the earlier `Human-only / private` reference-stance and run-to-homeostasis methodology forward as part of that game contract, not as a floating later idea.
+9. Require later code-evolution work to optimize target stances while continuing to pass the strict reference stance as a regression anchor.
 
 # Result
 
@@ -333,8 +410,9 @@ It is to explicitly define the game:
 3. legal move set,
 4. shortfall-attribution policy,
 5. move-selection policy,
-6. archive and memory shape,
-7. and stop or homeostasis logic.
+6. attacker/defender/judge role separation,
+7. archive and memory shape,
+8. and stop or homeostasis logic.
 
 Only after that should later recursive-improvement phases reopen.
 

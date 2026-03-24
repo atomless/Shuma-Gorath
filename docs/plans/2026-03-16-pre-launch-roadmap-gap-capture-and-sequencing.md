@@ -284,7 +284,8 @@ That methodology says:
 2. later controller expansion should then begin from `Human-only / private` as a development reference stance,
 3. later runs should continue as bounded run-to-homeostasis episodes rather than as one-shot recommendations,
 4. later relaxed preset sweeps should come after strict-reference stabilization,
-5. and later code evolution should keep the strict reference stance as a regression anchor.
+5. later automation should be modeled as attacker agent, defender agent, and independent judge rather than only two frontier-model roles,
+6. and later code evolution should keep the strict reference stance as a regression anchor.
 
 This does **not** change:
 

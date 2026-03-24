@@ -19,11 +19,19 @@ Related context:
 Define the missing contract that turns Shuma's bounded loop from a useful control mechanism into a later explicit recursive self-improvement game:
 
 1. immutable rules,
-2. sacred evaluator,
+2. fixed payoffs through a sacred evaluator,
 3. bounded legal move set,
 4. shortfall-attribution and move-selection policy,
 5. episode archive and stepping-stone memory,
 6. and later run-to-homeostasis episode control.
+
+Put more simply, the later contract should make it explicit that Shuma's recursive-improvement game has:
+
+1. fixed rules,
+2. fixed payoffs,
+3. legal moves,
+4. an independent judge,
+5. and memory of prior episodes.
 
 # Core Decisions
 
@@ -32,7 +40,8 @@ Define the missing contract that turns Shuma's bounded loop from a useful contro
 3. The machine-first benchmark stack remains the evaluator and must not be re-authored by the mutator.
 4. Benchmark misses must not map straight to arbitrary patch families; Shuma needs an explicit intermediate move-selection policy.
 5. Later recursive-improvement episodes should search over a bounded archive of outcomes, not just the latest config state.
-6. The earlier reference-stance and run-to-homeostasis methodology should be implemented as part of this game contract, not separately from it.
+6. Later recursive-improvement architecture should be modeled as attacker agent, defender agent, and independent judge rather than only two agent roles.
+7. The earlier reference-stance and run-to-homeostasis methodology should be implemented as part of this game contract, not separately from it.
 
 ## Task 0: Focused Verification Prep
 
@@ -109,9 +118,13 @@ Define the missing contract that turns Shuma's bounded loop from a useful contro
    3. which direction of change is expected,
    4. what human-friction or tolerated-traffic risk each family carries,
    5. and when evidence is too weak to justify any move.
-3. Remove candidate-action mappings that violate the canonical mutability policy, including any benchmark-family bridge that still points to operator-owned or hard-never surfaces.
-4. Preserve metric-level detail long enough that later move selection is more specific than the current `ReduceLikelyHumanFriction` versus `ReduceSuspiciousOriginCost` collapse.
-5. Introduce explicit status for:
+3. Classify shortfall-to-change tractability explicitly:
+   1. exact bounded config moves,
+   2. family-level bounded policy choice,
+   3. and code or capability gaps.
+4. Remove candidate-action mappings that violate the canonical mutability policy, including any benchmark-family bridge that still points to operator-owned or hard-never surfaces.
+5. Preserve metric-level detail long enough that later move selection is more specific than the current `ReduceLikelyHumanFriction` versus `ReduceSuspiciousOriginCost` collapse.
+6. Introduce explicit status for:
    1. exact move guidance,
    2. bounded heuristic guidance,
    3. insufficient evidence,
@@ -189,13 +202,18 @@ Define the missing contract that turns Shuma's bounded loop from a useful contro
    2. explicit evaluator scorecard,
    3. explicit legal move ring,
    4. explicit episode archive.
-3. Make later code evolution optimize permissive target stances only while continuing to pass the strict reference stance as a regression anchor.
+3. Make the later recursive-improvement architecture explicit as:
+   1. attacker agent in the sim harness,
+   2. defender agent over bounded moves,
+   3. and Monitoring plus benchmark machinery as the human-readable projection of the independent judge.
+4. Make later code evolution optimize permissive target stances only while continuing to pass the strict reference stance as a regression anchor.
 
 **Acceptance criteria:**
 
 1. later recursive-improvement planning is no longer missing the underlying game definition,
 2. `RSI-METH-1`, `OVR-AGENT-2`, and `OVR-CODE-1` all inherit one shared game contract,
-3. and later autonomy cannot widen the rules, evaluator, or move set by implication.
+3. the judge remains independent of both later agent roles,
+4. and later autonomy cannot widen the rules, evaluator, or move set by implication.
 
 # Sequencing
 

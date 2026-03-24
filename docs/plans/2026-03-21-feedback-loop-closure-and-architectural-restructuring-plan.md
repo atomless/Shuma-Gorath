@@ -378,7 +378,9 @@ Before reopening the later recursive-improvement phases, codify the missing game
 2. sacred evaluator scorecard over benchmark families, safety gates, and regression anchors,
 3. bounded legal move ring,
 4. explicit shortfall-attribution and move-selection policy rather than only coarse pressure heuristics,
-5. and an episode archive or stepping-stone memory that later run-to-homeostasis episodes can use.
+5. tractability boundaries between exact config moves, family-level policy moves, and code or capability gaps,
+6. attacker/defender/judge role separation for later recursive-improvement phases,
+7. and an episode archive or stepping-stone memory that later run-to-homeostasis episodes can use.
 
 ### `OVR-AGENT-2`
 
@@ -392,6 +394,12 @@ Later controller planning should also adopt the recursive-improvement methodolog
 4. and only later broaden into preset sweeps over relaxed operator stances.
 
 It should also consume the canonical game-contract and move-selection plan captured in [`2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md) rather than reconstructing its own implicit rules, evaluator, or move set.
+
+When this later phase is designed, treat it as only one player in a larger triad:
+
+1. attacker agent in the sim harness,
+2. defender agent in the diagnosis/config loop,
+3. and the machine-first benchmark stack plus Monitoring projection as the independent judge.
 
 ### `OVR-CODE-1`
 

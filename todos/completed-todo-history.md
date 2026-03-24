@@ -4,6 +4,28 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### Planning refinement: make the recursive-improvement game principles explicit across the planning chain
+
+- [x] Updated the new recursive-improvement game-loop review and plan so they now explicitly capture:
+  - tractability tiers for exact config moves vs family-level policy choice vs code or capability gaps,
+  - the triadic later architecture of attacker agent, defender agent, and independent judge,
+  - and the role of Monitoring as the human-readable projection of that judge rather than one of the players.
+- [x] Propagated those principles into the main loop-closure plan, the Monitoring-overhaul plan, the reference-stance methodology plan, the broader roadmap sequencing doc, and the blocked later recursive-improvement backlog so the repo now tells one consistent story.
+- [x] Why:
+  - these were the most important deductions from the Meta paper, the released HyperAgents code, and the Shuma codebase review, and they need to guide future feedback-loop and recursive-self-improvement planning rather than live only in one isolated note.
+  - the later automated arms race should be modeled as attacker and defender agents operating under a sacred external evaluator, not as a self-judging two-agent duel.
+  - the question of mapping missed targets to exact changes is only partly tractable, so the plans must explicitly separate exact bounded knob changes from family-level policy choice and true code-gap territory.
+- [x] Evidence:
+  - `docs/research/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-review.md`
+  - `docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`
+  - `docs/plans/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md`
+  - `docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`
+  - `docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`
+  - `docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`
+  - `todos/blocked-todo.md`
+  - `git diff --check`
+  - verification intentionally scoped as docs-only; tests not run
+
 ### Planning: recursive self-improvement game loop definition and move-selection
 
 - [x] Wrote the research note in [`docs/research/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-review.md`](../docs/research/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-review.md) to inspect whether Shuma's planned recursive-improvement game is defined clearly enough in its current state.

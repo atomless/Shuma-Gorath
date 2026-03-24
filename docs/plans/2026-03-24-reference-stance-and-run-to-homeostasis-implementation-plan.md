@@ -38,7 +38,8 @@ It should define:
 2. the episode lifecycle states,
 3. the homeostasis detector inputs,
 4. the preset sweep regimen,
-5. and the regression-anchor obligations for code change proposals.
+5. the regression-anchor obligations for code change proposals,
+6. and the assumption that later run-to-homeostasis execution operates over an attacker/defender/judge game contract rather than a two-agent duel.
 
 ## Episode lifecycle
 

@@ -14,6 +14,7 @@ Redefine `MON-OVERHAUL-1` so Monitoring becomes the human-readable accountabilit
 4. Tuning and posture editing stay out of Monitoring and remain later `TUNE-SURFACE-1` work.
 5. Monitoring should describe accountability against the current operator-selected product stance; the later development reference stance belongs to later recursive-improvement methodology, not to the first Monitoring contract.
 6. Monitoring should show bounded progress over recent completed loops against benchmark families, not only the latest loop outcome.
+7. Monitoring is the human-readable projection of the loop's independent judge or evaluator, not one of the players in the later attacker-defender game.
 
 ## Execution Slices
 
