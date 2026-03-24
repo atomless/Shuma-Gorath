@@ -4,6 +4,25 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### Planning refinement: decompose the recursive-improvement game umbrella into real blocked TODO slices
+
+- [x] Split the previously broad `RSI-GAME-1` blocker into concrete later execution slices:
+  - `RSI-GAME-1A` for the canonical game contract,
+  - `RSI-GAME-1B` for shortfall-attribution and move selection,
+  - `RSI-GAME-1C` for episode archive and homeostasis memory,
+  - `RSI-ROLES-1` for the later attacker/defender/judge contract.
+- [x] Updated the recursive-improvement game plan and the main loop-closure plan so the planning chain now uses those concrete tranche IDs instead of one umbrella placeholder.
+- [x] Rewired the blocked later dependencies so `OVR-AGENT-2`, `OVR-CODE-1`, and `RSI-METH-1` now depend on the real decomposed slices rather than a single vague prerequisite.
+- [x] Why:
+  - the recursive-improvement principles are much more useful when they manifest as concrete backlog gates with crisp scope and sequencing.
+  - later autonomous work needs separate proof that the rules, move-selection policy, memory, and role boundaries are each explicit before planning can reopen truthfully.
+- [x] Evidence:
+  - `docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`
+  - `docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`
+  - `todos/blocked-todo.md`
+  - `git diff --check`
+  - verification intentionally scoped as docs-only; tests not run
+
 ### Planning refinement: make the recursive-improvement game principles explicit across the planning chain
 
 - [x] Updated the new recursive-improvement game-loop review and plan so they now explicitly capture:

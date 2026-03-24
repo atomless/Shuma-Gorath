@@ -370,7 +370,7 @@ These phases should not be started early just because the UI can be edited soone
 
 These later items remain intentionally non-execution-ready until the three Phase 5 implementation plans above are complete and live-proved.
 
-### `RSI-GAME-1`
+### `RSI-GAME-1A..1C` and `RSI-ROLES-1`
 
 Before reopening the later recursive-improvement phases, codify the missing game contract explicitly:
 

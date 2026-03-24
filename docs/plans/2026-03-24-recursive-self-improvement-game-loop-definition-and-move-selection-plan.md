@@ -60,7 +60,7 @@ Put more simply, the later contract should make it explicit that Shuma's recursi
 
 1. the later game-contract, move-selection, and episode-history work each have narrow truthful proof paths before implementation broadens.
 
-## Task 1: `RSI-GAME-1`
+## Task 1: `RSI-GAME-1A`
 
 ### Canonical recursive-improvement game contract
 
@@ -96,7 +96,7 @@ Put more simply, the later contract should make it explicit that Shuma's recursi
 1. `make test-rsi-game-contract`
 2. `git diff --check`
 
-## Task 2: `RSI-GAME-2`
+## Task 2: `RSI-GAME-1B`
 
 ### Shortfall-attribution and move-selection policy
 
@@ -143,7 +143,7 @@ Put more simply, the later contract should make it explicit that Shuma's recursi
 3. `make test-controller-action-surface-parity`
 4. `git diff --check`
 
-## Task 3: `RSI-GAME-3`
+## Task 3: `RSI-GAME-1C`
 
 ### Episode archive, stepping-stone memory, and progress-to-homeostasis inputs
 
@@ -184,9 +184,9 @@ Put more simply, the later contract should make it explicit that Shuma's recursi
 2. `make test-oversight-apply`
 3. `git diff --check`
 
-## Task 4: `RSI-GAME-4`
+## Task 4: `RSI-ROLES-1`
 
-### Integrate the game contract with later reference-stance and code-evolution phases
+### Attacker, defender, and independent-judge role contract for later autonomous phases
 
 **Files:**
 
@@ -196,32 +196,30 @@ Put more simply, the later contract should make it explicit that Shuma's recursi
 
 **Work:**
 
-1. Make `RSI-METH-1` consume the canonical game contract rather than float as a separate methodology note.
-2. Make later LLM-backed diagnosis consume:
-   1. explicit immutable rules,
-   2. explicit evaluator scorecard,
-   3. explicit legal move ring,
-   4. explicit episode archive.
-3. Make the later recursive-improvement architecture explicit as:
+1. Define the formal roles of:
    1. attacker agent in the sim harness,
    2. defender agent over bounded moves,
-   3. and Monitoring plus benchmark machinery as the human-readable projection of the independent judge.
+   3. and the machine-first benchmark stack as the independent judge.
+2. Make `RSI-METH-1`, `OVR-AGENT-2`, and `OVR-CODE-1` consume that triadic role contract rather than float as self-defining later phases.
+3. Make Monitoring remain the human-readable projection of the independent judge rather than one of the players.
 4. Make later code evolution optimize permissive target stances only while continuing to pass the strict reference stance as a regression anchor.
+5. Ensure later autonomy cannot widen the rules, evaluator, or move set by role confusion or implicit self-judging.
 
 **Acceptance criteria:**
 
-1. later recursive-improvement planning is no longer missing the underlying game definition,
-2. `RSI-METH-1`, `OVR-AGENT-2`, and `OVR-CODE-1` all inherit one shared game contract,
-3. the judge remains independent of both later agent roles,
+1. `RSI-METH-1`, `OVR-AGENT-2`, and `OVR-CODE-1` all inherit one shared attacker/defender/judge role contract,
+2. the judge remains independent of both later agent roles,
+3. Monitoring remains the human-readable projection of that judge,
 4. and later autonomy cannot widen the rules, evaluator, or move set by implication.
 
 # Sequencing
 
-1. Finish `CTRL-SURFACE-1..3` before `RSI-GAME-1`.
+1. Finish `CTRL-SURFACE-1..3` before `RSI-GAME-1A`.
 2. Keep `MON-OVERHAUL-1` and `TUNE-SURFACE-1A` on the current operator-facing path; do not block those surfaces on later recursive-game machinery.
-3. Land `RSI-GAME-1` and `RSI-GAME-2` before reopening `OVR-AGENT-2`.
-4. Land `RSI-GAME-3` before implementing `RSI-METH-1`.
-5. Reopen `OVR-CODE-1` only after `OVR-AGENT-2`, the game contract, and the strict-reference regression-anchor expectations are all explicit.
+3. Land `RSI-GAME-1A` and `RSI-GAME-1B` before reopening `OVR-AGENT-2`.
+4. Land `RSI-GAME-1C` before implementing `RSI-METH-1`.
+5. Land `RSI-ROLES-1` before any later dual-agent or triadic autonomous-loop design is treated as execution-ready.
+6. Reopen `OVR-CODE-1` only after `OVR-AGENT-2`, the game contract, and the strict-reference regression-anchor expectations are all explicit.
 
 # Definition Of Done
 
