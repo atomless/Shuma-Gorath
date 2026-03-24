@@ -13,6 +13,7 @@ Redefine `MON-OVERHAUL-1` so Monitoring becomes the human-readable accountabilit
 3. Diagnostics should keep subsystem and forensic depth without dominating the operator narrative.
 4. Tuning and posture editing stay out of Monitoring and remain later `TUNE-SURFACE-1` work.
 5. Monitoring should describe accountability against the current operator-selected product stance; the later development reference stance belongs to later recursive-improvement methodology, not to the first Monitoring contract.
+6. Monitoring should show bounded progress over recent completed loops against benchmark families, not only the latest loop outcome.
 
 ## Execution Slices
 
@@ -26,6 +27,7 @@ Scope:
 
 1. rewrite Monitoring copy and layout around loop-accountability questions:
    - loop verdict,
+   - recent loop progress,
    - outcome frontier,
    - change judgment,
    - category breakdown,
@@ -51,12 +53,15 @@ Scope:
 
 1. project top-level benchmark family status from `benchmark_results_v1`,
 2. project prior-window comparison and trend direction,
-3. project bounded controller status:
+3. project bounded recent multi-loop benchmark progress over the most recent completed loops rather than only the latest result,
+4. project recent controller action history so recommendation, apply, retain, rollback, and refusal patterns are visible alongside benchmark movement,
+5. keep the progress surface benchmark-family-oriented rather than collapsing it into one synthetic score,
+6. project bounded controller status:
    - latest recommendation,
    - latest apply stage,
    - last rollback or retain result,
    - refusal or blocker reasons,
-4. keep live, shadow, and adversary-sim semantics clearly separated.
+7. keep live, shadow, and adversary-sim semantics clearly separated.
 
 Verification:
 
@@ -77,6 +82,7 @@ Scope:
 3. project tuning eligibility, protected-evidence readiness, and coverage blockers,
 4. keep raw subsystem detail in Diagnostics rather than leaking it back into Monitoring.
 5. if later recursive-improvement reference-stance runs are ever shown here, label them explicitly as separate evaluation context rather than the live product stance.
+6. where the machine-first contract already supports it, category surfaces may show bounded recent trend, but Monitoring must remain a bounded accountability view rather than a full history browser.
 
 Verification:
 

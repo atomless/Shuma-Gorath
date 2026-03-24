@@ -333,6 +333,8 @@ Rebuild Monitoring as the thin human projection over the machine-first contracts
 
 Monitoring is now explicitly scoped as the human-readable accountability surface for the closed loop rather than the primary manual tuning cockpit: it should lead with loop verdict, outcome frontier, controller judgment, category breakdown, and trust or actionability blockers, while Diagnostics becomes more explicitly diagnostics-first.
 
+It should also show bounded progress over recent completed loops against benchmark families and controller action history, not only the latest loop outcome.
+
 ### `TUNE-SURFACE-1`
 
 Finish the operator control surface once the controller inputs, safe action families, first working agent loop semantics, and adversary-sim diagnostics truth are all aligned, including the operator-objectives and per-category posture editor over the stable operator-facing taxonomy.

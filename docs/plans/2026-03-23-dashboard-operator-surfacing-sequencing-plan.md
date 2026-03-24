@@ -136,7 +136,7 @@ Keep the Monitoring overhaul responsible for projecting the backend machine-firs
 1. what the loop currently believes,
 2. whether the current window is improving, stable, or regressing against the prior window,
 3. what the last reconcile or apply cycle decided,
-4. whether recent changes improved or regressed the benchmark envelope,
+4. whether recent changes improved or regressed the benchmark envelope across multiple recent completed loops rather than only the latest decision,
 5. where the remaining problem sits in the non-human taxonomy,
 6. whether tuning is eligible,
 7. and whether verified or tolerated non-human traffic is being harmed.

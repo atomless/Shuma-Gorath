@@ -94,17 +94,20 @@ Current stance:
 
 ### MON-OVERHAUL-1A: Monitoring loop-accountability information architecture and diagnostics refocus
 - Reframe Monitoring as the human-readable accountability surface for the closed loop rather than as a manual tuning console: lead with loop verdict, outcome frontier, change judgment, category breakdown, and trust or actionability blockers.
+- Make the page contract explicit that Monitoring owns both current status and bounded recent loop progress, so the tab does not collapse into a latest-result-only snapshot.
 - Tighten Diagnostics so it becomes more explicitly diagnostics-first in wording and section ownership rather than remaining a generic transplanted legacy Monitoring page.
 - Keep Monitoring anchored to the current operator-selected product stance; if later recursive-improvement reference-stance episodes are ever surfaced, they must be labeled as separate training or evaluation runs rather than presented as the live site posture.
 - Reference context: [`../docs/plans/2026-03-20-monitoring-and-diagnostics-tab-ownership-plan.md`](../docs/plans/2026-03-20-monitoring-and-diagnostics-tab-ownership-plan.md), [`../docs/research/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-review.md`](../docs/research/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-review.md), [`../docs/plans/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md`](../docs/plans/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md)
 
 ### MON-OVERHAUL-1B: Monitoring projection of loop verdict, outcome frontier, and controller judgment
 - Project `operator_snapshot_v1`, `benchmark_results_v1`, and bounded oversight status/history into Monitoring so operators can see current vs prior-window budget status, suspicious-origin cost vs likely-human friction, beneficial or verified posture, and what the controller last recommended, applied, retained, or rolled back.
+- Show bounded progress over recent completed loops against benchmark families plus recent controller action history, not just the latest loop result.
 - Keep live, shadow, and adversary-sim semantics explicit and separate.
 - Reference context: [`../docs/plans/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md`](../docs/plans/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md)
 
 ### MON-OVERHAUL-1C: Monitoring category breakdown and trust/actionability surface
 - Add the category-aware non-human taxonomy breakdown plus evidence quality, tuning eligibility, protected-evidence readiness, verified-identity guardrails, and other blockers so Monitoring shows where the remaining problem sits and how trustworthy the loop's conclusion is.
+- Keep any category-level trend bounded and accountability-oriented rather than turning Monitoring into a raw long-range history explorer.
 - Reference context: [`../docs/plans/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md`](../docs/plans/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md)
 
 ## P1 Verified Bot Identity And Web Bot Auth Foundation

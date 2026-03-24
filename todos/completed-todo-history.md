@@ -4,6 +4,27 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### Planning: monitoring should show bounded benchmark progress across loops
+
+- [x] Wrote the research note in [`docs/research/2026-03-24-monitoring-multi-loop-benchmark-progress-review.md`](../docs/research/2026-03-24-monitoring-multi-loop-benchmark-progress-review.md) to capture the decision that Monitoring should show bounded progress over recent loops against benchmark families, not just the latest loop result.
+- [x] Wrote the companion planning note in [`docs/plans/2026-03-24-monitoring-multi-loop-benchmark-progress-plan.md`](../docs/plans/2026-03-24-monitoring-multi-loop-benchmark-progress-plan.md) and threaded the insight into the Monitoring, dashboard-surfacing, and main loop-closure plans plus the active Monitoring TODO slices.
+- [x] Why:
+  - a latest-loop-only Monitoring surface would hide whether the loop is genuinely improving, converging, or just oscillating.
+  - Shuma already has the machine-first ingredients for bounded multi-loop accountability in prior-window benchmark comparison and oversight history.
+  - the correct analogue to `autoresearch` progress is benchmark-family movement plus controller action history, not a single scalar score.
+- [x] Evidence:
+  - `docs/research/2026-03-24-monitoring-multi-loop-benchmark-progress-review.md`
+  - `docs/plans/2026-03-24-monitoring-multi-loop-benchmark-progress-plan.md`
+  - `docs/plans/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md`
+  - `docs/plans/2026-03-20-monitoring-and-diagnostics-tab-ownership-plan.md`
+  - `docs/plans/2026-03-23-dashboard-operator-surfacing-sequencing-plan.md`
+  - `docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`
+  - `todos/todo.md`
+  - `src/observability/benchmark_comparison.rs`
+  - `src/admin/oversight_api.rs`
+  - `git diff --check`
+  - verification intentionally scoped as docs-only; tests not run
+
 ### Planning: audit open backlog and plan alignment against the reference-stance methodology
 
 - [x] Audited all still-open backlog files in [`todos/todo.md`](../todos/todo.md), [`todos/blocked-todo.md`](../todos/blocked-todo.md), and [`todos/security-review.md`](../todos/security-review.md) against the new recursive-improvement goal and captured the results in [`docs/research/2026-03-24-open-backlog-and-plan-reference-stance-alignment-review.md`](../docs/research/2026-03-24-open-backlog-and-plan-reference-stance-alignment-review.md).
