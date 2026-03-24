@@ -246,6 +246,10 @@ fn allowed_actions_v1_exposes_conservative_controller_write_surface() {
     assert_eq!(surface.schema_version, "allowed_actions_v1");
     assert_eq!(surface.write_surface, "admin_config");
     assert_eq!(surface.proposal_mode, "config_diff_only");
+    assert_eq!(
+        surface.controller_mutability_schema_version,
+        "controller_mutability_v1"
+    );
     assert!(surface
         .allowed_group_ids
         .contains(&"not_a_bot.policy".to_string()));
@@ -272,11 +276,73 @@ fn allowed_actions_v1_exposes_conservative_controller_write_surface() {
         .find(|group| group.group_id == "not_a_bot.policy")
         .expect("not_a_bot policy group");
     assert_eq!(not_a_bot.controller_status, "allowed");
+    assert_eq!(not_a_bot.controller_mutability, "controller_tunable");
     assert_eq!(not_a_bot.canary_requirement, "required");
     assert!(not_a_bot
         .value_constraints
         .iter()
         .any(|constraint| constraint.path == "not_a_bot_risk_threshold"));
+}
+
+#[test]
+fn controller_mutability_surface_classifies_expected_admin_and_objective_paths() {
+    let surface = allowed_actions_v1();
+
+    assert!(surface
+        .admin_config_path_mutability
+        .iter()
+        .any(|path| path.path == "shadow_mode" && path.mutability == "never"));
+    assert!(surface
+        .admin_config_path_mutability
+        .iter()
+        .any(|path| path.path == "rate_limit" && path.mutability == "manual_only"));
+    assert!(surface
+        .admin_config_path_mutability
+        .iter()
+        .any(|path| path.path == "js_required_enforced"
+            && path.mutability == "controller_tunable"));
+    assert!(surface
+        .admin_config_path_mutability
+        .iter()
+        .any(|path| path.path == "verified_identity.enabled" && path.mutability == "never"));
+    assert!(surface
+        .operator_objectives_path_mutability
+        .iter()
+        .any(|path| path.path == "operator_objectives_v1.category_postures"
+            && path.mutability == "never"));
+}
+
+#[test]
+fn allowed_actions_v1_surfaces_group_and_family_mutability_from_canonical_policy() {
+    let surface = allowed_actions_v1();
+
+    let shadow_mode = surface
+        .groups
+        .iter()
+        .find(|group| group.group_id == "shadow_mode.state")
+        .expect("shadow_mode group");
+    assert_eq!(shadow_mode.controller_mutability, "never");
+
+    let rate_limit = surface
+        .groups
+        .iter()
+        .find(|group| group.group_id == "core_policy.rate_limit")
+        .expect("rate limit group");
+    assert_eq!(rate_limit.controller_mutability, "manual_only");
+
+    let verified_identity = surface
+        .groups
+        .iter()
+        .find(|group| group.group_id == "verified_identity.policy")
+        .expect("verified_identity group");
+    assert_eq!(verified_identity.controller_mutability, "never");
+
+    let core_policy = surface
+        .families
+        .iter()
+        .find(|family| family.family == "core_policy")
+        .expect("core_policy family");
+    assert_eq!(core_policy.controller_mutability, "mixed");
 }
 
 #[test]

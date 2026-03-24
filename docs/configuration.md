@@ -319,6 +319,39 @@ The following <abbr title="Key-Value">KV</abbr>-backed fields are currently writ
 - Verified identity: `verified_identity.{enabled,native_web_bot_auth_enabled,provider_assertions_enabled,non_human_traffic_stance,replay_window_seconds,clock_skew_seconds,directory_cache_ttl_seconds,directory_freshness_requirement_seconds,named_policies,category_defaults,service_profiles}`.
 - Botness/challenge tuning: `pow_enabled`, `pow_difficulty`, `pow_ttl_seconds`, `challenge_puzzle_enabled`, `challenge_puzzle_transform_count`, `challenge_puzzle_seed_ttl_seconds`, `challenge_puzzle_attempt_limit_per_window`, `challenge_puzzle_attempt_window_seconds`, `challenge_puzzle_risk_threshold`, `not_a_bot_enabled`, `not_a_bot_risk_threshold`, `not_a_bot_pass_score`, `not_a_bot_fail_score`, `not_a_bot_nonce_ttl_seconds` (Verification Token Lifetime), `not_a_bot_marker_ttl_seconds` (Pass Marker Lifetime), `not_a_bot_attempt_limit_per_window`, `not_a_bot_attempt_window_seconds`, `botness_maze_threshold`, `botness_weights.{js_required,geo_risk,rate_medium,rate_high,maze_behavior}`, `defence_modes.{rate,geo,js}`.
 
+### Controller mutability rings
+
+Shuma now treats admin writability and controller eligibility as separate truths.
+
+- Exhaustive machine-first controller mutability lives in `operator_snapshot_v1.allowed_actions` under:
+  - `controller_mutability_schema_version`
+  - `admin_config_path_mutability`
+  - `operator_objectives_path_mutability`
+- Each path is classified as exactly one of:
+  - `controller_tunable`
+  - `manual_only`
+  - `never`
+
+Current high-level stance:
+
+- `controller_tunable`:
+  - bounded sensitivity and rollout knobs such as `js_required_enforced`, proof-of-work, challenge, not-a-bot, botness thresholds and weights, maze rollout posture, bounded CDP thresholds, and bounded fingerprint sensitivity controls
+- `manual_only`:
+  - `rate_limit`
+- `never`:
+  - operator objectives (`operator_objectives_v1`)
+  - runtime harness controls such as `shadow_mode` and `adversary_sim_duration_seconds`
+  - explicit trust and allowlist policy
+  - verified-identity policy
+  - provider and edge topology
+  - robots and AI policy
+  - privacy posture
+  - punishment horizons
+  - tarpit and maze safety-budget/content controls outside the narrow rollout subset
+  - implementation-composition selectors such as `cdp_probe_family` and `defence_modes.*`
+
+Use the machine-first path lists for the exhaustive answer to “may the controller touch this exact path?” rather than inferring mutability from `POST /admin/config` writability alone.
+
 Operator-objectives contract notes:
 - `operator_objectives_v1` is not part of `POST /admin/config`. It has its own primary-state endpoint at `GET` and `POST /admin/operator-objectives`.
 - `POST /admin/operator-objectives` is guarded by the same `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=true` switch as other admin writes.

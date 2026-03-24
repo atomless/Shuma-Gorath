@@ -4,6 +4,34 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### CTRL-SURFACE-1: Canonical controller mutability policy and hard-never surface
+
+- [x] Added canonical controller mutability rings in [`src/config/controller_action_catalog.rs`](../src/config/controller_action_catalog.rs), classifying the full admin-writable config surface into:
+  - `controller_tunable`
+  - `manual_only`
+  - `never`
+- [x] Explicitly classified the separate `operator_objectives_v1` rule surface as `never` so the machine contract now treats the game rules and the legal move ring as distinct surfaces.
+- [x] Extended [`src/config/controller_action_surface.rs`](../src/config/controller_action_surface.rs) so `allowed_actions_v1` now carries:
+  - `controller_mutability_schema_version`
+  - `admin_config_path_mutability`
+  - `operator_objectives_path_mutability`
+  - per-group `controller_mutability`
+  - per-family `controller_mutability`
+- [x] Mirrored the admin-config mutability grouping in [`dashboard/src/lib/domain/config-schema.js`](../dashboard/src/lib/domain/config-schema.js) and added focused parity proof in [`e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js) so the dashboard-facing writable surface stays aligned with the backend policy.
+- [x] Removed the stale non-writable `ip_range_suggestions_*` entries from the controller catalog patch-path surface so `allowed_actions_v1` no longer claims writable coverage for keys that `POST /admin/config` does not actually accept.
+- [x] Updated the operator and contributor docs in:
+  - [`docs/configuration.md`](../docs/configuration.md)
+  - [`docs/api.md`](../docs/api.md)
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`docs/research/2026-03-24-ctrl-surface-1-controller-mutability-policy-post-implementation-review.md`](../docs/research/2026-03-24-ctrl-surface-1-controller-mutability-policy-post-implementation-review.md)
+- [x] Why:
+  - the loop needed one canonical path-level answer to “may the controller touch this?” before later game-loop and tuning work can be trusted,
+  - and the older family-only framing was not enough to express hard-never policy surfaces like `operator_objectives_v1`, verified identity, provider topology, or trust exceptions.
+- [x] Evidence:
+  - `make test-controller-mutability-policy`
+  - `make test-controller-action-surface`
+  - `git diff --check`
+
 ### SIM-SCR-CHALLENGE-2B: Malicious request-native Scrapling interactions
 
 - [x] Extended the existing Scrapling `http_agent` worker persona in [`scripts/supervisor/scrapling_worker.py`](../scripts/supervisor/scrapling_worker.py) so it no longer stops at benign helper traffic and now performs hostile request-native interaction against public owned surfaces:

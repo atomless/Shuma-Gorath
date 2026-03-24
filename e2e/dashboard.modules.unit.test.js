@@ -302,6 +302,18 @@ function parseRustStructFieldNames(source, structName) {
     .map((entry) => entry[1]);
 }
 
+function parseRustStringSlice(source, constName) {
+  const pattern = new RegExp(
+    `(?:pub\\([^)]*\\)\\s+)?const\\s+${constName}:\\s*&\\[&str\\]\\s*=\\s*&\\[([\\s\\S]*?)\\];`,
+    'm'
+  );
+  const match = source.match(pattern);
+  if (!match) {
+    throw new Error(`Unable to locate Rust string slice ${constName}`);
+  }
+  return Array.from(match[1].matchAll(/"([^"]+)"/g)).map((entry) => String(entry[1] || ''));
+}
+
 function detectCycles(adjacency) {
   const visiting = new Set();
   const visited = new Set();
@@ -4817,6 +4829,44 @@ test('advanced config template paths match writable admin config patch keys', { 
 
   assert.deepEqual(missingFromAdvanced, []);
   assert.deepEqual(nonWritableInAdvanced, []);
+});
+
+test('admin config controller mutability groups match backend controller mutability policy', { concurrency: false }, async () => {
+  const configSource = fs.readFileSync(
+    path.join(__dirname, '..', 'src/config/controller_action_catalog.rs'),
+    'utf8'
+  );
+  const schema = await importBrowserModule('dashboard/src/lib/domain/config-schema.js');
+
+  const backendControllerTunable = parseRustStringSlice(
+    configSource,
+    'CONTROLLER_TUNABLE_ADMIN_CONFIG_PATHS'
+  );
+  const backendManualOnly = parseRustStringSlice(configSource, 'MANUAL_ONLY_ADMIN_CONFIG_PATHS');
+  const backendNever = parseRustStringSlice(configSource, 'NEVER_ADMIN_CONFIG_PATHS');
+
+  assert.deepEqual(
+    [...schema.adminConfigControllerMutabilityPaths.controller_tunable].sort(),
+    [...backendControllerTunable].sort()
+  );
+  assert.deepEqual(
+    [...schema.adminConfigControllerMutabilityPaths.manual_only].sort(),
+    [...backendManualOnly].sort()
+  );
+  assert.deepEqual(
+    [...schema.adminConfigControllerMutabilityPaths.never].sort(),
+    [...backendNever].sort()
+  );
+
+  const groupedPaths = new Set([
+    ...schema.adminConfigControllerMutabilityPaths.controller_tunable,
+    ...schema.adminConfigControllerMutabilityPaths.manual_only,
+    ...schema.adminConfigControllerMutabilityPaths.never
+  ]);
+  assert.deepEqual(
+    [...groupedPaths].sort(),
+    [...schema.advancedConfigTemplatePaths].sort()
+  );
 });
 
 test('runtime variable inventory meanings match writable and read-only admin config payload paths', { concurrency: false }, async () => {

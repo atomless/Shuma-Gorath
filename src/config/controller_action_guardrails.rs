@@ -38,6 +38,13 @@ where
                     .collect::<Vec<_>>()
                     .as_slice(),
             ),
+            controller_mutability: summary_value(
+                family_groups
+                    .iter()
+                    .map(|group| group.controller_mutability.clone())
+                    .collect::<Vec<_>>()
+                    .as_slice(),
+            ),
             group_ids: family_groups
                 .iter()
                 .map(|group| group.group_id.clone())
@@ -49,15 +56,17 @@ where
 }
 
 fn family_status(statuses: &[String]) -> String {
-    let all_allowed = statuses.iter().all(|status| status == "allowed");
-    let all_manual_only = statuses.iter().all(|status| status == "manual_only");
-    let all_forbidden = statuses.iter().all(|status| status == "forbidden");
-    if all_allowed {
-        "allowed".to_string()
-    } else if all_manual_only {
-        "manual_only".to_string()
-    } else if all_forbidden {
-        "forbidden".to_string()
+    summary_value(statuses)
+}
+
+fn summary_value(values: &[String]) -> String {
+    let unique = values.iter().collect::<std::collections::BTreeSet<_>>();
+    if unique.len() == 1 {
+        unique
+            .into_iter()
+            .next()
+            .cloned()
+            .unwrap_or_else(|| "mixed".to_string())
     } else {
         "mixed".to_string()
     }
