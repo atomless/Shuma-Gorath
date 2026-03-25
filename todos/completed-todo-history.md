@@ -4,6 +4,46 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### RSI-GAME-1A: Canonical recursive-improvement game contract
+
+- [x] Added the canonical machine-first game-contract surface in:
+  - [`src/observability/operator_snapshot_objectives.rs`](../src/observability/operator_snapshot_objectives.rs)
+  so Shuma now has one explicit `recursive_improvement_game_contract_v1` naming:
+  - immutable rules
+  - evaluator scorecard boundary
+  - legal move ring
+  - safety gates
+  - regression anchors
+- [x] Added the explicit legal-move-ring helper in:
+  - [`src/config/controller_action_surface.rs`](../src/config/controller_action_surface.rs)
+  - [`src/config/mod.rs`](../src/config/mod.rs)
+  so later recursive phases can consume the controller-tunable move ring directly instead of reconstructing it from scattered `allowed_actions_v1` details.
+- [x] Projected the same contract through:
+  - [`src/observability/operator_snapshot.rs`](../src/observability/operator_snapshot.rs)
+  - [`src/observability/hot_read_contract.rs`](../src/observability/hot_read_contract.rs)
+  - [`src/admin/oversight_api.rs`](../src/admin/oversight_api.rs)
+  so both `operator_snapshot_v1` and `oversight_history_v1` now expose the same canonical answer to "what game is Shuma playing?"
+- [x] Added focused proof in:
+  - [`Makefile`](../Makefile)
+  - [`src/observability/operator_snapshot_objectives.rs`](../src/observability/operator_snapshot_objectives.rs)
+  - [`src/observability/operator_snapshot.rs`](../src/observability/operator_snapshot.rs)
+  - [`src/admin/api.rs`](../src/admin/api.rs)
+  - [`src/admin/oversight_api.rs`](../src/admin/oversight_api.rs)
+  with the new narrow target:
+  - `make test-rsi-game-contract`
+- [x] Updated the operator-facing contract docs in:
+  - [`docs/api.md`](../docs/api.md)
+  - [`docs/configuration.md`](../docs/configuration.md)
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`docs/research/2026-03-24-rsi-game-1a-canonical-game-contract-post-implementation-review.md`](../docs/research/2026-03-24-rsi-game-1a-canonical-game-contract-post-implementation-review.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+- [x] Why:
+  - later recursive-improvement work needed one canonical answer to what rules, evaluator, move ring, gates, and anchors it inherits
+  - without this slice, every later defender, attacker, scorecard, and audit tranche would have kept reconstructing the game from scattered modules
+- [x] Evidence:
+  - `make test-rsi-game-contract`
+  - `git diff --check`
+
 ### CTRL-SURFACE-3: Enforce and surface controller mutability truth
 
 - [x] Added explicit hard-boundary rejection in:

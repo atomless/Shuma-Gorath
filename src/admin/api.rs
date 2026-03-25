@@ -2327,6 +2327,21 @@ mod tests {
             .unwrap_or(false));
         assert_eq!(
             payload
+                .get("game_contract")
+                .and_then(|value| value.get("schema_version"))
+                .and_then(|value| value.as_str()),
+            Some("recursive_improvement_game_contract_v1")
+        );
+        assert_eq!(
+            payload
+                .get("game_contract")
+                .and_then(|value| value.get("legal_move_ring"))
+                .and_then(|value| value.get("legal_ring"))
+                .and_then(|value| value.as_str()),
+            Some("controller_tunable")
+        );
+        assert_eq!(
+            payload
                 .get("benchmark_results")
                 .and_then(|value| value.get("schema_version"))
                 .and_then(|value| value.as_str()),
@@ -2344,7 +2359,14 @@ mod tests {
                 .get("verified_identity")
                 .and_then(|value| value.get("availability"))
                 .and_then(|value| value.as_str()),
-            Some("not_configured")
+            Some("supported")
+        );
+        assert_eq!(
+            payload
+                .get("verified_identity")
+                .and_then(|value| value.get("enabled"))
+                .and_then(|value| value.as_bool()),
+            Some(true)
         );
         assert_eq!(
             payload

@@ -1,11 +1,17 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
+use crate::config::ControllerLegalMoveRingSurface;
+use crate::observability::benchmark_results::BENCHMARK_RESULTS_SCHEMA_VERSION;
+use crate::observability::benchmark_suite::benchmark_suite_v1;
 use crate::runtime::non_human_taxonomy::{
     canonical_non_human_taxonomy, posture_scale, NonHumanCategoryId,
 };
 
 pub(crate) const OPERATOR_OBJECTIVES_SCHEMA_VERSION: &str = "operator_objectives_v1";
+pub(crate) const RECURSIVE_IMPROVEMENT_GAME_CONTRACT_SCHEMA_VERSION: &str =
+    "recursive_improvement_game_contract_v1";
+const RECURSIVE_IMPROVEMENT_GAME_CONTRACT_ID: &str = "shuma_recursive_improvement_game_v1";
 
 const SITE_DEFAULT_OBJECTIVE_PROFILE_ID: &str = "site_default_v1";
 pub(super) const DEFAULT_WINDOW_HOURS: u64 = 24;
@@ -75,10 +81,173 @@ pub(crate) struct OperatorObjectivesUpsertRequest {
     pub rollout_guardrails: OperatorObjectivesRolloutGuardrails,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct RecursiveImprovementImmutableRules {
+    pub operator_rule_surface: String,
+    pub objective_revision: String,
+    pub compliance_semantics: String,
+    pub watch_window_hours: u64,
+    pub note: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct RecursiveImprovementEvaluatorScorecard {
+    pub benchmark_suite_schema_version: String,
+    pub benchmark_results_schema_version: String,
+    pub input_contract: String,
+    pub comparison_modes: Vec<String>,
+    pub subject_kinds: Vec<String>,
+    pub family_ids: Vec<String>,
+    pub decision_boundaries: Vec<String>,
+    pub note: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct RecursiveImprovementSafetyGate {
+    pub gate_id: String,
+    pub source_contract: String,
+    pub requirement: String,
+    pub failure_outcome: String,
+    pub note: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct RecursiveImprovementRegressionAnchor {
+    pub anchor_id: String,
+    pub source_contract: String,
+    pub availability: String,
+    pub requirement: String,
+    pub note: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct RecursiveImprovementGameContract {
+    pub schema_version: String,
+    pub contract_id: String,
+    pub immutable_rules: RecursiveImprovementImmutableRules,
+    pub evaluator_scorecard: RecursiveImprovementEvaluatorScorecard,
+    pub legal_move_ring: ControllerLegalMoveRingSurface,
+    pub safety_gates: Vec<RecursiveImprovementSafetyGate>,
+    pub regression_anchors: Vec<RecursiveImprovementRegressionAnchor>,
+}
+
 pub(crate) fn operator_objectives_watch_window_seconds(
     profile: &OperatorObjectivesProfile,
 ) -> u64 {
     profile.window_hours.saturating_mul(3600)
+}
+
+pub(crate) fn recursive_improvement_game_contract_v1(
+    objectives: &OperatorObjectivesProfile,
+    legal_move_ring: &ControllerLegalMoveRingSurface,
+) -> RecursiveImprovementGameContract {
+    let benchmark_suite = benchmark_suite_v1();
+
+    RecursiveImprovementGameContract {
+        schema_version: RECURSIVE_IMPROVEMENT_GAME_CONTRACT_SCHEMA_VERSION.to_string(),
+        contract_id: RECURSIVE_IMPROVEMENT_GAME_CONTRACT_ID.to_string(),
+        immutable_rules: RecursiveImprovementImmutableRules {
+            operator_rule_surface: objectives.schema_version.clone(),
+            objective_revision: objectives.revision.clone(),
+            compliance_semantics: objectives.compliance_semantics.clone(),
+            watch_window_hours: objectives.window_hours,
+            note: "operator_objectives_v1 is the site-owned rule surface for the game and must never be widened or rewritten by the controller.".to_string(),
+        },
+        evaluator_scorecard: RecursiveImprovementEvaluatorScorecard {
+            benchmark_suite_schema_version: benchmark_suite.schema_version,
+            benchmark_results_schema_version: BENCHMARK_RESULTS_SCHEMA_VERSION.to_string(),
+            input_contract: benchmark_suite.input_contract,
+            comparison_modes: benchmark_suite.comparison_modes,
+            subject_kinds: benchmark_suite.subject_kinds,
+            family_ids: benchmark_suite
+                .families
+                .into_iter()
+                .map(|family| family.id)
+                .collect(),
+            decision_boundaries: benchmark_suite
+                .decision_boundaries
+                .into_iter()
+                .map(|boundary| boundary.decision)
+                .collect(),
+            note: "benchmark_results_v1 is the independent machine-first judge surface. Later scorecard work may refine metric partitioning, but it must not replace this evaluator boundary."
+                .to_string(),
+        },
+        legal_move_ring: legal_move_ring.clone(),
+        safety_gates: vec![
+            RecursiveImprovementSafetyGate {
+                gate_id: "stale_evidence_refusal".to_string(),
+                source_contract: "operator_snapshot_v1.section_metadata".to_string(),
+                requirement:
+                    "live_traffic, adversary_sim, benchmark_results, and replay_promotion must remain fresh for the current watch window.".to_string(),
+                failure_outcome: "refuse_stale_evidence".to_string(),
+                note: "The defender must fail closed when required evidence is older than the active watch window."
+                    .to_string(),
+            },
+            RecursiveImprovementSafetyGate {
+                gate_id: "contradictory_evidence_refusal".to_string(),
+                source_contract: "operator_snapshot_v1 + benchmark_results_v1".to_string(),
+                requirement:
+                    "benchmark input snapshot and watch-window identity must agree with the snapshot under review.".to_string(),
+                failure_outcome: "refuse_contradictory_evidence".to_string(),
+                note: "The defender must not act when bounded evidence surfaces disagree about the current subject."
+                    .to_string(),
+            },
+            RecursiveImprovementSafetyGate {
+                gate_id: "tuning_eligibility_guardrail".to_string(),
+                source_contract: "benchmark_results_v1.tuning_eligibility".to_string(),
+                requirement:
+                    "protected evidence, category coverage, and verified-identity no-harm checks must remain eligible before tuning.".to_string(),
+                failure_outcome: "observe_longer".to_string(),
+                note: "Outside-budget pressure alone is insufficient when protected or category-aware evidence is not yet trustworthy."
+                    .to_string(),
+            },
+            RecursiveImprovementSafetyGate {
+                gate_id: "manual_review_guardrail".to_string(),
+                source_contract:
+                    "operator_objectives_v1.rollout_guardrails + benchmark_results_v1.escalation_hint.review_status"
+                        .to_string(),
+                requirement: "config recommendations remain manual-review bounded until rollout guardrails explicitly relax."
+                    .to_string(),
+                failure_outcome: "manual_review_required".to_string(),
+                note: "The current game contract is recommend-only and must not silently widen into autonomous apply."
+                    .to_string(),
+            },
+        ],
+        regression_anchors: vec![
+            RecursiveImprovementRegressionAnchor {
+                anchor_id: "prior_window_comparison".to_string(),
+                source_contract: "benchmark_results_v1".to_string(),
+                availability: "active".to_string(),
+                requirement: format!(
+                    "Episode progress must remain comparable through the {} comparison mode.",
+                    objectives.adversary_sim_expectations.comparison_mode
+                ),
+                note: "Improvement_status and baseline deltas remain authoritative machine-first progress anchors."
+                    .to_string(),
+            },
+            RecursiveImprovementRegressionAnchor {
+                anchor_id: "representative_adversary_regression_status".to_string(),
+                source_contract: "operator_objectives_v1.adversary_sim_expectations".to_string(),
+                availability: "active".to_string(),
+                requirement: format!(
+                    "Representative adversary episodes must continue to satisfy {}.",
+                    objectives.adversary_sim_expectations.regression_status_required
+                ),
+                note: "Adversary-sim regression is already part of the rule contract and must remain independent of player preference."
+                    .to_string(),
+            },
+            RecursiveImprovementRegressionAnchor {
+                anchor_id: "strict_reference_stance".to_string(),
+                source_contract: "RSI-METH-1".to_string(),
+                availability: "deferred".to_string(),
+                requirement:
+                    "Later code evolution must continue to pass the strict Human-only / private reference stance."
+                        .to_string(),
+                note: "The stricter development reference stance is intentionally deferred, but the game contract names it now so later autonomy cannot omit it."
+                    .to_string(),
+            },
+        ],
+    }
 }
 
 pub(crate) fn default_operator_objectives(updated_at_ts: u64) -> OperatorObjectivesProfile {
@@ -353,11 +522,12 @@ fn validate_category_postures(
 mod tests {
     use super::{
         default_operator_objectives, persisted_operator_objectives_from_request,
-        validate_operator_objectives, OperatorObjectiveAdversarySimExpectations,
-        OperatorObjectiveBudget, OperatorObjectiveCategoryPosture,
-        OperatorObjectivesRolloutGuardrails,
+        recursive_improvement_game_contract_v1, validate_operator_objectives,
+        OperatorObjectiveAdversarySimExpectations, OperatorObjectiveBudget,
+        OperatorObjectiveCategoryPosture, OperatorObjectivesRolloutGuardrails,
         OperatorObjectivesUpsertRequest, OPERATOR_OBJECTIVES_SCHEMA_VERSION,
     };
+    use crate::config::controller_legal_move_ring_v1;
 
     #[test]
     fn default_operator_objectives_expose_site_owned_profile_and_budget_catalog() {
@@ -502,5 +672,46 @@ mod tests {
         let error = validate_operator_objectives(&invalid).expect_err("profile rejected");
 
         assert!(error.contains("category_postures") || error.contains("duplicate metric"));
+    }
+
+    #[test]
+    fn recursive_improvement_game_contract_names_rules_evaluator_moves_gates_and_anchors() {
+        let objectives = default_operator_objectives(1_700_000_000);
+        let legal_move_ring = controller_legal_move_ring_v1();
+        let contract = recursive_improvement_game_contract_v1(&objectives, &legal_move_ring);
+
+        assert_eq!(
+            contract.schema_version,
+            "recursive_improvement_game_contract_v1"
+        );
+        assert_eq!(contract.contract_id, "shuma_recursive_improvement_game_v1");
+        assert_eq!(
+            contract.immutable_rules.operator_rule_surface,
+            "operator_objectives_v1"
+        );
+        assert_eq!(
+            contract.evaluator_scorecard.benchmark_results_schema_version,
+            "benchmark_results_v1"
+        );
+        assert!(contract
+            .evaluator_scorecard
+            .family_ids
+            .contains(&"representative_adversary_effectiveness".to_string()));
+        assert_eq!(
+            contract.legal_move_ring.legal_ring,
+            "controller_tunable"
+        );
+        assert!(contract
+            .legal_move_ring
+            .controller_tunable_group_ids
+            .contains(&"not_a_bot.policy".to_string()));
+        assert!(contract
+            .safety_gates
+            .iter()
+            .any(|gate| gate.gate_id == "stale_evidence_refusal"));
+        assert!(contract
+            .regression_anchors
+            .iter()
+            .any(|anchor| anchor.anchor_id == "prior_window_comparison"));
     }
 }

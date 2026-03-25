@@ -270,8 +270,22 @@ pub(crate) fn handle_admin_oversight_history(
     if *req.method() != Method::Get {
         return Response::new(405, "Method Not Allowed");
     }
+    let now = crate::admin::now_ts();
+    let objectives =
+        crate::observability::operator_objectives_store::load_operator_objectives(store, site_id)
+            .unwrap_or_else(|| {
+                crate::observability::operator_snapshot_objectives::default_operator_objectives(
+                    now,
+                )
+            });
+    let game_contract =
+        crate::observability::operator_snapshot_objectives::recursive_improvement_game_contract_v1(
+            &objectives,
+            &crate::config::controller_legal_move_ring_v1(),
+        );
     let body = serde_json::to_string(&json!({
         "schema_version": OVERSIGHT_HISTORY_SCHEMA_VERSION,
+        "game_contract": game_contract,
         "rows": load_recent_decisions(store, site_id),
     }))
     .unwrap_or_else(|_| "{}".to_string());
@@ -759,6 +773,14 @@ mod tests {
             serde_json::from_slice(history_response.body()).expect("history decodes");
         assert_eq!(history_payload["schema_version"], "oversight_history_v1");
         assert_eq!(history_payload["rows"].as_array().expect("rows array").len(), 1);
+        assert_eq!(
+            history_payload["game_contract"]["schema_version"],
+            "recursive_improvement_game_contract_v1"
+        );
+        assert_eq!(
+            history_payload["game_contract"]["legal_move_ring"]["legal_ring"],
+            "controller_tunable"
+        );
     }
 
     #[test]

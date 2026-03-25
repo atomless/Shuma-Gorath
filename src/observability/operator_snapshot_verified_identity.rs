@@ -221,7 +221,10 @@ mod tests {
 
     #[test]
     fn verified_identity_summary_marks_disabled_sites_as_not_configured() {
-        let cfg = defaults().clone();
+        let mut cfg = defaults().clone();
+        cfg.verified_identity.enabled = false;
+        cfg.verified_identity.native_web_bot_auth_enabled = false;
+        cfg.verified_identity.provider_assertions_enabled = false;
         let snapshot = verified_identity_summary(&MonitoringSummary::default(), &cfg, &[]);
 
         assert_eq!(snapshot.availability, "not_configured");

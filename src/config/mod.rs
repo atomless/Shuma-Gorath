@@ -26,7 +26,7 @@ mod runtime_env;
 pub(crate) use runtime_env::{clear_test_spin_variables, set_test_spin_variable};
 pub(crate) use controller_action_surface::{
     allowed_actions_v1, controller_action_family_targets, controller_config_family_for_patch_key,
-    AllowedActionsSurface,
+    controller_legal_move_ring_v1, AllowedActionsSurface, ControllerLegalMoveRingSurface,
 };
 #[cfg(test)]
 pub(crate) use controller_mutability_policy::{

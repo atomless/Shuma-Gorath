@@ -104,18 +104,18 @@ Reference context:
 
 ### RSI-GAME-MAINLINE-1: First working self-improving loop over attacker-faithful Scrapling
 - After the Scrapling-owned surfaces are attacker-faithful and receipt-backed, execute the first explicit self-improving loop over that truthful attacker basis.
-- Before broadening that loop, land the judge-side game-contract work (`RSI-GAME-1A`, `RSI-GAME-1B`, `RSI-SCORE-1`, and `RSI-GAME-1C`) so the loop runs over a settled legal move ring and explicit judge semantics.
+- Before broadening that loop, land the remaining judge-side game-contract work (`RSI-GAME-1B`, `RSI-SCORE-1`, and `RSI-GAME-1C`) so the loop runs over a settled legal move ring and explicit judge semantics.
 - Keep this ahead of later LLM attacker or defender runtime work, and ahead of secondary dashboard cleanup follow-ons.
 
 Mainline execution order:
-1. `SIM-SCR-CHALLENGE-2A`
-2. `SIM-SCR-CHALLENGE-2B`
-3. `SIM-SCR-CHALLENGE-2C` only if `2D` proves a remaining Scrapling-owned surface requires browser or stealth Scrapling
-4. `RSI-GAME-1A`
-5. `RSI-GAME-1B`
-6. `RSI-SCORE-1`
-7. `RSI-GAME-1C`
-8. `RSI-GAME-MAINLINE-1`
+1. `RSI-GAME-1B`
+2. `RSI-SCORE-1`
+3. `RSI-GAME-1C`
+4. `RSI-GAME-MAINLINE-1`
+
+Current note:
+- `SIM-SCR-CHALLENGE-2A`, `SIM-SCR-CHALLENGE-2B`, and `SIM-SCR-CHALLENGE-2D` are landed.
+- `SIM-SCR-CHALLENGE-2C` stays conditional and blocked until the owned-surface matrix proves browser or stealth Scrapling is truly required for a remaining Scrapling-owned surface.
 
 ### DIAG-CLEANUP-1: Diagnostics furniture-operational cleanup after Traffic split
 - After `TRAFFIC-TAB-1` lands, remove the migrated traffic-facing sections from Diagnostics so it becomes clearly diagnostics-first and furniture-operational.

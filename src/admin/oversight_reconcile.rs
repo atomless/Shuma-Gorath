@@ -363,6 +363,7 @@ mod tests {
             end_ts: generated_at,
             duration_seconds: 86_400,
         };
+        let objectives = default_operator_objectives(generated_at);
         let benchmark_results = BenchmarkResultsPayload {
             schema_version: BENCHMARK_RESULTS_SCHEMA_VERSION.to_string(),
             suite_version: BENCHMARK_SUITE_SCHEMA_VERSION.to_string(),
@@ -441,6 +442,7 @@ mod tests {
             "objectives",
             "live_traffic",
             "adversary_sim",
+            "game_contract",
             "benchmark_results",
             "non_human_traffic",
             "replay_promotion",
@@ -460,7 +462,7 @@ mod tests {
             generated_at,
             window: window.clone(),
             section_metadata,
-            objectives: default_operator_objectives(generated_at),
+            objectives: objectives.clone(),
             live_traffic: OperatorSnapshotLiveTraffic {
                 traffic_origin: "live".to_string(),
                 measurement_scope: "ingress_primary".to_string(),
@@ -556,6 +558,11 @@ mod tests {
                 receipts: Vec::new(),
             },
             allowed_actions: allowed_actions_v1(),
+            game_contract:
+                crate::observability::operator_snapshot_objectives::recursive_improvement_game_contract_v1(
+                    &objectives,
+                    &crate::config::controller_legal_move_ring_v1(),
+                ),
             benchmark_results,
             verified_identity: OperatorSnapshotVerifiedIdentitySummary {
                 availability: "not_configured".to_string(),

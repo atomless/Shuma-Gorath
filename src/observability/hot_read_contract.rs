@@ -129,7 +129,7 @@ const MONITORING_BOOTSTRAP_COMPONENTS: [HotReadComponentContract; 7] = [
     },
 ];
 
-const OPERATOR_SNAPSHOT_COMPONENTS: [HotReadComponentContract; 12] = [
+const OPERATOR_SNAPSHOT_COMPONENTS: [HotReadComponentContract; 13] = [
     HotReadComponentContract {
         key: "objectives",
         exactness: TelemetryExactness::Exact,
@@ -219,6 +219,15 @@ const OPERATOR_SNAPSHOT_COMPONENTS: [HotReadComponentContract; 12] = [
         canonical_source: HotReadCanonicalSource::DirectStateSnapshot,
         projection_model: HotReadProjectionModel::DeterministicRebuild,
         note: "Allowed-actions surface enumerates the bounded controller write contract, including allowed, manual-only, and forbidden config groups plus canary guardrails.",
+    },
+    HotReadComponentContract {
+        key: "game_contract",
+        exactness: TelemetryExactness::Derived,
+        basis: TelemetryBasis::Policy,
+        ownership_tier: HotReadOwnershipTier::BootstrapCritical,
+        canonical_source: HotReadCanonicalSource::DirectStateSnapshot,
+        projection_model: HotReadProjectionModel::DeterministicRebuild,
+        note: "Game-contract surface names the immutable rules, evaluator boundary, legal move ring, safety gates, and regression anchors that later recursive-improvement phases must inherit.",
     },
     HotReadComponentContract {
         key: "verified_identity",
@@ -370,6 +379,7 @@ mod tests {
         assert!(keys.contains(&"non_human_traffic"));
         assert!(keys.contains(&"benchmark_results"));
         assert!(keys.contains(&"runtime_posture"));
+        assert!(keys.contains(&"game_contract"));
         assert!(keys.contains(&"replay_promotion"));
     }
 }

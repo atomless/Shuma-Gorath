@@ -3,11 +3,15 @@ use super::controller_action_catalog::{
     ALLOWED_ACTION_GROUP_DEFINITIONS,
 };
 use super::controller_action_guardrails::{build_family_summaries, group_ids_with_status};
-use super::controller_mutability_policy::allowed_actions_status_for_admin_config_paths;
+use super::controller_mutability_policy::{
+    allowed_actions_status_for_admin_config_paths, CONTROLLER_MUTABILITY_SCHEMA_VERSION,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 pub(crate) const ALLOWED_ACTIONS_SCHEMA_VERSION: &str = "allowed_actions_v1";
+pub(crate) const CONTROLLER_LEGAL_MOVE_RING_SCHEMA_VERSION: &str =
+    "controller_legal_move_ring_v1";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub(crate) struct AllowedActionValueConstraint {
@@ -53,6 +57,21 @@ pub(crate) struct AllowedActionsSurface {
     pub allowed_group_ids: Vec<String>,
     pub manual_only_group_ids: Vec<String>,
     pub forbidden_group_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct ControllerLegalMoveRingSurface {
+    pub schema_version: String,
+    pub controller_mutability_schema_version: String,
+    pub allowed_actions_schema_version: String,
+    pub write_surface: String,
+    pub proposal_mode: String,
+    pub legal_ring: String,
+    pub non_legal_rings: Vec<String>,
+    pub controller_tunable_group_ids: Vec<String>,
+    pub controller_tunable_family_ids: Vec<String>,
+    pub review_posture: String,
+    pub note: String,
 }
 
 fn build_value_constraint(
@@ -138,5 +157,30 @@ pub(crate) fn allowed_actions_v1() -> AllowedActionsSurface {
         allowed_group_ids,
         manual_only_group_ids,
         forbidden_group_ids,
+    }
+}
+
+pub(crate) fn controller_legal_move_ring_v1() -> ControllerLegalMoveRingSurface {
+    let allowed_actions = allowed_actions_v1();
+    let controller_tunable_family_ids = allowed_actions
+        .families
+        .iter()
+        .filter(|family| family.controller_status == "allowed")
+        .map(|family| family.family.clone())
+        .collect();
+
+    ControllerLegalMoveRingSurface {
+        schema_version: CONTROLLER_LEGAL_MOVE_RING_SCHEMA_VERSION.to_string(),
+        controller_mutability_schema_version: CONTROLLER_MUTABILITY_SCHEMA_VERSION.to_string(),
+        allowed_actions_schema_version: allowed_actions.schema_version.clone(),
+        write_surface: allowed_actions.write_surface,
+        proposal_mode: allowed_actions.proposal_mode,
+        legal_ring: "controller_tunable".to_string(),
+        non_legal_rings: vec!["manual_only".to_string(), "never".to_string()],
+        controller_tunable_group_ids: allowed_actions.allowed_group_ids,
+        controller_tunable_family_ids,
+        review_posture: "manual_review_required".to_string(),
+        note: "The controller's legal move set is the controller-tunable ring only. Admin writability alone does not make a surface legal for the recursive-improvement game."
+            .to_string(),
     }
 }

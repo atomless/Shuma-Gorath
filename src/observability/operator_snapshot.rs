@@ -27,7 +27,7 @@ pub(crate) use super::operator_snapshot_live_traffic::{
     OperatorSnapshotRecentSimRun, OperatorSnapshotShadowMode,
 };
 pub(crate) use super::operator_snapshot_objectives::{
-    OperatorObjectiveBudget, OperatorObjectivesProfile,
+    OperatorObjectiveBudget, OperatorObjectivesProfile, RecursiveImprovementGameContract,
 };
 pub(crate) use super::operator_snapshot_non_human::OperatorSnapshotNonHumanTrafficSummary;
 pub(crate) use super::operator_snapshot_recent_changes::{
@@ -89,6 +89,7 @@ pub(crate) struct OperatorSnapshotHotReadPayload {
     pub budget_distance: OperatorBudgetDistanceSummary,
     pub non_human_traffic: OperatorSnapshotNonHumanTrafficSummary,
     pub allowed_actions: AllowedActionsSurface,
+    pub game_contract: RecursiveImprovementGameContract,
     pub benchmark_results: BenchmarkResultsPayload,
     pub verified_identity: OperatorSnapshotVerifiedIdentitySummary,
     pub replay_promotion: ReplayPromotionSummary,
@@ -159,6 +160,11 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
     let non_human_traffic =
         super::operator_snapshot_non_human::non_human_traffic_summary(summary, recent_sim_runs);
     let allowed_actions = crate::config::allowed_actions_v1();
+    let legal_move_ring = crate::config::controller_legal_move_ring_v1();
+    let game_contract = super::operator_snapshot_objectives::recursive_improvement_game_contract_v1(
+        &objectives,
+        &legal_move_ring,
+    );
     let cfg = crate::config::load_runtime_cached(store, site_id)
         .unwrap_or_else(|_| crate::config::defaults().clone());
     let verified_identity =
@@ -213,6 +219,7 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
         budget_distance,
         non_human_traffic,
         allowed_actions,
+        game_contract,
         benchmark_results,
         verified_identity,
         replay_promotion,
@@ -247,6 +254,7 @@ fn operator_snapshot_section_metadata(
                 "live_traffic" | "shadow_mode" | "budget_distance" => summary_refreshed_at_ts,
                 "adversary_sim" => recent_sim_runs_refreshed_at_ts,
                 "recent_changes" => recent_changes_refreshed_at_ts,
+                "game_contract" => objectives_refreshed_at_ts,
                 "benchmark_results" => benchmark_results_refreshed_at_ts,
                 "non_human_traffic" => non_human_traffic_refreshed_at_ts,
                 "verified_identity" => verified_identity_refreshed_at_ts,
@@ -594,9 +602,23 @@ mod tests {
                 None,
             )
         );
-        assert_eq!(payload.verified_identity.availability, "not_configured");
+        assert_eq!(payload.verified_identity.availability, "supported");
+        assert!(payload.verified_identity.enabled);
         assert_eq!(payload.verified_identity.attempts, 0);
         assert_eq!(payload.replay_promotion.availability, "not_materialized");
+        assert_eq!(
+            payload.game_contract.schema_version,
+            "recursive_improvement_game_contract_v1"
+        );
+        assert_eq!(
+            payload.game_contract.legal_move_ring.allowed_actions_schema_version,
+            "allowed_actions_v1"
+        );
+        assert!(payload
+            .game_contract
+            .safety_gates
+            .iter()
+            .any(|gate| gate.gate_id == "manual_review_guardrail"));
     }
 
     #[test]
