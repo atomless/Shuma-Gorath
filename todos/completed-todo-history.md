@@ -4,6 +4,32 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-25)
 
+### `SIM-SCR-FULL-1A` Refreshed Full-Power Scrapling Capability Matrix
+
+- [x] Replaced the older request-native-bounded Scrapling matrix as the current mainline source of truth by creating:
+  - [`docs/research/2026-03-25-sim-scr-full-1a-non-agent-capability-matrix-refresh-review.md`](../docs/research/2026-03-25-sim-scr-full-1a-non-agent-capability-matrix-refresh-review.md)
+  - [`docs/plans/2026-03-25-sim-scr-full-1a-non-agent-capability-matrix-refresh-plan.md`](../docs/plans/2026-03-25-sim-scr-full-1a-non-agent-capability-matrix-refresh-plan.md)
+  - [`docs/research/2026-03-25-sim-scr-full-1a-non-agent-capability-matrix-refresh-post-implementation-review.md`](../docs/research/2026-03-25-sim-scr-full-1a-non-agent-capability-matrix-refresh-post-implementation-review.md)
+  so the repo now treats dynamic and stealth Scrapling capability for Scrapling-owned surfaces as in-scope by default under the fuller non-agent remit.
+- [x] Re-threaded the active planning chain in:
+  - [`docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](../docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)
+  - [`docs/plans/2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md`](../docs/plans/2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md)
+  - [`docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](../docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md)
+  - [`docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md`](../docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md)
+  so the current request-native proof is now explicitly treated as baseline context rather than the current maturity target.
+- [x] Updated the backlog and indexes in:
+  - [`todos/todo.md`](../todos/todo.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+  - [`docs/plans/README.md`](../docs/plans/README.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  so `SIM-SCR-FULL-1B` is the next active slice and `SIM-SCR-BROWSER-1` stays limited to the later `automated_browser` category question.
+- [x] Why:
+  - the user explicitly tightened the project principle from “widen only if a later local gap proves it” to “use the full attacker-relevant Scrapling capability for the non-agent remit unless an omission is explicitly justified,”
+  - and the planning chain still contained stale wording that treated browser or stealth Scrapling as assigned away by default.
+- [x] Evidence:
+  - official Scrapling docs for static, dynamic, and stealth fetchers
+  - `git diff --check`
+
 ### `STANCE-MODEL-1C` Resolved Policy Benchmark And Game Loop Alignment
 
 - [x] Rebased the category-policy truth path in:

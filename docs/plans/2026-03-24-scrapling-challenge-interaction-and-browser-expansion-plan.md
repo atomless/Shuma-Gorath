@@ -4,7 +4,7 @@
 
 **Goal:** Define the work needed to make Shuma adopt attacker-relevant upstream Scrapling capability by default for Scrapling-owned surfaces, while keeping broader category-ownership questions separate.
 
-**Architecture:** Keep the current request-native Scrapling ownership truthful as the baseline, but stop treating fuller attacker-relevant capability as a merely reluctant contingency. First freeze an upstream capability matrix and explicit omission ledger for Scrapling-owned surfaces, then determine which additional owned-surface interactions stay request-native and which genuinely require Scrapling's browser or stealth runtime. Keep browser-runtime adoption for `automated_browser` as a distinct later step rather than collapsing all widened Scrapling work into one vague bucket.
+**Architecture:** Keep the current request-native Scrapling ownership truthful as the baseline, but stop treating fuller attacker-relevant capability as a merely reluctant contingency. The earlier `SIM-SCR-CAP-1` matrix is now only a request-native baseline; `SIM-SCR-FULL-1A` supersedes it for the full non-agent remit. Determine which additional owned-surface interactions stay request-native and which genuinely require Scrapling's dynamic or stealth runtime. Keep browser-runtime adoption for `automated_browser` as a distinct later step rather than collapsing all widened Scrapling work into one vague bucket.
 
 **Tech Stack:** Rust adversary-sim control plane, Python Scrapling worker, repo-owned Scrapling runtime bootstrap, canonical taxonomy and coverage receipts, Makefile verification, official Scrapling browser or stealth fetcher documentation.
 
@@ -20,6 +20,7 @@
 6. Judge all later adversary-lane expansion by attacker-faithfulness: if Shuma expects the lane to represent malicious automation against a surface, the lane must use the tool the way a real attacker would use it for that surface within Shuma's scope and safety boundaries.
 7. Treat attacker-relevant upstream Scrapling capability for Scrapling-owned surfaces as a default-adopt expectation; any omission must be explicit and justified.
 8. Maintain a standing upstream Scrapling capability watch. When Scrapling adds attacker-relevant capability, refresh the research, plan, and backlog chain before claiming Shuma has or does not need that capability.
+9. Do not preserve stale wording that assigns dynamic or stealth Scrapling away by default merely because the earlier request-native baseline was already receipt-backed.
 
 ## Ongoing Hygiene Rule
 

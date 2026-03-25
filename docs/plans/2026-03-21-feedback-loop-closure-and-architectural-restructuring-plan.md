@@ -252,10 +252,12 @@ The separate widened Scrapling defense-surface evaluation is now partially lande
 
 The Scrapling capability-maintenance sequence is now:
 
-1. `SIM-SCR-CAP-1` has now frozen the attacker-relevant upstream Scrapling capability matrix and explicit omission ledger for Scrapling-owned surfaces,
-2. that matrix said the immediate remaining gap was request-native attacker fidelity inside the current lane rather than an automatic browser-runtime jump,
-3. `SIM-SCR-RN-1` is now landed as the request-native attacker-fidelity closeout,
-4. and `SIM-SCR-CHALLENGE-2C` should reopen only if a later owned-surface decision or request-native insufficiency proves browser or stealth Scrapling is truly required.
+1. `SIM-SCR-CAP-1` froze the narrower request-native baseline and omission ledger needed to stop overclaiming,
+2. `SIM-SCR-RN-1` then closed the request-native attacker-fidelity gap inside that narrower baseline,
+3. `SIM-SCR-FULL-1A` now refreshes that matrix for the fuller non-agent remit and no longer assigns dynamic or stealth Scrapling away by default for Scrapling-owned surfaces,
+4. `SIM-SCR-FULL-1B` is therefore the next active implementation slice,
+5. `SIM-SCR-CHALLENGE-2C` should now reopen only if the refreshed full-power matrix still leaves a bounded broader browser or stealth follow-on after `SIM-SCR-FULL-1B`,
+6. and `SIM-SCR-BROWSER-1` remains the separate later `automated_browser` category question rather than a catch-all for every wider Scrapling capability.
 
 This prerequisite should remain distinct from the broader `automated_browser` ownership question.
 

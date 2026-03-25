@@ -4,9 +4,11 @@ Status: Proposed
 Related context:
 
 - [`../research/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-review.md`](../research/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-review.md)
+- [`../research/2026-03-25-sim-scr-full-1a-non-agent-capability-matrix-refresh-review.md`](../research/2026-03-25-sim-scr-full-1a-non-agent-capability-matrix-refresh-review.md)
 - [`2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md`](2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md)
 - [`2026-03-24-rsi-game-mainline-first-working-loop-plan.md`](2026-03-24-rsi-game-mainline-first-working-loop-plan.md)
 - [`2026-03-25-scrapling-full-attacker-capability-principle-plan.md`](2026-03-25-scrapling-full-attacker-capability-principle-plan.md)
+- [`2026-03-25-sim-scr-full-1a-non-agent-capability-matrix-refresh-plan.md`](2026-03-25-sim-scr-full-1a-non-agent-capability-matrix-refresh-plan.md)
 - [`../../todos/todo.md`](../../todos/todo.md)
 - [`../../todos/blocked-todo.md`](../../todos/blocked-todo.md)
 
@@ -42,7 +44,9 @@ Required contract:
 
 1. identify the full attacker-relevant upstream Scrapling capability set Shuma expects to own in Scrapling,
 2. include request-native, browser, stealth, challenge-interaction, and bypass-style capability where relevant,
-3. and record explicit exclusions only where they are intentionally out of scope for Scrapling.
+3. keep browser or stealth capability for Scrapling-owned surfaces in scope by default rather than assigning it away by default,
+4. keep `automated_browser` category ownership as a separate later question,
+5. and record explicit exclusions only where they are intentionally out of scope for Scrapling.
 
 ### `SIM-SCR-FULL-1B`
 
