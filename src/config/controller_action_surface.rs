@@ -3,6 +3,7 @@ use super::controller_action_catalog::{
     ALLOWED_ACTION_GROUP_DEFINITIONS,
 };
 use super::controller_action_guardrails::{build_family_summaries, group_ids_with_status};
+use super::controller_mutability_policy::allowed_actions_status_for_admin_config_paths;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -75,7 +76,9 @@ fn build_group(definition: &AllowedActionGroupDefinition) -> AllowedActionGroup 
     AllowedActionGroup {
         group_id: definition.group_id.to_string(),
         family: definition.family.to_string(),
-        controller_status: definition.controller_status.to_string(),
+        controller_status: allowed_actions_status_for_admin_config_paths(definition.patch_paths)
+            .expect("allowed-actions groups must resolve through the canonical mutability policy")
+            .to_string(),
         canary_requirement: definition.canary_requirement.to_string(),
         patch_paths: definition
             .patch_paths

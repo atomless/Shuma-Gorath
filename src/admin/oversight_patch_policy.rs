@@ -306,8 +306,7 @@ fn family_patch(
 
 fn family_is_proposable(allowed_actions: &AllowedActionsSurface, family: &str) -> bool {
     allowed_actions.groups.iter().any(|group| {
-        group.family == family
-            && matches!(group.controller_status.as_str(), "allowed" | "manual_only")
+        group.family == family && group.controller_status == "allowed"
     })
 }
 
@@ -324,7 +323,7 @@ fn matched_groups_for_patch<'a>(
             .find(|group| {
                 group.family == family
                     && group.patch_paths.iter().any(|path| path == key)
-                    && matches!(group.controller_status.as_str(), "allowed" | "manual_only")
+                    && group.controller_status == "allowed"
             })
             .ok_or_else(|| OversightPatchPolicyError::InvalidPatch(key.clone()))?;
         if !groups
@@ -450,6 +449,48 @@ mod tests {
 
         assert_eq!(proposal.patch_family, "not_a_bot");
         assert_eq!(proposal.patch["not_a_bot_risk_threshold"], 3);
+    }
+
+    #[test]
+    fn challenge_threshold_patch_matches_challenge_family_metadata() {
+        let mut cfg = defaults().clone();
+        cfg.challenge_puzzle_risk_threshold = 5;
+
+        let proposal = propose_patch(
+            &cfg,
+            &allowed_actions_v1(),
+            &["challenge".to_string()],
+            OversightPressure::ReduceLikelyHumanFriction,
+            &ReplayPromotionSummary::not_materialized(),
+        )
+        .expect("proposal builds");
+
+        assert_eq!(proposal.patch_family, "challenge");
+        assert_eq!(proposal.patch["challenge_puzzle_risk_threshold"], 6);
+        assert_eq!(proposal.matched_group_ids, vec!["challenge.policy".to_string()]);
+        assert_eq!(proposal.controller_status, "allowed");
+    }
+
+    #[test]
+    fn mixed_family_with_allowed_group_remains_proposable() {
+        let mut cfg = defaults().clone();
+        cfg.js_required_enforced = true;
+
+        let proposal = propose_patch(
+            &cfg,
+            &allowed_actions_v1(),
+            &["core_policy".to_string()],
+            OversightPressure::ReduceLikelyHumanFriction,
+            &ReplayPromotionSummary::not_materialized(),
+        )
+        .expect("proposal builds");
+
+        assert_eq!(proposal.patch_family, "core_policy");
+        assert_eq!(proposal.patch["js_required_enforced"], false);
+        assert_eq!(
+            proposal.matched_group_ids,
+            vec!["core_policy.js_required_toggle".to_string()]
+        );
     }
 
     #[test]

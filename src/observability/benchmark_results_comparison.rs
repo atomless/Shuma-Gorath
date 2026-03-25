@@ -130,31 +130,25 @@ pub(super) fn derive_escalation_hint(
             continue;
         }
 
-        let matching_surface_families: Vec<_> = allowed_actions
-            .families
+        let matching_surface_groups: Vec<_> = allowed_actions
+            .groups
             .iter()
-            .filter(|allowed_family| mapped_families.contains(&allowed_family.family.as_str()))
+            .filter(|allowed_group| mapped_families.contains(&allowed_group.family.as_str()))
             .collect();
 
-        if matching_surface_families.is_empty() {
+        if matching_surface_groups.is_empty() {
             blockers.insert("no_matching_config_surface".to_string());
             continue;
         }
 
-        let has_addressable_surface = matching_surface_families.iter().any(|allowed_family| {
-            matches!(
-                allowed_family.controller_status.as_str(),
-                "allowed" | "manual_only"
-            )
-        });
+        let has_addressable_surface = matching_surface_groups
+            .iter()
+            .any(|allowed_group| allowed_group.controller_status == "allowed");
 
         if has_addressable_surface {
-            for allowed_family in matching_surface_families {
-                if matches!(
-                    allowed_family.controller_status.as_str(),
-                    "allowed" | "manual_only"
-                ) {
-                    candidate_action_families.insert(allowed_family.family.clone());
+            for allowed_group in matching_surface_groups {
+                if allowed_group.controller_status == "allowed" {
+                    candidate_action_families.insert(allowed_group.family.clone());
                 }
             }
         } else {
@@ -190,11 +184,8 @@ pub(super) fn derive_escalation_hint(
 fn benchmark_action_families(family_id: &str) -> &'static [&'static str] {
     match family_id {
         "suspicious_origin_cost" => &[
-            "geo_policy",
-            "ip_range_policy",
-            "honeypot",
             "maze_core",
-            "tarpit",
+            "core_policy",
             "proof_of_work",
             "challenge",
             "not_a_bot",
@@ -204,14 +195,13 @@ fn benchmark_action_families(family_id: &str) -> &'static [&'static str] {
         ],
         "likely_human_friction" => &[
             "core_policy",
-            "browser_policy",
             "proof_of_work",
             "challenge",
             "not_a_bot",
             "botness",
             "maze_core",
         ],
-        "non_human_category_posture" => &["robots_policy", "verified_identity"],
+        "non_human_category_posture" => &[],
         _ => &[],
     }
 }
@@ -299,6 +289,38 @@ mod tests {
         assert!(hint
             .candidate_action_families
             .contains(&"challenge".to_string()));
+        assert!(hint
+            .candidate_action_families
+            .contains(&"core_policy".to_string()));
+        assert!(!hint
+            .candidate_action_families
+            .contains(&"browser_policy".to_string()));
+    }
+
+    #[test]
+    fn escalation_hint_filters_out_controller_forbidden_families() {
+        let hint = derive_escalation_hint(
+            &allowed_actions_v1(),
+            &[family(
+                "suspicious_origin_cost",
+                "outside_budget",
+                "partially_supported",
+            )],
+        );
+
+        assert_eq!(hint.decision, "config_tuning_candidate");
+        assert!(hint
+            .candidate_action_families
+            .contains(&"fingerprint_signal".to_string()));
+        assert!(hint
+            .candidate_action_families
+            .contains(&"cdp_detection".to_string()));
+        assert!(!hint
+            .candidate_action_families
+            .contains(&"geo_policy".to_string()));
+        assert!(!hint
+            .candidate_action_families
+            .contains(&"ip_range_policy".to_string()));
     }
 
     #[test]

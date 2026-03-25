@@ -4,6 +4,37 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### CTRL-SURFACE-2: Allowed-action and proposer parity over the ratified tunable set
+
+- [x] Rewired the live controller action surface in:
+  - [`src/config/controller_action_surface.rs`](../src/config/controller_action_surface.rs)
+  - [`src/config/controller_action_catalog.rs`](../src/config/controller_action_catalog.rs)
+  so `allowed_actions_v1` now derives group status from the canonical mutability policy rather than stale catalog-local status strings.
+- [x] Removed read-only drift from the catalog by dropping `ip_range_suggestions_*` from the controller write surface, and moved `challenge_puzzle_risk_threshold` ownership fully into the `challenge` family so family mapping, constraint metadata, and proposal metadata all agree.
+- [x] Narrowed benchmark escalation and patch shaping in:
+  - [`src/observability/benchmark_results_comparison.rs`](../src/observability/benchmark_results_comparison.rs)
+  - [`src/admin/oversight_patch_policy.rs`](../src/admin/oversight_patch_policy.rs)
+  so candidate families now come only from group-level `allowed` surfaces, mixed families with real tunable groups remain addressable, and `manual_only` no longer counts as proposable.
+- [x] Added focused parity proof in:
+  - [`src/config/tests.rs`](../src/config/tests.rs)
+  - [`src/observability/benchmark_results_comparison.rs`](../src/observability/benchmark_results_comparison.rs)
+  - [`src/admin/oversight_patch_policy.rs`](../src/admin/oversight_patch_policy.rs)
+  - [`Makefile`](../Makefile)
+  - [`docs/testing.md`](../docs/testing.md)
+  with the new narrow target:
+  - `make test-controller-action-surface-parity`
+- [x] Updated the closeout trail in:
+  - [`docs/research/2026-03-24-ctrl-surface-2-action-surface-parity-post-implementation-review.md`](../docs/research/2026-03-24-ctrl-surface-2-action-surface-parity-post-implementation-review.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+- [x] Why:
+  - without this slice, the canonical policy existed but the live controller envelope, escalation logic, and patch shaper still disagreed about which moves were legal
+  - that would have made the first game-loop work rest on a blurry move ring rather than a truthful bounded one
+- [x] Evidence:
+  - `make test-controller-action-surface-parity`
+  - `make test-controller-mutability-policy`
+  - `make test-oversight-reconcile`
+  - `git diff --check`
+
 ### CTRL-SURFACE-1: Canonical controller mutability policy and hard-never surface
 
 - [x] Added the canonical mutability policy module in:

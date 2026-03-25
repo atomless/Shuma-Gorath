@@ -12,7 +12,6 @@ pub(super) struct AllowedActionValueConstraintDefinition {
 pub(super) struct AllowedActionGroupDefinition {
     pub(super) group_id: &'static str,
     pub(super) family: &'static str,
-    pub(super) controller_status: &'static str,
     pub(super) canary_requirement: &'static str,
     pub(super) patch_paths: &'static [&'static str],
     pub(super) targets: &'static [&'static str],
@@ -138,6 +137,16 @@ const CHALLENGE_CONSTRAINTS: &[AllowedActionValueConstraintDefinition] = &[
         allowed_values: &[],
         rule: None,
     },
+    AllowedActionValueConstraintDefinition {
+        path: "challenge_puzzle_risk_threshold",
+        value_kind: "u8",
+        min_inclusive: Some(CHALLENGE_THRESHOLD_MIN as f64),
+        max_inclusive: Some(CHALLENGE_THRESHOLD_MAX as f64),
+        allowed_values: &[],
+        rule: Some(
+            "challenge_puzzle_risk_threshold must remain above not_a_bot_risk_threshold when both are active.",
+        ),
+    },
 ];
 
 const NOT_A_BOT_CONSTRAINTS: &[AllowedActionValueConstraintDefinition] = &[
@@ -210,16 +219,6 @@ const NOT_A_BOT_CONSTRAINTS: &[AllowedActionValueConstraintDefinition] = &[
 ];
 
 const BOTNESS_CONSTRAINTS: &[AllowedActionValueConstraintDefinition] = &[
-    AllowedActionValueConstraintDefinition {
-        path: "challenge_puzzle_risk_threshold",
-        value_kind: "u8",
-        min_inclusive: Some(CHALLENGE_THRESHOLD_MIN as f64),
-        max_inclusive: Some(CHALLENGE_THRESHOLD_MAX as f64),
-        allowed_values: &[],
-        rule: Some(
-            "challenge_puzzle_risk_threshold must remain above not_a_bot_risk_threshold when both are active.",
-        ),
-    },
     AllowedActionValueConstraintDefinition {
         path: "botness_maze_threshold",
         value_kind: "u8",
@@ -394,7 +393,6 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "shadow_mode.state",
         family: "shadow_mode",
-        controller_status: "manual_only",
         canary_requirement: "not_applicable",
         patch_paths: &["shadow_mode"],
         targets: &[],
@@ -404,7 +402,6 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "adversary_sim.duration",
         family: "adversary_sim_config",
-        controller_status: "manual_only",
         canary_requirement: "not_applicable",
         patch_paths: &["adversary_sim_duration_seconds"],
         targets: &["representative_adversary_effectiveness"],
@@ -414,7 +411,6 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "core_policy.js_required_toggle",
         family: "core_policy",
-        controller_status: "allowed",
         canary_requirement: "required",
         patch_paths: &["js_required_enforced"],
         targets: &["likely_human_friction", "suspicious_forwarded_requests"],
@@ -424,7 +420,6 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "core_policy.rate_limit",
         family: "core_policy",
-        controller_status: "manual_only",
         canary_requirement: "not_applicable",
         patch_paths: &["rate_limit"],
         targets: &["suspicious_forwarded_requests"],
@@ -434,7 +429,6 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "core_policy.ban_durations",
         family: "core_policy",
-        controller_status: "manual_only",
         canary_requirement: "not_applicable",
         patch_paths: &["ban_duration", "ban_durations"],
         targets: &["suspicious_forwarded_requests"],
@@ -444,7 +438,6 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "geo_policy.country_lists",
         family: "geo_policy",
-        controller_status: "manual_only",
         canary_requirement: "not_applicable",
         patch_paths: &[
             "geo_risk",
@@ -461,7 +454,6 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "honeypot.surface",
         family: "honeypot",
-        controller_status: "manual_only",
         canary_requirement: "not_applicable",
         patch_paths: &["honeypot_enabled", "honeypots"],
         targets: &["suspicious_forwarded_requests"],
@@ -471,7 +463,6 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "browser_policy.allowlists",
         family: "browser_policy",
-        controller_status: "manual_only",
         canary_requirement: "not_applicable",
         patch_paths: &["browser_policy_enabled", "browser_block", "browser_allowlist"],
         targets: &["likely_human_friction", "suspicious_forwarded_requests"],
@@ -481,7 +472,6 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "allowlists.surface",
         family: "allowlists",
-        controller_status: "manual_only",
         canary_requirement: "not_applicable",
         patch_paths: &[
             "bypass_allowlists_enabled",
@@ -496,20 +486,11 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "ip_range_policy",
         family: "ip_range_policy",
-        controller_status: "manual_only",
         canary_requirement: "not_applicable",
         patch_paths: &[
             "ip_range_policy_mode",
             "ip_range_emergency_allowlist",
             "ip_range_custom_rules",
-            "ip_range_suggestions_min_observations",
-            "ip_range_suggestions_min_bot_events",
-            "ip_range_suggestions_min_confidence_percent",
-            "ip_range_suggestions_low_collateral_percent",
-            "ip_range_suggestions_high_collateral_percent",
-            "ip_range_suggestions_ipv4_min_prefix_len",
-            "ip_range_suggestions_ipv6_min_prefix_len",
-            "ip_range_suggestions_likely_human_sample_percent",
         ],
         targets: &["likely_human_friction", "suspicious_forwarded_requests"],
         value_constraints: &[],
@@ -518,7 +499,6 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "maze_core.rollout",
         family: "maze_core",
-        controller_status: "allowed",
         canary_requirement: "required",
         patch_paths: &["maze_enabled", "maze_auto_ban", "maze_rollout_phase"],
         targets: &["suspicious_forwarded_bytes", "suspicious_forwarded_requests"],
@@ -528,7 +508,6 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "maze_core.content_and_budget",
         family: "maze_core",
-        controller_status: "manual_only",
         canary_requirement: "not_applicable",
         patch_paths: &[
             "maze_auto_ban_threshold",
@@ -567,7 +546,6 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "tarpit.core",
         family: "tarpit",
-        controller_status: "manual_only",
         canary_requirement: "not_applicable",
         patch_paths: &[
             "tarpit_enabled",
@@ -597,7 +575,6 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "proof_of_work.policy",
         family: "proof_of_work",
-        controller_status: "allowed",
         canary_requirement: "required",
         patch_paths: &["pow_enabled", "pow_difficulty", "pow_ttl_seconds"],
         targets: &[
@@ -611,7 +588,6 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "challenge.policy",
         family: "challenge",
-        controller_status: "allowed",
         canary_requirement: "required",
         patch_paths: &[
             "challenge_puzzle_enabled",
@@ -619,6 +595,7 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
             "challenge_puzzle_seed_ttl_seconds",
             "challenge_puzzle_attempt_limit_per_window",
             "challenge_puzzle_attempt_window_seconds",
+            "challenge_puzzle_risk_threshold",
         ],
         targets: &[
             "likely_human_friction",
@@ -631,7 +608,6 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "not_a_bot.policy",
         family: "not_a_bot",
-        controller_status: "allowed",
         canary_requirement: "required",
         patch_paths: &[
             "not_a_bot_enabled",
@@ -650,10 +626,8 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "botness.thresholds",
         family: "botness",
-        controller_status: "allowed",
         canary_requirement: "required",
         patch_paths: &[
-            "challenge_puzzle_risk_threshold",
             "botness_maze_threshold",
             "botness_weights",
         ],
@@ -668,7 +642,6 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "botness.defence_modes",
         family: "botness",
-        controller_status: "manual_only",
         canary_requirement: "not_applicable",
         patch_paths: &["defence_modes"],
         targets: &[
@@ -682,7 +655,6 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "robots_policy",
         family: "robots_policy",
-        controller_status: "manual_only",
         canary_requirement: "not_applicable",
         patch_paths: &[
             "robots_enabled",
@@ -698,7 +670,6 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "cdp_detection.policy",
         family: "cdp_detection",
-        controller_status: "allowed",
         canary_requirement: "required",
         patch_paths: &[
             "cdp_detection_enabled",
@@ -717,7 +688,6 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "cdp_detection.probe_family",
         family: "cdp_detection",
-        controller_status: "manual_only",
         canary_requirement: "not_applicable",
         patch_paths: &["cdp_probe_family"],
         targets: &[
@@ -731,7 +701,6 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "fingerprint_signal.policy",
         family: "fingerprint_signal",
-        controller_status: "allowed",
         canary_requirement: "required",
         patch_paths: &[
             "fingerprint_signal_enabled",
@@ -756,7 +725,6 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "fingerprint_signal.privacy",
         family: "fingerprint_signal",
-        controller_status: "manual_only",
         canary_requirement: "not_applicable",
         patch_paths: &["fingerprint_pseudonymize"],
         targets: &[],
@@ -766,7 +734,6 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "verified_identity.policy",
         family: "verified_identity",
-        controller_status: "manual_only",
         canary_requirement: "not_applicable",
         patch_paths: &["verified_identity"],
         targets: &["beneficial_non_human_posture"],
@@ -776,7 +743,6 @@ pub(super) const ALLOWED_ACTION_GROUP_DEFINITIONS: &[AllowedActionGroupDefinitio
     AllowedActionGroupDefinition {
         group_id: "provider_selection.backends",
         family: "provider_selection",
-        controller_status: "forbidden",
         canary_requirement: "not_applicable",
         patch_paths: &["provider_backends", "edge_integration_mode"],
         targets: &[],

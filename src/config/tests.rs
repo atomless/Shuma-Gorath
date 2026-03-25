@@ -338,10 +338,13 @@ fn allowed_actions_v1_exposes_conservative_controller_write_surface() {
         .contains(&"not_a_bot.policy".to_string()));
     assert!(surface
         .manual_only_group_ids
-        .contains(&"shadow_mode.state".to_string()));
+        .contains(&"core_policy.rate_limit".to_string()));
     assert!(surface
         .forbidden_group_ids
         .contains(&"provider_selection.backends".to_string()));
+    assert!(surface
+        .forbidden_group_ids
+        .contains(&"shadow_mode.state".to_string()));
 
     let core_policy = surface
         .families
@@ -364,6 +367,15 @@ fn allowed_actions_v1_exposes_conservative_controller_write_surface() {
         .value_constraints
         .iter()
         .any(|constraint| constraint.path == "not_a_bot_risk_threshold"));
+
+    let challenge = surface
+        .groups
+        .iter()
+        .find(|group| group.group_id == "challenge.policy")
+        .expect("challenge policy group");
+    assert!(challenge
+        .patch_paths
+        .contains(&"challenge_puzzle_risk_threshold".to_string()));
 }
 
 #[test]
@@ -371,6 +383,10 @@ fn controller_config_family_for_patch_key_reuses_allowed_action_catalog() {
     assert_eq!(
         controller_config_family_for_patch_key("js_required_enforced"),
         Some("core_policy")
+    );
+    assert_eq!(
+        controller_config_family_for_patch_key("challenge_puzzle_risk_threshold"),
+        Some("challenge")
     );
     assert_eq!(
         controller_config_family_for_patch_key("defence_modes"),
@@ -653,10 +669,10 @@ fn verified_identity_validation_rejects_empty_policy_matcher_and_unknown_profile
 }
 
 #[test]
-fn verified_identity_allowed_actions_surface_is_manual_only() {
+fn verified_identity_allowed_actions_surface_is_forbidden() {
     let surface = allowed_actions_v1();
     assert!(surface
-        .manual_only_group_ids
+        .forbidden_group_ids
         .contains(&"verified_identity.policy".to_string()));
 
     let family = surface
@@ -664,7 +680,7 @@ fn verified_identity_allowed_actions_surface_is_manual_only() {
         .iter()
         .find(|family| family.family == "verified_identity")
         .expect("verified_identity family");
-    assert_eq!(family.controller_status, "manual_only");
+    assert_eq!(family.controller_status, "forbidden");
     assert_eq!(
         family.targets,
         vec!["beneficial_non_human_posture".to_string()]

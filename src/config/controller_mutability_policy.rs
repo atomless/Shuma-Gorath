@@ -22,6 +22,14 @@ impl ControllerMutabilityRing {
             Self::ControllerTunable => "controller_tunable",
         }
     }
+
+    pub(crate) fn allowed_actions_status(self) -> &'static str {
+        match self {
+            Self::Never => "forbidden",
+            Self::ManualOnly => "manual_only",
+            Self::ControllerTunable => "allowed",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -466,6 +474,20 @@ pub(crate) fn controller_mutability_ring_for_operator_objectives_path(
     path: &str,
 ) -> Option<ControllerMutabilityRing> {
     ring_for_path(OPERATOR_OBJECTIVE_MUTABILITY_GROUP_DEFINITIONS, path)
+}
+
+pub(crate) fn allowed_actions_status_for_admin_config_paths(
+    paths: &[&str],
+) -> Option<&'static str> {
+    let rings = paths
+        .iter()
+        .map(|path| controller_mutability_ring_for_admin_config_path(path))
+        .collect::<Option<Vec<_>>>()?;
+    let first = *rings.first()?;
+    rings
+        .iter()
+        .all(|candidate| *candidate == first)
+        .then_some(first.allowed_actions_status())
 }
 
 pub(crate) fn controller_mutability_policy_v1() -> ControllerMutabilitySurface {
