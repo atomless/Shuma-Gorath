@@ -116,6 +116,125 @@ class LlmFulfillmentUnitTests(unittest.TestCase):
         self.assertFalse(plan["capability_envelope"]["browser_automation_allowed"])
         self.assertTrue(plan["capability_envelope"]["direct_request_emission_allowed"])
 
+    def test_generate_llm_frontier_actions_uses_provider_response_when_frontier_key_exists(self):
+        plan = llm_fulfillment.build_llm_fulfillment_plan(
+            run_id="simrun-llm-fit",
+            generated_tick_count=1,
+            frontier_metadata={
+                "provider_count": 1,
+                "frontier_mode": "single_provider_self_play",
+                "reduced_diversity_warning": False,
+            },
+            now=1_700_000_010,
+        )
+        env = {
+            "SHUMA_FRONTIER_OPENAI_API_KEY": "sk-openai-test",
+            "SHUMA_FRONTIER_OPENAI_MODEL": "gpt-5-mini",
+        }
+        observed = {}
+
+        def fake_provider_executor(provider_spec, model_id, api_key, generation_context):
+            observed["provider"] = dict(provider_spec)
+            observed["model_id"] = model_id
+            observed["api_key"] = api_key
+            observed["context"] = generation_context
+            return {
+                "actions": [
+                    {
+                        "action_type": "http_get",
+                        "path": "/robots.txt",
+                        "label": "robots",
+                    }
+                ],
+                "rationale": "Probe public crawler hints from the host only.",
+            }
+
+        result = llm_fulfillment.generate_llm_frontier_actions(
+            fulfillment_plan=plan,
+            host_root_entrypoint="https://example.com/",
+            public_hint_paths=["/robots.txt", "/admin/config"],
+            env_reader=lambda key: env.get(key, ""),
+            provider_executor=fake_provider_executor,
+        )
+
+        self.assertEqual(result["generation_source"], "provider_response")
+        self.assertEqual(result["provider"], "openai")
+        self.assertEqual(result["model_id"], "gpt-5-mini")
+        self.assertEqual(result["actions"][0]["action_type"], "http_get")
+        self.assertEqual(result["actions"][0]["path"], "/robots.txt")
+        self.assertEqual(observed["provider"]["provider"], "openai")
+        self.assertEqual(observed["api_key"], "sk-openai-test")
+        self.assertEqual(
+            observed["context"]["public_hint_paths"],
+            ["/robots.txt"],
+        )
+        self.assertEqual(
+            observed["context"]["host_root_entrypoint"],
+            "https://example.com/",
+        )
+
+    def test_generate_llm_frontier_actions_falls_back_when_no_provider_keys_exist(self):
+        plan = llm_fulfillment.build_llm_fulfillment_plan(
+            run_id="simrun-llm-fit",
+            generated_tick_count=1,
+            frontier_metadata={
+                "provider_count_configured": 0,
+                "frontier_mode": "disabled",
+                "reduced_diversity_warning": False,
+            },
+            now=1_700_000_011,
+        )
+
+        result = llm_fulfillment.generate_llm_frontier_actions(
+            fulfillment_plan=plan,
+            host_root_entrypoint="https://example.com/",
+            env_reader=lambda key: "",
+        )
+
+        self.assertEqual(result["generation_source"], "fallback_no_provider")
+        self.assertEqual(result["provider"], "")
+        self.assertEqual(result["fallback_reason"], "no_configured_frontier_provider")
+        self.assertGreaterEqual(len(result["actions"]), 1)
+        self.assertEqual(result["actions"][0]["action_type"], "http_get")
+        self.assertEqual(result["actions"][0]["path"], "/")
+
+    def test_generate_llm_frontier_actions_falls_back_when_provider_output_breaks_mode_contract(self):
+        plan = llm_fulfillment.build_llm_fulfillment_plan(
+            run_id="simrun-llm-fit",
+            generated_tick_count=0,
+            frontier_metadata={
+                "provider_count": 1,
+                "frontier_mode": "single_provider_self_play",
+                "reduced_diversity_warning": False,
+            },
+            now=1_700_000_012,
+        )
+        env = {
+            "SHUMA_FRONTIER_OPENAI_API_KEY": "sk-openai-test",
+            "SHUMA_FRONTIER_OPENAI_MODEL": "gpt-5-mini",
+        }
+
+        result = llm_fulfillment.generate_llm_frontier_actions(
+            fulfillment_plan=plan,
+            host_root_entrypoint="https://example.com/",
+            env_reader=lambda key: env.get(key, ""),
+            provider_executor=lambda *_args, **_kwargs: {
+                "actions": [
+                    {
+                        "action_type": "http_get",
+                        "path": "/",
+                        "label": "wrong_mode_action",
+                    }
+                ]
+            },
+        )
+
+        self.assertEqual(result["generation_source"], "fallback_validation_error")
+        self.assertEqual(result["provider"], "openai")
+        self.assertEqual(result["fallback_reason"], "provider_output_failed_validation")
+        self.assertEqual(result["actions"][0]["action_type"], "browser_navigate")
+        self.assertEqual(result["actions"][0]["path"], "/")
+
 
 if __name__ == "__main__":
     unittest.main()

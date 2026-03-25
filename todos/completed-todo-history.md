@@ -4,6 +4,32 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-25)
 
+### SIM-LLM-1C1: Live frontier action-generation backend
+
+- [x] Added the closeout note in:
+  - [`docs/research/2026-03-25-sim-llm-1c1-live-frontier-action-generation-post-implementation-review.md`](../docs/research/2026-03-25-sim-llm-1c1-live-frontier-action-generation-post-implementation-review.md)
+- [x] Landed the live generation seam in:
+  - [`scripts/tests/adversarial_runner/llm_fulfillment.py`](../scripts/tests/adversarial_runner/llm_fulfillment.py)
+  by adding host-root-only generation-context shaping, Shuma-blind public-hint sanitization, configured frontier-provider selection, real provider-backed action generation, and explicit provider-vs-fallback lineage.
+- [x] Reused the shared frontier action validator in:
+  - [`scripts/tests/frontier_action_contract.py`](../scripts/tests/frontier_action_contract.py)
+  so mode-specific tool envelopes can validate later browser/request attacker actions against the same contract family rather than a second one-off validator.
+- [x] Added focused red-green proof in:
+  - [`scripts/tests/test_llm_fulfillment.py`](../scripts/tests/test_llm_fulfillment.py)
+  covering provider-backed generation, no-provider fallback, and explicit mode-validation fallback.
+- [x] Updated the active testing and backlog surfaces in:
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+- [x] Why:
+  - `bot_red_team` already had the black-box boundary and episode harness,
+  - but the runtime still had no real attacker-action generation seam,
+  - and the first live runtime slice needed to stay Shuma-blind, host-root-only, and explicit about degraded fallback lineage.
+- [x] Evidence:
+  - `make test-adversarial-llm-fit`
+  - `git diff --check`
+
 ### Planning: truthful `SIM-LLM-1C` runtime decomposition
 
 - [x] Added the readiness review and runtime-decomposition plan in:

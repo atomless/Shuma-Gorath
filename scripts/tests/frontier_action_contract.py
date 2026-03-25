@@ -258,6 +258,8 @@ def validate_frontier_actions(
     base_url: str,
     allowed_origins: List[str],
     request_budget: int,
+    allowed_tools_override: Sequence[str] | None = None,
+    allowed_action_types_override: Sequence[str] | None = None,
 ) -> List[Dict[str, Any]]:
     if not actions:
         raise FrontierActionValidationError("frontier action list must contain at least one action")
@@ -267,15 +269,21 @@ def validate_frontier_actions(
     dsl = dict(contract.get("dsl") or {})
     forbidden_data_access = dict(contract.get("forbidden_data_access") or {})
 
+    allowed_tools_source = (
+        allowed_tools_override
+        if allowed_tools_override is not None
+        else list(contract.get("allowed_tools") or [])
+    )
+    allowed_action_types_source = (
+        allowed_action_types_override
+        if allowed_action_types_override is not None
+        else list(dsl.get("allowed_action_types") or [])
+    )
     allowed_tools = {
-        str(item).strip()
-        for item in list(contract.get("allowed_tools") or [])
-        if str(item).strip()
+        str(item).strip() for item in allowed_tools_source if str(item).strip()
     }
     allowed_action_types = {
-        str(item).strip()
-        for item in list(dsl.get("allowed_action_types") or [])
-        if str(item).strip()
+        str(item).strip() for item in allowed_action_types_source if str(item).strip()
     }
     required_action_keys = {
         str(item).strip()

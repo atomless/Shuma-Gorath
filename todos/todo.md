@@ -113,14 +113,15 @@ Current note:
 - `SIM-SCR-RN-1` is now landed: the request-native Scrapling lane explicitly pins attacker-faithful Chrome impersonation and stealthy header shaping while no longer advertising itself with an internal worker `User-Agent`.
 - `SIM-SCR-CHALLENGE-2C` remains blocked unless Shuma later ratifies browser-class Scrapling-owned surfaces or the current request-native lane later proves insufficient for a currently owned surface.
 - `SIM-LLM-1A` and `SIM-LLM-1B` are now landed.
-- The later full attacker runtime `SIM-LLM-1C` is no longer treated as one implicit next step. The next backend mainline is now `SIM-LLM-1C1`, the first of three explicit runtime slices over the settled black-box and episode contracts:
-  - `SIM-LLM-1C1` live frontier action-generation backend
+- The later full attacker runtime `SIM-LLM-1C` is no longer treated as one implicit next step.
+- `SIM-LLM-1C1` is now landed: the later attacker has a real live frontier action-generation seam with provider-vs-fallback lineage and Shuma-blind host-hint sanitization.
+- The next backend mainline is now `SIM-LLM-1C2`, the second of three explicit runtime slices over the settled black-box and episode contracts:
   - `SIM-LLM-1C2` supervisor dispatch and result-ingest runtime path
   - `SIM-LLM-1C3` runtime receipt projection and proof closure
 - Keep the `SIM-LLM-1C` umbrella blocked until all three runtime slices are landed and `bot_red_team` remains operator-disabled until that proof chain is complete.
 - `DIAG-CLEANUP-1` and `MON-OVERHAUL-1C` are now both landed, so the deferred Game Loop and Diagnostics follow-on queue is currently clear while later LLM runtime work stays blocked.
 
-- [ ] SIM-LLM-1C1 Land the live frontier action-generation backend for the later `bot_red_team` actor over the settled black-box and episode contracts, with explicit provider-vs-fallback receipt lineage and no Shuma-aware context leakage.
+- [ ] SIM-LLM-1C2 Wire supervisor dispatch and typed result ingest for the live `bot_red_team` actor, reusing the existing container black-box runner without overloading the Scrapling worker result contract.
 
 ## P1 Verified Bot Identity And Web Bot Auth Foundation
 

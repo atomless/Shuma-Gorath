@@ -2,16 +2,27 @@
 
 from __future__ import annotations
 
+import json
+import os
+import urllib.error
+import urllib.parse
+import urllib.request
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Tuple
 
+from scripts.tests.adversarial_runner.discovery_scoring import FRONTIER_PROVIDER_SPECS
 from scripts.tests.adversarial_container_runner import load_container_runtime_profile
 from scripts.tests.adversarial_runner.contracts import (
+    ATTACKER_FORBIDDEN_PATH_PREFIXES,
     CONTAINER_RUNTIME_PROFILE_PATH,
     FRONTIER_ACTION_CONTRACT_PATH,
 )
 from scripts.tests.adversarial_runner.shared import dict_or_empty, int_or_zero, list_or_empty
-from scripts.tests.frontier_action_contract import load_frontier_action_contract
+from scripts.tests.frontier_action_contract import (
+    FrontierActionValidationError,
+    load_frontier_action_contract,
+    validate_frontier_actions,
+)
 
 
 LLM_FULFILLMENT_PLAN_SCHEMA_VERSION = "adversary-sim-llm-fulfillment-plan.v1"
@@ -23,6 +34,12 @@ FRONTIER_ACTION_CONTRACT_ID = "frontier_action_contract.v1"
 CONTAINER_RUNTIME_PROFILE_ID = "container_runtime_profile.v1"
 SUPPORTED_BACKEND_KINDS = ["frontier_reference", "local_candidate"]
 SUPPORTED_FULFILLMENT_MODES = ("browser_mode", "request_mode")
+OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
+ANTHROPIC_MESSAGES_URL = "https://api.anthropic.com/v1/messages"
+GOOGLE_GENERATE_CONTENT_TEMPLATE = (
+    "https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent"
+)
+XAI_CHAT_COMPLETIONS_URL = "https://api.x.ai/v1/chat/completions"
 
 
 def llm_fulfillment_mode_for_tick(generated_tick_count: int) -> str:
@@ -402,3 +419,439 @@ def build_llm_fulfillment_plan(
             ),
         },
     }
+
+
+def _trimmed_env_value(env_reader: Callable[[str], str], key: str) -> str:
+    return str(env_reader(key) or "").strip()
+
+
+def _normalize_host_root_entrypoint(host_root_entrypoint: str) -> str:
+    parsed = urllib.parse.urlparse(str(host_root_entrypoint or "").strip())
+    if not parsed.scheme or not parsed.netloc:
+        raise RuntimeError("host_root_entrypoint must be an absolute URL")
+    return urllib.parse.urlunparse(
+        (
+            parsed.scheme.lower(),
+            parsed.netloc,
+            "/",
+            "",
+            "",
+            "",
+        )
+    )
+
+
+def _forbidden_hint_prefixes(contract: Dict[str, Any]) -> Tuple[str, ...]:
+    forbidden_data_access = dict_or_empty(contract.get("forbidden_data_access"))
+    contract_prefixes = tuple(
+        str(item).strip().lower()
+        for item in list_or_empty(forbidden_data_access.get("forbidden_path_prefixes"))
+        if str(item).strip()
+    )
+    lane_prefixes = tuple(str(item).strip().lower() for item in ATTACKER_FORBIDDEN_PATH_PREFIXES)
+    return tuple(sorted(set(contract_prefixes).union(lane_prefixes)))
+
+
+def _sanitize_public_hint_paths(
+    public_hint_paths: List[str] | None,
+    *,
+    contract: Dict[str, Any],
+) -> List[str]:
+    forbidden_prefixes = _forbidden_hint_prefixes(contract)
+    sanitized: List[str] = []
+    seen = set()
+    for raw_value in list_or_empty(public_hint_paths):
+        candidate = str(raw_value or "").strip()
+        if not candidate or not candidate.startswith("/") or candidate.startswith("//"):
+            continue
+        parsed = urllib.parse.urlparse(candidate)
+        if parsed.scheme or parsed.netloc or parsed.fragment or parsed.query:
+            continue
+        if ".." in candidate:
+            continue
+        lowered = candidate.lower()
+        if any(lowered.startswith(prefix) for prefix in forbidden_prefixes):
+            continue
+        if candidate in seen:
+            continue
+        sanitized.append(candidate)
+        seen.add(candidate)
+    return sanitized[:8]
+
+
+def _build_generation_context(
+    *,
+    fulfillment_plan: Dict[str, Any],
+    host_root_entrypoint: str,
+    public_hint_paths: List[str] | None,
+    contract: Dict[str, Any],
+) -> Dict[str, Any]:
+    category_targets = [str(value).strip() for value in list_or_empty(fulfillment_plan.get("category_targets")) if str(value).strip()]
+    normalized_root = _normalize_host_root_entrypoint(host_root_entrypoint)
+    return {
+        "host_root_entrypoint": normalized_root,
+        "category_objective": category_targets[0] if category_targets else "",
+        "category_targets": category_targets,
+        "black_box_boundary": dict_or_empty(fulfillment_plan.get("black_box_boundary")),
+        "capability_envelope": dict_or_empty(fulfillment_plan.get("capability_envelope")),
+        "episode_harness": {
+            "initial_context_fields": list_or_empty(
+                dict_or_empty(fulfillment_plan.get("episode_harness")).get(
+                    "initial_context_fields"
+                )
+            ),
+            "environment_reset_policy": str(
+                dict_or_empty(fulfillment_plan.get("episode_harness")).get(
+                    "environment_reset_policy"
+                )
+                or ""
+            ).strip(),
+            "max_retained_episode_summaries": int_or_zero(
+                dict_or_empty(fulfillment_plan.get("episode_harness")).get(
+                    "max_retained_episode_summaries"
+                )
+            ),
+            "max_curriculum_items": int_or_zero(
+                dict_or_empty(fulfillment_plan.get("episode_harness")).get(
+                    "max_curriculum_items"
+                )
+            ),
+        },
+        "public_hint_paths": _sanitize_public_hint_paths(
+            public_hint_paths,
+            contract=contract,
+        ),
+    }
+
+
+def _select_configured_provider(
+    env_reader: Callable[[str], str],
+) -> Tuple[Dict[str, str] | None, str, str]:
+    for provider_spec in FRONTIER_PROVIDER_SPECS:
+        api_key = _trimmed_env_value(env_reader, provider_spec["api_key_env"])
+        if not api_key:
+            continue
+        model_id = _trimmed_env_value(env_reader, provider_spec["model_env"]) or str(
+            provider_spec["default_model"]
+        )
+        return (dict(provider_spec), model_id, api_key)
+    return (None, "", "")
+
+
+def _fallback_label(path: str) -> str:
+    if path == "/":
+        return "root"
+    token = path.strip("/").split("/")[-1].strip()
+    return token[:80] if token else "hint"
+
+
+def _fallback_actions_for_plan(
+    fulfillment_plan: Dict[str, Any],
+    *,
+    generation_context: Dict[str, Any],
+) -> List[Dict[str, Any]]:
+    if str(fulfillment_plan.get("fulfillment_mode") or "").strip() == "browser_mode":
+        return [{"action_type": "browser_navigate", "path": "/", "label": "root"}]
+
+    actions: List[Dict[str, Any]] = [{"action_type": "http_get", "path": "/", "label": "root"}]
+    for hint_path in list_or_empty(generation_context.get("public_hint_paths")):
+        if hint_path == "/":
+            continue
+        actions.append(
+            {
+                "action_type": "http_get",
+                "path": hint_path,
+                "label": _fallback_label(hint_path),
+            }
+        )
+    max_actions = max(
+        1,
+        int_or_zero(dict_or_empty(fulfillment_plan.get("capability_envelope")).get("max_actions")),
+    )
+    return actions[:max_actions]
+
+
+def _prompt_text(generation_context: Dict[str, Any]) -> str:
+    return (
+        "You are an outside malicious non-human attacker operating against a public host. "
+        "You must stay within the provided black-box boundary, treat the host as Shuma-blind, "
+        "and return JSON only in the shape "
+        '{"actions":[{"action_type":"...","path":"/...","label":"..."}],"rationale":"..."}.\n\n'
+        "Use only the host root and public host-derived hints below.\n"
+        f"{json.dumps(generation_context, sort_keys=True)}"
+    )
+
+
+def _read_response_json(response: Any) -> Dict[str, Any]:
+    body = response.read()
+    if isinstance(body, bytes):
+        text = body.decode("utf-8")
+    else:
+        text = str(body)
+    payload = json.loads(text)
+    if not isinstance(payload, dict):
+        raise RuntimeError("provider response payload must be a JSON object")
+    return payload
+
+
+def _openai_response_text(payload: Dict[str, Any]) -> str:
+    direct_text = str(payload.get("output_text") or "").strip()
+    if direct_text:
+        return direct_text
+    texts: List[str] = []
+    for output_row in list_or_empty(payload.get("output")):
+        for content_row in list_or_empty(dict_or_empty(output_row).get("content")):
+            text = str(dict_or_empty(content_row).get("text") or "").strip()
+            if text:
+                texts.append(text)
+    return "\n".join(texts).strip()
+
+
+def _anthropic_response_text(payload: Dict[str, Any]) -> str:
+    texts = []
+    for content_row in list_or_empty(payload.get("content")):
+        text = str(dict_or_empty(content_row).get("text") or "").strip()
+        if text:
+            texts.append(text)
+    return "\n".join(texts).strip()
+
+
+def _google_response_text(payload: Dict[str, Any]) -> str:
+    candidates = list_or_empty(payload.get("candidates"))
+    if not candidates:
+        return ""
+    parts = list_or_empty(dict_or_empty(dict_or_empty(candidates[0]).get("content")).get("parts"))
+    texts = []
+    for part in parts:
+        text = str(dict_or_empty(part).get("text") or "").strip()
+        if text:
+            texts.append(text)
+    return "\n".join(texts).strip()
+
+
+def _xai_response_text(payload: Dict[str, Any]) -> str:
+    choices = list_or_empty(payload.get("choices"))
+    if not choices:
+        return ""
+    return str(
+        dict_or_empty(dict_or_empty(choices[0]).get("message")).get("content") or ""
+    ).strip()
+
+
+def _provider_request_and_text(
+    provider_spec: Dict[str, str],
+    *,
+    model_id: str,
+    api_key: str,
+    generation_context: Dict[str, Any],
+) -> str:
+    provider = str(provider_spec.get("provider") or "").strip()
+    prompt = _prompt_text(generation_context)
+    headers = {"Content-Type": "application/json"}
+    if provider == "openai":
+        headers["Authorization"] = f"Bearer {api_key}"
+        payload = {
+            "model": model_id,
+            "instructions": (
+                "Return only JSON actions for a black-box attacker. Never use Shuma-specific "
+                "knowledge or internal routes."
+            ),
+            "input": prompt,
+        }
+        request = urllib.request.Request(
+            OPENAI_RESPONSES_URL,
+            data=json.dumps(payload).encode("utf-8"),
+            headers=headers,
+            method="POST",
+        )
+        with urllib.request.urlopen(request, timeout=20.0) as response:
+            return _openai_response_text(_read_response_json(response))
+    if provider == "anthropic":
+        headers["x-api-key"] = api_key
+        headers["anthropic-version"] = "2023-06-01"
+        payload = {
+            "model": model_id,
+            "max_tokens": 800,
+            "system": (
+                "Return only JSON actions for a black-box attacker. Never use Shuma-specific "
+                "knowledge or internal routes."
+            ),
+            "messages": [{"role": "user", "content": prompt}],
+        }
+        request = urllib.request.Request(
+            ANTHROPIC_MESSAGES_URL,
+            data=json.dumps(payload).encode("utf-8"),
+            headers=headers,
+            method="POST",
+        )
+        with urllib.request.urlopen(request, timeout=20.0) as response:
+            return _anthropic_response_text(_read_response_json(response))
+    if provider == "google":
+        endpoint = GOOGLE_GENERATE_CONTENT_TEMPLATE.format(model_id=model_id)
+        query = urllib.parse.urlencode({"key": api_key})
+        payload = {
+            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "temperature": 0.1,
+                "responseMimeType": "application/json",
+            },
+        }
+        request = urllib.request.Request(
+            f"{endpoint}?{query}",
+            data=json.dumps(payload).encode("utf-8"),
+            headers=headers,
+            method="POST",
+        )
+        with urllib.request.urlopen(request, timeout=20.0) as response:
+            return _google_response_text(_read_response_json(response))
+    if provider == "xai":
+        headers["Authorization"] = f"Bearer {api_key}"
+        payload = {
+            "model": model_id,
+            "temperature": 0.1,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": (
+                        "Return only JSON actions for a black-box attacker. Never use "
+                        "Shuma-specific knowledge or internal routes."
+                    ),
+                },
+                {"role": "user", "content": prompt},
+            ],
+        }
+        request = urllib.request.Request(
+            XAI_CHAT_COMPLETIONS_URL,
+            data=json.dumps(payload).encode("utf-8"),
+            headers=headers,
+            method="POST",
+        )
+        with urllib.request.urlopen(request, timeout=20.0) as response:
+            return _xai_response_text(_read_response_json(response))
+    raise RuntimeError(f"unsupported frontier provider for LLM generation: {provider}")
+
+
+def _default_provider_executor(
+    provider_spec: Dict[str, str],
+    model_id: str,
+    api_key: str,
+    generation_context: Dict[str, Any],
+) -> Dict[str, Any]:
+    try:
+        raw_text = _provider_request_and_text(
+            provider_spec,
+            model_id=model_id,
+            api_key=api_key,
+            generation_context=generation_context,
+        )
+    except urllib.error.HTTPError as exc:
+        raise RuntimeError(f"provider_http_error:{exc.code}") from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"provider_network_error:{exc.reason}") from exc
+    except TimeoutError as exc:
+        raise RuntimeError("provider_timeout") from exc
+
+    parsed = json.loads(str(raw_text or "").strip() or "{}")
+    if isinstance(parsed, list):
+        parsed = {"actions": parsed}
+    if not isinstance(parsed, dict):
+        raise RuntimeError("provider response must decode to an action object")
+    return parsed
+
+
+def _validate_generated_actions(
+    actions: List[Dict[str, Any]],
+    *,
+    fulfillment_plan: Dict[str, Any],
+    contract: Dict[str, Any],
+    host_root_entrypoint: str,
+) -> List[Dict[str, Any]]:
+    capability_envelope = dict_or_empty(fulfillment_plan.get("capability_envelope"))
+    allowed_tools = [str(item).strip() for item in list_or_empty(capability_envelope.get("allowed_tools")) if str(item).strip()]
+    fulfillment_mode = str(fulfillment_plan.get("fulfillment_mode") or "").strip()
+    action_type_overrides = allowed_tools if fulfillment_mode == "browser_mode" else None
+    return validate_frontier_actions(
+        actions,
+        contract=contract,
+        base_url=host_root_entrypoint,
+        allowed_origins=[host_root_entrypoint],
+        request_budget=max(1, int_or_zero(capability_envelope.get("max_actions"))),
+        allowed_tools_override=allowed_tools,
+        allowed_action_types_override=action_type_overrides,
+    )
+
+
+def generate_llm_frontier_actions(
+    *,
+    fulfillment_plan: Dict[str, Any],
+    host_root_entrypoint: str,
+    public_hint_paths: List[str] | None = None,
+    env_reader: Callable[[str], str] = lambda key: os.environ.get(key, ""),
+    provider_executor: Callable[[Dict[str, str], str, str, Dict[str, Any]], Dict[str, Any]]
+    | None = None,
+    contract: Dict[str, Any] | None = None,
+) -> Dict[str, Any]:
+    resolved_contract = contract or load_frontier_action_contract()
+    generation_context = _build_generation_context(
+        fulfillment_plan=fulfillment_plan,
+        host_root_entrypoint=host_root_entrypoint,
+        public_hint_paths=public_hint_paths,
+        contract=resolved_contract,
+    )
+    provider_spec, model_id, api_key = _select_configured_provider(env_reader)
+    if provider_spec is None:
+        fallback_actions = _fallback_actions_for_plan(
+            fulfillment_plan,
+            generation_context=generation_context,
+        )
+        return {
+            "generation_source": "fallback_no_provider",
+            "provider": "",
+            "model_id": "",
+            "fallback_reason": "no_configured_frontier_provider",
+            "actions": _validate_generated_actions(
+                fallback_actions,
+                fulfillment_plan=fulfillment_plan,
+                contract=resolved_contract,
+                host_root_entrypoint=generation_context["host_root_entrypoint"],
+            ),
+            "generation_context": generation_context,
+        }
+
+    executor = provider_executor or _default_provider_executor
+    provider_name = str(provider_spec.get("provider") or "").strip()
+    try:
+        provider_payload = executor(provider_spec, model_id, api_key, generation_context)
+        provider_actions = [dict(item) for item in list_or_empty(dict_or_empty(provider_payload).get("actions")) if isinstance(item, dict)]
+        validated_actions = _validate_generated_actions(
+            provider_actions,
+            fulfillment_plan=fulfillment_plan,
+            contract=resolved_contract,
+            host_root_entrypoint=generation_context["host_root_entrypoint"],
+        )
+        return {
+            "generation_source": "provider_response",
+            "provider": provider_name,
+            "model_id": model_id,
+            "actions": validated_actions,
+            "rationale": str(dict_or_empty(provider_payload).get("rationale") or "").strip(),
+            "generation_context": generation_context,
+        }
+    except (FrontierActionValidationError, RuntimeError, ValueError, json.JSONDecodeError):
+        fallback_actions = _fallback_actions_for_plan(
+            fulfillment_plan,
+            generation_context=generation_context,
+        )
+        return {
+            "generation_source": "fallback_validation_error",
+            "provider": provider_name,
+            "model_id": model_id,
+            "fallback_reason": "provider_output_failed_validation",
+            "actions": _validate_generated_actions(
+                fallback_actions,
+                fulfillment_plan=fulfillment_plan,
+                contract=resolved_contract,
+                host_root_entrypoint=generation_context["host_root_entrypoint"],
+            ),
+            "generation_context": generation_context,
+        }
