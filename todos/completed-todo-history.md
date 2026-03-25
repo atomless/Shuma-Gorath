@@ -4,6 +4,30 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-25)
 
+### `SIM-SCR-FULL-1B2B` Browser Challenge Interactions
+
+- [x] Landed the first browser-backed Scrapling challenge seam in:
+  - [`scripts/supervisor/scrapling_worker.py`](../scripts/supervisor/scrapling_worker.py)
+  so `bulk_scraper` and `http_agent` now drive `not_a_bot_submit` and `puzzle_submit_or_escalation` through real browser DOM interaction while keeping PoW and tarpit abuse on the request-native path.
+- [x] Wrote the worker and contract proof first in:
+  - [`scripts/tests/test_scrapling_worker.py`](../scripts/tests/test_scrapling_worker.py)
+  - [`src/observability/scrapling_owned_surface.rs`](../src/observability/scrapling_owned_surface.rs)
+  so the red phase required browser-backed not-a-bot success, browser-backed puzzle failure or escalation, and truthful `browser_or_stealth` owned-surface transport expectations before the implementation changed.
+- [x] Updated the proof surface and audit trail in:
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`docs/plans/2026-03-25-sim-scr-full-1b2b-browser-challenge-interactions-plan.md`](../docs/plans/2026-03-25-sim-scr-full-1b2b-browser-challenge-interactions-plan.md)
+  - [`docs/research/2026-03-25-sim-scr-full-1b2b-browser-challenge-interactions-review.md`](../docs/research/2026-03-25-sim-scr-full-1b2b-browser-challenge-interactions-review.md)
+  - [`docs/research/2026-03-25-sim-scr-full-1b2b-browser-challenge-interactions-post-implementation-review.md`](../docs/research/2026-03-25-sim-scr-full-1b2b-browser-challenge-interactions-post-implementation-review.md)
+  - [`docs/plans/README.md`](../docs/plans/README.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  so the next full-power gap is explicitly narrowed to `SIM-SCR-FULL-1B3`.
+- [x] Why:
+  - `SIM-SCR-FULL-1B2A` made real Scrapling browser sessions executable,
+  - but the worker still drove DOM challenge surfaces through direct request-native submits, which underused Scrapling exactly where browser-backed interaction had become the truthful attacker path.
+- [x] Evidence:
+  - `make test-adversary-sim-scrapling-worker`
+  - `make test-adversary-sim-scrapling-owned-surface-contract`
+
 ### `SIM-SCR-FULL-1B2A` Browser Runtime Provisioning
 
 - [x] Extended the repo-owned Scrapling runtime in:

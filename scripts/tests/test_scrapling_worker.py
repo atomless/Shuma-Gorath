@@ -128,7 +128,39 @@ class _RecordingHandler(http.server.BaseHTTPRequestHandler):
             body = (
                 "<html><body>"
                 '<form action="/challenge/not-a-bot-checkbox" method="post">'
-                '<input name="seed" value="seed"/>'
+                '<input id="not-a-bot-seed" name="seed" value="seed-token"/>'
+                '<input id="not-a-bot-checked" name="checked" value="0"/>'
+                '<input id="not-a-bot-telemetry" name="telemetry" value=""/>'
+                '<button id="not-a-bot-checkbox" type="button">I am not a bot</button>'
+                "</form>"
+                "<script>"
+                "const form=document.querySelector('form');"
+                "const checkbox=document.getElementById('not-a-bot-checkbox');"
+                "const checked=document.getElementById('not-a-bot-checked');"
+                "const telemetry=document.getElementById('not-a-bot-telemetry');"
+                "checkbox.addEventListener('click', function(event) {"
+                "checked.value='1';"
+                "telemetry.value=JSON.stringify({activation_trusted:event.isTrusted,activation_count:1});"
+                "form.requestSubmit();"
+                "});"
+                "</script>"
+                "</body></html>"
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        if self.path == "/challenge/puzzle":
+            body = (
+                "<html><body>"
+                "<h2>Puzzle</h2>"
+                '<div id="challenge-output-grid"></div>'
+                '<form action="/challenge/puzzle" method="post">'
+                '<input name="seed" value="seed-token"/>'
+                '<input id="challenge-output" name="output" value="0000"/>'
+                '<button type="submit">Submit</button>'
                 "</form>"
                 "</body></html>"
             ).encode("utf-8")
@@ -173,20 +205,36 @@ class _RecordingHandler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(body)
             return
         if self.path == "/challenge/not-a-bot-checkbox":
-            body = json.dumps({"accepted": False, "outcome": "fail"}).encode("utf-8")
-            self.send_response(400)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
+            parsed = parse_qs((self.server.requests_seen[-1]["body"] if self.server.requests_seen else ""))
+            if parsed.get("checked") == ["1"] and parsed.get("telemetry"):
+                self.send_response(303)
+                self.send_header("Location", "/agent/final")
+                self.send_header("Set-Cookie", "shuma_not_a_bot=1; Path=/")
+                self.end_headers()
+            else:
+                body = json.dumps({"accepted": False, "outcome": "fail"}).encode("utf-8")
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
             return
         if self.path == "/challenge/puzzle":
-            body = json.dumps({"accepted": False, "outcome": "rejected"}).encode("utf-8")
-            self.send_response(400)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
+            parsed = parse_qs((self.server.requests_seen[-1]["body"] if self.server.requests_seen else ""))
+            if parsed.get("output"):
+                body = b"<html><body><div data-link-kind=\"maze\">maze</div></body></html>"
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            else:
+                body = json.dumps({"accepted": False, "outcome": "rejected"}).encode("utf-8")
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
             return
         if self.path == "/pow/verify":
             body = json.dumps({"verified": False}).encode("utf-8")
@@ -604,7 +652,7 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
         )
         self.assertEqual(
             receipts["not_a_bot_submit"]["coverage_status"],
-            "fail_observed",
+            "pass_observed",
             msg=json.dumps(result, indent=2),
         )
         self.assertEqual(
@@ -614,22 +662,31 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
         )
         paths = [(entry["method"], entry["path"]) for entry in self.httpd.requests_seen]
         self.assertIn(("GET", "/catalog?page=1"), paths)
+        self.assertIn(("GET", "/challenge/not-a-bot-checkbox"), paths)
         self.assertIn(("POST", "/challenge/not-a-bot-checkbox"), paths)
+        self.assertIn(("GET", "/challenge/puzzle"), paths)
         self.assertIn(("POST", "/challenge/puzzle"), paths)
         not_a_bot = next(
             entry
             for entry in self.httpd.requests_seen
             if entry["method"] == "POST" and entry["path"] == "/challenge/not-a-bot-checkbox"
         )
-        self.assertIn("seed=invalid-seed", not_a_bot["body"])
         self.assertIn("checked=1", not_a_bot["body"])
+        self.assertIn("telemetry=", not_a_bot["body"])
+        self.assertEqual(
+            not_a_bot["headers"].get(sim_runner.SIM_TAG_HEADER_PROFILE),
+            "scrapling_runtime_lane.bulk_scraper",
+        )
         puzzle = next(
             entry
             for entry in self.httpd.requests_seen
             if entry["method"] == "POST" and entry["path"] == "/challenge/puzzle"
         )
-        self.assertIn("answer=bad", puzzle["body"])
-        self.assertIn("seed=invalid", puzzle["body"])
+        self.assertIn("output=", puzzle["body"])
+        self.assertEqual(
+            puzzle["headers"].get(sim_runner.SIM_TAG_HEADER_PROFILE),
+            "scrapling_runtime_lane.bulk_scraper",
+        )
 
     def test_public_path_traversal_receipts_keep_pass_observed_when_later_public_request_fails(self) -> None:
         self.assertIsNotNone(scrapling_worker, "worker module missing")
@@ -701,7 +758,7 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
         )
         self.assertEqual(
             receipts["not_a_bot_submit"]["coverage_status"],
-            "fail_observed",
+            "pass_observed",
             msg=json.dumps(result, indent=2),
         )
         self.assertEqual(
@@ -721,10 +778,32 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
         )
         paths = [(entry["method"], entry["path"]) for entry in self.httpd.requests_seen]
         self.assertIn(("GET", "/agent/ping?mode=http_agent"), paths)
+        self.assertIn(("GET", "/challenge/not-a-bot-checkbox"), paths)
         self.assertIn(("POST", "/challenge/not-a-bot-checkbox"), paths)
+        self.assertIn(("GET", "/challenge/puzzle"), paths)
         self.assertIn(("POST", "/challenge/puzzle"), paths)
         self.assertIn(("POST", "/pow/verify"), paths)
         self.assertIn(("POST", "/tarpit/progress"), paths)
+        not_a_bot = next(
+            entry
+            for entry in self.httpd.requests_seen
+            if entry["method"] == "POST" and entry["path"] == "/challenge/not-a-bot-checkbox"
+        )
+        self.assertIn("telemetry=", not_a_bot["body"])
+        self.assertEqual(
+            not_a_bot["headers"].get(sim_runner.SIM_TAG_HEADER_PROFILE),
+            "scrapling_runtime_lane.http_agent",
+        )
+        puzzle = next(
+            entry
+            for entry in self.httpd.requests_seen
+            if entry["method"] == "POST" and entry["path"] == "/challenge/puzzle"
+        )
+        self.assertIn("output=", puzzle["body"])
+        self.assertEqual(
+            puzzle["headers"].get(sim_runner.SIM_TAG_HEADER_PROFILE),
+            "scrapling_runtime_lane.http_agent",
+        )
         pow_verify = next(
             entry
             for entry in self.httpd.requests_seen

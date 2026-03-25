@@ -199,12 +199,15 @@ def _request_spec(
     data: str | bytes | None = None,
     json_body: dict[str, Any] | list[Any] | None = None,
     follow_redirect: bool = False,
+    transport: str = "request_native",
+    browser_action: str | None = None,
 ) -> dict[str, Any]:
     spec: dict[str, Any] = {
         "method": method,
         "target": target,
         "headers": dict(headers or {}),
         "follow_redirect": follow_redirect,
+        "transport": str(transport or "request_native"),
     }
     if surface_ids:
         spec["surface_ids"] = list(surface_ids)
@@ -214,6 +217,8 @@ def _request_spec(
         spec["data"] = data
     if json_body is not None:
         spec["json"] = json_body
+    if browser_action:
+        spec["browser_action"] = str(browser_action)
     return spec
 
 
@@ -367,6 +372,197 @@ def _browser_session_strategy_for_mode(fulfillment_mode: str) -> str:
         "bulk_scraper": "dynamic",
         "http_agent": "stealth",
     }.get(str(fulfillment_mode or "").strip(), "request_native")
+
+
+def _browser_session_class_for_strategy(
+    strategy: str,
+    *,
+    dynamic_session_cls: Any,
+    stealthy_session_cls: Any,
+) -> Any | None:
+    if strategy == "dynamic":
+        return dynamic_session_cls
+    if strategy == "stealth":
+        return stealthy_session_cls
+    return None
+
+
+def _browser_session_kwargs_for_strategy(
+    strategy: str,
+    *,
+    timeout_ms: int,
+    accept_header: str,
+) -> dict[str, Any]:
+    if strategy == "dynamic":
+        kwargs = _dynamic_session_kwargs(timeout_ms=timeout_ms, accept_header=accept_header)
+        kwargs["wait"] = 0
+        kwargs["network_idle"] = False
+        return kwargs
+    if strategy == "stealth":
+        kwargs = _stealth_session_kwargs(timeout_ms=timeout_ms, accept_header=accept_header)
+        # These first browser-backed owned surfaces are Shuma DOM challenges, not Cloudflare pages.
+        # Keep the broader stealth foundation intact, but do not spend the request budget on irrelevant solving attempts here.
+        kwargs["wait"] = 0
+        kwargs["network_idle"] = False
+        kwargs["solve_cloudflare"] = False
+        return kwargs
+    raise WorkerConfigError(f"unsupported browser session strategy: {strategy}")
+
+
+def _playwright_attr_value(value: Any, attr_name: str) -> Any:
+    attr = getattr(value, attr_name, None)
+    if callable(attr):
+        return attr()
+    return attr
+
+
+def _build_wrong_challenge_output(current_output: str) -> str:
+    baseline = str(current_output or "") or "0" * 16
+    first = "1" if baseline[:1] == "0" else "0"
+    return f"{first}{baseline[1:]}"
+
+
+def _browser_cookie_params(target_url: str, raw_cookies: Any) -> list[dict[str, Any]] | None:
+    if not raw_cookies:
+        return None
+    if isinstance(raw_cookies, list):
+        return raw_cookies
+    if not isinstance(raw_cookies, dict):
+        return None
+    return [
+        {
+            "name": str(name),
+            "value": str(value),
+            "url": target_url,
+        }
+        for name, value in raw_cookies.items()
+        if str(name).strip()
+    ] or None
+
+
+def _perform_human_like_checkbox_activation(page: Any, checkbox: Any) -> None:
+    bounds = checkbox.bounding_box()
+    if not bounds:
+        raise RuntimeError("browser_not_a_bot_checkbox_bounds_missing")
+    target_x = float(bounds["x"]) + (float(bounds["width"]) / 2.0)
+    target_y = float(bounds["y"]) + (float(bounds["height"]) / 2.0)
+    entry_x = max(8.0, target_x - 48.0)
+    entry_y = max(8.0, target_y + 26.0)
+    approach_x = target_x - 10.0
+    approach_y = target_y + 6.0
+
+    page.mouse.move(entry_x, entry_y)
+    page.wait_for_timeout(30)
+    page.mouse.move(approach_x, approach_y, steps=8)
+    page.wait_for_timeout(20)
+    page.mouse.move(target_x, target_y, steps=8)
+    page.wait_for_timeout(20)
+    page.mouse.down()
+    page.wait_for_timeout(20)
+    page.mouse.up()
+
+
+def _build_not_a_bot_page_action(evidence: dict[str, Any]):
+    def page_action(page: Any) -> None:
+        checkbox = page.locator("#not-a-bot-checkbox")
+        if not checkbox.is_visible():
+            evidence["error"] = "browser_not_a_bot_checkbox_missing"
+            return
+        with page.expect_request(
+            lambda request: (
+                str(_playwright_attr_value(request, "method") or "").upper() == "POST"
+                and "/challenge/not-a-bot-checkbox"
+                in str(_playwright_attr_value(request, "url") or "")
+            ),
+            timeout=15_000,
+        ) as submit_request_info:
+            with page.expect_response(
+                lambda response: (
+                    str(_playwright_attr_value(_playwright_attr_value(response, "request"), "method") or "").upper()
+                    == "POST"
+                    and "/challenge/not-a-bot-checkbox"
+                    in str(_playwright_attr_value(response, "url") or "")
+                ),
+                timeout=15_000,
+            ) as submit_response_info:
+                _perform_human_like_checkbox_activation(page, checkbox)
+        submit_request = submit_request_info.value
+        submit_response = submit_response_info.value
+        submit_body = str(_playwright_attr_value(submit_request, "post_data") or "")
+        submit_status = int(_playwright_attr_value(submit_response, "status") or 0)
+        evidence["request_method"] = "POST"
+        evidence["request_target"] = str(_playwright_attr_value(submit_request, "url") or "")
+        evidence["response_status"] = submit_status
+        evidence["additional_response_statuses"] = [submit_status]
+        evidence["coverage_status"] = (
+            "pass_observed"
+            if "checked=1" in submit_body and "telemetry=" in submit_body and 200 <= submit_status < 400
+            else "fail_observed"
+        )
+
+    return page_action
+
+
+def _build_puzzle_fail_page_action(evidence: dict[str, Any]):
+    def page_action(page: Any) -> None:
+        heading = page.locator("h2")
+        output_grid = page.locator("#challenge-output-grid")
+        output_field = page.locator("#challenge-output")
+        if heading.count() < 1:
+            evidence["error"] = "browser_puzzle_heading_missing"
+            return
+        if output_grid.count() < 1:
+            evidence["error"] = "browser_puzzle_output_grid_missing"
+            return
+        if output_field.count() < 1:
+            evidence["error"] = "browser_puzzle_output_field_missing"
+            return
+        wrong_output = _build_wrong_challenge_output(output_field.input_value())
+        output_field.evaluate("(node, value) => { node.value = value; }", wrong_output)
+        with page.expect_request(
+            lambda request: (
+                str(_playwright_attr_value(request, "method") or "").upper() == "POST"
+                and "/challenge/puzzle" in str(_playwright_attr_value(request, "url") or "")
+            ),
+            timeout=15_000,
+        ) as submit_request_info:
+            with page.expect_response(
+                lambda response: (
+                    str(_playwright_attr_value(_playwright_attr_value(response, "request"), "method") or "").upper()
+                    == "POST"
+                    and "/challenge/puzzle" in str(_playwright_attr_value(response, "url") or "")
+                ),
+                timeout=15_000,
+            ) as submit_response_info:
+                page.click("button[type='submit']")
+        submit_request = submit_request_info.value
+        submit_response = submit_response_info.value
+        submit_status = int(_playwright_attr_value(submit_response, "status") or 0)
+        page_body = str(page.content() or "")
+        evidence["request_method"] = "POST"
+        evidence["request_target"] = str(_playwright_attr_value(submit_request, "url") or "")
+        evidence["response_status"] = submit_status
+        evidence["coverage_status"] = (
+            "fail_observed"
+            if (
+                submit_status >= 400
+                or 'data-link-kind="maze"' in page_body
+                or "maze-nav-grid" in page_body
+                or "Incorrect" in page_body
+                or "Request new challenge" in page_body
+            )
+            else "pass_observed"
+        )
+
+    return page_action
+
+
+def _browser_page_action(browser_action: str, evidence: dict[str, Any]):
+    if browser_action == "not_a_bot_pass":
+        return _build_not_a_bot_page_action(evidence)
+    if browser_action == "puzzle_fail":
+        return _build_puzzle_fail_page_action(evidence)
+    raise WorkerConfigError(f"unsupported browser action: {browser_action}")
 
 
 def _signed_headers(
@@ -732,6 +928,13 @@ class _DirectPersonaTracker:
                 response_status=None,
             )
 
+    def record_additional_statuses(self, statuses: list[int] | tuple[int, ...]) -> None:
+        for raw_status in statuses:
+            status = int(raw_status)
+            self.generated_requests += 1
+            self.last_response_status = status
+            self.response_status_count[f"status_{status}"] += 1
+
     def result_payload(self) -> dict[str, Any]:
         failure_class = "transport" if self.last_transport_error else None
         return {
@@ -766,6 +969,7 @@ def _execute_request_sequence(
     tracker: _DirectPersonaTracker,
     base_url: str,
     requests: list[dict[str, Any]],
+    browser_session: Any | None = None,
 ) -> None:
     for request_spec in requests:
         if tracker.should_stop():
@@ -773,6 +977,7 @@ def _execute_request_sequence(
         method_name = str(request_spec.get("method") or "").strip().lower()
         raw_target = str(request_spec.get("target") or "").strip()
         surface_ids = [str(value) for value in list(request_spec.get("surface_ids") or []) if str(value).strip()]
+        transport = str(request_spec.get("transport") or "request_native").strip().lower()
         if not method_name or not raw_target:
             continue
         allowed, normalized_url = tracker.allowed_request(
@@ -781,6 +986,47 @@ def _execute_request_sequence(
             is_redirect=False,
         )
         if not allowed or not normalized_url:
+            continue
+        if transport != "request_native":
+            if browser_session is None:
+                tracker.record_failure(
+                    WorkerConfigError(f"browser transport {transport} requires an active browser session"),
+                    surface_ids=surface_ids,
+                    request_method=method_name,
+                    request_target=normalized_url or raw_target,
+                )
+                break
+            browser_action = str(request_spec.get("browser_action") or "").strip()
+            evidence: dict[str, Any] = {}
+            try:
+                response = browser_session.fetch(
+                    normalized_url,
+                    extra_headers=tracker.next_headers(dict(request_spec.get("headers") or {})),
+                    cookies=_browser_cookie_params(normalized_url, request_spec.get("cookies")),
+                    page_action=_browser_page_action(browser_action, evidence),
+                )
+                tracker.record_response(response)
+                tracker.record_additional_statuses(list(evidence.get("additional_response_statuses") or []))
+                coverage_status = str(evidence.get("coverage_status") or "").strip()
+                if coverage_status:
+                    _record_surface_receipt(
+                        tracker.surface_receipts,
+                        surface_ids=surface_ids,
+                        coverage_status=coverage_status,
+                        request_method=str(evidence.get("request_method") or method_name),
+                        request_target=str(evidence.get("request_target") or normalized_url),
+                        response_status=int(evidence["response_status"]) if evidence.get("response_status") is not None else None,
+                    )
+                elif surface_ids:
+                    raise RuntimeError(str(evidence.get("error") or "browser_surface_outcome_missing"))
+            except Exception as exc:
+                tracker.record_failure(
+                    exc,
+                    surface_ids=surface_ids,
+                    request_method=method_name,
+                    request_target=normalized_url or raw_target,
+                )
+                break
             continue
         try:
             response = getattr(session, method_name)(
@@ -874,27 +1120,23 @@ def _bulk_scraper_owned_surface_requests(
     if "not_a_bot_submit" in surface_targets:
         requests.append(
             _request_spec(
-                "post",
+                "get",
                 _absolute_target(base_url, runtime_paths["not_a_bot_checkbox"]),
                 surface_ids=["not_a_bot_submit"],
-                headers={
-                    "accept": "application/json",
-                    "content-type": "application/x-www-form-urlencoded",
-                },
-                data=_invalid_not_a_bot_body(),
+                headers={"accept": "text/html,application/xhtml+xml"},
+                transport="dynamic",
+                browser_action="not_a_bot_pass",
             )
         )
     if "puzzle_submit_or_escalation" in surface_targets:
         requests.append(
             _request_spec(
-                "post",
+                "get",
                 _absolute_target(base_url, runtime_paths["challenge_submit"]),
                 surface_ids=["puzzle_submit_or_escalation"],
-                headers={
-                    "accept": "application/json",
-                    "content-type": "application/x-www-form-urlencoded",
-                },
-                data="answer=bad&seed=invalid&return_to=%2Fsim%2Fpublic%2Flanding",
+                headers={"accept": "text/html,application/xhtml+xml"},
+                transport="dynamic",
+                browser_action="puzzle_fail",
             )
         )
     return requests
@@ -935,29 +1177,25 @@ def _http_agent_request_sequence(
     if "not_a_bot_submit" in surface_targets:
         requests.append(
             _request_spec(
-                "post",
+                "get",
                 _absolute_target(base_url, runtime_paths["not_a_bot_checkbox"]),
                 surface_ids=["not_a_bot_submit"],
-                headers={
-                    "accept": "application/json",
-                    "content-type": "application/x-www-form-urlencoded",
-                },
                 cookies=cookies,
-                data=_invalid_not_a_bot_body(),
+                headers={"accept": "text/html,application/xhtml+xml"},
+                transport="stealth",
+                browser_action="not_a_bot_pass",
             )
         )
     if "puzzle_submit_or_escalation" in surface_targets:
         requests.append(
             _request_spec(
-                "post",
+                "get",
                 _absolute_target(base_url, runtime_paths["challenge_submit"]),
                 surface_ids=["puzzle_submit_or_escalation"],
-                headers={
-                    "accept": "application/json",
-                    "content-type": "application/x-www-form-urlencoded",
-                },
                 cookies=cookies,
-                data="answer=bad&seed=invalid&return_to=%2Fsim%2Fpublic%2Flanding",
+                headers={"accept": "text/html,application/xhtml+xml"},
+                transport="stealth",
+                browser_action="puzzle_fail",
             )
         )
     if "pow_verify_abuse" in surface_targets:
@@ -1035,6 +1273,8 @@ def _http_agent_request_sequence(
 
 def _execute_bulk_scraper_persona(
     fetcher_session_cls: Any,
+    dynamic_session_cls: Any,
+    stealthy_session_cls: Any,
     *,
     plan: dict[str, Any],
     descriptor: shared_host_scope.SharedHostScopeDescriptor,
@@ -1051,6 +1291,12 @@ def _execute_bulk_scraper_persona(
     start_urls = _normalized_start_urls(seed_inventory)
     request_targets = _bulk_scraper_request_urls(start_urls)
     visited: set[str] = set()
+    browser_strategy = _browser_session_strategy_for_mode(str(plan.get("fulfillment_mode") or ""))
+    browser_session_cls = _browser_session_class_for_strategy(
+        browser_strategy,
+        dynamic_session_cls=dynamic_session_cls,
+        stealthy_session_cls=stealthy_session_cls,
+    )
     with fetcher_session_cls(
         **_request_native_session_kwargs(
             timeout_seconds=max(1.0, min(30.0, tracker.max_ms / 1000.0)),
@@ -1106,21 +1352,43 @@ def _execute_bulk_scraper_persona(
                 )
                 break
         if not tracker.should_stop() and start_urls:
-            _execute_request_sequence(
-                session,
-                tracker=tracker,
-                base_url=start_urls[0],
-                requests=_bulk_scraper_owned_surface_requests(
-                    start_urls[0],
-                    surface_targets=surface_targets,
-                    runtime_paths=runtime_paths,
-                ),
-            )
+            if browser_session_cls is not None:
+                with browser_session_cls(
+                    **_browser_session_kwargs_for_strategy(
+                        browser_strategy,
+                        timeout_ms=tracker.max_ms,
+                        accept_header="text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                    )
+                ) as browser_session:
+                    _execute_request_sequence(
+                        session,
+                        tracker=tracker,
+                        base_url=start_urls[0],
+                        requests=_bulk_scraper_owned_surface_requests(
+                            start_urls[0],
+                            surface_targets=surface_targets,
+                            runtime_paths=runtime_paths,
+                        ),
+                        browser_session=browser_session,
+                    )
+            else:
+                _execute_request_sequence(
+                    session,
+                    tracker=tracker,
+                    base_url=start_urls[0],
+                    requests=_bulk_scraper_owned_surface_requests(
+                        start_urls[0],
+                        surface_targets=surface_targets,
+                        runtime_paths=runtime_paths,
+                    ),
+                )
     return tracker.result_payload()
 
 
 def _execute_http_agent_persona(
     fetcher_session_cls: Any,
+    dynamic_session_cls: Any,
+    stealthy_session_cls: Any,
     *,
     plan: dict[str, Any],
     descriptor: shared_host_scope.SharedHostScopeDescriptor,
@@ -1144,18 +1412,40 @@ def _execute_http_agent_persona(
         surface_targets=surface_targets,
         runtime_paths=runtime_paths,
     )
+    browser_strategy = _browser_session_strategy_for_mode(str(plan.get("fulfillment_mode") or ""))
+    browser_session_cls = _browser_session_class_for_strategy(
+        browser_strategy,
+        dynamic_session_cls=dynamic_session_cls,
+        stealthy_session_cls=stealthy_session_cls,
+    )
     with fetcher_session_cls(
         **_request_native_session_kwargs(
             timeout_seconds=max(1.0, min(30.0, tracker.max_ms / 1000.0)),
             accept_header="application/json",
         ),
     ) as session:
-        _execute_request_sequence(
-            session,
-            tracker=tracker,
-            base_url=base_url,
-            requests=requests,
-        )
+        if browser_session_cls is not None:
+            with browser_session_cls(
+                **_browser_session_kwargs_for_strategy(
+                    browser_strategy,
+                    timeout_ms=tracker.max_ms,
+                    accept_header="text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                )
+            ) as browser_session:
+                _execute_request_sequence(
+                    session,
+                    tracker=tracker,
+                    base_url=base_url,
+                    requests=requests,
+                    browser_session=browser_session,
+                )
+        else:
+            _execute_request_sequence(
+                session,
+                tracker=tracker,
+                base_url=base_url,
+                requests=requests,
+            )
     return tracker.result_payload()
 
 
@@ -1202,7 +1492,7 @@ def execute_worker_plan(
         if not _normalized_start_urls(seed_inventory):
             raise WorkerConfigError("seed inventory must contain at least one accepted start or hint URL")
 
-        fetcher_session_cls, _dynamic_session_cls, _stealthy_session_cls, request_cls, spider_cls = _import_scrapling()
+        fetcher_session_cls, dynamic_session_cls, stealthy_session_cls, request_cls, spider_cls = _import_scrapling()
         if fulfillment_mode == "crawler":
             spider_class = _build_spider_class(fetcher_session_cls, request_cls, spider_cls)
             crawldir.mkdir(parents=True, exist_ok=True)
@@ -1247,6 +1537,8 @@ def execute_worker_plan(
         if fulfillment_mode == "bulk_scraper":
             return _execute_bulk_scraper_persona(
                 fetcher_session_cls,
+                dynamic_session_cls,
+                stealthy_session_cls,
                 plan=plan,
                 descriptor=descriptor,
                 seed_inventory=seed_inventory,
@@ -1254,6 +1546,8 @@ def execute_worker_plan(
             )
         return _execute_http_agent_persona(
             fetcher_session_cls,
+            dynamic_session_cls,
+            stealthy_session_cls,
             plan=plan,
             descriptor=descriptor,
             seed_inventory=seed_inventory,

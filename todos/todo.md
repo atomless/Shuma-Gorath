@@ -147,13 +147,14 @@ Current stance:
     - [`docs/research/2026-03-25-sim-scr-full-1a-non-agent-capability-matrix-refresh-review.md`](../docs/research/2026-03-25-sim-scr-full-1a-non-agent-capability-matrix-refresh-review.md)
     - [`docs/research/2026-03-25-sim-scr-full-1b-browser-session-foundation-review.md`](../docs/research/2026-03-25-sim-scr-full-1b-browser-session-foundation-review.md)
     - [`docs/research/2026-03-25-sim-scr-full-1b2-browser-runtime-provisioning-review.md`](../docs/research/2026-03-25-sim-scr-full-1b2-browser-runtime-provisioning-review.md)
+    - [`docs/research/2026-03-25-sim-scr-full-1b2b-browser-challenge-interactions-review.md`](../docs/research/2026-03-25-sim-scr-full-1b2b-browser-challenge-interactions-review.md)
     - [`docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](../docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)
     - [`docs/plans/2026-03-25-sim-scr-full-1a-non-agent-capability-matrix-refresh-plan.md`](../docs/plans/2026-03-25-sim-scr-full-1a-non-agent-capability-matrix-refresh-plan.md)
     - [`docs/plans/2026-03-25-sim-scr-full-1b-browser-session-foundation-plan.md`](../docs/plans/2026-03-25-sim-scr-full-1b-browser-session-foundation-plan.md)
     - [`docs/plans/2026-03-25-sim-scr-full-1b2-browser-runtime-provisioning-plan.md`](../docs/plans/2026-03-25-sim-scr-full-1b2-browser-runtime-provisioning-plan.md)
+    - [`docs/plans/2026-03-25-sim-scr-full-1b2b-browser-challenge-interactions-plan.md`](../docs/plans/2026-03-25-sim-scr-full-1b2b-browser-challenge-interactions-plan.md)
     - [`docs/plans/2026-03-25-scrapling-full-attacker-capability-principle-plan.md`](../docs/plans/2026-03-25-scrapling-full-attacker-capability-principle-plan.md)
     - [`docs/plans/2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md`](../docs/plans/2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md)
-  - [ ] SIM-SCR-FULL-1B2B Implement the first real browser-driven challenge or bypass interactions over that seam for Scrapling-owned surfaces where request-native execution is no longer truthful enough.
   - [ ] SIM-SCR-FULL-1B3 Close the remaining full-power behavior gaps left after the first browser-driven slice, including any still-required bounded browser or stealth follow-on for Scrapling-owned surfaces.
   - [ ] SIM-SCR-FULL-1C Add receipt-backed proof showing which defenses Scrapling touched, which it passed where expected, which it failed where expected, and which non-human categories and defense surfaces it exercised.
 

@@ -276,21 +276,21 @@ pub(crate) fn canonical_scrapling_owned_surface_summary() -> ScraplingOwnedSurfa
             "not_a_bot_submit",
             "Not-a-Bot Submit",
             "owned",
-            "request_native",
+            "browser_or_stealth",
             "must_touch",
-            "should_fail",
+            "should_pass_some",
             &["bulk_scraper", "http_agent"],
-            "Malicious request-native Scrapling must attempt the Not-a-Bot submit or fail path instead of leaving that defense untouched.",
+            "Browser-backed Scrapling challenge interaction must be able to clear the simple Not-a-Bot checkbox path where Shuma intentionally treats that surface as a lighter friction gate.",
         ),
         row(
             "puzzle_submit_or_escalation",
             "Puzzle Submit Or Escalation",
             "owned",
-            "request_native",
+            "browser_or_stealth",
             "must_touch",
             "should_fail",
             &["bulk_scraper", "http_agent"],
-            "When challenge routing escalates, Scrapling-owned malicious request-native traffic should attempt puzzle submission or puzzle escalation paths and fail honestly.",
+            "When challenge routing escalates, browser-backed Scrapling should drive the real puzzle DOM and fail honestly into maze or the equivalent challenge-failure route.",
         ),
         row(
             "pow_verify_abuse",
@@ -478,13 +478,20 @@ mod tests {
             .find(|row| row.surface_id == "not_a_bot_submit")
             .unwrap();
         assert_eq!(not_a_bot.assignment_status, "owned");
-        assert_eq!(not_a_bot.required_transport, "request_native");
+        assert_eq!(not_a_bot.required_transport, "browser_or_stealth");
         assert_eq!(not_a_bot.interaction_requirement, "must_touch");
-        assert_eq!(not_a_bot.success_contract, "should_fail");
+        assert_eq!(not_a_bot.success_contract, "should_pass_some");
         assert_eq!(
             not_a_bot.fulfillment_modes,
             vec!["bulk_scraper".to_string(), "http_agent".to_string()]
         );
+        let puzzle = summary
+            .rows
+            .iter()
+            .find(|row| row.surface_id == "puzzle_submit_or_escalation")
+            .unwrap();
+        assert_eq!(puzzle.required_transport, "browser_or_stealth");
+        assert_eq!(puzzle.success_contract, "should_fail");
 
         let maze = summary
             .rows
@@ -611,11 +618,11 @@ mod tests {
                 },
                 ScraplingSurfaceObservationReceipt {
                     surface_id: "not_a_bot_submit".to_string(),
-                    coverage_status: "fail_observed".to_string(),
+                    coverage_status: "pass_observed".to_string(),
                     attempt_count: 2,
                     sample_request_method: "POST".to_string(),
                     sample_request_path: "/challenge/not-a-bot-checkbox".to_string(),
-                    sample_response_status: Some(400),
+                    sample_response_status: Some(303),
                 },
                 ScraplingSurfaceObservationReceipt {
                     surface_id: "puzzle_submit_or_escalation".to_string(),
