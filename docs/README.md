@@ -10,6 +10,7 @@ Shuma is currently a shared-host-first control plane with a live-proven bounded 
 - [`deployment.md`](deployment.md) - Current deployment and remote operations guidance
 - [`testing.md`](testing.md) - Canonical Makefile-only verification paths
 - [`configuration.md`](configuration.md) - Runtime configuration reference
+- [`privacy-cookie-disclosure-template.md`](privacy-cookie-disclosure-template.md) - Deployer-ready privacy and cookie notice starting point
 - [`dashboard.md`](dashboard.md) - Dashboard entry doc
 - [`dashboard-tabs/README.md`](dashboard-tabs/README.md) - Per-tab operator docs
 

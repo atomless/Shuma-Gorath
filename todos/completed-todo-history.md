@@ -4,6 +4,35 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### SEC-GDPR-4: deployer-ready privacy and cookie disclosure template
+
+- [x] Added a deployer-ready template in:
+  - [`../docs/privacy-cookie-disclosure-template.md`](../docs/privacy-cookie-disclosure-template.md)
+  with:
+  - controller and contact placeholders,
+  - lawful-basis wording guidance,
+  - Shuma-default cookie and browser-storage tables,
+  - server-side storage and retention tables,
+  - explicit event-log IP write-mode wording,
+  - and rights-handling workflow copy.
+- [x] Linked the template from:
+  - [`../docs/privacy-gdpr-review.md`](../docs/privacy-gdpr-review.md)
+  - [`../docs/security-hardening.md`](../docs/security-hardening.md)
+  - [`../docs/README.md`](../docs/README.md)
+  so operators can move from implementation truth to publishable notice text without trawling the repo.
+- [x] Added the supporting planning chain in:
+  - [`../docs/research/2026-03-24-deployer-ready-privacy-and-cookie-disclosure-template-review.md`](../docs/research/2026-03-24-deployer-ready-privacy-and-cookie-disclosure-template-review.md)
+  - [`../docs/plans/2026-03-24-deployer-ready-privacy-and-cookie-disclosure-template-plan.md`](../docs/plans/2026-03-24-deployer-ready-privacy-and-cookie-disclosure-template-plan.md)
+  - [`../docs/research/2026-03-24-sec-gdpr-4-deployer-ready-privacy-and-cookie-disclosure-template-post-implementation-review.md`](../docs/research/2026-03-24-sec-gdpr-4-deployer-ready-privacy-and-cookie-disclosure-template-post-implementation-review.md)
+  and indexed them in the docs indexes.
+- [x] Why:
+  - the repo already explained privacy posture and storage behavior,
+  - but deployers still lacked one publishable starting notice,
+  - and the backlog explicitly called for a lawful-basis, retention, storage-inventory, and rights-handling template.
+- [x] Evidence:
+  - `git diff --check`
+  - docs-only tranche, so no behavior tests were run intentionally
+
 ### SEC-GDPR-3: event-log IP storage minimization mode
 
 - [x] Added env-only `SHUMA_EVENT_LOG_IP_STORAGE_MODE` in:

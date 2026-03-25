@@ -98,3 +98,5 @@ Operators deploying Shuma should publish:
 Completed: <abbr title="General Data Protection Regulation">GDPR</abbr>/privacy and cookie-consent review performed with a deployment-context determination.
 
 Follow-up engineering tasks are tracked in `todos/todo.md` under <abbr title="General Data Protection Regulation">GDPR</abbr> follow-up items.
+
+For deployer-ready operator copy, use [`privacy-cookie-disclosure-template.md`](privacy-cookie-disclosure-template.md) as the publishable starting point and keep it aligned with the implementation-grounded details in this review.

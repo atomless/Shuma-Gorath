@@ -157,8 +157,6 @@ Scope note:
 
 ## P1 Privacy and Data-Protection Follow-up
 
-- [ ] SEC-GDPR-4 Add a deployer-ready privacy and cookie disclosure template in docs (lawful basis, retention table, storage inventory, and rights-handling workflow).
-
 ## P2 Hardening and Coverage
 
 Architecture alignment reference:
