@@ -329,6 +329,67 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
             if str(entry.get("surface_id") or "") == surface_id
         ]
 
+    def test_import_scrapling_exposes_browser_session_classes(self) -> None:
+        self.assertIsNotNone(scrapling_worker, "worker module missing")
+
+        fetcher_session_cls, dynamic_session_cls, stealthy_session_cls, request_cls, spider_cls = (  # type: ignore[misc, attr-defined]
+            scrapling_worker._import_scrapling()
+        )
+
+        self.assertEqual(fetcher_session_cls.__name__, "FetcherSession")
+        self.assertEqual(dynamic_session_cls.__name__, "DynamicSession")
+        self.assertEqual(stealthy_session_cls.__name__, "StealthySession")
+        self.assertEqual(request_cls.__name__, "Request")
+        self.assertEqual(spider_cls.__name__, "Spider")
+
+    def test_dynamic_session_kwargs_lock_browser_automation_profile(self) -> None:
+        self.assertIsNotNone(scrapling_worker, "worker module missing")
+
+        kwargs = scrapling_worker._dynamic_session_kwargs(  # type: ignore[attr-defined]
+            timeout_ms=4000,
+            accept_header="text/html",
+        )
+
+        self.assertEqual(kwargs["timeout"], 4000)
+        self.assertEqual(kwargs["wait"], 250)
+        self.assertTrue(kwargs["network_idle"])
+        self.assertTrue(kwargs["disable_resources"])
+        self.assertEqual(kwargs["extra_headers"]["accept"], "text/html")
+
+    def test_stealth_session_kwargs_lock_stealth_profile(self) -> None:
+        self.assertIsNotNone(scrapling_worker, "worker module missing")
+
+        kwargs = scrapling_worker._stealth_session_kwargs(  # type: ignore[attr-defined]
+            timeout_ms=4000,
+            accept_header="application/json",
+        )
+
+        self.assertEqual(kwargs["timeout"], 4000)
+        self.assertEqual(kwargs["wait"], 250)
+        self.assertTrue(kwargs["network_idle"])
+        self.assertTrue(kwargs["disable_resources"])
+        self.assertTrue(kwargs["solve_cloudflare"])
+        self.assertTrue(kwargs["block_webrtc"])
+        self.assertTrue(kwargs["hide_canvas"])
+        self.assertTrue(kwargs["allow_webgl"])
+        self.assertEqual(kwargs["extra_headers"]["accept"], "application/json")
+
+    def test_browser_session_strategy_classifies_current_modes(self) -> None:
+        self.assertIsNotNone(scrapling_worker, "worker module missing")
+
+        self.assertEqual(
+            scrapling_worker._browser_session_strategy_for_mode("crawler"),  # type: ignore[attr-defined]
+            "request_native",
+        )
+        self.assertEqual(
+            scrapling_worker._browser_session_strategy_for_mode("bulk_scraper"),  # type: ignore[attr-defined]
+            "dynamic",
+        )
+        self.assertEqual(
+            scrapling_worker._browser_session_strategy_for_mode("http_agent"),  # type: ignore[attr-defined]
+            "stealth",
+        )
+
     def test_request_native_session_kwargs_lock_explicit_chrome_impersonation_contract(self) -> None:
         self.assertIsNotNone(scrapling_worker, "worker module missing")
 

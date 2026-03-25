@@ -145,11 +145,14 @@ Current stance:
   - Reference context:
     - [`docs/research/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-review.md`](../docs/research/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-review.md)
     - [`docs/research/2026-03-25-sim-scr-full-1a-non-agent-capability-matrix-refresh-review.md`](../docs/research/2026-03-25-sim-scr-full-1a-non-agent-capability-matrix-refresh-review.md)
+    - [`docs/research/2026-03-25-sim-scr-full-1b-browser-session-foundation-review.md`](../docs/research/2026-03-25-sim-scr-full-1b-browser-session-foundation-review.md)
     - [`docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](../docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)
     - [`docs/plans/2026-03-25-sim-scr-full-1a-non-agent-capability-matrix-refresh-plan.md`](../docs/plans/2026-03-25-sim-scr-full-1a-non-agent-capability-matrix-refresh-plan.md)
+    - [`docs/plans/2026-03-25-sim-scr-full-1b-browser-session-foundation-plan.md`](../docs/plans/2026-03-25-sim-scr-full-1b-browser-session-foundation-plan.md)
     - [`docs/plans/2026-03-25-scrapling-full-attacker-capability-principle-plan.md`](../docs/plans/2026-03-25-scrapling-full-attacker-capability-principle-plan.md)
     - [`docs/plans/2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md`](../docs/plans/2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md)
-  - [ ] SIM-SCR-FULL-1B Implement the remaining Scrapling power required by that matrix so the lane no longer stops at the current request-native baseline.
+  - [ ] SIM-SCR-FULL-1B2 Implement the first real browser-driven challenge or bypass interactions over that seam for Scrapling-owned surfaces where request-native execution is no longer truthful enough.
+  - [ ] SIM-SCR-FULL-1B3 Close the remaining full-power behavior gaps left after the first browser-driven slice, including any still-required bounded browser or stealth follow-on for Scrapling-owned surfaces.
   - [ ] SIM-SCR-FULL-1C Add receipt-backed proof showing which defenses Scrapling touched, which it passed where expected, which it failed where expected, and which non-human categories and defense surfaces it exercised.
 
 - [ ] RSI-GAME-HO-1 Fully operationally prove the strict `human_only_private` Scrapling-driven game loop before any later relaxed stance.

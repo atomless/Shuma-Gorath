@@ -4,6 +4,29 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-25)
 
+### `SIM-SCR-FULL-1B1` Browser Session Foundation
+
+- [x] Added the first full-power Scrapling browser-session seam in:
+  - [`scripts/supervisor/scrapling_worker.py`](../scripts/supervisor/scrapling_worker.py)
+  - [`scripts/bootstrap/scrapling_runtime.sh`](../scripts/bootstrap/scrapling_runtime.sh)
+  so the repo-owned runtime and worker now explicitly import and verify `DynamicSession` and `StealthySession`, and the worker publishes explicit `request_native`, `dynamic`, and `stealth` strategy helpers instead of leaving browser capability implicit.
+- [x] Wrote the focused proof first in:
+  - [`scripts/tests/test_scrapling_worker.py`](../scripts/tests/test_scrapling_worker.py)
+  - [`scripts/tests/test_setup_runtime_spin_install.py`](../scripts/tests/test_setup_runtime_spin_install.py)
+  so the red phase proved the worker and runtime did not yet expose the browser-session foundation before the implementation landed.
+- [x] Updated the proof surface and paper trail in:
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`docs/plans/2026-03-25-sim-scr-full-1b-browser-session-foundation-plan.md`](../docs/plans/2026-03-25-sim-scr-full-1b-browser-session-foundation-plan.md)
+  - [`docs/research/2026-03-25-sim-scr-full-1b-browser-session-foundation-review.md`](../docs/research/2026-03-25-sim-scr-full-1b-browser-session-foundation-review.md)
+  - [`docs/research/2026-03-25-sim-scr-full-1b-browser-session-foundation-post-implementation-review.md`](../docs/research/2026-03-25-sim-scr-full-1b-browser-session-foundation-post-implementation-review.md)
+  so the next slice can build real browser-driven challenge behavior on an explicit seam rather than on request-native assumptions.
+- [x] Why:
+  - the refreshed `SIM-SCR-FULL-1A` matrix made dynamic and stealth Scrapling capability in-scope by default for owned surfaces,
+  - but the worker was structurally request-native and browser sessions are `fetch(...)` plus `page_action`, not drop-in `get/post/put` replacements.
+- [x] Evidence:
+  - `make test-adversary-sim-scrapling-worker`
+  - `make test-setup-runtime-bootstrap`
+
 ### `SIM-SCR-FULL-1A` Refreshed Full-Power Scrapling Capability Matrix
 
 - [x] Replaced the older request-native-bounded Scrapling matrix as the current mainline source of truth by creating:

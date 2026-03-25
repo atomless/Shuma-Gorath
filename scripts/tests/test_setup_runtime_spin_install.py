@@ -172,6 +172,14 @@ SQLITE
         self.assertTrue(self.make_log.exists())
         self.assertIn("config-seed", self.make_log.read_text(encoding="utf-8"))
 
+    def test_scrapling_runtime_ready_checks_dynamic_and_stealth_sessions(self) -> None:
+        script_text = (self.workspace / "scripts" / "bootstrap" / "scrapling_runtime.sh").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("DynamicSession", script_text)
+        self.assertIn("StealthySession", script_text)
+
     def test_passwordless_sudo_installs_matching_python_venv_package_when_ensurepip_missing(self) -> None:
         venv_ready = self.temp_dir / "venv-ready"
         write_executable(

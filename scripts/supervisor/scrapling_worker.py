@@ -24,11 +24,11 @@ from scripts.tests import shared_host_scope
 from scripts.tests import sim_tag_helpers
 
 
-def _import_scrapling() -> tuple[Any, Any, Any]:
-    from scrapling.fetchers import FetcherSession
+def _import_scrapling() -> tuple[Any, Any, Any, Any, Any]:
+    from scrapling.fetchers import DynamicSession, FetcherSession, StealthySession
     from scrapling.spiders import Request, Spider
 
-    return FetcherSession, Request, Spider
+    return FetcherSession, DynamicSession, StealthySession, Request, Spider
 
 
 class WorkerConfigError(ValueError):
@@ -327,6 +327,46 @@ def _request_native_session_kwargs(
         "retries": 1,
         "headers": {"accept": accept_header},
     }
+
+
+def _dynamic_session_kwargs(
+    *,
+    timeout_ms: int,
+    accept_header: str,
+) -> dict[str, Any]:
+    return {
+        "timeout": int(timeout_ms),
+        "wait": 250,
+        "network_idle": True,
+        "disable_resources": True,
+        "extra_headers": {"accept": accept_header},
+    }
+
+
+def _stealth_session_kwargs(
+    *,
+    timeout_ms: int,
+    accept_header: str,
+) -> dict[str, Any]:
+    return {
+        "timeout": int(timeout_ms),
+        "wait": 250,
+        "network_idle": True,
+        "disable_resources": True,
+        "solve_cloudflare": True,
+        "block_webrtc": True,
+        "hide_canvas": True,
+        "allow_webgl": True,
+        "extra_headers": {"accept": accept_header},
+    }
+
+
+def _browser_session_strategy_for_mode(fulfillment_mode: str) -> str:
+    return {
+        "crawler": "request_native",
+        "bulk_scraper": "dynamic",
+        "http_agent": "stealth",
+    }.get(str(fulfillment_mode or "").strip(), "request_native")
 
 
 def _signed_headers(
@@ -1162,7 +1202,7 @@ def execute_worker_plan(
         if not _normalized_start_urls(seed_inventory):
             raise WorkerConfigError("seed inventory must contain at least one accepted start or hint URL")
 
-        fetcher_session_cls, request_cls, spider_cls = _import_scrapling()
+        fetcher_session_cls, _dynamic_session_cls, _stealthy_session_cls, request_cls, spider_cls = _import_scrapling()
         if fulfillment_mode == "crawler":
             spider_class = _build_spider_class(fetcher_session_cls, request_cls, spider_cls)
             crawldir.mkdir(parents=True, exist_ok=True)
