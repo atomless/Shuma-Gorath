@@ -479,12 +479,14 @@ mod tests {
         let mut section_metadata = BTreeMap::new();
         for key in [
             "objectives",
+            "non_human_stance_presets",
             "live_traffic",
             "adversary_sim",
             "game_contract",
             "episode_archive",
             "benchmark_results",
             "non_human_traffic",
+            "effective_non_human_policy",
             "replay_promotion",
         ] {
             section_metadata.insert(
@@ -503,6 +505,11 @@ mod tests {
             window: window.clone(),
             section_metadata,
             objectives: objectives.clone(),
+            non_human_stance_presets:
+                crate::observability::operator_snapshot_objectives::non_human_stance_preset_catalog(
+                    &objectives,
+                    "disabled",
+                ),
             live_traffic: OperatorSnapshotLiveTraffic {
                 traffic_origin: "live".to_string(),
                 measurement_scope: "ingress_primary".to_string(),
@@ -597,6 +604,11 @@ mod tests {
                 decision_chain: non_human_decision_chain(),
                 receipts: Vec::new(),
             },
+            effective_non_human_policy:
+                crate::observability::operator_snapshot_effective_non_human_policy::effective_non_human_policy(
+                    &objectives,
+                    &crate::config::defaults(),
+                ),
             allowed_actions: allowed_actions_v1(),
             game_contract:
                 crate::observability::operator_snapshot_objectives::recursive_improvement_game_contract_v1(

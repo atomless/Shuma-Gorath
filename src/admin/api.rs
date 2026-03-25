@@ -2293,6 +2293,29 @@ mod tests {
             .and_then(|value| value.as_str())
             .map(|value| value.starts_with("rev-"))
             .unwrap_or(false));
+        assert_eq!(
+            payload
+                .get("non_human_stance_presets")
+                .and_then(|value| value.get("schema_version"))
+                .and_then(|value| value.as_str()),
+            Some("non_human_stance_preset_catalog_v1")
+        );
+        assert_eq!(
+            payload
+                .get("effective_non_human_policy")
+                .and_then(|value| value.get("schema_version"))
+                .and_then(|value| value.as_str()),
+            Some("effective_non_human_policy_v1")
+        );
+        assert!(payload
+            .get("effective_non_human_policy")
+            .and_then(|value| value.get("rows"))
+            .and_then(|value| value.as_array())
+            .map(|rows| rows.iter().any(|row| {
+                row.get("category_id").and_then(|value| value.as_str())
+                    == Some("verified_beneficial_bot")
+            }))
+            .unwrap_or(false));
         assert!(payload
             .get("budget_distance")
             .and_then(|value| value.get("rows"))

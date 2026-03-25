@@ -11,6 +11,8 @@ use crate::runtime::non_human_taxonomy::{
 pub(crate) const OPERATOR_OBJECTIVES_SCHEMA_VERSION: &str = "operator_objectives_v1";
 pub(crate) const RECURSIVE_IMPROVEMENT_GAME_CONTRACT_SCHEMA_VERSION: &str =
     "recursive_improvement_game_contract_v1";
+pub(crate) const NON_HUMAN_STANCE_PRESET_CATALOG_SCHEMA_VERSION: &str =
+    "non_human_stance_preset_catalog_v1";
 const RECURSIVE_IMPROVEMENT_GAME_CONTRACT_ID: &str = "shuma_recursive_improvement_game_v1";
 
 const SITE_DEFAULT_OBJECTIVE_PROFILE_ID: &str = "site_default_v1";
@@ -53,6 +55,24 @@ pub(crate) struct OperatorObjectivesRolloutGuardrails {
 pub(crate) struct OperatorObjectiveCategoryPosture {
     pub category_id: NonHumanCategoryId,
     pub posture: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct OperatorObjectiveStancePreset {
+    pub preset_id: String,
+    pub label: String,
+    pub description: String,
+    pub intended_phase: String,
+    pub verified_identity_mode: String,
+    pub category_postures: Vec<OperatorObjectiveCategoryPosture>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct OperatorObjectiveStancePresetCatalog {
+    pub schema_version: String,
+    pub active_preset_id: String,
+    pub verified_identity_mode: String,
+    pub presets: Vec<OperatorObjectiveStancePreset>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -438,6 +458,31 @@ pub(crate) fn recursive_improvement_game_contract_v1(
     }
 }
 
+pub(crate) fn non_human_stance_preset_catalog(
+    profile: &OperatorObjectivesProfile,
+    verified_identity_mode: &str,
+) -> OperatorObjectiveStancePresetCatalog {
+    let presets = canonical_non_human_stance_presets();
+    let active_preset_id = presets
+        .iter()
+        .find(|preset| {
+            preset.verified_identity_mode == verified_identity_mode
+                && category_postures_equal(
+                    preset.category_postures.as_slice(),
+                    profile.category_postures.as_slice(),
+                )
+        })
+        .map(|preset| preset.preset_id.clone())
+        .unwrap_or_else(|| "custom".to_string());
+
+    OperatorObjectiveStancePresetCatalog {
+        schema_version: NON_HUMAN_STANCE_PRESET_CATALOG_SCHEMA_VERSION.to_string(),
+        active_preset_id,
+        verified_identity_mode: verified_identity_mode.to_string(),
+        presets,
+    }
+}
+
 fn scorecard_entry(
     score_id: &str,
     source_contract: &str,
@@ -669,7 +714,7 @@ fn objective_revision(updated_at_ts: u64) -> String {
     format!("rev-{updated_at_ts}")
 }
 
-fn default_category_postures() -> Vec<OperatorObjectiveCategoryPosture> {
+pub(crate) fn site_default_category_postures() -> Vec<OperatorObjectiveCategoryPosture> {
     vec![
         category_posture(NonHumanCategoryId::IndexingBot, "cost_reduced"),
         category_posture(NonHumanCategoryId::AiScraperBot, "blocked"),
@@ -679,6 +724,47 @@ fn default_category_postures() -> Vec<OperatorObjectiveCategoryPosture> {
         category_posture(NonHumanCategoryId::AgentOnBehalfOfHuman, "tolerated"),
         category_posture(NonHumanCategoryId::VerifiedBeneficialBot, "allowed"),
         category_posture(NonHumanCategoryId::UnknownNonHuman, "restricted"),
+    ]
+}
+
+fn default_category_postures() -> Vec<OperatorObjectiveCategoryPosture> {
+    site_default_category_postures()
+}
+
+fn strict_block_all_category_postures() -> Vec<OperatorObjectiveCategoryPosture> {
+    canonical_non_human_taxonomy()
+        .categories
+        .into_iter()
+        .map(|row| category_posture(row.category_id, "blocked"))
+        .collect()
+}
+
+fn canonical_non_human_stance_presets() -> Vec<OperatorObjectiveStancePreset> {
+    vec![
+        OperatorObjectiveStancePreset {
+            preset_id: "balanced_default".to_string(),
+            label: "Balanced Default".to_string(),
+            description: "Current mixed public-web baseline: clearly beneficial categories remain more permissive while higher-capability or ambiguous automation stays restricted.".to_string(),
+            intended_phase: "operator_product_stance".to_string(),
+            verified_identity_mode: "verified_identities_denied".to_string(),
+            category_postures: site_default_category_postures(),
+        },
+        OperatorObjectiveStancePreset {
+            preset_id: "human_only_private".to_string(),
+            label: "Human Only / Private".to_string(),
+            description: "Strict development reference stance: every non-human category is blocked and verified identity remains denied too.".to_string(),
+            intended_phase: "development_reference_stance".to_string(),
+            verified_identity_mode: "verified_identities_denied".to_string(),
+            category_postures: strict_block_all_category_postures(),
+        },
+        OperatorObjectiveStancePreset {
+            preset_id: "humans_plus_verified_only".to_string(),
+            label: "Humans Plus Verified Only".to_string(),
+            description: "Later relaxed sweep: unverified non-human traffic remains blocked while verified non-human traffic becomes the only eligible exception lane.".to_string(),
+            intended_phase: "verified_identity_relaxation".to_string(),
+            verified_identity_mode: "verified_identities_only".to_string(),
+            category_postures: strict_block_all_category_postures(),
+        },
     ]
 }
 
@@ -739,11 +825,27 @@ fn validate_category_postures(
     Ok(())
 }
 
+fn category_postures_equal(
+    left: &[OperatorObjectiveCategoryPosture],
+    right: &[OperatorObjectiveCategoryPosture],
+) -> bool {
+    let left_map: std::collections::BTreeMap<_, _> = left
+        .iter()
+        .map(|row| (row.category_id.as_str(), row.posture.as_str()))
+        .collect();
+    let right_map: std::collections::BTreeMap<_, _> = right
+        .iter()
+        .map(|row| (row.category_id.as_str(), row.posture.as_str()))
+        .collect();
+    left_map == right_map
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        default_operator_objectives, persisted_operator_objectives_from_request,
-        recursive_improvement_game_contract_v1, validate_operator_objectives,
+        default_operator_objectives, non_human_stance_preset_catalog,
+        persisted_operator_objectives_from_request, recursive_improvement_game_contract_v1,
+        validate_operator_objectives,
         OperatorObjectiveAdversarySimExpectations, OperatorObjectiveBudget,
         OperatorObjectiveCategoryPosture, OperatorObjectivesRolloutGuardrails,
         OperatorObjectivesUpsertRequest, OPERATOR_OBJECTIVES_SCHEMA_VERSION,
@@ -778,6 +880,38 @@ mod tests {
         assert_eq!(profile.budgets[1].metric, "suspicious_forwarded_request_rate");
         assert_eq!(profile.budgets[2].metric, "suspicious_forwarded_byte_rate");
         assert_eq!(profile.budgets[3].metric, "suspicious_forwarded_latency_share");
+    }
+
+    #[test]
+    fn stance_preset_catalog_exposes_strict_and_verified_only_reference_presets() {
+        let profile = default_operator_objectives(1_700_000_000);
+        let catalog = non_human_stance_preset_catalog(&profile, "verified_identities_denied");
+
+        assert_eq!(
+            catalog.schema_version,
+            "non_human_stance_preset_catalog_v1"
+        );
+        assert_eq!(catalog.active_preset_id, "balanced_default");
+        let strict = catalog
+            .presets
+            .iter()
+            .find(|preset| preset.preset_id == "human_only_private")
+            .expect("strict preset");
+        assert_eq!(strict.verified_identity_mode, "verified_identities_denied");
+        assert!(strict
+            .category_postures
+            .iter()
+            .all(|row| row.posture == "blocked"));
+        let verified_only = catalog
+            .presets
+            .iter()
+            .find(|preset| preset.preset_id == "humans_plus_verified_only")
+            .expect("verified-only preset");
+        assert_eq!(verified_only.verified_identity_mode, "verified_identities_only");
+        assert!(verified_only
+            .category_postures
+            .iter()
+            .all(|row| row.posture == "blocked"));
     }
 
     #[test]

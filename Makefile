@@ -1327,9 +1327,12 @@ test-operator-objectives-contract: ## Run focused operator-objectives profile an
 	@echo "$(CYAN)🧪 Running operator objectives contract checks...$(NC)"
 	@./scripts/set_crate_type.sh rlib
 	@cargo test observability::operator_snapshot_objectives::tests:: -- --nocapture
+	@cargo test observability::operator_snapshot_effective_non_human_policy::tests:: -- --nocapture
 	@cargo test observability::operator_objectives_store::tests:: -- --nocapture
 	@cargo test observability::decision_ledger::tests:: -- --nocapture
 	@cargo test admin::operator_objectives_api::tests:: -- --nocapture
+	@cargo test observability::hot_read_contract::tests::operator_snapshot_contracts_include_budget_distance_and_runtime_posture -- --exact --nocapture
+	@cargo test admin::api::tests::handle_admin_operator_snapshot_returns_machine_first_snapshot_contract -- --exact --nocapture
 	@cargo test observability::operator_snapshot::tests::snapshot_payload_uses_persisted_objective_profile_and_typed_verified_identity_summary -- --exact --nocapture
 
 test-operator-objectives-category-contract: ## Run focused category-aware operator-objectives contract checks

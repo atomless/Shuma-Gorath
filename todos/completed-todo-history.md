@@ -4,6 +4,35 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-25)
 
+### `STANCE-MODEL-1A` Canonical Stance Presets And Resolved Policy Contract
+
+- [x] Landed the first machine-first bridge away from the dual-stance model in:
+  - [`src/observability/operator_snapshot_objectives.rs`](../src/observability/operator_snapshot_objectives.rs)
+  - [`src/observability/operator_snapshot_effective_non_human_policy.rs`](../src/observability/operator_snapshot_effective_non_human_policy.rs)
+  - [`src/observability/operator_snapshot.rs`](../src/observability/operator_snapshot.rs)
+  - [`src/observability/hot_read_contract.rs`](../src/observability/hot_read_contract.rs)
+  - [`src/admin/api.rs`](../src/admin/api.rs)
+  so `operator_snapshot_v1` now publishes:
+  - canonical stance presets including `balanced_default`, `human_only_private`, and `humans_plus_verified_only`,
+  - the current matched preset id,
+  - and a resolved `effective_non_human_policy` section that shows base category posture, verified-identity override status, effective verified action or posture when deterministic, and source-of-authority lineage.
+- [x] Tightened the focused proof path in:
+  - [`Makefile`](../Makefile)
+  - [`docs/testing.md`](../docs/testing.md)
+  so `make test-operator-objectives-contract` now covers the preset catalog, resolved policy rows, hot-read contract registration, and the admin operator-snapshot JSON surface.
+- [x] Updated the machine-first contract docs in:
+  - [`docs/configuration.md`](../docs/configuration.md)
+  - [`docs/api.md`](../docs/api.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  and recorded the tranche closeout in:
+  - [`docs/research/2026-03-25-stance-model-1a-canonical-preset-and-resolved-policy-post-implementation-review.md`](../docs/research/2026-03-25-stance-model-1a-canonical-preset-and-resolved-policy-post-implementation-review.md)
+- [x] Why:
+  - Shuma needed one machine-first place to make the current verified-identity-vs-category-posture mismatch explicit before runtime and Game Loop consumers are rebased,
+  - and the strict `human_only_private` plus later `humans_plus_verified_only` language needed to become executable contract surface rather than living only in planning docs.
+- [x] Evidence:
+  - `make test-operator-objectives-contract`
+  - `git diff --check`
+
 ### Delay `humans_plus_verified_only` Until Combined-Attacker Strict Proof
 
 - [x] Wrote the sequencing review in:

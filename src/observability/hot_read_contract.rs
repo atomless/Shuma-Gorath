@@ -129,7 +129,7 @@ const MONITORING_BOOTSTRAP_COMPONENTS: [HotReadComponentContract; 7] = [
     },
 ];
 
-const OPERATOR_SNAPSHOT_COMPONENTS: [HotReadComponentContract; 14] = [
+const OPERATOR_SNAPSHOT_COMPONENTS: [HotReadComponentContract; 16] = [
     HotReadComponentContract {
         key: "objectives",
         exactness: TelemetryExactness::Exact,
@@ -138,6 +138,15 @@ const OPERATOR_SNAPSHOT_COMPONENTS: [HotReadComponentContract; 14] = [
         canonical_source: HotReadCanonicalSource::DirectStateSnapshot,
         projection_model: HotReadProjectionModel::DeterministicRebuild,
         note: "Objective profile is a persisted site-owned direct-state contract with server-assigned revision metadata, seeded conservatively when missing and then read as the operator-facing truth.",
+    },
+    HotReadComponentContract {
+        key: "non_human_stance_presets",
+        exactness: TelemetryExactness::Derived,
+        basis: TelemetryBasis::Policy,
+        ownership_tier: HotReadOwnershipTier::SupportingSummary,
+        canonical_source: HotReadCanonicalSource::DirectStateSnapshot,
+        projection_model: HotReadProjectionModel::DeterministicRebuild,
+        note: "Non-human stance presets expose the canonical preset catalog plus the currently matched preset id derived from the persisted category posture matrix and the current verified-identity mode.",
     },
     HotReadComponentContract {
         key: "live_traffic",
@@ -192,6 +201,15 @@ const OPERATOR_SNAPSHOT_COMPONENTS: [HotReadComponentContract; 14] = [
         canonical_source: HotReadCanonicalSource::DirectStateSnapshot,
         projection_model: HotReadProjectionModel::DeterministicRebuild,
         note: "Non-human traffic section exposes the seeded canonical taxonomy, the classifier decision chain, bounded category receipts, and readiness blockers on the same operator-facing contract used later by category-aware objective, coverage, and tuning gates.",
+    },
+    HotReadComponentContract {
+        key: "effective_non_human_policy",
+        exactness: TelemetryExactness::Derived,
+        basis: TelemetryBasis::Policy,
+        ownership_tier: HotReadOwnershipTier::SupportingSummary,
+        canonical_source: HotReadCanonicalSource::DirectStateSnapshot,
+        projection_model: HotReadProjectionModel::DeterministicRebuild,
+        note: "Resolved non-human policy rows combine the category posture matrix with the current verified-identity override inputs so later runtime, benchmark, and Game Loop work can see one explicit policy interpretation surface.",
     },
     HotReadComponentContract {
         key: "benchmark_results",
@@ -383,6 +401,8 @@ mod tests {
             .map(|component| component.key)
             .collect();
         assert!(keys.contains(&"objectives"));
+        assert!(keys.contains(&"non_human_stance_presets"));
+        assert!(keys.contains(&"effective_non_human_policy"));
         assert!(keys.contains(&"live_traffic"));
         assert!(keys.contains(&"budget_distance"));
         assert!(keys.contains(&"non_human_traffic"));

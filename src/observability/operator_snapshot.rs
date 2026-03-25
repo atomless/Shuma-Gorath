@@ -17,6 +17,9 @@ use super::operator_objectives_store::load_or_seed_operator_objectives;
 use super::operator_snapshot_live_traffic::{
     adversary_sim_section, human_friction_row, lane_row, live_traffic_section, scope_row,
 };
+use super::operator_snapshot_effective_non_human_policy::{
+    effective_non_human_policy, resolved_verified_identity_mode,
+};
 use super::operator_snapshot_objectives::DEFAULT_WINDOW_HOURS;
 use super::operator_snapshot_runtime_posture::{runtime_posture, runtime_shadow_mode};
 use super::operator_snapshot_verified_identity::verified_identity_summary;
@@ -26,11 +29,16 @@ pub(crate) use super::operator_snapshot_live_traffic::{
     OperatorSnapshotAdversarySim, OperatorSnapshotLane, OperatorSnapshotLiveTraffic,
     OperatorSnapshotRecentSimRun, OperatorSnapshotShadowMode,
 };
+pub(crate) use super::operator_snapshot_effective_non_human_policy::{
+    EffectiveNonHumanPolicy,
+};
 pub(crate) use super::benchmark_comparison::{
     BenchmarkComparableSnapshot, BenchmarkEpisodeFamilyDelta, BenchmarkHomeostasisSummary,
 };
 pub(crate) use super::operator_snapshot_objectives::{
-    OperatorObjectiveBudget, OperatorObjectivesProfile, RecursiveImprovementGameContract,
+    non_human_stance_preset_catalog, OperatorObjectiveBudget,
+    OperatorObjectiveStancePresetCatalog, OperatorObjectivesProfile,
+    RecursiveImprovementGameContract,
 };
 pub(crate) use super::operator_snapshot_non_human::OperatorSnapshotNonHumanTrafficSummary;
 pub(crate) use super::operator_snapshot_recent_changes::{
@@ -133,6 +141,7 @@ pub(crate) struct OperatorSnapshotHotReadPayload {
     pub window: OperatorSnapshotWindow,
     pub section_metadata: BTreeMap<String, OperatorSnapshotSectionMetadata>,
     pub objectives: OperatorObjectivesProfile,
+    pub non_human_stance_presets: OperatorObjectiveStancePresetCatalog,
     pub live_traffic: OperatorSnapshotLiveTraffic,
     pub shadow_mode: OperatorSnapshotShadowMode,
     pub adversary_sim: OperatorSnapshotAdversarySim,
@@ -140,6 +149,7 @@ pub(crate) struct OperatorSnapshotHotReadPayload {
     pub recent_changes: OperatorSnapshotRecentChanges,
     pub budget_distance: OperatorBudgetDistanceSummary,
     pub non_human_traffic: OperatorSnapshotNonHumanTrafficSummary,
+    pub effective_non_human_policy: EffectiveNonHumanPolicy,
     pub allowed_actions: AllowedActionsSurface,
     pub game_contract: RecursiveImprovementGameContract,
     pub episode_archive: OperatorSnapshotEpisodeArchive,
@@ -222,8 +232,12 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
         crate::admin::load_oversight_episode_archive(store, site_id, &game_contract);
     let cfg = crate::config::load_runtime_cached(store, site_id)
         .unwrap_or_else(|_| crate::config::defaults().clone());
+    let verified_identity_mode = resolved_verified_identity_mode(&cfg);
+    let non_human_stance_presets =
+        non_human_stance_preset_catalog(&objectives, verified_identity_mode.as_str());
     let verified_identity =
         verified_identity_summary(summary, &cfg, non_human_traffic.receipts.as_slice());
+    let effective_non_human_policy = effective_non_human_policy(&objectives, &cfg);
     let (replay_promotion, replay_promotion_refreshed_at_ts) =
         load_replay_promotion_summary(store, site_id);
     let prior_window_reference =
@@ -267,6 +281,7 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
             replay_promotion_refreshed_at_ts,
         ),
         objectives,
+        non_human_stance_presets,
         live_traffic,
         shadow_mode,
         adversary_sim,
@@ -274,6 +289,7 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
         recent_changes,
         budget_distance,
         non_human_traffic,
+        effective_non_human_policy,
         allowed_actions,
         game_contract,
         episode_archive,
@@ -613,6 +629,54 @@ mod tests {
                 .expect("verified beneficial category posture")
                 .posture,
             "allowed"
+        );
+        assert_eq!(
+            payload.non_human_stance_presets.schema_version,
+            "non_human_stance_preset_catalog_v1"
+        );
+        assert_eq!(
+            payload.non_human_stance_presets.active_preset_id,
+            "balanced_default"
+        );
+        assert!(payload
+            .non_human_stance_presets
+            .presets
+            .iter()
+            .any(|preset| preset.preset_id == "human_only_private"));
+        assert_eq!(
+            payload.effective_non_human_policy.schema_version,
+            "effective_non_human_policy_v1"
+        );
+        assert_eq!(
+            payload.effective_non_human_policy.resolution_mode,
+            "legacy_dual_input"
+        );
+        assert!(payload.effective_non_human_policy.mismatched_category_count >= 1);
+        let verified_beneficial_policy = payload
+            .effective_non_human_policy
+            .rows
+            .iter()
+            .find(|row| row.category_id.as_str() == "verified_beneficial_bot")
+            .expect("verified beneficial policy row");
+        assert_eq!(verified_beneficial_policy.base_posture, "allowed");
+        assert_eq!(
+            verified_beneficial_policy
+                .verified_identity_override
+                .status,
+            "top_level_deny"
+        );
+        assert_eq!(
+            verified_beneficial_policy
+                .verified_identity_override
+                .effective_action,
+            "deny"
+        );
+        assert_eq!(
+            verified_beneficial_policy
+                .verified_identity_override
+                .effective_posture
+                .as_deref(),
+            Some("blocked")
         );
         assert!(payload
             .budget_distance

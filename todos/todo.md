@@ -147,7 +147,6 @@ Current stance:
     - [`docs/plans/2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md`](../docs/plans/2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md)
     - [`docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](../docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md)
     - [`docs/plans/2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-implementation-plan.md`](../docs/plans/2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-implementation-plan.md)
-  - [ ] STANCE-MODEL-1A Define canonical stance presets and the resolved effective policy contract, including `human_only_private` and `humans_plus_verified_only`.
   - [ ] STANCE-MODEL-1B Rebase verified identity onto evidence, named exceptions, and service-profile overrides instead of an independent top-level stance.
   - [ ] STANCE-MODEL-1C Thread the resolved effective policy into runtime, operator snapshot, benchmark/Game Loop, and the later Tuning surface so all consumers read the same policy truth.
 
