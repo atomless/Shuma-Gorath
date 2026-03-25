@@ -6,7 +6,7 @@ use crate::observability::operator_snapshot::{
 };
 
 use super::oversight_patch_policy::{
-    propose_patch, OversightPatchPolicyError, OversightPatchProposal, OversightPressure,
+    propose_patch, OversightPatchPolicyError, OversightPatchProposal, OversightProblemClass,
 };
 
 pub(crate) const OVERSIGHT_RECONCILE_SCHEMA_VERSION: &str = "oversight_reconcile_v1";
@@ -28,6 +28,9 @@ pub(crate) struct OversightReconcileResult {
     pub objective_revision: String,
     pub benchmark_overall_status: String,
     pub improvement_status: String,
+    pub problem_class: String,
+    pub guidance_status: String,
+    pub tractability: String,
     pub trigger_family_ids: Vec<String>,
     pub candidate_action_families: Vec<String>,
     pub refusal_reasons: Vec<String>,
@@ -102,12 +105,13 @@ pub(crate) fn reconcile(
         );
     }
 
-    let pressure = primary_pressure(snapshot).unwrap_or(OversightPressure::ReduceSuspiciousOriginCost);
+    let problem_class = primary_problem_class(snapshot)
+        .unwrap_or(OversightProblemClass::SuspiciousOriginReachOverspend);
     let proposal = match propose_patch(
         cfg,
         &snapshot.allowed_actions,
         benchmark.escalation_hint.candidate_action_families.as_slice(),
-        pressure,
+        problem_class,
         &snapshot.replay_promotion,
     ) {
         Ok(proposal) => proposal,
@@ -158,6 +162,9 @@ pub(crate) fn reconcile(
         objective_revision: snapshot.objectives.revision.clone(),
         benchmark_overall_status: benchmark.overall_status.clone(),
         improvement_status: benchmark.improvement_status.clone(),
+        problem_class: problem_class.as_str().to_string(),
+        guidance_status: "exact_bounded_move".to_string(),
+        tractability: "exact_bounded_config_move".to_string(),
         trigger_family_ids: benchmark.escalation_hint.trigger_family_ids.clone(),
         candidate_action_families: benchmark.escalation_hint.candidate_action_families.clone(),
         refusal_reasons: Vec::new(),
@@ -185,6 +192,13 @@ fn result_without_proposal(
         objective_revision: snapshot.objectives.revision.clone(),
         benchmark_overall_status: snapshot.benchmark_results.overall_status.clone(),
         improvement_status: snapshot.benchmark_results.improvement_status.clone(),
+        problem_class: snapshot.benchmark_results.escalation_hint.problem_class.clone(),
+        guidance_status: snapshot
+            .benchmark_results
+            .escalation_hint
+            .guidance_status
+            .clone(),
+        tractability: snapshot.benchmark_results.escalation_hint.tractability.clone(),
         trigger_family_ids: snapshot
             .benchmark_results
             .escalation_hint
@@ -236,23 +250,42 @@ pub(crate) fn contradictory_evidence_reasons(
     reasons
 }
 
-fn primary_pressure(snapshot: &OperatorSnapshotHotReadPayload) -> Option<OversightPressure> {
+fn primary_problem_class(
+    snapshot: &OperatorSnapshotHotReadPayload,
+) -> Option<OversightProblemClass> {
     let likely_human_outside_budget = budget_row_status(
         snapshot.budget_distance.rows.as_slice(),
         "likely_human_friction_rate",
     ) == Some("outside_budget");
-    let suspicious_outside_budget = [
+    let suspicious_reach_outside_budget = [
         "suspicious_forwarded_request_rate",
         "suspicious_forwarded_byte_rate",
-        "suspicious_forwarded_latency_share",
     ]
     .iter()
     .any(|metric| budget_row_status(snapshot.budget_distance.rows.as_slice(), metric) == Some("outside_budget"));
+    let suspicious_latency_outside_budget = budget_row_status(
+        snapshot.budget_distance.rows.as_slice(),
+        "suspicious_forwarded_latency_share",
+    ) == Some("outside_budget");
 
     if likely_human_outside_budget {
-        Some(OversightPressure::ReduceLikelyHumanFriction)
-    } else if suspicious_outside_budget {
-        Some(OversightPressure::ReduceSuspiciousOriginCost)
+        Some(OversightProblemClass::LikelyHumanFrictionOverspend)
+    } else if suspicious_latency_outside_budget {
+        Some(OversightProblemClass::SuspiciousOriginLatencyOverspend)
+    } else if suspicious_reach_outside_budget {
+        Some(OversightProblemClass::SuspiciousOriginReachOverspend)
+    } else if snapshot.benchmark_results.escalation_hint.problem_class
+        == "likely_human_friction_overspend"
+    {
+        Some(OversightProblemClass::LikelyHumanFrictionOverspend)
+    } else if snapshot.benchmark_results.escalation_hint.problem_class
+        == "suspicious_forwarded_latency_overspend"
+    {
+        Some(OversightProblemClass::SuspiciousOriginLatencyOverspend)
+    } else if snapshot.benchmark_results.escalation_hint.problem_class
+        == "suspicious_forwarded_reach_overspend"
+    {
+        Some(OversightProblemClass::SuspiciousOriginReachOverspend)
     } else if snapshot
         .benchmark_results
         .escalation_hint
@@ -260,7 +293,7 @@ fn primary_pressure(snapshot: &OperatorSnapshotHotReadPayload) -> Option<Oversig
         .iter()
         .any(|family| family == "likely_human_friction")
     {
-        Some(OversightPressure::ReduceLikelyHumanFriction)
+        Some(OversightProblemClass::LikelyHumanFrictionOverspend)
     } else if snapshot
         .benchmark_results
         .escalation_hint
@@ -268,7 +301,7 @@ fn primary_pressure(snapshot: &OperatorSnapshotHotReadPayload) -> Option<Oversig
         .iter()
         .any(|family| family == "suspicious_origin_cost")
     {
-        Some(OversightPressure::ReduceSuspiciousOriginCost)
+        Some(OversightProblemClass::SuspiciousOriginReachOverspend)
     } else {
         None
     }
@@ -430,8 +463,14 @@ mod tests {
                 availability: "partial_support".to_string(),
                 decision: "config_tuning_candidate".to_string(),
                 review_status: "manual_review_required".to_string(),
+                problem_class: "suspicious_forwarded_reach_overspend".to_string(),
+                guidance_status: "bounded_family_guidance".to_string(),
+                tractability: "family_level_policy_choice".to_string(),
+                expected_direction: "tighten_suspicious_origin_controls".to_string(),
                 trigger_family_ids: vec!["suspicious_origin_cost".to_string()],
+                trigger_metric_ids: vec!["suspicious_forwarded_request_rate".to_string()],
                 candidate_action_families: vec!["fingerprint_signal".to_string()],
+                family_guidance: vec![],
                 blockers: Vec::new(),
                 note: "Config tuning candidate.".to_string(),
             },
@@ -600,6 +639,9 @@ mod tests {
         let result = reconcile(&cfg, &snapshot, "manual_admin");
 
         assert_eq!(reconcile_outcome(&result), "recommend_patch");
+        assert_eq!(result.problem_class, "suspicious_forwarded_reach_overspend");
+        assert_eq!(result.guidance_status, "exact_bounded_move");
+        assert_eq!(result.tractability, "exact_bounded_config_move");
         assert_eq!(
             result
                 .proposal
@@ -657,7 +699,7 @@ mod tests {
     }
 
     #[test]
-    fn primary_pressure_treats_latency_share_budget_miss_as_suspicious_origin_cost() {
+    fn primary_problem_class_treats_latency_share_budget_miss_as_latency_overspend() {
         let mut snapshot = sample_snapshot();
         snapshot.budget_distance.rows.push(OperatorBudgetDistanceRow {
             budget_id: "suspicious_forwarded_latency".to_string(),
@@ -673,8 +715,8 @@ mod tests {
         });
 
         assert_eq!(
-            super::primary_pressure(&snapshot),
-            Some(super::OversightPressure::ReduceSuspiciousOriginCost)
+            super::primary_problem_class(&snapshot),
+            Some(super::OversightProblemClass::SuspiciousOriginLatencyOverspend)
         );
     }
 

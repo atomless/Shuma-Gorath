@@ -1,9 +1,10 @@
 use std::collections::BTreeSet;
 
-use crate::config::AllowedActionsSurface;
+use crate::config::{controller_action_family_risk_profile, AllowedActionsSurface};
 
 use super::benchmark_results::{
-    BenchmarkBaselineReference, BenchmarkEscalationHint, BenchmarkFamilyResult,
+    BenchmarkBaselineReference, BenchmarkEscalationFamilyGuidance, BenchmarkEscalationHint,
+    BenchmarkFamilyResult,
 };
 
 #[cfg(test)]
@@ -87,7 +88,6 @@ pub(super) fn derive_escalation_hint(
         .filter(|family| family.status == "insufficient_evidence")
         .collect();
 
-    let availability = "partial_support".to_string();
     let review_status = "manual_review_required".to_string();
 
     if outside_budget_families.is_empty() {
@@ -103,11 +103,17 @@ pub(super) fn derive_escalation_hint(
             Vec::new()
         };
         return BenchmarkEscalationHint {
-            availability,
+            availability: "partial_support".to_string(),
             decision: "observe_longer".to_string(),
             review_status,
+            problem_class: "no_escalation_required".to_string(),
+            guidance_status: "observe_longer".to_string(),
+            tractability: "not_actionable_yet".to_string(),
+            expected_direction: "continue_observing".to_string(),
             trigger_family_ids,
+            trigger_metric_ids: Vec::new(),
             candidate_action_families: Vec::new(),
+            family_guidance: Vec::new(),
             blockers,
             note:
                 "Current benchmark evidence does not yet justify config or code escalation; keep observing additional windows."
@@ -115,69 +121,173 @@ pub(super) fn derive_escalation_hint(
         };
     }
 
+    let primary_family = primary_outside_budget_family(outside_budget_families.as_slice());
     let trigger_family_ids = family_ids(&outside_budget_families);
-    let mut candidate_action_families = BTreeSet::new();
+    let trigger_metric_ids = outside_budget_metric_ids(primary_family);
+    let classification = classify_problem(primary_family);
+    let candidate_action_families =
+        allowed_candidate_action_families(allowed_actions, classification.action_families);
+    let family_guidance = family_guidance_rows(candidate_action_families.as_slice());
     let mut blockers = BTreeSet::new();
 
-    for family in outside_budget_families {
-        if family.capability_gate == "not_yet_supported" {
-            blockers.insert("family_capability_gap".to_string());
-        }
-
-        let mapped_families = benchmark_action_families(family.family_id.as_str());
-        if mapped_families.is_empty() {
-            blockers.insert("no_matching_config_surface".to_string());
-            continue;
-        }
-
-        let matching_surface_groups: Vec<_> = allowed_actions
-            .groups
-            .iter()
-            .filter(|allowed_group| mapped_families.contains(&allowed_group.family.as_str()))
-            .collect();
-
-        if matching_surface_groups.is_empty() {
-            blockers.insert("no_matching_config_surface".to_string());
-            continue;
-        }
-
-        let has_addressable_surface = matching_surface_groups
-            .iter()
-            .any(|allowed_group| allowed_group.controller_status == "allowed");
-
-        if has_addressable_surface {
-            for allowed_group in matching_surface_groups {
-                if allowed_group.controller_status == "allowed" {
-                    candidate_action_families.insert(allowed_group.family.clone());
-                }
-            }
-        } else {
-            blockers.insert("no_matching_config_surface".to_string());
-        }
+    if primary_family.capability_gate == "not_yet_supported" {
+        blockers.insert("family_capability_gap".to_string());
+    }
+    if classification.decision == "config_tuning_candidate" && candidate_action_families.is_empty() {
+        blockers.insert("no_matching_config_surface".to_string());
     }
 
-    if blockers.is_empty() && !candidate_action_families.is_empty() {
+    if classification.decision == "config_tuning_candidate"
+        && blockers.is_empty()
+        && !candidate_action_families.is_empty()
+    {
         return BenchmarkEscalationHint {
-            availability,
-            decision: "config_tuning_candidate".to_string(),
+            availability: family_availability(primary_family).to_string(),
+            decision: classification.decision.to_string(),
             review_status,
+            problem_class: classification.problem_class.to_string(),
+            guidance_status: classification.guidance_status.to_string(),
+            tractability: classification.tractability.to_string(),
+            expected_direction: classification.expected_direction.to_string(),
             trigger_family_ids,
-            candidate_action_families: candidate_action_families.into_iter().collect(),
+            trigger_metric_ids,
+            candidate_action_families,
+            family_guidance,
             blockers: Vec::new(),
-            note: "Current-window benchmark misses align with existing config surfaces; manual review remains required before proposing a tuning change."
-                .to_string(),
+            note: classification.note.to_string(),
         };
     }
 
     BenchmarkEscalationHint {
-        availability,
+        availability: family_availability(primary_family).to_string(),
         decision: "code_evolution_candidate".to_string(),
         review_status,
+        problem_class: classification.problem_class.to_string(),
+        guidance_status: "code_evolution_only".to_string(),
+        tractability: "code_or_capability_gap".to_string(),
+        expected_direction: classification.expected_direction.to_string(),
         trigger_family_ids,
-        candidate_action_families: candidate_action_families.into_iter().collect(),
+        trigger_metric_ids,
+        candidate_action_families,
+        family_guidance,
         blockers: blockers.into_iter().collect(),
-        note: "At least one outside-budget benchmark family is not addressable through the current config surface or requires missing capability; manual review should consider code evolution."
-            .to_string(),
+        note: if classification.decision == "config_tuning_candidate" {
+            "Observed benchmark misses do not map cleanly to a still-legal bounded config move from the current surface, so code or capability evolution remains the next review path."
+                .to_string()
+        } else {
+            classification.note.to_string()
+        },
+    }
+}
+
+struct ProblemClassification {
+    problem_class: &'static str,
+    decision: &'static str,
+    guidance_status: &'static str,
+    tractability: &'static str,
+    expected_direction: &'static str,
+    note: &'static str,
+    action_families: &'static [&'static str],
+}
+
+fn primary_outside_budget_family<'a>(
+    families: &'a [&BenchmarkFamilyResult],
+) -> &'a BenchmarkFamilyResult {
+    families
+        .iter()
+        .copied()
+        .min_by_key(|family| family_priority(family.family_id.as_str()))
+        .expect("outside-budget family set must be non-empty")
+}
+
+fn family_priority(family_id: &str) -> u8 {
+    match family_id {
+        "likely_human_friction" => 0,
+        "suspicious_origin_cost" => 1,
+        "beneficial_non_human_posture" => 2,
+        "non_human_category_posture" => 3,
+        "representative_adversary_effectiveness" => 4,
+        _ => 10,
+    }
+}
+
+fn family_availability(family: &BenchmarkFamilyResult) -> &'static str {
+    match family.capability_gate.as_str() {
+        "supported" => "supported",
+        "partially_supported" => "partial_support",
+        _ => "partial_support",
+    }
+}
+
+fn classify_problem(family: &BenchmarkFamilyResult) -> ProblemClassification {
+    match family.family_id.as_str() {
+        "likely_human_friction" => ProblemClassification {
+            problem_class: "likely_human_friction_overspend",
+            decision: "config_tuning_candidate",
+            guidance_status: "bounded_family_guidance",
+            tractability: "family_level_policy_choice",
+            expected_direction: "reduce_likely_human_friction",
+            note: "Likely-human friction is above target and currently maps to bounded controller-tunable families that can ease human-visible burden first.",
+            action_families: benchmark_action_families("likely_human_friction"),
+        },
+        "suspicious_origin_cost" => {
+            let latency_only = family
+                .metrics
+                .iter()
+                .any(|metric| {
+                    metric.metric_id == "suspicious_forwarded_latency_share"
+                        && metric.status == "outside_budget"
+                });
+            ProblemClassification {
+                problem_class: if latency_only {
+                    "suspicious_forwarded_latency_overspend"
+                } else {
+                    "suspicious_forwarded_reach_overspend"
+                },
+                decision: "config_tuning_candidate",
+                guidance_status: "bounded_family_guidance",
+                tractability: "family_level_policy_choice",
+                expected_direction: "tighten_suspicious_origin_controls",
+                note: "Suspicious-origin reach or latency is above target and the controller should prefer lower-friction signal families before broader human-visible gates.",
+                action_families: benchmark_action_families("suspicious_origin_cost"),
+            }
+        }
+        "beneficial_non_human_posture" => ProblemClassification {
+            problem_class: "beneficial_non_human_harm",
+            decision: "code_evolution_candidate",
+            guidance_status: "code_evolution_only",
+            tractability: "code_or_capability_gap",
+            expected_direction: "protect_beneficial_non_human_traffic",
+            note: "Beneficial non-human harm is policy-shaped and remains outside the bounded autonomous config move ring.",
+            action_families: &[],
+        },
+        "non_human_category_posture" => ProblemClassification {
+            problem_class: "category_posture_gap",
+            decision: "code_evolution_candidate",
+            guidance_status: "code_evolution_only",
+            tractability: "code_or_capability_gap",
+            expected_direction: "improve_category_target_achievement",
+            note: "Category posture misses indicate classification, evidence, or defense-capability gaps rather than a clean bounded config move.",
+            action_families: &[],
+        },
+        "representative_adversary_effectiveness" => ProblemClassification {
+            problem_class: "representative_adversary_gap",
+            decision: "code_evolution_candidate",
+            guidance_status: "code_evolution_only",
+            tractability: "code_or_capability_gap",
+            expected_direction: "reduce_adversary_goal_success",
+            note: "Representative adversary effectiveness misses require scenario or capability evolution before autonomous config tuning is trustworthy.",
+            action_families: &[],
+        },
+        _ => ProblemClassification {
+            problem_class: "unclassified_outside_budget_gap",
+            decision: "code_evolution_candidate",
+            guidance_status: "code_evolution_only",
+            tractability: "code_or_capability_gap",
+            expected_direction: "manual_investigation_required",
+            note: "The current outside-budget family does not yet map to an approved bounded move class.",
+            action_families: &[],
+        },
     }
 }
 
@@ -206,6 +316,49 @@ fn benchmark_action_families(family_id: &str) -> &'static [&'static str] {
     }
 }
 
+fn outside_budget_metric_ids(family: &BenchmarkFamilyResult) -> Vec<String> {
+    family
+        .metrics
+        .iter()
+        .filter(|metric| metric.status == "outside_budget")
+        .map(|metric| metric.metric_id.clone())
+        .collect()
+}
+
+fn allowed_candidate_action_families(
+    allowed_actions: &AllowedActionsSurface,
+    mapped_families: &[&str],
+) -> Vec<String> {
+    let mapped_families = mapped_families.iter().copied().collect::<BTreeSet<_>>();
+    let mut candidate_action_families = BTreeSet::new();
+    for allowed_group in &allowed_actions.groups {
+        if allowed_group.controller_status == "allowed"
+            && mapped_families.contains(allowed_group.family.as_str())
+        {
+            candidate_action_families.insert(allowed_group.family.clone());
+        }
+    }
+    candidate_action_families.into_iter().collect()
+}
+
+fn family_guidance_rows(
+    candidate_action_families: &[String],
+) -> Vec<BenchmarkEscalationFamilyGuidance> {
+    candidate_action_families
+        .iter()
+        .filter_map(|family| {
+            controller_action_family_risk_profile(family.as_str()).map(|profile| {
+                BenchmarkEscalationFamilyGuidance {
+                    family: profile.family,
+                    likely_human_risk: profile.likely_human_risk,
+                    tolerated_non_human_risk: profile.tolerated_non_human_risk,
+                    note: profile.note,
+                }
+            })
+        })
+        .collect()
+}
+
 fn family_ids(families: &[&BenchmarkFamilyResult]) -> Vec<String> {
     families
         .iter()
@@ -220,7 +373,9 @@ mod tests {
         unavailable_baseline_reference, unavailable_improvement_status,
     };
     use crate::config::allowed_actions_v1;
-    use crate::observability::benchmark_results::{BenchmarkFamilyResult, BenchmarkMetricResult};
+    use crate::observability::benchmark_results::{
+        BenchmarkFamilyResult, BenchmarkMetricResult,
+    };
 
     fn family(family_id: &str, status: &str, capability_gate: &str) -> BenchmarkFamilyResult {
         BenchmarkFamilyResult {
@@ -243,6 +398,39 @@ mod tests {
                 comparison_delta: None,
                 comparison_status: "not_available".to_string(),
             }],
+        }
+    }
+
+    fn metric(metric_id: &str, status: &str, capability_gate: &str) -> BenchmarkMetricResult {
+        BenchmarkMetricResult {
+            metric_id: metric_id.to_string(),
+            status: status.to_string(),
+            current: Some(0.42),
+            target: Some(0.20),
+            delta: Some(0.22),
+            exactness: "exact".to_string(),
+            basis: "observed".to_string(),
+            capability_gate: capability_gate.to_string(),
+            baseline_current: None,
+            comparison_delta: None,
+            comparison_status: "not_available".to_string(),
+        }
+    }
+
+    fn family_with_metrics(
+        family_id: &str,
+        status: &str,
+        capability_gate: &str,
+        metrics: Vec<BenchmarkMetricResult>,
+    ) -> BenchmarkFamilyResult {
+        BenchmarkFamilyResult {
+            family_id: family_id.to_string(),
+            status: status.to_string(),
+            capability_gate: capability_gate.to_string(),
+            note: "test family".to_string(),
+            baseline_status: None,
+            comparison_status: "not_available".to_string(),
+            metrics,
         }
     }
 
@@ -321,6 +509,66 @@ mod tests {
         assert!(!hint
             .candidate_action_families
             .contains(&"ip_range_policy".to_string()));
+    }
+
+    #[test]
+    fn escalation_hint_names_problem_class_trigger_metrics_and_guidance() {
+        let hint = derive_escalation_hint(
+            &allowed_actions_v1(),
+            &[family_with_metrics(
+                "suspicious_origin_cost",
+                "outside_budget",
+                "supported",
+                vec![
+                    metric(
+                        "suspicious_forwarded_latency_share",
+                        "outside_budget",
+                        "supported",
+                    ),
+                    metric(
+                        "suspicious_forwarded_request_rate",
+                        "inside_budget",
+                        "supported",
+                    ),
+                ],
+            )],
+        );
+
+        assert_eq!(hint.problem_class, "suspicious_forwarded_latency_overspend");
+        assert_eq!(hint.guidance_status, "bounded_family_guidance");
+        assert_eq!(hint.tractability, "family_level_policy_choice");
+        assert_eq!(hint.expected_direction, "tighten_suspicious_origin_controls");
+        assert_eq!(
+            hint.trigger_metric_ids,
+            vec!["suspicious_forwarded_latency_share".to_string()]
+        );
+        assert!(hint
+            .family_guidance
+            .iter()
+            .any(|row| row.family == "fingerprint_signal"));
+    }
+
+    #[test]
+    fn escalation_hint_marks_category_posture_gap_as_code_evolution_only() {
+        let hint = derive_escalation_hint(
+            &allowed_actions_v1(),
+            &[family_with_metrics(
+                "non_human_category_posture",
+                "outside_budget",
+                "partially_supported",
+                vec![metric(
+                    "category_posture_alignment:indexing_bot",
+                    "outside_budget",
+                    "partially_supported",
+                )],
+            )],
+        );
+
+        assert_eq!(hint.problem_class, "category_posture_gap");
+        assert_eq!(hint.guidance_status, "code_evolution_only");
+        assert_eq!(hint.tractability, "code_or_capability_gap");
+        assert_eq!(hint.decision, "code_evolution_candidate");
+        assert!(hint.candidate_action_families.is_empty());
     }
 
     #[test]

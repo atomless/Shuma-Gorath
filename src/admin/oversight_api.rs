@@ -105,6 +105,19 @@ pub(crate) fn execute_oversight_cycle_at(
                     objective_revision: snapshot.payload.objectives.revision.clone(),
                     benchmark_overall_status: snapshot.payload.benchmark_results.overall_status.clone(),
                     improvement_status: snapshot.payload.benchmark_results.improvement_status.clone(),
+                    problem_class: snapshot.payload.benchmark_results.escalation_hint.problem_class.clone(),
+                    guidance_status: snapshot
+                        .payload
+                        .benchmark_results
+                        .escalation_hint
+                        .guidance_status
+                        .clone(),
+                    tractability: snapshot
+                        .payload
+                        .benchmark_results
+                        .escalation_hint
+                        .tractability
+                        .clone(),
                     trigger_family_ids: snapshot
                         .payload
                         .benchmark_results
@@ -149,6 +162,9 @@ pub(crate) fn execute_oversight_cycle_at(
                 objective_revision: objectives.revision.clone(),
                 benchmark_overall_status: "not_available".to_string(),
                 improvement_status: "not_available".to_string(),
+                problem_class: "not_available".to_string(),
+                guidance_status: "not_actionable_yet".to_string(),
+                tractability: "insufficient_evidence".to_string(),
                 trigger_family_ids: Vec::new(),
                 candidate_action_families: Vec::new(),
                 refusal_reasons: vec!["operator_snapshot_not_materialized".to_string()],

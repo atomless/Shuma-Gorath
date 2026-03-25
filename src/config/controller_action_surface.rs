@@ -47,6 +47,14 @@ pub(crate) struct AllowedActionFamily {
     pub targets: Vec<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct ControllerActionFamilyRiskProfile {
+    pub family: String,
+    pub likely_human_risk: String,
+    pub tolerated_non_human_risk: String,
+    pub note: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub(crate) struct AllowedActionsSurface {
     pub schema_version: String,
@@ -136,6 +144,61 @@ pub(crate) fn controller_action_family_targets(family: &str) -> Vec<String> {
         }
     }
     targets.into_keys().collect()
+}
+
+pub(crate) fn controller_action_family_risk_profile(
+    family: &str,
+) -> Option<ControllerActionFamilyRiskProfile> {
+    let (likely_human_risk, tolerated_non_human_risk, note) = match family {
+        "fingerprint_signal" => (
+            "low",
+            "low",
+            "Tightens passive fingerprint thresholds before more human-visible gates move.",
+        ),
+        "cdp_detection" => (
+            "low",
+            "low",
+            "Tightens browser-automation detection using bounded rollout and threshold controls.",
+        ),
+        "proof_of_work" => (
+            "high",
+            "medium",
+            "Raises attacker work cost but directly increases challenge burden for legitimate traffic.",
+        ),
+        "challenge" => (
+            "high",
+            "medium",
+            "Moves interactive challenge posture and is therefore more human-visible than passive signals.",
+        ),
+        "not_a_bot" => (
+            "medium",
+            "medium",
+            "Moves low-friction verification posture but still affects borderline likely-human traffic.",
+        ),
+        "maze_core" => (
+            "high",
+            "high",
+            "Escalates enforcement posture and should be used after lower-friction signal families.",
+        ),
+        "core_policy" => (
+            "high",
+            "high",
+            "JS-required posture is broad and human-visible, so it belongs late in the move order.",
+        ),
+        "botness" => (
+            "medium",
+            "medium",
+            "Botness threshold moves reshape multiple downstream defenses and should follow lower-cost signals.",
+        ),
+        _ => return None,
+    };
+
+    Some(ControllerActionFamilyRiskProfile {
+        family: family.to_string(),
+        likely_human_risk: likely_human_risk.to_string(),
+        tolerated_non_human_risk: tolerated_non_human_risk.to_string(),
+        note: note.to_string(),
+    })
 }
 
 pub(crate) fn allowed_actions_v1() -> AllowedActionsSurface {

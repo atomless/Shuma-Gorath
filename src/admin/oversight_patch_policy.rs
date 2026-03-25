@@ -11,9 +11,26 @@ pub(crate) const OVERSIGHT_VERIFICATION_REVIEW_REPLAY_PROMOTION: &str =
     "review_replay_promotion_lineage";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum OversightPressure {
-    ReduceLikelyHumanFriction,
-    ReduceSuspiciousOriginCost,
+pub(crate) enum OversightProblemClass {
+    LikelyHumanFrictionOverspend,
+    SuspiciousOriginReachOverspend,
+    SuspiciousOriginLatencyOverspend,
+}
+
+impl OversightProblemClass {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            OversightProblemClass::LikelyHumanFrictionOverspend => {
+                "likely_human_friction_overspend"
+            }
+            OversightProblemClass::SuspiciousOriginReachOverspend => {
+                "suspicious_forwarded_reach_overspend"
+            }
+            OversightProblemClass::SuspiciousOriginLatencyOverspend => {
+                "suspicious_forwarded_latency_overspend"
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -41,7 +58,7 @@ pub(crate) fn propose_patch(
     cfg: &Config,
     allowed_actions: &AllowedActionsSurface,
     candidate_families: &[String],
-    pressure: OversightPressure,
+    problem_class: OversightProblemClass,
     replay_promotion: &ReplayPromotionSummary,
 ) -> Result<OversightPatchProposal, OversightPatchPolicyError> {
     if candidate_families.is_empty() {
@@ -55,15 +72,24 @@ pub(crate) fn propose_patch(
         ));
     }
 
-    let priority = match pressure {
-        OversightPressure::ReduceLikelyHumanFriction => &[
+    let priority = match problem_class {
+        OversightProblemClass::LikelyHumanFrictionOverspend => &[
             "proof_of_work",
             "challenge",
             "not_a_bot",
             "maze_core",
             "core_policy",
         ][..],
-        OversightPressure::ReduceSuspiciousOriginCost => &[
+        OversightProblemClass::SuspiciousOriginReachOverspend => &[
+            "fingerprint_signal",
+            "cdp_detection",
+            "proof_of_work",
+            "challenge",
+            "not_a_bot",
+            "maze_core",
+            "core_policy",
+        ][..],
+        OversightProblemClass::SuspiciousOriginLatencyOverspend => &[
             "fingerprint_signal",
             "cdp_detection",
             "proof_of_work",
@@ -83,12 +109,12 @@ pub(crate) fn propose_patch(
                 (*family).to_string(),
             ));
         }
-        if let Some(patch) = family_patch(cfg, allowed_actions, family, pressure) {
+        if let Some(patch) = family_patch(cfg, allowed_actions, family, problem_class) {
             return build_proposal(
                 allowed_actions,
                 family,
                 patch,
-                pressure,
+                problem_class,
                 replay_promotion,
             );
         }
@@ -103,7 +129,7 @@ fn build_proposal(
     allowed_actions: &AllowedActionsSurface,
     family: &str,
     patch: serde_json::Value,
-    pressure: OversightPressure,
+    problem_class: OversightProblemClass,
     replay_promotion: &ReplayPromotionSummary,
 ) -> Result<OversightPatchProposal, OversightPatchPolicyError> {
     let patch_object = patch
@@ -126,52 +152,80 @@ fn build_proposal(
         );
     }
 
-    let (expected_impact, confidence) = match (family, pressure) {
-        ("fingerprint_signal", OversightPressure::ReduceSuspiciousOriginCost) => (
+    let (expected_impact, confidence) = match (family, problem_class) {
+        (
+            "fingerprint_signal",
+            OversightProblemClass::SuspiciousOriginReachOverspend
+            | OversightProblemClass::SuspiciousOriginLatencyOverspend,
+        ) => (
             "Tighten low-friction automated client discrimination before more human-visible defences move.".to_string(),
             "high".to_string(),
         ),
-        ("cdp_detection", OversightPressure::ReduceSuspiciousOriginCost) => (
+        (
+            "cdp_detection",
+            OversightProblemClass::SuspiciousOriginReachOverspend
+            | OversightProblemClass::SuspiciousOriginLatencyOverspend,
+        ) => (
             "Tighten automation-detection coverage to reduce suspicious forwarded cost while keeping human-facing friction low.".to_string(),
             "high".to_string(),
         ),
-        ("proof_of_work", OversightPressure::ReduceLikelyHumanFriction) => (
+        ("proof_of_work", OversightProblemClass::LikelyHumanFrictionOverspend) => (
             "Ease proof-of-work burden to reduce likely-human friction while keeping other defences unchanged.".to_string(),
             "medium".to_string(),
         ),
-        ("challenge", OversightPressure::ReduceLikelyHumanFriction) => (
+        ("challenge", OversightProblemClass::LikelyHumanFrictionOverspend) => (
             "Raise challenge thresholds slightly to reduce likely-human challenge exposure.".to_string(),
             "medium".to_string(),
         ),
-        ("not_a_bot", OversightPressure::ReduceLikelyHumanFriction) => (
+        ("not_a_bot", OversightProblemClass::LikelyHumanFrictionOverspend) => (
             "Raise not-a-bot threshold slightly so likely humans clear the low-friction path more often.".to_string(),
             "medium".to_string(),
         ),
-        ("maze_core", OversightPressure::ReduceLikelyHumanFriction) => (
+        ("maze_core", OversightProblemClass::LikelyHumanFrictionOverspend) => (
             "Reduce maze enforcement intensity for likely-human traffic while leaving other families unchanged.".to_string(),
             "medium".to_string(),
         ),
-        ("core_policy", OversightPressure::ReduceLikelyHumanFriction) => (
+        ("core_policy", OversightProblemClass::LikelyHumanFrictionOverspend) => (
             "Relax the JS-required gate to reduce likely-human friction when current challenge surfaces appear too expensive.".to_string(),
             "medium".to_string(),
         ),
-        ("proof_of_work", OversightPressure::ReduceSuspiciousOriginCost) => (
+        (
+            "proof_of_work",
+            OversightProblemClass::SuspiciousOriginReachOverspend
+            | OversightProblemClass::SuspiciousOriginLatencyOverspend,
+        ) => (
             "Increase proof-of-work cost slightly to reduce suspicious forwarded request and byte share.".to_string(),
             "medium".to_string(),
         ),
-        ("challenge", OversightPressure::ReduceSuspiciousOriginCost) => (
+        (
+            "challenge",
+            OversightProblemClass::SuspiciousOriginReachOverspend
+            | OversightProblemClass::SuspiciousOriginLatencyOverspend,
+        ) => (
             "Tighten challenge posture slightly to reduce suspicious forwarded cost while keeping the change bounded.".to_string(),
             "medium".to_string(),
         ),
-        ("not_a_bot", OversightPressure::ReduceSuspiciousOriginCost) => (
+        (
+            "not_a_bot",
+            OversightProblemClass::SuspiciousOriginReachOverspend
+            | OversightProblemClass::SuspiciousOriginLatencyOverspend,
+        ) => (
             "Tighten the not-a-bot gate slightly to reduce suspicious origin reach.".to_string(),
             "medium".to_string(),
         ),
-        ("maze_core", OversightPressure::ReduceSuspiciousOriginCost) => (
+        (
+            "maze_core",
+            OversightProblemClass::SuspiciousOriginReachOverspend
+            | OversightProblemClass::SuspiciousOriginLatencyOverspend,
+        ) => (
             "Increase maze enforcement intensity to reduce suspicious forwarded work and byte cost.".to_string(),
             "medium".to_string(),
         ),
-        ("core_policy", OversightPressure::ReduceSuspiciousOriginCost) => (
+        (
+            "core_policy",
+            OversightProblemClass::SuspiciousOriginReachOverspend
+            | OversightProblemClass::SuspiciousOriginLatencyOverspend,
+        ) => (
             "Re-enable the JS-required gate as a bounded way to shift suspicious traffic cost away from origin.".to_string(),
             "medium".to_string(),
         ),
@@ -202,16 +256,20 @@ fn family_patch(
     cfg: &Config,
     allowed_actions: &AllowedActionsSurface,
     family: &str,
-    pressure: OversightPressure,
+    problem_class: OversightProblemClass,
 ) -> Option<serde_json::Value> {
-    match (family, pressure) {
-        ("core_policy", OversightPressure::ReduceLikelyHumanFriction) => cfg
+    match (family, problem_class) {
+        ("core_policy", OversightProblemClass::LikelyHumanFrictionOverspend) => cfg
             .js_required_enforced
             .then(|| json!({ "js_required_enforced": false })),
-        ("core_policy", OversightPressure::ReduceSuspiciousOriginCost) => (!cfg
+        (
+            "core_policy",
+            OversightProblemClass::SuspiciousOriginReachOverspend
+            | OversightProblemClass::SuspiciousOriginLatencyOverspend,
+        ) => (!cfg
             .js_required_enforced)
             .then(|| json!({ "js_required_enforced": true })),
-        ("proof_of_work", OversightPressure::ReduceLikelyHumanFriction) => {
+        ("proof_of_work", OversightProblemClass::LikelyHumanFrictionOverspend) => {
             step_numeric_path(
                 allowed_actions,
                 "pow_difficulty",
@@ -220,7 +278,11 @@ fn family_patch(
             )
             .map(|value| json!({ "pow_difficulty": value }))
         }
-        ("proof_of_work", OversightPressure::ReduceSuspiciousOriginCost) => {
+        (
+            "proof_of_work",
+            OversightProblemClass::SuspiciousOriginReachOverspend
+            | OversightProblemClass::SuspiciousOriginLatencyOverspend,
+        ) => {
             if !cfg.pow_enabled {
                 Some(json!({ "pow_enabled": true }))
             } else {
@@ -233,7 +295,7 @@ fn family_patch(
                 .map(|value| json!({ "pow_difficulty": value }))
             }
         }
-        ("challenge", OversightPressure::ReduceLikelyHumanFriction) => {
+        ("challenge", OversightProblemClass::LikelyHumanFrictionOverspend) => {
             step_numeric_path(
                 allowed_actions,
                 "challenge_puzzle_risk_threshold",
@@ -242,7 +304,11 @@ fn family_patch(
             )
             .map(|value| json!({ "challenge_puzzle_risk_threshold": value }))
         }
-        ("challenge", OversightPressure::ReduceSuspiciousOriginCost) => {
+        (
+            "challenge",
+            OversightProblemClass::SuspiciousOriginReachOverspend
+            | OversightProblemClass::SuspiciousOriginLatencyOverspend,
+        ) => {
             if !cfg.challenge_puzzle_enabled {
                 Some(json!({ "challenge_puzzle_enabled": true }))
             } else {
@@ -256,7 +322,7 @@ fn family_patch(
                 .map(|value| json!({ "challenge_puzzle_risk_threshold": value }))
             }
         }
-        ("not_a_bot", OversightPressure::ReduceLikelyHumanFriction) => {
+        ("not_a_bot", OversightProblemClass::LikelyHumanFrictionOverspend) => {
             let upper_bound = cfg
                 .challenge_puzzle_risk_threshold
                 .saturating_sub(1)
@@ -270,7 +336,11 @@ fn family_patch(
             .filter(|value| *value <= upper_bound as u64)
             .map(|value| json!({ "not_a_bot_risk_threshold": value }))
         }
-        ("not_a_bot", OversightPressure::ReduceSuspiciousOriginCost) => {
+        (
+            "not_a_bot",
+            OversightProblemClass::SuspiciousOriginReachOverspend
+            | OversightProblemClass::SuspiciousOriginLatencyOverspend,
+        ) => {
             if !cfg.not_a_bot_enabled {
                 Some(json!({ "not_a_bot_enabled": true }))
             } else {
@@ -283,14 +353,18 @@ fn family_patch(
                 .map(|value| json!({ "not_a_bot_risk_threshold": value }))
             }
         }
-        ("maze_core", OversightPressure::ReduceLikelyHumanFriction) => {
+        ("maze_core", OversightProblemClass::LikelyHumanFrictionOverspend) => {
             if cfg.maze_rollout_phase.as_str() == "enforce" {
                 Some(json!({ "maze_rollout_phase": "advisory" }))
             } else {
                 None
             }
         }
-        ("maze_core", OversightPressure::ReduceSuspiciousOriginCost) => {
+        (
+            "maze_core",
+            OversightProblemClass::SuspiciousOriginReachOverspend
+            | OversightProblemClass::SuspiciousOriginLatencyOverspend,
+        ) => {
             if !cfg.maze_enabled {
                 Some(json!({ "maze_enabled": true }))
             } else if cfg.maze_rollout_phase.as_str() != "enforce" {
@@ -301,10 +375,18 @@ fn family_patch(
                 None
             }
         }
-        ("cdp_detection", OversightPressure::ReduceSuspiciousOriginCost) => (!cfg
+        (
+            "cdp_detection",
+            OversightProblemClass::SuspiciousOriginReachOverspend
+            | OversightProblemClass::SuspiciousOriginLatencyOverspend,
+        ) => (!cfg
             .cdp_detection_enabled)
             .then(|| json!({ "cdp_detection_enabled": true })),
-        ("fingerprint_signal", OversightPressure::ReduceSuspiciousOriginCost) => (!cfg
+        (
+            "fingerprint_signal",
+            OversightProblemClass::SuspiciousOriginReachOverspend
+            | OversightProblemClass::SuspiciousOriginLatencyOverspend,
+        ) => (!cfg
             .fingerprint_signal_enabled)
             .then(|| json!({ "fingerprint_signal_enabled": true })),
         _ => None,
@@ -430,7 +512,7 @@ fn step_numeric_path(
 #[cfg(test)]
 mod tests {
     use super::{
-        propose_patch, OversightPatchPolicyError, OversightPressure,
+        propose_patch, OversightPatchPolicyError, OversightProblemClass,
         OVERSIGHT_VERIFICATION_REVIEW_REPLAY_PROMOTION,
     };
     use crate::config::{allowed_actions_v1, defaults};
@@ -447,7 +529,7 @@ mod tests {
             &cfg,
             &allowed_actions_v1(),
             &["proof_of_work".to_string(), "fingerprint_signal".to_string()],
-            OversightPressure::ReduceSuspiciousOriginCost,
+            OversightProblemClass::SuspiciousOriginReachOverspend,
             &ReplayPromotionSummary::not_materialized(),
         )
         .expect("proposal builds");
@@ -466,7 +548,7 @@ mod tests {
             &cfg,
             &allowed_actions_v1(),
             &["not_a_bot".to_string()],
-            OversightPressure::ReduceLikelyHumanFriction,
+            OversightProblemClass::LikelyHumanFrictionOverspend,
             &ReplayPromotionSummary::not_materialized(),
         )
         .expect("proposal builds");
@@ -484,7 +566,7 @@ mod tests {
             &cfg,
             &allowed_actions_v1(),
             &["challenge".to_string()],
-            OversightPressure::ReduceLikelyHumanFriction,
+            OversightProblemClass::LikelyHumanFrictionOverspend,
             &ReplayPromotionSummary::not_materialized(),
         )
         .expect("proposal builds");
@@ -504,7 +586,7 @@ mod tests {
             &cfg,
             &allowed_actions_v1(),
             &["core_policy".to_string()],
-            OversightPressure::ReduceLikelyHumanFriction,
+            OversightProblemClass::LikelyHumanFrictionOverspend,
             &ReplayPromotionSummary::not_materialized(),
         )
         .expect("proposal builds");
@@ -523,7 +605,7 @@ mod tests {
             &defaults(),
             &allowed_actions_v1(),
             &["verified_identity".to_string()],
-            OversightPressure::ReduceSuspiciousOriginCost,
+            OversightProblemClass::SuspiciousOriginReachOverspend,
             &ReplayPromotionSummary::not_materialized(),
         )
         .expect_err("verified identity must remain controller-forbidden");
@@ -542,7 +624,7 @@ mod tests {
             &defaults(),
             &allowed_actions_v1(),
             &["provider_selection".to_string()],
-            OversightPressure::ReduceSuspiciousOriginCost,
+            OversightProblemClass::SuspiciousOriginReachOverspend,
             &ReplayPromotionSummary::not_materialized(),
         )
         .expect_err("provider selection must remain controller-forbidden");
@@ -561,7 +643,7 @@ mod tests {
             &defaults(),
             &allowed_actions_v1(),
             &["robots_policy".to_string()],
-            OversightPressure::ReduceSuspiciousOriginCost,
+            OversightProblemClass::SuspiciousOriginReachOverspend,
             &ReplayPromotionSummary::not_materialized(),
         )
         .expect_err("robots policy must remain controller-forbidden");
@@ -578,7 +660,7 @@ mod tests {
             &defaults(),
             &allowed_actions_v1(),
             &["allowlists".to_string()],
-            OversightPressure::ReduceSuspiciousOriginCost,
+            OversightProblemClass::SuspiciousOriginReachOverspend,
             &ReplayPromotionSummary::not_materialized(),
         )
         .expect_err("allowlists must remain controller-forbidden");
@@ -595,7 +677,7 @@ mod tests {
             &defaults(),
             &allowed_actions_v1(),
             &["tarpit".to_string()],
-            OversightPressure::ReduceSuspiciousOriginCost,
+            OversightProblemClass::SuspiciousOriginReachOverspend,
             &ReplayPromotionSummary::not_materialized(),
         )
         .expect_err("tarpit must remain controller-forbidden");
@@ -617,7 +699,7 @@ mod tests {
             &cfg,
             &allowed_actions_v1(),
             &["fingerprint_signal".to_string()],
-            OversightPressure::ReduceSuspiciousOriginCost,
+            OversightProblemClass::SuspiciousOriginReachOverspend,
             &replay,
         )
         .expect("proposal builds");
@@ -636,7 +718,7 @@ mod tests {
             &cfg,
             &allowed_actions_v1(),
             &["fingerprint_signal".to_string()],
-            OversightPressure::ReduceSuspiciousOriginCost,
+            OversightProblemClass::SuspiciousOriginReachOverspend,
             &ReplayPromotionSummary::not_materialized(),
         )
         .expect("proposal builds");
@@ -655,7 +737,7 @@ mod tests {
             &cfg,
             &allowed_actions_v1(),
             &["proof_of_work".to_string()],
-            OversightPressure::ReduceLikelyHumanFriction,
+            OversightProblemClass::LikelyHumanFrictionOverspend,
             &ReplayPromotionSummary::not_materialized(),
         )
         .expect_err("no lower bounded patch exists");
@@ -664,5 +746,28 @@ mod tests {
             err,
             OversightPatchPolicyError::NoBoundedPatch("proof_of_work".to_string())
         );
+    }
+
+    #[test]
+    fn latency_problem_class_prefers_signal_families_before_higher_friction_moves() {
+        let mut cfg = defaults().clone();
+        cfg.fingerprint_signal_enabled = false;
+        cfg.js_required_enforced = false;
+        cfg.pow_enabled = true;
+
+        let proposal = propose_patch(
+            &cfg,
+            &allowed_actions_v1(),
+            &[
+                "core_policy".to_string(),
+                "proof_of_work".to_string(),
+                "fingerprint_signal".to_string(),
+            ],
+            OversightProblemClass::SuspiciousOriginLatencyOverspend,
+            &ReplayPromotionSummary::not_materialized(),
+        )
+        .expect("proposal builds");
+
+        assert_eq!(proposal.patch_family, "fingerprint_signal");
     }
 }

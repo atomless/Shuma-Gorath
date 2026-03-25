@@ -100,3 +100,8 @@ The optimal order is:
    - `OVR-AGENT-2A..2C`
 
 Dashboard/operator-surface cleanup can wait because it does not change the truthfulness of the attacker side or the legality and judgment of the loop itself.
+
+Current note:
+
+1. `RSI-GAME-1A` and `RSI-GAME-1B` are now landed.
+2. The active mainline starts next at `RSI-SCORE-1`, then `RSI-GAME-1C`, then `RSI-GAME-MAINLINE-1`.

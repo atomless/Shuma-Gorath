@@ -4,6 +4,53 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### RSI-GAME-1B: Shortfall-attribution and move-selection policy
+
+- [x] Extended the machine-first benchmark escalation contract in:
+  - [`src/observability/benchmark_results.rs`](../src/observability/benchmark_results.rs)
+  - [`src/observability/benchmark_results_comparison.rs`](../src/observability/benchmark_results_comparison.rs)
+  so `benchmark_results_v1.escalation_hint` now carries:
+  - `problem_class`
+  - `guidance_status`
+  - `tractability`
+  - `expected_direction`
+  - exact `trigger_metric_ids`
+  - bounded `family_guidance`
+- [x] Added explicit family risk guidance in:
+  - [`src/config/controller_action_surface.rs`](../src/config/controller_action_surface.rs)
+  - [`src/config/mod.rs`](../src/config/mod.rs)
+  so the benchmark layer can distinguish lower-friction passive signal families from broader human-visible gates without widening the controller move ring.
+- [x] Replaced the older coarse reconcile and patch-policy pressure collapse in:
+  - [`src/admin/oversight_patch_policy.rs`](../src/admin/oversight_patch_policy.rs)
+  - [`src/admin/oversight_reconcile.rs`](../src/admin/oversight_reconcile.rs)
+  with explicit `OversightProblemClass` handling for:
+  - likely-human friction overspend
+  - suspicious-origin reach overspend
+  - suspicious-origin latency overspend
+  while preserving fail-closed behavior and only upgrading to `exact_bounded_move` plus `exact_bounded_config_move` when a bounded proposal is actually shaped.
+- [x] Updated supporting contracts and fixtures in:
+  - [`src/admin/oversight_api.rs`](../src/admin/oversight_api.rs)
+  - [`src/admin/oversight_apply.rs`](../src/admin/oversight_apply.rs)
+  - [`src/observability/benchmark_comparison.rs`](../src/observability/benchmark_comparison.rs)
+  - [`Makefile`](../Makefile)
+  so the new result fields and focused proof targets stay honest across oversight read paths.
+- [x] Updated the machine-first docs and closeout trail in:
+  - [`docs/api.md`](../docs/api.md)
+  - [`docs/configuration.md`](../docs/configuration.md)
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](../docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md)
+  - [`docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md`](../docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md)
+  - [`docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](../docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md)
+  - [`docs/research/2026-03-24-rsi-game-1b-move-selection-policy-post-implementation-review.md`](../docs/research/2026-03-24-rsi-game-1b-move-selection-policy-post-implementation-review.md)
+- [x] Why:
+  - the repo needed an explicit bridge between missed targets and legal moves before the later scorecard, archive, and first self-improving loop could be truthful
+  - without this slice, Shuma would have kept relying on broad static pressure buckets that could not explain why a specific miss justified a specific bounded move family
+- [x] Evidence:
+  - `make test-oversight-move-selection-policy`
+  - `make test-oversight-reconcile`
+  - `make test-rsi-game-contract`
+  - `git diff --check`
+
 ### RSI-GAME-1A: Canonical recursive-improvement game contract
 
 - [x] Added the canonical machine-first game-contract surface in:

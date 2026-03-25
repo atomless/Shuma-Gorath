@@ -108,10 +108,9 @@ Reference context:
 - Keep this ahead of later LLM attacker or defender runtime work, and ahead of secondary dashboard cleanup follow-ons.
 
 Mainline execution order:
-1. `RSI-GAME-1B`
-2. `RSI-SCORE-1`
-3. `RSI-GAME-1C`
-4. `RSI-GAME-MAINLINE-1`
+1. `RSI-SCORE-1`
+2. `RSI-GAME-1C`
+3. `RSI-GAME-MAINLINE-1`
 
 Current note:
 - `SIM-SCR-CHALLENGE-2A`, `SIM-SCR-CHALLENGE-2B`, and `SIM-SCR-CHALLENGE-2D` are landed.

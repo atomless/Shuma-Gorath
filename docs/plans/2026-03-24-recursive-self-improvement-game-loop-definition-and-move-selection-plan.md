@@ -150,6 +150,12 @@ Put more simply, the later contract should make it explicit that Shuma's recursi
 3. `make test-controller-action-surface-parity`
 4. `git diff --check`
 
+Implementation note:
+
+1. `RSI-GAME-1B` is now landed.
+2. `benchmark_results_v1.escalation_hint` now carries explicit `problem_class`, `guidance_status`, `tractability`, `expected_direction`, `trigger_metric_ids`, and bounded `family_guidance`.
+3. `oversight_reconcile_v1` now preserves those semantics and only upgrades them to `exact_bounded_move` plus `exact_bounded_config_move` when a bounded proposal is actually shaped.
+
 ## Task 3: `RSI-GAME-1C`
 
 ### Episode archive, stepping-stone memory, and progress-to-homeostasis inputs

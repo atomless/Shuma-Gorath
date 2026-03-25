@@ -83,12 +83,26 @@ pub(crate) struct BenchmarkFamilyResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct BenchmarkEscalationFamilyGuidance {
+    pub family: String,
+    pub likely_human_risk: String,
+    pub tolerated_non_human_risk: String,
+    pub note: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub(crate) struct BenchmarkEscalationHint {
     pub availability: String,
     pub decision: String,
     pub review_status: String,
+    pub problem_class: String,
+    pub guidance_status: String,
+    pub tractability: String,
+    pub expected_direction: String,
     pub trigger_family_ids: Vec<String>,
+    pub trigger_metric_ids: Vec<String>,
     pub candidate_action_families: Vec<String>,
+    pub family_guidance: Vec<BenchmarkEscalationFamilyGuidance>,
     pub blockers: Vec<String>,
     pub note: String,
 }
@@ -173,8 +187,14 @@ pub(crate) fn build_benchmark_results_from_snapshot_sections(
             availability: derived_escalation_hint.availability.clone(),
             decision: "observe_longer".to_string(),
             review_status: "manual_review_required".to_string(),
+            problem_class: derived_escalation_hint.problem_class.clone(),
+            guidance_status: derived_escalation_hint.guidance_status.clone(),
+            tractability: derived_escalation_hint.tractability.clone(),
+            expected_direction: derived_escalation_hint.expected_direction.clone(),
             trigger_family_ids: derived_escalation_hint.trigger_family_ids.clone(),
+            trigger_metric_ids: derived_escalation_hint.trigger_metric_ids.clone(),
             candidate_action_families: Vec::new(),
+            family_guidance: derived_escalation_hint.family_guidance.clone(),
             blockers: tuning_eligibility.blockers.clone(),
             note: "Current benchmark pressure cannot justify tuning because category-aware protected evidence is not yet eligible for controller-grade judgment."
                 .to_string(),

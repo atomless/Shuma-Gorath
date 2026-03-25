@@ -332,6 +332,14 @@ Operator-objectives contract notes:
   - the legal move ring is the controller-tunable subset of `allowed_actions_v1`,
   - safety gates remain fail-closed on stale evidence, contradictory evidence, tuning ineligibility, and manual-review rollout guardrails,
   - regression anchors remain explicit rather than being inferred later from agent behavior.
+- `benchmark_results_v1.escalation_hint` is now the canonical shortfall-attribution bridge between missed targets and legal moves. It must expose:
+  - `problem_class` naming the shortfall class,
+  - `guidance_status` naming whether the system only has observation, bounded family guidance, code-evolution-only guidance, or an exact bounded move,
+  - `tractability` naming whether the miss is not yet actionable, a family-level policy choice, a code or capability gap, or an exact bounded config move,
+  - `expected_direction` describing the direction of change,
+  - `trigger_metric_ids` preserving which exact metrics created the miss,
+  - and `family_guidance` rows describing the allowed candidate families plus bounded likely-human and tolerated-non-human risk.
+- `oversight_reconcile_v1` must preserve those semantics rather than collapsing back to coarse pressure buckets. When a bounded proposal is shaped successfully, reconcile may upgrade the current result to `guidance_status=exact_bounded_move` and `tractability=exact_bounded_config_move`; otherwise it must surface the benchmark hint truthfully and fail closed.
 - `POST /admin/oversight/reconcile` is a control-plane preview over machine-first evidence, not a config-write endpoint. It must not mutate persisted config, even when automated canary apply is enabled, and it routes every candidate patch back through `POST /admin/config/validate` before a proposal is considered viable.
 - `GET /admin/oversight/history` and `GET /admin/oversight/agent/status` now expose the first bounded apply-loop lineage. Operators should expect explicit `apply.stage` values such as `eligible`, `canary_applied`, `watch_window_open`, `improved`, `refused`, and `rollback_applied` rather than inferring controller behavior from summary text alone.
 - `operator_snapshot_v1.non_human_traffic` now exposes the seeded taxonomy, the bounded decision chain (`fingerprinting_and_evidence` -> `categorization` -> `cumulative_abuse_score_botness` -> `posture_severity`), category receipts, and readiness blockers. `benchmark_results_v1` mirrors that readiness, carries explicit `tuning_eligibility` blockers, materializes the canonical `non_human_category_posture` family against persisted `category_postures`, and must fail closed to `observe_longer` when category evidence is not yet strong enough for protected tuning decisions.
