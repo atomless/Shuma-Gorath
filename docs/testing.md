@@ -7,6 +7,7 @@ make test             # Full umbrella suite: unit + maze benchmark + Spin integr
 make test-unit        # Unit tests only (native Rust)
 make unit-test        # alias for make test-unit
 make test-native-build-warning-hygiene # Focused native Rust compile gate with warnings treated as errors
+make test-env-isolation-contract # Focused Rust test env-mutation lock_env() contract gate
 make test-maze-benchmark # Deterministic maze asymmetry benchmark gate
 make test-integration # Integration tests only (waits for existing Spin readiness)
 make integration-test # alias for make test-integration
@@ -158,6 +159,7 @@ Notes:
 - `make test-adversary-sim-scrapling-malicious-request-native` is the narrow proof path for widened request-native Scrapling abuse behavior. Use it when changing worker-plan route hints, per-mode malicious submit behavior, or the rule that Scrapling personas must mix ordinary success traffic with hostile request-native challenge, PoW, or tarpit interactions on the surfaces they own.
 - `make test-rsi-game-mainline` is now the focused proof path for the landed `RSI-GAME-MAINLINE-1A` plus `RSI-GAME-MAINLINE-1B` chain; it proves the automatic post-sim oversight trigger still fires once, the post-sim oversight route can apply a bounded canary and persist a terminal retained episode into the archive surfaces, and the shared-host feedback-loop verifier layer can recognize the later periodic terminal judgment plus completed episode-archive row.
 - `make test-native-build-warning-hygiene` is the focused proof path for `BUILD-HYGIENE-1`; it forces a fresh native host compile and treats warnings as errors so dead-code or cfg drift in canonical Rust test builds fails fast instead of quietly normalizing warning noise.
+- `make test-env-isolation-contract` is the focused proof path for `TEST-ENV-1`; it scans Rust test functions and fails if any test mutates process env without acquiring `lock_env()` before the first mutation.
 - `make test-dashboard-e2e` now verifies the running Spin instance is serving the current `dist/dashboard/index.html` before Playwright runs; restart Spin after `make dashboard-build` if this check fails.
 - `make test` now reseeds dashboard sample data at the end, so charts/tables stay populated for local inspection after the run.
 
@@ -200,6 +202,12 @@ For the focused native warning gate, run:
 
 ```bash
 make test-native-build-warning-hygiene
+```
+
+For the focused env-isolation contract, run:
+
+```bash
+make test-env-isolation-contract
 ```
 
 Unit tests validate core logic in isolation (ban logic, allowlist parsing, config defaults, <abbr title="Chrome DevTools Protocol">CDP</abbr> parsing, etc.).

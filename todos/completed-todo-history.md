@@ -4,6 +4,27 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### TEST-ENV-1: Rust test env-isolation enforcement
+
+- [x] Added the focused repo-wide env-isolation contract in:
+  - [`scripts/tests/test_rust_env_isolation_contract.py`](../scripts/tests/test_rust_env_isolation_contract.py)
+  - [`Makefile`](../Makefile)
+  as `make test-env-isolation-contract`, so Rust tests that mutate process env now fail fast if they do not acquire `lock_env()` before the first mutation.
+- [x] Fixed the known remaining offender in:
+  - [`src/runtime/shadow_mode/tests.rs`](../src/runtime/shadow_mode/tests.rs)
+  by acquiring `lock_env()` and restoring both mutated env vars exactly instead of leaving partial manual cleanup behind.
+- [x] Updated the testing guide in [`docs/testing.md`](../docs/testing.md) so the env-isolation proof path is discoverable and truthfully named.
+- [x] Added the closeout review in:
+  - [`docs/research/2026-03-24-test-env-1-rust-env-isolation-post-implementation-review.md`](../docs/research/2026-03-24-test-env-1-rust-env-isolation-post-implementation-review.md)
+  and refreshed:
+  - [`docs/research/README.md`](../docs/research/README.md)
+- [x] Why:
+  - the repo still had one known env-mutating Rust test bypassing `lock_env()`, and the rule itself was not yet enforced by executable proof
+- [x] Evidence:
+  - `make test-env-isolation-contract`
+  - `make test-shadow-mode`
+  - `git diff --check`
+
 ### BUILD-HYGIENE-1: Native test-build warning cleanup
 
 - [x] Removed the pre-existing native test-build warning around [`src/config/runtime_env.rs`](../src/config/runtime_env.rs) by compiling `spin_variable_name` only where it is actually used:

@@ -106,6 +106,7 @@ The directory is intentionally flat. Use this index, not nested folders, to dist
 - [`2026-03-24-rsi-eval-1-held-out-evaluation-boundary-post-implementation-review.md`](2026-03-24-rsi-eval-1-held-out-evaluation-boundary-post-implementation-review.md) - Closeout for freezing player-visible protected evidence versus judge-held-out evaluation contexts
 - [`2026-03-24-rsi-audit-1a-shared-lineage-schema-post-implementation-review.md`](2026-03-24-rsi-audit-1a-shared-lineage-schema-post-implementation-review.md) - Closeout for freezing the shared episode and proposal lineage vocabulary across config and later code moves
 - [`2026-03-24-build-hygiene-1-native-warning-cleanup-post-implementation-review.md`](2026-03-24-build-hygiene-1-native-warning-cleanup-post-implementation-review.md) - Closeout for removing native test-build warning debt and adding a focused warning-hygiene make gate
+- [`2026-03-24-test-env-1-rust-env-isolation-post-implementation-review.md`](2026-03-24-test-env-1-rust-env-isolation-post-implementation-review.md) - Closeout for making `lock_env()` an executable repo-wide contract for env-mutating Rust tests
 - [`2026-03-24-open-backlog-and-plan-reference-stance-alignment-review.md`](2026-03-24-open-backlog-and-plan-reference-stance-alignment-review.md)
 - [`2026-03-24-monitoring-multi-loop-benchmark-progress-review.md`](2026-03-24-monitoring-multi-loop-benchmark-progress-review.md)
 - [`2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-review.md`](2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-review.md)
