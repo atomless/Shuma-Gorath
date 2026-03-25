@@ -65,6 +65,10 @@ pub(crate) struct BenchmarkCompletedCycleJudgment {
 pub(crate) struct BenchmarkHomeostasisSummary {
     pub minimum_completed_cycles_for_homeostasis: u64,
     pub judged_cycle_count: usize,
+    pub improved_cycle_count: usize,
+    pub regressed_cycle_count: usize,
+    pub flat_cycle_count: usize,
+    pub guardrail_blocked_cycle_count: usize,
     pub considered_episode_ids: Vec<String>,
     pub status: String,
     pub note: String,
@@ -142,10 +146,30 @@ pub(crate) fn classify_homeostasis(
         .map(|judgment| judgment.episode_id.clone())
         .collect::<Vec<_>>();
     let judged_cycle_count = judgments.len();
+    let improved_count = judgments
+        .iter()
+        .filter(|judgment| judgment.judgment == "improved")
+        .count();
+    let regressed_count = judgments
+        .iter()
+        .filter(|judgment| judgment.judgment == "regressed")
+        .count();
+    let flat_count = judgments
+        .iter()
+        .filter(|judgment| judgment.judgment == "flat")
+        .count();
+    let guardrail_blocked_count = judgments
+        .iter()
+        .filter(|judgment| judgment.judgment == "guardrail_blocked")
+        .count();
     if judged_cycle_count < minimum_completed_cycles_for_homeostasis as usize {
         return BenchmarkHomeostasisSummary {
             minimum_completed_cycles_for_homeostasis,
             judged_cycle_count,
+            improved_cycle_count: improved_count,
+            regressed_cycle_count: regressed_count,
+            flat_cycle_count: flat_count,
+            guardrail_blocked_cycle_count: guardrail_blocked_count,
             considered_episode_ids,
             status: "not_enough_completed_cycles".to_string(),
             note: "Homeostasis remains unset until enough completed watch-window judgments exist."
@@ -153,10 +177,6 @@ pub(crate) fn classify_homeostasis(
         };
     }
 
-    let improved_count = judgments
-        .iter()
-        .filter(|judgment| judgment.judgment == "improved")
-        .count();
     let all_flat_or_guardrail = judgments.iter().all(|judgment| {
         matches!(judgment.judgment.as_str(), "flat" | "guardrail_blocked")
     });
@@ -172,6 +192,10 @@ pub(crate) fn classify_homeostasis(
     BenchmarkHomeostasisSummary {
         minimum_completed_cycles_for_homeostasis,
         judged_cycle_count,
+        improved_cycle_count: improved_count,
+        regressed_cycle_count: regressed_count,
+        flat_cycle_count: flat_count,
+        guardrail_blocked_cycle_count: guardrail_blocked_count,
         considered_episode_ids,
         status: status.to_string(),
         note: "Homeostasis is classified conservatively from explicit completed-cycle judgments rather than ad hoc trend prose."
@@ -767,8 +791,17 @@ mod tests {
         );
 
         assert_eq!(improving.status, "improving");
+        assert_eq!(improving.improved_cycle_count, 10);
+        assert_eq!(improving.regressed_cycle_count, 0);
+        assert_eq!(improving.flat_cycle_count, 0);
+        assert_eq!(improving.guardrail_blocked_cycle_count, 0);
         assert_eq!(mixed.status, "mixed");
+        assert_eq!(mixed.improved_cycle_count, 5);
+        assert_eq!(mixed.regressed_cycle_count, 5);
         assert_eq!(flat.status, "homeostasis");
+        assert_eq!(flat.improved_cycle_count, 0);
+        assert_eq!(flat.regressed_cycle_count, 0);
+        assert_eq!(flat.flat_cycle_count, 10);
         assert_eq!(flat.considered_episode_ids.len(), 10);
     }
 }

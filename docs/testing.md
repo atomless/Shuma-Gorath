@@ -47,13 +47,14 @@ make test-adversarial-container-isolation # Validate black-box container isolati
 make test-adversarial-container-blackbox # Run containerized black-box adversary worker (Docker required)
 make test-adversarial-llm-fit # Focused bounded LLM fulfillment-plan contract gate
 make test-adversarial-llm-runtime-dispatch # Focused bounded LLM runtime dispatch + typed ingest gate
-make test-scrapling-game-loop-mainline # Focused active-mainline bundle: attacker-faithful Scrapling plus strict human-only loop proofs
+make test-scrapling-game-loop-mainline # Focused active-mainline bundle: attacker-faithful Scrapling plus strict human-only unlock proofs
 make test-adversary-sim-scrapling-owned-surface-contract # Focused Scrapling owned-surface matrix and success-contract gate
 make test-adversary-sim-scrapling-category-fit # Focused Scrapling category-ownership and worker-plan contract gate
 make test-adversary-sim-scrapling-malicious-request-native # Focused attacker-faithful malicious request-native Scrapling behavior gate
 make test-adversary-sim-scrapling-coverage-receipts # Focused Scrapling owned-surface receipt and recent-run closure gate
 make test-rsi-game-mainline # Focused first-working-loop mainline proof: automatic post-sim hook, route-level canary -> judged archive loop, plus shared-host verifier terminal follow-on proof
 make test-rsi-game-human-only-cycles # Focused repeated strict human-only loop-cycle proof: retained config change followed by later rerun and terminal rollback or retain judgment
+make test-rsi-game-human-only-improvement # Focused strict human-only unlock proof: enough completed improving cycles to satisfy the game contract minimum under the strict stance
 make test-adversarial-coverage-receipts # Focused canonical category-coverage receipt and gating checks
 make test-protected-tuning-evidence # Focused protected tuning-evidence eligibility and fail-closed benchmark checks
 make test-verified-identity-calibration-readiness # Focused verified-identity taxonomy/benchmark/reconcile seam gate
@@ -128,6 +129,7 @@ That command is the fastest truthful local/pre-merge proof bundle for the curren
 - `make test-adversary-sim-scrapling-coverage-receipts`
 - `make test-rsi-game-mainline`
 - `make test-rsi-game-human-only-cycles`
+- `make test-rsi-game-human-only-improvement`
 
 ## 🐙 Make-Target Contract Lanes
 
@@ -205,12 +207,13 @@ Notes:
 - `make test-dashboard-game-loop-accountability` is the narrow proof path for `MON-OVERHAUL-1B`; it covers dashboard adapters, bounded snapshot wiring through the refresh runtime, and a rendered Playwright proof that the Game Loop tab projects benchmark and oversight machine contracts rather than placeholder copy.
 - `make test-dashboard-traffic-pane` is the narrow proof path for `TRAFFIC-TAB-1`; it covers traffic-first tab ordering, shared refresh-bar eligibility across `Traffic` and `Game Loop`, and a rendered Playwright proof that Traffic owns the traffic picture while Diagnostics narrows toward furniture proof.
 - `make test-dashboard-runtime-unit-contracts` is the narrow non-rendered proof path for dashboard native-runtime and refresh-runtime behavior; use it when auth/session restore, cache invalidation, or config-mutation invalidation logic changes without needing broader Playwright churn.
-- `make test-scrapling-game-loop-mainline` is the fastest truthful local/pre-merge proof path for the current active mainline. It bundles the attacker-faithful Scrapling owned-surface, malicious request-native, coverage-receipt, first-working-loop, and repeated strict human-only cycle gates without implying live/shared-host operational proof.
+- `make test-scrapling-game-loop-mainline` is the fastest truthful local/pre-merge proof path for the current active mainline. It bundles the attacker-faithful Scrapling owned-surface, malicious request-native, coverage-receipt, first-working-loop, repeated strict human-only cycle, and strict unlock-condition gates without implying live/shared-host operational proof.
 - `make test-adversarial-llm-runtime-dispatch` is the focused proof path for `SIM-LLM-1C2`; it covers the typed Rust worker-result ingest, supervisor dispatch knowledge, and the dedicated Python LLM runtime worker contract without pretending the later receipt-projection and operator-surface chain is already complete.
 - `make test-adversary-sim-scrapling-owned-surface-contract` is the narrow proof path for the attacker-faithful Scrapling owned-surface matrix. Use it when changing which defenses the Scrapling lane owns, which fulfillment modes must touch them, or whether the contract says Scrapling should pass, fail, or expect mixed outcomes on those surfaces.
 - `make test-adversary-sim-scrapling-malicious-request-native` is the narrow proof path for widened request-native Scrapling abuse behavior. Use it when changing worker-plan route hints, per-mode malicious submit behavior, or the rule that Scrapling personas must mix ordinary success traffic with hostile request-native challenge, PoW, or tarpit interactions on the surfaces they own.
 - `make test-rsi-game-mainline` is now the focused proof path for the landed `RSI-GAME-MAINLINE-1A` plus `RSI-GAME-MAINLINE-1B` chain and the strict `RSI-GAME-HO-1A` baseline. It proves the automatic post-sim oversight trigger still fires once, the post-sim oversight route can apply a bounded canary and persist a terminal retained episode into the archive surfaces, and the shared-host feedback-loop verifier layer can recognize the later periodic terminal judgment plus completed episode-archive row while both proof paths require `human_only_private` plus `verified_identities_denied` in the operator snapshot.
 - `make test-rsi-game-human-only-cycles` is the focused proof path for `RSI-GAME-HO-1B`; it proves repeated strict `human_only_private` iteration where a later route-level cycle runs against config retained from an earlier cycle and a subsequent watch-window judgment still produces a truthful terminal retain or rollback outcome.
+- `make test-rsi-game-human-only-improvement` is the focused proof path for `RSI-GAME-HO-1C`; it proves the strict-baseline unlock condition through enough completed improving cycles to satisfy the game contract minimum and exposes explicit archive counts showing the loop is improving rather than merely churning through rollback plumbing.
 - `make test-native-build-warning-hygiene` is the focused proof path for `BUILD-HYGIENE-1`; it forces a fresh native host compile and treats warnings as errors so dead-code or cfg drift in canonical Rust test builds fails fast instead of quietly normalizing warning noise.
 - `make test-env-isolation-contract` is the focused proof path for `TEST-ENV-1`; it scans Rust test functions and fails if any test mutates process env without acquiring `lock_env()` before the first mutation.
 - `make test-ci-workflow-action-versions` is the focused proof path for `CI-WF-1`; it scans the workflow files and fails if the repo drifts back to the older Node20-backed `actions/checkout`, `actions/setup-node`, or `actions/upload-artifact` majors.
@@ -399,6 +402,7 @@ Structural refactor proof map:
 - `make test-rsi-scorecard-contract` is the focused `RSI-SCORE-1` gate for explicit judge-scorecard partitioning across optimization targets, hard guardrails, regression inputs, diagnostic contexts, and homeostasis comparison inputs.
 - `make test-rsi-game-mainline` is the focused `RSI-GAME-MAINLINE-1A` plus `RSI-GAME-MAINLINE-1B` gate for the first explicit working self-improving loop on the current mainline.
 - `make test-rsi-game-human-only-cycles` is the focused `RSI-GAME-HO-1B` gate for repeated strict-baseline config-change iteration over retained config state.
+- `make test-rsi-game-human-only-improvement` is the focused `RSI-GAME-HO-1C` gate for the strict-baseline unlock condition and explicit archive evidence of repeated improving completed cycles.
 - `make test-oversight-episode-archive` is the focused `RSI-GAME-1C` gate for bounded completed-episode persistence, baseline scorecards, terminal proposal outcomes, and conservative homeostasis classification over recent judged cycles.
 - `make test-oversight-move-selection-policy` is the focused `RSI-GAME-1B` gate for shortfall-attribution, explicit problem classes, bounded family guidance, and the reconcile-to-patch-policy bridge.
 - `make test-benchmark-comparison-contract` is the focused benchmark helper gate for explicit baseline-availability, improvement-status, and escalation comparison semantics.

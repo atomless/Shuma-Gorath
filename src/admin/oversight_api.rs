@@ -739,6 +739,7 @@ mod tests {
         execute_reconcile_cycle, handle_admin_oversight_agent_status,
         handle_admin_oversight_history, handle_admin_oversight_reconcile,
         handle_internal_oversight_agent_run,
+        record_completed_episode,
     };
     use crate::challenge::KeyValueStore;
     use crate::config::{defaults, serialize_persisted_kv_config};
@@ -748,8 +749,11 @@ mod tests {
     };
     use crate::observability::monitoring::{record_request_outcome, summarize_with_store};
     use crate::observability::operator_snapshot::{
-        build_operator_snapshot_payload, OperatorSnapshotRecentChanges,
+        build_operator_snapshot_payload, OperatorSnapshotEpisodeEvaluationContext,
+        OperatorSnapshotEpisodeProposal, OperatorSnapshotEpisodeRecord,
+        OperatorSnapshotRecentChanges, OperatorSnapshotWindow,
     };
+    use crate::observability::benchmark_comparison::BenchmarkComparableSnapshot;
     use crate::runtime::effect_intents::ExecutionMode;
     use crate::runtime::request_outcome::{
         RenderedRequestOutcome, RequestOutcomeClass, RequestOutcomeLane, ResponseKind,
@@ -761,6 +765,59 @@ mod tests {
     use spin_sdk::http::{Method, Request};
     use std::collections::HashMap;
     use std::sync::Mutex;
+
+    fn strict_completed_episode_record(
+        episode_id: &str,
+        completed_at_ts: u64,
+        judgment: &str,
+        retain_or_rollback: &str,
+        watch_window_result: &str,
+        homeostasis_eligible: bool,
+    ) -> OperatorSnapshotEpisodeRecord {
+        OperatorSnapshotEpisodeRecord {
+            episode_id: episode_id.to_string(),
+            proposal_id: Some(format!("proposal-{episode_id}")),
+            completed_at_ts,
+            trigger_source: "periodic_supervisor".to_string(),
+            evaluation_context: OperatorSnapshotEpisodeEvaluationContext {
+                objective_revision: "rev-strict-human-only".to_string(),
+                profile_id: "human_only_private".to_string(),
+                subject_kind: "current_instance".to_string(),
+                comparison_mode: "prior_window".to_string(),
+            },
+            baseline_scorecard: BenchmarkComparableSnapshot {
+                generated_at: completed_at_ts.saturating_sub(60),
+                subject_kind: "current_instance".to_string(),
+                watch_window: OperatorSnapshotWindow {
+                    start_ts: completed_at_ts.saturating_sub(86_400),
+                    end_ts: completed_at_ts,
+                    duration_seconds: 86_400,
+                },
+                coverage_status: "covered".to_string(),
+                overall_status: "outside_budget".to_string(),
+                families: Vec::new(),
+            },
+            proposal: Some(OperatorSnapshotEpisodeProposal {
+                patch_family: "fingerprint_signal".to_string(),
+                patch: serde_json::json!({ "fingerprint_signal_enabled": true }),
+                expected_impact: "Reduce suspicious origin reach under strict human-only posture."
+                    .to_string(),
+                confidence: "medium".to_string(),
+                controller_status: "controller_tunable".to_string(),
+                canary_requirement: "required".to_string(),
+                matched_group_ids: vec!["fingerprint_signal".to_string()],
+                note: "Strict-baseline retained move.".to_string(),
+            }),
+            proposal_status: "accepted".to_string(),
+            watch_window_result: watch_window_result.to_string(),
+            retain_or_rollback: retain_or_rollback.to_string(),
+            benchmark_deltas: Vec::new(),
+            hard_guardrail_triggers: Vec::new(),
+            cycle_judgment: judgment.to_string(),
+            homeostasis_eligible,
+            evidence_references: Vec::new(),
+        }
+    }
 
     struct TestStore {
         map: Mutex<HashMap<String, Vec<u8>>>,
@@ -1090,6 +1147,94 @@ mod tests {
         assert_eq!(
             history_payload["episode_archive"]["homeostasis"]["status"],
             "not_enough_completed_cycles"
+        );
+    }
+
+    #[test]
+    fn oversight_history_reports_strict_human_only_unlock_after_repeated_improving_cycles() {
+        let store = TestStore::new();
+        crate::test_support::seed_canary_only_human_only_private_objectives(&store);
+        for idx in 0..10u64 {
+            record_completed_episode(
+                &store,
+                "default",
+                strict_completed_episode_record(
+                    format!("strict-improving-{idx}").as_str(),
+                    1_700_100_000 + idx,
+                    "improved",
+                    "retained",
+                    "improved",
+                    true,
+                ),
+            )
+            .expect("improving episode records");
+        }
+        record_completed_episode(
+            &store,
+            "default",
+            strict_completed_episode_record(
+                "strict-ignored-rollback",
+                1_700_099_000,
+                "regressed",
+                "rolled_back",
+                "rollback_applied",
+                false,
+            ),
+        )
+        .expect("ignored rollback record");
+
+        let history_request = Request::builder()
+            .method(Method::Get)
+            .uri("/admin/oversight/history")
+            .body(Vec::new())
+            .build();
+        let history_response = handle_admin_oversight_history(&history_request, &store, "default");
+
+        assert_eq!(*history_response.status(), 200);
+        let history_payload: serde_json::Value =
+            serde_json::from_slice(history_response.body()).expect("history decodes");
+        assert_eq!(
+            history_payload["game_contract"]["evaluator_scorecard"]["comparison_contract"]
+                ["minimum_completed_cycles_for_homeostasis"],
+            10
+        );
+        assert_eq!(
+            history_payload["episode_archive"]["homeostasis"]["status"],
+            "improving"
+        );
+        assert_eq!(
+            history_payload["episode_archive"]["homeostasis"]["judged_cycle_count"],
+            10
+        );
+        assert_eq!(
+            history_payload["episode_archive"]["homeostasis"]["improved_cycle_count"],
+            10
+        );
+        assert_eq!(
+            history_payload["episode_archive"]["homeostasis"]["regressed_cycle_count"],
+            0
+        );
+        assert_eq!(
+            history_payload["episode_archive"]["homeostasis"]["considered_episode_ids"]
+                .as_array()
+                .expect("considered ids")
+                .len(),
+            10
+        );
+        assert_eq!(
+            history_payload["episode_archive"]["rows"][0]["evaluation_context"]["profile_id"],
+            "human_only_private"
+        );
+        assert!(
+            history_payload["episode_archive"]["rows"]
+                .as_array()
+                .expect("archive rows")
+                .iter()
+                .take(10)
+                .all(|row| {
+                    row["retain_or_rollback"].as_str() == Some("retained")
+                        && row["watch_window_result"].as_str() == Some("improved")
+                })
         );
     }
 

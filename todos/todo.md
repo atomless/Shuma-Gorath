@@ -141,17 +141,14 @@ Current stance:
 - The repo now treats the independent verified-identity top-level stance as design debt: `STANCE-MODEL-1` should replace it with one canonical non-human stance model and a resolved effective policy contract before broader permissive verified-identity posture work continues.
 - Do not bundle authorization policy, low-cost profiles, or dashboard control surfaces into the first tranche.
 
-- [ ] RSI-GAME-HO-1 Fully operationally prove the strict `human_only_private` Scrapling-driven game loop before any later relaxed stance.
+- [ ] SIM-LLM-1C3 Close the runtime proof chain and recent-run projection for the live `bot_red_team` actor.
   - Reference context:
-    - [`docs/research/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-review.md`](../docs/research/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-review.md)
+    - [`docs/plans/2026-03-25-delay-humans-plus-verified-until-combined-attacker-proof-plan.md`](../docs/plans/2026-03-25-delay-humans-plus-verified-until-combined-attacker-proof-plan.md)
     - [`docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](../docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)
-    - [`docs/research/2026-03-25-rsi-game-ho-1a-human-only-private-loop-readiness-review.md`](../docs/research/2026-03-25-rsi-game-ho-1a-human-only-private-loop-readiness-review.md)
-    - [`docs/plans/2026-03-25-rsi-game-ho-1a-human-only-private-loop-plan.md`](../docs/plans/2026-03-25-rsi-game-ho-1a-human-only-private-loop-plan.md)
-    - [`docs/research/2026-03-25-rsi-game-ho-1b-repeated-strict-cycle-readiness-review.md`](../docs/research/2026-03-25-rsi-game-ho-1b-repeated-strict-cycle-readiness-review.md)
-    - [`docs/plans/2026-03-25-rsi-game-ho-1b-repeated-strict-cycle-plan.md`](../docs/plans/2026-03-25-rsi-game-ho-1b-repeated-strict-cycle-plan.md)
-    - [`docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](../docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md)
-    - [`docs/plans/2026-03-24-rsi-game-mainline-first-working-loop-plan.md`](../docs/plans/2026-03-24-rsi-game-mainline-first-working-loop-plan.md)
-  - [ ] RSI-GAME-HO-1C Define and satisfy the unlock condition showing retained config changes and measured improvement toward the strict target, not merely one successful end-to-end cycle.
+    - [`docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md`](../docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md)
+    - [`docs/plans/2026-03-24-llm-player-role-decomposition-plan.md`](../docs/plans/2026-03-24-llm-player-role-decomposition-plan.md)
+    - [`docs/plans/2026-03-22-path-to-closed-loop-llm-adversary-and-diagnosis-implementation-plan.md`](../docs/plans/2026-03-22-path-to-closed-loop-llm-adversary-and-diagnosis-implementation-plan.md)
+    - [`docs/plans/2026-03-25-rsi-game-ho-1c-strict-improvement-unlock-plan.md`](../docs/plans/2026-03-25-rsi-game-ho-1c-strict-improvement-unlock-plan.md)
 
 ## P1 Production Adversary-Sim Operating Contract
 

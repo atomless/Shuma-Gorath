@@ -4,6 +4,32 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-25)
 
+### `RSI-GAME-HO-1C` Strict Improvement Unlock
+
+- [x] Made the strict `human_only_private` unlock condition explicit in:
+  - [`src/observability/benchmark_comparison.rs`](../src/observability/benchmark_comparison.rs)
+  - [`src/admin/oversight_api.rs`](../src/admin/oversight_api.rs)
+  by extending the homeostasis summary with explicit improving, regressed, flat, and guardrail-blocked completed-cycle counts and proving through `oversight_history_v1` that enough strict-baseline retained improving cycles satisfy the game contract minimum.
+- [x] Added a truthful focused Make target and active-mainline bundle wiring in:
+  - [`Makefile`](../Makefile)
+  - [`scripts/tests/test_adversary_sim_make_targets.py`](../scripts/tests/test_adversary_sim_make_targets.py)
+  so the unlock proof now lives in `make test-rsi-game-human-only-improvement` and the active Scrapling-only bundle includes it explicitly instead of stopping at repeated-cycle plumbing.
+- [x] Recorded the tranche in:
+  - [`docs/research/2026-03-25-rsi-game-ho-1c-strict-improvement-unlock-readiness-review.md`](../docs/research/2026-03-25-rsi-game-ho-1c-strict-improvement-unlock-readiness-review.md)
+  - [`docs/plans/2026-03-25-rsi-game-ho-1c-strict-improvement-unlock-plan.md`](../docs/plans/2026-03-25-rsi-game-ho-1c-strict-improvement-unlock-plan.md)
+  - [`docs/research/2026-03-25-rsi-game-ho-1c-strict-improvement-unlock-post-implementation-review.md`](../docs/research/2026-03-25-rsi-game-ho-1c-strict-improvement-unlock-post-implementation-review.md)
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`docs/plans/README.md`](../docs/plans/README.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+  so the strict Scrapling-only proof chain is now complete and `SIM-LLM-1C3` becomes the next active reopening.
+- [x] Evidence:
+  - `make test-rsi-game-human-only-improvement`
+  - `make test-adversary-sim-make-target-contract`
+  - `make test-scrapling-game-loop-mainline`
+  - `git diff --check`
+
 ### `RSI-GAME-HO-1B` Repeated Strict Cycle Proof
 
 - [x] Added a dedicated repeated strict-baseline loop proof in:
