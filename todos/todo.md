@@ -102,14 +102,6 @@ Reference context:
 - [`docs/plans/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md`](../docs/plans/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md)
 - [`docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](../docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md)
 
-### SIM-SCR-CHALLENGE-2A: Scrapling owned-surface matrix and success contract
-- Freeze the exact defense surfaces the Scrapling lane owns and must attack faithfully.
-- For each owned surface, define whether Scrapling should:
-  - touch it,
-  - fail against it,
-  - or be able to pass it like a real attacker.
-- Use that matrix to decide what remains request-native and what genuinely requires browser or stealth Scrapling.
-
 ### SIM-SCR-CHALLENGE-2B: Malicious request-native Scrapling interactions
 - Extend the current Scrapling worker so it behaves the way a malicious Scrapling-powered attacker would for request-native owned surfaces.
 - Add explicit malicious interaction coverage where applicable for:

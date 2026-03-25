@@ -4,6 +4,29 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### SIM-SCR-CHALLENGE-2A: Scrapling owned-surface matrix and success contract
+
+- [x] Added the new canonical attacker-faithful Scrapling owned-surface contract in [`src/observability/scrapling_owned_surface.rs`](../src/observability/scrapling_owned_surface.rs), including:
+  - explicit owned request-native surfaces,
+  - explicit browser/stealth other-lane surfaces,
+  - explicit out-of-scope surfaces,
+  - per-mode target helpers,
+  - and success semantics for pass/fail/mixed-outcome expectations.
+- [x] Registered the new module in [`src/observability/mod.rs`](../src/observability/mod.rs).
+- [x] Added the focused contract gate in [`Makefile`](../Makefile):
+  - `make test-adversary-sim-scrapling-owned-surface-contract`
+- [x] Updated the current paper trail in:
+  - [`docs/research/2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-review.md`](../docs/research/2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-review.md)
+  - [`docs/plans/2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-plan.md`](../docs/plans/2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-plan.md)
+  - [`docs/research/2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-post-implementation-review.md`](../docs/research/2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-post-implementation-review.md)
+  - [`docs/testing.md`](../docs/testing.md)
+- [x] Why:
+  - the active mainline now depends on attacker-faithful Scrapling, and the repo previously had category ownership but no separate machine-readable contract for which defense surfaces Scrapling actually owns
+  - freezing that matrix first gives `SIM-SCR-CHALLENGE-2B` and `2D` a concrete contract instead of leaving them to infer ownership from prose or from the deterministic lane
+- [x] Evidence:
+  - `make test-adversary-sim-scrapling-owned-surface-contract`
+  - `git diff --check`
+
 ### TEST-HYGIENE-6B: live wrapper and integration cleanup contract reclassification
 
 - [x] Split the local live feedback-loop verifier proof in [`scripts/tests/test_live_feedback_loop_remote.py`](../scripts/tests/test_live_feedback_loop_remote.py) into:
