@@ -18,6 +18,10 @@ Moved from active TODO files on 2026-02-14.
   - [`scripts/supervisor/adversary_sim_supervisor.rs`](../scripts/supervisor/adversary_sim_supervisor.rs)
   - [`scripts/tests/test_adversary_sim_supervisor.py`](../scripts/tests/test_adversary_sim_supervisor.py)
   so non-zero Scrapling worker exits now retain the beat plan's required `fulfillment_mode` field instead of emitting a payload that the server rejects as invalid.
+- [x] Hardened empty host-side Scrapling env handling in:
+  - [`scripts/supervisor/adversary_sim_supervisor.rs`](../scripts/supervisor/adversary_sim_supervisor.rs)
+  - [`scripts/tests/test_adversary_sim_supervisor.py`](../scripts/tests/test_adversary_sim_supervisor.py)
+  so blank `ADVERSARY_SIM_SCRAPLING_*` overrides are treated as unset and the repo-owned default worker paths still resolve correctly under the shared-host wrapper chain.
 - [x] Updated the focused verification/docs trail in:
   - [`docs/testing.md`](../docs/testing.md)
   - [`docs/research/2026-03-24-prod-start-supervisor-env-and-remote-receipt-backfill-post-implementation-review.md`](../docs/research/2026-03-24-prod-start-supervisor-env-and-remote-receipt-backfill-post-implementation-review.md)

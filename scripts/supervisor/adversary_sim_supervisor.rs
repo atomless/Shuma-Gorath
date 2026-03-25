@@ -67,6 +67,14 @@ fn parse_u32_env(name: &str, default: u32) -> u32 {
         .unwrap_or(default)
 }
 
+fn non_empty_env_path(name: &str) -> Option<PathBuf> {
+    env::var(name)
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+}
+
 fn parse_base_url(base_url: &str) -> Result<(String, u16), String> {
     let without_scheme = base_url
         .trim()
@@ -161,21 +169,13 @@ fn parse_args() -> Result<Config, String> {
         parse_u32_env("SHUMA_ADVERSARY_SIM_SUPERVISOR_MAX_FAILURES", DEFAULT_MAX_FAILURES).max(1);
     let (host, port) = parse_base_url(base_url.as_str())?;
     let repo_root = detect_repo_root()?;
-    let scrapling_python = env::var("ADVERSARY_SIM_SCRAPLING_PYTHON")
-        .ok()
-        .map(PathBuf::from)
+    let scrapling_python = non_empty_env_path("ADVERSARY_SIM_SCRAPLING_PYTHON")
         .unwrap_or_else(|| repo_root.join(DEFAULT_SCRAPLING_PYTHON_RELATIVE));
     let scrapling_scope_descriptor_path =
-        env::var("ADVERSARY_SIM_SCRAPLING_SCOPE_DESCRIPTOR_PATH")
-            .ok()
-            .map(PathBuf::from);
+        non_empty_env_path("ADVERSARY_SIM_SCRAPLING_SCOPE_DESCRIPTOR_PATH");
     let scrapling_seed_inventory_path =
-        env::var("ADVERSARY_SIM_SCRAPLING_SEED_INVENTORY_PATH")
-            .ok()
-            .map(PathBuf::from);
-    let scrapling_crawldir = env::var("ADVERSARY_SIM_SCRAPLING_CRAWLDIR")
-        .ok()
-        .map(PathBuf::from)
+        non_empty_env_path("ADVERSARY_SIM_SCRAPLING_SEED_INVENTORY_PATH");
+    let scrapling_crawldir = non_empty_env_path("ADVERSARY_SIM_SCRAPLING_CRAWLDIR")
         .unwrap_or_else(|| repo_root.join(DEFAULT_SCRAPLING_CRAWLDIR_RELATIVE));
 
     Ok(Config {

@@ -37,6 +37,7 @@ That meant the deployed service could look correctly configured on disk while th
 3. `scripts/tests/test_prod_start_spin_manifest.py` now proves the exact failure mode: when the Scrapling paths and sim-tag secret are present only in `ENV_LOCAL`, `make prod-start` must still export them into the wrapper child environment.
 4. `Makefile` now exposes `make test-prod-start-contract` as the focused verification path for that contract.
 5. `scripts/supervisor/adversary_sim_supervisor.rs` now keeps the beat plan's `fulfillment_mode` when it synthesizes a failure payload for a non-zero Scrapling worker exit, and `scripts/tests/test_adversary_sim_supervisor.py` now proves that the host-side supervisor keeps that required field.
+6. `scripts/supervisor/adversary_sim_supervisor.rs` now also treats empty `ADVERSARY_SIM_SCRAPLING_*` env values as unset so the repo-owned `.venv-scrapling` defaults still work when the wrapper exports blank optional overrides.
 
 ## Verification
 
@@ -51,7 +52,7 @@ That meant the deployed service could look correctly configured on disk while th
 
 The first remote rerun after this fix was not valid evidence because `remote-update` warned that the local worktree was dirty and therefore archived only committed `HEAD`. The next required step is:
 
-1. commit this tranche and the `fulfillment_mode` follow-on,
+1. commit this tranche, the `fulfillment_mode` follow-on, and the empty-env fallback hardening,
 2. redeploy from a clean worktree,
 3. rerun `make test-live-feedback-loop-remote`,
 4. then confirm live Scrapling receipts and post-sim Game Loop lineage on the actual fixed build.

@@ -32,6 +32,15 @@ class AdversarySimSupervisorContractTests(unittest.TestCase):
         self.assertIn('json_string(beat_body, "fulfillment_mode")', source)
         self.assertIn('\\"fulfillment_mode\\":\\"{}\\"', source)
 
+    def test_supervisor_treats_empty_scrapling_env_paths_as_unset(self) -> None:
+        source = SUPERVISOR_WORKER_SOURCE.read_text(encoding="utf-8")
+        self.assertIn("fn non_empty_env_path", source)
+        self.assertIn('.filter(|value| !value.is_empty())', source)
+        self.assertIn('non_empty_env_path("ADVERSARY_SIM_SCRAPLING_PYTHON")', source)
+        self.assertIn('non_empty_env_path("ADVERSARY_SIM_SCRAPLING_SCOPE_DESCRIPTOR_PATH")', source)
+        self.assertIn('non_empty_env_path("ADVERSARY_SIM_SCRAPLING_SEED_INVENTORY_PATH")', source)
+        self.assertIn('non_empty_env_path("ADVERSARY_SIM_SCRAPLING_CRAWLDIR")', source)
+
     def test_supervisor_manager_worker_pid_is_not_trap_scoped_local(self) -> None:
         script = SUPERVISOR_MANAGER_SCRIPT.read_text(encoding="utf-8")
         self.assertNotIn('local worker_pid=""', script)
