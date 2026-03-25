@@ -30,6 +30,7 @@
    - `SIM-SCR-CHALLENGE-2B` malicious request-native Scrapling interactions
    - `SIM-SCR-CHALLENGE-2C` browser or stealth Scrapling adoption where required
    - `SIM-SCR-CHALLENGE-2D` receipt-backed coverage closure and explicit remaining-gap assignment
+   - `SIM-SCR-GEO-1` request-native public-network identity diversification for `geo_ip_policy`
    - `RSI-GAME-MAINLINE-1` first working self-improving loop over the truthful attacker basis
 3. Make clear that the previous dashboard cleanup follow-ons are no longer the immediate mainline.
 
@@ -72,7 +73,7 @@
 
 ## Recommended Implementation Order
 
-The optimal order is:
+The optimal order was:
 
 1. `SIM-SCR-CHALLENGE-2A`
    - freeze the owned defense-surface matrix and define which surfaces Scrapling must touch, fail, or be able to pass
@@ -102,3 +103,15 @@ The optimal order is:
    - `OVR-AGENT-2A..2C`
 
 Dashboard/operator-surface cleanup can wait because it does not change the truthfulness of the attacker side or the legality and judgment of the loop itself.
+
+## Post-`SIM-SCR-GEO-1` mainline
+
+With `SIM-SCR-GEO-1` landed, the immediate execution order is now:
+
+1. `RSI-GAME-1A`
+2. `RSI-GAME-1B`
+3. `RSI-SCORE-1`
+4. `RSI-GAME-1C`
+5. `RSI-GAME-MAINLINE-1`
+
+`SIM-SCR-CHALLENGE-2C` is no longer an active queue item. It remains a conditional blocked follow-on only if future owned-surface receipts prove that request-native Scrapling plus public-network identity diversity are still insufficient for a Scrapling-owned surface.

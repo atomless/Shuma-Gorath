@@ -20,6 +20,25 @@ pub struct ScraplingCrawlStats {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
+pub struct ScraplingPublicNetworkIdentity {
+    pub identity_id: String,
+    pub identity_class: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expected_geo_country: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ScraplingSurfaceIdentityReceipt {
+    pub surface_id: String,
+    pub identity_id: String,
+    pub identity_class: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expected_geo_country: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct ScraplingWorkerPlan {
     pub schema_version: String,
     pub run_id: String,
@@ -34,6 +53,8 @@ pub struct ScraplingWorkerPlan {
     pub max_depth: u64,
     pub max_bytes: u64,
     pub max_ms: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub public_network_identity: Option<ScraplingPublicNetworkIdentity>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -60,6 +81,10 @@ pub struct ScraplingWorkerResult {
     pub surface_interactions: BTreeMap<String, u64>,
     #[serde(default)]
     pub scope_rejections: BTreeMap<String, u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub used_public_network_identity: Option<ScraplingPublicNetworkIdentity>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub surface_identity_receipts: Vec<ScraplingSurfaceIdentityReceipt>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

@@ -104,16 +104,11 @@ Reference context:
 - [`docs/plans/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md`](../docs/plans/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md)
 - [`docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](../docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md)
 
-### SIM-SCR-GEO-1: Request-native source-IP diversification for geo/ip policy coverage
-- Close the remaining Scrapling-owned `geo_ip_policy` gap with attacker-faithful public-network identity diversity rather than privileged headers or premature browser/stealth expansion.
-- Keep this request-native and black-box: only public host knowledge plus bounded public-network identity rotation or proxy-backed egress is allowed.
-- Clear the current `scrapling_owned_surface_coverage` gap assignment only when `geo_ip_policy` is observed through truthful request-native receipts.
-- Reference context: [`../docs/research/2026-03-24-scrapling-geo-ip-policy-source-diversification-review.md`](../docs/research/2026-03-24-scrapling-geo-ip-policy-source-diversification-review.md), [`../docs/plans/2026-03-24-scrapling-geo-ip-policy-source-diversification-plan.md`](../docs/plans/2026-03-24-scrapling-geo-ip-policy-source-diversification-plan.md)
-
-### SIM-SCR-CHALLENGE-2C: Browser or stealth Scrapling where the matrix requires it
-- Execute this only where the owned-surface matrix still proves request-native Scrapling is insufficient for reasons other than public-network identity diversity.
-- Do not use browser or stealth Scrapling as a substitute for truthful source-IP or proxy-backed coverage of `geo_ip_policy`.
-- Keep this bounded to surfaces Scrapling actually owns rather than broadening into unrelated browser-agent behavior.
+### RSI-GAME-1A: Canonical recursive-improvement game contract
+- Define the canonical game layer over the existing bounded loop so Shuma has one explicit answer to its fixed rules, fixed payoffs, legal moves, independent judge, and regression anchors.
+- Build directly on the now-landed controller mutability ring and attacker-faithful request-native Scrapling basis rather than waiting for deferred dashboard follow-ons.
+- Keep this machine-first and judge-side: the game contract must be explicit before the first self-improving loop run and before later LLM attacker or defender runtime work reopens.
+- Reference context: [`../docs/research/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-review.md`](../docs/research/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-review.md), [`../docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](../docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md)
 
 ### RSI-GAME-MAINLINE-1: First working self-improving loop over attacker-faithful Scrapling
 - After the Scrapling-owned surfaces are attacker-faithful and receipt-backed, execute the first explicit self-improving loop over that truthful attacker basis.
@@ -121,13 +116,12 @@ Reference context:
 - Keep this ahead of later LLM attacker or defender runtime work, and ahead of secondary dashboard cleanup follow-ons.
 
 Mainline execution order:
-1. `SIM-SCR-GEO-1`
-2. `SIM-SCR-CHALLENGE-2C` only if request-native plus public-network identity diversification still proves insufficient for an owned surface
-3. `RSI-GAME-1A`
-4. `RSI-GAME-1B`
-5. `RSI-SCORE-1`
-6. `RSI-GAME-1C`
-7. `RSI-GAME-MAINLINE-1`
+1. `RSI-GAME-1A`
+2. `RSI-GAME-1B`
+3. `RSI-SCORE-1`
+4. `RSI-GAME-1C`
+5. `RSI-GAME-MAINLINE-1`
+6. only if future owned-surface receipts prove request-native plus public-network identity diversification are insufficient for a Scrapling-owned surface, reopen `SIM-SCR-CHALLENGE-2C`
 
 ### DIAG-CLEANUP-1: Diagnostics furniture-operational cleanup after Traffic split
 - After `TRAFFIC-TAB-1` lands, remove the migrated traffic-facing sections from Diagnostics so it becomes clearly diagnostics-first and furniture-operational.

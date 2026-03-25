@@ -6,6 +6,9 @@ use super::adversary_sim::{
     MAX_CONCURRENT_RUNS, MAX_CPU_MILLICORES, MAX_MEMORY_MIB, PRODUCTION_GENERATION_DEFAULT,
     QUEUE_POLICY, WorkerFailureClass,
 };
+use super::adversary_sim_worker_plan::{
+    ScraplingPublicNetworkIdentity, ScraplingSurfaceIdentityReceipt,
+};
 use super::adversary_sim_corpus::deterministic_corpus_metadata_payload;
 use super::adversary_sim_state::{
     autonomous_execution_profile, clamp_duration_seconds, effective_active_lane,
@@ -54,6 +57,10 @@ pub struct LaneCounterState {
     pub response_status_count: BTreeMap<String, u64>,
     #[serde(default)]
     pub surface_interactions: BTreeMap<String, u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_public_network_identity: Option<ScraplingPublicNetworkIdentity>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub last_surface_identity_receipts: Vec<ScraplingSurfaceIdentityReceipt>,
     #[serde(default)]
     pub last_generated_at: Option<u64>,
     #[serde(default)]
@@ -102,6 +109,8 @@ impl LaneDiagnosticsState {
                 "response_bytes": lane.response_bytes,
                 "response_status_count": lane.response_status_count,
                 "surface_interactions": lane.surface_interactions,
+                "last_public_network_identity": lane.last_public_network_identity,
+                "last_surface_identity_receipts": lane.last_surface_identity_receipts,
                 "last_generated_at": lane.last_generated_at,
                 "last_error": lane.last_error
             })

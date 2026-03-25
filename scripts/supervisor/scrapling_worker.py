@@ -36,6 +36,7 @@ class WorkerConfigError(ValueError):
 
 
 SCRAPLING_FULFILLMENT_MODES = {"crawler", "bulk_scraper", "http_agent"}
+SCRAPLING_PUBLIC_NETWORK_IDENTITIES_ENV = "ADVERSARY_SIM_SCRAPLING_PUBLIC_NETWORK_IDENTITIES"
 
 HTTP_AGENT_PUBLIC_SEARCH_PATH = "/sim/public/search?q=challenge-pressure"
 HTTP_AGENT_RATE_PRESSURE_PATH = "/sim/public/search?q=rate-pressure"
@@ -96,6 +97,96 @@ def _normalize_category_targets(raw_targets: Any) -> list[str]:
     return normalized
 
 
+def _normalize_public_network_identity_selection(raw_selection: Any) -> dict[str, Any] | None:
+    if raw_selection is None:
+        return None
+    if not isinstance(raw_selection, dict):
+        raise WorkerConfigError("worker_plan public_network_identity must be an object")
+    identity_id = str(raw_selection.get("identity_id") or "").strip()
+    identity_class = str(raw_selection.get("identity_class") or "").strip() or "http_proxy"
+    expected_geo_country = str(raw_selection.get("expected_geo_country") or "").strip().upper() or None
+    if not identity_id:
+        raise WorkerConfigError("worker_plan public_network_identity.identity_id is required")
+    if identity_class != "http_proxy":
+        raise WorkerConfigError("worker_plan public_network_identity.identity_class must be http_proxy")
+    return {
+        "identity_id": identity_id,
+        "identity_class": identity_class,
+        "expected_geo_country": expected_geo_country,
+    }
+
+
+def _load_public_network_identity_pool() -> dict[str, dict[str, Any]]:
+    raw = os.environ.get(SCRAPLING_PUBLIC_NETWORK_IDENTITIES_ENV, "").strip()
+    if not raw:
+        return {}
+    payload = json.loads(raw)
+    if not isinstance(payload, list):
+        raise WorkerConfigError(
+            f"{SCRAPLING_PUBLIC_NETWORK_IDENTITIES_ENV} must be a JSON array"
+        )
+    normalized: dict[str, dict[str, Any]] = {}
+    for item in payload:
+        if not isinstance(item, dict):
+            raise WorkerConfigError(
+                f"{SCRAPLING_PUBLIC_NETWORK_IDENTITIES_ENV} entries must be objects"
+            )
+        identity_id = str(item.get("identity_id") or "").strip()
+        identity_class = str(item.get("identity_class") or "").strip() or "http_proxy"
+        proxy_url = str(item.get("proxy_url") or "").strip()
+        expected_geo_country = str(item.get("expected_geo_country") or "").strip().upper() or None
+        if not identity_id:
+            raise WorkerConfigError(
+                f"{SCRAPLING_PUBLIC_NETWORK_IDENTITIES_ENV} entries must include identity_id"
+            )
+        if identity_class != "http_proxy":
+            raise WorkerConfigError(
+                f"{SCRAPLING_PUBLIC_NETWORK_IDENTITIES_ENV} only supports identity_class=http_proxy today"
+            )
+        if not proxy_url.startswith(("http://", "https://")):
+            raise WorkerConfigError(
+                f"{SCRAPLING_PUBLIC_NETWORK_IDENTITIES_ENV} entries must include an http or https proxy_url"
+            )
+        if identity_id in normalized:
+            raise WorkerConfigError(
+                f"{SCRAPLING_PUBLIC_NETWORK_IDENTITIES_ENV} identity_id values must be unique"
+            )
+        normalized[identity_id] = {
+            "identity_id": identity_id,
+            "identity_class": identity_class,
+            "proxy_url": proxy_url,
+            "expected_geo_country": expected_geo_country,
+        }
+    return normalized
+
+
+def _resolve_public_network_identity(
+    plan: dict[str, Any],
+) -> tuple[dict[str, Any] | None, str | None]:
+    selection = _normalize_public_network_identity_selection(plan.get("public_network_identity"))
+    if selection is None:
+        return None, None
+    pool = _load_public_network_identity_pool()
+    configured = pool.get(selection["identity_id"])
+    if configured is None:
+        raise WorkerConfigError(
+            "worker_plan public_network_identity identity_id is not configured in "
+            f"{SCRAPLING_PUBLIC_NETWORK_IDENTITIES_ENV}"
+        )
+    if configured["identity_class"] != selection["identity_class"]:
+        raise WorkerConfigError(
+            "worker_plan public_network_identity identity_class does not match configured identity"
+        )
+    configured_geo = configured.get("expected_geo_country")
+    selection_geo = selection.get("expected_geo_country")
+    if selection_geo and configured_geo and selection_geo != configured_geo:
+        raise WorkerConfigError(
+            "worker_plan public_network_identity expected_geo_country does not match configured identity"
+        )
+    selection["expected_geo_country"] = selection_geo or configured_geo
+    return selection, str(configured["proxy_url"])
+
+
 def _expected_category_targets_for_mode(fulfillment_mode: str) -> list[str]:
     return {
         "crawler": ["indexing_bot"],
@@ -135,6 +226,8 @@ def _build_failure_result(
         },
         "surface_interactions": {},
         "scope_rejections": {},
+        "used_public_network_identity": None,
+        "surface_identity_receipts": [],
     }
 
 
@@ -189,6 +282,8 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
             seed_inventory: dict[str, Any],
             crawldir: Path,
             sim_telemetry_secret: str,
+            public_network_identity: dict[str, Any] | None,
+            proxy_url: str | None,
         ) -> None:
             self.plan = plan
             self.descriptor = descriptor
@@ -204,6 +299,8 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
             self.fulfillment_mode = str(plan.get("fulfillment_mode") or "crawler")
             self.deadline = time.monotonic() + (self.max_ms / 1000.0)
             self.sim_telemetry_secret = sim_telemetry_secret
+            self.public_network_identity = public_network_identity
+            self.proxy_url = proxy_url
             self.request_sequence = 0
             self.requests_observed = 0
             self.bytes_observed = 0
@@ -216,13 +313,18 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
 
         def configure_sessions(self, manager) -> None:
             timeout_seconds = max(1.0, min(30.0, self.max_ms / 1000.0))
+            session_kwargs = {
+                "follow_redirects": False,
+                "timeout": timeout_seconds,
+                "retries": 1,
+                "headers": {"accept": "*/*"},
+            }
+            if self.proxy_url:
+                session_kwargs["proxy"] = self.proxy_url
             manager.add(
                 "default",
                 fetcher_session_cls(
-                    follow_redirects=False,
-                    timeout=timeout_seconds,
-                    retries=1,
-                    headers={"accept": "*/*"},
+                    **session_kwargs,
                 ),
             )
 
@@ -271,11 +373,15 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
 
         async def start_requests(self) -> AsyncGenerator[Any, None]:
             for url in self.start_urls:
+                request_kwargs: dict[str, Any] = {}
+                if self.proxy_url:
+                    request_kwargs["proxy"] = self.proxy_url
                 yield request_cls(
                     url,
                     sid="default",
                     meta={"depth": 0},
                     headers=self._next_headers(),
+                    **request_kwargs,
                 )
 
         async def parse(self, response) -> AsyncGenerator[Any, None]:
@@ -303,6 +409,7 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
                             normalized_url,
                             meta={"depth": next_depth},
                             headers=self._next_headers(),
+                            proxy=self.proxy_url,
                         )
                 return
 
@@ -321,6 +428,7 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
                             normalized_url,
                             meta={"depth": next_depth},
                             headers=self._next_headers(),
+                            proxy=self.proxy_url,
                         )
                         if self._should_stop():
                             self.pause()
@@ -341,6 +449,7 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
                         normalized_url,
                         meta={"depth": next_depth},
                         headers=self._next_headers(),
+                        proxy=self.proxy_url,
                     )
                     if self._should_stop():
                         self.pause()
@@ -356,6 +465,7 @@ class _DirectPersonaTracker:
         plan: dict[str, Any],
         descriptor: shared_host_scope.SharedHostScopeDescriptor,
         sim_telemetry_secret: str,
+        public_network_identity: dict[str, Any] | None,
     ) -> None:
         self.plan = plan
         self.descriptor = descriptor
@@ -369,6 +479,7 @@ class _DirectPersonaTracker:
         self.fulfillment_mode = str(plan.get("fulfillment_mode") or "")
         self.deadline = time.monotonic() + (self.max_ms / 1000.0)
         self.sim_telemetry_secret = sim_telemetry_secret
+        self.public_network_identity = public_network_identity
         self.request_sequence = 0
         self.generated_requests = 0
         self.failed_requests = 0
@@ -378,6 +489,7 @@ class _DirectPersonaTracker:
         self.response_status_count: Counter[str] = Counter()
         self.surface_interactions: Counter[str] = Counter()
         self.scope_rejections: Counter[str] = Counter()
+        self.surface_identity_receipts: list[dict[str, Any]] = []
 
     def should_stop(self) -> bool:
         return (
@@ -432,6 +544,24 @@ class _DirectPersonaTracker:
         surface_key = str(surface or "").strip()
         if surface_key:
             self.surface_interactions[surface_key] += 1
+            if (
+                surface_key == "geo_ip_policy"
+                and self.public_network_identity
+                and not any(
+                    receipt.get("surface_id") == "geo_ip_policy"
+                    for receipt in self.surface_identity_receipts
+                )
+            ):
+                self.surface_identity_receipts.append(
+                    {
+                        "surface_id": "geo_ip_policy",
+                        "identity_id": self.public_network_identity["identity_id"],
+                        "identity_class": self.public_network_identity["identity_class"],
+                        "expected_geo_country": self.public_network_identity.get(
+                            "expected_geo_country"
+                        ),
+                    }
+                )
 
     def record_failure(self, error: Exception) -> None:
         self.failed_requests += 1
@@ -462,6 +592,8 @@ class _DirectPersonaTracker:
             },
             "surface_interactions": dict(sorted(self.surface_interactions.items())),
             "scope_rejections": dict(sorted(self.scope_rejections.items())),
+            "used_public_network_identity": self.public_network_identity,
+            "surface_identity_receipts": self.surface_identity_receipts,
         }
 
 
@@ -489,20 +621,28 @@ def _execute_bulk_scraper_persona(
     descriptor: shared_host_scope.SharedHostScopeDescriptor,
     seed_inventory: dict[str, Any],
     sim_telemetry_secret: str,
+    public_network_identity: dict[str, Any] | None,
+    proxy_url: str | None,
 ) -> dict[str, Any]:
     tracker = _DirectPersonaTracker(
         plan=plan,
         descriptor=descriptor,
         sim_telemetry_secret=sim_telemetry_secret,
+        public_network_identity=public_network_identity,
     )
     start_urls = _normalized_start_urls(seed_inventory)
     request_targets = _bulk_scraper_request_urls(start_urls)
     visited: set[str] = set()
+    session_kwargs = {
+        "follow_redirects": False,
+        "timeout": max(1.0, min(30.0, tracker.max_ms / 1000.0)),
+        "retries": 1,
+        "headers": {"accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"},
+    }
+    if proxy_url:
+        session_kwargs["proxy"] = proxy_url
     with fetcher_session_cls(
-        follow_redirects=False,
-        timeout=max(1.0, min(30.0, tracker.max_ms / 1000.0)),
-        retries=1,
-        headers={"accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"},
+        **session_kwargs,
     ) as session:
         for raw_target in request_targets:
             if tracker.should_stop():
@@ -520,6 +660,7 @@ def _execute_bulk_scraper_persona(
                     headers=tracker.next_headers(
                         {"accept-language": "en-GB,en;q=0.8"}
                     ),
+                    proxy=proxy_url,
                 )
                 visited.add(normalized_url)
                 tracker.record_response(response)
@@ -541,6 +682,7 @@ def _execute_bulk_scraper_persona(
                         headers=tracker.next_headers(
                             {"accept-language": "en-GB,en;q=0.8"}
                         ),
+                        proxy=proxy_url,
                     )
                     visited.add(discovered_url)
                     tracker.record_response(discovered_response)
@@ -557,11 +699,14 @@ def _execute_http_agent_persona(
     descriptor: shared_host_scope.SharedHostScopeDescriptor,
     seed_inventory: dict[str, Any],
     sim_telemetry_secret: str,
+    public_network_identity: dict[str, Any] | None,
+    proxy_url: str | None,
 ) -> dict[str, Any]:
     tracker = _DirectPersonaTracker(
         plan=plan,
         descriptor=descriptor,
         sim_telemetry_secret=sim_telemetry_secret,
+        public_network_identity=public_network_identity,
     )
     start_urls = _normalized_start_urls(seed_inventory)
     if not start_urls:
@@ -569,6 +714,21 @@ def _execute_http_agent_persona(
     base_url = start_urls[0]
     cookies = {"shuma_agent_mode": "http_agent"}
     requests = [
+        *(
+            [
+                (
+                    "get",
+                    base_url,
+                    {
+                        "headers": {"accept": "text/html,application/xhtml+xml"},
+                        "cookies": cookies,
+                        "surface": "geo_ip_policy",
+                    },
+                )
+            ]
+            if public_network_identity
+            else []
+        ),
         (
             "get",
             urljoin(base_url, HTTP_AGENT_PUBLIC_SEARCH_PATH),
@@ -642,11 +802,16 @@ def _execute_http_agent_persona(
             },
         ),
     ]
+    session_kwargs = {
+        "follow_redirects": False,
+        "timeout": max(1.0, min(30.0, tracker.max_ms / 1000.0)),
+        "retries": 1,
+        "headers": {"accept": "application/json"},
+    }
+    if proxy_url:
+        session_kwargs["proxy"] = proxy_url
     with fetcher_session_cls(
-        follow_redirects=False,
-        timeout=max(1.0, min(30.0, tracker.max_ms / 1000.0)),
-        retries=1,
-        headers={"accept": "application/json"},
+        **session_kwargs,
     ) as session:
         for method_name, raw_target, request_kwargs in requests:
             if tracker.should_stop():
@@ -667,6 +832,7 @@ def _execute_http_agent_persona(
                     data=request_kwargs.get("data"),
                     json=request_kwargs.get("json"),
                     follow_redirects=False,
+                    proxy=proxy_url,
                 )
                 tracker.record_response(response)
                 if surface:
@@ -688,6 +854,7 @@ def _execute_http_agent_persona(
                             headers=tracker.next_headers({"accept": "application/json"}),
                             cookies=cookies,
                             follow_redirects=False,
+                            proxy=proxy_url,
                         )
                         tracker.record_response(redirect_response)
             except Exception as exc:
@@ -731,6 +898,7 @@ def execute_worker_plan(
         seed_inventory = _load_json(seed_inventory_path)
         if not _normalized_start_urls(seed_inventory):
             raise WorkerConfigError("seed inventory must contain at least one accepted start or hint URL")
+        public_network_identity, proxy_url = _resolve_public_network_identity(plan)
 
         fetcher_session_cls, request_cls, spider_cls = _import_scrapling()
         if fulfillment_mode == "crawler":
@@ -742,6 +910,8 @@ def execute_worker_plan(
                 seed_inventory=seed_inventory,
                 crawldir=crawldir,
                 sim_telemetry_secret=sim_telemetry_secret,
+                public_network_identity=public_network_identity,
+                proxy_url=proxy_url,
             )
             crawl_result = spider.start()
             stats = crawl_result.stats
@@ -772,6 +942,8 @@ def execute_worker_plan(
                     "response_bytes": int(stats.response_bytes),
                 },
                 "scope_rejections": dict(sorted(spider.scope_rejections.items())),
+                "used_public_network_identity": public_network_identity,
+                "surface_identity_receipts": [],
             }
         if fulfillment_mode == "bulk_scraper":
             return _execute_bulk_scraper_persona(
@@ -780,6 +952,8 @@ def execute_worker_plan(
                 descriptor=descriptor,
                 seed_inventory=seed_inventory,
                 sim_telemetry_secret=sim_telemetry_secret,
+                public_network_identity=public_network_identity,
+                proxy_url=proxy_url,
             )
         return _execute_http_agent_persona(
             fetcher_session_cls,
@@ -787,6 +961,8 @@ def execute_worker_plan(
             descriptor=descriptor,
             seed_inventory=seed_inventory,
             sim_telemetry_secret=sim_telemetry_secret,
+            public_network_identity=public_network_identity,
+            proxy_url=proxy_url,
         )
     except Exception as exc:
         return _build_failure_result(

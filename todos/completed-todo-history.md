@@ -4,6 +4,43 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### SIM-SCR-GEO-1: Request-native source-IP diversification for geo/ip policy coverage
+
+- [x] Added a bounded public-network identity contract to the Scrapling worker plan and result surface in:
+  - [`src/admin/adversary_sim_worker_plan.rs`](../src/admin/adversary_sim_worker_plan.rs)
+  - [`src/admin/adversary_sim_lane_runtime.rs`](../src/admin/adversary_sim_lane_runtime.rs)
+  - [`scripts/supervisor/scrapling_worker.py`](../scripts/supervisor/scrapling_worker.py)
+- [x] Kept the geo coverage path attacker-faithful and request-native by:
+  - selecting only bounded env-configured public identities for request-native `http_agent` ticks,
+  - requiring `identity_class=http_proxy`,
+  - and exercising `geo_ip_policy` through proxy-backed public egress instead of trusted Shuma-only headers.
+- [x] Persisted the new identity receipts through lane diagnostics and admin status truth in:
+  - [`src/admin/adversary_sim_diagnostics.rs`](../src/admin/adversary_sim_diagnostics.rs)
+  - [`src/admin/api.rs`](../src/admin/api.rs)
+  so the system now records:
+  - `last_public_network_identity`
+  - `last_surface_identity_receipts`
+- [x] Tightened the shared-host worker runtime contract in:
+  - [`scripts/bootstrap/scrapling_runtime.sh`](../scripts/bootstrap/scrapling_runtime.sh)
+  - [`scripts/tests/test_scrapling_worker.py`](../scripts/tests/test_scrapling_worker.py)
+  - [`Makefile`](../Makefile)
+  to prove request-native proxy support, truthful `geo_ip_policy` interaction, and fail-closed worker/runtime behavior.
+- [x] Updated the operator and contributor paper trail in:
+  - [`docs/api.md`](../docs/api.md)
+  - [`docs/configuration.md`](../docs/configuration.md)
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`docs/research/2026-03-24-sim-scr-geo-1-public-network-identity-post-implementation-review.md`](../docs/research/2026-03-24-sim-scr-geo-1-public-network-identity-post-implementation-review.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+- [x] Why:
+  - the owned-surface matrix still had one truthful request-native gap left,
+  - browser or stealth expansion would have been the wrong fix for that gap,
+  - and the attacker-faithful answer was to give Scrapling bounded public-network identity diversity and prove the result end to end.
+- [x] Evidence:
+  - `make test-adversary-sim-scrapling-worker`
+  - `make test-adversarial-coverage-receipts`
+  - `git diff --check`
+
 ### SIM-SCR-CHALLENGE-2D: Receipt-backed coverage closure and explicit gap assignment
 
 - [x] Added a canonical backend comparison between recent Scrapling defense receipts and the frozen owned-surface matrix in:

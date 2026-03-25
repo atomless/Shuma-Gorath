@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+import http.client
 import http.server
 import json
+import os
 import socketserver
 import subprocess
 import tempfile
 import threading
 import time
 import unittest
+import unittest.mock
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urljoin, urlsplit
@@ -218,6 +221,94 @@ class _RecordingHandler(http.server.BaseHTTPRequestHandler):
             return
         self.send_response(404)
         self.end_headers()
+
+
+class _GeoProxyServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
+    daemon_threads = True
+    allow_reuse_address = True
+
+    def __init__(
+        self,
+        server_address: tuple[str, int],
+        handler_class,
+        *,
+        upstream_host: str,
+        upstream_port: int,
+        forwarded_secret: str,
+        forwarded_for: str,
+        geo_country: str,
+    ):
+        super().__init__(server_address, handler_class)
+        self.requests_seen: list[dict[str, Any]] = []
+        self.upstream_host = upstream_host
+        self.upstream_port = upstream_port
+        self.forwarded_secret = forwarded_secret
+        self.forwarded_for = forwarded_for
+        self.geo_country = geo_country
+
+    def server_bind(self) -> None:
+        socketserver.TCPServer.server_bind(self)
+        host, port = self.server_address[:2]
+        self.server_name = str(host)
+        self.server_port = int(port)
+
+
+class _GeoProxyHandler(http.server.BaseHTTPRequestHandler):
+    server: _GeoProxyServer
+
+    def log_message(self, format: str, *args) -> None:  # noqa: A003
+        return
+
+    def _proxy(self) -> None:
+        body = b""
+        length = int(self.headers.get("content-length") or "0")
+        if length > 0:
+            body = self.rfile.read(length)
+        self.server.requests_seen.append(
+            {
+                "method": self.command,
+                "path": self.path,
+                "headers": {key.lower(): value for key, value in self.headers.items()},
+                "body": body.decode("utf-8", errors="replace"),
+            }
+        )
+
+        parsed = urlsplit(self.path)
+        upstream_path = parsed.path or "/"
+        if parsed.query:
+            upstream_path = f"{upstream_path}?{parsed.query}"
+        headers = {key: value for key, value in self.headers.items()}
+        for hop_header in ("Host", "Proxy-Connection", "Connection"):
+            headers.pop(hop_header, None)
+        headers["Host"] = f"{self.server.upstream_host}:{self.server.upstream_port}"
+        headers["X-Forwarded-For"] = self.server.forwarded_for
+        headers["X-Shuma-Forwarded-Secret"] = self.server.forwarded_secret
+        headers["X-Geo-Country"] = self.server.geo_country
+
+        conn = http.client.HTTPConnection(
+            self.server.upstream_host,
+            self.server.upstream_port,
+            timeout=5,
+        )
+        try:
+            conn.request(self.command, upstream_path, body=body or None, headers=headers)
+            upstream_response = conn.getresponse()
+            upstream_body = upstream_response.read()
+            self.send_response(upstream_response.status)
+            for key, value in upstream_response.getheaders():
+                if key.lower() in {"transfer-encoding", "connection"}:
+                    continue
+                self.send_header(key, value)
+            self.end_headers()
+            self.wfile.write(upstream_body)
+        finally:
+            conn.close()
+
+    def do_GET(self) -> None:  # noqa: N802
+        self._proxy()
+
+    def do_POST(self) -> None:  # noqa: N802
+        self._proxy()
 
 
 class ScraplingWorkerUnitTests(unittest.TestCase):
@@ -436,6 +527,96 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
                 for entry in self.httpd.requests_seen
             )
         )
+
+    def test_execute_worker_plan_http_agent_can_use_public_proxy_identity_to_touch_geo_ip_policy(self) -> None:
+        self.assertIsNotNone(scrapling_worker, "worker module missing")
+        beat_payload = self._make_beat_payload(
+            "http_agent",
+            ["http_agent"],
+            max_requests=9,
+        )
+        beat_payload["worker_plan"]["public_network_identity"] = {
+            "identity_id": "proxy-br",
+            "identity_class": "http_proxy",
+            "expected_geo_country": "BR",
+        }
+
+        proxy = _GeoProxyServer(
+            ("127.0.0.1", 0),
+            _GeoProxyHandler,
+            upstream_host="127.0.0.1",
+            upstream_port=self.httpd.server_port,
+            forwarded_secret="test-forwarded-secret",
+            forwarded_for="203.0.113.10",
+            geo_country="BR",
+        )
+        proxy_thread = threading.Thread(target=proxy.serve_forever, daemon=True)
+        proxy_thread.start()
+        proxy_url = f"http://127.0.0.1:{proxy.server_port}"
+
+        try:
+            with unittest.mock.patch.dict(
+                os.environ,
+                {
+                    "ADVERSARY_SIM_SCRAPLING_PUBLIC_NETWORK_IDENTITIES": json.dumps(
+                        [
+                            {
+                                "identity_id": "proxy-br",
+                                "identity_class": "http_proxy",
+                                "proxy_url": proxy_url,
+                                "expected_geo_country": "BR",
+                            }
+                        ]
+                    )
+                },
+                clear=False,
+            ):
+                result = scrapling_worker.execute_worker_plan(
+                    beat_payload,
+                    scope_descriptor_path=self.descriptor_path,
+                    seed_inventory_path=self.inventory_path,
+                    crawldir=self.crawldir,
+                    sim_telemetry_secret=SIM_SECRET,
+                )
+        finally:
+            proxy.shutdown()
+            proxy.server_close()
+            proxy_thread.join(timeout=2)
+
+        self.assertEqual(result["lane"], "scrapling_traffic")
+        self.assertEqual(result["fulfillment_mode"], "http_agent")
+        self.assertEqual(result["failure_class"], None, msg=json.dumps(result, indent=2))
+        self.assertEqual(result["surface_interactions"].get("geo_ip_policy"), 1)
+        self.assertEqual(
+            result["used_public_network_identity"],
+            {
+                "identity_id": "proxy-br",
+                "identity_class": "http_proxy",
+                "expected_geo_country": "BR",
+            },
+        )
+        self.assertEqual(
+            result["surface_identity_receipts"],
+            [
+                {
+                    "surface_id": "geo_ip_policy",
+                    "identity_id": "proxy-br",
+                    "identity_class": "http_proxy",
+                    "expected_geo_country": "BR",
+                }
+            ],
+        )
+        self.assertIn("/", [entry["path"] for entry in self.httpd.requests_seen])
+        self.assertTrue(proxy.requests_seen)
+        for entry in proxy.requests_seen:
+            headers = entry["headers"]
+            self.assertNotIn("x-shuma-forwarded-secret", headers)
+            self.assertNotIn("x-geo-country", headers)
+            self.assertNotIn("x-shuma-internal-supervisor", headers)
+        origin_headers = self.httpd.requests_seen[0]["headers"]
+        self.assertEqual(origin_headers.get("x-shuma-forwarded-secret"), "test-forwarded-secret")
+        self.assertEqual(origin_headers.get("x-geo-country"), "BR")
+        self.assertEqual(origin_headers.get("x-forwarded-for"), "203.0.113.10")
 
     def test_cli_writes_result_file_for_scrapling_worker_plan(self) -> None:
         beat_path = self.temp_dir / "beat.json"

@@ -102,6 +102,7 @@ scrapling_runtime_ready() {
 
     "$venv_python" - <<'PY'
 import importlib.metadata
+import inspect
 import sys
 
 if sys.version_info < (3, 10):
@@ -110,6 +111,9 @@ if sys.version_info < (3, 10):
 from scrapling.fetchers import FetcherSession  # noqa: F401
 import anyio  # noqa: F401
 import curl_cffi  # noqa: F401
+
+if "proxy" not in inspect.signature(FetcherSession.__init__).parameters:
+    raise SystemExit(1)
 
 if importlib.metadata.version("scrapling") != "0.4.2":
     raise SystemExit(1)

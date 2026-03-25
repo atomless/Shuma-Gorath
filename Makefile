@@ -1382,6 +1382,7 @@ test-adversary-sim-scrapling-worker: ## Focused Scrapling lane worker gate (beat
 	@echo "$(CYAN)🧪 Running adversary-sim Scrapling worker gate...$(NC)"
 	@./scripts/set_crate_type.sh rlib
 	@cargo test adversary_sim_internal_beat_returns_scrapling_worker_plan_and_switches_active_lane -- --nocapture
+	@cargo test admin::adversary_sim_lane_runtime::tests::next_scrapling_worker_plan_selects_configured_public_network_identity_for_http_agent_ticks -- --exact --nocapture
 	@cargo test adversary_sim_worker_result_updates_scrapling_generation_and_lane_diagnostics -- --nocapture
 	@cargo test adversary_sim_worker_result_is_rejected_after_manual_off_and_does_not_restore_running_state -- --nocapture
 	@if [ ! -x "$(SCRAPLING_VENV_PYTHON)" ]; then \

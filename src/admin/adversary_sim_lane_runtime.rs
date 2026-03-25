@@ -1,4 +1,6 @@
 use rand::random;
+use serde::Deserialize;
+use std::env;
 
 #[cfg(not(test))]
 use serde_json::json;
@@ -25,6 +27,7 @@ use super::adversary_sim_corpus::deterministic_runtime_profile;
 use super::adversary_sim_state::{
     active_lane_count_for_lane, autonomous_execution_profile, effective_active_lane,
 };
+use super::adversary_sim_worker_plan::ScraplingPublicNetworkIdentity;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum SupplementalLane {
@@ -54,6 +57,79 @@ const EDGE_FERMYON_SUPPLEMENTAL_LANES_PER_TICK: usize = 1;
 const EDGE_FERMYON_RATE_BURST_LOW: u64 = 1;
 const EDGE_FERMYON_RATE_BURST_MEDIUM: u64 = 2;
 const EDGE_FERMYON_RATE_BURST_HIGH: u64 = 3;
+const SCRAPLING_PUBLIC_NETWORK_IDENTITIES_ENV: &str =
+    "ADVERSARY_SIM_SCRAPLING_PUBLIC_NETWORK_IDENTITIES";
+
+#[derive(Debug, Clone, Deserialize)]
+struct ScraplingPublicNetworkIdentityConfig {
+    identity_id: String,
+    #[serde(default = "default_scrapling_identity_class")]
+    identity_class: String,
+    proxy_url: String,
+    #[serde(default)]
+    expected_geo_country: Option<String>,
+}
+
+fn default_scrapling_identity_class() -> String {
+    "http_proxy".to_string()
+}
+
+fn configured_scrapling_public_network_identities() -> Vec<ScraplingPublicNetworkIdentityConfig> {
+    let raw = env::var(SCRAPLING_PUBLIC_NETWORK_IDENTITIES_ENV)
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_default();
+    if raw.is_empty() {
+        return Vec::new();
+    }
+    let identities = serde_json::from_str::<Vec<ScraplingPublicNetworkIdentityConfig>>(&raw)
+        .unwrap_or_default();
+    identities
+        .into_iter()
+        .filter_map(|identity| {
+            let identity_id = identity.identity_id.trim().to_string();
+            let identity_class = identity.identity_class.trim().to_string();
+            let proxy_url = identity.proxy_url.trim().to_string();
+            if identity_id.is_empty()
+                || proxy_url.is_empty()
+                || identity_class != "http_proxy"
+                || !(proxy_url.starts_with("http://") || proxy_url.starts_with("https://"))
+            {
+                return None;
+            }
+            Some(ScraplingPublicNetworkIdentityConfig {
+                identity_id,
+                identity_class,
+                proxy_url,
+                expected_geo_country: identity
+                    .expected_geo_country
+                    .map(|value| value.trim().to_ascii_uppercase())
+                    .filter(|value| !value.is_empty()),
+            })
+        })
+        .collect()
+}
+
+fn configured_public_network_identity_for_tick(
+    fulfillment_mode: &str,
+    generated_tick_count: u64,
+) -> Option<ScraplingPublicNetworkIdentity> {
+    if fulfillment_mode != "http_agent" {
+        return None;
+    }
+    let identities = configured_scrapling_public_network_identities();
+    if identities.is_empty() {
+        return None;
+    }
+    let http_agent_tick_index = (generated_tick_count / 3) as usize;
+    let identity = identities.get(http_agent_tick_index % identities.len())?;
+    Some(ScraplingPublicNetworkIdentity {
+        identity_id: identity.identity_id.clone(),
+        identity_class: identity.identity_class.clone(),
+        expected_geo_country: identity.expected_geo_country.clone(),
+    })
+}
 
 pub(crate) fn simulated_request_paths(run_id: &str, tick_count: u64) -> [String; 9] {
     let runtime_profile = deterministic_runtime_profile();
@@ -397,6 +473,8 @@ pub(crate) fn apply_scrapling_worker_result(
         let entry = counters.surface_interactions.entry(surface.clone()).or_insert(0);
         *entry = entry.saturating_add(*count);
     }
+    counters.last_public_network_identity = result.used_public_network_identity.clone();
+    counters.last_surface_identity_receipts = result.surface_identity_receipts.clone();
     counters.last_generated_at = Some(result.tick_completed_at);
     let last_error = counters.last_error.clone();
     let _ = counters;
@@ -464,6 +542,8 @@ fn next_scrapling_worker_plan(now: u64, state: &mut ControlState) -> ScraplingWo
         .unwrap_or_else(|| format!("simrun-runtime-{now}"));
     let tick_id = format!("scrapling-tick-{}-{:016x}", now, random::<u64>());
     let fulfillment_mode = scrapling_fulfillment_mode_for_tick(state.generated_tick_count);
+    let public_network_identity =
+        configured_public_network_identity_for_tick(fulfillment_mode, state.generated_tick_count);
     state.pending_worker_tick_id = Some(tick_id.clone());
     state.pending_worker_started_at = Some(now);
     state.updated_at = now;
@@ -483,6 +563,7 @@ fn next_scrapling_worker_plan(now: u64, state: &mut ControlState) -> ScraplingWo
         max_depth: SCRAPLING_MAX_DEPTH_PER_TICK,
         max_bytes: SCRAPLING_MAX_BYTES_PER_TICK,
         max_ms: SCRAPLING_MAX_MS_PER_TICK,
+        public_network_identity,
     }
 }
 
@@ -496,7 +577,8 @@ fn scrapling_fulfillment_mode_for_tick(generated_tick_count: u64) -> &'static st
 
 #[cfg(test)]
 mod tests {
-    use super::scrapling_fulfillment_mode_for_tick;
+    use super::{next_scrapling_worker_plan, scrapling_fulfillment_mode_for_tick};
+    use crate::admin::adversary_sim_state::ControlState;
 
     #[test]
     fn scrapling_fulfillment_modes_cycle_across_request_native_personas() {
@@ -504,6 +586,34 @@ mod tests {
         assert_eq!(scrapling_fulfillment_mode_for_tick(1), "bulk_scraper");
         assert_eq!(scrapling_fulfillment_mode_for_tick(2), "http_agent");
         assert_eq!(scrapling_fulfillment_mode_for_tick(3), "crawler");
+    }
+
+    #[test]
+    fn next_scrapling_worker_plan_selects_configured_public_network_identity_for_http_agent_ticks()
+    {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var(
+            "ADVERSARY_SIM_SCRAPLING_PUBLIC_NETWORK_IDENTITIES",
+            r#"[{"identity_id":"proxy-br","identity_class":"http_proxy","proxy_url":"http://127.0.0.1:8181","expected_geo_country":"BR"}]"#,
+        );
+
+        let mut state = ControlState {
+            run_id: Some("simrun-http-agent".to_string()),
+            generated_tick_count: 2,
+            ..ControlState::default()
+        };
+        let plan = next_scrapling_worker_plan(1_700_000_000, &mut state);
+
+        assert_eq!(plan.fulfillment_mode, "http_agent");
+        let identity = plan
+            .public_network_identity
+            .as_ref()
+            .expect("http-agent ticks should select a configured public identity");
+        assert_eq!(identity.identity_id, "proxy-br");
+        assert_eq!(identity.identity_class, "http_proxy");
+        assert_eq!(identity.expected_geo_country.as_deref(), Some("BR"));
+
+        std::env::remove_var("ADVERSARY_SIM_SCRAPLING_PUBLIC_NETWORK_IDENTITIES");
     }
 }
 
