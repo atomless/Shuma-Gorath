@@ -156,6 +156,19 @@ class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemo
         self._history_queue = [
             {
                 "schema_version": "oversight_history_v1",
+                "episode_archive": {
+                    "schema_version": "oversight_episode_archive_v1",
+                    "rows": [
+                        {
+                            "latest_decision_id": "decision-post-sim-1",
+                            "latest_sim_run_id": "sim-run-1",
+                            "acceptance_status": "accepted_canary",
+                            "watch_window_status": "open",
+                            "retention_status": "pending",
+                            "completion_status": "open",
+                        }
+                    ],
+                },
                 "rows": [
                     {
                         "decision_id": "decision-post-sim-1",
@@ -180,7 +193,7 @@ class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemo
                 "lane_diagnostics": {
                     "truth_basis": "control_state",
                     "lanes": {
-                        "synthetic_traffic": {"generated_requests": 0, "beat_successes": 0}
+                        "scrapling_traffic": {"generated_requests": 0, "beat_successes": 0}
                     },
                 },
                 "persisted_event_evidence": None,
@@ -199,7 +212,7 @@ class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemo
                 "lane_diagnostics": {
                     "truth_basis": "control_state",
                     "lanes": {
-                        "synthetic_traffic": {"generated_requests": 3, "beat_successes": 1}
+                        "scrapling_traffic": {"generated_requests": 3, "beat_successes": 1}
                     },
                 },
                 "persisted_event_evidence": {
@@ -221,7 +234,7 @@ class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemo
                 "lane_diagnostics": {
                     "truth_basis": "persisted_event_lower_bound",
                     "lanes": {
-                        "synthetic_traffic": {"generated_requests": 6, "beat_successes": 1}
+                        "scrapling_traffic": {"generated_requests": 6, "beat_successes": 1}
                     },
                 },
                 "persisted_event_evidence": {
@@ -243,7 +256,7 @@ class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemo
                 "lane_diagnostics": {
                     "truth_basis": "persisted_event_lower_bound",
                     "lanes": {
-                        "synthetic_traffic": {"generated_requests": 6, "beat_successes": 1}
+                        "scrapling_traffic": {"generated_requests": 6, "beat_successes": 1}
                     },
                 },
                 "persisted_event_evidence": {
@@ -252,6 +265,34 @@ class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemo
                 },
             },
         ]
+        self._operator_snapshot_payload = {
+            "schema_version": "operator_snapshot_v1",
+            "adversary_sim": {
+                "scrapling_owned_surface_coverage": {
+                    "schema_version": "scrapling_owned_defense_surface_coverage_v1",
+                    "overall_status": "covered",
+                    "recent_scrapling_run_count": 1,
+                    "covered_surface_count": 7,
+                    "uncovered_surface_count": 0,
+                },
+                "recent_runs": [
+                    {
+                        "run_id": "sim-run-1",
+                        "lane": "scrapling_traffic",
+                        "observed_defense_keys": [
+                            "honeypot",
+                            "rate_limit",
+                            "geo_ip_policy",
+                            "challenge_routing",
+                            "not_a_bot",
+                            "challenge_puzzle",
+                            "proof_of_work",
+                        ],
+                    }
+                ],
+            },
+            "benchmark_results": {"overall_status": "healthy"},
+        }
         self._control_calls = []
         self._control_headers = []
         self._disabled_calls = 0
@@ -272,10 +313,7 @@ class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemo
                 return self._oversight_status_queue.pop(0)
             return self._oversight_status_queue[0]
         if path == "/admin/operator-snapshot":
-            return {
-                "schema_version": "operator_snapshot_v1",
-                "benchmark_results": {"overall_status": "healthy"},
-            }
+            return self._operator_snapshot_payload
         if path == "/admin/events?hours=2&limit=200":
             return {
                 "recent_events": [
@@ -359,6 +397,12 @@ class LiveFeedbackLoopRemoteTests(unittest.TestCase):
         self.assertEqual(report["post_sim_trigger"]["decision_id"], "decision-post-sim-1")
         self.assertEqual(report["post_sim_trigger"]["apply_stage"], "watch_window_open")
         self.assertEqual(report["post_sim_trigger"]["history_latest_apply_stage"], "watch_window_open")
+        self.assertEqual(report["operator_snapshot"]["adversary_sim"]["coverage_status"], "covered")
+        self.assertEqual(report["operator_snapshot"]["adversary_sim"]["recent_run_id"], "sim-run-1")
+        self.assertEqual(report["operator_snapshot"]["adversary_sim"]["recent_run_lane"], "scrapling_traffic")
+        self.assertEqual(report["post_sim_trigger"]["episode_latest_sim_run_id"], "sim-run-1")
+        self.assertEqual(report["post_sim_trigger"]["episode_acceptance_status"], "accepted_canary")
+        self.assertEqual(report["post_sim_trigger"]["episode_completion_status"], "open")
         self.assertEqual(report["adversary_sim"]["persisted_event_count"], 1)
         self.assertEqual(
             report["adversary_sim"]["completed"]["generation_truth_basis"],
@@ -368,7 +412,7 @@ class LiveFeedbackLoopRemoteTests(unittest.TestCase):
             report["adversary_sim"]["completed"]["lane_diagnostics_truth_basis"],
             "persisted_event_lower_bound",
         )
-        self.assertEqual(runner._control_calls, [{"enabled": True}])
+        self.assertEqual(runner._control_calls, [{"enabled": True, "lane": "scrapling_traffic"}])
         self.assertEqual(len(runner._control_headers), 1)
         self.assertEqual(runner._control_headers[0]["Host"], "shuma.example.com")
         self.assertEqual(runner._control_headers[0]["Origin"], "https://shuma.example.com")
@@ -403,6 +447,23 @@ class LiveFeedbackLoopRemoteTests(unittest.TestCase):
         report = json.loads(runner.report_path.read_text(encoding="utf-8"))
         self.assertEqual(report["result"], "fail")
         self.assertIn("under-reported completion counters", report["error"])
+
+    def test_run_fails_when_operator_snapshot_loses_scrapling_coverage_truth(self) -> None:
+        temp_dir = Path(tempfile.mkdtemp(prefix="live-feedback-loop-remote-"))
+        runner = _FakeLiveFeedbackLoopRemote(
+            temp_dir=temp_dir,
+            service_exec="/bin/bash /opt/shuma-gorath/scripts/run_with_oversight_supervisor.sh spin up",
+        )
+        runner._operator_snapshot_payload["adversary_sim"]["scrapling_owned_surface_coverage"][
+            "overall_status"
+        ] = "partial"
+
+        exit_code = runner.run()
+
+        self.assertEqual(exit_code, 1)
+        report = json.loads(runner.report_path.read_text(encoding="utf-8"))
+        self.assertEqual(report["result"], "fail")
+        self.assertIn("Scrapling owned-surface coverage", report["error"])
 
     def test_run_fails_when_remote_service_does_not_use_oversight_wrapper(self) -> None:
         temp_dir = Path(tempfile.mkdtemp(prefix="live-feedback-loop-remote-"))

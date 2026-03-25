@@ -48,6 +48,7 @@ ALLOWED_OVERSIGHT_APPLY_STAGES = {
     "refused",
     "rollback_applied",
 }
+SCRAPLING_COVERAGE_SCHEMA_VERSION = "scrapling_owned_defense_surface_coverage_v1"
 
 
 def _looks_like_timeout(exc: Exception) -> bool:
@@ -329,6 +330,46 @@ PY"""
             )
         return stage
 
+    def _validate_episode_row_against_apply_stage(
+        self,
+        episode_row: dict[str, Any],
+        *,
+        apply_stage: str,
+        sim_run_id: str,
+    ) -> None:
+        acceptance_status = str(episode_row.get("acceptance_status") or "").strip()
+        completion_status = str(episode_row.get("completion_status") or "").strip()
+        retention_status = str(episode_row.get("retention_status") or "").strip()
+
+        if apply_stage in {"canary_applied", "watch_window_open"}:
+            if acceptance_status != "accepted_canary":
+                raise SmokeFailure(
+                    f"Episode archive row for {sim_run_id} did not mark accepted_canary for stage {apply_stage}."
+                )
+            if completion_status != "open":
+                raise SmokeFailure(
+                    f"Episode archive row for {sim_run_id} did not remain open for stage {apply_stage}."
+                )
+            if retention_status != "pending":
+                raise SmokeFailure(
+                    f"Episode archive row for {sim_run_id} did not remain pending for stage {apply_stage}."
+                )
+        elif apply_stage == "improved":
+            if acceptance_status != "accepted_canary" or completion_status != "completed" or retention_status != "retained":
+                raise SmokeFailure(
+                    f"Episode archive row for {sim_run_id} was not retained coherently for improved apply stage."
+                )
+        elif apply_stage == "rollback_applied":
+            if acceptance_status != "accepted_canary" or completion_status != "completed" or retention_status != "rolled_back":
+                raise SmokeFailure(
+                    f"Episode archive row for {sim_run_id} was not rolled back coherently."
+                )
+        elif apply_stage in {"eligible", "refused"}:
+            if acceptance_status not in {"not_accepted", "preview_only"}:
+                raise SmokeFailure(
+                    f"Episode archive row for {sim_run_id} exposed invalid acceptance status {acceptance_status!r} for stage {apply_stage}."
+                )
+
     def _adversary_status_summary(self, payload: dict[str, Any]) -> dict[str, Any]:
         generation = payload.get("generation") or {}
         lane_diagnostics = payload.get("lane_diagnostics") or {}
@@ -394,6 +435,69 @@ PY"""
             )
         return payload
 
+    def _wait_for_operator_snapshot_sim_run(self, sim_run_id: str) -> dict[str, Any]:
+        def _predicate():
+            payload = self._fetch_operator_snapshot()
+            recent_runs = ((payload.get("adversary_sim") or {}).get("recent_runs") or [])
+            for run in recent_runs:
+                if run.get("run_id") == sim_run_id:
+                    return payload
+            return None
+
+        return self._wait_for(
+            _predicate,
+            timeout_seconds=POST_SIM_AGENT_TIMEOUT_SECONDS,
+            description=f"operator snapshot recent sim run {sim_run_id}",
+        )
+
+    def _operator_snapshot_summary(self, payload: dict[str, Any], *, sim_run_id: str) -> dict[str, Any]:
+        adversary_sim = payload.get("adversary_sim") or {}
+        coverage = adversary_sim.get("scrapling_owned_surface_coverage") or {}
+        if coverage.get("schema_version") != SCRAPLING_COVERAGE_SCHEMA_VERSION:
+            raise SmokeFailure(
+                "Operator snapshot did not expose the Scrapling owned-surface coverage schema."
+            )
+        coverage_status = str(coverage.get("overall_status") or "").strip()
+        if coverage_status != "covered":
+            raise SmokeFailure(
+                f"Scrapling owned-surface coverage was not covered for sim run {sim_run_id}: {coverage_status or 'missing'}"
+            )
+        if int(coverage.get("recent_scrapling_run_count") or 0) <= 0:
+            raise SmokeFailure(
+                f"Operator snapshot did not expose recent Scrapling run receipts for {sim_run_id}."
+            )
+
+        matching_run = None
+        for run in adversary_sim.get("recent_runs") or []:
+            if run.get("run_id") == sim_run_id:
+                matching_run = run
+                break
+        if matching_run is None:
+            raise SmokeFailure(
+                f"Operator snapshot did not expose the completed Scrapling sim run {sim_run_id}."
+            )
+        if matching_run.get("lane") != "scrapling_traffic":
+            raise SmokeFailure(
+                f"Operator snapshot recent sim run {sim_run_id} was not Scrapling-backed."
+            )
+        observed_defense_keys = matching_run.get("observed_defense_keys") or []
+        if not observed_defense_keys:
+            raise SmokeFailure(
+                f"Operator snapshot did not expose observed defense receipts for Scrapling sim run {sim_run_id}."
+            )
+
+        return {
+            "schema_version": payload.get("schema_version"),
+            "adversary_sim": {
+                "coverage_status": coverage_status,
+                "covered_surface_count": int(coverage.get("covered_surface_count") or 0),
+                "uncovered_surface_count": int(coverage.get("uncovered_surface_count") or 0),
+                "recent_run_id": matching_run.get("run_id"),
+                "recent_run_lane": matching_run.get("lane"),
+                "observed_defense_keys": observed_defense_keys,
+            },
+        }
+
     def _fetch_adversary_sim_status(self) -> dict[str, Any]:
         return self._request_json("GET", "/admin/adversary-sim/status")
 
@@ -438,9 +542,10 @@ PY"""
         )
 
     def _enable_adversary_sim(self) -> dict[str, Any]:
+        payload = {"enabled": True, "lane": "scrapling_traffic"}
         try:
             if self.transport_mode == "ssh_loopback":
-                payload = self._loopback_request_json(
+                response = self._loopback_request_json(
                     "POST",
                     "/admin/adversary-sim/control",
                     {
@@ -455,10 +560,10 @@ PY"""
                         "X-Forwarded-Proto": "https",
                         "X-Shuma-Forwarded-Secret": self.forwarded_ip_secret,
                     },
-                    {"enabled": True},
+                    payload,
                 )
             else:
-                payload = self._request_json("POST", "/admin/adversary-sim/control", {"enabled": True})
+                response = self._request_json("POST", "/admin/adversary-sim/control", payload)
         except Exception as exc:
             if not _looks_like_timeout(exc):
                 raise
@@ -469,9 +574,9 @@ PY"""
                 "decision": "accepted_via_timeout_fallback",
                 "request_error": str(exc),
             }
-        if not payload.get("operation_id"):
+        if not response.get("operation_id"):
             raise SmokeFailure("Adversary-sim enable response did not include operation_id.")
-        return payload
+        return response
 
     def _disable_adversary_sim(self) -> dict[str, Any]:
         try:
@@ -677,6 +782,11 @@ PY"""
                 raise SmokeFailure(
                     f"Adversary-sim status did not recover lane diagnostics for completed run {sim_run_id}."
                 )
+            operator_snapshot = self._wait_for_operator_snapshot_sim_run(sim_run_id)
+            report["operator_snapshot"] = self._operator_snapshot_summary(
+                operator_snapshot,
+                sim_run_id=sim_run_id,
+            )
             post_sim_status = self._wait_for_post_sim_agent_run(sim_run_id)
             history = self._fetch_oversight_history()
             matching_post_run = None
@@ -697,6 +807,31 @@ PY"""
                 raise SmokeFailure(
                     f"Oversight history exposed an invalid apply stage: {history_apply_stage!r}"
                 )
+            episode_rows = ((history.get("episode_archive") or {}).get("rows")) or []
+            matching_episode = None
+            expected_decision_id = (
+                ((matching_post_run.get("execution") or {}).get("decision") or {}).get("decision_id")
+            )
+            for row in episode_rows:
+                if (
+                    row.get("latest_decision_id") == expected_decision_id
+                    or row.get("latest_sim_run_id") == sim_run_id
+                ):
+                    matching_episode = row
+                    break
+            if matching_episode is None:
+                raise SmokeFailure(
+                    f"Oversight history did not expose an episode-archive row for post-sim run {sim_run_id}."
+                )
+            if matching_episode.get("latest_sim_run_id") != sim_run_id:
+                raise SmokeFailure(
+                    f"Episode archive row for {sim_run_id} did not preserve latest_sim_run_id."
+                )
+            self._validate_episode_row_against_apply_stage(
+                matching_episode,
+                apply_stage=post_sim_apply_stage,
+                sim_run_id=sim_run_id,
+            )
             report["adversary_sim"] = {
                 "enable_operation_id": enable_response.get("operation_id"),
                 "running_observed": running_observed,
@@ -713,6 +848,9 @@ PY"""
                 "apply_stage": post_sim_apply_stage,
                 "history_latest_decision_id": latest_history_row.get("decision_id"),
                 "history_latest_apply_stage": history_apply_stage or None,
+                "episode_latest_sim_run_id": matching_episode.get("latest_sim_run_id"),
+                "episode_acceptance_status": matching_episode.get("acceptance_status"),
+                "episode_completion_status": matching_episode.get("completion_status"),
                 "latest_status": self._oversight_status_summary(post_sim_status),
             }
             report["result"] = "pass"

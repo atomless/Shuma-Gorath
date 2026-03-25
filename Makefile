@@ -1221,6 +1221,12 @@ test-rsi-scorecard: ## Run focused recursive self-improvement judge scorecard ch
 	@cargo test observability::operator_snapshot::tests::snapshot_payload_uses_persisted_objective_profile_and_typed_verified_identity_summary -- --exact --nocapture
 	@cargo test admin::oversight_api::tests::manual_reconcile_route_records_observe_longer_when_classification_is_not_ready -- --exact --nocapture
 
+test-rsi-game-mainline: ## Run focused first working self-improving loop proof over attacker-faithful Scrapling
+	@echo "$(CYAN)🧪 Running first working self-improving loop proof checks...$(NC)"
+	@./scripts/set_crate_type.sh rlib
+	@cargo test admin::oversight_agent::tests::post_sim_scrapling_loop_records_retained_episode_lineage -- --exact --nocapture
+	@python3 -m unittest scripts/tests/test_live_feedback_loop_remote.py
+
 test-oversight-episode-archive: ## Run focused recursive self-improvement episode archive checks
 	@echo "$(CYAN)🧪 Running oversight episode-archive checks...$(NC)"
 	@./scripts/set_crate_type.sh rlib

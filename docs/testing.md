@@ -64,6 +64,7 @@ make test-operator-objectives-category-contract # Focused category-aware operato
 make test-benchmark-category-eligibility # Focused category-aware benchmark eligibility and comparison checks
 make test-rsi-game-contract # Focused recursive self-improvement game-contract surface checks
 make test-rsi-scorecard # Focused recursive self-improvement judge scorecard checks
+make test-rsi-game-mainline # Focused first working self-improving loop proof over attacker-faithful Scrapling
 make test-oversight-episode-archive # Focused recursive self-improvement episode archive and homeostasis-input checks
 make test-oversight-move-selection-policy # Focused recursive-improvement shortfall and move-selection policy checks
 make test-replay-promotion-contract # Focused replay-promotion lineage and governance checks
@@ -311,6 +312,7 @@ Structural refactor proof map:
 - `make test-operator-objectives-contract` is the focused objective-profile and decision-evidence gate for persisted `operator_objectives_v1`, the operator-objectives admin endpoint, the bounded decision ledger, and snapshot wiring.
 - `make test-rsi-game-contract` is the focused `RSI-GAME-1A` gate for the canonical `game_contract_v1`, the explicit legal-move-ring role on `allowed_actions_v1`, and the projection of that same contract through machine-first snapshot and oversight surfaces.
 - `make test-rsi-scorecard` is the focused `RSI-SCORE-1` gate for the canonical judge scorecard partition over optimization targets, hard guardrails, regression anchors, explanatory diagnostics, and homeostasis inputs projected through the same machine-first snapshot and oversight surfaces.
+- `make test-rsi-game-mainline` is the focused `RSI-GAME-MAINLINE-1` gate for the first working self-improving loop over attacker-faithful Scrapling; it proves a Scrapling-backed post-sim oversight cycle can open and retain a bounded episode over covered owned-surface receipts, and it couples that local proof to the live shared-host verifier contract so the same tranche also demands Scrapling lane, coverage, and episode-lineage truth from the remote proof tooling.
 - `make test-oversight-move-selection-policy` is the focused `RSI-GAME-1B` gate for explicit benchmark shortfall guidance, ordered legal-family selection, and reconcile honoring benchmark-side recommended family guidance before bounded patch shaping.
 - `make test-verified-identity-calibration-readiness` is the focused bridge gate before `VID-TAX-1` through `VID-GUARD-1`; it proves the current verified-identity taxonomy, snapshot, benchmark, and reconcile seams without over-claiming future alignment or conflict behavior.
 - `make test-verified-identity-taxonomy-crosswalk` is the truthful narrow gate for `VID-TAX-1`; it proves the verified-identity category crosswalk lands in request-outcome telemetry and the machine-first non-human snapshot path before later alignment or botness-conflict tranches.
@@ -471,9 +473,11 @@ Simulation telemetry read policy:
 `test-live-feedback-loop-remote` is the live ssh-managed-host proof for the first shared-host recommend-only feedback loop. It runs against the active normalized remote, uses public admin endpoints plus SSH loopback to the internal supervisor route, and proves:
 - the running shared-host service is launched through `scripts/run_with_oversight_supervisor.sh`,
 - `GET /admin/operator-snapshot` and `GET /admin/oversight/agent/status` are available on the deployed target,
+- the bounded adversary lane is explicitly `scrapling_traffic`,
+- the operator snapshot exposes the completed Scrapling recent run and `scrapling_owned_defense_surface_coverage_v1`,
 - one bounded internal periodic agent trigger executes and becomes visible in the public status projection,
 - one bounded adversary-sim run completes with generated traffic,
-- and a linked `post_adversary_sim` agent run becomes visible in the public status and history surfaces.
+- and a linked `post_adversary_sim` agent run plus coherent episode-archive lineage become visible in the public status and history surfaces.
 `test-fermyon-edge-signal-smoke` remains available for the later deferred edge-gateway track. It runs against the current Fermyon deploy receipt using real edge client identity semantics rather than synthetic `X-Forwarded-For`, and proves:
 - additive `/fingerprint-report` ingestion,
 - trusted GEO country-header routing for challenge, maze, and block,

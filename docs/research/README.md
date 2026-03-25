@@ -55,6 +55,7 @@ The directory is intentionally flat. Use this index, not nested folders, to dist
 - [`2026-03-24-sim-scr-challenge-2d-defense-receipt-surface-post-implementation-review.md`](2026-03-24-sim-scr-challenge-2d-defense-receipt-surface-post-implementation-review.md) - Closeout for surfacing matrix-aligned defense receipts in recent sim runs and operator snapshot
 - [`2026-03-24-sim-scr-challenge-2d-coverage-closure-and-gap-assignment-post-implementation-review.md`](2026-03-24-sim-scr-challenge-2d-coverage-closure-and-gap-assignment-post-implementation-review.md) - Closeout for comparing Scrapling receipt coverage against the owned-surface matrix and explicitly assigning the remaining geo gap
 - [`2026-03-24-mainline-resequence-scrapling-before-game-loop-review.md`](2026-03-24-mainline-resequence-scrapling-before-game-loop-review.md) - Reorders the active mainline so attacker-faithful Scrapling and the first working game loop come before later LLM runtime work
+- [`2026-03-24-rsi-game-mainline-first-working-loop-review.md`](2026-03-24-rsi-game-mainline-first-working-loop-review.md) - Defines the exact proof contract for showing the bounded loop is operating over attacker-faithful Scrapling rather than only proving controller wiring
 - [`2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-review.md`](2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-review.md) - Ownership split for making Tuning primary and reducing Fingerprinting to truthful diagnostics
 - [`2026-03-24-identification-tab-remit-and-taxonomy-distinction-review.md`](2026-03-24-identification-tab-remit-and-taxonomy-distinction-review.md) - Why the future Fingerprinting tab should become Identification and explain taxonomy distinction
 
@@ -95,6 +96,7 @@ The directory is intentionally flat. Use this index, not nested folders, to dist
 - [`2026-03-24-scrapling-owned-defense-surface-matrix-and-success-contract-review.md`](2026-03-24-scrapling-owned-defense-surface-matrix-and-success-contract-review.md)
 - [`2026-03-24-scrapling-geo-ip-policy-source-diversification-review.md`](2026-03-24-scrapling-geo-ip-policy-source-diversification-review.md)
 - [`2026-03-24-mainline-resequence-scrapling-before-game-loop-review.md`](2026-03-24-mainline-resequence-scrapling-before-game-loop-review.md)
+- [`2026-03-24-rsi-game-mainline-first-working-loop-review.md`](2026-03-24-rsi-game-mainline-first-working-loop-review.md)
 - [`2026-03-24-open-backlog-and-plan-reference-stance-alignment-review.md`](2026-03-24-open-backlog-and-plan-reference-stance-alignment-review.md)
 - [`2026-03-24-monitoring-multi-loop-benchmark-progress-review.md`](2026-03-24-monitoring-multi-loop-benchmark-progress-review.md)
 - [`2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-review.md`](2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-review.md)

@@ -530,12 +530,57 @@ mod tests {
         seed_candidate_snapshot(store, cfg, 1_700_000_200, 0.42, "outside_budget");
     }
 
+    fn covered_scrapling_recent_runs(
+        sim_run_id: &str,
+    ) -> Vec<crate::observability::operator_snapshot_live_traffic::OperatorSnapshotRecentSimRun>
+    {
+        vec![crate::observability::operator_snapshot_live_traffic::OperatorSnapshotRecentSimRun {
+            run_id: sim_run_id.to_string(),
+            lane: "scrapling_traffic".to_string(),
+            profile: "scrapling_runtime_lane".to_string(),
+            observed_fulfillment_modes: vec!["http_agent".to_string()],
+            observed_category_ids: vec!["http_agent".to_string()],
+            observed_defense_keys: vec![
+                "honeypot".to_string(),
+                "rate_limit".to_string(),
+                "geo_ip_policy".to_string(),
+                "challenge_routing".to_string(),
+                "not_a_bot".to_string(),
+                "challenge_puzzle".to_string(),
+                "proof_of_work".to_string(),
+            ],
+            first_ts: 1_700_000_000,
+            last_ts: 1_700_000_100,
+            monitoring_event_count: 42,
+            defense_delta_count: 7,
+            ban_outcome_count: 1,
+        }]
+    }
+
     fn seed_candidate_snapshot(
         store: &TestStore,
         cfg: crate::config::Config,
         generated_at_ts: u64,
         suspicious_forwarded_request_rate: f64,
         overall_status: &str,
+    ) {
+        seed_candidate_snapshot_with_recent_sim_runs(
+            store,
+            cfg,
+            generated_at_ts,
+            suspicious_forwarded_request_rate,
+            overall_status,
+            &[],
+        );
+    }
+
+    fn seed_candidate_snapshot_with_recent_sim_runs(
+        store: &TestStore,
+        cfg: crate::config::Config,
+        generated_at_ts: u64,
+        suspicious_forwarded_request_rate: f64,
+        overall_status: &str,
+        recent_sim_runs: &[crate::observability::operator_snapshot_live_traffic::OperatorSnapshotRecentSimRun],
     ) {
         store
             .set(
@@ -573,7 +618,7 @@ mod tests {
             "default",
             generated_at_ts,
             &summary,
-            &[],
+            recent_sim_runs,
             OperatorSnapshotRecentChanges::default(),
             generated_at_ts,
             generated_at_ts,
@@ -753,6 +798,123 @@ mod tests {
         assert!(!first.replayed);
         assert!(second.replayed);
         assert_eq!(second.run.run_id, first.run.run_id);
+    }
+
+    #[test]
+    fn post_sim_scrapling_loop_records_retained_episode_lineage() {
+        let store = TestStore::new();
+        let mut cfg = defaults().clone();
+        cfg.fingerprint_signal_enabled = false;
+        seed_canary_only_objectives(&store);
+
+        let first_sim_run_id = "simrun-scrapling-001";
+        seed_candidate_snapshot_with_recent_sim_runs(
+            &store,
+            cfg,
+            1_700_000_200,
+            0.42,
+            "outside_budget",
+            &covered_scrapling_recent_runs(first_sim_run_id),
+        );
+
+        let initial_snapshot = crate::observability::hot_read_projection::load_operator_snapshot_hot_read(
+            &store,
+            "default",
+        )
+        .expect("initial snapshot");
+        assert_eq!(
+            initial_snapshot
+                .payload
+                .adversary_sim
+                .scrapling_owned_surface_coverage
+                .overall_status,
+            "covered"
+        );
+        assert_eq!(
+            initial_snapshot.payload.adversary_sim.recent_runs[0].lane,
+            "scrapling_traffic"
+        );
+        assert_eq!(
+            initial_snapshot.payload.adversary_sim.recent_runs[0].run_id,
+            first_sim_run_id
+        );
+
+        let first = execute_agent_cycle(
+            &store,
+            "default",
+            OversightAgentTrigger {
+                kind: OversightAgentTriggerKind::PostAdversarySim,
+                requested_at_ts: 1_700_000_300,
+                sim_run_id: Some(first_sim_run_id.to_string()),
+                sim_completion_reason: Some("auto_window_expired".to_string()),
+            },
+        )
+        .expect("initial post-sim cycle succeeds");
+
+        assert_eq!(first.run.trigger_kind, "post_adversary_sim");
+        assert_eq!(
+            first.run.execution.reconcile.latest_sim_run_id.as_deref(),
+            Some(first_sim_run_id)
+        );
+        assert_eq!(first.run.execution.apply.stage, "canary_applied");
+
+        let status = super::build_status_payload(&store, "default");
+        assert_eq!(status.episode_archive.rows.len(), 1);
+        assert_eq!(
+            status.episode_archive.rows[0].latest_sim_run_id.as_deref(),
+            Some(first_sim_run_id)
+        );
+        assert_eq!(status.episode_archive.rows[0].acceptance_status, "accepted_canary");
+        assert_eq!(status.episode_archive.rows[0].watch_window_status, "opened");
+
+        let canary_cfg =
+            crate::config::Config::load(&store, "default").expect("canary config loads");
+        let second_sim_run_id = "simrun-scrapling-002";
+        seed_candidate_snapshot_with_recent_sim_runs(
+            &store,
+            canary_cfg,
+            1_700_004_100,
+            0.12,
+            "inside_budget",
+            &covered_scrapling_recent_runs(second_sim_run_id),
+        );
+
+        let second = execute_agent_cycle(
+            &store,
+            "default",
+            OversightAgentTrigger {
+                kind: OversightAgentTriggerKind::PostAdversarySim,
+                requested_at_ts: 1_700_004_100,
+                sim_run_id: Some(second_sim_run_id.to_string()),
+                sim_completion_reason: Some("auto_window_expired".to_string()),
+            },
+        )
+        .expect("retained post-sim cycle succeeds");
+
+        assert_eq!(second.run.trigger_kind, "post_adversary_sim");
+        assert_eq!(second.run.execution.apply.stage, "improved");
+        assert_eq!(
+            second.run.execution.reconcile.latest_sim_run_id.as_deref(),
+            Some(second_sim_run_id)
+        );
+
+        let archive =
+            crate::observability::oversight_episode_archive::load_episode_archive_summary(
+                &store, "default",
+            );
+        assert_eq!(archive.rows.len(), 1);
+        assert_eq!(archive.rows[0].acceptance_status, "accepted_canary");
+        assert_eq!(archive.rows[0].watch_window_status, "improved");
+        assert_eq!(archive.rows[0].retention_status, "retained");
+        assert_eq!(archive.rows[0].completion_status, "completed");
+        assert_eq!(
+            archive.rows[0].latest_sim_run_id.as_deref(),
+            Some(second_sim_run_id)
+        );
+        assert!(archive.rows[0].evidence_references.iter().any(|reference| {
+            reference.kind == "operator_snapshot"
+                && reference.reference == "generated_at:1700004100"
+        }));
     }
 
     #[test]

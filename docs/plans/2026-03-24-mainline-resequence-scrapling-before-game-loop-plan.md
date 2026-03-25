@@ -111,3 +111,5 @@ With `SIM-SCR-GEO-1`, `RSI-GAME-1A`, `RSI-GAME-1B`, `RSI-SCORE-1`, and the deliv
 1. `RSI-GAME-MAINLINE-1`
 
 `SIM-SCR-CHALLENGE-2C` is no longer an active queue item. It remains a conditional blocked follow-on only if future owned-surface receipts prove that request-native Scrapling plus public-network identity diversity are still insufficient for a Scrapling-owned surface.
+
+`RSI-GAME-MAINLINE-1` should now be read through the dedicated plan in [`2026-03-24-rsi-game-mainline-first-working-loop-implementation-plan.md`](2026-03-24-rsi-game-mainline-first-working-loop-implementation-plan.md): the tranche is about proving the current bounded loop is operating over the attacker-faithful Scrapling basis, with coherent post-sim oversight execution and episode/archive lineage, not about inventing a new controller path.
