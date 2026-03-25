@@ -22,6 +22,7 @@ make test-adversarial-manifest # Validate adversarial scenario manifest + fixtur
 make test-adversarial-coverage-contract # Validate canonical full_coverage contract parity (plan + manifests + runner)
 make test-adversarial-fast # Mandatory fast adversarial matrix (smoke + abuse + Akamai)
 make test-adversarial-preflight # Validate required adversarial secrets/setup and ensure browser-lane Chromium readiness
+make test-adversarial-artifact-contract # Validate adversarial/SIM2 generated receipts stay in untracked .spin/adversarial runtime storage
 make test-adversarial-smoke # Mandatory adversarial fast smoke profile (waits for existing Spin readiness)
 make test-adversarial-abuse # Replay/stale/order-cadence abuse regression profile
 make test-adversarial-akamai # Akamai fixture-driven simulation profile
@@ -147,6 +148,13 @@ Notes:
     - optional strict mode: set `GATEWAY_PROBE_FAIL_ON_INCONCLUSIVE=1`.
 - `make test-sim2-operational-regressions` enforces retention/cost/security domains and treats `failure_injection` + `prod_mode_monitoring` as optional when absent from the active deterministic profile artifact. Use `make test-sim2-operational-regressions-strict` when you need full-domain enforcement.
 - `make test` keeps the fast adversarial matrix in the routine local/full-suite path and runs the SIM2 matrix in advisory mode against the resulting fast-profile artifact.
+- `make test-adversarial-artifact-contract` is the narrow churn-prevention lane for routine adversarial/SIM2 generated receipts. The canonical generated paths for:
+  - `preflight_report.json`
+  - `sim2_realtime_bench_report.json`
+  - `sim2_realtime_bench_summary.md`
+  - `sim2_ci_diagnostics.json`
+  - `sim2_operational_regressions_report.json`
+  now live under `.spin/adversarial/` so routine verification does not rewrite tracked repo files.
 - `make test-adversarial-coverage` and `make test-adversarial-soak` remain the strict deterministic `full_coverage` oracle paths for deeper protected-lane verification.
 - `make test-host-impact-telemetry`, `make test-host-impact-benchmark`, and `make test-oversight-host-impact` are the narrow pre-Monitoring proof path for the host-impact proxy track; use them instead of broader monitoring/controller suites when only the forwarded-latency cost proxy changed.
 - `make test-host-impact-target-contracts` is the explicit Makefile selector and wiring lane for those host-impact proof targets; use it when target composition changes, instead of hiding selector-only proof inside the behavior gates.

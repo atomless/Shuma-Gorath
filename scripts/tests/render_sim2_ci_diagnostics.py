@@ -5,12 +5,18 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any, Dict, List
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from scripts.tests.adversarial_artifact_paths import SIM2_CI_DIAGNOSTICS_PATH
 
 DEFAULT_REPORT_PATH = Path("scripts/tests/adversarial/latest_report.json")
-DEFAULT_OUTPUT_PATH = Path("scripts/tests/adversarial/sim2_ci_diagnostics.json")
+DEFAULT_OUTPUT_PATH = SIM2_CI_DIAGNOSTICS_PATH
 
 
 def load_report(path: Path) -> Dict[str, Any]:

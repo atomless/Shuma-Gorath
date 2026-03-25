@@ -57,7 +57,7 @@ References:
 
 1. [`../sim2-real-adversary-traffic-contract.md`](../sim2-real-adversary-traffic-contract.md)
 2. [`../adversarial-operator-guide.md`](../adversarial-operator-guide.md)
-3. [`../../scripts/tests/adversarial/sim2_realtime_bench_summary.md`](../../scripts/tests/adversarial/sim2_realtime_bench_summary.md)
+3. Generated locally via `make test-sim2-realtime-bench` at `.spin/adversarial/sim2_realtime_bench_summary.md`
 
 # Findings
 

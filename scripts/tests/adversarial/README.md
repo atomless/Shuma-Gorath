@@ -86,14 +86,14 @@ The runner writes machine-readable artifacts to:
 - `scripts/tests/adversarial/promotion_candidates_report.json` (from `make test-adversarial-promote-candidates`)
 - `scripts/tests/adversarial/container_isolation_report.json` (from `make test-adversarial-container-isolation`)
 - `scripts/tests/adversarial/container_blackbox_report.json` (from `make test-adversarial-container-blackbox`)
-- `scripts/tests/adversarial/sim2_realtime_bench_report.json` + `sim2_realtime_bench_summary.md` (from `make test-sim2-realtime-bench`)
+- `.spin/adversarial/sim2_realtime_bench_report.json` + `.spin/adversarial/sim2_realtime_bench_summary.md` (from `make test-sim2-realtime-bench`)
 - `scripts/tests/adversarial/sim2_adr_conformance_report.json` (from `make test-sim2-adr-conformance`)
-- `scripts/tests/adversarial/sim2_ci_diagnostics.json` (from `make test-sim2-ci-diagnostics`)
+- `.spin/adversarial/sim2_ci_diagnostics.json` (from `make test-sim2-ci-diagnostics`)
 - `scripts/tests/adversarial/sim2_verification_matrix_report.json` (from `make test-sim2-verification-matrix` / `make test-sim2-verification-e2e`)
-- `scripts/tests/adversarial/sim2_operational_regressions_report.json` (from `make test-sim2-operational-regressions`)
+- `.spin/adversarial/sim2_operational_regressions_report.json` (from `make test-sim2-operational-regressions`)
 - `scripts/tests/adversarial/sim2_governance_contract_report.json` (from `make test-sim2-governance-contract`)
 - `scripts/tests/adversarial/adversarial_report_diff.json` (from `make test-adversarial-report-diff`)
-- `scripts/tests/adversarial/preflight_report.json` (from `make test-adversarial-preflight`)
+- `.spin/adversarial/preflight_report.json` (from `make test-adversarial-preflight`)
 - `latest_report.json` and `attack_plan.json` include `execution_lane` metadata for auditability.
   - `latest_report.json` includes:
   - quantitative `gates` and `coverage_gates` sections (each check includes `threshold_source`),
@@ -113,6 +113,7 @@ The runner writes machine-readable artifacts to:
 Artifact placement policy:
 
 - Keep repo-resident adversarial runner contracts and operator-facing reports in `scripts/tests/adversarial/`.
+- Keep routine generated adversarial/SIM2 runtime receipts under `.spin/adversarial/` so normal verification does not dirty tracked repo files.
 - Keep ephemeral deploy-local preflight reports under `.spin/`, and keep durable operator receipts under `.shuma/` so `make clean` remains truthful while `make reset-local-state` can still wipe local runtime/test scratch space.
 - Reserved-route collision preflight reports therefore live under `.spin/deploy/` by default, not in this directory.
 

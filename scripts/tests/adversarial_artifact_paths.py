@@ -1,0 +1,16 @@
+from pathlib import Path
+
+
+ADVERSARIAL_RUNTIME_ARTIFACT_DIR = Path(".spin/adversarial")
+
+PREFLIGHT_REPORT_PATH = ADVERSARIAL_RUNTIME_ARTIFACT_DIR / "preflight_report.json"
+SIM2_REALTIME_BENCH_REPORT_PATH = (
+    ADVERSARIAL_RUNTIME_ARTIFACT_DIR / "sim2_realtime_bench_report.json"
+)
+SIM2_REALTIME_BENCH_SUMMARY_PATH = (
+    ADVERSARIAL_RUNTIME_ARTIFACT_DIR / "sim2_realtime_bench_summary.md"
+)
+SIM2_CI_DIAGNOSTICS_PATH = ADVERSARIAL_RUNTIME_ARTIFACT_DIR / "sim2_ci_diagnostics.json"
+SIM2_OPERATIONAL_REGRESSIONS_REPORT_PATH = (
+    ADVERSARIAL_RUNTIME_ARTIFACT_DIR / "sim2_operational_regressions_report.json"
+)

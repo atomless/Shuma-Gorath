@@ -5,15 +5,19 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any, Dict, List
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from scripts.tests.adversarial_artifact_paths import SIM2_REALTIME_BENCH_REPORT_PATH
 
 DEFAULT_OUTPUT_PATH = Path("scripts/tests/adversarial/sim2_adr_conformance_report.json")
 DEFAULT_REPORT_PATH = Path("scripts/tests/adversarial/latest_report.json")
-DEFAULT_REALTIME_BENCH_PATH = Path(
-    "scripts/tests/adversarial/sim2_realtime_bench_report.json"
-)
+DEFAULT_REALTIME_BENCH_PATH = SIM2_REALTIME_BENCH_REPORT_PATH
 
 ADR_REQUIREMENTS = [
     {

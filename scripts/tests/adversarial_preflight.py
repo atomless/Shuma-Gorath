@@ -15,12 +15,13 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from scripts.tests.adversarial_artifact_paths import PREFLIGHT_REPORT_PATH
 from scripts.tests.playwright_runtime import (
     DEFAULT_PLAYWRIGHT_BROWSER_CACHE,
     ensure_playwright_chromium,
 )
 
-DEFAULT_OUTPUT_PATH = Path("scripts/tests/adversarial/preflight_report.json")
+DEFAULT_OUTPUT_PATH = PREFLIGHT_REPORT_PATH
 ENV_LOCAL_PATH = Path(".env.local")
 PLACEHOLDER_VALUES = {
     "changeme-dev-only-api-key",

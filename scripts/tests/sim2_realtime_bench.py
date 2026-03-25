@@ -6,13 +6,22 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import sys
 import time
 from pathlib import Path
 from typing import Any, Dict, List
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
-DEFAULT_OUTPUT_PATH = Path("scripts/tests/adversarial/sim2_realtime_bench_report.json")
-DEFAULT_SUMMARY_PATH = Path("scripts/tests/adversarial/sim2_realtime_bench_summary.md")
+from scripts.tests.adversarial_artifact_paths import (
+    SIM2_REALTIME_BENCH_REPORT_PATH,
+    SIM2_REALTIME_BENCH_SUMMARY_PATH,
+)
+
+DEFAULT_OUTPUT_PATH = SIM2_REALTIME_BENCH_REPORT_PATH
+DEFAULT_SUMMARY_PATH = SIM2_REALTIME_BENCH_SUMMARY_PATH
 
 SSE_P95_MAX_MS = 300
 SSE_P99_MAX_MS = 500

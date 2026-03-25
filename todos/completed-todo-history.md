@@ -4,6 +4,42 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### TEST-HYGIENE-2: untracked adversarial/SIM2 artifact path cleanup
+
+- [x] Moved the routine generated adversarial/SIM2 receipt contract for:
+  - `preflight_report.json`
+  - `sim2_realtime_bench_report.json`
+  - `sim2_realtime_bench_summary.md`
+  - `sim2_ci_diagnostics.json`
+  - `sim2_operational_regressions_report.json`
+  out of tracked `scripts/tests/adversarial/` paths and into untracked `.spin/adversarial/` runtime storage.
+- [x] Added:
+  - [`../scripts/tests/adversarial_artifact_paths.py`](../scripts/tests/adversarial_artifact_paths.py)
+  plus the focused contract lane:
+  - [`make test-adversarial-artifact-contract`](../Makefile)
+  and wired the new helper/test into:
+  - [`make test-adversarial-python-unit`](../Makefile)
+- [x] Removed the previously tracked generated receipts from version control and updated:
+  - [`../scripts/tests/adversarial/README.md`](../scripts/tests/adversarial/README.md)
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../docs/research/2026-03-24-test-hygiene-2-adversarial-artifact-path-cleanup-post-implementation-review.md`](../docs/research/2026-03-24-test-hygiene-2-adversarial-artifact-path-cleanup-post-implementation-review.md)
+  - [`../docs/research/README.md`](../docs/research/README.md)
+  so the artifact locations and target surface stay truthful.
+- [x] Why:
+  - canonical `make test` was still dirtying the worktree by regenerating tracked adversarial/SIM2 receipts,
+  - those files are routine runtime outputs rather than durable repo fixtures,
+  - and moving them behind one shared path contract fixes the churn without widening the adversarial report surface unnecessarily.
+- [x] Evidence:
+  - `make test-adversarial-artifact-contract`
+  - `make test-adversarial-preflight`
+  - `make test-sim2-realtime-bench`
+  - `make test-sim2-ci-diagnostics`
+  - `make test-sim2-operational-regressions`
+  - `make test-sim2-adr-conformance`
+  - `make test-sim2-governance-contract`
+  - `make test-adversarial-python-unit`
+  - `git diff --check`
+
 ### BUILD-HYGIENE-1: warning audit closeout
 
 - [x] Re-audited the remaining native test-build warning surface after the earlier `runtime_env.rs::spin_variable_name` fix and confirmed the backlog item was stale rather than still requiring code changes.

@@ -6,19 +6,24 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 from pathlib import Path
 from typing import Any, Dict, List
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from scripts.tests.adversarial_artifact_paths import (
+    SIM2_OPERATIONAL_REGRESSIONS_REPORT_PATH,
+    SIM2_REALTIME_BENCH_REPORT_PATH,
+)
 
 DEFAULT_CONTRACT_PATH = Path("scripts/tests/adversarial/hybrid_lane_contract.v1.json")
 DEFAULT_PROMOTION_SCRIPT_PATH = Path("scripts/tests/adversarial_promote_candidates.py")
 DEFAULT_OPERATOR_GUIDE_PATH = Path("docs/adversarial-operator-guide.md")
-DEFAULT_OPERATIONAL_REPORT_PATH = Path(
-    "scripts/tests/adversarial/sim2_operational_regressions_report.json"
-)
-DEFAULT_REALTIME_REPORT_PATH = Path(
-    "scripts/tests/adversarial/sim2_realtime_bench_report.json"
-)
+DEFAULT_OPERATIONAL_REPORT_PATH = SIM2_OPERATIONAL_REGRESSIONS_REPORT_PATH
+DEFAULT_REALTIME_REPORT_PATH = SIM2_REALTIME_BENCH_REPORT_PATH
 DEFAULT_MATRIX_REPORT_PATH = Path(
     "scripts/tests/adversarial/sim2_verification_matrix_report.json"
 )
