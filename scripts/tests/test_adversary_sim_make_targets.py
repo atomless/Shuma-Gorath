@@ -8,6 +8,18 @@ MAKEFILE = REPO_ROOT / "Makefile"
 
 
 class AdversarySimMakeTargetTests(unittest.TestCase):
+    def test_supervisor_wrapper_contract_target_owns_wrapper_archaeology(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-supervisor-wrapper-contracts:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn("scripts/tests/test_adversary_sim_supervisor.py", body)
+        self.assertIn("scripts/tests/test_oversight_supervisor.py", body)
+
     def test_lifecycle_target_uses_current_stale_state_selectors(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")
         match = re.search(
@@ -34,6 +46,7 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
             "adversary_sim_internal_beat_updates_generation_diagnostics_contract",
             body,
         )
+        self.assertNotIn("scripts/tests/test_adversary_sim_supervisor.py", body)
 
     def test_lane_contract_target_uses_additive_lane_contract_selectors(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")
@@ -117,6 +130,26 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
         )
         self.assertIn("scripts/tests/test_adversary_sim_make_targets.py", body)
         self.assertNotIn("scripts/tests/test_scrapling_worker.py", body)
+        self.assertNotIn("scripts/tests/test_adversary_sim_supervisor.py", body)
+
+    def test_post_sim_trigger_target_no_longer_owns_wrapper_archaeology(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-oversight-post-sim-trigger:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn(
+            "post_sim_trigger_accepts_generation_evidence_from_previous_running_state",
+            body,
+        )
+        self.assertIn(
+            "adversary_sim_completion_triggers_post_sim_oversight_agent_once",
+            body,
+        )
+        self.assertNotIn("scripts/tests/test_oversight_supervisor.py", body)
 
 
 if __name__ == "__main__":

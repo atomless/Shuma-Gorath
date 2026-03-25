@@ -4,6 +4,35 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### TEST-HYGIENE-6B follow-on: supervisor wrapper contract reclassification
+
+- [x] Moved the retained supervisor wrapper shell-shape proof into a dedicated contract lane by adding:
+  - [`make test-supervisor-wrapper-contracts`](../Makefile)
+  and routing:
+  - [`scripts/tests/test_adversary_sim_supervisor.py`](../scripts/tests/test_adversary_sim_supervisor.py)
+  - [`scripts/tests/test_oversight_supervisor.py`](../scripts/tests/test_oversight_supervisor.py)
+  through that explicit target.
+- [x] Removed the same wrapper archaeology from feature-behavior gates in:
+  - [`../Makefile`](../Makefile)
+  so:
+  - `make test-oversight-post-sim-trigger`
+  - `make test-adversary-sim-scrapling-worker`
+  no longer quietly prove wrapper file shape.
+- [x] Tightened the target-truthfulness selector proof in:
+  - [`../scripts/tests/test_adversary_sim_make_targets.py`](../scripts/tests/test_adversary_sim_make_targets.py)
+  and updated the operator-facing target descriptions in:
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../docs/research/2026-03-24-test-hygiene-6b-supervisor-wrapper-contract-reclassification-post-implementation-review.md`](../docs/research/2026-03-24-test-hygiene-6b-supervisor-wrapper-contract-reclassification-post-implementation-review.md)
+- [x] Why:
+  - `TEST-HYGIENE-6B` explicitly called for retained shell archaeology to live in honest `contract` or `wiring` lanes,
+  - the supervisor wrapper tests were still buried inside feature-proof targets,
+  - and this slice separates wrapper composition proof from post-sim and Scrapling worker behavior without deleting the useful contract checks.
+- [x] Evidence:
+  - `make test-supervisor-wrapper-contracts`
+  - `make test-oversight-post-sim-trigger`
+  - `make test-adversary-sim-scrapling-worker`
+  - `git diff --check`
+
 ### TEST-ENV-1 follow-on: shadow-mode env isolation offender
 
 - [x] Fixed the named env-mutation offender in:
