@@ -4,6 +4,31 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-25)
 
+### `RSI-GAME-HO-1B` Repeated Strict Cycle Proof
+
+- [x] Added a dedicated repeated strict-baseline loop proof in:
+  - [`src/admin/api.rs`](../src/admin/api.rs)
+  - [`src/test_support.rs`](../src/test_support.rs)
+  so the route-level harness now proves a first retained `human_only_private` config change, a later cycle running against that retained config, and a second truthful terminal outcome that rolls the later canary back cleanly.
+- [x] Added a truthful focused Make target and active-mainline bundle wiring in:
+  - [`Makefile`](../Makefile)
+  - [`scripts/tests/test_adversary_sim_make_targets.py`](../scripts/tests/test_adversary_sim_make_targets.py)
+  so repeated strict-cycle proof now lives in `make test-rsi-game-human-only-cycles` and the active Scrapling bundle includes it explicitly instead of implying that the first-working-loop target already covered repeated iteration.
+- [x] Recorded the tranche in:
+  - [`docs/research/2026-03-25-rsi-game-ho-1b-repeated-strict-cycle-readiness-review.md`](../docs/research/2026-03-25-rsi-game-ho-1b-repeated-strict-cycle-readiness-review.md)
+  - [`docs/plans/2026-03-25-rsi-game-ho-1b-repeated-strict-cycle-plan.md`](../docs/plans/2026-03-25-rsi-game-ho-1b-repeated-strict-cycle-plan.md)
+  - [`docs/research/2026-03-25-rsi-game-ho-1b-repeated-strict-cycle-post-implementation-review.md`](../docs/research/2026-03-25-rsi-game-ho-1b-repeated-strict-cycle-post-implementation-review.md)
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`docs/plans/README.md`](../docs/plans/README.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  so `RSI-GAME-HO-1C` is now the remaining strict Scrapling-only gate before later LLM runtime work reopens.
+- [x] Evidence:
+  - `make test-rsi-game-human-only-cycles`
+  - `make test-adversary-sim-make-target-contract`
+  - `make test-scrapling-game-loop-mainline`
+  - `git diff --check`
+
 ### `RSI-GAME-HO-1A` Human-Only Private Loop Baseline
 
 - [x] Rebased the first-working-loop proof onto the strict `human_only_private` baseline in:

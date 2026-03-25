@@ -226,8 +226,25 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
         self.assertIn("test-adversary-sim-scrapling-malicious-request-native", body)
         self.assertIn("test-adversary-sim-scrapling-coverage-receipts", body)
         self.assertIn("test-rsi-game-mainline", body)
+        self.assertIn("test-rsi-game-human-only-cycles", body)
         self.assertNotIn("test-live-feedback-loop-remote", body)
         self.assertNotIn("test-adversarial-coverage", body)
+
+    def test_rsi_game_human_only_cycles_target_is_repeated_cycle_only(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-rsi-game-human-only-cycles:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn(
+            "post_sim_oversight_route_repeats_human_only_cycles_with_retained_then_rolled_back_config",
+            body,
+        )
+        self.assertNotIn("test-live-feedback-loop-remote", body)
+        self.assertNotIn("adversary_sim_completion_triggers_post_sim_oversight_agent_once", body)
 
     def test_make_target_contract_lane_runs_selector_suite_explicitly(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")

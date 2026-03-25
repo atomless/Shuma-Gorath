@@ -6240,6 +6240,184 @@ mod admin_config_tests {
     }
 
     #[test]
+    fn post_sim_oversight_route_repeats_human_only_cycles_with_retained_then_rolled_back_config() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "shared-server");
+        std::env::set_var("SHUMA_API_KEY", "oversight-game-loop-repeat-test-key");
+        std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+
+        let store = TestStore::default();
+        crate::test_support::seed_canary_only_human_only_private_objectives(&store);
+
+        let mut cfg = crate::config::defaults().clone();
+        cfg.fingerprint_signal_enabled = false;
+        cfg.cdp_detection_enabled = false;
+        crate::test_support::seed_apply_ready_snapshot(&store, cfg);
+
+        let first_post_sim_req = make_internal_oversight_request(
+            "oversight-game-loop-repeat-test-key",
+            serde_json::to_vec(&serde_json::json!({
+                "trigger_kind": "post_adversary_sim",
+                "sim_run_id": "simrun-game-loop-repeat-001",
+                "sim_completion_reason": "auto_window_expired"
+            }))
+            .expect("json body")
+            .as_slice(),
+        );
+        let first_post_sim_resp =
+            handle_internal_oversight_agent_run(&first_post_sim_req, &store, "default");
+        assert_eq!(*first_post_sim_resp.status(), 200u16);
+
+        let mut first_active_canary: serde_json::Value = serde_json::from_slice(
+            &store
+                .get("oversight_active_canary:v1:default")
+                .expect("active canary lookup")
+                .expect("active canary present"),
+        )
+        .expect("active canary decodes");
+        first_active_canary["opened_at_ts"] = serde_json::json!(1);
+        first_active_canary["watch_window_end_at"] = serde_json::json!(1);
+        store
+            .set(
+                "oversight_active_canary:v1:default",
+                &serde_json::to_vec(&first_active_canary).expect("active canary encodes"),
+            )
+            .expect("active canary update");
+
+        let first_canary_cfg =
+            crate::config::Config::load(&store, "default").expect("canary config loads");
+        crate::test_support::seed_candidate_snapshot_with_action_families(
+            &store,
+            first_canary_cfg,
+            1_700_004_100,
+            0.12,
+            "inside_budget",
+            &["fingerprint_signal", "cdp_detection"],
+        );
+
+        let periodic_req = make_internal_oversight_request(
+            "oversight-game-loop-repeat-test-key",
+            serde_json::to_vec(&serde_json::json!({
+                "trigger_kind": "periodic_supervisor"
+            }))
+            .expect("json body")
+            .as_slice(),
+        );
+        let first_periodic_resp =
+            handle_internal_oversight_agent_run(&periodic_req, &store, "default");
+        assert_eq!(*first_periodic_resp.status(), 200u16);
+
+        let retained_cfg =
+            crate::config::Config::load(&store, "default").expect("retained config loads");
+        assert!(retained_cfg.fingerprint_signal_enabled);
+        assert!(!retained_cfg.cdp_detection_enabled);
+
+        crate::test_support::seed_candidate_snapshot_with_action_families(
+            &store,
+            retained_cfg.clone(),
+            1_700_005_100,
+            0.42,
+            "outside_budget",
+            &["fingerprint_signal", "cdp_detection"],
+        );
+
+        let second_post_sim_req = make_internal_oversight_request(
+            "oversight-game-loop-repeat-test-key",
+            serde_json::to_vec(&serde_json::json!({
+                "trigger_kind": "post_adversary_sim",
+                "sim_run_id": "simrun-game-loop-repeat-002",
+                "sim_completion_reason": "auto_window_expired"
+            }))
+            .expect("json body")
+            .as_slice(),
+        );
+        let second_post_sim_resp =
+            handle_internal_oversight_agent_run(&second_post_sim_req, &store, "default");
+        assert_eq!(*second_post_sim_resp.status(), 200u16);
+        let second_post_sim_json: serde_json::Value =
+            serde_json::from_slice(second_post_sim_resp.body()).expect("post-sim response decodes");
+        assert_eq!(
+            second_post_sim_json["run"]["execution"]["apply"]["patch_family"].as_str(),
+            Some("cdp_detection")
+        );
+
+        let second_canary_cfg =
+            crate::config::Config::load(&store, "default").expect("second canary config loads");
+        assert!(second_canary_cfg.fingerprint_signal_enabled);
+        assert!(second_canary_cfg.cdp_detection_enabled);
+
+        let mut second_active_canary: serde_json::Value = serde_json::from_slice(
+            &store
+                .get("oversight_active_canary:v1:default")
+                .expect("active canary lookup")
+                .expect("active canary present"),
+        )
+        .expect("active canary decodes");
+        second_active_canary["opened_at_ts"] = serde_json::json!(2);
+        second_active_canary["watch_window_end_at"] = serde_json::json!(2);
+        store
+            .set(
+                "oversight_active_canary:v1:default",
+                &serde_json::to_vec(&second_active_canary).expect("active canary encodes"),
+            )
+            .expect("active canary update");
+
+        crate::test_support::seed_candidate_snapshot_with_action_families(
+            &store,
+            second_canary_cfg,
+            1_700_006_100,
+            0.55,
+            "outside_budget",
+            &["fingerprint_signal", "cdp_detection"],
+        );
+
+        let second_periodic_resp =
+            handle_internal_oversight_agent_run(&periodic_req, &store, "default");
+        assert_eq!(*second_periodic_resp.status(), 200u16);
+        let second_periodic_json: serde_json::Value =
+            serde_json::from_slice(second_periodic_resp.body()).expect("periodic response decodes");
+        assert_eq!(
+            second_periodic_json["run"]["execution"]["apply"]["stage"].as_str(),
+            Some("rollback_applied")
+        );
+
+        let final_cfg = crate::config::Config::load(&store, "default").expect("final config loads");
+        assert!(final_cfg.fingerprint_signal_enabled);
+        assert!(!final_cfg.cdp_detection_enabled);
+
+        let history_req = Request::builder()
+            .method(Method::Get)
+            .uri("/admin/oversight/history")
+            .body(Vec::new())
+            .build();
+        let history_resp = handle_admin_oversight_history(&history_req, &store, "default");
+        assert_eq!(*history_resp.status(), 200u16);
+        let history_json: serde_json::Value =
+            serde_json::from_slice(history_resp.body()).expect("history decodes");
+        let rows = history_json["episode_archive"]["rows"]
+            .as_array()
+            .expect("episode archive rows array");
+        assert!(rows.iter().any(|row| {
+            row["retain_or_rollback"].as_str() == Some("retained")
+                && row["watch_window_result"].as_str() == Some("improved")
+        }));
+        assert!(rows.iter().any(|row| {
+            row["retain_or_rollback"].as_str() == Some("rolled_back")
+                && row["watch_window_result"].as_str() == Some("rollback_applied")
+        }));
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+        std::env::remove_var("SHUMA_API_KEY");
+        std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
+    }
+
+    #[test]
     fn adversary_sim_control_enable_recovers_from_stale_expired_running_state() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
