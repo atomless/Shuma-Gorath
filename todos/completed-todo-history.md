@@ -4,6 +4,38 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-25)
 
+### MON-OVERHAUL-1C: Monitoring category breakdown and trust/actionability surface
+
+- [x] Added the tranche paper trail in:
+  - [`docs/research/2026-03-25-mon-overhaul-1c-readiness-review.md`](../docs/research/2026-03-25-mon-overhaul-1c-readiness-review.md)
+  - [`docs/plans/2026-03-25-mon-overhaul-1c-category-trust-implementation-plan.md`](../docs/plans/2026-03-25-mon-overhaul-1c-category-trust-implementation-plan.md)
+- [x] Tightened the focused Game Loop proof first so it now requires:
+  - numeric budget-usage rows for the real objective budgets,
+  - category target-achievement rows for taxonomy posture outcomes,
+  - and explicit tuning-eligibility plus verified-identity trust rows.
+- [x] Delivered the rendered Game Loop surface in:
+  - [`dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
+  - [`dashboard/style.css`](../dashboard/style.css)
+  with:
+  - target-vs-current budget usage meters,
+  - `Category Target Achievement` rows,
+  - and the richer trust/actionability projection.
+- [x] Fixed the real data-path gap underneath that UI by preserving `operator_snapshot.objectives.category_postures` in:
+  - [`dashboard/src/lib/domain/api-client.js`](../dashboard/src/lib/domain/api-client.js)
+  so the category target posture shown in Game Loop now comes from the backend payload rather than disappearing in dashboard adaptation.
+- [x] Extended the focused proof path in:
+  - [`e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  so the contract is now proven from payload adaptation through rendered DOM.
+- [x] Added the closeout note in:
+  - [`docs/research/2026-03-25-mon-overhaul-1c-post-implementation-review.md`](../docs/research/2026-03-25-mon-overhaul-1c-post-implementation-review.md)
+- [x] Updated the active queue so the deferred Game Loop and Diagnostics follow-on lane is now clear in:
+  - [`todos/todo.md`](../todos/todo.md)
+  - [`docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md`](../docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md)
+- [x] Evidence:
+  - `make test-dashboard-game-loop-accountability`
+  - `git diff --check`
+
 ### DIAG-CLEANUP-1: Diagnostics furniture-operational cleanup after Traffic split
 
 - [x] Re-validated the current Diagnostics ownership against:

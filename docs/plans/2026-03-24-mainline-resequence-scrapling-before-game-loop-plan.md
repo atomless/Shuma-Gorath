@@ -112,4 +112,5 @@ Current note:
 1. `RSI-GAME-1A`, `RSI-GAME-1B`, `RSI-SCORE-1`, and `RSI-GAME-1C` are now landed.
 2. `RSI-GAME-MAINLINE-1A` and `RSI-GAME-MAINLINE-1B` are now landed, so the first working game-loop proof lane is complete.
 3. [`TEST-MAINLINE-1`](2026-03-25-testing-suite-structure-and-mainline-friction-plan.md) is now landed, so the active attacker-faithful Scrapling -> game-loop path has one obvious low-friction verification bundle.
-4. `SIM-LLM-1A` and `SIM-LLM-1B` are now landed, so the later full attacker runtime remains the next backend track but stays explicitly blocked until intentionally reopened; deferred dashboard cleanup remains the active queue beneath that blocked runtime path.
+4. `SIM-LLM-1A` and `SIM-LLM-1B` are now landed, so the later full attacker runtime remains the next backend track but stays explicitly blocked until intentionally reopened.
+5. `MON-OVERHAUL-1C` and `DIAG-CLEANUP-1` are now both landed, so no further unblocked work remains in the deferred Game Loop and Diagnostics cleanup lane.

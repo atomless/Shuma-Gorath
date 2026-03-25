@@ -103,6 +103,41 @@
     return numeric.toFixed(2);
   };
 
+  const formatRatioPercent = (value, fallback = 'n/a') => {
+    if (value === null || value === undefined || value === '') return fallback;
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return fallback;
+    return `${(numeric * 100).toFixed(1)}%`;
+  };
+
+  const ratioToTarget = (current, target) => {
+    const currentNumeric = Number(current);
+    const targetNumeric = Number(target);
+    if (!Number.isFinite(currentNumeric) || !Number.isFinite(targetNumeric) || targetNumeric <= 0) {
+      return null;
+    }
+    return currentNumeric / targetNumeric;
+  };
+
+  const clampPercent = (value) => {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric) || numeric <= 0) return 0;
+    return Math.max(0, Math.min(100, numeric));
+  };
+
+  const formatTargetRatioText = (ratio) => {
+    const numeric = Number(ratio);
+    if (!Number.isFinite(numeric)) return 'Target usage unavailable';
+    return `${(numeric * 100).toFixed(0)}% of target`;
+  };
+
+  const categoryIdFromMetric = (metricId = '') => {
+    const normalized = String(metricId || '').trim();
+    return normalized.startsWith('category_posture_alignment:')
+      ? normalized.slice('category_posture_alignment:'.length)
+      : '';
+  };
+
   const formatSignedMetricValue = (metricId, value) => {
     if (value === null || value === undefined || value === '') return 'n/a';
     const numeric = Number(value);
@@ -139,6 +174,53 @@
     family && (family.status === 'outside_budget' || family.status === 'near_limit')
   );
   $: recentChanges = toArray(operatorSnapshot?.recent_changes?.rows).slice(0, 3);
+  $: categoryPostureTargets = new Map(
+    toArray(operatorSnapshot?.objectives?.category_postures).map((row) => [
+      String(row?.category_id || '').trim(),
+      String(row?.posture || '').trim()
+    ])
+  );
+  $: budgetUsageRows = [likelyHumanFrictionFamily, suspiciousOriginCostFamily]
+    .flatMap((family) =>
+      toArray(family?.metrics)
+        .filter((metric) => metric && metric.target !== null && metric.target !== undefined)
+        .map((metric) => {
+          const usageRatio = ratioToTarget(metric.current, metric.target);
+          return {
+            metricId: metric.metric_id,
+            label: humanizeToken(metric.metric_id),
+            currentText: formatMetricValue(metric.metric_id, metric.current),
+            targetText: formatMetricValue(metric.metric_id, metric.target),
+            deltaText: formatSignedMetricValue(metric.metric_id, metric.delta),
+            comparisonText:
+              metric.comparison_delta !== null && metric.comparison_delta !== undefined
+                ? formatSignedMetricValue(metric.metric_id, metric.comparison_delta)
+                : '',
+            usageText: formatTargetRatioText(usageRatio),
+            meterPercent: clampPercent((usageRatio || 0) * 100),
+            statusText: humanizeToken(metric.status, 'sentence')
+          };
+        })
+    );
+  $: categoryTargetRows = toArray(findBenchmarkFamily('non_human_category_posture')?.metrics)
+    .map((metric) => {
+      const categoryId = categoryIdFromMetric(metric?.metric_id);
+      const targetPosture = categoryPostureTargets.get(categoryId) || '';
+      const achievementRatio = ratioToTarget(metric?.current, metric?.target);
+      return {
+        categoryId,
+        label: humanizeToken(categoryId),
+        targetPostureText: humanizeToken(targetPosture),
+        achievedText: formatRatioPercent(metric?.current),
+        targetText: formatRatioPercent(metric?.target),
+        achievementText: formatTargetRatioText(achievementRatio),
+        meterPercent: clampPercent((achievementRatio || 0) * 100),
+        statusText: humanizeToken(metric?.status, 'sentence'),
+        capabilityText: humanizeToken(metric?.capability_gate, 'sentence'),
+        basisText: humanizeToken(metric?.basis, 'sentence')
+      };
+    })
+    .filter((row) => row.categoryId);
   $: currentStatusCards = [
     {
       title: 'Overall Status',
@@ -276,30 +358,28 @@
           {/if}
         </div>
       {:else if section.id === 'outcome-frontier'}
-        <div id="game-loop-outcome-frontier" class="stats-cards">
-          {#each [suspiciousOriginCostFamily, likelyHumanFrictionFamily] as family}
-            <article class="card panel panel-border pad-md-b">
-              <h3 class="caps-label">{humanizeToken(family?.family_id)}</h3>
-              {#if family}
-                <p class="text-muted">{family.note}</p>
-                <ul class="metric-list">
-                  {#each family.metrics as metric (metric.metric_id)}
-                    <li>
-                      <strong>{humanizeToken(metric.metric_id)}</strong>:
-                      current {formatMetricValue(metric.metric_id, metric.current)} |
-                      target {formatMetricValue(metric.metric_id, metric.target)} |
-                      delta {formatSignedMetricValue(metric.metric_id, metric.delta)}
-                      {#if metric.comparison_delta !== null && metric.comparison_delta !== undefined}
-                        | vs prior {formatSignedMetricValue(metric.metric_id, metric.comparison_delta)}
-                      {/if}
-                    </li>
-                  {/each}
-                </ul>
-              {:else}
-                <p class="text-muted">This benchmark family is not materialized yet.</p>
-              {/if}
-            </article>
-          {/each}
+        <div id="game-loop-outcome-frontier" class="panel panel-soft pad-md">
+          <h3 class="caps-label">Budget Usage</h3>
+          {#if budgetUsageRows.length === 0}
+            <p class="text-muted">No numeric objective budgets are materialized yet.</p>
+          {:else}
+            <div id="game-loop-budget-usage" class="game-loop-meter-list">
+              {#each budgetUsageRows as row (row.metricId)}
+                <div class="game-loop-meter-row">
+                  <p class="caps-label">{row.label}</p>
+                  <div class="game-loop-meter" aria-hidden="true">
+                    <span class="game-loop-meter__fill" style={`width: ${row.meterPercent}%;`}></span>
+                  </div>
+                  <p class="game-loop-meter-meta text-muted">
+                    Current {row.currentText} | Target {row.targetText} | {row.usageText} | {row.statusText}
+                    {#if row.comparisonText}
+                      | vs prior {row.comparisonText}
+                    {/if}
+                  </p>
+                </div>
+              {/each}
+            </div>
+          {/if}
         </div>
       {:else if section.id === 'change-judgment'}
         <div id="game-loop-change-judgment" class="panel panel-soft pad-md">
@@ -359,6 +439,29 @@
               </ul>
             {/if}
           </article>
+          <article id="game-loop-category-target-achievement" class="card panel panel-border pad-md-b">
+            <h3 class="caps-label">Category Target Achievement</h3>
+            {#if categoryTargetRows.length === 0}
+              <p class="text-muted">No category target-achievement rows are materialized yet.</p>
+            {:else}
+              <div class="game-loop-meter-list">
+                {#each categoryTargetRows as row (row.categoryId)}
+                  <div class="game-loop-meter-row">
+                    <p class="caps-label">{row.label}</p>
+                    <div class="game-loop-meter" aria-hidden="true">
+                      <span class="game-loop-meter__fill" style={`width: ${row.meterPercent}%;`}></span>
+                    </div>
+                    <p class="game-loop-meter-meta text-muted">
+                      Target {row.targetPostureText} | Achieved {row.achievedText} | Goal {row.targetText} | {row.achievementText} | {row.statusText}
+                    </p>
+                    <p class="game-loop-meter-meta text-muted">
+                      Support {row.capabilityText} | Basis {row.basisText}
+                    </p>
+                  </div>
+                {/each}
+              </div>
+            {/if}
+          </article>
           <article class="card panel panel-border pad-md-b">
             <h3 class="caps-label">Recent Change Context</h3>
             {#if recentChanges.length === 0}
@@ -391,11 +494,26 @@
               <span class="status-value">{humanizeToken(benchmarkResults?.non_human_coverage?.overall_status)}</span>
             </div>
             <div class="info-row">
-              <span class="info-label text-muted">Protected replay:</span>
+              <span class="info-label text-muted">Protected Replay:</span>
               <span class="status-value">
                 {humanizeToken(benchmarkResults?.replay_promotion?.availability)}
                 | evidence {humanizeToken(benchmarkResults?.replay_promotion?.evidence_status, 'sentence')}
                 | lineage {formatNumber(benchmarkResults?.replay_promotion?.protected_lineage_count, '0')}
+              </span>
+            </div>
+            <div class="info-row">
+              <span class="info-label text-muted">Tuning Eligibility:</span>
+              <span class="status-value">
+                {humanizeToken(benchmarkResults?.tuning_eligibility?.status)}
+                | blockers {formatNumber(toArray(benchmarkResults?.tuning_eligibility?.blockers).length, '0')}
+              </span>
+            </div>
+            <div class="info-row">
+              <span class="info-label text-muted">Verified Identity:</span>
+              <span class="status-value">
+                {humanizeToken(operatorSnapshot?.verified_identity?.availability)}
+                | alignment {humanizeToken(operatorSnapshot?.verified_identity?.taxonomy_alignment?.status)}
+                | stance {humanizeToken(operatorSnapshot?.verified_identity?.non_human_traffic_stance, 'sentence')}
               </span>
             </div>
           </div>

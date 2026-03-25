@@ -513,7 +513,14 @@ export const adaptOperatorSnapshot = (payload) => {
     objectives: {
       profile_id: String(objectives.profile_id || ''),
       revision: String(objectives.revision || ''),
-      window_hours: Number(objectives.window_hours || 0)
+      window_hours: Number(objectives.window_hours || 0),
+      category_postures: asObjectArray(objectives.category_postures).map((entry) => {
+        const record = asRecord(entry);
+        return {
+          category_id: String(record.category_id || ''),
+          posture: String(record.posture || '')
+        };
+      })
     },
     runtime_posture: {
       shadow_mode: runtimePosture.shadow_mode === true,

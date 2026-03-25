@@ -26,11 +26,11 @@ Current behavior:
 - Surfaces:
   - current benchmark overall status, improvement status, tuning eligibility, and latest controller action,
   - bounded recent multi-loop oversight history rather than only the latest cycle,
-  - suspicious-origin-cost versus likely-human-friction benchmark families as the first outcome-frontier slice,
+  - true numeric budget usage for likely-human friction plus suspicious forwarded requests, bytes, and latency,
+  - taxonomy rows as `Category Target Achievement` rather than fake configured per-category budgets,
   - benchmark escalation decision, candidate action families, and latest oversight apply or refusal context,
   - a bounded preview of remaining benchmark pressure plus recent config-change context from the operator snapshot,
-  - and explicit trust or blocker rows for classification readiness, coverage, protected replay status, and tuning blockers.
-- Full category-aware pressure breakdown and the richer final trust/actionability layer still belong to `MON-OVERHAUL-1C`.
+  - and explicit trust or blocker rows for classification readiness, coverage, protected replay status, tuning eligibility, and verified-identity guardrails.
 - Directs operators and contributors to `#diagnostics` for deep subsystem inspection and rawer contributor-facing telemetry.
 
 Refresh behavior:

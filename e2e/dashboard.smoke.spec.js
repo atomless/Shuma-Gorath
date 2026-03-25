@@ -1740,7 +1740,17 @@ test("game loop projects benchmark and oversight accountability from machine-fir
         objectives: {
           profile_id: "site_default_v1",
           revision: "objective-1774306800",
-          window_hours: 24
+          window_hours: 24,
+          category_postures: [
+            {
+              category_id: "indexing_bot",
+              posture: "cost_reduced"
+            },
+            {
+              category_id: "ai_scraper_bot",
+              posture: "blocked"
+            }
+          ]
         },
         runtime_posture: {
           shadow_mode: false,
@@ -1786,6 +1796,16 @@ test("game loop projects benchmark and oversight accountability from machine-fir
               summary: "Enabled stricter fingerprint evidence for suspicious automation."
             }
           ]
+        },
+        verified_identity: {
+          availability: "supported",
+          enabled: true,
+          native_web_bot_auth_enabled: true,
+          provider_assertions_enabled: true,
+          non_human_traffic_stance: "deny_all_non_human",
+          taxonomy_alignment: {
+            status: "degraded"
+          }
         }
       })
     });
@@ -1900,6 +1920,31 @@ test("game loop projects benchmark and oversight accountability from machine-fir
                 comparison_status: "regressed"
               }
             ]
+          },
+          {
+            family_id: "non_human_category_posture",
+            status: "partial",
+            capability_gate: "partially_supported",
+            comparison_status: "not_available",
+            note: "Category posture remains mixed.",
+            metrics: [
+              {
+                metric_id: "category_posture_alignment:indexing_bot",
+                status: "inside_budget",
+                current: 0.6,
+                target: 0.5,
+                delta: 0.1,
+                comparison_status: "not_available"
+              },
+              {
+                metric_id: "category_posture_alignment:ai_scraper_bot",
+                status: "outside_budget",
+                current: 0.42,
+                target: 1,
+                delta: -0.58,
+                comparison_status: "not_available"
+              }
+            ]
           }
         ]
       })
@@ -2009,9 +2054,17 @@ test("game loop projects benchmark and oversight accountability from machine-fir
   await expect(page.locator("#game-loop-current-status-improvement")).toHaveText(/Improved/i);
   await expect(page.locator("#game-loop-current-status-controller-action")).toHaveText(/Canary Applied/i);
   await expect(page.locator("#game-loop-progress-history")).toContainText("Applied a bounded fingerprint tightening patch.");
-  await expect(page.locator("#game-loop-outcome-frontier")).toContainText("Suspicious Origin Cost");
-  await expect(page.locator("#game-loop-outcome-frontier")).toContainText("Likely Human Friction");
+  await expect(page.locator("#game-loop-budget-usage")).toContainText("Likely Human Friction Rate");
+  await expect(page.locator("#game-loop-budget-usage")).toContainText("Suspicious Forwarded Request Rate");
+  await expect(page.locator("#game-loop-budget-usage")).toContainText("Target 2.0%");
+  await expect(page.locator("#game-loop-budget-usage")).toContainText("Current 1.8%");
+  await expect(page.locator("#game-loop-category-target-achievement")).toContainText("AI Scraper Bot");
+  await expect(page.locator("#game-loop-category-target-achievement")).toContainText("Target Blocked");
+  await expect(page.locator("#game-loop-category-target-achievement")).toContainText("Achieved 42.0%");
   await expect(page.locator("#game-loop-change-judgment")).toContainText("Observe Longer");
+  await expect(page.locator("#game-loop-trust-blockers")).toContainText("Tuning Eligibility");
+  await expect(page.locator("#game-loop-trust-blockers")).toContainText("Verified Identity");
+  await expect(page.locator("#game-loop-trust-blockers")).toContainText("Degraded");
   await expect(page.locator("#game-loop-trust-blockers")).toContainText("verified identity taxonomy alignment guardrail");
 });
 

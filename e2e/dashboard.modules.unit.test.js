@@ -6292,9 +6292,42 @@ test('dashboard verification tab wires verified identity operator snapshot and s
 test('dashboard game loop accountability adapters normalize benchmark and oversight payloads safely', async () => {
   const apiModule = await importBrowserModule('dashboard/src/lib/domain/api-client.js');
 
+  assert.equal(typeof apiModule.adaptOperatorSnapshot, 'function');
   assert.equal(typeof apiModule.adaptBenchmarkResults, 'function');
   assert.equal(typeof apiModule.adaptOversightHistory, 'function');
   assert.equal(typeof apiModule.adaptOversightAgentStatus, 'function');
+
+  const operatorSnapshot = apiModule.adaptOperatorSnapshot({
+    schema_version: 'operator_snapshot_v1',
+    generated_at: 1774306800,
+    objectives: {
+      profile_id: 'site_default_v1',
+      revision: 'objective-1774306800',
+      window_hours: 24,
+      category_postures: [
+        {
+          category_id: 'indexing_bot',
+          posture: 'cost_reduced'
+        },
+        {
+          category_id: 'ai_scraper_bot',
+          posture: 'blocked'
+        }
+      ]
+    },
+    verified_identity: {
+      availability: 'ready',
+      taxonomy_alignment: {
+        status: 'degraded'
+      }
+    }
+  });
+
+  assert.equal(operatorSnapshot.objectives.profile_id, 'site_default_v1');
+  assert.equal(operatorSnapshot.objectives.category_postures.length, 2);
+  assert.equal(operatorSnapshot.objectives.category_postures[1].category_id, 'ai_scraper_bot');
+  assert.equal(operatorSnapshot.objectives.category_postures[1].posture, 'blocked');
+  assert.equal(operatorSnapshot.verified_identity.taxonomy_alignment.status, 'degraded');
 
   const benchmarkResults = apiModule.adaptBenchmarkResults({
     schema_version: 'benchmark_results_v1',
@@ -6363,6 +6396,23 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
             comparison_status: 'improved'
           }
         ]
+      },
+      {
+        family_id: 'non_human_category_posture',
+        status: 'partial',
+        capability_gate: 'partially_supported',
+        comparison_status: 'not_available',
+        note: 'Per-category posture alignment is mixed.',
+        metrics: [
+          {
+            metric_id: 'category_posture_alignment:ai_scraper_bot',
+            status: 'outside_budget',
+            current: 0.42,
+            target: 1,
+            delta: -0.58,
+            comparison_status: 'not_available'
+          }
+        ]
       }
     ]
   });
@@ -6375,6 +6425,12 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
   ]);
   assert.equal(benchmarkResults.families[0].family_id, 'suspicious_origin_cost');
   assert.equal(benchmarkResults.families[0].metrics[0].comparison_delta, -0.08);
+  assert.equal(benchmarkResults.families[1].family_id, 'non_human_category_posture');
+  assert.equal(
+    benchmarkResults.families[1].metrics[0].metric_id,
+    'category_posture_alignment:ai_scraper_bot'
+  );
+  assert.equal(benchmarkResults.families[1].metrics[0].target, 1);
 
   const oversightHistory = apiModule.adaptOversightHistory({
     schema_version: 'oversight_history_v1',
