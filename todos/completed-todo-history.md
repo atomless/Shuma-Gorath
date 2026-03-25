@@ -4,6 +4,41 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### RSI-GAME-1A: Canonical recursive-improvement game contract
+
+- [x] Added an explicit `game_contract_v1` layer in:
+  - [`src/observability/operator_snapshot_objectives.rs`](../src/observability/operator_snapshot_objectives.rs)
+  - [`src/config/controller_action_surface.rs`](../src/config/controller_action_surface.rs)
+  to name:
+  - immutable rules
+  - fixed payoffs
+  - legal move ring
+  - safety gates
+  - regression anchors
+- [x] Projected that contract through the machine-first read surfaces in:
+  - [`src/observability/operator_snapshot.rs`](../src/observability/operator_snapshot.rs)
+  - [`src/admin/oversight_api.rs`](../src/admin/oversight_api.rs)
+  so both `operator_snapshot_v1` and the bounded oversight execution or history payloads now carry the same canonical game answer instead of forcing later phases to reconstruct it from scattered modules.
+- [x] Tightened the legal move ring metadata in:
+  - [`src/config/controller_action_surface.rs`](../src/config/controller_action_surface.rs)
+  - [`src/config/tests.rs`](../src/config/tests.rs)
+  so `allowed_actions_v1` explicitly self-identifies as the `legal_move_ring` over an immutable `operator_objectives_v1` rule surface.
+- [x] Added the focused proof path and updated operator-facing contract docs in:
+  - [`Makefile`](../Makefile)
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`docs/api.md`](../docs/api.md)
+  - [`docs/configuration.md`](../docs/configuration.md)
+  - [`docs/research/2026-03-24-rsi-game-1a-canonical-game-contract-post-implementation-review.md`](../docs/research/2026-03-24-rsi-game-1a-canonical-game-contract-post-implementation-review.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+- [x] Why:
+  - the repo already had rules, benchmarks, and bounded controller actions,
+  - but it still lacked one formal answer to “what game is Shuma playing?”
+  - and later recursive-improvement work needed that answer frozen before shortfall attribution, score semantics, episode memory, or player runtimes could stay disciplined.
+- [x] Evidence:
+  - `make test-rsi-game-contract`
+  - `git diff --check`
+
 ### SIM-SCR-GEO-1: Request-native source-IP diversification for geo/ip policy coverage
 
 - [x] Added a bounded public-network identity contract to the Scrapling worker plan and result surface in:

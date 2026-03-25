@@ -362,6 +362,13 @@ Current auto-proposal stance:
 
 Use the machine-first path lists for the exhaustive answer to “may the controller touch this exact path?” rather than inferring mutability from `POST /admin/config` writability alone.
 
+Recursive-improvement game-contract note:
+- `operator_snapshot_v1.game_contract` is now the canonical answer to “what game is Shuma playing?” for the current bounded loop.
+- `game_contract_v1.rules` freezes `operator_objectives_v1` as the immutable rule surface.
+- `game_contract_v1.fixed_payoffs` freezes the machine-first benchmark stack as the independent judge.
+- `game_contract_v1.legal_moves` freezes `allowed_actions_v1` plus the controller mutability schema as the legal move ring.
+- `game_contract_v1.safety_gates` and `game_contract_v1.regression_anchors` make the fail-closed and no-harm boundaries explicit so later recursive phases do not infer them ad hoc from scattered modules.
+
 Operator-objectives contract notes:
 - `operator_objectives_v1` is not part of `POST /admin/config`. It has its own primary-state endpoint at `GET` and `POST /admin/operator-objectives`.
 - `POST /admin/operator-objectives` is guarded by the same `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=true` switch as other admin writes.

@@ -244,6 +244,8 @@ fn parse_provider_backend_accepts_expected_values() {
 fn allowed_actions_v1_exposes_conservative_controller_write_surface() {
     let surface = allowed_actions_v1();
     assert_eq!(surface.schema_version, "allowed_actions_v1");
+    assert_eq!(surface.game_role, "legal_move_ring");
+    assert_eq!(surface.immutable_rule_surface, "operator_objectives_v1");
     assert_eq!(surface.write_surface, "admin_config");
     assert_eq!(surface.proposal_mode, "config_diff_only");
     assert_eq!(

@@ -346,7 +346,9 @@ mod tests {
         OperatorSnapshotAdversarySim, OperatorSnapshotLiveTraffic, OperatorSnapshotRecentSimRun,
         OperatorSnapshotShadowMode,
     };
-    use crate::observability::operator_snapshot_objectives::default_operator_objectives;
+    use crate::observability::operator_snapshot_objectives::{
+        default_operator_objectives, recursive_improvement_game_contract_v1,
+    };
     use crate::observability::operator_snapshot_non_human::OperatorSnapshotNonHumanTrafficSummary;
     use crate::observability::operator_snapshot_recent_changes::OperatorSnapshotRecentChanges;
     use crate::observability::operator_snapshot_runtime_posture::OperatorSnapshotRuntimePosture;
@@ -455,12 +457,15 @@ mod tests {
                 },
             );
         }
+        let objectives = default_operator_objectives(generated_at);
+        let allowed_actions = allowed_actions_v1();
+
         OperatorSnapshotHotReadPayload {
             schema_version: "operator_snapshot_v1".to_string(),
             generated_at,
             window: window.clone(),
             section_metadata,
-            objectives: default_operator_objectives(generated_at),
+            objectives: objectives.clone(),
             live_traffic: OperatorSnapshotLiveTraffic {
                 traffic_origin: "live".to_string(),
                 measurement_scope: "ingress_primary".to_string(),
@@ -557,7 +562,11 @@ mod tests {
                 decision_chain: non_human_decision_chain(),
                 receipts: Vec::new(),
             },
-            allowed_actions: allowed_actions_v1(),
+            game_contract: recursive_improvement_game_contract_v1(
+                &objectives,
+                &allowed_actions,
+            ),
+            allowed_actions,
             benchmark_results,
             verified_identity: OperatorSnapshotVerifiedIdentitySummary {
                 availability: "not_configured".to_string(),

@@ -104,10 +104,9 @@ Reference context:
 - [`docs/plans/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md`](../docs/plans/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md)
 - [`docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](../docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md)
 
-### RSI-GAME-1A: Canonical recursive-improvement game contract
-- Define the canonical game layer over the existing bounded loop so Shuma has one explicit answer to its fixed rules, fixed payoffs, legal moves, independent judge, and regression anchors.
-- Build directly on the now-landed controller mutability ring and attacker-faithful request-native Scrapling basis rather than waiting for deferred dashboard follow-ons.
-- Keep this machine-first and judge-side: the game contract must be explicit before the first self-improving loop run and before later LLM attacker or defender runtime work reopens.
+### RSI-GAME-1B: Canonical shortfall-attribution and move-selection policy
+- Turn benchmark misses into explicit problem classes, tractability boundaries, and bounded move-selection rules now that `RSI-GAME-1A` has made the game contract explicit.
+- Keep this machine-first and judge-side so later recursive phases consume one canonical bridge from judge shortfall to legal move family instead of rediscovering it ad hoc inside later player runtimes.
 - Reference context: [`../docs/research/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-review.md`](../docs/research/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-review.md), [`../docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](../docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md)
 
 ### RSI-GAME-MAINLINE-1: First working self-improving loop over attacker-faithful Scrapling
@@ -116,11 +115,10 @@ Reference context:
 - Keep this ahead of later LLM attacker or defender runtime work, and ahead of secondary dashboard cleanup follow-ons.
 
 Mainline execution order:
-1. `RSI-GAME-1A`
-2. `RSI-GAME-1B`
-3. `RSI-SCORE-1`
-4. `RSI-GAME-1C`
-5. `RSI-GAME-MAINLINE-1`
+1. `RSI-GAME-1B`
+2. `RSI-SCORE-1`
+3. `RSI-GAME-1C`
+4. `RSI-GAME-MAINLINE-1`
 6. only if future owned-surface receipts prove request-native plus public-network identity diversification are insufficient for a Scrapling-owned surface, reopen `SIM-SCR-CHALLENGE-2C`
 
 ### DIAG-CLEANUP-1: Diagnostics furniture-operational cleanup after Traffic split

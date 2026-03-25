@@ -1,6 +1,11 @@
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use spin_sdk::http::{Method, Request, Response};
+
+use crate::observability::operator_objectives_store::load_operator_objectives;
+use crate::observability::operator_snapshot_objectives::{
+    default_operator_objectives, recursive_improvement_game_contract_v1,
+    RecursiveImprovementGameContract,
+};
 
 use super::oversight_agent::{
     build_status_payload, execute_agent_cycle, OversightAgentTrigger,
@@ -36,10 +41,18 @@ pub(crate) struct OversightPatchValidation {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub(crate) struct OversightExecutionPayload {
     pub schema_version: String,
+    pub game_contract: RecursiveImprovementGameContract,
     pub decision: OversightDecisionRecord,
     pub reconcile: OversightReconcileResult,
     pub validation: OversightPatchValidation,
     pub apply: OversightApplyResult,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub(crate) struct OversightHistoryPayload {
+    pub schema_version: String,
+    pub game_contract: RecursiveImprovementGameContract,
+    pub rows: Vec<OversightDecisionRecord>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -84,6 +97,10 @@ pub(crate) fn execute_oversight_cycle_at(
         crate::observability::operator_objectives_store::load_or_seed_operator_objectives(
             store, site_id, now,
         );
+    let game_contract = recursive_improvement_game_contract_v1(
+        &objectives,
+        &crate::config::allowed_actions_v1(),
+    );
 
     let mut current_cfg: Option<crate::config::Config> = None;
     let (reconcile_result, validation) = match snapshot.as_ref() {
@@ -233,6 +250,7 @@ pub(crate) fn execute_oversight_cycle_at(
 
     Ok(OversightExecutionPayload {
         schema_version: OVERSIGHT_EXECUTION_SCHEMA_VERSION.to_string(),
+        game_contract,
         decision,
         reconcile: recorded_result,
         validation,
@@ -270,11 +288,17 @@ pub(crate) fn handle_admin_oversight_history(
     if *req.method() != Method::Get {
         return Response::new(405, "Method Not Allowed");
     }
-    let body = serde_json::to_string(&json!({
-        "schema_version": OVERSIGHT_HISTORY_SCHEMA_VERSION,
-        "rows": load_recent_decisions(store, site_id),
-    }))
-    .unwrap_or_else(|_| "{}".to_string());
+    let objectives = load_operator_objectives(store, site_id)
+        .unwrap_or_else(|| default_operator_objectives(crate::admin::now_ts()));
+    let payload = OversightHistoryPayload {
+        schema_version: OVERSIGHT_HISTORY_SCHEMA_VERSION.to_string(),
+        game_contract: recursive_improvement_game_contract_v1(
+            &objectives,
+            &crate::config::allowed_actions_v1(),
+        ),
+        rows: load_recent_decisions(store, site_id),
+    };
+    let body = serde_json::to_string(&payload).unwrap_or_else(|_| "{}".to_string());
     Response::builder()
         .status(200)
         .header("Content-Type", "application/json")
@@ -727,6 +751,7 @@ mod tests {
 
         assert_eq!(payload.reconcile.outcome, "insufficient_evidence");
         assert_eq!(payload.validation.status, "skipped");
+        assert_eq!(payload.game_contract.schema_version, "game_contract_v1");
     }
 
     #[test]
@@ -746,6 +771,7 @@ mod tests {
         assert_eq!(*response.status(), 200);
         let payload: serde_json::Value =
             serde_json::from_slice(response.body()).expect("payload decodes");
+        assert_eq!(payload["game_contract"]["schema_version"], "game_contract_v1");
         assert_eq!(payload["reconcile"]["outcome"], "observe_longer");
         assert_eq!(payload["validation"]["status"], "skipped");
 
@@ -758,6 +784,7 @@ mod tests {
         let history_payload: serde_json::Value =
             serde_json::from_slice(history_response.body()).expect("history decodes");
         assert_eq!(history_payload["schema_version"], "oversight_history_v1");
+        assert_eq!(history_payload["game_contract"]["schema_version"], "game_contract_v1");
         assert_eq!(history_payload["rows"].as_array().expect("rows array").len(), 1);
     }
 

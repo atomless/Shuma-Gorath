@@ -1,3 +1,4 @@
+use crate::config::AllowedActionsSurface;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
@@ -6,6 +7,8 @@ use crate::runtime::non_human_taxonomy::{
 };
 
 pub(crate) const OPERATOR_OBJECTIVES_SCHEMA_VERSION: &str = "operator_objectives_v1";
+pub(crate) const RECURSIVE_IMPROVEMENT_GAME_CONTRACT_SCHEMA_VERSION: &str =
+    "game_contract_v1";
 
 const SITE_DEFAULT_OBJECTIVE_PROFILE_ID: &str = "site_default_v1";
 pub(super) const DEFAULT_WINDOW_HOURS: u64 = 24;
@@ -75,10 +78,147 @@ pub(crate) struct OperatorObjectivesUpsertRequest {
     pub rollout_guardrails: OperatorObjectivesRolloutGuardrails,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub(crate) struct RecursiveImprovementGameRules {
+    pub immutable_rule_surface: String,
+    pub objective_surface_schema_version: String,
+    pub objective_revision: String,
+    pub objective_profile_id: String,
+    pub compliance_semantics: String,
+    pub window_hours: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub(crate) struct RecursiveImprovementGameFixedPayoffs {
+    pub independent_judge: String,
+    pub benchmark_results_schema_version: String,
+    pub benchmark_suite_schema_version: String,
+    pub comparison_mode: String,
+    pub optimization_budget_ids: Vec<String>,
+    pub category_target_family: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub(crate) struct RecursiveImprovementGameLegalMoves {
+    pub game_role: String,
+    pub immutable_rule_surface: String,
+    pub allowed_actions_schema_version: String,
+    pub controller_mutability_schema_version: String,
+    pub write_surface: String,
+    pub proposal_mode: String,
+    pub controller_tunable_group_ids: Vec<String>,
+    pub manual_only_group_ids: Vec<String>,
+    pub forbidden_group_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub(crate) struct RecursiveImprovementGameSafetyGates {
+    pub automated_apply_status: String,
+    pub code_evolution_status: String,
+    pub tuning_gate_surface: String,
+    pub protected_evidence_surface: String,
+    pub fail_closed_conditions: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub(crate) struct RecursiveImprovementGameRegressionAnchors {
+    pub anchor_ids: Vec<String>,
+    pub anchor_sources: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub(crate) struct RecursiveImprovementGameContract {
+    pub schema_version: String,
+    pub contract_revision: String,
+    pub rules: RecursiveImprovementGameRules,
+    pub fixed_payoffs: RecursiveImprovementGameFixedPayoffs,
+    pub legal_moves: RecursiveImprovementGameLegalMoves,
+    pub safety_gates: RecursiveImprovementGameSafetyGates,
+    pub regression_anchors: RecursiveImprovementGameRegressionAnchors,
+}
+
 pub(crate) fn operator_objectives_watch_window_seconds(
     profile: &OperatorObjectivesProfile,
 ) -> u64 {
     profile.window_hours.saturating_mul(3600)
+}
+
+pub(crate) fn recursive_improvement_game_contract_v1(
+    objectives: &OperatorObjectivesProfile,
+    allowed_actions: &AllowedActionsSurface,
+) -> RecursiveImprovementGameContract {
+    RecursiveImprovementGameContract {
+        schema_version: RECURSIVE_IMPROVEMENT_GAME_CONTRACT_SCHEMA_VERSION.to_string(),
+        contract_revision: format!(
+            "{}:{}:{}",
+            objectives.revision,
+            allowed_actions.schema_version,
+            allowed_actions.controller_mutability_schema_version
+        ),
+        rules: RecursiveImprovementGameRules {
+            immutable_rule_surface: "operator_objectives_v1".to_string(),
+            objective_surface_schema_version: objectives.schema_version.clone(),
+            objective_revision: objectives.revision.clone(),
+            objective_profile_id: objectives.profile_id.clone(),
+            compliance_semantics: objectives.compliance_semantics.clone(),
+            window_hours: objectives.window_hours,
+        },
+        fixed_payoffs: RecursiveImprovementGameFixedPayoffs {
+            independent_judge: "machine_first_benchmark_stack".to_string(),
+            benchmark_results_schema_version: "benchmark_results_v1".to_string(),
+            benchmark_suite_schema_version: "benchmark_suite_v1".to_string(),
+            comparison_mode: objectives.adversary_sim_expectations.comparison_mode.clone(),
+            optimization_budget_ids: objectives
+                .budgets
+                .iter()
+                .map(|budget| budget.budget_id.clone())
+                .collect(),
+            category_target_family: "non_human_category_posture".to_string(),
+        },
+        legal_moves: RecursiveImprovementGameLegalMoves {
+            game_role: allowed_actions.game_role.clone(),
+            immutable_rule_surface: allowed_actions.immutable_rule_surface.clone(),
+            allowed_actions_schema_version: allowed_actions.schema_version.clone(),
+            controller_mutability_schema_version: allowed_actions
+                .controller_mutability_schema_version
+                .clone(),
+            write_surface: allowed_actions.write_surface.clone(),
+            proposal_mode: allowed_actions.proposal_mode.clone(),
+            controller_tunable_group_ids: allowed_actions.allowed_group_ids.clone(),
+            manual_only_group_ids: allowed_actions.manual_only_group_ids.clone(),
+            forbidden_group_ids: allowed_actions.forbidden_group_ids.clone(),
+        },
+        safety_gates: RecursiveImprovementGameSafetyGates {
+            automated_apply_status: objectives
+                .rollout_guardrails
+                .automated_apply_status
+                .clone(),
+            code_evolution_status: objectives
+                .rollout_guardrails
+                .code_evolution_status
+                .clone(),
+            tuning_gate_surface: "benchmark_results_v1.tuning_eligibility".to_string(),
+            protected_evidence_surface: "replay_promotion_v1".to_string(),
+            fail_closed_conditions: vec![
+                "operator_snapshot_not_materialized".to_string(),
+                "config_unavailable".to_string(),
+                "verified_identity_no_harm_guardrails".to_string(),
+                "protected_replay_evidence_required".to_string(),
+            ],
+        },
+        regression_anchors: RecursiveImprovementGameRegressionAnchors {
+            anchor_ids: vec![
+                "likely_human_friction".to_string(),
+                "verified_identity_no_harm".to_string(),
+                "protected_evidence_required".to_string(),
+            ],
+            anchor_sources: vec![
+                "operator_objectives_v1.budgets".to_string(),
+                "benchmark_results_v1.tuning_eligibility".to_string(),
+                "replay_promotion_v1".to_string(),
+            ],
+        },
+    }
 }
 
 pub(crate) fn default_operator_objectives(updated_at_ts: u64) -> OperatorObjectivesProfile {
@@ -353,11 +493,14 @@ fn validate_category_postures(
 mod tests {
     use super::{
         default_operator_objectives, persisted_operator_objectives_from_request,
-        validate_operator_objectives, OperatorObjectiveAdversarySimExpectations,
+        recursive_improvement_game_contract_v1, validate_operator_objectives,
+        OperatorObjectiveAdversarySimExpectations,
         OperatorObjectiveBudget, OperatorObjectiveCategoryPosture,
-        OperatorObjectivesRolloutGuardrails,
-        OperatorObjectivesUpsertRequest, OPERATOR_OBJECTIVES_SCHEMA_VERSION,
+        OperatorObjectivesRolloutGuardrails, OperatorObjectivesUpsertRequest,
+        OPERATOR_OBJECTIVES_SCHEMA_VERSION,
+        RECURSIVE_IMPROVEMENT_GAME_CONTRACT_SCHEMA_VERSION,
     };
+    use crate::config::allowed_actions_v1;
 
     #[test]
     fn default_operator_objectives_expose_site_owned_profile_and_budget_catalog() {
@@ -502,5 +645,50 @@ mod tests {
         let error = validate_operator_objectives(&invalid).expect_err("profile rejected");
 
         assert!(error.contains("category_postures") || error.contains("duplicate metric"));
+    }
+
+    #[test]
+    fn recursive_improvement_game_contract_names_rules_judge_and_legal_move_ring() {
+        let objectives = default_operator_objectives(1_700_000_000);
+        let allowed_actions = allowed_actions_v1();
+
+        let contract =
+            recursive_improvement_game_contract_v1(&objectives, &allowed_actions);
+
+        assert_eq!(
+            contract.schema_version,
+            RECURSIVE_IMPROVEMENT_GAME_CONTRACT_SCHEMA_VERSION
+        );
+        assert_eq!(contract.rules.immutable_rule_surface, "operator_objectives_v1");
+        assert_eq!(contract.rules.objective_revision, objectives.revision);
+        assert_eq!(
+            contract.fixed_payoffs.independent_judge,
+            "machine_first_benchmark_stack"
+        );
+        assert_eq!(
+            contract.fixed_payoffs.benchmark_results_schema_version,
+            "benchmark_results_v1"
+        );
+        assert_eq!(
+            contract.fixed_payoffs.benchmark_suite_schema_version,
+            "benchmark_suite_v1"
+        );
+        assert_eq!(contract.legal_moves.game_role, "legal_move_ring");
+        assert_eq!(
+            contract.legal_moves.allowed_actions_schema_version,
+            "allowed_actions_v1"
+        );
+        assert!(contract
+            .legal_moves
+            .controller_tunable_group_ids
+            .contains(&"not_a_bot.policy".to_string()));
+        assert_eq!(
+            contract.safety_gates.automated_apply_status,
+            objectives.rollout_guardrails.automated_apply_status
+        );
+        assert!(contract
+            .regression_anchors
+            .anchor_ids
+            .contains(&"likely_human_friction".to_string()));
     }
 }

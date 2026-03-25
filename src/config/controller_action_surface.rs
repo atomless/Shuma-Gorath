@@ -60,6 +60,8 @@ pub(crate) struct AllowedActionFamily {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub(crate) struct AllowedActionsSurface {
     pub schema_version: String,
+    pub game_role: String,
+    pub immutable_rule_surface: String,
     pub write_surface: String,
     pub proposal_mode: String,
     pub controller_mutability_schema_version: String,
@@ -244,6 +246,8 @@ pub(crate) fn allowed_actions_v1() -> AllowedActionsSurface {
 
     AllowedActionsSurface {
         schema_version: ALLOWED_ACTIONS_SCHEMA_VERSION.to_string(),
+        game_role: "legal_move_ring".to_string(),
+        immutable_rule_surface: "operator_objectives_v1".to_string(),
         write_surface: "admin_config".to_string(),
         proposal_mode: "config_diff_only".to_string(),
         controller_mutability_schema_version: CONTROLLER_MUTABILITY_SCHEMA_VERSION.to_string(),

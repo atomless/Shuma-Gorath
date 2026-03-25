@@ -28,6 +28,7 @@ pub(crate) use super::operator_snapshot_live_traffic::{
 };
 pub(crate) use super::operator_snapshot_objectives::{
     OperatorObjectiveBudget, OperatorObjectivesProfile,
+    RecursiveImprovementGameContract,
 };
 pub(crate) use super::operator_snapshot_non_human::OperatorSnapshotNonHumanTrafficSummary;
 pub(crate) use super::operator_snapshot_recent_changes::{
@@ -81,6 +82,7 @@ pub(crate) struct OperatorSnapshotHotReadPayload {
     pub window: OperatorSnapshotWindow,
     pub section_metadata: BTreeMap<String, OperatorSnapshotSectionMetadata>,
     pub objectives: OperatorObjectivesProfile,
+    pub game_contract: RecursiveImprovementGameContract,
     pub live_traffic: OperatorSnapshotLiveTraffic,
     pub shadow_mode: OperatorSnapshotShadowMode,
     pub adversary_sim: OperatorSnapshotAdversarySim,
@@ -159,6 +161,11 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
     let non_human_traffic =
         super::operator_snapshot_non_human::non_human_traffic_summary(summary, recent_sim_runs);
     let allowed_actions = crate::config::allowed_actions_v1();
+    let game_contract =
+        super::operator_snapshot_objectives::recursive_improvement_game_contract_v1(
+            &objectives,
+            &allowed_actions,
+        );
     let cfg = crate::config::load_runtime_cached(store, site_id)
         .unwrap_or_else(|_| crate::config::defaults().clone());
     let verified_identity =
@@ -205,6 +212,7 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
             replay_promotion_refreshed_at_ts,
         ),
         objectives,
+        game_contract,
         live_traffic,
         shadow_mode,
         adversary_sim,
@@ -536,6 +544,15 @@ mod tests {
         assert_eq!(payload.schema_version, OPERATOR_SNAPSHOT_SCHEMA_VERSION);
         assert_eq!(payload.objectives.profile_id, "site_default_v1");
         assert_eq!(payload.objectives.schema_version, "operator_objectives_v1");
+        assert_eq!(payload.game_contract.schema_version, "game_contract_v1");
+        assert_eq!(
+            payload.game_contract.rules.immutable_rule_surface,
+            "operator_objectives_v1"
+        );
+        assert_eq!(
+            payload.game_contract.legal_moves.allowed_actions_schema_version,
+            "allowed_actions_v1"
+        );
         assert_eq!(payload.objectives.category_postures.len(), 8);
         assert_eq!(
             payload
@@ -594,7 +611,8 @@ mod tests {
                 None,
             )
         );
-        assert_eq!(payload.verified_identity.availability, "not_configured");
+        assert_eq!(payload.verified_identity.availability, "supported");
+        assert!(payload.verified_identity.enabled);
         assert_eq!(payload.verified_identity.attempts, 0);
         assert_eq!(payload.replay_promotion.availability, "not_materialized");
     }
