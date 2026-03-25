@@ -4,6 +4,23 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-25)
 
+### DIAG-CLEANUP-1: Diagnostics furniture-operational cleanup after Traffic split
+
+- [x] Re-validated the current Diagnostics ownership against:
+  - [`docs/plans/2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md`](../docs/plans/2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md)
+  - [`docs/plans/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md`](../docs/plans/2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md)
+- [x] Confirmed the existing landed UI already satisfies the tranche:
+  - traffic-facing sections remain in [`dashboard/src/lib/components/dashboard/TrafficTab.svelte`](../dashboard/src/lib/components/dashboard/TrafficTab.svelte), not Diagnostics,
+  - [`dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte`](../dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte) retains `Defense Breakdown`, `Telemetry Diagnostics`, and `External Monitoring`,
+  - the focused rendered proof still verifies that Diagnostics summarizes the full defense furniture rather than recent event classes alone.
+- [x] Added the closeout note in:
+  - [`docs/research/2026-03-25-diag-cleanup-1-post-implementation-review.md`](../docs/research/2026-03-25-diag-cleanup-1-post-implementation-review.md)
+- [x] Updated the active queue so `MON-OVERHAUL-1C` is now next in:
+  - [`todos/todo.md`](../todos/todo.md)
+- [x] Evidence:
+  - `make test-dashboard-diagnostics-pane`
+  - `git diff --check`
+
 ### SIM-LLM-1B: LLM attacker-agent episode harness, bounded memory, and curriculum contract
 
 - [x] Added the tranche paper trail in:
