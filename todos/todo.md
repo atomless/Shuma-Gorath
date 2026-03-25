@@ -104,25 +104,10 @@ Reference context:
 - [`docs/research/2026-03-24-rsi-game-mainline-first-working-loop-review.md`](../docs/research/2026-03-24-rsi-game-mainline-first-working-loop-review.md)
 - [`docs/plans/2026-03-24-rsi-game-mainline-first-working-loop-plan.md`](../docs/plans/2026-03-24-rsi-game-mainline-first-working-loop-plan.md)
 
-### RSI-GAME-MAINLINE-1B: Stronger follow-on first-working-loop proof
-- `RSI-GAME-MAINLINE-1A` is now landed:
-  - `make test-rsi-game-mainline` proves the automatic post-sim hook and the local route-level canary -> judged archive loop
-- Next, extend the same proof contract into the next strongest truthful operational harness.
-- Keep the contract the same:
-  - attacker-faithful Scrapling pressure
-  - post-sim trigger
-  - legal bounded move
-  - judged terminal outcome
-  - archive persistence
-- Keep this ahead of later LLM attacker or defender runtime work, and ahead of secondary dashboard cleanup follow-ons.
-
-Mainline execution order:
-1. `RSI-GAME-MAINLINE-1A`
-2. `RSI-GAME-MAINLINE-1B`
-
 Current note:
 - `SIM-SCR-CHALLENGE-2A`, `SIM-SCR-CHALLENGE-2B`, and `SIM-SCR-CHALLENGE-2D` are landed.
 - `RSI-GAME-1A`, `RSI-GAME-1B`, `RSI-SCORE-1`, and `RSI-GAME-1C` are landed.
+- `RSI-GAME-MAINLINE-1A` and `RSI-GAME-MAINLINE-1B` are landed.
 - `SIM-SCR-CHALLENGE-2C` stays conditional and blocked until the owned-surface matrix proves browser or stealth Scrapling is truly required for a remaining Scrapling-owned surface.
 
 ### DIAG-CLEANUP-1: Diagnostics furniture-operational cleanup after Traffic split

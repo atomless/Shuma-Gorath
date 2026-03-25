@@ -4,6 +4,42 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### RSI-GAME-MAINLINE-1B: Stronger follow-on first-working-loop proof
+
+- [x] Extended the first working game-loop proof into the shared-host verifier layer in:
+  - [`scripts/tests/live_feedback_loop_remote.py`](../scripts/tests/live_feedback_loop_remote.py)
+  - [`scripts/tests/test_live_feedback_loop_remote.py`](../scripts/tests/test_live_feedback_loop_remote.py)
+  so the repo now proves the next operational layer can recognize:
+  - the post-sim hook opening the canary path
+  - the later periodic terminal judgment
+  - and the completed episode-archive row
+- [x] Extended the canonical focused gate in:
+  - [`Makefile`](../Makefile)
+  - [`docs/testing.md`](../docs/testing.md)
+  so:
+  - `make test-rsi-game-mainline`
+  now covers:
+  - automatic post-sim hook proof
+  - route-level canary -> judged archive proof
+  - shared-host verifier terminal follow-on proof
+- [x] Updated the planning chain and closeout paper trail in:
+  - [`docs/research/2026-03-24-rsi-game-mainline-1b-shared-host-verifier-review.md`](../docs/research/2026-03-24-rsi-game-mainline-1b-shared-host-verifier-review.md)
+  - [`docs/research/2026-03-24-rsi-game-mainline-1b-shared-host-verifier-post-implementation-review.md`](../docs/research/2026-03-24-rsi-game-mainline-1b-shared-host-verifier-post-implementation-review.md)
+  - [`docs/plans/2026-03-24-rsi-game-mainline-first-working-loop-plan.md`](../docs/plans/2026-03-24-rsi-game-mainline-first-working-loop-plan.md)
+  - [`docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md`](../docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md)
+  - [`docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](../docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md)
+  - [`docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](../docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`todos/todo.md`](../todos/todo.md)
+- [x] Why:
+  - `RSI-GAME-MAINLINE-1A` proved the local route truth, but the repo still needed the next stronger harness up: the shared-host verifier layer that sequences public status, internal supervisor triggers, and post-sim linkage
+  - the protected watch-window contract is at least one hour, so the stronger proof had to stay honest by living in the verifier behavior harness rather than pretending a short live smoke can always close a real canary window
+- [x] Evidence:
+  - `make test-live-feedback-loop-remote-unit`
+  - `make test-rsi-game-mainline`
+  - `make test-oversight-agent`
+  - `git diff --check`
+
 ### RSI-GAME-MAINLINE-1A: Local route-level first working self-improving loop proof
 
 - [x] Added the first explicit mainline proof target in:

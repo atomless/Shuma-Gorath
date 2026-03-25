@@ -4,6 +4,7 @@ Status: Proposed
 Related context:
 
 - [`../research/2026-03-24-rsi-game-mainline-first-working-loop-review.md`](../research/2026-03-24-rsi-game-mainline-first-working-loop-review.md)
+- [`../research/2026-03-24-rsi-game-mainline-1b-shared-host-verifier-review.md`](../research/2026-03-24-rsi-game-mainline-1b-shared-host-verifier-review.md)
 - [`2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md`](2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md)
 - [`2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md)
 - [`2026-03-24-sim-scr-challenge-2d-receipt-backed-surface-coverage-plan.md`](2026-03-24-sim-scr-challenge-2d-receipt-backed-surface-coverage-plan.md)
@@ -114,23 +115,39 @@ Implementation note:
 
 **Files:**
 
-- Modify: the most truthful existing proof harness once `1A` is landed
+- Modify: `scripts/tests/live_feedback_loop_remote.py`
+- Modify: `scripts/tests/test_live_feedback_loop_remote.py`
 - Modify: `docs/testing.md`
 
 **Work:**
 
 1. Extend the first proof into the next operational layer after `1A` lands.
+2. Use the shared-host feedback-loop verifier as that layer rather than broadening the local Rust route proof indefinitely.
+3. Prove the verifier can recognize:
+   1. the post-sim hook,
+   2. the follow-on periodic judgment step,
+   3. terminal apply outcome,
+   4. and completed episode-archive persistence.
+4. Keep the proof local to the verifier behavior harness rather than waiting a real live watch window, because the protected watch-window contract is at least one hour.
 2. Keep the same contract:
    1. attacker-faithful Scrapling pressure
    2. post-sim trigger
    3. bounded move
    4. judged terminal outcome
    5. archive persistence
-3. Use the next strongest truthful harness rather than broadening the local unit proof indefinitely.
+5. Use the next strongest truthful harness rather than broadening the local unit proof indefinitely.
 
 **Acceptance criteria:**
 
-1. Shuma has both a narrow local proof and a stronger operational proof of the first working loop.
+1. Shuma has both a narrow local proof and a stronger shared-host operational-harness proof of the first working loop.
+2. The stronger proof is explicit about terminal judgment plus episode-archive persistence.
+3. The stronger proof does not fake a short live watch window.
+
+Implementation note:
+
+1. `RSI-GAME-MAINLINE-1B` is now landed.
+2. The stronger proof now lives in the shared-host verifier behavior layer, and `make test-rsi-game-mainline` includes that proof directly.
+3. The default live remote verifier remains the real wrapper/trigger proof surface rather than pretending it can always close a one-hour protected watch window inside a short smoke budget.
 
 ## Recommended implementation order
 

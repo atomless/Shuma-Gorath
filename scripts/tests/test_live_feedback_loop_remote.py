@@ -15,8 +15,16 @@ SPEC.loader.exec_module(LIVE_FEEDBACK_LOOP_REMOTE)
 
 
 class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemote):
-    def __init__(self, *, temp_dir: Path, service_exec: str, service_status: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        *,
+        temp_dir: Path,
+        service_exec: str,
+        service_status: Optional[str] = None,
+        require_terminal_post_sim_judgment: bool = False,
+    ) -> None:
         self.report_path = temp_dir / "report.json"
+        self.require_terminal_post_sim_judgment = require_terminal_post_sim_judgment
         self.transport_mode = "ssh_loopback"
         self.base_url = "https://shuma.example.com"
         self.api_key = "test-admin-key"
@@ -255,6 +263,7 @@ class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemo
         self._control_calls = []
         self._control_headers = []
         self._disabled_calls = 0
+        self._periodic_trigger_calls = 0
 
     def _write_report(self, report):
         self.report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
@@ -304,19 +313,38 @@ class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemo
 
     def _internal_request_json(self, method: str, path: str, payload=None):
         if path == "/internal/oversight/agent/run":
+            self._periodic_trigger_calls += 1
+            if self._periodic_trigger_calls == 1:
+                return {
+                    "schema_version": "oversight_agent_execution_v1",
+                    "status": "executed",
+                    "replayed": False,
+                    "run": {
+                        "run_id": "ovragent-periodic-1",
+                        "trigger_kind": "periodic_supervisor",
+                        "execution": {
+                            "decision": {"decision_id": "decision-periodic-1"},
+                            "apply": {"stage": "refused"},
+                            "reconcile": {
+                                "outcome": "recommend_patch",
+                                "latest_sim_run_id": None,
+                            },
+                        },
+                    },
+                }
             return {
                 "schema_version": "oversight_agent_execution_v1",
                 "status": "executed",
                 "replayed": False,
                 "run": {
-                    "run_id": "ovragent-periodic-1",
+                    "run_id": "ovragent-periodic-2",
                     "trigger_kind": "periodic_supervisor",
                     "execution": {
-                        "decision": {"decision_id": "decision-periodic-1"},
-                        "apply": {"stage": "refused"},
+                        "decision": {"decision_id": "decision-periodic-2"},
+                        "apply": {"stage": "improved"},
                         "reconcile": {
                             "outcome": "recommend_patch",
-                            "latest_sim_run_id": None,
+                            "latest_sim_run_id": "sim-run-1",
                         },
                     },
                 },
@@ -374,6 +402,137 @@ class LiveFeedbackLoopRemoteBehaviorTests(unittest.TestCase):
         self.assertEqual(runner._control_headers[0]["Origin"], "https://shuma.example.com")
         self.assertEqual(runner._control_headers[0]["Referer"], "https://shuma.example.com/dashboard")
         self.assertGreaterEqual(runner._disabled_calls, 1)
+
+    def test_run_records_terminal_follow_on_judgment_and_episode_archive(self) -> None:
+        temp_dir = Path(tempfile.mkdtemp(prefix="live-feedback-loop-remote-"))
+        runner = _FakeLiveFeedbackLoopRemote(
+            temp_dir=temp_dir,
+            service_exec="/bin/bash /opt/shuma-gorath/scripts/run_with_oversight_supervisor.sh spin up",
+            require_terminal_post_sim_judgment=True,
+        )
+        runner._oversight_status_queue = [
+            runner._oversight_status_queue[0],
+            runner._oversight_status_queue[1],
+            runner._oversight_status_queue[2],
+            {
+                "schema_version": "oversight_agent_status_v1",
+                "execution_boundary": "shared_host_only",
+                "periodic_trigger": {
+                    "surface": "host_supervisor_wrapper",
+                    "wrapper_command": "scripts/run_with_oversight_supervisor.sh",
+                    "default_interval_seconds": 300,
+                },
+                "post_sim_trigger": {
+                    "surface": "internal_adversary_sim_completion_hook",
+                    "qualifying_completion": "transition_to_off_with_completed_run_id_and_generated_traffic",
+                    "dedupe_key": "sim_run_id",
+                },
+                "latest_run": {
+                    "run_id": "ovragent-periodic-2",
+                    "trigger_kind": "periodic_supervisor",
+                    "execution": {
+                        "decision": {"decision_id": "decision-periodic-2"},
+                        "apply": {"stage": "improved"},
+                        "reconcile": {
+                            "outcome": "recommend_patch",
+                            "latest_sim_run_id": "sim-run-1",
+                        },
+                    },
+                },
+                "latest_decision": {"decision_id": "decision-periodic-2"},
+                "episode_archive": {
+                    "schema_version": "oversight_episode_archive_v1",
+                    "homeostasis": {"status": "not_enough_completed_cycles"},
+                    "rows": [
+                        {
+                            "episode_id": "decision-periodic-2",
+                            "proposal_status": "accepted",
+                            "watch_window_result": "improved",
+                            "retain_or_rollback": "retained",
+                        }
+                    ],
+                },
+                "recent_runs": [
+                    {
+                        "run_id": "ovragent-periodic-2",
+                        "trigger_kind": "periodic_supervisor",
+                        "execution": {
+                            "decision": {"decision_id": "decision-periodic-2"},
+                            "apply": {"stage": "improved"},
+                            "reconcile": {
+                                "outcome": "recommend_patch",
+                                "latest_sim_run_id": "sim-run-1",
+                            },
+                        },
+                    },
+                    {
+                        "run_id": "ovragent-post-sim-1",
+                        "trigger_kind": "post_adversary_sim",
+                        "sim_run_id": "sim-run-1",
+                        "execution": {
+                            "decision": {"decision_id": "decision-post-sim-1"},
+                            "apply": {"stage": "watch_window_open"},
+                            "reconcile": {
+                                "outcome": "recommend_patch",
+                                "latest_sim_run_id": "sim-run-1",
+                            },
+                        },
+                    },
+                ],
+            },
+        ]
+        runner._history_queue = [
+            {
+                "schema_version": "oversight_history_v1",
+                "episode_archive": {
+                    "schema_version": "oversight_episode_archive_v1",
+                    "homeostasis": {"status": "not_enough_completed_cycles"},
+                    "rows": [
+                        {
+                            "episode_id": "decision-periodic-2",
+                            "proposal_status": "accepted",
+                            "watch_window_result": "improved",
+                            "retain_or_rollback": "retained",
+                        }
+                    ],
+                },
+                "rows": [
+                    {
+                        "decision_id": "decision-periodic-2",
+                        "trigger_source": "periodic_supervisor",
+                        "apply": {"stage": "improved"},
+                    },
+                    {
+                        "decision_id": "decision-post-sim-1",
+                        "trigger_source": "post_adversary_sim",
+                        "apply": {"stage": "watch_window_open"},
+                    },
+                ],
+            }
+        ]
+
+        exit_code = runner.run()
+
+        self.assertEqual(exit_code, 0)
+        report = json.loads(runner.report_path.read_text(encoding="utf-8"))
+        self.assertEqual(report["result"], "pass")
+        self.assertEqual(report["post_sim_trigger"]["apply_stage"], "watch_window_open")
+        self.assertEqual(report["post_sim_terminal"]["run_id"], "ovragent-periodic-2")
+        self.assertEqual(report["post_sim_terminal"]["decision_id"], "decision-periodic-2")
+        self.assertEqual(report["post_sim_terminal"]["apply_stage"], "improved")
+        self.assertEqual(
+            report["post_sim_terminal"]["episode_archive_latest"]["proposal_status"],
+            "accepted",
+        )
+        self.assertEqual(
+            report["post_sim_terminal"]["episode_archive_latest"]["watch_window_result"],
+            "improved",
+        )
+        self.assertEqual(
+            report["post_sim_terminal"]["episode_archive_latest"]["retain_or_rollback"],
+            "retained",
+        )
+        self.assertEqual(runner._periodic_trigger_calls, 2)
 
     def test_run_fails_when_completed_status_still_under_reports_generation_truth(self) -> None:
         temp_dir = Path(tempfile.mkdtemp(prefix="live-feedback-loop-remote-"))

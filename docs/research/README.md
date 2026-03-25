@@ -99,6 +99,8 @@ The directory is intentionally flat. Use this index, not nested folders, to dist
 - [`2026-03-24-mainline-resequence-scrapling-before-game-loop-review.md`](2026-03-24-mainline-resequence-scrapling-before-game-loop-review.md)
 - [`2026-03-24-rsi-game-mainline-first-working-loop-review.md`](2026-03-24-rsi-game-mainline-first-working-loop-review.md)
 - [`2026-03-24-rsi-game-mainline-1a-first-working-loop-post-implementation-review.md`](2026-03-24-rsi-game-mainline-1a-first-working-loop-post-implementation-review.md)
+- [`2026-03-24-rsi-game-mainline-1b-shared-host-verifier-review.md`](2026-03-24-rsi-game-mainline-1b-shared-host-verifier-review.md)
+- [`2026-03-24-rsi-game-mainline-1b-shared-host-verifier-post-implementation-review.md`](2026-03-24-rsi-game-mainline-1b-shared-host-verifier-post-implementation-review.md) - Closeout for extending the first working game-loop proof into the shared-host verifier behavior layer
 - [`2026-03-24-open-backlog-and-plan-reference-stance-alignment-review.md`](2026-03-24-open-backlog-and-plan-reference-stance-alignment-review.md)
 - [`2026-03-24-monitoring-multi-loop-benchmark-progress-review.md`](2026-03-24-monitoring-multi-loop-benchmark-progress-review.md)
 - [`2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-review.md`](2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-review.md)

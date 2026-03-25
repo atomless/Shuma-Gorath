@@ -1248,6 +1248,7 @@ test-rsi-game-mainline: ## Run focused first-working-loop mainline proof checks
 	@./scripts/set_crate_type.sh rlib
 	@cargo test adversary_sim_completion_triggers_post_sim_oversight_agent_once -- --nocapture
 	@cargo test post_sim_oversight_route_can_apply_improve_and_archive_first_working_game_loop -- --nocapture
+	@python3 -m unittest scripts.tests.test_live_feedback_loop_remote.LiveFeedbackLoopRemoteBehaviorTests.test_run_records_terminal_follow_on_judgment_and_episode_archive
 
 test-oversight-apply: ## Run focused closed-loop oversight canary apply and rollback checks
 	@echo "$(CYAN)🧪 Running oversight apply-loop checks...$(NC)"

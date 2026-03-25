@@ -48,6 +48,8 @@ ALLOWED_OVERSIGHT_APPLY_STAGES = {
     "refused",
     "rollback_applied",
 }
+TERMINAL_OVERSIGHT_APPLY_STAGES = {"improved", "rollback_applied"}
+ALLOWED_EPISODE_RETAIN_OR_ROLLBACK = {"retained", "rolled_back"}
 
 
 def _looks_like_timeout(exc: Exception) -> bool:
@@ -85,11 +87,13 @@ class LiveFeedbackLoopRemote:
         receipts_dir: Path,
         remote_name: str | None,
         report_path: Path,
+        require_terminal_post_sim_judgment: bool = False,
     ) -> None:
         self.env_file = env_file
         self.receipts_dir = receipts_dir
         self.receipt = select_remote(remote_name, env_file, receipts_dir)
         self.report_path = report_path
+        self.require_terminal_post_sim_judgment = require_terminal_post_sim_judgment
         self.transport_mode = self._select_transport_mode()
         self.local_env = read_env_file(env_file)
         self.remote_env: dict[str, str] | None = None
@@ -328,6 +332,49 @@ PY"""
                 f"{context} did not expose a valid oversight apply stage: {stage!r}"
             )
         return stage
+
+    def _recent_run_by_id(self, payload: dict[str, Any], run_id: str) -> dict[str, Any] | None:
+        for run in payload.get("recent_runs") or []:
+            if run.get("run_id") == run_id:
+                return run
+        return None
+
+    def _validated_episode_archive_latest(
+        self,
+        payload: dict[str, Any],
+        *,
+        context: str,
+    ) -> dict[str, Any]:
+        episode_archive = payload.get("episode_archive") or {}
+        if episode_archive.get("schema_version") != "oversight_episode_archive_v1":
+            raise SmokeFailure(
+                f"{context} did not expose oversight_episode_archive_v1."
+            )
+        rows = episode_archive.get("rows") or []
+        if not rows:
+            raise SmokeFailure(f"{context} did not expose a completed episode-archive row.")
+        latest = rows[0] or {}
+        proposal_status = str(latest.get("proposal_status") or "").strip()
+        watch_window_result = str(latest.get("watch_window_result") or "").strip()
+        retain_or_rollback = str(latest.get("retain_or_rollback") or "").strip()
+        if proposal_status != "accepted":
+            raise SmokeFailure(
+                f"{context} exposed an unexpected episode proposal_status: {proposal_status!r}"
+            )
+        if watch_window_result not in TERMINAL_OVERSIGHT_APPLY_STAGES:
+            raise SmokeFailure(
+                f"{context} exposed a non-terminal episode watch_window_result: {watch_window_result!r}"
+            )
+        if retain_or_rollback not in ALLOWED_EPISODE_RETAIN_OR_ROLLBACK:
+            raise SmokeFailure(
+                f"{context} exposed an unexpected episode retain_or_rollback value: {retain_or_rollback!r}"
+            )
+        return {
+            "episode_id": latest.get("episode_id"),
+            "proposal_status": proposal_status,
+            "watch_window_result": watch_window_result,
+            "retain_or_rollback": retain_or_rollback,
+        }
 
     def _adversary_status_summary(self, payload: dict[str, Any]) -> dict[str, Any]:
         generation = payload.get("generation") or {}
@@ -573,6 +620,72 @@ PY"""
             description=f"post-sim agent run for {sim_run_id}",
         )
 
+    def _resolve_terminal_post_sim_judgment(
+        self,
+        *,
+        sim_run_id: str,
+        post_sim_status: dict[str, Any],
+        post_sim_run: dict[str, Any],
+        initial_history: dict[str, Any],
+    ) -> dict[str, Any]:
+        post_sim_apply_stage = self._validated_apply_stage(
+            post_sim_run,
+            context=f"Post-sim oversight run for {sim_run_id}",
+        )
+        if post_sim_apply_stage in TERMINAL_OVERSIGHT_APPLY_STAGES:
+            terminal_status = post_sim_status
+            terminal_run = post_sim_run
+            terminal_history = initial_history
+        else:
+            follow_on = self._trigger_periodic_agent_run()
+            follow_on_run = follow_on.get("run") or {}
+            follow_on_run_id = str(follow_on_run.get("run_id") or "").strip()
+            if not follow_on_run_id:
+                raise SmokeFailure(
+                    f"Terminal follow-on judgment for {sim_run_id} did not return run_id."
+                )
+            terminal_status = self._wait_for_agent_run(follow_on_run_id)
+            terminal_run = self._recent_run_by_id(terminal_status, follow_on_run_id)
+            if terminal_run is None:
+                raise SmokeFailure(
+                    f"Terminal follow-on run {follow_on_run_id} for {sim_run_id} was not visible in recent runs."
+                )
+            terminal_history = self._fetch_oversight_history()
+
+        terminal_apply_stage = self._validated_apply_stage(
+            terminal_run,
+            context=f"Terminal follow-on oversight run for {sim_run_id}",
+        )
+        if terminal_apply_stage not in TERMINAL_OVERSIGHT_APPLY_STAGES:
+            raise SmokeFailure(
+                f"Terminal follow-on oversight run for {sim_run_id} did not reach a terminal apply stage: {terminal_apply_stage!r}"
+            )
+        history_rows = terminal_history.get("rows") or []
+        latest_history_row = history_rows[0] if history_rows else {}
+        history_apply_stage = (((latest_history_row.get("apply") or {}).get("stage")) or "")
+        if history_apply_stage and history_apply_stage not in ALLOWED_OVERSIGHT_APPLY_STAGES:
+            raise SmokeFailure(
+                f"Terminal oversight history exposed an invalid apply stage: {history_apply_stage!r}"
+            )
+        return {
+            "run_id": terminal_run.get("run_id"),
+            "decision_id": (
+                ((terminal_run.get("execution") or {}).get("decision") or {}).get("decision_id")
+            ),
+            "apply_stage": terminal_apply_stage,
+            "latest_status": self._oversight_status_summary(terminal_status),
+            "history_latest_decision_id": latest_history_row.get("decision_id"),
+            "history_latest_apply_stage": history_apply_stage or None,
+            "episode_archive_latest": self._validated_episode_archive_latest(
+                terminal_status,
+                context="Oversight status terminal episode archive",
+            ),
+            "history_episode_archive_latest": self._validated_episode_archive_latest(
+                terminal_history,
+                context="Oversight history terminal episode archive",
+            ),
+        }
+
     def _status_has_lane_generation(self, payload: dict[str, Any]) -> bool:
         lanes = ((payload.get("lane_diagnostics") or {}).get("lanes") or {})
         for lane_payload in lanes.values():
@@ -715,6 +828,13 @@ PY"""
                 "history_latest_apply_stage": history_apply_stage or None,
                 "latest_status": self._oversight_status_summary(post_sim_status),
             }
+            if self.require_terminal_post_sim_judgment:
+                report["post_sim_terminal"] = self._resolve_terminal_post_sim_judgment(
+                    sim_run_id=sim_run_id,
+                    post_sim_status=post_sim_status,
+                    post_sim_run=matching_post_run,
+                    initial_history=history,
+                )
             report["result"] = "pass"
             self._write_report(report)
             print(
