@@ -4,6 +4,33 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### MZ-T1: live Spin-path maze traversal coverage
+
+- [x] Added the focused live opaque maze traversal gate in:
+  - [`Makefile`](../Makefile) as `make test-maze-live-traversal-unit` and `make test-maze-live-traversal-contract`
+  - [`scripts/tests/maze_live_traversal.py`](../scripts/tests/maze_live_traversal.py)
+  - [`scripts/tests/test_maze_live_traversal.py`](../scripts/tests/test_maze_live_traversal.py)
+- [x] Proved the live Spin path for:
+  - opaque public maze entry discovery via admin preview,
+  - tokenized multi-hop follow,
+  - checkpoint-missing fallback with persisted reason/action evidence,
+  - checkpoint acceptance,
+  - hidden-link issuance via `issue-links`,
+  - continued traversal through a hidden link,
+  - replay escalation to block with persisted `maze_token_replay action=block`.
+- [x] Updated docs in:
+  - [`docs/maze.md`](../docs/maze.md)
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`docs/plans/README.md`](../docs/plans/README.md)
+- [x] Added the tranche paper trail in:
+  - [`docs/research/2026-03-24-mz-t1-live-maze-spin-integration-review.md`](../docs/research/2026-03-24-mz-t1-live-maze-spin-integration-review.md)
+  - [`docs/plans/2026-03-24-mz-t1-live-maze-spin-integration-plan.md`](../docs/plans/2026-03-24-mz-t1-live-maze-spin-integration-plan.md)
+  - [`docs/research/2026-03-24-mz-t1-live-maze-spin-integration-post-implementation-review.md`](../docs/research/2026-03-24-mz-t1-live-maze-spin-integration-post-implementation-review.md)
+- [x] Evidence:
+  - `make test-maze-live-traversal-contract`
+  - `git diff --check`
+
 ### TAH-19: tarpit persistence collateral-risk hardening
 
 - [x] Replaced bucket-driven punitive tarpit escalation with bounded exact-principal persistence tracking while preserving the coarse bucket view for operator visibility.

@@ -851,3 +851,10 @@ Use browser developer tools to inspect:
 - Network tab: headers, cookies, redirects
 - Application tab: `js_verified` cookie
 - Console: <abbr title="JavaScript">JS</abbr> errors
+### Maze live traversal
+
+- `make test-maze-live-traversal-unit`
+  - focused helper-contract proof for the live maze traversal gate
+- `make test-maze-live-traversal-contract`
+  - requires a running local Spin server
+  - proves opaque public maze entry, tokenized follow, checkpoint acceptance, hidden-link issuance, and persisted fallback reason/action evidence

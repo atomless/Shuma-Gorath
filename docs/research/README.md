@@ -110,6 +110,8 @@ The directory is intentionally flat. Use this index, not nested folders, to dist
 - [`2026-03-24-build-hygiene-1-native-warning-cleanup-post-implementation-review.md`](2026-03-24-build-hygiene-1-native-warning-cleanup-post-implementation-review.md) - Closeout for removing native test-build warning debt and adding a focused warning-hygiene make gate
 - [`2026-03-24-test-env-1-rust-env-isolation-post-implementation-review.md`](2026-03-24-test-env-1-rust-env-isolation-post-implementation-review.md) - Closeout for making `lock_env()` an executable repo-wide contract for env-mutating Rust tests
 - [`2026-03-24-ci-wf-1-node24-action-refresh-post-implementation-review.md`](2026-03-24-ci-wf-1-node24-action-refresh-post-implementation-review.md) - Closeout for moving the workflow pins onto the Node24-backed official action majors and adding a focused repo-local version contract
+- [`2026-03-24-mz-t1-live-maze-spin-integration-review.md`](2026-03-24-mz-t1-live-maze-spin-integration-review.md) - Pre-implementation review for the missing live Spin-path maze proof
+- [`2026-03-24-mz-t1-live-maze-spin-integration-post-implementation-review.md`](2026-03-24-mz-t1-live-maze-spin-integration-post-implementation-review.md) - Closeout for landing the focused live opaque maze traversal gate
 - [`2026-03-24-open-backlog-and-plan-reference-stance-alignment-review.md`](2026-03-24-open-backlog-and-plan-reference-stance-alignment-review.md)
 - [`2026-03-24-monitoring-multi-loop-benchmark-progress-review.md`](2026-03-24-monitoring-multi-loop-benchmark-progress-review.md)
 - [`2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-review.md`](2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-review.md)

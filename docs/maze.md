@@ -205,6 +205,7 @@ Preview safety guarantees:
 
 - `make test-maze-benchmark` runs deterministic asymmetry guardrails and prints benchmark deltas (`avg_page_bytes`, `host_set_ops`, `attacker_requests`, `attacker_pow_iterations`).
 - `make test` now includes this benchmark gate and fails on host-cost or asymmetry regressions.
+- `make test-maze-live-traversal-contract` proves the live Spin-path maze contract over opaque entry, tokenized traversal, checkpoint acceptance, `issue-links`, and persisted fallback reason/action evidence.
 
 ## 🐙 Notes
 
