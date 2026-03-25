@@ -4,6 +4,32 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### TEST-HYGIENE-6B: live wrapper and integration cleanup contract reclassification
+
+- [x] Split the local live feedback-loop verifier proof in [`scripts/tests/test_live_feedback_loop_remote.py`](../scripts/tests/test_live_feedback_loop_remote.py) into:
+  - `LiveFeedbackLoopRemoteBehaviorTests`
+  - `LiveFeedbackLoopRemoteContractTests`
+- [x] Added the new focused contract target in [`Makefile`](../Makefile):
+  - `make test-live-feedback-loop-remote-contracts`
+- [x] Narrowed `make test-live-feedback-loop-remote-unit` so it now proves local verifier behavior instead of quietly bundling remote wrapper/process-tree contract checks.
+- [x] Renamed the retained integration cleanup shell-shape lane in [`Makefile`](../Makefile) from:
+  - `test-integration-script-unit`
+  to:
+  - `test-integration-cleanup-contract`
+- [x] Updated [`make test`](../Makefile) and [`make test-integration`](../Makefile) to call the renamed explicit contract lane before the real Spin HTTP integration run.
+- [x] Updated the current testing paper trail in:
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`docs/plans/2026-03-23-testing-surface-rationalization-plan.md`](../docs/plans/2026-03-23-testing-surface-rationalization-plan.md)
+  - [`docs/research/2026-03-24-test-hygiene-6b-live-wrapper-and-integration-contract-post-implementation-review.md`](../docs/research/2026-03-24-test-hygiene-6b-live-wrapper-and-integration-contract-post-implementation-review.md)
+- [x] Why:
+  - the audit and follow-on plan called out one remaining mixed lane where wrapper/service-tree contract proof still lived inside live feedback-loop behavior proof
+  - the integration cleanup shell check was acceptable to retain, but it needed a make target name that told the truth about being explicit contract proof
+- [x] Evidence:
+  - `make test-live-feedback-loop-remote-unit`
+  - `make test-live-feedback-loop-remote-contracts`
+  - `make test-integration-cleanup-contract`
+  - `git diff --check`
+
 ### Planning: tighten the later LLM attacker to true outside-attacker public knowledge
 
 - [x] Refined the later LLM attacker contract in:

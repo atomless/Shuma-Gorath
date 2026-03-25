@@ -16,6 +16,9 @@ make test-gateway-profile-shared-server # Shared-server gateway contract + forwa
 make test-gateway-profile-edge # Edge/Fermyon gateway contract + signed-header origin-auth checks
 make test-remote-edge-signal-smoke # Live shared-host trusted-edge proof (ssh-managed remote)
 make test-live-feedback-loop-remote # Live shared-host feedback-loop proof (active ssh-managed remote)
+make test-live-feedback-loop-remote-unit # Local behavior proof for the live feedback-loop verifier
+make test-live-feedback-loop-remote-contracts # Local wrapper/process-tree and remote-wiring contract proof for the live feedback-loop verifier
+make test-integration-cleanup-contract # Local integration shell cleanup/restore contract proof
 make smoke-gateway-mode # Fast gateway smoke (allow forward, enforcement-local, fail-closed outage)
 make test-adversarial-manifest # Validate adversarial scenario manifest + fixture references
 make test-adversarial-coverage-contract # Validate canonical full_coverage contract parity (plan + manifests + runner)
@@ -120,6 +123,8 @@ Notes:
 - Integration tests require a running Spin server; targeted integration-only commands can run against `make dev` or `make dev-prod`, but the full umbrella `make test` contract requires `make dev` (`runtime-dev`).
 - `make test` is the canonical local and CI pre-merge suite. It intentionally does not include live hosted or ssh-managed operational proofs.
 - Live hosted/shared-host proof is a separate tier. Use `make test-live-feedback-loop-remote`, `make test-remote-edge-signal-smoke`, or `make test-dashboard-e2e-external` when you need deployment-level evidence.
+- `make test-live-feedback-loop-remote-unit` now proves the verifier's local behavior only. Use `make test-live-feedback-loop-remote-contracts` when you intentionally want the retained wrapper and remote wiring contract lane.
+- `make test-integration` and `make test` now call `make test-integration-cleanup-contract` before the real Spin HTTP integration run, so the retained shell-shape guard stays explicit about being contract proof.
 - `make test`, `make test-integration`, and `make test-dashboard-e2e` wait for `/health` readiness before failing.
 - `make test` now also checks `/admin/session` and fails fast if the running server is `runtime-prod`, because the full adversarial/dashboard contract is defined against `make dev`.
 - `make test` includes maze asymmetry benchmark gating, the adversary runtime-surface gate, the mandatory fast adversarial matrix (`smoke + abuse + Akamai`), SIM2 realtime/advisory gates, and Playwright dashboard e2e. If Docker is unavailable, the container black-box lane degrades to the advisory SIM2 verification matrix path instead of hard-failing the umbrella run.

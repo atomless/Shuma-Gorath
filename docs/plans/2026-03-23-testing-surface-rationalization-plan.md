@@ -60,6 +60,10 @@ Verification:
 
 ### TEST-HYGIENE-6B: Replace or reclassify shell-wrapper archaeology outside explicit contract lanes
 
+Status:
+
+- delivered on 2026-03-24
+
 Objective:
 
 - reduce low-signal source archaeology that currently sits inside feature-proof targets,

@@ -339,7 +339,7 @@ class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemo
         self._disabled_calls += 1
 
 
-class LiveFeedbackLoopRemoteTests(unittest.TestCase):
+class LiveFeedbackLoopRemoteBehaviorTests(unittest.TestCase):
     def test_run_writes_success_report_for_periodic_and_post_sim_flow(self) -> None:
         temp_dir = Path(tempfile.mkdtemp(prefix="live-feedback-loop-remote-"))
         runner = _FakeLiveFeedbackLoopRemote(
@@ -403,6 +403,25 @@ class LiveFeedbackLoopRemoteTests(unittest.TestCase):
         report = json.loads(runner.report_path.read_text(encoding="utf-8"))
         self.assertEqual(report["result"], "fail")
         self.assertIn("under-reported completion counters", report["error"])
+
+
+class LiveFeedbackLoopRemoteContractTests(unittest.TestCase):
+    def test_run_fails_when_periodic_wrapper_command_differs_from_contract(self) -> None:
+        temp_dir = Path(tempfile.mkdtemp(prefix="live-feedback-loop-remote-"))
+        runner = _FakeLiveFeedbackLoopRemote(
+            temp_dir=temp_dir,
+            service_exec="/bin/bash /opt/shuma-gorath/scripts/run_with_oversight_supervisor.sh spin up",
+        )
+        runner._oversight_status_queue[0]["periodic_trigger"]["wrapper_command"] = (
+            "scripts/run_with_adversary_sim_supervisor.sh"
+        )
+
+        exit_code = runner.run()
+
+        self.assertEqual(exit_code, 1)
+        report = json.loads(runner.report_path.read_text(encoding="utf-8"))
+        self.assertEqual(report["result"], "fail")
+        self.assertIn("Unexpected periodic wrapper command", report["error"])
 
     def test_run_fails_when_remote_service_does_not_use_oversight_wrapper(self) -> None:
         temp_dir = Path(tempfile.mkdtemp(prefix="live-feedback-loop-remote-"))
