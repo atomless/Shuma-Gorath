@@ -63,6 +63,7 @@ make test-operator-objectives-contract # Focused operator objectives, decision-l
 make test-operator-objectives-category-contract # Focused category-aware operator-objectives contract checks
 make test-benchmark-category-eligibility # Focused category-aware benchmark eligibility and comparison checks
 make test-rsi-game-contract # Focused recursive self-improvement game-contract surface checks
+make test-rsi-scorecard # Focused recursive self-improvement judge scorecard checks
 make test-oversight-move-selection-policy # Focused recursive-improvement shortfall and move-selection policy checks
 make test-replay-promotion-contract # Focused replay-promotion lineage and governance checks
 make test-adversarial-runner-architecture # Focused adversarial runner CLI, unit, and validate-only checks
@@ -307,6 +308,7 @@ Structural refactor proof map:
 - `make test-benchmark-comparison-contract` is the focused benchmark helper gate for explicit baseline-availability, improvement-status, and escalation comparison semantics.
 - `make test-operator-objectives-contract` is the focused objective-profile and decision-evidence gate for persisted `operator_objectives_v1`, the operator-objectives admin endpoint, the bounded decision ledger, and snapshot wiring.
 - `make test-rsi-game-contract` is the focused `RSI-GAME-1A` gate for the canonical `game_contract_v1`, the explicit legal-move-ring role on `allowed_actions_v1`, and the projection of that same contract through machine-first snapshot and oversight surfaces.
+- `make test-rsi-scorecard` is the focused `RSI-SCORE-1` gate for the canonical judge scorecard partition over optimization targets, hard guardrails, regression anchors, explanatory diagnostics, and homeostasis inputs projected through the same machine-first snapshot and oversight surfaces.
 - `make test-oversight-move-selection-policy` is the focused `RSI-GAME-1B` gate for explicit benchmark shortfall guidance, ordered legal-family selection, and reconcile honoring benchmark-side recommended family guidance before bounded patch shaping.
 - `make test-verified-identity-calibration-readiness` is the focused bridge gate before `VID-TAX-1` through `VID-GUARD-1`; it proves the current verified-identity taxonomy, snapshot, benchmark, and reconcile seams without over-claiming future alignment or conflict behavior.
 - `make test-verified-identity-taxonomy-crosswalk` is the truthful narrow gate for `VID-TAX-1`; it proves the verified-identity category crosswalk lands in request-outcome telemetry and the machine-first non-human snapshot path before later alignment or botness-conflict tranches.

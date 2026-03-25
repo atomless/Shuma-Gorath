@@ -772,6 +772,15 @@ mod tests {
         let payload: serde_json::Value =
             serde_json::from_slice(response.body()).expect("payload decodes");
         assert_eq!(payload["game_contract"]["schema_version"], "game_contract_v1");
+        assert_eq!(
+            payload["game_contract"]["judge_scorecard"]["scorecard_surface_schema_version"],
+            "judge_scorecard_v1"
+        );
+        assert!(payload["game_contract"]["judge_scorecard"]["optimization_targets"]
+            .as_array()
+            .expect("optimization targets")
+            .iter()
+            .any(|entry| entry["scorecard_id"] == "family:representative_adversary_effectiveness"));
         assert_eq!(payload["reconcile"]["outcome"], "observe_longer");
         assert_eq!(payload["validation"]["status"], "skipped");
 
@@ -785,6 +794,10 @@ mod tests {
             serde_json::from_slice(history_response.body()).expect("history decodes");
         assert_eq!(history_payload["schema_version"], "oversight_history_v1");
         assert_eq!(history_payload["game_contract"]["schema_version"], "game_contract_v1");
+        assert_eq!(
+            history_payload["game_contract"]["judge_scorecard"]["homeostasis_inputs"]["cycle_window"],
+            "last_10_completed_cycles"
+        );
         assert_eq!(history_payload["rows"].as_array().expect("rows array").len(), 1);
     }
 

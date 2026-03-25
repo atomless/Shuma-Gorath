@@ -9,6 +9,8 @@ use crate::runtime::non_human_taxonomy::{
 pub(crate) const OPERATOR_OBJECTIVES_SCHEMA_VERSION: &str = "operator_objectives_v1";
 pub(crate) const RECURSIVE_IMPROVEMENT_GAME_CONTRACT_SCHEMA_VERSION: &str =
     "game_contract_v1";
+pub(crate) const RECURSIVE_IMPROVEMENT_JUDGE_SCORECARD_SCHEMA_VERSION: &str =
+    "judge_scorecard_v1";
 
 const SITE_DEFAULT_OBJECTIVE_PROFILE_ID: &str = "site_default_v1";
 pub(super) const DEFAULT_WINDOW_HOURS: u64 = 24;
@@ -126,12 +128,43 @@ pub(crate) struct RecursiveImprovementGameRegressionAnchors {
     pub anchor_sources: Vec<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct RecursiveImprovementJudgeScorecardEntry {
+    pub scorecard_id: String,
+    pub subject_kind: String,
+    pub source_surface: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub metric_ids: Vec<String>,
+    pub evaluation_mode: String,
+    pub note: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct RecursiveImprovementJudgeHomeostasisInputs {
+    pub cycle_window: String,
+    pub comparison_basis: String,
+    pub status_surface: String,
+    pub required_scorecard_entry_ids: Vec<String>,
+    pub held_out_override_surface: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub(crate) struct RecursiveImprovementJudgeScorecard {
+    pub scorecard_surface_schema_version: String,
+    pub optimization_targets: Vec<RecursiveImprovementJudgeScorecardEntry>,
+    pub hard_guardrails: Vec<RecursiveImprovementJudgeScorecardEntry>,
+    pub regression_anchors: Vec<RecursiveImprovementJudgeScorecardEntry>,
+    pub explanatory_diagnostics: Vec<RecursiveImprovementJudgeScorecardEntry>,
+    pub homeostasis_inputs: RecursiveImprovementJudgeHomeostasisInputs,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub(crate) struct RecursiveImprovementGameContract {
     pub schema_version: String,
     pub contract_revision: String,
     pub rules: RecursiveImprovementGameRules,
     pub fixed_payoffs: RecursiveImprovementGameFixedPayoffs,
+    pub judge_scorecard: RecursiveImprovementJudgeScorecard,
     pub legal_moves: RecursiveImprovementGameLegalMoves,
     pub safety_gates: RecursiveImprovementGameSafetyGates,
     pub regression_anchors: RecursiveImprovementGameRegressionAnchors,
@@ -147,13 +180,15 @@ pub(crate) fn recursive_improvement_game_contract_v1(
     objectives: &OperatorObjectivesProfile,
     allowed_actions: &AllowedActionsSurface,
 ) -> RecursiveImprovementGameContract {
+    let judge_scorecard = recursive_improvement_judge_scorecard_v1(objectives);
     RecursiveImprovementGameContract {
         schema_version: RECURSIVE_IMPROVEMENT_GAME_CONTRACT_SCHEMA_VERSION.to_string(),
         contract_revision: format!(
-            "{}:{}:{}",
+            "{}:{}:{}:{}",
             objectives.revision,
             allowed_actions.schema_version,
-            allowed_actions.controller_mutability_schema_version
+            allowed_actions.controller_mutability_schema_version,
+            judge_scorecard.scorecard_surface_schema_version
         ),
         rules: RecursiveImprovementGameRules {
             immutable_rule_surface: "operator_objectives_v1".to_string(),
@@ -175,6 +210,7 @@ pub(crate) fn recursive_improvement_game_contract_v1(
                 .collect(),
             category_target_family: "non_human_category_posture".to_string(),
         },
+        judge_scorecard,
         legal_moves: RecursiveImprovementGameLegalMoves {
             game_role: allowed_actions.game_role.clone(),
             immutable_rule_surface: allowed_actions.immutable_rule_surface.clone(),
@@ -219,6 +255,177 @@ pub(crate) fn recursive_improvement_game_contract_v1(
             ],
         },
     }
+}
+
+fn recursive_improvement_judge_scorecard_v1(
+    objectives: &OperatorObjectivesProfile,
+) -> RecursiveImprovementJudgeScorecard {
+    let mut optimization_targets = objective_budget_scorecard_entries(objectives);
+    optimization_targets.push(RecursiveImprovementJudgeScorecardEntry {
+        scorecard_id: "family:representative_adversary_effectiveness".to_string(),
+        subject_kind: "benchmark_family".to_string(),
+        source_surface:
+            "benchmark_results_v1.families.representative_adversary_effectiveness".to_string(),
+        metric_ids: vec![
+            "scenario_goal_success_rate".to_string(),
+            "scenario_escalation_rate".to_string(),
+        ],
+        evaluation_mode: "minimize_goal_success_and_preserve_escalation".to_string(),
+        note: "The judge must treat representative adversary success as a primary optimization target so the loop cannot improve only by shifting collateral cost onto humans or tolerated traffic."
+            .to_string(),
+    });
+    optimization_targets.push(RecursiveImprovementJudgeScorecardEntry {
+        scorecard_id: "family:non_human_category_posture".to_string(),
+        subject_kind: "benchmark_family".to_string(),
+        source_surface: "benchmark_results_v1.families.non_human_category_posture".to_string(),
+        metric_ids: objectives
+            .category_postures
+            .iter()
+            .map(|row| format!("category_posture_alignment:{}", row.category_id.as_str()))
+            .collect(),
+        evaluation_mode: "maximize_category_target_achievement".to_string(),
+        note: "Taxonomy-category target achievement remains a first-class optimization target even though it is expressed as achieved-vs-target outcomes rather than numeric resource budgets."
+            .to_string(),
+    });
+
+    let hard_guardrails = vec![
+        RecursiveImprovementJudgeScorecardEntry {
+            scorecard_id: "guardrail:beneficial_non_human_posture".to_string(),
+            subject_kind: "benchmark_family".to_string(),
+            source_surface:
+                "benchmark_results_v1.families.beneficial_non_human_posture".to_string(),
+            metric_ids: vec![
+                "friction_mismatch_rate".to_string(),
+                "deny_mismatch_rate".to_string(),
+                "taxonomy_alignment_mismatch_rate".to_string(),
+                "verified_botness_conflict_rate".to_string(),
+                "user_triggered_agent_friction_mismatch_rate".to_string(),
+            ],
+            evaluation_mode: "hard_no_harm_gate".to_string(),
+            note: "Verified and tolerated non-human traffic must remain protected by explicit no-harm gates rather than being traded away for better hostile-bot pressure."
+                .to_string(),
+        },
+        RecursiveImprovementJudgeScorecardEntry {
+            scorecard_id: "guardrail:protected_evidence_required".to_string(),
+            subject_kind: "guardrail_surface".to_string(),
+            source_surface:
+                "benchmark_results_v1.tuning_eligibility+replay_promotion_v1".to_string(),
+            metric_ids: vec![
+                "tuning_eligibility.status".to_string(),
+                "replay_promotion.availability".to_string(),
+            ],
+            evaluation_mode: "hard_evidence_gate".to_string(),
+            note: "The judge must refuse player-side progress claims when protected evidence and replay-promotion prerequisites are not satisfied."
+                .to_string(),
+        },
+    ];
+
+    let regression_anchors = vec![
+        RecursiveImprovementJudgeScorecardEntry {
+            scorecard_id: "anchor:likely_human_friction".to_string(),
+            subject_kind: "regression_anchor".to_string(),
+            source_surface: "benchmark_results_v1.families.likely_human_friction".to_string(),
+            metric_ids: vec!["likely_human_friction_rate".to_string()],
+            evaluation_mode: "must_not_regress".to_string(),
+            note: "Likely-human friction remains both an optimization target and a regression anchor so later broader search cannot normalize human harm."
+                .to_string(),
+        },
+        RecursiveImprovementJudgeScorecardEntry {
+            scorecard_id: "anchor:verified_identity_no_harm".to_string(),
+            subject_kind: "regression_anchor".to_string(),
+            source_surface:
+                "benchmark_results_v1.families.beneficial_non_human_posture".to_string(),
+            metric_ids: vec![
+                "friction_mismatch_rate".to_string(),
+                "deny_mismatch_rate".to_string(),
+                "verified_botness_conflict_rate".to_string(),
+            ],
+            evaluation_mode: "must_not_regress".to_string(),
+            note: "Verified-identity no-harm obligations remain a regression anchor even when later episodes optimize more permissive product stances."
+                .to_string(),
+        },
+        RecursiveImprovementJudgeScorecardEntry {
+            scorecard_id: "anchor:protected_evidence_required".to_string(),
+            subject_kind: "regression_anchor".to_string(),
+            source_surface:
+                "benchmark_results_v1.tuning_eligibility+replay_promotion_v1".to_string(),
+            metric_ids: vec![
+                "tuning_eligibility.status".to_string(),
+                "replay_promotion.availability".to_string(),
+            ],
+            evaluation_mode: "must_remain_satisfied".to_string(),
+            note: "Protected evidence and replay-promotion readiness remain a regression anchor so later automation cannot quietly degrade the truth basis of evaluation."
+                .to_string(),
+        },
+    ];
+
+    let explanatory_diagnostics = vec![
+        RecursiveImprovementJudgeScorecardEntry {
+            scorecard_id: "diagnostic:non_human_classification_readiness".to_string(),
+            subject_kind: "diagnostic_surface".to_string(),
+            source_surface: "benchmark_results_v1.non_human_classification".to_string(),
+            metric_ids: vec!["status".to_string(), "blockers".to_string()],
+            evaluation_mode: "explain_but_do_not_optimize_directly".to_string(),
+            note: "Classification readiness explains why the loop may refuse to act, but it is not itself a direct episode reward."
+                .to_string(),
+        },
+        RecursiveImprovementJudgeScorecardEntry {
+            scorecard_id: "diagnostic:non_human_coverage_summary".to_string(),
+            subject_kind: "diagnostic_surface".to_string(),
+            source_surface: "benchmark_results_v1.non_human_coverage".to_string(),
+            metric_ids: vec!["status".to_string(), "covered_categories".to_string()],
+            evaluation_mode: "explain_but_do_not_optimize_directly".to_string(),
+            note: "Coverage diagnostics explain confidence and representativeness, but they should not collapse into the reward signal in place of observed outcome truth."
+                .to_string(),
+        },
+    ];
+
+    let mut required_scorecard_entry_ids = optimization_targets
+        .iter()
+        .map(|entry| entry.scorecard_id.clone())
+        .collect::<Vec<_>>();
+    required_scorecard_entry_ids.extend(
+        hard_guardrails
+            .iter()
+            .map(|entry| entry.scorecard_id.clone()),
+    );
+
+    RecursiveImprovementJudgeScorecard {
+        scorecard_surface_schema_version:
+            RECURSIVE_IMPROVEMENT_JUDGE_SCORECARD_SCHEMA_VERSION.to_string(),
+        optimization_targets,
+        hard_guardrails,
+        regression_anchors,
+        explanatory_diagnostics,
+        homeostasis_inputs: RecursiveImprovementJudgeHomeostasisInputs {
+            cycle_window: "last_10_completed_cycles".to_string(),
+            comparison_basis: "prior_window_and_baseline_reference".to_string(),
+            status_surface: "benchmark_results_v1.overall_status+improvement_status"
+                .to_string(),
+            required_scorecard_entry_ids,
+            held_out_override_surface: "held_out_eval_ring_v1".to_string(),
+        },
+    }
+}
+
+fn objective_budget_scorecard_entries(
+    objectives: &OperatorObjectivesProfile,
+) -> Vec<RecursiveImprovementJudgeScorecardEntry> {
+    objectives
+        .budgets
+        .iter()
+        .map(|budget| RecursiveImprovementJudgeScorecardEntry {
+            scorecard_id: format!("budget:{}", budget.budget_id),
+            subject_kind: "numeric_budget".to_string(),
+            source_surface: format!("operator_objectives_v1.budgets:{}", budget.budget_id),
+            metric_ids: vec![budget.metric.clone()],
+            evaluation_mode: "optimize_within_numeric_budget".to_string(),
+            note: format!(
+                "Budget `{}` remains a primary judge target over `{}` for `{}`.",
+                budget.budget_id, budget.metric, budget.eligible_population
+            ),
+        })
+        .collect()
 }
 
 pub(crate) fn default_operator_objectives(updated_at_ts: u64) -> OperatorObjectivesProfile {
@@ -686,9 +893,56 @@ mod tests {
             contract.safety_gates.automated_apply_status,
             objectives.rollout_guardrails.automated_apply_status
         );
+        assert_eq!(
+            contract.judge_scorecard.scorecard_surface_schema_version,
+            "judge_scorecard_v1"
+        );
+        assert_eq!(
+            contract.judge_scorecard.optimization_targets.len(),
+            objectives.budgets.len() + 2
+        );
+        assert!(contract
+            .judge_scorecard
+            .optimization_targets
+            .iter()
+            .any(|entry| entry.scorecard_id == "budget:likely_human_friction"));
+        assert!(contract
+            .judge_scorecard
+            .optimization_targets
+            .iter()
+            .any(|entry| entry.scorecard_id == "family:representative_adversary_effectiveness"));
+        assert!(contract
+            .judge_scorecard
+            .hard_guardrails
+            .iter()
+            .any(|entry| entry.scorecard_id == "guardrail:beneficial_non_human_posture"));
+        assert!(contract
+            .judge_scorecard
+            .hard_guardrails
+            .iter()
+            .any(|entry| entry.scorecard_id == "guardrail:protected_evidence_required"));
         assert!(contract
             .regression_anchors
             .anchor_ids
             .contains(&"likely_human_friction".to_string()));
+        assert!(contract
+            .judge_scorecard
+            .regression_anchors
+            .iter()
+            .any(|entry| entry.scorecard_id == "anchor:verified_identity_no_harm"));
+        assert_eq!(
+            contract.judge_scorecard.homeostasis_inputs.cycle_window,
+            "last_10_completed_cycles"
+        );
+        assert!(contract
+            .judge_scorecard
+            .homeostasis_inputs
+            .required_scorecard_entry_ids
+            .contains(&"budget:likely_human_friction".to_string()));
+        assert!(contract
+            .judge_scorecard
+            .homeostasis_inputs
+            .required_scorecard_entry_ids
+            .contains(&"family:non_human_category_posture".to_string()));
     }
 }

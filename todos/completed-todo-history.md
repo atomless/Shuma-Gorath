@@ -4,6 +4,39 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### RSI-SCORE-1: Canonical judge scorecard for recursive-improvement episodes
+
+- [x] Made the judge score semantics explicit inside the canonical game contract in:
+  - [`src/observability/operator_snapshot_objectives.rs`](../src/observability/operator_snapshot_objectives.rs)
+  so `game_contract_v1` now carries `judge_scorecard_v1` with explicit partitions for:
+  - optimization targets
+  - hard guardrails
+  - regression anchors
+  - explanatory diagnostics
+  - homeostasis inputs
+- [x] Projected that same scorecard through the machine-first snapshot and oversight read surfaces in:
+  - [`src/observability/operator_snapshot.rs`](../src/observability/operator_snapshot.rs)
+  - [`src/admin/oversight_api.rs`](../src/admin/oversight_api.rs)
+  so later controller phases, preview reconcile, and history consumers all inherit one settled judge contract instead of reconstructing it from benchmark families and guardrail prose.
+- [x] Added the focused proof path and updated the contract paper trail in:
+  - [`Makefile`](../Makefile)
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`docs/api.md`](../docs/api.md)
+  - [`docs/configuration.md`](../docs/configuration.md)
+  - [`docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md`](../docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md)
+  - [`docs/research/2026-03-24-rsi-score-1-judge-scorecard-post-implementation-review.md`](../docs/research/2026-03-24-rsi-score-1-judge-scorecard-post-implementation-review.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+- [x] Why:
+  - the repo already had a sacred evaluator,
+  - but the score semantics were still implicit across budgets, benchmark families, and guardrail surfaces,
+  - and later recursive phases needed one reviewable answer to what the judge is optimizing, what it must not trade away, and what feeds homeostasis.
+- [x] Evidence:
+  - `make test-rsi-scorecard`
+  - `make test-rsi-game-contract`
+  - `git diff --check`
+
 ### RSI-GAME-1B: Canonical shortfall-attribution and move-selection policy
 
 - [x] Replaced the coarse benchmark-family bridge with explicit benchmark-side shortfall guidance in:

@@ -553,6 +553,22 @@ mod tests {
             payload.game_contract.legal_moves.allowed_actions_schema_version,
             "allowed_actions_v1"
         );
+        assert_eq!(
+            payload.game_contract.judge_scorecard.scorecard_surface_schema_version,
+            "judge_scorecard_v1"
+        );
+        assert!(payload
+            .game_contract
+            .judge_scorecard
+            .optimization_targets
+            .iter()
+            .any(|entry| entry.scorecard_id == "budget:suspicious_forwarded_requests"));
+        assert!(payload
+            .game_contract
+            .judge_scorecard
+            .hard_guardrails
+            .iter()
+            .any(|entry| entry.scorecard_id == "guardrail:beneficial_non_human_posture"));
         assert_eq!(payload.objectives.category_postures.len(), 8);
         assert_eq!(
             payload
