@@ -4,6 +4,46 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-25)
 
+### SIM-SCR-CAP-1: Freeze the attacker-relevant upstream Scrapling capability matrix
+
+- [x] Added the matrix review and plan in:
+  - [`docs/research/2026-03-25-sim-scr-cap-1-upstream-capability-matrix-review.md`](../docs/research/2026-03-25-sim-scr-cap-1-upstream-capability-matrix-review.md)
+  - [`docs/plans/2026-03-25-sim-scr-cap-1-capability-matrix-plan.md`](../docs/plans/2026-03-25-sim-scr-cap-1-capability-matrix-plan.md)
+- [x] Froze the current official-upstream-vs-Shuma capability matrix over:
+  - request-native impersonation and header shaping,
+  - request-native session and crawl mechanics,
+  - request-native proxy support,
+  - dynamic browser automation,
+  - stealth browser automation,
+  - and the current explicit exclusions and lane assignments
+  so the repo now has one canonical omission ledger instead of vague “maybe later” Scrapling expansion language.
+- [x] Updated the active and blocked backlog in:
+  - [`todos/todo.md`](../todos/todo.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+  so `SIM-SCR-CAP-1` is closed, `SIM-SCR-RN-1` is now the next active implementation slice, and browser or stealth follow-ons remain explicit rather than hand-waved.
+- [x] Updated the sequencing chain in:
+  - [`docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](../docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md)
+  - [`docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md`](../docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md)
+  so the next concrete step is request-native attacker fidelity, not an automatic browser-runtime jump.
+- [x] Updated the indexes in:
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`docs/plans/README.md`](../docs/plans/README.md)
+- [x] Why:
+  - upstream Scrapling exposes materially more than Shuma currently uses,
+  - but the current owned-surface contract still says Shuma's immediate gap is inside the request-native lane,
+  - so the next honest implementation slice is attacker-faithful request-native session and fingerprint shaping.
+- [x] Evidence:
+  - official upstream docs:
+    - [HTTP requests - Scrapling](https://scrapling.readthedocs.io/en/latest/fetching/static/)
+    - [Fetching dynamic websites - Scrapling](https://scrapling.readthedocs.io/en/latest/fetching/dynamic.html)
+    - [Dynamic websites with hard protections - Scrapling](https://scrapling.readthedocs.io/en/latest/fetching/stealthy/)
+  - local implementation refs:
+    - [`scripts/bootstrap/scrapling_runtime.sh`](../scripts/bootstrap/scrapling_runtime.sh)
+    - [`scripts/supervisor/scrapling_worker.py`](../scripts/supervisor/scrapling_worker.py)
+    - [`src/observability/non_human_lane_fulfillment.rs`](../src/observability/non_human_lane_fulfillment.rs)
+    - [`src/observability/scrapling_owned_surface.rs`](../src/observability/scrapling_owned_surface.rs)
+  - `git diff --check`
+
 ### UI-SCR-EVID-1: Receipt-backed Scrapling attack evidence in the dashboard
 
 - [x] Added the tranche paper trail in:

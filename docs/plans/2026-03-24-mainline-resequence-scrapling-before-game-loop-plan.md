@@ -73,36 +73,19 @@
 
 ## Recommended Implementation Order
 
-The optimal order is:
+The optimal order is now:
 
-1. `SIM-SCR-CHALLENGE-2A`
-   - freeze the owned defense-surface matrix and define which surfaces Scrapling must touch, fail, or be able to pass
-2. `SIM-SCR-CHALLENGE-2B`
-   - implement malicious request-native Scrapling behavior for the owned surfaces that remain request-native
-3. `SIM-SCR-CHALLENGE-2D`
-   - prove receipt-backed coverage, including explicit remaining-gap assignment where Scrapling does not own a surface
-4. `SIM-SCR-CHALLENGE-2C`
-   - only if `2D` proves a remaining Scrapling-owned surface still needs browser or stealth Scrapling
-5. `CTRL-SURFACE-1`
-6. `CTRL-SURFACE-2`
-7. `CTRL-SURFACE-3`
-   - freeze the legal move ring before broadening the self-improving loop
-8. `RSI-GAME-1A`
-9. `RSI-GAME-1B`
-10. `RSI-SCORE-1`
-11. `RSI-GAME-1C`
-   - complete the judge-side game contract and episode/archive machinery
-12. `RSI-GAME-MAINLINE-1A`
-   - prove the first working self-improving loop over the now-truthful Scrapling attacker basis through the real post-sim route path
-13. `RSI-GAME-MAINLINE-1B`
-   - extend that proof into the next strongest truthful operational harness
-14. after that, take the next backend contract slices before returning to deferred dashboard cleanup:
-   - `SIM-LLM-1A`
-   - `SIM-LLM-1B`
-15. only after that, return to deferred dashboard follow-ons and the remaining later LLM runtime work:
+1. `SIM-SCR-CAP-1`
+   - freeze the attacker-relevant upstream capability matrix and omission ledger for current Scrapling-owned surfaces
+2. `SIM-SCR-RN-1`
+   - implement the remaining request-native attacker-fidelity uplift inside the current Scrapling lane
+3. `SIM-SCR-CHALLENGE-2C`
+   - only if a later owned-surface decision or the request-native uplift proves browser or stealth Scrapling is still required
+4. `SIM-LLM-1C`
+   - intentionally reopen the later full LLM attacker runtime only after the first truthful request-native attacker lane is no longer cosmetically internal
+5. only after that, return to deferred dashboard follow-ons and the remaining later LLM runtime work:
    - `MON-OVERHAUL-1C`
    - `DIAG-CLEANUP-1`
-   - `SIM-LLM-1B..1C`
    - `OVR-AGENT-2A..2C`
 
 Dashboard/operator-surface cleanup can wait because it does not change the truthfulness of the attacker side or the legality and judgment of the loop itself.
@@ -112,5 +95,6 @@ Current note:
 1. `RSI-GAME-1A`, `RSI-GAME-1B`, `RSI-SCORE-1`, and `RSI-GAME-1C` are now landed.
 2. `RSI-GAME-MAINLINE-1A` and `RSI-GAME-MAINLINE-1B` are now landed, so the first working game-loop proof lane is complete.
 3. [`TEST-MAINLINE-1`](2026-03-25-testing-suite-structure-and-mainline-friction-plan.md) is now landed, so the active attacker-faithful Scrapling -> game-loop path has one obvious low-friction verification bundle.
-4. `SIM-LLM-1A` and `SIM-LLM-1B` are now landed, but the later full attacker runtime remains explicitly downstream of the active Scrapling capability-maintenance lane and any resulting broader browser or stealth adoption for Scrapling-owned surfaces.
-5. `MON-OVERHAUL-1C` and `DIAG-CLEANUP-1` are now both landed, so no further unblocked work remains in the deferred Game Loop and Diagnostics cleanup lane.
+4. `SIM-SCR-CAP-1` is now landed, and its matrix says the immediate remaining gap is request-native attacker fidelity rather than browser-runtime adoption for the current owned surfaces.
+5. `SIM-LLM-1A` and `SIM-LLM-1B` are now landed, but the later full attacker runtime remains explicitly downstream of `SIM-SCR-RN-1` and any later explicit owned-surface browser decision.
+6. `MON-OVERHAUL-1C` and `DIAG-CLEANUP-1` are now both landed, so no further unblocked work remains in the deferred Game Loop and Diagnostics cleanup lane.

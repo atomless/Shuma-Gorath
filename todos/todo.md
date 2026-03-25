@@ -109,17 +109,18 @@ Current note:
 - `RSI-GAME-1A`, `RSI-GAME-1B`, `RSI-SCORE-1`, and `RSI-GAME-1C` are landed.
 - `RSI-GAME-MAINLINE-1A` and `RSI-GAME-MAINLINE-1B` are landed.
 - The current attacker-faithful Scrapling prerequisite for owned request-native surfaces is satisfied through `SIM-SCR-CHALLENGE-2A`, `SIM-SCR-CHALLENGE-2B`, and `SIM-SCR-CHALLENGE-2D`, but that is now the baseline rather than the full maturity target.
-- `SIM-SCR-CAP-1` is now the active follow-on: freeze the attacker-relevant upstream Scrapling capability matrix and explicit omission ledger for Scrapling-owned surfaces.
-- `SIM-SCR-CHALLENGE-2C` now waits on `SIM-SCR-CAP-1` to identify the broader browser or stealth subset Scrapling should own next; it is no longer deferred merely because request-native coverage exists.
+- `SIM-SCR-CAP-1` is now landed: the upstream capability matrix says the immediate remaining gap is request-native attacker fidelity, not an automatic browser-runtime jump.
+- `SIM-SCR-RN-1` is now the active follow-on: make the request-native Scrapling lane use attacker-faithful impersonation, header shaping, and session presentation rather than internal-looking worker fingerprints.
+- `SIM-SCR-CHALLENGE-2C` remains blocked unless Shuma later ratifies browser-class Scrapling-owned surfaces or the request-native fidelity uplift still proves insufficient for a currently owned surface.
 - `SIM-LLM-1A` and `SIM-LLM-1B` are now landed.
-- The later full attacker runtime `SIM-LLM-1C` remains explicitly blocked until it is intentionally reopened over the now-settled black-box and episode contracts.
+- The later full attacker runtime `SIM-LLM-1C` remains explicitly blocked until it is intentionally reopened over the now-settled black-box and episode contracts plus the remaining request-native Scrapling fidelity uplift.
 - `DIAG-CLEANUP-1` and `MON-OVERHAUL-1C` are now both landed, so the deferred Game Loop and Diagnostics follow-on queue is currently clear while later LLM runtime work stays blocked.
 
-- [ ] SIM-SCR-CAP-1 Freeze the full attacker-relevant upstream Scrapling capability matrix and explicit omission ledger for Scrapling-owned surfaces.
+- [ ] SIM-SCR-RN-1 Adopt attacker-faithful request-native Scrapling fingerprint and session shaping.
   Why:
-  - the current request-native Scrapling lane is a truthful baseline, but not yet the maintained full attacker-capability posture Shuma should target
-  - every attacker-relevant upstream Scrapling capability should now be mapped to adopt here, assign to another lane, or explicitly exclude with a recorded reason
-  - `SIM-SCR-CHALLENGE-2C`, `SIM-SCR-BROWSER-1`, and the later full LLM attacker runtime should all consume this matrix rather than implicit assumptions
+  - the capability matrix is now frozen, and it shows the immediate honest gap is inside the current request-native lane rather than in a vague future browser branch
+  - Shuma still presents obviously internal request-native attack traffic in places, including non-attacker-like worker `User-Agent` and missing upstream request-native impersonation or header shaping features
+  - the later full LLM attacker runtime should not reopen while the first truthful request-native attacker lane still advertises itself in unrealistic ways
 
 ## P1 Verified Bot Identity And Web Bot Auth Foundation
 

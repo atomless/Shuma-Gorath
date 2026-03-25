@@ -245,8 +245,10 @@ The separate widened Scrapling defense-surface evaluation is now partially lande
 
 The next active Scrapling capability-maintenance step is:
 
-1. `SIM-SCR-CAP-1` freezes the attacker-relevant upstream Scrapling capability matrix and explicit omission ledger for Scrapling-owned surfaces,
-2. `SIM-SCR-CHALLENGE-2C` then reopens only for the broader browser or stealth subset that matrix says Scrapling should own next.
+1. `SIM-SCR-CAP-1` has now frozen the attacker-relevant upstream Scrapling capability matrix and explicit omission ledger for Scrapling-owned surfaces,
+2. that matrix says the immediate remaining gap is request-native attacker fidelity inside the current lane rather than an automatic browser-runtime jump,
+3. so `SIM-SCR-RN-1` is now the next active follow-on,
+4. and `SIM-SCR-CHALLENGE-2C` should reopen only if a later owned-surface decision or request-native insufficiency proves browser or stealth Scrapling is truly required.
 
 This prerequisite should remain distinct from the broader `automated_browser` ownership question.
 
@@ -366,7 +368,7 @@ It should also show bounded progress over recent completed loops against benchma
 
 The Monitoring follow-on sequence is now explicitly three-way: after `MON-OVERHAUL-1B` makes loop accountability real, `TRAFFIC-TAB-1` should move the current traffic-facing Diagnostics surface into a dedicated `Traffic` tab, `DIAG-CLEANUP-1` should then narrow Diagnostics to furniture-operational proof, and only then should `MON-OVERHAUL-1C` land against the cleaned ownership boundary. That later Game Loop slice should keep the existing overall top line, make the true numeric objective budgets readable as target-vs-current budget usage, and express taxonomy categories as target-achievement rows rather than inventing fake per-category budgets.
 
-That operator-surface follow-on is no longer the immediate mainline. The active execution order now moves first through the attacker-faithful Scrapling baseline (`SIM-SCR-CHALLENGE-2A..2D`), then the active Scrapling capability-maintenance tranche (`SIM-SCR-CAP-1`) and any resulting broader owned-surface adoption (`SIM-SCR-CHALLENGE-2C`), then the legal move ring (`CTRL-SURFACE-1..3`), then the first judge-side game-contract slices (`RSI-GAME-1A`, `RSI-GAME-1B`, `RSI-SCORE-1`, `RSI-GAME-1C`), and only then the first explicit self-improving loop before returning to deferred dashboard follow-ons. `RSI-GAME-MAINLINE-1A` and `RSI-GAME-MAINLINE-1B` are now landed, so the first working game-loop proof lane is complete.
+That operator-surface follow-on is no longer the immediate mainline. The active execution order now moves first through the landed attacker-faithful Scrapling baseline (`SIM-SCR-CHALLENGE-2A..2D`), then the settled capability-maintenance tranche (`SIM-SCR-CAP-1`), then the remaining request-native fidelity uplift (`SIM-SCR-RN-1`), and only then any later explicit owned-surface browser decision (`SIM-SCR-CHALLENGE-2C`) or fuller attacker-runtime reopening (`SIM-LLM-1C`). `RSI-GAME-MAINLINE-1A` and `RSI-GAME-MAINLINE-1B` are now landed, so the first working game-loop proof lane is complete.
 
 ### `CTRL-SURFACE-1..3`
 
