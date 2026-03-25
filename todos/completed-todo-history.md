@@ -4,6 +4,30 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### TEST-ENV-1: repo-wide Rust test env-lock contract
+
+- [x] Added an explicit static contract lane in:
+  - [`../Makefile`](../Makefile)
+  as:
+  - `make test-rust-env-lock-contract`
+  and wired it into the canonical `make test` umbrella so repo-wide Rust env-isolation discipline is no longer a manual audit.
+- [x] Added:
+  - [`../scripts/tests/test_rust_env_lock_contract.py`](../scripts/tests/test_rust_env_lock_contract.py)
+  to scan Rust tests under `src/**/*.rs` and `tests/**/*.rs` and fail if any env-mutating test bypasses `lock_env()` or the approved wrapper-based runtime-env helpers.
+- [x] Updated:
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../docs/research/2026-03-24-test-env-1-rust-env-lock-contract-post-implementation-review.md`](../docs/research/2026-03-24-test-env-1-rust-env-lock-contract-post-implementation-review.md)
+  - [`../docs/research/README.md`](../docs/research/README.md)
+  so the target and its scope are discoverable and truthfully described.
+- [x] Why:
+  - the named shadow-mode offender had already been fixed,
+  - but `TEST-ENV-1` remained open because there was still no executable repo-wide guard against future env-mutation drift,
+  - and this closes that gap without hiding the rule in folklore or another one-off grep audit.
+- [x] Evidence:
+  - `make test-rust-env-lock-contract`
+  - `make test-shadow-mode`
+  - `git diff --check`
+
 ### TEST-HYGIENE-6C: Makefile selector microtests into explicit contract lanes
 
 - [x] Added explicit selector and wiring lanes in:

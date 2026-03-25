@@ -6,6 +6,7 @@
 make test             # Full umbrella suite: unit + maze benchmark + Spin integration + adversary runtime-surface gate + mandatory fast adversarial matrix + SIM2 advisory gates + dashboard e2e
 make test-unit        # Unit tests only (native Rust)
 make unit-test        # alias for make test-unit
+make test-rust-env-lock-contract # Static contract lane for repo-wide Rust test env-isolation discipline
 make test-maze-benchmark # Deterministic maze asymmetry benchmark gate
 make test-integration # Integration tests only (waits for existing Spin readiness)
 make integration-test # alias for make test-integration
@@ -352,6 +353,7 @@ Dashboard adversary-sim orchestration control contract:
 - `make test-adversary-sim-lane-contract` is the focused additive-migration gate for `SIM-SCR-0`: it must prove the new desired/active lane fields, the zeroed lane-diagnostics scaffold, and preservation of legacy lane-status compatibility without changing runtime routing.
 - `make test-adversary-sim-lane-selection` is the focused control-path gate for `SIM-SCR-1`: it must prove strict lane validation, lane-aware idempotency, off-state lane persistence, and truthful desired-versus-active divergence while runtime routing is still synthetic-only.
 - `make test-adversary-sim-target-contracts` is the explicit selector and wiring lane for the adversary-sim Make targets; it proves the lifecycle, lane, and Scrapling category-fit targets keep the intended cargo selectors without hiding selector-only proof inside those behavior gates.
+- `make test-rust-env-lock-contract` is the explicit repo-wide static contract lane for Rust test env isolation. It scans `src/**/*.rs` and `tests/**/*.rs` and fails if any env-mutating Rust test bypasses `lock_env()` or the approved wrapper-based runtime-env helpers.
 - `make test-adversary-sim-scrapling-worker` is the focused worker-routing gate for `SIM-SCR-6`: it must prove beat-boundary lane activation, internal worker-plan/result exchange, fail-closed stale-result rejection, hostile request-native owned-surface interaction on public surfaces, bounded public-network identity selection for request-native geo/IP coverage, persisted `surface_interactions` plus `surface_identity_receipts` diagnostics receipts, and real Scrapling traffic bounded by the shared-host scope-and-seed contract. Host-side wrapper source-contract checks now live in the explicit supervisor wrapper contract lane instead of this behavior gate.
 - `POST /internal/adversary-sim/beat` and `POST /internal/adversary-sim/worker-result` are internal-only endpoints used by host-side supervisor workers; dashboard clients never call them directly.
 - Host-side supervisor requests must satisfy trusted-forwarding (`X-Shuma-Forwarded-Secret`, loopback `X-Forwarded-For`, `X-Forwarded-Proto: https`) and send the internal supervisor marker header. Only `/admin/adversary-sim/status`, `/internal/adversary-sim/beat`, and `/internal/adversary-sim/worker-result` bypass the public admin IP allowlist under that internal supervisor contract.
