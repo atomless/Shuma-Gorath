@@ -65,6 +65,7 @@ make test-controller-mutability-policy # Focused controller mutability-ring and 
 make test-controller-hard-boundaries # Focused controller hard-boundary enforcement checks
 make test-fingerprint-retention-cleanup # Focused fingerprint retention cleanup for stale state and flow-key lifecycle
 make test-event-log-ip-storage-mode # Focused event-log IP write-mode minimization and operator-truth gate
+make test-github-workflow-node24-majors # Focused GitHub workflow action-major contract for Node24-safe checkout/setup-node/upload-artifact pins
 make test-benchmark-comparison-contract # Focused benchmark comparison helper contract checks
 make test-operator-objectives-contract # Focused operator objectives, decision-ledger, and snapshot wiring checks
 make test-operator-objectives-category-contract # Focused category-aware operator-objectives contract checks
@@ -161,6 +162,7 @@ Notes:
 - `make test-host-impact-telemetry`, `make test-host-impact-benchmark`, and `make test-oversight-host-impact` are the narrow pre-Monitoring proof path for the host-impact proxy track; use them instead of broader monitoring/controller suites when only the forwarded-latency cost proxy changed.
 - `make test-host-impact-target-contracts` is the explicit Makefile selector and wiring lane for those host-impact proof targets; use it when target composition changes, instead of hiding selector-only proof inside the behavior gates.
 - `make test-event-log-ip-storage-mode` is the narrow proof path for `SEC-GDPR-3`; it covers env validation, masked and keyed-pseudonymized event-log persistence, security/privacy payload truth, and read-only runtime inventory wiring for the active write mode.
+- `make test-github-workflow-node24-majors` is the narrow proof path for `CI-WF-1`; it statically verifies every workflow is off the older Node 20-backed `checkout/setup-node/upload-artifact` majors and pinned to the settled Node24-safe replacements.
 - `make test-oversight-episode-archive` is the narrow proof path for `RSI-GAME-1C`; it covers the bounded episode archive store, candidate-vs-baseline benchmark deltas, oversight history projection, agent-status projection, and a retained-canary lifecycle update over the same machine-first archive.
 - `make test-dashboard-verified-identity-pane` is the narrow proof path for the first-class `Verified Identity` pane in `Verification`; it covers operator-snapshot hydration, shared config-surface ownership, and a rendered config-save round-trip without dragging in broader Monitoring work.
 - `make test-dashboard-red-team-truth-basis` is the narrow proof path for Red Team status-truth surfacing; it covers status adaptation, runtime normalization, and a rendered persisted-event lower-bound state without turning the slice into early Monitoring work.

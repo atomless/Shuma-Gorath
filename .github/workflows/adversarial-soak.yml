@@ -26,10 +26,10 @@ jobs:
       SHUMA_SIM_TELEMETRY_SECRET: 11223344556677889900aabbccddeeff11223344556677889900aabbccddeeff
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "22"
 
@@ -99,7 +99,7 @@ jobs:
 
       - name: Upload adversarial soak report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: adversarial-soak-report
           path: |
@@ -117,7 +117,7 @@ jobs:
 
       - name: Upload Spin logs (on failure)
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: adversarial-soak-spin-log
           path: /tmp/spin.log

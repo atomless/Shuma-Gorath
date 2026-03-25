@@ -4,6 +4,42 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### CI-WF-1: GitHub Actions Node24-safe major refresh
+
+- [x] Refreshed workflow action pins in:
+  - [`../.github/workflows/ci.yml`](../.github/workflows/ci.yml)
+  - [`../.github/workflows/adversarial-soak.yml`](../.github/workflows/adversarial-soak.yml)
+  - [`../.github/workflows/dashboard-e2e.yml`](../.github/workflows/dashboard-e2e.yml)
+  - [`../.github/workflows/release-gate.yml`](../.github/workflows/release-gate.yml)
+  - [`../.github/workflows/coverage.yml`](../.github/workflows/coverage.yml)
+  - [`../.github/workflows/codeql.yml`](../.github/workflows/codeql.yml)
+  from the older Node 20-backed majors to the settled Node24-safe set:
+  - `actions/checkout@v5`
+  - `actions/setup-node@v5`
+  - `actions/upload-artifact@v6`
+- [x] Added the focused static contract lane in:
+  - [`../scripts/tests/test_github_workflow_node24_majors.py`](../scripts/tests/test_github_workflow_node24_majors.py)
+  exposed through:
+  - [`make test-github-workflow-node24-majors`](../Makefile)
+  so future workflow drift back to the older majors fails locally.
+- [x] Updated:
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../docs/research/2026-03-24-github-actions-node24-major-refresh-review.md`](../docs/research/2026-03-24-github-actions-node24-major-refresh-review.md)
+  - [`../docs/plans/2026-03-24-github-actions-node24-major-refresh-plan.md`](../docs/plans/2026-03-24-github-actions-node24-major-refresh-plan.md)
+  - [`../docs/research/2026-03-24-ci-wf-1-node24-major-refresh-post-implementation-review.md`](../docs/research/2026-03-24-ci-wf-1-node24-major-refresh-post-implementation-review.md)
+  - [`../docs/research/README.md`](../docs/research/README.md)
+  - [`../docs/plans/README.md`](../docs/plans/README.md)
+  so the workflow contract and its rationale are discoverable.
+- [x] Why:
+  - the repo still pinned older Node 20-backed action majors,
+  - the backlog explicitly called for getting ahead of hosted-runner deprecation churn,
+  - and the cleanest fix was a narrow version refresh with a local regression guard rather than a larger CI redesign.
+- [x] Evidence:
+  - `make test-github-workflow-node24-majors`
+  - `git diff --check`
+- [x] Hosted-proof note:
+  - some workflows do not run automatically on feature-branch pushes, so hosted GitHub Actions proof for this exact branch remains pending or unavailable until the configured workflow events occur.
+
 ### SEC-GDPR-4: deployer-ready privacy and cookie disclosure template
 
 - [x] Added a deployer-ready template in:
