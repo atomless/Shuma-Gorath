@@ -1243,6 +1243,12 @@ test-oversight-episode-archive: ## Run focused oversight episode-archive and hom
 	@cargo test admin::oversight_api::tests::manual_reconcile_route_records_observe_longer_when_classification_is_not_ready -- --exact --nocapture
 	@cargo test admin::oversight_agent::tests::agent_cycle_keeps_canary_when_candidate_window_improves -- --exact --nocapture
 
+test-rsi-game-mainline: ## Run focused first-working-loop mainline proof checks
+	@echo "$(CYAN)🧪 Running first-working-loop mainline proof checks...$(NC)"
+	@./scripts/set_crate_type.sh rlib
+	@cargo test adversary_sim_completion_triggers_post_sim_oversight_agent_once -- --nocapture
+	@cargo test post_sim_oversight_route_can_apply_improve_and_archive_first_working_game_loop -- --nocapture
+
 test-oversight-apply: ## Run focused closed-loop oversight canary apply and rollback checks
 	@echo "$(CYAN)🧪 Running oversight apply-loop checks...$(NC)"
 	@./scripts/set_crate_type.sh rlib

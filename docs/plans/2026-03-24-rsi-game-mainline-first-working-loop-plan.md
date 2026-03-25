@@ -100,6 +100,14 @@ Use the already-landed pieces together:
 3. `make test-oversight-episode-archive`
 4. `git diff --check`
 
+Implementation note:
+
+1. `RSI-GAME-MAINLINE-1A` is now landed.
+2. The focused proof is intentionally split across:
+   1. the automatic post-sim completion hook proof
+   2. the route-level `post_adversary_sim` canary -> judged archive proof
+3. `RSI-GAME-MAINLINE-1B` is the next active follow-on.
+
 ## Task 3: `RSI-GAME-MAINLINE-1B`
 
 ### Stronger follow-on mainline proof
@@ -127,6 +135,6 @@ Use the already-landed pieces together:
 ## Recommended implementation order
 
 1. Land the planning split and focused proof target name.
-2. Land `RSI-GAME-MAINLINE-1A`.
-3. Review whether helper extraction is needed before `1B`.
-4. Then move to `RSI-GAME-MAINLINE-1B`.
+2. `RSI-GAME-MAINLINE-1A` is landed.
+3. Review whether broader harness or helper consolidation is needed before `1B`.
+4. Move now to `RSI-GAME-MAINLINE-1B`.

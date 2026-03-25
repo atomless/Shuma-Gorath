@@ -104,18 +104,10 @@ Reference context:
 - [`docs/research/2026-03-24-rsi-game-mainline-first-working-loop-review.md`](../docs/research/2026-03-24-rsi-game-mainline-first-working-loop-review.md)
 - [`docs/plans/2026-03-24-rsi-game-mainline-first-working-loop-plan.md`](../docs/plans/2026-03-24-rsi-game-mainline-first-working-loop-plan.md)
 
-### RSI-GAME-MAINLINE-1A: Local route-level first working self-improving loop proof
-- Starting from a completed attacker-faithful Scrapling run, prove the current post-sim mainline already forms a working self-improving loop.
-- Use the real route path, not only direct agent invocation:
-  - completed sim run
-  - post-sim oversight trigger
-  - bounded canary apply
-  - judged retain or rollback
-  - completed episode archive row
-- Add a focused Make target that truthfully means the current mainline loop is proven end-to-end.
-
 ### RSI-GAME-MAINLINE-1B: Stronger follow-on first-working-loop proof
-- After `RSI-GAME-MAINLINE-1A`, extend the same proof contract into the next strongest truthful operational harness.
+- `RSI-GAME-MAINLINE-1A` is now landed:
+  - `make test-rsi-game-mainline` proves the automatic post-sim hook and the local route-level canary -> judged archive loop
+- Next, extend the same proof contract into the next strongest truthful operational harness.
 - Keep the contract the same:
   - attacker-faithful Scrapling pressure
   - post-sim trigger

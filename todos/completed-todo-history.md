@@ -4,6 +4,37 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### RSI-GAME-MAINLINE-1A: Local route-level first working self-improving loop proof
+
+- [x] Added the first explicit mainline proof target in:
+  - [`Makefile`](../Makefile)
+  - [`docs/testing.md`](../docs/testing.md)
+  as:
+  - `make test-rsi-game-mainline`
+- [x] Added the route-level proof in:
+  - [`src/admin/api.rs`](../src/admin/api.rs)
+  so the repo now proves two adjacent truths together:
+  - completed adversary-sim state still triggers the post-sim oversight run once
+  - the post-sim oversight route can apply a bounded canary, close the watch window through the periodic supervisor route, and persist a retained episode into the archive surfaces
+- [x] Added the shared seed helpers in:
+  - [`src/test_support.rs`](../src/test_support.rs)
+  so the route-level proof can reuse one canonical canary/objective snapshot setup seam instead of introducing a third fork of oversight test fixtures
+- [x] Updated the planning chain and closeout paper trail in:
+  - [`docs/plans/2026-03-24-rsi-game-mainline-first-working-loop-plan.md`](../docs/plans/2026-03-24-rsi-game-mainline-first-working-loop-plan.md)
+  - [`docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md`](../docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md)
+  - [`docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](../docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md)
+  - [`docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](../docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md)
+  - [`docs/research/2026-03-24-rsi-game-mainline-1a-first-working-loop-post-implementation-review.md`](../docs/research/2026-03-24-rsi-game-mainline-1a-first-working-loop-post-implementation-review.md)
+  - [`todos/todo.md`](../todos/todo.md)
+- [x] Why:
+  - the attacker-faithful Scrapling lane and the judge-side game contract were already real, but the repo still lacked one explicit proof that the current mainline can form a working self-improving loop without leaning on direct agent-only harness calls
+  - this slice closes that gap while keeping the stronger follow-on operational proof in `RSI-GAME-MAINLINE-1B`
+- [x] Evidence:
+  - `make test-rsi-game-mainline`
+  - `make test-oversight-agent`
+  - `make test-oversight-episode-archive`
+  - `git diff --check`
+
 ### RSI-GAME-1C: Episode archive and homeostasis memory
 
 - [x] Added the bounded machine-first episode archive in:

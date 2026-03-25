@@ -40,6 +40,7 @@ make test-adversary-sim-scrapling-owned-surface-contract # Focused Scrapling own
 make test-adversary-sim-scrapling-category-fit # Focused Scrapling category-ownership and worker-plan contract gate
 make test-adversary-sim-scrapling-malicious-request-native # Focused attacker-faithful malicious request-native Scrapling behavior gate
 make test-adversary-sim-scrapling-coverage-receipts # Focused Scrapling owned-surface receipt and recent-run closure gate
+make test-rsi-game-mainline # Focused first-working-loop mainline proof: automatic post-sim hook plus route-level canary -> judged archive loop
 make test-adversarial-coverage-receipts # Focused canonical category-coverage receipt and gating checks
 make test-protected-tuning-evidence # Focused protected tuning-evidence eligibility and fail-closed benchmark checks
 make test-verified-identity-calibration-readiness # Focused verified-identity taxonomy/benchmark/reconcile seam gate
@@ -154,6 +155,7 @@ Notes:
 - `make test-dashboard-runtime-unit-contracts` is the narrow non-rendered proof path for dashboard native-runtime and refresh-runtime behavior; use it when auth/session restore, cache invalidation, or config-mutation invalidation logic changes without needing broader Playwright churn.
 - `make test-adversary-sim-scrapling-owned-surface-contract` is the narrow proof path for the attacker-faithful Scrapling owned-surface matrix. Use it when changing which defenses the Scrapling lane owns, which fulfillment modes must touch them, or whether the contract says Scrapling should pass, fail, or expect mixed outcomes on those surfaces.
 - `make test-adversary-sim-scrapling-malicious-request-native` is the narrow proof path for widened request-native Scrapling abuse behavior. Use it when changing worker-plan route hints, per-mode malicious submit behavior, or the rule that Scrapling personas must mix ordinary success traffic with hostile request-native challenge, PoW, or tarpit interactions on the surfaces they own.
+- `make test-rsi-game-mainline` is the narrow proof path for `RSI-GAME-MAINLINE-1A`; it proves the automatic post-sim oversight trigger still fires once, and that the post-sim oversight route can apply a bounded canary, close the watch window, and persist a terminal retained episode into the archive surfaces.
 - `make test-dashboard-e2e` now verifies the running Spin instance is serving the current `dist/dashboard/index.html` before Playwright runs; restart Spin after `make dashboard-build` if this check fails.
 - `make test` now reseeds dashboard sample data at the end, so charts/tables stay populated for local inspection after the run.
 
@@ -315,6 +317,7 @@ Structural refactor proof map:
 - `make test-controller-hard-boundaries` is the focused `CTRL-SURFACE-3` gate for explicit rejection of controller-forbidden families and apply refusal when a proposal is not controller-tunable.
 - `make test-rsi-game-contract` is the focused `RSI-GAME-1A` gate for the canonical recursive-improvement game contract, its projection through `operator_snapshot_v1`, and its reuse in `oversight_history_v1`.
 - `make test-rsi-scorecard-contract` is the focused `RSI-SCORE-1` gate for explicit judge-scorecard partitioning across optimization targets, hard guardrails, regression inputs, diagnostic contexts, and homeostasis comparison inputs.
+- `make test-rsi-game-mainline` is the focused `RSI-GAME-MAINLINE-1A` gate for the first explicit working self-improving loop on the current mainline.
 - `make test-oversight-episode-archive` is the focused `RSI-GAME-1C` gate for bounded completed-episode persistence, baseline scorecards, terminal proposal outcomes, and conservative homeostasis classification over recent judged cycles.
 - `make test-oversight-move-selection-policy` is the focused `RSI-GAME-1B` gate for shortfall-attribution, explicit problem classes, bounded family guidance, and the reconcile-to-patch-policy bridge.
 - `make test-benchmark-comparison-contract` is the focused benchmark helper gate for explicit baseline-availability, improvement-status, and escalation comparison semantics.
