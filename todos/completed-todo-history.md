@@ -4,6 +4,23 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### Shared-host Scrapling supervisor failure surfacing
+
+- [x] Hardened host-side Scrapling worker failure surfacing in:
+  - [`scripts/supervisor/adversary_sim_supervisor.rs`](../scripts/supervisor/adversary_sim_supervisor.rs)
+  - [`scripts/tests/test_adversary_sim_supervisor.py`](../scripts/tests/test_adversary_sim_supervisor.py)
+  so non-zero worker exits and unreadable result files now preserve bounded worker `stderr`/`stdout` context instead of collapsing to a bare `worker exited with status Some(1)` transport failure.
+- [x] Added the closeout note in:
+  - [`docs/research/2026-03-24-scrapling-supervisor-worker-output-surfacing-post-implementation-review.md`](../docs/research/2026-03-24-scrapling-supervisor-worker-output-surfacing-post-implementation-review.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+- [x] Why:
+  - the live shared-host Scrapling proof still had a real unresolved worker failure,
+  - manual host-side reproduction proved the worker could run with a valid plan and secret,
+  - and the supervisor was still discarding the only evidence that could explain the remaining non-zero exit on live runs.
+- [x] Evidence:
+  - `make test-adversary-sim-scrapling-worker`
+  - `git diff --check`
+
 ### Shared-host Scrapling supervisor env handoff and remote receipt backfill
 
 - [x] Repaired older day-2 remote updates in:

@@ -17,6 +17,7 @@ const BEAT_PATH: &str = "/internal/adversary-sim/beat";
 const WORKER_RESULT_PATH: &str = "/internal/adversary-sim/worker-result";
 const DEFAULT_SCRAPLING_PYTHON_RELATIVE: &str = ".venv-scrapling/bin/python3";
 const DEFAULT_SCRAPLING_CRAWLDIR_RELATIVE: &str = ".shuma/adversary-sim/scrapling-crawldir";
+const WORKER_OUTPUT_SNIPPET_BYTES: usize = 512;
 
 #[derive(Clone, Debug)]
 struct Config {
@@ -322,6 +323,38 @@ fn json_escape(raw: &str) -> String {
         .collect()
 }
 
+fn summarize_worker_output(label: &str, bytes: &[u8]) -> Option<String> {
+    if bytes.is_empty() {
+        return None;
+    }
+    let rendered = String::from_utf8_lossy(bytes);
+    let compact = rendered
+        .split_whitespace()
+        .filter(|chunk| !chunk.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ");
+    if compact.is_empty() {
+        return None;
+    }
+    let mut snippet = compact;
+    if snippet.len() > WORKER_OUTPUT_SNIPPET_BYTES {
+        snippet.truncate(WORKER_OUTPUT_SNIPPET_BYTES);
+        snippet.push_str("...");
+    }
+    Some(format!("{label}: {snippet}"))
+}
+
+fn enrich_worker_failure(error: &str, stdout: &[u8], stderr: &[u8]) -> String {
+    let mut parts = vec![error.to_string()];
+    if let Some(summary) = summarize_worker_output("stderr", stderr) {
+        parts.push(summary);
+    }
+    if let Some(summary) = summarize_worker_output("stdout", stdout) {
+        parts.push(summary);
+    }
+    parts.join("; ")
+}
+
 fn temp_file_path(prefix: &str) -> PathBuf {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -388,8 +421,8 @@ fn run_scrapling_worker(config: &Config, beat_body: &str) -> String {
         .arg(&result_file)
         .arg("--crawldir")
         .arg(&config.scrapling_crawldir)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
     if let Some(path) = config.scrapling_scope_descriptor_path.as_ref() {
         command.arg("--scope-descriptor").arg(path);
     }
@@ -414,20 +447,42 @@ fn run_scrapling_worker(config: &Config, beat_body: &str) -> String {
     loop {
         match child.try_wait() {
             Ok(Some(status)) => {
+                let output = match child.wait_with_output() {
+                    Ok(output) => output,
+                    Err(err) => {
+                        let _ = fs::remove_file(&beat_file);
+                        let _ = fs::remove_file(&result_file);
+                        return build_worker_failure_result(
+                            beat_body,
+                            "transport",
+                            format!("capture worker output failed: {err}").as_str(),
+                        );
+                    }
+                };
                 let rendered = if status.success() {
                     match fs::read_to_string(&result_file) {
                         Ok(body) => body,
                         Err(err) => build_worker_failure_result(
                             beat_body,
                             "transport",
-                            format!("read worker result failed: {err}").as_str(),
+                            enrich_worker_failure(
+                                format!("read worker result failed: {err}").as_str(),
+                                output.stdout.as_slice(),
+                                output.stderr.as_slice(),
+                            )
+                            .as_str(),
                         ),
                     }
                 } else {
                     build_worker_failure_result(
                         beat_body,
                         "transport",
-                        format!("worker exited with status {:?}", status.code()).as_str(),
+                        enrich_worker_failure(
+                            format!("worker exited with status {:?}", status.code()).as_str(),
+                            output.stdout.as_slice(),
+                            output.stderr.as_slice(),
+                        )
+                        .as_str(),
                     )
                 };
                 let _ = fs::remove_file(&beat_file);

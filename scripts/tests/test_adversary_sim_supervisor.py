@@ -41,6 +41,16 @@ class AdversarySimSupervisorContractTests(unittest.TestCase):
         self.assertIn('non_empty_env_path("ADVERSARY_SIM_SCRAPLING_SEED_INVENTORY_PATH")', source)
         self.assertIn('non_empty_env_path("ADVERSARY_SIM_SCRAPLING_CRAWLDIR")', source)
 
+    def test_supervisor_surfaces_bounded_worker_stdio_on_nonzero_exit(self) -> None:
+        source = SUPERVISOR_WORKER_SOURCE.read_text(encoding="utf-8")
+        self.assertIn("const WORKER_OUTPUT_SNIPPET_BYTES", source)
+        self.assertIn("fn summarize_worker_output", source)
+        self.assertIn("fn enrich_worker_failure", source)
+        self.assertIn(".stdout(Stdio::piped())", source)
+        self.assertIn(".stderr(Stdio::piped())", source)
+        self.assertIn("worker exited with status {:?}", source)
+        self.assertIn("stderr:", source)
+
     def test_supervisor_manager_worker_pid_is_not_trap_scoped_local(self) -> None:
         script = SUPERVISOR_MANAGER_SCRIPT.read_text(encoding="utf-8")
         self.assertNotIn('local worker_pid=""', script)
