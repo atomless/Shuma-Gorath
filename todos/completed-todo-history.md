@@ -4,6 +4,29 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### RSI-PROTO-1: Canonical attacker and defender protocol schemas
+
+- [x] Landed the canonical player-wire contract in:
+  - [`docs/plans/2026-03-24-scorecard-protocol-and-held-out-eval-separation-plan.md`](../docs/plans/2026-03-24-scorecard-protocol-and-held-out-eval-separation-plan.md)
+  - [`docs/plans/2026-03-24-llm-player-role-decomposition-plan.md`](../docs/plans/2026-03-24-llm-player-role-decomposition-plan.md)
+  - [`docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](../docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md)
+  - [`docs/plans/2026-03-22-path-to-closed-loop-llm-adversary-and-diagnosis-implementation-plan.md`](../docs/plans/2026-03-22-path-to-closed-loop-llm-adversary-and-diagnosis-implementation-plan.md)
+  so later player runtimes now inherit:
+  - one shared envelope revision and lineage vocabulary
+  - canonical attacker observation and action families
+  - canonical defender input and output families
+- [x] Removed the now-landed blocker from:
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+  and rewired downstream blocked items so they consume `RSI-PROTO-1` as a settled prerequisite instead of a still-hypothetical one.
+- [x] Added the closeout review in:
+  - [`docs/research/2026-03-24-rsi-proto-1-player-wire-contract-post-implementation-review.md`](../docs/research/2026-03-24-rsi-proto-1-player-wire-contract-post-implementation-review.md)
+  and refreshed:
+  - [`docs/research/README.md`](../docs/research/README.md)
+- [x] Why:
+  - the triadic role split was landed, but later attacker and defender runtimes still needed one canonical wire vocabulary so they cannot drift into incompatible local protocols
+- [x] Evidence:
+  - `git diff --check`
+
 ### RSI-ROLES-1: Attacker, defender, and independent-judge role contract
 
 - [x] Landed the canonical triadic recursive-improvement role split in:

@@ -259,6 +259,7 @@ Current note:
 1. `RSI-GAME-1A`, `RSI-GAME-1B`, `RSI-SCORE-1`, and `RSI-GAME-1C` are now landed.
 2. `RSI-GAME-MAINLINE-1A` and `RSI-GAME-MAINLINE-1B` are now landed, so the first working game-loop proof lane is complete.
 3. `RSI-ROLES-1` is now landed, so later player-side contract work should treat the triadic attacker/defender/judge split as fixed rather than provisional.
+4. `RSI-PROTO-1` is now landed, so later player runtimes should treat the shared envelope plus attacker and defender schema families as fixed rather than role-local invention points.
 
 # Definition Of Done
 

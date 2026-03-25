@@ -106,6 +106,53 @@ Implementation note:
 2. both player roles are protocol-complete enough for later implementation planning,
 3. and the players remain subordinate to the judge contract rather than inventing their own result semantics.
 
+Implementation note:
+
+1. `RSI-PROTO-1` is now landed.
+2. The canonical player protocol now distinguishes:
+   1. shared envelope fields:
+      1. `protocol_revision`
+      2. `episode_id`
+      3. `message_id`
+      4. `parent_message_id`
+      5. `trace_id`
+      6. `turn_index`
+      7. `role`
+      8. `message_kind`
+      9. `visibility_ring`
+      10. `receipt_refs`
+      11. `created_at`
+   2. attacker observation families:
+      1. `episode_init`
+      2. `host_discovery`
+      3. `tool_result`
+      4. `request_receipt`
+      5. `episode_terminal`
+   3. attacker action families:
+      1. `discover`
+      2. `request_plan`
+      3. `request_dispatch`
+      4. `form_submit`
+      5. `wait`
+      6. `episode_finish`
+      7. `episode_refusal`
+   4. defender input families:
+      1. `episode_context`
+      2. `judge_snapshot`
+      3. `move_guidance`
+      4. `recent_episode_memory`
+      5. `mutability_contract`
+   5. defender output families:
+      1. `config_proposal`
+      2. `refusal`
+      3. `need_more_evidence`
+      4. `code_gap_escalation`
+      5. `code_evolution_referral`
+3. Role semantics remain distinct:
+   1. attacker actions are not defender proposals,
+   2. defender refusals are not judge verdicts,
+   3. and neither player-side message family is allowed to redefine outcome truth.
+
 ## Task 3: `RSI-EVAL-1`
 
 ### Protected-vs-held-out evaluation separation for recursive-improvement episodes

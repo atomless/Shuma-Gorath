@@ -15,6 +15,12 @@ LLM attacker black-box note:
 5. it must not be allowed to search the web or otherwise retrieve Shuma-specific repo or documentation material,
 6. and it should be primed to fulfill the remaining non-human categories and to behave maliciously where those categories imply malicious behavior.
 
+LLM player protocol note:
+
+1. later attacker and defender runtimes must consume the landed `RSI-PROTO-1` player protocol contract rather than inventing ad hoc wire shapes,
+2. the attacker must therefore speak through the canonical attacker observation and action families under the shared envelope revision,
+3. and the later defender must speak through the canonical defender input and output families under that same envelope.
+
 **Tech Stack:** Rust control plane, Python adversarial runner/orchestration, Scrapling worker, capability-safe containerized adversary actor runtime, external frontier LLM APIs, optional later local model backends, Makefile verification.
 
 ---

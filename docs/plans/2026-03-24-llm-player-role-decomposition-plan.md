@@ -87,6 +87,11 @@ Decompose the two later LLM-backed player roles so the recursive-improvement gam
 4. and the attacker is clearly host-root-first and Shuma-blind rather than secretly Shuma-aware.
 5. and the attacker is explicitly confined to outside-attacker public knowledge rather than any repo, docs, or internal-product awareness.
 
+Protocol note:
+
+1. `SIM-LLM-1A` must now emit and consume the landed `RSI-PROTO-1` schema families rather than defining a bespoke attacker-only wire format.
+2. In particular, attacker observations and actions must live inside the shared envelope revision and use the canonical attacker `message_kind` families defined there.
+
 ## Task 2: `SIM-LLM-1B`
 
 ### LLM attacker-agent episode harness and bounded memory contract
@@ -175,6 +180,11 @@ Decompose the two later LLM-backed player roles so the recursive-improvement gam
 2. the defender role is explicitly bounded by the legal move ring,
 3. and the defender cannot silently become a second judge.
 
+Protocol note:
+
+1. `OVR-AGENT-2A` must now emit and consume the landed `RSI-PROTO-1` schema families rather than inventing a defender-local vocabulary.
+2. Defender outputs must therefore remain inside the canonical `config_proposal`, `refusal`, `need_more_evidence`, `code_gap_escalation`, and `code_evolution_referral` families.
+
 ## Task 5: `OVR-AGENT-2B`
 
 ### Recommendation-only LLM defender runtime over the proven closed loop
@@ -237,6 +247,11 @@ Decompose the two later LLM-backed player roles so the recursive-improvement gam
 8. Land `OVR-AGENT-2B` before `OVR-AGENT-2C`.
 9. Keep `OVR-CODE-1` downstream of the settled defender-agent track rather than folding it into defender planning.
 10. Do not treat the fuller attacker or defender runtime tracks as execution-ready until `SIM-SCR-CHALLENGE-1` proves attacker-faithful Scrapling coverage for Scrapling-owned surfaces and, where that matrix requires browser or stealth Scrapling, `SIM-SCR-BROWSER-1` is also complete.
+
+Current note:
+
+1. `RSI-ROLES-1` and `RSI-PROTO-1` are now landed.
+2. The remaining player-side contract gap before runtime reopening is no longer wire vocabulary, but held-out evaluation separation and audit lineage.
 
 # Definition Of Done
 
