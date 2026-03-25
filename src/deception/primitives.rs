@@ -1,4 +1,8 @@
+use once_cell::sync::Lazy;
 use crate::maze::state::MazeStateStore;
+use std::sync::Mutex;
+
+static SHARED_BUDGET_STATE_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
 pub(crate) trait DeceptionStateStore {
     fn get(&self, key: &str) -> Result<Option<Vec<u8>>, ()>;
@@ -38,6 +42,9 @@ impl<'a, S: DeceptionStateStore + ?Sized> BudgetLease<'a, S> {
         if !self.active {
             return;
         }
+        let _guard = SHARED_BUDGET_STATE_LOCK
+            .lock()
+            .expect("shared budget state lock poisoned");
         decrement_counter(self.store, self.global_key.as_str());
         decrement_counter(self.store, self.bucket_key.as_str());
         self.active = false;
@@ -91,10 +98,26 @@ pub(crate) fn try_acquire_shared_budget<'a, S: DeceptionStateStore + ?Sized>(
     governor: SharedBudgetGovernor<'_>,
     ip_bucket: &str,
 ) -> Option<BudgetLease<'a, S>> {
+    try_acquire_shared_budget_with_hook(store, governor, ip_bucket, || {})
+}
+
+fn try_acquire_shared_budget_with_hook<'a, S, F>(
+    store: &'a S,
+    governor: SharedBudgetGovernor<'_>,
+    ip_bucket: &str,
+    before_increment: F,
+) -> Option<BudgetLease<'a, S>>
+where
+    S: DeceptionStateStore + ?Sized,
+    F: FnOnce(),
+{
     if governor.max_concurrent_global == 0 || governor.max_concurrent_per_ip_bucket == 0 {
         return None;
     }
 
+    let _guard = SHARED_BUDGET_STATE_LOCK
+        .lock()
+        .expect("shared budget state lock poisoned");
     let global = read_counter(store, governor.global_active_key);
     let bucket_key = budget_bucket_key(governor.bucket_active_prefix, ip_bucket);
     let bucket = read_counter(store, bucket_key.as_str());
@@ -103,6 +126,7 @@ pub(crate) fn try_acquire_shared_budget<'a, S: DeceptionStateStore + ?Sized>(
         return None;
     }
 
+    before_increment();
     increment_counter(store, governor.global_active_key);
     increment_counter(store, bucket_key.as_str());
     if let Some(catalog_key) = governor.bucket_catalog_key {
@@ -168,7 +192,12 @@ pub(crate) fn mark_marker(
 mod tests {
     use super::*;
     use std::collections::HashMap;
-    use std::sync::Mutex;
+    use std::sync::{
+        Arc, Mutex,
+        atomic::{AtomicUsize, Ordering},
+    };
+    use std::thread;
+    use std::time::Duration;
 
     #[derive(Default)]
     struct FakeStore {
@@ -246,5 +275,51 @@ mod tests {
             progression_chain_key("maze:token:chain", "f1", "abc"),
             "maze:token:chain:f1:abc"
         );
+    }
+
+    #[test]
+    fn shared_budget_parallel_acquire_stays_bounded() {
+        let store = Arc::new(FakeStore::default());
+        let acquired = Arc::new(AtomicUsize::new(0));
+        let mut handles = Vec::new();
+
+        for _ in 0..8 {
+            let store = Arc::clone(&store);
+            let acquired = Arc::clone(&acquired);
+            handles.push(thread::spawn(move || {
+                let governor = SharedBudgetGovernor {
+                    global_active_key: "budget:global",
+                    bucket_active_prefix: "budget:bucket",
+                    bucket_catalog_key: None,
+                    max_concurrent_global: 1,
+                    max_concurrent_per_ip_bucket: 1,
+                };
+                let lease = try_acquire_shared_budget_with_hook(
+                    store.as_ref(),
+                    governor,
+                    "bucket-a",
+                    || {
+                        thread::sleep(Duration::from_millis(15));
+                    },
+                );
+                if let Some(mut lease) = lease {
+                    acquired.fetch_add(1, Ordering::SeqCst);
+                    thread::sleep(Duration::from_millis(20));
+                    lease.release();
+                }
+            }));
+        }
+
+        for handle in handles {
+            handle.join().expect("budget burst thread should finish");
+        }
+
+        assert_eq!(
+            acquired.load(Ordering::SeqCst),
+            1,
+            "cap=1 budget burst should admit exactly one lease"
+        );
+        assert_eq!(read_counter(store.as_ref(), "budget:global"), 0);
+        assert_eq!(read_counter(store.as_ref(), "budget:bucket:bucket-a"), 0);
     }
 }

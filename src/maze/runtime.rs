@@ -1,5 +1,7 @@
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use spin_sdk::http::{Request, Response};
+use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use super::content::{
@@ -24,6 +26,8 @@ const VIOLATION_PREFIX: &str = "maze:violation";
 const MAX_RISK_SCORE: u8 = 10;
 const HIGH_CONFIDENCE_ESCALATION_CHALLENGE_COUNT: u32 = 2;
 const HIGH_CONFIDENCE_ESCALATION_BLOCK_COUNT: u32 = 3;
+
+static MAZE_PROGRESSION_STATE_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct ViolationState {
@@ -466,12 +470,41 @@ fn parse_existing_token(
     now_secs: u64,
     now_ms_value: u64,
 ) -> Result<Option<(String, MazeTraversalToken)>, MazeFallbackReason> {
+    parse_existing_token_with_hook(
+        store,
+        cfg,
+        query,
+        path,
+        ip_bucket,
+        ua_bucket,
+        path_prefix,
+        now_secs,
+        now_ms_value,
+        || {},
+    )
+}
+
+fn parse_existing_token_with_hook<F: FnOnce()>(
+    store: &impl MazeStateStore,
+    cfg: &crate::config::Config,
+    query: &str,
+    path: &str,
+    ip_bucket: &str,
+    ua_bucket: &str,
+    path_prefix: &str,
+    now_secs: u64,
+    now_ms_value: u64,
+    before_mark_replay: F,
+) -> Result<Option<(String, MazeTraversalToken)>, MazeFallbackReason> {
     let Some(raw_token) = crate::request_validation::query_param(query, "mt") else {
         return Ok(None);
     };
     let secret = token::secret_from_env();
     let parsed = token::verify(raw_token.as_str(), secret.as_str(), Some(now_secs))
         .map_err(map_token_error)?;
+    let _guard = MAZE_PROGRESSION_STATE_LOCK
+        .lock()
+        .expect("maze progression state lock poisoned");
     if parsed.path_prefix != path_prefix
         || parsed.path_digest != token::digest(path)
         || parsed.ip_bucket != ip_bucket
@@ -515,6 +548,7 @@ fn parse_existing_token(
         }
     }
 
+    before_mark_replay();
     mark_replay_seen(store, &parsed, cfg.maze_replay_ttl_seconds, now_secs);
     Ok(Some((raw_token, parsed)))
 }
@@ -559,18 +593,23 @@ pub(crate) fn handle_checkpoint(
     }
 
     let now_ms_value = now_ms();
-    let state = CheckpointState {
-        last_ts_ms: now_ms_value,
-        last_depth: parsed.depth,
-        expires_at: now_secs.saturating_add(cfg.maze_replay_ttl_seconds),
-    };
-    let key = checkpoint_key(parsed.flow_id.as_str(), ip_bucket.as_str());
-    if let Ok(raw) = serde_json::to_vec(&state) {
-        if let Err(err) = store.set(key.as_str(), raw.as_slice()) {
-            eprintln!(
-                "[maze] failed to persist checkpoint key={} err={:?}",
-                key, err
-            );
+    {
+        let _guard = MAZE_PROGRESSION_STATE_LOCK
+            .lock()
+            .expect("maze progression state lock poisoned");
+        let state = CheckpointState {
+            last_ts_ms: now_ms_value,
+            last_depth: parsed.depth,
+            expires_at: now_secs.saturating_add(cfg.maze_replay_ttl_seconds),
+        };
+        let key = checkpoint_key(parsed.flow_id.as_str(), ip_bucket.as_str());
+        if let Ok(raw) = serde_json::to_vec(&state) {
+            if let Err(err) = store.set(key.as_str(), raw.as_slice()) {
+                eprintln!(
+                    "[maze] failed to persist checkpoint key={} err={:?}",
+                    key, err
+                );
+            }
         }
     }
     Response::new(204, "")
@@ -714,6 +753,9 @@ pub(crate) fn handle_issue_links(
             Err(_) => return Response::new(400, "Invalid parent token"),
         };
 
+    let _guard = MAZE_PROGRESSION_STATE_LOCK
+        .lock()
+        .expect("maze progression state lock poisoned");
     if issue_seen(
         store,
         parsed_parent.flow_id.as_str(),
@@ -1179,7 +1221,9 @@ mod tests {
     use serde_json::Value;
     use spin_sdk::http::{Method, Request};
     use std::collections::HashMap;
-    use std::sync::Mutex;
+    use std::sync::{Arc, Mutex};
+    use std::thread;
+    use std::time::Duration;
 
     #[derive(Default)]
     struct MemStore {
@@ -1228,6 +1272,224 @@ mod tests {
         assert_eq!(
             super::high_confidence_escalation_action(3),
             Some(super::MazeFallbackAction::Block)
+        );
+    }
+
+    #[test]
+    fn concurrent_replay_claim_allows_single_winner() {
+        let store = Arc::new(MemStore::default());
+        let cfg = crate::config::defaults().clone();
+        let ip = "198.51.100.52";
+        let user_agent = "ReplayBurstBot/1.0";
+
+        let entry_req = Request::builder()
+            .method(Method::Get)
+            .uri(maze_path("replay-burst-entry"))
+            .body(Vec::<u8>::new())
+            .build();
+        let entry_path = maze_path("replay-burst-entry");
+        let entry = super::serve(
+            store.as_ref(),
+            &cfg,
+            &entry_req,
+            ip,
+            user_agent,
+            entry_path.as_str(),
+            None,
+        );
+        let MazeServeDecision::Serve(entry_page) = entry else {
+            panic!("entry should serve maze");
+        };
+        let first_link =
+            first_maze_link(entry_page.html.as_str()).expect("first link should exist");
+        let (path, query) = first_link
+            .split_once('?')
+            .expect("maze link should contain query string");
+        let raw_token = mt_from_uri(first_link.as_str()).expect("expected mt token");
+        let parsed_token = super::token::verify(
+            raw_token.as_str(),
+            super::token::secret_from_env().as_str(),
+            None,
+        )
+        .expect("token should verify");
+        let ip_bucket = crate::signals::ip_identity::bucket_ip(ip);
+        let ua_bucket = super::token::ua_bucket(user_agent);
+        let now_ms_value = super::now_ms();
+        let now_secs = now_ms_value / 1000;
+
+        let mut handles = Vec::new();
+        for _ in 0..2 {
+            let store = Arc::clone(&store);
+            let cfg = cfg.clone();
+            let query = query.to_string();
+            let path = path.to_string();
+            let ip_bucket = ip_bucket.clone();
+            let ua_bucket = ua_bucket.clone();
+            handles.push(thread::spawn(move || {
+                super::parse_existing_token_with_hook(
+                    store.as_ref(),
+                    &cfg,
+                    query.as_str(),
+                    path.as_str(),
+                    ip_bucket.as_str(),
+                    ua_bucket.as_str(),
+                    super::super::path_prefix(),
+                    now_secs,
+                    now_ms_value,
+                    || {
+                        thread::sleep(Duration::from_millis(15));
+                    },
+                )
+            }));
+        }
+
+        let mut success_count = 0usize;
+        let mut replay_count = 0usize;
+        for handle in handles {
+            match handle.join().expect("replay thread should finish") {
+                Ok(Some((_raw, _parsed))) => success_count += 1,
+                Err(MazeFallbackReason::TokenReplay) => replay_count += 1,
+                other => panic!("unexpected replay burst outcome: {:?}", other),
+            }
+        }
+
+        assert_eq!(success_count, 1, "exactly one replay claimant should win");
+        assert_eq!(replay_count, 1, "the competing claimant should be rejected as replay");
+        let replay_key = token_replay_key(
+            parsed_token.flow_id.as_str(),
+            parsed_token.operation_id.as_str(),
+        );
+        assert!(
+            MazeStateStore::get(store.as_ref(), replay_key.as_str())
+                .expect("replay key read should succeed")
+                .is_some()
+        );
+        let replay_key_count = store
+            .data
+            .lock()
+            .unwrap()
+            .keys()
+            .filter(|key| key.starts_with("maze:token:seen:"))
+            .count();
+        assert_eq!(replay_key_count, 1, "replay burst should create one replay marker");
+    }
+
+    #[test]
+    fn concurrent_checkpoint_writes_reuse_single_state_key() {
+        let store = Arc::new(MemStore::default());
+        let mut cfg = crate::config::defaults().clone();
+        cfg.maze_client_expansion_enabled = true;
+        let ip = "198.51.100.61";
+        let user_agent = "CheckpointBurstBot/1.0";
+
+        let entry_req = Request::builder()
+            .method(Method::Get)
+            .uri(maze_path("checkpoint-burst-entry"))
+            .body(Vec::<u8>::new())
+            .build();
+        let entry_path = maze_path("checkpoint-burst-entry");
+        let entry = super::serve(
+            store.as_ref(),
+            &cfg,
+            &entry_req,
+            ip,
+            user_agent,
+            entry_path.as_str(),
+            None,
+        );
+        let MazeServeDecision::Serve(entry_page) = entry else {
+            panic!("entry should serve maze");
+        };
+        let first_link =
+            first_maze_link(entry_page.html.as_str()).expect("first link should exist");
+
+        let child_req = Request::builder()
+            .method(Method::Get)
+            .uri(first_link.as_str())
+            .body(Vec::<u8>::new())
+            .build();
+        let child_path = first_link.split('?').next().expect("path should exist");
+        let child = super::serve(
+            store.as_ref(),
+            &cfg,
+            &child_req,
+            ip,
+            user_agent,
+            child_path,
+            None,
+        );
+        let MazeServeDecision::Serve(child_page) = child else {
+            panic!("child should serve maze");
+        };
+        let bootstrap = extract_bootstrap_json(child_page.html.as_str());
+        let token = bootstrap
+            .get("checkpoint_token")
+            .and_then(|value| value.as_str())
+            .expect("checkpoint token should exist")
+            .to_string();
+        let flow_id = bootstrap
+            .get("flow_id")
+            .and_then(|value| value.as_str())
+            .expect("flow id should exist")
+            .to_string();
+        let depth = bootstrap
+            .get("depth")
+            .and_then(|value| value.as_u64())
+            .expect("depth should exist");
+
+        let mut handles = Vec::new();
+        for _ in 0..8 {
+            let store = Arc::clone(&store);
+            let cfg = cfg.clone();
+            let token = token.clone();
+            let flow_id = flow_id.clone();
+            handles.push(thread::spawn(move || {
+                let body = serde_json::json!({
+                    "token": token,
+                    "flow_id": flow_id,
+                    "depth": depth,
+                    "checkpoint_reason": "burst_test",
+                })
+                .to_string()
+                .into_bytes();
+                let req = Request::builder()
+                    .method(Method::Post)
+                    .uri(super::super::checkpoint_path())
+                    .header("Content-Type", "application/json")
+                    .body(body)
+                    .build();
+                let response = super::handle_checkpoint(store.as_ref(), &cfg, &req, ip, user_agent);
+                *response.status()
+            }));
+        }
+
+        for handle in handles {
+            assert_eq!(
+                handle.join().expect("checkpoint thread should finish"),
+                204,
+                "checkpoint burst should keep accepting the same valid checkpoint token"
+            );
+        }
+
+        let checkpoint_key = checkpoint_key(
+            flow_id.as_str(),
+            crate::signals::ip_identity::bucket_ip(ip).as_str(),
+        );
+        assert!(
+            MazeStateStore::get(store.as_ref(), checkpoint_key.as_str())
+                .expect("checkpoint key read should succeed")
+                .is_some()
+        );
+        let checkpoint_key_count = store
+            .data
+            .lock()
+            .unwrap()
+            .keys()
+            .filter(|key| key.starts_with("maze:checkpoint:"))
+            .count();
+        assert_eq!(
+            checkpoint_key_count, 1,
+            "checkpoint burst should reuse a single checkpoint key"
         );
     }
 

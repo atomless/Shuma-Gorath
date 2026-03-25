@@ -13,6 +13,7 @@ make test-tarpit-collateral-risk-contract # Focused tarpit exact-principal escal
 make test-maze-benchmark # Deterministic maze asymmetry benchmark gate
 make test-maze-live-browser-unit # Focused helper/browser-driver checks for the live maze browser gate
 make test-maze-live-browser-contract # Live Chromium gate for JS/no-JS maze traversal, micro-PoW, replay, and escalation
+make test-maze-state-concurrency-contract # Focused native burst/concurrency proof for maze budget, replay, and checkpoint primitives
 make test-integration # Integration tests only (waits for existing Spin readiness)
 make integration-test # alias for make test-integration
 make test-gateway-harness # Gateway fixture/failure harness + deploy guardrail parser tests
@@ -865,3 +866,6 @@ Use browser developer tools to inspect:
 - `make test-maze-live-browser-contract`
   - requires a running local Spin server
   - proves JS-enabled checkpointed hidden-link progression, JS-disabled bounded fallback, micro-PoW browser progression, replay rejection, and repeated checkpoint-missing escalation
+- `make test-maze-state-concurrency-contract`
+  - focused native burst/concurrency proof for maze shared budget, replay, and checkpoint state primitives
+  - proves same-process burst contention stays bounded and does not admit duplicate replay progress

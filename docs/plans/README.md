@@ -84,6 +84,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-24-rsi-game-mainline-first-working-loop-plan.md`](2026-03-24-rsi-game-mainline-first-working-loop-plan.md)
 - [`2026-03-24-test-hygiene-6b-live-wrapper-and-integration-contract-plan.md`](2026-03-24-test-hygiene-6b-live-wrapper-and-integration-contract-plan.md)
 - [`2026-03-24-mz-t2-live-maze-browser-e2e-plan.md`](2026-03-24-mz-t2-live-maze-browser-e2e-plan.md)
+- [`2026-03-24-mz-t3-maze-state-concurrency-and-soak-plan.md`](2026-03-24-mz-t3-maze-state-concurrency-and-soak-plan.md)
 - [`2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md`](2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md)
 - [`2026-03-24-identification-tab-rename-and-taxonomy-distinction-plan.md`](2026-03-24-identification-tab-rename-and-taxonomy-distinction-plan.md)
 - [`2026-03-23-host-impact-cost-proxy-and-benchmark-implementation-plan.md`](2026-03-23-host-impact-cost-proxy-and-benchmark-implementation-plan.md)

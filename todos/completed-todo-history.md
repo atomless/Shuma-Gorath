@@ -4,6 +4,32 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### MZ-T3: maze state concurrency and burst-soak coverage
+
+- [x] Added focused native burst/concurrency proof in:
+  - [`Makefile`](../Makefile) as `make test-maze-state-concurrency-contract`
+  - [`src/deception/primitives.rs`](../src/deception/primitives.rs)
+  - [`src/maze/runtime.rs`](../src/maze/runtime.rs)
+- [x] Hardened the shared-host state seams so the new proof is truthful:
+  - shared budget acquire/release is now serialized through a small local critical section,
+  - maze replay/checkpoint/issue transitions are now serialized through a small local progression critical section.
+- [x] Proved:
+  - cap-1 shared budget burst admits exactly one lease and returns counters to zero,
+  - concurrent claims on the same maze traversal token admit one winner and deterministic replay rejection,
+  - concurrent checkpoint writes reuse one checkpoint key instead of proliferating state.
+- [x] Updated docs in:
+  - [`docs/maze.md`](../docs/maze.md)
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`docs/plans/2026-02-25-maze-carry-forward-plan.md`](../docs/plans/2026-02-25-maze-carry-forward-plan.md)
+- [x] Added the tranche paper trail in:
+  - [`docs/research/2026-03-24-mz-t3-maze-state-concurrency-and-soak-review.md`](../docs/research/2026-03-24-mz-t3-maze-state-concurrency-and-soak-review.md)
+  - [`docs/plans/2026-03-24-mz-t3-maze-state-concurrency-and-soak-plan.md`](../docs/plans/2026-03-24-mz-t3-maze-state-concurrency-and-soak-plan.md)
+  - [`docs/research/2026-03-24-mz-t3-maze-state-concurrency-and-soak-post-implementation-review.md`](../docs/research/2026-03-24-mz-t3-maze-state-concurrency-and-soak-post-implementation-review.md)
+- [x] Evidence:
+  - `make test-maze-state-concurrency-contract`
+  - `git diff --check`
+
 ### MZ-T2: live browser/session maze coverage
 
 - [x] Added the focused live Chromium/session maze gate in:

@@ -114,6 +114,8 @@ The directory is intentionally flat. Use this index, not nested folders, to dist
 - [`2026-03-24-mz-t1-live-maze-spin-integration-post-implementation-review.md`](2026-03-24-mz-t1-live-maze-spin-integration-post-implementation-review.md) - Closeout for landing the focused live opaque maze traversal gate
 - [`2026-03-24-mz-t2-live-maze-browser-e2e-review.md`](2026-03-24-mz-t2-live-maze-browser-e2e-review.md) - Pre-implementation review for the missing live browser/session maze proof
 - [`2026-03-24-mz-t2-live-maze-browser-e2e-post-implementation-review.md`](2026-03-24-mz-t2-live-maze-browser-e2e-post-implementation-review.md) - Closeout for landing the focused live browser/session maze proof
+- [`2026-03-24-mz-t3-maze-state-concurrency-and-soak-review.md`](2026-03-24-mz-t3-maze-state-concurrency-and-soak-review.md) - Pre-implementation review for burst/concurrency closure over maze state primitives
+- [`2026-03-24-mz-t3-maze-state-concurrency-and-soak-post-implementation-review.md`](2026-03-24-mz-t3-maze-state-concurrency-and-soak-post-implementation-review.md) - Closeout for burst/concurrency coverage and shared-host hardening over maze state primitives
 - [`2026-03-24-open-backlog-and-plan-reference-stance-alignment-review.md`](2026-03-24-open-backlog-and-plan-reference-stance-alignment-review.md)
 - [`2026-03-24-monitoring-multi-loop-benchmark-progress-review.md`](2026-03-24-monitoring-multi-loop-benchmark-progress-review.md)
 - [`2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-review.md`](2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-review.md)
