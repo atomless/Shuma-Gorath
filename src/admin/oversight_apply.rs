@@ -369,6 +369,9 @@ fn apply_refusal_reasons(
     if reconcile.outcome != "recommend_patch" || reconcile.proposal.is_none() {
         reasons.push(format!("reconcile_outcome_{}", reconcile.outcome));
     }
+    if let Some(reason) = proposal_apply_refusal_reason(reconcile) {
+        reasons.push(reason);
+    }
     if validation.status != "valid" {
         reasons.push(format!("proposal_validation_{}", validation.status));
     }
@@ -377,6 +380,12 @@ fn apply_refusal_reasons(
         reasons.extend(snapshot.benchmark_results.tuning_eligibility.blockers.clone());
     }
     reasons
+}
+
+fn proposal_apply_refusal_reason(reconcile: &OversightReconcileResult) -> Option<String> {
+    let proposal = reconcile.proposal.as_ref()?;
+    (proposal.controller_status != "allowed")
+        .then_some("proposal_not_controller_tunable".to_string())
 }
 
 fn rollback_reason(
@@ -536,5 +545,60 @@ fn operator_evidence_reference(
         kind: kind.to_string(),
         reference: reference.to_string(),
         note: note.to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::proposal_apply_refusal_reason;
+    use crate::admin::oversight_patch_policy::OversightPatchProposal;
+    use crate::admin::oversight_reconcile::OversightReconcileResult;
+    use serde_json::json;
+
+    fn reconcile_with_controller_status(controller_status: &str) -> OversightReconcileResult {
+        OversightReconcileResult {
+            schema_version: "oversight_reconcile_v1".to_string(),
+            generated_at: 1_700_000_000,
+            trigger_source: "test".to_string(),
+            outcome: "recommend_patch".to_string(),
+            summary: "test".to_string(),
+            objective_revision: "rev-1".to_string(),
+            benchmark_overall_status: "outside_budget".to_string(),
+            improvement_status: "regressing".to_string(),
+            trigger_family_ids: vec!["likely_human_friction".to_string()],
+            candidate_action_families: vec!["challenge".to_string()],
+            refusal_reasons: Vec::new(),
+            proposal: Some(OversightPatchProposal {
+                patch_family: "challenge".to_string(),
+                patch: json!({ "challenge_puzzle_enabled": true }),
+                expected_impact: "test".to_string(),
+                confidence: "medium".to_string(),
+                required_verification: Vec::new(),
+                controller_status: controller_status.to_string(),
+                canary_requirement: "required".to_string(),
+                matched_group_ids: vec!["challenge.policy".to_string()],
+                note: "test".to_string(),
+            }),
+            latest_sim_run_id: None,
+            replay_promotion_availability: "available".to_string(),
+            snapshot_generated_at: 1_700_000_000,
+            evidence_references: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn apply_refuses_non_tunable_proposals_even_if_one_is_present() {
+        assert_eq!(
+            proposal_apply_refusal_reason(&reconcile_with_controller_status("forbidden")),
+            Some("proposal_not_controller_tunable".to_string())
+        );
+    }
+
+    #[test]
+    fn apply_accepts_allowed_proposals() {
+        assert_eq!(
+            proposal_apply_refusal_reason(&reconcile_with_controller_status("allowed")),
+            None
+        );
     }
 }

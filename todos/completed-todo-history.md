@@ -4,6 +4,33 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### CTRL-SURFACE-3: Enforce and surface controller mutability truth
+
+- [x] Added explicit hard-boundary rejection in:
+  - [`src/admin/oversight_patch_policy.rs`](../src/admin/oversight_patch_policy.rs)
+  - [`src/admin/oversight_apply.rs`](../src/admin/oversight_apply.rs)
+  so known-but-forbidden families now fail closed in patch shaping, and apply refuses any proposal whose `controller_status` is not `allowed`.
+- [x] Added focused hard-boundary proof in:
+  - [`Makefile`](../Makefile)
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`src/admin/oversight_patch_policy.rs`](../src/admin/oversight_patch_policy.rs)
+  - [`src/admin/oversight_apply.rs`](../src/admin/oversight_apply.rs)
+  with the new narrow target:
+  - `make test-controller-hard-boundaries`
+- [x] Added operator-surface documentation so later UI work consumes the canonical rings in:
+  - [`docs/dashboard-tabs/advanced.md`](../docs/dashboard-tabs/advanced.md)
+  - [`docs/dashboard-tabs/tuning.md`](../docs/dashboard-tabs/tuning.md)
+- [x] Updated the closeout trail in:
+  - [`docs/research/2026-03-24-ctrl-surface-3-hard-boundary-enforcement-post-implementation-review.md`](../docs/research/2026-03-24-ctrl-surface-3-hard-boundary-enforcement-post-implementation-review.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+- [x] Why:
+  - after parity landed, the repo still needed explicit proof and fail-closed behavior for forbidden families and non-tunable apply attempts
+  - that makes the bounded controller ring an enforced contract rather than just a descriptive policy
+- [x] Evidence:
+  - `make test-controller-hard-boundaries`
+  - `make test-controller-action-surface-parity`
+  - `git diff --check`
+
 ### CTRL-SURFACE-2: Allowed-action and proposer parity over the ratified tunable set
 
 - [x] Rewired the live controller action surface in:

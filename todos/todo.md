@@ -104,19 +104,18 @@ Reference context:
 
 ### RSI-GAME-MAINLINE-1: First working self-improving loop over attacker-faithful Scrapling
 - After the Scrapling-owned surfaces are attacker-faithful and receipt-backed, execute the first explicit self-improving loop over that truthful attacker basis.
-- Before broadening that loop, land `CTRL-SURFACE-3` and the judge-side game-contract work (`RSI-GAME-1A`, `RSI-GAME-1B`, `RSI-SCORE-1`, and `RSI-GAME-1C`) so the loop runs over a settled legal move ring and explicit judge semantics.
+- Before broadening that loop, land the judge-side game-contract work (`RSI-GAME-1A`, `RSI-GAME-1B`, `RSI-SCORE-1`, and `RSI-GAME-1C`) so the loop runs over a settled legal move ring and explicit judge semantics.
 - Keep this ahead of later LLM attacker or defender runtime work, and ahead of secondary dashboard cleanup follow-ons.
 
 Mainline execution order:
 1. `SIM-SCR-CHALLENGE-2A`
 2. `SIM-SCR-CHALLENGE-2B`
 3. `SIM-SCR-CHALLENGE-2C` only if `2D` proves a remaining Scrapling-owned surface requires browser or stealth Scrapling
-4. `CTRL-SURFACE-3`
-5. `RSI-GAME-1A`
-6. `RSI-GAME-1B`
-7. `RSI-SCORE-1`
-8. `RSI-GAME-1C`
-9. `RSI-GAME-MAINLINE-1`
+4. `RSI-GAME-1A`
+5. `RSI-GAME-1B`
+6. `RSI-SCORE-1`
+7. `RSI-GAME-1C`
+8. `RSI-GAME-MAINLINE-1`
 
 ### DIAG-CLEANUP-1: Diagnostics furniture-operational cleanup after Traffic split
 - After `TRAFFIC-TAB-1` lands, remove the migrated traffic-facing sections from Diagnostics so it becomes clearly diagnostics-first and furniture-operational.
@@ -135,11 +134,6 @@ Mainline execution order:
 - Express taxonomy categories as `Category target achievement` or equivalent target-vs-achieved rows derived from the category posture benchmarks, rather than pretending those rows are separately configured budgets.
 - Execute this after `TRAFFIC-TAB-1` and `DIAG-CLEANUP-1` so category/trust projection lands against the cleaned final Monitoring-vs-Traffic-vs-Diagnostics ownership boundary rather than the transitional mixed surface.
 - Reference context: [`../docs/research/2026-03-24-game-loop-budget-visualization-and-category-target-achievement-review.md`](../docs/research/2026-03-24-game-loop-budget-visualization-and-category-target-achievement-review.md), [`../docs/plans/2026-03-24-game-loop-budget-visualization-and-category-target-achievement-plan.md`](../docs/plans/2026-03-24-game-loop-budget-visualization-and-category-target-achievement-plan.md)
-
-### CTRL-SURFACE-3: Enforce and surface controller mutability truth
-- Add explicit code and test enforcement for hard-never surfaces and thread the canonical mutability classification into docs and later operator surfaces.
-- Make later controller-explanation work in Monitoring, Tuning, and Advanced consume the canonical mutability policy instead of inferring mutability from admin writability.
-- Reference context: [`../docs/plans/2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md`](../docs/plans/2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md)
 
 ## P1 Verified Bot Identity And Web Bot Auth Foundation
 

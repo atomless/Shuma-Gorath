@@ -63,6 +63,7 @@ make test-admin-api-routing-contract # Focused admin route-family contract gate 
 make test-controller-mutability-policy # Focused controller mutability-ring policy checks
 make test-controller-action-surface # Focused allowed-actions and controller-family mapping checks
 make test-controller-action-surface-parity # Focused parity checks across mutability policy, allowed-actions, benchmark escalation, and patch shaping
+make test-controller-hard-boundaries # Focused hard-boundary rejection checks for controller-forbidden surfaces
 make test-benchmark-comparison-contract # Focused benchmark comparison helper contract checks
 make test-operator-objectives-contract # Focused operator objectives, decision-ledger, and snapshot wiring checks
 make test-operator-objectives-category-contract # Focused category-aware operator-objectives contract checks
@@ -311,6 +312,7 @@ Structural refactor proof map:
 - `make test-controller-mutability-policy` is the focused mutability-policy gate for the canonical `never` / `manual_only` / `controller_tunable` classification across operator objectives and the admin-config surface.
 - `make test-controller-action-surface` is the focused config-side gate for `allowed_actions_v1` and controller patch-family mapping reuse.
 - `make test-controller-action-surface-parity` is the focused `CTRL-SURFACE-2` gate for parity between the canonical mutability policy, `allowed_actions_v1`, benchmark escalation candidate families, and bounded patch-policy family ownership.
+- `make test-controller-hard-boundaries` is the focused `CTRL-SURFACE-3` gate for explicit rejection of controller-forbidden families and apply refusal when a proposal is not controller-tunable.
 - `make test-benchmark-comparison-contract` is the focused benchmark helper gate for explicit baseline-availability, improvement-status, and escalation comparison semantics.
 - `make test-operator-objectives-contract` is the focused objective-profile and decision-evidence gate for persisted `operator_objectives_v1`, the operator-objectives admin endpoint, the bounded decision ledger, and snapshot wiring.
 - `make test-verified-identity-calibration-readiness` is the focused bridge gate before `VID-TAX-1` through `VID-GUARD-1`; it proves the current verified-identity taxonomy, snapshot, benchmark, and reconcile seams without over-claiming future alignment or conflict behavior.

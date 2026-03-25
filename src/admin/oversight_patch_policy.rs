@@ -48,6 +48,13 @@ pub(crate) fn propose_patch(
         return Err(OversightPatchPolicyError::NoCandidateFamily);
     }
 
+    if let Some(family) = first_non_proposable_candidate_family(allowed_actions, candidate_families)
+    {
+        return Err(OversightPatchPolicyError::UnsupportedCandidateFamily(
+            family.to_string(),
+        ));
+    }
+
     let priority = match pressure {
         OversightPressure::ReduceLikelyHumanFriction => &[
             "proof_of_work",
@@ -310,6 +317,23 @@ fn family_is_proposable(allowed_actions: &AllowedActionsSurface, family: &str) -
     })
 }
 
+fn first_non_proposable_candidate_family<'a>(
+    allowed_actions: &'a AllowedActionsSurface,
+    candidate_families: &'a [String],
+) -> Option<&'a str> {
+    candidate_families
+        .iter()
+        .map(String::as_str)
+        .find(|family| family_is_known(allowed_actions, family) && !family_is_proposable(allowed_actions, family))
+}
+
+fn family_is_known(allowed_actions: &AllowedActionsSurface, family: &str) -> bool {
+    allowed_actions
+        .groups
+        .iter()
+        .any(|group| group.family == family)
+}
+
 fn matched_groups_for_patch<'a>(
     allowed_actions: &'a AllowedActionsSurface,
     family: &str,
@@ -490,6 +514,95 @@ mod tests {
         assert_eq!(
             proposal.matched_group_ids,
             vec!["core_policy.js_required_toggle".to_string()]
+        );
+    }
+
+    #[test]
+    fn forbidden_verified_identity_family_is_rejected() {
+        let err = propose_patch(
+            &defaults(),
+            &allowed_actions_v1(),
+            &["verified_identity".to_string()],
+            OversightPressure::ReduceSuspiciousOriginCost,
+            &ReplayPromotionSummary::not_materialized(),
+        )
+        .expect_err("verified identity must remain controller-forbidden");
+
+        assert_eq!(
+            err,
+            OversightPatchPolicyError::UnsupportedCandidateFamily(
+                "verified_identity".to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn forbidden_provider_selection_family_is_rejected() {
+        let err = propose_patch(
+            &defaults(),
+            &allowed_actions_v1(),
+            &["provider_selection".to_string()],
+            OversightPressure::ReduceSuspiciousOriginCost,
+            &ReplayPromotionSummary::not_materialized(),
+        )
+        .expect_err("provider selection must remain controller-forbidden");
+
+        assert_eq!(
+            err,
+            OversightPatchPolicyError::UnsupportedCandidateFamily(
+                "provider_selection".to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn forbidden_robots_policy_family_is_rejected() {
+        let err = propose_patch(
+            &defaults(),
+            &allowed_actions_v1(),
+            &["robots_policy".to_string()],
+            OversightPressure::ReduceSuspiciousOriginCost,
+            &ReplayPromotionSummary::not_materialized(),
+        )
+        .expect_err("robots policy must remain controller-forbidden");
+
+        assert_eq!(
+            err,
+            OversightPatchPolicyError::UnsupportedCandidateFamily("robots_policy".to_string())
+        );
+    }
+
+    #[test]
+    fn forbidden_allowlists_family_is_rejected() {
+        let err = propose_patch(
+            &defaults(),
+            &allowed_actions_v1(),
+            &["allowlists".to_string()],
+            OversightPressure::ReduceSuspiciousOriginCost,
+            &ReplayPromotionSummary::not_materialized(),
+        )
+        .expect_err("allowlists must remain controller-forbidden");
+
+        assert_eq!(
+            err,
+            OversightPatchPolicyError::UnsupportedCandidateFamily("allowlists".to_string())
+        );
+    }
+
+    #[test]
+    fn forbidden_tarpit_family_is_rejected() {
+        let err = propose_patch(
+            &defaults(),
+            &allowed_actions_v1(),
+            &["tarpit".to_string()],
+            OversightPressure::ReduceSuspiciousOriginCost,
+            &ReplayPromotionSummary::not_materialized(),
+        )
+        .expect_err("tarpit must remain controller-forbidden");
+
+        assert_eq!(
+            err,
+            OversightPatchPolicyError::UnsupportedCandidateFamily("tarpit".to_string())
         );
     }
 

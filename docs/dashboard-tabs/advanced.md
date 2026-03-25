@@ -31,3 +31,8 @@ Validation/save flow:
 Policy note:
 
 - Advanced JSON must remain in parity with all non-env-only writable admin config keys.
+- Admin writability must not be confused with controller eligibility. Advanced exposes the broader operator-writable surface, which now sits under the canonical mutability rings:
+  - `never`
+  - `manual_only`
+  - `controller_tunable`
+- Later controller-explanation work must consume that canonical classification rather than inventing a second local grouping inside Advanced.
