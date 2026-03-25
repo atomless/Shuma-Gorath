@@ -472,14 +472,16 @@ Status update (2026-03-21):
 1. Canonical verified-identity contract.
 2. Native Web Bot Auth and HTTP Message Signatures handling.
 3. Provider-normalized verified-bot and signed-agent inputs.
-4. Named local allow, restrict, and deny policy for authenticated bots and agents.
-5. Verified-agent monitoring and policy truth surfaces.
+4. Canonical non-human stance presets and one resolved effective policy contract over the full taxonomy.
+5. Named local allow, restrict, deny, and service-profile overrides for authenticated bots and agents inside that canonical stance model.
+6. Verified-agent monitoring and policy truth surfaces.
 
 Reason:
 
 1. Shuma should formalize identity before sim, intelligence, or agentic reconfiguration so authentication, authorization, and reputation remain separate from the outset.
 2. This gives later sim lanes a truthful beneficial-agent and spoofed-agent target model to test against.
 3. It also keeps trust-boundary controls out of later autonomous tuning work until those controls exist explicitly.
+4. Verified identity should not become a second policy regime; it must remain evidence and explicit override inside the canonical non-human stance model.
 
 ## Stage 4: Adversary-Sim Foundations
 

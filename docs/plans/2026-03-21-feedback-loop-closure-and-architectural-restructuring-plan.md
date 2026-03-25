@@ -45,6 +45,7 @@ Close the first real Shuma feedback loop and structurally decompose the control-
 15. Taxonomy entries must carry stable machine and human-facing metadata because operator objectives and later tuning surfaces will bind posture directly to those categories.
 16. The next LLM adversary step should be bounded category-fulfillment modes behind a pluggable containerized backend contract; the full first-class LLM runtime actor remains later.
 17. The first genuinely closed loop ends at bounded config tuning and rollback; the later LLM diagnosis harness and later LLM code loop remain downstream phases rather than part of the first closure slice.
+18. The later recursive-improvement methodology must consume one canonical non-human stance model; verified identity must act as evidence and explicit override, not as a competing stance system.
 
 # Target Architecture
 
@@ -61,6 +62,12 @@ The first real loop should converge on one backend contract chain:
 7. recommend-only reconcile engine,
 8. first shared-host agent tweaker harness,
 9. thin Monitoring and Tuning projections.
+
+The policy-model correction now required by the Game Loop and verified-identity work is:
+
+1. one canonical non-human stance model over the full taxonomy,
+2. one resolved effective policy contract shared by runtime, benchmark, Game Loop, and Tuning,
+3. and verified identity as authenticated evidence plus explicit exceptions rather than a second stance authority.
 
 ## 2. Structural Goal
 

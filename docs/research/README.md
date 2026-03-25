@@ -34,6 +34,7 @@ The directory is intentionally flat. Use this index, not nested folders, to dist
 - [`2026-03-24-test-hygiene-6b-live-wrapper-and-integration-contract-post-implementation-review.md`](2026-03-24-test-hygiene-6b-live-wrapper-and-integration-contract-post-implementation-review.md) - Closeout for splitting live feedback-loop behavior proof from wrapper contracts and renaming the integration cleanup contract lane
 - [`2026-03-25-testing-suite-structure-and-mainline-friction-review.md`](2026-03-25-testing-suite-structure-and-mainline-friction-review.md) - Assesses the current test surface professionally and makes a narrow active-mainline test-ergonomics tranche the next highest-leverage follow-on
 - [`2026-03-25-test-mainline-1-active-verification-ergonomics-post-implementation-review.md`](2026-03-25-test-mainline-1-active-verification-ergonomics-post-implementation-review.md) - Closeout for adding the truthful active Scrapling -> game-loop aggregate verification bundle
+- [`2026-03-25-canonical-non-human-stance-and-verified-identity-override-review.md`](2026-03-25-canonical-non-human-stance-and-verified-identity-override-review.md) - Identifies the dual-stance fault between verified identity and category posture and proposes one canonical non-human stance model with explicit verified overrides
 - [`2026-03-25-test-hygiene-2-worktree-clean-readiness-review.md`](2026-03-25-test-hygiene-2-worktree-clean-readiness-review.md) - Narrows the next testing-hygiene slice to worktree-clean adversarial and SIM2 artifact outputs
 - [`2026-03-25-test-hygiene-2-worktree-clean-post-implementation-review.md`](2026-03-25-test-hygiene-2-worktree-clean-post-implementation-review.md) - Closeout for routing routine adversarial and SIM2 generated make outputs under `.spin/adversarial/` instead of tracked report paths
 - [`2026-03-25-test-hygiene-6c-make-selector-contract-review.md`](2026-03-25-test-hygiene-6c-make-selector-contract-review.md) - Narrows the remaining selector-microtest cleanup into explicit adversary-sim, verified-identity, and host-impact contract lanes
@@ -215,6 +216,12 @@ The directory is intentionally flat. Use this index, not nested folders, to dist
 - [`2026-03-23-sim-scr-fit-1-request-native-category-ownership-post-implementation-review.md`](2026-03-23-sim-scr-fit-1-request-native-category-ownership-post-implementation-review.md)
 - [`2026-03-23-sim-scr-fit-2-request-personas-post-implementation-review.md`](2026-03-23-sim-scr-fit-2-request-personas-post-implementation-review.md)
 - [`2026-03-23-sim-scr-cover-2-request-native-coverage-post-implementation-review.md`](2026-03-23-sim-scr-cover-2-request-native-coverage-post-implementation-review.md)
+
+### Verified identity
+
+- [`2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-research-synthesis.md`](2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-research-synthesis.md)
+- [`2026-03-21-verified-identity-execution-readiness-refresh.md`](2026-03-21-verified-identity-execution-readiness-refresh.md)
+- [`2026-03-25-canonical-non-human-stance-and-verified-identity-override-review.md`](2026-03-25-canonical-non-human-stance-and-verified-identity-override-review.md)
 
 ### Deferred edge gateway track
 

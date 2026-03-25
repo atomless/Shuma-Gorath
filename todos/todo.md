@@ -136,7 +136,18 @@ Current stance:
 - Verified identity now sits after the delivered machine-first telemetry/snapshot foundations and before mature adversary-sim expansion.
 - The first execution slices should stay observe-only: identity contracts, config, provider normalization, telemetry, and request-path annotations without routing change.
 - The primary product value is exact non-human restriction and exception management; looser treatment for named verified bots remains an explicit opt-in later policy choice.
+- The repo now treats the independent verified-identity top-level stance as design debt: `STANCE-MODEL-1` should replace it with one canonical non-human stance model and a resolved effective policy contract before broader permissive verified-identity posture work continues.
 - Do not bundle authorization policy, low-cost profiles, or dashboard control surfaces into the first tranche.
+
+- [ ] STANCE-MODEL-1 Replace the independent verified-identity stance with canonical non-human stance presets and one resolved effective policy contract.
+  - Reference context:
+    - [`docs/research/2026-03-25-canonical-non-human-stance-and-verified-identity-override-review.md`](../docs/research/2026-03-25-canonical-non-human-stance-and-verified-identity-override-review.md)
+    - [`docs/plans/2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md`](../docs/plans/2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md)
+    - [`docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](../docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md)
+    - [`docs/plans/2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-implementation-plan.md`](../docs/plans/2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-implementation-plan.md)
+  - [ ] STANCE-MODEL-1A Define canonical stance presets and the resolved effective policy contract, including `human_only_private` and `humans_plus_verified_only`.
+  - [ ] STANCE-MODEL-1B Rebase verified identity onto evidence, named exceptions, and service-profile overrides instead of an independent top-level stance.
+  - [ ] STANCE-MODEL-1C Thread the resolved effective policy into runtime, operator snapshot, benchmark/Game Loop, and the later Tuning surface so all consumers read the same policy truth.
 
 ## P1 Production Adversary-Sim Operating Contract
 

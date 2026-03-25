@@ -4,6 +4,36 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-25)
 
+### Canonical Non-Human Stance And Verified-Identity Override Planning
+
+- [x] Wrote the new design-driver review in:
+  - [`docs/research/2026-03-25-canonical-non-human-stance-and-verified-identity-override-review.md`](../docs/research/2026-03-25-canonical-non-human-stance-and-verified-identity-override-review.md)
+  so the repo now explicitly records the policy-model fault: verified identity had become a second independent stance source even though it only covers a subset of the canonical taxonomy.
+- [x] Wrote the execution-ready redesign plan in:
+  - [`docs/plans/2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md`](../docs/plans/2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md)
+  with the corrected architecture:
+  - one canonical non-human stance model,
+  - verified identity as evidence plus explicit override,
+  - `human_only_private` as the strict baseline,
+  - and `humans_plus_verified_only` as the first later relaxed verified-identity sweep candidate.
+- [x] Threaded the correction through the active planning chain in:
+  - [`docs/plans/2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-implementation-plan.md`](../docs/plans/2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-implementation-plan.md)
+  - [`docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](../docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md)
+  - [`docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](../docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md)
+  - [`docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
+  - [`docs/plans/README.md`](../docs/plans/README.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+- [x] Added the execution-ready backlog item in:
+  - [`todos/todo.md`](../todos/todo.md)
+  and tightened later recursive-improvement blockers in:
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+  so future methodology and code-evolution work must consume the canonical stance-model redesign instead of continuing on top of the dual-stance semantics.
+- [x] Why:
+  - the strict Game Loop baseline only makes sense if verified identities are denied under `human_only_private` too,
+  - and Shuma needs one resolved effective policy contract so runtime, benchmark, Game Loop, and Tuning stop reasoning from different non-human policy pictures.
+- [x] Evidence:
+  - `git diff --check`
+
 ### Dashboard Scrapling Evidence And Game Loop Refresh Cleanup
 
 - [x] Tightened the `Red Team` operator proof surface in:

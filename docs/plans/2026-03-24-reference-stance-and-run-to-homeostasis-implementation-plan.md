@@ -29,6 +29,19 @@ Carry the reference-stance and run-to-homeostasis methodology into the later rec
 5. Later code evolution must continue to pass the strict reference stance as a regression anchor.
 6. Homeostasis inputs and later episode judgment must come from the canonical judge scorecard and held-out-evaluation boundaries rather than from agent-defined heuristics.
 
+## Current note (2026-03-25)
+
+This methodology now depends on the policy-model redesign captured in:
+
+1. [`2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md`](2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md)
+2. [`../research/2026-03-25-canonical-non-human-stance-and-verified-identity-override-review.md`](../research/2026-03-25-canonical-non-human-stance-and-verified-identity-override-review.md)
+
+That means:
+
+1. `Human-only / private` must deny or equivalently suppress verified non-human traffic too during the strict baseline,
+2. verified identity remains telemetry, attribution, and explicit-exception input rather than a hidden permissive second stance,
+3. and the first relaxed verified-identity sweep candidate after the strict baseline should be `humans_plus_verified_only`.
+
 # Execution Shape
 
 ## `RSI-METH-1`: Recursive-improvement methodology contract
@@ -124,6 +137,7 @@ This should be explicit in both planning and benchmark acceptance criteria.
 4. Make the methodology consume `RSI-SCORE-1` and `RSI-EVAL-1` so reference-stance episodes do not drift into player-defined scoring or fully visible evaluation surfaces.
 5. Make later code-evolution execution also consume `RSI-AUDIT-1` so strict-reference regression anchors link cleanly to GitHub PR, merge, and revert lineage rather than only prose.
 6. Keep this methodology blocked until the broader later controller phases are reopened; do not retrofit the current proven bounded config loop into an indefinite autonomous runner prematurely.
+7. Make later methodology execution wait for `STANCE-MODEL-1` so strict and relaxed stances are judged against one resolved effective policy contract rather than the current dual-stance model.
 
 Current note:
 

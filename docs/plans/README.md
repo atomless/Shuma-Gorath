@@ -30,6 +30,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-25-sim-llm-1b-episode-harness-implementation-plan.md`](2026-03-25-sim-llm-1b-episode-harness-implementation-plan.md) - Reopens the next backend mainline as the executable attacker episode-harness, bounded-memory, and curriculum contract
 - [`2026-03-25-sim-llm-1c-runtime-decomposition-plan.md`](2026-03-25-sim-llm-1c-runtime-decomposition-plan.md) - Splits the later LLM attacker runtime into live frontier generation, supervisor/result wiring, and runtime proof closure
 - [`2026-03-25-scrapling-full-attacker-capability-principle-plan.md`](2026-03-25-scrapling-full-attacker-capability-principle-plan.md) - Reframes Scrapling so attacker-relevant upstream capability becomes a default-adopt expectation for Scrapling-owned surfaces with explicit omission records
+- [`2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md`](2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md) - Removes the dual-stance policy model by making verified identity an explicit override inside one canonical non-human stance system
 - [`2026-03-25-sim-scr-cap-1-capability-matrix-plan.md`](2026-03-25-sim-scr-cap-1-capability-matrix-plan.md) - Freezes the current upstream capability matrix and promotes request-native attacker fidelity as the next concrete Scrapling implementation slice
 - [`2026-03-25-dashboard-scrapling-evidence-surfacing-plan.md`](2026-03-25-dashboard-scrapling-evidence-surfacing-plan.md) - Surfaces receipt-backed Scrapling attack proof in Red Team with only a compact corroboration in Game Loop
 - [`2026-03-25-mon-overhaul-1c-category-trust-implementation-plan.md`](2026-03-25-mon-overhaul-1c-category-trust-implementation-plan.md) - Refines the next Game Loop tranche into explicit numeric budget usage, category target achievement, and trust/actionability projection
@@ -118,6 +119,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 
 - [`2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-design.md`](2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-design.md)
 - [`2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-implementation-plan.md`](2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-implementation-plan.md)
+- [`2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md`](2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md)
 
 ### Mature adversary simulation
 

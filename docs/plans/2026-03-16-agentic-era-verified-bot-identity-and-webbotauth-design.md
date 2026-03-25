@@ -250,6 +250,18 @@ Downgrade outcomes can include:
 
 This preserves safety without discarding the value of verified identity.
 
+## Planning correction (2026-03-25)
+
+The earlier design correctly separated authentication from reputation, but it allowed verified identity to accumulate a second independent non-human stance system.
+
+That is now treated as design debt.
+
+The corrected shape is:
+
+1. one canonical non-human stance model over the full taxonomy,
+2. verified identity as authenticated evidence plus explicit named exceptions or service-profile overrides,
+3. and one resolved effective policy contract shared by runtime, benchmark, Game Loop, and Tuning.
+
 # Config and Control Surfaces
 
 ## Manual operator controls
@@ -259,7 +271,7 @@ Shuma should add a dedicated identity-policy surface for:
 1. enabling the identity subsystem,
 2. enabling native Web Bot Auth verification,
 3. enabling provider-normalized verified-bot inputs,
-4. top-level non-human traffic stance,
+4. viewing and editing only the verified-identity-specific exception layer while the canonical non-human stance lives elsewhere,
 5. freshness and replay windows,
 6. trusted directory sources,
 7. per-identity policy rules,

@@ -16,11 +16,28 @@ Related context:
 3. Keep identity verification deterministic and request-path safe.
 4. Normalize native Web Bot Auth and provider-verified signals into one internal contract.
 5. Make verified identity visible to monitoring, dashboard policy surfaces, and the future oversight controller.
-6. Ensure authenticated identities can still be denied or tightly constrained cleanly and obviously under a top-level operator non-human traffic stance.
+6. Ensure authenticated identities can still be denied or tightly constrained cleanly and obviously under the canonical non-human stance and its explicit overrides.
 
 # Delivery Strategy
 
 Implement this in narrow phases. Identity, then exact restriction-and-exception policy, and only then optional low-cost content profiles should land in that order. Trust-boundary controls should stay manual-only until the system is proven.
+
+## Planning correction (2026-03-25)
+
+The earlier plan correctly separated authentication from reputation, but it overreached by giving verified identity its own top-level non-human stance semantics.
+
+That is now treated as a design fault.
+
+The corrected architecture is:
+
+1. one canonical non-human stance model over the full taxonomy,
+2. verified identity as authenticated evidence plus explicit named exception or service-profile override,
+3. and one resolved effective policy contract consumed by runtime, benchmarks, Game Loop, and later Tuning.
+
+See:
+
+1. [`2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md`](2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md)
+2. [`../research/2026-03-25-canonical-non-human-stance-and-verified-identity-override-review.md`](../research/2026-03-25-canonical-non-human-stance-and-verified-identity-override-review.md)
 
 # Roadmap Fit
 
@@ -79,7 +96,7 @@ Add canonical config for:
 1. identity subsystem enablement,
 2. native Web Bot Auth enablement,
 3. provider-normalized verified-bot enablement,
-4. top-level non-human traffic stance,
+4. verifier-path enablement plus explicit override-policy inputs, without creating a second top-level non-human stance authority,
 5. replay and clock-skew windows,
 6. directory cache TTLs and freshness requirements,
 7. named identity policy entries,
@@ -91,7 +108,7 @@ Acceptance:
 1. `config/defaults.env` is the source of truth,
 2. admin config and dashboard Advanced JSON parity is maintained,
 3. unsafe or contradictory configurations fail validation clearly,
-4. and the top-level stance makes restrictive non-human defaults easy to express.
+4. and the canonical stance model makes restrictive non-human defaults easy to express without splitting policy authority.
 
 # Phase 1: Observe-Only Identity Normalization
 
@@ -257,7 +274,7 @@ Add dashboard/admin support for:
 
 1. enabling identity verification modes,
 2. managing named identity policies,
-3. selecting the top-level non-human traffic stance,
+3. viewing the canonical non-human stance and editing only the verified-identity-specific exception or override layer,
 4. viewing directory/source freshness,
 5. assigning low-cost profiles.
 
