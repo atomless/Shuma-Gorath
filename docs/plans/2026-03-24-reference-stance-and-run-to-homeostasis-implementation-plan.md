@@ -47,7 +47,8 @@ Additional sequencing constraint:
 1. do not open `humans_plus_verified_only` just because the stance model exists or one bounded loop can run,
 2. first mature Scrapling to the full attacker-relevant capability Shuma assigns to it for the non-agent or non-LLM spectrum,
 3. then run repeated `human_only_private` config-change cycles until retained changes and measured improvement are proven,
-4. and only then treat `humans_plus_verified_only` as an eligible second experiment.
+4. then land the remaining LLM attacker runtime proof closure and rerun the strict stance with both Scrapling and LLM pressure,
+5. and only then treat `humans_plus_verified_only` as an eligible second experiment.
 
 # Execution Shape
 

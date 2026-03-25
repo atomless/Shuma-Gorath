@@ -100,14 +100,15 @@ Conclusion:
 1. After `STANCE-MODEL-1`, the next mainline should stay non-LLM.
 2. The next mainline tranche should be full-power Scrapling maturity for the non-agent or non-LLM adversary spectrum Shuma assigns to Scrapling.
 3. After full-power Scrapling lands, Shuma should run repeated `human_only_private` loop cycles until real improvement is proven through actual config-change iteration over many completed cycles.
-4. Do not transition to `humans_plus_verified_only` until that strict-baseline operational proof exists.
-5. Do not reopen further LLM runtime work until that same strict-baseline proof exists.
+4. Do not transition to `humans_plus_verified_only` until a later combined-attacker strict-baseline proof exists.
+5. The remaining LLM attacker runtime should reopen after the first strict Scrapling-only proof, but before any relaxed verified-identity sweep.
 
 # Result
 
 The correct post-`STANCE-MODEL-1` order is:
 
 1. full-power Scrapling,
-2. repeated strict human-only loop proof,
-3. only then a later `humans_plus_verified_only` sweep,
-4. and only after that any further LLM lane work.
+2. repeated strict human-only loop proof with Scrapling,
+3. then the remaining LLM attacker runtime closure,
+4. then a second strict human-only proof with both Scrapling and LLM pressure,
+5. and only after that a later `humans_plus_verified_only` sweep.

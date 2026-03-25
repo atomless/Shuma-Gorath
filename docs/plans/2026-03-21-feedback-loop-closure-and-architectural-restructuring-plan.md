@@ -382,9 +382,10 @@ That operator-surface follow-on is no longer the immediate mainline. The stricte
 
 1. `STANCE-MODEL-1`,
 2. `SIM-SCR-FULL-1` so Scrapling reaches the full attacker-relevant capability Shuma assigns to the non-agent or non-LLM lane,
-3. `RSI-GAME-HO-1` so the strict `human_only_private` loop is rerun many times until retained config changes and measured improvement are proven,
-4. only then `RSI-GAME-HV-1` as the later `humans_plus_verified_only` comparison sweep,
-5. and only after that any further LLM attacker-runtime reopening such as `SIM-LLM-1C1..1C3`.
+3. `RSI-GAME-HO-1` so the strict `human_only_private` loop is rerun many times until retained config changes and measured improvement are proven under full-power Scrapling pressure,
+4. then `SIM-LLM-1C3` so the later LLM attacker is a real loop participant,
+5. then `RSI-GAME-HO-2` so the strict stance is re-proved under combined Scrapling plus LLM attacker pressure,
+6. only then `RSI-GAME-HV-1` as the later `humans_plus_verified_only` comparison sweep.
 
 `RSI-GAME-MAINLINE-1A` and `RSI-GAME-MAINLINE-1B` remain valuable because they prove the first working loop exists, but they are now treated as baseline capability rather than as sufficient evidence to relax stance or reopen later LLM runtime work.
 

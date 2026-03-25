@@ -29,7 +29,7 @@ Replace the current dual-stance model with one canonical non-human stance system
    3. optional service-profile selection,
    4. and telemetry or calibration truth.
 4. `human_only_private` should deny or equivalently suppress verified non-human traffic during the strict development baseline.
-5. `humans_plus_verified_only` should be the first later relaxed verified-identity sweep candidate after the strict baseline proves useful.
+5. `humans_plus_verified_only` should be the first later relaxed verified-identity sweep candidate after the strict baseline proves useful under both Scrapling and later LLM attacker pressure.
 6. Runtime, benchmark, Game Loop, and Tuning should all consume one resolved effective policy contract rather than parallel interpretations.
 7. Because Shuma is pre-launch, this should be implemented as a clean architectural correction rather than a compatibility layer.
 
@@ -135,7 +135,7 @@ It should produce:
 
 1. Make later recursive-improvement methodology explicitly consume the corrected stance model.
 2. Keep `human_only_private` as the first development reference stance.
-3. Add `humans_plus_verified_only` as the first relaxed verified-identity sweep candidate only after the strict baseline.
+3. Add `humans_plus_verified_only` as the first relaxed verified-identity sweep candidate only after the strict baseline and the later combined Scrapling-plus-LLM proof.
 4. Prevent later controller or code-evolution work from scoring against the old dual-stance semantics.
 
 **Acceptance:**

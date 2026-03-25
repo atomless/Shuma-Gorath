@@ -121,7 +121,8 @@ Current note:
   - `STANCE-MODEL-1`
   - `SIM-SCR-FULL-1`
   - `RSI-GAME-HO-1`
-- Do not open `humans_plus_verified_only` or any later LLM lane work until the strict `human_only_private` loop has been run repeatedly enough to prove retained config changes and measured improvement under full-power Scrapling pressure.
+- After that strict Scrapling-only proof, the next reopening should be the remaining LLM attacker runtime slice `SIM-LLM-1C3`.
+- Do not open `humans_plus_verified_only` until a later second strict-baseline proof has shown retained config-change improvement under both Scrapling and LLM attacker pressure.
 - `DIAG-CLEANUP-1` and `MON-OVERHAUL-1C` are now both landed, so the deferred Game Loop and Diagnostics follow-on queue is currently clear while later LLM runtime work stays blocked.
 
 ## P1 Verified Bot Identity And Web Bot Auth Foundation

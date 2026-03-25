@@ -4,6 +4,39 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-25)
 
+### Delay `humans_plus_verified_only` Until Combined-Attacker Strict Proof
+
+- [x] Wrote the sequencing review in:
+  - [`docs/research/2026-03-25-delay-humans-plus-verified-until-combined-attacker-proof-review.md`](../docs/research/2026-03-25-delay-humans-plus-verified-until-combined-attacker-proof-review.md)
+  so the repo now records the stricter reasoning:
+  - `RSI-GAME-HO-1` proves the strict loop works with full-power Scrapling,
+  - but it does not by itself justify loosening away from `human_only_private`,
+  - and the later LLM attacker should be in the loop before any relaxed verified-identity sweep opens.
+- [x] Wrote the execution-ready follow-on plan in:
+  - [`docs/plans/2026-03-25-delay-humans-plus-verified-until-combined-attacker-proof-plan.md`](../docs/plans/2026-03-25-delay-humans-plus-verified-until-combined-attacker-proof-plan.md)
+  with the corrected order:
+  - `STANCE-MODEL-1`
+  - `SIM-SCR-FULL-1`
+  - `RSI-GAME-HO-1`
+  - `SIM-LLM-1C3`
+  - `RSI-GAME-HO-2`
+  - only then `RSI-GAME-HV-1`
+- [x] Synced that refinement into:
+  - [`docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](../docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)
+  - [`docs/research/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-review.md`](../docs/research/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-review.md)
+  - [`docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](../docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md)
+  - [`docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](../docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md)
+  - [`docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
+  - [`docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md`](../docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md)
+  - [`docs/plans/2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md`](../docs/plans/2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+- [x] Why:
+  - the user clarified that loosening the stance does little to verify the Game Loop beyond what `RSI-GAME-HO-1` already proves,
+  - and that the real next standard is repeated positive config-tweak impact under the strict stance with both Scrapling and LLM runs included.
+- [x] Evidence:
+  - `git diff --check`
+
 ### Full-Power Scrapling And Strict Human-Only Loop Gate Planning
 
 - [x] Wrote the new sequence-setting review in:

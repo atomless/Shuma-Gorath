@@ -82,14 +82,14 @@ The optimal order is now:
 2. `SIM-SCR-FULL-1`
    - expand Scrapling from the current request-native baseline to the full attacker-relevant capability needed for the non-agent or non-LLM spectrum Shuma assigns to it
 3. `RSI-GAME-HO-1`
-   - run the strict `human_only_private` loop repeatedly until retained config changes and measured improvement are proven
-4. `RSI-GAME-HV-1`
+   - run the strict `human_only_private` loop repeatedly until retained config changes and measured improvement are proven under full-power Scrapling pressure
+4. `SIM-LLM-1C3`
+   - land the remaining LLM attacker runtime proof closure so the later attacker is a real loop participant
+5. `RSI-GAME-HO-2`
+   - rerun the strict `human_only_private` loop until retained config changes and measured improvement are proven under combined Scrapling plus LLM attacker pressure
+6. `RSI-GAME-HV-1`
    - only then open the later `humans_plus_verified_only` sweep as an explicit comparison against the proven strict baseline
-5. only after that, reopen later LLM runtime work:
-   - `SIM-LLM-1C1`
-   - `SIM-LLM-1C2`
-   - `SIM-LLM-1C3`
-6. after the non-LLM attacker and stance methodology are settled, return to deferred dashboard or later controller follow-ons as appropriate
+7. after the strict mixed-attacker methodology is settled, return to deferred dashboard or later controller follow-ons as appropriate
 
 Dashboard/operator-surface cleanup can wait because it does not change the truthfulness of the attacker side or the legality and judgment of the loop itself.
 
