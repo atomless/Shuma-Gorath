@@ -81,9 +81,13 @@ The optimal order is now:
    - implement the remaining request-native attacker-fidelity uplift inside the current Scrapling lane
 3. `SIM-SCR-CHALLENGE-2C`
    - only if a later owned-surface decision or the request-native uplift proves browser or stealth Scrapling is still required
-4. `SIM-LLM-1C`
-   - intentionally reopen the later full LLM attacker runtime only after the first truthful request-native attacker lane has its attacker presentation and session contract explicitly pinned
-5. only after that, return to deferred dashboard follow-ons and the remaining later LLM runtime work:
+4. `SIM-LLM-1C1`
+   - land the live frontier action-generation backend over the now-settled black-box and episode contracts
+5. `SIM-LLM-1C2`
+   - wire supervisor dispatch and typed result ingest for the live `bot_red_team` actor
+6. `SIM-LLM-1C3`
+   - close runtime receipts, recent-run projection, and proof over that actor path
+7. only after that, return to deferred dashboard follow-ons and the remaining later LLM runtime work:
    - `MON-OVERHAUL-1C`
    - `DIAG-CLEANUP-1`
    - `OVR-AGENT-2A..2C`
@@ -96,5 +100,5 @@ Current note:
 2. `RSI-GAME-MAINLINE-1A` and `RSI-GAME-MAINLINE-1B` are now landed, so the first working game-loop proof lane is complete.
 3. [`TEST-MAINLINE-1`](2026-03-25-testing-suite-structure-and-mainline-friction-plan.md) is now landed, so the active attacker-faithful Scrapling -> game-loop path has one obvious low-friction verification bundle.
 4. `SIM-SCR-CAP-1` is now landed, and its matrix froze the omission ledger that `SIM-SCR-RN-1` then closed for the current request-native owned surfaces.
-5. `SIM-LLM-1A`, `SIM-LLM-1B`, and `SIM-SCR-RN-1` are now landed, but the later full attacker runtime remains explicitly downstream of an intentional `SIM-LLM-1C` reopen and any later explicit owned-surface browser decision.
+5. `SIM-LLM-1A`, `SIM-LLM-1B`, and `SIM-SCR-RN-1` are now landed, but the later full attacker runtime is now understood as three separate runtime slices: `SIM-LLM-1C1`, `SIM-LLM-1C2`, and `SIM-LLM-1C3`, plus any later explicit owned-surface browser decision.
 6. `MON-OVERHAUL-1C` and `DIAG-CLEANUP-1` are now both landed, so no further unblocked work remains in the deferred Game Loop and Diagnostics cleanup lane.

@@ -4,6 +4,38 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-25)
 
+### Planning: truthful `SIM-LLM-1C` runtime decomposition
+
+- [x] Added the readiness review and runtime-decomposition plan in:
+  - [`docs/research/2026-03-25-sim-llm-1c-runtime-readiness-review.md`](../docs/research/2026-03-25-sim-llm-1c-runtime-readiness-review.md)
+  - [`docs/plans/2026-03-25-sim-llm-1c-runtime-decomposition-plan.md`](../docs/plans/2026-03-25-sim-llm-1c-runtime-decomposition-plan.md)
+- [x] Corrected the active planning chain in:
+  - [`docs/plans/2026-03-24-llm-player-role-decomposition-plan.md`](../docs/plans/2026-03-24-llm-player-role-decomposition-plan.md)
+  - [`docs/plans/2026-03-22-path-to-closed-loop-llm-adversary-and-diagnosis-implementation-plan.md`](../docs/plans/2026-03-22-path-to-closed-loop-llm-adversary-and-diagnosis-implementation-plan.md)
+  - [`docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](../docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md)
+  - [`docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md`](../docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md)
+  - [`docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
+  so the repo no longer treats `SIM-LLM-1C` as one ready-to-implement blob.
+- [x] Updated the backlog in:
+  - [`todos/todo.md`](../todos/todo.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+  so the next backend mainline is now the first explicit runtime slice `SIM-LLM-1C1`, while later dispatch/ingest and proof-closure follow-ons remain clearly staged.
+- [x] Updated the indexes in:
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`docs/plans/README.md`](../docs/plans/README.md)
+- [x] Why:
+  - the repo already had the black-box boundary and episode harness,
+  - but `bot_red_team` still only emitted a plan with no live frontier generation, no supervisor dispatch, no typed result-ingest path, and no full runtime proof chain,
+  - so leaving `SIM-LLM-1C` as one umbrella next step was no longer truthful.
+- [x] Evidence:
+  - code inspection across:
+    - [`src/admin/adversary_sim_lane_runtime.rs`](../src/admin/adversary_sim_lane_runtime.rs)
+    - [`src/admin/adversary_sim_api.rs`](../src/admin/adversary_sim_api.rs)
+    - [`scripts/supervisor/adversary_sim_supervisor.rs`](../scripts/supervisor/adversary_sim_supervisor.rs)
+    - [`scripts/tests/adversarial_runner/llm_fulfillment.py`](../scripts/tests/adversarial_runner/llm_fulfillment.py)
+    - [`scripts/tests/adversarial_container_runner.py`](../scripts/tests/adversarial_container_runner.py)
+  - `git diff --check`
+
 ### SIM-SCR-RN-1: Explicit request-native Scrapling attacker-fidelity contract
 
 - [x] Added the tranche paper trail in:

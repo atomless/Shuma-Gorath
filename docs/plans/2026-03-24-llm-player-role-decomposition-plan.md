@@ -138,11 +138,16 @@ Protocol note:
    2. protected evidence,
    3. closed config loop proof,
    4. and the judge contract.
+3. Decompose the runtime itself before implementation into:
+   1. `SIM-LLM-1C1` live frontier action-generation backend,
+   2. `SIM-LLM-1C2` supervisor dispatch and typed result-ingest path,
+   3. `SIM-LLM-1C3` recent-run projection and proof closure.
 
 **Acceptance criteria:**
 
 1. the full attacker-agent runtime is now clearly later than its contract and episode prerequisites,
 2. and no one future TODO is carrying all attacker-side semantics alone.
+3. and the repo no longer implies that provider-backed generation and runtime execution are already the same implementation seam.
 
 ## Task 4: `OVR-AGENT-2A`
 
@@ -249,10 +254,11 @@ Evaluation note:
 4. Land `RSI-AUDIT-1` before player-side runtimes are treated as operationally auditable.
 5. `RSI-ROLES-1` is now landed and fixes the attacker/defender/judge split before reopening the later autonomous LLM lanes.
 6. Land `SIM-LLM-1A` and `SIM-LLM-1B` before treating the full attacker runtime as execution-ready.
-7. Land `OVR-AGENT-2A` before any defender-agent runtime planning is treated as execution-ready.
-8. Land `OVR-AGENT-2B` before `OVR-AGENT-2C`.
-9. Keep `OVR-CODE-1` downstream of the settled defender-agent track rather than folding it into defender planning.
-10. Do not treat the fuller attacker or defender runtime tracks as execution-ready until the current attacker-faithful Scrapling baseline remains receipt-backed for owned request-native surfaces and, where a later matrix requires browser or stealth Scrapling, `SIM-SCR-CHALLENGE-2C` or `SIM-SCR-BROWSER-1` is also complete.
+7. Treat `SIM-LLM-1C1`, `SIM-LLM-1C2`, and `SIM-LLM-1C3` as separate runtime reopen steps rather than one umbrella implementation.
+8. Land `OVR-AGENT-2A` before any defender-agent runtime planning is treated as execution-ready.
+9. Land `OVR-AGENT-2B` before `OVR-AGENT-2C`.
+10. Keep `OVR-CODE-1` downstream of the settled defender-agent track rather than folding it into defender planning.
+11. Do not treat the fuller attacker or defender runtime tracks as execution-ready until the current attacker-faithful Scrapling baseline remains receipt-backed for owned request-native surfaces and, where a later matrix requires browser or stealth Scrapling, `SIM-SCR-CHALLENGE-2C` or `SIM-SCR-BROWSER-1` is also complete.
 
 Current note:
 

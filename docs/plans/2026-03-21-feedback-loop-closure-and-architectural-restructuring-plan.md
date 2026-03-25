@@ -260,7 +260,10 @@ When this blocked work is eventually reopened, decompose it as:
 
 1. `SIM-LLM-1A` attacker-agent black-box contract,
 2. `SIM-LLM-1B` attacker-agent episode harness and bounded memory contract,
-3. `SIM-LLM-1C` full first-class attacker runtime actor.
+3. `SIM-LLM-1C` full first-class attacker runtime actor, now further decomposed into:
+   - `SIM-LLM-1C1` live frontier action-generation backend,
+   - `SIM-LLM-1C2` supervisor dispatch and typed result-ingest path,
+   - `SIM-LLM-1C3` runtime receipt projection and proof closure.
 
 Treat this later track as the LLM-backed player in the sim harness rather than as a generic future actor.
 
@@ -368,7 +371,7 @@ It should also show bounded progress over recent completed loops against benchma
 
 The Monitoring follow-on sequence is now explicitly three-way: after `MON-OVERHAUL-1B` makes loop accountability real, `TRAFFIC-TAB-1` should move the current traffic-facing Diagnostics surface into a dedicated `Traffic` tab, `DIAG-CLEANUP-1` should then narrow Diagnostics to furniture-operational proof, and only then should `MON-OVERHAUL-1C` land against the cleaned ownership boundary. That later Game Loop slice should keep the existing overall top line, make the true numeric objective budgets readable as target-vs-current budget usage, and express taxonomy categories as target-achievement rows rather than inventing fake per-category budgets.
 
-That operator-surface follow-on is no longer the immediate mainline. The active execution order now moves first through the landed attacker-faithful Scrapling baseline (`SIM-SCR-CHALLENGE-2A..2D`), then the settled capability-maintenance tranche (`SIM-SCR-CAP-1`), then the now-landed request-native fidelity uplift (`SIM-SCR-RN-1`), and only then any later explicit owned-surface browser decision (`SIM-SCR-CHALLENGE-2C`) or fuller attacker-runtime reopening (`SIM-LLM-1C`). `RSI-GAME-MAINLINE-1A` and `RSI-GAME-MAINLINE-1B` are now landed, so the first working game-loop proof lane is complete.
+That operator-surface follow-on is no longer the immediate mainline. The active execution order now moves first through the landed attacker-faithful Scrapling baseline (`SIM-SCR-CHALLENGE-2A..2D`), then the settled capability-maintenance tranche (`SIM-SCR-CAP-1`), then the now-landed request-native fidelity uplift (`SIM-SCR-RN-1`), and only then the decomposed attacker-runtime reopening path (`SIM-LLM-1C1`, `SIM-LLM-1C2`, `SIM-LLM-1C3`) plus any later explicit owned-surface browser decision (`SIM-SCR-CHALLENGE-2C`). `RSI-GAME-MAINLINE-1A` and `RSI-GAME-MAINLINE-1B` are now landed, so the first working game-loop proof lane is complete.
 
 ### `CTRL-SURFACE-1..3`
 

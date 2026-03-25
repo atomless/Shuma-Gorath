@@ -21,6 +21,15 @@ LLM player protocol note:
 2. the attacker must therefore speak through the canonical attacker observation and action families under the shared envelope revision,
 3. and the later defender must speak through the canonical defender input and output families under that same envelope.
 
+LLM attacker runtime note:
+
+1. the later full `bot_red_team` actor is not yet one executable implementation slice,
+2. it must now reopen as:
+   - `SIM-LLM-1C1` live frontier action-generation backend
+   - `SIM-LLM-1C2` supervisor dispatch and typed result ingest
+   - `SIM-LLM-1C3` recent-run projection and runtime proof closure
+3. and `bot_red_team` should remain operator-disabled until that full path is landed and verified end to end.
+
 **Tech Stack:** Rust control plane, Python adversarial runner/orchestration, Scrapling worker, capability-safe containerized adversary actor runtime, external frontier LLM APIs, optional later local model backends, Makefile verification.
 
 ---
