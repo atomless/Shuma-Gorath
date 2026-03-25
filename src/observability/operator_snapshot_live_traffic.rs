@@ -5,6 +5,7 @@ use crate::observability::monitoring::{
     HumanFrictionSegmentRow, MonitoringSummary, RequestOutcomeLaneSummaryRow,
     RequestOutcomeScopeSummaryRow,
 };
+use crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageSummary;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub(crate) struct OperatorSnapshotLane {
@@ -71,6 +72,8 @@ pub(crate) struct OperatorSnapshotRecentSimRun {
     pub monitoring_event_count: u64,
     pub defense_delta_count: u64,
     pub ban_outcome_count: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owned_surface_coverage: Option<ScraplingOwnedSurfaceCoverageSummary>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

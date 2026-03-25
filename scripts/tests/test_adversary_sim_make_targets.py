@@ -144,6 +144,37 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
             body,
         )
 
+    def test_scrapling_coverage_receipts_target_uses_receipt_selectors(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-adversary-sim-scrapling-coverage-receipts:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn("observability::scrapling_owned_surface::tests::", body)
+        self.assertIn(
+            "recent_sim_run_history_normalizes_scrapling_profiles_and_aggregates_observed_categories",
+            body,
+        )
+        self.assertIn(
+            "snapshot_payload_projects_recent_run_owned_surface_coverage",
+            body,
+        )
+        self.assertIn(
+            "scripts.tests.test_scrapling_worker.ScraplingWorkerUnitTests.test_execute_worker_plan_emits_signed_real_scrapling_requests_and_blocks_out_of_scope_targets",
+            body,
+        )
+        self.assertIn(
+            "scripts.tests.test_scrapling_worker.ScraplingWorkerUnitTests.test_execute_worker_plan_bulk_scraper_attempts_owned_challenge_surfaces",
+            body,
+        )
+        self.assertIn(
+            "scripts.tests.test_scrapling_worker.ScraplingWorkerUnitTests.test_execute_worker_plan_http_agent_attempts_owned_request_native_abuse_surfaces",
+            body,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

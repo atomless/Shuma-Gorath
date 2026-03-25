@@ -10,6 +10,7 @@ use crate::observability::hot_read_contract::{
 };
 use crate::observability::monitoring::MonitoringSummary;
 use crate::observability::operator_snapshot::OperatorSnapshotHotReadPayload;
+use crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageSummary;
 use crate::observability::retention::RetentionHealth;
 
 const HOT_READ_PREFIX: &str = "telemetry:hot_read:v1";
@@ -144,6 +145,8 @@ pub(crate) struct MonitoringRecentSimRunSummary {
     pub monitoring_event_count: u64,
     pub defense_delta_count: u64,
     pub ban_outcome_count: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owned_surface_coverage: Option<ScraplingOwnedSurfaceCoverageSummary>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

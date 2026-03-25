@@ -312,6 +312,12 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
         self.httpd.server_close()
         self.server_thread.join(timeout=2)
 
+    def _surface_receipts_by_id(self, result: dict[str, Any]) -> dict[str, dict[str, Any]]:
+        return {
+            str(entry["surface_id"]): entry
+            for entry in list(result.get("surface_receipts") or [])
+        }
+
     def test_execute_worker_plan_emits_signed_real_scrapling_requests_and_blocks_out_of_scope_targets(self) -> None:
         self.assertIsNotNone(scrapling_worker, "worker module missing")
         result = scrapling_worker.execute_worker_plan(
@@ -329,6 +335,27 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
         self.assertEqual(result["scope_rejections"]["redirect_target_out_of_scope"], 1)
         self.assertIn("/", [entry["path"] for entry in self.httpd.requests_seen])
         self.assertIn("/page", [entry["path"] for entry in self.httpd.requests_seen])
+        receipts = self._surface_receipts_by_id(result)
+        self.assertEqual(
+            receipts["public_path_traversal"]["coverage_status"],
+            "pass_observed",
+            msg=json.dumps(result, indent=2),
+        )
+        self.assertEqual(
+            receipts["challenge_routing"]["coverage_status"],
+            "pass_observed",
+            msg=json.dumps(result, indent=2),
+        )
+        self.assertEqual(
+            receipts["rate_pressure"]["coverage_status"],
+            "pass_observed",
+            msg=json.dumps(result, indent=2),
+        )
+        self.assertEqual(
+            receipts["geo_ip_policy"]["coverage_status"],
+            "pass_observed",
+            msg=json.dumps(result, indent=2),
+        )
         for entry in self.httpd.requests_seen:
             self.assertEqual(entry["method"], "GET")
             headers = entry["headers"]
@@ -446,6 +473,37 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
         self.assertEqual(result["lane"], "scrapling_traffic")
         self.assertEqual(result["fulfillment_mode"], "bulk_scraper")
         self.assertEqual(result["failure_class"], None, msg=json.dumps(result, indent=2))
+        receipts = self._surface_receipts_by_id(result)
+        self.assertEqual(
+            receipts["public_path_traversal"]["coverage_status"],
+            "pass_observed",
+            msg=json.dumps(result, indent=2),
+        )
+        self.assertEqual(
+            receipts["challenge_routing"]["coverage_status"],
+            "pass_observed",
+            msg=json.dumps(result, indent=2),
+        )
+        self.assertEqual(
+            receipts["rate_pressure"]["coverage_status"],
+            "pass_observed",
+            msg=json.dumps(result, indent=2),
+        )
+        self.assertEqual(
+            receipts["geo_ip_policy"]["coverage_status"],
+            "pass_observed",
+            msg=json.dumps(result, indent=2),
+        )
+        self.assertEqual(
+            receipts["not_a_bot_submit"]["coverage_status"],
+            "fail_observed",
+            msg=json.dumps(result, indent=2),
+        )
+        self.assertEqual(
+            receipts["puzzle_submit_or_escalation"]["coverage_status"],
+            "fail_observed",
+            msg=json.dumps(result, indent=2),
+        )
         paths = [(entry["method"], entry["path"]) for entry in self.httpd.requests_seen]
         self.assertIn(("GET", "/catalog?page=1"), paths)
         self.assertIn(("POST", "/challenge/not-a-bot-checkbox"), paths)
@@ -483,6 +541,42 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
         self.assertEqual(result["lane"], "scrapling_traffic")
         self.assertEqual(result["fulfillment_mode"], "http_agent")
         self.assertEqual(result["failure_class"], None, msg=json.dumps(result, indent=2))
+        receipts = self._surface_receipts_by_id(result)
+        self.assertEqual(
+            receipts["challenge_routing"]["coverage_status"],
+            "pass_observed",
+            msg=json.dumps(result, indent=2),
+        )
+        self.assertEqual(
+            receipts["rate_pressure"]["coverage_status"],
+            "pass_observed",
+            msg=json.dumps(result, indent=2),
+        )
+        self.assertEqual(
+            receipts["geo_ip_policy"]["coverage_status"],
+            "pass_observed",
+            msg=json.dumps(result, indent=2),
+        )
+        self.assertEqual(
+            receipts["not_a_bot_submit"]["coverage_status"],
+            "fail_observed",
+            msg=json.dumps(result, indent=2),
+        )
+        self.assertEqual(
+            receipts["puzzle_submit_or_escalation"]["coverage_status"],
+            "fail_observed",
+            msg=json.dumps(result, indent=2),
+        )
+        self.assertEqual(
+            receipts["pow_verify_abuse"]["coverage_status"],
+            "fail_observed",
+            msg=json.dumps(result, indent=2),
+        )
+        self.assertEqual(
+            receipts["tarpit_progress_abuse"]["coverage_status"],
+            "fail_observed",
+            msg=json.dumps(result, indent=2),
+        )
         paths = [(entry["method"], entry["path"]) for entry in self.httpd.requests_seen]
         self.assertIn(("GET", "/agent/ping?mode=http_agent"), paths)
         self.assertIn(("POST", "/challenge/not-a-bot-checkbox"), paths)

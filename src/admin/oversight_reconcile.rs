@@ -504,6 +504,7 @@ mod tests {
                     monitoring_event_count: 8,
                     defense_delta_count: 3,
                     ban_outcome_count: 0,
+                    owned_surface_coverage: None,
                 }],
             },
             runtime_posture: OperatorSnapshotRuntimePosture {

@@ -4,6 +4,40 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### SIM-SCR-CHALLENGE-2D: Receipt-backed coverage closure and explicit gap assignment
+
+- [x] Extended the bounded worker-result and recent-run truth surface in:
+  - [`src/admin/adversary_sim_worker_plan.rs`](../src/admin/adversary_sim_worker_plan.rs)
+  - [`src/admin/adversary_sim_api.rs`](../src/admin/adversary_sim_api.rs)
+  - [`src/admin/api.rs`](../src/admin/api.rs)
+  - [`src/observability/hot_read_documents.rs`](../src/observability/hot_read_documents.rs)
+  - [`src/observability/hot_read_projection.rs`](../src/observability/hot_read_projection.rs)
+  - [`src/observability/operator_snapshot_live_traffic.rs`](../src/observability/operator_snapshot_live_traffic.rs)
+  - [`src/observability/scrapling_owned_surface.rs`](../src/observability/scrapling_owned_surface.rs)
+  so Scrapling worker results and recent sim runs now carry bounded owned-surface observation receipts plus per-run closure summaries.
+- [x] Finished the real Python worker receipt emission in [`scripts/supervisor/scrapling_worker.py`](../scripts/supervisor/scrapling_worker.py) so:
+  - crawler receipts prove `public_path_traversal`, `challenge_routing`, `rate_pressure`, and `geo_ip_policy`
+  - bulk-scraper receipts prove ordinary traversal plus malicious `not_a_bot` and puzzle attempts
+  - http-agent receipts prove the full request-native owned-abuse set including PoW verify and tarpit progress abuse
+- [x] Added focused proof in:
+  - [`scripts/tests/test_scrapling_worker.py`](../scripts/tests/test_scrapling_worker.py)
+  - [`scripts/tests/test_adversary_sim_make_targets.py`](../scripts/tests/test_adversary_sim_make_targets.py)
+  - [`src/admin/api.rs`](../src/admin/api.rs)
+  - [`src/observability/operator_snapshot.rs`](../src/observability/operator_snapshot.rs)
+  - [`Makefile`](../Makefile)
+  with the new narrow target:
+  - `make test-adversary-sim-scrapling-coverage-receipts`
+- [x] Updated the receipt-surface classification and testing paper trail in:
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`docs/research/2026-03-24-sim-scr-challenge-2d-receipt-backed-surface-coverage-post-implementation-review.md`](../docs/research/2026-03-24-sim-scr-challenge-2d-receipt-backed-surface-coverage-post-implementation-review.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+- [x] Why:
+  - the active mainline depends on proving that Scrapling touches every defense surface it owns and can pass or fail them the way a real attacker should
+  - before this slice, the widened request-native behavior existed, but the repo could not yet prove owned-surface closure per run or use that proof to keep browser or stealth Scrapling honestly blocked
+- [x] Evidence:
+  - `make test-adversary-sim-scrapling-coverage-receipts`
+  - `git diff --check`
+
 ### SIM-SCR-CHALLENGE-2B: Malicious request-native Scrapling interactions
 
 - [x] Widened the Scrapling worker-plan contract in:

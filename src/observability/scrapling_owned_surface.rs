@@ -1,6 +1,7 @@
 #![cfg_attr(not(test), allow(dead_code))]
 
 use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, BTreeSet};
 
 pub(crate) const SCRAPLING_OWNED_SURFACE_SCHEMA_VERSION: &str =
     "scrapling_owned_surface_contract_v1";
@@ -61,6 +62,43 @@ pub(crate) struct ScraplingOwnedSurfaceSummary {
     pub rows: Vec<ScraplingOwnedSurfaceRow>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct ScraplingSurfaceObservationReceipt {
+    pub surface_id: String,
+    pub coverage_status: String,
+    pub attempt_count: u64,
+    pub sample_request_method: String,
+    pub sample_request_path: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sample_response_status: Option<u16>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct ScraplingOwnedSurfaceCoverageReceipt {
+    pub surface_id: String,
+    pub success_contract: String,
+    pub coverage_status: String,
+    pub satisfied: bool,
+    pub attempt_count: u64,
+    pub sample_request_method: String,
+    pub sample_request_path: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sample_response_status: Option<u16>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub(crate) struct ScraplingOwnedSurfaceCoverageSummary {
+    pub overall_status: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub required_surface_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub satisfied_surface_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub blocking_surface_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub receipts: Vec<ScraplingOwnedSurfaceCoverageReceipt>,
+}
+
 pub(crate) fn scrapling_owned_surface_targets() -> Vec<String> {
     SCRAPLING_OWNED_SURFACE_TARGETS
         .iter()
@@ -84,6 +122,112 @@ pub(crate) fn scrapling_owned_surface_targets_for_mode(mode: &str) -> Vec<String
             .collect(),
         _ => Vec::new(),
     }
+}
+
+pub(crate) fn scrapling_owned_surface_targets_for_modes(modes: &[String]) -> Vec<String> {
+    let mode_set: BTreeSet<_> = modes.iter().map(|value| value.as_str()).collect();
+    canonical_scrapling_owned_surface_summary()
+        .rows
+        .into_iter()
+        .filter(|row| row.assignment_status == "owned")
+        .filter(|row| {
+            row.fulfillment_modes
+                .iter()
+                .any(|mode| mode_set.contains(mode.as_str()))
+        })
+        .map(|row| row.surface_id)
+        .collect()
+}
+
+pub(crate) fn summarize_scrapling_owned_surface_coverage(
+    observed_modes: &[String],
+    observations: &[ScraplingSurfaceObservationReceipt],
+) -> Option<ScraplingOwnedSurfaceCoverageSummary> {
+    let required_surface_ids = scrapling_owned_surface_targets_for_modes(observed_modes);
+    if required_surface_ids.is_empty() {
+        return None;
+    }
+
+    let summary = canonical_scrapling_owned_surface_summary();
+    let row_by_id: BTreeMap<_, _> = summary
+        .rows
+        .into_iter()
+        .map(|row| (row.surface_id.clone(), row))
+        .collect();
+    let mut observations_by_surface: BTreeMap<String, Vec<&ScraplingSurfaceObservationReceipt>> =
+        BTreeMap::new();
+    for observation in observations {
+        observations_by_surface
+            .entry(observation.surface_id.clone())
+            .or_default()
+            .push(observation);
+    }
+
+    let mut receipts = Vec::new();
+    let mut satisfied_surface_ids = Vec::new();
+    let mut blocking_surface_ids = Vec::new();
+
+    for surface_id in &required_surface_ids {
+        let Some(row) = row_by_id.get(surface_id) else {
+            continue;
+        };
+        let best_observation = observations_by_surface
+            .get(surface_id)
+            .and_then(|rows| best_surface_observation(row.success_contract.as_str(), rows.as_slice()));
+        let coverage_status = best_observation
+            .map(|value| value.coverage_status.clone())
+            .unwrap_or_else(|| "unavailable".to_string());
+        let satisfied = surface_status_satisfies_contract(
+            row.success_contract.as_str(),
+            coverage_status.as_str(),
+        );
+        let attempt_count = observations_by_surface
+            .get(surface_id)
+            .map(|rows| rows.iter().map(|row| row.attempt_count).sum())
+            .unwrap_or(0);
+        let (sample_request_method, sample_request_path, sample_response_status) =
+            best_observation
+                .map(|value| {
+                    (
+                        value.sample_request_method.clone(),
+                        value.sample_request_path.clone(),
+                        value.sample_response_status,
+                    )
+                })
+                .unwrap_or_else(|| (String::new(), String::new(), None));
+
+        if satisfied {
+            satisfied_surface_ids.push(surface_id.clone());
+        } else {
+            blocking_surface_ids.push(surface_id.clone());
+        }
+        receipts.push(ScraplingOwnedSurfaceCoverageReceipt {
+            surface_id: surface_id.clone(),
+            success_contract: row.success_contract.clone(),
+            coverage_status,
+            satisfied,
+            attempt_count,
+            sample_request_method,
+            sample_request_path,
+            sample_response_status,
+        });
+    }
+
+    let overall_status = if receipts.iter().all(|receipt| receipt.satisfied) {
+        "covered".to_string()
+    } else if receipts.iter().any(|receipt| receipt.attempt_count > 0) {
+        "partial".to_string()
+    } else {
+        "unavailable".to_string()
+    };
+
+    Some(ScraplingOwnedSurfaceCoverageSummary {
+        overall_status,
+        required_surface_ids,
+        satisfied_surface_ids,
+        blocking_surface_ids,
+        receipts,
+    })
 }
 
 pub(crate) fn canonical_scrapling_owned_surface_summary() -> ScraplingOwnedSurfaceSummary {
@@ -267,11 +411,54 @@ fn row(
     }
 }
 
+fn best_surface_observation<'a>(
+    success_contract: &str,
+    rows: &'a [&ScraplingSurfaceObservationReceipt],
+) -> Option<&'a ScraplingSurfaceObservationReceipt> {
+    rows.iter()
+        .copied()
+        .max_by(|left, right| {
+            surface_observation_rank(success_contract, left.coverage_status.as_str())
+                .cmp(&surface_observation_rank(
+                    success_contract,
+                    right.coverage_status.as_str(),
+                ))
+                .then_with(|| left.attempt_count.cmp(&right.attempt_count))
+                .then_with(|| {
+                    left.sample_response_status
+                        .unwrap_or(0)
+                        .cmp(&right.sample_response_status.unwrap_or(0))
+                })
+        })
+}
+
+fn surface_observation_rank(success_contract: &str, coverage_status: &str) -> u8 {
+    if surface_status_satisfies_contract(success_contract, coverage_status) {
+        return 3;
+    }
+    match coverage_status {
+        "pass_observed" | "fail_observed" => 2,
+        "transport_error" => 1,
+        _ => 0,
+    }
+}
+
+fn surface_status_satisfies_contract(success_contract: &str, coverage_status: &str) -> bool {
+    match success_contract {
+        "should_pass_some" => coverage_status == "pass_observed",
+        "should_fail" => coverage_status == "fail_observed",
+        "mixed_outcomes" => matches!(coverage_status, "pass_observed" | "fail_observed"),
+        _ => false,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
         canonical_scrapling_owned_surface_summary, scrapling_owned_surface_targets,
-        scrapling_owned_surface_targets_for_mode, SCRAPLING_OWNED_SURFACE_SCHEMA_VERSION,
+        scrapling_owned_surface_targets_for_mode, scrapling_owned_surface_targets_for_modes,
+        summarize_scrapling_owned_surface_coverage, ScraplingSurfaceObservationReceipt,
+        SCRAPLING_OWNED_SURFACE_SCHEMA_VERSION,
     };
 
     #[test]
@@ -367,5 +554,145 @@ mod tests {
             ]
         );
         assert!(scrapling_owned_surface_targets_for_mode("unknown_mode").is_empty());
+        assert_eq!(
+            scrapling_owned_surface_targets_for_modes(&[
+                "crawler".to_string(),
+                "http_agent".to_string()
+            ]),
+            vec![
+                "public_path_traversal",
+                "challenge_routing",
+                "rate_pressure",
+                "geo_ip_policy",
+                "not_a_bot_submit",
+                "puzzle_submit_or_escalation",
+                "pow_verify_abuse",
+                "tarpit_progress_abuse",
+            ]
+        );
+    }
+
+    #[test]
+    fn owned_surface_coverage_summary_marks_all_required_surfaces_covered_when_contracts_are_met() {
+        let summary = summarize_scrapling_owned_surface_coverage(
+            &["bulk_scraper".to_string(), "http_agent".to_string()],
+            &[
+                ScraplingSurfaceObservationReceipt {
+                    surface_id: "public_path_traversal".to_string(),
+                    coverage_status: "pass_observed".to_string(),
+                    attempt_count: 3,
+                    sample_request_method: "GET".to_string(),
+                    sample_request_path: "/catalog?page=1".to_string(),
+                    sample_response_status: Some(200),
+                },
+                ScraplingSurfaceObservationReceipt {
+                    surface_id: "challenge_routing".to_string(),
+                    coverage_status: "pass_observed".to_string(),
+                    attempt_count: 2,
+                    sample_request_method: "GET".to_string(),
+                    sample_request_path: "/sim/public/search?q=test".to_string(),
+                    sample_response_status: Some(200),
+                },
+                ScraplingSurfaceObservationReceipt {
+                    surface_id: "rate_pressure".to_string(),
+                    coverage_status: "pass_observed".to_string(),
+                    attempt_count: 2,
+                    sample_request_method: "GET".to_string(),
+                    sample_request_path: "/sim/public/search?q=test".to_string(),
+                    sample_response_status: Some(200),
+                },
+                ScraplingSurfaceObservationReceipt {
+                    surface_id: "geo_ip_policy".to_string(),
+                    coverage_status: "pass_observed".to_string(),
+                    attempt_count: 2,
+                    sample_request_method: "GET".to_string(),
+                    sample_request_path: "/sim/public/search?q=test".to_string(),
+                    sample_response_status: Some(200),
+                },
+                ScraplingSurfaceObservationReceipt {
+                    surface_id: "not_a_bot_submit".to_string(),
+                    coverage_status: "fail_observed".to_string(),
+                    attempt_count: 2,
+                    sample_request_method: "POST".to_string(),
+                    sample_request_path: "/challenge/not-a-bot-checkbox".to_string(),
+                    sample_response_status: Some(400),
+                },
+                ScraplingSurfaceObservationReceipt {
+                    surface_id: "puzzle_submit_or_escalation".to_string(),
+                    coverage_status: "fail_observed".to_string(),
+                    attempt_count: 2,
+                    sample_request_method: "POST".to_string(),
+                    sample_request_path: "/challenge/puzzle".to_string(),
+                    sample_response_status: Some(400),
+                },
+                ScraplingSurfaceObservationReceipt {
+                    surface_id: "pow_verify_abuse".to_string(),
+                    coverage_status: "fail_observed".to_string(),
+                    attempt_count: 1,
+                    sample_request_method: "POST".to_string(),
+                    sample_request_path: "/pow/verify".to_string(),
+                    sample_response_status: Some(400),
+                },
+                ScraplingSurfaceObservationReceipt {
+                    surface_id: "tarpit_progress_abuse".to_string(),
+                    coverage_status: "fail_observed".to_string(),
+                    attempt_count: 1,
+                    sample_request_method: "POST".to_string(),
+                    sample_request_path: "/tarpit/progress".to_string(),
+                    sample_response_status: Some(400),
+                },
+            ],
+        )
+        .expect("coverage summary");
+
+        assert_eq!(summary.overall_status, "covered");
+        assert!(summary.blocking_surface_ids.is_empty());
+        assert_eq!(summary.required_surface_ids.len(), 8);
+        assert_eq!(summary.satisfied_surface_ids.len(), 8);
+        assert!(summary
+            .receipts
+            .iter()
+            .all(|receipt| receipt.satisfied));
+    }
+
+    #[test]
+    fn owned_surface_coverage_summary_leaves_missing_or_wrong_outcomes_blocking() {
+        let summary = summarize_scrapling_owned_surface_coverage(
+            &["http_agent".to_string()],
+            &[
+                ScraplingSurfaceObservationReceipt {
+                    surface_id: "challenge_routing".to_string(),
+                    coverage_status: "pass_observed".to_string(),
+                    attempt_count: 1,
+                    sample_request_method: "GET".to_string(),
+                    sample_request_path: "/sim/public/search?q=test".to_string(),
+                    sample_response_status: Some(200),
+                },
+                ScraplingSurfaceObservationReceipt {
+                    surface_id: "pow_verify_abuse".to_string(),
+                    coverage_status: "pass_observed".to_string(),
+                    attempt_count: 1,
+                    sample_request_method: "POST".to_string(),
+                    sample_request_path: "/pow/verify".to_string(),
+                    sample_response_status: Some(200),
+                },
+            ],
+        )
+        .expect("coverage summary");
+
+        assert_eq!(summary.overall_status, "partial");
+        assert!(summary
+            .blocking_surface_ids
+            .contains(&"pow_verify_abuse".to_string()));
+        assert!(summary
+            .blocking_surface_ids
+            .contains(&"not_a_bot_submit".to_string()));
+        let pow = summary
+            .receipts
+            .iter()
+            .find(|receipt| receipt.surface_id == "pow_verify_abuse")
+            .expect("pow receipt");
+        assert_eq!(pow.coverage_status, "pass_observed");
+        assert!(!pow.satisfied);
     }
 }

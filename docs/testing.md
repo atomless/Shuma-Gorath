@@ -39,6 +39,7 @@ make test-adversarial-llm-fit # Focused bounded LLM fulfillment-plan contract ga
 make test-adversary-sim-scrapling-owned-surface-contract # Focused Scrapling owned-surface matrix and success-contract gate
 make test-adversary-sim-scrapling-category-fit # Focused Scrapling category-ownership and worker-plan contract gate
 make test-adversary-sim-scrapling-malicious-request-native # Focused attacker-faithful malicious request-native Scrapling behavior gate
+make test-adversary-sim-scrapling-coverage-receipts # Focused Scrapling owned-surface receipt and recent-run closure gate
 make test-adversarial-coverage-receipts # Focused canonical category-coverage receipt and gating checks
 make test-protected-tuning-evidence # Focused protected tuning-evidence eligibility and fail-closed benchmark checks
 make test-verified-identity-calibration-readiness # Focused verified-identity taxonomy/benchmark/reconcile seam gate
@@ -263,6 +264,7 @@ Available profiles:
 - `make prepare-scrapling-deploy` - shared-host deploy-prep helper that infers the fail-closed scope fence, root-only seed, runtime env mappings, and deploy-time receipt from the canonical public base URL
 - `make test-scrapling-deploy-shared-host` - focused shared-host deploy proof for the Scrapling prep helper, Linode deploy wiring, normalized `ssh_systemd` receipt extension, and `make remote-update` preservation of the same scope/seed artifact contract
 - `make test-adversary-sim-scrapling-category-fit` - focused Scrapling ownership-contract proof for canonical lane fulfillment rows, request-native `fulfillment_mode` rotation, and the bounded worker-plan `category_targets` contract
+- `make test-adversary-sim-scrapling-coverage-receipts` - focused Scrapling owned-surface receipt proof across worker-emitted surface receipts, recent-sim-run coverage aggregation, and operator-snapshot projection of owned-surface closure
 - `make test-adversary-sim-scrapling-worker` - focused real Scrapling lane gate covering the internal beat/result contract, bounded crawler plus direct-request persona execution, mode-specific signed sim telemetry on real requests, and host-side supervisor source-contract wiring
 - `make test-adversarial-sim-tag-contract` - signed simulation-tag contract parity check across lane contract, runner, and container worker
 - `make test-adversarial-coverage-contract` - canonical `full_coverage` contract parity check across SIM2 plan rows, manifests, runner enforcement, and the frozen unit-level coverage-contract matrix
@@ -290,6 +292,7 @@ Shared-host Scrapling proof map:
 - `make prepare-scrapling-deploy` proves deploy-time inference and receipt generation only.
 - `make test-scrapling-deploy-shared-host` proves the shared-host deploy/update automation carries the same inferred scope/seed/env contract end to end.
 - `make test-adversary-sim-scrapling-category-fit` proves the bounded category-ownership and worker-plan target contract for the current request-native Scrapling track.
+- `make test-adversary-sim-scrapling-coverage-receipts` proves the bounded owned-surface receipt and recent-run closure contract for the current request-native Scrapling track.
 - `make test-adversary-sim-scrapling-worker` proves the hosted worker lane itself.
 - `make test-adversary-sim-runtime-surface` proves the running target keeps the defense surface live while adversary simulation remains no-impact to normal user traffic.
 - none of those targets make Fermyon/Akamai edge a supported full hosted Scrapling worker target; that edge runtime remains outside the current supported contract.

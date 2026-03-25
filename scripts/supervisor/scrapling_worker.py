@@ -193,6 +193,7 @@ def _request_spec(
     method: str,
     target: str,
     *,
+    surface_ids: list[str] | None = None,
     headers: dict[str, str] | None = None,
     cookies: dict[str, str] | None = None,
     data: str | bytes | None = None,
@@ -205,6 +206,8 @@ def _request_spec(
         "headers": dict(headers or {}),
         "follow_redirect": follow_redirect,
     }
+    if surface_ids:
+        spec["surface_ids"] = list(surface_ids)
     if cookies:
         spec["cookies"] = dict(cookies)
     if data is not None:
@@ -212,6 +215,74 @@ def _request_spec(
     if json_body is not None:
         spec["json"] = json_body
     return spec
+
+
+def _request_path_value(raw_target: str) -> str:
+    parsed = urlsplit(str(raw_target))
+    path = parsed.path or "/"
+    if parsed.query:
+        return f"{path}?{parsed.query}"
+    return path
+
+
+def _coverage_status_for_http_status(status: int) -> str:
+    return "pass_observed" if 200 <= int(status) < 400 else "fail_observed"
+
+
+def _surface_receipt_rank(coverage_status: str) -> int:
+    if coverage_status in {"pass_observed", "fail_observed"}:
+        return 2
+    if coverage_status == "transport_error":
+        return 1
+    return 0
+
+
+def _record_surface_receipt(
+    receipts: dict[str, dict[str, Any]],
+    *,
+    surface_ids: list[str],
+    coverage_status: str,
+    request_method: str,
+    request_target: str,
+    response_status: int | None,
+) -> None:
+    sample_request_method = str(request_method or "").upper()
+    sample_request_path = _request_path_value(request_target)
+    for surface_id in surface_ids:
+        key = str(surface_id or "").strip()
+        if not key:
+            continue
+        existing = receipts.get(key)
+        if existing is None:
+            receipts[key] = {
+                "surface_id": key,
+                "coverage_status": coverage_status,
+                "attempt_count": 1,
+                "sample_request_method": sample_request_method,
+                "sample_request_path": sample_request_path,
+                "sample_response_status": response_status,
+            }
+            continue
+        existing["attempt_count"] = int(existing.get("attempt_count") or 0) + 1
+        if _surface_receipt_rank(coverage_status) >= _surface_receipt_rank(
+            str(existing.get("coverage_status") or "")
+        ):
+            existing["coverage_status"] = coverage_status
+            existing["sample_request_method"] = sample_request_method
+            existing["sample_request_path"] = sample_request_path
+            existing["sample_response_status"] = response_status
+
+
+def _render_surface_receipts(
+    receipts: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    rendered: list[dict[str, Any]] = []
+    for surface_id in sorted(receipts):
+        entry = dict(receipts[surface_id])
+        if entry.get("sample_response_status") is None:
+            entry.pop("sample_response_status", None)
+        rendered.append(entry)
+    return rendered
 
 
 def _build_failure_result(
@@ -321,6 +392,7 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
             self.last_response_status: int | None = None
             self.scope_rejections: Counter[str] = Counter()
             self.last_transport_error: str | None = None
+            self.surface_receipts: dict[str, dict[str, Any]] = {}
             self.allowed_domains = _normalize_allowed_domains(descriptor)
             self.start_urls = _normalized_start_urls(seed_inventory)
             if "challenge_routing" in self.surface_targets:
@@ -369,6 +441,23 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
             reason_key = str(reason or "malformed_url").strip() or "malformed_url"
             self.scope_rejections[reason_key] += 1
 
+        def _surface_ids_for_response(self, response) -> list[str]:
+            path = urlsplit(str(getattr(response, "url", ""))).path or "/"
+            public_search_path = urlsplit(self.runtime_paths["public_search"]).path or "/"
+            if path == public_search_path:
+                return [
+                    surface_id
+                    for surface_id in (
+                        "challenge_routing",
+                        "rate_pressure",
+                        "geo_ip_policy",
+                    )
+                    if surface_id in self.surface_targets
+                ]
+            if "public_path_traversal" in self.surface_targets:
+                return ["public_path_traversal"]
+            return []
+
         async def on_error(self, request, error: Exception) -> None:
             self.last_transport_error = f"{type(error).__name__}: {error}"
 
@@ -403,6 +492,16 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
             self.requests_observed += 1
             self.bytes_observed += len(response.body)
             self.last_response_status = int(response.status)
+            surface_ids = self._surface_ids_for_response(response)
+            if surface_ids:
+                _record_surface_receipt(
+                    self.surface_receipts,
+                    surface_ids=surface_ids,
+                    coverage_status=_coverage_status_for_http_status(int(response.status)),
+                    request_method=str(getattr(response.request, "method", "GET")),
+                    request_target=str(getattr(response, "url", "")),
+                    response_status=int(response.status),
+                )
 
             if self._should_stop():
                 self.pause()
@@ -498,6 +597,7 @@ class _DirectPersonaTracker:
         self.last_transport_error: str | None = None
         self.response_status_count: Counter[str] = Counter()
         self.scope_rejections: Counter[str] = Counter()
+        self.surface_receipts: dict[str, dict[str, Any]] = {}
 
     def should_stop(self) -> bool:
         return (
@@ -540,17 +640,42 @@ class _DirectPersonaTracker:
             return False, None
         return True, decision.normalized_url
 
-    def record_response(self, response: Any) -> None:
+    def record_response(self, response: Any, surface_ids: list[str] | None = None) -> None:
         self.generated_requests += 1
         self.last_response_status = int(response.status)
         body_bytes = bytes(response.body)
         self.bytes_observed += len(body_bytes)
         status_key = f"status_{int(response.status)}"
         self.response_status_count[status_key] += 1
+        if surface_ids:
+            _record_surface_receipt(
+                self.surface_receipts,
+                surface_ids=surface_ids,
+                coverage_status=_coverage_status_for_http_status(int(response.status)),
+                request_method=str(getattr(response.request, "method", "GET")),
+                request_target=str(getattr(response, "url", "")),
+                response_status=int(response.status),
+            )
 
-    def record_failure(self, error: Exception) -> None:
+    def record_failure(
+        self,
+        error: Exception,
+        *,
+        surface_ids: list[str] | None = None,
+        request_method: str = "",
+        request_target: str = "",
+    ) -> None:
         self.failed_requests += 1
         self.last_transport_error = f"{type(error).__name__}: {error}"
+        if surface_ids:
+            _record_surface_receipt(
+                self.surface_receipts,
+                surface_ids=surface_ids,
+                coverage_status="transport_error",
+                request_method=request_method,
+                request_target=request_target,
+                response_status=None,
+            )
 
     def result_payload(self) -> dict[str, Any]:
         failure_class = "transport" if self.last_transport_error else None
@@ -576,6 +701,7 @@ class _DirectPersonaTracker:
                 "response_bytes": self.bytes_observed,
             },
             "scope_rejections": dict(sorted(self.scope_rejections.items())),
+            "surface_receipts": _render_surface_receipts(self.surface_receipts),
         }
 
 
@@ -591,6 +717,7 @@ def _execute_request_sequence(
             break
         method_name = str(request_spec.get("method") or "").strip().lower()
         raw_target = str(request_spec.get("target") or "").strip()
+        surface_ids = [str(value) for value in list(request_spec.get("surface_ids") or []) if str(value).strip()]
         if not method_name or not raw_target:
             continue
         allowed, normalized_url = tracker.allowed_request(
@@ -609,7 +736,7 @@ def _execute_request_sequence(
                 json=request_spec.get("json"),
                 follow_redirects=False,
             )
-            tracker.record_response(response)
+            tracker.record_response(response, surface_ids)
             location = str(response.headers.get("location") or "").strip()
             if (
                 request_spec.get("follow_redirect")
@@ -629,9 +756,14 @@ def _execute_request_sequence(
                         cookies=request_spec.get("cookies"),
                         follow_redirects=False,
                     )
-                    tracker.record_response(redirect_response)
+                    tracker.record_response(redirect_response, surface_ids)
         except Exception as exc:
-            tracker.record_failure(exc)
+            tracker.record_failure(
+                exc,
+                surface_ids=surface_ids,
+                request_method=method_name,
+                request_target=normalized_url or raw_target,
+            )
             break
 
 
@@ -670,6 +802,7 @@ def _bulk_scraper_owned_surface_requests(
                         "q=scrapling-bulk-scraper",
                     ),
                 ),
+                surface_ids=["challenge_routing", "rate_pressure", "geo_ip_policy"],
                 headers={"accept": "application/json"},
             )
         )
@@ -678,6 +811,7 @@ def _bulk_scraper_owned_surface_requests(
             _request_spec(
                 "post",
                 _absolute_target(base_url, runtime_paths["not_a_bot_checkbox"]),
+                surface_ids=["not_a_bot_submit"],
                 headers={
                     "accept": "application/json",
                     "content-type": "application/x-www-form-urlencoded",
@@ -690,6 +824,7 @@ def _bulk_scraper_owned_surface_requests(
             _request_spec(
                 "post",
                 _absolute_target(base_url, runtime_paths["challenge_submit"]),
+                surface_ids=["puzzle_submit_or_escalation"],
                 headers={
                     "accept": "application/json",
                     "content-type": "application/x-www-form-urlencoded",
@@ -761,6 +896,7 @@ def _http_agent_request_sequence(
                         "q=scrapling-http-agent",
                     ),
                 ),
+                surface_ids=["challenge_routing", "rate_pressure", "geo_ip_policy"],
                 headers={"accept": "application/json"},
                 cookies=cookies,
             )
@@ -770,6 +906,7 @@ def _http_agent_request_sequence(
             _request_spec(
                 "post",
                 _absolute_target(base_url, runtime_paths["not_a_bot_checkbox"]),
+                surface_ids=["not_a_bot_submit"],
                 headers={
                     "accept": "application/json",
                     "content-type": "application/x-www-form-urlencoded",
@@ -783,6 +920,7 @@ def _http_agent_request_sequence(
             _request_spec(
                 "post",
                 _absolute_target(base_url, runtime_paths["challenge_submit"]),
+                surface_ids=["puzzle_submit_or_escalation"],
                 headers={
                     "accept": "application/json",
                     "content-type": "application/x-www-form-urlencoded",
@@ -796,6 +934,7 @@ def _http_agent_request_sequence(
             _request_spec(
                 "post",
                 _absolute_target(base_url, runtime_paths["pow_verify"]),
+                surface_ids=["pow_verify_abuse"],
                 headers={
                     "accept": "application/json",
                     "content-type": "application/json",
@@ -809,6 +948,7 @@ def _http_agent_request_sequence(
             _request_spec(
                 "post",
                 _absolute_target(base_url, runtime_paths["tarpit_progress"]),
+                surface_ids=["tarpit_progress_abuse"],
                 headers={
                     "accept": "application/json",
                     "content-type": "application/json",
@@ -866,7 +1006,7 @@ def _execute_bulk_scraper_persona(
                     ),
                 )
                 visited.add(normalized_url)
-                tracker.record_response(response)
+                tracker.record_response(response, ["public_path_traversal"])
                 if tracker.should_stop():
                     break
                 for href in response.css("a::attr(href)").getall():
@@ -887,9 +1027,14 @@ def _execute_bulk_scraper_persona(
                         ),
                     )
                     visited.add(discovered_url)
-                    tracker.record_response(discovered_response)
+                    tracker.record_response(discovered_response, ["public_path_traversal"])
             except Exception as exc:
-                tracker.record_failure(exc)
+                tracker.record_failure(
+                    exc,
+                    surface_ids=["public_path_traversal"],
+                    request_method="get",
+                    request_target=normalized_url or raw_target,
+                )
                 break
         if not tracker.should_stop() and start_urls:
             _execute_request_sequence(
@@ -1028,6 +1173,7 @@ def execute_worker_plan(
                     "response_bytes": int(stats.response_bytes),
                 },
                 "scope_rejections": dict(sorted(spider.scope_rejections.items())),
+                "surface_receipts": _render_surface_receipts(spider.surface_receipts),
             }
         if fulfillment_mode == "bulk_scraper":
             return _execute_bulk_scraper_persona(

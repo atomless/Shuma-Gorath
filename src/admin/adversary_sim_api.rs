@@ -443,6 +443,10 @@ pub(crate) fn handle_internal_adversary_sim_worker_result(
         Err(()) => return Response::new(500, "Key-value store error"),
     }
 
+    if !worker_result.surface_receipts.is_empty() {
+        log_scrapling_surface_receipts_event(store, &worker_result);
+    }
+
     let now = worker_result.tick_completed_at;
     let status = adversary_sim_status_payload(store, site_id, &cfg, &state, now);
     let body = serde_json::to_string(&json!({
@@ -455,6 +459,42 @@ pub(crate) fn handle_internal_adversary_sim_worker_result(
         .header("Cache-Control", "no-store")
         .body(body)
         .build()
+}
+
+fn log_scrapling_surface_receipts_event(
+    store: &impl crate::challenge::KeyValueStore,
+    worker_result: &crate::admin::adversary_sim::ScraplingWorkerResult,
+) {
+    let record = super::api::EventLogRecord {
+        entry: super::api::EventLogEntry {
+            ts: worker_result.tick_completed_at,
+            event: super::api::EventType::AdminAction,
+            ip: None,
+            reason: Some("scrapling_surface_coverage".to_string()),
+            outcome: Some(format!(
+                "tick_id={} receipts={} generated_requests={} failed_requests={}",
+                worker_result.tick_id,
+                worker_result.surface_receipts.len(),
+                worker_result.generated_requests,
+                worker_result.failed_requests
+            )),
+            admin: None,
+        },
+        taxonomy: None,
+        outcome_code: None,
+        botness_score: None,
+        sim_run_id: Some(worker_result.run_id.clone()),
+        sim_profile: Some(format!(
+            "{}.{}",
+            crate::admin::adversary_sim::SCRAPLING_SIM_PROFILE,
+            worker_result.fulfillment_mode
+        )),
+        sim_lane: Some(worker_result.lane.as_str().to_string()),
+        is_simulation: true,
+        scrapling_surface_receipts: worker_result.surface_receipts.clone(),
+        execution: super::api::EventExecutionMetadata::default(),
+    };
+    super::api::persist_event_record(store, record);
 }
 
 pub(crate) fn handle_admin_adversary_sim_history_cleanup(

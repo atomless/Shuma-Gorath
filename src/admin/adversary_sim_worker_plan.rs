@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 
 use super::adversary_sim::{RuntimeLane, WorkerFailureClass};
 use super::adversary_sim_llm_lane::LlmFulfillmentPlan;
+use crate::observability::scrapling_owned_surface::ScraplingSurfaceObservationReceipt;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct ScraplingCrawlStats {
@@ -71,6 +72,8 @@ pub struct ScraplingWorkerResult {
     pub crawl_stats: ScraplingCrawlStats,
     #[serde(default)]
     pub scope_rejections: BTreeMap<String, u64>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub surface_receipts: Vec<ScraplingSurfaceObservationReceipt>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

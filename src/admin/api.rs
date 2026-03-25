@@ -100,6 +100,9 @@ pub(super) struct EventLogRecord {
     pub sim_lane: Option<String>,
     #[serde(default, skip_serializing_if = "is_false")]
     pub is_simulation: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub scrapling_surface_receipts:
+        Vec<crate::observability::scrapling_owned_surface::ScraplingSurfaceObservationReceipt>,
     #[serde(flatten)]
     pub execution: EventExecutionMetadata,
 }
@@ -115,6 +118,7 @@ impl EventLogRecord {
             sim_profile: None,
             sim_lane: None,
             is_simulation: false,
+            scrapling_surface_receipts: Vec::new(),
             execution: EventExecutionMetadata::default(),
         }
     }
@@ -586,6 +590,36 @@ fn telemetry_field_classification_schema() -> serde_json::Value {
             "persistence": "allow"
         },
         {
+            "field": "event.scrapling_surface_receipts.surface_id",
+            "class": "public",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.scrapling_surface_receipts.coverage_status",
+            "class": "public",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.scrapling_surface_receipts.attempt_count",
+            "class": "internal",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.scrapling_surface_receipts.sample_request_method",
+            "class": "public",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.scrapling_surface_receipts.sample_request_path",
+            "class": "internal",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.scrapling_surface_receipts.sample_response_status",
+            "class": "internal",
+            "persistence": "allow"
+        },
+        {
             "field": "artifact.raw_secret_like_value",
             "class": "secret-prohibited",
             "persistence": "deny_fail_closed"
@@ -716,22 +750,10 @@ pub(crate) fn monitoring_security_privacy_payload<S: crate::challenge::KeyValueS
     security_privacy_payload(store, now, hours, forensic_mode)
 }
 
-pub fn log_event_with_execution_metadata<S: crate::challenge::KeyValueStore>(
+pub(crate) fn persist_event_record<S: crate::challenge::KeyValueStore>(
     store: &S,
-    entry: &EventLogEntry,
-    execution: Option<EventExecutionMetadata>,
+    mut record: EventLogRecord,
 ) {
-    // Write each event to a distinct immutable key to avoid read-modify-write races.
-    let mut record = EventLogRecord::from_entry(entry.clone());
-    if let Some(execution) = execution {
-        record.execution = execution;
-    }
-    if let Some(sim_metadata) = crate::runtime::sim_telemetry::current_metadata() {
-        record.sim_run_id = Some(sim_metadata.sim_run_id);
-        record.sim_profile = Some(sim_metadata.sim_profile);
-        record.sim_lane = Some(sim_metadata.sim_lane);
-        record.is_simulation = true;
-    }
     compact_event_record_for_persistence(&mut record);
 
     let hour = record.entry.ts / 3600;
@@ -825,6 +847,25 @@ pub fn log_event_with_execution_metadata<S: crate::challenge::KeyValueStore>(
             key
         ),
     }
+}
+
+pub fn log_event_with_execution_metadata<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    entry: &EventLogEntry,
+    execution: Option<EventExecutionMetadata>,
+) {
+    // Write each event to a distinct immutable key to avoid read-modify-write races.
+    let mut record = EventLogRecord::from_entry(entry.clone());
+    if let Some(execution) = execution {
+        record.execution = execution;
+    }
+    if let Some(sim_metadata) = crate::runtime::sim_telemetry::current_metadata() {
+        record.sim_run_id = Some(sim_metadata.sim_run_id);
+        record.sim_profile = Some(sim_metadata.sim_profile);
+        record.sim_lane = Some(sim_metadata.sim_lane);
+        record.is_simulation = true;
+    }
+    persist_event_record(store, record);
 }
 
 pub fn log_event<S: crate::challenge::KeyValueStore>(store: &S, entry: &EventLogEntry) {
@@ -1531,6 +1572,94 @@ mod tests {
             );
         }
 
+        persist_event_record(
+            &store,
+            EventLogRecord {
+                entry: EventLogEntry {
+                    ts: run_started_at.saturating_add(3),
+                    event: EventType::AdminAction,
+                    ip: Some("198.51.100.50".to_string()),
+                    reason: Some("scrapling_surface_coverage".to_string()),
+                    outcome: Some("receipts".to_string()),
+                    admin: Some("internal".to_string()),
+                },
+                taxonomy: None,
+                outcome_code: None,
+                botness_score: None,
+                sim_run_id: Some("simrun-scrapling-request-native".to_string()),
+                sim_profile: Some("scrapling_runtime_lane.http_agent".to_string()),
+                sim_lane: Some("scrapling_traffic".to_string()),
+                is_simulation: true,
+                execution: EventExecutionMetadata::default(),
+                scrapling_surface_receipts: vec![
+                    crate::observability::scrapling_owned_surface::ScraplingSurfaceObservationReceipt {
+                        surface_id: "public_path_traversal".to_string(),
+                        coverage_status: "pass_observed".to_string(),
+                        attempt_count: 2,
+                        sample_request_method: "GET".to_string(),
+                        sample_request_path: "/catalog?page=1".to_string(),
+                        sample_response_status: Some(200),
+                    },
+                    crate::observability::scrapling_owned_surface::ScraplingSurfaceObservationReceipt {
+                        surface_id: "challenge_routing".to_string(),
+                        coverage_status: "pass_observed".to_string(),
+                        attempt_count: 3,
+                        sample_request_method: "GET".to_string(),
+                        sample_request_path: "/sim/public/search?q=scrapling".to_string(),
+                        sample_response_status: Some(200),
+                    },
+                    crate::observability::scrapling_owned_surface::ScraplingSurfaceObservationReceipt {
+                        surface_id: "rate_pressure".to_string(),
+                        coverage_status: "pass_observed".to_string(),
+                        attempt_count: 3,
+                        sample_request_method: "GET".to_string(),
+                        sample_request_path: "/sim/public/search?q=scrapling".to_string(),
+                        sample_response_status: Some(200),
+                    },
+                    crate::observability::scrapling_owned_surface::ScraplingSurfaceObservationReceipt {
+                        surface_id: "geo_ip_policy".to_string(),
+                        coverage_status: "pass_observed".to_string(),
+                        attempt_count: 3,
+                        sample_request_method: "GET".to_string(),
+                        sample_request_path: "/sim/public/search?q=scrapling".to_string(),
+                        sample_response_status: Some(200),
+                    },
+                    crate::observability::scrapling_owned_surface::ScraplingSurfaceObservationReceipt {
+                        surface_id: "not_a_bot_submit".to_string(),
+                        coverage_status: "fail_observed".to_string(),
+                        attempt_count: 2,
+                        sample_request_method: "POST".to_string(),
+                        sample_request_path: "/challenge/not-a-bot-checkbox".to_string(),
+                        sample_response_status: Some(400),
+                    },
+                    crate::observability::scrapling_owned_surface::ScraplingSurfaceObservationReceipt {
+                        surface_id: "puzzle_submit_or_escalation".to_string(),
+                        coverage_status: "fail_observed".to_string(),
+                        attempt_count: 2,
+                        sample_request_method: "POST".to_string(),
+                        sample_request_path: "/challenge/puzzle".to_string(),
+                        sample_response_status: Some(400),
+                    },
+                    crate::observability::scrapling_owned_surface::ScraplingSurfaceObservationReceipt {
+                        surface_id: "pow_verify_abuse".to_string(),
+                        coverage_status: "fail_observed".to_string(),
+                        attempt_count: 1,
+                        sample_request_method: "POST".to_string(),
+                        sample_request_path: "/pow/verify".to_string(),
+                        sample_response_status: Some(400),
+                    },
+                    crate::observability::scrapling_owned_surface::ScraplingSurfaceObservationReceipt {
+                        surface_id: "tarpit_progress_abuse".to_string(),
+                        coverage_status: "fail_observed".to_string(),
+                        attempt_count: 1,
+                        sample_request_method: "POST".to_string(),
+                        sample_request_path: "/tarpit/progress".to_string(),
+                        sample_response_status: Some(400),
+                    },
+                ],
+            },
+        );
+
         let recent_runs =
             monitoring_recent_sim_run_summaries(&store, now, 24, 10);
         let row = recent_runs
@@ -1546,6 +1675,13 @@ mod tests {
                 "http_agent".to_string()
             ]
         );
+        let owned_surface_coverage = row
+            .owned_surface_coverage
+            .as_ref()
+            .expect("owned surface coverage");
+        assert_eq!(owned_surface_coverage.overall_status, "covered");
+        assert_eq!(owned_surface_coverage.required_surface_ids.len(), 8);
+        assert!(owned_surface_coverage.blocking_surface_ids.is_empty());
         assert_eq!(
             row.observed_category_ids,
             vec![
@@ -1728,6 +1864,7 @@ mod tests {
             sim_profile: Some("fast_smoke".to_string()),
             sim_lane: Some("deterministic_black_box".to_string()),
             is_simulation: true,
+            scrapling_surface_receipts: Vec::new(),
             execution: EventExecutionMetadata::default(),
         };
 
@@ -12515,6 +12652,8 @@ struct MonitoringRecentSimRunAccumulator {
     monitoring_event_count: u64,
     defense_keys: HashSet<String>,
     ban_outcome_count: u64,
+    surface_observations:
+        Vec<crate::observability::scrapling_owned_surface::ScraplingSurfaceObservationReceipt>,
 }
 
 fn normalize_monitoring_event_token(value: Option<&str>) -> String {
@@ -12651,6 +12790,7 @@ pub(crate) fn monitoring_recent_sim_run_summaries<S: crate::challenge::KeyValueS
                     monitoring_event_count: 0,
                     defense_keys: HashSet::new(),
                     ban_outcome_count: 0,
+                    surface_observations: Vec::new(),
                 });
         accumulator.monitoring_event_count = accumulator.monitoring_event_count.saturating_add(1);
         if ts > 0 {
@@ -12679,6 +12819,9 @@ pub(crate) fn monitoring_recent_sim_run_summaries<S: crate::challenge::KeyValueS
         if monitoring_sim_run_is_ban_outcome(&stored.record) {
             accumulator.ban_outcome_count = accumulator.ban_outcome_count.saturating_add(1);
         }
+        accumulator
+            .surface_observations
+            .extend(stored.record.scrapling_surface_receipts.iter().cloned());
     }
 
     let mut rows: Vec<_> = grouped
@@ -12691,6 +12834,10 @@ pub(crate) fn monitoring_recent_sim_run_summaries<S: crate::challenge::KeyValueS
                 let mut observed_category_ids: Vec<_> =
                     row.observed_category_ids.into_iter().collect();
                 observed_category_ids.sort();
+                let owned_surface_coverage = crate::observability::scrapling_owned_surface::summarize_scrapling_owned_surface_coverage(
+                    observed_fulfillment_modes.as_slice(),
+                    row.surface_observations.as_slice(),
+                );
                 crate::observability::hot_read_documents::MonitoringRecentSimRunSummary {
                     run_id: row.run_id,
                     lane: row.lane,
@@ -12702,6 +12849,7 @@ pub(crate) fn monitoring_recent_sim_run_summaries<S: crate::challenge::KeyValueS
                     monitoring_event_count: row.monitoring_event_count,
                     defense_delta_count: row.defense_keys.len() as u64,
                     ban_outcome_count: row.ban_outcome_count,
+                    owned_surface_coverage,
                 }
             },
         )

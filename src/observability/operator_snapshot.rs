@@ -521,6 +521,7 @@ mod tests {
                 monitoring_event_count: 3,
                 defense_delta_count: 2,
                 ban_outcome_count: 0,
+                owned_surface_coverage: None,
             }],
             OperatorSnapshotRecentChanges {
                 lookback_seconds: watch_window_hours.saturating_mul(3).saturating_mul(3600),
@@ -650,6 +651,7 @@ mod tests {
                 monitoring_event_count: 9,
                 defense_delta_count: 2,
                 ban_outcome_count: 0,
+                owned_surface_coverage: None,
             }],
             OperatorSnapshotRecentChanges::default(),
             1_700_000_050,
@@ -669,6 +671,92 @@ mod tests {
             .receipts
             .iter()
             .any(|receipt| receipt.category_id == "http_agent"));
+    }
+
+    #[test]
+    fn snapshot_payload_projects_recent_run_owned_surface_coverage() {
+        let store = TestStore::new();
+        let summary = summarize_with_store(&store, 24, 10);
+        let payload = build_operator_snapshot_payload(
+            &store,
+            "default",
+            1_700_000_060,
+            &summary,
+            &[OperatorSnapshotRecentSimRun {
+                run_id: "simrun-request-native".to_string(),
+                lane: "scrapling_traffic".to_string(),
+                profile: "scrapling_runtime_lane".to_string(),
+                observed_fulfillment_modes: vec![
+                    "crawler".to_string(),
+                    "bulk_scraper".to_string(),
+                    "http_agent".to_string(),
+                ],
+                observed_category_ids: vec![
+                    "indexing_bot".to_string(),
+                    "ai_scraper_bot".to_string(),
+                    "http_agent".to_string(),
+                ],
+                first_ts: 1_700_000_000,
+                last_ts: 1_700_000_040,
+                monitoring_event_count: 9,
+                defense_delta_count: 2,
+                ban_outcome_count: 0,
+                owned_surface_coverage: Some(
+                    crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageSummary {
+                        overall_status: "covered".to_string(),
+                        required_surface_ids: vec![
+                            "public_path_traversal".to_string(),
+                            "challenge_routing".to_string(),
+                        ],
+                        satisfied_surface_ids: vec![
+                            "public_path_traversal".to_string(),
+                            "challenge_routing".to_string(),
+                        ],
+                        blocking_surface_ids: Vec::new(),
+                        receipts: vec![
+                            crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageReceipt {
+                                surface_id: "public_path_traversal".to_string(),
+                                success_contract: "should_pass_some".to_string(),
+                                coverage_status: "pass_observed".to_string(),
+                                satisfied: true,
+                                attempt_count: 2,
+                                sample_request_method: "GET".to_string(),
+                                sample_request_path: "/catalog?page=1".to_string(),
+                                sample_response_status: Some(200),
+                            },
+                            crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageReceipt {
+                                surface_id: "challenge_routing".to_string(),
+                                success_contract: "mixed_outcomes".to_string(),
+                                coverage_status: "pass_observed".to_string(),
+                                satisfied: true,
+                                attempt_count: 3,
+                                sample_request_method: "GET".to_string(),
+                                sample_request_path: "/sim/public/search?q=scrapling".to_string(),
+                                sample_response_status: Some(200),
+                            },
+                        ],
+                    },
+                ),
+            }],
+            OperatorSnapshotRecentChanges::default(),
+            1_700_000_060,
+            1_700_000_060,
+            1_700_000_060,
+        );
+
+        let recent_run = payload
+            .adversary_sim
+            .recent_runs
+            .iter()
+            .find(|row| row.run_id == "simrun-request-native")
+            .expect("recent run");
+        let owned_surface_coverage = recent_run
+            .owned_surface_coverage
+            .as_ref()
+            .expect("owned surface coverage");
+        assert_eq!(owned_surface_coverage.overall_status, "covered");
+        assert_eq!(owned_surface_coverage.required_surface_ids.len(), 2);
+        assert!(owned_surface_coverage.blocking_surface_ids.is_empty());
     }
 
     #[test]

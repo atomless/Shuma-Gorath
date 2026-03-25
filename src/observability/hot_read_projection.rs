@@ -200,6 +200,7 @@ fn operator_snapshot_recent_sim_run(
         monitoring_event_count: run.monitoring_event_count,
         defense_delta_count: run.defense_delta_count,
         ban_outcome_count: run.ban_outcome_count,
+        owned_surface_coverage: run.owned_surface_coverage.clone(),
     }
 }
 
