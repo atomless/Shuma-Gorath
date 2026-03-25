@@ -5643,11 +5643,11 @@ test('dashboard route exposes live traffic refresh controls without changing oth
 
   assert.match(
     source,
-    /const MANUAL_REFRESH_TABS = new Set\(\['traffic', 'diagnostics', 'ip-bans', 'red-team'\]\);/
+    /const MANUAL_REFRESH_TABS = new Set\(\['traffic', 'game-loop', 'diagnostics', 'ip-bans', 'red-team'\]\);/
   );
   assert.match(
     source,
-    /const AUTO_REFRESH_TABS = new Set\(\['traffic', 'ip-bans', 'red-team'\]\);/
+    /const AUTO_REFRESH_TABS = new Set\(\['traffic', 'game-loop', 'ip-bans', 'red-team'\]\);/
   );
 });
 
@@ -6651,8 +6651,8 @@ test('dashboard route wires native runtime actions with separate manual and auto
   assert.match(source, /banDashboardIp/);
   assert.match(source, /unbanDashboardIp/);
   assert.match(source, /getDashboardRobotsPreview/);
-  assert.match(source, /const MANUAL_REFRESH_TABS = new Set\(\['traffic', 'diagnostics', 'ip-bans', 'red-team'\]\);/);
-  assert.match(source, /const AUTO_REFRESH_TABS = new Set\(\['traffic', 'ip-bans', 'red-team'\]\);/);
+  assert.match(source, /const MANUAL_REFRESH_TABS = new Set\(\['traffic', 'game-loop', 'diagnostics', 'ip-bans', 'red-team'\]\);/);
+  assert.match(source, /const AUTO_REFRESH_TABS = new Set\(\['traffic', 'game-loop', 'ip-bans', 'red-team'\]\);/);
 });
 
 test('dashboard route keeps the shadow-mode eye overlay mounted and lets CSS reveal it when enabled', () => {

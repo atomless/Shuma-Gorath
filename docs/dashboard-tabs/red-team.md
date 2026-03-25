@@ -19,11 +19,10 @@ Panel:
 - `Recent Red Team Runs`:
   - recent adversary simulation run identifiers derived from a compact monitoring-backed run-history summary,
   - observed fulfillment modes, category coverage, and owned-surface closure summaries for each bounded run row,
-  - run-id linkage back to `Diagnostics` and `IP Bans`,
   - freshness-aware empty/degraded messaging so delayed telemetry is not misread as no activity.
 - `Latest Scrapling Evidence`:
   - receipt-backed projection of the most recent Scrapling run visible in the bounded monitoring window,
-  - observed Scrapling personas, observed non-human taxonomy categories, owned-surface coverage status, and per-surface sample receipts,
+  - observed Scrapling personas, observed non-human taxonomy categories, owned-surface closure counts, and per-surface sample receipts,
   - explicit operator proof of where Scrapling passed or failed against the request-native defenses it currently owns.
 
 Behavior:

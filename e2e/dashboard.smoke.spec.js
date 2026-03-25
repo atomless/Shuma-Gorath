@@ -3339,9 +3339,19 @@ test("adversary sim toggle continue path omits the no-frontier warning after con
   });
 });
 
-test("traffic shares the auto-refresh bar while diagnostics remains manual-refresh only", async ({ page }) => {
+test("traffic, game loop, red team, and ip-bans share the refresh bar while diagnostics remains manual-refresh only", async ({ page }) => {
   await openDashboard(page);
   await openTab(page, "traffic");
+  await expect(page.locator('label[for="auto-refresh-toggle"]')).toBeVisible();
+  await expect(page.locator("#auto-refresh-toggle")).not.toBeChecked();
+  await expect(page.locator("#refresh-now-btn")).toBeVisible();
+  await setAutoRefresh(page, true);
+  await expect(page.locator("#refresh-now-btn")).toBeHidden();
+  await expect(page.locator("#refresh-mode")).toContainText("ON");
+  await setAutoRefresh(page, false);
+  await expect(page.locator("#refresh-now-btn")).toBeVisible();
+
+  await openTab(page, "game-loop");
   await expect(page.locator('label[for="auto-refresh-toggle"]')).toBeVisible();
   await expect(page.locator("#auto-refresh-toggle")).not.toBeChecked();
   await expect(page.locator("#refresh-now-btn")).toBeVisible();
@@ -3676,9 +3686,14 @@ test("red team tab surfaces receipt-backed scrapling attack evidence from recent
 
   await openDashboard(page);
   await openTab(page, "red-team");
+  await expect(page.locator("#adversary-runs thead")).not.toContainText("Links");
   await expect(page.locator("#adversary-runs tbody")).toContainText("Bulk Scraper");
   await expect(page.locator("#adversary-runs tbody")).toContainText("AI Scraper Bot");
   await expect(page.locator("#adversary-runs tbody")).toContainText("Partial");
+  await expect(page.locator("#red-team-scrapling-evidence")).not.toContainText("Coverage Status");
+  await expect(page.locator("#red-team-scrapling-evidence")).toContainText("Scrapling Modes Used");
+  await expect(page.locator("#red-team-scrapling-evidence")).toContainText("Non-human Categories Fulfilled");
+  await expect(page.locator("#red-team-scrapling-evidence")).toContainText("Defence Surfaces Covered");
   await expect(page.locator("#red-team-scrapling-evidence")).toContainText("simrun-scrapling-proof");
   await expect(page.locator("#red-team-scrapling-evidence")).toContainText("2 / 3");
   await expect(page.locator("#red-team-scrapling-evidence")).toContainText("POST /challenge/not-a-bot-checkbox");

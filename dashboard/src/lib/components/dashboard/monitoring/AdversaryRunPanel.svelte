@@ -85,12 +85,11 @@
           <th class="caps-label">Last Event</th>
           <th class="caps-label">Monitoring Deltas</th>
           <th class="caps-label">Ban Outcomes</th>
-          <th class="caps-label">Links</th>
         </tr>
       </thead>
       <tbody>
         {#if runRows.length === 0}
-          <TableEmptyRow colspan={10}>No adversary runs</TableEmptyRow>
+          <TableEmptyRow colspan={9}>No adversary runs</TableEmptyRow>
         {:else}
           {#each runRows as row}
             <tr>
@@ -106,11 +105,6 @@
                 · {formatCompactNumber(row.defenseDeltaCount, '0')} defenses
               </td>
               <td>{formatCompactNumber(row.banOutcomeCount, '0')}</td>
-              <td>
-                <a href={row.monitoringHref || '#game-loop'}>Game Loop</a>
-                ·
-                <a href={row.ipBansHref || '#ip-bans'}>IP Bans</a>
-              </td>
             </tr>
           {/each}
         {/if}

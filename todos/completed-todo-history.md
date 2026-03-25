@@ -4,6 +4,34 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-25)
 
+### Dashboard Scrapling Evidence And Game Loop Refresh Cleanup
+
+- [x] Tightened the `Red Team` operator proof surface in:
+  - [`dashboard/src/lib/components/dashboard/monitoring/ScraplingEvidencePanel.svelte`](../dashboard/src/lib/components/dashboard/monitoring/ScraplingEvidencePanel.svelte)
+  - [`dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte`](../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte)
+  by removing the redundant `Coverage Status` stat card, renaming the evidence row labels to `Scrapling Modes Used`, `Non-human Categories Fulfilled`, and `Defence Surfaces Covered`, and dropping the low-value `Links` column from `Recent Red Team Runs`.
+- [x] Fixed the stale Game Loop refresh affordance gap in:
+  - [`dashboard/src/routes/+page.svelte`](../dashboard/src/routes/+page.svelte)
+  by adding `Game Loop` to the same top-level manual-refresh and auto-refresh eligibility sets used by the live operational tabs.
+- [x] Updated the focused proof surface in:
+  - [`e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`Makefile`](../Makefile)
+  so the rendered checks now prove the refined Scrapling evidence copy, the removed `Links` column, and the shared refresh-bar eligibility for `Game Loop`.
+- [x] Synced the operator docs in:
+  - [`docs/dashboard-tabs/red-team.md`](../docs/dashboard-tabs/red-team.md)
+  - [`docs/dashboard-tabs/game-loop.md`](../docs/dashboard-tabs/game-loop.md)
+  - [`docs/dashboard.md`](../docs/dashboard.md)
+  - [`docs/testing.md`](../docs/testing.md)
+- [x] Why:
+  - the Red Team proof panel had redundant status chrome and vague labels that were weaker than the data already shown,
+  - and `Game Loop` was excluded from the shared refresh affordance even though operators expect it to stay live alongside the other active operational tabs.
+- [x] Evidence:
+  - `make test-dashboard-scrapling-evidence`
+  - `make test-dashboard-traffic-pane`
+  - `make test-dashboard-game-loop-accountability`
+  - `git diff --check`
+
 ### SIM-LLM-1C2: Supervisor dispatch and typed runtime result ingest
 
 - [x] Added the closeout note in:

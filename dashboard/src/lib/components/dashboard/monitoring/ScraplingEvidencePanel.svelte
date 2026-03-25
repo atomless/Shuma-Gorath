@@ -55,12 +55,6 @@
   {:else}
     <div class="stats-cards">
       <MetricStatCard
-        title="Coverage Status"
-        valueId="red-team-scrapling-coverage-status"
-        {loading}
-        value={humanizeToken(runEvidence.ownedSurfaceCoverage?.overallStatus)}
-      />
-      <MetricStatCard
         title="Required Surfaces"
         valueId="red-team-scrapling-required-surfaces"
         {loading}
@@ -86,15 +80,15 @@
         <span class="status-value"><code>{runEvidence.runId}</code> | {formatTime(runEvidence.lastTs)}</span>
       </div>
       <div class="info-row">
-        <span class="info-label text-muted">Modes:</span>
+        <span class="info-label text-muted">Scrapling Modes Used:</span>
         <span class="status-value">{formatList(runEvidence.observedFulfillmentModes)}</span>
       </div>
       <div class="info-row">
-        <span class="info-label text-muted">Categories:</span>
+        <span class="info-label text-muted">Non-human Categories Fulfilled:</span>
         <span class="status-value">{formatList(runEvidence.observedCategoryIds)}</span>
       </div>
       <div class="info-row">
-        <span class="info-label text-muted">Coverage:</span>
+        <span class="info-label text-muted">Defence Surfaces Covered:</span>
         <span class="status-value">
           {formatCompactNumber(runEvidence.ownedSurfaceCoverage?.satisfiedSurfaceCount || 0, '0')}
           /

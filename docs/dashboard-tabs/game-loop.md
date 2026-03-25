@@ -38,8 +38,10 @@ Current behavior:
 
 Refresh behavior:
 
-- No tab-local manual or auto-refresh controls are exposed yet.
 - On Game Loop activation, the dashboard runtime now refreshes shared config plus the bounded machine-first accountability reads listed above.
+- The tab now shares the top-level dashboard refresh bar:
+  - manual refresh is available for on-demand accountability reloads,
+  - auto-refresh is available when operators want the same live cadence used on the other active operational tabs.
 
 Writes:
 

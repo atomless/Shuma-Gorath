@@ -51,8 +51,8 @@ Behavior:
 - The same backend Game Loop contracts now also expose a bounded `episode_archive` and homeostasis summary through `operator_snapshot_v1`, `oversight_history_v1`, and `oversight_agent_status_v1`, even though the final UI projection of that archive remains a later follow-on.
 - The remaining Game Loop follow-on is `MON-OVERHAUL-1C`, which adds the fuller category-aware pressure and final trust/actionability surface.
 - `Traffic` now shares the top-level refresh bar and uses the bounded monitoring refresh path for cost-effective traffic reads.
-- Manual refresh is available on `Traffic`, `Diagnostics`, `IP Bans`, and `Red Team`.
-- Auto-refresh is available on `Traffic`, `IP Bans`, and `Red Team`.
+- Manual refresh is available on `Traffic`, `Game Loop`, `Diagnostics`, `IP Bans`, and `Red Team`.
+- Auto-refresh is available on `Traffic`, `Game Loop`, `IP Bans`, and `Red Team`.
 - Most tabs refresh on initial load, on explicit refresh events, and after relevant save flows.
 - `Verification` now refreshes both shared config and the bounded `operator_snapshot_v1` verified-identity summary when the tab activates and that summary is not already present locally.
 - The `Red Team` adversary-sim controller is page-scoped rather than tab-scoped:

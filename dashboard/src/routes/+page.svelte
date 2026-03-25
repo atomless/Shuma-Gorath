@@ -69,8 +69,8 @@
     tuning: 'Loading tuning values...'
   });
   const AUTO_REFRESH_INTERVAL_MS = 1000;
-  const MANUAL_REFRESH_TABS = new Set(['traffic', 'diagnostics', 'ip-bans', 'red-team']);
-  const AUTO_REFRESH_TABS = new Set(['traffic', 'ip-bans', 'red-team']);
+  const MANUAL_REFRESH_TABS = new Set(['traffic', 'game-loop', 'diagnostics', 'ip-bans', 'red-team']);
+  const AUTO_REFRESH_TABS = new Set(['traffic', 'game-loop', 'ip-bans', 'red-team']);
   const AUTO_REFRESH_PREF_KEY = 'shuma_dashboard_auto_refresh_v1';
   const DASHBOARD_LOADED_CLASS = 'dashboard-loaded';
   const ADVERSARY_SIM_SELECTABLE_LANES = new Set(['synthetic_traffic', 'scrapling_traffic']);
