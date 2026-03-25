@@ -15,6 +15,7 @@ const SCRAPLING_OWNED_CATEGORY_TARGETS: [&str; 3] = [
     "http_agent",
 ];
 const SCRAPLING_RUNTIME_PROFILE_PREFIX: &str = "scrapling_runtime_lane";
+pub(crate) const LLM_RUNTIME_PROFILE_PREFIX: &str = "llm_runtime_lane";
 const SCRAPLING_CRAWLER_CATEGORY_TARGETS: [&str; 1] = ["indexing_bot"];
 const SCRAPLING_BULK_SCRAPER_CATEGORY_TARGETS: [&str; 1] = ["ai_scraper_bot"];
 const SCRAPLING_HTTP_AGENT_CATEGORY_TARGETS: [&str; 1] = ["http_agent"];
@@ -89,16 +90,36 @@ pub(crate) fn observed_category_targets_for_runtime_profile(
     sim_profile: &str,
 ) -> (String, Vec<String>, Vec<String>) {
     let normalized_profile = sim_profile.trim();
-    if runtime_lane != "scrapling_traffic" || normalized_profile.is_empty() {
+    if normalized_profile.is_empty() {
         return (normalized_profile.to_string(), Vec::new(), Vec::new());
     }
 
-    if normalized_profile == SCRAPLING_RUNTIME_PROFILE_PREFIX {
+    match runtime_lane {
+        "scrapling_traffic" => observed_category_targets_for_profile_prefix(
+            normalized_profile,
+            SCRAPLING_RUNTIME_PROFILE_PREFIX,
+            scrapling_category_targets_for_mode,
+        ),
+        "bot_red_team" => observed_category_targets_for_profile_prefix(
+            normalized_profile,
+            LLM_RUNTIME_PROFILE_PREFIX,
+            llm_category_targets_for_mode,
+        ),
+        _ => (normalized_profile.to_string(), Vec::new(), Vec::new()),
+    }
+}
+
+fn observed_category_targets_for_profile_prefix(
+    normalized_profile: &str,
+    profile_prefix: &str,
+    category_targets_for_mode: fn(&str) -> Vec<String>,
+) -> (String, Vec<String>, Vec<String>) {
+    if normalized_profile == profile_prefix {
         return (normalized_profile.to_string(), Vec::new(), Vec::new());
     }
 
     let Some(modes_raw) = normalized_profile
-        .strip_prefix(SCRAPLING_RUNTIME_PROFILE_PREFIX)
+        .strip_prefix(profile_prefix)
         .and_then(|value| value.strip_prefix('.'))
     else {
         return (normalized_profile.to_string(), Vec::new(), Vec::new());
@@ -112,7 +133,7 @@ pub(crate) fn observed_category_targets_for_runtime_profile(
             continue;
         }
         observed_modes.push(mode.to_string());
-        for category_id in scrapling_category_targets_for_mode(mode) {
+        for category_id in category_targets_for_mode(mode) {
             if !observed_category_ids.iter().any(|value| value == &category_id) {
                 observed_category_ids.push(category_id);
             }
@@ -120,7 +141,7 @@ pub(crate) fn observed_category_targets_for_runtime_profile(
     }
 
     (
-        SCRAPLING_RUNTIME_PROFILE_PREFIX.to_string(),
+        profile_prefix.to_string(),
         observed_modes,
         observed_category_ids,
     )
@@ -334,5 +355,28 @@ mod tests {
         assert_eq!(unchanged_profile, "fast_smoke");
         assert!(unchanged_modes.is_empty());
         assert!(unchanged_categories.is_empty());
+    }
+
+    #[test]
+    fn runtime_profile_observation_helper_normalizes_bot_red_team_modes_into_categories() {
+        let (profile, modes, categories) = observed_category_targets_for_runtime_profile(
+            "bot_red_team",
+            "llm_runtime_lane.browser_mode.request_mode",
+        );
+        assert_eq!(profile, "llm_runtime_lane");
+        assert_eq!(
+            modes,
+            vec!["browser_mode".to_string(), "request_mode".to_string()]
+        );
+        assert_eq!(
+            categories,
+            vec![
+                "automated_browser".to_string(),
+                "browser_agent".to_string(),
+                "agent_on_behalf_of_human".to_string(),
+                "http_agent".to_string(),
+                "ai_scraper_bot".to_string()
+            ]
+        );
     }
 }

@@ -77,6 +77,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-22-autonomous-tuning-safety-gates-implementation-plan.md`](2026-03-22-autonomous-tuning-safety-gates-implementation-plan.md)
 - [`2026-03-23-scrapling-request-native-category-fulfillment-implementation-plan.md`](2026-03-23-scrapling-request-native-category-fulfillment-implementation-plan.md)
 - [`2026-03-23-verified-identity-taxonomy-calibration-and-guardrails-implementation-plan.md`](2026-03-23-verified-identity-taxonomy-calibration-and-guardrails-implementation-plan.md)
+- [`2026-03-25-sim-llm-1c3-runtime-proof-closure-plan.md`](2026-03-25-sim-llm-1c3-runtime-proof-closure-plan.md)
 
 ### Monitoring and machine-first observability
 

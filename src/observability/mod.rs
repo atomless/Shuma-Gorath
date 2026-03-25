@@ -12,6 +12,7 @@ pub(crate) mod hot_read_contract;
 pub(crate) mod hot_read_documents;
 pub(crate) mod hot_read_projection;
 pub(crate) mod key_catalog;
+pub(crate) mod llm_runtime_recent_run;
 pub(crate) mod metrics;
 pub(crate) mod monitoring;
 pub(crate) mod non_human_classification;

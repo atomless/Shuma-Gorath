@@ -606,6 +606,7 @@ mod tests {
                 defense_delta_count: 2,
                 ban_outcome_count: 0,
                 owned_surface_coverage: None,
+                llm_runtime: None,
             }],
             OperatorSnapshotRecentChanges {
                 lookback_seconds: watch_window_hours.saturating_mul(3).saturating_mul(3600),
@@ -813,6 +814,7 @@ mod tests {
                 defense_delta_count: 2,
                 ban_outcome_count: 0,
                 owned_surface_coverage: None,
+                llm_runtime: None,
             }],
             OperatorSnapshotRecentChanges::default(),
             1_700_000_050,
@@ -898,6 +900,7 @@ mod tests {
                         ],
                     },
                 ),
+                llm_runtime: None,
             }],
             OperatorSnapshotRecentChanges::default(),
             1_700_000_060,

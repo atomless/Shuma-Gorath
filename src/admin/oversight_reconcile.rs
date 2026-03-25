@@ -554,6 +554,7 @@ mod tests {
                     defense_delta_count: 3,
                     ban_outcome_count: 0,
                     owned_surface_coverage: None,
+                    llm_runtime: None,
                 }],
             },
             runtime_posture: OperatorSnapshotRuntimePosture {

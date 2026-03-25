@@ -116,12 +116,13 @@ Current note:
 - The later full attacker runtime `SIM-LLM-1C` is no longer treated as one implicit next step.
 - `SIM-LLM-1C1` is now landed: the later attacker has a real live frontier action-generation seam with provider-vs-fallback lineage and Shuma-blind host-hint sanitization.
 - `SIM-LLM-1C2` is now landed: the host-side supervisor dispatches the dedicated LLM runtime worker, reuses the existing container black-box runner for request-mode execution, and ingests a typed `adversary-sim-llm-runtime-result.v1` payload instead of overloading the Scrapling worker result contract.
+- `SIM-LLM-1C3` is now landed: the live `bot_red_team` runtime leaves immutable bounded receipt events and projects provider/degraded/failed-closed lineage through recent-run hot reads and `operator_snapshot_v1`.
 - The current request-native Scrapling baseline and first working Game Loop proof are now treated as baseline capability, not the unlock condition for later stance relaxation or LLM runtime work.
 - The immediate non-LLM mainline is now:
   - `STANCE-MODEL-1`
   - `SIM-SCR-FULL-1`
   - `RSI-GAME-HO-1`
-- After that strict Scrapling-only proof, the next reopening should be the remaining LLM attacker runtime slice `SIM-LLM-1C3`.
+- After that strict Scrapling-only proof, the request-mode LLM runtime proof chain is now closed; the next honest blocker before mixed-attacker strict-loop work is executed browser-mode fulfillment for the browser-owned non-human categories.
 - Do not open `humans_plus_verified_only` until a later second strict-baseline proof has shown retained config-change improvement under both Scrapling and LLM attacker pressure.
 - `DIAG-CLEANUP-1` and `MON-OVERHAUL-1C` are now both landed, so the deferred Game Loop and Diagnostics follow-on queue is currently clear while later LLM runtime work stays blocked.
 
@@ -141,8 +142,10 @@ Current stance:
 - The repo now treats the independent verified-identity top-level stance as design debt: `STANCE-MODEL-1` should replace it with one canonical non-human stance model and a resolved effective policy contract before broader permissive verified-identity posture work continues.
 - Do not bundle authorization policy, low-cost profiles, or dashboard control surfaces into the first tranche.
 
-- [ ] SIM-LLM-1C3 Close the runtime proof chain and recent-run projection for the live `bot_red_team` actor.
+- [ ] SIM-LLM-BROWSER-1 Land bounded executed browser-mode fulfillment for the live `bot_red_team` actor and prove browser-owned category coverage.
   - Reference context:
+    - [`docs/research/2026-03-25-sim-llm-1c3-runtime-proof-closure-post-implementation-review.md`](../docs/research/2026-03-25-sim-llm-1c3-runtime-proof-closure-post-implementation-review.md)
+    - [`docs/plans/2026-03-25-sim-llm-1c3-runtime-proof-closure-plan.md`](../docs/plans/2026-03-25-sim-llm-1c3-runtime-proof-closure-plan.md)
     - [`docs/plans/2026-03-25-delay-humans-plus-verified-until-combined-attacker-proof-plan.md`](../docs/plans/2026-03-25-delay-humans-plus-verified-until-combined-attacker-proof-plan.md)
     - [`docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](../docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)
     - [`docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md`](../docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md)

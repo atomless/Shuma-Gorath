@@ -4,6 +4,38 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-25)
 
+### `SIM-LLM-1C3` Runtime Proof Closure
+
+- [x] Added one shared bounded LLM recent-run summary contract in:
+  - [`src/observability/llm_runtime_recent_run.rs`](../src/observability/llm_runtime_recent_run.rs)
+  - [`src/observability/hot_read_documents.rs`](../src/observability/hot_read_documents.rs)
+  - [`src/observability/operator_snapshot_live_traffic.rs`](../src/observability/operator_snapshot_live_traffic.rs)
+  so provider-backed, degraded, and failed-closed `bot_red_team` runs now have a reusable bounded summary shape with action lineage, bounded receipts, and outcome buckets.
+- [x] Persisted the live LLM runtime into the canonical recent-run source in:
+  - [`src/admin/adversary_sim_api.rs`](../src/admin/adversary_sim_api.rs)
+  - [`src/admin/api.rs`](../src/admin/api.rs)
+  - [`src/observability/non_human_lane_fulfillment.rs`](../src/observability/non_human_lane_fulfillment.rs)
+  so typed LLM worker results now leave immutable receipt events, `bot_red_team` runtime profiles normalize into fulfillment modes and category coverage, and the existing recent-run hot-read path reconstructs that truth without a second LLM-only store.
+- [x] Closed the projection seam through machine-first surfaces in:
+  - [`src/observability/hot_read_projection.rs`](../src/observability/hot_read_projection.rs)
+  - [`Makefile`](../Makefile)
+  - [`scripts/tests/test_adversary_sim_make_targets.py`](../scripts/tests/test_adversary_sim_make_targets.py)
+  - [`docs/testing.md`](../docs/testing.md)
+  so the focused proof path `make test-adversarial-llm-runtime-proof` now covers dispatch plus recent-run and operator-snapshot closure rather than stopping at typed ingest.
+- [x] Recorded the tranche in:
+  - [`docs/research/2026-03-25-sim-llm-1c3-runtime-proof-closure-readiness-review.md`](../docs/research/2026-03-25-sim-llm-1c3-runtime-proof-closure-readiness-review.md)
+  - [`docs/plans/2026-03-25-sim-llm-1c3-runtime-proof-closure-plan.md`](../docs/plans/2026-03-25-sim-llm-1c3-runtime-proof-closure-plan.md)
+  - [`docs/research/2026-03-25-sim-llm-1c3-runtime-proof-closure-post-implementation-review.md`](../docs/research/2026-03-25-sim-llm-1c3-runtime-proof-closure-post-implementation-review.md)
+  - [`docs/plans/README.md`](../docs/plans/README.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+  so the request-mode LLM runtime proof chain is now closed and the next explicit blocker is executed browser-mode fulfillment before the mixed-attacker strict-loop tranche can reopen honestly.
+- [x] Evidence:
+  - `make test-adversarial-llm-runtime-proof`
+  - `make test-adversary-sim-make-target-contract`
+  - `git diff --check`
+
 ### `RSI-GAME-HO-1C` Strict Improvement Unlock
 
 - [x] Made the strict `human_only_private` unlock condition explicit in:

@@ -74,6 +74,8 @@ pub(crate) struct OperatorSnapshotRecentSimRun {
     pub ban_outcome_count: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub owned_surface_coverage: Option<ScraplingOwnedSurfaceCoverageSummary>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub llm_runtime: Option<crate::observability::llm_runtime_recent_run::LlmRuntimeRecentRunSummary>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

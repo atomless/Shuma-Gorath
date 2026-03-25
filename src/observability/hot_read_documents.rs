@@ -14,13 +14,13 @@ use crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverage
 use crate::observability::retention::RetentionHealth;
 
 const HOT_READ_PREFIX: &str = "telemetry:hot_read:v1";
-const HOT_READ_BOOTSTRAP_SCHEMA_VERSION: &str = "telemetry-hot-read-bootstrap.v5";
+const HOT_READ_BOOTSTRAP_SCHEMA_VERSION: &str = "telemetry-hot-read-bootstrap.v6";
 const HOT_READ_RETENTION_SCHEMA_VERSION: &str = "telemetry-hot-read-retention.v1";
 const HOT_READ_SECURITY_PRIVACY_SCHEMA_VERSION: &str = "telemetry-hot-read-security-privacy.v1";
 const HOT_READ_RECENT_EVENTS_TAIL_SCHEMA_VERSION: &str = "telemetry-hot-read-recent-events.v4";
-const HOT_READ_RECENT_SIM_RUNS_SCHEMA_VERSION: &str = "telemetry-hot-read-recent-sim-runs.v1";
+const HOT_READ_RECENT_SIM_RUNS_SCHEMA_VERSION: &str = "telemetry-hot-read-recent-sim-runs.v2";
 const HOT_READ_MONITORING_SUMMARY_SCHEMA_VERSION: &str = "telemetry-hot-read-summary.v2";
-const HOT_READ_OPERATOR_SNAPSHOT_SCHEMA_VERSION: &str = "telemetry-hot-read-operator-snapshot.v1";
+const HOT_READ_OPERATOR_SNAPSHOT_SCHEMA_VERSION: &str = "telemetry-hot-read-operator-snapshot.v2";
 const HOT_READ_BOOTSTRAP_WINDOW_HOURS: u64 = 24;
 const HOT_READ_BOOTSTRAP_MAX_BYTES: usize = 64 * 1024;
 const HOT_READ_SECURITY_PRIVACY_MAX_BYTES: usize = 16 * 1024;
@@ -150,6 +150,8 @@ pub(crate) struct MonitoringRecentSimRunSummary {
     pub ban_outcome_count: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub owned_surface_coverage: Option<ScraplingOwnedSurfaceCoverageSummary>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub llm_runtime: Option<crate::observability::llm_runtime_recent_run::LlmRuntimeRecentRunSummary>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

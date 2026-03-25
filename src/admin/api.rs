@@ -103,6 +103,9 @@ pub(super) struct EventLogRecord {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub scrapling_surface_receipts:
         Vec<crate::observability::scrapling_owned_surface::ScraplingSurfaceObservationReceipt>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub llm_runtime:
+        Option<crate::observability::llm_runtime_recent_run::LlmRuntimeRecentRunSummary>,
     #[serde(flatten)]
     pub execution: EventExecutionMetadata,
 }
@@ -119,6 +122,7 @@ impl EventLogRecord {
             sim_lane: None,
             is_simulation: false,
             scrapling_surface_receipts: Vec::new(),
+            llm_runtime: None,
             execution: EventExecutionMetadata::default(),
         }
     }
@@ -295,7 +299,9 @@ fn is_external_monitoring_event(record: &EventLogRecord) -> bool {
 }
 
 fn is_recent_sim_run_receipt_event(record: &EventLogRecord) -> bool {
-    !record.scrapling_surface_receipts.is_empty()
+    let has_receipts =
+        !record.scrapling_surface_receipts.is_empty() || record.llm_runtime.is_some();
+    has_receipts
         && record
             .sim_run_id
             .as_deref()
@@ -625,6 +631,86 @@ fn telemetry_field_classification_schema() -> serde_json::Value {
         },
         {
             "field": "event.scrapling_surface_receipts.sample_response_status",
+            "class": "internal",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.llm_runtime.fulfillment_mode",
+            "class": "public",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.llm_runtime.backend_kind",
+            "class": "public",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.llm_runtime.backend_state",
+            "class": "public",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.llm_runtime.generation_source",
+            "class": "public",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.llm_runtime.provider",
+            "class": "internal",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.llm_runtime.model_id",
+            "class": "internal",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.llm_runtime.status",
+            "class": "public",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.llm_runtime.generated_action_count",
+            "class": "internal",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.llm_runtime.executed_action_count",
+            "class": "internal",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.llm_runtime.failed_action_count",
+            "class": "internal",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.llm_runtime.last_response_status",
+            "class": "internal",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.llm_runtime.terminal_failure",
+            "class": "internal",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.llm_runtime.action_receipts.action_type",
+            "class": "public",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.llm_runtime.action_receipts.path",
+            "class": "internal",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.llm_runtime.action_receipts.status",
+            "class": "internal",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.llm_runtime.action_receipts.error",
             "class": "internal",
             "persistence": "allow"
         },
@@ -1599,6 +1685,7 @@ mod tests {
                 sim_profile: Some("scrapling_runtime_lane.http_agent".to_string()),
                 sim_lane: Some("scrapling_traffic".to_string()),
                 is_simulation: true,
+                llm_runtime: None,
                 execution: EventExecutionMetadata::default(),
                 scrapling_surface_receipts: vec![
                     crate::observability::scrapling_owned_surface::ScraplingSurfaceObservationReceipt {
@@ -1700,6 +1787,99 @@ mod tests {
                 "indexing_bot".to_string()
             ]
         );
+    }
+
+    #[test]
+    fn recent_sim_run_history_projects_llm_runtime_receipts_for_bot_red_team() {
+        let store = MockStore::new();
+        let now = now_ts();
+        let run_started_at = now.saturating_sub(60);
+
+        persist_event_record(
+            &store,
+            EventLogRecord {
+                entry: EventLogEntry {
+                    ts: run_started_at,
+                    event: EventType::AdminAction,
+                    ip: None,
+                    reason: Some("llm_runtime_receipts".to_string()),
+                    outcome: Some("executed_actions".to_string()),
+                    admin: None,
+                },
+                taxonomy: None,
+                outcome_code: None,
+                botness_score: None,
+                sim_run_id: Some("simrun-llm-request-mode".to_string()),
+                sim_profile: Some("llm_runtime_lane.request_mode".to_string()),
+                sim_lane: Some("bot_red_team".to_string()),
+                is_simulation: true,
+                scrapling_surface_receipts: Vec::new(),
+                llm_runtime: Some(
+                    crate::observability::llm_runtime_recent_run::LlmRuntimeRecentRunSummary {
+                        fulfillment_mode: "request_mode".to_string(),
+                        backend_kind: "frontier_reference".to_string(),
+                        backend_state: "configured".to_string(),
+                        generation_source: "provider_response".to_string(),
+                        provider: "openai".to_string(),
+                        model_id: "gpt-5-mini".to_string(),
+                        fallback_reason: None,
+                        status: "provider_backed".to_string(),
+                        generated_action_count: 2,
+                        executed_action_count: 2,
+                        failed_action_count: 0,
+                        last_response_status: Some(403),
+                        terminal_failure: None,
+                        action_outcomes:
+                            crate::observability::llm_runtime_recent_run::LlmRuntimeActionOutcomeSummary {
+                                allowed_action_count: 1,
+                                intercepted_action_count: 1,
+                                error_action_count: 0,
+                            },
+                        action_receipts: vec![
+                            crate::observability::llm_runtime_recent_run::LlmRuntimeActionReceiptSummary {
+                                action_index: 1,
+                                action_type: "http_get".to_string(),
+                                path: "/".to_string(),
+                                label: Some("root".to_string()),
+                                status: Some(200),
+                                error: None,
+                            },
+                            crate::observability::llm_runtime_recent_run::LlmRuntimeActionReceiptSummary {
+                                action_index: 2,
+                                action_type: "http_get".to_string(),
+                                path: "/robots.txt".to_string(),
+                                label: Some("robots".to_string()),
+                                status: Some(403),
+                                error: None,
+                            },
+                        ],
+                    },
+                ),
+                execution: EventExecutionMetadata::default(),
+            },
+        );
+
+        let recent_runs = monitoring_recent_sim_run_summaries(&store, now, 24, 10);
+        let row = recent_runs
+            .iter()
+            .find(|value| value.run_id == "simrun-llm-request-mode")
+            .expect("llm row");
+        assert_eq!(row.profile, "llm_runtime_lane");
+        assert_eq!(row.observed_fulfillment_modes, vec!["request_mode".to_string()]);
+        assert_eq!(
+            row.observed_category_ids,
+            vec!["ai_scraper_bot".to_string(), "http_agent".to_string()]
+        );
+        assert_eq!(row.monitoring_event_count, 0);
+        assert!(row.owned_surface_coverage.is_none());
+        let llm_runtime = row.llm_runtime.as_ref().expect("llm runtime summary");
+        assert_eq!(llm_runtime.status, "provider_backed");
+        assert_eq!(llm_runtime.generated_action_count, 2);
+        assert_eq!(llm_runtime.executed_action_count, 2);
+        assert_eq!(llm_runtime.action_outcomes.allowed_action_count, 1);
+        assert_eq!(llm_runtime.action_outcomes.intercepted_action_count, 1);
+        assert_eq!(llm_runtime.action_receipts.len(), 2);
+        assert_eq!(llm_runtime.action_receipts[1].status, Some(403));
     }
 
     #[test]
@@ -1875,6 +2055,7 @@ mod tests {
             sim_lane: Some("deterministic_black_box".to_string()),
             is_simulation: true,
             scrapling_surface_receipts: Vec::new(),
+            llm_runtime: None,
             execution: EventExecutionMetadata::default(),
         };
 
@@ -5866,6 +6047,51 @@ mod admin_config_tests {
         assert_eq!(persisted.generated_tick_count, 1);
         assert_eq!(persisted.generated_request_count, 2);
         assert!(persisted.pending_worker_tick_id.is_none());
+
+        let recent_runs = crate::observability::hot_read_projection::load_monitoring_recent_sim_runs_hot_read(
+            &store,
+            "default",
+            tick_started_at.saturating_add(2),
+        );
+        let recent_run = recent_runs
+            .payload
+            .recent_sim_runs
+            .iter()
+            .find(|row| row.run_id == run_id)
+            .expect("recent llm run");
+        assert_eq!(recent_run.lane, "bot_red_team");
+        assert_eq!(recent_run.profile, "llm_runtime_lane");
+        assert_eq!(
+            recent_run.observed_fulfillment_modes,
+            vec![fulfillment_mode.to_string()]
+        );
+        let llm_runtime = recent_run.llm_runtime.as_ref().expect("llm runtime summary");
+        assert_eq!(llm_runtime.status, "provider_backed");
+        assert_eq!(llm_runtime.generation_source, "provider_response");
+        assert_eq!(llm_runtime.provider, "openai");
+        assert_eq!(llm_runtime.model_id, "gpt-5-mini");
+        assert_eq!(llm_runtime.generated_action_count, 2);
+        assert_eq!(llm_runtime.executed_action_count, 2);
+        assert_eq!(llm_runtime.action_receipts.len(), 2);
+
+        let operator_snapshot =
+            crate::observability::hot_read_projection::load_operator_snapshot_hot_read(
+                &store, "default",
+            )
+            .expect("operator snapshot");
+        let snapshot_run = operator_snapshot
+            .payload
+            .adversary_sim
+            .recent_runs
+            .iter()
+            .find(|row| row.run_id == run_id)
+            .expect("snapshot llm run");
+        let snapshot_llm_runtime = snapshot_run
+            .llm_runtime
+            .as_ref()
+            .expect("snapshot llm runtime summary");
+        assert_eq!(snapshot_llm_runtime.status, "provider_backed");
+        assert_eq!(snapshot_llm_runtime.action_receipts.len(), 2);
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
@@ -13430,6 +13656,62 @@ struct MonitoringRecentSimRunAccumulator {
     ban_outcome_count: u64,
     surface_observations:
         Vec<crate::observability::scrapling_owned_surface::ScraplingSurfaceObservationReceipt>,
+    llm_runtime:
+        Option<crate::observability::llm_runtime_recent_run::LlmRuntimeRecentRunSummary>,
+    llm_runtime_last_ts: u64,
+}
+
+fn merge_llm_runtime_recent_run_summary(
+    current: Option<crate::observability::llm_runtime_recent_run::LlmRuntimeRecentRunSummary>,
+    current_ts: u64,
+    incoming: &crate::observability::llm_runtime_recent_run::LlmRuntimeRecentRunSummary,
+    incoming_ts: u64,
+) -> (
+    crate::observability::llm_runtime_recent_run::LlmRuntimeRecentRunSummary,
+    u64,
+) {
+    match current {
+        None => (incoming.clone(), incoming_ts),
+        Some(mut merged) => {
+            merged.generated_action_count = merged
+                .generated_action_count
+                .saturating_add(incoming.generated_action_count);
+            merged.executed_action_count = merged
+                .executed_action_count
+                .saturating_add(incoming.executed_action_count);
+            merged.failed_action_count = merged
+                .failed_action_count
+                .saturating_add(incoming.failed_action_count);
+            merged.action_outcomes.allowed_action_count = merged
+                .action_outcomes
+                .allowed_action_count
+                .saturating_add(incoming.action_outcomes.allowed_action_count);
+            merged.action_outcomes.intercepted_action_count = merged
+                .action_outcomes
+                .intercepted_action_count
+                .saturating_add(incoming.action_outcomes.intercepted_action_count);
+            merged.action_outcomes.error_action_count = merged
+                .action_outcomes
+                .error_action_count
+                .saturating_add(incoming.action_outcomes.error_action_count);
+
+            if incoming_ts >= current_ts {
+                merged.fulfillment_mode = incoming.fulfillment_mode.clone();
+                merged.backend_kind = incoming.backend_kind.clone();
+                merged.backend_state = incoming.backend_state.clone();
+                merged.generation_source = incoming.generation_source.clone();
+                merged.provider = incoming.provider.clone();
+                merged.model_id = incoming.model_id.clone();
+                merged.fallback_reason = incoming.fallback_reason.clone();
+                merged.status = incoming.status.clone();
+                merged.last_response_status = incoming.last_response_status;
+                merged.terminal_failure = incoming.terminal_failure.clone();
+                merged.action_receipts = incoming.action_receipts.clone();
+                return (merged, incoming_ts);
+            }
+            (merged, current_ts)
+        }
+    }
 }
 
 fn normalize_monitoring_event_token(value: Option<&str>) -> String {
@@ -13571,6 +13853,8 @@ pub(crate) fn monitoring_recent_sim_run_summaries<S: crate::challenge::KeyValueS
                     defense_keys: HashSet::new(),
                     ban_outcome_count: 0,
                     surface_observations: Vec::new(),
+                    llm_runtime: None,
+                    llm_runtime_last_ts: 0,
                 });
         if ts > 0 {
             accumulator.first_ts = if accumulator.first_ts == 0 {
@@ -13605,6 +13889,16 @@ pub(crate) fn monitoring_recent_sim_run_summaries<S: crate::challenge::KeyValueS
         accumulator
             .surface_observations
             .extend(stored.record.scrapling_surface_receipts.iter().cloned());
+        if let Some(llm_runtime) = stored.record.llm_runtime.as_ref() {
+            let (merged_summary, merged_ts) = merge_llm_runtime_recent_run_summary(
+                accumulator.llm_runtime.clone(),
+                accumulator.llm_runtime_last_ts,
+                llm_runtime,
+                ts,
+            );
+            accumulator.llm_runtime = Some(merged_summary);
+            accumulator.llm_runtime_last_ts = merged_ts;
+        }
     }
 
     let mut rows: Vec<_> = grouped
@@ -13633,6 +13927,7 @@ pub(crate) fn monitoring_recent_sim_run_summaries<S: crate::challenge::KeyValueS
                     defense_delta_count: row.defense_keys.len() as u64,
                     ban_outcome_count: row.ban_outcome_count,
                     owned_surface_coverage,
+                    llm_runtime: row.llm_runtime,
                 }
             },
         )

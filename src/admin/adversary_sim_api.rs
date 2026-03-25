@@ -488,6 +488,8 @@ pub(crate) fn handle_internal_adversary_sim_worker_result(
                 Err(()) => return Response::new(500, "Key-value store error"),
             }
 
+            log_llm_runtime_receipts_event(store, &worker_result);
+
             worker_result.tick_completed_at
         }
         crate::admin::adversary_sim::SCRAPLING_WORKER_PLAN_SCHEMA_VERSION => {
@@ -540,6 +542,89 @@ fn log_scrapling_surface_receipts_event(
         sim_lane: Some(worker_result.lane.as_str().to_string()),
         is_simulation: true,
         scrapling_surface_receipts: worker_result.surface_receipts.clone(),
+        llm_runtime: None,
+        execution: super::api::EventExecutionMetadata::default(),
+    };
+    super::api::persist_event_record(store, record);
+}
+
+fn log_llm_runtime_receipts_event(
+    store: &impl crate::challenge::KeyValueStore,
+    worker_result: &crate::admin::adversary_sim::LlmRuntimeResult,
+) {
+    let receipts: Vec<_> = worker_result
+        .action_receipts
+        .iter()
+        .rev()
+        .take(crate::observability::llm_runtime_recent_run::LLM_RUNTIME_ACTION_RECEIPT_LIMIT)
+        .cloned()
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .map(|receipt| crate::observability::llm_runtime_recent_run::LlmRuntimeActionReceiptSummary {
+            action_index: receipt.action_index,
+            action_type: receipt.action_type,
+            path: receipt.path,
+            label: receipt.label,
+            status: receipt.status,
+            error: receipt.error,
+        })
+        .collect();
+    let llm_runtime = crate::observability::llm_runtime_recent_run::LlmRuntimeRecentRunSummary {
+        fulfillment_mode: worker_result.fulfillment_mode.clone(),
+        backend_kind: worker_result.backend_kind.clone(),
+        backend_state: worker_result.backend_state.clone(),
+        generation_source: worker_result.generation_source.clone(),
+        provider: worker_result.provider.clone(),
+        model_id: worker_result.model_id.clone(),
+        fallback_reason: worker_result.fallback_reason.clone(),
+        status: crate::observability::llm_runtime_recent_run::llm_runtime_recent_run_status(
+            worker_result.passed,
+            worker_result.backend_state.as_str(),
+            worker_result.generation_source.as_str(),
+            worker_result.terminal_failure.as_deref(),
+            worker_result.error.as_deref(),
+            worker_result.failed_action_count,
+        ),
+        generated_action_count: worker_result.generated_action_count,
+        executed_action_count: worker_result.executed_action_count,
+        failed_action_count: worker_result.failed_action_count,
+        last_response_status: worker_result.last_response_status,
+        terminal_failure: worker_result.terminal_failure.clone(),
+        action_outcomes:
+            crate::observability::llm_runtime_recent_run::summarize_llm_runtime_action_outcomes(
+                receipts.as_slice(),
+            ),
+        action_receipts: receipts,
+    };
+    let record = super::api::EventLogRecord {
+        entry: super::api::EventLogEntry {
+            ts: worker_result.tick_completed_at,
+            event: super::api::EventType::AdminAction,
+            ip: None,
+            reason: Some("llm_runtime_receipts".to_string()),
+            outcome: Some(format!(
+                "tick_id={} generated_actions={} executed_actions={} failed_actions={}",
+                worker_result.tick_id,
+                worker_result.generated_action_count,
+                worker_result.executed_action_count,
+                worker_result.failed_action_count
+            )),
+            admin: None,
+        },
+        taxonomy: None,
+        outcome_code: None,
+        botness_score: None,
+        sim_run_id: Some(worker_result.run_id.clone()),
+        sim_profile: Some(format!(
+            "{}.{}",
+            crate::observability::non_human_lane_fulfillment::LLM_RUNTIME_PROFILE_PREFIX,
+            worker_result.fulfillment_mode
+        )),
+        sim_lane: Some(worker_result.lane.as_str().to_string()),
+        is_simulation: true,
+        scrapling_surface_receipts: Vec::new(),
+        llm_runtime: Some(llm_runtime),
         execution: super::api::EventExecutionMetadata::default(),
     };
     super::api::persist_event_record(store, record);
