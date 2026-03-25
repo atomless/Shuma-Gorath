@@ -4,6 +4,20 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### BUILD-HYGIENE-1: warning audit closeout
+
+- [x] Re-audited the remaining native test-build warning surface after the earlier `runtime_env.rs::spin_variable_name` fix and confirmed the backlog item was stale rather than still requiring code changes.
+- [x] Recorded the closeout in:
+  - [`../docs/research/2026-03-24-build-hygiene-1-warning-audit-closeout-review.md`](../docs/research/2026-03-24-build-hygiene-1-warning-audit-closeout-review.md)
+  - [`../docs/research/README.md`](../docs/research/README.md)
+- [x] Why:
+  - `BUILD-HYGIENE-1` still implied there were live native test-build warnings after the known warning source had already been fixed,
+  - so the repo needed an explicit audit rather than carrying stale debt by inertia.
+- [x] Evidence:
+  - `make test-unit 2>&1 | rg -n "warning:"` produced no matches
+  - `make test-rsi-game-mainline 2>&1 | rg -n "warning:"` produced no matches
+  - `git diff --check`
+
 ### TEST-ENV-1: repo-wide Rust test env-lock contract
 
 - [x] Added an explicit static contract lane in:

@@ -93,29 +93,6 @@ Current stance:
 - Before `MON-OVERHAUL-1`, expose the already-settled local control truths that no longer belong only in Advanced JSON or backend-only payloads. Verified identity in `Verification` and adversary-sim status truth basis in `Red Team` are now delivered, but the immediate mainline now moves first through attacker-faithful Scrapling and the first working game loop rather than dashboard cleanup.
 - Keep the operator-facing product stance distinct from the later recursive-improvement development reference stance: `MON-OVERHAUL-1` and later `TUNE-SURFACE-1` should project and edit the current operator-selected posture, while run-to-homeostasis episodes remain blocked with `OVR-AGENT-2` and `RSI-METH-1`.
 
-## P0 Attacker-Faithful Scrapling And First Game Loop
-
-Reference context:
-- [`docs/research/2026-03-24-scrapling-challenge-surface-and-defense-coverage-review.md`](../docs/research/2026-03-24-scrapling-challenge-surface-and-defense-coverage-review.md)
-- [`docs/plans/2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md`](../docs/plans/2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md)
-- [`docs/research/2026-03-24-scrapling-owned-defense-surface-matrix-and-success-contract-review.md`](../docs/research/2026-03-24-scrapling-owned-defense-surface-matrix-and-success-contract-review.md)
-- [`docs/plans/2026-03-24-scrapling-owned-defense-surface-matrix-and-success-contract-plan.md`](../docs/plans/2026-03-24-scrapling-owned-defense-surface-matrix-and-success-contract-plan.md)
-- [`docs/research/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-review.md`](../docs/research/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-review.md)
-- [`docs/plans/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md`](../docs/plans/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md)
-- [`docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](../docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md)
-- [`docs/research/2026-03-24-rsi-game-mainline-first-working-loop-review.md`](../docs/research/2026-03-24-rsi-game-mainline-first-working-loop-review.md)
-- [`docs/plans/2026-03-24-rsi-game-mainline-first-working-loop-implementation-plan.md`](../docs/plans/2026-03-24-rsi-game-mainline-first-working-loop-implementation-plan.md)
-
-### RSI-GAME-MAINLINE-1: First working self-improving loop over attacker-faithful Scrapling
-- After the Scrapling-owned surfaces are attacker-faithful and receipt-backed, execute the first explicit self-improving loop over that truthful attacker basis.
-- Before broadening that loop, land `CTRL-SURFACE-1..3` and the judge-side game-contract work (`RSI-GAME-1A`, `RSI-GAME-1B`, `RSI-SCORE-1`, and the delivered `RSI-GAME-1C`) so the loop runs over a settled legal move ring, explicit judge semantics, and a bounded episode archive.
-- Keep this ahead of later LLM attacker or defender runtime work, and ahead of secondary dashboard cleanup follow-ons.
-- The live shared-host proof for this tranche now has an explicit deploy-readiness prerequisite: the target must configure `ADVERSARY_SIM_SCRAPLING_PUBLIC_NETWORK_IDENTITIES` with at least one bounded `http_proxy` identity, otherwise the verifier must fail immediately rather than claiming vague partial Scrapling coverage.
-
-Mainline execution order:
-1. `RSI-GAME-MAINLINE-1`
-2. only if future owned-surface receipts prove request-native plus public-network identity diversification are insufficient for a Scrapling-owned surface, reopen `SIM-SCR-CHALLENGE-2C`
-
 ### DIAG-CLEANUP-1: Diagnostics furniture-operational cleanup after Traffic split
 - After `TRAFFIC-TAB-1` lands, remove the migrated traffic-facing sections from Diagnostics so it becomes clearly diagnostics-first and furniture-operational.
 - Keep `Defense Breakdown` as a concise overview of the furniture shown below, and keep `Defense-Specific Diagnostics`, full `Telemetry Diagnostics`, and `External Monitoring` as the core Diagnostics surface.
@@ -194,7 +171,6 @@ Architecture alignment reference:
 - [ ] TEST-HYGIENE-4 Add a focused dashboard behavior test proving two distinct adversary-simulation `sim_run_id` values render as two `Recent Red Team Runs` rows when both runs are still present in the bounded monitoring window.
 - [ ] TEST-HYGIENE-5 Add dashboard coverage that proves Monitoring headline charts remain enforced-only while shadow-mode labeling stays explicit in the raw/recent-event surfaces, so shadow truthfulness is verified at the rendered UI level instead of inferred from source structure.
 - [ ] TEST-HYGIENE-6B Finish the remaining shell-wrapper source-archaeology cleanup outside explicit contract lanes. The supervisor wrapper portion is now closed under `make test-supervisor-wrapper-contracts`; the remaining work starts with integration cleanup shell-shape checks and any other shell-shape proof still hiding inside feature-behavior targets.
-- [ ] BUILD-HYGIENE-1 Restore warning-free canonical verification by fixing remaining cfg/dead-code hygiene in native test builds; the `src/config/runtime_env.rs::spin_variable_name` warning is now closed, so the rest of this tranche should focus on any still-live warning sources until `make test` is fully signal-clean.
 - [ ] CI-WF-1 Refresh GitHub Actions dependencies off the Node 20-backed majors (`actions/checkout@v4`, `actions/setup-node@v4`, `actions/upload-artifact@v4`) and re-prove the workflows without deprecation annotations before the hosted-runner cutoff forces emergency maintenance.
 - [ ] TAH-11 Expand tarpit observability: progression admissions and denials, proof verify outcomes, chain violations, bytes sent, duration, budget exhaustion reason, fallback action, and escalation outcomes (including top offender buckets with cardinality guardrails).
 - [ ] TAH-12 Add dashboard and admin visibility for the new tarpit progression and egress metrics plus operator guidance for safe tuning.
