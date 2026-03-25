@@ -10,6 +10,7 @@ use once_cell::sync::Lazy;
 static TEST_SPIN_VARIABLES: Lazy<Mutex<HashMap<String, String>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) fn spin_variable_name(name: &str) -> Option<String> {
     let trimmed = name.trim();
     if !trimmed.starts_with("SHUMA_") {

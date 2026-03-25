@@ -4,6 +4,25 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### BUILD-HYGIENE-1: Native test-build warning cleanup
+
+- [x] Removed the pre-existing native test-build warning around [`src/config/runtime_env.rs`](../src/config/runtime_env.rs) by compiling `spin_variable_name` only where it is actually used:
+  - `cfg(test)`
+  - `target_arch = "wasm32"`
+- [x] Added the focused warning-hygiene proof in [`Makefile`](../Makefile):
+  - `make test-native-build-warning-hygiene`
+  so native host compile warnings now fail fast instead of being left to scroll by in broader test output.
+- [x] Updated the testing guide in [`docs/testing.md`](../docs/testing.md) so the focused warning-hygiene path is discoverable and truthfully named.
+- [x] Added the closeout review in:
+  - [`docs/research/2026-03-24-build-hygiene-1-native-warning-cleanup-post-implementation-review.md`](../docs/research/2026-03-24-build-hygiene-1-native-warning-cleanup-post-implementation-review.md)
+  and refreshed:
+  - [`docs/research/README.md`](../docs/research/README.md)
+- [x] Why:
+  - canonical native Rust test builds were still normalizing away a dead-code warning in `runtime_env.rs`, which reduced signal quality in the repo's standard verification path
+- [x] Evidence:
+  - `make test-native-build-warning-hygiene`
+  - `git diff --check`
+
 ### RSI-AUDIT-1A: Shared episode and proposal lineage schema
 
 - [x] Landed the shared audit-lineage vocabulary in:
