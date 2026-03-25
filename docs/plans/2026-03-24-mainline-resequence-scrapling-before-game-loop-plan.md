@@ -73,24 +73,23 @@
 
 ## Recommended Implementation Order
 
+The original order captured here is now superseded by the stricter stance-model and full-power Scrapling gate.
+
 The optimal order is now:
 
-1. `SIM-SCR-CAP-1`
-   - freeze the attacker-relevant upstream capability matrix and omission ledger for current Scrapling-owned surfaces
-2. `SIM-SCR-RN-1`
-   - implement the remaining request-native attacker-fidelity uplift inside the current Scrapling lane
-3. `SIM-SCR-CHALLENGE-2C`
-   - only if a later owned-surface decision or the request-native uplift proves browser or stealth Scrapling is still required
-4. `SIM-LLM-1C1`
-   - land the live frontier action-generation backend over the now-settled black-box and episode contracts
-5. `SIM-LLM-1C2`
-   - wire supervisor dispatch and typed result ingest for the live `bot_red_team` actor
-6. `SIM-LLM-1C3`
-   - close runtime receipts, recent-run projection, and proof over that actor path
-7. only after that, return to deferred dashboard follow-ons and the remaining later LLM runtime work:
-   - `MON-OVERHAUL-1C`
-   - `DIAG-CLEANUP-1`
-   - `OVR-AGENT-2A..2C`
+1. `STANCE-MODEL-1`
+   - replace the dual-stance fault with one canonical non-human stance model
+2. `SIM-SCR-FULL-1`
+   - expand Scrapling from the current request-native baseline to the full attacker-relevant capability needed for the non-agent or non-LLM spectrum Shuma assigns to it
+3. `RSI-GAME-HO-1`
+   - run the strict `human_only_private` loop repeatedly until retained config changes and measured improvement are proven
+4. `RSI-GAME-HV-1`
+   - only then open the later `humans_plus_verified_only` sweep as an explicit comparison against the proven strict baseline
+5. only after that, reopen later LLM runtime work:
+   - `SIM-LLM-1C1`
+   - `SIM-LLM-1C2`
+   - `SIM-LLM-1C3`
+6. after the non-LLM attacker and stance methodology are settled, return to deferred dashboard or later controller follow-ons as appropriate
 
 Dashboard/operator-surface cleanup can wait because it does not change the truthfulness of the attacker side or the legality and judgment of the loop itself.
 
@@ -100,5 +99,5 @@ Current note:
 2. `RSI-GAME-MAINLINE-1A` and `RSI-GAME-MAINLINE-1B` are now landed, so the first working game-loop proof lane is complete.
 3. [`TEST-MAINLINE-1`](2026-03-25-testing-suite-structure-and-mainline-friction-plan.md) is now landed, so the active attacker-faithful Scrapling -> game-loop path has one obvious low-friction verification bundle.
 4. `SIM-SCR-CAP-1` is now landed, and its matrix froze the omission ledger that `SIM-SCR-RN-1` then closed for the current request-native owned surfaces.
-5. `SIM-LLM-1A`, `SIM-LLM-1B`, and `SIM-SCR-RN-1` are now landed, but the later full attacker runtime is now understood as three separate runtime slices: `SIM-LLM-1C1`, `SIM-LLM-1C2`, and `SIM-LLM-1C3`, plus any later explicit owned-surface browser decision.
+5. `SIM-LLM-1A`, `SIM-LLM-1B`, and the current request-native Scrapling closeout are landed, but they are no longer the next mainline because the stricter gate now requires `STANCE-MODEL-1`, full-power Scrapling, and repeated strict-baseline improvement first.
 6. `MON-OVERHAUL-1C` and `DIAG-CLEANUP-1` are now both landed, so no further unblocked work remains in the deferred Game Loop and Diagnostics cleanup lane.

@@ -116,12 +116,13 @@ Current note:
 - The later full attacker runtime `SIM-LLM-1C` is no longer treated as one implicit next step.
 - `SIM-LLM-1C1` is now landed: the later attacker has a real live frontier action-generation seam with provider-vs-fallback lineage and Shuma-blind host-hint sanitization.
 - `SIM-LLM-1C2` is now landed: the host-side supervisor dispatches the dedicated LLM runtime worker, reuses the existing container black-box runner for request-mode execution, and ingests a typed `adversary-sim-llm-runtime-result.v1` payload instead of overloading the Scrapling worker result contract.
-- The next backend mainline is now `SIM-LLM-1C3`, the final explicit runtime slice over the settled black-box and episode contracts:
-  - `SIM-LLM-1C3` runtime receipt projection and proof closure
-- Keep the `SIM-LLM-1C` umbrella blocked until all three runtime slices are landed and `bot_red_team` remains operator-disabled until that proof chain is complete.
+- The current request-native Scrapling baseline and first working Game Loop proof are now treated as baseline capability, not the unlock condition for later stance relaxation or LLM runtime work.
+- The immediate non-LLM mainline is now:
+  - `STANCE-MODEL-1`
+  - `SIM-SCR-FULL-1`
+  - `RSI-GAME-HO-1`
+- Do not open `humans_plus_verified_only` or any later LLM lane work until the strict `human_only_private` loop has been run repeatedly enough to prove retained config changes and measured improvement under full-power Scrapling pressure.
 - `DIAG-CLEANUP-1` and `MON-OVERHAUL-1C` are now both landed, so the deferred Game Loop and Diagnostics follow-on queue is currently clear while later LLM runtime work stays blocked.
-
-- [ ] SIM-LLM-1C3 Close the runtime proof chain and recent-run projection for the live `bot_red_team` actor.
 
 ## P1 Verified Bot Identity And Web Bot Auth Foundation
 
@@ -148,6 +149,26 @@ Current stance:
   - [ ] STANCE-MODEL-1A Define canonical stance presets and the resolved effective policy contract, including `human_only_private` and `humans_plus_verified_only`.
   - [ ] STANCE-MODEL-1B Rebase verified identity onto evidence, named exceptions, and service-profile overrides instead of an independent top-level stance.
   - [ ] STANCE-MODEL-1C Thread the resolved effective policy into runtime, operator snapshot, benchmark/Game Loop, and the later Tuning surface so all consumers read the same policy truth.
+
+- [ ] SIM-SCR-FULL-1 Mature Scrapling to the full attacker-relevant capability Shuma assigns to the non-agent or non-LLM adversary spectrum before any stance relaxation or later LLM lane work.
+  - Reference context:
+    - [`docs/research/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-review.md`](../docs/research/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-review.md)
+    - [`docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](../docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)
+    - [`docs/plans/2026-03-25-scrapling-full-attacker-capability-principle-plan.md`](../docs/plans/2026-03-25-scrapling-full-attacker-capability-principle-plan.md)
+    - [`docs/plans/2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md`](../docs/plans/2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md)
+  - [ ] SIM-SCR-FULL-1A Freeze the full attacker-relevant upstream Scrapling capability matrix for the non-agent or non-LLM spectrum Shuma assigns to Scrapling, with explicit exclusions only where the lane should not own a capability.
+  - [ ] SIM-SCR-FULL-1B Implement the remaining Scrapling power required by that matrix so the lane no longer stops at the current request-native baseline.
+  - [ ] SIM-SCR-FULL-1C Add receipt-backed proof showing which defenses Scrapling touched, which it passed where expected, which it failed where expected, and which non-human categories and defense surfaces it exercised.
+
+- [ ] RSI-GAME-HO-1 Fully operationally prove the strict `human_only_private` Scrapling-driven game loop before any later relaxed stance.
+  - Reference context:
+    - [`docs/research/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-review.md`](../docs/research/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-review.md)
+    - [`docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](../docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)
+    - [`docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](../docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md)
+    - [`docs/plans/2026-03-24-rsi-game-mainline-first-working-loop-plan.md`](../docs/plans/2026-03-24-rsi-game-mainline-first-working-loop-plan.md)
+  - [ ] RSI-GAME-HO-1A Run the existing machine-first loop against the corrected `human_only_private` stance with verified non-human traffic still denied under that strict baseline.
+  - [ ] RSI-GAME-HO-1B Repeat Scrapling-driven cycles until recommendations become bounded config changes, later runs occur against those changed configs, and watch windows judge retain or rollback truthfully many times rather than once.
+  - [ ] RSI-GAME-HO-1C Define and satisfy the unlock condition showing retained config changes and measured improvement toward the strict target, not merely one successful end-to-end cycle.
 
 ## P1 Production Adversary-Sim Operating Contract
 

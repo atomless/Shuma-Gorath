@@ -42,6 +42,13 @@ That means:
 2. verified identity remains telemetry, attribution, and explicit-exception input rather than a hidden permissive second stance,
 3. and the first relaxed verified-identity sweep candidate after the strict baseline should be `humans_plus_verified_only`.
 
+Additional sequencing constraint:
+
+1. do not open `humans_plus_verified_only` just because the stance model exists or one bounded loop can run,
+2. first mature Scrapling to the full attacker-relevant capability Shuma assigns to it for the non-agent or non-LLM spectrum,
+3. then run repeated `human_only_private` config-change cycles until retained changes and measured improvement are proven,
+4. and only then treat `humans_plus_verified_only` as an eligible second experiment.
+
 # Execution Shape
 
 ## `RSI-METH-1`: Recursive-improvement methodology contract

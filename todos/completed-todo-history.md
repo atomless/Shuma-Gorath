@@ -4,6 +4,38 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-25)
 
+### Full-Power Scrapling And Strict Human-Only Loop Gate Planning
+
+- [x] Wrote the new sequence-setting review in:
+  - [`docs/research/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-review.md`](../docs/research/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-review.md)
+  so the repo now explicitly records the stronger gate:
+  - the current request-native Scrapling plus first-working-loop proofs are valuable baseline capability,
+  - but they are not enough to justify relaxing stance or reopening later LLM runtime work.
+- [x] Wrote the execution-ready plan in:
+  - [`docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](../docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)
+  with the explicit order:
+  - `STANCE-MODEL-1`,
+  - `SIM-SCR-FULL-1`,
+  - `RSI-GAME-HO-1`,
+  - then only later `RSI-GAME-HV-1` and any LLM runtime reopening.
+- [x] Synced that stricter sequence into:
+  - [`docs/plans/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md`](../docs/plans/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md)
+  - [`docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md`](../docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md)
+  - [`docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](../docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md)
+  - [`docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](../docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md)
+  - [`docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
+  - [`docs/plans/README.md`](../docs/plans/README.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+- [x] Reworked the backlog in:
+  - [`todos/todo.md`](../todos/todo.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+  so the active non-LLM mainline is now `STANCE-MODEL-1` -> `SIM-SCR-FULL-1` -> `RSI-GAME-HO-1`, while `RSI-GAME-HV-1` and `SIM-LLM-1C3` stay blocked behind that proof gate.
+- [x] Why:
+  - the user clarified that Shuma must not move off the strict `human_only_private` stance until Scrapling has all attacker-relevant power for the non-agent or non-LLM spectrum it owns,
+  - and until the loop has been run many times under that stance with real config-change iteration and measured improvement.
+- [x] Evidence:
+  - `git diff --check`
+
 ### Canonical Non-Human Stance And Verified-Identity Override Planning
 
 - [x] Wrote the new design-driver review in:

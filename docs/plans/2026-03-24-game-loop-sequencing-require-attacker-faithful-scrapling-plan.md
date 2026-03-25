@@ -2,9 +2,9 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Make mature attacker-faithful Scrapling coverage an explicit prerequisite for the fuller attacker/defender game loop without blocking judge-side game-contract work.
+**Goal:** Make mature, full-power attacker-faithful Scrapling coverage and repeated strict human-only loop proof explicit prerequisites for any later relaxed-stance or fuller player-side game-loop execution, without blocking judge-side game-contract work.
 
-**Architecture:** Preserve the current split between machine-first judge planning and later player-side runtime phases. Tighten the backlog and sequencing docs so the fuller game loop stays blocked until Scrapling-owned defense surfaces are covered by attacker-faithful Scrapling behavior with receipt-backed verification, and until attacker-relevant upstream Scrapling capability for those surfaces is either adopted or explicitly excluded and assigned.
+**Architecture:** Preserve the current split between machine-first judge planning and later player-side runtime phases. Tighten the backlog and sequencing docs so the fuller game loop stays blocked until Scrapling-owned defense surfaces are covered by full-power attacker-faithful Scrapling behavior with receipt-backed verification, and until the strict `human_only_private` loop has been run repeatedly enough to prove real config-change improvement rather than one lucky cycle.
 
 **Tech Stack:** Planning docs, blocked backlog, recursive-improvement methodology docs, mature adversary-sim roadmap.
 
@@ -15,7 +15,7 @@
 1. Do not reinterpret this prerequisite as "adopt every upstream Scrapling feature" regardless of relevance.
 2. Do not block judge-side contract planning on Scrapling completion.
 3. Do block fuller player-side game-loop execution on attacker-faithful Scrapling coverage for Scrapling-owned surfaces.
-4. Keep the prerequisite explicit about receipt-backed verification, explicit omissions, and explicit lane assignment for remaining gaps.
+4. Keep the prerequisite explicit about receipt-backed verification, explicit omissions, explicit lane assignment for remaining gaps, and repeated strict-baseline improvement proof before any later relaxed stance.
 
 ## Task 1: Sequence The Main Loop-Closure Plan
 
