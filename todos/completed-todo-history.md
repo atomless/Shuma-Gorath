@@ -4,6 +4,29 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-25)
 
+### `SIM-SCR-FULL-1B3` Remaining Gap Closure
+
+- [x] Closed the remaining full-power post-`1B2B` gap truthfully by creating:
+  - [`docs/research/2026-03-25-sim-scr-full-1b3-remaining-gap-closure-review.md`](../docs/research/2026-03-25-sim-scr-full-1b3-remaining-gap-closure-review.md)
+  - [`docs/plans/2026-03-25-sim-scr-full-1b3-remaining-gap-closure-plan.md`](../docs/plans/2026-03-25-sim-scr-full-1b3-remaining-gap-closure-plan.md)
+  - [`docs/research/2026-03-25-sim-scr-full-1b3-remaining-gap-closure-post-implementation-review.md`](../docs/research/2026-03-25-sim-scr-full-1b3-remaining-gap-closure-post-implementation-review.md)
+  so the repo now explicitly records that no further still-ratified owned surface requires another browser or stealth implementation slice before `SIM-SCR-FULL-1C`.
+- [x] Updated the active omission and sequencing chain in:
+  - [`docs/plans/2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md`](../docs/plans/2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md)
+  - [`docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](../docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  so the remaining upstream powers are now explicit omissions or separate-lane questions rather than silent implied gaps.
+- [x] Why:
+  - after `SIM-SCR-FULL-1B2B`, the owned surface set already had browser-backed not-a-bot and puzzle behavior plus request-native PoW and tarpit abuse,
+  - so the honest next step was to record that the remaining upstream powers are either:
+    - temporary shared-host exclusions like proxy or origin distribution,
+    - not currently required by a ratified owned surface like `real_chrome`, `cdp_url`, and explicit persistent-profile controls,
+    - not applicable to Shuma's current internal DOM challenge pages like `solve_cloudflare`,
+    - or separate-lane browser-class questions like maze, JS verification, browser-automation detection, and `automated_browser`.
+- [x] Evidence:
+  - `git diff --check`
+
 ### `SIM-SCR-FULL-1B2B` Browser Challenge Interactions
 
 - [x] Landed the first browser-backed Scrapling challenge seam in:

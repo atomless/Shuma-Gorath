@@ -141,3 +141,14 @@ This planning tranche is complete when:
 2. an active capability-matrix and omission-ledger lane exists,
 3. the current request-native contract remains truthful and unchanged as a baseline,
 4. and `SIM-SCR-BROWSER-1` is narrowed to the later browser-runtime question rather than absorbing every missing Scrapling capability by default.
+
+## 2026-03-25 Full-Power Note
+
+After `SIM-SCR-FULL-1B2B`, no further currently owned surface requires another browser or stealth implementation slice before `SIM-SCR-FULL-1C`.
+
+The remaining upstream powers are now explicit omissions or separate-lane questions:
+
+1. proxy or origin-distribution support remains a temporary shared-host exclusion,
+2. `real_chrome`, `cdp_url`, and explicit persistent-profile controls are not currently required by a ratified owned surface,
+3. `solve_cloudflare` is not applicable to Shuma's internal DOM challenge pages,
+4. and browser-class surfaces like maze, JS verification, and browser-automation detection remain outside current Scrapling ownership.

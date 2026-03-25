@@ -58,6 +58,14 @@ Required contract:
 2. Scrapling should be capable of touching and, where realistic, passing the defenses a real non-agent adversary should be able to pass,
 3. and failing the defenses it should fail.
 
+Current note after `SIM-SCR-FULL-1B2B` and `SIM-SCR-FULL-1B3`:
+
+1. the currently ratified owned-surface set no longer has another hidden browser or stealth implementation gap before `SIM-SCR-FULL-1C`,
+2. proxy or origin-distribution support remains the explicit temporary shared-host omission,
+3. `real_chrome`, `cdp_url`, and explicit persistent-profile controls are not yet required by a ratified owned surface,
+4. `solve_cloudflare` remains intentionally disabled on Shuma's internal DOM challenge pages,
+5. and browser-class surfaces like maze, JS verification, and browser-automation detection remain separate-lane questions.
+
 ### `SIM-SCR-FULL-1C`
 
 Add receipt-backed proof for the full-power Scrapling lane.
