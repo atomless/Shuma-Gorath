@@ -506,6 +506,8 @@ export const adaptOperatorSnapshot = (payload) => {
   const verifiedIdentity = asRecord(source.verified_identity);
   const taxonomyAlignment = asRecord(verifiedIdentity.taxonomy_alignment);
   const policyTranche = asRecord(verifiedIdentity.policy_tranche);
+  const nonHumanStancePresets = asRecord(source.non_human_stance_presets);
+  const effectiveNonHumanPolicy = asRecord(source.effective_non_human_policy);
   return {
     schema_version: String(source.schema_version || ''),
     generated_at: Number(source.generated_at || 0),
@@ -519,6 +521,19 @@ export const adaptOperatorSnapshot = (payload) => {
         return {
           category_id: String(record.category_id || ''),
           posture: String(record.posture || '')
+        };
+      })
+    },
+    non_human_stance_presets: {
+      active_preset_id: String(nonHumanStancePresets.active_preset_id || ''),
+      verified_identity_mode: String(nonHumanStancePresets.verified_identity_mode || ''),
+      presets: asObjectArray(nonHumanStancePresets.presets).map((entry) => {
+        const record = asRecord(entry);
+        return {
+          preset_id: String(record.preset_id || ''),
+          label: String(record.label || ''),
+          intended_phase: String(record.intended_phase || ''),
+          verified_identity_mode: String(record.verified_identity_mode || '')
         };
       })
     },
@@ -595,6 +610,28 @@ export const adaptOperatorSnapshot = (payload) => {
         forwarded_requests: Number(policyTranche.forwarded_requests || 0),
         short_circuited_requests: Number(policyTranche.short_circuited_requests || 0)
       }
+    },
+    effective_non_human_policy: {
+      active_preset_id: String(effectiveNonHumanPolicy.active_preset_id || ''),
+      verified_identity_mode: String(effectiveNonHumanPolicy.verified_identity_mode || ''),
+      resolution_mode: String(effectiveNonHumanPolicy.resolution_mode || ''),
+      mismatched_category_count: Number(effectiveNonHumanPolicy.mismatched_category_count || 0),
+      rows: asObjectArray(effectiveNonHumanPolicy.rows).map((entry) => {
+        const record = asRecord(entry);
+        const verifiedOverride = asRecord(record.verified_identity_override);
+        return {
+          category_id: String(record.category_id || ''),
+          category_label: String(record.category_label || ''),
+          base_posture: String(record.base_posture || ''),
+          effective_posture: String(record.effective_posture || ''),
+          effective_posture_source: String(record.effective_posture_source || ''),
+          verified_identity_override: {
+            status: String(verifiedOverride.status || ''),
+            effective_action: String(verifiedOverride.effective_action || ''),
+            effective_posture: String(verifiedOverride.effective_posture || '')
+          }
+        };
+      })
     }
   };
 };

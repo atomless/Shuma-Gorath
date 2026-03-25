@@ -253,6 +253,7 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
         generated_at_ts,
         &window,
         &objectives,
+        &effective_non_human_policy,
         &live_traffic,
         &adversary_sim,
         &non_human_traffic,
@@ -659,6 +660,11 @@ mod tests {
             .find(|row| row.category_id.as_str() == "verified_beneficial_bot")
             .expect("verified beneficial policy row");
         assert_eq!(verified_beneficial_policy.base_posture, "allowed");
+        assert_eq!(verified_beneficial_policy.effective_posture, "blocked");
+        assert_eq!(
+            verified_beneficial_policy.effective_posture_source,
+            "verified_identity_override"
+        );
         assert_eq!(
             verified_beneficial_policy
                 .verified_identity_override
@@ -714,6 +720,7 @@ mod tests {
                 1_700_000_000,
                 &payload.window,
                 &payload.objectives,
+                &payload.effective_non_human_policy,
                 &payload.live_traffic,
                 &payload.adversary_sim,
                 &payload.non_human_traffic,

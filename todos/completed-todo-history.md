@@ -4,6 +4,33 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-25)
 
+### `STANCE-MODEL-1C` Resolved Policy Benchmark And Game Loop Alignment
+
+- [x] Rebased the category-policy truth path in:
+  - [`src/observability/operator_snapshot_effective_non_human_policy.rs`](../src/observability/operator_snapshot_effective_non_human_policy.rs)
+  - [`src/observability/benchmark_non_human_categories.rs`](../src/observability/benchmark_non_human_categories.rs)
+  - [`src/observability/benchmark_results.rs`](../src/observability/benchmark_results.rs)
+  - [`src/observability/benchmark_suite.rs`](../src/observability/benchmark_suite.rs)
+  so effective policy rows now publish explicit `effective_posture` plus source lineage, and the canonical `non_human_category_posture` benchmark family scores against the resolved effective target rather than raw base posture rows.
+- [x] Rewired the dashboard operator/accountability surface in:
+  - [`dashboard/src/lib/domain/api-client.js`](../dashboard/src/lib/domain/api-client.js)
+  - [`dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
+  so `Game Loop` now shows the active preset, verified mode, effective posture, base posture when it differs, and the verified-override resolution path behind each category target row.
+- [x] Updated the focused proof and public contract in:
+  - [`e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`docs/api.md`](../docs/api.md)
+  - [`docs/research/2026-03-25-stance-model-1c-resolved-policy-game-loop-alignment-post-implementation-review.md`](../docs/research/2026-03-25-stance-model-1c-resolved-policy-game-loop-alignment-post-implementation-review.md)
+  so the machine-first API wording and rendered Game Loop assertions now match the resolved-policy model.
+- [x] Why:
+  - `STANCE-MODEL-1A` and `1B` made the resolved policy contract available and removed the competing verified-identity stance authority,
+  - but until this slice landed the benchmark and Game Loop were still judging categories in a way that operators could not cleanly reconcile with runtime policy.
+- [x] Evidence:
+  - `make test-operator-objectives-contract`
+  - `make test-verified-identity-calibration-readiness`
+  - `make test-dashboard-game-loop-accountability`
+  - `git diff --check`
+
 ### `STANCE-MODEL-1B` Explicit Verified-Identity Override Semantics
 
 - [x] Removed the independent verified-identity stance authority from the live runtime and config surfaces in:

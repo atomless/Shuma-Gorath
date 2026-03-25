@@ -9,6 +9,7 @@ use crate::observability::operator_snapshot::{
     OperatorBudgetDistanceSummary, OperatorSnapshotAdversarySim, OperatorSnapshotLiveTraffic,
     OperatorSnapshotNonHumanTrafficSummary, OperatorSnapshotWindow, ReplayPromotionSummary,
 };
+use crate::observability::operator_snapshot_effective_non_human_policy::EffectiveNonHumanPolicy;
 use crate::observability::operator_snapshot_objectives::OperatorObjectivesProfile;
 use super::benchmark_adversary_effectiveness::representative_adversary_effectiveness_family;
 use super::benchmark_beneficial_non_human::beneficial_non_human_posture_family;
@@ -139,6 +140,7 @@ pub(crate) fn build_benchmark_results_from_snapshot_sections(
     input_snapshot_generated_at: u64,
     watch_window: &OperatorSnapshotWindow,
     objectives: &OperatorObjectivesProfile,
+    effective_non_human_policy: &EffectiveNonHumanPolicy,
     live_traffic: &OperatorSnapshotLiveTraffic,
     adversary_sim: &OperatorSnapshotAdversarySim,
     non_human_traffic: &OperatorSnapshotNonHumanTrafficSummary,
@@ -166,7 +168,8 @@ pub(crate) fn build_benchmark_results_from_snapshot_sections(
         non_human_traffic,
         &verified_identity,
     );
-    let category_posture_family = non_human_category_posture_family(objectives, non_human_traffic);
+    let category_posture_family =
+        non_human_category_posture_family(effective_non_human_policy, non_human_traffic);
     let mut families = vec![
         suspicious_family,
         friction_family,
@@ -425,6 +428,7 @@ mod tests {
             1_700_000_100,
             &snapshot.window,
             &snapshot.objectives,
+            &snapshot.effective_non_human_policy,
             &snapshot.live_traffic,
             &snapshot.adversary_sim,
             &snapshot.non_human_traffic,
@@ -571,6 +575,7 @@ mod tests {
             1_700_000_100,
             &snapshot.window,
             &snapshot.objectives,
+            &snapshot.effective_non_human_policy,
             &snapshot.live_traffic,
             &snapshot.adversary_sim,
             &snapshot.non_human_traffic,
@@ -741,6 +746,7 @@ mod tests {
             1_700_000_200,
             &snapshot.window,
             &snapshot.objectives,
+            &snapshot.effective_non_human_policy,
             &snapshot.live_traffic,
             &snapshot.adversary_sim,
             &snapshot.non_human_traffic,
@@ -855,6 +861,7 @@ mod tests {
             1_700_000_210,
             &snapshot.window,
             &snapshot.objectives,
+            &snapshot.effective_non_human_policy,
             &snapshot.live_traffic,
             &snapshot.adversary_sim,
             &snapshot.non_human_traffic,
@@ -923,6 +930,11 @@ mod tests {
             crate::observability::operator_snapshot_objectives::default_operator_objectives(
                 1_700_000_500,
             );
+        let effective_non_human_policy =
+            crate::observability::operator_snapshot_effective_non_human_policy::effective_non_human_policy(
+                &objectives,
+                &cfg,
+            );
 
         let payload = build_benchmark_results_from_snapshot_sections(
             1_700_000_500,
@@ -933,6 +945,7 @@ mod tests {
                 duration_seconds: 500,
             },
             &objectives,
+            &effective_non_human_policy,
             &crate::observability::operator_snapshot_live_traffic::OperatorSnapshotLiveTraffic {
                 traffic_origin: "live".to_string(),
                 measurement_scope: "ingress_primary".to_string(),
@@ -1068,6 +1081,7 @@ mod tests {
             1_700_000_300,
             &snapshot.window,
             &snapshot.objectives,
+            &snapshot.effective_non_human_policy,
             &snapshot.live_traffic,
             &snapshot.adversary_sim,
             &snapshot.non_human_traffic,
@@ -1157,6 +1171,7 @@ mod tests {
             1_700_000_350,
             &snapshot.window,
             &snapshot.objectives,
+            &snapshot.effective_non_human_policy,
             &snapshot.live_traffic,
             &snapshot.adversary_sim,
             &snapshot.non_human_traffic,
@@ -1293,6 +1308,7 @@ mod tests {
             1_700_000_375,
             &snapshot.window,
             &snapshot.objectives,
+            &snapshot.effective_non_human_policy,
             &snapshot.live_traffic,
             &snapshot.adversary_sim,
             &snapshot.non_human_traffic,
@@ -1383,6 +1399,7 @@ mod tests {
             1_700_000_360,
             &snapshot.window,
             &snapshot.objectives,
+            &snapshot.effective_non_human_policy,
             &snapshot.live_traffic,
             &snapshot.adversary_sim,
             &snapshot.non_human_traffic,
@@ -1500,6 +1517,7 @@ mod tests {
             1_700_000_450,
             &snapshot.window,
             &snapshot.objectives,
+            &snapshot.effective_non_human_policy,
             &snapshot.live_traffic,
             &snapshot.adversary_sim,
             &snapshot.non_human_traffic,
@@ -1522,8 +1540,8 @@ mod tests {
             .iter()
             .find(|metric| metric.metric_id == "category_posture_alignment:verified_beneficial_bot")
             .expect("verified beneficial posture metric");
-        assert_eq!(beneficial.status, "inside_budget");
-        assert_eq!(beneficial.current, Some(1.0));
+        assert_eq!(beneficial.status, "outside_budget");
+        assert_eq!(beneficial.current, Some(0.0));
         assert_eq!(beneficial.target, Some(1.0));
 
         let indexing = family

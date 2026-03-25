@@ -1749,6 +1749,57 @@ test("game loop projects benchmark and oversight accountability from machine-fir
             {
               category_id: "ai_scraper_bot",
               posture: "blocked"
+            },
+            {
+              category_id: "verified_beneficial_bot",
+              posture: "allowed"
+            }
+          ]
+        },
+        non_human_stance_presets: {
+          active_preset_id: "balanced_default",
+          verified_identity_mode: "verified_identities_denied",
+          presets: []
+        },
+        effective_non_human_policy: {
+          active_preset_id: "balanced_default",
+          verified_identity_mode: "verified_identities_denied",
+          resolution_mode: "explicit_override_layer",
+          mismatched_category_count: 1,
+          rows: [
+            {
+              category_id: "indexing_bot",
+              category_label: "Indexing Bot",
+              base_posture: "cost_reduced",
+              effective_posture: "cost_reduced",
+              effective_posture_source: "base_posture",
+              verified_identity_override: {
+                status: "not_supported",
+                effective_action: "not_applicable"
+              }
+            },
+            {
+              category_id: "ai_scraper_bot",
+              category_label: "AI Scraper Bot",
+              base_posture: "blocked",
+              effective_posture: "blocked",
+              effective_posture_source: "base_posture",
+              verified_identity_override: {
+                status: "not_supported",
+                effective_action: "not_applicable"
+              }
+            },
+            {
+              category_id: "verified_beneficial_bot",
+              category_label: "Verified Beneficial Bot",
+              base_posture: "allowed",
+              effective_posture: "blocked",
+              effective_posture_source: "verified_identity_override",
+              verified_identity_override: {
+                status: "named_policies_only_fallback_deny",
+                effective_action: "deny",
+                effective_posture: "blocked"
+              }
             }
           ]
         },
@@ -1943,6 +1994,14 @@ test("game loop projects benchmark and oversight accountability from machine-fir
                 target: 1,
                 delta: -0.58,
                 comparison_status: "not_available"
+              },
+              {
+                metric_id: "category_posture_alignment:verified_beneficial_bot",
+                status: "outside_budget",
+                current: 0,
+                target: 1,
+                delta: -1,
+                comparison_status: "not_available"
               }
             ]
           }
@@ -2054,13 +2113,18 @@ test("game loop projects benchmark and oversight accountability from machine-fir
   await expect(page.locator("#game-loop-current-status-improvement")).toHaveText(/Improved/i);
   await expect(page.locator("#game-loop-current-status-controller-action")).toHaveText(/Canary Applied/i);
   await expect(page.locator("#game-loop-progress-history")).toContainText("Applied a bounded fingerprint tightening patch.");
+  await expect(page.locator('[data-game-loop-section="current-status"]')).toContainText("preset Balanced Default");
+  await expect(page.locator('[data-game-loop-section="current-status"]')).toContainText("verified mode verified identities denied");
   await expect(page.locator("#game-loop-budget-usage")).toContainText("Likely Human Friction Rate");
   await expect(page.locator("#game-loop-budget-usage")).toContainText("Suspicious Forwarded Request Rate");
   await expect(page.locator("#game-loop-budget-usage")).toContainText("Target 2.0%");
   await expect(page.locator("#game-loop-budget-usage")).toContainText("Current 1.8%");
   await expect(page.locator("#game-loop-category-target-achievement")).toContainText("AI Scraper Bot");
-  await expect(page.locator("#game-loop-category-target-achievement")).toContainText("Target Blocked");
+  await expect(page.locator("#game-loop-category-target-achievement")).toContainText("Effective Blocked");
   await expect(page.locator("#game-loop-category-target-achievement")).toContainText("Achieved 42.0%");
+  await expect(page.locator("#game-loop-category-target-achievement")).toContainText("Verified Beneficial Bot");
+  await expect(page.locator("#game-loop-category-target-achievement")).toContainText("Base Allowed");
+  await expect(page.locator("#game-loop-category-target-achievement")).toContainText("Resolved via verified override");
   await expect(page.locator("#game-loop-change-judgment")).toContainText("Observe Longer");
   await expect(page.locator("#game-loop-trust-blockers")).toContainText("Tuning Eligibility");
   await expect(page.locator("#game-loop-trust-blockers")).toContainText("Verified Identity");

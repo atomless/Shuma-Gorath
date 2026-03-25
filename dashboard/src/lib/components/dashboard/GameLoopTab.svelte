@@ -181,6 +181,21 @@
       String(row?.posture || '').trim()
     ])
   );
+  $: effectivePolicyRows = new Map(
+    toArray(operatorSnapshot?.effective_non_human_policy?.rows).map((row) => [
+      String(row?.category_id || '').trim(),
+      asRecord(row)
+    ])
+  );
+  $: activePolicyPresetId =
+    operatorSnapshot?.effective_non_human_policy?.active_preset_id ||
+    operatorSnapshot?.non_human_stance_presets?.active_preset_id ||
+    '';
+  $: activeVerifiedIdentityMode =
+    operatorSnapshot?.effective_non_human_policy?.verified_identity_mode ||
+    operatorSnapshot?.non_human_stance_presets?.verified_identity_mode ||
+    operatorSnapshot?.verified_identity?.override_mode ||
+    '';
   $: latestScraplingEvidence = deriveLatestScraplingEvidenceFromSummaries(
     toArray(operatorSnapshot?.adversary_sim?.recent_runs)
   );
@@ -209,12 +224,28 @@
   $: categoryTargetRows = toArray(findBenchmarkFamily('non_human_category_posture')?.metrics)
     .map((metric) => {
       const categoryId = categoryIdFromMetric(metric?.metric_id);
-      const targetPosture = categoryPostureTargets.get(categoryId) || '';
+      const policyRow = effectivePolicyRows.get(categoryId) || {};
+      const verifiedOverride = asRecord(policyRow.verified_identity_override);
+      const basePosture = String(
+        policyRow.base_posture || categoryPostureTargets.get(categoryId) || ''
+      );
+      const effectivePosture = String(policyRow.effective_posture || basePosture || '');
+      const effectivePostureSource = String(policyRow.effective_posture_source || 'base_posture');
+      const overrideStatus = String(verifiedOverride.status || '');
       const achievementRatio = ratioToTarget(metric?.current, metric?.target);
       return {
         categoryId,
         label: humanizeToken(categoryId),
-        targetPostureText: humanizeToken(targetPosture),
+        basePostureText: humanizeToken(basePosture),
+        targetPostureText: humanizeToken(effectivePosture),
+        targetResolutionText:
+          effectivePostureSource === 'verified_identity_override'
+            ? 'Resolved via verified override'
+            : 'Resolved via base posture',
+        overrideStatusText: humanizeToken(overrideStatus, 'sentence'),
+        showOverrideStatus:
+          Boolean(overrideStatus) &&
+          !['not_supported', 'disabled'].includes(overrideStatus),
         achievedText: formatRatioPercent(metric?.current),
         targetText: formatRatioPercent(metric?.target),
         achievementText: formatTargetRatioText(achievementRatio),
@@ -303,7 +334,14 @@
               </span>
             </div>
             <div class="info-row">
-              <span class="info-label text-muted">Traffic stance:</span>
+              <span class="info-label text-muted">Resolved policy:</span>
+              <span class="status-value">
+                preset {humanizeToken(activePolicyPresetId)}
+                | verified mode {humanizeToken(activeVerifiedIdentityMode, 'sentence')}
+              </span>
+            </div>
+            <div class="info-row">
+              <span class="info-label text-muted">Observed traffic:</span>
               <span class="status-value">
                 live {formatNumber(operatorSnapshot?.live_traffic?.total_requests, '0')} requests,
                 {formatNumber(operatorSnapshot?.live_traffic?.forwarded_requests, '0')} forwarded,
@@ -456,10 +494,17 @@
                       <span class="game-loop-meter__fill" style={`width: ${row.meterPercent}%;`}></span>
                     </div>
                     <p class="game-loop-meter-meta text-muted">
-                      Target {row.targetPostureText} | Achieved {row.achievedText} | Goal {row.targetText} | {row.achievementText} | {row.statusText}
+                      Effective {row.targetPostureText} | Achieved {row.achievedText} | Goal {row.targetText} | {row.achievementText} | {row.statusText}
                     </p>
                     <p class="game-loop-meter-meta text-muted">
-                      Support {row.capabilityText} | Basis {row.basisText}
+                      {#if row.basePostureText && row.basePostureText !== row.targetPostureText}
+                        Base {row.basePostureText} |
+                      {/if}
+                      {row.targetResolutionText}
+                      {#if row.showOverrideStatus}
+                        | Override {row.overrideStatusText}
+                      {/if}
+                      | Support {row.capabilityText} | Basis {row.basisText}
                     </p>
                   </div>
                 {/each}

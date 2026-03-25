@@ -6361,6 +6361,38 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
         }
       ]
     },
+    non_human_stance_presets: {
+      active_preset_id: 'balanced_default',
+      verified_identity_mode: 'verified_identities_denied',
+      presets: [
+        {
+          preset_id: 'balanced_default',
+          label: 'Balanced Default',
+          intended_phase: 'operator_product_stance',
+          verified_identity_mode: 'verified_identities_denied'
+        }
+      ]
+    },
+    effective_non_human_policy: {
+      active_preset_id: 'balanced_default',
+      verified_identity_mode: 'verified_identities_denied',
+      resolution_mode: 'explicit_override_layer',
+      mismatched_category_count: 1,
+      rows: [
+        {
+          category_id: 'verified_beneficial_bot',
+          category_label: 'Verified Beneficial Bot',
+          base_posture: 'allowed',
+          effective_posture: 'blocked',
+          effective_posture_source: 'verified_identity_override',
+          verified_identity_override: {
+            status: 'named_policies_only_fallback_deny',
+            effective_action: 'deny',
+            effective_posture: 'blocked'
+          }
+        }
+      ]
+    },
     verified_identity: {
       availability: 'ready',
       taxonomy_alignment: {
@@ -6373,6 +6405,15 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
   assert.equal(operatorSnapshot.objectives.category_postures.length, 2);
   assert.equal(operatorSnapshot.objectives.category_postures[1].category_id, 'ai_scraper_bot');
   assert.equal(operatorSnapshot.objectives.category_postures[1].posture, 'blocked');
+  assert.equal(operatorSnapshot.non_human_stance_presets.active_preset_id, 'balanced_default');
+  assert.equal(
+    operatorSnapshot.effective_non_human_policy.rows[0].effective_posture,
+    'blocked'
+  );
+  assert.equal(
+    operatorSnapshot.effective_non_human_policy.rows[0].effective_posture_source,
+    'verified_identity_override'
+  );
   assert.equal(operatorSnapshot.verified_identity.taxonomy_alignment.status, 'degraded');
 
   const benchmarkResults = apiModule.adaptBenchmarkResults({

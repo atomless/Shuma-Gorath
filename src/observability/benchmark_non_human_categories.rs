@@ -1,6 +1,6 @@
 use crate::observability::operator_snapshot::OperatorSnapshotNonHumanTrafficSummary;
-use crate::observability::operator_snapshot_objectives::{
-    OperatorObjectiveCategoryPosture, OperatorObjectivesProfile,
+use crate::observability::operator_snapshot_effective_non_human_policy::{
+    EffectiveNonHumanPolicy, EffectiveNonHumanPolicyRow,
 };
 
 use super::benchmark_results::{BenchmarkFamilyResult, BenchmarkMetricResult};
@@ -9,11 +9,11 @@ use super::benchmark_results_families::aggregate_budget_status;
 const CATEGORY_ALIGNMENT_NEAR_LIMIT_STEP: f64 = 0.25;
 
 pub(super) fn non_human_category_posture_family(
-    objectives: &OperatorObjectivesProfile,
+    effective_policy: &EffectiveNonHumanPolicy,
     non_human_traffic: &OperatorSnapshotNonHumanTrafficSummary,
 ) -> BenchmarkFamilyResult {
-    let metrics: Vec<_> = objectives
-        .category_postures
+    let metrics: Vec<_> = effective_policy
+        .rows
         .iter()
         .map(|row| category_posture_metric(row, non_human_traffic))
         .collect();
@@ -22,7 +22,7 @@ pub(super) fn non_human_category_posture_family(
         family_id: "non_human_category_posture".to_string(),
         status: aggregate_budget_status(metrics.as_slice()),
         capability_gate: aggregate_capability_gate(metrics.as_slice()),
-        note: "Per-category non-human posture alignment is derived from canonical category receipts plus the persisted operator posture scale; incomplete or degraded category evidence remains explicit and later tuning still depends on protected eligibility."
+        note: "Per-category non-human posture alignment is derived from canonical category receipts plus the resolved effective non-human policy; explicit verified-identity overrides can change the judged target posture while incomplete or degraded category evidence remains explicit."
             .to_string(),
         baseline_status: None,
         comparison_status: "not_available".to_string(),
@@ -31,7 +31,7 @@ pub(super) fn non_human_category_posture_family(
 }
 
 fn category_posture_metric(
-    row: &OperatorObjectiveCategoryPosture,
+    row: &EffectiveNonHumanPolicyRow,
     non_human_traffic: &OperatorSnapshotNonHumanTrafficSummary,
 ) -> BenchmarkMetricResult {
     let category_id = row.category_id.as_str();
@@ -59,7 +59,7 @@ fn category_posture_metric(
                 "insufficient_evidence".to_string()
             },
             current: None,
-            target: posture_alignment_target(row.posture.as_str()),
+            target: posture_alignment_target(row.effective_posture.as_str()),
             delta: None,
             exactness: "derived".to_string(),
             basis: "mixed".to_string(),
@@ -78,7 +78,7 @@ fn category_posture_metric(
             metric_id,
             status: "insufficient_evidence".to_string(),
             current: None,
-            target: posture_alignment_target(row.posture.as_str()),
+            target: posture_alignment_target(row.effective_posture.as_str()),
             delta: None,
             exactness: "derived".to_string(),
             basis: aggregate_basis(receipts.as_slice()),
@@ -95,7 +95,7 @@ fn category_posture_metric(
             metric_id,
             status: "insufficient_evidence".to_string(),
             current: None,
-            target: posture_alignment_target(row.posture.as_str()),
+            target: posture_alignment_target(row.effective_posture.as_str()),
             delta: None,
             exactness: "derived".to_string(),
             basis: aggregate_basis(receipts.as_slice()),
@@ -115,12 +115,12 @@ fn category_posture_metric(
         .map(|receipt| receipt.short_circuited_requests)
         .sum();
     let current = posture_alignment_ratio(
-        row.posture.as_str(),
+        row.effective_posture.as_str(),
         forwarded_requests,
         short_circuited_requests,
         total_requests,
     );
-    let target = posture_alignment_target(row.posture.as_str());
+    let target = posture_alignment_target(row.effective_posture.as_str());
 
     BenchmarkMetricResult {
         metric_id,

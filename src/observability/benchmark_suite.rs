@@ -251,7 +251,7 @@ pub(crate) fn benchmark_suite_v1() -> BenchmarkSuiteContract {
             BenchmarkFamilyContract {
                 id: "non_human_category_posture".to_string(),
                 decision_question:
-                    "Are observed category outcomes aligning with the operator's persisted per-category non-human posture?"
+                    "Are observed category outcomes aligning with the resolved effective non-human policy for each canonical category?"
                         .to_string(),
                 eligible_population: "non_human_category_receipts".to_string(),
                 comparison_modes: vec![

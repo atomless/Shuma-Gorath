@@ -31,6 +31,8 @@ pub(crate) struct EffectiveNonHumanPolicyRow {
     pub category_id: NonHumanCategoryId,
     pub category_label: String,
     pub base_posture: String,
+    pub effective_posture: String,
+    pub effective_posture_source: String,
     pub verified_identity_override: EffectiveNonHumanPolicyVerifiedIdentityOverride,
 }
 
@@ -73,10 +75,14 @@ pub(crate) fn effective_non_human_policy(
                 .unwrap_or_else(|| "blocked".to_string());
             let verified_identity_override =
                 effective_verified_identity_override(cfg, category.category_id);
+            let (effective_posture, effective_posture_source) =
+                resolved_effective_posture(base_posture.as_str(), &verified_identity_override);
             EffectiveNonHumanPolicyRow {
                 category_id: category.category_id,
                 category_label: category.label,
                 base_posture,
+                effective_posture,
+                effective_posture_source,
                 verified_identity_override,
             }
         })
@@ -99,6 +105,19 @@ pub(crate) fn effective_non_human_policy(
         mismatched_category_count,
         rows,
     }
+}
+
+fn resolved_effective_posture(
+    base_posture: &str,
+    override_row: &EffectiveNonHumanPolicyVerifiedIdentityOverride,
+) -> (String, String) {
+    if let Some(effective_posture) = override_row.effective_posture.as_ref() {
+        return (
+            effective_posture.clone(),
+            "verified_identity_override".to_string(),
+        );
+    }
+    (base_posture.to_string(), "base_posture".to_string())
 }
 
 fn effective_verified_identity_override(
@@ -312,6 +331,11 @@ mod tests {
             .find(|row| row.category_id.as_str() == "verified_beneficial_bot")
             .expect("verified beneficial row");
         assert_eq!(row.base_posture, "allowed");
+        assert_eq!(row.effective_posture, "blocked");
+        assert_eq!(
+            row.effective_posture_source,
+            "verified_identity_override"
+        );
         assert_eq!(
             row.verified_identity_override.status,
             "named_policies_only_fallback_deny"
@@ -342,5 +366,37 @@ mod tests {
             resolved_verified_identity_mode(&cfg),
             VerifiedIdentityOverrideMode::VerifiedIdentitiesOnly.as_str()
         );
+    }
+
+    #[test]
+    fn effective_non_human_policy_keeps_base_posture_when_verified_override_is_not_deterministic() {
+        let mut cfg = crate::config::defaults().clone();
+        cfg.verified_identity.named_policies = vec![
+            crate::bot_identity::policy::IdentityPolicyEntry {
+                policy_id: "allow-other".to_string(),
+                description: None,
+                matcher: crate::bot_identity::policy::IdentityPolicyMatcher {
+                    category: Some(crate::bot_identity::contracts::IdentityCategory::Other),
+                    ..crate::bot_identity::policy::IdentityPolicyMatcher::default()
+                },
+                action: crate::bot_identity::policy::IdentityPolicyAction::Allow,
+            },
+        ];
+        let objectives =
+            crate::observability::operator_snapshot_objectives::default_operator_objectives(
+                1_700_000_000,
+            );
+
+        let policy = effective_non_human_policy(&objectives, &cfg);
+        let row = policy
+            .rows
+            .iter()
+            .find(|row| row.category_id.as_str() == "verified_beneficial_bot")
+            .expect("verified beneficial row");
+
+        assert_eq!(row.base_posture, "allowed");
+        assert_eq!(row.effective_posture, "allowed");
+        assert_eq!(row.effective_posture_source, "base_posture");
+        assert_eq!(row.verified_identity_override.status, "named_policies_only");
     }
 }
