@@ -16,7 +16,8 @@ use crate::challenge::KeyValueStore;
 
 use super::adversary_sim::{
     next_llm_fulfillment_plan, AutonomousHeartbeatTickSummary, ControlPhase, ControlState,
-    GenerationTickResult, RuntimeLane, ScraplingWorkerPlan, ScraplingWorkerResult,
+    GenerationTickResult, RuntimeLane, ScraplingRuntimePaths, ScraplingWorkerPlan,
+    ScraplingWorkerResult,
     WorkerFailureClass, SCRAPLING_MAX_BYTES_PER_TICK, SCRAPLING_MAX_DEPTH_PER_TICK,
     SCRAPLING_MAX_MS_PER_TICK, SCRAPLING_MAX_REQUESTS_PER_TICK, SCRAPLING_SIM_PROFILE,
     SCRAPLING_WORKER_PLAN_SCHEMA_VERSION,
@@ -460,6 +461,7 @@ fn next_scrapling_worker_plan(now: u64, state: &mut ControlState) -> ScraplingWo
         .unwrap_or_else(|| format!("simrun-runtime-{now}"));
     let tick_id = format!("scrapling-tick-{}-{:016x}", now, random::<u64>());
     let fulfillment_mode = scrapling_fulfillment_mode_for_tick(state.generated_tick_count);
+    let runtime_profile = deterministic_runtime_profile();
     state.pending_worker_tick_id = Some(tick_id.clone());
     state.pending_worker_started_at = Some(now);
     state.updated_at = now;
@@ -474,6 +476,17 @@ fn next_scrapling_worker_plan(now: u64, state: &mut ControlState) -> ScraplingWo
             crate::observability::non_human_lane_fulfillment::scrapling_category_targets_for_mode(
                 fulfillment_mode,
             ),
+        surface_targets:
+            crate::observability::scrapling_owned_surface::scrapling_owned_surface_targets_for_mode(
+                fulfillment_mode,
+            ),
+        runtime_paths: ScraplingRuntimePaths {
+            public_search: runtime_profile.paths.public_search.clone(),
+            not_a_bot_checkbox: runtime_profile.paths.not_a_bot_checkbox.clone(),
+            challenge_submit: runtime_profile.paths.challenge_submit.clone(),
+            pow_verify: runtime_profile.paths.pow_verify.clone(),
+            tarpit_progress: crate::tarpit::progress_path().to_string(),
+        },
         tick_started_at: now,
         max_requests: SCRAPLING_MAX_REQUESTS_PER_TICK,
         max_depth: SCRAPLING_MAX_DEPTH_PER_TICK,

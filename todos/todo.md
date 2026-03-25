@@ -102,22 +102,10 @@ Reference context:
 - [`docs/plans/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md`](../docs/plans/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md)
 - [`docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](../docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md)
 
-### SIM-SCR-CHALLENGE-2B: Malicious request-native Scrapling interactions
-- Extend the current Scrapling worker so it behaves the way a malicious Scrapling-powered attacker would for request-native owned surfaces.
-- Add explicit malicious interaction coverage where applicable for:
-  - challenge routing pressure,
-  - `not_a_bot`,
-  - puzzle escalation or submit paths,
-  - PoW abuse,
-  - and other owned request-native defenses.
-
-### SIM-SCR-CHALLENGE-2C: Browser or stealth Scrapling where the matrix requires it
-- Where the owned-surface matrix says request-native Scrapling is not enough, adopt Scrapling browser or stealth fetchers rather than leaving the lane underpowered.
-- Keep this bounded to surfaces Scrapling actually owns rather than broadening into unrelated browser-agent behavior.
-
 ### SIM-SCR-CHALLENGE-2D: Receipt-backed coverage closure and explicit gap assignment
 - Prove that Scrapling now touches every defense surface it owns and can pass the ones a real attacker should be able to pass.
 - Add focused verification and receipts so any remaining uncovered surface is explicit and intentionally assigned to another lane.
+- Keep browser or stealth Scrapling blocked unless this receipt-backed closure proves a remaining Scrapling-owned surface still cannot be represented truthfully with request-native behavior.
 
 ### RSI-GAME-MAINLINE-1: First working self-improving loop over attacker-faithful Scrapling
 - After the Scrapling-owned surfaces are attacker-faithful and receipt-backed, execute the first explicit self-improving loop over that truthful attacker basis.
@@ -127,8 +115,8 @@ Reference context:
 Mainline execution order:
 1. `SIM-SCR-CHALLENGE-2A`
 2. `SIM-SCR-CHALLENGE-2B`
-3. `SIM-SCR-CHALLENGE-2C` only if the owned-surface matrix requires browser or stealth Scrapling
-4. `SIM-SCR-CHALLENGE-2D`
+3. `SIM-SCR-CHALLENGE-2D`
+4. `SIM-SCR-CHALLENGE-2C` only if `2D` proves a remaining Scrapling-owned surface requires browser or stealth Scrapling
 5. `CTRL-SURFACE-1..3`
 6. `RSI-GAME-1A`
 7. `RSI-GAME-1B`

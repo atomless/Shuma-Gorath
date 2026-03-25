@@ -28,8 +28,8 @@
 2. Add execution-ready checklist items for:
    - `SIM-SCR-CHALLENGE-2A` defense-surface matrix and success contract
    - `SIM-SCR-CHALLENGE-2B` malicious request-native Scrapling interactions
-   - `SIM-SCR-CHALLENGE-2C` browser or stealth Scrapling adoption where required
    - `SIM-SCR-CHALLENGE-2D` receipt-backed coverage closure and explicit remaining-gap assignment
+   - `SIM-SCR-CHALLENGE-2C` browser or stealth Scrapling adoption where required only if `2D` proves request-native Scrapling is still insufficient for an owned surface
    - `RSI-GAME-MAINLINE-1` first working self-improving loop over the truthful attacker basis
 3. Make clear that the previous dashboard cleanup follow-ons are no longer the immediate mainline.
 
@@ -78,10 +78,10 @@ The optimal order is:
    - freeze the owned defense-surface matrix and define which surfaces Scrapling must touch, fail, or be able to pass
 2. `SIM-SCR-CHALLENGE-2B`
    - implement malicious request-native Scrapling behavior for the owned surfaces that remain request-native
-3. `SIM-SCR-CHALLENGE-2C`
-   - only where the matrix proves request-native Scrapling is not enough, adopt browser or stealth Scrapling for those owned surfaces
-4. `SIM-SCR-CHALLENGE-2D`
+3. `SIM-SCR-CHALLENGE-2D`
    - prove receipt-backed coverage, including explicit remaining-gap assignment where Scrapling does not own a surface
+4. `SIM-SCR-CHALLENGE-2C`
+   - only if `2D` proves a remaining Scrapling-owned surface still needs browser or stealth Scrapling
 5. `CTRL-SURFACE-1`
 6. `CTRL-SURFACE-2`
 7. `CTRL-SURFACE-3`

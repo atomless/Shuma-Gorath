@@ -20,6 +20,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md`](2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md) - Makes attacker-faithful Scrapling coverage an explicit prerequisite for fuller player-side game-loop execution
 - [`2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md`](2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md) - Separates widened Scrapling defense-surface evaluation from the broader later browser-runtime question
 - [`2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-plan.md`](2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-plan.md) - Freezes the canonical owned-surface matrix and success contract for attacker-faithful Scrapling
+- [`2026-03-24-sim-scr-challenge-2b-malicious-request-native-interactions-plan.md`](2026-03-24-sim-scr-challenge-2b-malicious-request-native-interactions-plan.md) - Expands the live Scrapling worker into attacker-faithful malicious request-native interactions
 - [`2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md`](2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md) - Reorders the active mainline so attacker-faithful Scrapling and the first working game loop come before later LLM runtime work
 - [`2026-03-24-test-hygiene-6b-live-wrapper-and-integration-contract-plan.md`](2026-03-24-test-hygiene-6b-live-wrapper-and-integration-contract-plan.md) - Separates retained wrapper and integration cleanup shell-shape proof into explicit contract lanes
 - [`2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-plan.md`](2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-plan.md) - Refines Monitoring-vs-Diagnostics ordering so Monitoring reuses shared transitional surfaces before Diagnostics cleanup
@@ -74,6 +75,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md`](2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md)
 - [`2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md`](2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md)
 - [`2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-plan.md`](2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-plan.md)
+- [`2026-03-24-sim-scr-challenge-2b-malicious-request-native-interactions-plan.md`](2026-03-24-sim-scr-challenge-2b-malicious-request-native-interactions-plan.md)
 - [`2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md`](2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md)
 - [`2026-03-24-test-hygiene-6b-live-wrapper-and-integration-contract-plan.md`](2026-03-24-test-hygiene-6b-live-wrapper-and-integration-contract-plan.md)
 - [`2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md`](2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md)

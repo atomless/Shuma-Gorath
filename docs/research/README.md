@@ -43,6 +43,7 @@ The directory is intentionally flat. Use this index, not nested folders, to dist
 - [`2026-03-24-scrapling-challenge-surface-and-defense-coverage-review.md`](2026-03-24-scrapling-challenge-surface-and-defense-coverage-review.md) - Captures the gap between upstream Scrapling challenge/browser capability and Shuma's current request-native-only integration
 - [`2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-review.md`](2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-review.md) - Defines the machine-readable owned defense-surface matrix and success semantics for attacker-faithful Scrapling
 - [`2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-post-implementation-review.md`](2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-post-implementation-review.md) - Closeout for landing the canonical Scrapling owned-surface matrix and focused contract gate
+- [`2026-03-24-sim-scr-challenge-2b-malicious-request-native-interactions-review.md`](2026-03-24-sim-scr-challenge-2b-malicious-request-native-interactions-review.md) - Defines the attacker-faithful malicious request-native interactions Scrapling must add for the surfaces it owns
 - [`2026-03-24-mainline-resequence-scrapling-before-game-loop-review.md`](2026-03-24-mainline-resequence-scrapling-before-game-loop-review.md) - Reorders the active mainline so attacker-faithful Scrapling and the first working game loop come before later LLM runtime work
 - [`2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-review.md`](2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-review.md) - Ownership split for making Tuning primary and reducing Fingerprinting to truthful diagnostics
 - [`2026-03-24-identification-tab-remit-and-taxonomy-distinction-review.md`](2026-03-24-identification-tab-remit-and-taxonomy-distinction-review.md) - Why the future Fingerprinting tab should become Identification and explain taxonomy distinction
@@ -81,6 +82,7 @@ The directory is intentionally flat. Use this index, not nested folders, to dist
 - [`2026-03-24-scrapling-challenge-surface-and-defense-coverage-review.md`](2026-03-24-scrapling-challenge-surface-and-defense-coverage-review.md)
 - [`2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-review.md`](2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-review.md)
 - [`2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-post-implementation-review.md`](2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-post-implementation-review.md)
+- [`2026-03-24-sim-scr-challenge-2b-malicious-request-native-interactions-review.md`](2026-03-24-sim-scr-challenge-2b-malicious-request-native-interactions-review.md)
 - [`2026-03-24-mainline-resequence-scrapling-before-game-loop-review.md`](2026-03-24-mainline-resequence-scrapling-before-game-loop-review.md)
 - [`2026-03-24-open-backlog-and-plan-reference-stance-alignment-review.md`](2026-03-24-open-backlog-and-plan-reference-stance-alignment-review.md)
 - [`2026-03-24-monitoring-multi-loop-benchmark-progress-review.md`](2026-03-24-monitoring-multi-loop-benchmark-progress-review.md)
@@ -120,6 +122,7 @@ The directory is intentionally flat. Use this index, not nested folders, to dist
 - [`2026-03-24-dashboard-dom-de-shelling-post-implementation-review.md`](2026-03-24-dashboard-dom-de-shelling-post-implementation-review.md)
 - [`2026-03-23-vid-tax-1-faithful-verified-identity-category-crosswalk-post-implementation-review.md`](2026-03-23-vid-tax-1-faithful-verified-identity-category-crosswalk-post-implementation-review.md)
 - [`2026-03-23-vid-tax-2-bot-1-and-guard-1-calibration-and-no-harm-post-implementation-review.md`](2026-03-23-vid-tax-2-bot-1-and-guard-1-calibration-and-no-harm-post-implementation-review.md)
+- [`2026-03-24-sim-scr-challenge-2b-malicious-request-native-interactions-post-implementation-review.md`](2026-03-24-sim-scr-challenge-2b-malicious-request-native-interactions-post-implementation-review.md)
 
 ## Topic Collections
 

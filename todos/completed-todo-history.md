@@ -4,6 +4,40 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### SIM-SCR-CHALLENGE-2B: Malicious request-native Scrapling interactions
+
+- [x] Widened the Scrapling worker-plan contract in:
+  - [`src/admin/adversary_sim_worker_plan.rs`](../src/admin/adversary_sim_worker_plan.rs)
+  - [`src/admin/adversary_sim_lane_runtime.rs`](../src/admin/adversary_sim_lane_runtime.rs)
+  - [`src/admin/adversary_sim.rs`](../src/admin/adversary_sim.rs)
+  so the Rust control plane now sends:
+  - per-mode `surface_targets`
+  - bounded `runtime_paths` for owned request-native public routes
+- [x] Extended the real Python Scrapling worker in [`scripts/supervisor/scrapling_worker.py`](../scripts/supervisor/scrapling_worker.py) so the request-native personas now mix passing traffic with attacker-faithful malicious interactions:
+  - `crawler` adds light challenge-routing pressure
+  - `bulk_scraper` adds malicious `not_a_bot` and puzzle submits
+  - `http_agent` adds malicious `not_a_bot`, puzzle, PoW verify, and tarpit progress abuse
+- [x] Tightened the beat-contract proof in [`src/admin/api.rs`](../src/admin/api.rs) so the live worker plan is asserted against the widened surface and route hints.
+- [x] Added focused proof in:
+  - [`scripts/tests/test_scrapling_worker.py`](../scripts/tests/test_scrapling_worker.py)
+  - [`scripts/tests/test_adversary_sim_make_targets.py`](../scripts/tests/test_adversary_sim_make_targets.py)
+  - [`Makefile`](../Makefile)
+  with the new narrow target:
+  - `make test-adversary-sim-scrapling-malicious-request-native`
+- [x] Updated the current paper trail in:
+  - [`docs/research/2026-03-24-sim-scr-challenge-2b-malicious-request-native-interactions-review.md`](../docs/research/2026-03-24-sim-scr-challenge-2b-malicious-request-native-interactions-review.md)
+  - [`docs/plans/2026-03-24-sim-scr-challenge-2b-malicious-request-native-interactions-plan.md`](../docs/plans/2026-03-24-sim-scr-challenge-2b-malicious-request-native-interactions-plan.md)
+  - [`docs/research/2026-03-24-sim-scr-challenge-2b-malicious-request-native-interactions-post-implementation-review.md`](../docs/research/2026-03-24-sim-scr-challenge-2b-malicious-request-native-interactions-post-implementation-review.md)
+  - [`docs/testing.md`](../docs/testing.md)
+- [x] Why:
+  - the active mainline depends on Scrapling behaving like a malicious Scrapling-powered attacker on the request-native surfaces it owns
+  - before this slice, those hostile submits still lived outside the real Scrapling worker, which left the lane underpowered even after the owned-surface matrix from `2A` was frozen
+- [x] Evidence:
+  - `make test-adversary-sim-scrapling-malicious-request-native`
+  - `make test-adversary-sim-scrapling-worker`
+  - `make test-adversary-sim-scrapling-category-fit`
+  - `git diff --check`
+
 ### SIM-SCR-CHALLENGE-2A: Scrapling owned-surface matrix and success contract
 
 - [x] Added the new canonical attacker-faithful Scrapling owned-surface contract in [`src/observability/scrapling_owned_surface.rs`](../src/observability/scrapling_owned_surface.rs), including:

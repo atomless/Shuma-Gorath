@@ -72,8 +72,8 @@ Instead, the next mainline should be:
 
 1. `SIM-SCR-CHALLENGE-2A` defense-surface matrix and success contract,
 2. `SIM-SCR-CHALLENGE-2B` malicious request-native Scrapling interaction implementation,
-3. `SIM-SCR-CHALLENGE-2C` browser or stealth Scrapling adoption where the matrix requires it,
-4. `SIM-SCR-CHALLENGE-2D` receipt-backed coverage and ownership closure,
+3. `SIM-SCR-CHALLENGE-2D` receipt-backed coverage and ownership closure,
+4. `SIM-SCR-CHALLENGE-2C` browser or stealth Scrapling adoption only if those receipts prove a remaining Scrapling-owned surface still requires it,
 5. `RSI-GAME-MAINLINE-1` first working self-improving loop over that truthful attacker base.
 
 ## Result

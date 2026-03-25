@@ -118,6 +118,32 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
         self.assertIn("scripts/tests/test_adversary_sim_make_targets.py", body)
         self.assertNotIn("scripts/tests/test_scrapling_worker.py", body)
 
+    def test_scrapling_malicious_request_native_target_uses_focused_selectors(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-adversary-sim-scrapling-malicious-request-native:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn(
+            "admin::api::admin_config_tests::adversary_sim_internal_beat_returns_scrapling_worker_plan_and_switches_active_lane",
+            body,
+        )
+        self.assertIn(
+            "scripts.tests.test_scrapling_worker.ScraplingWorkerUnitTests.test_execute_worker_plan_bulk_scraper_attempts_owned_challenge_surfaces",
+            body,
+        )
+        self.assertIn(
+            "scripts.tests.test_scrapling_worker.ScraplingWorkerUnitTests.test_execute_worker_plan_http_agent_attempts_owned_request_native_abuse_surfaces",
+            body,
+        )
+        self.assertNotIn(
+            "@$(SCRAPLING_VENV_PYTHON) -m unittest scripts/tests/test_scrapling_worker.py",
+            body,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

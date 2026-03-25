@@ -5106,18 +5106,10 @@ mod admin_config_tests {
         let store = TestStore::default();
         let auth = bearer_rw_auth();
 
-        let on_resp = handle_admin_adversary_sim_control(
-            &make_control_request(true, "scrapling-beat-start"),
-            &store,
-            "default",
-            &auth,
-        );
-        assert_eq!(*on_resp.status(), 200u16);
-
         let lane_resp = handle_admin_adversary_sim_control(
             &make_control_request_json(
                 br#"{"enabled":true,"lane":"scrapling_traffic"}"#,
-                "scrapling-beat-lane",
+                "scrapling-beat-enable-and-lane",
             ),
             &store,
             "default",
@@ -5171,6 +5163,56 @@ mod admin_config_tests {
         assert_eq!(
             beat_json
                 .get("worker_plan")
+                .and_then(|value| value.get("surface_targets"))
+                .and_then(|value| value.as_array())
+                .map(|values| {
+                    values
+                        .iter()
+                        .filter_map(|value| value.as_str())
+                        .collect::<Vec<_>>()
+                }),
+            Some(vec![
+                "public_path_traversal",
+                "challenge_routing",
+                "rate_pressure",
+                "geo_ip_policy"
+            ])
+        );
+        assert_eq!(
+            beat_json
+                .get("worker_plan")
+                .and_then(|value| value.get("runtime_paths"))
+                .and_then(|value| value.get("not_a_bot_checkbox"))
+                .and_then(|value| value.as_str()),
+            Some("/challenge/not-a-bot-checkbox")
+        );
+        assert_eq!(
+            beat_json
+                .get("worker_plan")
+                .and_then(|value| value.get("runtime_paths"))
+                .and_then(|value| value.get("challenge_submit"))
+                .and_then(|value| value.as_str()),
+            Some("/challenge/puzzle")
+        );
+        assert_eq!(
+            beat_json
+                .get("worker_plan")
+                .and_then(|value| value.get("runtime_paths"))
+                .and_then(|value| value.get("pow_verify"))
+                .and_then(|value| value.as_str()),
+            Some("/pow/verify")
+        );
+        assert_eq!(
+            beat_json
+                .get("worker_plan")
+                .and_then(|value| value.get("runtime_paths"))
+                .and_then(|value| value.get("tarpit_progress"))
+                .and_then(|value| value.as_str()),
+            Some("/tarpit/progress")
+        );
+        assert_eq!(
+            beat_json
+                .get("worker_plan")
                 .and_then(|value| value.get("sim_profile"))
                 .and_then(|value| value.as_str()),
             Some("scrapling_runtime_lane")
@@ -5195,7 +5237,6 @@ mod admin_config_tests {
             persisted.active_lane,
             Some(crate::admin::adversary_sim::RuntimeLane::ScraplingTraffic)
         );
-        assert_eq!(persisted.lane_switch_seq, 1);
         assert!(persisted.pending_worker_tick_id.is_some());
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
@@ -5221,18 +5262,10 @@ mod admin_config_tests {
         let store = TestStore::default();
         let auth = bearer_rw_auth();
 
-        let on_resp = handle_admin_adversary_sim_control(
-            &make_control_request(true, "llm-fit-beat-start"),
-            &store,
-            "default",
-            &auth,
-        );
-        assert_eq!(*on_resp.status(), 200u16);
-
         let lane_resp = handle_admin_adversary_sim_control(
             &make_control_request_json(
                 br#"{"enabled":true,"lane":"bot_red_team"}"#,
-                "llm-fit-beat-lane",
+                "llm-fit-beat-enable-and-lane",
             ),
             &store,
             "default",
@@ -5326,18 +5359,10 @@ mod admin_config_tests {
         let store = TestStore::default();
         let auth = bearer_rw_auth();
 
-        let on_resp = handle_admin_adversary_sim_control(
-            &make_control_request(true, "scrapling-result-start"),
-            &store,
-            "default",
-            &auth,
-        );
-        assert_eq!(*on_resp.status(), 200u16);
-
         let lane_resp = handle_admin_adversary_sim_control(
             &make_control_request_json(
                 br#"{"enabled":true,"lane":"scrapling_traffic"}"#,
-                "scrapling-result-lane",
+                "scrapling-result-enable-and-lane",
             ),
             &store,
             "default",
@@ -5471,18 +5496,10 @@ mod admin_config_tests {
         let store = TestStore::default();
         let auth = bearer_rw_auth();
 
-        let on_resp = handle_admin_adversary_sim_control(
-            &make_control_request(true, "scrapling-stale-start"),
-            &store,
-            "default",
-            &auth,
-        );
-        assert_eq!(*on_resp.status(), 200u16);
-
         let lane_resp = handle_admin_adversary_sim_control(
             &make_control_request_json(
                 br#"{"enabled":true,"lane":"scrapling_traffic"}"#,
-                "scrapling-stale-lane",
+                "scrapling-stale-enable-and-lane",
             ),
             &store,
             "default",
