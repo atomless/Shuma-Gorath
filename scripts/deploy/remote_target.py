@@ -365,6 +365,70 @@ def ensure_local_file(path_value: str, description: str) -> Path:
     return path.resolve()
 
 
+def _string_from_mapping(parent: dict[str, Any], key: str, *, context: str) -> str:
+    value = parent.get(key)
+    if not isinstance(value, str) or not value.strip():
+        fail(f"Invalid {context}: {key} must be a non-empty string.")
+    return value
+
+
+def _scrapling_metadata_from_deploy_prep(prepared_receipt: dict[str, Any]) -> dict[str, str]:
+    artifacts = prepared_receipt.get("artifacts")
+    if not isinstance(artifacts, dict):
+        fail("Invalid Scrapling deploy-prep receipt: artifacts must be an object.")
+    environment = prepared_receipt.get("environment")
+    if not isinstance(environment, dict):
+        fail("Invalid Scrapling deploy-prep receipt: environment must be an object.")
+    remote = environment.get("remote")
+    if not isinstance(remote, dict):
+        fail("Invalid Scrapling deploy-prep receipt: environment.remote must be an object.")
+    return {
+        "scope_descriptor_path": _string_from_mapping(
+            artifacts,
+            "scope_descriptor_path",
+            context="Scrapling deploy-prep receipt artifacts",
+        ),
+        "seed_inventory_path": _string_from_mapping(
+            artifacts,
+            "seed_inventory_path",
+            context="Scrapling deploy-prep receipt artifacts",
+        ),
+        "remote_scope_descriptor_path": _string_from_mapping(
+            remote,
+            "ADVERSARY_SIM_SCRAPLING_SCOPE_DESCRIPTOR_PATH",
+            context="Scrapling deploy-prep receipt environment.remote",
+        ),
+        "remote_seed_inventory_path": _string_from_mapping(
+            remote,
+            "ADVERSARY_SIM_SCRAPLING_SEED_INVENTORY_PATH",
+            context="Scrapling deploy-prep receipt environment.remote",
+        ),
+        "remote_crawldir_path": _string_from_mapping(
+            remote,
+            "ADVERSARY_SIM_SCRAPLING_CRAWLDIR",
+            context="Scrapling deploy-prep receipt environment.remote",
+        ),
+    }
+
+
+def ensure_receipt_scrapling_metadata(receipts_dir: Path, receipt: dict[str, Any]) -> dict[str, Any]:
+    deploy = receipt.get("deploy")
+    if not isinstance(deploy, dict):
+        fail("Invalid remote receipt: deploy must be an object.")
+    if isinstance(deploy.get("scrapling"), dict):
+        return receipt
+
+    from scripts.deploy.scrapling_deploy_prep import prepare_scrapling_deploy
+
+    prepared_receipt = prepare_scrapling_deploy(
+        public_base_url=receipt["runtime"]["public_base_url"],
+        runtime_mode="ssh_systemd",
+    )
+    deploy["scrapling"] = _scrapling_metadata_from_deploy_prep(prepared_receipt)
+    write_json(remote_receipt_path(receipts_dir, receipt["identity"]["name"]), receipt)
+    return receipt
+
+
 def first_ip_from_allowlist(raw_allowlist: str) -> str:
     for part in [item.strip() for item in raw_allowlist.split(",") if item.strip()]:
         try:
@@ -761,6 +825,7 @@ def refresh_remote_receipt_metadata(
 
 
 def perform_remote_update(receipt: dict[str, Any], env_file: Path, receipts_dir: Path) -> int:
+    receipt = ensure_receipt_scrapling_metadata(receipts_dir, receipt)
     ensure_local_file(receipt["deploy"]["surface_catalog_path"], "local surface catalog")
     scrapling = receipt["deploy"].get("scrapling")
     local_scope_path: Path | None = None

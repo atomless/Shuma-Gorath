@@ -359,7 +359,9 @@ Host-side supervisor launch adapters:
 - Build/run helper targets:
   - `make adversary-sim-supervisor-build`
   - `make adversary-sim-supervisor`
+  - `make test-prod-start-contract`
 - Single-host/systemd style deployment should use the same wrapper/runtime contract as `make prod-start`: launch `scripts/run_with_oversight_supervisor.sh` around `spin up`, with `SHUMA_API_KEY` injected via service env/secret manager. That wrapper chains `scripts/run_with_adversary_sim_supervisor.sh`, manages the `target/tools/adversary_sim_supervisor` worker, polls `GET /admin/adversary-sim/status`, sends `POST /internal/adversary-sim/beat`, and when Scrapling is selected runs `scripts/supervisor/scrapling_worker.py` with the repo-owned `.venv-scrapling` runtime before posting `POST /internal/adversary-sim/worker-result`. It also sends bounded periodic `POST /internal/oversight/agent/run` calls with the `oversight-agent` internal supervisor marker so the recommend-only agent loop runs off the request path on shared-host deployments.
+- `make test-prod-start-contract` is the focused regression gate for the host-side wrapper env handoff. It must prove that `make prod-start` exports `SHUMA_SIM_TELEMETRY_SECRET` and the required `ADVERSARY_SIM_SCRAPLING_*` paths from `ENV_LOCAL` into the wrapper child environment, because Spin `--env` flags alone do not reach the supervisor processes.
 - Containerized deployment can run the same worker as a sidecar process sharing network reachability to the Shuma instance.
 - Edge/no-local-process environments are not the current supported full hosted Scrapling worker target. External-supervisor productization remains deferred until there is a concrete edge runtime target worth supporting end to end.
 

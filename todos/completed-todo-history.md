@@ -4,6 +4,32 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### Shared-host Scrapling supervisor env handoff and remote receipt backfill
+
+- [x] Repaired older day-2 remote updates in:
+  - [`scripts/deploy/remote_target.py`](../scripts/deploy/remote_target.py)
+  - [`scripts/tests/test_remote_target.py`](../scripts/tests/test_remote_target.py)
+  so `remote-update` now backfills missing `deploy.scrapling` metadata from the canonical deploy-prep helper before copying shared-host Scrapling scope and seed artifacts.
+- [x] Fixed the host-side wrapper env handoff in:
+  - [`Makefile`](../Makefile)
+  - [`scripts/tests/test_prod_start_spin_manifest.py`](../scripts/tests/test_prod_start_spin_manifest.py)
+  so `make prod-start` and the other wrapper-based startup paths now export `SHUMA_SIM_TELEMETRY_SECRET` plus the required `ADVERSARY_SIM_SCRAPLING_*` paths into the supervisor process environment rather than relying only on Spin `--env` flags.
+- [x] Updated the focused verification/docs trail in:
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`docs/research/2026-03-24-prod-start-supervisor-env-and-remote-receipt-backfill-post-implementation-review.md`](../docs/research/2026-03-24-prod-start-supervisor-env-and-remote-receipt-backfill-post-implementation-review.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  including the new focused target `make test-prod-start-contract`.
+- [x] Why:
+  - the live shared-host loop was still failing with `worker exited with status Some(1)` even though the remote `.env.local` and Scrapling files were present,
+  - process-level inspection showed the host-side supervisor chain still lacked the Scrapling path vars and sim-tag secret,
+  - and older normalized remote receipts could still miss the canonical Scrapling deploy metadata needed for day-2 updates.
+- [x] Evidence:
+  - `make test-prod-start-contract`
+  - `make test-remote-target-contract`
+  - `make test-scrapling-deploy-shared-host`
+  - `make test-rsi-game-mainline`
+  - `git diff --check`
+
 ### RSI-GAME-1C: Episode archive and homeostasis memory
 
 - [x] Landed the bounded machine-first episode archive in:

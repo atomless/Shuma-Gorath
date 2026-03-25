@@ -17,6 +17,10 @@ class RemoteTargetTests(unittest.TestCase):
         self.receipts_dir.mkdir(parents=True, exist_ok=True)
         self.receipt_path = self.receipts_dir / "blog-prod.json"
         (self.temp_dir / "catalog.json").write_text('{"inventory":[{"path":"/"}]}\n', encoding="utf-8")
+        self.scrapling_scope_path = self.temp_dir / "scrapling.scope.json"
+        self.scrapling_scope_path.write_text("{}\n", encoding="utf-8")
+        self.scrapling_seed_path = self.temp_dir / "scrapling.seed.json"
+        self.scrapling_seed_path.write_text("{}\n", encoding="utf-8")
         remote_target.write_json(
             self.receipt_path,
             {
@@ -42,6 +46,13 @@ class RemoteTargetTests(unittest.TestCase):
                     "surface_catalog_path": str(self.temp_dir / "catalog.json"),
                     "smoke_path": "/health",
                     "upstream_origin": "http://127.0.0.1:8080",
+                    "scrapling": {
+                        "scope_descriptor_path": str(self.scrapling_scope_path),
+                        "seed_inventory_path": str(self.scrapling_seed_path),
+                        "remote_scope_descriptor_path": "/opt/shuma-gorath/.shuma/adversary-sim/scrapling-scope.json",
+                        "remote_seed_inventory_path": "/opt/shuma-gorath/.shuma/adversary-sim/scrapling-seed-inventory.json",
+                        "remote_crawldir_path": "/opt/shuma-gorath/.shuma/adversary-sim/scrapling-crawldir",
+                    },
                 },
                 "metadata": {
                     "last_deployed_commit": "abc123",
@@ -243,6 +254,8 @@ class RemoteTargetTests(unittest.TestCase):
                 "/tmp/shuma-remote-update-release.tar.gz",
                 "/tmp/shuma-remote-update-release.json",
                 "/tmp/shuma-remote-update-surface-catalog.json",
+                "/tmp/shuma-remote-update-scrapling-scope.json",
+                "/tmp/shuma-remote-update-scrapling-seed.json",
                 "/tmp/shuma-remote-update.sh",
             ],
         )
@@ -540,6 +553,8 @@ class RemoteTargetTests(unittest.TestCase):
                 "/tmp/shuma-remote-update-release.tar.gz",
                 "/tmp/shuma-remote-update-release.json",
                 "/tmp/shuma-remote-update-surface-catalog.json",
+                "/tmp/shuma-remote-update-scrapling-scope.json",
+                "/tmp/shuma-remote-update-scrapling-seed.json",
                 "/tmp/shuma-remote-update.sh",
             ],
         )
@@ -549,6 +564,103 @@ class RemoteTargetTests(unittest.TestCase):
         receipt = json.loads(self.receipt_path.read_text(encoding="utf-8"))
         self.assertEqual(receipt["metadata"]["last_deployed_commit"], "deadbeef")
         self.assertTrue(receipt["metadata"]["last_deployed_at_utc"].endswith("Z"))
+
+    def test_update_backfills_missing_scrapling_metadata_from_canonical_deploy_prep(self) -> None:
+        self.env_file.write_text("SHUMA_ACTIVE_REMOTE=blog-prod\n", encoding="utf-8")
+        payload = json.loads(self.receipt_path.read_text(encoding="utf-8"))
+        payload["deploy"].pop("scrapling", None)
+        self.receipt_path.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+        prepared_scope_path = self.temp_dir / "prepared-scrapling.scope.json"
+        prepared_scope_path.write_text("{}\n", encoding="utf-8")
+        prepared_seed_path = self.temp_dir / "prepared-scrapling.seed.json"
+        prepared_seed_path.write_text("{}\n", encoding="utf-8")
+        prepared_receipt = {
+            "artifacts": {
+                "scope_descriptor_path": str(prepared_scope_path),
+                "seed_inventory_path": str(prepared_seed_path),
+            },
+            "environment": {
+                "remote": {
+                    "ADVERSARY_SIM_SCRAPLING_SCOPE_DESCRIPTOR_PATH": "/opt/shuma-gorath/.shuma/adversary-sim/scrapling-scope.json",
+                    "ADVERSARY_SIM_SCRAPLING_SEED_INVENTORY_PATH": "/opt/shuma-gorath/.shuma/adversary-sim/scrapling-seed-inventory.json",
+                    "ADVERSARY_SIM_SCRAPLING_CRAWLDIR": "/opt/shuma-gorath/.shuma/adversary-sim/scrapling-crawldir",
+                }
+            },
+        }
+        bundle_dir = self.temp_dir / "bundle-update-backfill"
+        bundle_dir.mkdir()
+        archive_path = bundle_dir / "release.tar.gz"
+        archive_path.write_text("bundle\n", encoding="utf-8")
+        metadata_path = bundle_dir / "release.json"
+        metadata_path.write_text(
+            json.dumps(
+                {
+                    "commit": "deadbeef",
+                    "dirty_worktree": False,
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        update_script_path = bundle_dir / "remote-update.sh"
+        update_script_path.write_text("#!/bin/sh\n", encoding="utf-8")
+
+        with patch.object(
+            remote_target,
+            "build_release_bundle",
+            return_value=(archive_path, metadata_path, {"commit": "deadbeef", "dirty_worktree": False}),
+        ), patch(
+            "scripts.deploy.scrapling_deploy_prep.prepare_scrapling_deploy",
+            return_value=prepared_receipt,
+        ) as prepare_scrapling_deploy, patch.object(
+            remote_target, "write_remote_update_script", return_value=update_script_path
+        ), patch.object(
+            remote_target, "copy_file_to_remote"
+        ) as copy_file, patch.object(
+            remote_target, "run_remote_update_install", return_value=0
+        ), patch.object(
+            remote_target, "run_remote_loopback_health_check", return_value=0
+        ), patch.object(
+            remote_target, "run_remote_smoke", return_value=0
+        ):
+            rc = remote_target.main(
+                [
+                    "--env-file",
+                    str(self.env_file),
+                    "--receipts-dir",
+                    str(self.receipts_dir),
+                    "update",
+                ]
+            )
+
+        self.assertEqual(rc, 0)
+        prepare_scrapling_deploy.assert_called_once_with(
+            public_base_url="https://blog.example.com",
+            runtime_mode="ssh_systemd",
+        )
+        copied_remote_paths = [call.args[2] for call in copy_file.call_args_list]
+        self.assertEqual(
+            copied_remote_paths,
+            [
+                "/tmp/shuma-remote-update-release.tar.gz",
+                "/tmp/shuma-remote-update-release.json",
+                "/tmp/shuma-remote-update-surface-catalog.json",
+                "/tmp/shuma-remote-update-scrapling-scope.json",
+                "/tmp/shuma-remote-update-scrapling-seed.json",
+                "/tmp/shuma-remote-update.sh",
+            ],
+        )
+        receipt = json.loads(self.receipt_path.read_text(encoding="utf-8"))
+        self.assertEqual(
+            receipt["deploy"]["scrapling"],
+            {
+                "scope_descriptor_path": str(prepared_scope_path),
+                "seed_inventory_path": str(prepared_seed_path),
+                "remote_scope_descriptor_path": "/opt/shuma-gorath/.shuma/adversary-sim/scrapling-scope.json",
+                "remote_seed_inventory_path": "/opt/shuma-gorath/.shuma/adversary-sim/scrapling-seed-inventory.json",
+                "remote_crawldir_path": "/opt/shuma-gorath/.shuma/adversary-sim/scrapling-crawldir",
+            },
+        )
 
     def test_update_attempts_rollback_when_remote_loopback_health_fails(self) -> None:
         self.env_file.write_text("SHUMA_ACTIVE_REMOTE=blog-prod\n", encoding="utf-8")
