@@ -129,7 +129,7 @@ const MONITORING_BOOTSTRAP_COMPONENTS: [HotReadComponentContract; 7] = [
     },
 ];
 
-const OPERATOR_SNAPSHOT_COMPONENTS: [HotReadComponentContract; 13] = [
+const OPERATOR_SNAPSHOT_COMPONENTS: [HotReadComponentContract; 14] = [
     HotReadComponentContract {
         key: "objectives",
         exactness: TelemetryExactness::Exact,
@@ -228,6 +228,15 @@ const OPERATOR_SNAPSHOT_COMPONENTS: [HotReadComponentContract; 13] = [
         canonical_source: HotReadCanonicalSource::DirectStateSnapshot,
         projection_model: HotReadProjectionModel::DeterministicRebuild,
         note: "Game-contract surface names the immutable rules, evaluator boundary, legal move ring, safety gates, and regression anchors that later recursive-improvement phases must inherit.",
+    },
+    HotReadComponentContract {
+        key: "episode_archive",
+        exactness: TelemetryExactness::Derived,
+        basis: TelemetryBasis::Observed,
+        ownership_tier: HotReadOwnershipTier::SupportingSummary,
+        canonical_source: HotReadCanonicalSource::DirectStateSnapshot,
+        projection_model: HotReadProjectionModel::DeterministicRebuild,
+        note: "Episode-archive surface persists bounded completed loop outcomes, baseline scorecards, benchmark deltas, and explicit homeostasis judgments for later recursive-improvement memory.",
     },
     HotReadComponentContract {
         key: "verified_identity",
@@ -380,6 +389,7 @@ mod tests {
         assert!(keys.contains(&"benchmark_results"));
         assert!(keys.contains(&"runtime_posture"));
         assert!(keys.contains(&"game_contract"));
+        assert!(keys.contains(&"episode_archive"));
         assert!(keys.contains(&"replay_promotion"));
     }
 }

@@ -114,6 +114,7 @@ Current note:
 
 1. `RSI-SCORE-1` is now landed.
 2. Homeostasis inputs should therefore be taken from the explicit `comparison_contract.homeostasis_input_ids` surface in `recursive_improvement_game_contract_v1.evaluator_scorecard` rather than improvised later per-agent heuristics.
+3. `RSI-GAME-1C` is now landed, so bounded completed-episode memory and homeostasis summary are machine-first archive surfaces rather than later UI or agent-local inventions.
 
 # Definition Of Done
 

@@ -5,6 +5,7 @@ use std::hash::{Hash, Hasher};
 
 use super::oversight_api::OversightExecutionPayload;
 use super::oversight_decision_ledger::{load_latest_decision, OversightDecisionRecord};
+use crate::observability::operator_snapshot::OperatorSnapshotEpisodeArchive;
 
 pub(crate) const OVERSIGHT_AGENT_RUN_SCHEMA_VERSION: &str = "oversight_agent_run_v1";
 pub(crate) const OVERSIGHT_AGENT_EXECUTION_SCHEMA_VERSION: &str = "oversight_agent_execution_v1";
@@ -105,6 +106,7 @@ pub(crate) struct OversightAgentStatusPayload {
     pub latest_run: Option<OversightAgentRunRecord>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub latest_decision: Option<OversightDecisionRecord>,
+    pub episode_archive: OperatorSnapshotEpisodeArchive,
     pub recent_runs: Vec<OversightAgentRunRecord>,
 }
 
@@ -295,6 +297,24 @@ pub(crate) fn build_status_payload<S: KeyValueStore>(
     store: &S,
     site_id: &str,
 ) -> OversightAgentStatusPayload {
+    let now = crate::admin::now_ts();
+    let objectives =
+        crate::observability::operator_objectives_store::load_operator_objectives(store, site_id)
+            .unwrap_or_else(|| {
+                crate::observability::operator_snapshot_objectives::default_operator_objectives(
+                    now,
+                )
+            });
+    let game_contract =
+        crate::observability::operator_snapshot_objectives::recursive_improvement_game_contract_v1(
+            &objectives,
+            &crate::config::controller_legal_move_ring_v1(),
+        );
+    let (episode_archive, _) = crate::admin::load_oversight_episode_archive(
+        store,
+        site_id,
+        &game_contract,
+    );
     OversightAgentStatusPayload {
         schema_version: OVERSIGHT_AGENT_STATUS_SCHEMA_VERSION.to_string(),
         execution_boundary: "shared_host_only".to_string(),
@@ -311,6 +331,7 @@ pub(crate) fn build_status_payload<S: KeyValueStore>(
         },
         latest_run: load_latest_agent_run(store, site_id),
         latest_decision: load_latest_decision(store, site_id),
+        episode_archive,
         recent_runs: load_recent_agent_runs(store, site_id),
     }
 }
@@ -399,8 +420,9 @@ pub(crate) fn maybe_trigger_post_sim_agent_cycle<S: KeyValueStore>(
 #[cfg(test)]
 mod tests {
     use super::{
-        execute_agent_cycle, load_latest_agent_run, maybe_trigger_post_sim_agent_cycle,
-        post_sim_trigger_for_state_transition, OversightAgentTrigger, OversightAgentTriggerKind,
+        build_status_payload, execute_agent_cycle, load_latest_agent_run,
+        maybe_trigger_post_sim_agent_cycle, post_sim_trigger_for_state_transition,
+        OversightAgentTrigger, OversightAgentTriggerKind,
     };
     use crate::challenge::KeyValueStore;
     use crate::config::{defaults, serialize_persisted_kv_config};
@@ -1134,6 +1156,17 @@ mod tests {
                 .expect("keys load")
                 .iter()
                 .any(|key| key == "oversight_active_canary:v1:default")
+        );
+
+        let status = build_status_payload(&store, "default");
+        assert_eq!(status.episode_archive.schema_version, "oversight_episode_archive_v1");
+        assert_eq!(status.episode_archive.rows[0].proposal_status, "accepted");
+        assert_eq!(status.episode_archive.rows[0].watch_window_result, "improved");
+        assert_eq!(status.episode_archive.rows[0].retain_or_rollback, "retained");
+        assert!(status.episode_archive.rows[0].homeostasis_eligible);
+        assert_eq!(
+            status.episode_archive.homeostasis.status,
+            "not_enough_completed_cycles"
         );
     }
 }

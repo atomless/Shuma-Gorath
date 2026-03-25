@@ -26,6 +26,9 @@ pub(crate) use super::operator_snapshot_live_traffic::{
     OperatorSnapshotAdversarySim, OperatorSnapshotLane, OperatorSnapshotLiveTraffic,
     OperatorSnapshotRecentSimRun, OperatorSnapshotShadowMode,
 };
+pub(crate) use super::benchmark_comparison::{
+    BenchmarkComparableSnapshot, BenchmarkEpisodeFamilyDelta, BenchmarkHomeostasisSummary,
+};
 pub(crate) use super::operator_snapshot_objectives::{
     OperatorObjectiveBudget, OperatorObjectivesProfile, RecursiveImprovementGameContract,
 };
@@ -74,6 +77,55 @@ pub(crate) struct OperatorBudgetDistanceSummary {
     pub rows: Vec<OperatorBudgetDistanceRow>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct OperatorSnapshotEpisodeEvaluationContext {
+    pub objective_revision: String,
+    pub profile_id: String,
+    pub subject_kind: String,
+    pub comparison_mode: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub(crate) struct OperatorSnapshotEpisodeProposal {
+    pub patch_family: String,
+    pub patch: serde_json::Value,
+    pub expected_impact: String,
+    pub confidence: String,
+    pub controller_status: String,
+    pub canary_requirement: String,
+    pub matched_group_ids: Vec<String>,
+    pub note: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub(crate) struct OperatorSnapshotEpisodeRecord {
+    pub episode_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub proposal_id: Option<String>,
+    pub completed_at_ts: u64,
+    pub trigger_source: String,
+    pub evaluation_context: OperatorSnapshotEpisodeEvaluationContext,
+    pub baseline_scorecard: BenchmarkComparableSnapshot,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub proposal: Option<OperatorSnapshotEpisodeProposal>,
+    pub proposal_status: String,
+    pub watch_window_result: String,
+    pub retain_or_rollback: String,
+    pub benchmark_deltas: Vec<BenchmarkEpisodeFamilyDelta>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub hard_guardrail_triggers: Vec<String>,
+    pub cycle_judgment: String,
+    pub homeostasis_eligible: bool,
+    pub evidence_references: Vec<crate::observability::decision_ledger::OperatorDecisionEvidenceReference>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub(crate) struct OperatorSnapshotEpisodeArchive {
+    pub schema_version: String,
+    pub homeostasis: BenchmarkHomeostasisSummary,
+    pub rows: Vec<OperatorSnapshotEpisodeRecord>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub(crate) struct OperatorSnapshotHotReadPayload {
     pub schema_version: String,
@@ -90,6 +142,7 @@ pub(crate) struct OperatorSnapshotHotReadPayload {
     pub non_human_traffic: OperatorSnapshotNonHumanTrafficSummary,
     pub allowed_actions: AllowedActionsSurface,
     pub game_contract: RecursiveImprovementGameContract,
+    pub episode_archive: OperatorSnapshotEpisodeArchive,
     pub benchmark_results: BenchmarkResultsPayload,
     pub verified_identity: OperatorSnapshotVerifiedIdentitySummary,
     pub replay_promotion: ReplayPromotionSummary,
@@ -165,6 +218,8 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
         &objectives,
         &legal_move_ring,
     );
+    let (episode_archive, episode_archive_refreshed_at_ts) =
+        crate::admin::load_oversight_episode_archive(store, site_id, &game_contract);
     let cfg = crate::config::load_runtime_cached(store, site_id)
         .unwrap_or_else(|_| crate::config::defaults().clone());
     let verified_identity =
@@ -206,6 +261,7 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
             recent_sim_runs_refreshed_at_ts,
             recent_changes_refreshed_at_ts,
             benchmark_results_refreshed_at_ts,
+            episode_archive_refreshed_at_ts,
             summary_refreshed_at_ts,
             summary_refreshed_at_ts,
             replay_promotion_refreshed_at_ts,
@@ -220,6 +276,7 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
         non_human_traffic,
         allowed_actions,
         game_contract,
+        episode_archive,
         benchmark_results,
         verified_identity,
         replay_promotion,
@@ -242,6 +299,7 @@ fn operator_snapshot_section_metadata(
     recent_sim_runs_refreshed_at_ts: u64,
     recent_changes_refreshed_at_ts: u64,
     benchmark_results_refreshed_at_ts: u64,
+    episode_archive_refreshed_at_ts: u64,
     non_human_traffic_refreshed_at_ts: u64,
     verified_identity_refreshed_at_ts: u64,
     replay_promotion_refreshed_at_ts: u64,
@@ -256,6 +314,7 @@ fn operator_snapshot_section_metadata(
                 "recent_changes" => recent_changes_refreshed_at_ts,
                 "game_contract" => objectives_refreshed_at_ts,
                 "benchmark_results" => benchmark_results_refreshed_at_ts,
+                "episode_archive" => episode_archive_refreshed_at_ts,
                 "non_human_traffic" => non_human_traffic_refreshed_at_ts,
                 "verified_identity" => verified_identity_refreshed_at_ts,
                 "replay_promotion" => {
@@ -609,6 +668,15 @@ mod tests {
         assert_eq!(
             payload.game_contract.schema_version,
             "recursive_improvement_game_contract_v1"
+        );
+        assert_eq!(
+            payload.episode_archive.schema_version,
+            "oversight_episode_archive_v1"
+        );
+        assert!(payload.episode_archive.rows.is_empty());
+        assert_eq!(
+            payload.episode_archive.homeostasis.status,
+            "not_enough_completed_cycles"
         );
         assert_eq!(
             payload.game_contract.legal_move_ring.allowed_actions_schema_version,

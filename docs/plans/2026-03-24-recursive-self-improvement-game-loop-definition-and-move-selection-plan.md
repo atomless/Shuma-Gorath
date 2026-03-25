@@ -246,8 +246,8 @@ Additional prerequisite note:
 
 Current note:
 
-1. `RSI-GAME-1A`, `RSI-GAME-1B`, and `RSI-SCORE-1` are now landed.
-2. The remaining judge-side execution mainline is `RSI-GAME-1C` followed by `RSI-GAME-MAINLINE-1`.
+1. `RSI-GAME-1A`, `RSI-GAME-1B`, `RSI-SCORE-1`, and `RSI-GAME-1C` are now landed.
+2. The active mainline now moves directly into `RSI-GAME-MAINLINE-1`.
 
 # Definition Of Done
 

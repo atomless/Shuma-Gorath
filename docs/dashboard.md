@@ -48,6 +48,7 @@ Behavior:
   - `benchmark_results_v1`
   - bounded oversight status/history
   - current verdict, multi-loop progress, outcome frontier, controller judgment, and bounded trust/blocker context
+- The same backend Game Loop contracts now also expose a bounded `episode_archive` and homeostasis summary through `operator_snapshot_v1`, `oversight_history_v1`, and `oversight_agent_status_v1`, even though the final UI projection of that archive remains a later follow-on.
 - The remaining Game Loop follow-on is `MON-OVERHAUL-1C`, which adds the fuller category-aware pressure and final trust/actionability surface.
 - `Traffic` now shares the top-level refresh bar and uses the bounded monitoring refresh path for cost-effective traffic reads.
 - Manual refresh is available on `Traffic`, `Diagnostics`, `IP Bans`, and `Red Team`.

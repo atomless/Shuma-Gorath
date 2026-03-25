@@ -4,6 +4,42 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### RSI-GAME-1C: Episode archive and homeostasis memory
+
+- [x] Added the bounded machine-first episode archive in:
+  - [`src/admin/oversight_api.rs`](../src/admin/oversight_api.rs)
+  - [`src/observability/operator_snapshot.rs`](../src/observability/operator_snapshot.rs)
+  - [`src/observability/benchmark_comparison.rs`](../src/observability/benchmark_comparison.rs)
+  so Shuma now persists completed episode context, baseline scorecards, proposal lineage, benchmark deltas, hard-guardrail triggers, explicit cycle judgments, and conservative homeostasis summary.
+- [x] Projected the same archive through:
+  - [`src/admin/oversight_agent.rs`](../src/admin/oversight_agent.rs)
+  - [`src/observability/hot_read_contract.rs`](../src/observability/hot_read_contract.rs)
+  so `operator_snapshot_v1`, `oversight_history_v1`, and `oversight_agent_status_v1` all expose the same bounded episode-memory surface.
+- [x] Added the focused proof target in:
+  - [`Makefile`](../Makefile)
+  - [`docs/testing.md`](../docs/testing.md)
+  as:
+  - `make test-oversight-episode-archive`
+- [x] Updated the machine-contract paper trail in:
+  - [`docs/api.md`](../docs/api.md)
+  - [`docs/dashboard.md`](../docs/dashboard.md)
+  - [`docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](../docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md)
+  - [`docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](../docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md)
+  - [`docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md`](../docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md)
+  - [`docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](../docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md)
+  - [`docs/research/2026-03-24-rsi-game-1c-episode-archive-post-implementation-review.md`](../docs/research/2026-03-24-rsi-game-1c-episode-archive-post-implementation-review.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+- [x] Why:
+  - later recursive-improvement phases needed one machine-first archive of what was tried, what happened in the watch window, what got retained or rolled back, and what truly counts toward homeostasis
+  - without this slice, episode memory would have remained split between latest-decision state, prose review, and future agent-local interpretation
+- [x] Evidence:
+  - `make test-oversight-episode-archive`
+  - `make test-oversight-apply`
+  - `make test-oversight-agent`
+  - `make test-rsi-game-contract`
+  - `git diff --check`
+
 ### RSI-SCORE-1: Canonical judge scorecard
 
 - [x] Expanded the machine-first recursive-improvement game contract in:

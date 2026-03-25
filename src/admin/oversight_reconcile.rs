@@ -482,6 +482,7 @@ mod tests {
             "live_traffic",
             "adversary_sim",
             "game_contract",
+            "episode_archive",
             "benchmark_results",
             "non_human_traffic",
             "replay_promotion",
@@ -602,6 +603,14 @@ mod tests {
                     &objectives,
                     &crate::config::controller_legal_move_ring_v1(),
                 ),
+            episode_archive: crate::observability::operator_snapshot::OperatorSnapshotEpisodeArchive {
+                schema_version: "oversight_episode_archive_v1".to_string(),
+                homeostasis: crate::observability::benchmark_comparison::classify_homeostasis(
+                    &[],
+                    10,
+                ),
+                rows: Vec::new(),
+            },
             benchmark_results,
             verified_identity: OperatorSnapshotVerifiedIdentitySummary {
                 availability: "not_configured".to_string(),

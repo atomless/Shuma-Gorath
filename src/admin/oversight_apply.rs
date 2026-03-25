@@ -459,6 +459,13 @@ fn load_active_canary<S: KeyValueStore>(
     (state.schema_version == OVERSIGHT_ACTIVE_CANARY_SCHEMA_VERSION).then_some(state)
 }
 
+pub(crate) fn load_active_canary_baseline_snapshot<S: KeyValueStore>(
+    store: &S,
+    site_id: &str,
+) -> Option<BenchmarkComparableSnapshot> {
+    load_active_canary(store, site_id).map(|state| state.baseline_snapshot)
+}
+
 fn save_active_canary<S: KeyValueStore>(
     store: &S,
     site_id: &str,

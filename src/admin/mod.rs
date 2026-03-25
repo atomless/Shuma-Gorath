@@ -32,6 +32,7 @@ pub(crate) use api::{
     monitoring_security_view_mode_label, EventExecutionMetadata,
 };
 pub(crate) use recent_changes_ledger::load_operator_snapshot_recent_changes;
+pub(crate) use oversight_api::load_oversight_episode_archive;
 #[cfg(test)]
 pub(crate) use recent_changes_ledger::{
     operator_snapshot_manual_change_row, record_operator_snapshot_recent_change_rows,

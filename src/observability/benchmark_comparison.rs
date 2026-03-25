@@ -37,6 +37,39 @@ pub(crate) struct BenchmarkComparableSnapshot {
     pub families: Vec<BenchmarkComparableFamily>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub(crate) struct BenchmarkEpisodeMetricDelta {
+    pub metric_id: String,
+    pub status: String,
+    pub current: Option<f64>,
+    pub target: Option<f64>,
+    pub delta: Option<f64>,
+    pub comparison_status: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub(crate) struct BenchmarkEpisodeFamilyDelta {
+    pub family_id: String,
+    pub status: String,
+    pub comparison_status: String,
+    pub metric_deltas: Vec<BenchmarkEpisodeMetricDelta>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct BenchmarkCompletedCycleJudgment {
+    pub episode_id: String,
+    pub judgment: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct BenchmarkHomeostasisSummary {
+    pub minimum_completed_cycles_for_homeostasis: u64,
+    pub judged_cycle_count: usize,
+    pub considered_episode_ids: Vec<String>,
+    pub status: String,
+    pub note: String,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum MetricDirection {
     LowerIsBetter,
@@ -71,6 +104,78 @@ pub(crate) fn comparable_snapshot_from_results(
                     .collect(),
             })
             .collect(),
+    }
+}
+
+pub(crate) fn benchmark_episode_delta_summary(
+    payload: &BenchmarkResultsPayload,
+) -> Vec<BenchmarkEpisodeFamilyDelta> {
+    payload
+        .families
+        .iter()
+        .map(|family| BenchmarkEpisodeFamilyDelta {
+            family_id: family.family_id.clone(),
+            status: family.status.clone(),
+            comparison_status: family.comparison_status.clone(),
+            metric_deltas: family
+                .metrics
+                .iter()
+                .map(|metric| BenchmarkEpisodeMetricDelta {
+                    metric_id: metric.metric_id.clone(),
+                    status: metric.status.clone(),
+                    current: metric.current,
+                    target: metric.target,
+                    delta: metric.delta,
+                    comparison_status: metric.comparison_status.clone(),
+                })
+                .collect(),
+        })
+        .collect()
+}
+
+pub(crate) fn classify_homeostasis(
+    judgments: &[BenchmarkCompletedCycleJudgment],
+    minimum_completed_cycles_for_homeostasis: u64,
+) -> BenchmarkHomeostasisSummary {
+    let considered_episode_ids = judgments
+        .iter()
+        .map(|judgment| judgment.episode_id.clone())
+        .collect::<Vec<_>>();
+    let judged_cycle_count = judgments.len();
+    if judged_cycle_count < minimum_completed_cycles_for_homeostasis as usize {
+        return BenchmarkHomeostasisSummary {
+            minimum_completed_cycles_for_homeostasis,
+            judged_cycle_count,
+            considered_episode_ids,
+            status: "not_enough_completed_cycles".to_string(),
+            note: "Homeostasis remains unset until enough completed watch-window judgments exist."
+                .to_string(),
+        };
+    }
+
+    let improved_count = judgments
+        .iter()
+        .filter(|judgment| judgment.judgment == "improved")
+        .count();
+    let all_flat_or_guardrail = judgments.iter().all(|judgment| {
+        matches!(judgment.judgment.as_str(), "flat" | "guardrail_blocked")
+    });
+
+    let status = if improved_count == judged_cycle_count {
+        "improving"
+    } else if improved_count == 0 && all_flat_or_guardrail {
+        "homeostasis"
+    } else {
+        "mixed"
+    };
+
+    BenchmarkHomeostasisSummary {
+        minimum_completed_cycles_for_homeostasis,
+        judged_cycle_count,
+        considered_episode_ids,
+        status: status.to_string(),
+        note: "Homeostasis is classified conservatively from explicit completed-cycle judgments rather than ad hoc trend prose."
+            .to_string(),
     }
 }
 
@@ -349,6 +454,7 @@ fn metric_direction(metric_id: &str) -> Option<MetricDirection> {
 
 #[cfg(test)]
 mod tests {
+    use super::{classify_homeostasis, BenchmarkCompletedCycleJudgment};
     use super::{
         apply_candidate_comparison, apply_prior_window_comparison,
         comparable_snapshot_from_results, BenchmarkComparableSnapshot,
@@ -606,5 +712,63 @@ mod tests {
         assert_eq!(improvement, "improved");
         assert_eq!(families[0].metrics[0].baseline_current, Some(0.9));
         assert_eq!(families[0].metrics[0].comparison_status, "improved");
+    }
+
+    #[test]
+    fn homeostasis_requires_ten_completed_cycle_judgments_before_classifying() {
+        let summary = classify_homeostasis(
+            &vec![
+                BenchmarkCompletedCycleJudgment {
+                    episode_id: "episode-1".to_string(),
+                    judgment: "improved".to_string(),
+                };
+                3
+            ],
+            10,
+        );
+
+        assert_eq!(summary.status, "not_enough_completed_cycles");
+        assert_eq!(summary.judged_cycle_count, 3);
+        assert_eq!(summary.minimum_completed_cycles_for_homeostasis, 10);
+    }
+
+    #[test]
+    fn homeostasis_distinguishes_improving_mixed_and_flat_recent_cycles() {
+        let improving = classify_homeostasis(
+            &(0..10)
+                .map(|idx| BenchmarkCompletedCycleJudgment {
+                    episode_id: format!("improving-{idx}"),
+                    judgment: "improved".to_string(),
+                })
+                .collect::<Vec<_>>(),
+            10,
+        );
+        let mixed = classify_homeostasis(
+            &(0..10)
+                .map(|idx| BenchmarkCompletedCycleJudgment {
+                    episode_id: format!("mixed-{idx}"),
+                    judgment: if idx % 2 == 0 {
+                        "improved".to_string()
+                    } else {
+                        "regressed".to_string()
+                    },
+                })
+                .collect::<Vec<_>>(),
+            10,
+        );
+        let flat = classify_homeostasis(
+            &(0..10)
+                .map(|idx| BenchmarkCompletedCycleJudgment {
+                    episode_id: format!("flat-{idx}"),
+                    judgment: "flat".to_string(),
+                })
+                .collect::<Vec<_>>(),
+            10,
+        );
+
+        assert_eq!(improving.status, "improving");
+        assert_eq!(mixed.status, "mixed");
+        assert_eq!(flat.status, "homeostasis");
+        assert_eq!(flat.considered_episode_ids.len(), 10);
     }
 }

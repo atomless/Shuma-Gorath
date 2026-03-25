@@ -103,5 +103,5 @@ Dashboard/operator-surface cleanup can wait because it does not change the truth
 
 Current note:
 
-1. `RSI-GAME-1A`, `RSI-GAME-1B`, and `RSI-SCORE-1` are now landed.
-2. The active mainline starts next at `RSI-GAME-1C`, then `RSI-GAME-MAINLINE-1`.
+1. `RSI-GAME-1A`, `RSI-GAME-1B`, `RSI-SCORE-1`, and `RSI-GAME-1C` are now landed.
+2. The active mainline starts now at `RSI-GAME-MAINLINE-1`.
