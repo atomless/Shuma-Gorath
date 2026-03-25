@@ -116,6 +116,8 @@ The directory is intentionally flat. Use this index, not nested folders, to dist
 - [`2026-03-24-mz-t2-live-maze-browser-e2e-post-implementation-review.md`](2026-03-24-mz-t2-live-maze-browser-e2e-post-implementation-review.md) - Closeout for landing the focused live browser/session maze proof
 - [`2026-03-24-mz-t3-maze-state-concurrency-and-soak-review.md`](2026-03-24-mz-t3-maze-state-concurrency-and-soak-review.md) - Pre-implementation review for burst/concurrency closure over maze state primitives
 - [`2026-03-24-mz-t3-maze-state-concurrency-and-soak-post-implementation-review.md`](2026-03-24-mz-t3-maze-state-concurrency-and-soak-post-implementation-review.md) - Closeout for burst/concurrency coverage and shared-host hardening over maze state primitives
+- [`2026-03-24-mz-t4-maze-canonical-verification-wiring-review.md`](2026-03-24-mz-t4-maze-canonical-verification-wiring-review.md) - Defines the missing canonical Makefile and CI wiring needed to make the new maze proofs real merge gates
+- [`2026-03-24-mz-t4-maze-canonical-verification-wiring-post-implementation-review.md`](2026-03-24-mz-t4-maze-canonical-verification-wiring-post-implementation-review.md) - Closeout for routing the live/browser/concurrency maze proofs through the canonical local and release verification paths
 - [`2026-03-24-open-backlog-and-plan-reference-stance-alignment-review.md`](2026-03-24-open-backlog-and-plan-reference-stance-alignment-review.md)
 - [`2026-03-24-monitoring-multi-loop-benchmark-progress-review.md`](2026-03-24-monitoring-multi-loop-benchmark-progress-review.md)
 - [`2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-review.md`](2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-review.md)

@@ -189,7 +189,6 @@ Architecture alignment reference:
 - [ ] TEST-HYGIENE-5 Add dashboard coverage that proves Monitoring headline charts remain enforced-only while shadow-mode labeling stays explicit in the raw/recent-event surfaces, so shadow truthfulness is verified at the rendered UI level instead of inferred from source structure.
 - [ ] TEST-HYGIENE-6C Reclassify feature-specific Makefile selector microtests into explicit `contract` or `wiring` lanes so selector-only proof no longer hides inside feature-behavior targets.
 - [ ] TAH-12 Add dashboard visibility for the expanded tarpit progression and egress metrics plus operator guidance for safe tuning.
-- [ ] MZ-T4 Wire the new maze integration, end-to-end, and soak tests into canonical Makefile and CI verification paths so maze behavior regressions fail fast before merge.
 
 ## P2 Later Product Work
 

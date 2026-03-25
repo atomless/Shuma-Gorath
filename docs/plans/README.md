@@ -27,6 +27,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-24-tah-19-tarpit-persistence-collateral-risk-plan.md`](2026-03-24-tah-19-tarpit-persistence-collateral-risk-plan.md) - Tightens tarpit punitive escalation so exact-principal memory, not shared bucket counts, drives bans and blocks
 - [`2026-03-24-mz-t1-live-maze-spin-integration-plan.md`](2026-03-24-mz-t1-live-maze-spin-integration-plan.md) - Focused live Spin-path proof for opaque maze traversal, checkpoint, hidden issuance, and deterministic fallback evidence
 - [`2026-03-24-test-hygiene-6b-live-wrapper-and-integration-contract-plan.md`](2026-03-24-test-hygiene-6b-live-wrapper-and-integration-contract-plan.md) - Separates retained wrapper and integration cleanup shell-shape proof into explicit contract lanes
+- [`2026-03-24-mz-t4-maze-canonical-verification-wiring-plan.md`](2026-03-24-mz-t4-maze-canonical-verification-wiring-plan.md) - Routes the new maze live/browser/concurrency proof into the canonical local and CI verification path
 - [`2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-plan.md`](2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-plan.md) - Refines Monitoring-vs-Diagnostics ordering so Monitoring reuses shared transitional surfaces before Diagnostics cleanup
 - [`2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md`](2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md) - Introduces a dedicated Traffic tab and narrows Diagnostics to furniture-operational proof
 - [`2026-03-24-game-loop-tab-rename-and-ordering-plan.md`](2026-03-24-game-loop-tab-rename-and-ordering-plan.md) - Renames Monitoring to Game Loop and places it after Red Team
@@ -85,6 +86,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-24-test-hygiene-6b-live-wrapper-and-integration-contract-plan.md`](2026-03-24-test-hygiene-6b-live-wrapper-and-integration-contract-plan.md)
 - [`2026-03-24-mz-t2-live-maze-browser-e2e-plan.md`](2026-03-24-mz-t2-live-maze-browser-e2e-plan.md)
 - [`2026-03-24-mz-t3-maze-state-concurrency-and-soak-plan.md`](2026-03-24-mz-t3-maze-state-concurrency-and-soak-plan.md)
+- [`2026-03-24-mz-t4-maze-canonical-verification-wiring-plan.md`](2026-03-24-mz-t4-maze-canonical-verification-wiring-plan.md)
 - [`2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md`](2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md)
 - [`2026-03-24-identification-tab-rename-and-taxonomy-distinction-plan.md`](2026-03-24-identification-tab-rename-and-taxonomy-distinction-plan.md)
 - [`2026-03-23-host-impact-cost-proxy-and-benchmark-implementation-plan.md`](2026-03-23-host-impact-cost-proxy-and-benchmark-implementation-plan.md)

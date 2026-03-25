@@ -92,6 +92,9 @@ jobs:
           tail -n 200 /tmp/spin.log || true
           exit 1
 
+      - name: Run canonical maze verification gate
+        run: make test-maze-verification-gate
+
       - name: Run gateway profile and smoke gates
         run: |
           make test-gateway-profile-shared-server
@@ -131,6 +134,7 @@ jobs:
           {
             echo "## Release Gate Summary"
             echo ""
+            echo "- Maze verification gate: \`make test-maze-verification-gate\` (blocking)"
             echo "- Deterministic oracle gate: \`make test-adversarial-coverage\` (blocking)"
             echo "- Frontier protected-lane probe: \`make test-adversarial-frontier-attempt\` (advisory)"
             echo "- Deterministic promotion triage: \`make test-adversarial-promote-candidates\` (blocking only on reproducible confirmed regressions)"

@@ -4,6 +4,36 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### MZ-T4: canonical maze verification wiring
+
+- [x] Added the focused wiring proof in:
+  - [`Makefile`](../Makefile) as `make test-maze-verification-wiring`
+  - [`scripts/tests/test_maze_verification_wiring.py`](../scripts/tests/test_maze_verification_wiring.py)
+- [x] Added the canonical aggregate maze gate in:
+  - [`Makefile`](../Makefile) as `make test-maze-verification-gate`
+  so one truthful target now owns:
+  - `test-maze-benchmark`
+  - `test-maze-live-traversal-contract`
+  - `test-maze-live-browser-contract`
+  - `test-maze-state-concurrency-contract`
+- [x] Routed the umbrella suite and release workflow through the same canonical maze gate in:
+  - [`Makefile`](../Makefile)
+  - [`.github/workflows/release-gate.yml`](../.github/workflows/release-gate.yml)
+- [x] Updated docs in:
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`docs/maze.md`](../docs/maze.md)
+  - [`docs/plans/2026-02-25-maze-carry-forward-plan.md`](../docs/plans/2026-02-25-maze-carry-forward-plan.md)
+- [x] Added the tranche paper trail in:
+  - [`docs/research/2026-03-24-mz-t4-maze-canonical-verification-wiring-review.md`](../docs/research/2026-03-24-mz-t4-maze-canonical-verification-wiring-review.md)
+  - [`docs/plans/2026-03-24-mz-t4-maze-canonical-verification-wiring-plan.md`](../docs/plans/2026-03-24-mz-t4-maze-canonical-verification-wiring-plan.md)
+  - [`docs/research/2026-03-24-mz-t4-maze-canonical-verification-wiring-post-implementation-review.md`](../docs/research/2026-03-24-mz-t4-maze-canonical-verification-wiring-post-implementation-review.md)
+- [x] Evidence:
+  - `make test-maze-verification-wiring`
+  - `make spin-wait-ready`
+  - `make test-maze-verification-gate`
+  - `make test` (re-run because the umbrella path changed; failed on four unrelated pre-existing baseline tests outside this slice, captured in the post-implementation review)
+  - `git diff --check`
+
 ### MZ-T3: maze state concurrency and burst-soak coverage
 
 - [x] Added focused native burst/concurrency proof in:

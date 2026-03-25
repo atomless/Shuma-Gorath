@@ -204,7 +204,8 @@ Preview safety guarantees:
 ## 🐙 Stage 2.5 Guardrails
 
 - `make test-maze-benchmark` runs deterministic asymmetry guardrails and prints benchmark deltas (`avg_page_bytes`, `host_set_ops`, `attacker_requests`, `attacker_pow_iterations`).
-- `make test` now includes this benchmark gate and fails on host-cost or asymmetry regressions.
+- `make test-maze-verification-gate` is the canonical maze gate and combines the benchmark, live Spin traversal proof, live Chromium/session proof, and native state-concurrency proof.
+- `make test` now includes that canonical maze verification gate and fails on maze path, replay, or host-cost regressions before merge.
 - `make test-maze-live-traversal-contract` proves the live Spin-path maze contract over opaque entry, tokenized traversal, checkpoint acceptance, `issue-links`, and persisted fallback reason/action evidence.
 - `make test-maze-live-browser-contract` proves the live Chromium/session maze contract over JS-enabled checkpoint + hidden-link issuance, JS-disabled bounded fallback, micro-<abbr title="Proof of Work">PoW</abbr> browser progression, replay rejection, and repeated high-confidence escalation to block.
 - `make test-maze-state-concurrency-contract` proves burst/concurrency behavior for maze shared budget, replay, and checkpoint primitives so same-process contention stays bounded.
