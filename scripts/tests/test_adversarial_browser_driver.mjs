@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 
 import {
   applyChallengePuzzleWrongOutput,
+  classifyMazeDocument,
   validateAllowBrowserAllowlistResponse,
 } from "./adversarial_browser_driver.mjs";
 
@@ -130,3 +131,28 @@ function testAllowBrowserAllowlistAcceptsCleanAllowBody() {
 testAllowBrowserAllowlistRejectsVerificationInterstitial();
 testAllowBrowserAllowlistAcceptsGatewayFailClosedFallback();
 testAllowBrowserAllowlistAcceptsCleanAllowBody();
+
+function testClassifyMazeDocumentRecognizesMazePages() {
+  assert.equal(
+    classifyMazeDocument(200, '<html><body><a data-link-kind="maze" href="/_/abc/next">next</a></body></html>'),
+    "maze",
+  );
+}
+
+function testClassifyMazeDocumentRecognizesChallengeFallback() {
+  assert.equal(
+    classifyMazeDocument(200, "<html><body>Verifying<script>document.cookie = 'js_verified=1'</script></body></html>"),
+    "challenge",
+  );
+}
+
+function testClassifyMazeDocumentRecognizesBlockFallback() {
+  assert.equal(
+    classifyMazeDocument(403, "<html><body><h1>Access Blocked</h1></body></html>"),
+    "block",
+  );
+}
+
+testClassifyMazeDocumentRecognizesMazePages();
+testClassifyMazeDocumentRecognizesChallengeFallback();
+testClassifyMazeDocumentRecognizesBlockFallback();

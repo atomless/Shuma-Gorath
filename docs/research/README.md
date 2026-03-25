@@ -112,6 +112,8 @@ The directory is intentionally flat. Use this index, not nested folders, to dist
 - [`2026-03-24-ci-wf-1-node24-action-refresh-post-implementation-review.md`](2026-03-24-ci-wf-1-node24-action-refresh-post-implementation-review.md) - Closeout for moving the workflow pins onto the Node24-backed official action majors and adding a focused repo-local version contract
 - [`2026-03-24-mz-t1-live-maze-spin-integration-review.md`](2026-03-24-mz-t1-live-maze-spin-integration-review.md) - Pre-implementation review for the missing live Spin-path maze proof
 - [`2026-03-24-mz-t1-live-maze-spin-integration-post-implementation-review.md`](2026-03-24-mz-t1-live-maze-spin-integration-post-implementation-review.md) - Closeout for landing the focused live opaque maze traversal gate
+- [`2026-03-24-mz-t2-live-maze-browser-e2e-review.md`](2026-03-24-mz-t2-live-maze-browser-e2e-review.md) - Pre-implementation review for the missing live browser/session maze proof
+- [`2026-03-24-mz-t2-live-maze-browser-e2e-post-implementation-review.md`](2026-03-24-mz-t2-live-maze-browser-e2e-post-implementation-review.md) - Closeout for landing the focused live browser/session maze proof
 - [`2026-03-24-open-backlog-and-plan-reference-stance-alignment-review.md`](2026-03-24-open-backlog-and-plan-reference-stance-alignment-review.md)
 - [`2026-03-24-monitoring-multi-loop-benchmark-progress-review.md`](2026-03-24-monitoring-multi-loop-benchmark-progress-review.md)
 - [`2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-review.md`](2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-review.md)

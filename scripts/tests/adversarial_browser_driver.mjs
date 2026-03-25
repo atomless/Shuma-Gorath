@@ -19,6 +19,8 @@ const ALLOWED_ACTIONS = new Set([
   "geo_block",
   "honeypot_deny_temp",
   "header_spoofing_probe",
+  "maze_live_js_flow",
+  "maze_live_no_js_fallback",
 ]);
 
 const ALLOWED_STORAGE_MODES = new Set([
@@ -167,6 +169,36 @@ function buildWrongChallengeOutput(currentOutput) {
   return `${first}${baseline.slice(1)}`;
 }
 
+export function classifyMazeDocument(status, content) {
+  const normalizedStatus = Number(status || 0);
+  const body = String(content || "");
+  if (
+    normalizedStatus === 403 &&
+    (body.includes("Access Blocked") || body.includes("Access Restricted"))
+  ) {
+    return "block";
+  }
+  if (
+    normalizedStatus === 200 &&
+    (body.includes("document.cookie = 'js_verified=") ||
+      body.includes("Verifying") ||
+      body.includes("proof-of-work"))
+  ) {
+    return "challenge";
+  }
+  if (
+    normalizedStatus === 200 &&
+    (body.includes('data-link-kind="maze"') || body.includes("maze-nav-grid"))
+  ) {
+    return "maze";
+  }
+  return "unknown";
+}
+
+function requestLineageIncludesPath(evidence, targetPath) {
+  return evidence.request_lineage.some((row) => String(row?.path || "") === targetPath);
+}
+
 export function validateAllowBrowserAllowlistResponse(status, content) {
   const normalizedStatus = Number(status || 0);
   const bodyLower = String(content || "").toLowerCase();
@@ -249,6 +281,7 @@ async function runScenario(payload) {
   const userAgent = String(payload.user_agent || "ShumaAdversarial/1.0 browser-driver");
   const timeoutMs = clampInt(payload.timeout_ms, 1000, 60000, 15000);
   const settleMs = clampInt(payload.settle_ms, 0, 5000, 200);
+  const javascriptEnabled = payload.javascript_enabled !== false;
   const storageModeRaw = String(payload.storage_mode || "stateful_cookie_jar");
   const storageMode = ALLOWED_STORAGE_MODES.has(storageModeRaw)
     ? storageModeRaw
@@ -296,6 +329,7 @@ async function runScenario(payload) {
       userAgent,
       extraHTTPHeaders: contextHeaders,
       ignoreHTTPSErrors: true,
+      javaScriptEnabled: javascriptEnabled,
     });
     const page = await context.newPage();
 
@@ -362,9 +396,64 @@ async function runScenario(payload) {
       return { response, content };
     }
 
+    async function navigateAbsolute(targetUrl) {
+      await maybeApplyStoragePolicy();
+      const response = await page.goto(targetUrl, {
+        waitUntil: "domcontentloaded",
+        timeout: timeoutMs,
+      });
+      if (settleMs > 0) {
+        await page.waitForTimeout(settleMs);
+        scriptedDelayMs += settleMs;
+      }
+      const content = await page.content();
+      return { response, content };
+    }
+
     async function countNamedCookies(cookieName) {
       const cookies = await context.cookies(baseUrl);
       return cookies.filter((cookie) => cookie.name === cookieName).length;
+    }
+
+    async function waitForPathChange(previousPath) {
+      await page.waitForFunction(
+        (oldPath) => {
+          try {
+            return window.location.pathname !== oldPath;
+          } catch {
+            return false;
+          }
+        },
+        previousPath,
+        { timeout: timeoutMs },
+      );
+      await page.waitForLoadState("domcontentloaded", { timeout: timeoutMs }).catch(() => null);
+      if (settleMs > 0) {
+        await page.waitForTimeout(settleMs);
+        scriptedDelayMs += settleMs;
+      }
+    }
+
+    async function requireFirstMazeLink(selector = "[data-link-kind='maze']") {
+      const link = page.locator(selector).first();
+      if ((await link.count()) < 1 || !(await link.isVisible())) {
+        throw new Error(`browser_maze_link_missing selector=${selector}`);
+      }
+      const href = String((await link.getAttribute("href")) || "").trim();
+      if (!href) {
+        throw new Error("browser_maze_link_href_missing");
+      }
+      const powDifficultyRaw = String((await link.getAttribute("data-pow-difficulty")) || "").trim();
+      const parsedPowDifficulty = Number.parseInt(powDifficultyRaw, 10);
+      appendDomPath(evidence, "read", selector);
+      return {
+        link,
+        href: new URL(href, `${baseUrl}/`).toString(),
+        powRequired: Number.isFinite(parsedPowDifficulty) && parsedPowDifficulty > 0,
+        powDifficulty: Number.isFinite(parsedPowDifficulty) && parsedPowDifficulty > 0
+          ? parsedPowDifficulty
+          : null,
+      };
     }
 
     async function performHumanLikeCheckboxActivation(checkbox) {
@@ -555,6 +644,161 @@ async function runScenario(payload) {
         }
         appendDomPath(evidence, "read", "body");
         return { observed_outcome: "monitor", detail: "ok" };
+      }
+
+      if (action === "maze_live_js_flow") {
+        const entryPath = normalizePath(String(payload.maze_entry_path || ""));
+        const hiddenLinkMin = clampInt(payload.maze_hidden_link_min, 1, 8, 1);
+        const replayAttempts = clampInt(payload.maze_replay_attempts, 0, 3, 2);
+        const expectPow = Boolean(payload.maze_expect_pow);
+
+        const { response: entryResponse, content: entryContent } = await navigate(entryPath);
+        if (classifyMazeDocument(Number(entryResponse?.status() || 0), entryContent) !== "maze") {
+          throw new Error(
+            `browser_maze_entry_expected status=${Number(entryResponse?.status() || 0)}`,
+          );
+        }
+
+        const firstMazeLink = await requireFirstMazeLink();
+        if (expectPow && !firstMazeLink.powRequired) {
+          throw new Error("browser_maze_expected_pow_link");
+        }
+        evidence.maze_first_link_pow_required = firstMazeLink.powRequired;
+        evidence.maze_first_link_pow_difficulty = firstMazeLink.powDifficulty;
+        evidence.maze_entry_path = entryPath;
+
+        const entryPathname = new URL(page.url()).pathname;
+        await firstMazeLink.link.click();
+        appendDomPath(evidence, "click", "[data-link-kind='maze']");
+        await waitForPathChange(entryPathname);
+
+        const childContent = await page.content();
+        if (classifyMazeDocument(200, childContent) !== "maze") {
+          throw new Error("browser_maze_child_expected");
+        }
+        const bootstrapRaw = await page.locator("#maze-bootstrap").textContent();
+        let bootstrap = {};
+        try {
+          bootstrap = JSON.parse(String(bootstrapRaw || "{}"));
+        } catch (error) {
+          throw new Error(`browser_maze_bootstrap_invalid:${extractErrorMessage(error)}`);
+        }
+        const pathPrefix = String(bootstrap.path_prefix || "").trim();
+        if (!pathPrefix) {
+          throw new Error("browser_maze_path_prefix_missing");
+        }
+        const checkpointPath = `${pathPrefix.replace(/\/$/, "")}/checkpoint`;
+        const issueLinksPath = `${pathPrefix.replace(/\/$/, "")}/issue-links`;
+
+        await page.waitForFunction(
+          (minimum) => document.querySelectorAll("a.hidden-link").length >= minimum,
+          hiddenLinkMin,
+          { timeout: timeoutMs },
+        );
+        const hiddenLinks = page.locator("a.hidden-link");
+        const hiddenCount = await hiddenLinks.count();
+        if (hiddenCount < hiddenLinkMin) {
+          throw new Error(`browser_maze_hidden_links_missing count=${hiddenCount}`);
+        }
+        evidence.maze_hidden_link_count = hiddenCount;
+        evidence.maze_checkpoint_path_seen = requestLineageIncludesPath(evidence, checkpointPath);
+        evidence.maze_issue_links_path_seen = requestLineageIncludesPath(evidence, issueLinksPath);
+        if (!evidence.maze_checkpoint_path_seen) {
+          throw new Error("browser_maze_checkpoint_not_observed");
+        }
+        if (!evidence.maze_issue_links_path_seen) {
+          throw new Error("browser_maze_issue_links_not_observed");
+        }
+
+        const hiddenHref = String((await hiddenLinks.first().getAttribute("href")) || "").trim();
+        if (!hiddenHref) {
+          throw new Error("browser_maze_hidden_href_missing");
+        }
+        appendDomPath(evidence, "read", "a.hidden-link");
+        const hiddenResult = await navigateAbsolute(new URL(hiddenHref, `${baseUrl}/`).toString());
+        if (
+          classifyMazeDocument(Number(hiddenResult.response?.status() || 0), hiddenResult.content) !==
+          "maze"
+        ) {
+          throw new Error("browser_maze_hidden_progress_expected");
+        }
+
+        const replayOutcomes = [];
+        for (let index = 0; index < replayAttempts; index += 1) {
+          const replayResult = await navigateAbsolute(firstMazeLink.href);
+          const status = Number(replayResult.response?.status() || 0);
+          const outcome = classifyMazeDocument(status, replayResult.content);
+          replayOutcomes.push({ status, outcome });
+          if (!["challenge", "block"].includes(outcome)) {
+            throw new Error(`browser_maze_replay_unexpected status=${status} outcome=${outcome}`);
+          }
+          if (outcome === "block") {
+            break;
+          }
+        }
+        evidence.maze_replay_outcomes = replayOutcomes;
+        if (replayAttempts > 0 && !replayOutcomes.some((row) => row.outcome === "block")) {
+          throw new Error("browser_maze_replay_block_missing");
+        }
+        return { observed_outcome: "maze", detail: "ok" };
+      }
+
+      if (action === "maze_live_no_js_fallback") {
+        const entryPath = normalizePath(String(payload.maze_entry_path || ""));
+        const expectedFallback = String(payload.maze_expected_fallback || "challenge").trim();
+        if (!["challenge", "block"].includes(expectedFallback)) {
+          throw new Error(`browser_maze_expected_fallback_invalid:${expectedFallback}`);
+        }
+
+        const { response: entryResponse, content: entryContent } = await navigate(entryPath);
+        if (classifyMazeDocument(Number(entryResponse?.status() || 0), entryContent) !== "maze") {
+          throw new Error(
+            `browser_maze_entry_expected status=${Number(entryResponse?.status() || 0)}`,
+          );
+        }
+        const firstMazeLink = await requireFirstMazeLink();
+        evidence.maze_entry_path = entryPath;
+        const firstResult = await navigateAbsolute(firstMazeLink.href);
+        if (classifyMazeDocument(Number(firstResult.response?.status() || 0), firstResult.content) !== "maze") {
+          throw new Error("browser_maze_first_follow_expected");
+        }
+
+        let childBootstrap = {};
+        try {
+          const childBootstrapRaw = await page.locator("#maze-bootstrap").textContent();
+          childBootstrap = JSON.parse(String(childBootstrapRaw || "{}"));
+        } catch (error) {
+          throw new Error(`browser_maze_bootstrap_invalid:${extractErrorMessage(error)}`);
+        }
+        const pathPrefix = String(childBootstrap.path_prefix || "").trim();
+        if (!pathPrefix) {
+          throw new Error("browser_maze_path_prefix_missing");
+        }
+        const checkpointPath = `${pathPrefix.replace(/\/$/, "")}/checkpoint`;
+        const issueLinksPath = `${pathPrefix.replace(/\/$/, "")}/issue-links`;
+        evidence.maze_checkpoint_path_seen = requestLineageIncludesPath(evidence, checkpointPath);
+        evidence.maze_issue_links_path_seen = requestLineageIncludesPath(evidence, issueLinksPath);
+        if (evidence.maze_checkpoint_path_seen) {
+          throw new Error("browser_maze_no_js_checkpoint_should_not_exist");
+        }
+        if (evidence.maze_issue_links_path_seen) {
+          throw new Error("browser_maze_no_js_issue_links_should_not_exist");
+        }
+
+        const secondMazeLink = await requireFirstMazeLink();
+        const fallbackResult = await navigateAbsolute(secondMazeLink.href);
+        const fallbackStatus = Number(fallbackResult.response?.status() || 0);
+        const fallbackOutcome = classifyMazeDocument(fallbackStatus, fallbackResult.content);
+        evidence.maze_fallback_outcome = fallbackOutcome;
+        if (fallbackOutcome !== expectedFallback) {
+          throw new Error(
+            `browser_maze_fallback_expected expected=${expectedFallback} actual=${fallbackOutcome} status=${fallbackStatus}`,
+          );
+        }
+        return {
+          observed_outcome: expectedFallback,
+          detail: "ok",
+        };
       }
 
       throw new Error(`browser_driver_unhandled_action:${action}`);

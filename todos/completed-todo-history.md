@@ -4,6 +4,34 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### MZ-T2: live browser/session maze coverage
+
+- [x] Added the focused live Chromium/session maze gate in:
+  - [`Makefile`](../Makefile) as `make test-maze-live-browser-unit` and `make test-maze-live-browser-contract`
+  - [`scripts/tests/maze_live_browser.py`](../scripts/tests/maze_live_browser.py)
+  - [`scripts/tests/test_maze_live_browser.py`](../scripts/tests/test_maze_live_browser.py)
+  - [`scripts/tests/adversarial_browser_driver.mjs`](../scripts/tests/adversarial_browser_driver.mjs)
+  - [`scripts/tests/test_adversarial_browser_driver.mjs`](../scripts/tests/test_adversarial_browser_driver.mjs)
+- [x] Proved the live browser/session path for:
+  - JS-enabled checkpoint submission and hidden-link issuance,
+  - progression through an issued hidden link,
+  - replay rejection with persisted `maze_token_replay action=block`,
+  - JS-disabled bounded fallback with persisted `maze_checkpoint_missing action=challenge`,
+  - browser-managed deep-tier micro-PoW traversal,
+  - repeated checkpoint-missing escalation to persisted `maze_checkpoint_missing action=block`.
+- [x] Updated docs in:
+  - [`docs/maze.md`](../docs/maze.md)
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+- [x] Added the tranche paper trail in:
+  - [`docs/research/2026-03-24-mz-t2-live-maze-browser-e2e-review.md`](../docs/research/2026-03-24-mz-t2-live-maze-browser-e2e-review.md)
+  - [`docs/plans/2026-03-24-mz-t2-live-maze-browser-e2e-plan.md`](../docs/plans/2026-03-24-mz-t2-live-maze-browser-e2e-plan.md)
+  - [`docs/research/2026-03-24-mz-t2-live-maze-browser-e2e-post-implementation-review.md`](../docs/research/2026-03-24-mz-t2-live-maze-browser-e2e-post-implementation-review.md)
+- [x] Evidence:
+  - `make test-maze-live-browser-unit`
+  - `make test-maze-live-browser-contract`
+  - `git diff --check`
+
 ### MZ-T1: live Spin-path maze traversal coverage
 
 - [x] Added the focused live opaque maze traversal gate in:

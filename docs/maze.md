@@ -206,6 +206,7 @@ Preview safety guarantees:
 - `make test-maze-benchmark` runs deterministic asymmetry guardrails and prints benchmark deltas (`avg_page_bytes`, `host_set_ops`, `attacker_requests`, `attacker_pow_iterations`).
 - `make test` now includes this benchmark gate and fails on host-cost or asymmetry regressions.
 - `make test-maze-live-traversal-contract` proves the live Spin-path maze contract over opaque entry, tokenized traversal, checkpoint acceptance, `issue-links`, and persisted fallback reason/action evidence.
+- `make test-maze-live-browser-contract` proves the live Chromium/session maze contract over JS-enabled checkpoint + hidden-link issuance, JS-disabled bounded fallback, micro-<abbr title="Proof of Work">PoW</abbr> browser progression, replay rejection, and repeated high-confidence escalation to block.
 
 ## 🐙 Notes
 
