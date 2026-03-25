@@ -4,6 +4,34 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### CI-WF-1: Node24-backed GitHub Action refresh
+
+- [x] Refreshed the workflow pins in:
+  - [`/.github/workflows/ci.yml`](../.github/workflows/ci.yml)
+  - [`/.github/workflows/release-gate.yml`](../.github/workflows/release-gate.yml)
+  - [`/.github/workflows/dashboard-e2e.yml`](../.github/workflows/dashboard-e2e.yml)
+  - [`/.github/workflows/coverage.yml`](../.github/workflows/coverage.yml)
+  - [`/.github/workflows/adversarial-soak.yml`](../.github/workflows/adversarial-soak.yml)
+  - [`/.github/workflows/codeql.yml`](../.github/workflows/codeql.yml)
+  so the repo no longer pins the older Node20-backed majors for:
+  - `actions/checkout`
+  - `actions/setup-node`
+  - `actions/upload-artifact`
+- [x] Added the focused repo-local workflow-version proof in:
+  - [`scripts/tests/test_ci_workflow_action_versions.py`](../scripts/tests/test_ci_workflow_action_versions.py)
+  - [`Makefile`](../Makefile)
+  as `make test-ci-workflow-action-versions`, so drift back to the older action majors now fails fast locally.
+- [x] Updated the testing guide in [`docs/testing.md`](../docs/testing.md) so the workflow-version proof path is documented and discoverable.
+- [x] Added the closeout review in:
+  - [`docs/research/2026-03-24-ci-wf-1-node24-action-refresh-post-implementation-review.md`](../docs/research/2026-03-24-ci-wf-1-node24-action-refresh-post-implementation-review.md)
+  and refreshed:
+  - [`docs/research/README.md`](../docs/research/README.md)
+- [x] Why:
+  - the active backlog explicitly called out the older Node20-backed official action majors as maintenance debt ahead of the hosted-runner cutoff, and the repo still pinned them in every main workflow family
+- [x] Evidence:
+  - `make test-ci-workflow-action-versions`
+  - `git diff --check`
+
 ### TEST-ENV-1: Rust test env-isolation enforcement
 
 - [x] Added the focused repo-wide env-isolation contract in:

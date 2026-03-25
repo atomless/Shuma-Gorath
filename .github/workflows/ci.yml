@@ -38,7 +38,7 @@ jobs:
       SHUMA_FRONTIER_XAI_MODEL: ${{ vars.SHUMA_FRONTIER_XAI_MODEL }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Verify governance docs exist
         run: |
@@ -49,7 +49,7 @@ jobs:
           test -f .github/pull_request_template.md
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "22"
 
@@ -130,7 +130,7 @@ jobs:
 
       - name: Upload adversarial artifacts (always)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: adversarial-artifacts
           path: |
@@ -151,7 +151,7 @@ jobs:
 
       - name: Upload Spin logs (on failure)
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: spin-log
           path: /tmp/spin.log
