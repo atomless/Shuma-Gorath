@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::config::{AllowedActionsSurface, Config};
+use crate::config::{
+    next_numeric_constraint_value, AllowedActionStepDirection, AllowedActionsSurface, Config,
+};
 use crate::observability::replay_promotion::ReplayPromotionSummary;
 
 pub(crate) const OVERSIGHT_VERIFICATION_WATCH_LIVE_BUDGET_WINDOW: &str =
@@ -41,6 +43,7 @@ pub(crate) fn propose_patch(
     cfg: &Config,
     allowed_actions: &AllowedActionsSurface,
     candidate_families: &[String],
+    recommended_action_family: Option<&str>,
     pressure: OversightPressure,
     replay_promotion: &ReplayPromotionSummary,
 ) -> Result<OversightPatchProposal, OversightPatchPolicyError> {
@@ -48,34 +51,25 @@ pub(crate) fn propose_patch(
         return Err(OversightPatchPolicyError::NoCandidateFamily);
     }
 
-    let priority = match pressure {
-        OversightPressure::ReduceLikelyHumanFriction => &[
-            "proof_of_work",
-            "botness",
-            "challenge",
-            "not_a_bot",
-            "maze_core",
-            "core_policy",
-        ][..],
-        OversightPressure::ReduceSuspiciousOriginCost => &[
-            "fingerprint_signal",
-            "cdp_detection",
-            "proof_of_work",
-            "botness",
-            "challenge",
-            "not_a_bot",
-            "maze_core",
-            "core_policy",
-        ][..],
-    };
-
-    for family in priority {
-        if !candidate_families.iter().any(|candidate| candidate == family) {
-            continue;
+    let mut selection_order = Vec::new();
+    if let Some(recommended_action_family) = recommended_action_family {
+        if candidate_families
+            .iter()
+            .any(|candidate| candidate == recommended_action_family)
+        {
+            selection_order.push(recommended_action_family.to_string());
         }
+    }
+    for family in candidate_families {
+        if !selection_order.iter().any(|candidate| candidate == family) {
+            selection_order.push(family.clone());
+        }
+    }
+
+    for family in &selection_order {
         if !family_is_proposable(allowed_actions, family) {
             return Err(OversightPatchPolicyError::UnsupportedCandidateFamily(
-                (*family).to_string(),
+                family.to_string(),
             ));
         }
         if let Some(patch) = family_patch(cfg, allowed_actions, family, pressure) {
@@ -215,11 +209,11 @@ fn family_patch(
             .js_required_enforced)
             .then(|| json!({ "js_required_enforced": true })),
         ("proof_of_work", OversightPressure::ReduceLikelyHumanFriction) => {
-            step_numeric_path(
+            next_numeric_constraint_value(
                 allowed_actions,
                 "pow_difficulty",
                 cfg.pow_difficulty as u64,
-                StepDirection::Down,
+                AllowedActionStepDirection::Down,
             )
             .map(|value| json!({ "pow_difficulty": value }))
         }
@@ -227,11 +221,11 @@ fn family_patch(
             if !cfg.pow_enabled {
                 Some(json!({ "pow_enabled": true }))
             } else {
-                step_numeric_path(
+                next_numeric_constraint_value(
                     allowed_actions,
                     "pow_difficulty",
                     cfg.pow_difficulty as u64,
-                    StepDirection::Up,
+                    AllowedActionStepDirection::Up,
                 )
                 .map(|value| json!({ "pow_difficulty": value }))
             }
@@ -248,20 +242,20 @@ fn family_patch(
             }
         }
         ("botness", OversightPressure::ReduceLikelyHumanFriction) => {
-            step_numeric_path(
+            next_numeric_constraint_value(
                 allowed_actions,
                 "challenge_puzzle_risk_threshold",
                 cfg.challenge_puzzle_risk_threshold as u64,
-                StepDirection::Up,
+                AllowedActionStepDirection::Up,
             )
             .map(|value| json!({ "challenge_puzzle_risk_threshold": value }))
         }
         ("botness", OversightPressure::ReduceSuspiciousOriginCost) => {
-            step_numeric_path(
+            next_numeric_constraint_value(
                 allowed_actions,
                 "challenge_puzzle_risk_threshold",
                 cfg.challenge_puzzle_risk_threshold as u64,
-                StepDirection::Down,
+                AllowedActionStepDirection::Down,
             )
             .filter(|value| *value > cfg.not_a_bot_risk_threshold as u64)
             .map(|value| json!({ "challenge_puzzle_risk_threshold": value }))
@@ -271,11 +265,11 @@ fn family_patch(
                 .challenge_puzzle_risk_threshold
                 .saturating_sub(1)
                 .max(cfg.not_a_bot_risk_threshold);
-            step_numeric_path(
+            next_numeric_constraint_value(
                 allowed_actions,
                 "not_a_bot_risk_threshold",
                 cfg.not_a_bot_risk_threshold as u64,
-                StepDirection::Up,
+                AllowedActionStepDirection::Up,
             )
             .filter(|value| *value <= upper_bound as u64)
             .map(|value| json!({ "not_a_bot_risk_threshold": value }))
@@ -284,11 +278,11 @@ fn family_patch(
             if !cfg.not_a_bot_enabled {
                 Some(json!({ "not_a_bot_enabled": true }))
             } else {
-                step_numeric_path(
+                next_numeric_constraint_value(
                     allowed_actions,
                     "not_a_bot_risk_threshold",
                     cfg.not_a_bot_risk_threshold as u64,
-                    StepDirection::Down,
+                    AllowedActionStepDirection::Down,
                 )
                 .map(|value| json!({ "not_a_bot_risk_threshold": value }))
             }
@@ -390,38 +384,6 @@ fn dominant_group_value(
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum StepDirection {
-    Down,
-    Up,
-}
-
-fn step_numeric_path(
-    allowed_actions: &AllowedActionsSurface,
-    path: &str,
-    current: u64,
-    direction: StepDirection,
-) -> Option<u64> {
-    let constraint = allowed_actions
-        .groups
-        .iter()
-        .flat_map(|group| group.value_constraints.iter())
-        .find(|constraint| constraint.path == path)?;
-    let min = constraint
-        .min_inclusive
-        .map(|value| value.max(0.0) as u64)
-        .unwrap_or(0);
-    let max = constraint
-        .max_inclusive
-        .map(|value| value.max(0.0) as u64)
-        .unwrap_or(current);
-    match direction {
-        StepDirection::Down if current > min => Some(current.saturating_sub(1).max(min)),
-        StepDirection::Up if current < max => Some(current.saturating_add(1).min(max)),
-        _ => None,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::{
@@ -433,7 +395,7 @@ mod tests {
     use crate::observability::replay_promotion::ReplayPromotionSummary;
 
     #[test]
-    fn suspicious_cost_policy_prefers_low_friction_signal_families_first() {
+    fn suspicious_cost_policy_prefers_recommended_family_from_guidance() {
         let mut cfg = defaults().clone();
         cfg.fingerprint_signal_enabled = false;
         cfg.pow_enabled = true;
@@ -443,6 +405,7 @@ mod tests {
             &cfg,
             &allowed_actions_v1(),
             &["proof_of_work".to_string(), "fingerprint_signal".to_string()],
+            Some("fingerprint_signal"),
             OversightPressure::ReduceSuspiciousOriginCost,
             &ReplayPromotionSummary::not_materialized(),
         )
@@ -462,6 +425,7 @@ mod tests {
             &cfg,
             &allowed_actions_v1(),
             &["not_a_bot".to_string()],
+            Some("not_a_bot"),
             OversightPressure::ReduceLikelyHumanFriction,
             &ReplayPromotionSummary::not_materialized(),
         )
@@ -481,6 +445,7 @@ mod tests {
             &cfg,
             &allowed_actions_v1(),
             &["botness".to_string()],
+            Some("botness"),
             OversightPressure::ReduceLikelyHumanFriction,
             &ReplayPromotionSummary::not_materialized(),
         )
@@ -501,6 +466,7 @@ mod tests {
             &cfg,
             &allowed_actions_v1(),
             &["fingerprint_signal".to_string()],
+            Some("fingerprint_signal"),
             OversightPressure::ReduceSuspiciousOriginCost,
             &replay,
         )
@@ -520,6 +486,7 @@ mod tests {
             &cfg,
             &allowed_actions_v1(),
             &["fingerprint_signal".to_string()],
+            Some("fingerprint_signal"),
             OversightPressure::ReduceSuspiciousOriginCost,
             &ReplayPromotionSummary::not_materialized(),
         )
@@ -539,6 +506,7 @@ mod tests {
             &cfg,
             &allowed_actions_v1(),
             &["proof_of_work".to_string()],
+            Some("proof_of_work"),
             OversightPressure::ReduceLikelyHumanFriction,
             &ReplayPromotionSummary::not_materialized(),
         )

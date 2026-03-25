@@ -4,6 +4,47 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### RSI-GAME-1B: Canonical shortfall-attribution and move-selection policy
+
+- [x] Replaced the coarse benchmark-family bridge with explicit benchmark-side shortfall guidance in:
+  - [`src/observability/benchmark_results.rs`](../src/observability/benchmark_results.rs)
+  - [`src/observability/benchmark_results_comparison.rs`](../src/observability/benchmark_results_comparison.rs)
+  so `benchmark_results_v1.escalation_hint` now carries:
+  - problem class
+  - guidance status
+  - tractability
+  - trigger metrics
+  - ordered legal candidate families
+  - optional recommended family
+  - bounded per-shortfall guidance rows
+- [x] Removed the hidden patch-family priority stack from the bounded proposer in:
+  - [`src/admin/oversight_patch_policy.rs`](../src/admin/oversight_patch_policy.rs)
+  so patch shaping now follows benchmark-side family ordering and recommended-family guidance instead of keeping a second private selection policy.
+- [x] Threaded the explicit shortfall guidance through reconcile and shared helpers in:
+  - [`src/admin/oversight_reconcile.rs`](../src/admin/oversight_reconcile.rs)
+  - [`src/config/controller_action_surface.rs`](../src/config/controller_action_surface.rs)
+  - [`src/config/mod.rs`](../src/config/mod.rs)
+  - [`src/observability/benchmark_comparison.rs`](../src/observability/benchmark_comparison.rs)
+  so reconcile now consumes the explicit problem class and recommended family, and both benchmark and proposer logic reuse the same bounded numeric-step helper.
+- [x] Added focused proof and updated the paper trail in:
+  - [`Makefile`](../Makefile)
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`docs/api.md`](../docs/api.md)
+  - [`docs/configuration.md`](../docs/configuration.md)
+  - [`docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md`](../docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md)
+  - [`docs/research/2026-03-24-rsi-game-1b-shortfall-attribution-and-move-selection-post-implementation-review.md`](../docs/research/2026-03-24-rsi-game-1b-shortfall-attribution-and-move-selection-post-implementation-review.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+- [x] Why:
+  - the repo already had bounded moves and benchmarks,
+  - but the bridge between them was still too coarse and partly duplicated,
+  - and later recursive-improvement phases needed one reviewable answer to how misses become bounded config guidance versus code-gap escalation.
+- [x] Evidence:
+  - `make test-oversight-move-selection-policy`
+  - `make test-oversight-reconcile`
+  - `make test-controller-action-surface-parity`
+  - `git diff --check`
+
 ### RSI-GAME-1A: Canonical recursive-improvement game contract
 
 - [x] Added an explicit `game_contract_v1` layer in:

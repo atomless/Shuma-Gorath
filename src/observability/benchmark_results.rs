@@ -83,13 +83,39 @@ pub(crate) struct BenchmarkFamilyResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct BenchmarkShortfallGuidance {
+    pub family_id: String,
+    pub problem_class: String,
+    pub guidance_status: String,
+    pub tractability: String,
+    pub trigger_metric_ids: Vec<String>,
+    pub eligible_action_families: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recommended_action_family: Option<String>,
+    pub expected_change_direction: String,
+    pub human_friction_risk: String,
+    pub tolerated_traffic_risk: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub blockers: Vec<String>,
+    pub note: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub(crate) struct BenchmarkEscalationHint {
     pub availability: String,
     pub decision: String,
     pub review_status: String,
+    pub problem_class: String,
+    pub guidance_status: String,
+    pub tractability: String,
     pub trigger_family_ids: Vec<String>,
+    pub trigger_metric_ids: Vec<String>,
     pub candidate_action_families: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recommended_action_family: Option<String>,
     pub blockers: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub shortfall_guidance: Vec<BenchmarkShortfallGuidance>,
     pub note: String,
 }
 
@@ -167,15 +193,23 @@ pub(crate) fn build_benchmark_results_from_snapshot_sections(
     );
     let tuning_eligibility =
         tuning_eligibility(non_human_traffic, replay_promotion, &verified_identity, families.as_slice());
-    let derived_escalation_hint = derive_escalation_hint(allowed_actions, families.as_slice());
+    let derived_escalation_hint = derive_escalation_hint(cfg, allowed_actions, families.as_slice());
     let escalation_hint = if tuning_eligibility.status != "eligible" {
         BenchmarkEscalationHint {
             availability: derived_escalation_hint.availability.clone(),
             decision: "observe_longer".to_string(),
             review_status: "manual_review_required".to_string(),
+            problem_class: derived_escalation_hint.problem_class.clone(),
+            guidance_status: "insufficient_evidence".to_string(),
+            tractability: "observe_only".to_string(),
             trigger_family_ids: derived_escalation_hint.trigger_family_ids.clone(),
+            trigger_metric_ids: derived_escalation_hint.trigger_metric_ids.clone(),
             candidate_action_families: Vec::new(),
+            recommended_action_family: derived_escalation_hint
+                .recommended_action_family
+                .clone(),
             blockers: tuning_eligibility.blockers.clone(),
+            shortfall_guidance: derived_escalation_hint.shortfall_guidance.clone(),
             note: "Current benchmark pressure cannot justify tuning because category-aware protected evidence is not yet eligible for controller-grade judgment."
                 .to_string(),
         }
@@ -618,7 +652,11 @@ mod tests {
             }],
         }];
 
-        let hint = derive_escalation_hint(&snapshot.allowed_actions, families.as_slice());
+        let hint = derive_escalation_hint(
+            &crate::config::defaults(),
+            &snapshot.allowed_actions,
+            families.as_slice(),
+        );
         assert_eq!(hint.decision, "code_evolution_candidate");
         assert_eq!(hint.review_status, "manual_review_required");
         assert!(hint

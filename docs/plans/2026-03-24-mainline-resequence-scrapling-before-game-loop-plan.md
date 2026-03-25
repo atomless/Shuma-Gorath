@@ -108,10 +108,8 @@ Dashboard/operator-surface cleanup can wait because it does not change the truth
 
 With `SIM-SCR-GEO-1` landed, the immediate execution order is now:
 
-1. `RSI-GAME-1A`
-2. `RSI-GAME-1B`
-3. `RSI-SCORE-1`
-4. `RSI-GAME-1C`
-5. `RSI-GAME-MAINLINE-1`
+1. `RSI-SCORE-1`
+2. `RSI-GAME-1C`
+3. `RSI-GAME-MAINLINE-1`
 
 `SIM-SCR-CHALLENGE-2C` is no longer an active queue item. It remains a conditional blocked follow-on only if future owned-surface receipts prove that request-native Scrapling plus public-network identity diversity are still insufficient for a Scrapling-owned surface.

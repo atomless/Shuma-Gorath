@@ -11,6 +11,12 @@ use std::collections::{BTreeMap, BTreeSet};
 pub(crate) const ALLOWED_ACTIONS_SCHEMA_VERSION: &str = "allowed_actions_v1";
 pub(crate) const CONTROLLER_MUTABILITY_SCHEMA_VERSION: &str = "controller_mutability_v1";
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum AllowedActionStepDirection {
+    Down,
+    Up,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub(crate) struct ControllerMutabilityPath {
     pub path: String,
@@ -230,6 +236,36 @@ pub(crate) fn controller_action_family_targets(family: &str) -> Vec<String> {
         }
     }
     targets.into_keys().collect()
+}
+
+pub(crate) fn next_numeric_constraint_value(
+    allowed_actions: &AllowedActionsSurface,
+    path: &str,
+    current: u64,
+    direction: AllowedActionStepDirection,
+) -> Option<u64> {
+    let constraint = allowed_actions
+        .groups
+        .iter()
+        .flat_map(|group| group.value_constraints.iter())
+        .find(|constraint| constraint.path == path)?;
+    let min = constraint
+        .min_inclusive
+        .map(|value| value.max(0.0) as u64)
+        .unwrap_or(0);
+    let max = constraint
+        .max_inclusive
+        .map(|value| value.max(0.0) as u64)
+        .unwrap_or(current);
+    match direction {
+        AllowedActionStepDirection::Down if current > min => {
+            Some(current.saturating_sub(1).max(min))
+        }
+        AllowedActionStepDirection::Up if current < max => {
+            Some(current.saturating_add(1).min(max))
+        }
+        _ => None,
+    }
 }
 
 pub(crate) fn allowed_actions_v1() -> AllowedActionsSurface {

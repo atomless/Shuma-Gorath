@@ -368,6 +368,7 @@ Recursive-improvement game-contract note:
 - `game_contract_v1.fixed_payoffs` freezes the machine-first benchmark stack as the independent judge.
 - `game_contract_v1.legal_moves` freezes `allowed_actions_v1` plus the controller mutability schema as the legal move ring.
 - `game_contract_v1.safety_gates` and `game_contract_v1.regression_anchors` make the fail-closed and no-harm boundaries explicit so later recursive phases do not infer them ad hoc from scattered modules.
+- `benchmark_results_v1.escalation_hint` is now the canonical shortfall-to-move bridge for the current bounded loop. It must carry the problem class, guidance status (`exact_move_guidance`, `bounded_heuristic_guidance`, `insufficient_evidence`, or `code_evolution_only`), tractability, trigger metrics, ordered legal candidate families, optional recommended family, and bounded per-shortfall guidance rows rather than collapsing benchmark misses straight into a hidden proposer priority stack.
 
 Operator-objectives contract notes:
 - `operator_objectives_v1` is not part of `POST /admin/config`. It has its own primary-state endpoint at `GET` and `POST /admin/operator-objectives`.

@@ -102,11 +102,15 @@ pub(crate) fn reconcile(
         );
     }
 
-    let pressure = primary_pressure(snapshot).unwrap_or(OversightPressure::ReduceSuspiciousOriginCost);
+    let pressure = benchmark_problem_class_pressure(benchmark.escalation_hint.problem_class.as_str())
+        .unwrap_or_else(|| {
+            primary_pressure(snapshot).unwrap_or(OversightPressure::ReduceSuspiciousOriginCost)
+        });
     let proposal = match propose_patch(
         cfg,
         &snapshot.allowed_actions,
         benchmark.escalation_hint.candidate_action_families.as_slice(),
+        benchmark.escalation_hint.recommended_action_family.as_deref(),
         pressure,
         &snapshot.replay_promotion,
     ) {
@@ -274,6 +278,14 @@ fn primary_pressure(snapshot: &OperatorSnapshotHotReadPayload) -> Option<Oversig
     }
 }
 
+fn benchmark_problem_class_pressure(problem_class: &str) -> Option<OversightPressure> {
+    match problem_class {
+        "likely_human_friction_overspend" => Some(OversightPressure::ReduceLikelyHumanFriction),
+        "suspicious_origin_cost_overspend" => Some(OversightPressure::ReduceSuspiciousOriginCost),
+        _ => None,
+    }
+}
+
 fn budget_row_status<'a>(rows: &'a [OperatorBudgetDistanceRow], metric: &str) -> Option<&'a str> {
     rows.iter()
         .find(|row| row.metric == metric)
@@ -327,7 +339,8 @@ mod tests {
     use crate::config::{allowed_actions_v1, defaults};
     use crate::observability::benchmark_results::{
         BenchmarkBaselineReference, BenchmarkEscalationHint, BenchmarkFamilyResult,
-        BenchmarkMetricResult, BenchmarkResultsPayload, BenchmarkTuningEligibility,
+        BenchmarkMetricResult, BenchmarkResultsPayload, BenchmarkShortfallGuidance,
+        BenchmarkTuningEligibility,
         BENCHMARK_RESULTS_SCHEMA_VERSION,
     };
     use crate::observability::benchmark_suite::BENCHMARK_SUITE_SCHEMA_VERSION;
@@ -431,9 +444,32 @@ mod tests {
                 availability: "partial_support".to_string(),
                 decision: "config_tuning_candidate".to_string(),
                 review_status: "manual_review_required".to_string(),
+                problem_class: "suspicious_origin_cost_overspend".to_string(),
+                guidance_status: "exact_move_guidance".to_string(),
+                tractability: "exact_config_move".to_string(),
                 trigger_family_ids: vec!["suspicious_origin_cost".to_string()],
+                trigger_metric_ids: vec!["suspicious_forwarded_request_rate".to_string()],
                 candidate_action_families: vec!["fingerprint_signal".to_string()],
+                recommended_action_family: Some("fingerprint_signal".to_string()),
                 blockers: Vec::new(),
+                shortfall_guidance: vec![BenchmarkShortfallGuidance {
+                    family_id: "suspicious_origin_cost".to_string(),
+                    problem_class: "suspicious_origin_cost_overspend".to_string(),
+                    guidance_status: "exact_move_guidance".to_string(),
+                    tractability: "exact_config_move".to_string(),
+                    trigger_metric_ids: vec!["suspicious_forwarded_request_rate".to_string()],
+                    eligible_action_families: vec![
+                        "fingerprint_signal".to_string(),
+                        "cdp_detection".to_string(),
+                        "proof_of_work".to_string(),
+                    ],
+                    recommended_action_family: Some("fingerprint_signal".to_string()),
+                    expected_change_direction: "tighten".to_string(),
+                    human_friction_risk: "low".to_string(),
+                    tolerated_traffic_risk: "medium".to_string(),
+                    blockers: Vec::new(),
+                    note: "Test guidance.".to_string(),
+                }],
                 note: "Config tuning candidate.".to_string(),
             },
             replay_promotion: ReplayPromotionSummary::not_materialized(),
@@ -613,6 +649,33 @@ mod tests {
             "fingerprint_signal"
         );
         assert_eq!(latest_recent_sim_run_id(&snapshot).as_deref(), Some("simrun-001"));
+    }
+
+    #[test]
+    fn reconcile_prefers_recommended_family_from_benchmark_guidance() {
+        let mut cfg = defaults().clone();
+        cfg.fingerprint_signal_enabled = false;
+        cfg.pow_enabled = true;
+        cfg.pow_difficulty = 15;
+        let mut snapshot = sample_snapshot();
+        snapshot.benchmark_results.escalation_hint.candidate_action_families = vec![
+            "proof_of_work".to_string(),
+            "fingerprint_signal".to_string(),
+        ];
+        snapshot.benchmark_results.escalation_hint.recommended_action_family =
+            Some("fingerprint_signal".to_string());
+
+        let result = reconcile(&cfg, &snapshot, "manual_admin");
+
+        assert_eq!(reconcile_outcome(&result), "recommend_patch");
+        assert_eq!(
+            result
+                .proposal
+                .as_ref()
+                .expect("proposal present")
+                .patch_family,
+            "fingerprint_signal"
+        );
     }
 
     #[test]
