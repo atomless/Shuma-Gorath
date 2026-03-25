@@ -576,6 +576,17 @@ pub(crate) fn default_operator_objectives(updated_at_ts: u64) -> OperatorObjecti
     }
 }
 
+#[cfg(test)]
+pub(crate) fn human_only_private_operator_objectives(
+    updated_at_ts: u64,
+) -> OperatorObjectivesProfile {
+    let mut profile = default_operator_objectives(updated_at_ts);
+    profile.profile_id = "human_only_private".to_string();
+    profile.source = "strict_reference_profile".to_string();
+    profile.category_postures = strict_block_all_category_postures();
+    profile
+}
+
 pub(crate) fn persisted_operator_objectives_from_request(
     request: OperatorObjectivesUpsertRequest,
     updated_at_ts: u64,

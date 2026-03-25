@@ -4,6 +4,31 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-25)
 
+### `RSI-GAME-HO-1A` Human-Only Private Loop Baseline
+
+- [x] Rebased the first-working-loop proof onto the strict `human_only_private` baseline in:
+  - [`src/test_support.rs`](../src/test_support.rs)
+  - [`src/admin/api.rs`](../src/admin/api.rs)
+  so the route-level canary -> judged archive proof no longer silently inherits `balanced_default` and now asserts both the active preset and resolved verified-identity denial mode from `operator_snapshot_v1`.
+- [x] Tightened the shared-host verifier contract in:
+  - [`scripts/tests/live_feedback_loop_remote.py`](../scripts/tests/live_feedback_loop_remote.py)
+  - [`scripts/tests/test_live_feedback_loop_remote.py`](../scripts/tests/test_live_feedback_loop_remote.py)
+  so local and live feedback-loop proof now fail closed unless the operator snapshot exposes `human_only_private` for both the preset catalog and effective policy, with `verified_identities_denied` still active under that strict stance.
+- [x] Recorded the tranche in:
+  - [`docs/research/2026-03-25-rsi-game-ho-1a-human-only-private-loop-readiness-review.md`](../docs/research/2026-03-25-rsi-game-ho-1a-human-only-private-loop-readiness-review.md)
+  - [`docs/plans/2026-03-25-rsi-game-ho-1a-human-only-private-loop-plan.md`](../docs/plans/2026-03-25-rsi-game-ho-1a-human-only-private-loop-plan.md)
+  - [`docs/research/2026-03-25-rsi-game-ho-1a-human-only-private-loop-post-implementation-review.md`](../docs/research/2026-03-25-rsi-game-ho-1a-human-only-private-loop-post-implementation-review.md)
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`docs/plans/README.md`](../docs/plans/README.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  so `RSI-GAME-HO-1B` is now the clear next strict-baseline tranche.
+- [x] Evidence:
+  - `make test-rsi-game-mainline`
+  - `make test-live-feedback-loop-remote-unit`
+  - `make test-live-feedback-loop-remote-contracts`
+  - `git diff --check`
+
 ### `SIM-SCR-FULL-1C` Receipt Proof
 
 - [x] Closed the remaining full-power Scrapling proof gap in:

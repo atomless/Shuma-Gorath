@@ -237,9 +237,12 @@ pub(crate) fn seed_candidate_snapshot<S: crate::challenge::KeyValueStore>(
         .expect("snapshot seed");
 }
 
-pub(crate) fn seed_canary_only_objectives<S: crate::challenge::KeyValueStore>(store: &S) {
+#[cfg(test)]
+pub(crate) fn seed_canary_only_human_only_private_objectives<S: crate::challenge::KeyValueStore>(
+    store: &S,
+) {
     let mut profile =
-        crate::observability::operator_snapshot_objectives::default_operator_objectives(
+        crate::observability::operator_snapshot_objectives::human_only_private_operator_objectives(
             1_700_000_100,
         );
     profile.window_hours = 1;

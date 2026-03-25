@@ -6075,11 +6075,37 @@ mod admin_config_tests {
         std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
 
         let store = TestStore::default();
-        crate::test_support::seed_canary_only_objectives(&store);
+        crate::test_support::seed_canary_only_human_only_private_objectives(&store);
 
         let mut cfg = crate::config::defaults().clone();
         cfg.fingerprint_signal_enabled = false;
         crate::test_support::seed_apply_ready_snapshot(&store, cfg);
+
+        let snapshot_req = Request::builder()
+            .method(Method::Get)
+            .uri("/admin/operator-snapshot")
+            .header("host", "localhost:3000")
+            .header("authorization", "Bearer oversight-game-loop-test-key")
+            .header("origin", "http://localhost:3000")
+            .header("sec-fetch-site", "same-origin")
+            .body(Vec::new())
+            .build();
+        let snapshot_resp = handle_admin_operator_snapshot(&snapshot_req, &store);
+        assert_eq!(*snapshot_resp.status(), 200u16);
+        let snapshot_json: serde_json::Value =
+            serde_json::from_slice(snapshot_resp.body()).expect("snapshot decodes");
+        assert_eq!(
+            snapshot_json["non_human_stance_presets"]["active_preset_id"].as_str(),
+            Some("human_only_private")
+        );
+        assert_eq!(
+            snapshot_json["effective_non_human_policy"]["active_preset_id"].as_str(),
+            Some("human_only_private")
+        );
+        assert_eq!(
+            snapshot_json["effective_non_human_policy"]["verified_identity_mode"].as_str(),
+            Some("verified_identities_denied")
+        );
 
         let post_sim_req = make_internal_oversight_request(
             "oversight-game-loop-test-key",

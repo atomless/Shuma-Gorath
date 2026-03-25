@@ -145,9 +145,10 @@ Current stance:
   - Reference context:
     - [`docs/research/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-review.md`](../docs/research/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-review.md)
     - [`docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](../docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)
+    - [`docs/research/2026-03-25-rsi-game-ho-1a-human-only-private-loop-readiness-review.md`](../docs/research/2026-03-25-rsi-game-ho-1a-human-only-private-loop-readiness-review.md)
+    - [`docs/plans/2026-03-25-rsi-game-ho-1a-human-only-private-loop-plan.md`](../docs/plans/2026-03-25-rsi-game-ho-1a-human-only-private-loop-plan.md)
     - [`docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](../docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md)
     - [`docs/plans/2026-03-24-rsi-game-mainline-first-working-loop-plan.md`](../docs/plans/2026-03-24-rsi-game-mainline-first-working-loop-plan.md)
-  - [ ] RSI-GAME-HO-1A Run the existing machine-first loop against the corrected `human_only_private` stance with verified non-human traffic still denied under that strict baseline.
   - [ ] RSI-GAME-HO-1B Repeat Scrapling-driven cycles until recommendations become bounded config changes, later runs occur against those changed configs, and watch windows judge retain or rollback truthfully many times rather than once.
   - [ ] RSI-GAME-HO-1C Define and satisfy the unlock condition showing retained config changes and measured improvement toward the strict target, not merely one successful end-to-end cycle.
 

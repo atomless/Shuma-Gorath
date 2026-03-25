@@ -283,6 +283,13 @@ class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemo
         if path == "/admin/operator-snapshot":
             return {
                 "schema_version": "operator_snapshot_v1",
+                "non_human_stance_presets": {
+                    "active_preset_id": "human_only_private",
+                },
+                "effective_non_human_policy": {
+                    "active_preset_id": "human_only_private",
+                    "verified_identity_mode": "verified_identities_denied",
+                },
                 "benchmark_results": {"overall_status": "healthy"},
             }
         if path == "/admin/events?hours=2&limit=200":
@@ -380,6 +387,17 @@ class LiveFeedbackLoopRemoteBehaviorTests(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         report = json.loads(runner.report_path.read_text(encoding="utf-8"))
         self.assertEqual(report["result"], "pass")
+        self.assertEqual(
+            report["operator_snapshot"]["active_preset_id"], "human_only_private"
+        )
+        self.assertEqual(
+            report["operator_snapshot"]["effective_active_preset_id"],
+            "human_only_private",
+        )
+        self.assertEqual(
+            report["operator_snapshot"]["verified_identity_mode"],
+            "verified_identities_denied",
+        )
         self.assertTrue(report["adversary_sim"]["running_observed"])
         self.assertEqual(report["periodic_trigger"]["run_id"], "ovragent-periodic-1")
         self.assertEqual(report["periodic_trigger"]["apply_stage"], "refused")
@@ -516,6 +534,17 @@ class LiveFeedbackLoopRemoteBehaviorTests(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         report = json.loads(runner.report_path.read_text(encoding="utf-8"))
         self.assertEqual(report["result"], "pass")
+        self.assertEqual(
+            report["operator_snapshot"]["active_preset_id"], "human_only_private"
+        )
+        self.assertEqual(
+            report["operator_snapshot"]["effective_active_preset_id"],
+            "human_only_private",
+        )
+        self.assertEqual(
+            report["operator_snapshot"]["verified_identity_mode"],
+            "verified_identities_denied",
+        )
         self.assertEqual(report["post_sim_trigger"]["apply_stage"], "watch_window_open")
         self.assertEqual(report["post_sim_terminal"]["run_id"], "ovragent-periodic-2")
         self.assertEqual(report["post_sim_terminal"]["decision_id"], "decision-periodic-2")
@@ -565,6 +594,30 @@ class LiveFeedbackLoopRemoteBehaviorTests(unittest.TestCase):
 
 
 class LiveFeedbackLoopRemoteContractTests(unittest.TestCase):
+    def test_run_fails_when_operator_snapshot_is_not_human_only_private(self) -> None:
+        temp_dir = Path(tempfile.mkdtemp(prefix="live-feedback-loop-remote-"))
+        runner = _FakeLiveFeedbackLoopRemote(
+            temp_dir=temp_dir,
+            service_exec="/bin/bash /opt/shuma-gorath/scripts/run_with_oversight_supervisor.sh spin up",
+        )
+
+        original_request_json = runner._request_json
+
+        def _patched_request_json(method: str, path: str, payload=None):
+            response = original_request_json(method, path, payload)
+            if path == "/admin/operator-snapshot":
+                response["non_human_stance_presets"]["active_preset_id"] = "balanced_default"
+            return response
+
+        runner._request_json = _patched_request_json  # type: ignore[method-assign]
+
+        exit_code = runner.run()
+
+        self.assertEqual(exit_code, 1)
+        report = json.loads(runner.report_path.read_text(encoding="utf-8"))
+        self.assertEqual(report["result"], "fail")
+        self.assertIn("human_only_private", report["error"])
+
     def test_run_fails_when_periodic_wrapper_command_differs_from_contract(self) -> None:
         temp_dir = Path(tempfile.mkdtemp(prefix="live-feedback-loop-remote-"))
         runner = _FakeLiveFeedbackLoopRemote(

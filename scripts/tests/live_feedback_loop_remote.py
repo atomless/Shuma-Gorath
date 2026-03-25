@@ -441,6 +441,31 @@ PY"""
             )
         return payload
 
+    def _validated_operator_snapshot_summary(self) -> dict[str, Any]:
+        payload = self._fetch_operator_snapshot()
+        active_preset_id = ((payload.get("non_human_stance_presets") or {}).get("active_preset_id"))
+        effective_policy = payload.get("effective_non_human_policy") or {}
+        effective_active_preset_id = effective_policy.get("active_preset_id")
+        verified_identity_mode = effective_policy.get("verified_identity_mode")
+        if active_preset_id != "human_only_private":
+            raise SmokeFailure(
+                "Operator snapshot did not expose the strict `human_only_private` stance."
+            )
+        if effective_active_preset_id != "human_only_private":
+            raise SmokeFailure(
+                "Effective non-human policy did not resolve to the strict `human_only_private` stance."
+            )
+        if verified_identity_mode != "verified_identities_denied":
+            raise SmokeFailure(
+                "Operator snapshot did not keep verified non-human traffic denied under the strict baseline."
+            )
+        return {
+            "schema_version": payload.get("schema_version"),
+            "active_preset_id": active_preset_id,
+            "effective_active_preset_id": effective_active_preset_id,
+            "verified_identity_mode": verified_identity_mode,
+        }
+
     def _fetch_adversary_sim_status(self) -> dict[str, Any]:
         return self._request_json("GET", "/admin/adversary-sim/status")
 
@@ -717,9 +742,7 @@ PY"""
         }
         try:
             report["service_exec"] = self._verify_service_wrapper()
-            report["operator_snapshot"] = {
-                "schema_version": self._fetch_operator_snapshot().get("schema_version")
-            }
+            report["operator_snapshot"] = self._validated_operator_snapshot_summary()
             initial_oversight = self._fetch_oversight_status()
             report["initial_oversight"] = self._oversight_status_summary(initial_oversight)
 
