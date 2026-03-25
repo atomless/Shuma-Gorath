@@ -6,12 +6,12 @@ pub use super::adversary_sim_diagnostics::{
     generation_diagnostics, status_payload, supervisor_status_payload, LaneDiagnosticsState,
 };
 pub(crate) use super::adversary_sim_lane_runtime::{
-    apply_scrapling_worker_result, run_autonomous_supervisor_ticks,
+    apply_llm_runtime_result, apply_scrapling_worker_result, run_autonomous_supervisor_ticks,
 };
 pub(crate) use super::adversary_sim_llm_lane::next_llm_fulfillment_plan;
 pub use super::adversary_sim_worker_plan::{
-    AutonomousHeartbeatTickSummary, GenerationTickResult, ScraplingRuntimePaths,
-    ScraplingWorkerPlan, ScraplingWorkerResult,
+    AutonomousHeartbeatTickSummary, GenerationTickResult, LlmRuntimeResult,
+    ScraplingRuntimePaths, ScraplingWorkerPlan, ScraplingWorkerResult,
 };
 #[cfg(test)]
 use super::adversary_sim_corpus::{
@@ -38,6 +38,7 @@ pub const AUTONOMOUS_EDGE_FERMYON_CRON_SCHEDULE: &str =
 pub(crate) const PRODUCTION_GENERATION_DEFAULT: &str = "off_until_explicit_enable";
 pub const SCRAPLING_WORKER_PLAN_SCHEMA_VERSION: &str = "adversary-sim-scrapling-worker-plan.v1";
 pub const SCRAPLING_WORKER_RESULT_SCHEMA_VERSION: &str = "adversary-sim-scrapling-worker-result.v1";
+pub const LLM_RUNTIME_RESULT_SCHEMA_VERSION: &str = "adversary-sim-llm-runtime-result.v1";
 pub const SCRAPLING_SIM_PROFILE: &str = "scrapling_runtime_lane";
 pub const SCRAPLING_MAX_REQUESTS_PER_TICK: u64 = 8;
 pub const SCRAPLING_MAX_DEPTH_PER_TICK: u64 = 2;

@@ -4,6 +4,42 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-25)
 
+### SIM-LLM-1C2: Supervisor dispatch and typed runtime result ingest
+
+- [x] Added the closeout note in:
+  - [`docs/research/2026-03-25-sim-llm-1c2-runtime-dispatch-and-ingest-post-implementation-review.md`](../docs/research/2026-03-25-sim-llm-1c2-runtime-dispatch-and-ingest-post-implementation-review.md)
+- [x] Landed the dedicated LLM runtime worker in:
+  - [`scripts/supervisor/llm_runtime_worker.py`](../scripts/supervisor/llm_runtime_worker.py)
+  by extracting nested `llm_fulfillment_plan` payloads, reusing the live frontier generation seam, keeping the attacker host-root-only with bounded public hint seeds, reusing the existing container black-box runner for request-mode execution, and emitting a typed `adversary-sim-llm-runtime-result.v1` payload.
+- [x] Extended the host supervisor in:
+  - [`scripts/supervisor/adversary_sim_supervisor.rs`](../scripts/supervisor/adversary_sim_supervisor.rs)
+  so it now dispatches `llm_fulfillment_plan`, routes to the dedicated worker, and preserves typed worker result files even when the worker exits non-zero instead of flattening every fail-closed outcome into a generic transport error.
+- [x] Closed the live ingest seam in:
+  - [`src/admin/adversary_sim_worker_plan.rs`](../src/admin/adversary_sim_worker_plan.rs)
+  - [`src/admin/adversary_sim_lane_runtime.rs`](../src/admin/adversary_sim_lane_runtime.rs)
+  - [`src/admin/adversary_sim_api.rs`](../src/admin/adversary_sim_api.rs)
+  - [`src/admin/api.rs`](../src/admin/api.rs)
+  by adding the typed runtime result schema, pending-dispatch state, runtime result application, and internal worker-result proof for the `bot_red_team` lane.
+- [x] Added focused proof and testing-surface updates in:
+  - [`scripts/tests/test_llm_runtime_worker.py`](../scripts/tests/test_llm_runtime_worker.py)
+  - [`scripts/tests/test_adversary_sim_supervisor.py`](../scripts/tests/test_adversary_sim_supervisor.py)
+  - [`Makefile`](../Makefile)
+  - [`docs/testing.md`](../docs/testing.md)
+  so the focused `make test-adversarial-llm-runtime-dispatch` lane now covers Rust ingest, supervisor dispatch knowledge, and the Python worker contract.
+- [x] Updated the active roadmap/backlog surfaces in:
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+- [x] Why:
+  - `SIM-LLM-1C1` had already landed live frontier action generation,
+  - but `bot_red_team` still stopped at a plan-shaped beat payload with no real supervisor dispatch or typed ingest path,
+  - and the runtime needed to reuse the existing black-box container runner without pretending browser execution already existed.
+- [x] Evidence:
+  - `make test-adversarial-llm-runtime-dispatch`
+  - `make test-adversary-sim-make-target-contract`
+  - `make test-adversarial-python-unit`
+  - `git diff --check`
+
 ### SIM-LLM-1C1: Live frontier action-generation backend
 
 - [x] Added the closeout note in:

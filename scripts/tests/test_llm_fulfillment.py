@@ -63,6 +63,7 @@ class LlmFulfillmentUnitTests(unittest.TestCase):
         )
 
         self.assertEqual(plan["lane"], "bot_red_team")
+        self.assertEqual(plan["tick_started_at"], 1_700_000_000)
         self.assertEqual(plan["fulfillment_mode"], "browser_mode")
         self.assertEqual(plan["backend_kind"], "frontier_reference")
         self.assertEqual(plan["backend_state"], "degraded")
@@ -108,6 +109,7 @@ class LlmFulfillmentUnitTests(unittest.TestCase):
         )
 
         self.assertEqual(plan["fulfillment_mode"], "request_mode")
+        self.assertEqual(plan["tick_started_at"], 1_700_000_001)
         self.assertEqual(plan["backend_kind"], "frontier_reference")
         self.assertEqual(plan["backend_state"], "unavailable")
         self.assertEqual(plan["backend_id"], "frontier_reference:unconfigured")

@@ -77,6 +77,58 @@ pub struct ScraplingWorkerResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct LlmRuntimeActionReceipt {
+    pub action_index: u64,
+    pub action_type: String,
+    pub path: String,
+    #[serde(default)]
+    pub label: Option<String>,
+    #[serde(default)]
+    pub status: Option<u16>,
+    #[serde(default)]
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct LlmRuntimeResult {
+    pub schema_version: String,
+    pub run_id: String,
+    pub tick_id: String,
+    pub lane: RuntimeLane,
+    pub fulfillment_mode: String,
+    pub worker_id: String,
+    pub tick_started_at: u64,
+    pub tick_completed_at: u64,
+    pub backend_kind: String,
+    pub backend_state: String,
+    pub generation_source: String,
+    #[serde(default)]
+    pub provider: String,
+    #[serde(default)]
+    pub model_id: String,
+    #[serde(default)]
+    pub fallback_reason: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub category_targets: Vec<String>,
+    pub generated_action_count: u64,
+    pub executed_action_count: u64,
+    pub failed_action_count: u64,
+    #[serde(default)]
+    pub last_response_status: Option<u16>,
+    pub passed: bool,
+    #[serde(default)]
+    pub failure_class: Option<super::adversary_sim::WorkerFailureClass>,
+    #[serde(default)]
+    pub error: Option<String>,
+    #[serde(default)]
+    pub terminal_failure: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub action_receipts: Vec<LlmRuntimeActionReceipt>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct GenerationTickResult {
     pub generated_requests: u64,
     pub failed_requests: u64,
@@ -91,6 +143,7 @@ pub struct AutonomousHeartbeatTickSummary {
     pub failed_requests: u64,
     pub last_response_status: Option<u16>,
     pub worker_pending: bool,
+    pub pending_dispatch_mode: Option<String>,
     pub worker_plan: Option<ScraplingWorkerPlan>,
     pub llm_fulfillment_plan: Option<LlmFulfillmentPlan>,
 }

@@ -115,13 +115,13 @@ Current note:
 - `SIM-LLM-1A` and `SIM-LLM-1B` are now landed.
 - The later full attacker runtime `SIM-LLM-1C` is no longer treated as one implicit next step.
 - `SIM-LLM-1C1` is now landed: the later attacker has a real live frontier action-generation seam with provider-vs-fallback lineage and Shuma-blind host-hint sanitization.
-- The next backend mainline is now `SIM-LLM-1C2`, the second of three explicit runtime slices over the settled black-box and episode contracts:
-  - `SIM-LLM-1C2` supervisor dispatch and result-ingest runtime path
+- `SIM-LLM-1C2` is now landed: the host-side supervisor dispatches the dedicated LLM runtime worker, reuses the existing container black-box runner for request-mode execution, and ingests a typed `adversary-sim-llm-runtime-result.v1` payload instead of overloading the Scrapling worker result contract.
+- The next backend mainline is now `SIM-LLM-1C3`, the final explicit runtime slice over the settled black-box and episode contracts:
   - `SIM-LLM-1C3` runtime receipt projection and proof closure
 - Keep the `SIM-LLM-1C` umbrella blocked until all three runtime slices are landed and `bot_red_team` remains operator-disabled until that proof chain is complete.
 - `DIAG-CLEANUP-1` and `MON-OVERHAUL-1C` are now both landed, so the deferred Game Loop and Diagnostics follow-on queue is currently clear while later LLM runtime work stays blocked.
 
-- [ ] SIM-LLM-1C2 Wire supervisor dispatch and typed result ingest for the live `bot_red_team` actor, reusing the existing container black-box runner without overloading the Scrapling worker result contract.
+- [ ] SIM-LLM-1C3 Close the runtime proof chain and recent-run projection for the live `bot_red_team` actor.
 
 ## P1 Verified Bot Identity And Web Bot Auth Foundation
 

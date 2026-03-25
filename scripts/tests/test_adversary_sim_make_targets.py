@@ -108,6 +108,22 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
         )
         self.assertIn("scripts/tests/test_llm_fulfillment.py", body)
 
+    def test_llm_runtime_dispatch_target_uses_typed_runtime_selectors(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-adversarial-llm-runtime-dispatch:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn(
+            "adversary_sim_worker_result_updates_llm_runtime_generation_and_lane_diagnostics",
+            body,
+        )
+        self.assertIn("test-adversary-sim-supervisor-unit", body)
+        self.assertIn("scripts/tests/test_llm_runtime_worker.py", body)
+
     def test_scrapling_category_fit_target_uses_bounded_selectors(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")
         match = re.search(

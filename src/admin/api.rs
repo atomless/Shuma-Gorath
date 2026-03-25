@@ -5709,6 +5709,163 @@ mod admin_config_tests {
     }
 
     #[test]
+    fn adversary_sim_worker_result_updates_llm_runtime_generation_and_lane_diagnostics() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "shared-server");
+        std::env::set_var("SHUMA_API_KEY", "sim-llm-runtime-result-test-key");
+        std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+        std::env::set_var("SHUMA_FRONTIER_OPENAI_API_KEY", "frontier-key");
+        std::env::set_var("SHUMA_FRONTIER_OPENAI_MODEL", "gpt-5-mini");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+
+        let lane_resp = handle_admin_adversary_sim_control(
+            &make_control_request_json(
+                br#"{"enabled":true,"lane":"bot_red_team"}"#,
+                "llm-runtime-result-enable-and-lane",
+            ),
+            &store,
+            "default",
+            &auth,
+        );
+        assert_eq!(*lane_resp.status(), 200u16);
+
+        let beat_req = make_internal_beat_request("sim-llm-runtime-result-test-key");
+        let beat_resp = handle_internal_adversary_sim_beat(&beat_req, &store, "default");
+        assert_eq!(*beat_resp.status(), 200u16);
+        let beat_json: serde_json::Value = serde_json::from_slice(beat_resp.body()).unwrap();
+        let worker_plan = beat_json
+            .get("llm_fulfillment_plan")
+            .cloned()
+            .expect("llm fulfillment plan");
+        let run_id = worker_plan
+            .get("run_id")
+            .and_then(|value| value.as_str())
+            .expect("run id");
+        let tick_id = worker_plan
+            .get("tick_id")
+            .and_then(|value| value.as_str())
+            .expect("tick id");
+        let tick_started_at = worker_plan
+            .get("tick_started_at")
+            .and_then(|value| value.as_u64())
+            .expect("tick started at");
+        let fulfillment_mode = worker_plan
+            .get("fulfillment_mode")
+            .and_then(|value| value.as_str())
+            .expect("fulfillment mode");
+
+        let result_body = serde_json::to_vec(&serde_json::json!({
+            "schema_version": "adversary-sim-llm-runtime-result.v1",
+            "run_id": run_id,
+            "tick_id": tick_id,
+            "lane": "bot_red_team",
+            "fulfillment_mode": fulfillment_mode,
+            "worker_id": "llm-runtime-worker-test",
+            "tick_started_at": tick_started_at,
+            "tick_completed_at": tick_started_at.saturating_add(1),
+            "backend_kind": "frontier_reference",
+            "backend_state": "configured",
+            "generation_source": "provider_response",
+            "provider": "openai",
+            "model_id": "gpt-5-mini",
+            "fallback_reason": null,
+            "category_targets": ["automated_browser", "browser_agent", "agent_on_behalf_of_human"],
+            "generated_action_count": 2,
+            "executed_action_count": 2,
+            "failed_action_count": 0,
+            "last_response_status": 200,
+            "passed": true,
+            "failure_class": null,
+            "error": null,
+            "terminal_failure": null,
+            "action_receipts": [
+                {
+                    "action_index": 1,
+                    "action_type": "browser_navigate",
+                    "path": "/",
+                    "label": "root",
+                    "status": 200,
+                    "error": null
+                },
+                {
+                    "action_index": 2,
+                    "action_type": "browser_snapshot",
+                    "path": "/",
+                    "label": "root_snapshot",
+                    "status": 200,
+                    "error": null
+                }
+            ]
+        }))
+        .unwrap();
+        let result_req = make_internal_worker_result_request(
+            "sim-llm-runtime-result-test-key",
+            result_body.as_slice(),
+        );
+        let result_resp =
+            handle_internal_adversary_sim_worker_result(&result_req, &store, "default");
+        assert_eq!(*result_resp.status(), 200u16);
+        let result_json: serde_json::Value = serde_json::from_slice(result_resp.body()).unwrap();
+        assert_eq!(
+            result_json
+                .get("accepted")
+                .and_then(|value| value.as_bool()),
+            Some(true)
+        );
+        assert_eq!(
+            result_json
+                .get("status")
+                .and_then(|value| value.get("generation"))
+                .and_then(|value| value.get("tick_count"))
+                .and_then(|value| value.as_u64()),
+            Some(1)
+        );
+        assert_eq!(
+            result_json
+                .get("status")
+                .and_then(|value| value.get("lane_diagnostics"))
+                .and_then(|value| value.get("lanes"))
+                .and_then(|value| value.get("bot_red_team"))
+                .and_then(|value| value.get("beat_successes"))
+                .and_then(|value| value.as_u64()),
+            Some(1)
+        );
+        assert_eq!(
+            result_json
+                .get("status")
+                .and_then(|value| value.get("lane_diagnostics"))
+                .and_then(|value| value.get("lanes"))
+                .and_then(|value| value.get("bot_red_team"))
+                .and_then(|value| value.get("generated_requests"))
+                .and_then(|value| value.as_u64()),
+            Some(2)
+        );
+
+        let persisted = crate::admin::adversary_sim::load_state(&store, "default");
+        assert_eq!(
+            persisted.active_lane,
+            Some(crate::admin::adversary_sim::RuntimeLane::BotRedTeam)
+        );
+        assert_eq!(persisted.generated_tick_count, 1);
+        assert_eq!(persisted.generated_request_count, 2);
+        assert!(persisted.pending_worker_tick_id.is_none());
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+        std::env::remove_var("SHUMA_API_KEY");
+        std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
+        std::env::remove_var("SHUMA_FRONTIER_OPENAI_API_KEY");
+        std::env::remove_var("SHUMA_FRONTIER_OPENAI_MODEL");
+    }
+
+    #[test]
     fn adversary_sim_worker_result_is_rejected_after_manual_off_and_does_not_restore_running_state()
     {
         let _lock = crate::test_support::lock_env();

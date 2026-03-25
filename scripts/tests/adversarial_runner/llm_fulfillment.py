@@ -390,6 +390,7 @@ def build_llm_fulfillment_plan(
         "schema_version": str(resolved_contract.get("schema_version") or "").strip(),
         "run_id": str(run_id).strip(),
         "tick_id": f"llm-fit-tick-{int(now)}-{int(generated_tick_count)}",
+        "tick_started_at": int(now),
         "lane": lane,
         "fulfillment_mode": fulfillment_mode,
         "backend_kind": str(mode_contract.get("reference_backend_kind") or "").strip(),

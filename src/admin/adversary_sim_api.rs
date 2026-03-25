@@ -351,8 +351,10 @@ pub(crate) fn handle_internal_adversary_sim_beat(
         "scrapling_worker"
     } else if summary.llm_fulfillment_plan.is_some() {
         "llm_fulfillment_plan"
+    } else if let Some(pending_mode) = summary.pending_dispatch_mode.as_deref() {
+        pending_mode
     } else if summary.worker_pending {
-        "scrapling_worker_pending"
+        "internal"
     } else {
         "internal"
     };
@@ -399,18 +401,14 @@ pub(crate) fn handle_internal_adversary_sim_worker_result(
         );
     }
 
-    let worker_result = match serde_json::from_slice::<
-        crate::admin::adversary_sim::ScraplingWorkerResult,
-    >(req.body())
-    {
+    let worker_result_json: serde_json::Value = match serde_json::from_slice(req.body()) {
         Ok(parsed) => parsed,
-        Err(_) => return Response::new(400, "Invalid Scrapling worker result payload"),
+        Err(_) => return Response::new(400, "Invalid adversary-sim worker result payload"),
     };
-    if worker_result.schema_version
-        != crate::admin::adversary_sim::SCRAPLING_WORKER_RESULT_SCHEMA_VERSION
-    {
-        return Response::new(400, "Invalid Scrapling worker result schema_version");
-    }
+    let schema_version = worker_result_json
+        .get("schema_version")
+        .and_then(|value| value.as_str())
+        .unwrap_or("");
 
     let snapshot = match load_adversary_sim_lifecycle_snapshot(store, site_id) {
         Ok(snapshot) => snapshot,
@@ -421,33 +419,83 @@ pub(crate) fn handle_internal_adversary_sim_worker_result(
     let previous_state = state.clone();
 
     let active_lane = crate::admin::adversary_sim::effective_active_lane(&state);
-    let worker_tick_matches =
-        state.pending_worker_tick_id.as_deref() == Some(worker_result.tick_id.as_str());
-    let run_matches = state.run_id.as_deref() == Some(worker_result.run_id.as_str());
-    let lane_matches = active_lane == Some(worker_result.lane);
-    if !matches!(
-        state.phase,
-        crate::admin::adversary_sim::ControlPhase::Running
-    ) || !state.desired_enabled
-        || !worker_tick_matches
-        || !run_matches
-        || !lane_matches
-    {
-        return Response::new(409, "stale_worker_result");
-    }
+    let now = match schema_version {
+        crate::admin::adversary_sim::SCRAPLING_WORKER_RESULT_SCHEMA_VERSION => {
+            let worker_result = match serde_json::from_value::<
+                crate::admin::adversary_sim::ScraplingWorkerResult,
+            >(worker_result_json)
+            {
+                Ok(parsed) => parsed,
+                Err(_) => return Response::new(400, "Invalid Scrapling worker result payload"),
+            };
+            let worker_tick_matches =
+                state.pending_worker_tick_id.as_deref() == Some(worker_result.tick_id.as_str());
+            let run_matches = state.run_id.as_deref() == Some(worker_result.run_id.as_str());
+            let lane_matches = active_lane == Some(worker_result.lane);
+            if !matches!(
+                state.phase,
+                crate::admin::adversary_sim::ControlPhase::Running
+            ) || !state.desired_enabled
+                || !worker_tick_matches
+                || !run_matches
+                || !lane_matches
+            {
+                return Response::new(409, "stale_worker_result");
+            }
 
-    crate::admin::adversary_sim::apply_scrapling_worker_result(&mut state, &worker_result);
-    match save_adversary_sim_beat_state_if_unchanged(store, site_id, &previous_state, &state) {
-        Ok(true) => {}
-        Ok(false) => return Response::new(409, "stale_worker_result"),
-        Err(()) => return Response::new(500, "Key-value store error"),
-    }
+            crate::admin::adversary_sim::apply_scrapling_worker_result(&mut state, &worker_result);
+            match save_adversary_sim_beat_state_if_unchanged(store, site_id, &previous_state, &state)
+            {
+                Ok(true) => {}
+                Ok(false) => return Response::new(409, "stale_worker_result"),
+                Err(()) => return Response::new(500, "Key-value store error"),
+            }
 
-    if !worker_result.surface_receipts.is_empty() {
-        log_scrapling_surface_receipts_event(store, &worker_result);
-    }
+            if !worker_result.surface_receipts.is_empty() {
+                log_scrapling_surface_receipts_event(store, &worker_result);
+            }
 
-    let now = worker_result.tick_completed_at;
+            worker_result.tick_completed_at
+        }
+        crate::admin::adversary_sim::LLM_RUNTIME_RESULT_SCHEMA_VERSION => {
+            let worker_result = match serde_json::from_value::<
+                crate::admin::adversary_sim::LlmRuntimeResult,
+            >(worker_result_json)
+            {
+                Ok(parsed) => parsed,
+                Err(_) => return Response::new(400, "Invalid LLM runtime result payload"),
+            };
+            let worker_tick_matches =
+                state.pending_worker_tick_id.as_deref() == Some(worker_result.tick_id.as_str());
+            let run_matches = state.run_id.as_deref() == Some(worker_result.run_id.as_str());
+            let lane_matches = active_lane == Some(worker_result.lane);
+            if !matches!(
+                state.phase,
+                crate::admin::adversary_sim::ControlPhase::Running
+            ) || !state.desired_enabled
+                || !worker_tick_matches
+                || !run_matches
+                || !lane_matches
+            {
+                return Response::new(409, "stale_worker_result");
+            }
+
+            crate::admin::adversary_sim::apply_llm_runtime_result(&mut state, &worker_result);
+            match save_adversary_sim_beat_state_if_unchanged(store, site_id, &previous_state, &state)
+            {
+                Ok(true) => {}
+                Ok(false) => return Response::new(409, "stale_worker_result"),
+                Err(()) => return Response::new(500, "Key-value store error"),
+            }
+
+            worker_result.tick_completed_at
+        }
+        crate::admin::adversary_sim::SCRAPLING_WORKER_PLAN_SCHEMA_VERSION => {
+            return Response::new(400, "Invalid adversary-sim worker result schema_version");
+        }
+        _ => return Response::new(400, "Invalid adversary-sim worker result schema_version"),
+    };
+
     let status = adversary_sim_status_payload(store, site_id, &cfg, &state, now);
     let body = serde_json::to_string(&json!({
         "accepted": true,

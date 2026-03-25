@@ -16,8 +16,8 @@ use crate::challenge::KeyValueStore;
 
 use super::adversary_sim::{
     next_llm_fulfillment_plan, AutonomousHeartbeatTickSummary, ControlPhase, ControlState,
-    GenerationTickResult, RuntimeLane, ScraplingRuntimePaths, ScraplingWorkerPlan,
-    ScraplingWorkerResult,
+    GenerationTickResult, LlmRuntimeResult, RuntimeLane, ScraplingRuntimePaths,
+    ScraplingWorkerPlan, ScraplingWorkerResult,
     WorkerFailureClass, SCRAPLING_MAX_BYTES_PER_TICK, SCRAPLING_MAX_DEPTH_PER_TICK,
     SCRAPLING_MAX_MS_PER_TICK, SCRAPLING_MAX_REQUESTS_PER_TICK, SCRAPLING_SIM_PROFILE,
     SCRAPLING_WORKER_PLAN_SCHEMA_VERSION,
@@ -412,6 +412,55 @@ pub(crate) fn apply_scrapling_worker_result(
     state.updated_at = result.tick_completed_at;
 }
 
+pub(crate) fn apply_llm_runtime_result(state: &mut ControlState, result: &LlmRuntimeResult) {
+    let failure_class = result.failure_class;
+    let counters = state.lane_diagnostics.lane_mut(result.lane);
+    if !result.passed
+        || failure_class.is_some()
+        || result.failed_action_count > 0
+        || result.error.is_some()
+    {
+        counters.beat_failures = counters.beat_failures.saturating_add(1);
+        counters.last_error = result.error.clone().or_else(|| {
+            result.terminal_failure.clone().or_else(|| {
+                Some(format!(
+                    "llm_runtime_failed executed_action_count={} failed_action_count={}",
+                    result.executed_action_count, result.failed_action_count
+                ))
+            })
+        });
+    } else {
+        counters.beat_successes = counters.beat_successes.saturating_add(1);
+        counters.last_error = None;
+    }
+    counters.generated_requests = counters
+        .generated_requests
+        .saturating_add(result.executed_action_count);
+    for receipt in &result.action_receipts {
+        if let Some(status) = receipt.status {
+            let key = format!("status_{status}");
+            let entry = counters.response_status_count.entry(key).or_insert(0);
+            *entry = entry.saturating_add(1);
+        }
+    }
+    counters.last_generated_at = Some(result.tick_completed_at);
+    let last_error = counters.last_error.clone();
+    let _ = counters;
+    if let Some(class) = failure_class {
+        record_failure_class(state, class, result.tick_completed_at);
+    }
+
+    state.generated_tick_count = state.generated_tick_count.saturating_add(1);
+    state.generated_request_count = state
+        .generated_request_count
+        .saturating_add(result.executed_action_count);
+    state.last_generated_at = Some(result.tick_completed_at);
+    state.last_generation_error = last_error;
+    state.pending_worker_tick_id = None;
+    state.pending_worker_started_at = None;
+    state.updated_at = result.tick_completed_at;
+}
+
 fn reconcile_active_lane_at_beat_boundary(now: u64, state: &mut ControlState) {
     if state.phase != ControlPhase::Running {
         return;
@@ -421,8 +470,7 @@ fn reconcile_active_lane_at_beat_boundary(now: u64, state: &mut ControlState) {
         state.active_lane_count = active_lane_count_for_lane(state.desired_lane);
         return;
     }
-    if state.pending_worker_tick_id.is_some() && state.desired_lane != RuntimeLane::ScraplingTraffic
-    {
+    if state.pending_worker_tick_id.is_some() && state.active_lane != Some(state.desired_lane) {
         state.pending_worker_tick_id = None;
         state.pending_worker_started_at = None;
     }
@@ -535,6 +583,7 @@ pub(crate) fn run_autonomous_supervisor_ticks(
         Some(RuntimeLane::ScraplingTraffic) => {
             if state.pending_worker_tick_id.is_some() {
                 summary.worker_pending = true;
+                summary.pending_dispatch_mode = Some("scrapling_worker_pending".to_string());
                 return summary;
             }
             record_lane_attempt(state, RuntimeLane::ScraplingTraffic);
@@ -542,6 +591,11 @@ pub(crate) fn run_autonomous_supervisor_ticks(
             return summary;
         }
         Some(RuntimeLane::BotRedTeam) => {
+            if state.pending_worker_tick_id.is_some() {
+                summary.worker_pending = true;
+                summary.pending_dispatch_mode = Some("llm_fulfillment_plan_pending".to_string());
+                return summary;
+            }
             record_lane_attempt(state, RuntimeLane::BotRedTeam);
             let frontier = crate::config::frontier_summary();
             let plan = next_llm_fulfillment_plan(now, state, &frontier);
@@ -554,6 +608,8 @@ pub(crate) fn run_autonomous_supervisor_ticks(
                 None
             };
             state.last_generation_error = counters.last_error.clone();
+            state.pending_worker_tick_id = Some(plan.tick_id.clone());
+            state.pending_worker_started_at = Some(plan.tick_started_at);
             state.updated_at = now;
             summary.llm_fulfillment_plan = Some(plan);
             return summary;

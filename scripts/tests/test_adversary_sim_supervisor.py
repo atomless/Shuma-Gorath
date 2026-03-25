@@ -27,6 +27,11 @@ class AdversarySimSupervisorContractTests(unittest.TestCase):
         self.assertIn("scrapling_worker", source)
         self.assertIn("scrapling_worker.py", source)
 
+    def test_supervisor_worker_knows_about_llm_runtime_dispatch_mode(self) -> None:
+        source = SUPERVISOR_WORKER_SOURCE.read_text(encoding="utf-8")
+        self.assertIn("llm_fulfillment_plan", source)
+        self.assertIn("llm_runtime_worker.py", source)
+
     def test_supervisor_worker_failure_fallback_keeps_fulfillment_mode_field(self) -> None:
         source = SUPERVISOR_WORKER_SOURCE.read_text(encoding="utf-8")
         self.assertIn('json_string(beat_body, "fulfillment_mode")', source)

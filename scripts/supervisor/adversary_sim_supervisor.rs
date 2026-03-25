@@ -17,6 +17,13 @@ const BEAT_PATH: &str = "/internal/adversary-sim/beat";
 const WORKER_RESULT_PATH: &str = "/internal/adversary-sim/worker-result";
 const DEFAULT_SCRAPLING_PYTHON_RELATIVE: &str = ".venv-scrapling/bin/python3";
 const DEFAULT_SCRAPLING_CRAWLDIR_RELATIVE: &str = ".shuma/adversary-sim/scrapling-crawldir";
+const DEFAULT_LLM_RUNTIME_PYTHON: &str = "python3";
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ExternalWorkerDispatch {
+    Scrapling,
+    LlmRuntime,
+}
 
 #[derive(Clone, Debug)]
 struct Config {
@@ -33,6 +40,7 @@ struct Config {
     exit_when_off: bool,
     repo_root: PathBuf,
     scrapling_python: PathBuf,
+    llm_runtime_python: PathBuf,
     scrapling_scope_descriptor_path: Option<PathBuf>,
     scrapling_seed_inventory_path: Option<PathBuf>,
     scrapling_crawldir: PathBuf,
@@ -237,6 +245,10 @@ fn parse_args() -> Result<Config, String> {
         .ok()
         .map(PathBuf::from)
         .unwrap_or_else(|| repo_root.join(DEFAULT_SCRAPLING_PYTHON_RELATIVE));
+    let llm_runtime_python = env::var("ADVERSARY_SIM_LLM_RUNTIME_PYTHON")
+        .ok()
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(DEFAULT_LLM_RUNTIME_PYTHON));
     let scrapling_scope_descriptor_path =
         env::var("ADVERSARY_SIM_SCRAPLING_SCOPE_DESCRIPTOR_PATH")
             .ok()
@@ -264,6 +276,7 @@ fn parse_args() -> Result<Config, String> {
         exit_when_off,
         repo_root,
         scrapling_python,
+        llm_runtime_python,
         scrapling_scope_descriptor_path,
         scrapling_seed_inventory_path,
         scrapling_crawldir,
@@ -370,6 +383,14 @@ fn dispatch_mode(body: &str) -> Option<String> {
     json_string(body, "dispatch_mode")
 }
 
+fn external_worker_dispatch(dispatch_mode: &str) -> Option<ExternalWorkerDispatch> {
+    match dispatch_mode {
+        "scrapling_worker" => Some(ExternalWorkerDispatch::Scrapling),
+        "llm_fulfillment_plan" => Some(ExternalWorkerDispatch::LlmRuntime),
+        _ => None,
+    }
+}
+
 fn json_escape(raw: &str) -> String {
     raw.chars()
         .flat_map(|ch| match ch {
@@ -391,7 +412,7 @@ fn temp_file_path(prefix: &str) -> PathBuf {
     env::temp_dir().join(format!("{prefix}-{nanos}-{}.json", std::process::id()))
 }
 
-fn worker_script_path(config: &Config) -> PathBuf {
+fn scrapling_worker_script_path(config: &Config) -> PathBuf {
     config
         .repo_root
         .join("scripts")
@@ -399,7 +420,19 @@ fn worker_script_path(config: &Config) -> PathBuf {
         .join("scrapling_worker.py")
 }
 
-fn build_worker_failure_result(beat_body: &str, failure_class: &str, error: &str) -> String {
+fn llm_runtime_worker_script_path(config: &Config) -> PathBuf {
+    config
+        .repo_root
+        .join("scripts")
+        .join("supervisor")
+        .join("llm_runtime_worker.py")
+}
+
+fn build_scrapling_worker_failure_result(
+    beat_body: &str,
+    failure_class: &str,
+    error: &str,
+) -> String {
     let run_id = json_string(beat_body, "run_id").unwrap_or_default();
     let tick_id = json_string(beat_body, "tick_id").unwrap_or_default();
     let lane = json_string(beat_body, "lane").unwrap_or_else(|| "scrapling_traffic".to_string());
@@ -424,46 +457,92 @@ fn build_worker_failure_result(beat_body: &str, failure_class: &str, error: &str
     )
 }
 
-fn run_scrapling_worker(config: &Config, beat_body: &str) -> String {
-    let beat_file = temp_file_path("shuma-scrapling-beat");
-    let result_file = temp_file_path("shuma-scrapling-result");
+fn build_llm_runtime_worker_failure_result(
+    beat_body: &str,
+    failure_class: &str,
+    error: &str,
+) -> String {
+    let run_id = json_string(beat_body, "run_id").unwrap_or_default();
+    let tick_id = json_string(beat_body, "tick_id").unwrap_or_default();
+    let lane = json_string(beat_body, "lane").unwrap_or_else(|| "bot_red_team".to_string());
+    let fulfillment_mode = json_string(beat_body, "fulfillment_mode").unwrap_or_default();
+    let tick_started_at = json_u64(beat_body, "tick_started_at").unwrap_or(0);
+    let worker_id = format!("adversary-sim-supervisor-{}", std::process::id());
+    let tick_completed_at = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_else(|_| Duration::from_secs(0))
+        .as_secs();
+    let terminal_failure = match failure_class {
+        "timeout" => "deadline_exceeded",
+        "cancelled" => "cancelled",
+        _ => "worker_execution_failed",
+    };
+    format!(
+        "{{\"schema_version\":\"adversary-sim-llm-runtime-result.v1\",\"run_id\":\"{}\",\"tick_id\":\"{}\",\"lane\":\"{}\",\"fulfillment_mode\":\"{}\",\"worker_id\":\"{}\",\"tick_started_at\":{},\"tick_completed_at\":{},\"backend_kind\":\"{}\",\"backend_state\":\"{}\",\"generation_source\":\"runtime_failure\",\"provider\":\"\",\"model_id\":\"\",\"fallback_reason\":null,\"category_targets\":[],\"generated_action_count\":0,\"executed_action_count\":0,\"failed_action_count\":0,\"last_response_status\":null,\"passed\":false,\"failure_class\":\"{}\",\"error\":\"{}\",\"terminal_failure\":\"{}\",\"action_receipts\":[]}}",
+        json_escape(run_id.as_str()),
+        json_escape(tick_id.as_str()),
+        json_escape(lane.as_str()),
+        json_escape(fulfillment_mode.as_str()),
+        json_escape(worker_id.as_str()),
+        tick_started_at,
+        tick_completed_at,
+        json_escape(
+            json_string(beat_body, "backend_kind")
+                .unwrap_or_else(|| "frontier_reference".to_string())
+                .as_str()
+        ),
+        json_escape(
+            json_string(beat_body, "backend_state")
+                .unwrap_or_else(|| "unknown".to_string())
+                .as_str()
+        ),
+        json_escape(failure_class),
+        json_escape(error),
+        json_escape(terminal_failure)
+    )
+}
+
+fn run_python_worker<F>(
+    python_binary: &PathBuf,
+    worker_script: &PathBuf,
+    beat_body: &str,
+    beat_file_prefix: &str,
+    result_file_prefix: &str,
+    timeout_ms: u64,
+    build_failure_result: fn(&str, &str, &str) -> String,
+    configure_command: F,
+) -> String
+where
+    F: FnOnce(&mut Command, &PathBuf, &PathBuf),
+{
+    let beat_file = temp_file_path(beat_file_prefix);
+    let result_file = temp_file_path(result_file_prefix);
     if let Err(err) = fs::write(&beat_file, beat_body.as_bytes()) {
-        return build_worker_failure_result(beat_body, "transport", format!("write beat file failed: {err}").as_str());
+        return build_failure_result(
+            beat_body,
+            "transport",
+            format!("write beat file failed: {err}").as_str(),
+        );
     }
-    let worker_script = worker_script_path(config);
     if !worker_script.is_file() {
         let _ = fs::remove_file(&beat_file);
-        return build_worker_failure_result(
+        return build_failure_result(
             beat_body,
             "transport",
             format!("missing worker script: {}", worker_script.display()).as_str(),
         );
     }
 
-    let mut command = Command::new(&config.scrapling_python);
-    command
-        .arg(worker_script)
-        .arg("--beat-response-file")
-        .arg(&beat_file)
-        .arg("--result-output-file")
-        .arg(&result_file)
-        .arg("--crawldir")
-        .arg(&config.scrapling_crawldir)
-        .stdout(Stdio::null())
-        .stderr(Stdio::piped());
-    if let Some(path) = config.scrapling_scope_descriptor_path.as_ref() {
-        command.arg("--scope-descriptor").arg(path);
-    }
-    if let Some(path) = config.scrapling_seed_inventory_path.as_ref() {
-        command.arg("--seed-inventory").arg(path);
-    }
-    let timeout_ms = json_u64(beat_body, "max_ms").unwrap_or(2_000).saturating_add(1_000);
+    let mut command = Command::new(python_binary);
+    command.stdout(Stdio::null()).stderr(Stdio::piped());
+    configure_command(&mut command, &beat_file, &result_file);
     let spawn_result = command.spawn();
     let mut child = match spawn_result {
         Ok(child) => child,
         Err(err) => {
             let _ = fs::remove_file(&beat_file);
-            return build_worker_failure_result(
+            let _ = fs::remove_file(&result_file);
+            return build_failure_result(
                 beat_body,
                 "transport",
                 format!("spawn worker failed: {err}").as_str(),
@@ -475,16 +554,9 @@ fn run_scrapling_worker(config: &Config, beat_body: &str) -> String {
     loop {
         match child.try_wait() {
             Ok(Some(status)) => {
-                let rendered = if status.success() {
-                    match fs::read_to_string(&result_file) {
-                        Ok(body) => body,
-                        Err(err) => build_worker_failure_result(
-                            beat_body,
-                            "transport",
-                            format!("read worker result failed: {err}").as_str(),
-                        ),
-                    }
-                } else {
+                let rendered = match fs::read_to_string(&result_file) {
+                    Ok(body) => body,
+                    Err(read_err) => {
                     let stderr_text = child
                         .stderr
                         .as_mut()
@@ -503,11 +575,17 @@ fn run_scrapling_worker(config: &Config, beat_body: &str) -> String {
                             stderr_text.trim()
                         )
                     };
-                    build_worker_failure_result(
+                        let combined_detail = if status.success() {
+                            format!("read worker result failed: {read_err}")
+                        } else {
+                            detail
+                        };
+                        build_failure_result(
                         beat_body,
                         "transport",
-                        detail.as_str(),
+                        combined_detail.as_str(),
                     )
+                    }
                 };
                 let _ = fs::remove_file(&beat_file);
                 let _ = fs::remove_file(&result_file);
@@ -523,7 +601,7 @@ fn run_scrapling_worker(config: &Config, beat_body: &str) -> String {
                     let _ = child.wait();
                     let _ = fs::remove_file(&beat_file);
                     let _ = fs::remove_file(&result_file);
-                    return build_worker_failure_result(
+                    return build_failure_result(
                         beat_body,
                         "timeout",
                         format!("worker exceeded timeout_ms={timeout_ms}").as_str(),
@@ -536,7 +614,7 @@ fn run_scrapling_worker(config: &Config, beat_body: &str) -> String {
                 let _ = child.wait();
                 let _ = fs::remove_file(&beat_file);
                 let _ = fs::remove_file(&result_file);
-                return build_worker_failure_result(
+                return build_failure_result(
                     beat_body,
                     "transport",
                     format!("worker wait failed: {err}").as_str(),
@@ -544,6 +622,63 @@ fn run_scrapling_worker(config: &Config, beat_body: &str) -> String {
             }
         }
     }
+}
+
+fn run_scrapling_worker(config: &Config, beat_body: &str) -> String {
+    let worker_script = scrapling_worker_script_path(config);
+    let timeout_ms = json_u64(beat_body, "max_ms").unwrap_or(2_000).saturating_add(1_000);
+    run_python_worker(
+        &config.scrapling_python,
+        &worker_script,
+        beat_body,
+        "shuma-scrapling-beat",
+        "shuma-scrapling-result",
+        timeout_ms,
+        build_scrapling_worker_failure_result,
+        |command, beat_file, result_file| {
+            command
+                .arg(&worker_script)
+                .arg("--beat-response-file")
+                .arg(beat_file)
+                .arg("--result-output-file")
+                .arg(result_file)
+                .arg("--crawldir")
+                .arg(&config.scrapling_crawldir);
+            if let Some(path) = config.scrapling_scope_descriptor_path.as_ref() {
+                command.arg("--scope-descriptor").arg(path);
+            }
+            if let Some(path) = config.scrapling_seed_inventory_path.as_ref() {
+                command.arg("--seed-inventory").arg(path);
+            }
+        },
+    )
+}
+
+fn run_llm_runtime_worker(config: &Config, beat_body: &str) -> String {
+    let worker_script = llm_runtime_worker_script_path(config);
+    let timeout_ms = json_u64(beat_body, "max_time_budget_seconds")
+        .unwrap_or(120)
+        .saturating_add(15)
+        .saturating_mul(1_000);
+    run_python_worker(
+        &config.llm_runtime_python,
+        &worker_script,
+        beat_body,
+        "shuma-llm-runtime-beat",
+        "shuma-llm-runtime-result",
+        timeout_ms,
+        build_llm_runtime_worker_failure_result,
+        |command, beat_file, result_file| {
+            command
+                .arg(&worker_script)
+                .arg("--beat-response-file")
+                .arg(beat_file)
+                .arg("--result-output-file")
+                .arg(result_file)
+                .arg("--base-url")
+                .arg(&config.base_url);
+        },
+    )
 }
 
 fn post_worker_result(config: &Config, body: &str) -> Result<HttpResponse, String> {
@@ -588,8 +723,15 @@ fn main() {
                             executed_ticks, generated_requests, failed_requests
                         );
                     }
-                    if dispatch_mode == "scrapling_worker" {
-                        let worker_result_body = run_scrapling_worker(&config, response.body.as_str());
+                    if let Some(worker_dispatch) = external_worker_dispatch(dispatch_mode.as_str()) {
+                        let worker_result_body = match worker_dispatch {
+                            ExternalWorkerDispatch::Scrapling => {
+                                run_scrapling_worker(&config, response.body.as_str())
+                            }
+                            ExternalWorkerDispatch::LlmRuntime => {
+                                run_llm_runtime_worker(&config, response.body.as_str())
+                            }
+                        };
                         match post_worker_result(&config, worker_result_body.as_str()) {
                             Ok(worker_response) if worker_response.status == 200 => {}
                             Ok(worker_response) if worker_response.status == 409 => {
@@ -672,7 +814,7 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::parse_http_response;
+    use super::{external_worker_dispatch, parse_http_response, ExternalWorkerDispatch};
 
     #[test]
     fn parse_http_response_keeps_plain_json_body() {
@@ -694,5 +836,18 @@ mod tests {
 
         assert_eq!(response.status, 200);
         assert_eq!(response.body, "{\"ok\":true}");
+    }
+
+    #[test]
+    fn external_worker_dispatch_knows_about_llm_runtime_mode() {
+        assert_eq!(
+            external_worker_dispatch("scrapling_worker"),
+            Some(ExternalWorkerDispatch::Scrapling)
+        );
+        assert_eq!(
+            external_worker_dispatch("llm_fulfillment_plan"),
+            Some(ExternalWorkerDispatch::LlmRuntime)
+        );
+        assert_eq!(external_worker_dispatch("internal"), None);
     }
 }
