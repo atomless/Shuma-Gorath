@@ -40,7 +40,7 @@ Decompose the two later LLM-backed player roles so the recursive-improvement gam
    2. `RSI-PROTO-1` for canonical player wire schemas,
    3. `RSI-EVAL-1` for held-out evaluation separation,
    4. and `RSI-AUDIT-1` for shared episode and proposal provenance.
-7. The later player-side runtime tracks must not be treated as execution-ready until Scrapling-owned defense surfaces are attacker-faithful and receipt-backed; that prerequisite belongs to `SIM-SCR-CHALLENGE-1` and, where needed by the owned-surface matrix, `SIM-SCR-BROWSER-1`.
+7. The later player-side runtime tracks must not be treated as execution-ready until Scrapling-owned defense surfaces are attacker-faithful and receipt-backed. For the current owned request-native matrix that prerequisite is now satisfied by `SIM-SCR-CHALLENGE-2A`, `SIM-SCR-CHALLENGE-2B`, and `SIM-SCR-CHALLENGE-2D`; where a later owned-surface review proves browser or stealth Scrapling is needed, reopen `SIM-SCR-CHALLENGE-2C` or `SIM-SCR-BROWSER-1` explicitly.
 
 ## Task 1: `SIM-LLM-1A`
 
@@ -243,7 +243,7 @@ Evaluation note:
 
 # Sequencing
 
-1. Keep the current mainline operator-facing work first: `MON-OVERHAUL-1`, `CTRL-SURFACE-1..3`, and `TUNE-SURFACE-1`.
+1. Keep the deferred operator-facing dashboard cleanup behind the current backend mainline; the immediate next backend slice is `SIM-LLM-1A`.
 2. Keep the judge decomposition first: `RSI-GAME-1A`, `RSI-GAME-1B`, and `RSI-GAME-1C`.
 3. Land `RSI-SCORE-1`, `RSI-PROTO-1`, and `RSI-EVAL-1` before any player role is treated as protocol-complete.
 4. Land `RSI-AUDIT-1` before player-side runtimes are treated as operationally auditable.
@@ -252,7 +252,7 @@ Evaluation note:
 7. Land `OVR-AGENT-2A` before any defender-agent runtime planning is treated as execution-ready.
 8. Land `OVR-AGENT-2B` before `OVR-AGENT-2C`.
 9. Keep `OVR-CODE-1` downstream of the settled defender-agent track rather than folding it into defender planning.
-10. Do not treat the fuller attacker or defender runtime tracks as execution-ready until `SIM-SCR-CHALLENGE-1` proves attacker-faithful Scrapling coverage for Scrapling-owned surfaces and, where that matrix requires browser or stealth Scrapling, `SIM-SCR-BROWSER-1` is also complete.
+10. Do not treat the fuller attacker or defender runtime tracks as execution-ready until the current attacker-faithful Scrapling baseline remains receipt-backed for owned request-native surfaces and, where a later matrix requires browser or stealth Scrapling, `SIM-SCR-CHALLENGE-2C` or `SIM-SCR-BROWSER-1` is also complete.
 
 Current note:
 

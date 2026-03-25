@@ -17,6 +17,7 @@ from scripts.tests.frontier_action_contract import load_frontier_action_contract
 LLM_FULFILLMENT_PLAN_SCHEMA_VERSION = "adversary-sim-llm-fulfillment-plan.v1"
 LLM_FULFILLMENT_CONTRACT_SCHEMA_VERSION = "adversary-sim-llm-fulfillment-contract.v1"
 LLM_FULFILLMENT_RUNTIME_SCHEMA_VERSION = "adversary-sim-llm-runtime-profile.v1"
+LLM_ATTACKER_BLACK_BOX_SCHEMA_VERSION = "adversary-sim-llm-attacker-black-box.v1"
 FRONTIER_ACTION_CONTRACT_ID = "frontier_action_contract.v1"
 CONTAINER_RUNTIME_PROFILE_ID = "container_runtime_profile.v1"
 SUPPORTED_BACKEND_KINDS = ["frontier_reference", "local_candidate"]
@@ -90,6 +91,103 @@ def _normalize_mode_contract(
     }
 
 
+def _require_boolean(value: Any, *, field_name: str) -> bool:
+    if not isinstance(value, bool):
+        raise RuntimeError(f"{field_name} must be boolean")
+    return value
+
+
+def _normalize_black_box_boundary(boundary: Dict[str, Any]) -> Dict[str, Any]:
+    schema_version = str(boundary.get("schema_version") or "").strip()
+    if schema_version != LLM_ATTACKER_BLACK_BOX_SCHEMA_VERSION:
+        raise RuntimeError(
+            "llm_attacker_black_box.schema_version must be "
+            f"{LLM_ATTACKER_BLACK_BOX_SCHEMA_VERSION}"
+        )
+
+    position = str(boundary.get("position") or "").strip()
+    if position != "outside_attacker":
+        raise RuntimeError("llm_attacker_black_box.position must be outside_attacker")
+
+    public_host_hint_sources = _normalize_string_list(
+        boundary.get("public_host_hint_sources"),
+        field_name="llm_attacker_black_box.public_host_hint_sources",
+    )
+    allowed_observation_families = _normalize_string_list(
+        boundary.get("allowed_observation_families"),
+        field_name="llm_attacker_black_box.allowed_observation_families",
+    )
+    forbidden_knowledge_sources = _normalize_string_list(
+        boundary.get("forbidden_knowledge_sources"),
+        field_name="llm_attacker_black_box.forbidden_knowledge_sources",
+    )
+    receipt_requirements = dict_or_empty(boundary.get("receipt_requirements"))
+    if not receipt_requirements:
+        raise RuntimeError("llm_attacker_black_box.receipt_requirements must be an object")
+
+    attack_trace_required = _require_boolean(
+        receipt_requirements.get("attack_trace_required"),
+        field_name="llm_attacker_black_box.receipt_requirements.attack_trace_required",
+    )
+    observation_lineage_required = _require_boolean(
+        receipt_requirements.get("observation_lineage_required"),
+        field_name=(
+            "llm_attacker_black_box.receipt_requirements.observation_lineage_required"
+        ),
+    )
+    category_objective_lineage_required = _require_boolean(
+        receipt_requirements.get("category_objective_lineage_required"),
+        field_name=(
+            "llm_attacker_black_box.receipt_requirements."
+            "category_objective_lineage_required"
+        ),
+    )
+
+    return {
+        "position": position,
+        "host_root_only_entrypoint": _require_boolean(
+            boundary.get("host_root_only_entrypoint"),
+            field_name="llm_attacker_black_box.host_root_only_entrypoint",
+        ),
+        "category_objective_required": _require_boolean(
+            boundary.get("category_objective_required"),
+            field_name="llm_attacker_black_box.category_objective_required",
+        ),
+        "malicious_category_priming_required": _require_boolean(
+            boundary.get("malicious_category_priming_required"),
+            field_name="llm_attacker_black_box.malicious_category_priming_required",
+        ),
+        "public_knowledge_only": _require_boolean(
+            boundary.get("public_knowledge_only"),
+            field_name="llm_attacker_black_box.public_knowledge_only",
+        ),
+        "shuma_blind": _require_boolean(
+            boundary.get("shuma_blind"),
+            field_name="llm_attacker_black_box.shuma_blind",
+        ),
+        "web_search_allowed": _require_boolean(
+            boundary.get("web_search_allowed"),
+            field_name="llm_attacker_black_box.web_search_allowed",
+        ),
+        "repo_visibility_allowed": _require_boolean(
+            boundary.get("repo_visibility_allowed"),
+            field_name="llm_attacker_black_box.repo_visibility_allowed",
+        ),
+        "judge_visibility_allowed": _require_boolean(
+            boundary.get("judge_visibility_allowed"),
+            field_name="llm_attacker_black_box.judge_visibility_allowed",
+        ),
+        "public_host_hint_sources": public_host_hint_sources,
+        "allowed_observation_families": allowed_observation_families,
+        "forbidden_knowledge_sources": forbidden_knowledge_sources,
+        "receipt_requirements": {
+            "attack_trace_required": attack_trace_required,
+            "observation_lineage_required": observation_lineage_required,
+            "category_objective_lineage_required": category_objective_lineage_required,
+        },
+    }
+
+
 def load_llm_fulfillment_contract(
     frontier_action_contract_path: Path = FRONTIER_ACTION_CONTRACT_PATH,
     container_runtime_profile_path: Path = CONTAINER_RUNTIME_PROFILE_PATH,
@@ -140,12 +238,17 @@ def load_llm_fulfillment_contract(
             runtime_contract,
         )
 
+    black_box_boundary = _normalize_black_box_boundary(
+        dict_or_empty(frontier_contract.get("llm_attacker_black_box"))
+    )
+
     return {
         "schema_version": LLM_FULFILLMENT_PLAN_SCHEMA_VERSION,
         "frontier_action_contract_id": FRONTIER_ACTION_CONTRACT_ID,
         "container_runtime_profile_id": CONTAINER_RUNTIME_PROFILE_ID,
         "backend_kinds": backend_kinds,
         "modes": modes,
+        "black_box_boundary": black_box_boundary,
     }
 
 
@@ -199,6 +302,7 @@ def build_llm_fulfillment_plan(
         "container_runtime_profile_id": str(
             resolved_contract.get("container_runtime_profile_id") or ""
         ).strip(),
+        "black_box_boundary": dict(resolved_contract.get("black_box_boundary") or {}),
         "capability_envelope": {
             "allowed_tools": list(mode_contract.get("allowed_tools") or []),
             "browser_automation_allowed": bool(

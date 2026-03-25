@@ -239,8 +239,8 @@ Implementation note:
 Additional prerequisite note:
 
 1. `RSI-ROLES-1` may still be planned before the fuller attacker-side runtime is ready,
-2. but execution-ready attacker/defender phases must wait until `SIM-SCR-CHALLENGE-1` proves attacker-faithful Scrapling coverage for Scrapling-owned surfaces,
-3. and, where the owned-surface matrix requires it, `SIM-SCR-BROWSER-1` is also complete.
+2. but execution-ready attacker/defender phases must wait until the attacker-faithful Scrapling baseline is receipt-backed for the currently owned request-native Scrapling surfaces through `SIM-SCR-CHALLENGE-2A`, `SIM-SCR-CHALLENGE-2B`, and `SIM-SCR-CHALLENGE-2D`,
+3. and, where a later owned-surface matrix requires it, `SIM-SCR-CHALLENGE-2C` or `SIM-SCR-BROWSER-1` is also complete.
 
 # Sequencing
 
@@ -252,7 +252,7 @@ Additional prerequisite note:
 6. Reopen `OVR-CODE-1` only after `OVR-AGENT-2`, the game contract, and the strict-reference regression-anchor expectations are all explicit.
 7. Land `RSI-SCORE-1`, `RSI-PROTO-1`, and `RSI-EVAL-1` before any later player-side runtime planning is treated as protocol-complete.
 8. Land `RSI-AUDIT-1` before later autonomous defender runtime work is treated as operationally accountable, and before `OVR-CODE-1` is treated as execution-ready.
-9. Keep judge-side planning allowed to proceed, but do not treat broader attacker/defender game-loop execution as ready until `SIM-SCR-CHALLENGE-1` is complete and any owned-surface browser or stealth requirement from that matrix has been satisfied through `SIM-SCR-BROWSER-1`.
+9. Keep judge-side planning allowed to proceed, but do not treat broader attacker/defender game-loop execution as ready until the current attacker-faithful Scrapling baseline remains receipt-backed for owned request-native surfaces and any later owned-surface browser or stealth requirement has been satisfied through `SIM-SCR-CHALLENGE-2C` or `SIM-SCR-BROWSER-1`.
 
 Current note:
 

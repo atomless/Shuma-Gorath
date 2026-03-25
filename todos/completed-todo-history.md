@@ -4,6 +4,33 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-25)
 
+### SIM-LLM-1A: LLM attacker-agent black-box contract over the settled Scrapling baseline
+
+- [x] Reopened the backend mainline around the LLM attacker contract by adding:
+  - [`docs/research/2026-03-25-sim-llm-1a-black-box-contract-readiness-review.md`](../docs/research/2026-03-25-sim-llm-1a-black-box-contract-readiness-review.md)
+  - [`docs/plans/2026-03-25-sim-llm-1a-black-box-contract-implementation-plan.md`](../docs/plans/2026-03-25-sim-llm-1a-black-box-contract-implementation-plan.md)
+- [x] Made the later LLM attacker boundary executable in the existing contract path by extending:
+  - [`scripts/tests/adversarial/frontier_action_contract.v1.json`](../scripts/tests/adversarial/frontier_action_contract.v1.json)
+  - [`scripts/tests/adversarial_runner/llm_fulfillment.py`](../scripts/tests/adversarial_runner/llm_fulfillment.py)
+  with a machine-readable black-box boundary for:
+  - host-root-only entry,
+  - public-host-derived hints only,
+  - Shuma blindness,
+  - no web-search, repo, or judge visibility,
+  - explicit receipt requirements.
+- [x] Mirrored that boundary into the Rust fulfillment plan and rendered machine payload in:
+  - [`src/admin/adversary_sim_llm_lane.rs`](../src/admin/adversary_sim_llm_lane.rs)
+  - [`src/admin/api.rs`](../src/admin/api.rs)
+- [x] Added the focused proof and closeout note in:
+  - [`scripts/tests/test_llm_fulfillment.py`](../scripts/tests/test_llm_fulfillment.py)
+  - [`docs/research/2026-03-25-sim-llm-1a-black-box-contract-post-implementation-review.md`](../docs/research/2026-03-25-sim-llm-1a-black-box-contract-post-implementation-review.md)
+- [x] Updated the active and blocked backlog so `SIM-LLM-1A` is complete and `SIM-LLM-1B` is now the next backend slice in:
+  - [`todos/todo.md`](../todos/todo.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+- [x] Evidence:
+  - `make test-adversarial-llm-fit`
+  - `git diff --check`
+
 ### TEST-MAINLINE-1: active Scrapling -> game-loop verification ergonomics
 
 - [x] Added the truthful aggregate active-mainline command in:

@@ -129,5 +129,44 @@
         ]
       }
     }
+  },
+  "llm_attacker_black_box": {
+    "schema_version": "adversary-sim-llm-attacker-black-box.v1",
+    "position": "outside_attacker",
+    "host_root_only_entrypoint": true,
+    "category_objective_required": true,
+    "malicious_category_priming_required": true,
+    "public_knowledge_only": true,
+    "shuma_blind": true,
+    "web_search_allowed": false,
+    "repo_visibility_allowed": false,
+    "judge_visibility_allowed": false,
+    "public_host_hint_sources": [
+      "robots_txt",
+      "sitemap_references",
+      "traversal_visible_pages"
+    ],
+    "allowed_observation_families": [
+      "root_response",
+      "public_host_hints",
+      "traversal_observations",
+      "response_metadata",
+      "content_snapshots"
+    ],
+    "forbidden_knowledge_sources": [
+      "shuma_repo",
+      "shuma_docs",
+      "shuma_source_code",
+      "shuma_internal_routes",
+      "shuma_defense_inventory",
+      "admin_credentials",
+      "judge_state",
+      "web_search"
+    ],
+    "receipt_requirements": {
+      "attack_trace_required": true,
+      "observation_lineage_required": true,
+      "category_objective_lineage_required": true
+    }
   }
 }

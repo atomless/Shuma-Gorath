@@ -5503,6 +5503,30 @@ mod admin_config_tests {
         assert_eq!(
             beat_json
                 .get("llm_fulfillment_plan")
+                .and_then(|value| value.get("black_box_boundary"))
+                .and_then(|value| value.get("position"))
+                .and_then(|value| value.as_str()),
+            Some("outside_attacker")
+        );
+        assert_eq!(
+            beat_json
+                .get("llm_fulfillment_plan")
+                .and_then(|value| value.get("black_box_boundary"))
+                .and_then(|value| value.get("shuma_blind"))
+                .and_then(|value| value.as_bool()),
+            Some(true)
+        );
+        assert_eq!(
+            beat_json
+                .get("llm_fulfillment_plan")
+                .and_then(|value| value.get("black_box_boundary"))
+                .and_then(|value| value.get("web_search_allowed"))
+                .and_then(|value| value.as_bool()),
+            Some(false)
+        );
+        assert_eq!(
+            beat_json
+                .get("llm_fulfillment_plan")
                 .and_then(|value| value.get("backend_kind"))
                 .and_then(|value| value.as_str()),
             Some("frontier_reference")

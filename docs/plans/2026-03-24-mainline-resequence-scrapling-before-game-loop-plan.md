@@ -96,10 +96,13 @@ The optimal order is:
    - prove the first working self-improving loop over the now-truthful Scrapling attacker basis through the real post-sim route path
 13. `RSI-GAME-MAINLINE-1B`
    - extend that proof into the next strongest truthful operational harness
-14. only after that, return to deferred dashboard follow-ons and later LLM runtime work:
+14. after that, take the next backend contract slices before returning to deferred dashboard cleanup:
+   - `SIM-LLM-1A`
+   - `SIM-LLM-1B`
+15. only after that, return to deferred dashboard follow-ons and the remaining later LLM runtime work:
    - `MON-OVERHAUL-1C`
    - `DIAG-CLEANUP-1`
-   - `SIM-LLM-1A..1C`
+   - `SIM-LLM-1B..1C`
    - `OVR-AGENT-2A..2C`
 
 Dashboard/operator-surface cleanup can wait because it does not change the truthfulness of the attacker side or the legality and judgment of the loop itself.
@@ -109,4 +112,4 @@ Current note:
 1. `RSI-GAME-1A`, `RSI-GAME-1B`, `RSI-SCORE-1`, and `RSI-GAME-1C` are now landed.
 2. `RSI-GAME-MAINLINE-1A` and `RSI-GAME-MAINLINE-1B` are now landed, so the first working game-loop proof lane is complete.
 3. [`TEST-MAINLINE-1`](2026-03-25-testing-suite-structure-and-mainline-friction-plan.md) is now landed, so the active attacker-faithful Scrapling -> game-loop path has one obvious low-friction verification bundle.
-4. Deferred dashboard cleanup remains behind that testing-ergonomics slice.
+4. `SIM-LLM-1A` is now landed, so the next backend mainline slice is `SIM-LLM-1B`, while deferred dashboard cleanup remains behind the backend path.

@@ -24,6 +24,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-24-sim-scr-challenge-2d-receipt-backed-surface-coverage-plan.md`](2026-03-24-sim-scr-challenge-2d-receipt-backed-surface-coverage-plan.md) - Adds bounded surface receipts and per-run closure so Scrapling-owned defense coverage is proven rather than inferred
 - [`2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md`](2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md) - Reorders the active mainline so attacker-faithful Scrapling and the first working game loop come before later LLM runtime work
 - [`2026-03-25-testing-suite-structure-and-mainline-friction-plan.md`](2026-03-25-testing-suite-structure-and-mainline-friction-plan.md) - Adds the narrow active-mainline testing ergonomics tranche ahead of deferred dashboard cleanup
+- [`2026-03-25-sim-llm-1a-black-box-contract-implementation-plan.md`](2026-03-25-sim-llm-1a-black-box-contract-implementation-plan.md) - Reopens the next backend mainline as the executable host-root-only and Shuma-blind LLM attacker black-box contract
 - [`2026-03-24-rsi-game-mainline-first-working-loop-plan.md`](2026-03-24-rsi-game-mainline-first-working-loop-plan.md) - Splits the first working game loop into a concrete route-level proof slice and a stronger follow-on proof
 - [`2026-03-24-tah-19-tarpit-persistence-collateral-risk-plan.md`](2026-03-24-tah-19-tarpit-persistence-collateral-risk-plan.md) - Tightens tarpit punitive escalation so exact-principal memory, not shared bucket counts, drives bans and blocks
 - [`2026-03-24-mz-t1-live-maze-spin-integration-plan.md`](2026-03-24-mz-t1-live-maze-spin-integration-plan.md) - Focused live Spin-path proof for opaque maze traversal, checkpoint, hidden issuance, and deterministic fallback evidence
@@ -84,6 +85,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-plan.md`](2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-plan.md)
 - [`2026-03-24-sim-scr-challenge-2b-malicious-request-native-interactions-plan.md`](2026-03-24-sim-scr-challenge-2b-malicious-request-native-interactions-plan.md)
 - [`2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md`](2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md)
+- [`2026-03-25-sim-llm-1a-black-box-contract-implementation-plan.md`](2026-03-25-sim-llm-1a-black-box-contract-implementation-plan.md)
 - [`2026-03-24-rsi-game-mainline-first-working-loop-plan.md`](2026-03-24-rsi-game-mainline-first-working-loop-plan.md)
 - [`2026-03-24-test-hygiene-6b-live-wrapper-and-integration-contract-plan.md`](2026-03-24-test-hygiene-6b-live-wrapper-and-integration-contract-plan.md)
 - [`2026-03-24-mz-t2-live-maze-browser-e2e-plan.md`](2026-03-24-mz-t2-live-maze-browser-e2e-plan.md)

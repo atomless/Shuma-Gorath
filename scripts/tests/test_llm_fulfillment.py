@@ -20,6 +20,16 @@ class LlmFulfillmentUnitTests(unittest.TestCase):
         )
         self.assertIn("browser_mode", contract["modes"])
         self.assertIn("request_mode", contract["modes"])
+        self.assertEqual(contract["black_box_boundary"]["position"], "outside_attacker")
+        self.assertTrue(contract["black_box_boundary"]["host_root_only_entrypoint"])
+        self.assertTrue(contract["black_box_boundary"]["shuma_blind"])
+        self.assertFalse(contract["black_box_boundary"]["web_search_allowed"])
+        self.assertIn(
+            "robots_txt", contract["black_box_boundary"]["public_host_hint_sources"]
+        )
+        self.assertIn(
+            "shuma_repo", contract["black_box_boundary"]["forbidden_knowledge_sources"]
+        )
 
     def test_build_llm_fulfillment_plan_marks_single_provider_frontier_as_degraded(self):
         plan = llm_fulfillment.build_llm_fulfillment_plan(
@@ -49,6 +59,11 @@ class LlmFulfillmentUnitTests(unittest.TestCase):
         )
         self.assertTrue(plan["capability_envelope"]["browser_automation_allowed"])
         self.assertFalse(plan["capability_envelope"]["direct_request_emission_allowed"])
+        self.assertEqual(plan["black_box_boundary"]["position"], "outside_attacker")
+        self.assertTrue(plan["black_box_boundary"]["public_knowledge_only"])
+        self.assertFalse(plan["black_box_boundary"]["repo_visibility_allowed"])
+        self.assertFalse(plan["black_box_boundary"]["judge_visibility_allowed"])
+        self.assertTrue(plan["black_box_boundary"]["receipt_requirements"]["attack_trace_required"])
 
     def test_build_llm_fulfillment_plan_uses_request_mode_when_frontier_is_unavailable(self):
         plan = llm_fulfillment.build_llm_fulfillment_plan(

@@ -51,6 +51,30 @@ pub(crate) struct LlmCapabilityEnvelope {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct LlmReceiptRequirements {
+    pub attack_trace_required: bool,
+    pub observation_lineage_required: bool,
+    pub category_objective_lineage_required: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct LlmBlackBoxBoundary {
+    pub position: String,
+    pub host_root_only_entrypoint: bool,
+    pub category_objective_required: bool,
+    pub malicious_category_priming_required: bool,
+    pub public_knowledge_only: bool,
+    pub shuma_blind: bool,
+    pub web_search_allowed: bool,
+    pub repo_visibility_allowed: bool,
+    pub judge_visibility_allowed: bool,
+    pub public_host_hint_sources: Vec<String>,
+    pub allowed_observation_families: Vec<String>,
+    pub forbidden_knowledge_sources: Vec<String>,
+    pub receipt_requirements: LlmReceiptRequirements,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub(crate) struct LlmFulfillmentPlan {
     pub schema_version: String,
     pub run_id: String,
@@ -64,6 +88,7 @@ pub(crate) struct LlmFulfillmentPlan {
     pub category_targets: Vec<String>,
     pub frontier_action_contract_id: String,
     pub container_runtime_profile_id: String,
+    pub black_box_boundary: LlmBlackBoxBoundary,
     pub capability_envelope: LlmCapabilityEnvelope,
 }
 
@@ -96,6 +121,7 @@ pub(crate) fn next_llm_fulfillment_plan(
         category_targets: category_targets_for_mode(mode),
         frontier_action_contract_id: FRONTIER_ACTION_CONTRACT_ID.to_string(),
         container_runtime_profile_id: CONTAINER_RUNTIME_PROFILE_ID.to_string(),
+        black_box_boundary: black_box_boundary_contract(),
         capability_envelope: capability_envelope_for_mode(mode),
     }
 }
@@ -131,6 +157,47 @@ fn capability_envelope_for_mode(mode: LlmFulfillmentMode) -> LlmCapabilityEnvelo
             direct_request_emission_allowed: true,
             max_actions: 24,
             max_time_budget_seconds: 120,
+        },
+    }
+}
+
+fn black_box_boundary_contract() -> LlmBlackBoxBoundary {
+    LlmBlackBoxBoundary {
+        position: "outside_attacker".to_string(),
+        host_root_only_entrypoint: true,
+        category_objective_required: true,
+        malicious_category_priming_required: true,
+        public_knowledge_only: true,
+        shuma_blind: true,
+        web_search_allowed: false,
+        repo_visibility_allowed: false,
+        judge_visibility_allowed: false,
+        public_host_hint_sources: vec![
+            "robots_txt".to_string(),
+            "sitemap_references".to_string(),
+            "traversal_visible_pages".to_string(),
+        ],
+        allowed_observation_families: vec![
+            "root_response".to_string(),
+            "public_host_hints".to_string(),
+            "traversal_observations".to_string(),
+            "response_metadata".to_string(),
+            "content_snapshots".to_string(),
+        ],
+        forbidden_knowledge_sources: vec![
+            "shuma_repo".to_string(),
+            "shuma_docs".to_string(),
+            "shuma_source_code".to_string(),
+            "shuma_internal_routes".to_string(),
+            "shuma_defense_inventory".to_string(),
+            "admin_credentials".to_string(),
+            "judge_state".to_string(),
+            "web_search".to_string(),
+        ],
+        receipt_requirements: LlmReceiptRequirements {
+            attack_trace_required: true,
+            observation_lineage_required: true,
+            category_objective_lineage_required: true,
         },
     }
 }
@@ -185,6 +252,14 @@ mod tests {
             .capability_envelope
             .allowed_tools
             .contains(&"browser_navigate".to_string()));
+        assert_eq!(plan.black_box_boundary.position, "outside_attacker");
+        assert!(plan.black_box_boundary.host_root_only_entrypoint);
+        assert!(plan.black_box_boundary.shuma_blind);
+        assert!(!plan.black_box_boundary.web_search_allowed);
+        assert!(plan
+            .black_box_boundary
+            .public_host_hint_sources
+            .contains(&"robots_txt".to_string()));
 
         std::env::remove_var("SHUMA_FRONTIER_OPENAI_API_KEY");
         std::env::remove_var("SHUMA_FRONTIER_OPENAI_MODEL");
@@ -202,5 +277,8 @@ mod tests {
         assert_eq!(plan.fulfillment_mode, "request_mode");
         assert_eq!(plan.category_targets, vec!["http_agent", "ai_scraper_bot"]);
         assert_eq!(plan.capability_envelope.allowed_tools, vec!["http_get"]);
+        assert!(plan.black_box_boundary.public_knowledge_only);
+        assert!(!plan.black_box_boundary.repo_visibility_allowed);
+        assert!(!plan.black_box_boundary.judge_visibility_allowed);
     }
 }
