@@ -51,6 +51,14 @@ class AdversarySimSupervisorContractTests(unittest.TestCase):
         self.assertIn("worker exited with status {:?}", source)
         self.assertIn("stderr:", source)
 
+    def test_supervisor_decodes_chunked_internal_http_bodies_before_writing_worker_input(self) -> None:
+        source = SUPERVISOR_WORKER_SOURCE.read_text(encoding="utf-8")
+        self.assertIn("fn header_value", source)
+        self.assertIn("fn decode_chunked_body", source)
+        self.assertIn('header_value(head, "Transfer-Encoding")', source)
+        self.assertIn("value.eq_ignore_ascii_case(\"chunked\")", source)
+        self.assertIn("chunked body missing terminating zero-length chunk", source)
+
     def test_supervisor_manager_worker_pid_is_not_trap_scoped_local(self) -> None:
         script = SUPERVISOR_MANAGER_SCRIPT.read_text(encoding="utf-8")
         self.assertNotIn('local worker_pid=""', script)

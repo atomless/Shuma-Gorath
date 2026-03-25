@@ -4,6 +4,23 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### Shared-host Scrapling supervisor chunked beat decoding
+
+- [x] Fixed the host-side supervisor's raw HTTP beat parsing in:
+  - [`scripts/supervisor/adversary_sim_supervisor.rs`](../scripts/supervisor/adversary_sim_supervisor.rs)
+  - [`scripts/tests/test_adversary_sim_supervisor.py`](../scripts/tests/test_adversary_sim_supervisor.py)
+  so internal beat responses using `Transfer-Encoding: chunked` are decoded before the worker reads its beat-response file, instead of handing chunk framing to `json.loads(...)` and crashing before plan execution.
+- [x] Added the closeout note in:
+  - [`docs/research/2026-03-24-scrapling-supervisor-chunked-beat-decoding-post-implementation-review.md`](../docs/research/2026-03-24-scrapling-supervisor-chunked-beat-decoding-post-implementation-review.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+- [x] Why:
+  - the first failure-surfacing slice exposed that the live shared-host worker was crashing while parsing its beat file,
+  - the supervisor's string-based dispatch checks were tolerant of chunk framing while the Python worker's JSON parser was not,
+  - and the live loop could not generate persisted Scrapling traffic until the supervisor wrote plain JSON worker inputs.
+- [x] Evidence:
+  - `make test-adversary-sim-scrapling-worker`
+  - `git diff --check`
+
 ### Shared-host Scrapling supervisor failure surfacing
 
 - [x] Hardened host-side Scrapling worker failure surfacing in:

@@ -45,6 +45,48 @@ struct HttpResponse {
     body: String,
 }
 
+fn header_value<'a>(head: &'a str, name: &str) -> Option<&'a str> {
+    let needle = name.to_ascii_lowercase();
+    for line in head.lines().skip(1) {
+        let (key, value) = line.split_once(':')?;
+        if key.trim().eq_ignore_ascii_case(needle.as_str()) {
+            return Some(value.trim());
+        }
+    }
+    None
+}
+
+fn decode_chunked_body(body: &[u8]) -> Result<Vec<u8>, String> {
+    let mut cursor = 0usize;
+    let mut decoded = Vec::new();
+    while cursor < body.len() {
+        let size_line_end = body[cursor..]
+            .windows(2)
+            .position(|window| window == b"\r\n")
+            .map(|offset| cursor + offset)
+            .ok_or_else(|| "chunked body missing size terminator".to_string())?;
+        let size_line = std::str::from_utf8(&body[cursor..size_line_end])
+            .map_err(|_| "chunked body size line is not valid UTF-8".to_string())?;
+        let size_text = size_line.split(';').next().unwrap_or("").trim();
+        let chunk_size = usize::from_str_radix(size_text, 16)
+            .map_err(|_| format!("invalid chunk size: {size_text}"))?;
+        cursor = size_line_end + 2;
+        if chunk_size == 0 {
+            return Ok(decoded);
+        }
+        let chunk_end = cursor.saturating_add(chunk_size);
+        if chunk_end + 2 > body.len() {
+            return Err("chunked body ended before declared chunk payload".to_string());
+        }
+        decoded.extend_from_slice(&body[cursor..chunk_end]);
+        if &body[chunk_end..chunk_end + 2] != b"\r\n" {
+            return Err("chunked body missing chunk terminator".to_string());
+        }
+        cursor = chunk_end + 2;
+    }
+    Err("chunked body missing terminating zero-length chunk".to_string())
+}
+
 fn parse_bool(raw: &str, default: bool) -> bool {
     let value = raw.trim().to_ascii_lowercase();
     match value.as_str() {
@@ -236,15 +278,27 @@ fn request_post(config: &Config, path: &str, body: &str) -> Result<HttpResponse,
         .read_to_end(&mut buffer)
         .map_err(|err| format!("read failed: {err}"))?;
     let raw = String::from_utf8_lossy(buffer.as_slice()).to_string();
-    let mut sections = raw.splitn(2, "\r\n\r\n");
-    let head = sections.next().unwrap_or("");
-    let body = sections.next().unwrap_or("").to_string();
+    let Some(head_end) = buffer.windows(4).position(|window| window == b"\r\n\r\n") else {
+        return Err("invalid HTTP response: missing header terminator".to_string());
+    };
+    let head = std::str::from_utf8(&buffer[..head_end])
+        .map_err(|_| "invalid HTTP response head".to_string())?;
+    let body_bytes = &buffer[head_end + 4..];
     let status = head
         .lines()
         .next()
         .and_then(|status_line| status_line.split_whitespace().nth(1))
         .and_then(|raw_code| raw_code.parse::<u16>().ok())
         .ok_or_else(|| "invalid HTTP response status".to_string())?;
+    let body = if header_value(head, "Transfer-Encoding")
+        .map(|value| value.eq_ignore_ascii_case("chunked"))
+        .unwrap_or(false)
+    {
+        let decoded = decode_chunked_body(body_bytes)?;
+        String::from_utf8_lossy(decoded.as_slice()).to_string()
+    } else {
+        String::from_utf8_lossy(body_bytes).to_string()
+    };
 
     Ok(HttpResponse { status, body })
 }
