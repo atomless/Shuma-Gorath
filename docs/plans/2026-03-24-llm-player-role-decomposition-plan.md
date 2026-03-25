@@ -258,7 +258,8 @@ Current note:
 
 1. `RSI-ROLES-1` and `RSI-PROTO-1` are now landed.
 2. `RSI-EVAL-1` is now landed.
-3. The remaining player-side contract gap before runtime reopening is no longer wire vocabulary or evaluation visibility, but audit lineage.
+3. `RSI-AUDIT-1A` is now landed.
+4. The remaining cross-cutting audit work is now the later GitHub-backed code lineage and operator projection layers, not the shared runtime-relevant episode vocabulary.
 
 # Definition Of Done
 

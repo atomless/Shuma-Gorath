@@ -104,6 +104,7 @@ The directory is intentionally flat. Use this index, not nested folders, to dist
 - [`2026-03-24-rsi-roles-1-triadic-role-contract-post-implementation-review.md`](2026-03-24-rsi-roles-1-triadic-role-contract-post-implementation-review.md) - Closeout for freezing the attacker/defender/judge split before later player protocol and autonomy work
 - [`2026-03-24-rsi-proto-1-player-wire-contract-post-implementation-review.md`](2026-03-24-rsi-proto-1-player-wire-contract-post-implementation-review.md) - Closeout for freezing the canonical shared envelope plus attacker and defender schema families
 - [`2026-03-24-rsi-eval-1-held-out-evaluation-boundary-post-implementation-review.md`](2026-03-24-rsi-eval-1-held-out-evaluation-boundary-post-implementation-review.md) - Closeout for freezing player-visible protected evidence versus judge-held-out evaluation contexts
+- [`2026-03-24-rsi-audit-1a-shared-lineage-schema-post-implementation-review.md`](2026-03-24-rsi-audit-1a-shared-lineage-schema-post-implementation-review.md) - Closeout for freezing the shared episode and proposal lineage vocabulary across config and later code moves
 - [`2026-03-24-open-backlog-and-plan-reference-stance-alignment-review.md`](2026-03-24-open-backlog-and-plan-reference-stance-alignment-review.md)
 - [`2026-03-24-monitoring-multi-loop-benchmark-progress-review.md`](2026-03-24-monitoring-multi-loop-benchmark-progress-review.md)
 - [`2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-review.md`](2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-review.md)

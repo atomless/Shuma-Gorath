@@ -4,6 +4,37 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### RSI-AUDIT-1A: Shared episode and proposal lineage schema
+
+- [x] Landed the shared audit-lineage vocabulary in:
+  - [`docs/plans/2026-03-24-game-loop-audit-trail-and-github-provenance-plan.md`](../docs/plans/2026-03-24-game-loop-audit-trail-and-github-provenance-plan.md)
+  - [`docs/plans/2026-03-24-llm-player-role-decomposition-plan.md`](../docs/plans/2026-03-24-llm-player-role-decomposition-plan.md)
+  so later recursive-improvement work now shares one canonical episode/proposal vocabulary across config and later code moves:
+  - `episode_id`
+  - `proposal_id`
+  - `proposal_kind`
+  - `origin_role`
+  - `game_contract_revision`
+  - `scorecard_revision`
+  - `protocol_revision`
+  - `evaluation_revision`
+  - `evidence_refs`
+  - `baseline_score_refs`
+  - `result_score_refs`
+  - `enactment_status`
+  - `rollback_or_revert_status`
+- [x] Removed the now-landed blocker from:
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+  and rewired downstream blocked items so `OVR-AGENT-2B`, `RSI-AUDIT-1B`, and `RSI-AUDIT-1C` consume `RSI-AUDIT-1A` as a settled vocabulary rather than a still-missing prerequisite.
+- [x] Added the closeout review in:
+  - [`docs/research/2026-03-24-rsi-audit-1a-shared-lineage-schema-post-implementation-review.md`](../docs/research/2026-03-24-rsi-audit-1a-shared-lineage-schema-post-implementation-review.md)
+  and refreshed:
+  - [`docs/research/README.md`](../docs/research/README.md)
+- [x] Why:
+  - after the role, protocol, and evaluation contracts landed, the repo still needed one stable provenance vocabulary before later defender runtime or code-lineage work could stay coherent
+- [x] Evidence:
+  - `git diff --check`
+
 ### RSI-EVAL-1: Protected-vs-held-out evaluation separation
 
 - [x] Landed the canonical evaluation-visibility contract in:

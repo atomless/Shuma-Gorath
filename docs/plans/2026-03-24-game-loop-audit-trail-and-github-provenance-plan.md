@@ -84,6 +84,25 @@ Freeze the missing audit and provenance contract for Shuma's later recursive-imp
 2. current config-change history and later code-evolution work no longer need separate conceptual audit vocabularies,
 3. and later provenance work can be built without retrofitting ids after the fact.
 
+Implementation note:
+
+1. `RSI-AUDIT-1A` is now landed.
+2. The canonical shared lineage vocabulary now freezes:
+   1. `episode_id`
+   2. `proposal_id`
+   3. `proposal_kind`
+   4. `origin_role`
+   5. `game_contract_revision`
+   6. `scorecard_revision`
+   7. `protocol_revision`
+   8. `evaluation_revision`
+   9. `evidence_refs`
+   10. `baseline_score_refs`
+   11. `result_score_refs`
+   12. `enactment_status`
+   13. `rollback_or_revert_status`
+3. Later GitHub-backed code provenance and machine-first retrieval work must now reuse that vocabulary rather than redefine it.
+
 ## Task 2: `RSI-AUDIT-1B`
 
 ### GitHub-backed provenance contract for later code-evolution proposals
@@ -169,6 +188,13 @@ Freeze the missing audit and provenance contract for Shuma's later recursive-imp
 4. Land `RSI-AUDIT-1B` before `OVR-CODE-1` is treated as execution-ready.
 5. Land `RSI-AUDIT-1C` before later operator-facing loop history or code-evolution audit surfaces are considered complete.
 6. Return to deferred operator-surface cleanup and follow-ons only after the first working loop is proven against the truthful attacker basis.
+
+Current note:
+
+1. `RSI-ROLES-1`, `RSI-PROTO-1`, `RSI-EVAL-1`, and `RSI-AUDIT-1A` are now landed.
+2. The remaining audit work is now narrower:
+   1. GitHub-backed code lineage in `RSI-AUDIT-1B`
+   2. machine-first retrieval and operator projection in `RSI-AUDIT-1C`
 
 # Definition Of Done
 
