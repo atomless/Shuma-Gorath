@@ -4,6 +4,35 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-25)
 
+### SIM-LLM-1B: LLM attacker-agent episode harness, bounded memory, and curriculum contract
+
+- [x] Added the tranche paper trail in:
+  - [`docs/research/2026-03-25-sim-llm-1b-episode-harness-readiness-review.md`](../docs/research/2026-03-25-sim-llm-1b-episode-harness-readiness-review.md)
+  - [`docs/plans/2026-03-25-sim-llm-1b-episode-harness-implementation-plan.md`](../docs/plans/2026-03-25-sim-llm-1b-episode-harness-implementation-plan.md)
+- [x] Made the later LLM attacker episode lifecycle and bounded-memory policy executable in the existing adversarial contract path by extending:
+  - [`scripts/tests/adversarial/frontier_action_contract.v1.json`](../scripts/tests/adversarial/frontier_action_contract.v1.json)
+  - [`scripts/tests/adversarial_runner/llm_fulfillment.py`](../scripts/tests/adversarial_runner/llm_fulfillment.py)
+  with a machine-readable episode-harness contract for:
+  - initial context,
+  - fresh-environment reset,
+  - bounded action horizon,
+  - terminal and failure states,
+  - allowed retained memory and curriculum inputs,
+  - protected-evidence allowance,
+  - held-out evaluation exclusion.
+- [x] Mirrored that contract into the Rust fulfillment plan and rendered machine payload in:
+  - [`src/admin/adversary_sim_llm_lane.rs`](../src/admin/adversary_sim_llm_lane.rs)
+  - [`src/admin/api.rs`](../src/admin/api.rs)
+- [x] Added the focused proof and tranche closeout note in:
+  - [`scripts/tests/test_llm_fulfillment.py`](../scripts/tests/test_llm_fulfillment.py)
+  - [`docs/research/2026-03-25-sim-llm-1b-episode-harness-post-implementation-review.md`](../docs/research/2026-03-25-sim-llm-1b-episode-harness-post-implementation-review.md)
+- [x] Updated the active and blocked backlog so `SIM-LLM-1B` is complete and the later full attacker runtime remains explicitly blocked in:
+  - [`todos/todo.md`](../todos/todo.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+- [x] Evidence:
+  - `make test-adversarial-llm-fit`
+  - `git diff --check`
+
 ### SIM-LLM-1A: LLM attacker-agent black-box contract over the settled Scrapling baseline
 
 - [x] Reopened the backend mainline around the LLM attacker contract by adding:

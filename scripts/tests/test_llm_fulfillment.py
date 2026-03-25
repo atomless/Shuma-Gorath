@@ -30,6 +30,25 @@ class LlmFulfillmentUnitTests(unittest.TestCase):
         self.assertIn(
             "shuma_repo", contract["black_box_boundary"]["forbidden_knowledge_sources"]
         )
+        self.assertTrue(contract["episode_harness"]["environment_reset_required"])
+        self.assertEqual(
+            contract["episode_harness"]["initial_context_fields"],
+            [
+                "host_root_entrypoint",
+                "category_objective",
+                "black_box_boundary",
+                "capability_envelope",
+            ],
+        )
+        self.assertIn(
+            "player_visible_protected_evidence",
+            contract["episode_harness"]["allowed_memory_sources"],
+        )
+        self.assertIn(
+            "judge_held_out_evaluation",
+            contract["episode_harness"]["forbidden_memory_sources"],
+        )
+        self.assertFalse(contract["episode_harness"]["held_out_evaluation_visible"])
 
     def test_build_llm_fulfillment_plan_marks_single_provider_frontier_as_degraded(self):
         plan = llm_fulfillment.build_llm_fulfillment_plan(
@@ -64,6 +83,17 @@ class LlmFulfillmentUnitTests(unittest.TestCase):
         self.assertFalse(plan["black_box_boundary"]["repo_visibility_allowed"])
         self.assertFalse(plan["black_box_boundary"]["judge_visibility_allowed"])
         self.assertTrue(plan["black_box_boundary"]["receipt_requirements"]["attack_trace_required"])
+        self.assertEqual(
+            plan["episode_harness"]["environment_reset_policy"], "fresh_episode_reset"
+        )
+        self.assertIn(
+            "objective_completed", plan["episode_harness"]["terminal_conditions"]
+        )
+        self.assertEqual(plan["episode_harness"]["max_retained_episode_summaries"], 5)
+        self.assertTrue(
+            plan["episode_harness"]["player_visible_protected_evidence_allowed"]
+        )
+        self.assertFalse(plan["episode_harness"]["held_out_evaluation_visible"])
 
     def test_build_llm_fulfillment_plan_uses_request_mode_when_frontier_is_unavailable(self):
         plan = llm_fulfillment.build_llm_fulfillment_plan(

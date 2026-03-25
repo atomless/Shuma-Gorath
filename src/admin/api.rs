@@ -5527,6 +5527,22 @@ mod admin_config_tests {
         assert_eq!(
             beat_json
                 .get("llm_fulfillment_plan")
+                .and_then(|value| value.get("episode_harness"))
+                .and_then(|value| value.get("environment_reset_required"))
+                .and_then(|value| value.as_bool()),
+            Some(true)
+        );
+        assert_eq!(
+            beat_json
+                .get("llm_fulfillment_plan")
+                .and_then(|value| value.get("episode_harness"))
+                .and_then(|value| value.get("held_out_evaluation_visible"))
+                .and_then(|value| value.as_bool()),
+            Some(false)
+        );
+        assert_eq!(
+            beat_json
+                .get("llm_fulfillment_plan")
                 .and_then(|value| value.get("backend_kind"))
                 .and_then(|value| value.as_str()),
             Some("frontier_reference")

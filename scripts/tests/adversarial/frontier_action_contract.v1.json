@@ -168,5 +168,45 @@
       "observation_lineage_required": true,
       "category_objective_lineage_required": true
     }
+  },
+  "llm_attacker_episode_harness": {
+    "schema_version": "adversary-sim-llm-attacker-episode.v1",
+    "initial_context_fields": [
+      "host_root_entrypoint",
+      "category_objective",
+      "black_box_boundary",
+      "capability_envelope"
+    ],
+    "environment_reset_required": true,
+    "environment_reset_policy": "fresh_episode_reset",
+    "bounded_action_horizon_required": true,
+    "terminal_conditions": [
+      "objective_completed",
+      "action_budget_exhausted",
+      "time_budget_exhausted",
+      "hard_guardrail_triggered",
+      "environment_unavailable"
+    ],
+    "failure_states": [
+      "objective_unfulfilled",
+      "environment_error",
+      "guardrail_refusal"
+    ],
+    "allowed_memory_sources": [
+      "prior_episode_summaries",
+      "player_visible_protected_evidence",
+      "public_host_discoveries",
+      "curriculum_strategy_notes"
+    ],
+    "forbidden_memory_sources": [
+      "judge_held_out_evaluation",
+      "raw_regression_anchor_inventory",
+      "admin_or_secret_material",
+      "shuma_internal_knowledge"
+    ],
+    "max_retained_episode_summaries": 5,
+    "max_curriculum_items": 8,
+    "player_visible_protected_evidence_allowed": true,
+    "held_out_evaluation_visible": false
   }
 }

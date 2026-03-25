@@ -75,6 +75,22 @@ pub(crate) struct LlmBlackBoxBoundary {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct LlmEpisodeHarness {
+    pub initial_context_fields: Vec<String>,
+    pub environment_reset_required: bool,
+    pub environment_reset_policy: String,
+    pub bounded_action_horizon_required: bool,
+    pub terminal_conditions: Vec<String>,
+    pub failure_states: Vec<String>,
+    pub allowed_memory_sources: Vec<String>,
+    pub forbidden_memory_sources: Vec<String>,
+    pub max_retained_episode_summaries: u64,
+    pub max_curriculum_items: u64,
+    pub player_visible_protected_evidence_allowed: bool,
+    pub held_out_evaluation_visible: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub(crate) struct LlmFulfillmentPlan {
     pub schema_version: String,
     pub run_id: String,
@@ -89,6 +105,7 @@ pub(crate) struct LlmFulfillmentPlan {
     pub frontier_action_contract_id: String,
     pub container_runtime_profile_id: String,
     pub black_box_boundary: LlmBlackBoxBoundary,
+    pub episode_harness: LlmEpisodeHarness,
     pub capability_envelope: LlmCapabilityEnvelope,
 }
 
@@ -122,6 +139,7 @@ pub(crate) fn next_llm_fulfillment_plan(
         frontier_action_contract_id: FRONTIER_ACTION_CONTRACT_ID.to_string(),
         container_runtime_profile_id: CONTAINER_RUNTIME_PROFILE_ID.to_string(),
         black_box_boundary: black_box_boundary_contract(),
+        episode_harness: episode_harness_contract(),
         capability_envelope: capability_envelope_for_mode(mode),
     }
 }
@@ -202,6 +220,48 @@ fn black_box_boundary_contract() -> LlmBlackBoxBoundary {
     }
 }
 
+fn episode_harness_contract() -> LlmEpisodeHarness {
+    LlmEpisodeHarness {
+        initial_context_fields: vec![
+            "host_root_entrypoint".to_string(),
+            "category_objective".to_string(),
+            "black_box_boundary".to_string(),
+            "capability_envelope".to_string(),
+        ],
+        environment_reset_required: true,
+        environment_reset_policy: "fresh_episode_reset".to_string(),
+        bounded_action_horizon_required: true,
+        terminal_conditions: vec![
+            "objective_completed".to_string(),
+            "action_budget_exhausted".to_string(),
+            "time_budget_exhausted".to_string(),
+            "hard_guardrail_triggered".to_string(),
+            "environment_unavailable".to_string(),
+        ],
+        failure_states: vec![
+            "objective_unfulfilled".to_string(),
+            "environment_error".to_string(),
+            "guardrail_refusal".to_string(),
+        ],
+        allowed_memory_sources: vec![
+            "prior_episode_summaries".to_string(),
+            "player_visible_protected_evidence".to_string(),
+            "public_host_discoveries".to_string(),
+            "curriculum_strategy_notes".to_string(),
+        ],
+        forbidden_memory_sources: vec![
+            "judge_held_out_evaluation".to_string(),
+            "raw_regression_anchor_inventory".to_string(),
+            "admin_or_secret_material".to_string(),
+            "shuma_internal_knowledge".to_string(),
+        ],
+        max_retained_episode_summaries: 5,
+        max_curriculum_items: 8,
+        player_visible_protected_evidence_allowed: true,
+        held_out_evaluation_visible: false,
+    }
+}
+
 fn frontier_backend_state(frontier: &FrontierSummary) -> (String, String) {
     if frontier.provider_count == 0 {
         return (
@@ -260,6 +320,21 @@ mod tests {
             .black_box_boundary
             .public_host_hint_sources
             .contains(&"robots_txt".to_string()));
+        assert!(plan.episode_harness.environment_reset_required);
+        assert_eq!(
+            plan.episode_harness.initial_context_fields,
+            vec![
+                "host_root_entrypoint",
+                "category_objective",
+                "black_box_boundary",
+                "capability_envelope",
+            ]
+        );
+        assert!(plan
+            .episode_harness
+            .allowed_memory_sources
+            .contains(&"player_visible_protected_evidence".to_string()));
+        assert!(!plan.episode_harness.held_out_evaluation_visible);
 
         std::env::remove_var("SHUMA_FRONTIER_OPENAI_API_KEY");
         std::env::remove_var("SHUMA_FRONTIER_OPENAI_MODEL");
@@ -280,5 +355,14 @@ mod tests {
         assert!(plan.black_box_boundary.public_knowledge_only);
         assert!(!plan.black_box_boundary.repo_visibility_allowed);
         assert!(!plan.black_box_boundary.judge_visibility_allowed);
+        assert_eq!(
+            plan.episode_harness.environment_reset_policy,
+            "fresh_episode_reset"
+        );
+        assert!(plan
+            .episode_harness
+            .terminal_conditions
+            .contains(&"objective_completed".to_string()));
+        assert_eq!(plan.episode_harness.max_retained_episode_summaries, 5);
     }
 }

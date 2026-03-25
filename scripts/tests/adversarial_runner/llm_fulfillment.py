@@ -18,6 +18,7 @@ LLM_FULFILLMENT_PLAN_SCHEMA_VERSION = "adversary-sim-llm-fulfillment-plan.v1"
 LLM_FULFILLMENT_CONTRACT_SCHEMA_VERSION = "adversary-sim-llm-fulfillment-contract.v1"
 LLM_FULFILLMENT_RUNTIME_SCHEMA_VERSION = "adversary-sim-llm-runtime-profile.v1"
 LLM_ATTACKER_BLACK_BOX_SCHEMA_VERSION = "adversary-sim-llm-attacker-black-box.v1"
+LLM_ATTACKER_EPISODE_SCHEMA_VERSION = "adversary-sim-llm-attacker-episode.v1"
 FRONTIER_ACTION_CONTRACT_ID = "frontier_action_contract.v1"
 CONTAINER_RUNTIME_PROFILE_ID = "container_runtime_profile.v1"
 SUPPORTED_BACKEND_KINDS = ["frontier_reference", "local_candidate"]
@@ -188,6 +189,85 @@ def _normalize_black_box_boundary(boundary: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _normalize_episode_harness(harness: Dict[str, Any]) -> Dict[str, Any]:
+    schema_version = str(harness.get("schema_version") or "").strip()
+    if schema_version != LLM_ATTACKER_EPISODE_SCHEMA_VERSION:
+        raise RuntimeError(
+            "llm_attacker_episode_harness.schema_version must be "
+            f"{LLM_ATTACKER_EPISODE_SCHEMA_VERSION}"
+        )
+
+    initial_context_fields = _normalize_string_list(
+        harness.get("initial_context_fields"),
+        field_name="llm_attacker_episode_harness.initial_context_fields",
+    )
+    terminal_conditions = _normalize_string_list(
+        harness.get("terminal_conditions"),
+        field_name="llm_attacker_episode_harness.terminal_conditions",
+    )
+    failure_states = _normalize_string_list(
+        harness.get("failure_states"),
+        field_name="llm_attacker_episode_harness.failure_states",
+    )
+    allowed_memory_sources = _normalize_string_list(
+        harness.get("allowed_memory_sources"),
+        field_name="llm_attacker_episode_harness.allowed_memory_sources",
+    )
+    forbidden_memory_sources = _normalize_string_list(
+        harness.get("forbidden_memory_sources"),
+        field_name="llm_attacker_episode_harness.forbidden_memory_sources",
+    )
+
+    environment_reset_policy = str(harness.get("environment_reset_policy") or "").strip()
+    if environment_reset_policy != "fresh_episode_reset":
+        raise RuntimeError(
+            "llm_attacker_episode_harness.environment_reset_policy must be "
+            "fresh_episode_reset"
+        )
+
+    max_retained_episode_summaries = int_or_zero(
+        harness.get("max_retained_episode_summaries")
+    )
+    if max_retained_episode_summaries < 1:
+        raise RuntimeError(
+            "llm_attacker_episode_harness.max_retained_episode_summaries must be >= 1"
+        )
+    max_curriculum_items = int_or_zero(harness.get("max_curriculum_items"))
+    if max_curriculum_items < 1:
+        raise RuntimeError(
+            "llm_attacker_episode_harness.max_curriculum_items must be >= 1"
+        )
+
+    return {
+        "initial_context_fields": initial_context_fields,
+        "environment_reset_required": _require_boolean(
+            harness.get("environment_reset_required"),
+            field_name="llm_attacker_episode_harness.environment_reset_required",
+        ),
+        "environment_reset_policy": environment_reset_policy,
+        "bounded_action_horizon_required": _require_boolean(
+            harness.get("bounded_action_horizon_required"),
+            field_name="llm_attacker_episode_harness.bounded_action_horizon_required",
+        ),
+        "terminal_conditions": terminal_conditions,
+        "failure_states": failure_states,
+        "allowed_memory_sources": allowed_memory_sources,
+        "forbidden_memory_sources": forbidden_memory_sources,
+        "max_retained_episode_summaries": max_retained_episode_summaries,
+        "max_curriculum_items": max_curriculum_items,
+        "player_visible_protected_evidence_allowed": _require_boolean(
+            harness.get("player_visible_protected_evidence_allowed"),
+            field_name=(
+                "llm_attacker_episode_harness.player_visible_protected_evidence_allowed"
+            ),
+        ),
+        "held_out_evaluation_visible": _require_boolean(
+            harness.get("held_out_evaluation_visible"),
+            field_name="llm_attacker_episode_harness.held_out_evaluation_visible",
+        ),
+    }
+
+
 def load_llm_fulfillment_contract(
     frontier_action_contract_path: Path = FRONTIER_ACTION_CONTRACT_PATH,
     container_runtime_profile_path: Path = CONTAINER_RUNTIME_PROFILE_PATH,
@@ -241,6 +321,9 @@ def load_llm_fulfillment_contract(
     black_box_boundary = _normalize_black_box_boundary(
         dict_or_empty(frontier_contract.get("llm_attacker_black_box"))
     )
+    episode_harness = _normalize_episode_harness(
+        dict_or_empty(frontier_contract.get("llm_attacker_episode_harness"))
+    )
 
     return {
         "schema_version": LLM_FULFILLMENT_PLAN_SCHEMA_VERSION,
@@ -249,6 +332,7 @@ def load_llm_fulfillment_contract(
         "backend_kinds": backend_kinds,
         "modes": modes,
         "black_box_boundary": black_box_boundary,
+        "episode_harness": episode_harness,
     }
 
 
@@ -303,6 +387,7 @@ def build_llm_fulfillment_plan(
             resolved_contract.get("container_runtime_profile_id") or ""
         ).strip(),
         "black_box_boundary": dict(resolved_contract.get("black_box_boundary") or {}),
+        "episode_harness": dict(resolved_contract.get("episode_harness") or {}),
         "capability_envelope": {
             "allowed_tools": list(mode_contract.get("allowed_tools") or []),
             "browser_automation_allowed": bool(

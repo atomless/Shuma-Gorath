@@ -110,21 +110,8 @@ Current note:
 - `RSI-GAME-MAINLINE-1A` and `RSI-GAME-MAINLINE-1B` are landed.
 - `SIM-SCR-CHALLENGE-2C` stays conditional and blocked until the owned-surface matrix proves browser or stealth Scrapling is truly required for a remaining Scrapling-owned surface.
 - The current attacker-faithful Scrapling prerequisite for owned request-native surfaces is satisfied through `SIM-SCR-CHALLENGE-2A`, `SIM-SCR-CHALLENGE-2B`, and `SIM-SCR-CHALLENGE-2D`.
-- `SIM-LLM-1A` is now landed; the next backend mainline slice is `SIM-LLM-1B`, while deferred dashboard cleanup remains below the backend path.
-
-### SIM-LLM-1B: LLM attacker-agent episode harness, bounded memory, and curriculum contract
-- Define the later LLM attacker episode shape over the now-landed black-box boundary:
-  - initial objective,
-  - environment reset,
-  - bounded action horizon,
-  - completion and failure states.
-- Define what attacker-side memory may persist between episodes and what remains judge-held.
-- Define which archive or curriculum inputs are allowed without leaking held-out evaluation or hidden judge context.
-- Keep the contract subordinate to the landed attacker black-box boundary and the landed `RSI-PROTO-1` plus `RSI-EVAL-1` contracts.
-- Reference context:
-  - [`../docs/plans/2026-03-24-llm-player-role-decomposition-plan.md`](../docs/plans/2026-03-24-llm-player-role-decomposition-plan.md)
-  - [`../docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](../docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md)
-  - [`../docs/research/2026-03-25-sim-llm-1a-black-box-contract-post-implementation-review.md`](../docs/research/2026-03-25-sim-llm-1a-black-box-contract-post-implementation-review.md)
+- `SIM-LLM-1A` and `SIM-LLM-1B` are now landed.
+- The later full attacker runtime `SIM-LLM-1C` remains explicitly blocked until it is intentionally reopened over the now-settled black-box and episode contracts, so the active queue falls back to the deferred operator-surface cleanup while later LLM runtime work stays blocked.
 
 ### DIAG-CLEANUP-1: Diagnostics furniture-operational cleanup after Traffic split
 - After `TRAFFIC-TAB-1` lands, remove the migrated traffic-facing sections from Diagnostics so it becomes clearly diagnostics-first and furniture-operational.
