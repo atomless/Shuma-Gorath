@@ -474,6 +474,7 @@ Simulation telemetry read policy:
 - trusted GEO country-header routing for challenge, maze, and block.
 `test-live-feedback-loop-remote` is the live ssh-managed-host proof for the first shared-host recommend-only feedback loop. It runs against the active normalized remote, uses public admin endpoints plus SSH loopback to the internal supervisor route, and proves:
 - the running shared-host service is launched through `scripts/run_with_oversight_supervisor.sh`,
+- the remote transport environment exposes `ADVERSARY_SIM_SCRAPLING_PUBLIC_NETWORK_IDENTITIES` with at least one bounded `http_proxy` identity so Scrapling can truthfully cover its owned `geo_ip_policy` surface,
 - `GET /admin/operator-snapshot` and `GET /admin/oversight/agent/status` are available on the deployed target,
 - the bounded adversary lane is explicitly `scrapling_traffic`,
 - the operator snapshot exposes the completed Scrapling recent run and `scrapling_owned_defense_surface_coverage_v1`,

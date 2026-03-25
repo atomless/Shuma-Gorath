@@ -66,17 +66,19 @@
 
 **Work:**
 1. Make the live verifier explicitly enable `scrapling_traffic`.
-2. After the completed sim run, fetch `operator_snapshot_v1` and assert:
+2. Add an explicit live preflight for `ADVERSARY_SIM_SCRAPLING_PUBLIC_NETWORK_IDENTITIES` so missing attacker-faithful public-network identity configuration fails immediately rather than surfacing later as a vague partial-coverage result.
+3. After the completed sim run, fetch `operator_snapshot_v1` and assert:
    - the matching recent run is Scrapling,
    - the coverage summary schema is correct,
    - the coverage summary is `covered`,
    - and the current `sim_run_id` is visible in recent runs.
-3. Fetch oversight history and assert there is a coherent episode row for the current post-sim run, with acceptance or completion semantics that match the recorded apply stage.
-4. Update the unit fixtures so they are Scrapling-shaped rather than synthetic-lane shaped.
+4. Fetch oversight history and assert there is a coherent episode row for the current post-sim run, with acceptance or completion semantics that match the recorded apply stage.
+5. Update the unit fixtures so they are Scrapling-shaped rather than synthetic-lane shaped.
 
 **Acceptance criteria:**
 1. The live/shared-host verifier proves the loop is operating over the truthful attacker lane.
-2. The live proof now ties attacker evidence, judge execution, and episode lineage together.
+2. Missing live public-network identity readiness is reported as an explicit preflight blocker instead of a late ambiguous coverage miss.
+3. The live proof now ties attacker evidence, judge execution, and episode lineage together.
 
 ## Task 4: Close the tranche and sync the paper trail
 

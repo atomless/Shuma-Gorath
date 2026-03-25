@@ -4,6 +4,28 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### RSI-GAME-MAINLINE-1 follow-on: live Scrapling public-identity preflight
+
+- [x] Tightened the live first-loop verifier in:
+  - [`scripts/tests/live_feedback_loop_remote.py`](../scripts/tests/live_feedback_loop_remote.py)
+  - [`scripts/tests/test_live_feedback_loop_remote.py`](../scripts/tests/test_live_feedback_loop_remote.py)
+  so the shared-host proof now fails immediately when the remote transport environment lacks `ADVERSARY_SIM_SCRAPLING_PUBLIC_NETWORK_IDENTITIES`, instead of burning a full Scrapling run and only later surfacing a vague partial-coverage error.
+- [x] Recorded the sharpened prerequisite in:
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`docs/plans/2026-03-24-rsi-game-mainline-first-working-loop-implementation-plan.md`](../docs/plans/2026-03-24-rsi-game-mainline-first-working-loop-implementation-plan.md)
+  - [`docs/research/2026-03-24-rsi-game-mainline-live-identity-preflight-post-implementation-review.md`](../docs/research/2026-03-24-rsi-game-mainline-live-identity-preflight-post-implementation-review.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`todos/todo.md`](../todos/todo.md)
+- [x] Why:
+  - the focused local first-loop proof was already green,
+  - the live verifier had become truthful about coverage and episode lineage,
+  - but the real shared-host remote still lacked attacker-faithful public-network identity configuration, so the verifier needed to report that deploy-readiness blocker explicitly rather than hiding it inside a late partial-coverage result.
+- [x] Evidence:
+  - `make test-live-feedback-loop-remote-unit`
+  - `make test-rsi-game-mainline`
+  - `make test-live-feedback-loop-remote ENV_LOCAL=/Users/jamestindall/Projects/Shuma-Gorath/.env.local REMOTE_RECEIPTS_DIR=/Users/jamestindall/Projects/Shuma-Gorath/.shuma/remotes REMOTE=dummy-static-site-fresh`
+  - `git diff --check`
+
 ### Shared-host Scrapling supervisor chunked beat decoding
 
 - [x] Fixed the host-side supervisor's raw HTTP beat parsing in:

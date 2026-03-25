@@ -28,6 +28,7 @@ The directory is intentionally flat. Use this index, not nested folders, to dist
 - [`2026-03-24-rsi-game-1b-shortfall-attribution-and-move-selection-post-implementation-review.md`](2026-03-24-rsi-game-1b-shortfall-attribution-and-move-selection-post-implementation-review.md) - Closeout for replacing the hidden proposer-priority bridge with explicit benchmark-side shortfall guidance
 - [`2026-03-24-rsi-score-1-judge-scorecard-post-implementation-review.md`](2026-03-24-rsi-score-1-judge-scorecard-post-implementation-review.md) - Closeout for making the judge score semantics explicit inside `game_contract_v1`
 - [`2026-03-24-rsi-game-1c-episode-archive-post-implementation-review.md`](2026-03-24-rsi-game-1c-episode-archive-post-implementation-review.md) - Closeout for landing the bounded machine-first episode archive and homeostasis-input substrate
+- [`2026-03-24-rsi-game-mainline-live-identity-preflight-post-implementation-review.md`](2026-03-24-rsi-game-mainline-live-identity-preflight-post-implementation-review.md) - Closeout for making the live first-loop proof fail fast when the remote lacks attacker-faithful Scrapling public-network identities
 - [`2026-03-24-default-flips-verified-identity-and-scrapling-lane-post-implementation-review.md`](2026-03-24-default-flips-verified-identity-and-scrapling-lane-post-implementation-review.md) - Closeout for enabling verified identity by default and making Scrapling the default sim lane
 - [`2026-03-24-mon-overhaul-1a-monitoring-ia-post-implementation-review.md`](2026-03-24-mon-overhaul-1a-monitoring-ia-post-implementation-review.md) - Closeout for the first Monitoring/Diagnostics accountability-vs-diagnostics information-architecture split
 - [`2026-03-24-test-hygiene-6a-dashboard-behavior-proof-post-implementation-review.md`](2026-03-24-test-hygiene-6a-dashboard-behavior-proof-post-implementation-review.md) - Closeout for replacing the first dashboard runtime archaeology tests with behavior-first proof
@@ -100,6 +101,7 @@ The directory is intentionally flat. Use this index, not nested folders, to dist
 - [`2026-03-24-scrapling-geo-ip-policy-source-diversification-review.md`](2026-03-24-scrapling-geo-ip-policy-source-diversification-review.md)
 - [`2026-03-24-mainline-resequence-scrapling-before-game-loop-review.md`](2026-03-24-mainline-resequence-scrapling-before-game-loop-review.md)
 - [`2026-03-24-rsi-game-mainline-first-working-loop-review.md`](2026-03-24-rsi-game-mainline-first-working-loop-review.md)
+- [`2026-03-24-rsi-game-mainline-live-identity-preflight-post-implementation-review.md`](2026-03-24-rsi-game-mainline-live-identity-preflight-post-implementation-review.md)
 - [`2026-03-24-open-backlog-and-plan-reference-stance-alignment-review.md`](2026-03-24-open-backlog-and-plan-reference-stance-alignment-review.md)
 - [`2026-03-24-monitoring-multi-loop-benchmark-progress-review.md`](2026-03-24-monitoring-multi-loop-benchmark-progress-review.md)
 - [`2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-review.md`](2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-review.md)

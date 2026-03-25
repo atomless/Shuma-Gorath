@@ -40,6 +40,7 @@ SIM_COMPLETION_TIMEOUT_SECONDS = 420
 POST_SIM_AGENT_TIMEOUT_SECONDS = 120
 HTTP_REQUEST_RETRY_ATTEMPTS = 3
 HTTP_REQUEST_RETRY_DELAY_SECONDS = 2.0
+SCRAPLING_PUBLIC_NETWORK_IDENTITIES_ENV = "ADVERSARY_SIM_SCRAPLING_PUBLIC_NETWORK_IDENTITIES"
 ALLOWED_OVERSIGHT_APPLY_STAGES = {
     "eligible",
     "canary_applied",
@@ -307,6 +308,59 @@ PY"""
                 f"{exec_start or 'missing ExecStart output'}"
             )
         return status_output
+
+    def _scrapling_public_network_identity_summary(self) -> dict[str, Any]:
+        env_values = self.remote_env or self.local_env
+        raw_value = str(env_values.get(SCRAPLING_PUBLIC_NETWORK_IDENTITIES_ENV, "") or "").strip()
+        if not raw_value:
+            raise SmokeFailure(
+                f"Remote transport environment does not configure {SCRAPLING_PUBLIC_NETWORK_IDENTITIES_ENV}; "
+                "live Scrapling loop proof requires at least one bounded http_proxy identity so "
+                "geo_ip_policy coverage can be proven attacker-faithfully."
+            )
+        try:
+            payload = json.loads(raw_value)
+        except json.JSONDecodeError as exc:
+            raise SmokeFailure(
+                f"Remote transport environment has invalid {SCRAPLING_PUBLIC_NETWORK_IDENTITIES_ENV} JSON: {exc}"
+            ) from exc
+        if not isinstance(payload, list) or not payload:
+            raise SmokeFailure(
+                f"Remote transport environment must configure at least one bounded identity in "
+                f"{SCRAPLING_PUBLIC_NETWORK_IDENTITIES_ENV} for live Scrapling proof."
+            )
+        valid_identities = []
+        for item in payload:
+            if not isinstance(item, dict):
+                continue
+            identity_id = str(item.get("identity_id") or "").strip()
+            identity_class = str(item.get("identity_class") or "").strip()
+            proxy_url = str(item.get("proxy_url") or "").strip()
+            if not identity_id or identity_class != "http_proxy":
+                continue
+            if not proxy_url.startswith(("http://", "https://")):
+                continue
+            valid_identities.append(
+                {
+                    "identity_id": identity_id,
+                    "identity_class": identity_class,
+                    "expected_geo_country": str(item.get("expected_geo_country") or "").strip() or None,
+                }
+            )
+        if not valid_identities:
+            raise SmokeFailure(
+                f"Remote transport environment {SCRAPLING_PUBLIC_NETWORK_IDENTITIES_ENV} does not contain a usable "
+                "bounded http_proxy identity for live Scrapling proof."
+            )
+        return {
+            "configured_count": len(valid_identities),
+            "identity_ids": [item["identity_id"] for item in valid_identities],
+            "expected_geo_countries": [
+                item["expected_geo_country"]
+                for item in valid_identities
+                if item["expected_geo_country"] is not None
+            ],
+        }
 
     def _oversight_status_summary(self, payload: dict[str, Any]) -> dict[str, Any]:
         latest_run = payload.get("latest_run") or {}
@@ -709,6 +763,9 @@ PY"""
         }
         try:
             report["service_exec"] = self._verify_service_wrapper()
+            report["scrapling_public_network_identities"] = (
+                self._scrapling_public_network_identity_summary()
+            )
             report["operator_snapshot"] = {
                 "schema_version": self._fetch_operator_snapshot().get("schema_version")
             }

@@ -110,6 +110,7 @@ Reference context:
 - After the Scrapling-owned surfaces are attacker-faithful and receipt-backed, execute the first explicit self-improving loop over that truthful attacker basis.
 - Before broadening that loop, land `CTRL-SURFACE-1..3` and the judge-side game-contract work (`RSI-GAME-1A`, `RSI-GAME-1B`, `RSI-SCORE-1`, and the delivered `RSI-GAME-1C`) so the loop runs over a settled legal move ring, explicit judge semantics, and a bounded episode archive.
 - Keep this ahead of later LLM attacker or defender runtime work, and ahead of secondary dashboard cleanup follow-ons.
+- The live shared-host proof for this tranche now has an explicit deploy-readiness prerequisite: the target must configure `ADVERSARY_SIM_SCRAPLING_PUBLIC_NETWORK_IDENTITIES` with at least one bounded `http_proxy` identity, otherwise the verifier must fail immediately rather than claiming vague partial Scrapling coverage.
 
 Mainline execution order:
 1. `RSI-GAME-MAINLINE-1`

@@ -22,7 +22,19 @@ class _FakeLiveFeedbackLoopRemote(LIVE_FEEDBACK_LOOP_REMOTE.LiveFeedbackLoopRemo
         self.api_key = "test-admin-key"
         self.forwarded_ip_secret = "test-forwarded-secret"
         self.local_env = {"SHUMA_ADMIN_IP_ALLOWLIST": "127.0.0.1/32"}
-        self.remote_env = None
+        self.remote_env = {
+            "SHUMA_ADMIN_IP_ALLOWLIST": "127.0.0.1/32",
+            "ADVERSARY_SIM_SCRAPLING_PUBLIC_NETWORK_IDENTITIES": json.dumps(
+                [
+                    {
+                        "identity_id": "proxy-gb-1",
+                        "identity_class": "http_proxy",
+                        "proxy_url": "http://proxy.example:8080",
+                        "expected_geo_country": "GB",
+                    }
+                ]
+            ),
+        }
         self.receipt = {
             "identity": {
                 "name": "stub-remote",
@@ -400,6 +412,7 @@ class LiveFeedbackLoopRemoteTests(unittest.TestCase):
         self.assertEqual(report["operator_snapshot"]["adversary_sim"]["coverage_status"], "covered")
         self.assertEqual(report["operator_snapshot"]["adversary_sim"]["recent_run_id"], "sim-run-1")
         self.assertEqual(report["operator_snapshot"]["adversary_sim"]["recent_run_lane"], "scrapling_traffic")
+        self.assertEqual(report["scrapling_public_network_identities"]["configured_count"], 1)
         self.assertEqual(report["post_sim_trigger"]["episode_latest_sim_run_id"], "sim-run-1")
         self.assertEqual(report["post_sim_trigger"]["episode_acceptance_status"], "accepted_canary")
         self.assertEqual(report["post_sim_trigger"]["episode_completion_status"], "open")
@@ -478,6 +491,22 @@ class LiveFeedbackLoopRemoteTests(unittest.TestCase):
         report = json.loads(runner.report_path.read_text(encoding="utf-8"))
         self.assertEqual(report["result"], "fail")
         self.assertIn("run_with_oversight_supervisor.sh", report["error"])
+
+    def test_run_fails_fast_when_remote_lacks_public_network_identities(self) -> None:
+        temp_dir = Path(tempfile.mkdtemp(prefix="live-feedback-loop-remote-"))
+        runner = _FakeLiveFeedbackLoopRemote(
+            temp_dir=temp_dir,
+            service_exec="/bin/bash /opt/shuma-gorath/scripts/run_with_oversight_supervisor.sh spin up",
+        )
+        runner.remote_env = {"SHUMA_ADMIN_IP_ALLOWLIST": "127.0.0.1/32"}
+
+        exit_code = runner.run()
+
+        self.assertEqual(exit_code, 1)
+        report = json.loads(runner.report_path.read_text(encoding="utf-8"))
+        self.assertEqual(report["result"], "fail")
+        self.assertIn("ADVERSARY_SIM_SCRAPLING_PUBLIC_NETWORK_IDENTITIES", report["error"])
+        self.assertEqual(runner._control_calls, [])
 
     def test_run_accepts_service_tree_with_wrapper_below_make_prod_start(self) -> None:
         temp_dir = Path(tempfile.mkdtemp(prefix="live-feedback-loop-remote-"))
