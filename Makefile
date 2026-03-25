@@ -1,4 +1,4 @@
-.PHONY: dev dev-prod local run run-prebuilt build build-runtime build-full-dev prod prod-start clean reset-local-state test test-unit unit-test test-verified-identity-contracts test-verified-identity-config test-verified-identity-provider test-verified-identity-native test-verified-identity-directory-discovery test-verified-identity-proxy-trust test-verified-identity-policy test-verified-identity-telemetry test-verified-identity-annotations test-verified-identity-calibration-readiness test-verified-identity-taxonomy-crosswalk test-verified-identity-alignment-receipts test-verified-identity-botness-conflicts test-verified-identity-guardrails test-host-impact-telemetry test-host-impact-benchmark test-oversight-host-impact test-integration integration-test test-gateway-harness test-gateway-wasm-tls-harness test-gateway-origin-bypass-probe test-gateway-profile-shared-server test-gateway-profile-edge smoke-gateway-mode test-deploy-linode test-deploy-fermyon test-scrapling-deploy-shared-host test-config-lifecycle test-js-verification-unit test-runtime-preflight-unit test-runtime-preflight test-shadow-mode test-enterprise-ban-store-contract test-telemetry-storage test-telemetry-hot-read-contract test-telemetry-hot-read-projection test-telemetry-hot-read-bootstrap test-telemetry-hot-read-evidence test-telemetry-hot-read-live-evidence test-monitoring-telemetry-contract test-monitoring-telemetry-foundation-unit test-operator-snapshot-foundation test-traffic-taxonomy-contract test-traffic-classification-contract test-operator-objectives-contract test-operator-objectives-category-contract test-benchmark-category-eligibility test-rsi-game-contract test-rsi-scorecard test-oversight-episode-archive test-oversight-move-selection-policy test-oversight-reconcile test-oversight-agent test-oversight-post-sim-trigger test-live-feedback-loop-remote test-live-feedback-loop-remote-unit test-remote-target-contract test-setup-runtime-bootstrap test-admin-machine-contracts test-admin-api-routing-contract test-benchmark-suite-contract test-benchmark-results-contract test-benchmark-comparison-contract test-controller-mutability-policy test-controller-action-surface test-controller-action-surface-parity test-controller-hard-boundaries telemetry-shared-host-evidence telemetry-fermyon-edge-evidence test-adversarial-python-unit test-adversarial-manifest test-adversarial-preflight test-adversarial-lane-contract test-shared-host-scope-contract test-shared-host-seed-contract build-shared-host-seed-inventory prepare-scrapling-deploy test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-coverage-receipts test-adversarial-scenario-review test-adversarial-scenario-intent-evidence-unit test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live test-remote-edge-signal-smoke test-fermyon-edge-signal-smoke telemetry-clean adversary-sim-supervisor-build adversary-sim-supervisor test-supervisor-wrapper-contracts test-adversary-sim-domain-contract test-adversary-sim-runtime-surface test-adversary-sim-runtime-surface-unit test-adversary-sim-scrapling-category-fit test-adversary-sim-scrapling-worker test-adversary-sim-diagnostics-truth test-adversarial-llm-fit test-adversarial-repeatability test-adversarial-promote-candidates test-replay-promotion-contract test-protected-tuning-evidence test-adversarial-report-diff test-adversarial-runner-architecture test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-frontier-unavailability-policy-unit test-sim2-realtime-bench test-sim2-adr-conformance test-sim2-ci-diagnostics test-sim2-verification-matrix test-sim2-verification-matrix-advisory test-sim2-operational-regressions test-sim2-operational-regressions-strict test-sim2-governance-contract test-sim2-verification-e2e test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-config-surface-contract test-dashboard-config-parity test-dashboard-adversary-sim-lane-contract test-dashboard-auth-gate test-dashboard-tab-information-architecture test-dashboard-game-loop-accountability test-dashboard-traffic-pane test-dashboard-diagnostics-pane test-dashboard-runtime-unit-contracts test-dashboard-policy-pane-ownership test-dashboard-verified-identity-pane test-dashboard-e2e-tab-information-architecture test-dashboard-e2e-policy-pane-ownership test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e test-dashboard-e2e-adversary-sim test-dashboard-e2e-red-team-frontier-warning test-dashboard-e2e-external seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host prepare-linode-shared-host prepare-fermyon-akamai-edge remote-use remote-update remote-start remote-stop remote-status remote-logs remote-open-dashboard deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai deploy-linode-one-shot deploy-fermyon-akamai-edge logs status stop help setup setup-runtime verify verify-runtime config-seed config-verify dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate test-prod-start-contract
+.PHONY: dev dev-prod local run run-prebuilt build build-runtime build-full-dev prod prod-start clean reset-local-state test test-unit unit-test test-verified-identity-contracts test-verified-identity-config test-verified-identity-provider test-verified-identity-native test-verified-identity-directory-discovery test-verified-identity-proxy-trust test-verified-identity-policy test-verified-identity-telemetry test-verified-identity-annotations test-verified-identity-target-contracts test-verified-identity-calibration-readiness test-verified-identity-taxonomy-crosswalk test-verified-identity-alignment-receipts test-verified-identity-botness-conflicts test-verified-identity-guardrails test-host-impact-target-contracts test-host-impact-telemetry test-host-impact-benchmark test-oversight-host-impact test-integration integration-test test-gateway-harness test-gateway-wasm-tls-harness test-gateway-origin-bypass-probe test-gateway-profile-shared-server test-gateway-profile-edge smoke-gateway-mode test-deploy-linode test-deploy-fermyon test-scrapling-deploy-shared-host test-config-lifecycle test-js-verification-unit test-runtime-preflight-unit test-runtime-preflight test-shadow-mode test-enterprise-ban-store-contract test-telemetry-storage test-telemetry-hot-read-contract test-telemetry-hot-read-projection test-telemetry-hot-read-bootstrap test-telemetry-hot-read-evidence test-telemetry-hot-read-live-evidence test-monitoring-telemetry-contract test-monitoring-telemetry-foundation-unit test-operator-snapshot-foundation test-traffic-taxonomy-contract test-traffic-classification-contract test-operator-objectives-contract test-operator-objectives-category-contract test-benchmark-category-eligibility test-rsi-game-contract test-rsi-scorecard test-oversight-episode-archive test-oversight-move-selection-policy test-oversight-reconcile test-oversight-agent test-oversight-post-sim-trigger test-live-feedback-loop-remote test-live-feedback-loop-remote-unit test-remote-target-contract test-setup-runtime-bootstrap test-admin-machine-contracts test-admin-api-routing-contract test-benchmark-suite-contract test-benchmark-results-contract test-benchmark-comparison-contract test-controller-mutability-policy test-controller-action-surface test-controller-action-surface-parity test-controller-hard-boundaries telemetry-shared-host-evidence telemetry-fermyon-edge-evidence test-adversarial-python-unit test-adversarial-manifest test-adversarial-preflight test-adversarial-lane-contract test-shared-host-scope-contract test-shared-host-seed-contract build-shared-host-seed-inventory prepare-scrapling-deploy test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-coverage-receipts test-adversarial-scenario-review test-adversarial-scenario-intent-evidence-unit test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live test-remote-edge-signal-smoke test-fermyon-edge-signal-smoke telemetry-clean adversary-sim-supervisor-build adversary-sim-supervisor test-supervisor-wrapper-contracts test-adversary-sim-target-contracts test-adversary-sim-domain-contract test-adversary-sim-runtime-surface test-adversary-sim-runtime-surface-unit test-adversary-sim-scrapling-category-fit test-adversary-sim-scrapling-worker test-adversary-sim-diagnostics-truth test-adversarial-llm-fit test-adversarial-repeatability test-adversarial-promote-candidates test-replay-promotion-contract test-protected-tuning-evidence test-adversarial-report-diff test-adversarial-runner-architecture test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-frontier-unavailability-policy-unit test-sim2-realtime-bench test-sim2-adr-conformance test-sim2-ci-diagnostics test-sim2-verification-matrix test-sim2-verification-matrix-advisory test-sim2-operational-regressions test-sim2-operational-regressions-strict test-sim2-governance-contract test-sim2-verification-e2e test-ip-range-suggestions test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-config-surface-contract test-dashboard-config-parity test-dashboard-adversary-sim-lane-contract test-dashboard-auth-gate test-dashboard-tab-information-architecture test-dashboard-game-loop-accountability test-dashboard-traffic-pane test-dashboard-diagnostics-pane test-dashboard-runtime-unit-contracts test-dashboard-policy-pane-ownership test-dashboard-verified-identity-pane test-dashboard-e2e-tab-information-architecture test-dashboard-e2e-policy-pane-ownership test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e test-dashboard-e2e-adversary-sim test-dashboard-e2e-red-team-frontier-warning test-dashboard-e2e-external seed-dashboard-data test-maze-benchmark spin-wait-ready smoke-single-host prepare-linode-shared-host prepare-fermyon-akamai-edge remote-use remote-update remote-start remote-stop remote-status remote-logs remote-open-dashboard deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai deploy-linode-one-shot deploy-fermyon-akamai-edge logs status stop help setup setup-runtime verify verify-runtime config-seed config-verify dashboard-build env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate test-prod-start-contract
 
 # Default target
 .DEFAULT_GOAL := help
@@ -723,7 +723,6 @@ test-verified-identity-calibration-readiness: ## Run focused verified-identity c
 	@cargo test observability::operator_snapshot_verified_identity::tests:: -- --nocapture
 	@cargo test observability::benchmark_results::tests::benchmark_results_materialize_supported_adversary_and_beneficial_non_human_families -- --exact --nocapture
 	@cargo test admin::oversight_api::tests::manual_reconcile_route_records_observe_longer_when_classification_is_not_ready -- --exact --nocapture
-	@python3 -m unittest scripts/tests/test_verified_identity_make_targets.py
 
 test-verified-identity-taxonomy-crosswalk: ## Run focused verified-identity taxonomy crosswalk checks
 	@echo "$(CYAN)🧪 Running verified-identity taxonomy crosswalk checks...$(NC)"
@@ -740,19 +739,20 @@ test-verified-identity-alignment-receipts: ## Run focused verified-identity taxo
 	@./scripts/set_crate_type.sh rlib
 	@cargo test observability::non_human_classification::tests::verified_identity_alignment_ -- --nocapture
 	@cargo test observability::operator_snapshot_verified_identity::tests::verified_identity_summary_projects_taxonomy_alignment_ -- --nocapture
-	@python3 -m unittest scripts/tests/test_verified_identity_make_targets.py
 
 test-verified-identity-botness-conflicts: ## Run focused verified-identity conflict-metric checks
 	@echo "$(CYAN)🧪 Running verified-identity conflict metric checks...$(NC)"
 	@./scripts/set_crate_type.sh rlib
 	@cargo test observability::benchmark_beneficial_non_human::tests:: -- --nocapture
-	@python3 -m unittest scripts/tests/test_verified_identity_make_targets.py
 
 test-verified-identity-guardrails: ## Run focused verified-identity guardrail checks
 	@echo "$(CYAN)🧪 Running verified-identity guardrail checks...$(NC)"
 	@./scripts/set_crate_type.sh rlib
 	@cargo test observability::benchmark_results::tests::verified_identity_guardrails_block_tuning_when_conflicts_are_outside_budget -- --exact --nocapture
 	@cargo test admin::oversight_reconcile::tests::observe_longer_when_verified_identity_guardrail_blocks_candidate -- --exact --nocapture
+
+test-verified-identity-target-contracts: ## Validate verified-identity Makefile selector and target-contract wiring
+	@echo "$(CYAN)🧪 Running verified-identity target-contract checks...$(NC)"
 	@python3 -m unittest scripts/tests/test_verified_identity_make_targets.py
 
 test-host-impact-telemetry: ## Run focused forwarded-latency telemetry and hot-read projection checks
@@ -763,7 +763,6 @@ test-host-impact-telemetry: ## Run focused forwarded-latency telemetry and hot-r
 	@cargo test observability::monitoring::tests::record_request_outcome_records_non_human_category_counters_for_verified_crosswalks -- --exact --nocapture
 	@cargo test observability::monitoring::tests::record_request_outcome_does_not_increment_latency_for_non_forwarded_outcomes -- --exact --nocapture
 	@cargo test observability::hot_read_projection::tests::counter_flush_refresh_preserves_request_outcome_summary_rows_in_summary_and_bootstrap -- --exact --nocapture
-	@python3 -m unittest scripts/tests/test_host_impact_make_targets.py
 
 test-host-impact-benchmark: ## Run focused host-impact snapshot and benchmark checks
 	@echo "$(CYAN)🧪 Running host-impact benchmark checks...$(NC)"
@@ -772,12 +771,14 @@ test-host-impact-benchmark: ## Run focused host-impact snapshot and benchmark ch
 	@cargo test observability::benchmark_results::tests::benchmark_results_materialize_host_impact_metrics_in_suspicious_origin_cost_family -- --exact --nocapture
 	@cargo test observability::benchmark_comparison::tests::prior_window_comparison_marks_host_impact_metrics_as_lower_is_better -- --exact --nocapture
 	@cargo test observability::benchmark_suite::tests::benchmark_suite_v1_exposes_small_machine_first_family_registry -- --exact --nocapture
-	@python3 -m unittest scripts/tests/test_host_impact_make_targets.py
 
 test-oversight-host-impact: ## Run focused host-impact reconcile checks
 	@echo "$(CYAN)🧪 Running host-impact oversight checks...$(NC)"
 	@./scripts/set_crate_type.sh rlib
 	@cargo test admin::oversight_reconcile::tests::primary_pressure_treats_latency_share_budget_miss_as_suspicious_origin_cost -- --exact --nocapture
+
+test-host-impact-target-contracts: ## Validate host-impact Makefile selector and target-contract wiring
+	@echo "$(CYAN)🧪 Running host-impact target-contract checks...$(NC)"
 	@python3 -m unittest scripts/tests/test_host_impact_make_targets.py
 
 test-ip-range-suggestions: ## Run focused IP-range suggestion regression checks
@@ -1394,7 +1395,6 @@ test-adversary-sim-lifecycle: ## Fast adversary-sim lifecycle regression gate (t
 	@cargo test adversary_sim_status_reports_auto_window_expiry_without_second_enabled_authority -- --nocapture
 	@cargo test autonomous_supervisor_runs_initial_tick_when_running_without_history -- --nocapture
 	@cargo test adversary_sim_internal_beat_updates_generation_diagnostics_contract -- --nocapture
-	@python3 -m unittest scripts/tests/test_adversary_sim_make_targets.py
 	@$(MAKE) --no-print-directory test-adversarial-deterministic-corpus
 
 test-adversary-sim-lane-contract: ## Focused backend lane-migration contract gate (additive desired/active lane scaffolding)
@@ -1416,6 +1416,7 @@ test-adversary-sim-lane-selection: ## Focused control-path lane-selection gate (
 test-adversary-sim-domain-contract: ## Run focused adversary-sim lifecycle and lane-domain checks without live runtime-surface traffic
 	@echo "$(CYAN)🧪 Running adversary-sim domain-contract checks...$(NC)"
 	@$(MAKE) --no-print-directory test-supervisor-wrapper-contracts
+	@$(MAKE) --no-print-directory test-adversary-sim-target-contracts
 	@$(MAKE) --no-print-directory test-adversary-sim-lifecycle
 	@$(MAKE) --no-print-directory test-adversary-sim-lane-contract
 	@$(MAKE) --no-print-directory test-adversary-sim-lane-selection
@@ -1427,7 +1428,6 @@ test-adversary-sim-scrapling-category-fit: ## Focused Scrapling category-fit gat
 	@cargo test observability::non_human_lane_fulfillment::tests:: -- --nocapture
 	@cargo test admin::adversary_sim_lane_runtime::tests::scrapling_fulfillment_modes_cycle_across_request_native_personas -- --exact --nocapture
 	@cargo test admin::api::admin_config_tests::adversary_sim_internal_beat_returns_scrapling_worker_plan_and_switches_active_lane -- --exact --nocapture
-	@python3 -m unittest scripts/tests/test_adversary_sim_make_targets.py
 
 test-adversary-sim-scrapling-worker: ## Focused Scrapling lane worker gate (beat plan/result contract plus real worker/supervisor coverage)
 	@echo "$(CYAN)🧪 Running adversary-sim Scrapling worker gate...$(NC)"
@@ -1442,6 +1442,10 @@ test-adversary-sim-scrapling-worker: ## Focused Scrapling lane worker gate (beat
 		exit 1; \
 	fi
 	@$(SCRAPLING_VENV_PYTHON) -m unittest scripts/tests/test_scrapling_worker.py
+
+test-adversary-sim-target-contracts: ## Validate adversary-sim Makefile selector and target-contract wiring
+	@echo "$(CYAN)🧪 Running adversary-sim target-contract checks...$(NC)"
+	@python3 -m unittest scripts/tests/test_adversary_sim_make_targets.py
 
 test-adversary-sim-diagnostics-truth: ## Focused adversary-sim status truth gate (persisted sim event evidence must recover stale status counters)
 	@echo "$(CYAN)🧪 Running adversary-sim diagnostics-truth gate...$(NC)"

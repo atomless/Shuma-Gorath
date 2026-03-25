@@ -4,6 +4,39 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### TEST-HYGIENE-6C: Makefile selector microtests into explicit contract lanes
+
+- [x] Added explicit selector and wiring lanes in:
+  - [`../Makefile`](../Makefile)
+  for the remaining feature-specific selector microtests:
+  - `make test-adversary-sim-target-contracts`
+  - `make test-verified-identity-target-contracts`
+  - `make test-host-impact-target-contracts`
+- [x] Removed those selector-only microtests from the behavior-oriented targets they had been hiding inside, and tightened:
+  - [`../scripts/tests/test_adversary_sim_make_targets.py`](../scripts/tests/test_adversary_sim_make_targets.py)
+  - [`../scripts/tests/test_host_impact_make_targets.py`](../scripts/tests/test_host_impact_make_targets.py)
+  - [`../scripts/tests/test_verified_identity_make_targets.py`](../scripts/tests/test_verified_identity_make_targets.py)
+  so they now prove explicit contract-lane ownership and absence from the feature gates.
+- [x] Updated:
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../docs/research/2026-03-24-test-hygiene-6c-selector-contract-lane-post-implementation-review.md`](../docs/research/2026-03-24-test-hygiene-6c-selector-contract-lane-post-implementation-review.md)
+  to keep the target names and described blast radii honest.
+- [x] During representative verification, fixed a stale disabled-default assumption in:
+  - [`../src/observability/operator_snapshot_verified_identity.rs`](../src/observability/operator_snapshot_verified_identity.rs)
+  so the disabled-site snapshot test now explicitly disables verified identity instead of assuming the old default.
+- [x] Why:
+  - `TEST-HYGIENE-6C` existed specifically to stop selector-only proof from hiding inside behavior gates,
+  - the remaining verified-identity, host-impact, and adversary-sim selector tests were still doing exactly that,
+  - and the representative reruns also exposed one real stale expectation that needed fixing to keep the touched feature target truthful.
+- [x] Evidence:
+  - `make test-adversary-sim-target-contracts`
+  - `make test-verified-identity-target-contracts`
+  - `make test-host-impact-target-contracts`
+  - `make test-adversary-sim-domain-contract`
+  - `make test-verified-identity-calibration-readiness`
+  - `make test-host-impact-telemetry`
+  - `git diff --check`
+
 ### TEST-HYGIENE-6B follow-on: supervisor wrapper contract reclassification
 
 - [x] Moved the retained supervisor wrapper shell-shape proof into a dedicated contract lane by adding:

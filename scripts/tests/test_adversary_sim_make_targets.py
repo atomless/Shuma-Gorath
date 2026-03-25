@@ -8,6 +8,17 @@ MAKEFILE = REPO_ROOT / "Makefile"
 
 
 class AdversarySimMakeTargetTests(unittest.TestCase):
+    def test_explicit_adversary_sim_target_contract_target_owns_selector_microtests(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-adversary-sim-target-contracts:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn("scripts/tests/test_adversary_sim_make_targets.py", body)
+
     def test_supervisor_wrapper_contract_target_owns_wrapper_archaeology(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")
         match = re.search(
@@ -47,6 +58,7 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
             body,
         )
         self.assertNotIn("scripts/tests/test_adversary_sim_supervisor.py", body)
+        self.assertNotIn("scripts/tests/test_adversary_sim_make_targets.py", body)
 
     def test_lane_contract_target_uses_additive_lane_contract_selectors(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")
@@ -128,9 +140,9 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
             "admin::api::admin_config_tests::adversary_sim_internal_beat_returns_scrapling_worker_plan_and_switches_active_lane",
             body,
         )
-        self.assertIn("scripts/tests/test_adversary_sim_make_targets.py", body)
         self.assertNotIn("scripts/tests/test_scrapling_worker.py", body)
         self.assertNotIn("scripts/tests/test_adversary_sim_supervisor.py", body)
+        self.assertNotIn("scripts/tests/test_adversary_sim_make_targets.py", body)
 
     def test_post_sim_trigger_target_no_longer_owns_wrapper_archaeology(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")
