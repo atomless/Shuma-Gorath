@@ -4,6 +4,40 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### SEC-GDPR-2: deterministic fingerprint retention cleanup
+
+- [x] Added bounded cadence-gated cleanup for stale fingerprint retention keys in:
+  - [`../src/signals/fingerprint.rs`](../src/signals/fingerprint.rs)
+  covering:
+  - `fp:state:*`
+  - `fp:flow:*`
+  - `fp:flow:last_bucket:*`
+- [x] Kept the fix local to the existing fingerprint module by adding a small cleanup state key and prefix-scoped sweeper instead of inventing a second retention worker or widening the broader telemetry-retention subsystem.
+- [x] Added focused proof in:
+  - [`../Makefile`](../Makefile)
+  as:
+  - `make test-fingerprint-retention-cleanup`
+  with unit coverage for:
+  - stale sibling fingerprint-state eviction
+  - stale flow and last-bucket eviction while preserving the current window
+  - cadence-gated `get_keys()` scanning
+- [x] Updated:
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../docs/research/2026-03-24-fingerprint-state-retention-cleanup-review.md`](../docs/research/2026-03-24-fingerprint-state-retention-cleanup-review.md)
+  - [`../docs/research/2026-03-24-sec-gdpr-2-fingerprint-retention-cleanup-post-implementation-review.md`](../docs/research/2026-03-24-sec-gdpr-2-fingerprint-retention-cleanup-post-implementation-review.md)
+  - [`../docs/research/README.md`](../docs/research/README.md)
+  - [`../docs/plans/2026-03-24-fingerprint-state-retention-cleanup-plan.md`](../docs/plans/2026-03-24-fingerprint-state-retention-cleanup-plan.md)
+  - [`../docs/plans/README.md`](../docs/plans/README.md)
+  - [`../todos/security-review.md`](../todos/security-review.md)
+  so the privacy-retention contract and its closure status are both discoverable.
+- [x] Why:
+  - fingerprint state and flow lifecycle was still only opportunistically cleaned on revisit,
+  - cold orphaned flow and last-bucket keys could linger indefinitely,
+  - and that meant the configured fingerprint TTL/window controls were not yet truthful as storage-lifecycle controls.
+- [x] Evidence:
+  - `make test-fingerprint-retention-cleanup`
+  - `git diff --check`
+
 ### TEST-HYGIENE-2: untracked adversarial/SIM2 artifact path cleanup
 
 - [x] Moved the routine generated adversarial/SIM2 receipt contract for:

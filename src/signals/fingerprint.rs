@@ -18,6 +18,7 @@ const FP_KEY_PREFIX_STATE: &str = "fp:state:";
 const FP_KEY_PREFIX_FLOW: &str = "fp:flow:";
 const FP_KEY_PREFIX_FLOW_LAST_BUCKET: &str = "fp:flow:last_bucket:";
 const FP_KEY_PREFIX_EDGE_SIGNAL: &str = "fp:edge:";
+const FP_CLEANUP_STATE_KEY: &str = "fp:cleanup:v1:last_run_ts";
 
 const WEIGHT_UA_CH_MISMATCH: u8 = 2;
 const WEIGHT_UA_TRANSPORT_MISMATCH: u8 = 3;
@@ -234,6 +235,110 @@ fn flow_identity(ip: &str, cfg: &crate::config::Config) -> String {
 
 fn external_edge_signal_ttl_seconds(cfg: &crate::config::Config) -> u64 {
     cfg.fingerprint_flow_window_seconds.max(1)
+}
+
+fn read_u64<S: crate::challenge::KeyValueStore>(store: &S, key: &str) -> Option<u64> {
+    store
+        .get(key)
+        .ok()
+        .flatten()
+        .and_then(|raw| String::from_utf8(raw).ok())
+        .and_then(|raw| raw.parse::<u64>().ok())
+}
+
+fn fingerprint_cleanup_cadence_seconds(cfg: &crate::config::Config) -> u64 {
+    cfg.fingerprint_state_ttl_seconds
+        .max(1)
+        .min(cfg.fingerprint_flow_window_seconds.max(1))
+        .clamp(10, 300)
+}
+
+fn cleanup_stale_fingerprint_state_key<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    key: &str,
+    now: u64,
+    ttl_seconds: u64,
+) {
+    let Some(raw) = store.get(key).ok().flatten() else {
+        return;
+    };
+    let Some(state) = serde_json::from_slice::<FingerprintState>(raw.as_slice()).ok() else {
+        let _ = store.delete(key);
+        return;
+    };
+    if now.saturating_sub(state.ts) > ttl_seconds.max(1) {
+        let _ = store.delete(key);
+    }
+}
+
+fn cleanup_stale_fingerprint_flow_key<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    key: &str,
+    current_bucket: u64,
+) {
+    let Some(suffix) = key.strip_prefix(FP_KEY_PREFIX_FLOW) else {
+        return;
+    };
+    let Some((_, bucket_raw)) = suffix.rsplit_once(':') else {
+        let _ = store.delete(key);
+        return;
+    };
+    let Some(bucket) = bucket_raw.parse::<u64>().ok() else {
+        let _ = store.delete(key);
+        return;
+    };
+    if bucket != current_bucket {
+        let _ = store.delete(key);
+    }
+}
+
+fn cleanup_stale_fingerprint_flow_last_bucket_key<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    key: &str,
+    current_bucket: u64,
+) {
+    let Some(bucket) = read_u64(store, key) else {
+        let _ = store.delete(key);
+        return;
+    };
+    if bucket != current_bucket {
+        let _ = store.delete(key);
+    }
+}
+
+fn maybe_run_fingerprint_retention_cleanup<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    cfg: &crate::config::Config,
+    now: u64,
+) {
+    let cadence_seconds = fingerprint_cleanup_cadence_seconds(cfg);
+    let last_run = read_u64(store, FP_CLEANUP_STATE_KEY).unwrap_or(0);
+    if now.saturating_sub(last_run) < cadence_seconds {
+        return;
+    }
+
+    let Ok(keys) = store.get_keys() else {
+        return;
+    };
+
+    let state_ttl_seconds = cfg.fingerprint_state_ttl_seconds.max(1);
+    let current_bucket = now / cfg.fingerprint_flow_window_seconds.max(1);
+
+    for key in keys {
+        if key.starts_with(FP_KEY_PREFIX_STATE) {
+            cleanup_stale_fingerprint_state_key(store, key.as_str(), now, state_ttl_seconds);
+            continue;
+        }
+        if key.starts_with(FP_KEY_PREFIX_FLOW_LAST_BUCKET) {
+            cleanup_stale_fingerprint_flow_last_bucket_key(store, key.as_str(), current_bucket);
+            continue;
+        }
+        if key.starts_with(FP_KEY_PREFIX_FLOW) {
+            cleanup_stale_fingerprint_flow_key(store, key.as_str(), current_bucket);
+        }
+    }
+
+    let _ = store.set(FP_CLEANUP_STATE_KEY, now.to_string().as_bytes());
 }
 
 fn load_external_edge_signal_state<S: crate::challenge::KeyValueStore>(
@@ -507,6 +612,7 @@ pub(crate) fn collect_bot_signals<S: crate::challenge::KeyValueStore>(
     let ua_ch_mismatch = detect_ua_client_hint_mismatch(req);
     let ua_transport_mismatch = ua_transport_family_mismatch(ua_family, &transport);
     let now = now_ts();
+    maybe_run_fingerprint_retention_cleanup(store, cfg, now);
     let edge_additive_state = if cfg.provider_backends.fingerprint_signal
         == crate::config::ProviderBackend::External
         && cfg.edge_integration_mode == crate::config::EdgeIntegrationMode::Additive
@@ -695,7 +801,8 @@ mod tests {
     use super::{
         collect_bot_signals, flow_identity, now_ts, record_akamai_edge_signal,
         record_external_payload_rejection, FingerprintState, FP_AKAMAI_EDGE_ADDITIVE_KEY,
-        FP_FLOW_VIOLATION_KEY, FP_KEY_PREFIX_STATE, FP_TEMPORAL_TRANSITION_KEY,
+        FP_FLOW_VIOLATION_KEY, FP_KEY_PREFIX_FLOW, FP_KEY_PREFIX_FLOW_LAST_BUCKET,
+        FP_KEY_PREFIX_STATE, FP_TEMPORAL_TRANSITION_KEY,
         FP_UA_CH_MISMATCH_KEY, FP_UA_TRANSPORT_MISMATCH_KEY,
         FP_UNTRUSTED_TRANSPORT_HEADER_KEY,
     };
@@ -706,6 +813,7 @@ mod tests {
     #[derive(Default)]
     struct MockStore {
         map: Mutex<HashMap<String, Vec<u8>>>,
+        get_keys_calls: Mutex<u64>,
     }
 
     impl crate::challenge::KeyValueStore for MockStore {
@@ -725,6 +833,13 @@ mod tests {
             map.remove(key);
             Ok(())
         }
+
+        fn get_keys(&self) -> Result<Vec<String>, ()> {
+            let mut calls = self.get_keys_calls.lock().map_err(|_| ())?;
+            *calls = calls.saturating_add(1);
+            let map = self.map.lock().map_err(|_| ())?;
+            Ok(map.keys().cloned().collect())
+        }
     }
 
     fn request(path: &str, headers: &[(&str, &str)]) -> Request {
@@ -742,6 +857,13 @@ mod tests {
             .find(|signal| signal.key == key)
             .map(|signal| signal.active)
             .unwrap_or(false)
+    }
+
+    fn get_keys_calls(store: &MockStore) -> u64 {
+        *store
+            .get_keys_calls
+            .lock()
+            .expect("get_keys call counter mutex poisoned")
     }
 
     use crate::signals::botness::BotSignal;
@@ -864,6 +986,92 @@ mod tests {
         let persisted: FingerprintState = serde_json::from_slice(&persisted_raw).unwrap();
         assert!((observed_start..=observed_end).contains(&persisted.ts));
         assert_eq!(persisted.ua_family, "safari");
+    }
+
+    #[test]
+    fn stale_fingerprint_state_cleanup_evicts_other_identities() {
+        let store = MockStore::default();
+        let mut cfg = crate::config::defaults().clone();
+        cfg.fingerprint_signal_enabled = true;
+        cfg.fingerprint_state_ttl_seconds = 60;
+        cfg.fingerprint_flow_window_seconds = 300;
+
+        let stale_identity = flow_identity("203.0.113.30", &cfg);
+        let stale_state_key = format!("{}{}", FP_KEY_PREFIX_STATE, stale_identity);
+        let stale_state = FingerprintState {
+            ts: now_ts().saturating_sub(120),
+            ua_family: "chrome".to_string(),
+            ja4_hash: Some("stalehash".to_string()),
+        };
+        store
+            .set(
+                stale_state_key.as_str(),
+                serde_json::to_vec(&stale_state).unwrap().as_slice(),
+            )
+            .unwrap();
+
+        let req = request("/", &[("user-agent", "Mozilla/5.0 Chrome/120.0")]);
+        let _signals = collect_bot_signals(&store, &req, &cfg, "203.0.113.31", true);
+
+        assert_eq!(store.get(stale_state_key.as_str()).unwrap(), None);
+    }
+
+    #[test]
+    fn stale_fingerprint_flow_cleanup_evicts_old_buckets_but_keeps_current_window() {
+        let store = MockStore::default();
+        let mut cfg = crate::config::defaults().clone();
+        cfg.fingerprint_signal_enabled = true;
+        cfg.fingerprint_flow_window_seconds = 120;
+
+        let current_bucket = now_ts() / cfg.fingerprint_flow_window_seconds;
+        let stale_bucket = current_bucket.saturating_sub(2);
+        let stale_identity = flow_identity("203.0.113.40", &cfg);
+        let active_identity = flow_identity("203.0.113.41", &cfg);
+        let stale_flow_key = format!("{}{}:{}", FP_KEY_PREFIX_FLOW, stale_identity, stale_bucket);
+        let stale_last_bucket_key = format!("{}{}", FP_KEY_PREFIX_FLOW_LAST_BUCKET, stale_identity);
+        let active_flow_key = format!("{}{}:{}", FP_KEY_PREFIX_FLOW, active_identity, current_bucket);
+        let active_last_bucket_key = format!("{}{}", FP_KEY_PREFIX_FLOW_LAST_BUCKET, active_identity);
+        store.set(stale_flow_key.as_str(), b"2").unwrap();
+        store
+            .set(
+                stale_last_bucket_key.as_str(),
+                stale_bucket.to_string().as_bytes(),
+            )
+            .unwrap();
+        store.set(active_flow_key.as_str(), b"1").unwrap();
+        store
+            .set(
+                active_last_bucket_key.as_str(),
+                current_bucket.to_string().as_bytes(),
+            )
+            .unwrap();
+
+        let req = request("/", &[("user-agent", "Mozilla/5.0 Chrome/120.0")]);
+        let _signals = collect_bot_signals(&store, &req, &cfg, "203.0.113.42", true);
+
+        assert_eq!(store.get(stale_flow_key.as_str()).unwrap(), None);
+        assert_eq!(store.get(stale_last_bucket_key.as_str()).unwrap(), None);
+        assert_eq!(store.get(active_flow_key.as_str()).unwrap(), Some(b"1".to_vec()));
+        assert_eq!(
+            store.get(active_last_bucket_key.as_str()).unwrap(),
+            Some(current_bucket.to_string().into_bytes())
+        );
+    }
+
+    #[test]
+    fn fingerprint_cleanup_scan_is_cadence_gated() {
+        let store = MockStore::default();
+        let mut cfg = crate::config::defaults().clone();
+        cfg.fingerprint_signal_enabled = true;
+        cfg.fingerprint_state_ttl_seconds = 300;
+        cfg.fingerprint_flow_window_seconds = 300;
+
+        let req = request("/", &[("user-agent", "Mozilla/5.0 Chrome/120.0")]);
+        let _first = collect_bot_signals(&store, &req, &cfg, "203.0.113.50", true);
+        let _second = collect_bot_signals(&store, &req, &cfg, "203.0.113.51", true);
+        let _third = collect_bot_signals(&store, &req, &cfg, "203.0.113.52", true);
+
+        assert_eq!(get_keys_calls(&store), 1);
     }
 
     #[test]

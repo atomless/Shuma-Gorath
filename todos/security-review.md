@@ -1,6 +1,6 @@
 # Security Review Tracker
 
-Last updated: 2026-03-11
+Last updated: 2026-03-24
 
 Purpose: track review finding validity and closure status.
 Active implementation planning lives in `todos/todo.md`; blocked or contingent follow-up lives in `todos/blocked-todo.md`.
@@ -13,8 +13,8 @@ Completed findings are archived in `todos/completed-todo-history.md`.
 
 ### P2
 - [ ] Logging is still mixed but predominantly unstructured (`eprintln!` component diagnostics alongside metrics/event records); request correlation and incident triage ergonomics can be improved.
-- [ ] Fingerprint-state cleanup is now opportunistic rather than absent: stale `fp:state:*` and `fp:edge:*` keys are deleted on read, and prior `fp:flow:*` buckets are deleted on rollover, but cold/orphaned `fp:flow:*` and `fp:flow:last_bucket:*` keys still lack deterministic sweeping aligned to configured windows (tracked as `SEC-GDPR-2` in `todos/todo.md`).
 - [ ] Event logs still persist raw IPs at rest for investigation value. Admin monitoring views pseudonymize by default and require forensic acknowledgement for raw display, but there is still no storage-level IP minimization mode for privacy-sensitive deployments (tracked as `SEC-GDPR-3` in `todos/todo.md`).
 
 ## Closed or Invalid Findings (Audit Trail)
 - Retired findings from the 2026-03-06 audit were moved to `todos/completed-todo-history.md`.
+- `SEC-GDPR-2` closed on 2026-03-24: fingerprint retention now performs bounded cadence-gated cleanup for stale `fp:state:*`, `fp:flow:*`, and `fp:flow:last_bucket:*` keys aligned to configured TTL and flow-window controls. Evidence: `make test-fingerprint-retention-cleanup`, `git diff --check`, and [`../docs/research/2026-03-24-sec-gdpr-2-fingerprint-retention-cleanup-post-implementation-review.md`](../docs/research/2026-03-24-sec-gdpr-2-fingerprint-retention-cleanup-post-implementation-review.md).

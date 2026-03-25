@@ -63,6 +63,7 @@ make test-controller-action-surface # Focused allowed-actions and controller-fam
 make test-controller-action-surface-parity # Focused controller mutability, escalation, and proposer parity checks
 make test-controller-mutability-policy # Focused controller mutability-ring and path-classification checks
 make test-controller-hard-boundaries # Focused controller hard-boundary enforcement checks
+make test-fingerprint-retention-cleanup # Focused fingerprint retention cleanup for stale state and flow-key lifecycle
 make test-benchmark-comparison-contract # Focused benchmark comparison helper contract checks
 make test-operator-objectives-contract # Focused operator objectives, decision-ledger, and snapshot wiring checks
 make test-operator-objectives-category-contract # Focused category-aware operator-objectives contract checks
