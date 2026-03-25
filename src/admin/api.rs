@@ -1532,7 +1532,7 @@ mod tests {
         }
 
         let recent_runs =
-            monitoring_recent_sim_run_summaries(&store, now, 24, 10);
+            monitoring_recent_sim_run_summaries(&store, "default", now, 24, 10);
         let row = recent_runs
             .iter()
             .find(|value| value.run_id == "simrun-scrapling-request-native")
@@ -1590,7 +1590,7 @@ mod tests {
             );
         }
 
-        let recent_runs = monitoring_recent_sim_run_summaries(&store, now, 24, 10);
+        let recent_runs = monitoring_recent_sim_run_summaries(&store, "default", now, 24, 10);
         let row = recent_runs
             .iter()
             .find(|value| value.run_id == "simrun-scrapling-defense-surface")
@@ -5566,6 +5566,42 @@ mod admin_config_tests {
         assert_eq!(persisted.generated_tick_count, 1);
         assert_eq!(persisted.generated_request_count, 3);
         assert!(persisted.pending_worker_tick_id.is_none());
+        let recent_sim_runs =
+            crate::observability::hot_read_projection::load_monitoring_recent_sim_runs_hot_read(
+                &store,
+                "default",
+                tick_started_at.saturating_add(1),
+            );
+        let recent_run = recent_sim_runs
+            .payload
+            .recent_sim_runs
+            .iter()
+            .find(|row| row.run_id == run_id)
+            .expect("recent sim run");
+        assert_eq!(recent_run.lane, "scrapling_traffic");
+        assert_eq!(recent_run.profile, "scrapling_runtime_lane");
+        assert_eq!(
+            recent_run.observed_fulfillment_modes,
+            vec![fulfillment_mode.to_string()]
+        );
+        assert_eq!(
+            recent_run.observed_category_ids,
+            crate::observability::non_human_lane_fulfillment::scrapling_category_targets_for_mode(
+                fulfillment_mode
+            )
+        );
+        assert_eq!(
+            recent_run.observed_defense_keys,
+            vec![
+                "challenge_puzzle".to_string(),
+                "challenge_routing".to_string(),
+                "geo_ip_policy".to_string(),
+                "honeypot".to_string(),
+                "not_a_bot".to_string(),
+                "proof_of_work".to_string(),
+                "rate_limit".to_string(),
+            ]
+        );
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
@@ -5795,6 +5831,7 @@ mod admin_config_tests {
             pending_worker_tick_id: None,
             pending_worker_started_at: None,
             lane_diagnostics: crate::admin::adversary_sim::LaneDiagnosticsState::default(),
+            recent_scrapling_run_receipts: Vec::new(),
             updated_at: now.saturating_sub(300),
         };
         crate::admin::adversary_sim::save_state(&store, "default", &stale_state).unwrap();
@@ -5956,6 +5993,7 @@ mod admin_config_tests {
             pending_worker_tick_id: None,
             pending_worker_started_at: None,
             lane_diagnostics: crate::admin::adversary_sim::LaneDiagnosticsState::default(),
+            recent_scrapling_run_receipts: Vec::new(),
             updated_at: now,
         };
         crate::admin::adversary_sim::save_state(&store, "default", &state).unwrap();
@@ -6456,6 +6494,7 @@ mod admin_config_tests {
             pending_worker_tick_id: None,
             pending_worker_started_at: None,
             lane_diagnostics: crate::admin::adversary_sim::LaneDiagnosticsState::default(),
+            recent_scrapling_run_receipts: Vec::new(),
             updated_at: now.saturating_sub(10),
         };
         crate::admin::adversary_sim::save_state(&store, "default", &stale_running_state).unwrap();
@@ -12693,11 +12732,13 @@ fn monitoring_sim_run_is_ban_outcome(record: &EventLogRecord) -> bool {
 
 pub(crate) fn monitoring_recent_sim_run_summaries<S: crate::challenge::KeyValueStore>(
     store: &S,
+    site_id: &str,
     now: u64,
     hours: u64,
     limit: usize,
 ) -> Vec<crate::observability::hot_read_documents::MonitoringRecentSimRunSummary> {
     let mut grouped: BTreeMap<String, MonitoringRecentSimRunAccumulator> = BTreeMap::new();
+    let window_start = now.saturating_sub(hours.saturating_mul(3600));
 
     for stored in load_recent_monitoring_event_records_with_keys(store, now, hours) {
         let run_id = stored
@@ -12774,6 +12815,56 @@ pub(crate) fn monitoring_recent_sim_run_summaries<S: crate::challenge::KeyValueS
         accumulator.defense_keys.insert(defense);
         if monitoring_sim_run_is_ban_outcome(&stored.record) {
             accumulator.ban_outcome_count = accumulator.ban_outcome_count.saturating_add(1);
+        }
+    }
+
+    let persisted_state = crate::admin::adversary_sim::load_state(store, site_id);
+    for receipt in persisted_state.recent_scrapling_run_receipts {
+        if receipt.run_id.trim().is_empty() {
+            continue;
+        }
+        if receipt.last_ts > 0 && receipt.last_ts < window_start {
+            continue;
+        }
+        let accumulator =
+            grouped
+                .entry(receipt.run_id.clone())
+                .or_insert_with(|| MonitoringRecentSimRunAccumulator {
+                    run_id: receipt.run_id.clone(),
+                    lane: receipt.lane.as_str().to_string(),
+                    profile: receipt.profile.clone(),
+                    observed_fulfillment_modes: HashSet::new(),
+                    observed_category_ids: HashSet::new(),
+                    defense_keys: HashSet::new(),
+                    first_ts: receipt.first_ts,
+                    last_ts: receipt.last_ts,
+                    monitoring_event_count: 0,
+                    ban_outcome_count: 0,
+                });
+        if accumulator.lane == "none" || accumulator.lane.trim().is_empty() {
+            accumulator.lane = receipt.lane.as_str().to_string();
+        }
+        if accumulator.profile == "unknown" || accumulator.profile.trim().is_empty() {
+            accumulator.profile = receipt.profile.clone();
+        }
+        if receipt.first_ts > 0 {
+            accumulator.first_ts = if accumulator.first_ts == 0 {
+                receipt.first_ts
+            } else {
+                accumulator.first_ts.min(receipt.first_ts)
+            };
+        }
+        accumulator.last_ts = accumulator.last_ts.max(receipt.last_ts);
+        for fulfillment_mode in receipt.observed_fulfillment_modes {
+            accumulator
+                .observed_fulfillment_modes
+                .insert(fulfillment_mode);
+        }
+        for category_id in receipt.observed_category_ids {
+            accumulator.observed_category_ids.insert(category_id);
+        }
+        for defense_key in receipt.observed_defense_keys {
+            accumulator.defense_keys.insert(defense_key);
         }
     }
 
@@ -16904,6 +16995,7 @@ where
     let recent_events = present_event_records(recent_events_raw.as_slice(), forensic_mode);
     let recent_sim_runs = monitoring_recent_sim_run_summaries(
         store,
+        site_id,
         now,
         hours,
         crate::observability::hot_read_documents::monitoring_recent_sim_runs_max_records(),
@@ -17233,6 +17325,7 @@ where
         .unwrap_or_default();
     let recent_sim_runs = monitoring_recent_sim_run_summaries(
         store,
+        site_id,
         now,
         hours,
         crate::observability::hot_read_documents::monitoring_recent_sim_runs_max_records(),

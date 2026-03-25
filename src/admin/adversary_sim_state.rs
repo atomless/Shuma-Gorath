@@ -1,6 +1,7 @@
 use once_cell::sync::Lazy;
 use rand::random;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
 
 use crate::challenge::KeyValueStore;
 
@@ -63,6 +64,21 @@ impl RuntimeLane {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ScraplingRecentRunReceipt {
+    pub run_id: String,
+    pub lane: RuntimeLane,
+    pub profile: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub observed_fulfillment_modes: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub observed_category_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub observed_defense_keys: Vec<String>,
+    pub first_ts: u64,
+    pub last_ts: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ControlState {
     #[serde(default)]
     pub phase: ControlPhase,
@@ -112,6 +128,8 @@ pub struct ControlState {
     pub pending_worker_started_at: Option<u64>,
     #[serde(default)]
     pub lane_diagnostics: LaneDiagnosticsState,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub recent_scrapling_run_receipts: Vec<ScraplingRecentRunReceipt>,
     #[serde(default)]
     pub updated_at: u64,
 }
@@ -143,6 +161,7 @@ impl Default for ControlState {
             pending_worker_tick_id: None,
             pending_worker_started_at: None,
             lane_diagnostics: LaneDiagnosticsState::default(),
+            recent_scrapling_run_receipts: Vec::new(),
             updated_at: 0,
         }
     }
@@ -261,6 +280,64 @@ pub(crate) fn active_lane_count_for_lane(lane: RuntimeLane) -> u32 {
     }
 }
 
+fn merge_sorted_unique_strings(existing: &mut Vec<String>, incoming: &[String]) {
+    let mut values: BTreeSet<String> = existing.iter().cloned().collect();
+    values.extend(incoming.iter().cloned());
+    *existing = values.into_iter().collect();
+}
+
+pub(crate) fn record_scrapling_run_receipt(
+    state: &mut ControlState,
+    receipt: ScraplingRecentRunReceipt,
+) {
+    if receipt.run_id.trim().is_empty() {
+        return;
+    }
+
+    if let Some(existing) = state
+        .recent_scrapling_run_receipts
+        .iter_mut()
+        .find(|row| row.run_id == receipt.run_id)
+    {
+        existing.lane = receipt.lane;
+        if existing.profile.trim().is_empty() || existing.profile == "unknown" {
+            existing.profile = receipt.profile.clone();
+        }
+        merge_sorted_unique_strings(
+            &mut existing.observed_fulfillment_modes,
+            receipt.observed_fulfillment_modes.as_slice(),
+        );
+        merge_sorted_unique_strings(
+            &mut existing.observed_category_ids,
+            receipt.observed_category_ids.as_slice(),
+        );
+        merge_sorted_unique_strings(
+            &mut existing.observed_defense_keys,
+            receipt.observed_defense_keys.as_slice(),
+        );
+        if receipt.first_ts > 0 {
+            existing.first_ts = if existing.first_ts == 0 {
+                receipt.first_ts
+            } else {
+                existing.first_ts.min(receipt.first_ts)
+            };
+        }
+        existing.last_ts = existing.last_ts.max(receipt.last_ts);
+    } else {
+        state.recent_scrapling_run_receipts.push(receipt);
+    }
+
+    state.recent_scrapling_run_receipts.sort_by(|left, right| {
+        right
+            .last_ts
+            .cmp(&left.last_ts)
+            .then_with(|| left.run_id.cmp(&right.run_id))
+    });
+    state.recent_scrapling_run_receipts.truncate(
+        crate::observability::hot_read_documents::monitoring_recent_sim_runs_max_records(),
+    );
+}
+
 pub fn start_state(
     now: u64,
     duration_seconds: u64,
@@ -302,6 +379,7 @@ pub fn start_state(
         pending_worker_tick_id: None,
         pending_worker_started_at: None,
         lane_diagnostics: current.lane_diagnostics.clone(),
+        recent_scrapling_run_receipts: current.recent_scrapling_run_receipts.clone(),
         updated_at: now,
     };
     Ok((next, vec![transition]))

@@ -26,6 +26,7 @@ use super::adversary_sim::{
 use super::adversary_sim_corpus::deterministic_runtime_profile;
 use super::adversary_sim_state::{
     active_lane_count_for_lane, autonomous_execution_profile, effective_active_lane,
+    record_scrapling_run_receipt, ScraplingRecentRunReceipt,
 };
 use super::adversary_sim_worker_plan::ScraplingPublicNetworkIdentity;
 
@@ -478,6 +479,34 @@ pub(crate) fn apply_scrapling_worker_result(
     counters.last_generated_at = Some(result.tick_completed_at);
     let last_error = counters.last_error.clone();
     let _ = counters;
+    let mut observed_defense_keys: Vec<_> = result
+        .surface_interactions
+        .iter()
+        .filter_map(|(surface, count)| {
+            if *count > 0 {
+                Some(surface.clone())
+            } else {
+                None
+            }
+        })
+        .collect();
+    observed_defense_keys.sort();
+    record_scrapling_run_receipt(
+        state,
+        ScraplingRecentRunReceipt {
+            run_id: result.run_id.clone(),
+            lane: result.lane,
+            profile: SCRAPLING_SIM_PROFILE.to_string(),
+            observed_fulfillment_modes: vec![result.fulfillment_mode.clone()],
+            observed_category_ids:
+                crate::observability::non_human_lane_fulfillment::scrapling_category_targets_for_mode(
+                    result.fulfillment_mode.as_str(),
+                ),
+            observed_defense_keys,
+            first_ts: result.tick_started_at,
+            last_ts: result.tick_completed_at,
+        },
+    );
     if let Some(class) = failure_class {
         record_failure_class(state, class, result.tick_completed_at);
     }

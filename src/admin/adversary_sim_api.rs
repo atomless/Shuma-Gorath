@@ -442,6 +442,7 @@ pub(crate) fn handle_internal_adversary_sim_worker_result(
         Ok(false) => return Response::new(409, "stale_worker_result"),
         Err(()) => return Response::new(500, "Key-value store error"),
     }
+    crate::observability::hot_read_projection::refresh_after_admin_mutation(store, site_id);
 
     let now = worker_result.tick_completed_at;
     let status = adversary_sim_status_payload(store, site_id, &cfg, &state, now);

@@ -176,6 +176,7 @@ fn build_recent_sim_runs_document<S: KeyValueStore>(
         payload: MonitoringRecentSimRunsPayload {
             recent_sim_runs: crate::admin::monitoring_recent_sim_run_summaries(
                 store,
+                site_id,
                 generated_at_ts,
                 monitoring_bootstrap_window_hours(),
                 monitoring_recent_sim_runs_max_records(),
@@ -595,6 +596,10 @@ pub(crate) fn refresh_after_admin_mutation<S: KeyValueStore>(store: &S, site_id:
         HotReadUpdateTrigger::AdminMutation,
     );
     let _ = write_document(store, security_privacy_key, &security_privacy);
+    let recent_sim_runs_key = monitoring_recent_sim_runs_document_key(site_id);
+    let recent_sim_runs =
+        build_recent_sim_runs_document(store, site_id, now, HotReadUpdateTrigger::AdminMutation);
+    let _ = write_document(store, recent_sim_runs_key, &recent_sim_runs);
     write_operator_snapshot_document(store, site_id, now, HotReadUpdateTrigger::AdminMutation);
     write_bootstrap_document(store, site_id, now, HotReadUpdateTrigger::AdminMutation);
 }
