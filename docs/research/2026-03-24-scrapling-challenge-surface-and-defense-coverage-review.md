@@ -21,7 +21,7 @@ Is Shuma using all of Scrapling's practical capability, especially for challenge
 
 ## Current Shuma-grounded state
 
-Shuma's current Scrapling integration is intentionally narrow.
+Shuma's current Scrapling integration is still narrower than upstream Scrapling capability, even though the request-native lane is now materially wider than the original fetch-only baseline.
 
 The runtime bootstrap pins `scrapling[fetchers]==0.4.2`, but its readiness check only proves `FetcherSession` and related request-fetcher dependencies, not browser or stealth fetchers.
 
@@ -47,13 +47,18 @@ Those three modes are all request-native. They cover:
 2. bulk retrieval and pagination-style scraping,
 3. direct HTTP request mixes with cookies, JSON bodies, redirects, and headers.
 
-They do not currently attempt:
+They now do attempt request-native challenge and abuse surfaces such as:
 
-1. Shuma `not_a_bot` submissions,
-2. puzzle submissions,
+1. Shuma `not_a_bot` submits,
+2. puzzle submits,
 3. PoW verification abuse,
-4. browser automation,
-5. or Cloudflare-style interstitial solving.
+4. and tarpit progress abuse.
+
+But they still do not cover:
+
+1. browser automation,
+2. stealth browser interaction,
+3. or Cloudflare-style interstitial solving.
 
 Source: [`../../scripts/supervisor/scrapling_worker.py`](../../scripts/supervisor/scrapling_worker.py)
 
@@ -159,30 +164,35 @@ So for Scrapling specifically:
 
 Shuma should not silently assume that the current Scrapling worker already captures Scrapling's full potential.
 
-The truthful position is:
+The stronger principle is:
 
-1. current Shuma Scrapling integration only proves request-native fetcher use,
+1. current Shuma Scrapling integration proves a truthful request-native attacker baseline,
 2. upstream Scrapling appears capable of significantly more through `StealthyFetcher` and `DynamicFetcher`,
-3. and Shuma now needs a separate later planning tranche to evaluate widened defense-surface coverage rather than smuggling that wider claim into the current request-native truth contract.
+3. Shuma should adopt attacker-relevant upstream Scrapling capability by default for Scrapling-owned surfaces,
+4. and any omission should be explicit, justified, and auditable rather than left as a passive default.
 
 ## Recommended follow-on split
 
-### 1. `SIM-SCR-CHALLENGE-1`
+### 1. `SIM-SCR-CAP-1`
 
-Add a blocked later tranche for Scrapling challenge-interaction evaluation.
+Add an active capability-maintenance tranche for Scrapling.
 
 This should answer:
 
-1. which request-native Shuma defenses Scrapling should hit,
-2. which of those can be exercised via the current request-native fetcher model,
-3. which require browser or stealth fetchers,
-4. and what receipts prove that coverage truthfully.
+1. which upstream Scrapling capabilities are attacker-relevant for Scrapling-owned surfaces,
+2. which of those Shuma already adopts,
+3. which of those should now be adopted next,
+4. and which are explicitly excluded with a recorded reason.
 
-### 2. `SIM-SCR-BROWSER-1`
+### 2. `SIM-SCR-CHALLENGE-2C`
+
+Keep broader browser or stealth Scrapling adoption bounded to the owned-surface subset the capability matrix says Scrapling should own next.
+
+### 3. `SIM-SCR-BROWSER-1`
 
 Keep browser-runtime adoption for `automated_browser` separate.
 
-That tranche is broader than challenge interaction. It should stay focused on browser-runtime ownership of the `automated_browser` category and not blur into all request-native challenge interactions.
+That tranche is broader than owned request-native challenge interaction. It should stay focused on browser-runtime ownership of the `automated_browser` category and not blur into every widened Scrapling capability question.
 
 ## Result
 

@@ -61,8 +61,9 @@ This should be the first primary feedback lane.
 Near-term ownership note:
 
 1. Scrapling should be treated as the first truthful lane for crawler and request-native non-human categories.
-2. Browser-like Scrapling automation may become useful later, but it should not be merged into the same truth contract until the shared-host runtime, deploy envelope, and coverage receipts are widened and proven.
-3. A separate intermediate follow-on is now required: Shuma should first evaluate which request-native defense surfaces Scrapling ought to exercise, such as challenge routing and challenge-submit flows, before assuming every missing interaction implies browser-runtime adoption.
+2. Shuma should continuously track and adopt attacker-relevant upstream Scrapling capability for the defense surfaces Scrapling owns, while keeping every omission explicit and justified.
+3. Browser-like Scrapling automation may become useful later, but it should not be merged into the same truth contract until the shared-host runtime, deploy envelope, and coverage receipts are widened and proven.
+4. A separate intermediate follow-on is now required: Shuma should freeze an explicit capability matrix and omission ledger for the defense surfaces Scrapling ought to exercise, rather than assuming every missing interaction implies browser-runtime adoption or silently leaving capabilities unused.
 
 ### 3. `frontier_agent`
 
@@ -178,7 +179,7 @@ Attacker-faithfulness principle:
 Upstream capability watch rule:
 
 1. because Scrapling is an external rapidly evolving attacker-grade tool, Shuma should keep a standing watch on new Scrapling releases and official docs,
-2. and when upstream adds attacker-relevant capability, Shuma should explicitly decide whether to adopt it rather than letting the lane silently drift behind the real attacker capability frontier.
+2. and when upstream adds attacker-relevant capability, Shuma should explicitly adopt it for Scrapling-owned surfaces or record a clear omission reason rather than letting the lane silently drift behind the real attacker capability frontier.
 
 ### 3. Frontier lane remains later, not first
 

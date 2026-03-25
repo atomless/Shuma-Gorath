@@ -28,6 +28,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-25-test-hygiene-6c-make-selector-contract-plan.md`](2026-03-25-test-hygiene-6c-make-selector-contract-plan.md) - Moves retained selector microtests into explicit make-target contract lanes for adversary-sim, verified identity, and host impact
 - [`2026-03-25-sim-llm-1a-black-box-contract-implementation-plan.md`](2026-03-25-sim-llm-1a-black-box-contract-implementation-plan.md) - Reopens the next backend mainline as the executable host-root-only and Shuma-blind LLM attacker black-box contract
 - [`2026-03-25-sim-llm-1b-episode-harness-implementation-plan.md`](2026-03-25-sim-llm-1b-episode-harness-implementation-plan.md) - Reopens the next backend mainline as the executable attacker episode-harness, bounded-memory, and curriculum contract
+- [`2026-03-25-scrapling-full-attacker-capability-principle-plan.md`](2026-03-25-scrapling-full-attacker-capability-principle-plan.md) - Reframes Scrapling so attacker-relevant upstream capability becomes a default-adopt expectation for Scrapling-owned surfaces with explicit omission records
 - [`2026-03-25-mon-overhaul-1c-category-trust-implementation-plan.md`](2026-03-25-mon-overhaul-1c-category-trust-implementation-plan.md) - Refines the next Game Loop tranche into explicit numeric budget usage, category target achievement, and trust/actionability projection
 - [`2026-03-24-rsi-game-mainline-first-working-loop-plan.md`](2026-03-24-rsi-game-mainline-first-working-loop-plan.md) - Splits the first working game loop into a concrete route-level proof slice and a stronger follow-on proof
 - [`2026-03-24-tah-19-tarpit-persistence-collateral-risk-plan.md`](2026-03-24-tah-19-tarpit-persistence-collateral-risk-plan.md) - Tightens tarpit punitive escalation so exact-principal memory, not shared bucket counts, drives bans and blocks
@@ -86,6 +87,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-24-game-loop-budget-visualization-and-category-target-achievement-plan.md`](2026-03-24-game-loop-budget-visualization-and-category-target-achievement-plan.md)
 - [`2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md`](2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md)
 - [`2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md`](2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md)
+- [`2026-03-25-scrapling-full-attacker-capability-principle-plan.md`](2026-03-25-scrapling-full-attacker-capability-principle-plan.md)
 - [`2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-plan.md`](2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-plan.md)
 - [`2026-03-24-sim-scr-challenge-2b-malicious-request-native-interactions-plan.md`](2026-03-24-sim-scr-challenge-2b-malicious-request-native-interactions-plan.md)
 - [`2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md`](2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md)

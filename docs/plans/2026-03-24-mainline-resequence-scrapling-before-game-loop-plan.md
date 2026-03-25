@@ -12,7 +12,7 @@
 
 ## Guardrails
 
-1. Do not widen this into “all Scrapling features”; the active queue should target only attacker-relevant capability for Scrapling-owned surfaces.
+1. Do not widen this into “all Scrapling features”; the active queue should target only attacker-relevant capability for Scrapling-owned surfaces, but it should treat that capability as a default-adopt expectation rather than a reluctant contingency.
 2. Do not reopen the later LLM runtime actors ahead of the first proven game-loop run over attacker-faithful Scrapling.
 3. Keep the LLM attacker explicitly black-box: host-root only, no Shuma internals, and no Shuma repo or docs lookup.
 4. Preserve the distinction between judge-side planning and player-side execution readiness.
@@ -112,5 +112,5 @@ Current note:
 1. `RSI-GAME-1A`, `RSI-GAME-1B`, `RSI-SCORE-1`, and `RSI-GAME-1C` are now landed.
 2. `RSI-GAME-MAINLINE-1A` and `RSI-GAME-MAINLINE-1B` are now landed, so the first working game-loop proof lane is complete.
 3. [`TEST-MAINLINE-1`](2026-03-25-testing-suite-structure-and-mainline-friction-plan.md) is now landed, so the active attacker-faithful Scrapling -> game-loop path has one obvious low-friction verification bundle.
-4. `SIM-LLM-1A` and `SIM-LLM-1B` are now landed, so the later full attacker runtime remains the next backend track but stays explicitly blocked until intentionally reopened.
+4. `SIM-LLM-1A` and `SIM-LLM-1B` are now landed, but the later full attacker runtime remains explicitly downstream of the active Scrapling capability-maintenance lane and any resulting broader browser or stealth adoption for Scrapling-owned surfaces.
 5. `MON-OVERHAUL-1C` and `DIAG-CLEANUP-1` are now both landed, so no further unblocked work remains in the deferred Game Loop and Diagnostics cleanup lane.

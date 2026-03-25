@@ -4,6 +4,31 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-25)
 
+### Planning rewrite: Scrapling default-adopt attacker-capability principle
+
+- [x] Added the new source-of-truth principle docs in:
+  - [`docs/research/2026-03-25-scrapling-full-attacker-capability-principle-review.md`](../docs/research/2026-03-25-scrapling-full-attacker-capability-principle-review.md)
+  - [`docs/plans/2026-03-25-scrapling-full-attacker-capability-principle-plan.md`](../docs/plans/2026-03-25-scrapling-full-attacker-capability-principle-plan.md)
+- [x] Rewrote the Scrapling planning chain so attacker-relevant upstream Scrapling capability is now treated as a default-adopt expectation for Scrapling-owned surfaces, with explicit exclusions rather than passive omission, in:
+  - [`docs/research/2026-03-24-scrapling-challenge-surface-and-defense-coverage-review.md`](../docs/research/2026-03-24-scrapling-challenge-surface-and-defense-coverage-review.md)
+  - [`docs/plans/2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md`](../docs/plans/2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md)
+  - [`docs/plans/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md`](../docs/plans/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md)
+  - [`docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md`](../docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md)
+  - [`docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`](../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md)
+  - [`docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](../docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md)
+- [x] Manifested the principle as real backlog changes in:
+  - [`todos/todo.md`](../todos/todo.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+  so the active queue now includes `SIM-SCR-CAP-1`, while the later LLM attacker runtime remains downstream of a settled Scrapling capability matrix and any resulting broader owned-surface adoption.
+- [x] Updated the indexes in:
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`docs/plans/README.md`](../docs/plans/README.md)
+- [x] Why:
+  - the older wording still implied fuller Scrapling capability should be reopened only reluctantly after a later local gap review
+  - the corrected principle is that Shuma should maintain parity with attacker-relevant upstream Scrapling capability for Scrapling-owned surfaces, and every omission should be explicit and justified
+- [x] Evidence:
+  - `git diff --check`
+
 ### TEST-HYGIENE-6C: Explicit make-target contract lanes for selector microtests
 
 - [x] Added the tranche paper trail in:

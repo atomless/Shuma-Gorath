@@ -2,9 +2,9 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Define the blocked later work needed to evaluate wider Scrapling challenge interaction and, only if proven, expand Shuma's Scrapling lane beyond today's request-native fetcher contract.
+**Goal:** Define the work needed to make Shuma adopt attacker-relevant upstream Scrapling capability by default for Scrapling-owned surfaces, while keeping broader category-ownership questions separate.
 
-**Architecture:** Keep the current request-native Scrapling ownership truthful and unchanged while adding a separate blocked follow-on that evaluates defense-surface interaction coverage explicitly. First define a defense-surface representativeness matrix, then determine which missing interactions can stay request-native and which genuinely require Scrapling's browser or stealth runtime. Keep browser-runtime adoption for `automated_browser` as a distinct later step rather than collapsing all widened Scrapling work into one vague bucket.
+**Architecture:** Keep the current request-native Scrapling ownership truthful as the baseline, but stop treating fuller attacker-relevant capability as a merely reluctant contingency. First freeze an upstream capability matrix and explicit omission ledger for Scrapling-owned surfaces, then determine which additional owned-surface interactions stay request-native and which genuinely require Scrapling's browser or stealth runtime. Keep browser-runtime adoption for `automated_browser` as a distinct later step rather than collapsing all widened Scrapling work into one vague bucket.
 
 **Tech Stack:** Rust adversary-sim control plane, Python Scrapling worker, repo-owned Scrapling runtime bootstrap, canonical taxonomy and coverage receipts, Makefile verification, official Scrapling browser or stealth fetcher documentation.
 
@@ -13,12 +13,13 @@
 ## Guardrails
 
 1. Do not retroactively claim that the current Scrapling worker already solves Shuma `not_a_bot`, puzzle, PoW, or browser-style challenge flows.
-2. Do not widen the active Scrapling truth contract beyond `indexing_bot`, `ai_scraper_bot`, and `http_agent` in this planning slice.
+2. Do not widen category ownership beyond `indexing_bot`, `ai_scraper_bot`, and `http_agent` unless that ownership is explicitly re-ratified.
 3. Keep category ownership and defense-surface coverage as distinct concepts.
 4. Keep any later browser-runtime adoption explicitly separate from simple request-native challenge interaction expansion.
 5. Preserve the repo-wide requirement that coverage claims be receipt-backed rather than inferred from library marketing alone.
 6. Judge all later adversary-lane expansion by attacker-faithfulness: if Shuma expects the lane to represent malicious automation against a surface, the lane must use the tool the way a real attacker would use it for that surface within Shuma's scope and safety boundaries.
-7. Maintain a standing upstream Scrapling capability watch. When Scrapling adds attacker-relevant capability, refresh the research, plan, and backlog chain before claiming Shuma has or does not need that capability.
+7. Treat attacker-relevant upstream Scrapling capability for Scrapling-owned surfaces as a default-adopt expectation; any omission must be explicit and justified.
+8. Maintain a standing upstream Scrapling capability watch. When Scrapling adds attacker-relevant capability, refresh the research, plan, and backlog chain before claiming Shuma has or does not need that capability.
 
 ## Ongoing Hygiene Rule
 
@@ -31,7 +32,7 @@ When a meaningful upstream delta appears:
 3. decide whether it belongs in request-native expansion, `SIM-SCR-CHALLENGE-1`, or `SIM-SCR-BROWSER-1`,
 4. and update the research, plan, and backlog docs explicitly rather than relying on tribal memory.
 
-## Task 1: `SIM-SCR-CHALLENGE-1A`
+## Task 1: `SIM-SCR-CAP-1A`
 
 **Files:**
 - Modify: `docs/plans/2026-03-23-scrapling-request-native-category-fulfillment-implementation-plan.md`
@@ -40,15 +41,15 @@ When a meaningful upstream delta appears:
 - Modify: `todos/blocked-todo.md`
 
 **Work:**
-1. Add a blocked follow-on for Scrapling defense-surface challenge interaction after `SIM-SCR-FIT-1`, `SIM-SCR-FIT-2`, and `SIM-SCR-COVER-2`.
-2. State explicitly that the current request-native plan does not yet prove Shuma `not_a_bot`, puzzle, or PoW interaction coverage.
-3. Place the new follow-on before or alongside `SIM-SCR-BROWSER-1`, with clear sequencing language that challenge interaction evaluation comes before broad browser-runtime adoption.
+1. Add an active follow-on for the upstream attacker-capability matrix and explicit omission ledger over Scrapling-owned surfaces.
+2. State explicitly that the current request-native plan is a truthful baseline, not the end state of Scrapling maturity.
+3. Place the capability-matrix tranche before broader browser-runtime adoption, with clear sequencing language that explicit adoption or exclusion comes before passive deferral.
 
 **Acceptance criteria:**
-1. The backlog clearly distinguishes current request-native ownership from later challenge-interaction evaluation.
+1. The backlog clearly distinguishes current request-native ownership from active attacker-capability maintenance.
 2. `SIM-SCR-BROWSER-1` no longer carries the whole widened Scrapling burden by implication.
 
-## Task 2: `SIM-SCR-CHALLENGE-1B`
+## Task 2: `SIM-SCR-CAP-1B`
 
 **Files:**
 - Modify: `docs/plans/2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md`
@@ -61,7 +62,7 @@ When a meaningful upstream delta appears:
   - `src/observability/non_human_lane_fulfillment.rs`
 
 **Work:**
-1. Define a canonical defense-surface matrix for Scrapling, separate from taxonomy ownership.
+1. Define a canonical attacker-capability matrix for Scrapling, separate from taxonomy ownership.
 2. Include at minimum:
    - challenge routing interaction,
    - `not_a_bot` submit or fail paths,
@@ -69,16 +70,20 @@ When a meaningful upstream delta appears:
    - PoW verify abuse,
    - rate pressure,
    - geo or IP policy interaction.
-3. For each surface, classify whether the expected interaction should be:
+3. For each attacker-relevant upstream capability, classify whether it should be:
+   - adopted in the current Scrapling-owned surface set,
+   - assigned to another lane,
+   - or explicitly excluded with a recorded reason.
+4. For each adopted surface interaction, classify whether the expected interaction should be:
    - request-native,
    - browser or stealth,
    - or intentionally out of Scrapling scope.
 
 **Acceptance criteria:**
-1. Shuma has a named representativeness matrix for defense surfaces, not only categories.
-2. The matrix can explain why a missing Scrapling interaction is a real gap, not just an unstated expectation.
+1. Shuma has a named attacker-capability matrix for Scrapling-owned surfaces, not only categories.
+2. The matrix can explain why a missing Scrapling interaction is an explicit exclusion rather than an unstated omission.
 
-## Task 3: `SIM-SCR-CHALLENGE-1C`
+## Task 3: `SIM-SCR-CAP-1C`
 
 **Files:**
 - Modify: `docs/plans/2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md`
@@ -91,17 +96,19 @@ When a meaningful upstream delta appears:
   - `docs/testing.md`
 
 **Work:**
-1. Define the proof strategy for widened Scrapling interaction claims.
+1. Define the proof strategy for widened Scrapling interaction claims and explicit omissions.
 2. Require receipts for:
    - intended worker-plan or persona shape,
    - actual defense interaction observed,
    - resulting category or coverage effect,
    - and failure or fallback semantics when the interaction is unavailable.
 3. State explicitly that upstream `StealthyFetcher` or `solve_cloudflare` support is insufficient evidence by itself.
+4. Require an explicit omission ledger entry whenever an attacker-relevant upstream capability is not adopted.
 
 **Acceptance criteria:**
 1. Any later widened Scrapling claim must be proven at the runtime, API, and receipt surfaces Shuma actually uses.
-2. The later implementation path already knows which focused Make targets and coverage fixtures need to exist.
+2. Any omitted attacker-relevant capability must leave an explicit recorded reason and a reconsideration trigger.
+3. The later implementation path already knows which focused Make targets and coverage fixtures need to exist.
 
 ## Task 4: `SIM-SCR-BROWSER-1`
 
@@ -111,7 +118,7 @@ When a meaningful upstream delta appears:
 - Modify: `docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`
 
 **Work:**
-1. Refine the existing browser-runtime follow-on so it explicitly depends on the challenge-interaction evaluation outcome.
+1. Refine the existing browser-runtime follow-on so it explicitly depends on the capability-matrix and omission-ledger outcome.
 2. Keep its remit narrow:
    - truthful `automated_browser` ownership,
    - truthful browser-runtime deploy contract,
@@ -130,6 +137,6 @@ When a meaningful upstream delta appears:
 This planning tranche is complete when:
 
 1. the repo explicitly acknowledges that current Scrapling use is narrower than upstream Scrapling capability,
-2. a new blocked `SIM-SCR-CHALLENGE-1` lane exists,
-3. the current request-native contract remains truthful and unchanged,
+2. an active capability-matrix and omission-ledger lane exists,
+3. the current request-native contract remains truthful and unchanged as a baseline,
 4. and `SIM-SCR-BROWSER-1` is narrowed to the later browser-runtime question rather than absorbing every missing Scrapling capability by default.
