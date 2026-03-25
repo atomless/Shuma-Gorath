@@ -45,6 +45,7 @@ make test-adversarial-promote-candidates # Frontier finding triage + determinist
 make test-adversarial-container-isolation # Validate black-box container isolation contract (Docker required)
 make test-adversarial-container-blackbox # Run containerized black-box adversary worker (Docker required)
 make test-adversarial-llm-fit # Focused bounded LLM fulfillment-plan contract gate
+make test-scrapling-game-loop-mainline # Focused active-mainline bundle: attacker-faithful Scrapling plus the first working game loop
 make test-adversary-sim-scrapling-owned-surface-contract # Focused Scrapling owned-surface matrix and success-contract gate
 make test-adversary-sim-scrapling-category-fit # Focused Scrapling category-ownership and worker-plan contract gate
 make test-adversary-sim-scrapling-malicious-request-native # Focused attacker-faithful malicious request-native Scrapling behavior gate
@@ -105,6 +106,29 @@ make seed-dashboard-data # Seed local dashboard sample records against running S
 make test-dashboard   # Manual dashboard checklist
 ```
 
+## 🐙 Current Active Mainline
+
+If you are changing the current attacker-faithful Scrapling -> first-working-game-loop path, start with:
+
+```bash
+make test-scrapling-game-loop-mainline
+```
+
+That command is the fastest truthful local/pre-merge proof bundle for the current mainline. It intentionally combines:
+
+- `make test-adversary-sim-scrapling-owned-surface-contract`
+- `make test-adversary-sim-scrapling-malicious-request-native`
+- `make test-adversary-sim-scrapling-coverage-receipts`
+- `make test-rsi-game-mainline`
+
+It does **not** replace:
+
+- `make test` for the broader local/CI umbrella suite,
+- `make test-adversarial-coverage` for deeper adversarial oracle coverage,
+- or `make test-live-feedback-loop-remote` for live shared-host operational proof.
+
+Use the narrower focused targets when only one seam changed.
+
 ## 🐙 Canonical Test Tiers
 
 Shuma now treats automated verification as five distinct proof tiers plus optional manual checks:
@@ -162,6 +186,7 @@ Notes:
 - `make test-dashboard-game-loop-accountability` is the narrow proof path for `MON-OVERHAUL-1B`; it covers dashboard adapters, bounded snapshot wiring through the refresh runtime, and a rendered Playwright proof that the Game Loop tab projects benchmark and oversight machine contracts rather than placeholder copy.
 - `make test-dashboard-traffic-pane` is the narrow proof path for `TRAFFIC-TAB-1`; it covers traffic-first tab ordering, shared refresh-bar eligibility, and a rendered Playwright proof that Traffic owns the traffic picture while Diagnostics narrows toward furniture proof.
 - `make test-dashboard-runtime-unit-contracts` is the narrow non-rendered proof path for dashboard native-runtime and refresh-runtime behavior; use it when auth/session restore, cache invalidation, or config-mutation invalidation logic changes without needing broader Playwright churn.
+- `make test-scrapling-game-loop-mainline` is the fastest truthful local/pre-merge proof path for the current active mainline. It bundles the attacker-faithful Scrapling owned-surface, malicious request-native, coverage-receipt, and first-working-game-loop gates without implying live/shared-host operational proof.
 - `make test-adversary-sim-scrapling-owned-surface-contract` is the narrow proof path for the attacker-faithful Scrapling owned-surface matrix. Use it when changing which defenses the Scrapling lane owns, which fulfillment modes must touch them, or whether the contract says Scrapling should pass, fail, or expect mixed outcomes on those surfaces.
 - `make test-adversary-sim-scrapling-malicious-request-native` is the narrow proof path for widened request-native Scrapling abuse behavior. Use it when changing worker-plan route hints, per-mode malicious submit behavior, or the rule that Scrapling personas must mix ordinary success traffic with hostile request-native challenge, PoW, or tarpit interactions on the surfaces they own.
 - `make test-rsi-game-mainline` is now the focused proof path for the landed `RSI-GAME-MAINLINE-1A` plus `RSI-GAME-MAINLINE-1B` chain; it proves the automatic post-sim oversight trigger still fires once, the post-sim oversight route can apply a bounded canary and persist a terminal retained episode into the archive surfaces, and the shared-host feedback-loop verifier layer can recognize the later periodic terminal judgment plus completed episode-archive row.

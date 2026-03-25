@@ -118,15 +118,17 @@ Verification:
 
 1. `TEST-TIER-1`
 2. `TEST-HYGIENE-6A` (delivered)
-3. `TEST-HYGIENE-6B`
-4. `TEST-HYGIENE-6C`
-5. existing `TEST-HYGIENE-3`
-6. existing `TEST-HYGIENE-4`
-7. existing `TEST-HYGIENE-5`
-8. existing `TEST-HYGIENE-2`
+3. `TEST-HYGIENE-6B` (delivered)
+4. `TEST-MAINLINE-1`
+5. `TEST-HYGIENE-6C`
+6. existing `TEST-HYGIENE-3`
+7. existing `TEST-HYGIENE-4`
+8. existing `TEST-HYGIENE-5`
+9. existing `TEST-HYGIENE-2`
 
 ## Notes
 
 - Do not remove source-contract tests indiscriminately. Keep them when the contract really is file shape, target wiring, or script composition.
 - Do not weaken the current live proof tier. The aim is to distinguish it more clearly, not to demote or discard it.
 - Prefer rendered and subprocess proofs over source regexes whenever the behavior can be driven directly.
+- The next highest-leverage testing tranche is a narrow active-mainline ergonomics slice, not a broad continuation of archaeology cleanup. See [`2026-03-25-testing-suite-structure-and-mainline-friction-plan.md`](2026-03-25-testing-suite-structure-and-mainline-friction-plan.md).

@@ -4,6 +4,42 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-25)
 
+### TEST-MAINLINE-1: active Scrapling -> game-loop verification ergonomics
+
+- [x] Added the truthful aggregate active-mainline command in:
+  - [`Makefile`](../Makefile) as `make test-scrapling-game-loop-mainline`
+- [x] Added the target-contract proof in:
+  - [`scripts/tests/test_adversary_sim_make_targets.py`](../scripts/tests/test_adversary_sim_make_targets.py)
+- [x] Surfaced the new path clearly in:
+  - [`docs/testing.md`](../docs/testing.md)
+- [x] Added the tranche closeout note in:
+  - [`docs/research/2026-03-25-test-mainline-1-active-verification-ergonomics-post-implementation-review.md`](../docs/research/2026-03-25-test-mainline-1-active-verification-ergonomics-post-implementation-review.md)
+- [x] Evidence:
+  - `make test-adversary-sim-scrapling-category-fit`
+  - `make test-scrapling-game-loop-mainline`
+  - `git diff --check`
+
+### TEST-PLANNING-2: testing suite structure review and active-mainline ergonomics sequencing
+
+- [x] Reviewed the current suite structure and mainline ergonomics against repo evidence in:
+  - [`Makefile`](../Makefile)
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`scripts/tests/`](../scripts/tests)
+- [x] Added the new research and plan docs:
+  - [`docs/research/2026-03-25-testing-suite-structure-and-mainline-friction-review.md`](../docs/research/2026-03-25-testing-suite-structure-and-mainline-friction-review.md)
+  - [`docs/plans/2026-03-25-testing-suite-structure-and-mainline-friction-plan.md`](../docs/plans/2026-03-25-testing-suite-structure-and-mainline-friction-plan.md)
+- [x] Re-sequenced the planning chain so a narrow active-mainline testing tranche comes before deferred dashboard cleanup in:
+  - [`docs/plans/2026-03-23-testing-surface-rationalization-plan.md`](../docs/plans/2026-03-23-testing-surface-rationalization-plan.md)
+  - [`docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md`](../docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md)
+  - [`docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
+  - [`todos/todo.md`](../todos/todo.md)
+- [x] Updated the plan and research indexes in:
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`docs/plans/README.md`](../docs/plans/README.md)
+- [x] Evidence:
+  - `git diff --check`
+
 ### BASELINE-REPAIR-1: restore truthful green baseline after MZ-T4 exposed full-suite drift
 
 - [x] Aligned stale baseline expectations with the already-landed contracts in:

@@ -198,6 +198,22 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
         self.assertIn("test-adversary-sim-supervisor-unit", body)
         self.assertIn("scripts/tests/test_adversary_sim_supervisor.py", body)
 
+    def test_scrapling_game_loop_mainline_target_uses_current_active_mainline_gates(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-scrapling-game-loop-mainline:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn("test-adversary-sim-scrapling-owned-surface-contract", body)
+        self.assertIn("test-adversary-sim-scrapling-malicious-request-native", body)
+        self.assertIn("test-adversary-sim-scrapling-coverage-receipts", body)
+        self.assertIn("test-rsi-game-mainline", body)
+        self.assertNotIn("test-live-feedback-loop-remote", body)
+        self.assertNotIn("test-adversarial-coverage", body)
+
 
 if __name__ == "__main__":
     unittest.main()
