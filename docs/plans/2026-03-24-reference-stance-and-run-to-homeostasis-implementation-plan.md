@@ -39,6 +39,14 @@ It should consume the canonical recursive-improvement game contract from [`2026-
 
 It should also consume the later scorecard and evaluation-separation contracts from [`2026-03-24-scorecard-protocol-and-held-out-eval-separation-plan.md`](2026-03-24-scorecard-protocol-and-held-out-eval-separation-plan.md) so homeostasis and preset sweeps are judged through the same canonical score semantics and held-out contexts as the broader game.
 
+`RSI-EVAL-1` is now landed, so later methodology work must treat:
+
+1. player-visible protected evidence,
+2. judge-held-out evaluation contexts,
+3. and regression-anchor contexts
+
+as separate rings rather than a single fully visible training surface.
+
 It should define:
 
 1. the development reference stance identifier,
@@ -123,6 +131,7 @@ Current note:
 2. Homeostasis inputs should therefore be taken from the explicit `comparison_contract.homeostasis_input_ids` surface in `recursive_improvement_game_contract_v1.evaluator_scorecard` rather than improvised later per-agent heuristics.
 3. `RSI-GAME-1C` is now landed, so bounded completed-episode memory and homeostasis summary are machine-first archive surfaces rather than later UI or agent-local inventions.
 4. `RSI-ROLES-1` is now landed, so later run-to-homeostasis execution must preserve the settled attacker/defender/judge split instead of drifting into a self-judging duel.
+5. `RSI-EVAL-1` is now landed, so held-out judge contexts must remain capable of overruling apparently positive player-visible trends when hidden evaluation shows overfitting or latent harm.
 
 # Definition Of Done
 

@@ -185,6 +185,12 @@ Protocol note:
 1. `OVR-AGENT-2A` must now emit and consume the landed `RSI-PROTO-1` schema families rather than inventing a defender-local vocabulary.
 2. Defender outputs must therefore remain inside the canonical `config_proposal`, `refusal`, `need_more_evidence`, `code_gap_escalation`, and `code_evolution_referral` families.
 
+Evaluation note:
+
+1. later attacker and defender runtimes must now also inherit the landed `RSI-EVAL-1` visibility boundary,
+2. so protected evidence may inform player behavior,
+3. but held-out judge contexts and raw anchor inventories must remain outside player context windows.
+
 ## Task 5: `OVR-AGENT-2B`
 
 ### Recommendation-only LLM defender runtime over the proven closed loop
@@ -251,7 +257,8 @@ Protocol note:
 Current note:
 
 1. `RSI-ROLES-1` and `RSI-PROTO-1` are now landed.
-2. The remaining player-side contract gap before runtime reopening is no longer wire vocabulary, but held-out evaluation separation and audit lineage.
+2. `RSI-EVAL-1` is now landed.
+3. The remaining player-side contract gap before runtime reopening is no longer wire vocabulary or evaluation visibility, but audit lineage.
 
 # Definition Of Done
 

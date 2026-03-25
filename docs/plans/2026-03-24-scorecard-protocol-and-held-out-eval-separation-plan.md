@@ -181,6 +181,30 @@ Implementation note:
 2. protected evidence is preserved without collapsing held-out evaluation into the training surface,
 3. and later autonomy cannot quietly optimize against every benchmark context it is supposed to be judged by.
 
+Implementation note:
+
+1. `RSI-EVAL-1` is now landed.
+2. The canonical evaluation rings are now:
+   1. `player_visible_protected_evidence`
+      1. current episode context and operator-selected target stance
+      2. current non-held-out judge snapshot and move guidance
+      3. replay-promoted or equivalently confirmed protected evidence
+      4. bounded recent episode memory with held-out details redacted
+      5. host-derived public attacker observations and action receipts
+   2. `judge_held_out_evaluation`
+      1. held-out benchmark contexts
+      2. hidden adversary or replay cohorts reserved for scoring
+      3. hidden human and tolerated-traffic no-harm checks
+      4. withheld regression cases not exposed as player training inputs
+   3. `regression_anchor_contexts`
+      1. strict reference-stance contexts
+      2. other judge-scored anchor suites that may emit summary verdicts without exposing raw case inventories
+3. The contract now explicitly requires:
+   1. players may learn from protected evidence,
+   2. players must not receive the raw held-out context inventory,
+   3. judge-side negative held-out results may override apparently positive player-visible trends,
+   4. regression anchors remain mandatory score inputs without becoming player optimization surfaces.
+
 # Sequencing
 
 1. Keep the current mainline operator-facing work first: `MON-OVERHAUL-1`, `CTRL-SURFACE-1..3`, and `TUNE-SURFACE-1`.

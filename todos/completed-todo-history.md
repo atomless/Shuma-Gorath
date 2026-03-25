@@ -4,6 +4,29 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### RSI-EVAL-1: Protected-vs-held-out evaluation separation
+
+- [x] Landed the canonical evaluation-visibility contract in:
+  - [`docs/plans/2026-03-24-scorecard-protocol-and-held-out-eval-separation-plan.md`](../docs/plans/2026-03-24-scorecard-protocol-and-held-out-eval-separation-plan.md)
+  - [`docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](../docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md)
+  - [`docs/plans/2026-03-24-llm-player-role-decomposition-plan.md`](../docs/plans/2026-03-24-llm-player-role-decomposition-plan.md)
+  - [`docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](../docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md)
+  so later recursive-improvement work now distinguishes:
+  - player-visible protected evidence
+  - judge-held-out evaluation contexts
+  - regression-anchor contexts
+- [x] Removed the now-landed blocker from:
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+  and rewired later blocked items so they consume `RSI-EVAL-1` as a settled visibility boundary instead of a still-missing contract.
+- [x] Added the closeout review in:
+  - [`docs/research/2026-03-24-rsi-eval-1-held-out-evaluation-boundary-post-implementation-review.md`](../docs/research/2026-03-24-rsi-eval-1-held-out-evaluation-boundary-post-implementation-review.md)
+  and refreshed:
+  - [`docs/research/README.md`](../docs/research/README.md)
+- [x] Why:
+  - the role split and player protocol were landed, but later players still needed one explicit answer to what they may learn from versus what only the judge may use for scoring
+- [x] Evidence:
+  - `git diff --check`
+
 ### RSI-PROTO-1: Canonical attacker and defender protocol schemas
 
 - [x] Landed the canonical player-wire contract in:
