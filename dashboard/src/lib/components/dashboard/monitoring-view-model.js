@@ -875,6 +875,20 @@ const shapeOwnedSurfaceCoverageReceipt = (receipt = {}) => {
   };
 };
 
+const receiptWasExercised = (receipt = {}) => {
+  const attemptCount = Number(receipt?.attemptCount || 0);
+  const coverageStatus = String(receipt?.coverageStatus || '').trim();
+  const sampleRequestMethod = String(receipt?.sampleRequestMethod || '').trim();
+  const sampleRequestPath = String(receipt?.sampleRequestPath || '').trim();
+  return Boolean(
+    attemptCount > 0 ||
+    receipt?.satisfied === true ||
+    sampleRequestMethod ||
+    sampleRequestPath ||
+    (coverageStatus && coverageStatus !== 'unavailable')
+  );
+};
+
 const shapeOwnedSurfaceCoverage = (coverage = {}) => {
   const source = coverage && typeof coverage === 'object' ? coverage : {};
   const requiredSurfaceIds = toSummaryStringArray(source.requiredSurfaceIds || source.required_surface_ids);
@@ -892,6 +906,16 @@ const shapeOwnedSurfaceCoverage = (coverage = {}) => {
   ) {
     return null;
   }
+  const exercisedSurfaceCount = receipts.filter((receipt) => receiptWasExercised(receipt)).length;
+  const expectedPassCount = receipts.filter(
+    (receipt) => receipt.successContract === 'should_pass_some' && receipt.coverageStatus === 'pass_observed'
+  ).length;
+  const expectedFailCount = receipts.filter(
+    (receipt) => receipt.successContract === 'should_fail' && receipt.coverageStatus === 'fail_observed'
+  ).length;
+  const mixedOutcomeCount = receipts.filter(
+    (receipt) => receipt.successContract === 'mixed_outcomes' && receiptWasExercised(receipt)
+  ).length;
   return {
     overallStatus: String(source.overallStatus || source.overall_status || '').trim(),
     requiredSurfaceIds,
@@ -900,6 +924,10 @@ const shapeOwnedSurfaceCoverage = (coverage = {}) => {
     satisfiedSurfaceCount: satisfiedSurfaceIds.length,
     blockingSurfaceIds,
     blockingSurfaceCount: blockingSurfaceIds.length,
+    exercisedSurfaceCount,
+    expectedPassCount,
+    expectedFailCount,
+    mixedOutcomeCount,
     receipts
   };
 };

@@ -22,7 +22,7 @@ Panel:
   - freshness-aware empty/degraded messaging so delayed telemetry is not misread as no activity.
 - `Latest Scrapling Evidence`:
   - receipt-backed projection of the most recent Scrapling run visible in the bounded monitoring window,
-  - observed Scrapling personas, observed non-human taxonomy categories, owned-surface closure counts, and per-surface sample receipts,
+  - observed Scrapling personas, observed non-human taxonomy categories, owned-surface closure counts, exercised-surface counts, expected pass or fail counts, and per-surface sample receipts,
   - explicit operator proof of where Scrapling passed or failed against the request-native defenses it currently owns.
 
 Behavior:

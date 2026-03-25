@@ -2184,10 +2184,61 @@ test("game loop tab corroborates latest scrapling evidence readiness", async ({ 
               monitoring_event_count: 64,
               owned_surface_coverage: {
                 overall_status: "covered",
-                required_surface_ids: ["challenge_routing", "pow_verify_abuse"],
-                satisfied_surface_ids: ["challenge_routing", "pow_verify_abuse"],
+                required_surface_ids: [
+                  "challenge_routing",
+                  "not_a_bot_submit",
+                  "puzzle_submit_or_escalation",
+                  "pow_verify_abuse"
+                ],
+                satisfied_surface_ids: [
+                  "challenge_routing",
+                  "not_a_bot_submit",
+                  "puzzle_submit_or_escalation",
+                  "pow_verify_abuse"
+                ],
                 blocking_surface_ids: [],
-                receipts: []
+                receipts: [
+                  {
+                    surface_id: "challenge_routing",
+                    success_contract: "mixed_outcomes",
+                    coverage_status: "pass_observed",
+                    satisfied: true,
+                    attempt_count: 6,
+                    sample_request_method: "GET",
+                    sample_request_path: "/sim/public/search?q=scrapling",
+                    sample_response_status: 200
+                  },
+                  {
+                    surface_id: "not_a_bot_submit",
+                    success_contract: "should_pass_some",
+                    coverage_status: "pass_observed",
+                    satisfied: true,
+                    attempt_count: 2,
+                    sample_request_method: "POST",
+                    sample_request_path: "/challenge/not-a-bot-checkbox",
+                    sample_response_status: 303
+                  },
+                  {
+                    surface_id: "puzzle_submit_or_escalation",
+                    success_contract: "should_fail",
+                    coverage_status: "fail_observed",
+                    satisfied: true,
+                    attempt_count: 2,
+                    sample_request_method: "POST",
+                    sample_request_path: "/challenge/puzzle",
+                    sample_response_status: 400
+                  },
+                  {
+                    surface_id: "pow_verify_abuse",
+                    success_contract: "should_fail",
+                    coverage_status: "fail_observed",
+                    satisfied: true,
+                    attempt_count: 1,
+                    sample_request_method: "POST",
+                    sample_request_path: "/pow/verify",
+                    sample_response_status: 400
+                  }
+                ]
               }
             }
           ]
@@ -2294,7 +2345,10 @@ test("game loop tab corroborates latest scrapling evidence readiness", async ({ 
   await openTab(page, "game-loop");
   await expect(page.locator("#game-loop-trust-blockers")).toContainText("Latest Scrapling Evidence");
   await expect(page.locator("#game-loop-trust-blockers")).toContainText("Covered");
-  await expect(page.locator("#game-loop-trust-blockers")).toContainText("2 / 2");
+  await expect(page.locator("#game-loop-trust-blockers")).toContainText("4 / 4");
+  await expect(page.locator("#game-loop-trust-blockers")).toContainText("exercised 4");
+  await expect(page.locator("#game-loop-trust-blockers")).toContainText("expected passes 1");
+  await expect(page.locator("#game-loop-trust-blockers")).toContainText("expected fails 2");
   await expect(page.locator("#game-loop-trust-blockers")).toContainText("Indexing Bot");
 });
 
@@ -3669,11 +3723,13 @@ test("red team tab surfaces receipt-backed scrapling attack evidence from recent
               required_surface_ids: [
                 "challenge_routing",
                 "not_a_bot_submit",
+                "puzzle_submit_or_escalation",
                 "pow_verify_abuse"
               ],
               satisfied_surface_ids: [
                 "challenge_routing",
-                "not_a_bot_submit"
+                "not_a_bot_submit",
+                "puzzle_submit_or_escalation"
               ],
               blocking_surface_ids: ["pow_verify_abuse"],
               receipts: [
@@ -3689,12 +3745,22 @@ test("red team tab surfaces receipt-backed scrapling attack evidence from recent
                 },
                 {
                   surface_id: "not_a_bot_submit",
+                  success_contract: "should_pass_some",
+                  coverage_status: "pass_observed",
+                  satisfied: true,
+                  attempt_count: 2,
+                  sample_request_method: "POST",
+                  sample_request_path: "/challenge/not-a-bot-checkbox",
+                  sample_response_status: 303
+                },
+                {
+                  surface_id: "puzzle_submit_or_escalation",
                   success_contract: "should_fail",
                   coverage_status: "fail_observed",
                   satisfied: true,
                   attempt_count: 2,
                   sample_request_method: "POST",
-                  sample_request_path: "/challenge/not-a-bot-checkbox",
+                  sample_request_path: "/challenge/puzzle",
                   sample_response_status: 400
                 },
                 {
@@ -3759,8 +3825,18 @@ test("red team tab surfaces receipt-backed scrapling attack evidence from recent
   await expect(page.locator("#red-team-scrapling-evidence")).toContainText("Non-human Categories Fulfilled");
   await expect(page.locator("#red-team-scrapling-evidence")).toContainText("Defence Surfaces Covered");
   await expect(page.locator("#red-team-scrapling-evidence")).toContainText("simrun-scrapling-proof");
-  await expect(page.locator("#red-team-scrapling-evidence")).toContainText("2 / 3");
+  await expect(page.locator("#red-team-scrapling-evidence")).toContainText("3 / 4");
+  await expect(page.locator("#red-team-scrapling-evidence")).toContainText("Surfaces Exercised");
+  await expect(page.locator("#red-team-scrapling-evidence")).toContainText("3 surfaces");
+  await expect(page.locator("#red-team-scrapling-evidence")).toContainText("Expected Passes Observed");
+  await expect(page.locator("#red-team-scrapling-evidence")).toContainText("1 surface");
+  await expect(page.locator("#red-team-scrapling-evidence")).toContainText("Expected Fails Observed");
+  await expect(page.locator("#red-team-scrapling-evidence")).toContainText("1 surface");
   await expect(page.locator("#red-team-scrapling-evidence")).toContainText("POST /challenge/not-a-bot-checkbox");
+  await expect(page.locator("#red-team-scrapling-evidence")).toContainText("POST /challenge/puzzle");
+  await expect(page.locator("#red-team-scrapling-evidence")).toContainText("Should Pass Some");
+  await expect(page.locator("#red-team-scrapling-evidence")).toContainText("Pass Observed | satisfied");
+  await expect(page.locator("#red-team-scrapling-evidence")).toContainText("Fail Observed | satisfied");
   await expect(page.locator("#red-team-scrapling-evidence")).toContainText("PoW Verify Abuse");
 });
 

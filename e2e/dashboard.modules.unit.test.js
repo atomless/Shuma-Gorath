@@ -3402,8 +3402,13 @@ test('monitoring view model and status module remain pure snapshot transforms', 
         observed_category_ids: ['ai_scraper_bot', 'http_agent'],
         owned_surface_coverage: {
           overall_status: 'partial',
-          required_surface_ids: ['challenge_routing', 'pow_verify_abuse'],
-          satisfied_surface_ids: ['challenge_routing'],
+          required_surface_ids: [
+            'challenge_routing',
+            'not_a_bot_submit',
+            'puzzle_submit_or_escalation',
+            'pow_verify_abuse'
+          ],
+          satisfied_surface_ids: ['challenge_routing', 'not_a_bot_submit', 'puzzle_submit_or_escalation'],
           blocking_surface_ids: ['pow_verify_abuse'],
           receipts: [
             {
@@ -3414,6 +3419,26 @@ test('monitoring view model and status module remain pure snapshot transforms', 
               attempt_count: 4,
               sample_request_method: 'GET',
               sample_request_path: '/sim/public/search?q=scrapling',
+              sample_response_status: 200
+            },
+            {
+              surface_id: 'not_a_bot_submit',
+              success_contract: 'should_pass_some',
+              coverage_status: 'pass_observed',
+              satisfied: true,
+              attempt_count: 2,
+              sample_request_method: 'POST',
+              sample_request_path: '/challenge/not-a-bot-checkbox',
+              sample_response_status: 303
+            },
+            {
+              surface_id: 'puzzle_submit_or_escalation',
+              success_contract: 'should_fail',
+              coverage_status: 'fail_observed',
+              satisfied: true,
+              attempt_count: 2,
+              sample_request_method: 'POST',
+              sample_request_path: '/challenge/puzzle',
               sample_response_status: 200
             },
             {
@@ -3458,6 +3483,22 @@ test('monitoring view model and status module remain pure snapshot transforms', 
     assert.equal(
       summarizedRuns.runRows[0].ownedSurfaceCoverage?.overallStatus,
       'partial'
+    );
+    assert.equal(
+      summarizedRuns.runRows[0].ownedSurfaceCoverage?.exercisedSurfaceCount,
+      3
+    );
+    assert.equal(
+      summarizedRuns.runRows[0].ownedSurfaceCoverage?.expectedPassCount,
+      1
+    );
+    assert.equal(
+      summarizedRuns.runRows[0].ownedSurfaceCoverage?.expectedFailCount,
+      1
+    );
+    assert.equal(
+      summarizedRuns.runRows[0].ownedSurfaceCoverage?.mixedOutcomeCount,
+      1
     );
     assert.equal(
       summarizedRuns.runRows[0].ownedSurfaceCoverage?.receipts?.[0]?.surfaceId,

@@ -4,6 +4,33 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-25)
 
+### `SIM-SCR-FULL-1C` Receipt Proof
+
+- [x] Closed the remaining full-power Scrapling proof gap in:
+  - [`src/admin/api.rs`](../src/admin/api.rs)
+  - [`dashboard/src/lib/components/dashboard/monitoring-view-model.js`](../dashboard/src/lib/components/dashboard/monitoring-view-model.js)
+  - [`dashboard/src/lib/components/dashboard/monitoring/ScraplingEvidencePanel.svelte`](../dashboard/src/lib/components/dashboard/monitoring/ScraplingEvidencePanel.svelte)
+  - [`dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
+  so recent-run closure, Red Team evidence, and Game Loop corroboration now agree on which Scrapling-owned surfaces were exercised, which passed where expected, and which failed where expected.
+- [x] Refreshed the proof fixtures and focused gates in:
+  - [`e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  so browser-backed `not_a_bot_submit` success and puzzle failure are asserted end to end rather than left in stale request-native fixtures.
+- [x] Updated the paper trail in:
+  - [`docs/research/2026-03-25-sim-scr-full-1c-receipt-proof-review.md`](../docs/research/2026-03-25-sim-scr-full-1c-receipt-proof-review.md)
+  - [`docs/plans/2026-03-25-sim-scr-full-1c-receipt-proof-plan.md`](../docs/plans/2026-03-25-sim-scr-full-1c-receipt-proof-plan.md)
+  - [`docs/research/2026-03-25-sim-scr-full-1c-receipt-proof-post-implementation-review.md`](../docs/research/2026-03-25-sim-scr-full-1c-receipt-proof-post-implementation-review.md)
+  - [`docs/dashboard-tabs/red-team.md`](../docs/dashboard-tabs/red-team.md)
+  - [`docs/dashboard-tabs/game-loop.md`](../docs/dashboard-tabs/game-loop.md)
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+  so `SIM-SCR-FULL-1` is now satisfied and `RSI-GAME-HO-1` is the clear next mainline tranche.
+- [x] Evidence:
+  - `make test-adversary-sim-scrapling-coverage-receipts`
+  - `make test-dashboard-scrapling-evidence`
+  - `git diff --check`
+
 ### `SIM-SCR-FULL-1B3` Remaining Gap Closure
 
 - [x] Closed the remaining full-power post-`1B2B` gap truthfully by creating:

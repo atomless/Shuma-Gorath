@@ -1635,11 +1635,11 @@ mod tests {
                     },
                     crate::observability::scrapling_owned_surface::ScraplingSurfaceObservationReceipt {
                         surface_id: "not_a_bot_submit".to_string(),
-                        coverage_status: "fail_observed".to_string(),
+                        coverage_status: "pass_observed".to_string(),
                         attempt_count: 2,
                         sample_request_method: "POST".to_string(),
                         sample_request_path: "/challenge/not-a-bot-checkbox".to_string(),
-                        sample_response_status: Some(400),
+                        sample_response_status: Some(303),
                     },
                     crate::observability::scrapling_owned_surface::ScraplingSurfaceObservationReceipt {
                         surface_id: "puzzle_submit_or_escalation".to_string(),

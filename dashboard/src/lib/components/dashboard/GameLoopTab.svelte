@@ -573,6 +573,9 @@
                   | {formatNumber(latestScraplingEvidence.ownedSurfaceCoverage.satisfiedSurfaceCount, '0')}
                   / {formatNumber(latestScraplingEvidence.ownedSurfaceCoverage.requiredSurfaceCount, '0')}
                   surfaces
+                  | exercised {formatNumber(latestScraplingEvidence.ownedSurfaceCoverage.exercisedSurfaceCount, '0')}
+                  | expected passes {formatNumber(latestScraplingEvidence.ownedSurfaceCoverage.expectedPassCount, '0')}
+                  | expected fails {formatNumber(latestScraplingEvidence.ownedSurfaceCoverage.expectedFailCount, '0')}
                   | categories {latestScraplingEvidence.observedCategoryIds.map((value) => humanizeToken(value)).join(', ') || 'not available'}
                 {:else}
                   No receipt-backed Scrapling evidence is materialized yet.

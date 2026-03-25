@@ -43,6 +43,10 @@
     if (status === null || status === undefined || status === '') return requestPart || '-';
     return `${requestPart || 'Observed'} -> ${status}`;
   };
+  const formatSurfaceCount = (value) => {
+    const count = Number(value || 0);
+    return `${formatCompactNumber(count, '0')} ${count === 1 ? 'surface' : 'surfaces'}`;
+  };
 </script>
 
 <SectionBlock
@@ -95,6 +99,22 @@
           {formatCompactNumber(runEvidence.ownedSurfaceCoverage?.requiredSurfaceCount || 0, '0')}
           surfaces satisfied
         </span>
+      </div>
+      <div class="info-row">
+        <span class="info-label text-muted">Surfaces Exercised:</span>
+        <span class="status-value">{formatSurfaceCount(runEvidence.ownedSurfaceCoverage?.exercisedSurfaceCount)}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label text-muted">Expected Passes Observed:</span>
+        <span class="status-value">{formatSurfaceCount(runEvidence.ownedSurfaceCoverage?.expectedPassCount)}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label text-muted">Expected Fails Observed:</span>
+        <span class="status-value">{formatSurfaceCount(runEvidence.ownedSurfaceCoverage?.expectedFailCount)}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label text-muted">Mixed-Outcome Surfaces:</span>
+        <span class="status-value">{formatSurfaceCount(runEvidence.ownedSurfaceCoverage?.mixedOutcomeCount)}</span>
       </div>
     </div>
 
