@@ -14,6 +14,10 @@ Moved from active TODO files on 2026-02-14.
   - [`Makefile`](../Makefile)
   - [`scripts/tests/test_prod_start_spin_manifest.py`](../scripts/tests/test_prod_start_spin_manifest.py)
   so `make prod-start` and the other wrapper-based startup paths now export `SHUMA_SIM_TELEMETRY_SECRET` plus the required `ADVERSARY_SIM_SCRAPLING_*` paths into the supervisor process environment rather than relying only on Spin `--env` flags.
+- [x] Fixed the host-side supervisor's synthetic failure payload in:
+  - [`scripts/supervisor/adversary_sim_supervisor.rs`](../scripts/supervisor/adversary_sim_supervisor.rs)
+  - [`scripts/tests/test_adversary_sim_supervisor.py`](../scripts/tests/test_adversary_sim_supervisor.py)
+  so non-zero Scrapling worker exits now retain the beat plan's required `fulfillment_mode` field instead of emitting a payload that the server rejects as invalid.
 - [x] Updated the focused verification/docs trail in:
   - [`docs/testing.md`](../docs/testing.md)
   - [`docs/research/2026-03-24-prod-start-supervisor-env-and-remote-receipt-backfill-post-implementation-review.md`](../docs/research/2026-03-24-prod-start-supervisor-env-and-remote-receipt-backfill-post-implementation-review.md)
@@ -28,6 +32,7 @@ Moved from active TODO files on 2026-02-14.
   - `make test-remote-target-contract`
   - `make test-scrapling-deploy-shared-host`
   - `make test-rsi-game-mainline`
+  - `make test-adversary-sim-scrapling-worker`
   - `git diff --check`
 
 ### RSI-GAME-1C: Episode archive and homeostasis memory

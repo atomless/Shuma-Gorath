@@ -27,6 +27,11 @@ class AdversarySimSupervisorContractTests(unittest.TestCase):
         self.assertIn("scrapling_worker", source)
         self.assertIn("scrapling_worker.py", source)
 
+    def test_supervisor_failure_result_keeps_worker_plan_fulfillment_mode(self) -> None:
+        source = SUPERVISOR_WORKER_SOURCE.read_text(encoding="utf-8")
+        self.assertIn('json_string(beat_body, "fulfillment_mode")', source)
+        self.assertIn('\\"fulfillment_mode\\":\\"{}\\"', source)
+
     def test_supervisor_manager_worker_pid_is_not_trap_scoped_local(self) -> None:
         script = SUPERVISOR_MANAGER_SCRIPT.read_text(encoding="utf-8")
         self.assertNotIn('local worker_pid=""', script)

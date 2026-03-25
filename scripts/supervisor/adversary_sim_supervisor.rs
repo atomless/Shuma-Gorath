@@ -342,6 +342,7 @@ fn build_worker_failure_result(beat_body: &str, failure_class: &str, error: &str
     let run_id = json_string(beat_body, "run_id").unwrap_or_default();
     let tick_id = json_string(beat_body, "tick_id").unwrap_or_default();
     let lane = json_string(beat_body, "lane").unwrap_or_else(|| "scrapling_traffic".to_string());
+    let fulfillment_mode = json_string(beat_body, "fulfillment_mode").unwrap_or_default();
     let tick_started_at = json_u64(beat_body, "tick_started_at").unwrap_or(0);
     let worker_id = format!("adversary-sim-supervisor-{}", std::process::id());
     let tick_completed_at = SystemTime::now()
@@ -349,10 +350,11 @@ fn build_worker_failure_result(beat_body: &str, failure_class: &str, error: &str
         .unwrap_or_else(|_| Duration::from_secs(0))
         .as_secs();
     format!(
-        "{{\"schema_version\":\"adversary-sim-scrapling-worker-result.v1\",\"run_id\":\"{}\",\"tick_id\":\"{}\",\"lane\":\"{}\",\"worker_id\":\"{}\",\"tick_started_at\":{},\"tick_completed_at\":{},\"generated_requests\":0,\"failed_requests\":0,\"last_response_status\":null,\"failure_class\":\"{}\",\"error\":\"{}\",\"crawl_stats\":{{\"requests_count\":0,\"offsite_requests_count\":0,\"blocked_requests_count\":0,\"response_status_count\":{{}},\"response_bytes\":0}},\"scope_rejections\":{{}}}}",
+        "{{\"schema_version\":\"adversary-sim-scrapling-worker-result.v1\",\"run_id\":\"{}\",\"tick_id\":\"{}\",\"lane\":\"{}\",\"fulfillment_mode\":\"{}\",\"worker_id\":\"{}\",\"tick_started_at\":{},\"tick_completed_at\":{},\"generated_requests\":0,\"failed_requests\":0,\"last_response_status\":null,\"failure_class\":\"{}\",\"error\":\"{}\",\"crawl_stats\":{{\"requests_count\":0,\"offsite_requests_count\":0,\"blocked_requests_count\":0,\"response_status_count\":{{}},\"response_bytes\":0}},\"scope_rejections\":{{}}}}",
         json_escape(run_id.as_str()),
         json_escape(tick_id.as_str()),
         json_escape(lane.as_str()),
+        json_escape(fulfillment_mode.as_str()),
         json_escape(worker_id.as_str()),
         tick_started_at,
         tick_completed_at,
