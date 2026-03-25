@@ -4,6 +4,40 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### RSI-GAME-1C: Episode archive and homeostasis memory
+
+- [x] Landed the bounded machine-first episode archive in:
+  - [`src/observability/oversight_episode_archive.rs`](../src/observability/oversight_episode_archive.rs)
+  - [`src/observability/benchmark_comparison.rs`](../src/observability/benchmark_comparison.rs)
+  so Shuma now has one settled archive for episode ids, proposal ids, baseline and candidate scorecards, benchmark deltas, hard-guardrail triggers, and compact evidence lineage rather than relying on ad hoc joins across separate ledgers.
+- [x] Wired that archive into the live oversight loop in:
+  - [`src/admin/oversight_apply.rs`](../src/admin/oversight_apply.rs)
+  - [`src/admin/oversight_api.rs`](../src/admin/oversight_api.rs)
+  - [`src/admin/oversight_agent.rs`](../src/admin/oversight_agent.rs)
+  so preview-only decisions, canary-open episodes, retained canaries, and rolled-back canaries all upsert the same episode row over stable lineage ids.
+- [x] Projected the same archive through the machine-first read surfaces in:
+  - [`src/observability/operator_snapshot.rs`](../src/observability/operator_snapshot.rs)
+  - [`docs/api.md`](../docs/api.md)
+  - [`docs/dashboard.md`](../docs/dashboard.md)
+  - [`docs/dashboard-tabs/game-loop.md`](../docs/dashboard-tabs/game-loop.md)
+  keeping the archive controller-owned first while documenting how later Game Loop projection work should consume it.
+- [x] Added the focused proof path and closeout paper trail in:
+  - [`Makefile`](../Makefile)
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`docs/research/2026-03-24-rsi-game-1c-episode-archive-post-implementation-review.md`](../docs/research/2026-03-24-rsi-game-1c-episode-archive-post-implementation-review.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md`](../docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+- [x] Why:
+  - later recursive-improvement phases needed one machine-first stepping-stone substrate,
+  - run-to-homeostasis needed a real last-10-cycle input surface,
+  - and the repo needed a stable episode lineage contract before later audit, eval-separation, and LLM player work could stay disciplined.
+- [x] Evidence:
+  - `make test-oversight-episode-archive`
+  - `make test-oversight-apply`
+  - `git diff --check`
+
 ### RSI-SCORE-1: Canonical judge scorecard for recursive-improvement episodes
 
 - [x] Made the judge score semantics explicit inside the canonical game contract in:

@@ -23,6 +23,7 @@ Current behavior:
   - `benchmark_results_v1`
   - `oversight_history_v1`
   - `oversight_agent_status_v1`
+- Those machine-first reads now sit over the same bounded episode archive the controller uses for stepping-stone memory and later homeostasis inputs, even though the current tab still projects that history through the existing accountability sections rather than exposing the raw archive directly.
 - Surfaces:
   - current benchmark overall status, improvement status, tuning eligibility, and latest controller action,
   - bounded recent multi-loop oversight history rather than only the latest cycle,

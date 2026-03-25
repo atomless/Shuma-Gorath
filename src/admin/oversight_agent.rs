@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
+use crate::observability::oversight_episode_archive::OversightEpisodeArchiveSummary;
+
 use super::oversight_api::OversightExecutionPayload;
 use super::oversight_decision_ledger::{load_latest_decision, OversightDecisionRecord};
 
@@ -105,6 +107,7 @@ pub(crate) struct OversightAgentStatusPayload {
     pub latest_run: Option<OversightAgentRunRecord>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub latest_decision: Option<OversightDecisionRecord>,
+    pub episode_archive: OversightEpisodeArchiveSummary,
     pub recent_runs: Vec<OversightAgentRunRecord>,
 }
 
@@ -311,6 +314,9 @@ pub(crate) fn build_status_payload<S: KeyValueStore>(
         },
         latest_run: load_latest_agent_run(store, site_id),
         latest_decision: load_latest_decision(store, site_id),
+        episode_archive: crate::observability::oversight_episode_archive::load_episode_archive_summary(
+            store, site_id,
+        ),
         recent_runs: load_recent_agent_runs(store, site_id),
     }
 }
@@ -707,6 +713,11 @@ mod tests {
         let latest = load_latest_agent_run(&store, "default").expect("latest run");
         assert_eq!(latest.run_id, execution.run.run_id);
         assert_eq!(latest.trigger_kind, "periodic_supervisor");
+
+        let status = super::build_status_payload(&store, "default");
+        assert_eq!(status.episode_archive.schema_version, "oversight_episode_archive_v1");
+        assert_eq!(status.episode_archive.rows.len(), 1);
+        assert_eq!(status.episode_archive.rows[0].acceptance_status, "accepted_canary");
     }
 
     #[test]
@@ -1135,5 +1146,26 @@ mod tests {
                 .iter()
                 .any(|key| key == "oversight_active_canary:v1:default")
         );
+
+        let archive =
+            crate::observability::oversight_episode_archive::load_episode_archive_summary(
+                &store, "default",
+            );
+        assert_eq!(archive.rows.len(), 1);
+        assert_eq!(archive.rows[0].acceptance_status, "accepted_canary");
+        assert_eq!(archive.rows[0].watch_window_status, "improved");
+        assert_eq!(archive.rows[0].retention_status, "retained");
+        assert_eq!(archive.rows[0].completion_status, "completed");
+        assert!(archive.rows[0].baseline_scorecard.is_some());
+        assert!(archive.rows[0].candidate_scorecard.is_some());
+        assert!(archive.rows[0].benchmark_deltas.iter().any(|family| {
+            family.family_id == "suspicious_origin_cost"
+                && family.comparison_status == "improved"
+                && family
+                    .metrics
+                    .iter()
+                    .any(|metric| metric.metric_id == "suspicious_forwarded_request_rate"
+                        && metric.comparison_status == "improved")
+        }));
     }
 }

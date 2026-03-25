@@ -21,6 +21,7 @@ pub(crate) mod operator_objectives_store;
 pub(crate) mod operator_snapshot_non_human;
 pub(crate) mod operator_snapshot_live_traffic;
 pub(crate) mod operator_snapshot_objectives;
+pub(crate) mod oversight_episode_archive;
 pub(crate) mod operator_snapshot_recent_changes;
 pub(crate) mod operator_snapshot_runtime_posture;
 pub(crate) mod operator_snapshot_verified_identity;

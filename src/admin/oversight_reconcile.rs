@@ -624,6 +624,12 @@ mod tests {
                 policy_tranche: OperatorSnapshotVerifiedIdentityPolicySummary::default(),
             },
             replay_promotion: ReplayPromotionSummary::not_materialized(),
+            episode_archive:
+                crate::observability::oversight_episode_archive::OversightEpisodeArchiveSummary {
+                    schema_version: "oversight_episode_archive_v1".to_string(),
+                    homeostasis_window_size: 10,
+                    rows: Vec::new(),
+                },
         }
     }
 

@@ -50,6 +50,10 @@ pub(crate) struct OversightApplyResult {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub refusal_reasons: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub proposal_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub episode_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub patch_family: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub watch_window_seconds: Option<u64>,
@@ -142,6 +146,8 @@ pub(crate) fn evaluate_apply_cycle<S: KeyValueStore>(
             stage: OVERSIGHT_APPLY_STAGE_ELIGIBLE.to_string(),
             summary: "This bounded proposal is eligible for shared-host canary apply, but the manual reconcile surface remains preview-only.".to_string(),
             refusal_reasons: Vec::new(),
+            proposal_id: Some(oversight_proposal_id(proposal)),
+            episode_id: None,
             patch_family: Some(proposal.patch_family.clone()),
             watch_window_seconds: Some(operator_objectives_watch_window_seconds(
                 &snapshot.objectives,
@@ -213,6 +219,8 @@ pub(crate) fn evaluate_apply_cycle<S: KeyValueStore>(
         stage: OVERSIGHT_APPLY_STAGE_CANARY_APPLIED.to_string(),
         summary: "Oversight applied one bounded config canary and opened the protected watch window.".to_string(),
         refusal_reasons: Vec::new(),
+        proposal_id: Some(oversight_proposal_id(proposal)),
+        episode_id: Some(active_canary.canary_id.clone()),
         patch_family: Some(proposal.patch_family.clone()),
         watch_window_seconds: Some(watch_window_seconds),
         watch_window_started_at: Some(now),
@@ -239,6 +247,8 @@ fn continue_active_canary<S: KeyValueStore>(
             stage: OVERSIGHT_APPLY_STAGE_WATCH_WINDOW_OPEN.to_string(),
             summary: "A bounded canary is still inside its protected watch window; no additional mutation is allowed yet.".to_string(),
             refusal_reasons: Vec::new(),
+            proposal_id: Some(oversight_proposal_id(&active_canary.proposal)),
+            episode_id: Some(active_canary.canary_id.clone()),
             patch_family: Some(active_canary.proposal.patch_family.clone()),
             watch_window_seconds: Some(active_canary.watch_window_seconds),
             watch_window_started_at: Some(active_canary.opened_at_ts),
@@ -266,6 +276,8 @@ fn continue_active_canary<S: KeyValueStore>(
                 .clone()
                 .into_iter()
                 .collect::<Vec<_>>(),
+            proposal_id: Some(oversight_proposal_id(&active_canary.proposal)),
+            episode_id: Some(active_canary.canary_id.clone()),
             patch_family: Some(active_canary.proposal.patch_family.clone()),
             watch_window_seconds: Some(active_canary.watch_window_seconds),
             watch_window_started_at: Some(active_canary.opened_at_ts),
@@ -284,6 +296,8 @@ fn continue_active_canary<S: KeyValueStore>(
             stage: OVERSIGHT_APPLY_STAGE_IMPROVED.to_string(),
             summary: "The bounded canary improved the protected benchmark baseline and will be retained.".to_string(),
             refusal_reasons: Vec::new(),
+            proposal_id: Some(oversight_proposal_id(&active_canary.proposal)),
+            episode_id: Some(active_canary.canary_id.clone()),
             patch_family: Some(active_canary.proposal.patch_family.clone()),
             watch_window_seconds: Some(active_canary.watch_window_seconds),
             watch_window_started_at: Some(active_canary.opened_at_ts),
@@ -338,6 +352,8 @@ fn continue_active_canary<S: KeyValueStore>(
         stage: OVERSIGHT_APPLY_STAGE_ROLLBACK_APPLIED.to_string(),
         summary: "The bounded canary was rolled back to the exact pre-canary config.".to_string(),
         refusal_reasons: Vec::new(),
+        proposal_id: Some(oversight_proposal_id(&active_canary.proposal)),
+        episode_id: Some(active_canary.canary_id.clone()),
         patch_family: Some(active_canary.proposal.patch_family.clone()),
         watch_window_seconds: Some(active_canary.watch_window_seconds),
         watch_window_started_at: Some(active_canary.opened_at_ts),
@@ -426,6 +442,8 @@ fn refused_result(
         stage: OVERSIGHT_APPLY_STAGE_REFUSED.to_string(),
         summary: summary.to_string(),
         refusal_reasons,
+        proposal_id: proposal.map(oversight_proposal_id),
+        episode_id: None,
         patch_family: proposal.map(|proposal| proposal.patch_family.clone()),
         watch_window_seconds: None,
         watch_window_started_at: None,
@@ -435,6 +453,14 @@ fn refused_result(
         comparison_status: None,
         rollback_reason: None,
     }
+}
+
+pub(crate) fn oversight_proposal_id(proposal: &OversightPatchProposal) -> String {
+    let mut hasher = DefaultHasher::new();
+    proposal.patch_family.hash(&mut hasher);
+    proposal.patch.to_string().hash(&mut hasher);
+    proposal.expected_impact.hash(&mut hasher);
+    format!("proposal-{:016x}", hasher.finish())
 }
 
 fn active_canary_key(site_id: &str) -> String {

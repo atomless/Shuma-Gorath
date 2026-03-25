@@ -47,6 +47,7 @@ Behavior:
   - `operator_snapshot_v1`
   - `benchmark_results_v1`
   - bounded oversight status/history
+  - and the bounded machine-first episode archive that now underlies later stepping-stone memory and homeostasis inputs
   - current verdict, multi-loop progress, outcome frontier, controller judgment, and bounded trust/blocker context
 - The remaining Game Loop follow-on is `MON-OVERHAUL-1C`, which adds the fuller category-aware pressure and final trust/actionability surface.
 - `Traffic` now shares the top-level refresh bar and uses the bounded monitoring refresh path for cost-effective traffic reads.

@@ -37,6 +37,25 @@ pub(crate) struct BenchmarkComparableSnapshot {
     pub families: Vec<BenchmarkComparableFamily>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub(crate) struct BenchmarkComparableMetricDelta {
+    pub metric_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub baseline_current: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub candidate_current: Option<f64>,
+    pub comparison_status: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub(crate) struct BenchmarkComparableFamilyDelta {
+    pub family_id: String,
+    pub baseline_status: String,
+    pub candidate_status: String,
+    pub comparison_status: String,
+    pub metrics: Vec<BenchmarkComparableMetricDelta>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum MetricDirection {
     LowerIsBetter,
@@ -72,6 +91,85 @@ pub(crate) fn comparable_snapshot_from_results(
             })
             .collect(),
     }
+}
+
+pub(crate) fn compare_candidate_snapshot(
+    candidate: &BenchmarkComparableSnapshot,
+    baseline: &BenchmarkComparableSnapshot,
+) -> Vec<BenchmarkComparableFamilyDelta> {
+    candidate
+        .families
+        .iter()
+        .map(|candidate_family| {
+            let Some(baseline_family) = baseline
+                .families
+                .iter()
+                .find(|family| family.family_id == candidate_family.family_id)
+            else {
+                return BenchmarkComparableFamilyDelta {
+                    family_id: candidate_family.family_id.clone(),
+                    baseline_status: "not_available".to_string(),
+                    candidate_status: candidate_family.status.clone(),
+                    comparison_status: "not_available".to_string(),
+                    metrics: candidate_family
+                        .metrics
+                        .iter()
+                        .map(|metric| BenchmarkComparableMetricDelta {
+                            metric_id: metric.metric_id.clone(),
+                            baseline_current: None,
+                            candidate_current: metric.current,
+                            comparison_status: "not_available".to_string(),
+                        })
+                        .collect(),
+                };
+            };
+
+            let metrics = candidate_family
+                .metrics
+                .iter()
+                .map(|candidate_metric| {
+                    let comparison_status = baseline_family
+                        .metrics
+                        .iter()
+                        .find(|metric| metric.metric_id == candidate_metric.metric_id)
+                        .map(|baseline_metric| {
+                            compare_comparable_metric(candidate_metric, baseline_metric)
+                        })
+                        .unwrap_or_else(|| "not_available".to_string());
+                    let baseline_current = baseline_family
+                        .metrics
+                        .iter()
+                        .find(|metric| metric.metric_id == candidate_metric.metric_id)
+                        .and_then(|metric| metric.current);
+                    BenchmarkComparableMetricDelta {
+                        metric_id: candidate_metric.metric_id.clone(),
+                        baseline_current,
+                        candidate_current: candidate_metric.current,
+                        comparison_status,
+                    }
+                })
+                .collect::<Vec<_>>();
+            let metric_statuses = metrics
+                .iter()
+                .map(|metric| metric.comparison_status.as_str())
+                .collect::<Vec<_>>();
+            let family_status_comparison =
+                compare_status_value(candidate_family.status.as_str(), baseline_family.status.as_str());
+            let comparison_status = if family_status_comparison == "neutral" {
+                aggregate_comparison_status(metric_statuses.as_slice())
+            } else {
+                family_status_comparison.to_string()
+            };
+
+            BenchmarkComparableFamilyDelta {
+                family_id: candidate_family.family_id.clone(),
+                baseline_status: baseline_family.status.clone(),
+                candidate_status: candidate_family.status.clone(),
+                comparison_status,
+                metrics,
+            }
+        })
+        .collect()
 }
 
 pub(crate) fn apply_prior_window_comparison(
@@ -259,6 +357,43 @@ fn compare_metric(
     compare_status_value(metric.status.as_str(), reference_metric.status.as_str()).to_string()
 }
 
+fn compare_comparable_metric(
+    candidate_metric: &BenchmarkComparableMetric,
+    baseline_metric: &BenchmarkComparableMetric,
+) -> String {
+    if matches!(
+        candidate_metric.status.as_str(),
+        "not_yet_supported" | "not_applicable"
+    ) {
+        return candidate_metric.status.clone();
+    }
+    if matches!(
+        baseline_metric.status.as_str(),
+        "not_yet_supported" | "not_applicable"
+    ) {
+        return "not_available".to_string();
+    }
+
+    if let (Some(direction), Some(candidate), Some(baseline)) = (
+        metric_direction(candidate_metric.metric_id.as_str()),
+        candidate_metric.current,
+        baseline_metric.current,
+    ) {
+        if (candidate - baseline).abs() <= COMPARISON_EPSILON {
+            return "neutral".to_string();
+        }
+        return match direction {
+            MetricDirection::LowerIsBetter if candidate < baseline => "improved".to_string(),
+            MetricDirection::LowerIsBetter => "regressed".to_string(),
+            MetricDirection::HigherIsBetter if candidate > baseline => "improved".to_string(),
+            MetricDirection::HigherIsBetter => "regressed".to_string(),
+        };
+    }
+
+    compare_status_value(candidate_metric.status.as_str(), baseline_metric.status.as_str())
+        .to_string()
+}
+
 fn aggregate_comparison_status(statuses: &[&str]) -> String {
     let has_improved = statuses.iter().any(|status| *status == "improved");
     let has_regressed = statuses.iter().any(|status| *status == "regressed");
@@ -350,7 +485,7 @@ fn metric_direction(metric_id: &str) -> Option<MetricDirection> {
 #[cfg(test)]
 mod tests {
     use super::{
-        apply_candidate_comparison, apply_prior_window_comparison,
+        apply_candidate_comparison, apply_prior_window_comparison, compare_candidate_snapshot,
         comparable_snapshot_from_results, BenchmarkComparableSnapshot,
     };
     use crate::observability::benchmark_results::{
@@ -606,5 +741,63 @@ mod tests {
         assert_eq!(improvement, "improved");
         assert_eq!(families[0].metrics[0].baseline_current, Some(0.9));
         assert_eq!(families[0].metrics[0].comparison_status, "improved");
+    }
+
+    #[test]
+    fn candidate_snapshot_delta_reports_family_and_metric_progress() {
+        let baseline = BenchmarkComparableSnapshot {
+            generated_at: 100,
+            subject_kind: "current_instance".to_string(),
+            watch_window: OperatorSnapshotWindow {
+                start_ts: 1,
+                end_ts: 100,
+                duration_seconds: 100,
+            },
+            coverage_status: "supported".to_string(),
+            overall_status: "outside_budget".to_string(),
+            families: vec![super::BenchmarkComparableFamily {
+                family_id: "likely_human_friction".to_string(),
+                status: "outside_budget".to_string(),
+                capability_gate: "supported".to_string(),
+                metrics: vec![super::BenchmarkComparableMetric {
+                    metric_id: "likely_human_friction_rate".to_string(),
+                    status: "outside_budget".to_string(),
+                    current: Some(0.20),
+                    capability_gate: "supported".to_string(),
+                }],
+            }],
+        };
+        let candidate = BenchmarkComparableSnapshot {
+            generated_at: 200,
+            subject_kind: "current_instance".to_string(),
+            watch_window: OperatorSnapshotWindow {
+                start_ts: 101,
+                end_ts: 200,
+                duration_seconds: 100,
+            },
+            coverage_status: "supported".to_string(),
+            overall_status: "inside_budget".to_string(),
+            families: vec![super::BenchmarkComparableFamily {
+                family_id: "likely_human_friction".to_string(),
+                status: "inside_budget".to_string(),
+                capability_gate: "supported".to_string(),
+                metrics: vec![super::BenchmarkComparableMetric {
+                    metric_id: "likely_human_friction_rate".to_string(),
+                    status: "inside_budget".to_string(),
+                    current: Some(0.02),
+                    capability_gate: "supported".to_string(),
+                }],
+            }],
+        };
+
+        let deltas = compare_candidate_snapshot(&candidate, &baseline);
+
+        assert_eq!(deltas.len(), 1);
+        assert_eq!(deltas[0].family_id, "likely_human_friction");
+        assert_eq!(deltas[0].comparison_status, "improved");
+        assert_eq!(deltas[0].metrics[0].metric_id, "likely_human_friction_rate");
+        assert_eq!(deltas[0].metrics[0].comparison_status, "improved");
+        assert_eq!(deltas[0].metrics[0].baseline_current, Some(0.20));
+        assert_eq!(deltas[0].metrics[0].candidate_current, Some(0.02));
     }
 }

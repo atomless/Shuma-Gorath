@@ -31,6 +31,7 @@ pub(crate) use super::operator_snapshot_objectives::{
     RecursiveImprovementGameContract,
 };
 pub(crate) use super::operator_snapshot_non_human::OperatorSnapshotNonHumanTrafficSummary;
+pub(crate) use super::oversight_episode_archive::OversightEpisodeArchiveSummary;
 pub(crate) use super::operator_snapshot_recent_changes::{
     OperatorSnapshotRecentChange, OperatorSnapshotRecentChanges,
 };
@@ -94,6 +95,7 @@ pub(crate) struct OperatorSnapshotHotReadPayload {
     pub benchmark_results: BenchmarkResultsPayload,
     pub verified_identity: OperatorSnapshotVerifiedIdentitySummary,
     pub replay_promotion: ReplayPromotionSummary,
+    pub episode_archive: OversightEpisodeArchiveSummary,
 }
 
 pub(crate) fn operator_snapshot_watch_window_hours(summary_hours: u64) -> u64 {
@@ -195,6 +197,8 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
         &replay_promotion,
         prior_window_reference.as_ref(),
     );
+    let episode_archive =
+        super::oversight_episode_archive::load_episode_archive_summary(store, site_id);
 
     OperatorSnapshotHotReadPayload {
         schema_version: OPERATOR_SNAPSHOT_SCHEMA_VERSION.to_string(),
@@ -224,6 +228,7 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
         benchmark_results,
         verified_identity,
         replay_promotion,
+        episode_archive,
     }
 }
 
@@ -601,6 +606,11 @@ mod tests {
             .allowed_actions
             .allowed_group_ids
             .contains(&"not_a_bot.policy".to_string()));
+        assert_eq!(
+            payload.episode_archive.schema_version,
+            "oversight_episode_archive_v1"
+        );
+        assert_eq!(payload.episode_archive.rows.len(), 0);
         assert_eq!(
             payload.benchmark_results.schema_version,
             "benchmark_results_v1"

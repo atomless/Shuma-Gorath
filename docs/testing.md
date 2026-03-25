@@ -64,6 +64,7 @@ make test-operator-objectives-category-contract # Focused category-aware operato
 make test-benchmark-category-eligibility # Focused category-aware benchmark eligibility and comparison checks
 make test-rsi-game-contract # Focused recursive self-improvement game-contract surface checks
 make test-rsi-scorecard # Focused recursive self-improvement judge scorecard checks
+make test-oversight-episode-archive # Focused recursive self-improvement episode archive and homeostasis-input checks
 make test-oversight-move-selection-policy # Focused recursive-improvement shortfall and move-selection policy checks
 make test-replay-promotion-contract # Focused replay-promotion lineage and governance checks
 make test-adversarial-runner-architecture # Focused adversarial runner CLI, unit, and validate-only checks
@@ -143,6 +144,7 @@ Notes:
 - `make test` keeps the fast adversarial matrix in the routine local/full-suite path and runs the SIM2 matrix in advisory mode against the resulting fast-profile artifact.
 - `make test-adversarial-coverage` and `make test-adversarial-soak` remain the strict deterministic `full_coverage` oracle paths for deeper protected-lane verification.
 - `make test-host-impact-telemetry`, `make test-host-impact-benchmark`, and `make test-oversight-host-impact` are the narrow pre-Monitoring proof path for the host-impact proxy track; use them instead of broader monitoring/controller suites when only the forwarded-latency cost proxy changed.
+- `make test-oversight-episode-archive` is the narrow proof path for `RSI-GAME-1C`; it covers the bounded episode archive store, candidate-vs-baseline benchmark deltas, oversight history projection, agent-status projection, and a retained-canary lifecycle update over the same machine-first archive.
 - `make test-dashboard-verified-identity-pane` is the narrow proof path for the first-class `Verified Identity` pane in `Verification`; it covers operator-snapshot hydration, shared config-surface ownership, and a rendered config-save round-trip without dragging in broader Monitoring work.
 - `make test-dashboard-red-team-truth-basis` is the narrow proof path for Red Team status-truth surfacing; it covers status adaptation, runtime normalization, and a rendered persisted-event lower-bound state without turning the slice into early Monitoring work.
 - `make test-dashboard-game-loop-accountability` is the narrow proof path for `MON-OVERHAUL-1B`; it covers dashboard adapters, bounded snapshot wiring through the refresh runtime, and a rendered Playwright proof that the Game Loop tab projects benchmark and oversight machine contracts rather than placeholder copy.

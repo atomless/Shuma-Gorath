@@ -1,17 +1,29 @@
 use serde::{Deserialize, Serialize};
 use spin_sdk::http::{Method, Request, Response};
 
+use crate::observability::benchmark_comparison::{
+    compare_candidate_snapshot, comparable_snapshot_from_results,
+};
 use crate::observability::operator_objectives_store::load_operator_objectives;
 use crate::observability::operator_snapshot_objectives::{
     default_operator_objectives, recursive_improvement_game_contract_v1,
     RecursiveImprovementGameContract,
+};
+use crate::observability::oversight_episode_archive::{
+    load_episode_archive_summary, upsert_episode_archive_row, OversightEpisodeArchiveDraft,
+    OversightEpisodeArchiveSummary, OversightEpisodeEvidenceReference,
+    OversightEpisodeProposedMove,
 };
 
 use super::oversight_agent::{
     build_status_payload, execute_agent_cycle, OversightAgentTrigger,
     OversightAgentTriggerKind,
 };
-use super::oversight_apply::{evaluate_apply_cycle, OversightApplyMode, OversightApplyResult};
+use super::oversight_apply::{
+    evaluate_apply_cycle, oversight_proposal_id, OversightApplyMode, OversightApplyResult,
+    OVERSIGHT_APPLY_STAGE_CANARY_APPLIED, OVERSIGHT_APPLY_STAGE_IMPROVED,
+    OVERSIGHT_APPLY_STAGE_ROLLBACK_APPLIED, OVERSIGHT_APPLY_STAGE_WATCH_WINDOW_OPEN,
+};
 use super::oversight_decision_ledger::{
     load_recent_decisions, record_decision, OversightDecisionDraft,
     OversightDecisionEvidenceReference, OversightDecisionRecord,
@@ -52,6 +64,7 @@ pub(crate) struct OversightExecutionPayload {
 pub(crate) struct OversightHistoryPayload {
     pub schema_version: String,
     pub game_contract: RecursiveImprovementGameContract,
+    pub episode_archive: OversightEpisodeArchiveSummary,
     pub rows: Vec<OversightDecisionRecord>,
 }
 
@@ -247,6 +260,7 @@ pub(crate) fn execute_oversight_cycle_at(
                 .collect(),
         },
     )?;
+    record_episode_archive(store, site_id, &objectives, snapshot.as_ref(), &decision)?;
 
     Ok(OversightExecutionPayload {
         schema_version: OVERSIGHT_EXECUTION_SCHEMA_VERSION.to_string(),
@@ -296,6 +310,7 @@ pub(crate) fn handle_admin_oversight_history(
             &objectives,
             &crate::config::allowed_actions_v1(),
         ),
+        episode_archive: load_episode_archive_summary(store, site_id),
         rows: load_recent_decisions(store, site_id),
     };
     let body = serde_json::to_string(&payload).unwrap_or_else(|_| "{}".to_string());
@@ -305,6 +320,158 @@ pub(crate) fn handle_admin_oversight_history(
         .header("Cache-Control", "no-store")
         .body(body)
         .build()
+}
+
+fn record_episode_archive<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    site_id: &str,
+    objectives: &crate::observability::operator_snapshot_objectives::OperatorObjectivesProfile,
+    snapshot: Option<&crate::observability::hot_read_documents::HotReadDocumentEnvelope<
+        crate::observability::operator_snapshot::OperatorSnapshotHotReadPayload,
+    >>,
+    decision: &OversightDecisionRecord,
+) -> Result<(), ()> {
+    let existing_episode = load_episode_archive_summary(store, site_id)
+        .rows
+        .into_iter()
+        .find(|row| row.episode_id == decision_episode_id(decision));
+    let current_scorecard = snapshot.map(|snapshot| {
+        comparable_snapshot_from_results(&snapshot.payload.benchmark_results)
+    });
+    let baseline_scorecard = if existing_episode
+        .as_ref()
+        .and_then(|row| row.baseline_scorecard.as_ref())
+        .is_some()
+    {
+        None
+    } else {
+        current_scorecard.clone()
+    };
+    let candidate_scorecard = match decision.apply.as_ref().map(|apply| apply.stage.as_str()) {
+        Some(
+            OVERSIGHT_APPLY_STAGE_WATCH_WINDOW_OPEN
+            | OVERSIGHT_APPLY_STAGE_IMPROVED
+            | OVERSIGHT_APPLY_STAGE_ROLLBACK_APPLIED,
+        ) => current_scorecard.clone(),
+        _ => None,
+    };
+    let comparison_baseline = existing_episode
+        .as_ref()
+        .and_then(|row| row.baseline_scorecard.as_ref())
+        .or(baseline_scorecard.as_ref());
+    let benchmark_deltas = match (comparison_baseline, candidate_scorecard.as_ref()) {
+        (Some(baseline), Some(candidate)) => compare_candidate_snapshot(candidate, baseline),
+        _ => Vec::new(),
+    };
+    let subject_kind = snapshot
+        .map(|snapshot| snapshot.payload.benchmark_results.subject_kind.as_str())
+        .unwrap_or("current_instance");
+
+    upsert_episode_archive_row(
+        store,
+        site_id,
+        OversightEpisodeArchiveDraft {
+            episode_id: decision_episode_id(decision),
+            latest_decision_id: decision.decision_id.clone(),
+            recorded_at_ts: decision.recorded_at_ts,
+            trigger_source: decision.trigger_source.clone(),
+            objective_profile_id: objectives.profile_id.clone(),
+            objective_revision: decision.objective_revision.clone(),
+            evaluation_context: format!(
+                "objective_profile:{} subject_kind:{}",
+                objectives.profile_id, subject_kind
+            ),
+            latest_sim_run_id: decision.latest_sim_run_id.clone(),
+            proposed_move: decision.proposal.as_ref().map(|proposal| OversightEpisodeProposedMove {
+                proposal_id: oversight_proposal_id(proposal),
+                patch_family: proposal.patch_family.clone(),
+                patch: proposal.patch.clone(),
+                expected_impact_summary: proposal.expected_impact.clone(),
+            }),
+            acceptance_status: decision_acceptance_status(decision),
+            watch_window_status: decision_watch_window_status(decision),
+            retention_status: decision_retention_status(decision),
+            completion_status: decision_completion_status(decision),
+            baseline_scorecard,
+            candidate_scorecard,
+            benchmark_deltas,
+            hard_guardrail_triggers: decision_hard_guardrail_triggers(decision),
+            evidence_references: decision
+                .evidence_references
+                .iter()
+                .map(|reference| OversightEpisodeEvidenceReference {
+                    kind: reference.kind.clone(),
+                    reference: reference.reference.clone(),
+                    note: reference.note.clone(),
+                })
+                .collect(),
+        },
+    )?;
+    Ok(())
+}
+
+fn decision_episode_id(decision: &OversightDecisionRecord) -> String {
+    decision
+        .apply
+        .as_ref()
+        .and_then(|apply| apply.episode_id.clone())
+        .unwrap_or_else(|| format!("episode:{}", decision.decision_id))
+}
+
+fn decision_acceptance_status(decision: &OversightDecisionRecord) -> String {
+    match decision.apply.as_ref().map(|apply| apply.stage.as_str()) {
+        Some(
+            OVERSIGHT_APPLY_STAGE_CANARY_APPLIED
+            | OVERSIGHT_APPLY_STAGE_WATCH_WINDOW_OPEN
+            | OVERSIGHT_APPLY_STAGE_IMPROVED
+            | OVERSIGHT_APPLY_STAGE_ROLLBACK_APPLIED,
+        ) => "accepted_canary".to_string(),
+        _ if decision.proposal.is_some() => "preview_only".to_string(),
+        _ => "not_accepted".to_string(),
+    }
+}
+
+fn decision_watch_window_status(decision: &OversightDecisionRecord) -> String {
+    match decision.apply.as_ref().map(|apply| apply.stage.as_str()) {
+        Some(OVERSIGHT_APPLY_STAGE_CANARY_APPLIED) => "opened".to_string(),
+        Some(OVERSIGHT_APPLY_STAGE_WATCH_WINDOW_OPEN) => "open".to_string(),
+        Some(OVERSIGHT_APPLY_STAGE_IMPROVED) => "improved".to_string(),
+        Some(OVERSIGHT_APPLY_STAGE_ROLLBACK_APPLIED) => "rolled_back".to_string(),
+        _ => "not_applicable".to_string(),
+    }
+}
+
+fn decision_retention_status(decision: &OversightDecisionRecord) -> String {
+    match decision.apply.as_ref().map(|apply| apply.stage.as_str()) {
+        Some(OVERSIGHT_APPLY_STAGE_CANARY_APPLIED | OVERSIGHT_APPLY_STAGE_WATCH_WINDOW_OPEN) => {
+            "pending".to_string()
+        }
+        Some(OVERSIGHT_APPLY_STAGE_IMPROVED) => "retained".to_string(),
+        Some(OVERSIGHT_APPLY_STAGE_ROLLBACK_APPLIED) => "rolled_back".to_string(),
+        _ => "not_applicable".to_string(),
+    }
+}
+
+fn decision_completion_status(decision: &OversightDecisionRecord) -> String {
+    match decision.apply.as_ref().map(|apply| apply.stage.as_str()) {
+        Some(OVERSIGHT_APPLY_STAGE_CANARY_APPLIED | OVERSIGHT_APPLY_STAGE_WATCH_WINDOW_OPEN) => {
+            "open".to_string()
+        }
+        _ => "completed".to_string(),
+    }
+}
+
+fn decision_hard_guardrail_triggers(decision: &OversightDecisionRecord) -> Vec<String> {
+    let mut triggers = decision.refusal_reasons.clone();
+    if let Some(apply) = decision.apply.as_ref() {
+        triggers.extend(apply.refusal_reasons.iter().cloned());
+        if let Some(reason) = apply.rollback_reason.as_ref() {
+            triggers.push(reason.clone());
+        }
+    }
+    triggers.sort();
+    triggers.dedup();
+    triggers
 }
 
 pub(crate) fn handle_admin_oversight_agent_status(
@@ -798,7 +965,26 @@ mod tests {
             history_payload["game_contract"]["judge_scorecard"]["homeostasis_inputs"]["cycle_window"],
             "last_10_completed_cycles"
         );
+        assert_eq!(
+            history_payload["episode_archive"]["schema_version"],
+            "oversight_episode_archive_v1"
+        );
         assert_eq!(history_payload["rows"].as_array().expect("rows array").len(), 1);
+        assert_eq!(
+            history_payload["episode_archive"]["rows"]
+                .as_array()
+                .expect("episode rows")
+                .len(),
+            1
+        );
+        assert_eq!(
+            history_payload["episode_archive"]["rows"][0]["completion_status"],
+            "completed"
+        );
+        assert_eq!(
+            history_payload["episode_archive"]["rows"][0]["acceptance_status"],
+            "not_accepted"
+        );
     }
 
     #[test]
@@ -863,6 +1049,17 @@ mod tests {
         assert_eq!(
             payload["latest_run"]["execution"]["reconcile"]["outcome"],
             "observe_longer"
+        );
+        assert_eq!(
+            payload["episode_archive"]["schema_version"],
+            "oversight_episode_archive_v1"
+        );
+        assert_eq!(
+            payload["episode_archive"]["rows"]
+                .as_array()
+                .expect("episode rows")
+                .len(),
+            1
         );
 
         std::env::remove_var("SHUMA_API_KEY");

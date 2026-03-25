@@ -104,20 +104,14 @@ Reference context:
 - [`docs/plans/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md`](../docs/plans/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md)
 - [`docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](../docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md)
 
-### RSI-GAME-1C: Episode archive and homeostasis memory
-- Persist the bounded episode archive now that `RSI-GAME-1A` and `RSI-GAME-1B` have made the game and move-selection surfaces explicit.
-- Keep this machine-first so later Monitoring and run-to-homeostasis logic project the same archive the controller uses, instead of inventing a parallel UI-only history.
-- Reference context: [`../docs/research/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-review.md`](../docs/research/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-review.md), [`../docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](../docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md)
-
 ### RSI-GAME-MAINLINE-1: First working self-improving loop over attacker-faithful Scrapling
 - After the Scrapling-owned surfaces are attacker-faithful and receipt-backed, execute the first explicit self-improving loop over that truthful attacker basis.
-- Before broadening that loop, land `CTRL-SURFACE-1..3` and the judge-side game-contract work (`RSI-GAME-1A`, `RSI-GAME-1B`, `RSI-SCORE-1`, and `RSI-GAME-1C`) so the loop runs over a settled legal move ring and explicit judge semantics.
+- Before broadening that loop, land `CTRL-SURFACE-1..3` and the judge-side game-contract work (`RSI-GAME-1A`, `RSI-GAME-1B`, `RSI-SCORE-1`, and the delivered `RSI-GAME-1C`) so the loop runs over a settled legal move ring, explicit judge semantics, and a bounded episode archive.
 - Keep this ahead of later LLM attacker or defender runtime work, and ahead of secondary dashboard cleanup follow-ons.
 
 Mainline execution order:
-1. `RSI-GAME-1C`
-2. `RSI-GAME-MAINLINE-1`
-3. only if future owned-surface receipts prove request-native plus public-network identity diversification are insufficient for a Scrapling-owned surface, reopen `SIM-SCR-CHALLENGE-2C`
+1. `RSI-GAME-MAINLINE-1`
+2. only if future owned-surface receipts prove request-native plus public-network identity diversification are insufficient for a Scrapling-owned surface, reopen `SIM-SCR-CHALLENGE-2C`
 
 ### DIAG-CLEANUP-1: Diagnostics furniture-operational cleanup after Traffic split
 - After `TRAFFIC-TAB-1` lands, remove the migrated traffic-facing sections from Diagnostics so it becomes clearly diagnostics-first and furniture-operational.
