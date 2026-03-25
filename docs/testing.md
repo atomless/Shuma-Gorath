@@ -437,7 +437,7 @@ make test-adversarial-live
 ADVERSARIAL_PROFILE=abuse_regression ADVERSARIAL_RUNS=5 ADVERSARIAL_PAUSE_SECONDS=1 make test-adversarial-live
 
 # Akamai fixture profile with custom report output
-ADVERSARIAL_PROFILE=akamai_smoke ADVERSARIAL_REPORT_PATH=scripts/tests/adversarial/live_akamai_report.json make test-adversarial-live
+ADVERSARIAL_PROFILE=akamai_smoke ADVERSARIAL_REPORT_PATH=.spin/adversarial/live_akamai_report.json make test-adversarial-live
 
 # Full coverage profile loop (bounded runtime is defined in manifest)
 ADVERSARIAL_PROFILE=full_coverage ADVERSARIAL_RUNS=1 make test-adversarial-live
@@ -446,11 +446,17 @@ ADVERSARIAL_PROFILE=full_coverage ADVERSARIAL_RUNS=1 make test-adversarial-live
 make telemetry-clean
 ```
 
+Routine adversarial and SIM2 `make` targets now follow a strict output split:
+
+- tracked files under `scripts/tests/adversarial/` are input fixtures, schemas, manifests, contracts, or committed baselines,
+- generated local reports and receipts produced by routine `make` workflows land under `.spin/adversarial/` by default,
+- the committed baseline exception remains `scripts/tests/adversarial/latest_report.baseline.json`, which stays versioned on purpose for diffing.
+
 Live loop controls:
 - `ADVERSARIAL_PROFILE` (default `fast_smoke`) must be one of `fast_smoke`, `abuse_regression`, `akamai_smoke`, `full_coverage`.
 - `ADVERSARIAL_RUNS` (default `0`) controls cycle count; `0` means run until interrupted.
 - `ADVERSARIAL_PAUSE_SECONDS` (default `2`) controls delay between cycles.
-- `ADVERSARIAL_REPORT_PATH` (default `scripts/tests/adversarial/latest_report.json`) controls report output file.
+- `ADVERSARIAL_REPORT_PATH` (default `.spin/adversarial/latest_report.json`) controls report output file.
 - `ADVERSARIAL_CLEANUP_MODE` (default `0`) toggles preserve-vs-cleanup behavior per cycle:
   - `0`: preserve state by default for live observability loops.
   - `1`: force deterministic cleanup after each cycle.
@@ -461,9 +467,9 @@ Live loop controls:
   - `ADVERSARIAL_BACKOFF_BASE_SECONDS` / `ADVERSARIAL_BACKOFF_MAX_SECONDS` bound transient retry backoff.
 - Live loop logs now include per-cycle failure classification (`transient` vs `fatal`), retry count, backoff, and terminal failure reason when exiting.
 - Live loop enforces event-quality checks; admin-only noise is treated as a fatal cycle and logs a clear reason.
-- Runner also emits `scripts/tests/adversarial/attack_plan.json` with frontier mode/provider metadata and sanitized candidate payloads.
-- Promotion lane emits `scripts/tests/adversarial/promotion_candidates_report.json` with candidate -> replay -> promotion lineage and owner-review requirements.
-- Frontier threshold lane emits `scripts/tests/adversarial/frontier_unavailability_policy.json` and can auto-open/assign model-refresh action when protected-lane degradation thresholds are exceeded.
+- Runner also emits `.spin/adversarial/attack_plan.json` with frontier mode/provider metadata and sanitized candidate payloads.
+- Promotion lane emits `.spin/adversarial/promotion_candidates_report.json` with candidate -> replay -> promotion lineage and owner-review requirements.
+- Frontier threshold lane emits `.spin/adversarial/frontier_unavailability_policy.json` and can auto-open/assign model-refresh action when protected-lane degradation thresholds are exceeded.
   - If repository Issues are disabled, it must remain artifact-only and report that status in the output summary instead of failing the lane.
 - Browser-realistic lane executes through Playwright (`scripts/tests/adversarial_browser_driver.mjs`) instead of HTTP emulation.
   - Browser runner controls:
@@ -501,12 +507,12 @@ Current `full_coverage` proves tarpit bootstrap entry and event-stream minimums,
 Container black-box controls:
 - worker image path: `scripts/tests/adversarial_container/Dockerfile` (non-root user, no workspace mount, read-only rootfs at runtime)
 - runtime guardrails: dropped capabilities + `no-new-privileges` + bounded CPU/memory/pids + tmpfs `/tmp`
-- isolation report: `scripts/tests/adversarial/container_isolation_report.json`
-- black-box run report: `scripts/tests/adversarial/container_blackbox_report.json`
+- isolation report: `.spin/adversarial/container_isolation_report.json`
+- black-box run report: `.spin/adversarial/container_blackbox_report.json`
 Repeatability controls:
 - default repeats: `ADVERSARIAL_REPEATABILITY_REPEATS=3`
 - default profile set: `ADVERSARIAL_REPEATABILITY_PROFILES=fast_smoke,abuse_regression,full_coverage`
-- summary report: `scripts/tests/adversarial/repeatability_report.json`
+- summary report: `.spin/adversarial/repeatability_report.json`
 - drift policy: scenario pass/outcome vectors must match exactly; latency variance is bounded by `ADVERSARIAL_REPEATABILITY_LATENCY_TOLERANCE_MS` (default `250`).
 CI policy is tiered:
 - Push to `main`: `ci.yml` runs `make test` plus gateway profile gates (`make test-gateway-profile-shared-server`, `make test-gateway-profile-edge`, `make smoke-gateway-mode`).

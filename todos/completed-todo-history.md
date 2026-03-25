@@ -4,6 +4,40 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-25)
 
+### TEST-HYGIENE-2: Worktree-clean adversarial and SIM2 generated artifacts
+
+- [x] Added the tranche paper trail in:
+  - [`docs/research/2026-03-25-test-hygiene-2-worktree-clean-readiness-review.md`](../docs/research/2026-03-25-test-hygiene-2-worktree-clean-readiness-review.md)
+  - [`docs/plans/2026-03-25-test-hygiene-2-worktree-clean-implementation-plan.md`](../docs/plans/2026-03-25-test-hygiene-2-worktree-clean-implementation-plan.md)
+- [x] Added a focused Makefile wiring contract in:
+  - [`scripts/tests/test_testing_surface_artifact_paths.py`](../scripts/tests/test_testing_surface_artifact_paths.py)
+  - [`Makefile`](../Makefile)
+  so routine adversarial and SIM2 target drift back to tracked generated paths now fails fast.
+- [x] Routed the routine generated artifact paths in [`Makefile`](../Makefile) under canonical `.spin/adversarial/` variables for:
+  - preflight and deterministic adversarial report producers,
+  - SIM2 realtime, diagnostics, regressions, governance, and verification outputs,
+  - live, promotion, report-diff, and container isolation or black-box outputs.
+- [x] Updated [`docs/testing.md`](../docs/testing.md) so the contributor contract is explicit:
+  - tracked `scripts/tests/adversarial/` JSON remains fixtures, manifests, contracts, or baselines,
+  - routine generated outputs now default under `.spin/adversarial/`,
+  - and the committed diff baseline exception remains versioned intentionally.
+- [x] Added the closeout note in:
+  - [`docs/research/2026-03-25-test-hygiene-2-worktree-clean-post-implementation-review.md`](../docs/research/2026-03-25-test-hygiene-2-worktree-clean-post-implementation-review.md)
+- [x] Updated the active queue and indexes in:
+  - [`todos/todo.md`](../todos/todo.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`docs/plans/README.md`](../docs/plans/README.md)
+- [x] Evidence:
+  - `make test-testing-surface-artifact-path-contract`
+  - `make test-adversarial-preflight`
+  - `make test-adversarial-smoke`
+  - `make test-sim2-realtime-bench`
+  - `make test-sim2-ci-diagnostics`
+  - `make test-sim2-operational-regressions`
+  - `make test-sim2-governance-contract`
+  - `make test-adversarial-promote-candidates`
+  - `git diff --check`
+
 ### MON-OVERHAUL-1C: Monitoring category breakdown and trust/actionability surface
 
 - [x] Added the tranche paper trail in:

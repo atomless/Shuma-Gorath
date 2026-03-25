@@ -268,6 +268,26 @@ GATEWAY_TLS_WASM_REPORT ?= scripts/tests/adversarial/gateway_tls_wasm_harness_re
 GATEWAY_PROBE_PATH ?= /
 GATEWAY_PROBE_FAIL_ON_INCONCLUSIVE ?= 0
 GATEWAY_PROBE_JSON_OUTPUT ?= scripts/tests/adversarial/gateway_origin_bypass_probe_report.json
+ADVERSARIAL_ARTIFACT_DIR ?= .spin/adversarial
+ADVERSARIAL_PREFLIGHT_REPORT_PATH ?= $(ADVERSARIAL_ARTIFACT_DIR)/preflight_report.json
+ADVERSARIAL_REPORT_PATH ?= $(ADVERSARIAL_ARTIFACT_DIR)/latest_report.json
+ADVERSARIAL_ATTACK_PLAN_PATH ?= $(ADVERSARIAL_ARTIFACT_DIR)/attack_plan.json
+FRONTIER_LANE_STATUS_PATH ?= $(ADVERSARIAL_ARTIFACT_DIR)/frontier_lane_status.json
+FRONTIER_UNAVAILABILITY_POLICY_PATH ?= $(ADVERSARIAL_ARTIFACT_DIR)/frontier_unavailability_policy.json
+SIM2_REALTIME_BENCH_REPORT_PATH ?= $(ADVERSARIAL_ARTIFACT_DIR)/sim2_realtime_bench_report.json
+SIM2_REALTIME_BENCH_SUMMARY_PATH ?= $(ADVERSARIAL_ARTIFACT_DIR)/sim2_realtime_bench_summary.md
+SIM2_ADR_CONFORMANCE_REPORT_PATH ?= $(ADVERSARIAL_ARTIFACT_DIR)/sim2_adr_conformance_report.json
+SIM2_CI_DIAGNOSTICS_REPORT_PATH ?= $(ADVERSARIAL_ARTIFACT_DIR)/sim2_ci_diagnostics.json
+SIM2_VERIFICATION_MATRIX_REPORT_PATH ?= $(ADVERSARIAL_ARTIFACT_DIR)/sim2_verification_matrix_report.json
+SIM2_OPERATIONAL_REGRESSIONS_REPORT_PATH ?= $(ADVERSARIAL_ARTIFACT_DIR)/sim2_operational_regressions_report.json
+SIM2_GOVERNANCE_CONTRACT_REPORT_PATH ?= $(ADVERSARIAL_ARTIFACT_DIR)/sim2_governance_contract_report.json
+ADVERSARIAL_REPEATABILITY_REPORT_PATH ?= $(ADVERSARIAL_ARTIFACT_DIR)/repeatability_report.json
+ADVERSARIAL_PROMOTION_CANDIDATES_REPORT_PATH ?= $(ADVERSARIAL_ARTIFACT_DIR)/promotion_candidates_report.json
+ADVERSARIAL_DIFF_BASELINE_PATH ?= scripts/tests/adversarial/latest_report.baseline.json
+ADVERSARIAL_DIFF_CANDIDATE_PATH ?= $(ADVERSARIAL_REPORT_PATH)
+ADVERSARIAL_DIFF_OUTPUT_PATH ?= $(ADVERSARIAL_ARTIFACT_DIR)/adversarial_report_diff.json
+ADVERSARIAL_CONTAINER_ISOLATION_REPORT_PATH ?= $(ADVERSARIAL_ARTIFACT_DIR)/container_isolation_report.json
+ADVERSARIAL_CONTAINER_BLACKBOX_REPORT_PATH ?= $(ADVERSARIAL_ARTIFACT_DIR)/container_blackbox_report.json
 SCRAPLING_VENV_PYTHON ?= .venv-scrapling/bin/python3
 SCRAPLING_LOCAL_PUBLIC_BASE_URL ?= http://localhost:3000/
 SCRAPLING_LOCAL_RECEIPT_PATH ?= $(SHUMA_LOCAL_STATE_DIR)/scrapling/local-dev.deploy-prep.json
@@ -1449,7 +1469,12 @@ prepare-scrapling-local: ## Build local Scrapling scope/seed/runtime artifacts f
 
 test-adversarial-preflight: ## Validate adversarial required secrets and setup posture before runner execution
 	@echo "$(CYAN)🧪 Running adversarial preflight checks...$(NC)"
-	@python3 scripts/tests/adversarial_preflight.py --output scripts/tests/adversarial/preflight_report.json
+	@mkdir -p "$(ADVERSARIAL_ARTIFACT_DIR)"
+	@python3 scripts/tests/adversarial_preflight.py --output $(ADVERSARIAL_PREFLIGHT_REPORT_PATH)
+
+test-testing-surface-artifact-path-contract: ## Validate routine adversarial/SIM2 make targets write generated artifacts under .spin state
+	@echo "$(CYAN)🧪 Validating testing-surface artifact-path contract...$(NC)"
+	@python3 -m unittest scripts/tests/test_testing_surface_artifact_paths.py
 
 test-adversarial-lane-contract: ## Validate black-box lane capability contract parity across deterministic/container tooling
 	@echo "$(CYAN)🧪 Validating adversarial lane capability contract...$(NC)"
@@ -1652,8 +1677,9 @@ test-adversarial-fast: ## Run mandatory fast adversarial matrix (smoke + abuse +
 
 test-adversarial-smoke: ## Run adversarial fast smoke simulation profile (requires running server)
 	@echo "$(CYAN)🧪 Running adversarial fast smoke simulation...$(NC)"
+	@mkdir -p "$(ADVERSARIAL_ARTIFACT_DIR)"
 	@if $(MAKE) --no-print-directory spin-wait-ready; then \
-		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" SHUMA_ADVERSARIAL_PRESERVE_STATE=0 SHUMA_ADVERSARIAL_ROTATE_IPS=0 python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v2.json --profile fast_smoke; \
+		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" SHUMA_ADVERSARIAL_PRESERVE_STATE=0 SHUMA_ADVERSARIAL_ROTATE_IPS=0 python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v2.json --profile fast_smoke --report "$(ADVERSARIAL_REPORT_PATH)"; \
 	else \
 		echo "$(RED)❌ Error: Spin server not ready$(NC)"; \
 		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \
@@ -1662,8 +1688,9 @@ test-adversarial-smoke: ## Run adversarial fast smoke simulation profile (requir
 
 test-adversarial-abuse: ## Run replay/stale/ordering abuse regression profile (requires running server)
 	@echo "$(CYAN)🧪 Running adversarial abuse regression profile...$(NC)"
+	@mkdir -p "$(ADVERSARIAL_ARTIFACT_DIR)"
 	@if $(MAKE) --no-print-directory spin-wait-ready; then \
-		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" SHUMA_ADVERSARIAL_PRESERVE_STATE=0 SHUMA_ADVERSARIAL_ROTATE_IPS=0 python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v2.json --profile abuse_regression; \
+		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" SHUMA_ADVERSARIAL_PRESERVE_STATE=0 SHUMA_ADVERSARIAL_ROTATE_IPS=0 python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v2.json --profile abuse_regression --report "$(ADVERSARIAL_REPORT_PATH)"; \
 	else \
 		echo "$(RED)❌ Error: Spin server not ready$(NC)"; \
 		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \
@@ -1672,8 +1699,9 @@ test-adversarial-abuse: ## Run replay/stale/ordering abuse regression profile (r
 
 test-adversarial-akamai: ## Run Akamai signal fixture smoke profile (requires running server)
 	@echo "$(CYAN)🧪 Running adversarial Akamai fixture profile...$(NC)"
+	@mkdir -p "$(ADVERSARIAL_ARTIFACT_DIR)"
 	@if $(MAKE) --no-print-directory spin-wait-ready; then \
-		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" SHUMA_ADVERSARIAL_PRESERVE_STATE=0 SHUMA_ADVERSARIAL_ROTATE_IPS=0 python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v2.json --profile akamai_smoke; \
+		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" SHUMA_ADVERSARIAL_PRESERVE_STATE=0 SHUMA_ADVERSARIAL_ROTATE_IPS=0 python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v2.json --profile akamai_smoke --report "$(ADVERSARIAL_REPORT_PATH)"; \
 	else \
 		echo "$(RED)❌ Error: Spin server not ready$(NC)"; \
 		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \
@@ -1688,8 +1716,9 @@ test-adversarial-coverage: ## Run deterministic full-coverage oracle profile (pr
 	@$(MAKE) --no-print-directory test-adversarial-coverage-contract || exit 1
 	@$(MAKE) --no-print-directory test-adversarial-scenario-review || exit 1
 	@$(MAKE) --no-print-directory test-adversarial-sim-selftest || exit 1
+	@mkdir -p "$(ADVERSARIAL_ARTIFACT_DIR)"
 	@if $(MAKE) --no-print-directory spin-wait-ready; then \
-		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" SHUMA_ADVERSARIAL_PRESERVE_STATE=0 SHUMA_ADVERSARIAL_ROTATE_IPS=1 python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v2.json --profile full_coverage || exit 1; \
+		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" SHUMA_ADVERSARIAL_PRESERVE_STATE=0 SHUMA_ADVERSARIAL_ROTATE_IPS=1 python3 scripts/tests/adversarial_simulation_runner.py --manifest scripts/tests/adversarial/scenario_manifest.v2.json --profile full_coverage --report "$(ADVERSARIAL_REPORT_PATH)" || exit 1; \
 		$(MAKE) --no-print-directory test-frontier-governance || exit 1; \
 	else \
 		echo "$(RED)❌ Error: Spin server not ready$(NC)"; \
@@ -1699,19 +1728,22 @@ test-adversarial-coverage: ## Run deterministic full-coverage oracle profile (pr
 
 test-adversarial-frontier-attempt: ## Attempt frontier provider probes for protected lanes (advisory/non-blocking)
 	@echo "$(CYAN)🧪 Attempting protected-lane frontier provider probes (advisory)...$(NC)"
-	@python3 scripts/tests/frontier_lane_attempt.py --output scripts/tests/adversarial/frontier_lane_status.json
+	@mkdir -p "$(ADVERSARIAL_ARTIFACT_DIR)"
+	@python3 scripts/tests/frontier_lane_attempt.py --output $(FRONTIER_LANE_STATUS_PATH)
 
 test-frontier-governance: ## Fail when forbidden frontier fields or secret values appear in report artifacts
 	@echo "$(CYAN)🧪 Verifying frontier artifact governance guardrails...$(NC)"
-	@python3 scripts/tests/check_frontier_payload_artifacts.py --report scripts/tests/adversarial/latest_report.json --attack-plan scripts/tests/adversarial/attack_plan.json --schema scripts/tests/adversarial/frontier_payload_schema.v1.json
+	@mkdir -p "$(ADVERSARIAL_ARTIFACT_DIR)"
+	@python3 scripts/tests/check_frontier_payload_artifacts.py --report $(ADVERSARIAL_REPORT_PATH) --attack-plan $(ADVERSARIAL_ATTACK_PLAN_PATH) --schema scripts/tests/adversarial/frontier_payload_schema.v1.json
 
 test-frontier-unavailability-policy: ## Evaluate frontier degraded-threshold policy and emit actionability artifact
 	@echo "$(CYAN)🧪 Evaluating frontier unavailability policy thresholds...$(NC)"
+	@mkdir -p "$(ADVERSARIAL_ARTIFACT_DIR)"
 	@ARGS=""; \
 		if [ "$${FRONTIER_POLICY_ENABLE_GITHUB:-0}" = "1" ]; then \
 			ARGS="--enable-github"; \
 		fi; \
-		python3 scripts/tests/frontier_unavailability_policy.py --status scripts/tests/adversarial/frontier_lane_status.json --output scripts/tests/adversarial/frontier_unavailability_policy.json $$ARGS
+		python3 scripts/tests/frontier_unavailability_policy.py --status $(FRONTIER_LANE_STATUS_PATH) --output $(FRONTIER_UNAVAILABILITY_POLICY_PATH) $$ARGS
 
 test-frontier-unavailability-policy-unit: ## Run focused frontier unavailability policy unit coverage (no server required)
 	@echo "$(CYAN)🧪 Running frontier unavailability policy unit tests...$(NC)"
@@ -1719,35 +1751,43 @@ test-frontier-unavailability-policy-unit: ## Run focused frontier unavailability
 
 test-sim2-realtime-bench: ## Run deterministic SIM2 realtime benchmark gate and emit latency/overflow/request-budget artifacts
 	@echo "$(CYAN)🧪 Running SIM2 realtime benchmark gate...$(NC)"
-	@python3 scripts/tests/sim2_realtime_bench.py --output scripts/tests/adversarial/sim2_realtime_bench_report.json --summary scripts/tests/adversarial/sim2_realtime_bench_summary.md
+	@mkdir -p "$(ADVERSARIAL_ARTIFACT_DIR)"
+	@python3 scripts/tests/sim2_realtime_bench.py --output $(SIM2_REALTIME_BENCH_REPORT_PATH) --summary $(SIM2_REALTIME_BENCH_SUMMARY_PATH)
 
 test-sim2-adr-conformance: ## Verify SIM2 ADR conformance markers for ADR 0007/0008/0009 domains
 	@echo "$(CYAN)🧪 Running SIM2 ADR conformance checks...$(NC)"
-	@python3 scripts/tests/check_sim2_adr_conformance.py --output scripts/tests/adversarial/sim2_adr_conformance_report.json
+	@mkdir -p "$(ADVERSARIAL_ARTIFACT_DIR)"
+	@python3 scripts/tests/check_sim2_adr_conformance.py --output $(SIM2_ADR_CONFORMANCE_REPORT_PATH)
 
 test-sim2-ci-diagnostics: ## Render SIM2 CI diagnostics artifact (timeline snapshots, event counts, refresh traces)
 	@echo "$(CYAN)🧪 Rendering SIM2 CI diagnostics artifact...$(NC)"
-	@python3 scripts/tests/render_sim2_ci_diagnostics.py --report scripts/tests/adversarial/latest_report.json --output scripts/tests/adversarial/sim2_ci_diagnostics.json
+	@mkdir -p "$(ADVERSARIAL_ARTIFACT_DIR)"
+	@python3 scripts/tests/render_sim2_ci_diagnostics.py --report $(ADVERSARIAL_REPORT_PATH) --output $(SIM2_CI_DIAGNOSTICS_REPORT_PATH)
 
 test-sim2-verification-matrix: ## Validate SIM2 verification matrix rows and evidence diagnostics
 	@echo "$(CYAN)🧪 Validating SIM2 verification matrix...$(NC)"
-	@python3 scripts/tests/check_sim2_verification_matrix.py --matrix scripts/tests/adversarial/verification_matrix.v1.json --manifest scripts/tests/adversarial/scenario_manifest.v2.json --report scripts/tests/adversarial/latest_report.json --container-report scripts/tests/adversarial/container_blackbox_report.json --output scripts/tests/adversarial/sim2_verification_matrix_report.json
+	@mkdir -p "$(ADVERSARIAL_ARTIFACT_DIR)"
+	@python3 scripts/tests/check_sim2_verification_matrix.py --matrix scripts/tests/adversarial/verification_matrix.v1.json --manifest scripts/tests/adversarial/scenario_manifest.v2.json --report $(ADVERSARIAL_REPORT_PATH) --container-report $(ADVERSARIAL_CONTAINER_BLACKBOX_REPORT_PATH) --output $(SIM2_VERIFICATION_MATRIX_REPORT_PATH)
 
 test-sim2-verification-matrix-advisory: ## Validate SIM2 verification matrix rows (advisory mode allows missing container report for local manifest checks)
 	@echo "$(CYAN)🧪 Validating SIM2 verification matrix (advisory)...$(NC)"
-	@python3 scripts/tests/check_sim2_verification_matrix.py --matrix scripts/tests/adversarial/verification_matrix.v1.json --manifest scripts/tests/adversarial/scenario_manifest.v2.json --report scripts/tests/adversarial/latest_report.json --container-report scripts/tests/adversarial/container_blackbox_report.json --output scripts/tests/adversarial/sim2_verification_matrix_report.json --allow-missing-container-report --allow-missing-report-scenarios
+	@mkdir -p "$(ADVERSARIAL_ARTIFACT_DIR)"
+	@python3 scripts/tests/check_sim2_verification_matrix.py --matrix scripts/tests/adversarial/verification_matrix.v1.json --manifest scripts/tests/adversarial/scenario_manifest.v2.json --report $(ADVERSARIAL_REPORT_PATH) --container-report $(ADVERSARIAL_CONTAINER_BLACKBOX_REPORT_PATH) --output $(SIM2_VERIFICATION_MATRIX_REPORT_PATH) --allow-missing-container-report --allow-missing-report-scenarios
 
 test-sim2-operational-regressions: ## Validate SIM2 operational regression diagnostics for active deterministic profiles (retention/cost/security required; failure/prod evaluated when present)
 	@echo "$(CYAN)🧪 Validating SIM2 operational regression diagnostics...$(NC)"
-	@python3 scripts/tests/check_sim2_operational_regressions.py --report scripts/tests/adversarial/latest_report.json --output scripts/tests/adversarial/sim2_operational_regressions_report.json --allow-missing-domain failure_injection --allow-missing-domain prod_mode_monitoring --min-large-payload-samples-for-compression-check 2
+	@mkdir -p "$(ADVERSARIAL_ARTIFACT_DIR)"
+	@python3 scripts/tests/check_sim2_operational_regressions.py --report $(ADVERSARIAL_REPORT_PATH) --output $(SIM2_OPERATIONAL_REGRESSIONS_REPORT_PATH) --allow-missing-domain failure_injection --allow-missing-domain prod_mode_monitoring --min-large-payload-samples-for-compression-check 2
 
 test-sim2-operational-regressions-strict: ## Validate all SIM2 operational regression domains with strict missing-domain and compression enforcement
 	@echo "$(CYAN)🧪 Validating strict SIM2 operational regression diagnostics...$(NC)"
-	@python3 scripts/tests/check_sim2_operational_regressions.py --report scripts/tests/adversarial/latest_report.json --output scripts/tests/adversarial/sim2_operational_regressions_report.json
+	@mkdir -p "$(ADVERSARIAL_ARTIFACT_DIR)"
+	@python3 scripts/tests/check_sim2_operational_regressions.py --report $(ADVERSARIAL_REPORT_PATH) --output $(SIM2_OPERATIONAL_REGRESSIONS_REPORT_PATH)
 
 test-sim2-governance-contract: ## Validate SIM2 governance + hybrid lane contract markers and thresholds
 	@echo "$(CYAN)🧪 Validating SIM2 governance + hybrid lane contract...$(NC)"
-	@python3 scripts/tests/check_sim2_governance_contract.py --contract scripts/tests/adversarial/hybrid_lane_contract.v1.json --promotion-script scripts/tests/adversarial_promote_candidates.py --operator-guide docs/adversarial-operator-guide.md --output scripts/tests/adversarial/sim2_governance_contract_report.json
+	@mkdir -p "$(ADVERSARIAL_ARTIFACT_DIR)"
+	@python3 scripts/tests/check_sim2_governance_contract.py --contract scripts/tests/adversarial/hybrid_lane_contract.v1.json --promotion-script scripts/tests/adversarial_promote_candidates.py --operator-guide docs/adversarial-operator-guide.md --output $(SIM2_GOVERNANCE_CONTRACT_REPORT_PATH)
 
 test-replay-promotion-contract: ## Run focused replay-promotion lineage and governance contract checks
 	@echo "$(CYAN)🧪 Running replay-promotion contract checks...$(NC)"
@@ -1761,9 +1801,10 @@ test-replay-promotion-contract: ## Run focused replay-promotion lineage and gove
 test-sim2-verification-e2e: ## Run matrix-required SIM2 e2e suite across crawler/scraper/browser/frontier lanes (requires running server + Docker)
 	@echo "$(CYAN)🧪 Running SIM2 verification e2e suite...$(NC)"
 	@if $(MAKE) --no-print-directory spin-wait-ready; then \
+		mkdir -p "$(ADVERSARIAL_ARTIFACT_DIR)"; \
 		$(MAKE) --no-print-directory test-adversarial-coverage || exit 1; \
 		$(MAKE) --no-print-directory test-adversarial-container-blackbox || exit 1; \
-		python3 scripts/tests/check_sim2_verification_matrix.py --matrix scripts/tests/adversarial/verification_matrix.v1.json --manifest scripts/tests/adversarial/scenario_manifest.v2.json --report scripts/tests/adversarial/latest_report.json --container-report scripts/tests/adversarial/container_blackbox_report.json --output scripts/tests/adversarial/sim2_verification_matrix_report.json || exit 1; \
+		python3 scripts/tests/check_sim2_verification_matrix.py --matrix scripts/tests/adversarial/verification_matrix.v1.json --manifest scripts/tests/adversarial/scenario_manifest.v2.json --report $(ADVERSARIAL_REPORT_PATH) --container-report $(ADVERSARIAL_CONTAINER_BLACKBOX_REPORT_PATH) --output $(SIM2_VERIFICATION_MATRIX_REPORT_PATH) || exit 1; \
 	else \
 		echo "$(RED)❌ Error: Spin server not ready$(NC)"; \
 		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \
@@ -1780,7 +1821,7 @@ test-adversarial-live: ## Continuously run adversarial simulation profile for li
 	@PROFILE="$${ADVERSARIAL_PROFILE:-fast_smoke}"; \
 	RUNS="$${ADVERSARIAL_RUNS:-0}"; \
 	PAUSE="$${ADVERSARIAL_PAUSE_SECONDS:-2}"; \
-	REPORT_PATH="$${ADVERSARIAL_REPORT_PATH:-scripts/tests/adversarial/latest_report.json}"; \
+	REPORT_PATH="$${ADVERSARIAL_REPORT_PATH:-$(ADVERSARIAL_REPORT_PATH)}"; \
 	CLEANUP_MODE="$${ADVERSARIAL_CLEANUP_MODE:-0}"; \
 	case "$$RUNS" in ''|*[!0-9]*) \
 		echo "$(RED)❌ ADVERSARIAL_RUNS must be an integer (0 means run until Ctrl+C).$(NC)"; \
@@ -1798,6 +1839,7 @@ test-adversarial-live: ## Continuously run adversarial simulation profile for li
 	echo "$(YELLOW)   profile=$$PROFILE runs=$$RUNS pause_seconds=$$PAUSE cleanup_mode=$$CLEANUP_MODE report=$$REPORT_PATH$(NC)"; \
 	echo "$(YELLOW)   Press Ctrl+C to stop.$(NC)"; \
 	if $(MAKE) --no-print-directory spin-wait-ready; then \
+		mkdir -p "$(ADVERSARIAL_ARTIFACT_DIR)"; \
 		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" \
 			python3 scripts/tests/adversarial_live_loop.py \
 				--manifest scripts/tests/adversarial/scenario_manifest.v2.json \
@@ -1843,8 +1885,9 @@ test-adversarial-repeatability: ## Run deterministic repeatability gate across s
 	@echo "$(CYAN)🧪 Running adversarial repeatability gate...$(NC)"
 	@$(MAKE) --no-print-directory test-adversarial-preflight || exit 1
 	@if $(MAKE) --no-print-directory spin-wait-ready; then \
+		mkdir -p "$(ADVERSARIAL_ARTIFACT_DIR)"; \
 		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" \
-			python3 scripts/tests/adversarial_repeatability.py --manifest scripts/tests/adversarial/scenario_manifest.v2.json --repeats "$${ADVERSARIAL_REPEATABILITY_REPEATS:-3}" --profiles "$${ADVERSARIAL_REPEATABILITY_PROFILES:-fast_smoke,abuse_regression,full_coverage}" --report scripts/tests/adversarial/repeatability_report.json; \
+			python3 scripts/tests/adversarial_repeatability.py --manifest scripts/tests/adversarial/scenario_manifest.v2.json --repeats "$${ADVERSARIAL_REPEATABILITY_REPEATS:-3}" --profiles "$${ADVERSARIAL_REPEATABILITY_PROFILES:-fast_smoke,abuse_regression,full_coverage}" --report $(ADVERSARIAL_REPEATABILITY_REPORT_PATH); \
 	else \
 		echo "$(RED)❌ Error: Spin server not ready$(NC)"; \
 		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \
@@ -1855,14 +1898,15 @@ test-adversarial-promote-candidates: ## Run frontier candidate triage + determin
 	@echo "$(CYAN)🧪 Running adversarial candidate triage and promotion checks...$(NC)"
 	@$(MAKE) --no-print-directory test-adversarial-preflight || exit 1
 	@if $(MAKE) --no-print-directory spin-wait-ready; then \
-		REPORT_PATH="scripts/tests/adversarial/latest_report.json"; \
-		ATTACK_PLAN_PATH="scripts/tests/adversarial/attack_plan.json"; \
+		mkdir -p "$(ADVERSARIAL_ARTIFACT_DIR)"; \
+		REPORT_PATH="$(ADVERSARIAL_REPORT_PATH)"; \
+		ATTACK_PLAN_PATH="$(ADVERSARIAL_ATTACK_PLAN_PATH)"; \
 		if [ ! -f "$$REPORT_PATH" ] || [ ! -f "$$ATTACK_PLAN_PATH" ]; then \
 			echo "$(YELLOW)   Missing adversarial report artifacts; generating with test-adversarial-coverage...$(NC)"; \
 			$(MAKE) --no-print-directory test-adversarial-coverage || exit 1; \
 		fi; \
 		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" \
-			python3 scripts/tests/adversarial_promote_candidates.py --manifest scripts/tests/adversarial/scenario_manifest.v2.json --report "$$REPORT_PATH" --attack-plan "$$ATTACK_PLAN_PATH" --output scripts/tests/adversarial/promotion_candidates_report.json --fail-on-confirmed-regressions; \
+			python3 scripts/tests/adversarial_promote_candidates.py --manifest scripts/tests/adversarial/scenario_manifest.v2.json --report "$$REPORT_PATH" --attack-plan "$$ATTACK_PLAN_PATH" --output $(ADVERSARIAL_PROMOTION_CANDIDATES_REPORT_PATH) --fail-on-confirmed-regressions; \
 	else \
 		echo "$(RED)❌ Error: Spin server not ready$(NC)"; \
 		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \
@@ -1871,9 +1915,10 @@ test-adversarial-promote-candidates: ## Run frontier candidate triage + determin
 
 test-adversarial-report-diff: ## Compare baseline/candidate adversarial reports and emit run-delta artifact
 	@echo "$(CYAN)🧪 Rendering adversarial report diff artifact...$(NC)"
-	@BASELINE="$${ADVERSARIAL_DIFF_BASELINE_PATH:-scripts/tests/adversarial/latest_report.baseline.json}"; \
-	CANDIDATE="$${ADVERSARIAL_DIFF_CANDIDATE_PATH:-scripts/tests/adversarial/latest_report.json}"; \
-	OUTPUT="$${ADVERSARIAL_DIFF_OUTPUT_PATH:-scripts/tests/adversarial/adversarial_report_diff.json}"; \
+	@mkdir -p "$(ADVERSARIAL_ARTIFACT_DIR)"; \
+	BASELINE="$${ADVERSARIAL_DIFF_BASELINE_PATH:-$(ADVERSARIAL_DIFF_BASELINE_PATH)}"; \
+	CANDIDATE="$${ADVERSARIAL_DIFF_CANDIDATE_PATH:-$(ADVERSARIAL_DIFF_CANDIDATE_PATH)}"; \
+	OUTPUT="$${ADVERSARIAL_DIFF_OUTPUT_PATH:-$(ADVERSARIAL_DIFF_OUTPUT_PATH)}"; \
 	if [ ! -f "$$BASELINE" ]; then \
 		echo "$(YELLOW)   Baseline report missing ($$BASELINE); skipping diff generation.$(NC)"; \
 		exit 0; \
@@ -1886,14 +1931,16 @@ test-adversarial-report-diff: ## Compare baseline/candidate adversarial reports 
 
 test-adversarial-container-isolation: ## Validate complementary container black-box isolation contract (scheduled/manual lane; Docker required)
 	@echo "$(CYAN)🧪 Running adversarial container isolation conformance...$(NC)"
-	@python3 scripts/tests/adversarial_container_runner.py --mode isolation --report scripts/tests/adversarial/container_isolation_report.json
+	@mkdir -p "$(ADVERSARIAL_ARTIFACT_DIR)"
+	@python3 scripts/tests/adversarial_container_runner.py --mode isolation --report $(ADVERSARIAL_CONTAINER_ISOLATION_REPORT_PATH)
 
 test-adversarial-container-blackbox: ## Run complementary containerized black-box adversary lane (scheduled/manual; non-blocking for release)
 	@echo "$(CYAN)🧪 Running adversarial container black-box worker...$(NC)"
 	@$(MAKE) --no-print-directory test-adversarial-preflight || exit 1
 	@if $(MAKE) --no-print-directory spin-wait-ready; then \
+		mkdir -p "$(ADVERSARIAL_ARTIFACT_DIR)"; \
 		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY="$(SHUMA_API_KEY)" SHUMA_FORWARDED_IP_SECRET="$(SHUMA_FORWARDED_IP_SECRET)" SHUMA_HEALTH_SECRET="$(SHUMA_HEALTH_SECRET)" \
-			python3 scripts/tests/adversarial_container_runner.py --mode blackbox --report scripts/tests/adversarial/container_blackbox_report.json; \
+			python3 scripts/tests/adversarial_container_runner.py --mode blackbox --report $(ADVERSARIAL_CONTAINER_BLACKBOX_REPORT_PATH); \
 	else \
 		echo "$(RED)❌ Error: Spin server not ready$(NC)"; \
 		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \
