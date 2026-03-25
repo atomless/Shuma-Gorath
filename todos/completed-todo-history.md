@@ -4,6 +4,36 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### SIM-SCR-CHALLENGE-2D: Receipt-backed coverage closure and explicit gap assignment
+
+- [x] Added a canonical backend comparison between recent Scrapling defense receipts and the frozen owned-surface matrix in:
+  - [`src/observability/scrapling_owned_defense_surfaces.rs`](../src/observability/scrapling_owned_defense_surfaces.rs)
+  - [`src/observability/operator_snapshot_live_traffic.rs`](../src/observability/operator_snapshot_live_traffic.rs)
+  - [`src/observability/operator_snapshot.rs`](../src/observability/operator_snapshot.rs)
+- [x] Projected that comparison through `operator_snapshot_v1.adversary_sim.scrapling_owned_surface_coverage`, including:
+  - per-surface `coverage_status`
+  - per-surface `coverage_basis`
+  - explicit `gap_assignment`
+  - bounded `blocking_surface_ids`
+- [x] Made the current remaining uncovered owned surface machine-visible as:
+  - `geo_ip_policy`
+  - `gap_assignment=request_native_proxy_or_source_ip_diversification`
+- [x] Tightened the focused proof in:
+  - [`Makefile`](../Makefile)
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`docs/api.md`](../docs/api.md)
+  - [`docs/research/2026-03-24-sim-scr-challenge-2d-coverage-closure-and-gap-assignment-post-implementation-review.md`](../docs/research/2026-03-24-sim-scr-challenge-2d-coverage-closure-and-gap-assignment-post-implementation-review.md)
+- [x] Recorded the next truthful follow-on in:
+  - [`docs/research/2026-03-24-scrapling-geo-ip-policy-source-diversification-review.md`](../docs/research/2026-03-24-scrapling-geo-ip-policy-source-diversification-review.md)
+  - [`docs/plans/2026-03-24-scrapling-geo-ip-policy-source-diversification-plan.md`](../docs/plans/2026-03-24-scrapling-geo-ip-policy-source-diversification-plan.md)
+  - [`todos/todo.md`](../todos/todo.md)
+- [x] Why:
+  - the repo already had the owned-surface contract and the receipt surfaces, but it still lacked one machine-first answer to “which owned Scrapling surfaces are covered right now and which are still missing?”
+  - and the current missing `geo_ip_policy` surface needed to be assigned truthfully to request-native source-IP or proxy work rather than quietly pushed toward browser stealth.
+- [x] Evidence:
+  - `make test-adversarial-coverage-receipts`
+  - `git diff --check`
+
 ### CTRL-SURFACE-3: Enforce and surface controller mutability truth
 
 - [x] Added explicit hard-boundary enforcement tests in:

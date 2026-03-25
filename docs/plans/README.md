@@ -20,6 +20,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md`](2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md) - Makes attacker-faithful Scrapling coverage an explicit prerequisite for fuller player-side game-loop execution
 - [`2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md`](2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md) - Separates widened Scrapling defense-surface evaluation from the broader later browser-runtime question
 - [`2026-03-24-scrapling-owned-defense-surface-matrix-and-success-contract-plan.md`](2026-03-24-scrapling-owned-defense-surface-matrix-and-success-contract-plan.md) - Freezes the first request-native Scrapling-owned defense-surface matrix and success contract
+- [`2026-03-24-scrapling-geo-ip-policy-source-diversification-plan.md`](2026-03-24-scrapling-geo-ip-policy-source-diversification-plan.md) - Plans the request-native public-network identity work needed to close Scrapling's remaining `geo_ip_policy` gap
 - [`2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md`](2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md) - Reorders the active mainline so attacker-faithful Scrapling and the first working game loop come before later LLM runtime work
 - [`2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-plan.md`](2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-plan.md) - Refines Monitoring-vs-Diagnostics ordering so Monitoring reuses shared transitional surfaces before Diagnostics cleanup
 - [`2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md`](2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md) - Introduces a dedicated Traffic tab and narrows Diagnostics to furniture-operational proof
@@ -73,6 +74,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md`](2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md)
 - [`2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md`](2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md)
 - [`2026-03-24-scrapling-owned-defense-surface-matrix-and-success-contract-plan.md`](2026-03-24-scrapling-owned-defense-surface-matrix-and-success-contract-plan.md)
+- [`2026-03-24-scrapling-geo-ip-policy-source-diversification-plan.md`](2026-03-24-scrapling-geo-ip-policy-source-diversification-plan.md)
 - [`2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md`](2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md)
 - [`2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md`](2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md)
 - [`2026-03-24-identification-tab-rename-and-taxonomy-distinction-plan.md`](2026-03-24-identification-tab-rename-and-taxonomy-distinction-plan.md)

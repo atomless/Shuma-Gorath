@@ -493,6 +493,8 @@ mod tests {
                 forwarded_upstream_latency_ms_total: 0,
                 forwarded_response_bytes: 4_000,
                 shuma_served_response_bytes: 3_000,
+                scrapling_owned_surface_coverage:
+                    crate::observability::scrapling_owned_defense_surfaces::ScraplingOwnedDefenseSurfaceCoverageSummary::default(),
                 recent_runs: vec![OperatorSnapshotRecentSimRun {
                     run_id: "simrun-001".to_string(),
                     lane: "deterministic_black_box".to_string(),

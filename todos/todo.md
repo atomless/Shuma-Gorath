@@ -104,16 +104,16 @@ Reference context:
 - [`docs/plans/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md`](../docs/plans/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md)
 - [`docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](../docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md)
 
-### SIM-SCR-CHALLENGE-2C: Browser or stealth Scrapling where the matrix requires it
-- Where the owned-surface matrix says request-native Scrapling is not enough, adopt Scrapling browser or stealth fetchers rather than leaving the lane underpowered.
-- Keep this bounded to surfaces Scrapling actually owns rather than broadening into unrelated browser-agent behavior.
+### SIM-SCR-GEO-1: Request-native source-IP diversification for geo/ip policy coverage
+- Close the remaining Scrapling-owned `geo_ip_policy` gap with attacker-faithful public-network identity diversity rather than privileged headers or premature browser/stealth expansion.
+- Keep this request-native and black-box: only public host knowledge plus bounded public-network identity rotation or proxy-backed egress is allowed.
+- Clear the current `scrapling_owned_surface_coverage` gap assignment only when `geo_ip_policy` is observed through truthful request-native receipts.
+- Reference context: [`../docs/research/2026-03-24-scrapling-geo-ip-policy-source-diversification-review.md`](../docs/research/2026-03-24-scrapling-geo-ip-policy-source-diversification-review.md), [`../docs/plans/2026-03-24-scrapling-geo-ip-policy-source-diversification-plan.md`](../docs/plans/2026-03-24-scrapling-geo-ip-policy-source-diversification-plan.md)
 
-### SIM-SCR-CHALLENGE-2D: Receipt-backed coverage closure and explicit gap assignment
-- Prove that Scrapling now touches every defense surface it owns and can pass the ones a real attacker should be able to pass.
-- Add focused verification and receipts so any remaining uncovered surface is explicit and intentionally assigned to another lane.
-- Treat this as the next active tranche after `SIM-SCR-CHALLENGE-2B`: use the new worker-result and lane-diagnostics `surface_interactions` receipts to close the proof gap before reopening browser or stealth Scrapling.
-- Recent sim runs and operator snapshot now expose matrix-aligned `observed_defense_keys`; the remaining work is to compare those receipts against the owned-surface matrix and make any mismatch fail visible.
-- Current focused worker proof now shows six of seven owned request-native surfaces directly (`challenge_routing`, `rate_limit`, `honeypot`, `not_a_bot`, `challenge_puzzle`, `proof_of_work`); the remaining uncovered surface is `geo_ip_policy`, which likely needs truthful source-IP diversification or proxy-backed Scrapling rather than browser or stealth runtime.
+### SIM-SCR-CHALLENGE-2C: Browser or stealth Scrapling where the matrix requires it
+- Execute this only where the owned-surface matrix still proves request-native Scrapling is insufficient for reasons other than public-network identity diversity.
+- Do not use browser or stealth Scrapling as a substitute for truthful source-IP or proxy-backed coverage of `geo_ip_policy`.
+- Keep this bounded to surfaces Scrapling actually owns rather than broadening into unrelated browser-agent behavior.
 
 ### RSI-GAME-MAINLINE-1: First working self-improving loop over attacker-faithful Scrapling
 - After the Scrapling-owned surfaces are attacker-faithful and receipt-backed, execute the first explicit self-improving loop over that truthful attacker basis.
@@ -121,14 +121,13 @@ Reference context:
 - Keep this ahead of later LLM attacker or defender runtime work, and ahead of secondary dashboard cleanup follow-ons.
 
 Mainline execution order:
-1. `SIM-SCR-CHALLENGE-2D`
-2. `SIM-SCR-CHALLENGE-2C` only if receipt-backed closure proves request-native Scrapling is still insufficient for an owned surface
-3. `CTRL-SURFACE-1..3`
-4. `RSI-GAME-1A`
-5. `RSI-GAME-1B`
-6. `RSI-SCORE-1`
-7. `RSI-GAME-1C`
-8. `RSI-GAME-MAINLINE-1`
+1. `SIM-SCR-GEO-1`
+2. `SIM-SCR-CHALLENGE-2C` only if request-native plus public-network identity diversification still proves insufficient for an owned surface
+3. `RSI-GAME-1A`
+4. `RSI-GAME-1B`
+5. `RSI-SCORE-1`
+6. `RSI-GAME-1C`
+7. `RSI-GAME-MAINLINE-1`
 
 ### DIAG-CLEANUP-1: Diagnostics furniture-operational cleanup after Traffic split
 - After `TRAFFIC-TAB-1` lands, remove the migrated traffic-facing sections from Diagnostics so it becomes clearly diagnostics-first and furniture-operational.

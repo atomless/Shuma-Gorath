@@ -78,22 +78,24 @@ The optimal order is:
    - freeze the owned defense-surface matrix and define which surfaces Scrapling must touch, fail, or be able to pass
 2. `SIM-SCR-CHALLENGE-2B`
    - implement malicious request-native Scrapling behavior for the owned surfaces that remain request-native
-3. `SIM-SCR-CHALLENGE-2C`
-   - only where the matrix proves request-native Scrapling is not enough, adopt browser or stealth Scrapling for those owned surfaces
-4. `SIM-SCR-CHALLENGE-2D`
-   - prove receipt-backed coverage, including explicit remaining-gap assignment where Scrapling does not own a surface
-5. `CTRL-SURFACE-1`
-6. `CTRL-SURFACE-2`
-7. `CTRL-SURFACE-3`
+3. `SIM-SCR-CHALLENGE-2D`
+   - prove receipt-backed coverage and explicit remaining-gap assignment against the owned-surface matrix
+4. `SIM-SCR-GEO-1`
+   - where the remaining gap is still request-native, close it with attacker-faithful public-network identity diversity rather than prematurely widening into browser runtime
+5. `SIM-SCR-CHALLENGE-2C`
+   - only where the matrix still proves request-native Scrapling is not enough for reasons other than public-network identity diversity, adopt browser or stealth Scrapling for those owned surfaces
+6. `CTRL-SURFACE-1`
+7. `CTRL-SURFACE-2`
+8. `CTRL-SURFACE-3`
    - freeze the legal move ring before broadening the self-improving loop
-8. `RSI-GAME-1A`
-9. `RSI-GAME-1B`
-10. `RSI-SCORE-1`
-11. `RSI-GAME-1C`
+9. `RSI-GAME-1A`
+10. `RSI-GAME-1B`
+11. `RSI-SCORE-1`
+12. `RSI-GAME-1C`
    - complete the judge-side game contract and episode/archive machinery
-12. `RSI-GAME-MAINLINE-1`
+13. `RSI-GAME-MAINLINE-1`
    - run the first working self-improving loop over the now-truthful Scrapling attacker basis
-13. only after that, return to deferred dashboard follow-ons and later LLM runtime work:
+14. only after that, return to deferred dashboard follow-ons and later LLM runtime work:
    - `MON-OVERHAUL-1C`
    - `DIAG-CLEANUP-1`
    - `SIM-LLM-1A..1C`

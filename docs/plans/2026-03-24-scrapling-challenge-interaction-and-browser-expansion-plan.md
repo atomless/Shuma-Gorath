@@ -4,7 +4,7 @@
 
 **Goal:** Define the blocked later work needed to evaluate wider Scrapling challenge interaction and, only if proven, expand Shuma's Scrapling lane beyond today's request-native fetcher contract.
 
-**Architecture:** Keep the current request-native Scrapling ownership truthful and unchanged while adding a separate blocked follow-on that evaluates defense-surface interaction coverage explicitly. First define a defense-surface representativeness matrix, then determine which missing interactions can stay request-native and which genuinely require Scrapling's browser or stealth runtime. Keep browser-runtime adoption for `automated_browser` as a distinct later step rather than collapsing all widened Scrapling work into one vague bucket.
+**Architecture:** Keep the current request-native Scrapling ownership truthful and unchanged while adding a separate blocked follow-on that evaluates defense-surface interaction coverage explicitly. First define a defense-surface representativeness matrix, then determine which missing interactions can stay request-native and which genuinely require Scrapling's browser or stealth runtime. Keep request-native public-network identity gaps, such as the current `geo_ip_policy` hole, on a separate source-diversification path rather than collapsing them into browser-runtime adoption. Keep browser-runtime adoption for `automated_browser` as a distinct later step rather than collapsing all widened Scrapling work into one vague bucket.
 
 **Tech Stack:** Rust adversary-sim control plane, Python Scrapling worker, repo-owned Scrapling runtime bootstrap, canonical taxonomy and coverage receipts, Makefile verification, official Scrapling browser or stealth fetcher documentation.
 

@@ -5,6 +5,10 @@ use crate::observability::monitoring::{
     HumanFrictionSegmentRow, MonitoringSummary, RequestOutcomeLaneSummaryRow,
     RequestOutcomeScopeSummaryRow,
 };
+use crate::observability::scrapling_owned_defense_surfaces::{
+    summarize_scrapling_owned_defense_surface_coverage,
+    ScraplingOwnedDefenseSurfaceCoverageSummary,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub(crate) struct OperatorSnapshotLane {
@@ -87,6 +91,7 @@ pub(crate) struct OperatorSnapshotAdversarySim {
     pub forwarded_upstream_latency_ms_total: u64,
     pub forwarded_response_bytes: u64,
     pub shuma_served_response_bytes: u64,
+    pub scrapling_owned_surface_coverage: ScraplingOwnedDefenseSurfaceCoverageSummary,
     pub recent_runs: Vec<OperatorSnapshotRecentSimRun>,
 }
 
@@ -228,6 +233,61 @@ pub(super) fn adversary_sim_section(
         shuma_served_response_bytes: scope
             .short_circuited_response_bytes
             .saturating_add(scope.control_response_bytes),
+        scrapling_owned_surface_coverage: summarize_scrapling_owned_defense_surface_coverage(
+            recent_sim_runs,
+        ),
         recent_runs: recent_sim_runs.to_vec(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{adversary_sim_section, OperatorSnapshotRecentSimRun};
+
+    #[test]
+    fn adversary_sim_section_projects_scrapling_owned_surface_coverage() {
+        let section = adversary_sim_section(
+            None,
+            &[OperatorSnapshotRecentSimRun {
+                run_id: "simrun-scrapling-http-agent".to_string(),
+                lane: "scrapling_traffic".to_string(),
+                profile: "scrapling_runtime_lane".to_string(),
+                observed_fulfillment_modes: vec!["http_agent".to_string()],
+                observed_category_ids: vec!["http_agent".to_string()],
+                observed_defense_keys: vec![
+                    "challenge_routing".to_string(),
+                    "rate_limit".to_string(),
+                    "honeypot".to_string(),
+                    "not_a_bot".to_string(),
+                    "challenge_puzzle".to_string(),
+                    "proof_of_work".to_string(),
+                ],
+                first_ts: 1_700_000_000,
+                last_ts: 1_700_000_100,
+                monitoring_event_count: 9,
+                defense_delta_count: 6,
+                ban_outcome_count: 1,
+            }],
+        );
+
+        assert_eq!(section.traffic_origin, "adversary_sim");
+        assert_eq!(
+            section.scrapling_owned_surface_coverage.overall_status,
+            "partial"
+        );
+        assert_eq!(
+            section.scrapling_owned_surface_coverage.blocking_surface_ids,
+            vec!["geo_ip_policy".to_string()]
+        );
+        let geo = section
+            .scrapling_owned_surface_coverage
+            .receipts
+            .iter()
+            .find(|row| row.surface_id == "geo_ip_policy")
+            .expect("geo coverage receipt");
+        assert_eq!(
+            geo.gap_assignment,
+            "request_native_proxy_or_source_ip_diversification"
+        );
     }
 }

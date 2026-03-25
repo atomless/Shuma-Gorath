@@ -950,6 +950,68 @@ mod tests {
     }
 
     #[test]
+    fn snapshot_payload_projects_scrapling_owned_surface_gap_assignment() {
+        let store = TestStore::new();
+        let summary = summarize_with_store(&store, 24, 10);
+        let payload = build_operator_snapshot_payload(
+            &store,
+            "default",
+            1_700_000_000,
+            &summary,
+            &[OperatorSnapshotRecentSimRun {
+                run_id: "simrun-scrapling-http-agent".to_string(),
+                lane: "scrapling_traffic".to_string(),
+                profile: "scrapling_runtime_lane".to_string(),
+                observed_fulfillment_modes: vec!["http_agent".to_string()],
+                observed_category_ids: vec!["http_agent".to_string()],
+                observed_defense_keys: vec![
+                    "challenge_routing".to_string(),
+                    "rate_limit".to_string(),
+                    "honeypot".to_string(),
+                    "not_a_bot".to_string(),
+                    "challenge_puzzle".to_string(),
+                    "proof_of_work".to_string(),
+                ],
+                first_ts: 1_699_999_900,
+                last_ts: 1_699_999_990,
+                monitoring_event_count: 8,
+                defense_delta_count: 6,
+                ban_outcome_count: 1,
+            }],
+            OperatorSnapshotRecentChanges::default(),
+            1_700_000_000,
+            1_700_000_000,
+            1_700_000_000,
+        );
+
+        assert_eq!(
+            payload
+                .adversary_sim
+                .scrapling_owned_surface_coverage
+                .overall_status,
+            "partial"
+        );
+        assert_eq!(
+            payload
+                .adversary_sim
+                .scrapling_owned_surface_coverage
+                .blocking_surface_ids,
+            vec!["geo_ip_policy".to_string()]
+        );
+        let geo = payload
+            .adversary_sim
+            .scrapling_owned_surface_coverage
+            .receipts
+            .iter()
+            .find(|row| row.surface_id == "geo_ip_policy")
+            .expect("geo coverage receipt");
+        assert_eq!(
+            geo.gap_assignment,
+            "request_native_proxy_or_source_ip_diversification"
+        );
+    }
+
+    #[test]
     fn snapshot_payload_surfaces_materialized_replay_promotion_summary() {
         let store = TestStore::new();
         crate::observability::replay_promotion::persist_replay_promotion_payload(

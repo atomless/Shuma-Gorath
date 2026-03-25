@@ -236,7 +236,7 @@ Decompose the two later LLM-backed player roles so the recursive-improvement gam
 7. Land `OVR-AGENT-2A` before any defender-agent runtime planning is treated as execution-ready.
 8. Land `OVR-AGENT-2B` before `OVR-AGENT-2C`.
 9. Keep `OVR-CODE-1` downstream of the settled defender-agent track rather than folding it into defender planning.
-10. Do not treat the fuller attacker or defender runtime tracks as execution-ready until `SIM-SCR-CHALLENGE-1` proves attacker-faithful Scrapling coverage for Scrapling-owned surfaces and, where that matrix requires browser or stealth Scrapling, `SIM-SCR-BROWSER-1` is also complete.
+10. Do not treat the fuller attacker or defender runtime tracks as execution-ready until `SIM-SCR-CHALLENGE-1` proves attacker-faithful Scrapling coverage for Scrapling-owned surfaces, `SIM-SCR-GEO-1` or an equivalent request-native public-network identity follow-on closes any still-missing request-native geo or IP surface, and, only where that matrix still requires it, `SIM-SCR-BROWSER-1` is also complete.
 
 # Definition Of Done
 

@@ -25,7 +25,7 @@
 
 **Work:**
 1. State explicitly that `SIM-SCR-CHALLENGE-1` is a prerequisite for the fuller attacker/defender game loop.
-2. State explicitly that `SIM-SCR-BROWSER-1` becomes a prerequisite only where the defense-surface matrix shows browser or stealth Scrapling is needed for Scrapling-owned surfaces.
+2. State explicitly that browser or stealth Scrapling becomes a prerequisite only where the defense-surface matrix shows it is needed for Scrapling-owned surfaces after any request-native public-network identity follow-ons have been exhausted.
 3. Keep judge-side `RSI-GAME-*`, `RSI-SCORE-1`, `RSI-PROTO-1`, and `RSI-EVAL-1` planning unblocked.
 
 **Acceptance criteria:**
@@ -42,7 +42,7 @@
 **Work:**
 1. Add `SIM-SCR-CHALLENGE-1` as an explicit blocker for the later attacker/defender runtime tracks.
 2. Add conditional `SIM-SCR-BROWSER-1` language where the owned-surface matrix requires it.
-3. Make the blocked wording require that any remaining uncovered surfaces be explicitly assigned away from Scrapling rather than silently accepted.
+3. Make the blocked wording require that any remaining uncovered surfaces be explicitly assigned to the correct follow-on rather than silently accepted, including request-native source-IP or proxy diversification when that is the real missing capability.
 
 **Acceptance criteria:**
 1. The player-side backlog now encodes the Scrapling prerequisite explicitly.

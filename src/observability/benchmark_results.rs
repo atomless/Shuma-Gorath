@@ -936,6 +936,7 @@ mod tests {
                 forwarded_upstream_latency_ms_total: 0,
                 forwarded_response_bytes: 0,
                 shuma_served_response_bytes: 0,
+                scrapling_owned_surface_coverage: crate::observability::scrapling_owned_defense_surfaces::ScraplingOwnedDefenseSurfaceCoverageSummary::default(),
                 recent_runs: Vec::new(),
             },
             &crate::observability::operator_snapshot::OperatorSnapshotNonHumanTrafficSummary {
