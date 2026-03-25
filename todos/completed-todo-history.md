@@ -4,6 +4,44 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### CTRL-SURFACE-1: Canonical controller mutability policy and hard-never surface
+
+- [x] Added the canonical mutability policy module in:
+  - [`src/config/controller_mutability_policy.rs`](../src/config/controller_mutability_policy.rs)
+  - [`src/config/mod.rs`](../src/config/mod.rs)
+  so Shuma now classifies both `admin_config` and `operator_objectives_v1` paths into one explicit ring model:
+  - `never`
+  - `manual_only`
+  - `controller_tunable`
+- [x] Made the hard-never ring explicit for:
+  - operator objectives
+  - runtime harness controls
+  - provider and edge topology
+  - verified-identity policy
+  - robots and AI policy
+  - trust exceptions and allowlists
+  - privacy posture
+  - punishment horizons
+  - defender safety and resource budgets
+  - implementation-composition selectors
+- [x] Added focused proof in:
+  - [`src/config/tests.rs`](../src/config/tests.rs)
+  - [`Makefile`](../Makefile)
+  - [`docs/testing.md`](../docs/testing.md)
+  with the new narrow target:
+  - `make test-controller-mutability-policy`
+- [x] Updated the mutability paper trail in:
+  - [`docs/configuration.md`](../docs/configuration.md)
+  - [`docs/api.md`](../docs/api.md)
+  - [`docs/research/2026-03-24-ctrl-surface-1-controller-mutability-policy-post-implementation-review.md`](../docs/research/2026-03-24-ctrl-surface-1-controller-mutability-policy-post-implementation-review.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+- [x] Why:
+  - the next controller tranches need one canonical answer to “may the loop touch this path?”
+  - without that, `allowed_actions_v1`, reconcile, and later LLM defender work would keep inheriting drift from the broader admin-writable surface
+- [x] Evidence:
+  - `make test-controller-mutability-policy`
+  - `git diff --check`
+
 ### SIM-SCR-CHALLENGE-2D: Receipt-backed coverage closure and explicit gap assignment
 
 - [x] Extended the bounded worker-result and recent-run truth surface in:

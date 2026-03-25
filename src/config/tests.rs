@@ -241,6 +241,93 @@ fn parse_provider_backend_accepts_expected_values() {
 }
 
 #[test]
+fn controller_mutability_policy_classifies_operator_and_admin_surfaces() {
+    let surface = controller_mutability_policy_v1();
+    assert_eq!(surface.schema_version, "controller_mutability_v1");
+    assert!(surface
+        .groups
+        .iter()
+        .any(|group| group.group_id == "operator_objectives.budgets" && group.ring == "never"));
+    assert!(surface
+        .groups
+        .iter()
+        .any(|group| group.group_id == "proof_of_work.policy"
+            && group.ring == "controller_tunable"));
+    assert_eq!(
+        controller_mutability_ring_for_operator_objectives_path("budgets.0.target"),
+        Some(ControllerMutabilityRing::Never)
+    );
+    assert_eq!(
+        controller_mutability_ring_for_operator_objectives_path("rollout_guardrails.automated_apply_status"),
+        Some(ControllerMutabilityRing::Never)
+    );
+    assert_eq!(
+        controller_mutability_ring_for_admin_config_path("pow_difficulty"),
+        Some(ControllerMutabilityRing::ControllerTunable)
+    );
+    assert_eq!(
+        controller_mutability_ring_for_admin_config_path("challenge_puzzle_attempt_window_seconds"),
+        Some(ControllerMutabilityRing::ControllerTunable)
+    );
+    assert_eq!(
+        controller_mutability_ring_for_admin_config_path("rate_limit"),
+        Some(ControllerMutabilityRing::ManualOnly)
+    );
+}
+
+#[test]
+fn controller_mutability_policy_marks_hard_never_paths_as_permanently_forbidden() {
+    assert_eq!(
+        controller_mutability_ring_for_admin_config_path("shadow_mode"),
+        Some(ControllerMutabilityRing::Never)
+    );
+    assert_eq!(
+        controller_mutability_ring_for_admin_config_path("provider_backends.challenge_engine"),
+        Some(ControllerMutabilityRing::Never)
+    );
+    assert_eq!(
+        controller_mutability_ring_for_admin_config_path("provider_backends"),
+        Some(ControllerMutabilityRing::Never)
+    );
+    assert_eq!(
+        controller_mutability_ring_for_admin_config_path("verified_identity.enabled"),
+        Some(ControllerMutabilityRing::Never)
+    );
+    assert_eq!(
+        controller_mutability_ring_for_admin_config_path("verified_identity"),
+        Some(ControllerMutabilityRing::Never)
+    );
+    assert_eq!(
+        controller_mutability_ring_for_admin_config_path("robots_enabled"),
+        Some(ControllerMutabilityRing::Never)
+    );
+    assert_eq!(
+        controller_mutability_ring_for_admin_config_path("allowlist"),
+        Some(ControllerMutabilityRing::Never)
+    );
+    assert_eq!(
+        controller_mutability_ring_for_admin_config_path("fingerprint_pseudonymize"),
+        Some(ControllerMutabilityRing::Never)
+    );
+    assert_eq!(
+        controller_mutability_ring_for_admin_config_path("ban_durations"),
+        Some(ControllerMutabilityRing::Never)
+    );
+    assert_eq!(
+        controller_mutability_ring_for_admin_config_path("tarpit_enabled"),
+        Some(ControllerMutabilityRing::Never)
+    );
+    assert_eq!(
+        controller_mutability_ring_for_admin_config_path("maze_seed_provider"),
+        Some(ControllerMutabilityRing::Never)
+    );
+    assert_eq!(
+        controller_mutability_ring_for_admin_config_path("defence_modes"),
+        Some(ControllerMutabilityRing::Never)
+    );
+}
+
+#[test]
 fn allowed_actions_v1_exposes_conservative_controller_write_surface() {
     let surface = allowed_actions_v1();
     assert_eq!(surface.schema_version, "allowed_actions_v1");

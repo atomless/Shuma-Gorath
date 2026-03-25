@@ -19,6 +19,7 @@ use crate::challenge::KeyValueStore;
 mod controller_action_catalog;
 mod controller_action_guardrails;
 mod controller_action_surface;
+mod controller_mutability_policy;
 mod runtime_env;
 
 #[cfg(test)]
@@ -26,6 +27,11 @@ pub(crate) use runtime_env::{clear_test_spin_variables, set_test_spin_variable};
 pub(crate) use controller_action_surface::{
     allowed_actions_v1, controller_action_family_targets, controller_config_family_for_patch_key,
     AllowedActionsSurface,
+};
+#[cfg(test)]
+pub(crate) use controller_mutability_policy::{
+    controller_mutability_policy_v1, controller_mutability_ring_for_admin_config_path,
+    controller_mutability_ring_for_operator_objectives_path, ControllerMutabilityRing,
 };
 pub(crate) use runtime_env::{runtime_var_raw_optional, runtime_var_trimmed_optional};
 

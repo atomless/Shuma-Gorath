@@ -104,14 +104,14 @@ Reference context:
 
 ### RSI-GAME-MAINLINE-1: First working self-improving loop over attacker-faithful Scrapling
 - After the Scrapling-owned surfaces are attacker-faithful and receipt-backed, execute the first explicit self-improving loop over that truthful attacker basis.
-- Before broadening that loop, land `CTRL-SURFACE-1..3` and the judge-side game-contract work (`RSI-GAME-1A`, `RSI-GAME-1B`, `RSI-SCORE-1`, and `RSI-GAME-1C`) so the loop runs over a settled legal move ring and explicit judge semantics.
+- Before broadening that loop, land `CTRL-SURFACE-2..3` and the judge-side game-contract work (`RSI-GAME-1A`, `RSI-GAME-1B`, `RSI-SCORE-1`, and `RSI-GAME-1C`) so the loop runs over a settled legal move ring and explicit judge semantics.
 - Keep this ahead of later LLM attacker or defender runtime work, and ahead of secondary dashboard cleanup follow-ons.
 
 Mainline execution order:
 1. `SIM-SCR-CHALLENGE-2A`
 2. `SIM-SCR-CHALLENGE-2B`
 3. `SIM-SCR-CHALLENGE-2C` only if `2D` proves a remaining Scrapling-owned surface requires browser or stealth Scrapling
-4. `CTRL-SURFACE-1..3`
+4. `CTRL-SURFACE-2..3`
 5. `RSI-GAME-1A`
 6. `RSI-GAME-1B`
 7. `RSI-SCORE-1`
@@ -135,11 +135,6 @@ Mainline execution order:
 - Express taxonomy categories as `Category target achievement` or equivalent target-vs-achieved rows derived from the category posture benchmarks, rather than pretending those rows are separately configured budgets.
 - Execute this after `TRAFFIC-TAB-1` and `DIAG-CLEANUP-1` so category/trust projection lands against the cleaned final Monitoring-vs-Traffic-vs-Diagnostics ownership boundary rather than the transitional mixed surface.
 - Reference context: [`../docs/research/2026-03-24-game-loop-budget-visualization-and-category-target-achievement-review.md`](../docs/research/2026-03-24-game-loop-budget-visualization-and-category-target-achievement-review.md), [`../docs/plans/2026-03-24-game-loop-budget-visualization-and-category-target-achievement-plan.md`](../docs/plans/2026-03-24-game-loop-budget-visualization-and-category-target-achievement-plan.md)
-
-### CTRL-SURFACE-1: Canonical controller mutability policy and hard-never surface
-- Define one canonical mutability policy across admin-writable config and `operator_objectives_v1`, classifying every path as `never`, `manual_only`, or `controller_tunable`.
-- Make the hard-never ring explicit for operator targets, runtime harness controls, provider and edge topology, verified-identity policy, trust exceptions, privacy posture, punishment horizon, and defender safety-budget controls.
-- Reference context: [`../docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md`](../docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md), [`../docs/plans/2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md`](../docs/plans/2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md)
 
 ### CTRL-SURFACE-2: Allowed-action and proposer parity over the ratified tunable set
 - Align `allowed_actions_v1`, benchmark escalation, and `oversight_patch_policy` so the declared controller-tunable families and actually proposable patch paths tell the same truth.
