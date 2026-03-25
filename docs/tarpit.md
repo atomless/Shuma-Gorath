@@ -42,8 +42,10 @@ Crawler/safety bypass:
 ## 🐙 Progression Flow (Implementation)
 
 1. **Entry attempt**
-   - Runtime increments a per-IP-bucket tarpit persistence counter.
-   - Escalation thresholds:
+   - Runtime increments:
+     - a coarse per-IP-bucket persistence counter for operator visibility,
+     - and a bounded exact-principal persistence counter for punitive escalation.
+   - Escalation thresholds apply to the exact-principal counter, not the bucket counter:
      - persistence `>= 5`: short ban (600s)
      - persistence `>= 10`: block
 2. **Entry budget check**
@@ -131,6 +133,8 @@ Admin monitoring payload (`GET /admin/monitoring`) also includes tarpit runtime 
 - budget exhaustion reasons plus fallback actions,
 - duration and bytes buckets,
 - and capped persistence offender buckets.
+
+Those offender buckets remain a compact telemetry view. They are not the punitive escalation basis.
 
 Preview surface:
 

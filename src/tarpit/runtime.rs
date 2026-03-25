@@ -26,6 +26,8 @@ const TARPIT_BUDGET_BUCKET_ACTIVE_PREFIX: &str = "tarpit:budget:active:bucket";
 const TARPIT_BUDGET_BUCKET_ACTIVE_CATALOG_PREFIX: &str = "tarpit:budget:active:bucket:catalog";
 const TARPIT_PERSISTENCE_PREFIX: &str = "tarpit:persistence";
 const TARPIT_PERSISTENCE_CATALOG_PREFIX: &str = "tarpit:persistence:catalog";
+const TARPIT_PERSISTENCE_PRINCIPAL_PREFIX: &str = "tarpit:persistence:principal";
+const TARPIT_PERSISTENCE_PRINCIPAL_CATALOG_PREFIX: &str = "tarpit:persistence:principal:catalog";
 const TARPIT_PROGRESS_REPLAY_PREFIX: &str = "tarpit:progress:seen";
 const TARPIT_PROGRESS_CHAIN_PREFIX: &str = "tarpit:progress:chain";
 const TARPIT_PROGRESS_STEP_PREFIX: &str = "tarpit:progress:step";
@@ -35,6 +37,7 @@ const TARPIT_BUDGET_EGRESS_BUCKET_PREFIX: &str = "tarpit:budget:egress:bucket";
 const TARPIT_ESCALATION_SHORT_BAN_THRESHOLD: u32 = 5;
 const TARPIT_ESCALATION_BLOCK_THRESHOLD: u32 = 10;
 pub(crate) const TARPIT_OFFENDER_BUCKET_CATALOG_CAP: usize = 128;
+pub(crate) const TARPIT_PERSISTENCE_PRINCIPAL_CATALOG_CAP: usize = 128;
 const SHARD_ROTATION: [&str; 6] = [
     "archive index fragment catalog vector mesh",
     "service reference matrix compliance surface",
@@ -219,8 +222,21 @@ fn persistence_key(site_id: &str, ip_bucket: &str) -> String {
     format!("{}:{}:{}", TARPIT_PERSISTENCE_PREFIX, site_id, ip_bucket)
 }
 
+fn persistence_principal_key(site_id: &str, ip: &str) -> String {
+    format!(
+        "{}:{}:{}",
+        TARPIT_PERSISTENCE_PRINCIPAL_PREFIX,
+        site_id,
+        crate::maze::token::digest(ip)
+    )
+}
+
 pub(crate) fn tarpit_persistence_catalog_key(site_id: &str) -> String {
     format!("{}:{}", TARPIT_PERSISTENCE_CATALOG_PREFIX, site_id)
+}
+
+fn tarpit_persistence_principal_catalog_key(site_id: &str) -> String {
+    format!("{}:{}", TARPIT_PERSISTENCE_PRINCIPAL_CATALOG_PREFIX, site_id)
 }
 
 fn progress_step_key(flow_id: &str) -> String {
@@ -349,7 +365,7 @@ pub(crate) fn now_millis() -> u64 {
 }
 
 pub(crate) fn next_persistence_count(
-    store: &Store,
+    store: &(impl crate::deception::primitives::DeceptionStateStore + ?Sized),
     site_id: &str,
     ip_bucket: &str,
     ttl_seconds: u64,
@@ -386,6 +402,58 @@ pub(crate) fn next_persistence_count(
         ) {
             eprintln!(
                 "[tarpit] failed registering persistence catalog key={} err={}",
+                key, err
+            );
+        }
+    }
+    state.count
+}
+
+pub(crate) fn next_persistence_principal_count(
+    store: &(impl crate::deception::primitives::DeceptionStateStore + ?Sized),
+    site_id: &str,
+    ip: &str,
+    ttl_seconds: u64,
+) -> u32 {
+    let key = persistence_principal_key(site_id, ip);
+    let catalog_key = tarpit_persistence_principal_catalog_key(site_id);
+    match crate::observability::key_catalog::register_key_capped_with_deception_store(
+        store,
+        catalog_key.as_str(),
+        key.as_str(),
+        TARPIT_PERSISTENCE_PRINCIPAL_CATALOG_CAP,
+    ) {
+        Ok(true) => {}
+        Ok(false) => return 1,
+        Err(err) => {
+            eprintln!(
+                "[tarpit] failed registering principal persistence key={} catalog={} err={}",
+                key, catalog_key, err
+            );
+            return 1;
+        }
+    }
+
+    let now = now_secs();
+    let mut state = store
+        .get(key.as_str())
+        .ok()
+        .flatten()
+        .and_then(|raw| serde_json::from_slice::<TarpitPersistenceState>(raw.as_slice()).ok())
+        .unwrap_or(TarpitPersistenceState {
+            count: 0,
+            expires_at: 0,
+        });
+
+    if now > state.expires_at {
+        state.count = 0;
+    }
+    state.count = state.count.saturating_add(1).min(128);
+    state.expires_at = now.saturating_add(ttl_seconds.max(300));
+    if let Ok(raw) = serde_json::to_vec(&state) {
+        if let Err(err) = store.set(key.as_str(), raw.as_slice()) {
+            eprintln!(
+                "[tarpit] failed persisting principal persistence state key={} err={:?}",
                 key, err
             );
         }
@@ -759,6 +827,53 @@ pub(crate) fn crawler_safety_bypass(path: &str, user_agent: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn exact_principal_persistence_counts_do_not_share_same_bucket_state() {
+        let store = crate::test_support::InMemoryStore::default();
+        let site_id = "default";
+
+        assert_eq!(
+            next_persistence_principal_count(&store, site_id, "198.51.100.10", 300),
+            1
+        );
+        assert_eq!(
+            next_persistence_principal_count(&store, site_id, "198.51.100.10", 300),
+            2
+        );
+        assert_eq!(
+            next_persistence_principal_count(&store, site_id, "198.51.100.11", 300),
+            1
+        );
+    }
+
+    #[test]
+    fn exact_principal_persistence_tracking_fails_open_when_catalog_is_full() {
+        let store = crate::test_support::InMemoryStore::default();
+        let site_id = "default";
+
+        for index in 0..TARPIT_PERSISTENCE_PRINCIPAL_CATALOG_CAP {
+            let ip = format!("203.0.113.{}", index);
+            assert_eq!(
+                next_persistence_principal_count(&store, site_id, ip.as_str(), 300),
+                1
+            );
+        }
+
+        assert_eq!(
+            next_persistence_principal_count(&store, site_id, "198.51.100.200", 300),
+            1
+        );
+        assert_eq!(
+            next_persistence_principal_count(&store, site_id, "198.51.100.200", 300),
+            1
+        );
+
+        assert_eq!(
+            next_persistence_principal_count(&store, site_id, "203.0.113.0", 300),
+            2
+        );
+    }
 
     #[test]
     fn tarpit_duration_bucket_has_stable_ranges() {

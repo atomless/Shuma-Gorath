@@ -59,6 +59,7 @@ The directory is intentionally flat. Use this index, not nested folders, to dist
 - [`2026-03-24-rsi-game-mainline-first-working-loop-review.md`](2026-03-24-rsi-game-mainline-first-working-loop-review.md) - Splits the first working game-loop proof into a concrete route-level mainline slice and a stronger follow-on proof
 - [`2026-03-24-rsi-game-mainline-1a-first-working-loop-post-implementation-review.md`](2026-03-24-rsi-game-mainline-1a-first-working-loop-post-implementation-review.md) - Closeout for landing the first explicit mainline proof over the automatic post-sim hook and the route-level canary -> judged archive loop
 - [`2026-03-24-tah-11-tarpit-observability-post-implementation-review.md`](2026-03-24-tah-11-tarpit-observability-post-implementation-review.md) - Closeout for expanding tarpit proof, chain, budget-reason, and offender-bucket observability across metrics and admin monitoring
+- [`2026-03-24-tah-19-tarpit-persistence-collateral-risk-review.md`](2026-03-24-tah-19-tarpit-persistence-collateral-risk-review.md) - Explains why tarpit punitive escalation must stop using shared bucket counts even though coarse bucket visibility remains useful
 - [`2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-review.md`](2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-review.md) - Ownership split for making Tuning primary and reducing Fingerprinting to truthful diagnostics
 - [`2026-03-24-identification-tab-remit-and-taxonomy-distinction-review.md`](2026-03-24-identification-tab-remit-and-taxonomy-distinction-review.md) - Why the future Fingerprinting tab should become Identification and explain taxonomy distinction
 
@@ -149,6 +150,7 @@ The directory is intentionally flat. Use this index, not nested folders, to dist
 - [`2026-03-24-rsi-game-1b-move-selection-policy-post-implementation-review.md`](2026-03-24-rsi-game-1b-move-selection-policy-post-implementation-review.md)
 - [`2026-03-24-rsi-game-1c-episode-archive-post-implementation-review.md`](2026-03-24-rsi-game-1c-episode-archive-post-implementation-review.md)
 - [`2026-03-24-rsi-game-mainline-1a-first-working-loop-post-implementation-review.md`](2026-03-24-rsi-game-mainline-1a-first-working-loop-post-implementation-review.md)
+- [`2026-03-24-tah-19-tarpit-persistence-collateral-risk-post-implementation-review.md`](2026-03-24-tah-19-tarpit-persistence-collateral-risk-post-implementation-review.md)
 - [`2026-03-23-vid-tax-1-faithful-verified-identity-category-crosswalk-post-implementation-review.md`](2026-03-23-vid-tax-1-faithful-verified-identity-category-crosswalk-post-implementation-review.md)
 - [`2026-03-23-vid-tax-2-bot-1-and-guard-1-calibration-and-no-harm-post-implementation-review.md`](2026-03-23-vid-tax-2-bot-1-and-guard-1-calibration-and-no-harm-post-implementation-review.md)
 - [`2026-03-24-sim-scr-challenge-2b-malicious-request-native-interactions-post-implementation-review.md`](2026-03-24-sim-scr-challenge-2b-malicious-request-native-interactions-post-implementation-review.md)

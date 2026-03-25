@@ -9,6 +9,7 @@ make unit-test        # alias for make test-unit
 make test-native-build-warning-hygiene # Focused native Rust compile gate with warnings treated as errors
 make test-env-isolation-contract # Focused Rust test env-mutation lock_env() contract gate
 make test-ci-workflow-action-versions # Focused GitHub workflow official-action version contract gate
+make test-tarpit-collateral-risk-contract # Focused tarpit exact-principal escalation and same-bucket no-cross-contamination gate
 make test-maze-benchmark # Deterministic maze asymmetry benchmark gate
 make test-integration # Integration tests only (waits for existing Spin readiness)
 make integration-test # alias for make test-integration
@@ -163,6 +164,7 @@ Notes:
 - `make test-env-isolation-contract` is the focused proof path for `TEST-ENV-1`; it scans Rust test functions and fails if any test mutates process env without acquiring `lock_env()` before the first mutation.
 - `make test-ci-workflow-action-versions` is the focused proof path for `CI-WF-1`; it scans the workflow files and fails if the repo drifts back to the older Node20-backed `actions/checkout`, `actions/setup-node`, or `actions/upload-artifact` majors.
 - `make test-tarpit-observability-contract` is the focused proof path for `TAH-11`; it covers the expanded tarpit metrics families, admin monitoring projection, capped offender-bucket catalog behavior, and entry-budget reason classification.
+- `make test-tarpit-collateral-risk-contract` is the focused proof path for `TAH-19`; it proves tarpit escalation is driven by bounded exact-principal persistence instead of same-bucket neighbor pressure, while the coarse bucket view remains available for operator visibility.
 - `make test-dashboard-e2e` now verifies the running Spin instance is serving the current `dist/dashboard/index.html` before Playwright runs; restart Spin after `make dashboard-build` if this check fails.
 - `make test` now reseeds dashboard sample data at the end, so charts/tables stay populated for local inspection after the run.
 

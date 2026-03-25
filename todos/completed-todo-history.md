@@ -4,6 +4,25 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### TAH-19: tarpit persistence collateral-risk hardening
+
+- [x] Replaced bucket-driven punitive tarpit escalation with bounded exact-principal persistence tracking while preserving the coarse bucket view for operator visibility.
+- [x] Added focused proof in:
+  - [`Makefile`](../Makefile) as `make test-tarpit-collateral-risk-contract`
+  - [`src/tarpit/runtime.rs`](../src/tarpit/runtime.rs)
+  - [`src/providers/internal.rs`](../src/providers/internal.rs)
+- [x] Updated operator-facing docs in:
+  - [`docs/tarpit.md`](../docs/tarpit.md)
+  - [`docs/testing.md`](../docs/testing.md)
+- [x] Added the plan/review/closeout chain in:
+  - [`docs/research/2026-03-24-tah-19-tarpit-persistence-collateral-risk-review.md`](../docs/research/2026-03-24-tah-19-tarpit-persistence-collateral-risk-review.md)
+  - [`docs/plans/2026-03-24-tah-19-tarpit-persistence-collateral-risk-plan.md`](../docs/plans/2026-03-24-tah-19-tarpit-persistence-collateral-risk-plan.md)
+  - [`docs/research/2026-03-24-tah-19-tarpit-persistence-collateral-risk-post-implementation-review.md`](../docs/research/2026-03-24-tah-19-tarpit-persistence-collateral-risk-post-implementation-review.md)
+- [x] Re-evaluated the current tarpit escalation defaults after correcting the evidence basis and intentionally left them unchanged for now.
+- [x] Evidence:
+  - `make test-tarpit-collateral-risk-contract`
+  - `git diff --check`
+
 ### TAH-11: expanded tarpit observability
 
 - [x] Added explicit tarpit proof outcomes, chain-violation reasons, detailed budget-exhaustion reasons, fallback-action projection, and capped offender-bucket visibility across Prometheus and `/admin/monitoring`.

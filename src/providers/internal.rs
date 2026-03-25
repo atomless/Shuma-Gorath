@@ -31,6 +31,35 @@ pub(crate) fn tarpit_budget_bucket_active_prefix(site_id: &str) -> String {
     crate::tarpit::runtime::tarpit_budget_bucket_active_prefix(site_id)
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct TarpitPersistenceCounts {
+    bucket_count: u32,
+    principal_count: u32,
+}
+
+fn tarpit_persistence_counts(
+    store: &(impl crate::maze::state::MazeStateStore + ?Sized),
+    site_id: &str,
+    ip: &str,
+    ttl_seconds: u64,
+) -> TarpitPersistenceCounts {
+    let ip_bucket = crate::signals::ip_identity::bucket_ip(ip);
+    TarpitPersistenceCounts {
+        bucket_count: crate::tarpit::runtime::next_persistence_count(
+            store,
+            site_id,
+            ip_bucket.as_str(),
+            ttl_seconds,
+        ),
+        principal_count: crate::tarpit::runtime::next_persistence_principal_count(
+            store,
+            site_id,
+            ip,
+            ttl_seconds,
+        ),
+    }
+}
+
 fn tarpit_entry_budget_exhaustion_reason(
     store: &(impl crate::deception::primitives::DeceptionStateStore + ?Sized),
     cfg: &crate::config::Config,
@@ -122,7 +151,8 @@ fn maybe_escalate_persistent_tarpit_client(
     site_id: &str,
     ip: &str,
     user_agent: &str,
-    persistence_count: u32,
+    principal_count: u32,
+    bucket_count: u32,
     escalation: crate::tarpit::runtime::PersistenceEscalation,
 ) -> Option<Response> {
     if escalation == crate::tarpit::runtime::PersistenceEscalation::None {
@@ -143,8 +173,9 @@ fn maybe_escalate_persistent_tarpit_client(
                 ip: Some(ip.to_string()),
                 reason: Some("tarpit_persistence_block".to_string()),
                 outcome: Some(format!(
-                    "count={} ua_present={}",
-                    persistence_count,
+                    "principal_count={} bucket_count={} ua_present={}",
+                    principal_count,
+                    bucket_count,
                     !user_agent.trim().is_empty()
                 )),
                 admin: None,
@@ -168,7 +199,10 @@ fn maybe_escalate_persistent_tarpit_client(
         Some(crate::enforcement::ban::BanFingerprint {
             score: None,
             signals: vec!["tarpit_persistence".to_string()],
-            summary: Some(format!("count={}", persistence_count)),
+            summary: Some(format!(
+                "principal_count={} bucket_count={}",
+                principal_count, bucket_count
+            )),
         }),
     );
     crate::observability::metrics::increment(
@@ -189,9 +223,10 @@ fn maybe_escalate_persistent_tarpit_client(
             ip: Some(ip.to_string()),
             reason: Some("tarpit_persistence".to_string()),
             outcome: Some(format!(
-                "short_ban_{}s count={}",
+                "short_ban_{}s principal_count={} bucket_count={}",
                 cfg.get_ban_duration("tarpit_persistence"),
-                persistence_count
+                principal_count,
+                bucket_count
             )),
             admin: None,
         },
@@ -434,20 +469,22 @@ impl MazeTarpitProvider for InternalMazeTarpitProvider {
 
         let ip_bucket = crate::signals::ip_identity::bucket_ip(ip);
         let ua_bucket = crate::maze::token::ua_bucket(user_agent);
-        let persistence_count = crate::tarpit::runtime::next_persistence_count(
+        let persistence_counts = tarpit_persistence_counts(
             store,
             site_id,
-            ip_bucket.as_str(),
+            ip,
             cfg.maze_replay_ttl_seconds,
         );
-        let escalation = crate::tarpit::runtime::persistence_escalation(cfg, persistence_count);
+        let escalation =
+            crate::tarpit::runtime::persistence_escalation(cfg, persistence_counts.principal_count);
         if let Some(response) = maybe_escalate_persistent_tarpit_client(
             store,
             cfg,
             site_id,
             ip,
             user_agent,
-            persistence_count,
+            persistence_counts.principal_count,
+            persistence_counts.bucket_count,
             escalation,
         ) {
             return Some(response);
@@ -707,5 +744,35 @@ mod tests {
             crate::bot_identity::verification::IdentityVerificationResultStatus::NotAttempted
         );
         assert!(result.identity.is_none());
+    }
+
+    #[test]
+    fn tarpit_persistence_escalation_does_not_cross_contaminate_same_bucket_ips() {
+        let store = crate::test_support::InMemoryStore::default();
+        let cfg = crate::config::defaults().clone();
+        let ttl_seconds = cfg.maze_replay_ttl_seconds;
+
+        let mut escalated = TarpitPersistenceCounts {
+            bucket_count: 0,
+            principal_count: 0,
+        };
+        for _ in 0..5 {
+            escalated =
+                tarpit_persistence_counts(&store, "default", "198.51.100.10", ttl_seconds);
+        }
+
+        assert_eq!(
+            crate::tarpit::runtime::persistence_escalation(&cfg, escalated.principal_count),
+            crate::tarpit::runtime::PersistenceEscalation::ShortBan
+        );
+
+        let fresh_same_bucket =
+            tarpit_persistence_counts(&store, "default", "198.51.100.11", ttl_seconds);
+        assert_eq!(fresh_same_bucket.bucket_count, 6);
+        assert_eq!(fresh_same_bucket.principal_count, 1);
+        assert_eq!(
+            crate::tarpit::runtime::persistence_escalation(&cfg, fresh_same_bucket.principal_count),
+            crate::tarpit::runtime::PersistenceEscalation::None
+        );
     }
 }
