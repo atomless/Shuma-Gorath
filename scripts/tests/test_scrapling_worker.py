@@ -329,6 +329,42 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
             if str(entry.get("surface_id") or "") == surface_id
         ]
 
+    def test_request_native_session_kwargs_lock_explicit_chrome_impersonation_contract(self) -> None:
+        self.assertIsNotNone(scrapling_worker, "worker module missing")
+
+        kwargs = scrapling_worker._request_native_session_kwargs(  # type: ignore[attr-defined]
+            timeout_seconds=4.0,
+            accept_header="application/json",
+        )
+
+        self.assertEqual(kwargs["impersonate"], "chrome")
+        self.assertTrue(kwargs["stealthy_headers"])
+        self.assertFalse(kwargs["follow_redirects"])
+        self.assertEqual(kwargs["retries"], 1)
+        self.assertEqual(kwargs["timeout"], 4.0)
+        self.assertEqual(kwargs["headers"]["accept"], "application/json")
+        self.assertNotIn("user-agent", {key.lower(): value for key, value in kwargs["headers"].items()})
+
+    def test_execute_worker_plan_no_longer_advertises_internal_worker_user_agent(self) -> None:
+        self.assertIsNotNone(scrapling_worker, "worker module missing")
+
+        result = scrapling_worker.execute_worker_plan(
+            self.beat_payload,
+            scope_descriptor_path=self.descriptor_path,
+            seed_inventory_path=self.inventory_path,
+            crawldir=self.crawldir,
+            sim_telemetry_secret=SIM_SECRET,
+        )
+
+        self.assertEqual(result["failure_class"], None, msg=json.dumps(result, indent=2))
+        self.assertGreaterEqual(len(self.httpd.requests_seen), 1, msg=json.dumps(result, indent=2))
+        for entry in self.httpd.requests_seen:
+            headers = entry["headers"]
+            user_agent = headers.get("user-agent", "")
+            self.assertNotIn("ShumaScraplingWorker", user_agent)
+            self.assertIn("Mozilla/5.0", user_agent)
+            self.assertTrue(headers.get("sec-ch-ua"))
+
     def test_execute_worker_plan_emits_signed_real_scrapling_requests_and_blocks_out_of_scope_targets(self) -> None:
         self.assertIsNotNone(scrapling_worker, "worker module missing")
         result = scrapling_worker.execute_worker_plan(

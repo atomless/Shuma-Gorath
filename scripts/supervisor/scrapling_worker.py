@@ -314,6 +314,21 @@ def _build_failure_result(
     }
 
 
+def _request_native_session_kwargs(
+    *,
+    timeout_seconds: float,
+    accept_header: str,
+) -> dict[str, Any]:
+    return {
+        "impersonate": "chrome",
+        "stealthy_headers": True,
+        "follow_redirects": False,
+        "timeout": timeout_seconds,
+        "retries": 1,
+        "headers": {"accept": accept_header},
+    }
+
+
 def _signed_headers(
     secret: str,
     *,
@@ -342,7 +357,6 @@ def _signed_headers(
         sim_tag_helpers.SIM_TAG_HEADER_TIMESTAMP: timestamp,
         sim_tag_helpers.SIM_TAG_HEADER_NONCE: nonce,
         sim_tag_helpers.SIM_TAG_HEADER_SIGNATURE: signature,
-        "user-agent": f"ShumaScraplingWorker/1.0 lane={lane} mode={fulfillment_mode}",
     }
     if extra_headers:
         headers.update(extra_headers)
@@ -407,12 +421,10 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
             timeout_seconds = max(1.0, min(30.0, self.max_ms / 1000.0))
             manager.add(
                 "default",
-                fetcher_session_cls(
-                    follow_redirects=False,
-                    timeout=timeout_seconds,
-                    retries=1,
-                    headers={"accept": "*/*"},
-                ),
+                fetcher_session_cls(**_request_native_session_kwargs(
+                    timeout_seconds=timeout_seconds,
+                    accept_header="*/*",
+                )),
             )
 
         def _should_stop(self) -> bool:
@@ -1000,10 +1012,10 @@ def _execute_bulk_scraper_persona(
     request_targets = _bulk_scraper_request_urls(start_urls)
     visited: set[str] = set()
     with fetcher_session_cls(
-        follow_redirects=False,
-        timeout=max(1.0, min(30.0, tracker.max_ms / 1000.0)),
-        retries=1,
-        headers={"accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"},
+        **_request_native_session_kwargs(
+            timeout_seconds=max(1.0, min(30.0, tracker.max_ms / 1000.0)),
+            accept_header="text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        ),
     ) as session:
         for raw_target in request_targets:
             if tracker.should_stop():
@@ -1093,10 +1105,10 @@ def _execute_http_agent_persona(
         runtime_paths=runtime_paths,
     )
     with fetcher_session_cls(
-        follow_redirects=False,
-        timeout=max(1.0, min(30.0, tracker.max_ms / 1000.0)),
-        retries=1,
-        headers={"accept": "application/json"},
+        **_request_native_session_kwargs(
+            timeout_seconds=max(1.0, min(30.0, tracker.max_ms / 1000.0)),
+            accept_header="application/json",
+        ),
     ) as session:
         _execute_request_sequence(
             session,

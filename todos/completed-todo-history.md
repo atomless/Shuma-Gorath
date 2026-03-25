@@ -4,6 +4,38 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-25)
 
+### SIM-SCR-RN-1: Explicit request-native Scrapling attacker-fidelity contract
+
+- [x] Added the tranche paper trail in:
+  - [`docs/research/2026-03-25-sim-scr-rn-1-request-native-fidelity-review.md`](../docs/research/2026-03-25-sim-scr-rn-1-request-native-fidelity-review.md)
+  - [`docs/plans/2026-03-25-sim-scr-rn-1-request-native-fidelity-plan.md`](../docs/plans/2026-03-25-sim-scr-rn-1-request-native-fidelity-plan.md)
+  - [`docs/research/2026-03-25-sim-scr-rn-1-request-native-fidelity-post-implementation-review.md`](../docs/research/2026-03-25-sim-scr-rn-1-request-native-fidelity-post-implementation-review.md)
+- [x] Tightened the focused proof in:
+  - [`scripts/tests/test_scrapling_worker.py`](../scripts/tests/test_scrapling_worker.py)
+  so the worker must now prove both the explicit request-native session kwargs contract and the absence of the bespoke internal `ShumaScraplingWorker/...` `User-Agent` in live emitted traffic.
+- [x] Added the minimal local implementation in:
+  - [`scripts/supervisor/scrapling_worker.py`](../scripts/supervisor/scrapling_worker.py)
+  by introducing one shared request-native session helper that explicitly pins Chrome impersonation, stealthy headers, bounded retries and timeout behavior, and persona-appropriate `Accept` headers for all request-native personas.
+- [x] Removed the outward-facing internal worker `User-Agent` override while preserving signed sim-tag telemetry headers in:
+  - [`scripts/supervisor/scrapling_worker.py`](../scripts/supervisor/scrapling_worker.py)
+- [x] Corrected the now-outdated capability-matrix wording in:
+  - [`docs/research/2026-03-25-sim-scr-cap-1-upstream-capability-matrix-review.md`](../docs/research/2026-03-25-sim-scr-cap-1-upstream-capability-matrix-review.md)
+  so the repo now says the truth: Shuma was already inheriting upstream request-native impersonation defaults, but it had not pinned that contract locally and still branded traffic with an internal `User-Agent`.
+- [x] Updated the planning chain and backlog in:
+  - [`todos/todo.md`](../todos/todo.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+  - [`docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](../docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md)
+  - [`docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md`](../docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`docs/plans/README.md`](../docs/plans/README.md)
+- [x] Why:
+  - the matrix freeze showed the remaining honest request-native gap was attacker presentation, not a vague future browser jump,
+  - Shuma was still advertising request-native traffic with a bespoke internal worker `User-Agent`,
+  - and the later LLM attacker runtime should not reopen until the existing request-native attacker lane is explicitly faithful.
+- [x] Evidence:
+  - `make test-adversary-sim-scrapling-worker`
+  - `git diff --check`
+
 ### SIM-SCR-CAP-1: Freeze the attacker-relevant upstream Scrapling capability matrix
 
 - [x] Added the matrix review and plan in:

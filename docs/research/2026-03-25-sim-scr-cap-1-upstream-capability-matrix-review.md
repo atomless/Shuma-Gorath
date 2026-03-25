@@ -33,7 +33,7 @@ Official upstream references used here:
 
 | Capability family | Upstream evidence | Current Shuma state | Matrix outcome |
 | --- | --- | --- | --- |
-| Request-native browser impersonation and realistic header shaping | Static fetcher docs show `impersonate='chrome'`, `stealthy_headers=True`, and proxy-capable GET/POST/PUT flows | Shuma uses `FetcherSession`, but does not currently enable impersonation or `stealthy_headers`; it also still emits `ShumaScraplingWorker/1.0 ...` as the visible `User-Agent` | **Adopt now** for the request-native lane |
+| Request-native browser impersonation and realistic header shaping | Static fetcher docs show `impersonate='chrome'`, `stealthy_headers=True`, and proxy-capable GET/POST/PUT flows | Shuma uses `FetcherSession` and currently inherits those upstream defaults implicitly, but it still emitted `ShumaScraplingWorker/1.0 ...` as the visible `User-Agent` and had not pinned the request-native session contract explicitly in local code | **Adopt now** for the request-native lane |
 | Request-native session and cookie continuity | Upstream static fetchers support session reuse and cookie persistence | Already used in the bulk-scraper and http-agent personas | **Keep adopted** |
 | Request-native crawl and traversal mechanics | Upstream `Spider` + `Request` architecture supports bounded crawl/traversal | Already used in the crawler persona | **Keep adopted** |
 | Request-native proxy support | Static fetcher docs show per-request proxy support | Shuma does not currently route Scrapling through proxies | **Explicitly exclude for now** on shared-host local mainline; revisit only with a concrete distributed-origin requirement |
