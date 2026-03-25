@@ -4,6 +4,22 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### BUILD-HYGIENE-1 follow-on: runtime env dead-code warning cleanup
+
+- [x] Tightened the compile surface for:
+  - [`src/config/runtime_env.rs`](../src/config/runtime_env.rs)
+  so `spin_variable_name` now exists only in test and `wasm32` builds where Spin variable lookup is real, instead of emitting a stale dead-code warning in native non-test verification.
+- [x] Recorded the closeout in:
+  - [`docs/research/2026-03-24-build-hygiene-runtime-env-dead-code-warning-post-implementation-review.md`](../docs/research/2026-03-24-build-hygiene-runtime-env-dead-code-warning-post-implementation-review.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+- [x] Why:
+  - the warning was surfacing on focused canonical verification paths,
+  - it had already been called out repeatedly as build-hygiene debt,
+  - and the clean fix was to stop compiling the helper where it could never be used rather than suppressing the warning.
+- [x] Evidence:
+  - `make test-rsi-game-mainline`
+  - `git diff --check`
+
 ### RSI-GAME-MAINLINE-1 follow-on: live Scrapling public-identity preflight
 
 - [x] Tightened the live first-loop verifier in:
