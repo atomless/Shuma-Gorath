@@ -28,6 +28,7 @@ make test-live-feedback-loop-remote # Live shared-host feedback-loop proof (acti
 make test-live-feedback-loop-remote-unit # Local behavior proof for the live feedback-loop verifier
 make test-live-feedback-loop-remote-contracts # Local wrapper/process-tree and remote-wiring contract proof for the live feedback-loop verifier
 make test-integration-cleanup-contract # Local integration shell cleanup/restore contract proof
+make test-setup-runtime-bootstrap # Validate setup-runtime bootstrap installers, including repo-owned Scrapling browser provisioning
 make smoke-gateway-mode # Fast gateway smoke (allow forward, enforcement-local, fail-closed outage)
 make test-adversarial-manifest # Validate adversarial scenario manifest + fixture references
 make test-adversarial-coverage-contract # Validate canonical full_coverage contract parity (plan + manifests + runner)
@@ -344,7 +345,8 @@ Available profiles:
 - `make test-scrapling-deploy-shared-host` - focused shared-host deploy proof for the Scrapling prep helper, Linode deploy wiring, normalized `ssh_systemd` receipt extension, and `make remote-update` preservation of the same scope/seed artifact contract
 - `make test-adversary-sim-scrapling-category-fit` - focused Scrapling ownership-contract proof for canonical lane fulfillment rows, request-native `fulfillment_mode` rotation, and the bounded worker-plan `category_targets` contract
 - `make test-adversary-sim-scrapling-coverage-receipts` - focused Scrapling owned-surface receipt proof across worker-emitted surface receipts, recent-sim-run coverage aggregation, and operator-snapshot projection of owned-surface closure
-- `make test-adversary-sim-scrapling-worker` - focused real Scrapling lane gate covering the internal beat/result contract, bounded crawler plus direct-request persona execution, browser-session foundation strategy and runtime import contract, mode-specific signed sim telemetry on real requests, host-side supervisor source-contract wiring, and the supervisor's HTTP transport parser contract
+- `make test-setup-runtime-bootstrap` - focused runtime-bootstrap gate covering repo-owned Scrapling venv creation, Playwright browser provisioning, and fail-closed readiness when the selected browser executable is missing
+- `make test-adversary-sim-scrapling-worker` - focused real Scrapling lane gate covering the internal beat/result contract, bounded crawler plus direct-request persona execution, browser-session foundation strategy, runnable dynamic or stealth runtime contract, mode-specific signed sim telemetry on real requests, host-side supervisor source-contract wiring, and the supervisor's HTTP transport parser contract
 - `make test-adversarial-sim-tag-contract` - signed simulation-tag contract parity check across lane contract, runner, and container worker
 - `make test-adversarial-coverage-contract` - canonical `full_coverage` contract parity check across SIM2 plan rows, manifests, runner enforcement, and the frozen unit-level coverage-contract matrix
 - `make test-adversarial-llm-fit` - bounded LLM browser/request fulfillment-plan contract proof across runtime beat payloads, live frontier action-generation lineage, Shuma-blind host-hint sanitization, and frontier/container contract artifacts
@@ -372,7 +374,8 @@ Shared-host Scrapling proof map:
 - `make test-scrapling-deploy-shared-host` proves the shared-host deploy/update automation carries the same inferred scope/seed/env contract end to end.
 - `make test-adversary-sim-scrapling-category-fit` proves the bounded category-ownership and worker-plan target contract for the current request-native Scrapling track.
 - `make test-adversary-sim-scrapling-coverage-receipts` proves the bounded owned-surface receipt and recent-run closure contract for the current request-native Scrapling track.
-- `make test-adversary-sim-scrapling-worker` proves the hosted worker lane itself, including host-side supervisor parsing, fail-closed worker result shaping, and the current browser-session foundation contract for dynamic and stealth Scrapling support.
+- `make test-setup-runtime-bootstrap` proves the repo-owned Scrapling runtime provisions the selected Playwright browser and fails readiness closed if the browser executable is missing.
+- `make test-adversary-sim-scrapling-worker` proves the hosted worker lane itself, including host-side supervisor parsing, fail-closed worker result shaping, and the runnable browser-session contract for dynamic and stealth Scrapling support.
 - `make test-adversary-sim-runtime-surface` proves the running target records a covered recent Scrapling owned-surface run while adversary simulation remains no-impact to normal user traffic.
 - none of those targets make Fermyon/Akamai edge a supported full hosted Scrapling worker target; that edge runtime remains outside the current supported contract.
 

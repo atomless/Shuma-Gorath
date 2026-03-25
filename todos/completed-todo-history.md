@@ -4,6 +4,27 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-25)
 
+### `SIM-SCR-FULL-1B2A` Browser Runtime Provisioning
+
+- [x] Extended the repo-owned Scrapling runtime in:
+  - [`scripts/bootstrap/scrapling_runtime.sh`](../scripts/bootstrap/scrapling_runtime.sh)
+  so setup now provisions a Playwright browser package for the Scrapling venv and readiness fails closed unless the selected browser executable actually exists.
+- [x] Wrote the focused bootstrap proof first in:
+  - [`scripts/tests/test_setup_runtime_spin_install.py`](../scripts/tests/test_setup_runtime_spin_install.py)
+  so the red phase required `python -m playwright install chromium` and executable-path readiness checks before the runtime implementation was updated.
+- [x] Updated the proof surface and audit trail in:
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`docs/plans/2026-03-25-sim-scr-full-1b2-browser-runtime-provisioning-plan.md`](../docs/plans/2026-03-25-sim-scr-full-1b2-browser-runtime-provisioning-plan.md)
+  - [`docs/research/2026-03-25-sim-scr-full-1b2-browser-runtime-provisioning-review.md`](../docs/research/2026-03-25-sim-scr-full-1b2-browser-runtime-provisioning-review.md)
+  - [`docs/research/2026-03-25-sim-scr-full-1b2-browser-runtime-provisioning-post-implementation-review.md`](../docs/research/2026-03-25-sim-scr-full-1b2-browser-runtime-provisioning-post-implementation-review.md)
+  so the next slice can assume browser-backed Scrapling sessions are actually runnable rather than merely importable.
+- [x] Why:
+  - `SIM-SCR-FULL-1B1` created the runtime and worker seam for dynamic and stealth sessions,
+  - but direct experiments against a local HTTP server proved those session classes still failed at launch because the repo-owned runtime had not installed a Playwright browser executable.
+- [x] Evidence:
+  - `make test-setup-runtime-bootstrap`
+  - `make test-adversary-sim-scrapling-worker`
+
 ### `SIM-SCR-FULL-1B1` Browser Session Foundation
 
 - [x] Added the first full-power Scrapling browser-session seam in:

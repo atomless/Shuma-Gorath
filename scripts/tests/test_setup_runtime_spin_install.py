@@ -41,6 +41,7 @@ class SetupRuntimeSpinInstallTests(unittest.TestCase):
         self.stub_dir = self.temp_dir / "stubs"
         self.stub_dir.mkdir()
         self.make_log = self.temp_dir / "make.log"
+        self.playwright_log = self.temp_dir / "playwright.log"
 
         write_executable(
             self.stub_dir / "rustc",
@@ -84,7 +85,7 @@ class SetupRuntimeSpinInstallTests(unittest.TestCase):
         write_executable(
             self.stub_dir / "python3",
             textwrap.dedent(
-                """\
+                f"""\
                 #!/bin/sh
                 if [ "$1" = "-m" ] && [ "$2" = "venv" ]; then
                   target="$3"
@@ -92,6 +93,10 @@ class SetupRuntimeSpinInstallTests(unittest.TestCase):
                   cat > "$target/bin/python3" <<'PYTHON'
 #!/bin/sh
 if [ "$1" = "-m" ] && [ "$2" = "pip" ]; then
+  exit 0
+fi
+if [ "$1" = "-m" ] && [ "$2" = "playwright" ] && [ "$3" = "install" ]; then
+  printf '%s\\n' "$@" >> "{self.playwright_log}"
   exit 0
 fi
 if [ "$1" = "-" ]; then
@@ -179,6 +184,29 @@ SQLITE
 
         self.assertIn("DynamicSession", script_text)
         self.assertIn("StealthySession", script_text)
+        self.assertIn("sync_playwright", script_text)
+        self.assertIn("executable_path", script_text)
+
+    def test_setup_runtime_provisions_playwright_browser_binary_for_scrapling(self) -> None:
+        env = os.environ.copy()
+        env["HOME"] = str(self.home)
+        env["PATH"] = f"{self.stub_dir}:{self.fake_bin}:/usr/bin:/bin"
+
+        result = subprocess.run(
+            ["bash", str(SCRIPT)],
+            cwd=self.workspace,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+        self.assertTrue(self.playwright_log.exists(), msg=result.stderr or result.stdout)
+        self.assertIn(
+            "playwright\ninstall\nchromium",
+            self.playwright_log.read_text(encoding="utf-8"),
+        )
 
     def test_passwordless_sudo_installs_matching_python_venv_package_when_ensurepip_missing(self) -> None:
         venv_ready = self.temp_dir / "venv-ready"
@@ -191,11 +219,16 @@ SQLITE
                   target="$3"
                   if [ ! -f "{venv_ready}" ]; then
                     mkdir -p "$target/bin"
-                    cat > "$target/bin/python3" <<'PYTHON'
+                  cat > "$target/bin/python3" <<'PYTHON'
 #!/bin/sh
 if [ "$1" = "-m" ] && [ "$2" = "pip" ]; then
   printf 'No module named pip\n' >&2
   exit 1
+fi
+if [ "$1" = "-m" ] && [ "$2" = "playwright" ] && [ "$3" = "install" ]; then
+  : > "{venv_ready}"
+  printf '%s\\n' "$@" >> "{self.playwright_log}"
+  exit 0
 fi
 if [ "$1" = "-" ]; then
   exit 0
@@ -214,6 +247,11 @@ EOF
                   cat > "$target/bin/python3" <<'PYTHON'
 #!/bin/sh
 if [ "$1" = "-m" ] && [ "$2" = "pip" ]; then
+  exit 0
+fi
+if [ "$1" = "-m" ] && [ "$2" = "playwright" ] && [ "$3" = "install" ]; then
+  : > "{venv_ready}"
+  printf '%s\\n' "$@" >> "{self.playwright_log}"
   exit 0
 fi
 if [ "$1" = "-" ]; then

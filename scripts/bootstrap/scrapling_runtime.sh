@@ -4,6 +4,7 @@
 SCRAPLING_RUNTIME_VENV_DIR="${SCRAPLING_RUNTIME_VENV_DIR:-.venv-scrapling}"
 SCRAPLING_RUNTIME_PACKAGE_VERSION="${SCRAPLING_RUNTIME_PACKAGE_VERSION:-0.4.2}"
 SCRAPLING_RUNTIME_PACKAGE_SPEC="${SCRAPLING_RUNTIME_PACKAGE_SPEC:-scrapling[fetchers]==${SCRAPLING_RUNTIME_PACKAGE_VERSION}}"
+SCRAPLING_RUNTIME_PLAYWRIGHT_BROWSER="${SCRAPLING_RUNTIME_PLAYWRIGHT_BROWSER:-chromium}"
 SCRAPLING_RUNTIME_BREW_FORMULA="${SCRAPLING_RUNTIME_BREW_FORMULA:-python@3.11}"
 SCRAPLING_RUNTIME_MIN_MAJOR=3
 SCRAPLING_RUNTIME_MIN_MINOR=10
@@ -91,6 +92,7 @@ scrapling_runtime_install() {
 
     PIP_DISABLE_PIP_VERSION_CHECK=1 "$venv_python" -m pip install --upgrade pip
     PIP_DISABLE_PIP_VERSION_CHECK=1 "$venv_python" -m pip install --upgrade "$SCRAPLING_RUNTIME_PACKAGE_SPEC"
+    "$venv_python" -m playwright install "$SCRAPLING_RUNTIME_PLAYWRIGHT_BROWSER"
 }
 
 scrapling_runtime_ready() {
@@ -100,8 +102,10 @@ scrapling_runtime_ready() {
         return 1
     fi
 
-    "$venv_python" - <<'PY'
+    SCRAPLING_RUNTIME_PLAYWRIGHT_BROWSER="$SCRAPLING_RUNTIME_PLAYWRIGHT_BROWSER" "$venv_python" - <<'PY'
 import importlib.metadata
+import os
+from pathlib import Path
 import sys
 
 if sys.version_info < (3, 10):
@@ -110,9 +114,25 @@ if sys.version_info < (3, 10):
 from scrapling.fetchers import DynamicSession, FetcherSession, StealthySession  # noqa: F401
 import anyio  # noqa: F401
 import curl_cffi  # noqa: F401
+from playwright.sync_api import sync_playwright
 
 if importlib.metadata.version("scrapling") != "0.4.2":
     raise SystemExit(1)
+
+browser_name = os.environ.get("SCRAPLING_RUNTIME_PLAYWRIGHT_BROWSER", "chromium").strip().lower()
+with sync_playwright() as playwright:
+    browser_type = {
+        "chromium": playwright.chromium,
+        "chrome": playwright.chromium,
+        "chrome-for-testing": playwright.chromium,
+        "msedge": playwright.chromium,
+        "firefox": playwright.firefox,
+        "webkit": playwright.webkit,
+    }.get(browser_name)
+    if browser_type is None:
+        raise SystemExit(1)
+    if not Path(browser_type.executable_path).exists():
+        raise SystemExit(1)
 PY
 }
 
