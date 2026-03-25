@@ -4,6 +4,49 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### SEC-GDPR-3: event-log IP storage minimization mode
+
+- [x] Added env-only `SHUMA_EVENT_LOG_IP_STORAGE_MODE` in:
+  - [`../config/defaults.env`](../config/defaults.env)
+  - [`../src/config/mod.rs`](../src/config/mod.rs)
+  with validation and runtime accessors for:
+  - `raw`
+  - `masked`
+  - `pseudonymized`
+- [x] Applied the write-mode locally in the canonical event-log persistence path in:
+  - [`../src/admin/api.rs`](../src/admin/api.rs)
+  so newly written rows now store either raw IPs, coarse masked buckets, or stable keyed pseudonymous identifiers, and each row carries immutable `ip_storage_mode` truth for later audit.
+- [x] Kept the operator/runtime truth surfaces aligned by updating:
+  - [`../src/admin/api.rs`](../src/admin/api.rs)
+  - [`../dashboard/static/assets/status-var-meanings.json`](../dashboard/static/assets/status-var-meanings.json)
+  so security/privacy payloads and runtime inventory now report the active write mode and whether forensic raw recovery is still possible for newly written rows.
+- [x] Added focused proof in:
+  - [`../Makefile`](../Makefile)
+  as:
+  - `make test-event-log-ip-storage-mode`
+  and extended:
+  - [`../scripts/tests/test_config_lifecycle.py`](../scripts/tests/test_config_lifecycle.py)
+  so the config/setup/deploy lifecycle stays truthful for the new env-only variable.
+- [x] Updated:
+  - [`../docs/configuration.md`](../docs/configuration.md)
+  - [`../docs/privacy-gdpr-review.md`](../docs/privacy-gdpr-review.md)
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../docs/research/2026-03-24-event-log-ip-storage-minimization-review.md`](../docs/research/2026-03-24-event-log-ip-storage-minimization-review.md)
+  - [`../docs/research/2026-03-24-sec-gdpr-3-event-log-ip-storage-minimization-post-implementation-review.md`](../docs/research/2026-03-24-sec-gdpr-3-event-log-ip-storage-minimization-post-implementation-review.md)
+  - [`../docs/research/README.md`](../docs/research/README.md)
+  - [`../docs/plans/2026-03-24-event-log-ip-storage-minimization-plan.md`](../docs/plans/2026-03-24-event-log-ip-storage-minimization-plan.md)
+  - [`../docs/plans/README.md`](../docs/plans/README.md)
+  - [`../todos/security-review.md`](../todos/security-review.md)
+  so the privacy tradeoffs and closure status are discoverable.
+- [x] Why:
+  - event-log privacy minimization previously existed only at read time,
+  - raw IPs still persisted at rest for every deployment,
+  - and privacy-sensitive operators had no truthful storage-level choice between investigation value and stronger minimization.
+- [x] Evidence:
+  - `make test-event-log-ip-storage-mode`
+  - `make test-config-lifecycle`
+  - `git diff --check`
+
 ### SEC-GDPR-2: deterministic fingerprint retention cleanup
 
 - [x] Added bounded cadence-gated cleanup for stale fingerprint retention keys in:

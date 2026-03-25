@@ -168,7 +168,7 @@ class ConfigLifecycleTests(unittest.TestCase):
         self.assertNotIn("@$(MAKE) --no-print-directory config-seed >/dev/null", makefile)
         self.assertNotIn("$(MAKE) --no-print-directory config-seed >/dev/null 2>&1", makefile)
         self.assertIn(
-            'config-verify && $(MAKE) --no-print-directory dashboard-build >/dev/null 2>&1 && RUNTIME_INSTANCE_ID="$$(uuidgen)" && SHUMA_API_KEY=',
+            'config-verify && $(MAKE) --no-print-directory dashboard-build >/dev/null 2>&1 && RUNTIME_INSTANCE_ID="$$(uuidgen)" && $(SUPERVISOR_HOST_ENV)',
             makefile,
         )
         self.assertIn(
@@ -185,6 +185,10 @@ class ConfigLifecycleTests(unittest.TestCase):
         )
         self.assertIn(
             "SHUMA_MONITORING_ROLLUP_RETENTION_HOURS := $(if $(strip $(SHUMA_MONITORING_ROLLUP_RETENTION_HOURS)),$(SHUMA_MONITORING_ROLLUP_RETENTION_HOURS),$(call defaults_env_lookup,SHUMA_MONITORING_ROLLUP_RETENTION_HOURS))",
+            makefile,
+        )
+        self.assertIn(
+            "SHUMA_EVENT_LOG_IP_STORAGE_MODE := $(call strip_wrapping_quotes,$(SHUMA_EVENT_LOG_IP_STORAGE_MODE))",
             makefile,
         )
         self.assertIn("make --no-print-directory config-verify", verify_runtime_script)

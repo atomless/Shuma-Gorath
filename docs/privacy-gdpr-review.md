@@ -34,25 +34,38 @@ Notes:
 
 | Dataset | Stored shape | Retention/control |
 | --- | --- | --- |
-| Event log (`eventlog:v2:*`) | `ts`, `event`, `ip`, `reason`, `outcome`, `admin` | requested by `SHUMA_EVENT_LOG_RETENTION_HOURS`, but high-risk raw operator retention is capped to `72h` |
+| Event log (`eventlog:v2:*`) | `ts`, `event`, `ip`, `ip_storage_mode`, `reason`, `outcome`, `admin` | requested by `SHUMA_EVENT_LOG_RETENTION_HOURS`; `SHUMA_EVENT_LOG_IP_STORAGE_MODE` decides whether newly written rows store raw IPs, coarse masked buckets, or keyed pseudonyms, and raw operator retention is capped to `72h` when raw rows exist |
 | Monitoring counters (`monitoring:v1:*`) | aggregated counters by hour; dimensions include <abbr title="Internet Protocol">IP</abbr> bucket, normalized path, reason/outcome/country | bounded by `SHUMA_MONITORING_RETENTION_HOURS` |
 | Monitoring rollups (`monitoring_rollup:v1:day:*`) | derived daily aggregates for longer-window summary reads | bounded by `SHUMA_MONITORING_ROLLUP_RETENTION_HOURS` |
 | Ban records (`ban:*`) | <abbr title="Internet Protocol">IP</abbr>, reason, expiry, optional fingerprint summary | per-ban expiry (`ban_duration*`) |
-| Fingerprint state (`fp:*`) | bounded-window mismatch/coherence state; pseudonymized when enabled | opportunistic read-path expiry plus prior-flow-bucket cleanup; follow-up deterministic sweep hardening recommended |
+| Fingerprint state (`fp:*`) | bounded-window mismatch/coherence state; pseudonymized when enabled | bounded by configured TTL and flow-window controls with cadence-gated cleanup for stale `fp:state:*`, `fp:flow:*`, and `fp:flow:last_bucket:*` keys |
 | Admin session <abbr title="Key-Value">KV</abbr> (`admin_session:*`) | <abbr title="Cross-Site Request Forgery">CSRF</abbr> token + expiry | session <abbr title="Time To Live">TTL</abbr> (`3600s`) with expiry checks |
 
 ## 🐙 <abbr title="General Data Protection Regulation">GDPR</abbr> Posture Assessment
 
 - Personal data is present:
-  - raw IPs in event log entries and ban records,
+  - event-log IP identifiers whose sensitivity now depends on `SHUMA_EVENT_LOG_IP_STORAGE_MODE` (`raw`, coarse masked bucket, or keyed pseudonym) plus raw IPs in ban records,
   - pseudonymous/bucketed identifiers in monitoring/fingerprint stores.
 - Recommended legal basis for operators: legitimate interests in service security and abuse prevention, with an <abbr title="Legitimate Interests Assessment">LIA</abbr> documented by the deployer.
 - Data minimization posture:
   - good: monitoring uses bucketed IPs and normalized low-cardinality paths.
-  - moderate: event log persists raw IPs for investigation value, although default admin monitoring views are pseudonymized and raw display requires forensic acknowledgement.
+  - improved: event-log storage can now be deployer-selected. `raw` preserves investigation value, `masked` stores only coarse buckets, and `pseudonymized` stores stable keyed pseudonyms. Default admin monitoring views remain pseudonymized and raw display still requires forensic acknowledgement, but that acknowledgement no longer implies raw IPs exist at rest when storage minimization is enabled.
 - Retention posture:
   - event/monitoring retention is explicitly configurable and now deterministically cleaned.
-  - fingerprint-state cleanup is opportunistic today and should be tightened to deterministic window-aligned sweeping.
+  - fingerprint-state cleanup is now bounded and cadence-gated to the configured TTL/window controls.
+
+Event-log IP storage tradeoff summary:
+
+- `raw`
+  - highest investigation value,
+  - highest at-rest privacy sensitivity.
+- `masked`
+  - preserves rough source grouping and locality,
+  - prevents later raw-IP recovery for new rows.
+- `pseudonymized`
+  - preserves cross-row correlation for the same source,
+  - prevents later raw-IP recovery for new rows,
+  - does not preserve geo/prefix locality in stored rows.
 
 ## 🐙 Cookie-Consent Determination by Deployment Context
 
@@ -70,7 +83,8 @@ Operators deploying Shuma should publish:
 1. Security-monitoring notice:
    - categories collected (<abbr title="Internet Protocol">IP</abbr>, request metadata, security outcomes),
    - purpose (abuse prevention, service protection),
-   - retention window and where it is configured.
+   - retention window and where it is configured,
+   - whether event-log IPs are stored as raw, masked, or pseudonymized identifiers.
 2. Cookie/storage notice:
    - `js_verified`, `shuma_fp`, `shuma_admin_session`,
    - dashboard localStorage items and short-lived cache behavior.

@@ -75,6 +75,7 @@ These are read from process env at runtime (not from <abbr title="Key-Value">KV<
 | `SHUMA_ADMIN_IP_ALLOWLIST` | No (Yes for production deploys) | empty | <abbr title="Classless Inter-Domain Routing">CIDR</abbr>/<abbr title="Internet Protocol">IP</abbr> allowlist for `/admin/*`; required by deployment guardrails in production workflows. |
 | `SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE` | No | `10` | Per-<abbr title="Internet Protocol">IP</abbr> per-minute limit for failed admin authentication attempts before returning `429`. |
 | `SHUMA_EVENT_LOG_RETENTION_HOURS` | Yes | `168` | Requested raw event retention window in hours. High-risk raw event retention is capped to `72` hours in operator telemetry surfaces even when this value is higher; set `0` to disable cleanup entirely. |
+| `SHUMA_EVENT_LOG_IP_STORAGE_MODE` | Yes | `raw` | Event-log <abbr title="Internet Protocol">IP</abbr> write mode (`raw`, `masked`, or `pseudonymized`). `raw` preserves current forensic value, `masked` stores the same coarse bucket form used by default admin monitoring views, and `pseudonymized` stores a stable keyed pseudonymous token. This is env-only, not controller-tunable, and determines whether newly written rows can ever reveal raw IPs later. |
 | `SHUMA_MONITORING_RETENTION_HOURS` | Yes | `168` | Retention window in hours for operational monitoring counters and hourly bucket indexes. |
 | `SHUMA_MONITORING_ROLLUP_RETENTION_HOURS` | Yes | `720` | Retention window in hours for derived daily monitoring rollups used by longer-window summary reads. |
 
@@ -131,6 +132,17 @@ Post-compaction retention rebaseline note:
 In non-interactive shells this step is skipped automatically.
 
 Use `make env-help` for the supported env-only override list.
+
+`SHUMA_EVENT_LOG_IP_STORAGE_MODE` tradeoffs:
+
+- `raw`
+  - preserves current behavior and raw forensic investigation value for newly written rows.
+- `masked`
+  - persists the same coarse bucket form used by non-forensic admin monitoring, which preserves rough locality and grouping but makes raw forensic recovery impossible for newly written rows.
+- `pseudonymized`
+  - persists a stable keyed pseudonymous identifier derived from the IP and `SHUMA_FORWARDED_IP_SECRET`, which preserves correlation across rows without preserving prefix or geo locality and without allowing raw forensic recovery for newly written rows.
+
+Each event-log row stores its write-time mode, so mixed historical rows remain auditable if a deployment changes this env variable later.
 
 ### 🐙 <abbr title="Key-Value">KV</abbr>-Backed Admin-Editable Runtime Settings (Seeded From `config/defaults.env`)
 

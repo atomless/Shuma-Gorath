@@ -178,6 +178,7 @@
   "verified_identity.service_profiles": "Canonical service-profile bindings available for verified-identity policy actions.",
   "admin_config_write_enabled": "Enables/disables admin API config writes.",
   "runtime_environment": "Trusted runtime environment class reported by server (`runtime-dev` or `runtime-prod`).",
+  "event_log_ip_storage_mode": "Read-only event-log IP write mode reported by the runtime: raw, masked, or pseudonymized.",
   "gateway_deployment_profile": "Gateway deployment profile reported by server (`shared-server` or `edge-fermyon`).",
   "akamai_edge_available": "Whether the current deployment posture exposes Akamai-edge-only integrations.",
   "local_prod_direct_mode": "True when localhost prod-like runs intentionally bypass the upstream-origin requirement for local direct observation.",

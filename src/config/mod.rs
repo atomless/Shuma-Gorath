@@ -390,6 +390,28 @@ impl RuntimeEnvironment {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum EventLogIpStorageMode {
+    Raw,
+    Masked,
+    Pseudonymized,
+}
+
+impl EventLogIpStorageMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            EventLogIpStorageMode::Raw => "raw",
+            EventLogIpStorageMode::Masked => "masked",
+            EventLogIpStorageMode::Pseudonymized => "pseudonymized",
+        }
+    }
+
+    pub fn raw_ip_available(self) -> bool {
+        matches!(self, EventLogIpStorageMode::Raw)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub enum GatewayDeploymentProfile {
     SharedServer,
@@ -1664,6 +1686,7 @@ fn validate_env_only_impl() -> Result<(), String> {
     validate_bool_like_var("SHUMA_ENFORCE_HTTPS")?;
     validate_bool_like_var("SHUMA_DEBUG_HEADERS")?;
     validate_optional_runtime_environment_var("SHUMA_RUNTIME_ENV")?;
+    validate_optional_event_log_ip_storage_mode_var("SHUMA_EVENT_LOG_IP_STORAGE_MODE")?;
     validate_optional_bool_like_var("SHUMA_LOCAL_PROD_DIRECT_MODE")?;
     validate_optional_bool_like_var("SHUMA_ADVERSARY_SIM_AVAILABLE")?;
     validate_optional_secret_var("SHUMA_ADVERSARY_SIM_EDGE_CRON_SECRET")?;
@@ -2049,6 +2072,22 @@ fn validate_optional_runtime_environment_var(name: &str) -> Result<(), String> {
     if parse_runtime_environment(&value).is_none() {
         return Err(format!(
             "Invalid runtime environment env var {}={} (expected runtime-dev or runtime-prod)",
+            name, value
+        ));
+    }
+    Ok(())
+}
+
+fn validate_optional_event_log_ip_storage_mode_var(name: &str) -> Result<(), String> {
+    let Some(value) = runtime_var_raw_optional(name) else {
+        return Ok(());
+    };
+    if value.trim().is_empty() {
+        return Ok(());
+    }
+    if parse_event_log_ip_storage_mode(&value).is_none() {
+        return Err(format!(
+            "Invalid event-log IP storage mode env var {}={} (expected raw, masked, or pseudonymized)",
             name, value
         ));
     }
@@ -2824,6 +2863,15 @@ pub(crate) fn parse_runtime_environment(value: &str) -> Option<RuntimeEnvironmen
     }
 }
 
+pub(crate) fn parse_event_log_ip_storage_mode(value: &str) -> Option<EventLogIpStorageMode> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "raw" => Some(EventLogIpStorageMode::Raw),
+        "masked" => Some(EventLogIpStorageMode::Masked),
+        "pseudonymized" => Some(EventLogIpStorageMode::Pseudonymized),
+        _ => None,
+    }
+}
+
 pub(crate) fn parse_gateway_deployment_profile(value: &str) -> Option<GatewayDeploymentProfile> {
     match value.trim().to_ascii_lowercase().as_str() {
         "shared-server" => Some(GatewayDeploymentProfile::SharedServer),
@@ -2842,6 +2890,16 @@ pub(crate) fn parse_gateway_origin_auth_mode(value: &str) -> Option<GatewayOrigi
 
 pub fn event_log_retention_hours() -> u64 {
     env_u64_defaulted("SHUMA_EVENT_LOG_RETENTION_HOURS")
+}
+
+fn default_event_log_ip_storage_mode() -> EventLogIpStorageMode {
+    EventLogIpStorageMode::Raw
+}
+
+pub fn event_log_ip_storage_mode() -> EventLogIpStorageMode {
+    runtime_var_raw_optional("SHUMA_EVENT_LOG_IP_STORAGE_MODE")
+        .and_then(|value| parse_event_log_ip_storage_mode(value.as_str()))
+        .unwrap_or_else(default_event_log_ip_storage_mode)
 }
 
 pub fn monitoring_retention_hours() -> u64 {

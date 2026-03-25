@@ -1250,6 +1250,56 @@ fn validate_env_rejects_invalid_optional_runtime_environment() {
 }
 
 #[test]
+fn validate_env_rejects_invalid_optional_event_log_ip_storage_mode() {
+    let _lock = crate::test_support::lock_env();
+    clear_gateway_env();
+    clear_env(&[
+        "SHUMA_VALIDATE_ENV_IN_TESTS",
+        "SHUMA_API_KEY",
+        "SHUMA_JS_SECRET",
+        "SHUMA_FORWARDED_IP_SECRET",
+        "SHUMA_EVENT_LOG_RETENTION_HOURS",
+        "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
+        "SHUMA_KV_STORE_FAIL_OPEN",
+        "SHUMA_ENFORCE_HTTPS",
+        "SHUMA_DEBUG_HEADERS",
+        "SHUMA_RUNTIME_ENV",
+        "SHUMA_EVENT_LOG_IP_STORAGE_MODE",
+        "SHUMA_ADVERSARY_SIM_EDGE_CRON_SECRET",
+    ]);
+
+    std::env::set_var("SHUMA_VALIDATE_ENV_IN_TESTS", "true");
+    std::env::set_var("SHUMA_API_KEY", "test-admin-key");
+    std::env::set_var("SHUMA_JS_SECRET", "test-js-secret");
+    std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+    std::env::set_var("SHUMA_EVENT_LOG_RETENTION_HOURS", "168");
+    std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "false");
+    std::env::set_var("SHUMA_KV_STORE_FAIL_OPEN", "true");
+    std::env::set_var("SHUMA_ENFORCE_HTTPS", "false");
+    std::env::set_var("SHUMA_DEBUG_HEADERS", "false");
+    std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+    std::env::set_var("SHUMA_EVENT_LOG_IP_STORAGE_MODE", "invalid-mode");
+
+    let result = validate_env_only_once();
+    assert!(result.is_err());
+    assert!(result.err().unwrap().contains("SHUMA_EVENT_LOG_IP_STORAGE_MODE"));
+
+    clear_env(&[
+        "SHUMA_VALIDATE_ENV_IN_TESTS",
+        "SHUMA_API_KEY",
+        "SHUMA_JS_SECRET",
+        "SHUMA_FORWARDED_IP_SECRET",
+        "SHUMA_EVENT_LOG_RETENTION_HOURS",
+        "SHUMA_ADMIN_CONFIG_WRITE_ENABLED",
+        "SHUMA_KV_STORE_FAIL_OPEN",
+        "SHUMA_ENFORCE_HTTPS",
+        "SHUMA_DEBUG_HEADERS",
+        "SHUMA_RUNTIME_ENV",
+        "SHUMA_EVENT_LOG_IP_STORAGE_MODE",
+    ]);
+}
+
+#[test]
 fn validate_env_accepts_sim_available_in_runtime_prod_when_gateway_contract_is_satisfied() {
     let _lock = crate::test_support::lock_env();
     clear_gateway_env();

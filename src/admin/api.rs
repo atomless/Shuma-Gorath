@@ -1,7 +1,9 @@
 use flate2::write::GzEncoder;
 use flate2::Compression;
+use hmac::{Hmac, Mac};
 use rand::random;
 use serde::{Deserialize, Serialize};
+use sha2::Sha256;
 use std::collections::{BTreeMap, HashSet};
 use std::io::Write;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -87,6 +89,8 @@ pub(super) struct EventLogRecord {
     #[serde(flatten)]
     pub entry: EventLogEntry,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ip_storage_mode: Option<crate::config::EventLogIpStorageMode>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub taxonomy: Option<crate::runtime::policy_taxonomy::PolicyTelemetryTaxonomy>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub outcome_code: Option<String>,
@@ -108,6 +112,7 @@ impl EventLogRecord {
     fn from_entry(entry: EventLogEntry) -> Self {
         EventLogRecord {
             entry,
+            ip_storage_mode: None,
             taxonomy: None,
             outcome_code: None,
             botness_score: None,
@@ -220,6 +225,7 @@ const SECRET_CANARY_MARKERS: [&str; 3] = [
     "frontier_secret_canary",
     "sim_secret_canary",
 ];
+type HmacSha256 = Hmac<Sha256>;
 
 pub(super) fn event_log_retention_hours() -> u64 {
     crate::observability::retention::event_log_high_risk_retention_hours()
@@ -497,10 +503,54 @@ pub(super) fn pseudonymize_ip_identifier(ip: &str) -> String {
     crate::signals::ip_identity::bucket_ip(ip)
 }
 
+fn pseudonymized_ip_storage_identifier(ip: &str) -> String {
+    let secret = crate::config::env_string_required("SHUMA_FORWARDED_IP_SECRET");
+    let mut mac =
+        HmacSha256::new_from_slice(secret.as_bytes()).expect("HMAC accepts any secret length");
+    mac.update(ip.trim().as_bytes());
+    let digest = mac.finalize().into_bytes();
+    let mut token = String::from("pid:");
+    for byte in digest.iter().take(12) {
+        token.push_str(format!("{byte:02x}").as_str());
+    }
+    token
+}
+
+fn effective_event_log_ip_storage_mode(
+    record: &EventLogRecord,
+) -> crate::config::EventLogIpStorageMode {
+    record
+        .ip_storage_mode
+        .unwrap_or(crate::config::EventLogIpStorageMode::Raw)
+}
+
+fn apply_event_log_ip_storage_mode(record: &mut EventLogRecord) {
+    let mode = crate::config::event_log_ip_storage_mode();
+    record.ip_storage_mode = Some(mode);
+    let Some(ip) = record.entry.ip.clone() else {
+        return;
+    };
+    if ip.starts_with("[redacted:") {
+        return;
+    }
+    record.entry.ip = Some(match mode {
+        crate::config::EventLogIpStorageMode::Raw => ip,
+        crate::config::EventLogIpStorageMode::Masked => pseudonymize_ip_identifier(ip.as_str()),
+        crate::config::EventLogIpStorageMode::Pseudonymized => {
+            pseudonymized_ip_storage_identifier(ip.as_str())
+        }
+    });
+}
+
 fn pseudonymize_event_record(record: &EventLogRecord) -> EventLogRecord {
     let mut next = record.clone();
-    if let Some(ip) = record.entry.ip.as_ref() {
-        next.entry.ip = Some(pseudonymize_ip_identifier(ip.as_str()));
+    if matches!(
+        effective_event_log_ip_storage_mode(record),
+        crate::config::EventLogIpStorageMode::Raw
+    ) {
+        if let Some(ip) = record.entry.ip.as_ref() {
+            next.entry.ip = Some(pseudonymize_ip_identifier(ip.as_str()));
+        }
     }
     if next.entry.admin.is_some() {
         next.entry.admin = Some("[masked]".to_string());
@@ -594,10 +644,11 @@ fn telemetry_field_classification_schema() -> serde_json::Value {
 }
 
 pub(super) fn security_view_mode_label(forensic_mode: bool) -> &'static str {
-    if forensic_mode {
-        "forensic_raw"
-    } else {
-        "pseudonymized_default"
+    match (crate::config::event_log_ip_storage_mode(), forensic_mode) {
+        (crate::config::EventLogIpStorageMode::Raw, false) => "pseudonymized_default",
+        (crate::config::EventLogIpStorageMode::Raw, true) => "forensic_raw",
+        (crate::config::EventLogIpStorageMode::Masked, _) => "masked_storage",
+        (crate::config::EventLogIpStorageMode::Pseudonymized, _) => "pseudonymized_storage",
     }
 }
 
@@ -663,6 +714,14 @@ pub(super) fn security_privacy_payload<S: crate::challenge::KeyValueStore>(
             .and_then(|value| value.as_str())
             .map(|value| !value.is_empty())
             .unwrap_or(false);
+    let current_storage_mode = crate::config::event_log_ip_storage_mode();
+    let raw_ip_available_for_current_write_mode = current_storage_mode.raw_ip_available();
+    let pseudonymization_coverage_percent =
+        if forensic_mode && raw_ip_available_for_current_write_mode {
+            0.0
+        } else {
+            100.0
+        };
 
     json!({
         "classification": {
@@ -680,12 +739,13 @@ pub(super) fn security_privacy_payload<S: crate::challenge::KeyValueStore>(
         "access_control": {
             "view_mode": security_view_mode_label(forensic_mode),
             "pseudonymization_required_percent": 100.0,
-            "pseudonymization_coverage_percent": if forensic_mode { 0.0 } else { 100.0 },
+            "pseudonymization_coverage_percent": pseudonymization_coverage_percent,
             "forensic_break_glass": {
                 "active": forensic_mode,
                 "acknowledgement_required_query_param": "forensic_ack",
                 "acknowledgement_value_hint": SECURITY_FORENSIC_ACK_VALUE,
-                "audit_state": if forensic_mode { "acknowledged" } else { "inactive" }
+                "audit_state": if forensic_mode { "acknowledged" } else { "inactive" },
+                "raw_ip_available_for_current_write_mode": raw_ip_available_for_current_write_mode
             }
         },
         "retention_tiers": {
@@ -694,7 +754,8 @@ pub(super) fn security_privacy_payload<S: crate::challenge::KeyValueStore>(
             "redacted_summary_hours": configured_event_log_retention_hours(),
             "override_requested": retention_override_requested,
             "override_policy": "requires_explicit_audit_entry",
-            "override_audit_entry": retention_override_audit
+            "override_audit_entry": retention_override_audit,
+            "event_log_ip_storage_mode": current_storage_mode.as_str()
         },
         "incident_response": {
             "incident_hook_emitted": true,
@@ -756,6 +817,7 @@ pub fn log_event_with_execution_metadata<S: crate::challenge::KeyValueStore>(
         );
     }
     let sanitization = sanitize_event_record_for_persistence(&mut record);
+    apply_event_log_ip_storage_mode(&mut record);
     if sanitization.scrubbed_fields > 0 {
         increment_security_privacy_counter(store, "secret_scrub_actions_total", record.entry.ts);
         set_security_privacy_state(
@@ -1725,6 +1787,247 @@ mod tests {
     }
 
     #[test]
+    fn log_event_persists_masked_ip_when_event_log_ip_storage_mode_is_masked() {
+        let _lock = crate::test_support::lock_env();
+        std::env::remove_var("SHUMA_EVENT_LOG_IP_STORAGE_MODE");
+        std::env::set_var("SHUMA_EVENT_LOG_IP_STORAGE_MODE", "masked");
+        crate::config::clear_runtime_cache_for_tests();
+
+        let store = MockStore::new();
+        let now = now_ts();
+        let raw_ip = "203.0.113.44";
+        let masked_ip = pseudonymize_ip_identifier(raw_ip);
+        log_event(
+            &store,
+            &EventLogEntry {
+                ts: now,
+                event: EventType::Challenge,
+                ip: Some(raw_ip.to_string()),
+                reason: Some("masked_storage_probe".to_string()),
+                outcome: Some("ok".to_string()),
+                admin: None,
+            },
+        );
+
+        let hour = now / 3600;
+        let prefix = format!("eventlog:v2:{}:", hour);
+        let records: Vec<Vec<u8>> = store
+            .map
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(key, _)| key.starts_with(&prefix))
+            .map(|(_, value)| value.clone())
+            .collect();
+        assert_eq!(records.len(), 1);
+
+        let payload: serde_json::Value = serde_json::from_slice(records[0].as_slice()).unwrap();
+        assert_eq!(
+            payload.get("ip").and_then(|value| value.as_str()),
+            Some(masked_ip.as_str())
+        );
+        assert_eq!(
+            payload
+                .get("ip_storage_mode")
+                .and_then(|value| value.as_str()),
+            Some("masked")
+        );
+        assert_ne!(
+            payload.get("ip").and_then(|value| value.as_str()),
+            Some(raw_ip)
+        );
+
+        std::env::remove_var("SHUMA_EVENT_LOG_IP_STORAGE_MODE");
+        crate::config::clear_runtime_cache_for_tests();
+    }
+
+    #[test]
+    fn log_event_persists_stable_pseudonymized_ip_when_event_log_ip_storage_mode_is_pseudonymized()
+    {
+        let _lock = crate::test_support::lock_env();
+        std::env::remove_var("SHUMA_EVENT_LOG_IP_STORAGE_MODE");
+        std::env::set_var("SHUMA_EVENT_LOG_IP_STORAGE_MODE", "pseudonymized");
+        std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+        crate::config::clear_runtime_cache_for_tests();
+
+        let store = MockStore::new();
+        let now = now_ts();
+        let raw_ip = "203.0.113.45";
+        let masked_ip = pseudonymize_ip_identifier(raw_ip);
+        for offset in 0..2u64 {
+            log_event(
+                &store,
+                &EventLogEntry {
+                    ts: now.saturating_add(offset),
+                    event: EventType::Challenge,
+                    ip: Some(raw_ip.to_string()),
+                    reason: Some("pseudonymized_storage_probe".to_string()),
+                    outcome: Some("ok".to_string()),
+                    admin: None,
+                },
+            );
+        }
+
+        let hour = now / 3600;
+        let prefix = format!("eventlog:v2:{}:", hour);
+        let records: Vec<serde_json::Value> = store
+            .map
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(key, _)| key.starts_with(&prefix))
+            .map(|(_, value)| serde_json::from_slice(value.as_slice()).unwrap())
+            .collect();
+        assert_eq!(records.len(), 2);
+
+        let first = records[0]
+            .get("ip")
+            .and_then(|value| value.as_str())
+            .expect("stored pseudonymized ip")
+            .to_string();
+        let second = records[1]
+            .get("ip")
+            .and_then(|value| value.as_str())
+            .expect("stored pseudonymized ip")
+            .to_string();
+        assert_eq!(first, second);
+        assert_ne!(first, raw_ip);
+        assert_ne!(first, masked_ip);
+        for payload in records {
+            assert_eq!(
+                payload
+                    .get("ip_storage_mode")
+                    .and_then(|value| value.as_str()),
+                Some("pseudonymized")
+            );
+        }
+
+        std::env::remove_var("SHUMA_EVENT_LOG_IP_STORAGE_MODE");
+        std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
+        crate::config::clear_runtime_cache_for_tests();
+    }
+
+    #[test]
+    fn security_privacy_payload_surfaces_event_log_ip_storage_mode_and_forensic_raw_availability() {
+        let _lock = crate::test_support::lock_env();
+        std::env::remove_var("SHUMA_EVENT_LOG_IP_STORAGE_MODE");
+        std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
+        std::env::set_var("SHUMA_EVENT_LOG_IP_STORAGE_MODE", "pseudonymized");
+        std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+        crate::config::clear_runtime_cache_for_tests();
+
+        let store = MockStore::new();
+        let now = now_ts();
+        let payload = security_privacy_payload(&store, now, 24, true);
+        assert_eq!(
+            payload
+                .get("retention_tiers")
+                .and_then(|value| value.get("event_log_ip_storage_mode"))
+                .and_then(|value| value.as_str()),
+            Some("pseudonymized")
+        );
+        assert_eq!(
+            payload
+                .get("access_control")
+                .and_then(|value| value.get("forensic_break_glass"))
+                .and_then(|value| value.get("raw_ip_available_for_current_write_mode"))
+                .and_then(|value| value.as_bool()),
+            Some(false)
+        );
+
+        std::env::remove_var("SHUMA_EVENT_LOG_IP_STORAGE_MODE");
+        std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
+        crate::config::clear_runtime_cache_for_tests();
+    }
+
+    #[test]
+    fn admin_monitoring_forensic_mode_respects_masked_event_log_ip_storage_mode() {
+        let _lock = crate::test_support::lock_env();
+        std::env::remove_var("SHUMA_EVENT_LOG_IP_STORAGE_MODE");
+        std::env::set_var("SHUMA_EVENT_LOG_IP_STORAGE_MODE", "masked");
+        crate::config::clear_runtime_cache_for_tests();
+
+        let store = MockStore::new();
+        let now = now_ts();
+        let raw_ip = "203.0.113.56";
+        let masked_ip = pseudonymize_ip_identifier(raw_ip);
+        log_event(
+            &store,
+            &EventLogEntry {
+                ts: now,
+                event: EventType::Challenge,
+                ip: Some(raw_ip.to_string()),
+                reason: Some("masked_forensic_probe".to_string()),
+                outcome: Some("ok".to_string()),
+                admin: None,
+            },
+        );
+
+        let req_default = Request::builder()
+            .method(Method::Get)
+            .uri("/admin/monitoring?hours=24&limit=5")
+            .body(Vec::new())
+            .build();
+        let resp_default = handle_admin_monitoring(&req_default, &store);
+        assert_eq!(*resp_default.status(), 200u16);
+        let body_default: serde_json::Value = serde_json::from_slice(resp_default.body()).unwrap();
+        let event_default = body_default
+            .get("details")
+            .and_then(|value| value.get("events"))
+            .and_then(|value| value.get("recent_events"))
+            .and_then(|value| value.as_array())
+            .and_then(|rows| {
+                rows.iter().find(|row| {
+                    row.get("reason").and_then(|value| value.as_str())
+                        == Some("masked_forensic_probe")
+                })
+            })
+            .cloned()
+            .expect("expected monitoring event row");
+        assert_eq!(
+            event_default.get("ip").and_then(|value| value.as_str()),
+            Some(masked_ip.as_str())
+        );
+
+        let req_forensic = Request::builder()
+            .method(Method::Get)
+            .uri(format!(
+                "/admin/monitoring?hours=24&limit=5&forensic=1&forensic_ack={}",
+                SECURITY_FORENSIC_ACK_VALUE
+            ))
+            .body(Vec::new())
+            .build();
+        let resp_forensic = handle_admin_monitoring(&req_forensic, &store);
+        assert_eq!(*resp_forensic.status(), 200u16);
+        let body_forensic: serde_json::Value =
+            serde_json::from_slice(resp_forensic.body()).unwrap();
+        let event_forensic = body_forensic
+            .get("details")
+            .and_then(|value| value.get("events"))
+            .and_then(|value| value.get("recent_events"))
+            .and_then(|value| value.as_array())
+            .and_then(|rows| {
+                rows.iter().find(|row| {
+                    row.get("reason").and_then(|value| value.as_str())
+                        == Some("masked_forensic_probe")
+                })
+            })
+            .cloned()
+            .expect("expected forensic monitoring event row");
+        assert_eq!(
+            event_forensic.get("ip").and_then(|value| value.as_str()),
+            Some(masked_ip.as_str())
+        );
+        assert_ne!(
+            event_forensic.get("ip").and_then(|value| value.as_str()),
+            Some(raw_ip)
+        );
+
+        std::env::remove_var("SHUMA_EVENT_LOG_IP_STORAGE_MODE");
+        crate::config::clear_runtime_cache_for_tests();
+    }
+
+    #[test]
     fn load_recent_event_records_include_v2_records() {
         let store = MockStore::new();
         let now = now_ts();
@@ -1771,6 +2074,7 @@ mod tests {
                 outcome: Some("ok".to_string()),
                 admin: Some("me".to_string()),
             },
+            ip_storage_mode: None,
             taxonomy: None,
             outcome_code: None,
             botness_score: None,
@@ -13106,6 +13410,12 @@ pub(super) fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(Str
             crate::config::event_log_retention_hours().to_string(),
         ),
         (
+            "SHUMA_EVENT_LOG_IP_STORAGE_MODE".to_string(),
+            crate::config::event_log_ip_storage_mode()
+                .as_str()
+                .to_string(),
+        ),
+        (
             "SHUMA_ADMIN_CONFIG_WRITE_ENABLED".to_string(),
             bool_env(crate::config::admin_config_write_enabled()).to_string(),
         ),
@@ -14286,6 +14596,14 @@ pub(super) fn admin_config_runtime_payload(
     obj.insert(
         "runtime_environment".to_string(),
         serde_json::Value::String(crate::config::runtime_environment().as_str().to_string()),
+    );
+    obj.insert(
+        "event_log_ip_storage_mode".to_string(),
+        serde_json::Value::String(
+            crate::config::event_log_ip_storage_mode()
+                .as_str()
+                .to_string(),
+        ),
     );
     obj.insert(
         "gateway_deployment_profile".to_string(),
