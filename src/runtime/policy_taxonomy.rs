@@ -354,7 +354,7 @@ pub enum SignalId {
     VerifiedIdentityAuthenticated,
     VerifiedIdentityNamedPolicy,
     VerifiedIdentityCategoryDefault,
-    VerifiedIdentityTopLevelFallback,
+    VerifiedIdentityDefaultDeny,
     GeoRisk,
     GeoRouteChallenge,
     GeoRouteMaze,
@@ -420,8 +420,8 @@ impl SignalId {
             SignalId::VerifiedIdentityCategoryDefault => {
                 "S_VERIFIED_IDENTITY_CATEGORY_DEFAULT"
             }
-            SignalId::VerifiedIdentityTopLevelFallback => {
-                "S_VERIFIED_IDENTITY_TOP_LEVEL_FALLBACK"
+            SignalId::VerifiedIdentityDefaultDeny => {
+                "S_VERIFIED_IDENTITY_DEFAULT_DENY"
             }
             SignalId::GeoRisk => "S_GEO_RISK",
             SignalId::GeoRouteChallenge => "S_GEO_ROUTE_CHALLENGE",

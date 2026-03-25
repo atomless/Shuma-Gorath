@@ -3955,8 +3955,6 @@ mod admin_config_tests {
         cfg.verified_identity.enabled = true;
         cfg.verified_identity.native_web_bot_auth_enabled = false;
         cfg.verified_identity.provider_assertions_enabled = true;
-        cfg.verified_identity.non_human_traffic_stance =
-            crate::bot_identity::policy::NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities;
         cfg.verified_identity.replay_window_seconds = 180;
         cfg.verified_identity.clock_skew_seconds = 15;
         cfg.verified_identity.directory_cache_ttl_seconds = 900;
@@ -4015,12 +4013,6 @@ mod admin_config_tests {
         assert_eq!(
             env.get("SHUMA_VERIFIED_IDENTITY_PROVIDER_ASSERTIONS_ENABLED"),
             Some(&serde_json::json!("true"))
-        );
-        assert_eq!(
-            env.get("SHUMA_VERIFIED_IDENTITY_NON_HUMAN_TRAFFIC_STANCE"),
-            Some(&serde_json::json!(
-                "allow_only_explicit_verified_identities"
-            ))
         );
         assert_eq!(
             env.get("SHUMA_VERIFIED_IDENTITY_NAMED_POLICIES"),
@@ -4178,9 +4170,6 @@ mod admin_config_tests {
         assert!(env_text.contains("SHUMA_VERIFIED_IDENTITY_ENABLED=true"));
         assert!(env_text.contains("SHUMA_VERIFIED_IDENTITY_NATIVE_WEB_BOT_AUTH_ENABLED=false"));
         assert!(env_text.contains("SHUMA_VERIFIED_IDENTITY_PROVIDER_ASSERTIONS_ENABLED=true"));
-        assert!(env_text.contains(
-            "SHUMA_VERIFIED_IDENTITY_NON_HUMAN_TRAFFIC_STANCE=allow_only_explicit_verified_identities"
-        ));
         assert!(env_text.contains("SHUMA_HONEYPOT_ENABLED=false"));
         assert!(env_text.contains("SHUMA_BROWSER_POLICY_ENABLED=false"));
         assert!(env_text.contains("SHUMA_BYPASS_ALLOWLISTS_ENABLED=false"));
@@ -11286,7 +11275,6 @@ mod admin_config_tests {
                 "enabled": true,
                 "native_web_bot_auth_enabled": true,
                 "provider_assertions_enabled": true,
-                "non_human_traffic_stance": "allow_only_explicit_verified_identities",
                 "replay_window_seconds": 180,
                 "clock_skew_seconds": 15,
                 "directory_cache_ttl_seconds": 900,
@@ -11315,12 +11303,7 @@ mod admin_config_tests {
             verified_identity.get("enabled"),
             Some(&serde_json::Value::Bool(true))
         );
-        assert_eq!(
-            verified_identity.get("non_human_traffic_stance"),
-            Some(&serde_json::Value::String(
-                "allow_only_explicit_verified_identities".to_string()
-            ))
-        );
+        assert!(verified_identity.get("non_human_traffic_stance").is_none());
         assert_eq!(
             verified_identity
                 .get("named_policies")
@@ -11332,10 +11315,11 @@ mod admin_config_tests {
         let saved_cfg: crate::config::Config =
             serde_json::from_slice(&store.get("config:default").unwrap().unwrap()).unwrap();
         assert!(saved_cfg.verified_identity.enabled);
-        assert_eq!(
-            saved_cfg.verified_identity.non_human_traffic_stance,
-            crate::bot_identity::policy::NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities
-        );
+        let saved_cfg_json = serde_json::to_value(&saved_cfg).unwrap();
+        assert!(saved_cfg_json
+            .get("verified_identity")
+            .and_then(|value| value.get("non_human_traffic_stance"))
+            .is_none());
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
     }
@@ -13845,13 +13829,6 @@ pub(super) fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(Str
             bool_env(cfg.verified_identity.provider_assertions_enabled).to_string(),
         ),
         (
-            "SHUMA_VERIFIED_IDENTITY_NON_HUMAN_TRAFFIC_STANCE".to_string(),
-            cfg.verified_identity
-                .non_human_traffic_stance
-                .as_str()
-                .to_string(),
-        ),
-        (
             "SHUMA_VERIFIED_IDENTITY_REPLAY_WINDOW_SECONDS".to_string(),
             cfg.verified_identity.replay_window_seconds.to_string(),
         ),
@@ -14988,7 +14965,6 @@ struct AdminVerifiedIdentityPatch {
     enabled: Option<bool>,
     native_web_bot_auth_enabled: Option<bool>,
     provider_assertions_enabled: Option<bool>,
-    non_human_traffic_stance: Option<crate::bot_identity::policy::NonHumanTrafficStance>,
     replay_window_seconds: Option<u64>,
     clock_skew_seconds: Option<u64>,
     directory_cache_ttl_seconds: Option<u64>,
@@ -16937,11 +16913,6 @@ pub(super) fn handle_admin_config_internal(
                 changed = true;
                 verified_identity_changed = true;
             }
-            if let Some(value) = patch.non_human_traffic_stance {
-                cfg.verified_identity.non_human_traffic_stance = value;
-                changed = true;
-                verified_identity_changed = true;
-            }
             if let Some(value) = patch.replay_window_seconds {
                 cfg.verified_identity.replay_window_seconds = value;
                 changed = true;
@@ -16989,15 +16960,13 @@ pub(super) fn handle_admin_config_internal(
                     ip: None,
                     reason: Some("verified_identity_config_update".to_string()),
                     outcome: Some(format!(
-                        "enabled:{}->{} native:{}->{} provider:{}->{} stance:{}->{} replay:{}->{} skew:{}->{} cache_ttl:{}->{} freshness:{}->{} policies:{}->{} category_defaults:{}->{} profiles:{}->{}",
+                        "enabled:{}->{} native:{}->{} provider:{}->{} replay:{}->{} skew:{}->{} cache_ttl:{}->{} freshness:{}->{} policies:{}->{} category_defaults:{}->{} profiles:{}->{}",
                         old_verified_identity.enabled,
                         cfg.verified_identity.enabled,
                         old_verified_identity.native_web_bot_auth_enabled,
                         cfg.verified_identity.native_web_bot_auth_enabled,
                         old_verified_identity.provider_assertions_enabled,
                         cfg.verified_identity.provider_assertions_enabled,
-                        old_verified_identity.non_human_traffic_stance.as_str(),
-                        cfg.verified_identity.non_human_traffic_stance.as_str(),
                         old_verified_identity.replay_window_seconds,
                         cfg.verified_identity.replay_window_seconds,
                         old_verified_identity.clock_skew_seconds,

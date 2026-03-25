@@ -572,7 +572,7 @@ export const adaptOperatorSnapshot = (payload) => {
       enabled: verifiedIdentity.enabled === true,
       native_web_bot_auth_enabled: verifiedIdentity.native_web_bot_auth_enabled === true,
       provider_assertions_enabled: verifiedIdentity.provider_assertions_enabled === true,
-      non_human_traffic_stance: String(verifiedIdentity.non_human_traffic_stance || ''),
+      override_mode: String(verifiedIdentity.override_mode || ''),
       named_policy_count: Number(verifiedIdentity.named_policy_count || 0),
       service_profile_count: Number(verifiedIdentity.service_profile_count || 0),
       attempts: Number(verifiedIdentity.attempts || 0),

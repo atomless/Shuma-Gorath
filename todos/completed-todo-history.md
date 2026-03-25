@@ -4,6 +4,40 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-25)
 
+### `STANCE-MODEL-1B` Explicit Verified-Identity Override Semantics
+
+- [x] Removed the independent verified-identity stance authority from the live runtime and config surfaces in:
+  - [`src/bot_identity/policy.rs`](../src/bot_identity/policy.rs)
+  - [`src/config/mod.rs`](../src/config/mod.rs)
+  - [`src/runtime/policy_graph.rs`](../src/runtime/policy_graph.rs)
+  - [`src/runtime/policy_taxonomy.rs`](../src/runtime/policy_taxonomy.rs)
+  so verified-identity authorization now resolves through named policies, category-default overrides, and explicit default deny instead of a competing top-level stance enum.
+- [x] Rebased snapshot, benchmark, admin, and dashboard surfaces in:
+  - [`src/observability/operator_snapshot_verified_identity.rs`](../src/observability/operator_snapshot_verified_identity.rs)
+  - [`src/observability/operator_snapshot_effective_non_human_policy.rs`](../src/observability/operator_snapshot_effective_non_human_policy.rs)
+  - [`src/observability/benchmark_beneficial_non_human.rs`](../src/observability/benchmark_beneficial_non_human.rs)
+  - [`src/admin/api.rs`](../src/admin/api.rs)
+  - [`dashboard/src/lib/domain/api-client.js`](../dashboard/src/lib/domain/api-client.js)
+  - [`dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
+  so operator-facing and machine-first surfaces now talk about `override_mode` rather than publishing or depending on `verified_identity.non_human_traffic_stance`.
+- [x] Removed the obsolete config/admin/dashboard contract path in:
+  - [`config/defaults.env`](../config/defaults.env)
+  - [`scripts/config_seed.sh`](../scripts/config_seed.sh)
+  - [`dashboard/src/lib/domain/config-schema.js`](../dashboard/src/lib/domain/config-schema.js)
+  - [`docs/configuration.md`](../docs/configuration.md)
+  and recorded the closeout in:
+  - [`docs/research/2026-03-25-stance-model-1b-explicit-verified-identity-override-post-implementation-review.md`](../docs/research/2026-03-25-stance-model-1b-explicit-verified-identity-override-post-implementation-review.md)
+- [x] Why:
+  - verified identity should remain evidence and explicit exception management, not a second independent non-human stance system,
+  - and the old field was creating real operator and Game Loop ambiguity about what policy picture the runtime was actually enforcing.
+- [x] Evidence:
+  - `make test-verified-identity-policy`
+  - `make test-verified-identity-config`
+  - `make test-operator-objectives-contract`
+  - `make test-verified-identity-calibration-readiness`
+  - `make test-dashboard-game-loop-accountability`
+  - `git diff --check`
+
 ### `STANCE-MODEL-1A` Canonical Stance Presets And Resolved Policy Contract
 
 - [x] Landed the first machine-first bridge away from the dual-stance model in:

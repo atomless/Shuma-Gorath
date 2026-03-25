@@ -517,7 +517,7 @@
               <span class="status-value">
                 {humanizeToken(operatorSnapshot?.verified_identity?.availability)}
                 | alignment {humanizeToken(operatorSnapshot?.verified_identity?.taxonomy_alignment?.status)}
-                | stance {humanizeToken(operatorSnapshot?.verified_identity?.non_human_traffic_stance, 'sentence')}
+                | override {humanizeToken(operatorSnapshot?.verified_identity?.override_mode, 'sentence')}
               </span>
             </div>
             <div class="info-row">

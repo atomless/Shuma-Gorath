@@ -4814,7 +4814,7 @@ test('config form utils and JSON object helpers preserve parser contracts', { co
     assert.equal(schema.advancedConfigTemplatePaths.includes('verified_identity.enabled'), true);
     assert.equal(
       schema.advancedConfigTemplatePaths.includes('verified_identity.non_human_traffic_stance'),
-      true
+      false
     );
     assert.equal(schema.advancedConfigTemplatePaths.includes('verified_identity.named_policies'), true);
     assert.equal(

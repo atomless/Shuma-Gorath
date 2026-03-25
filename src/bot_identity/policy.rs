@@ -4,30 +4,6 @@ use super::contracts::{IdentityCategory, IdentityScheme};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub(crate) enum NonHumanTrafficStance {
-    DenyAllNonHuman,
-    AllowOnlyExplicitVerifiedIdentities,
-    AllowVerifiedByCategory,
-    AllowVerifiedWithLowCostProfilesOnly,
-}
-
-impl NonHumanTrafficStance {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            NonHumanTrafficStance::DenyAllNonHuman => "deny_all_non_human",
-            NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities => {
-                "allow_only_explicit_verified_identities"
-            }
-            NonHumanTrafficStance::AllowVerifiedByCategory => "allow_verified_by_category",
-            NonHumanTrafficStance::AllowVerifiedWithLowCostProfilesOnly => {
-                "allow_verified_with_low_cost_profiles_only"
-            }
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
 pub(crate) enum ServiceProfile {
     BrowserLike,
     StructuredAgent,
@@ -42,6 +18,25 @@ impl ServiceProfile {
             ServiceProfile::StructuredAgent => "structured_agent",
             ServiceProfile::MetadataOnly => "metadata_only",
             ServiceProfile::Denied => "denied",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum VerifiedIdentityOverrideMode {
+    Disabled,
+    VerifiedIdentitiesDenied,
+    VerifiedIdentitiesOnly,
+}
+
+impl VerifiedIdentityOverrideMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            VerifiedIdentityOverrideMode::Disabled => "disabled",
+            VerifiedIdentityOverrideMode::VerifiedIdentitiesDenied => {
+                "verified_identities_denied"
+            }
+            VerifiedIdentityOverrideMode::VerifiedIdentitiesOnly => "verified_identities_only",
         }
     }
 }
@@ -154,14 +149,14 @@ impl IdentityPolicyOutcome {
 enum IdentityPolicyResolutionSource {
     NamedPolicy(String),
     CategoryDefault(IdentityCategory),
-    TopLevelStance(NonHumanTrafficStance),
+    DefaultDeny,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum IdentityPolicyResolutionSourceKind {
     NamedPolicy,
     CategoryDefault,
-    TopLevelStance,
+    DefaultDeny,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -176,7 +171,7 @@ impl IdentityPolicyResolution {
         match self.source {
             IdentityPolicyResolutionSource::NamedPolicy(_) => "named_policy",
             IdentityPolicyResolutionSource::CategoryDefault(_) => "category_default",
-            IdentityPolicyResolutionSource::TopLevelStance(_) => "top_level_stance",
+            IdentityPolicyResolutionSource::DefaultDeny => "default_deny",
         }
     }
 
@@ -184,7 +179,7 @@ impl IdentityPolicyResolution {
         match &self.source {
             IdentityPolicyResolutionSource::NamedPolicy(policy_id) => policy_id.as_str(),
             IdentityPolicyResolutionSource::CategoryDefault(category) => category.as_str(),
-            IdentityPolicyResolutionSource::TopLevelStance(stance) => stance.as_str(),
+            IdentityPolicyResolutionSource::DefaultDeny => "verified_identity_default_deny",
         }
     }
 
@@ -196,15 +191,30 @@ impl IdentityPolicyResolution {
             IdentityPolicyResolutionSource::CategoryDefault(_) => {
                 IdentityPolicyResolutionSourceKind::CategoryDefault
             }
-            IdentityPolicyResolutionSource::TopLevelStance(_) => {
-                IdentityPolicyResolutionSourceKind::TopLevelStance
+            IdentityPolicyResolutionSource::DefaultDeny => {
+                IdentityPolicyResolutionSourceKind::DefaultDeny
             }
         }
     }
 }
 
+pub(crate) fn resolved_verified_identity_override_mode(
+    enabled: bool,
+    named_policies: &[IdentityPolicyEntry],
+    category_defaults: &[IdentityCategoryDefaultAction],
+    service_profiles: &[IdentityServiceProfileBinding],
+) -> VerifiedIdentityOverrideMode {
+    if !enabled {
+        return VerifiedIdentityOverrideMode::Disabled;
+    }
+    if has_allow_capable_override(named_policies, category_defaults, service_profiles) {
+        VerifiedIdentityOverrideMode::VerifiedIdentitiesOnly
+    } else {
+        VerifiedIdentityOverrideMode::VerifiedIdentitiesDenied
+    }
+}
+
 pub(crate) fn resolve_identity_policy(
-    stance: NonHumanTrafficStance,
     named_policies: &[IdentityPolicyEntry],
     category_defaults: &[IdentityCategoryDefaultAction],
     service_profiles: &[IdentityServiceProfileBinding],
@@ -222,27 +232,51 @@ pub(crate) fn resolve_identity_policy(
         );
     }
 
-    if matches!(
-        stance,
-        NonHumanTrafficStance::AllowVerifiedByCategory
-            | NonHumanTrafficStance::AllowVerifiedWithLowCostProfilesOnly
-    ) {
-        for category_default in category_defaults {
-            if category_default.category != identity.category {
-                continue;
-            }
-            return resolution_from_action(
-                &category_default.action,
-                service_profiles,
-                IdentityPolicyResolutionSource::CategoryDefault(category_default.category),
-            );
+    for category_default in category_defaults {
+        if category_default.category != identity.category {
+            continue;
         }
+        return resolution_from_action(
+            &category_default.action,
+            service_profiles,
+            IdentityPolicyResolutionSource::CategoryDefault(category_default.category),
+        );
     }
 
     IdentityPolicyResolution {
         outcome: IdentityPolicyOutcome::Deny,
         service_profile_id: None,
-        source: IdentityPolicyResolutionSource::TopLevelStance(stance),
+        source: IdentityPolicyResolutionSource::DefaultDeny,
+    }
+}
+
+fn has_allow_capable_override(
+    named_policies: &[IdentityPolicyEntry],
+    category_defaults: &[IdentityCategoryDefaultAction],
+    service_profiles: &[IdentityServiceProfileBinding],
+) -> bool {
+    named_policies
+        .iter()
+        .any(|policy| action_is_allow_capable(&policy.action, service_profiles))
+        || category_defaults
+            .iter()
+            .any(|policy| action_is_allow_capable(&policy.action, service_profiles))
+}
+
+fn action_is_allow_capable(
+    action: &IdentityPolicyAction,
+    service_profiles: &[IdentityServiceProfileBinding],
+) -> bool {
+    match action {
+        IdentityPolicyAction::Deny => false,
+        IdentityPolicyAction::Restrict => true,
+        IdentityPolicyAction::Observe => true,
+        IdentityPolicyAction::Allow => true,
+        IdentityPolicyAction::UseServiceProfile(profile_id) => service_profiles
+            .iter()
+            .find(|binding| binding.profile_id == *profile_id)
+            .map(|binding| binding.profile != ServiceProfile::Denied)
+            .unwrap_or(false),
     }
 }
 
@@ -391,7 +425,6 @@ mod tests {
         ];
 
         let resolution = resolve_identity_policy(
-            NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities,
             &policies,
             &[],
             &service_profiles(),
@@ -418,7 +451,6 @@ mod tests {
         }];
 
         let resolution = resolve_identity_policy(
-            NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities,
             &policies,
             &[],
             &service_profiles(),
@@ -427,22 +459,18 @@ mod tests {
         );
 
         assert_eq!(resolution.outcome, IdentityPolicyOutcome::Deny);
-        assert_eq!(resolution.source_label(), "top_level_stance");
-        assert_eq!(
-            resolution.source_id(),
-            NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities.as_str()
-        );
+        assert_eq!(resolution.source_label(), "default_deny");
+        assert_eq!(resolution.source_id(), "verified_identity_default_deny");
     }
 
     #[test]
-    fn resolve_identity_policy_uses_category_defaults_for_category_stances() {
+    fn resolve_identity_policy_uses_category_defaults_as_explicit_overrides() {
         let category_defaults = vec![IdentityCategoryDefaultAction {
             category: IdentityCategory::UserTriggeredAgent,
             action: IdentityPolicyAction::UseServiceProfile("structured_agent".to_string()),
         }];
 
         let resolution = resolve_identity_policy(
-            NonHumanTrafficStance::AllowVerifiedByCategory,
             &[],
             &category_defaults,
             &service_profiles(),
@@ -460,24 +488,12 @@ mod tests {
     }
 
     #[test]
-    fn resolve_identity_policy_restrictive_stances_fall_back_to_deny() {
-        for stance in [
-            NonHumanTrafficStance::DenyAllNonHuman,
-            NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities,
-        ] {
-            let resolution = resolve_identity_policy(
-                stance,
-                &[],
-                &[],
-                &service_profiles(),
-                &identity(),
-                "/",
-            );
+    fn resolve_identity_policy_without_matches_falls_back_to_default_deny() {
+        let resolution = resolve_identity_policy(&[], &[], &service_profiles(), &identity(), "/");
 
-            assert_eq!(resolution.outcome, IdentityPolicyOutcome::Deny);
-            assert_eq!(resolution.source_label(), "top_level_stance");
-            assert_eq!(resolution.source_id(), stance.as_str());
-        }
+        assert_eq!(resolution.outcome, IdentityPolicyOutcome::Deny);
+        assert_eq!(resolution.source_label(), "default_deny");
+        assert_eq!(resolution.source_id(), "verified_identity_default_deny");
     }
 
     #[test]
@@ -506,7 +522,6 @@ mod tests {
         ];
 
         let observe = resolve_identity_policy(
-            NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities,
             &policies,
             &[],
             &service_profiles(),
@@ -514,7 +529,6 @@ mod tests {
             "/observe/path",
         );
         let restrict = resolve_identity_policy(
-            NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities,
             &policies,
             &[],
             &service_profiles(),
@@ -524,5 +538,30 @@ mod tests {
 
         assert_eq!(observe.outcome, IdentityPolicyOutcome::Observe);
         assert_eq!(restrict.outcome, IdentityPolicyOutcome::Restrict);
+    }
+
+    #[test]
+    fn resolved_verified_identity_override_mode_is_deny_without_explicit_allowances() {
+        let mode = resolved_verified_identity_override_mode(true, &[], &[], &service_profiles());
+        assert_eq!(
+            mode,
+            VerifiedIdentityOverrideMode::VerifiedIdentitiesDenied
+        );
+    }
+
+    #[test]
+    fn resolved_verified_identity_override_mode_detects_allow_capable_overrides() {
+        let policies = vec![IdentityPolicyEntry {
+            policy_id: "allow-openai".to_string(),
+            description: None,
+            matcher: IdentityPolicyMatcher {
+                operator: Some("openai".to_string()),
+                ..IdentityPolicyMatcher::default()
+            },
+            action: IdentityPolicyAction::UseServiceProfile("structured_agent".to_string()),
+        }];
+        let mode =
+            resolved_verified_identity_override_mode(true, &policies, &[], &service_profiles());
+        assert_eq!(mode, VerifiedIdentityOverrideMode::VerifiedIdentitiesOnly);
     }
 }

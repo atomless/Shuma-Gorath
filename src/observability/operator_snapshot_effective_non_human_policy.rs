@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
 
 use crate::bot_identity::contracts::IdentityCategory;
-use crate::bot_identity::policy::{IdentityPolicyAction, NonHumanTrafficStance};
+use crate::bot_identity::policy::{
+    resolved_verified_identity_override_mode, IdentityPolicyAction,
+};
 use crate::config::Config;
 use crate::runtime::non_human_taxonomy::{canonical_non_human_taxonomy, NonHumanCategoryId};
 
@@ -43,21 +45,14 @@ pub(crate) struct EffectiveNonHumanPolicy {
 }
 
 pub(crate) fn resolved_verified_identity_mode(cfg: &Config) -> String {
-    if !cfg.verified_identity.enabled {
-        return "disabled".to_string();
-    }
-    match cfg.verified_identity.non_human_traffic_stance {
-        NonHumanTrafficStance::DenyAllNonHuman => "verified_identities_denied".to_string(),
-        NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities => {
-            "verified_identities_only".to_string()
-        }
-        NonHumanTrafficStance::AllowVerifiedByCategory => {
-            "legacy_verified_category_defaults".to_string()
-        }
-        NonHumanTrafficStance::AllowVerifiedWithLowCostProfilesOnly => {
-            "legacy_verified_low_cost_profiles".to_string()
-        }
-    }
+    resolved_verified_identity_override_mode(
+        cfg.verified_identity.enabled,
+        &cfg.verified_identity.named_policies,
+        &cfg.verified_identity.category_defaults,
+        &cfg.verified_identity.service_profiles,
+    )
+    .as_str()
+    .to_string()
 }
 
 pub(crate) fn effective_non_human_policy(
@@ -98,7 +93,7 @@ pub(crate) fn effective_non_human_policy(
 
     EffectiveNonHumanPolicy {
         schema_version: EFFECTIVE_NON_HUMAN_POLICY_SCHEMA_VERSION.to_string(),
-        resolution_mode: "legacy_dual_input".to_string(),
+        resolution_mode: "explicit_override_layer".to_string(),
         active_preset_id: preset_catalog.active_preset_id,
         verified_identity_mode,
         mismatched_category_count,
@@ -133,25 +128,10 @@ fn effective_verified_identity_override(
         };
     }
 
-    match cfg.verified_identity.non_human_traffic_stance {
-        NonHumanTrafficStance::DenyAllNonHuman => EffectiveNonHumanPolicyVerifiedIdentityOverride {
-            status: "top_level_deny".to_string(),
-            effective_action: "deny".to_string(),
-            effective_posture: Some("blocked".to_string()),
-            verified_identity_categories: identity_categories,
-            source_of_authority: vec![
-                "operator_objectives.category_postures".to_string(),
-                "verified_identity.non_human_traffic_stance".to_string(),
-            ],
-        },
-        NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities => {
-            explicit_verified_only_override(cfg, identity_categories)
-        }
-        NonHumanTrafficStance::AllowVerifiedByCategory
-        | NonHumanTrafficStance::AllowVerifiedWithLowCostProfilesOnly => {
-            category_default_override(cfg, identity_categories)
-        }
+    if cfg.verified_identity.category_defaults.is_empty() {
+        return explicit_verified_only_override(cfg, identity_categories);
     }
+    category_default_override(cfg, identity_categories)
 }
 
 fn explicit_verified_only_override(
@@ -166,7 +146,6 @@ fn explicit_verified_only_override(
             verified_identity_categories: identity_categories,
             source_of_authority: vec![
                 "operator_objectives.category_postures".to_string(),
-                "verified_identity.non_human_traffic_stance".to_string(),
                 "verified_identity.named_policies".to_string(),
             ],
         };
@@ -178,7 +157,6 @@ fn explicit_verified_only_override(
         verified_identity_categories: identity_categories,
         source_of_authority: vec![
             "operator_objectives.category_postures".to_string(),
-            "verified_identity.non_human_traffic_stance".to_string(),
             "verified_identity.named_policies".to_string(),
         ],
     }
@@ -205,7 +183,6 @@ fn category_default_override(
 
     let mut source_of_authority = vec![
         "operator_objectives.category_postures".to_string(),
-        "verified_identity.non_human_traffic_stance".to_string(),
         "verified_identity.category_defaults".to_string(),
     ];
     if !cfg.verified_identity.named_policies.is_empty() {
@@ -315,6 +292,7 @@ fn action_to_posture(action: &IdentityPolicyAction) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::{effective_non_human_policy, resolved_verified_identity_mode};
+    use crate::bot_identity::policy::VerifiedIdentityOverrideMode;
 
     #[test]
     fn effective_non_human_policy_surfaces_verified_identity_mismatch_against_default_matrix() {
@@ -334,7 +312,10 @@ mod tests {
             .find(|row| row.category_id.as_str() == "verified_beneficial_bot")
             .expect("verified beneficial row");
         assert_eq!(row.base_posture, "allowed");
-        assert_eq!(row.verified_identity_override.status, "top_level_deny");
+        assert_eq!(
+            row.verified_identity_override.status,
+            "named_policies_only_fallback_deny"
+        );
         assert_eq!(row.verified_identity_override.effective_action, "deny");
         assert_eq!(
             row.verified_identity_override.effective_posture.as_deref(),
@@ -344,13 +325,22 @@ mod tests {
     }
 
     #[test]
-    fn resolved_verified_identity_mode_maps_legacy_stances() {
+    fn resolved_verified_identity_mode_derives_verified_only_from_explicit_allowances() {
         let mut cfg = crate::config::defaults().clone();
-        cfg.verified_identity.non_human_traffic_stance =
-            crate::bot_identity::policy::NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities;
+        cfg.verified_identity.named_policies = vec![
+            crate::bot_identity::policy::IdentityPolicyEntry {
+                policy_id: "allow-training".to_string(),
+                description: None,
+                matcher: crate::bot_identity::policy::IdentityPolicyMatcher {
+                    category: Some(crate::bot_identity::contracts::IdentityCategory::Training),
+                    ..crate::bot_identity::policy::IdentityPolicyMatcher::default()
+                },
+                action: crate::bot_identity::policy::IdentityPolicyAction::Allow,
+            },
+        ];
         assert_eq!(
             resolved_verified_identity_mode(&cfg),
-            "verified_identities_only"
+            VerifiedIdentityOverrideMode::VerifiedIdentitiesOnly.as_str()
         );
     }
 }

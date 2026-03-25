@@ -629,7 +629,7 @@ mod tests {
                 enabled: false,
                 native_web_bot_auth_enabled: false,
                 provider_assertions_enabled: false,
-                non_human_traffic_stance: "allow_only_named_verified_identities".to_string(),
+                override_mode: "verified_identities_denied".to_string(),
                 named_policy_count: 0,
                 service_profile_count: 0,
                 attempts: 0,

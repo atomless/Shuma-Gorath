@@ -37,8 +37,8 @@ fn verified_identity_signal_ids(
         IdentityPolicyResolutionSourceKind::CategoryDefault => {
             SignalId::VerifiedIdentityCategoryDefault
         }
-        IdentityPolicyResolutionSourceKind::TopLevelStance => {
-            SignalId::VerifiedIdentityTopLevelFallback
+        IdentityPolicyResolutionSourceKind::DefaultDeny => {
+            SignalId::VerifiedIdentityDefaultDeny
         }
     });
     signal_ids
@@ -1039,11 +1039,8 @@ mod tests {
 
         let mut cfg = cfg();
         cfg.verified_identity.enabled = true;
-        cfg.verified_identity.non_human_traffic_stance =
-            crate::bot_identity::policy::NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities;
 
         let resolution = crate::bot_identity::policy::resolve_identity_policy(
-            cfg.verified_identity.non_human_traffic_stance,
             &cfg.verified_identity.named_policies,
             &cfg.verified_identity.category_defaults,
             &cfg.verified_identity.service_profiles,
@@ -1089,7 +1086,7 @@ mod tests {
         assert!(parsed
             .outcome_text
             .as_deref()
-            .is_some_and(|text| text.contains("source=top_level_stance")));
+            .is_some_and(|text| text.contains("source=default_deny")));
     }
 
     #[test]
@@ -1099,8 +1096,6 @@ mod tests {
 
         let mut cfg = cfg();
         cfg.verified_identity.enabled = true;
-        cfg.verified_identity.non_human_traffic_stance =
-            crate::bot_identity::policy::NonHumanTrafficStance::DenyAllNonHuman;
         cfg.verified_identity.named_policies = vec![crate::bot_identity::policy::IdentityPolicyEntry {
             policy_id: "structured-openai".to_string(),
             description: None,
@@ -1114,7 +1109,6 @@ mod tests {
         }];
 
         let resolution = crate::bot_identity::policy::resolve_identity_policy(
-            cfg.verified_identity.non_human_traffic_stance,
             &cfg.verified_identity.named_policies,
             &cfg.verified_identity.category_defaults,
             &cfg.verified_identity.service_profiles,
@@ -1158,7 +1152,6 @@ mod tests {
         facts.verified_identity = Some(verified_identity());
 
         let observe_resolution = crate::bot_identity::policy::resolve_identity_policy(
-            crate::bot_identity::policy::NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities,
             &[crate::bot_identity::policy::IdentityPolicyEntry {
                 policy_id: "observe-openai".to_string(),
                 description: None,
@@ -1174,7 +1167,6 @@ mod tests {
             facts.path.as_str(),
         );
         let restrict_resolution = crate::bot_identity::policy::resolve_identity_policy(
-            crate::bot_identity::policy::NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities,
             &[crate::bot_identity::policy::IdentityPolicyEntry {
                 policy_id: "restrict-openai".to_string(),
                 description: None,
@@ -1351,8 +1343,6 @@ mod tests {
                 },
                 configure: |cfg| {
                     cfg.verified_identity.enabled = true;
-                    cfg.verified_identity.non_human_traffic_stance =
-                        crate::bot_identity::policy::NonHumanTrafficStance::DenyAllNonHuman;
                 },
             },
             Case {
@@ -1364,8 +1354,6 @@ mod tests {
                 },
                 configure: |cfg| {
                     cfg.verified_identity.enabled = true;
-                    cfg.verified_identity.non_human_traffic_stance =
-                        crate::bot_identity::policy::NonHumanTrafficStance::DenyAllNonHuman;
                     cfg.verified_identity.named_policies =
                         vec![crate::bot_identity::policy::IdentityPolicyEntry {
                             policy_id: "allow-openai".to_string(),
@@ -1388,8 +1376,6 @@ mod tests {
                 },
                 configure: |cfg| {
                     cfg.verified_identity.enabled = true;
-                    cfg.verified_identity.non_human_traffic_stance =
-                        crate::bot_identity::policy::NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities;
                     cfg.verified_identity.named_policies =
                         vec![crate::bot_identity::policy::IdentityPolicyEntry {
                             policy_id: "observe-openai".to_string(),
@@ -1413,8 +1399,6 @@ mod tests {
                 },
                 configure: |cfg| {
                     cfg.verified_identity.enabled = true;
-                    cfg.verified_identity.non_human_traffic_stance =
-                        crate::bot_identity::policy::NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities;
                     cfg.verified_identity.named_policies =
                         vec![crate::bot_identity::policy::IdentityPolicyEntry {
                             policy_id: "restrict-openai".to_string(),

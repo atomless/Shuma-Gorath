@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use crate::bot_identity::policy::resolved_verified_identity_override_mode;
 use crate::config::Config;
 use crate::observability::monitoring::{CountEntry, MonitoringSummary};
 use crate::observability::non_human_classification::{
@@ -22,7 +23,7 @@ pub(crate) struct OperatorSnapshotVerifiedIdentitySummary {
     pub enabled: bool,
     pub native_web_bot_auth_enabled: bool,
     pub provider_assertions_enabled: bool,
-    pub non_human_traffic_stance: String,
+    pub override_mode: String,
     pub named_policy_count: usize,
     pub service_profile_count: usize,
     pub attempts: u64,
@@ -63,7 +64,14 @@ pub(super) fn verified_identity_summary(
         enabled: cfg.verified_identity.enabled,
         native_web_bot_auth_enabled: cfg.verified_identity.native_web_bot_auth_enabled,
         provider_assertions_enabled: cfg.verified_identity.provider_assertions_enabled,
-        non_human_traffic_stance: cfg.verified_identity.non_human_traffic_stance.as_str().to_string(),
+        override_mode: resolved_verified_identity_override_mode(
+            cfg.verified_identity.enabled,
+            &cfg.verified_identity.named_policies,
+            &cfg.verified_identity.category_defaults,
+            &cfg.verified_identity.service_profiles,
+        )
+        .as_str()
+        .to_string(),
         named_policy_count: cfg.verified_identity.named_policies.len(),
         service_profile_count: cfg.verified_identity.service_profiles.len(),
         attempts: summary.verified_identity.attempts,
@@ -205,6 +213,7 @@ mod tests {
 
         assert_eq!(snapshot.availability, "supported");
         assert!(snapshot.enabled);
+        assert_eq!(snapshot.override_mode, "verified_identities_denied");
         assert_eq!(snapshot.named_policy_count, 0);
         assert_eq!(snapshot.service_profile_count, 4);
         assert_eq!(snapshot.attempts, 4);

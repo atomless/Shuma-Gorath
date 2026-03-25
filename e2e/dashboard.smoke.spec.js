@@ -1802,7 +1802,7 @@ test("game loop projects benchmark and oversight accountability from machine-fir
           enabled: true,
           native_web_bot_auth_enabled: true,
           provider_assertions_enabled: true,
-          non_human_traffic_stance: "deny_all_non_human",
+          override_mode: "verified_identities_denied",
           taxonomy_alignment: {
             status: "degraded"
           }
@@ -2136,7 +2136,7 @@ test("game loop tab corroborates latest scrapling evidence readiness", async ({ 
           enabled: true,
           native_web_bot_auth_enabled: true,
           provider_assertions_enabled: true,
-          non_human_traffic_stance: "deny_all_non_human",
+          override_mode: "verified_identities_denied",
           taxonomy_alignment: {
             status: "aligned"
           }
@@ -2811,7 +2811,7 @@ test("verification tab surfaces verified identity controls and health summary", 
           enabled: true,
           native_web_bot_auth_enabled: true,
           provider_assertions_enabled: true,
-          non_human_traffic_stance: "allow_verified_by_category",
+          override_mode: "verified_identities_only",
           named_policy_count: 2,
           service_profile_count: 4,
           attempts: 12,

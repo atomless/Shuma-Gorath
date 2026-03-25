@@ -221,7 +221,6 @@ fn decide_verified_identity_policy(
 
     let identity = facts.verified_identity.as_ref()?;
     let resolution = crate::bot_identity::policy::resolve_identity_policy(
-        cfg.verified_identity.non_human_traffic_stance,
         &cfg.verified_identity.named_policies,
         &cfg.verified_identity.category_defaults,
         &cfg.verified_identity.service_profiles,
@@ -471,8 +470,6 @@ mod tests {
 
         let mut cfg = cfg();
         cfg.verified_identity.enabled = true;
-        cfg.verified_identity.non_human_traffic_stance =
-            crate::bot_identity::policy::NonHumanTrafficStance::DenyAllNonHuman;
         cfg.challenge_puzzle_enabled = true;
         cfg.challenge_puzzle_risk_threshold = 7;
         cfg.botness_maze_threshold = 9;
@@ -502,8 +499,6 @@ mod tests {
 
         let mut cfg = cfg();
         cfg.verified_identity.enabled = true;
-        cfg.verified_identity.non_human_traffic_stance =
-            crate::bot_identity::policy::NonHumanTrafficStance::DenyAllNonHuman;
         cfg.verified_identity.named_policies = vec![crate::bot_identity::policy::IdentityPolicyEntry {
             policy_id: "allow-openai".to_string(),
             description: None,
@@ -545,8 +540,6 @@ mod tests {
 
         let mut cfg = cfg();
         cfg.verified_identity.enabled = true;
-        cfg.verified_identity.non_human_traffic_stance =
-            crate::bot_identity::policy::NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities;
         cfg.verified_identity.named_policies = vec![
             crate::bot_identity::policy::IdentityPolicyEntry {
                 policy_id: "observe-openai".to_string(),

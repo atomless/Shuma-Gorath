@@ -1,4 +1,6 @@
-use crate::bot_identity::policy::NonHumanTrafficStance;
+use crate::bot_identity::policy::{
+    resolved_verified_identity_override_mode, VerifiedIdentityOverrideMode,
+};
 use crate::config::Config;
 use crate::observability::monitoring::{MonitoringSummary, RequestOutcomeBreakdownSummaryRow};
 use crate::observability::operator_snapshot::OperatorSnapshotNonHumanTrafficSummary;
@@ -47,9 +49,15 @@ pub(super) fn beneficial_non_human_posture_family(
     let short_circuited_requests = policy_row
         .map(|row| row.short_circuited_requests)
         .unwrap_or(0);
-    let allow_capable = !matches!(
-        cfg.verified_identity.non_human_traffic_stance,
-        NonHumanTrafficStance::DenyAllNonHuman
+    let override_mode = resolved_verified_identity_override_mode(
+        cfg.verified_identity.enabled,
+        &cfg.verified_identity.named_policies,
+        &cfg.verified_identity.category_defaults,
+        &cfg.verified_identity.service_profiles,
+    );
+    let allow_capable = matches!(
+        override_mode,
+        VerifiedIdentityOverrideMode::VerifiedIdentitiesOnly
     );
     let coverage_ratio = ratio(
         summary.verified_identity.verified,
@@ -123,7 +131,7 @@ pub(super) fn beneficial_non_human_posture_family(
         status: aggregate_budget_status(metrics.as_slice()),
         capability_gate: "partially_supported".to_string(),
         note: note_for_stance(
-            cfg.verified_identity.non_human_traffic_stance,
+            override_mode.as_str(),
             policy_row,
             verified_identity,
         ),
@@ -134,15 +142,15 @@ pub(super) fn beneficial_non_human_posture_family(
 }
 
 fn note_for_stance(
-    stance: NonHumanTrafficStance,
+    override_mode: &str,
     policy_row: Option<&RequestOutcomeBreakdownSummaryRow>,
     verified_identity: &OperatorSnapshotVerifiedIdentitySummary,
 ) -> String {
     let observed = policy_row.map(|row| row.total_requests).unwrap_or(0);
     format!(
-        "Bounded verified-identity posture currently compares {} observed verified-identity policy decisions against the local non-human stance `{}` while {} alignment receipts calibrate verified categories against the canonical taxonomy.",
+        "Bounded verified-identity posture currently compares {} observed verified-identity policy decisions against the local explicit override mode `{}` while {} alignment receipts calibrate verified categories against the canonical taxonomy.",
         observed,
-        stance.as_str(),
+        override_mode,
         verified_identity.taxonomy_alignment.receipts.len()
     )
 }
@@ -421,7 +429,7 @@ mod tests {
             enabled: true,
             native_web_bot_auth_enabled: true,
             provider_assertions_enabled: true,
-            non_human_traffic_stance: "allow_only_named_verified_identities".to_string(),
+            override_mode: "verified_identities_only".to_string(),
             named_policy_count: 0,
             service_profile_count: 0,
             attempts: 6,

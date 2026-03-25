@@ -381,7 +381,6 @@ mod tests {
             classify_current_runtime_branch(&CurrentRuntimeBranch::PolicyDecision(
                 PolicyDecision::VerifiedIdentityPolicyAllow {
                     resolution: crate::bot_identity::policy::resolve_identity_policy(
-                        crate::bot_identity::policy::NonHumanTrafficStance::DenyAllNonHuman,
                         &[crate::bot_identity::policy::IdentityPolicyEntry {
                             policy_id: "allow-openai".to_string(),
                             description: None,

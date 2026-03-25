@@ -727,8 +727,14 @@ mod tests {
         );
         let mut cfg = defaults().clone();
         cfg.verified_identity.enabled = true;
-        cfg.verified_identity.non_human_traffic_stance =
-            crate::bot_identity::policy::NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities;
+        cfg.verified_identity.category_defaults = vec![
+            crate::bot_identity::policy::IdentityCategoryDefaultAction {
+                category: crate::bot_identity::contracts::IdentityCategory::UserTriggeredAgent,
+                action: crate::bot_identity::policy::IdentityPolicyAction::UseServiceProfile(
+                    "structured_agent".to_string(),
+                ),
+            },
+        ];
 
         let payload = build_benchmark_results_from_snapshot_sections(
             snapshot.generated_at,

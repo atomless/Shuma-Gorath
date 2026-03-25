@@ -147,7 +147,6 @@ Current stance:
     - [`docs/plans/2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md`](../docs/plans/2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md)
     - [`docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](../docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md)
     - [`docs/plans/2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-implementation-plan.md`](../docs/plans/2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-implementation-plan.md)
-  - [ ] STANCE-MODEL-1B Rebase verified identity onto evidence, named exceptions, and service-profile overrides instead of an independent top-level stance.
   - [ ] STANCE-MODEL-1C Thread the resolved effective policy into runtime, operator snapshot, benchmark/Game Loop, and the later Tuning surface so all consumers read the same policy truth.
 
 - [ ] SIM-SCR-FULL-1 Mature Scrapling to the full attacker-relevant capability Shuma assigns to the non-agent or non-LLM adversary spectrum before any stance relaxation or later LLM lane work.

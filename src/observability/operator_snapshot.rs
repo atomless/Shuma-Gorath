@@ -649,7 +649,7 @@ mod tests {
         );
         assert_eq!(
             payload.effective_non_human_policy.resolution_mode,
-            "legacy_dual_input"
+            "explicit_override_layer"
         );
         assert!(payload.effective_non_human_policy.mismatched_category_count >= 1);
         let verified_beneficial_policy = payload
@@ -663,7 +663,7 @@ mod tests {
             verified_beneficial_policy
                 .verified_identity_override
                 .status,
-            "top_level_deny"
+            "named_policies_only_fallback_deny"
         );
         assert_eq!(
             verified_beneficial_policy
