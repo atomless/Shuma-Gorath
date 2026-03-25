@@ -67,6 +67,19 @@ const TARPIT_BUDGET_OUTCOMES: [&str; 4] =
 const TARPIT_ESCALATION_OUTCOMES: [&str; 3] = ["none", "short_ban", "block"];
 const TARPIT_DURATION_BUCKETS: [&str; 4] = ["lt_1s", "1_5s", "5_20s", "20s_plus"];
 const TARPIT_BYTES_BUCKETS: [&str; 5] = ["lt_8kb", "8_32kb", "32_128kb", "128_512kb", "512kb_plus"];
+const TARPIT_PROOF_OUTCOMES: [&str; 3] = ["required", "passed", "failed"];
+const TARPIT_CHAIN_VIOLATION_REASONS: [&str; 3] =
+    ["step_out_of_order", "parent_chain_missing", "replay"];
+const TARPIT_BUDGET_EXHAUSTION_REASONS: [&str; 8] = [
+    "entry_global_cap",
+    "entry_bucket_cap",
+    "entry_global_and_bucket_cap",
+    "flow_duration_cap",
+    "flow_bytes_cap",
+    "window_global_cap",
+    "window_bucket_cap",
+    "window_global_and_bucket_cap",
+];
 const FORWARD_FAILURE_CLASSES: [&str; 5] = [
     "timeout",
     "transport",
@@ -224,6 +237,9 @@ pub enum MetricName {
     TarpitEscalationOutcomes,
     TarpitDurationBuckets,
     TarpitBytesBuckets,
+    TarpitProofOutcomes,
+    TarpitChainViolations,
+    TarpitBudgetExhaustionReasons,
     CdpDetections,
     BotnessSignalState,
     DefenceModeEffective,
@@ -267,6 +283,11 @@ impl MetricName {
             MetricName::TarpitEscalationOutcomes => "tarpit_escalation_outcomes_total",
             MetricName::TarpitDurationBuckets => "tarpit_duration_buckets_total",
             MetricName::TarpitBytesBuckets => "tarpit_bytes_buckets_total",
+            MetricName::TarpitProofOutcomes => "tarpit_proof_outcomes_total",
+            MetricName::TarpitChainViolations => "tarpit_chain_violations_total",
+            MetricName::TarpitBudgetExhaustionReasons => {
+                "tarpit_budget_exhaustion_reasons_total"
+            }
             MetricName::CdpDetections => "cdp_detections_total",
             MetricName::BotnessSignalState => "botness_signal_state_total",
             MetricName::DefenceModeEffective => "defence_mode_effective_total",
@@ -484,6 +505,22 @@ pub fn record_tarpit_duration_bucket(store: &Store, bucket: &str) {
 
 pub fn record_tarpit_bytes_bucket(store: &Store, bucket: &str) {
     increment(store, MetricName::TarpitBytesBuckets, Some(bucket));
+}
+
+pub fn record_tarpit_proof_outcome(store: &Store, outcome: &str) {
+    increment(store, MetricName::TarpitProofOutcomes, Some(outcome));
+}
+
+pub fn record_tarpit_chain_violation(store: &Store, reason: &str) {
+    increment(store, MetricName::TarpitChainViolations, Some(reason));
+}
+
+pub fn record_tarpit_budget_exhaustion_reason(store: &Store, reason: &str) {
+    increment(
+        store,
+        MetricName::TarpitBudgetExhaustionReasons,
+        Some(reason),
+    );
 }
 
 /// Get current value of a counter
@@ -820,6 +857,48 @@ fn render_metrics_with_store(
         output.push_str(&format!(
             "bot_defence_tarpit_bytes_buckets_total{{bucket=\"{}\"}} {}\n",
             bucket, count
+        ));
+    }
+
+    output.push_str("\n# TYPE bot_defence_tarpit_proof_outcomes_total counter\n");
+    output.push_str(
+        "# HELP bot_defence_tarpit_proof_outcomes_total Tarpit proof verification outcomes\n",
+    );
+    for outcome in TARPIT_PROOF_OUTCOMES {
+        let key = format!("{}tarpit_proof_outcomes_total:{}", METRICS_PREFIX, outcome);
+        let count = get_counter(store, &key);
+        output.push_str(&format!(
+            "bot_defence_tarpit_proof_outcomes_total{{outcome=\"{}\"}} {}\n",
+            outcome, count
+        ));
+    }
+
+    output.push_str("\n# TYPE bot_defence_tarpit_chain_violations_total counter\n");
+    output.push_str(
+        "# HELP bot_defence_tarpit_chain_violations_total Tarpit chain continuity violations by reason\n",
+    );
+    for reason in TARPIT_CHAIN_VIOLATION_REASONS {
+        let key = format!("{}tarpit_chain_violations_total:{}", METRICS_PREFIX, reason);
+        let count = get_counter(store, &key);
+        output.push_str(&format!(
+            "bot_defence_tarpit_chain_violations_total{{reason=\"{}\"}} {}\n",
+            reason, count
+        ));
+    }
+
+    output.push_str("\n# TYPE bot_defence_tarpit_budget_exhaustion_reasons_total counter\n");
+    output.push_str(
+        "# HELP bot_defence_tarpit_budget_exhaustion_reasons_total Tarpit budget exhaustion reasons by cap family\n",
+    );
+    for reason in TARPIT_BUDGET_EXHAUSTION_REASONS {
+        let key = format!(
+            "{}tarpit_budget_exhaustion_reasons_total:{}",
+            METRICS_PREFIX, reason
+        );
+        let count = get_counter(store, &key);
+        output.push_str(&format!(
+            "bot_defence_tarpit_budget_exhaustion_reasons_total{{reason=\"{}\"}} {}\n",
+            reason, count
         ));
     }
 
@@ -1285,7 +1364,46 @@ pub fn handle_metrics(store: &Store) -> spin_sdk::http::Response {
 
 #[cfg(test)]
 mod tests {
+    use crate::challenge::KeyValueStore;
     use super::render_metrics_with_store;
+
+    #[test]
+    fn tarpit_observability_render_metrics_includes_extended_tarpit_families() {
+        let store = crate::test_support::InMemoryStore::default();
+        store
+            .set("metrics:tarpit_proof_outcomes_total:required", b"6")
+            .unwrap();
+        store
+            .set("metrics:tarpit_proof_outcomes_total:passed", b"4")
+            .unwrap();
+        store
+            .set("metrics:tarpit_proof_outcomes_total:failed", b"2")
+            .unwrap();
+        store
+            .set("metrics:tarpit_chain_violations_total:replay", b"3")
+            .unwrap();
+        store
+            .set(
+                "metrics:tarpit_budget_exhaustion_reasons_total:flow_duration_cap",
+                b"5",
+            )
+            .unwrap();
+
+        let body = render_metrics_with_store(&store, 0);
+
+        assert!(body.contains(
+            "bot_defence_tarpit_proof_outcomes_total{outcome=\"required\"} 6"
+        ));
+        assert!(body.contains(
+            "bot_defence_tarpit_proof_outcomes_total{outcome=\"passed\"} 4"
+        ));
+        assert!(body.contains(
+            "bot_defence_tarpit_chain_violations_total{reason=\"replay\"} 3"
+        ));
+        assert!(body.contains(
+            "bot_defence_tarpit_budget_exhaustion_reasons_total{reason=\"flow_duration_cap\"} 5"
+        ));
+    }
 
     #[test]
     fn render_metrics_includes_verified_identity_monitoring_families() {

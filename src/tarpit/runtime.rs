@@ -25,6 +25,7 @@ const TARPIT_BUDGET_GLOBAL_ACTIVE_PREFIX: &str = "tarpit:budget:active:global";
 const TARPIT_BUDGET_BUCKET_ACTIVE_PREFIX: &str = "tarpit:budget:active:bucket";
 const TARPIT_BUDGET_BUCKET_ACTIVE_CATALOG_PREFIX: &str = "tarpit:budget:active:bucket:catalog";
 const TARPIT_PERSISTENCE_PREFIX: &str = "tarpit:persistence";
+const TARPIT_PERSISTENCE_CATALOG_PREFIX: &str = "tarpit:persistence:catalog";
 const TARPIT_PROGRESS_REPLAY_PREFIX: &str = "tarpit:progress:seen";
 const TARPIT_PROGRESS_CHAIN_PREFIX: &str = "tarpit:progress:chain";
 const TARPIT_PROGRESS_STEP_PREFIX: &str = "tarpit:progress:step";
@@ -33,6 +34,7 @@ const TARPIT_BUDGET_EGRESS_GLOBAL_PREFIX: &str = "tarpit:budget:egress:global";
 const TARPIT_BUDGET_EGRESS_BUCKET_PREFIX: &str = "tarpit:budget:egress:bucket";
 const TARPIT_ESCALATION_SHORT_BAN_THRESHOLD: u32 = 5;
 const TARPIT_ESCALATION_BLOCK_THRESHOLD: u32 = 10;
+pub(crate) const TARPIT_OFFENDER_BUCKET_CATALOG_CAP: usize = 128;
 const SHARD_ROTATION: [&str; 6] = [
     "archive index fragment catalog vector mesh",
     "service reference matrix compliance surface",
@@ -87,6 +89,34 @@ pub(crate) enum ProgressAdvanceOutcome {
 pub(crate) struct ProgressAdvanceResult {
     pub outcome: ProgressAdvanceOutcome,
     pub success: Option<ProgressAdvanceSuccess>,
+    pub budget_exhaustion_reason: Option<BudgetExhaustionReason>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum BudgetExhaustionReason {
+    EntryGlobalCap,
+    EntryBucketCap,
+    EntryGlobalAndBucketCap,
+    FlowDurationCap,
+    FlowBytesCap,
+    WindowGlobalCap,
+    WindowBucketCap,
+    WindowGlobalAndBucketCap,
+}
+
+impl BudgetExhaustionReason {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            BudgetExhaustionReason::EntryGlobalCap => "entry_global_cap",
+            BudgetExhaustionReason::EntryBucketCap => "entry_bucket_cap",
+            BudgetExhaustionReason::EntryGlobalAndBucketCap => "entry_global_and_bucket_cap",
+            BudgetExhaustionReason::FlowDurationCap => "flow_duration_cap",
+            BudgetExhaustionReason::FlowBytesCap => "flow_bytes_cap",
+            BudgetExhaustionReason::WindowGlobalCap => "window_global_cap",
+            BudgetExhaustionReason::WindowBucketCap => "window_bucket_cap",
+            BudgetExhaustionReason::WindowGlobalAndBucketCap => "window_global_and_bucket_cap",
+        }
+    }
 }
 
 fn now_ms() -> u64 {
@@ -187,6 +217,10 @@ fn add_u64(store: &Store, key: &str, amount: u64) -> u64 {
 
 fn persistence_key(site_id: &str, ip_bucket: &str) -> String {
     format!("{}:{}:{}", TARPIT_PERSISTENCE_PREFIX, site_id, ip_bucket)
+}
+
+pub(crate) fn tarpit_persistence_catalog_key(site_id: &str) -> String {
+    format!("{}:{}", TARPIT_PERSISTENCE_CATALOG_PREFIX, site_id)
 }
 
 fn progress_step_key(flow_id: &str) -> String {
@@ -344,6 +378,17 @@ pub(crate) fn next_persistence_count(
                 key, err
             );
         }
+        if let Err(err) = crate::observability::key_catalog::register_key_capped_with_deception_store(
+            store,
+            tarpit_persistence_catalog_key(site_id).as_str(),
+            key.as_str(),
+            TARPIT_OFFENDER_BUCKET_CATALOG_CAP,
+        ) {
+            eprintln!(
+                "[tarpit] failed registering persistence catalog key={} err={}",
+                key, err
+            );
+        }
     }
     state.count
 }
@@ -453,19 +498,13 @@ fn validate_budgets(
     chunk_bytes: usize,
     policy: EgressPolicy,
     now: u64,
-) -> Result<(f32, f32), ProgressRejectReason> {
+) -> Result<(f32, f32), BudgetExhaustionReason> {
     if now > token.flow_started_at.saturating_add(policy.flow_max_duration_seconds) {
-        return Err(ProgressRejectReason::BudgetExhausted);
+        return Err(BudgetExhaustionReason::FlowDurationCap);
     }
     let chunk = chunk_bytes as u64;
     if token.flow_bytes_emitted.saturating_add(chunk) > policy.flow_max_bytes {
-        return Err(ProgressRejectReason::BudgetExhausted);
-    }
-
-    let flow_key = progress_flow_bytes_key(token.flow_id.as_str());
-    let server_flow_bytes = read_u64(store, flow_key.as_str());
-    if server_flow_bytes > 0 && token.flow_bytes_emitted != server_flow_bytes {
-        return Err(ProgressRejectReason::InvalidWindow);
+        return Err(BudgetExhaustionReason::FlowBytesCap);
     }
 
     let window_id = budget_window_id(now, policy.window_seconds);
@@ -473,10 +512,15 @@ fn validate_budgets(
     let bucket_key = egress_bucket_key(site_id, ip_bucket, window_id);
     let global_used = read_u64(store, global_key.as_str());
     let bucket_used = read_u64(store, bucket_key.as_str());
-    if global_used.saturating_add(chunk) > policy.global_bytes_per_window
-        || bucket_used.saturating_add(chunk) > policy.bucket_bytes_per_window
-    {
-        return Err(ProgressRejectReason::BudgetExhausted);
+    let global_exhausted = global_used.saturating_add(chunk) > policy.global_bytes_per_window;
+    let bucket_exhausted = bucket_used.saturating_add(chunk) > policy.bucket_bytes_per_window;
+    if global_exhausted || bucket_exhausted {
+        return Err(match (global_exhausted, bucket_exhausted) {
+            (true, true) => BudgetExhaustionReason::WindowGlobalAndBucketCap,
+            (true, false) => BudgetExhaustionReason::WindowGlobalCap,
+            (false, true) => BudgetExhaustionReason::WindowBucketCap,
+            (false, false) => unreachable!("budget exhaustion requires at least one exhausted cap"),
+        });
     }
 
     Ok((
@@ -530,6 +574,7 @@ pub(crate) fn advance_progress(
             return ProgressAdvanceResult {
                 outcome: ProgressAdvanceOutcome::Reject(reason),
                 success: None,
+                budget_exhaustion_reason: None,
             };
         }
     };
@@ -538,18 +583,21 @@ pub(crate) fn advance_progress(
         return ProgressAdvanceResult {
             outcome: ProgressAdvanceOutcome::Reject(ProgressRejectReason::BindingIpMismatch),
             success: None,
+            budget_exhaustion_reason: None,
         };
     }
     if token.ua_bucket != request_ua_bucket {
         return ProgressAdvanceResult {
             outcome: ProgressAdvanceOutcome::Reject(ProgressRejectReason::BindingUaMismatch),
             success: None,
+            budget_exhaustion_reason: None,
         };
     }
     if token.path_class != PATH_CLASS_TARPIT_PROGRESS {
         return ProgressAdvanceResult {
             outcome: ProgressAdvanceOutcome::Reject(ProgressRejectReason::PathMismatch),
             success: None,
+            budget_exhaustion_reason: None,
         };
     }
 
@@ -558,6 +606,7 @@ pub(crate) fn advance_progress(
         return ProgressAdvanceResult {
             outcome: ProgressAdvanceOutcome::Reject(ProgressRejectReason::StepOutOfOrder),
             success: None,
+            budget_exhaustion_reason: None,
         };
     }
     if token.step > 0 {
@@ -566,6 +615,7 @@ pub(crate) fn advance_progress(
             return ProgressAdvanceResult {
                 outcome: ProgressAdvanceOutcome::Reject(ProgressRejectReason::ParentChainMissing),
                 success: None,
+                budget_exhaustion_reason: None,
             };
         }
     }
@@ -574,16 +624,27 @@ pub(crate) fn advance_progress(
         return ProgressAdvanceResult {
             outcome: ProgressAdvanceOutcome::Reject(ProgressRejectReason::Replay),
             success: None,
+            budget_exhaustion_reason: None,
         };
     }
     if !verify_hashcash(raw_token, nonce, token.difficulty) {
         return ProgressAdvanceResult {
             outcome: ProgressAdvanceOutcome::Reject(ProgressRejectReason::InvalidProof),
             success: None,
+            budget_exhaustion_reason: None,
         };
     }
 
     let policy = egress_policy_from_config(cfg);
+    let flow_key = progress_flow_bytes_key(token.flow_id.as_str());
+    let server_flow_bytes = read_u64(store, flow_key.as_str());
+    if server_flow_bytes > 0 && token.flow_bytes_emitted != server_flow_bytes {
+        return ProgressAdvanceResult {
+            outcome: ProgressAdvanceOutcome::Reject(ProgressRejectReason::InvalidWindow),
+            success: None,
+            budget_exhaustion_reason: None,
+        };
+    }
     let chunk = next_chunk(
         token.flow_id.as_str(),
         token.step,
@@ -595,10 +656,11 @@ pub(crate) fn advance_progress(
         match validate_budgets(store, site_id, request_ip_bucket, &token, chunk.len(), policy, now)
         {
             Ok(v) => v,
-            Err(reason) => {
+            Err(budget_reason) => {
                 return ProgressAdvanceResult {
-                    outcome: ProgressAdvanceOutcome::Reject(reason),
+                    outcome: ProgressAdvanceOutcome::Reject(ProgressRejectReason::BudgetExhausted),
                     success: None,
+                    budget_exhaustion_reason: Some(budget_reason),
                 };
             }
         };
@@ -652,6 +714,7 @@ pub(crate) fn advance_progress(
             next_token: signed_next,
             next_difficulty: difficulty,
         }),
+        budget_exhaustion_reason: None,
     }
 }
 

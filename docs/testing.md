@@ -162,6 +162,7 @@ Notes:
 - `make test-native-build-warning-hygiene` is the focused proof path for `BUILD-HYGIENE-1`; it forces a fresh native host compile and treats warnings as errors so dead-code or cfg drift in canonical Rust test builds fails fast instead of quietly normalizing warning noise.
 - `make test-env-isolation-contract` is the focused proof path for `TEST-ENV-1`; it scans Rust test functions and fails if any test mutates process env without acquiring `lock_env()` before the first mutation.
 - `make test-ci-workflow-action-versions` is the focused proof path for `CI-WF-1`; it scans the workflow files and fails if the repo drifts back to the older Node20-backed `actions/checkout`, `actions/setup-node`, or `actions/upload-artifact` majors.
+- `make test-tarpit-observability-contract` is the focused proof path for `TAH-11`; it covers the expanded tarpit metrics families, admin monitoring projection, capped offender-bucket catalog behavior, and entry-budget reason classification.
 - `make test-dashboard-e2e` now verifies the running Spin instance is serving the current `dist/dashboard/index.html` before Playwright runs; restart Spin after `make dashboard-build` if this check fails.
 - `make test` now reseeds dashboard sample data at the end, so charts/tables stay populated for local inspection after the run.
 
@@ -463,7 +464,7 @@ Live loop controls:
 `test-adversarial-fast` enforces `test-adversarial-lane-contract`, `test-adversarial-sim-tag-contract`, and `test-adversarial-coverage-contract` before running profile lanes.
 `test-adversarial-coverage` enforces `test-adversarial-sim-tag-contract`, `test-adversarial-coverage-contract`, and `test-frontier-governance` after artifact generation.
 `test-adversarial-coverage` forces deterministic cleanup plus per-run scenario-IP rotation (`SHUMA_ADVERSARIAL_PRESERVE_STATE=0`, `SHUMA_ADVERSARIAL_ROTATE_IPS=1`) to avoid stale local cadence/persistence collisions.
-Diagnostics now includes explicit tarpit progression telemetry (activations, progression outcomes, budget fallbacks, and escalation outcomes) sourced from `/admin/monitoring`.
+Diagnostics now includes explicit tarpit progression telemetry (admissions or denials, proof outcomes, chain violations, budget reasons and fallbacks, escalation outcomes, duration and bytes buckets, and capped offender buckets) sourced from `/admin/monitoring`.
 Current `full_coverage` proves tarpit bootstrap entry and event-stream minimums, but it does not yet claim advanced tarpit progress-walker telemetry; reintroduce strict `tarpit_progress_advanced` depth gates only alongside a dedicated progress-following scenario.
 Container black-box controls:
 - worker image path: `scripts/tests/adversarial_container/Dockerfile` (non-root user, no workspace mount, read-only rootfs at runtime)

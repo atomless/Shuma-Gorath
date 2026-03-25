@@ -72,4 +72,38 @@ impl ProgressRejectReason {
     pub(crate) fn is_budget(self) -> bool {
         matches!(self, ProgressRejectReason::BudgetExhausted)
     }
+
+    pub(crate) fn chain_violation_reason(self) -> Option<&'static str> {
+        match self {
+            ProgressRejectReason::StepOutOfOrder => Some("step_out_of_order"),
+            ProgressRejectReason::ParentChainMissing => Some("parent_chain_missing"),
+            ProgressRejectReason::Replay => Some("replay"),
+            _ => None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ProgressRejectReason;
+
+    #[test]
+    fn progress_reject_reason_chain_violation_labels_are_stable() {
+        assert_eq!(
+            ProgressRejectReason::StepOutOfOrder.chain_violation_reason(),
+            Some("step_out_of_order")
+        );
+        assert_eq!(
+            ProgressRejectReason::ParentChainMissing.chain_violation_reason(),
+            Some("parent_chain_missing")
+        );
+        assert_eq!(
+            ProgressRejectReason::Replay.chain_violation_reason(),
+            Some("replay")
+        );
+        assert_eq!(
+            ProgressRejectReason::InvalidProof.chain_violation_reason(),
+            None
+        );
+    }
 }

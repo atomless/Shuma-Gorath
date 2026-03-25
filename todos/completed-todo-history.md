@@ -4,6 +4,22 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### TAH-11: expanded tarpit observability
+
+- [x] Added explicit tarpit proof outcomes, chain-violation reasons, detailed budget-exhaustion reasons, fallback-action projection, and capped offender-bucket visibility across Prometheus and `/admin/monitoring`.
+- [x] Added focused proof in:
+  - [`Makefile`](../Makefile) as `make test-tarpit-observability-contract`
+  - [`src/observability/metrics.rs`](../src/observability/metrics.rs)
+  - [`src/admin/api.rs`](../src/admin/api.rs)
+  - [`src/observability/key_catalog.rs`](../src/observability/key_catalog.rs)
+  - [`src/providers/internal.rs`](../src/providers/internal.rs)
+  - [`src/tarpit/types.rs`](../src/tarpit/types.rs)
+- [x] Added the closeout review in:
+  - [`docs/research/2026-03-24-tah-11-tarpit-observability-post-implementation-review.md`](../docs/research/2026-03-24-tah-11-tarpit-observability-post-implementation-review.md)
+- [x] Evidence:
+  - `make test-tarpit-observability-contract`
+  - `git diff --check`
+
 ### CI-WF-1: Node24-backed GitHub Action refresh
 
 - [x] Refreshed the workflow pins in:

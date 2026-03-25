@@ -54,6 +54,26 @@ fn register_key_with_io(
     write_catalog(set_value, catalog_key, &catalog)
 }
 
+fn register_key_capped_with_io(
+    get_value: &mut dyn FnMut(&str) -> Result<Option<Vec<u8>>, ()>,
+    set_value: &mut dyn FnMut(&str, &[u8]) -> Result<(), ()>,
+    catalog_key: &str,
+    key: &str,
+    max_entries: usize,
+) -> Result<bool, String> {
+    let mut catalog = read_catalog(get_value, catalog_key);
+    if catalog.keys.iter().any(|item| item == key) {
+        return Ok(true);
+    }
+    if catalog.keys.len() >= max_entries {
+        return Ok(false);
+    }
+    catalog.keys.push(key.to_string());
+    catalog.keys.sort();
+    write_catalog(set_value, catalog_key, &catalog)?;
+    Ok(true)
+}
+
 fn list_keys_with_io(
     get_value: &mut dyn FnMut(&str) -> Result<Option<Vec<u8>>, ()>,
     catalog_key: &str,
@@ -85,6 +105,33 @@ pub(crate) fn register_key_with_deception_store(
         crate::deception::primitives::DeceptionStateStore::set(store, lookup_key, value)
     };
     register_key_with_io(&mut get_value, &mut set_value, catalog_key, key)
+}
+
+#[cfg(test)]
+pub(crate) fn register_key_capped(
+    store: &(impl crate::challenge::KeyValueStore + ?Sized),
+    catalog_key: &str,
+    key: &str,
+    max_entries: usize,
+) -> Result<bool, String> {
+    let mut get_value = |lookup_key: &str| crate::challenge::KeyValueStore::get(store, lookup_key);
+    let mut set_value =
+        |lookup_key: &str, value: &[u8]| crate::challenge::KeyValueStore::set(store, lookup_key, value);
+    register_key_capped_with_io(&mut get_value, &mut set_value, catalog_key, key, max_entries)
+}
+
+pub(crate) fn register_key_capped_with_deception_store(
+    store: &(impl crate::deception::primitives::DeceptionStateStore + ?Sized),
+    catalog_key: &str,
+    key: &str,
+    max_entries: usize,
+) -> Result<bool, String> {
+    let mut get_value =
+        |lookup_key: &str| crate::deception::primitives::DeceptionStateStore::get(store, lookup_key);
+    let mut set_value = |lookup_key: &str, value: &[u8]| {
+        crate::deception::primitives::DeceptionStateStore::set(store, lookup_key, value)
+    };
+    register_key_capped_with_io(&mut get_value, &mut set_value, catalog_key, key, max_entries)
 }
 
 pub(crate) fn list_keys(
@@ -149,6 +196,29 @@ mod tests {
                 "maze_hits:bucket-a".to_string(),
                 "maze_hits:bucket-b".to_string()
             ]
+        );
+    }
+
+    #[test]
+    fn register_key_capped_refuses_new_entries_past_cap() {
+        let store = MockStore::default();
+        assert_eq!(
+            register_key_capped(&store, "catalog:test", "bucket-a", 2).expect("register bucket a"),
+            true
+        );
+        assert_eq!(
+            register_key_capped(&store, "catalog:test", "bucket-b", 2).expect("register bucket b"),
+            true
+        );
+        assert_eq!(
+            register_key_capped(&store, "catalog:test", "bucket-c", 2)
+                .expect("cap should refuse bucket c"),
+            false
+        );
+
+        assert_eq!(
+            list_keys(&store, "catalog:test"),
+            vec!["bucket-a".to_string(), "bucket-b".to_string()]
         );
     }
 }

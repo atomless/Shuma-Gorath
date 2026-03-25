@@ -115,12 +115,22 @@ Prometheus metrics include:
 
 - `bot_defence_tarpit_activations_total{mode=...}`
 - `bot_defence_tarpit_progress_outcomes_total{outcome=...}`
+- `bot_defence_tarpit_proof_outcomes_total{outcome="required|passed|failed"}`
+- `bot_defence_tarpit_chain_violations_total{reason="step_out_of_order|parent_chain_missing|replay"}`
 - `bot_defence_tarpit_budget_outcomes_total{outcome=...}`
+- `bot_defence_tarpit_budget_exhaustion_reasons_total{reason=...}`
 - `bot_defence_tarpit_escalation_outcomes_total{outcome=...}`
 - `bot_defence_tarpit_duration_buckets_total{bucket=...}`
 - `bot_defence_tarpit_bytes_buckets_total{bucket=...}`
 
-Admin monitoring payload (`GET /admin/monitoring`) also includes tarpit runtime counters/config snapshots under `details.tarpit`.
+Admin monitoring payload (`GET /admin/monitoring`) also includes tarpit runtime counters and config snapshots under `details.tarpit`, including:
+
+- progression admissions and denials,
+- proof outcomes,
+- chain-violation totals and reasons,
+- budget exhaustion reasons plus fallback actions,
+- duration and bytes buckets,
+- and capped persistence offender buckets.
 
 Preview surface:
 

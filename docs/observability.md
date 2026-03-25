@@ -92,6 +92,15 @@ Prometheus parity scope for Monitoring widgets is tracked in:
 - `bot_defence_maze_budget_outcomes_total{outcome="acquired|saturated|response_cap_exceeded"}`
 - `bot_defence_maze_proof_outcomes_total{outcome="required|passed|failed"}`
 - `bot_defence_maze_entropy_variants_total{variant="...",provider="internal|operator",metadata_only="true|false"}`
+- `bot_defence_tarpit_activations_total{mode="progressive"}`
+- `bot_defence_tarpit_progress_outcomes_total{outcome="advanced|tarpit_progress_*"}`
+- `bot_defence_tarpit_proof_outcomes_total{outcome="required|passed|failed"}`
+- `bot_defence_tarpit_chain_violations_total{reason="step_out_of_order|parent_chain_missing|replay"}`
+- `bot_defence_tarpit_budget_outcomes_total{outcome="acquired|saturated|fallback_maze|fallback_block"}`
+- `bot_defence_tarpit_budget_exhaustion_reasons_total{reason="entry_*|flow_*|window_*"}`
+- `bot_defence_tarpit_escalation_outcomes_total{outcome="none|short_ban|block"}`
+- `bot_defence_tarpit_duration_buckets_total{bucket="lt_1s|1_5s|5_20s|20s_plus"}`
+- `bot_defence_tarpit_bytes_buckets_total{bucket="lt_8kb|8_32kb|32_128kb|128_512kb|512kb_plus"}`
 - `bot_defence_active_bans`
 - `bot_defence_shadow_mode_enabled`
 - `bot_defence_botness_signal_state_total{signal="...",state="active|disabled|unavailable"}`

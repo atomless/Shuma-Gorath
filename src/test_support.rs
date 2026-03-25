@@ -44,6 +44,16 @@ impl crate::challenge::KeyValueStore for InMemoryStore {
     }
 }
 
+impl crate::maze::state::MazeStateStore for InMemoryStore {
+    fn get(&self, key: &str) -> Result<Option<Vec<u8>>, ()> {
+        crate::challenge::KeyValueStore::get(self, key)
+    }
+
+    fn set(&self, key: &str, value: &[u8]) -> Result<(), ()> {
+        crate::challenge::KeyValueStore::set(self, key, value)
+    }
+}
+
 static ENV_MUTEX: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
 pub(crate) fn lock_env() -> MutexGuard<'static, ()> {

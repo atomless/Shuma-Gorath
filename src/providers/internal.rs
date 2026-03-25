@@ -31,6 +31,31 @@ pub(crate) fn tarpit_budget_bucket_active_prefix(site_id: &str) -> String {
     crate::tarpit::runtime::tarpit_budget_bucket_active_prefix(site_id)
 }
 
+fn tarpit_entry_budget_exhaustion_reason(
+    store: &(impl crate::deception::primitives::DeceptionStateStore + ?Sized),
+    cfg: &crate::config::Config,
+    site_id: &str,
+    ip_bucket: &str,
+) -> crate::tarpit::runtime::BudgetExhaustionReason {
+    let global_used = crate::deception::primitives::read_counter(
+        store,
+        crate::tarpit::runtime::tarpit_budget_global_active_key(site_id).as_str(),
+    );
+    let bucket_key = crate::deception::primitives::budget_bucket_key(
+        crate::tarpit::runtime::tarpit_budget_bucket_active_prefix(site_id).as_str(),
+        ip_bucket,
+    );
+    let bucket_used = crate::deception::primitives::read_counter(store, bucket_key.as_str());
+    let global_exhausted = global_used >= cfg.tarpit_max_concurrent_global;
+    let bucket_exhausted = bucket_used >= cfg.tarpit_max_concurrent_per_ip_bucket;
+    match (global_exhausted, bucket_exhausted) {
+        (true, true) => crate::tarpit::runtime::BudgetExhaustionReason::EntryGlobalAndBucketCap,
+        (true, false) => crate::tarpit::runtime::BudgetExhaustionReason::EntryGlobalCap,
+        (false, true) => crate::tarpit::runtime::BudgetExhaustionReason::EntryBucketCap,
+        (false, false) => crate::tarpit::runtime::BudgetExhaustionReason::EntryGlobalCap,
+    }
+}
+
 fn render_tarpit_budget_fallback(
     provider: &InternalMazeTarpitProvider,
     req: &Request,
@@ -437,6 +462,12 @@ impl MazeTarpitProvider for InternalMazeTarpitProvider {
         ) {
             Some(lease) => lease,
             None => {
+                let reason =
+                    tarpit_entry_budget_exhaustion_reason(store, cfg, site_id, ip_bucket.as_str());
+                crate::observability::metrics::record_tarpit_budget_exhaustion_reason(
+                    store,
+                    reason.as_str(),
+                );
                 crate::observability::metrics::record_tarpit_budget_outcome(store, "saturated");
                 return Some(render_tarpit_budget_fallback(
                     self, req, store, cfg, ip, user_agent,
@@ -483,10 +514,23 @@ impl MazeTarpitProvider for InternalMazeTarpitProvider {
         }
 
         let started_at = crate::tarpit::runtime::now_millis();
+        crate::observability::metrics::record_tarpit_proof_outcome(store, "required");
         let handled =
             crate::tarpit::http::handle_progress(req, store, cfg, site_id, ip, user_agent);
         if let Some(reason) = handled.reject_reason {
             crate::observability::metrics::record_tarpit_progress_outcome(store, reason.as_str());
+            if reason == crate::tarpit::types::ProgressRejectReason::InvalidProof {
+                crate::observability::metrics::record_tarpit_proof_outcome(store, "failed");
+            }
+            if let Some(chain_reason) = reason.chain_violation_reason() {
+                crate::observability::metrics::record_tarpit_chain_violation(store, chain_reason);
+            }
+            if let Some(budget_reason) = handled.budget_exhaustion_reason {
+                crate::observability::metrics::record_tarpit_budget_exhaustion_reason(
+                    store,
+                    budget_reason.as_str(),
+                );
+            }
             if reason.is_budget() {
                 return render_tarpit_budget_fallback(self, req, store, cfg, ip, user_agent);
             }
@@ -494,6 +538,7 @@ impl MazeTarpitProvider for InternalMazeTarpitProvider {
         }
 
         crate::observability::metrics::record_tarpit_progress_outcome(store, "advanced");
+        crate::observability::metrics::record_tarpit_proof_outcome(store, "passed");
 
         if let Some(chunk_bytes) = handled.chunk_bytes {
             crate::observability::metrics::record_tarpit_bytes_bucket(
@@ -615,6 +660,36 @@ mod tests {
         assert_eq!(
             tarpit_budget_bucket_active_prefix("default"),
             crate::tarpit::runtime::tarpit_budget_bucket_active_prefix("default")
+        );
+    }
+
+    #[test]
+    fn tarpit_entry_budget_exhaustion_reason_distinguishes_cap_sources() {
+        let store = crate::test_support::InMemoryStore::default();
+        let mut cfg = crate::config::defaults().clone();
+        cfg.tarpit_max_concurrent_global = 4;
+        cfg.tarpit_max_concurrent_per_ip_bucket = 2;
+        let site_id = "default";
+        let ip_bucket = "bucket-a";
+
+        crate::deception::primitives::write_counter(
+            &store,
+            crate::tarpit::runtime::tarpit_budget_global_active_key(site_id).as_str(),
+            4,
+        );
+        crate::deception::primitives::write_counter(
+            &store,
+            crate::deception::primitives::budget_bucket_key(
+                crate::tarpit::runtime::tarpit_budget_bucket_active_prefix(site_id).as_str(),
+                ip_bucket,
+            )
+            .as_str(),
+            2,
+        );
+
+        assert_eq!(
+            tarpit_entry_budget_exhaustion_reason(&store, &cfg, site_id, ip_bucket),
+            crate::tarpit::runtime::BudgetExhaustionReason::EntryGlobalAndBucketCap
         );
     }
 

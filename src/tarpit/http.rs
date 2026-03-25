@@ -3,6 +3,7 @@ use spin_sdk::http::{Method, Request, Response};
 use spin_sdk::key_value::Store;
 
 use crate::tarpit::runtime::{advance_progress, ProgressAdvanceOutcome};
+use crate::tarpit::runtime::BudgetExhaustionReason;
 use crate::tarpit::types::ProgressRejectReason;
 
 const PROGRESS_PATH: &str = "/tarpit/progress";
@@ -16,6 +17,7 @@ pub(crate) struct ProgressHttpResult {
     pub response: Response,
     pub reject_reason: Option<ProgressRejectReason>,
     pub chunk_bytes: Option<usize>,
+    pub budget_exhaustion_reason: Option<BudgetExhaustionReason>,
 }
 
 fn reject_status(reason: ProgressRejectReason) -> u16 {
@@ -49,6 +51,7 @@ pub(crate) fn handle_progress(
             response: Response::new(405, "Method Not Allowed"),
             reject_reason: Some(ProgressRejectReason::Malformed),
             chunk_bytes: None,
+            budget_exhaustion_reason: None,
         };
     }
     let payload = match crate::request_validation::parse_json_body(
@@ -61,6 +64,7 @@ pub(crate) fn handle_progress(
                 response: Response::new(400, "Invalid tarpit progress payload"),
                 reject_reason: Some(ProgressRejectReason::Malformed),
                 chunk_bytes: None,
+                budget_exhaustion_reason: None,
             };
         }
     };
@@ -79,6 +83,7 @@ pub(crate) fn handle_progress(
             response: Response::new(400, "Missing token or nonce"),
             reject_reason: Some(ProgressRejectReason::Malformed),
             chunk_bytes: None,
+            budget_exhaustion_reason: None,
         };
     }
 
@@ -119,6 +124,7 @@ pub(crate) fn handle_progress(
                 response,
                 reject_reason: None,
                 chunk_bytes: Some(success.chunk_bytes),
+                budget_exhaustion_reason: None,
             }
         }
         ProgressAdvanceOutcome::Reject(reason) => {
@@ -139,6 +145,7 @@ pub(crate) fn handle_progress(
                 response,
                 reject_reason: Some(reason),
                 chunk_bytes: None,
+                budget_exhaustion_reason: result.budget_exhaustion_reason,
             }
         }
     }

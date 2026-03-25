@@ -9370,6 +9370,176 @@ mod admin_config_tests {
     }
 
     #[test]
+    fn tarpit_observability_monitoring_payload_projects_extended_tarpit_metrics() {
+        let _lock = crate::test_support::lock_env();
+        let store = TestStore::default();
+
+        store
+            .set("metrics:tarpit_progress_outcomes_total:advanced", b"4")
+            .unwrap();
+        store
+            .set("metrics:tarpit_progress_outcomes_total:tarpit_progress_invalid_proof", b"2")
+            .unwrap();
+        store
+            .set(
+                "metrics:tarpit_progress_outcomes_total:tarpit_progress_step_out_of_order",
+                b"1",
+            )
+            .unwrap();
+        store
+            .set(
+                "metrics:tarpit_progress_outcomes_total:tarpit_progress_parent_chain_missing",
+                b"3",
+            )
+            .unwrap();
+        store
+            .set("metrics:tarpit_progress_outcomes_total:tarpit_progress_replay", b"5")
+            .unwrap();
+        store
+            .set("metrics:tarpit_budget_outcomes_total:fallback_maze", b"6")
+            .unwrap();
+        store
+            .set("metrics:tarpit_budget_outcomes_total:fallback_block", b"1")
+            .unwrap();
+        store
+            .set("metrics:tarpit_proof_outcomes_total:required", b"6")
+            .unwrap();
+        store
+            .set("metrics:tarpit_proof_outcomes_total:passed", b"4")
+            .unwrap();
+        store
+            .set("metrics:tarpit_proof_outcomes_total:failed", b"2")
+            .unwrap();
+        store
+            .set("metrics:tarpit_chain_violations_total:step_out_of_order", b"1")
+            .unwrap();
+        store
+            .set("metrics:tarpit_chain_violations_total:parent_chain_missing", b"3")
+            .unwrap();
+        store
+            .set("metrics:tarpit_chain_violations_total:replay", b"5")
+            .unwrap();
+        store
+            .set(
+                "metrics:tarpit_budget_exhaustion_reasons_total:entry_bucket_cap",
+                b"2",
+            )
+            .unwrap();
+        store
+            .set(
+                "metrics:tarpit_budget_exhaustion_reasons_total:flow_duration_cap",
+                b"7",
+            )
+            .unwrap();
+        store
+            .set(
+                "metrics:tarpit_budget_exhaustion_reasons_total:window_global_cap",
+                b"4",
+            )
+            .unwrap();
+        store
+            .set(
+                "tarpit:persistence:default:bucket-a",
+                br#"{"count":7,"expires_at":9999999999}"#,
+            )
+            .unwrap();
+        store
+            .set(
+                "tarpit:persistence:default:bucket-b",
+                br#"{"count":3,"expires_at":9999999999}"#,
+            )
+            .unwrap();
+        crate::observability::key_catalog::register_key(
+            &store,
+            "tarpit:persistence:catalog:default",
+            "tarpit:persistence:default:bucket-a",
+        )
+        .unwrap();
+        crate::observability::key_catalog::register_key(
+            &store,
+            "tarpit:persistence:catalog:default",
+            "tarpit:persistence:default:bucket-b",
+        )
+        .unwrap();
+
+        let details = monitoring_details_payload(&store, "default", 24, 10, false);
+        let tarpit = details.get("tarpit").expect("tarpit details should exist");
+        let metrics = tarpit.get("metrics").expect("tarpit metrics should exist");
+
+        assert_eq!(
+            metrics
+                .get("progress_summary")
+                .and_then(|value| value.get("admissions"))
+                .and_then(|value| value.as_u64()),
+            Some(4)
+        );
+        assert_eq!(
+            metrics
+                .get("progress_summary")
+                .and_then(|value| value.get("denials"))
+                .and_then(|value| value.as_u64()),
+            Some(11)
+        );
+        assert_eq!(
+            metrics
+                .get("proof_outcomes")
+                .and_then(|value| value.get("passed"))
+                .and_then(|value| value.as_u64()),
+            Some(4)
+        );
+        assert_eq!(
+            metrics
+                .get("chain_violations")
+                .and_then(|value| value.get("total"))
+                .and_then(|value| value.as_u64()),
+            Some(9)
+        );
+        assert_eq!(
+            metrics
+                .get("budget_exhaustion_reasons")
+                .and_then(|value| value.get("flow_duration_cap"))
+                .and_then(|value| value.as_u64()),
+            Some(7)
+        );
+        assert_eq!(
+            metrics
+                .get("fallback_actions")
+                .and_then(|value| value.get("maze"))
+                .and_then(|value| value.as_u64()),
+            Some(6)
+        );
+
+        let offenders = tarpit
+            .get("offenders")
+            .expect("tarpit offenders should exist");
+        assert_eq!(
+            offenders
+                .get("tracked_buckets")
+                .and_then(|value| value.as_u64()),
+            Some(2)
+        );
+        assert_eq!(
+            offenders
+                .get("bucket_catalog_cap")
+                .and_then(|value| value.as_u64()),
+            Some(128)
+        );
+        let top_buckets = offenders
+            .get("top_buckets")
+            .and_then(|value| value.as_array())
+            .cloned()
+            .unwrap_or_default();
+        assert!(top_buckets.iter().any(|entry| {
+            entry.get("bucket").and_then(|value| value.as_str()) == Some("bucket-a")
+                && entry.get("count").and_then(|value| value.as_u64()) == Some(7)
+        }));
+        assert!(top_buckets.iter().any(|entry| {
+            entry.get("bucket").and_then(|value| value.as_str()) == Some("bucket-b")
+                && entry.get("count").and_then(|value| value.as_u64()) == Some(3)
+        }));
+    }
+
+    #[test]
     fn monitoring_details_payload_marks_ban_state_unavailable_when_strict_backend_is_unavailable() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_BAN_STORE_OUTAGE_MODE", "fail_closed");
@@ -16996,6 +17166,24 @@ where
         .unwrap_or(0)
 }
 
+#[derive(Debug, Deserialize)]
+struct TarpitPersistenceSnapshot {
+    count: u32,
+}
+
+fn read_tarpit_persistence_count<S>(store: &S, key: &str) -> u64
+where
+    S: crate::challenge::KeyValueStore,
+{
+    store
+        .get(key)
+        .ok()
+        .flatten()
+        .and_then(|raw| serde_json::from_slice::<TarpitPersistenceSnapshot>(raw.as_slice()).ok())
+        .map(|value| u64::from(value.count))
+        .unwrap_or(0)
+}
+
 #[derive(Debug, Default, Serialize)]
 pub(super) struct TelemetryHistoryCleanupResult {
     pub(super) deleted_keys: u64,
@@ -17266,8 +17454,67 @@ where
         .take(10)
         .map(|(bucket, count)| json!({"bucket": bucket, "active": count}))
         .collect();
+    let mut tarpit_offender_bucket_counts: Vec<(String, u64)> = Vec::new();
+    let tarpit_persistence_key_prefix = format!("tarpit:persistence:{}:", site_id);
+    for key in crate::observability::key_catalog::list_keys(
+        store,
+        crate::tarpit::runtime::tarpit_persistence_catalog_key(site_id).as_str(),
+    ) {
+        if !key.starts_with(tarpit_persistence_key_prefix.as_str()) {
+            continue;
+        }
+        let bucket = key
+            .strip_prefix(tarpit_persistence_key_prefix.as_str())
+            .unwrap_or("unknown")
+            .to_string();
+        let count = read_tarpit_persistence_count(store, key.as_str());
+        if count == 0 {
+            continue;
+        }
+        tarpit_offender_bucket_counts.push((bucket, count));
+    }
+    tarpit_offender_bucket_counts.sort_by(|a, b| b.1.cmp(&a.1));
+    let tarpit_top_offender_buckets: Vec<_> = tarpit_offender_bucket_counts
+        .iter()
+        .take(10)
+        .map(|(bucket, count)| json!({"bucket": bucket, "count": count}))
+        .collect();
     let tarpit_global_active_key =
         crate::providers::internal::tarpit_budget_global_active_key(site_id);
+    let tarpit_progress_admissions =
+        read_u64_counter(store, "metrics:tarpit_progress_outcomes_total:advanced");
+    let tarpit_progress_denials = [
+        "tarpit_progress_malformed",
+        "tarpit_progress_signature_mismatch",
+        "tarpit_progress_invalid_version",
+        "tarpit_progress_expired",
+        "tarpit_progress_invalid_window",
+        "tarpit_progress_binding_ip_mismatch",
+        "tarpit_progress_binding_ua_mismatch",
+        "tarpit_progress_path_mismatch",
+        "tarpit_progress_step_out_of_order",
+        "tarpit_progress_parent_chain_missing",
+        "tarpit_progress_replay",
+        "tarpit_progress_invalid_proof",
+        "tarpit_progress_budget_exhausted",
+    ]
+    .into_iter()
+    .map(|label| {
+        read_u64_counter(
+            store,
+            format!("metrics:tarpit_progress_outcomes_total:{label}").as_str(),
+        )
+    })
+    .sum::<u64>();
+    let tarpit_chain_violation_total = ["step_out_of_order", "parent_chain_missing", "replay"]
+        .into_iter()
+        .map(|reason| {
+            read_u64_counter(
+                store,
+                format!("metrics:tarpit_chain_violations_total:{reason}").as_str(),
+            )
+        })
+        .sum::<u64>();
 
     let fail_mode = if crate::config::kv_store_fail_open() {
         "open"
@@ -17349,9 +17596,18 @@ where
                 "global": read_u64_counter(store, tarpit_global_active_key.as_str()),
                 "top_buckets": tarpit_top_active_buckets
             },
+            "offenders": {
+                "bucket_catalog_cap": crate::tarpit::runtime::TARPIT_OFFENDER_BUCKET_CATALOG_CAP,
+                "tracked_buckets": tarpit_offender_bucket_counts.len(),
+                "top_buckets": tarpit_top_offender_buckets
+            },
             "metrics": {
                 "activations": {
                     "progressive": read_u64_counter(store, "metrics:tarpit_activations_total:progressive")
+                },
+                "progress_summary": {
+                    "admissions": tarpit_progress_admissions,
+                    "denials": tarpit_progress_denials
                 },
                 "progress_outcomes": {
                     "advanced": read_u64_counter(store, "metrics:tarpit_progress_outcomes_total:advanced"),
@@ -17369,11 +17625,36 @@ where
                     "tarpit_progress_invalid_proof": read_u64_counter(store, "metrics:tarpit_progress_outcomes_total:tarpit_progress_invalid_proof"),
                     "tarpit_progress_budget_exhausted": read_u64_counter(store, "metrics:tarpit_progress_outcomes_total:tarpit_progress_budget_exhausted")
                 },
+                "proof_outcomes": {
+                    "required": read_u64_counter(store, "metrics:tarpit_proof_outcomes_total:required"),
+                    "passed": read_u64_counter(store, "metrics:tarpit_proof_outcomes_total:passed"),
+                    "failed": read_u64_counter(store, "metrics:tarpit_proof_outcomes_total:failed")
+                },
+                "chain_violations": {
+                    "total": tarpit_chain_violation_total,
+                    "step_out_of_order": read_u64_counter(store, "metrics:tarpit_chain_violations_total:step_out_of_order"),
+                    "parent_chain_missing": read_u64_counter(store, "metrics:tarpit_chain_violations_total:parent_chain_missing"),
+                    "replay": read_u64_counter(store, "metrics:tarpit_chain_violations_total:replay")
+                },
                 "budget_outcomes": {
                     "acquired": read_u64_counter(store, "metrics:tarpit_budget_outcomes_total:acquired"),
                     "saturated": read_u64_counter(store, "metrics:tarpit_budget_outcomes_total:saturated"),
                     "fallback_maze": read_u64_counter(store, "metrics:tarpit_budget_outcomes_total:fallback_maze"),
                     "fallback_block": read_u64_counter(store, "metrics:tarpit_budget_outcomes_total:fallback_block")
+                },
+                "budget_exhaustion_reasons": {
+                    "entry_global_cap": read_u64_counter(store, "metrics:tarpit_budget_exhaustion_reasons_total:entry_global_cap"),
+                    "entry_bucket_cap": read_u64_counter(store, "metrics:tarpit_budget_exhaustion_reasons_total:entry_bucket_cap"),
+                    "entry_global_and_bucket_cap": read_u64_counter(store, "metrics:tarpit_budget_exhaustion_reasons_total:entry_global_and_bucket_cap"),
+                    "flow_duration_cap": read_u64_counter(store, "metrics:tarpit_budget_exhaustion_reasons_total:flow_duration_cap"),
+                    "flow_bytes_cap": read_u64_counter(store, "metrics:tarpit_budget_exhaustion_reasons_total:flow_bytes_cap"),
+                    "window_global_cap": read_u64_counter(store, "metrics:tarpit_budget_exhaustion_reasons_total:window_global_cap"),
+                    "window_bucket_cap": read_u64_counter(store, "metrics:tarpit_budget_exhaustion_reasons_total:window_bucket_cap"),
+                    "window_global_and_bucket_cap": read_u64_counter(store, "metrics:tarpit_budget_exhaustion_reasons_total:window_global_and_bucket_cap")
+                },
+                "fallback_actions": {
+                    "maze": read_u64_counter(store, "metrics:tarpit_budget_outcomes_total:fallback_maze"),
+                    "block": read_u64_counter(store, "metrics:tarpit_budget_outcomes_total:fallback_block")
                 },
                 "escalation_outcomes": {
                     "none": read_u64_counter(store, "metrics:tarpit_escalation_outcomes_total:none"),
