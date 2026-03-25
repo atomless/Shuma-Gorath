@@ -244,6 +244,11 @@ Additional prerequisite note:
 8. Land `RSI-AUDIT-1` before later autonomous defender runtime work is treated as operationally accountable, and before `OVR-CODE-1` is treated as execution-ready.
 9. Keep judge-side planning allowed to proceed, but do not treat broader attacker/defender game-loop execution as ready until `SIM-SCR-CHALLENGE-1` is complete and any owned-surface browser or stealth requirement from that matrix has been satisfied through `SIM-SCR-BROWSER-1`.
 
+Current note:
+
+1. `RSI-GAME-1A`, `RSI-GAME-1B`, and `RSI-SCORE-1` are now landed.
+2. The remaining judge-side execution mainline is `RSI-GAME-1C` followed by `RSI-GAME-MAINLINE-1`.
+
 # Definition Of Done
 
 This plan is complete when:

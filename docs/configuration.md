@@ -329,6 +329,16 @@ Operator-objectives contract notes:
 - Shuma now also projects a canonical `recursive_improvement_game_contract_v1` through `operator_snapshot_v1` and `oversight_history_v1`. That contract makes the current game explicit:
   - immutable rules come from `operator_objectives_v1`,
   - the independent judge boundary comes from `benchmark_results_v1` over `benchmark_suite_v1`,
+  - the explicit evaluator scorecard now partitions the judge into:
+    - `optimization_targets`
+    - `hard_guardrails`
+    - `regression_inputs`
+    - `diagnostic_contexts`
+    - `comparison_contract`
+  - the current optimization targets are the numeric likely-human and suspicious-origin budgets plus category target achievement over canonical non-human categories,
+  - the current hard guardrail is beneficial non-human no-harm,
+  - the current regression inputs are representative adversary regression plus prior-window progress,
+  - the judge comparison contract explicitly forbids hidden scalarization and reuses the same scorecard for episode judgment, rollback or retain, and homeostasis inputs,
   - the legal move ring is the controller-tunable subset of `allowed_actions_v1`,
   - safety gates remain fail-closed on stale evidence, contradictory evidence, tuning ineligibility, and manual-review rollout guardrails,
   - regression anchors remain explicit rather than being inferred later from agent behavior.

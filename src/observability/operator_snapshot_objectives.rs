@@ -91,6 +91,28 @@ pub(crate) struct RecursiveImprovementImmutableRules {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct RecursiveImprovementScorecardEntry {
+    pub score_id: String,
+    pub source_contract: String,
+    pub family_id: String,
+    pub metric_ids: Vec<String>,
+    pub judgment_role: String,
+    pub note: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct RecursiveImprovementEpisodeComparisonContract {
+    pub source_contract: String,
+    pub comparison_bases: Vec<String>,
+    pub judgment_inputs: Vec<String>,
+    pub rollback_input_ids: Vec<String>,
+    pub homeostasis_input_ids: Vec<String>,
+    pub minimum_completed_cycles_for_homeostasis: u64,
+    pub scalarization: String,
+    pub note: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub(crate) struct RecursiveImprovementEvaluatorScorecard {
     pub benchmark_suite_schema_version: String,
     pub benchmark_results_schema_version: String,
@@ -99,6 +121,11 @@ pub(crate) struct RecursiveImprovementEvaluatorScorecard {
     pub subject_kinds: Vec<String>,
     pub family_ids: Vec<String>,
     pub decision_boundaries: Vec<String>,
+    pub optimization_targets: Vec<RecursiveImprovementScorecardEntry>,
+    pub hard_guardrails: Vec<RecursiveImprovementScorecardEntry>,
+    pub regression_inputs: Vec<RecursiveImprovementScorecardEntry>,
+    pub diagnostic_contexts: Vec<RecursiveImprovementScorecardEntry>,
+    pub comparison_contract: RecursiveImprovementEpisodeComparisonContract,
     pub note: String,
 }
 
@@ -142,6 +169,11 @@ pub(crate) fn recursive_improvement_game_contract_v1(
     legal_move_ring: &ControllerLegalMoveRingSurface,
 ) -> RecursiveImprovementGameContract {
     let benchmark_suite = benchmark_suite_v1();
+    let category_metric_ids: Vec<_> = objectives
+        .category_postures
+        .iter()
+        .map(|row| format!("category_posture_alignment:{}", row.category_id.as_str()))
+        .collect();
 
     RecursiveImprovementGameContract {
         schema_version: RECURSIVE_IMPROVEMENT_GAME_CONTRACT_SCHEMA_VERSION.to_string(),
@@ -169,7 +201,163 @@ pub(crate) fn recursive_improvement_game_contract_v1(
                 .into_iter()
                 .map(|boundary| boundary.decision)
                 .collect(),
-            note: "benchmark_results_v1 is the independent machine-first judge surface. Later scorecard work may refine metric partitioning, but it must not replace this evaluator boundary."
+            optimization_targets: vec![
+                scorecard_entry(
+                    "likely_human_friction_budget",
+                    "operator_objectives_v1.budgets + benchmark_results_v1",
+                    "likely_human_friction",
+                    budget_metric_ids(
+                        objectives,
+                        "likely_human_friction",
+                        "likely_human_friction_rate",
+                    ),
+                    "optimization_target",
+                    "Likely-human friction remains a first-class optimization target and must not be hidden behind aggregate verdict text only.",
+                ),
+                scorecard_entry(
+                    "suspicious_origin_request_budget",
+                    "operator_objectives_v1.budgets + benchmark_results_v1",
+                    "suspicious_origin_cost",
+                    budget_metric_ids(
+                        objectives,
+                        "suspicious_forwarded_requests",
+                        "suspicious_forwarded_request_rate",
+                    ),
+                    "optimization_target",
+                    "Suspicious forwarded request reach is a direct cost-control target for the judge.",
+                ),
+                scorecard_entry(
+                    "suspicious_origin_byte_budget",
+                    "operator_objectives_v1.budgets + benchmark_results_v1",
+                    "suspicious_origin_cost",
+                    budget_metric_ids(
+                        objectives,
+                        "suspicious_forwarded_bytes",
+                        "suspicious_forwarded_byte_rate",
+                    ),
+                    "optimization_target",
+                    "Suspicious forwarded byte volume is judged separately so the loop cannot hide bandwidth regressions inside broader progress claims.",
+                ),
+                scorecard_entry(
+                    "suspicious_origin_latency_budget",
+                    "operator_objectives_v1.budgets + benchmark_results_v1",
+                    "suspicious_origin_cost",
+                    budget_metric_ids(
+                        objectives,
+                        "suspicious_forwarded_latency",
+                        "suspicious_forwarded_latency_share",
+                    ),
+                    "optimization_target",
+                    "Suspicious forwarded latency share remains distinct from request reach so high-latency leakage cannot hide behind request-count improvements.",
+                ),
+                scorecard_entry(
+                    "category_target_achievement",
+                    "operator_objectives_v1.category_postures + benchmark_results_v1",
+                    "non_human_category_posture",
+                    category_metric_ids.clone(),
+                    "optimization_target",
+                    "Per-category target achievement is judged as explicit target-vs-achieved outcome, not as a fake scalar budget.",
+                ),
+            ],
+            hard_guardrails: vec![scorecard_entry(
+                "beneficial_non_human_no_harm",
+                "operator_objectives_v1.category_postures + benchmark_results_v1",
+                "beneficial_non_human_posture",
+                vec![
+                    "friction_mismatch_rate".to_string(),
+                    "deny_mismatch_rate".to_string(),
+                    "coverage_status".to_string(),
+                ],
+                "hard_guardrail",
+                "Beneficial and verified non-human traffic must remain protected from harmful regression even when hostile-traffic metrics improve.",
+            )],
+            regression_inputs: vec![
+                scorecard_entry(
+                    "representative_adversary_regression",
+                    "operator_objectives_v1.adversary_sim_expectations + benchmark_results_v1",
+                    "representative_adversary_effectiveness",
+                    vec![
+                        "scenario_goal_success_rate".to_string(),
+                        "scenario_escalation_rate".to_string(),
+                        "scenario_regression_status".to_string(),
+                    ],
+                    "regression_input",
+                    "Representative adversary regression remains an explicit judge-side input rather than an explanatory footnote.",
+                ),
+                scorecard_entry(
+                    "prior_window_progress",
+                    "benchmark_results_v1",
+                    "benchmark_progress_comparison",
+                    vec![
+                        "overall_improvement_status".to_string(),
+                        "family_comparison_status:suspicious_origin_cost".to_string(),
+                        "family_comparison_status:likely_human_friction".to_string(),
+                        "family_comparison_status:non_human_category_posture".to_string(),
+                    ],
+                    "regression_input",
+                    "The judge preserves machine-first prior-window progress semantics instead of allowing later players to invent their own trend story.",
+                ),
+            ],
+            diagnostic_contexts: vec![
+                scorecard_entry(
+                    "suspicious_origin_diagnostics",
+                    "benchmark_results_v1",
+                    "suspicious_origin_cost",
+                    vec![
+                        "suspicious_short_circuit_rate".to_string(),
+                        "suspicious_locally_served_byte_share".to_string(),
+                        "suspicious_average_forward_latency_ms".to_string(),
+                    ],
+                    "diagnostic_context",
+                    "These suspicious-origin metrics explain how progress was achieved, but they must not collapse the judge into one opaque reward.",
+                ),
+                scorecard_entry(
+                    "representative_adversary_diagnostics",
+                    "benchmark_results_v1",
+                    "representative_adversary_effectiveness",
+                    vec![
+                        "scenario_origin_reach_rate".to_string(),
+                        "scenario_escalation_rate".to_string(),
+                    ],
+                    "diagnostic_context",
+                    "Representative adversary diagnostics explain pressure shape without replacing the canonical regression inputs.",
+                ),
+            ],
+            comparison_contract: RecursiveImprovementEpisodeComparisonContract {
+                source_contract: "benchmark_results_v1 + benchmark_comparison_v1".to_string(),
+                comparison_bases: vec![
+                    "prior_window".to_string(),
+                    "baseline".to_string(),
+                    "last_accepted_episode".to_string(),
+                ],
+                judgment_inputs: vec![
+                    "optimization_targets".to_string(),
+                    "hard_guardrails".to_string(),
+                    "regression_inputs".to_string(),
+                ],
+                rollback_input_ids: vec![
+                    "likely_human_friction_budget".to_string(),
+                    "suspicious_origin_request_budget".to_string(),
+                    "suspicious_origin_byte_budget".to_string(),
+                    "suspicious_origin_latency_budget".to_string(),
+                    "category_target_achievement".to_string(),
+                    "beneficial_non_human_no_harm".to_string(),
+                    "representative_adversary_regression".to_string(),
+                ],
+                homeostasis_input_ids: vec![
+                    "likely_human_friction_budget".to_string(),
+                    "suspicious_origin_request_budget".to_string(),
+                    "suspicious_origin_byte_budget".to_string(),
+                    "suspicious_origin_latency_budget".to_string(),
+                    "category_target_achievement".to_string(),
+                    "representative_adversary_regression".to_string(),
+                    "prior_window_progress".to_string(),
+                ],
+                minimum_completed_cycles_for_homeostasis: 10,
+                scalarization: "forbidden".to_string(),
+                note: "Episode judgment, rollback-or-retain, and homeostasis must all reuse the same explicit scorecard partitions; no later player may replace them with a hidden scalar reward.".to_string(),
+            },
+            note: "benchmark_results_v1 remains the independent machine-first judge surface. This scorecard makes explicit which parts are optimization targets, hard guardrails, regression inputs, and diagnostics without replacing the evaluator boundary."
                 .to_string(),
         },
         legal_move_ring: legal_move_ring.clone(),
@@ -248,6 +436,39 @@ pub(crate) fn recursive_improvement_game_contract_v1(
             },
         ],
     }
+}
+
+fn scorecard_entry(
+    score_id: &str,
+    source_contract: &str,
+    family_id: &str,
+    metric_ids: Vec<String>,
+    judgment_role: &str,
+    note: &str,
+) -> RecursiveImprovementScorecardEntry {
+    RecursiveImprovementScorecardEntry {
+        score_id: score_id.to_string(),
+        source_contract: source_contract.to_string(),
+        family_id: family_id.to_string(),
+        metric_ids,
+        judgment_role: judgment_role.to_string(),
+        note: note.to_string(),
+    }
+}
+
+fn budget_metric_ids(
+    objectives: &OperatorObjectivesProfile,
+    budget_id: &str,
+    fallback_metric_id: &str,
+) -> Vec<String> {
+    vec![
+        objectives
+            .budgets
+            .iter()
+            .find(|budget| budget.budget_id == budget_id)
+            .map(|budget| budget.metric.clone())
+            .unwrap_or_else(|| fallback_metric_id.to_string()),
+    ]
 }
 
 pub(crate) fn default_operator_objectives(updated_at_ts: u64) -> OperatorObjectivesProfile {
@@ -693,10 +914,80 @@ mod tests {
             contract.evaluator_scorecard.benchmark_results_schema_version,
             "benchmark_results_v1"
         );
+        assert_eq!(
+            contract.evaluator_scorecard.optimization_targets.len(),
+            5
+        );
+        assert_eq!(contract.evaluator_scorecard.hard_guardrails.len(), 1);
+        assert_eq!(contract.evaluator_scorecard.regression_inputs.len(), 2);
+        assert_eq!(contract.evaluator_scorecard.diagnostic_contexts.len(), 2);
         assert!(contract
             .evaluator_scorecard
             .family_ids
             .contains(&"representative_adversary_effectiveness".to_string()));
+        assert!(contract
+            .evaluator_scorecard
+            .optimization_targets
+            .iter()
+            .any(|entry| entry.score_id == "likely_human_friction_budget"));
+        assert!(contract
+            .evaluator_scorecard
+            .optimization_targets
+            .iter()
+            .any(|entry| entry.score_id == "category_target_achievement"));
+        assert!(contract
+            .evaluator_scorecard
+            .hard_guardrails
+            .iter()
+            .any(|entry| entry.score_id == "beneficial_non_human_no_harm"));
+        assert!(contract
+            .evaluator_scorecard
+            .regression_inputs
+            .iter()
+            .any(|entry| entry.score_id == "representative_adversary_regression"));
+        assert!(contract
+            .evaluator_scorecard
+            .regression_inputs
+            .iter()
+            .any(|entry| entry.score_id == "prior_window_progress"));
+        assert!(contract
+            .evaluator_scorecard
+            .diagnostic_contexts
+            .iter()
+            .any(|entry| entry.score_id == "suspicious_origin_diagnostics"));
+        assert!(contract
+            .evaluator_scorecard
+            .diagnostic_contexts
+            .iter()
+            .any(|entry| entry.score_id == "representative_adversary_diagnostics"));
+        assert_eq!(
+            contract
+                .evaluator_scorecard
+                .comparison_contract
+                .minimum_completed_cycles_for_homeostasis,
+            10
+        );
+        assert_eq!(
+            contract
+                .evaluator_scorecard
+                .comparison_contract
+                .judgment_inputs,
+            vec![
+                "optimization_targets".to_string(),
+                "hard_guardrails".to_string(),
+                "regression_inputs".to_string(),
+            ]
+        );
+        assert!(contract
+            .evaluator_scorecard
+            .comparison_contract
+            .homeostasis_input_ids
+            .contains(&"likely_human_friction_budget".to_string()));
+        assert!(contract
+            .evaluator_scorecard
+            .comparison_contract
+            .homeostasis_input_ids
+            .contains(&"representative_adversary_regression".to_string()));
         assert_eq!(
             contract.legal_move_ring.legal_ring,
             "controller_tunable"
@@ -713,5 +1004,75 @@ mod tests {
             .regression_anchors
             .iter()
             .any(|anchor| anchor.anchor_id == "prior_window_comparison"));
+    }
+
+    #[test]
+    fn recursive_improvement_game_contract_partitions_metric_ids_without_collapsing_to_scalar() {
+        let objectives = default_operator_objectives(1_700_000_000);
+        let legal_move_ring = controller_legal_move_ring_v1();
+        let contract = recursive_improvement_game_contract_v1(&objectives, &legal_move_ring);
+
+        let category_target = contract
+            .evaluator_scorecard
+            .optimization_targets
+            .iter()
+            .find(|entry| entry.score_id == "category_target_achievement")
+            .expect("category target achievement present");
+        let beneficial_guardrail = contract
+            .evaluator_scorecard
+            .hard_guardrails
+            .iter()
+            .find(|entry| entry.score_id == "beneficial_non_human_no_harm")
+            .expect("beneficial non-human no-harm present");
+        let suspicious_diagnostics = contract
+            .evaluator_scorecard
+            .diagnostic_contexts
+            .iter()
+            .find(|entry| entry.score_id == "suspicious_origin_diagnostics")
+            .expect("suspicious origin diagnostics present");
+
+        assert_eq!(
+            category_target.family_id,
+            "non_human_category_posture"
+        );
+        assert_eq!(category_target.metric_ids.len(), objectives.category_postures.len());
+        assert!(category_target.metric_ids.contains(
+            &"category_posture_alignment:indexing_bot".to_string()
+        ));
+        assert!(category_target.metric_ids.contains(
+            &"category_posture_alignment:verified_beneficial_bot".to_string()
+        ));
+        assert_eq!(
+            beneficial_guardrail.metric_ids,
+            vec![
+                "friction_mismatch_rate".to_string(),
+                "deny_mismatch_rate".to_string(),
+                "coverage_status".to_string(),
+            ]
+        );
+        assert_eq!(
+            suspicious_diagnostics.metric_ids,
+            vec![
+                "suspicious_short_circuit_rate".to_string(),
+                "suspicious_locally_served_byte_share".to_string(),
+                "suspicious_average_forward_latency_ms".to_string(),
+            ]
+        );
+        assert_eq!(
+            contract.evaluator_scorecard.comparison_contract.scalarization,
+            "forbidden"
+        );
+        assert_eq!(
+            contract.evaluator_scorecard.comparison_contract.rollback_input_ids,
+            vec![
+                "likely_human_friction_budget".to_string(),
+                "suspicious_origin_request_budget".to_string(),
+                "suspicious_origin_byte_budget".to_string(),
+                "suspicious_origin_latency_budget".to_string(),
+                "category_target_achievement".to_string(),
+                "beneficial_non_human_no_harm".to_string(),
+                "representative_adversary_regression".to_string(),
+            ]
+        );
     }
 }

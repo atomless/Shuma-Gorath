@@ -104,16 +104,16 @@ Reference context:
 
 ### RSI-GAME-MAINLINE-1: First working self-improving loop over attacker-faithful Scrapling
 - After the Scrapling-owned surfaces are attacker-faithful and receipt-backed, execute the first explicit self-improving loop over that truthful attacker basis.
-- Before broadening that loop, land the remaining judge-side game-contract work (`RSI-GAME-1B`, `RSI-SCORE-1`, and `RSI-GAME-1C`) so the loop runs over a settled legal move ring and explicit judge semantics.
+- Before broadening that loop, land the remaining judge-side game-contract work (`RSI-GAME-1C`) so the loop runs over a settled legal move ring, explicit judge semantics, and explicit episode-memory contract.
 - Keep this ahead of later LLM attacker or defender runtime work, and ahead of secondary dashboard cleanup follow-ons.
 
 Mainline execution order:
-1. `RSI-SCORE-1`
-2. `RSI-GAME-1C`
-3. `RSI-GAME-MAINLINE-1`
+1. `RSI-GAME-1C`
+2. `RSI-GAME-MAINLINE-1`
 
 Current note:
 - `SIM-SCR-CHALLENGE-2A`, `SIM-SCR-CHALLENGE-2B`, and `SIM-SCR-CHALLENGE-2D` are landed.
+- `RSI-GAME-1A`, `RSI-GAME-1B`, and `RSI-SCORE-1` are landed.
 - `SIM-SCR-CHALLENGE-2C` stays conditional and blocked until the owned-surface matrix proves browser or stealth Scrapling is truly required for a remaining Scrapling-owned surface.
 
 ### DIAG-CLEANUP-1: Diagnostics furniture-operational cleanup after Traffic split

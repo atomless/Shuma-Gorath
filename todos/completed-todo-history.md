@@ -4,6 +4,45 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### RSI-SCORE-1: Canonical judge scorecard
+
+- [x] Expanded the machine-first recursive-improvement game contract in:
+  - [`src/observability/operator_snapshot_objectives.rs`](../src/observability/operator_snapshot_objectives.rs)
+  so `recursive_improvement_game_contract_v1.evaluator_scorecard` now explicitly partitions:
+  - `optimization_targets`
+  - `hard_guardrails`
+  - `regression_inputs`
+  - `diagnostic_contexts`
+  - `comparison_contract`
+- [x] Froze the first scorecard semantics in that same contract as:
+  - numeric budget optimization for likely-human friction and suspicious-origin request, byte, and latency cost
+  - category target achievement for canonical non-human posture outcomes
+  - beneficial non-human no-harm as the current hard guardrail
+  - representative adversary regression plus prior-window progress as regression inputs
+  - explicit rollback and 10-cycle homeostasis inputs with `scalarization=forbidden`
+- [x] Added the focused proof target in:
+  - [`Makefile`](../Makefile)
+  - [`docs/testing.md`](../docs/testing.md)
+  as:
+  - `make test-rsi-scorecard-contract`
+- [x] Updated the machine-contract paper trail in:
+  - [`docs/api.md`](../docs/api.md)
+  - [`docs/configuration.md`](../docs/configuration.md)
+  - [`docs/plans/2026-03-24-scorecard-protocol-and-held-out-eval-separation-plan.md`](../docs/plans/2026-03-24-scorecard-protocol-and-held-out-eval-separation-plan.md)
+  - [`docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](../docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md)
+  - [`docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](../docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md)
+  - [`docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md`](../docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md)
+  - [`docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](../docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md)
+  - [`docs/research/2026-03-24-rsi-score-1-judge-scorecard-post-implementation-review.md`](../docs/research/2026-03-24-rsi-score-1-judge-scorecard-post-implementation-review.md)
+  - [`todos/todo.md`](../todos/todo.md)
+- [x] Why:
+  - the later self-improving loop needed one canonical answer to what the judge optimizes, what it treats as hard no-harm gates, what stays regression-only, and what feeds rollback plus homeostasis
+  - without this slice, later player-side work could have drifted into hidden reward definitions or inconsistent episode stopping logic
+- [x] Evidence:
+  - `make test-rsi-scorecard-contract`
+  - `make test-rsi-game-contract`
+  - `git diff --check`
+
 ### RSI-GAME-1B: Shortfall-attribution and move-selection policy
 
 - [x] Extended the machine-first benchmark escalation contract in:

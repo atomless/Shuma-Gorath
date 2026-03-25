@@ -34,6 +34,23 @@ Freeze the three remaining cross-cutting contracts that the later full recursive
 
 ### Canonical judge scorecard over targets, guardrails, anchors, and homeostasis inputs
 
+Implementation note:
+
+- `RSI-SCORE-1` is now landed in the machine-first game contract.
+- `recursive_improvement_game_contract_v1.evaluator_scorecard` now explicitly partitions:
+  - `optimization_targets`
+  - `hard_guardrails`
+  - `regression_inputs`
+  - `diagnostic_contexts`
+  - `comparison_contract`
+- The first scorecard freezes:
+  - numeric budget optimization for likely-human friction and suspicious-origin request, byte, and latency cost
+  - category target achievement for canonical non-human posture outcomes
+  - beneficial non-human no-harm as the current hard guardrail
+  - representative adversary regression plus prior-window progress as regression inputs
+  - explicit comparison inputs for rollback or retain and 10-cycle homeostasis
+  - `scalarization=forbidden` so the judge cannot collapse these tradeoffs into one opaque scalar reward
+
 **Files:**
 
 - Modify: `docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`

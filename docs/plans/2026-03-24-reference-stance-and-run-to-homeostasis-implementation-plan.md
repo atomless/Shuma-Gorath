@@ -110,6 +110,11 @@ This should be explicit in both planning and benchmark acceptance criteria.
 5. Make later code-evolution execution also consume `RSI-AUDIT-1` so strict-reference regression anchors link cleanly to GitHub PR, merge, and revert lineage rather than only prose.
 6. Keep this methodology blocked until the broader later controller phases are reopened; do not retrofit the current proven bounded config loop into an indefinite autonomous runner prematurely.
 
+Current note:
+
+1. `RSI-SCORE-1` is now landed.
+2. Homeostasis inputs should therefore be taken from the explicit `comparison_contract.homeostasis_input_ids` surface in `recursive_improvement_game_contract_v1.evaluator_scorecard` rather than improvised later per-agent heuristics.
+
 # Definition Of Done
 
 This planning tranche is satisfied when:
