@@ -38,7 +38,9 @@ fn synthetic_shadow_body_uses_stable_labels() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn shadow_passthrough_requires_native_forwarding_capability_on_host_runtime() {
+    let _lock = crate::test_support::lock_env();
     let original_mode = std::env::var("SHUMA_GATEWAY_NATIVE_TEST_MODE").ok();
+    let original_origin = std::env::var("SHUMA_GATEWAY_UPSTREAM_ORIGIN").ok();
     std::env::set_var("SHUMA_GATEWAY_UPSTREAM_ORIGIN", "https://origin.example.com");
     std::env::remove_var("SHUMA_GATEWAY_NATIVE_TEST_MODE");
     assert!(!shadow_passthrough_available());
@@ -46,7 +48,11 @@ fn shadow_passthrough_requires_native_forwarding_capability_on_host_runtime() {
     std::env::set_var("SHUMA_GATEWAY_NATIVE_TEST_MODE", "echo");
     assert!(shadow_passthrough_available());
 
-    std::env::remove_var("SHUMA_GATEWAY_UPSTREAM_ORIGIN");
+    if let Some(value) = original_origin {
+        std::env::set_var("SHUMA_GATEWAY_UPSTREAM_ORIGIN", value);
+    } else {
+        std::env::remove_var("SHUMA_GATEWAY_UPSTREAM_ORIGIN");
+    }
     if let Some(value) = original_mode {
         std::env::set_var("SHUMA_GATEWAY_NATIVE_TEST_MODE", value);
     } else {

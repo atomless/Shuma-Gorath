@@ -4,6 +4,22 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### TEST-ENV-1 follow-on: shadow-mode env isolation offender
+
+- [x] Fixed the named env-mutation offender in:
+  - [`src/runtime/shadow_mode/tests.rs`](../src/runtime/shadow_mode/tests.rs)
+  so `shadow_passthrough_requires_native_forwarding_capability_on_host_runtime` now holds `crate::test_support::lock_env()` and restores both mutated gateway env vars instead of only partially cleaning up after itself.
+- [x] Recorded the closeout in:
+  - [`docs/research/2026-03-24-test-env-shadow-mode-lock-env-post-implementation-review.md`](../docs/research/2026-03-24-test-env-shadow-mode-lock-env-post-implementation-review.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+- [x] Why:
+  - the active backlog explicitly called out this file as the remaining known offender,
+  - env mutation tests must use the repo's standard lock discipline,
+  - and the fix needed to restore the full pre-test env state rather than only one variable.
+- [x] Evidence:
+  - `make test-shadow-mode`
+  - `git diff --check`
+
 ### BUILD-HYGIENE-1 follow-on: runtime env dead-code warning cleanup
 
 - [x] Tightened the compile surface for:
