@@ -30,7 +30,8 @@
    - `SIM-SCR-CHALLENGE-2B` malicious request-native Scrapling interactions
    - `SIM-SCR-CHALLENGE-2D` receipt-backed coverage closure and explicit remaining-gap assignment
    - `SIM-SCR-CHALLENGE-2C` browser or stealth Scrapling adoption where required only if `2D` proves request-native Scrapling is still insufficient for an owned surface
-   - `RSI-GAME-MAINLINE-1` first working self-improving loop over the truthful attacker basis
+   - `RSI-GAME-MAINLINE-1A` local route-level first working self-improving loop proof over the truthful attacker basis
+   - `RSI-GAME-MAINLINE-1B` stronger follow-on proof over the same contract after `1A`
 3. Make clear that the previous dashboard cleanup follow-ons are no longer the immediate mainline.
 
 **Acceptance criteria:**
@@ -91,9 +92,11 @@ The optimal order is:
 10. `RSI-SCORE-1`
 11. `RSI-GAME-1C`
    - complete the judge-side game contract and episode/archive machinery
-12. `RSI-GAME-MAINLINE-1`
-   - run the first working self-improving loop over the now-truthful Scrapling attacker basis
-13. only after that, return to deferred dashboard follow-ons and later LLM runtime work:
+12. `RSI-GAME-MAINLINE-1A`
+   - prove the first working self-improving loop over the now-truthful Scrapling attacker basis through the real post-sim route path
+13. `RSI-GAME-MAINLINE-1B`
+   - extend that proof into the next strongest truthful operational harness
+14. only after that, return to deferred dashboard follow-ons and later LLM runtime work:
    - `MON-OVERHAUL-1C`
    - `DIAG-CLEANUP-1`
    - `SIM-LLM-1A..1C`
@@ -104,4 +107,4 @@ Dashboard/operator-surface cleanup can wait because it does not change the truth
 Current note:
 
 1. `RSI-GAME-1A`, `RSI-GAME-1B`, `RSI-SCORE-1`, and `RSI-GAME-1C` are now landed.
-2. The active mainline starts now at `RSI-GAME-MAINLINE-1`.
+2. The active mainline starts now at `RSI-GAME-MAINLINE-1A`, with `RSI-GAME-MAINLINE-1B` as the immediate follow-on proof slice.

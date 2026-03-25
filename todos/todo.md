@@ -101,14 +101,32 @@ Reference context:
 - [`docs/research/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-review.md`](../docs/research/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-review.md)
 - [`docs/plans/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md`](../docs/plans/2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md)
 - [`docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](../docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md)
+- [`docs/research/2026-03-24-rsi-game-mainline-first-working-loop-review.md`](../docs/research/2026-03-24-rsi-game-mainline-first-working-loop-review.md)
+- [`docs/plans/2026-03-24-rsi-game-mainline-first-working-loop-plan.md`](../docs/plans/2026-03-24-rsi-game-mainline-first-working-loop-plan.md)
 
-### RSI-GAME-MAINLINE-1: First working self-improving loop over attacker-faithful Scrapling
-- After the Scrapling-owned surfaces are attacker-faithful and receipt-backed, execute the first explicit self-improving loop over that truthful attacker basis.
-- The prerequisite judge-side game-contract work (`RSI-GAME-1C`) is now landed, so the loop runs over a settled legal move ring, explicit judge semantics, and explicit episode-memory contract.
+### RSI-GAME-MAINLINE-1A: Local route-level first working self-improving loop proof
+- Starting from a completed attacker-faithful Scrapling run, prove the current post-sim mainline already forms a working self-improving loop.
+- Use the real route path, not only direct agent invocation:
+  - completed sim run
+  - post-sim oversight trigger
+  - bounded canary apply
+  - judged retain or rollback
+  - completed episode archive row
+- Add a focused Make target that truthfully means the current mainline loop is proven end-to-end.
+
+### RSI-GAME-MAINLINE-1B: Stronger follow-on first-working-loop proof
+- After `RSI-GAME-MAINLINE-1A`, extend the same proof contract into the next strongest truthful operational harness.
+- Keep the contract the same:
+  - attacker-faithful Scrapling pressure
+  - post-sim trigger
+  - legal bounded move
+  - judged terminal outcome
+  - archive persistence
 - Keep this ahead of later LLM attacker or defender runtime work, and ahead of secondary dashboard cleanup follow-ons.
 
 Mainline execution order:
-1. `RSI-GAME-MAINLINE-1`
+1. `RSI-GAME-MAINLINE-1A`
+2. `RSI-GAME-MAINLINE-1B`
 
 Current note:
 - `SIM-SCR-CHALLENGE-2A`, `SIM-SCR-CHALLENGE-2B`, and `SIM-SCR-CHALLENGE-2D` are landed.

@@ -247,7 +247,7 @@ Additional prerequisite note:
 Current note:
 
 1. `RSI-GAME-1A`, `RSI-GAME-1B`, `RSI-SCORE-1`, and `RSI-GAME-1C` are now landed.
-2. The active mainline now moves directly into `RSI-GAME-MAINLINE-1`.
+2. The active mainline now moves directly into `RSI-GAME-MAINLINE-1A`, then `RSI-GAME-MAINLINE-1B`.
 
 # Definition Of Done
 

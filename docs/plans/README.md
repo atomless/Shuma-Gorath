@@ -23,6 +23,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-24-sim-scr-challenge-2b-malicious-request-native-interactions-plan.md`](2026-03-24-sim-scr-challenge-2b-malicious-request-native-interactions-plan.md) - Expands the live Scrapling worker into attacker-faithful malicious request-native interactions
 - [`2026-03-24-sim-scr-challenge-2d-receipt-backed-surface-coverage-plan.md`](2026-03-24-sim-scr-challenge-2d-receipt-backed-surface-coverage-plan.md) - Adds bounded surface receipts and per-run closure so Scrapling-owned defense coverage is proven rather than inferred
 - [`2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md`](2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md) - Reorders the active mainline so attacker-faithful Scrapling and the first working game loop come before later LLM runtime work
+- [`2026-03-24-rsi-game-mainline-first-working-loop-plan.md`](2026-03-24-rsi-game-mainline-first-working-loop-plan.md) - Splits the first working game loop into a concrete route-level proof slice and a stronger follow-on proof
 - [`2026-03-24-test-hygiene-6b-live-wrapper-and-integration-contract-plan.md`](2026-03-24-test-hygiene-6b-live-wrapper-and-integration-contract-plan.md) - Separates retained wrapper and integration cleanup shell-shape proof into explicit contract lanes
 - [`2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-plan.md`](2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-plan.md) - Refines Monitoring-vs-Diagnostics ordering so Monitoring reuses shared transitional surfaces before Diagnostics cleanup
 - [`2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md`](2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md) - Introduces a dedicated Traffic tab and narrows Diagnostics to furniture-operational proof
@@ -78,6 +79,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-plan.md`](2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-plan.md)
 - [`2026-03-24-sim-scr-challenge-2b-malicious-request-native-interactions-plan.md`](2026-03-24-sim-scr-challenge-2b-malicious-request-native-interactions-plan.md)
 - [`2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md`](2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md)
+- [`2026-03-24-rsi-game-mainline-first-working-loop-plan.md`](2026-03-24-rsi-game-mainline-first-working-loop-plan.md)
 - [`2026-03-24-test-hygiene-6b-live-wrapper-and-integration-contract-plan.md`](2026-03-24-test-hygiene-6b-live-wrapper-and-integration-contract-plan.md)
 - [`2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md`](2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md)
 - [`2026-03-24-identification-tab-rename-and-taxonomy-distinction-plan.md`](2026-03-24-identification-tab-rename-and-taxonomy-distinction-plan.md)
