@@ -425,7 +425,8 @@ fn step_numeric_path(
 #[cfg(test)]
 mod tests {
     use super::{
-        propose_patch, OversightPatchPolicyError, OversightPressure,
+        family_is_proposable, matched_groups_for_patch, propose_patch,
+        OversightPatchPolicyError, OversightPressure,
         OVERSIGHT_VERIFICATION_REVIEW_REPLAY_PROMOTION,
     };
     use crate::config::{allowed_actions_v1, defaults};
@@ -547,5 +548,49 @@ mod tests {
             err,
             OversightPatchPolicyError::NoBoundedPatch("proof_of_work".to_string())
         );
+    }
+
+    #[test]
+    fn hard_never_families_are_not_proposable_or_patch_matchable() {
+        let allowed_actions = allowed_actions_v1();
+        let blocked = [
+            ("provider_selection", "edge_integration_mode"),
+            ("verified_identity", "verified_identity"),
+            ("robots_policy", "robots_enabled"),
+            ("allowlists", "allowlist"),
+            ("tarpit", "tarpit_enabled"),
+            ("ip_range_policy", "ip_range_policy_mode"),
+            ("geo_policy", "geo_block"),
+            ("honeypot", "honeypot_enabled"),
+        ];
+
+        for (family, key) in blocked {
+            assert!(
+                !family_is_proposable(&allowed_actions, family),
+                "{family} unexpectedly proposable"
+            );
+            let keys = vec![key.to_string()];
+            let err = matched_groups_for_patch(&allowed_actions, family, keys.iter())
+                .expect_err("hard-never family must not match patch keys");
+            assert_eq!(err, OversightPatchPolicyError::InvalidPatch(key.to_string()));
+        }
+    }
+
+    #[test]
+    fn mixed_families_reject_non_proposable_hard_boundary_keys() {
+        let allowed_actions = allowed_actions_v1();
+        let blocked = [
+            ("core_policy", "ban_duration"),
+            ("maze_core", "maze_token_ttl_seconds"),
+            ("cdp_detection", "cdp_probe_family"),
+            ("fingerprint_signal", "fingerprint_pseudonymize"),
+        ];
+
+        for (family, key) in blocked {
+            let keys = vec![key.to_string()];
+            let err = matched_groups_for_patch(&allowed_actions, family, keys.iter())
+                .expect_err("non-proposable key must not pass through mixed family");
+            assert_eq!(err, OversightPatchPolicyError::InvalidPatch(key.to_string()));
+        }
     }
 }

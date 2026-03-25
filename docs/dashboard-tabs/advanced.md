@@ -6,6 +6,7 @@ Component: [`dashboard/src/lib/components/dashboard/AdvancedTab.svelte`](../../d
 Purpose:
 
 - Provide full runtime variable inventory and low-level JSON patch editing.
+- Surface admin writability faithfully without implying controller eligibility; controller mutability and auto-proposal truth come from `operator_snapshot_v1.allowed_actions`, not from JSON editability alone.
 
 Panels:
 
@@ -31,3 +32,4 @@ Validation/save flow:
 Policy note:
 
 - Advanced JSON must remain in parity with all non-env-only writable admin config keys.
+- Advanced JSON is broader than the bounded controller move ring. Operator-owned or hard-never surfaces remain editable here when they are admin-writable, but they must stay visibly separate from controller-tunable or auto-proposable explanations elsewhere in the dashboard.

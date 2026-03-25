@@ -404,6 +404,25 @@ fn allowed_action_group_status_tracks_canonical_mutability_ring() {
 }
 
 #[test]
+fn operator_objectives_are_never_mutable_and_not_patchable() {
+    let surface = allowed_actions_v1();
+
+    assert!(!surface.operator_objectives_path_mutability.is_empty());
+    assert!(surface
+        .operator_objectives_path_mutability
+        .iter()
+        .all(|path| path.mutability == "never"));
+    assert_eq!(
+        controller_config_family_for_patch_key("operator_objectives_v1.profile_id"),
+        None
+    );
+    assert_eq!(
+        controller_config_family_for_patch_key("operator_objectives_v1.category_postures"),
+        None
+    );
+}
+
+#[test]
 fn controller_config_family_for_patch_key_reuses_allowed_action_catalog() {
     assert_eq!(
         controller_config_family_for_patch_key("js_required_enforced"),

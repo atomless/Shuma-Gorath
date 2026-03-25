@@ -148,11 +148,6 @@ Mainline execution order:
 - Execute this after `TRAFFIC-TAB-1` and `DIAG-CLEANUP-1` so category/trust projection lands against the cleaned final Monitoring-vs-Traffic-vs-Diagnostics ownership boundary rather than the transitional mixed surface.
 - Reference context: [`../docs/research/2026-03-24-game-loop-budget-visualization-and-category-target-achievement-review.md`](../docs/research/2026-03-24-game-loop-budget-visualization-and-category-target-achievement-review.md), [`../docs/plans/2026-03-24-game-loop-budget-visualization-and-category-target-achievement-plan.md`](../docs/plans/2026-03-24-game-loop-budget-visualization-and-category-target-achievement-plan.md)
 
-### CTRL-SURFACE-3: Enforce and surface controller mutability truth
-- Add explicit code and test enforcement for hard-never surfaces and thread the canonical mutability classification into docs and later operator surfaces.
-- Make later controller-explanation work in Monitoring, Tuning, and Advanced consume the canonical mutability policy instead of inferring mutability from admin writability.
-- Reference context: [`../docs/plans/2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md`](../docs/plans/2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md)
-
 ## P1 Verified Bot Identity And Web Bot Auth Foundation
 
 Reference context:

@@ -4,6 +4,32 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### CTRL-SURFACE-3: Enforce and surface controller mutability truth
+
+- [x] Added explicit hard-boundary enforcement tests in:
+  - [`src/config/tests.rs`](../src/config/tests.rs)
+  - [`src/admin/oversight_patch_policy.rs`](../src/admin/oversight_patch_policy.rs)
+  covering:
+  - operator objectives,
+  - hard-never families such as provider selection, verified identity, robots policy, allowlists, tarpit, geo policy, honeypot, and IP-range policy,
+  - and non-proposable hard-boundary keys inside mixed families such as `ban_duration`, `maze_token_ttl_seconds`, `cdp_probe_family`, and `fingerprint_pseudonymize`.
+- [x] Added truthful focused verification targets in [`Makefile`](../Makefile):
+  - `test-controller-hard-boundaries`
+  - `test-dashboard-config-parity`
+- [x] Updated operator and contributor docs so Advanced and Tuning now explicitly consume the canonical mutability truth instead of inferring controller eligibility from admin writability:
+  - [`docs/configuration.md`](../docs/configuration.md)
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`docs/dashboard-tabs/advanced.md`](../docs/dashboard-tabs/advanced.md)
+  - [`docs/dashboard-tabs/tuning.md`](../docs/dashboard-tabs/tuning.md)
+  - [`docs/research/2026-03-24-ctrl-surface-3-hard-boundary-enforcement-post-implementation-review.md`](../docs/research/2026-03-24-ctrl-surface-3-hard-boundary-enforcement-post-implementation-review.md)
+- [x] Why:
+  - the mutability-policy tranche was not complete until hard-never surfaces were defended by code and tests rather than only by catalog prose,
+  - and later Advanced, Tuning, and Game Loop explanations needed one canonical source of truth for what the controller may tune.
+- [x] Evidence:
+  - `make test-controller-hard-boundaries`
+  - `make test-dashboard-config-parity`
+  - `git diff --check`
+
 ### CTRL-SURFACE-2: Allowed-action and proposer parity over the ratified tunable set
 
 - [x] Reconciled hard-never group statuses in [`src/config/controller_action_catalog.rs`](../src/config/controller_action_catalog.rs) so surfaces classified as canonical `never` now expose `controller_status="forbidden"` instead of stale `manual_only` values.

@@ -57,6 +57,7 @@ make test-admin-api-routing-contract # Focused admin route-family contract gate 
 make test-controller-action-surface # Focused allowed-actions and controller-family mapping checks
 make test-controller-action-surface-parity # Focused controller mutability, escalation, and proposer parity checks
 make test-controller-mutability-policy # Focused controller mutability-ring and path-classification checks
+make test-controller-hard-boundaries # Focused controller hard-boundary enforcement checks
 make test-benchmark-comparison-contract # Focused benchmark comparison helper contract checks
 make test-operator-objectives-contract # Focused operator objectives, decision-ledger, and snapshot wiring checks
 make test-operator-objectives-category-contract # Focused category-aware operator-objectives contract checks
@@ -67,6 +68,7 @@ make test-adversary-sim-domain-contract # Focused adversary-sim lifecycle and la
 make test-ip-range-suggestions # Focused IP-range suggestion regression gate (runtime + dashboard)
 make test-coverage    # Unit coverage to lcov.info (requires cargo-llvm-cov)
 make test-dashboard-unit # Dashboard module unit tests (Node `node:test`)
+make test-dashboard-config-parity # Focused dashboard config parity for Advanced JSON + mutability grouping
 make test-dashboard-adversary-sim-lane-contract # Focused dashboard lane-contract checks for the red-team lane selector + diagnostics
 make test-dashboard-auth-gate # Focused dashboard auth-gate checks for logged-out /dashboard entry
 make test-dashboard-tab-information-architecture # Focused dashboard source + rendered IA proof for tab registry alignment and Monitoring/Traffic/Diagnostics ownership
@@ -299,6 +301,7 @@ Structural refactor proof map:
 - `make test-controller-mutability-policy` is the focused gate for the canonical controller mutability rings, path-level classification, and dashboard parity over the writable admin surface.
 - `make test-controller-action-surface` is the focused config-side gate for `allowed_actions_v1`, group-level auto-proposal support, and controller patch-family mapping reuse.
 - `make test-controller-action-surface-parity` is the focused parity gate for `allowed_actions_v1`, benchmark escalation candidates, and the current bounded patch proposer.
+- `make test-controller-hard-boundaries` is the focused enforcement gate that proves operator objectives, hard-never families, and non-proposable mixed-family keys cannot leak into the current bounded controller loop.
 - `make test-benchmark-comparison-contract` is the focused benchmark helper gate for explicit baseline-availability, improvement-status, and escalation comparison semantics.
 - `make test-operator-objectives-contract` is the focused objective-profile and decision-evidence gate for persisted `operator_objectives_v1`, the operator-objectives admin endpoint, the bounded decision ledger, and snapshot wiring.
 - `make test-verified-identity-calibration-readiness` is the focused bridge gate before `VID-TAX-1` through `VID-GUARD-1`; it proves the current verified-identity taxonomy, snapshot, benchmark, and reconcile seams without over-claiming future alignment or conflict behavior.
@@ -313,6 +316,7 @@ Structural refactor proof map:
 - `make test-replay-promotion-contract` is the focused promotion-lineage and governance gate that stays off the full replay-runner path while still proving the Rust replay-promotion store/API contract, snapshot wiring, Python promotion tooling, and SIM2 governance markers together.
 - `make test-adversarial-runner-architecture` is the focused CLI, unit, and validate-only gate for the Python adversarial runner and closely related governance helpers.
 - `make test-adversary-sim-domain-contract` is the focused backend adversary-sim lifecycle and lane-domain gate that stays off the live runtime-surface path.
+- `make test-dashboard-config-parity` is the focused dashboard parity gate for Advanced JSON template paths, controller mutability grouping, and runtime-variable inventory meaning text.
 
 Simulation realism pages are available at `/sim/public/landing`, `/sim/public/docs`, `/sim/public/pricing`, `/sim/public/contact`, and `/sim/public/search?q=...` only when both availability gates are true: `SHUMA_ADVERSARY_SIM_AVAILABLE=true` and the effective adversary-sim desired state is enabled (seeded initially by `SHUMA_ADVERSARY_SIM_ENABLED`, then projected from persisted control state after the first `POST /admin/adversary-sim/control` write).
 Dashboard DOM-class contract for runtime/simulation affordances:
