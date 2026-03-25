@@ -784,6 +784,15 @@ const shapeAdversaryRunRows = (rows = [], activeBans = []) => {
       const defenseDeltaCount = Number.isFinite(Number(row?.defenseDeltaCount))
         ? Number(row.defenseDeltaCount)
         : Object.keys(defenseCounts).length;
+      const observedFulfillmentModes = Array.isArray(row?.observedFulfillmentModes)
+        ? row.observedFulfillmentModes
+        : [];
+      const observedCategoryIds = Array.isArray(row?.observedCategoryIds)
+        ? row.observedCategoryIds
+        : [];
+      const ownedSurfaceCoverage = row?.ownedSurfaceCoverage && typeof row.ownedSurfaceCoverage === 'object'
+        ? row.ownedSurfaceCoverage
+        : null;
       return {
         runId: row.runId,
         lane: row.lane,
@@ -793,6 +802,9 @@ const shapeAdversaryRunRows = (rows = [], activeBans = []) => {
         monitoringEventCount: row.monitoringEventCount,
         defenseDeltaCount,
         defenseRows,
+        observedFulfillmentModes,
+        observedCategoryIds,
+        ownedSurfaceCoverage,
         banOutcomeCount: row.banOutcomeCount,
         monitoringHref: '#game-loop',
         ipBansHref: '#ip-bans'
@@ -841,6 +853,57 @@ export const deriveAdversaryRunRows = (events = [], bans = []) => {
   return shapeAdversaryRunRows(Array.from(grouped.values()), activeBans);
 };
 
+const toSummaryStringArray = (value) =>
+  (Array.isArray(value) ? value : [])
+    .map((entry) => String(entry || '').trim())
+    .filter(Boolean);
+
+const shapeOwnedSurfaceCoverageReceipt = (receipt = {}) => {
+  const source = receipt && typeof receipt === 'object' ? receipt : {};
+  return {
+    surfaceId: String(source.surfaceId || source.surface_id || '').trim(),
+    successContract: String(source.successContract || source.success_contract || '').trim(),
+    coverageStatus: String(source.coverageStatus || source.coverage_status || '').trim(),
+    satisfied: source.satisfied === true,
+    attemptCount: Number(source.attemptCount || source.attempt_count || 0),
+    sampleRequestMethod: String(source.sampleRequestMethod || source.sample_request_method || '').trim(),
+    sampleRequestPath: String(source.sampleRequestPath || source.sample_request_path || '').trim(),
+    sampleResponseStatus:
+      source.sampleResponseStatus === null || source.sampleResponseStatus === undefined || source.sampleResponseStatus === ''
+        ? null
+        : Number(source.sampleResponseStatus || source.sample_response_status || 0)
+  };
+};
+
+const shapeOwnedSurfaceCoverage = (coverage = {}) => {
+  const source = coverage && typeof coverage === 'object' ? coverage : {};
+  const requiredSurfaceIds = toSummaryStringArray(source.requiredSurfaceIds || source.required_surface_ids);
+  const satisfiedSurfaceIds = toSummaryStringArray(source.satisfiedSurfaceIds || source.satisfied_surface_ids);
+  const blockingSurfaceIds = toSummaryStringArray(source.blockingSurfaceIds || source.blocking_surface_ids);
+  const receipts = (Array.isArray(source.receipts) ? source.receipts : [])
+    .map((receipt) => shapeOwnedSurfaceCoverageReceipt(receipt))
+    .filter((receipt) => receipt.surfaceId);
+  if (
+    !String(source.overallStatus || source.overall_status || '').trim() &&
+    requiredSurfaceIds.length === 0 &&
+    satisfiedSurfaceIds.length === 0 &&
+    blockingSurfaceIds.length === 0 &&
+    receipts.length === 0
+  ) {
+    return null;
+  }
+  return {
+    overallStatus: String(source.overallStatus || source.overall_status || '').trim(),
+    requiredSurfaceIds,
+    requiredSurfaceCount: requiredSurfaceIds.length,
+    satisfiedSurfaceIds,
+    satisfiedSurfaceCount: satisfiedSurfaceIds.length,
+    blockingSurfaceIds,
+    blockingSurfaceCount: blockingSurfaceIds.length,
+    receipts
+  };
+};
+
 export const deriveAdversaryRunRowsFromSummaries = (summaries = [], bans = []) => {
   const rows = Array.isArray(summaries) ? summaries : [];
   const shapedRows = rows
@@ -853,10 +916,24 @@ export const deriveAdversaryRunRowsFromSummaries = (summaries = [], bans = []) =
       monitoringEventCount: Number(summary?.monitoring_event_count || 0),
       defenseDeltaCount: Number(summary?.defense_delta_count || 0),
       defenseRows: [],
+      observedFulfillmentModes: toSummaryStringArray(
+        summary?.observedFulfillmentModes || summary?.observed_fulfillment_modes
+      ),
+      observedCategoryIds: toSummaryStringArray(
+        summary?.observedCategoryIds || summary?.observed_category_ids
+      ),
+      ownedSurfaceCoverage: shapeOwnedSurfaceCoverage(
+        summary?.ownedSurfaceCoverage || summary?.owned_surface_coverage
+      ),
       banOutcomeCount: Number(summary?.ban_outcome_count || 0)
     }))
     .filter((row) => row.runId.length > 0);
   return shapeAdversaryRunRows(shapedRows, bans);
+};
+
+export const deriveLatestScraplingEvidenceFromSummaries = (summaries = []) => {
+  const recentRuns = deriveAdversaryRunRowsFromSummaries(summaries, []).runRows;
+  return recentRuns.find((row) => row.lane === 'scrapling_traffic' && row.ownedSurfaceCoverage) || null;
 };
 
 const incrementCount = (target, key, amount = 1) => {

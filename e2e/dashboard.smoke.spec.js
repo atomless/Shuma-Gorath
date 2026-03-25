@@ -2068,6 +2068,172 @@ test("game loop projects benchmark and oversight accountability from machine-fir
   await expect(page.locator("#game-loop-trust-blockers")).toContainText("verified identity taxonomy alignment guardrail");
 });
 
+test("game loop tab corroborates latest scrapling evidence readiness", async ({ page }) => {
+  await page.route("**/admin/operator-snapshot", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "operator_snapshot_v1",
+        generated_at: 1774306800,
+        objectives: {
+          profile_id: "site_default_v1",
+          revision: "objective-1774306800",
+          window_hours: 24,
+          category_postures: []
+        },
+        runtime_posture: {
+          shadow_mode: false,
+          fail_mode: "closed",
+          runtime_environment: "runtime-prod",
+          gateway_deployment_profile: "shared_server",
+          adversary_sim_available: true
+        },
+        live_traffic: {
+          traffic_origin: "live",
+          execution_mode: "enforced",
+          total_requests: 1200,
+          forwarded_requests: 860,
+          short_circuited_requests: 340,
+          human_friction: {
+            friction_rate: 0.018
+          }
+        },
+        shadow_mode: {
+          enabled: false,
+          total_actions: 0,
+          pass_through_total: 0
+        },
+        adversary_sim: {
+          traffic_origin: "adversary_sim",
+          execution_mode: "enforced",
+          total_requests: 180,
+          forwarded_requests: 9,
+          short_circuited_requests: 171,
+          recent_runs: [
+            {
+              run_id: "sim-attack-proof",
+              lane: "scrapling_traffic",
+              profile: "scrapling_runtime_lane",
+              observed_fulfillment_modes: ["crawler", "http_agent"],
+              observed_category_ids: ["indexing_bot", "http_agent"],
+              monitoring_event_count: 64,
+              owned_surface_coverage: {
+                overall_status: "covered",
+                required_surface_ids: ["challenge_routing", "pow_verify_abuse"],
+                satisfied_surface_ids: ["challenge_routing", "pow_verify_abuse"],
+                blocking_surface_ids: [],
+                receipts: []
+              }
+            }
+          ]
+        },
+        recent_changes: {
+          rows: []
+        },
+        verified_identity: {
+          availability: "supported",
+          enabled: true,
+          native_web_bot_auth_enabled: true,
+          provider_assertions_enabled: true,
+          non_human_traffic_stance: "deny_all_non_human",
+          taxonomy_alignment: {
+            status: "aligned"
+          }
+        }
+      })
+    });
+  });
+
+  await page.route("**/admin/benchmark-results", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "benchmark_results_v1",
+        generated_at: 1774306800,
+        overall_status: "inside_budget",
+        improvement_status: "improved",
+        coverage_status: "supported",
+        baseline_reference: {
+          reference_kind: "prior_window",
+          status: "available",
+          subject_kind: "prior_window",
+          generated_at: 1774220400,
+          note: "Compared against the previous watch window."
+        },
+        tuning_eligibility: {
+          status: "eligible",
+          blockers: []
+        },
+        non_human_classification: {
+          status: "ready",
+          blockers: [],
+          live_receipt_count: 6,
+          adversary_sim_receipt_count: 3
+        },
+        non_human_coverage: {
+          overall_status: "covered",
+          blocking_reasons: [],
+          blocking_category_ids: []
+        },
+        escalation_hint: {
+          decision: "hold",
+          review_status: "not_required",
+          trigger_family_ids: [],
+          candidate_action_families: [],
+          blockers: [],
+          note: "No change needed."
+        },
+        replay_promotion: {
+          availability: "materialized",
+          evidence_status: "protected",
+          tuning_eligible: true,
+          protected_lineage_count: 2,
+          eligibility_blockers: []
+        },
+        families: []
+      })
+    });
+  });
+
+  await page.route("**/admin/oversight/history", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "oversight_history_v1",
+        rows: []
+      })
+    });
+  });
+
+  await page.route("**/admin/oversight/agent/status", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "oversight_agent_status_v1",
+        execution_boundary: "shared_host_only",
+        periodic_trigger: {
+          surface: "host_supervisor_wrapper",
+          wrapper_command: "scripts/run_with_oversight_supervisor.sh",
+          default_interval_seconds: 300
+        },
+        latest_decision: {},
+        recent_runs: []
+      })
+    });
+  });
+
+  await openDashboard(page);
+  await openTab(page, "game-loop");
+  await expect(page.locator("#game-loop-trust-blockers")).toContainText("Latest Scrapling Evidence");
+  await expect(page.locator("#game-loop-trust-blockers")).toContainText("Covered");
+  await expect(page.locator("#game-loop-trust-blockers")).toContainText("2 / 2");
+  await expect(page.locator("#game-loop-trust-blockers")).toContainText("Indexing Bot");
+});
+
 test("traffic manual refresh renders bounded traffic sections and preserves furniture diagnostics separately", async ({ page }) => {
   const buildCountEntries = (prefix, count, start = 1) =>
     Array.from({ length: count }, (_, index) => ({
@@ -3385,6 +3551,138 @@ test("red team recent runs table renders compact run-history rows from monitorin
   await openTab(page, "red-team");
   await expect(page.locator("#adversary-runs tbody")).toContainText("simrun-ui-2");
   await expect(page.locator("#adversary-runs tbody")).toContainText("simrun-ui-1");
+});
+
+test("red team tab surfaces receipt-backed scrapling attack evidence from recent sim summaries", async ({ page }) => {
+  const now = Math.floor(Date.now() / 1000);
+  const buildMonitoringPayload = () => ({
+    summary: {
+      honeypot: { total_hits: 0, unique_crawlers: 0, top_crawlers: [], top_paths: [] },
+      challenge: { total_failures: 0, unique_offenders: 0, top_offenders: [], reasons: {}, trend: [] },
+      pow: {
+        total_failures: 0,
+        total_successes: 0,
+        total_attempts: 0,
+        success_ratio: 0,
+        unique_offenders: 0,
+        top_offenders: [],
+        reasons: {},
+        outcomes: {},
+        trend: []
+      },
+      rate: { total_violations: 0, unique_offenders: 0, top_offenders: [], outcomes: {} },
+      geo: { total_violations: 0, actions: { block: 0, challenge: 0, maze: 0 }, top_countries: [] }
+    },
+    prometheus: { endpoint: "/metrics", notes: [] },
+    details: {
+      analytics: { ban_count: 0, shadow_mode: false, fail_mode: "open" },
+      events: {
+        recent_events: [],
+        recent_sim_runs: [
+          {
+            run_id: "simrun-scrapling-proof",
+            lane: "scrapling_traffic",
+            profile: "scrapling_runtime_lane",
+            observed_fulfillment_modes: ["bulk_scraper", "http_agent"],
+            observed_category_ids: ["ai_scraper_bot", "http_agent"],
+            first_ts: now - 30,
+            last_ts: now,
+            monitoring_event_count: 18,
+            defense_delta_count: 5,
+            ban_outcome_count: 1,
+            owned_surface_coverage: {
+              overall_status: "partial",
+              required_surface_ids: [
+                "challenge_routing",
+                "not_a_bot_submit",
+                "pow_verify_abuse"
+              ],
+              satisfied_surface_ids: [
+                "challenge_routing",
+                "not_a_bot_submit"
+              ],
+              blocking_surface_ids: ["pow_verify_abuse"],
+              receipts: [
+                {
+                  surface_id: "challenge_routing",
+                  success_contract: "mixed_outcomes",
+                  coverage_status: "pass_observed",
+                  satisfied: true,
+                  attempt_count: 6,
+                  sample_request_method: "GET",
+                  sample_request_path: "/sim/public/search?q=scrapling",
+                  sample_response_status: 200
+                },
+                {
+                  surface_id: "not_a_bot_submit",
+                  success_contract: "should_fail",
+                  coverage_status: "fail_observed",
+                  satisfied: true,
+                  attempt_count: 2,
+                  sample_request_method: "POST",
+                  sample_request_path: "/challenge/not-a-bot-checkbox",
+                  sample_response_status: 400
+                },
+                {
+                  surface_id: "pow_verify_abuse",
+                  success_contract: "should_fail",
+                  coverage_status: "unavailable",
+                  satisfied: false,
+                  attempt_count: 0,
+                  sample_request_method: "",
+                  sample_request_path: "",
+                  sample_response_status: null
+                }
+              ]
+            }
+          }
+        ],
+        event_counts: {},
+        top_ips: [],
+        unique_ips: 0
+      },
+      bans: { bans: [] },
+      maze: { total_hits: 0, unique_crawlers: 0, maze_auto_bans: 0, top_crawlers: [] },
+      cdp: { stats: { total_detections: 0, auto_bans: 0 }, config: {}, fingerprint_stats: {} },
+      cdp_events: { events: [] }
+    }
+  });
+
+  await page.route("**/admin/monitoring?hours=*&limit=*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(buildMonitoringPayload())
+    });
+  });
+  await page.route("**/admin/monitoring/delta?hours=*&limit=*", async (route) => {
+    const url = new URL(route.request().url());
+    const afterCursor = (url.searchParams.get("after_cursor") || "").trim();
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        after_cursor: afterCursor,
+        window_end_cursor: "cursor-scrapling-proof",
+        next_cursor: "cursor-scrapling-proof",
+        has_more: false,
+        overflow: "none",
+        events: [],
+        recent_sim_runs: buildMonitoringPayload().details.events.recent_sim_runs,
+        freshness: { state: "fresh", lag_ms: 0, transport: "cursor_delta_poll" }
+      })
+    });
+  });
+
+  await openDashboard(page);
+  await openTab(page, "red-team");
+  await expect(page.locator("#adversary-runs tbody")).toContainText("Bulk Scraper");
+  await expect(page.locator("#adversary-runs tbody")).toContainText("AI Scraper Bot");
+  await expect(page.locator("#adversary-runs tbody")).toContainText("Partial");
+  await expect(page.locator("#red-team-scrapling-evidence")).toContainText("simrun-scrapling-proof");
+  await expect(page.locator("#red-team-scrapling-evidence")).toContainText("2 / 3");
+  await expect(page.locator("#red-team-scrapling-evidence")).toContainText("POST /challenge/not-a-bot-checkbox");
+  await expect(page.locator("#red-team-scrapling-evidence")).toContainText("PoW Verify Abuse");
 });
 
 test("manual refresh button appends new monitoring delta events when auto-refresh is off", async ({ page }) => {

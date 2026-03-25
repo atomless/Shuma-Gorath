@@ -30,8 +30,11 @@ Current behavior:
   - taxonomy rows as `Category Target Achievement` rather than fake configured per-category budgets,
   - benchmark escalation decision, candidate action families, and latest oversight apply or refusal context,
   - a bounded preview of remaining benchmark pressure plus recent config-change context from the operator snapshot,
-  - and explicit trust or blocker rows for classification readiness, coverage, protected replay status, tuning eligibility, and verified-identity guardrails.
+  - and explicit trust or blocker rows for classification readiness, coverage, protected replay status, tuning eligibility, verified-identity guardrails, and the latest compact Scrapling evidence-readiness corroboration.
 - Directs operators and contributors to `#diagnostics` for deep subsystem inspection and rawer contributor-facing telemetry.
+- Keeps detailed adversary proof out of the tab:
+  - `Red Team` is where operators verify Scrapling personas, categories, and owned-surface receipts,
+  - `Game Loop` only shows a bounded corroborating signal so attacker truth is visible without turning the tab into a forensic adversary surface.
 
 Refresh behavior:
 

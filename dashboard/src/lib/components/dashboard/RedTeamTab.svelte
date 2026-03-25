@@ -1,8 +1,12 @@
 <script>
   import { onDestroy } from 'svelte';
   import { formatUnixSecondsLocal } from '../../domain/core/date-time.js';
-  import { deriveAdversaryRunRowsFromSummaries } from './monitoring-view-model.js';
+  import {
+    deriveAdversaryRunRowsFromSummaries,
+    deriveLatestScraplingEvidenceFromSummaries
+  } from './monitoring-view-model.js';
   import AdversaryRunPanel from './monitoring/AdversaryRunPanel.svelte';
+  import ScraplingEvidencePanel from './monitoring/ScraplingEvidencePanel.svelte';
   import ConfigPanel from './primitives/ConfigPanel.svelte';
   import ConfigPanelHeading from './primitives/ConfigPanelHeading.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
@@ -140,6 +144,7 @@
   $: adversaryRunRows = Array.isArray(adversaryRunSummary?.runRows)
     ? adversaryRunSummary.runRows.slice(0, 8)
     : [];
+  $: latestScraplingEvidence = deriveLatestScraplingEvidenceFromSummaries(rawRecentSimRuns);
   $: desiredLaneLabel = formatLaneLabel(normalizedStatus.desiredLane, 'Synthetic Traffic');
   $: activeLaneLabel = formatLaneLabel(normalizedStatus.activeLane, 'Not running');
   $: diagnosticsLaneKey = normalizedStatus.activeLane || normalizedStatus.desiredLane;
@@ -396,5 +401,11 @@
     summaryLabel="Active bans linked to recent runs"
     emptyText="No recent adversary simulation runs are currently retained in the compact run history."
     degradedText="Monitoring freshness is degraded or stale. Missing red team run rows may indicate delayed telemetry rather than no simulation activity."
+  />
+
+  <ScraplingEvidencePanel
+    loading={tabStatus?.loading === true}
+    runEvidence={latestScraplingEvidence}
+    {formatTime}
   />
 </section>

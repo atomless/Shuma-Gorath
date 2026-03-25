@@ -3391,13 +3391,43 @@ test('monitoring view model and status module remain pure snapshot transforms', 
     const summarizedRuns = monitoringModelModule.deriveAdversaryRunRowsFromSummaries([
       {
         run_id: 'run-summary-2',
-        lane: 'crawler',
-        profile: 'fast_smoke',
+        lane: 'scrapling_traffic',
+        profile: 'scrapling_runtime_lane',
         first_ts: 1710000100,
         last_ts: 1710000200,
         monitoring_event_count: 11,
         defense_delta_count: 2,
-        ban_outcome_count: 1
+        ban_outcome_count: 1,
+        observed_fulfillment_modes: ['bulk_scraper', 'http_agent'],
+        observed_category_ids: ['ai_scraper_bot', 'http_agent'],
+        owned_surface_coverage: {
+          overall_status: 'partial',
+          required_surface_ids: ['challenge_routing', 'pow_verify_abuse'],
+          satisfied_surface_ids: ['challenge_routing'],
+          blocking_surface_ids: ['pow_verify_abuse'],
+          receipts: [
+            {
+              surface_id: 'challenge_routing',
+              success_contract: 'mixed_outcomes',
+              coverage_status: 'pass_observed',
+              satisfied: true,
+              attempt_count: 4,
+              sample_request_method: 'GET',
+              sample_request_path: '/sim/public/search?q=scrapling',
+              sample_response_status: 200
+            },
+            {
+              surface_id: 'pow_verify_abuse',
+              success_contract: 'should_fail',
+              coverage_status: 'unavailable',
+              satisfied: false,
+              attempt_count: 0,
+              sample_request_method: '',
+              sample_request_path: '',
+              sample_response_status: null
+            }
+          ]
+        }
       },
       {
         run_id: 'run-summary-1',
@@ -3417,6 +3447,22 @@ test('monitoring view model and status module remain pure snapshot transforms', 
       ['run-summary-2', 'run-summary-1']
     );
     assert.equal(summarizedRuns.runRows[0].defenseDeltaCount, 2);
+    assert.deepEqual(
+      summarizedRuns.runRows[0].observedFulfillmentModes,
+      ['bulk_scraper', 'http_agent']
+    );
+    assert.deepEqual(
+      summarizedRuns.runRows[0].observedCategoryIds,
+      ['ai_scraper_bot', 'http_agent']
+    );
+    assert.equal(
+      summarizedRuns.runRows[0].ownedSurfaceCoverage?.overallStatus,
+      'partial'
+    );
+    assert.equal(
+      summarizedRuns.runRows[0].ownedSurfaceCoverage?.receipts?.[0]?.surfaceId,
+      'challenge_routing'
+    );
     assert.equal(summarizedRuns.activeBanCount, 1);
 
     const compactBotnessDisplay = monitoringModelModule.deriveMonitoringEventDisplay({

@@ -4,6 +4,38 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-25)
 
+### UI-SCR-EVID-1: Receipt-backed Scrapling attack evidence in the dashboard
+
+- [x] Added the tranche paper trail in:
+  - [`docs/research/2026-03-25-dashboard-scrapling-evidence-gap-review.md`](../docs/research/2026-03-25-dashboard-scrapling-evidence-gap-review.md)
+  - [`docs/plans/2026-03-25-dashboard-scrapling-evidence-surfacing-plan.md`](../docs/plans/2026-03-25-dashboard-scrapling-evidence-surfacing-plan.md)
+- [x] Preserved the richer recent-run evidence shape in:
+  - [`dashboard/src/lib/components/dashboard/monitoring-view-model.js`](../dashboard/src/lib/components/dashboard/monitoring-view-model.js)
+  so bounded dashboard summaries now keep observed Scrapling fulfillment modes, observed taxonomy categories, and owned-surface coverage receipts instead of dropping them during adaptation.
+- [x] Extended the `Red Team` operator surface in:
+  - [`dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte`](../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte)
+  - [`dashboard/src/lib/components/dashboard/monitoring/ScraplingEvidencePanel.svelte`](../dashboard/src/lib/components/dashboard/monitoring/ScraplingEvidencePanel.svelte)
+  - [`dashboard/src/lib/components/dashboard/RedTeamTab.svelte`](../dashboard/src/lib/components/dashboard/RedTeamTab.svelte)
+  so operators can now verify recent run modes, categories, owned-surface closure, and the latest receipt-backed Scrapling evidence directly from the dashboard.
+- [x] Added compact corroboration to [`dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte) so the Game Loop tab now shows a bounded latest Scrapling evidence readiness row without taking over the full adversary-forensics role.
+- [x] Tightened the focused proof path in:
+  - [`e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`Makefile`](../Makefile)
+  with the dedicated target `make test-dashboard-scrapling-evidence`.
+- [x] Updated the operator/testing docs in:
+  - [`docs/dashboard-tabs/red-team.md`](../docs/dashboard-tabs/red-team.md)
+  - [`docs/dashboard-tabs/game-loop.md`](../docs/dashboard-tabs/game-loop.md)
+  - [`docs/testing.md`](../docs/testing.md)
+- [x] Added the closeout note in:
+  - [`docs/research/2026-03-25-dashboard-scrapling-evidence-surfacing-post-implementation-review.md`](../docs/research/2026-03-25-dashboard-scrapling-evidence-surfacing-post-implementation-review.md)
+- [x] Updated the indexes in:
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`docs/plans/README.md`](../docs/plans/README.md)
+- [x] Evidence:
+  - `make test-dashboard-scrapling-evidence`
+  - `git diff --check`
+
 ### Planning rewrite: Scrapling default-adopt attacker-capability principle
 
 - [x] Added the new source-of-truth principle docs in:

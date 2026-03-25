@@ -16,6 +16,12 @@
   export let degradedText =
     'Monitoring freshness is degraded or stale. Missing run rows may indicate delayed telemetry rather than no attacks.';
 
+  const TOKEN_ACRONYMS = Object.freeze({
+    ai: 'AI',
+    http: 'HTTP',
+    ip: 'IP',
+    pow: 'PoW'
+  });
   $: isDegraded = freshnessStateKey === 'degraded' || freshnessStateKey === 'stale';
   $: activeBanCountLabel = (() => {
     if (activeBanCount === null || activeBanCount === undefined || activeBanCount === '') return '-';
@@ -23,6 +29,31 @@
     if (Number.isFinite(parsed)) return formatCompactNumber(parsed, '0');
     return String(activeBanCount);
   })();
+  const humanizeToken = (value) => String(value || '')
+    .trim()
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .split(' ')
+    .map((word) => {
+      const lowered = word.toLowerCase();
+      if (TOKEN_ACRONYMS[lowered]) return TOKEN_ACRONYMS[lowered];
+      return lowered.charAt(0).toUpperCase() + lowered.slice(1);
+    })
+    .join(' ');
+  const formatTokenList = (values = []) => {
+    const rows = Array.isArray(values)
+      ? values.map((value) => humanizeToken(value)).filter(Boolean)
+      : [];
+    return rows.length === 0 ? '-' : rows.join(', ');
+  };
+  const formatCoverageSummary = (coverage) => {
+    const record = coverage && typeof coverage === 'object' ? coverage : null;
+    if (!record) return '-';
+    const satisfied = formatCompactNumber(record.satisfiedSurfaceCount || 0, '0');
+    const required = formatCompactNumber(record.requiredSurfaceCount || 0, '0');
+    const status = humanizeToken(record.overallStatus || '');
+    return `${status} | ${satisfied} / ${required} surfaces`;
+  };
 </script>
 
 <SectionBlock
@@ -48,6 +79,9 @@
           <th class="caps-label">Run <abbr title="Identifier">ID</abbr></th>
           <th class="caps-label">Lane</th>
           <th class="caps-label">Profile</th>
+          <th class="caps-label">Modes</th>
+          <th class="caps-label">Categories</th>
+          <th class="caps-label">Coverage</th>
           <th class="caps-label">Last Event</th>
           <th class="caps-label">Monitoring Deltas</th>
           <th class="caps-label">Ban Outcomes</th>
@@ -56,13 +90,16 @@
       </thead>
       <tbody>
         {#if runRows.length === 0}
-          <TableEmptyRow colspan={7}>No adversary runs</TableEmptyRow>
+          <TableEmptyRow colspan={10}>No adversary runs</TableEmptyRow>
         {:else}
           {#each runRows as row}
             <tr>
               <td><code>{row.runId}</code></td>
               <td>{row.lane || '-'}</td>
               <td>{row.profile || '-'}</td>
+              <td>{formatTokenList(row.observedFulfillmentModes)}</td>
+              <td>{formatTokenList(row.observedCategoryIds)}</td>
+              <td>{formatCoverageSummary(row.ownedSurfaceCoverage)}</td>
               <td>{formatTime(row.lastTs)}</td>
               <td>
                 {formatCompactNumber(row.monitoringEventCount, '0')} events

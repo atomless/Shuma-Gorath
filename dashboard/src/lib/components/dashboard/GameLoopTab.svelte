@@ -1,6 +1,7 @@
 <script>
   import { formatCompactNumber } from '../../domain/core/format.js';
   import { formatUnixSecondsLocal } from '../../domain/core/date-time.js';
+  import { deriveLatestScraplingEvidenceFromSummaries } from './monitoring-view-model.js';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
   import MetricStatCard from './primitives/MetricStatCard.svelte';
 
@@ -179,6 +180,9 @@
       String(row?.category_id || '').trim(),
       String(row?.posture || '').trim()
     ])
+  );
+  $: latestScraplingEvidence = deriveLatestScraplingEvidenceFromSummaries(
+    toArray(operatorSnapshot?.adversary_sim?.recent_runs)
   );
   $: budgetUsageRows = [likelyHumanFrictionFamily, suspiciousOriginCostFamily]
     .flatMap((family) =>
@@ -514,6 +518,20 @@
                 {humanizeToken(operatorSnapshot?.verified_identity?.availability)}
                 | alignment {humanizeToken(operatorSnapshot?.verified_identity?.taxonomy_alignment?.status)}
                 | stance {humanizeToken(operatorSnapshot?.verified_identity?.non_human_traffic_stance, 'sentence')}
+              </span>
+            </div>
+            <div class="info-row">
+              <span class="info-label text-muted">Latest Scrapling Evidence:</span>
+              <span class="status-value">
+                {#if latestScraplingEvidence?.ownedSurfaceCoverage}
+                  {humanizeToken(latestScraplingEvidence.ownedSurfaceCoverage.overallStatus)}
+                  | {formatNumber(latestScraplingEvidence.ownedSurfaceCoverage.satisfiedSurfaceCount, '0')}
+                  / {formatNumber(latestScraplingEvidence.ownedSurfaceCoverage.requiredSurfaceCount, '0')}
+                  surfaces
+                  | categories {latestScraplingEvidence.observedCategoryIds.map((value) => humanizeToken(value)).join(', ') || 'not available'}
+                {:else}
+                  No receipt-backed Scrapling evidence is materialized yet.
+                {/if}
               </span>
             </div>
           </div>
