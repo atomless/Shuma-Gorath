@@ -30,7 +30,6 @@ class VerifiedIdentityMakeTargetTests(unittest.TestCase):
             "manual_reconcile_route_records_observe_longer_when_classification_is_not_ready",
             body,
         )
-        self.assertIn("scripts/tests/test_verified_identity_make_targets.py", body)
 
     def test_alignment_receipts_target_uses_alignment_selectors(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")
@@ -49,7 +48,6 @@ class VerifiedIdentityMakeTargetTests(unittest.TestCase):
             "observability::operator_snapshot_verified_identity::tests::verified_identity_summary_projects_taxonomy_alignment_",
             body,
         )
-        self.assertIn("scripts/tests/test_verified_identity_make_targets.py", body)
 
     def test_botness_conflicts_target_uses_conflict_metric_selectors(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")
@@ -64,7 +62,6 @@ class VerifiedIdentityMakeTargetTests(unittest.TestCase):
             "observability::benchmark_beneficial_non_human::tests::",
             body,
         )
-        self.assertIn("scripts/tests/test_verified_identity_make_targets.py", body)
 
     def test_guardrails_target_uses_reconcile_and_benchmark_selectors(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")
@@ -83,6 +80,16 @@ class VerifiedIdentityMakeTargetTests(unittest.TestCase):
             "observe_longer_when_verified_identity_guardrail_blocks_candidate",
             body,
         )
+
+    def test_make_target_contract_lane_runs_selector_suite_explicitly(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-verified-identity-make-target-contract:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
         self.assertIn("scripts/tests/test_verified_identity_make_targets.py", body)
 
 

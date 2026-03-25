@@ -37,7 +37,6 @@ class HostImpactMakeTargetTests(unittest.TestCase):
             "observability::hot_read_projection::tests::counter_flush_refresh_preserves_request_outcome_summary_rows_in_summary_and_bootstrap",
             body,
         )
-        self.assertIn("scripts/tests/test_host_impact_make_targets.py", body)
 
     def test_host_impact_benchmark_target_uses_current_seam_selectors(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")
@@ -64,7 +63,6 @@ class HostImpactMakeTargetTests(unittest.TestCase):
             "observability::benchmark_suite::tests::benchmark_suite_v1_exposes_small_machine_first_family_registry",
             body,
         )
-        self.assertIn("scripts/tests/test_host_impact_make_targets.py", body)
 
     def test_oversight_host_impact_target_uses_current_seam_selectors(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")
@@ -76,9 +74,19 @@ class HostImpactMakeTargetTests(unittest.TestCase):
         self.assertIsNotNone(match)
         body = match.group(0)
         self.assertIn(
-            "admin::oversight_reconcile::tests::primary_pressure_treats_latency_share_budget_miss_as_suspicious_origin_cost",
+            "admin::oversight_reconcile::tests::primary_problem_class_treats_latency_share_budget_miss_as_latency_overspend",
             body,
         )
+
+    def test_make_target_contract_lane_runs_selector_suite_explicitly(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-host-impact-make-target-contract:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
         self.assertIn("scripts/tests/test_host_impact_make_targets.py", body)
 
 

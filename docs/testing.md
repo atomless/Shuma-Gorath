@@ -82,7 +82,10 @@ make test-benchmark-category-eligibility # Focused category-aware benchmark elig
 make test-replay-promotion-contract # Focused replay-promotion lineage and governance checks
 make test-adversarial-runner-architecture # Focused adversarial runner CLI, unit, and validate-only checks
 make test-adversary-sim-domain-contract # Focused adversary-sim lifecycle and lane-domain checks without live runtime-surface traffic
+make test-adversary-sim-make-target-contract # Explicit Makefile selector/wiring contract for adversary-sim feature targets
 make test-ip-range-suggestions # Focused IP-range suggestion regression gate (runtime + dashboard)
+make test-verified-identity-make-target-contract # Explicit Makefile selector/wiring contract for verified-identity feature targets
+make test-host-impact-make-target-contract # Explicit Makefile selector/wiring contract for host-impact feature targets
 make test-coverage    # Unit coverage to lcov.info (requires cargo-llvm-cov)
 make test-dashboard-unit # Dashboard module unit tests (Node `node:test`)
 make test-dashboard-adversary-sim-lane-contract # Focused dashboard lane-contract checks for the red-team lane selector + diagnostics
@@ -120,6 +123,16 @@ That command is the fastest truthful local/pre-merge proof bundle for the curren
 - `make test-adversary-sim-scrapling-malicious-request-native`
 - `make test-adversary-sim-scrapling-coverage-receipts`
 - `make test-rsi-game-mainline`
+
+## 🐙 Make-Target Contract Lanes
+
+Selector-only Makefile proof now lives in explicit contract lanes instead of being hidden inside feature-behavior targets:
+
+- `make test-adversary-sim-make-target-contract`
+- `make test-verified-identity-make-target-contract`
+- `make test-host-impact-make-target-contract`
+
+Use those lanes when you need to protect target wiring or selector scope. Use the feature targets themselves when you want the actual behavior, telemetry, or benchmark proof.
 
 It does **not** replace:
 

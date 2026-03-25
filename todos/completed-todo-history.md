@@ -4,6 +4,40 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-25)
 
+### TEST-HYGIENE-6C: Explicit make-target contract lanes for selector microtests
+
+- [x] Added the tranche paper trail in:
+  - [`docs/research/2026-03-25-test-hygiene-6c-make-selector-contract-review.md`](../docs/research/2026-03-25-test-hygiene-6c-make-selector-contract-review.md)
+  - [`docs/plans/2026-03-25-test-hygiene-6c-make-selector-contract-plan.md`](../docs/plans/2026-03-25-test-hygiene-6c-make-selector-contract-plan.md)
+- [x] Added a focused split-contract proof in:
+  - [`scripts/tests/test_make_selector_contract_targets.py`](../scripts/tests/test_make_selector_contract_targets.py)
+  so the repo now fails if adversary-sim, verified-identity, or host-impact feature targets re-hide selector-only microtests inside behavior lanes.
+- [x] Rewired [`Makefile`](../Makefile) so retained selector suites now live in explicit contract lanes:
+  - `test-adversary-sim-make-target-contract`
+  - `test-verified-identity-make-target-contract`
+  - `test-host-impact-make-target-contract`
+- [x] Removed the selector microtests from the affected feature-behavior targets and updated the retained contract suites in:
+  - [`scripts/tests/test_adversary_sim_make_targets.py`](../scripts/tests/test_adversary_sim_make_targets.py)
+  - [`scripts/tests/test_verified_identity_make_targets.py`](../scripts/tests/test_verified_identity_make_targets.py)
+  - [`scripts/tests/test_host_impact_make_targets.py`](../scripts/tests/test_host_impact_make_targets.py)
+  so they now assert the new explicit contract-lane structure instead of enforcing the older mixed feature-target shape.
+- [x] Updated [`docs/testing.md`](../docs/testing.md) so contributors can discover the new contract lanes and understand that selector-only proof no longer lives inside the feature targets.
+- [x] Added the closeout note in:
+  - [`docs/research/2026-03-25-test-hygiene-6c-make-selector-contract-post-implementation-review.md`](../docs/research/2026-03-25-test-hygiene-6c-make-selector-contract-post-implementation-review.md)
+- [x] Updated the active queue and indexes in:
+  - [`todos/todo.md`](../todos/todo.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`docs/plans/README.md`](../docs/plans/README.md)
+- [x] Evidence:
+  - `make test-adversary-sim-make-target-contract`
+  - `make test-verified-identity-make-target-contract`
+  - `make test-host-impact-make-target-contract`
+  - `make test-adversary-sim-scrapling-category-fit`
+  - `make test-verified-identity-guardrails`
+  - `make test-oversight-host-impact`
+  - `make test-make-selector-contract-targets`
+  - `git diff --check`
+
 ### TEST-HYGIENE-2: Worktree-clean adversarial and SIM2 generated artifacts
 
 - [x] Added the tranche paper trail in:
