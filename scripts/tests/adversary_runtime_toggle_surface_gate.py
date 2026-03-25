@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Runtime-toggle deterministic surface coverage gate.
+"""Runtime-toggle Scrapling owned-surface coverage and no-impact gate.
 
 This validates the dashboard-toggle execution lane (control endpoint + autonomous supervisor)
-emits required defense-surface telemetry categories in live runtime mode without polluting
-live-only monitoring summary paths.
+produces a real recent Scrapling run with covered owned-surface receipts in operator snapshot
+without polluting the live-only monitoring summary paths.
 """
 
 from __future__ import annotations
@@ -120,20 +120,6 @@ class RuntimeToggleSurfaceGate:
         except (TypeError, ValueError):
             return 0
 
-    @staticmethod
-    def _taxonomy_signals(event: Dict[str, Any]) -> set[str]:
-        taxonomy = event.get("taxonomy")
-        if not isinstance(taxonomy, dict):
-            return set()
-        signals = taxonomy.get("signals")
-        if not isinstance(signals, list):
-            return set()
-        return {
-            str(signal).strip().lower()
-            for signal in signals
-            if str(signal).strip()
-        }
-
     def live_summary_counts(self, monitoring_body: Dict[str, Any]) -> Dict[str, int]:
         summary = self._as_obj(monitoring_body.get("summary"))
         return {
@@ -170,38 +156,38 @@ class RuntimeToggleSurfaceGate:
         if response["status"] != 200:
             raise RuntimeError(f"health check failed: status={response['status']} body={response['raw'][:200]}")
 
+    def clear_loopback_bans(self) -> None:
+        for ip in ("127.0.0.1", "::1"):
+            response = self.request("POST", f"/admin/unban?ip={ip}")
+            if response["status"] != 200:
+                raise RuntimeError(
+                    f"failed to clear loopback ban for {ip}: status={response['status']} body={response['raw'][:200]}"
+                )
+
     def configure_runtime_surface_profile(self) -> None:
         payload = {
             "defence_modes": {"rate": "both", "geo": "both", "js": "both"},
-            "rate_limit": 6,
+            "rate_limit": 80,
             "js_required_enforced": True,
+            "pow_enabled": True,
+            "challenge_puzzle_enabled": True,
             "not_a_bot_enabled": True,
+            "maze_auto_ban": False,
             "geo_edge_headers_enabled": True,
             "geo_challenge": ["RU"],
             "geo_maze": [],
             "geo_block": [],
+            "ban_durations": {
+                "rate_limit": 1,
+                "tarpit_persistence": 1,
+                "not_a_bot_abuse": 1,
+                "challenge_puzzle_abuse": 1,
+            },
         }
         response = self.request("POST", "/admin/config", payload)
         if response["status"] != 200:
             raise RuntimeError(
                 f"failed to apply runtime surface config profile: status={response['status']} body={response['raw'][:200]}"
-            )
-
-    def configure_js_required_profile(self) -> None:
-        payload = {
-            "defence_modes": {"rate": "signal", "geo": "both", "js": "both"},
-            "rate_limit": 1000,
-            "js_required_enforced": True,
-            "not_a_bot_enabled": False,
-            "geo_edge_headers_enabled": False,
-            "geo_challenge": [],
-            "geo_maze": [],
-            "geo_block": [],
-        }
-        response = self.request("POST", "/admin/config", payload)
-        if response["status"] != 200:
-            raise RuntimeError(
-                f"failed to apply js-required config profile: status={response['status']} body={response['raw'][:200]}"
             )
 
     def toggle(self, enabled: bool, suffix: str) -> None:
@@ -227,97 +213,71 @@ class RuntimeToggleSurfaceGate:
                 f"toggle {enabled} failed: status={response['status']} body={response['raw'][:200]}"
             )
 
-    def poll_categories(
+    def recent_scrapling_run_coverage(
         self,
-        existing: Optional[Dict[str, bool]] = None,
-        required: Optional[set[str]] = None,
-    ) -> Dict[str, bool]:
+        operator_snapshot_body: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        adversary_sim = self._as_obj(operator_snapshot_body.get("adversary_sim"))
+        recent_runs = self._as_list(adversary_sim.get("recent_runs"))
+        for row in recent_runs:
+            run = self._as_obj(row)
+            if str(run.get("lane") or "").strip() != "scrapling_traffic":
+                continue
+            coverage = self._as_obj(run.get("owned_surface_coverage"))
+            if not coverage:
+                continue
+            return {
+                "run_id": str(run.get("run_id") or "").strip(),
+                "overall_status": str(coverage.get("overall_status") or "").strip(),
+                "required_surface_ids": [
+                    str(value).strip()
+                    for value in self._as_list(coverage.get("required_surface_ids"))
+                    if str(value).strip()
+                ],
+                "blocking_surface_ids": [
+                    str(value).strip()
+                    for value in self._as_list(coverage.get("blocking_surface_ids"))
+                    if str(value).strip()
+                ],
+                "observed_fulfillment_modes": [
+                    str(value).strip()
+                    for value in self._as_list(run.get("observed_fulfillment_modes"))
+                    if str(value).strip()
+                ],
+            }
+        return {
+            "run_id": "",
+            "overall_status": "",
+            "required_surface_ids": [],
+            "blocking_surface_ids": [],
+            "observed_fulfillment_modes": [],
+        }
+
+    def poll_recent_scrapling_run_coverage(self) -> Dict[str, Any]:
         deadline = time.time() + float(self.timeout_seconds)
-        seen = dict(existing or {
-            "challenge": False,
-            "js_required": False,
-            "pow": False,
-            "rate": False,
-            "geo": False,
-            "maze_or_tarpit": False,
-            "fingerprint_or_cdp": False,
-            "ban": False,
-        })
-        required_names = required or set(seen.keys())
+        last_seen = {
+            "run_id": "",
+            "overall_status": "",
+            "required_surface_ids": [],
+            "blocking_surface_ids": [],
+            "observed_fulfillment_modes": [],
+        }
 
         while time.time() < deadline:
-            monitoring = self.request("GET", "/admin/monitoring?hours=24&limit=200")
-            if monitoring["status"] != 200:
+            operator_snapshot = self.request("GET", "/admin/operator-snapshot")
+            if operator_snapshot["status"] != 200:
                 time.sleep(1)
                 continue
-            body = self._as_obj(monitoring["body"])
-            summary = self._as_obj(body.get("summary"))
-            details = self._as_obj(body.get("details"))
-            events = self._as_list(self._as_obj(details.get("events")).get("recent_events"))
-
-            pow_attempts = self._as_int(self._as_obj(summary.get("pow")).get("total_attempts"))
-            rate_violations = self._as_int(
-                self._as_obj(summary.get("rate")).get("total_violations")
-            )
-            geo_violations = self._as_int(self._as_obj(summary.get("geo")).get("total_violations"))
-            ban_count = self._as_int(self._as_obj(details.get("analytics")).get("ban_count"))
-            cdp_total = self._as_int(
-                self._as_obj(self._as_obj(details.get("cdp")).get("stats")).get("total_detections")
-            )
-            fingerprint_events = self._as_int(
-                self._as_obj(self._as_obj(details.get("cdp")).get("fingerprint_stats")).get("events")
-            )
-            tarpit_progressive = self._as_int(
-                self._as_obj(
-                    self._as_obj(self._as_obj(details.get("tarpit")).get("metrics")).get("activations")
-                ).get("progressive")
-            )
-
-            seen["pow"] = seen["pow"] or pow_attempts > 0
-            seen["rate"] = seen["rate"] or rate_violations > 0
-            seen["geo"] = seen["geo"] or geo_violations > 0
-            seen["ban"] = seen["ban"] or ban_count > 0
-            seen["fingerprint_or_cdp"] = seen["fingerprint_or_cdp"] or cdp_total > 0 or fingerprint_events > 0
-            seen["maze_or_tarpit"] = seen["maze_or_tarpit"] or tarpit_progressive > 0
-
-            for row in events:
-                event = self._as_obj(row)
-                if not bool(event.get("is_simulation", False)):
-                    continue
-                name = str(event.get("event") or "").strip().lower()
-                reason = str(event.get("reason") or "").strip().lower()
-                outcome = str(event.get("outcome") or "").strip().lower()
-                taxonomy_signals = self._taxonomy_signals(event)
-
-                if name == "challenge" or "challenge" in reason:
-                    seen["challenge"] = True
-                if reason == "js_verification":
-                    seen["js_required"] = True
-                    seen["challenge"] = True
-                if (
-                    "s_js_required_missing" in outcome
-                    or "js_verification_required:active" in outcome
-                    or "s_js_required_missing" in taxonomy_signals
-                ):
-                    seen["js_required"] = True
-                if "pow" in reason or "pow_" in outcome:
-                    seen["pow"] = True
-                if "rate" in reason or "rate_" in outcome:
-                    seen["rate"] = True
-                if reason.startswith("geo_policy_") or "d_geo_route" in outcome:
-                    seen["geo"] = True
-                if "maze" in reason or "maze" in outcome or "tarpit" in reason or "tarpit" in outcome:
-                    seen["maze_or_tarpit"] = True
-                if "fingerprint" in reason or "fingerprint" in outcome or "cdp" in reason or "cdp" in outcome:
-                    seen["fingerprint_or_cdp"] = True
-                if name == "ban":
-                    seen["ban"] = True
-
-            if all(seen.get(name, False) for name in required_names):
-                return seen
+            last_seen = self.recent_scrapling_run_coverage(self._as_obj(operator_snapshot["body"]))
+            if (
+                last_seen["run_id"]
+                and last_seen["overall_status"] == "covered"
+                and bool(last_seen["required_surface_ids"])
+            ):
+                return last_seen
             time.sleep(1)
 
-        return seen
+        return last_seen
 
     def poll_live_summary_matches_baseline(self, baseline: Dict[str, int]) -> Dict[str, int]:
         deadline = time.time() + float(self.timeout_seconds)
@@ -339,9 +299,11 @@ class RuntimeToggleSurfaceGate:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Runtime-toggle deterministic telemetry surface gate")
+    parser = argparse.ArgumentParser(
+        description="Runtime-toggle Scrapling owned-surface coverage and no-impact gate"
+    )
     parser.add_argument("--base-url", default=os.environ.get("SHUMA_BASE_URL", "http://127.0.0.1:3000"))
-    parser.add_argument("--timeout-seconds", type=int, default=45)
+    parser.add_argument("--timeout-seconds", type=int, default=120)
     args = parser.parse_args()
 
     api_key = os.environ.get("SHUMA_API_KEY", "").strip()
@@ -361,12 +323,11 @@ def main() -> int:
 
     try:
         gate.ensure_health()
-        gate.configure_js_required_profile()
+        gate.clear_loopback_bans()
+        gate.configure_runtime_surface_profile()
         live_summary_baseline = gate.read_live_summary_counts()
         gate.toggle(True, "on")
-        seen = gate.poll_categories(required={"challenge", "js_required"})
-        gate.configure_runtime_surface_profile()
-        seen = gate.poll_categories(existing=seen)
+        coverage = gate.poll_recent_scrapling_run_coverage()
         live_summary_counts = gate.poll_live_summary_matches_baseline(live_summary_baseline)
     except Exception as exc:  # noqa: BLE001
         print(f"[runtime-surface-gate] error: {exc}", file=sys.stderr)
@@ -381,14 +342,15 @@ def main() -> int:
     except Exception as exc:  # noqa: BLE001
         print(f"[runtime-surface-gate] warning: failed to toggle off: {exc}", file=sys.stderr)
 
-    missing = [name for name, present in seen.items() if not present]
-    if missing:
+    if coverage.get("overall_status") != "covered":
         print(
-            "[runtime-surface-gate] missing required categories: "
-            + ", ".join(sorted(missing)),
+            "[runtime-surface-gate] missing covered Scrapling owned-surface receipt",
             file=sys.stderr,
         )
-        print(f"[runtime-surface-gate] observed={json.dumps(seen, sort_keys=True)}", file=sys.stderr)
+        print(
+            f"[runtime-surface-gate] coverage={json.dumps(coverage, sort_keys=True)}",
+            file=sys.stderr,
+        )
         return 1
 
     leaked = live_summary_leaks(live_summary_counts, live_summary_baseline)
@@ -398,12 +360,15 @@ def main() -> int:
             + json.dumps(leaked, sort_keys=True),
             file=sys.stderr,
         )
-        print(f"[runtime-surface-gate] observed={json.dumps(seen, sort_keys=True)}", file=sys.stderr)
+        print(
+            f"[runtime-surface-gate] coverage={json.dumps(coverage, sort_keys=True)}",
+            file=sys.stderr,
+        )
         return 1
 
     print(
-        "[runtime-surface-gate] PASS observed="
-        + json.dumps(seen, sort_keys=True)
+        "[runtime-surface-gate] PASS coverage="
+        + json.dumps(coverage, sort_keys=True)
         + " live_summary="
         + json.dumps(live_summary_counts, sort_keys=True)
     )

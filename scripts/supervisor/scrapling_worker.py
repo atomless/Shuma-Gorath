@@ -229,14 +229,6 @@ def _coverage_status_for_http_status(status: int) -> str:
     return "pass_observed" if 200 <= int(status) < 400 else "fail_observed"
 
 
-def _surface_receipt_rank(coverage_status: str) -> int:
-    if coverage_status in {"pass_observed", "fail_observed"}:
-        return 2
-    if coverage_status == "transport_error":
-        return 1
-    return 0
-
-
 def _record_surface_receipt(
     receipts: dict[str, dict[str, Any]],
     *,
@@ -252,9 +244,10 @@ def _record_surface_receipt(
         key = str(surface_id or "").strip()
         if not key:
             continue
-        existing = receipts.get(key)
+        receipt_key = f"{key}:{coverage_status}"
+        existing = receipts.get(receipt_key)
         if existing is None:
-            receipts[key] = {
+            receipts[receipt_key] = {
                 "surface_id": key,
                 "coverage_status": coverage_status,
                 "attempt_count": 1,
@@ -264,21 +257,24 @@ def _record_surface_receipt(
             }
             continue
         existing["attempt_count"] = int(existing.get("attempt_count") or 0) + 1
-        if _surface_receipt_rank(coverage_status) >= _surface_receipt_rank(
-            str(existing.get("coverage_status") or "")
-        ):
-            existing["coverage_status"] = coverage_status
-            existing["sample_request_method"] = sample_request_method
-            existing["sample_request_path"] = sample_request_path
-            existing["sample_response_status"] = response_status
+        existing["sample_request_method"] = sample_request_method
+        existing["sample_request_path"] = sample_request_path
+        existing["sample_response_status"] = response_status
 
 
 def _render_surface_receipts(
     receipts: dict[str, dict[str, Any]],
 ) -> list[dict[str, Any]]:
     rendered: list[dict[str, Any]] = []
-    for surface_id in sorted(receipts):
-        entry = dict(receipts[surface_id])
+    for receipt_key in sorted(
+        receipts,
+        key=lambda key: (
+            str(receipts[key].get("surface_id") or ""),
+            str(receipts[key].get("coverage_status") or ""),
+            str(receipts[key].get("sample_request_path") or ""),
+        ),
+    ):
+        entry = dict(receipts[receipt_key])
         if entry.get("sample_response_status") is None:
             entry.pop("sample_response_status", None)
         rendered.append(entry)
@@ -640,7 +636,14 @@ class _DirectPersonaTracker:
             return False, None
         return True, decision.normalized_url
 
-    def record_response(self, response: Any, surface_ids: list[str] | None = None) -> None:
+    def record_response(
+        self,
+        response: Any,
+        surface_ids: list[str] | None = None,
+        *,
+        request_method: str | None = None,
+        request_target: str | None = None,
+    ) -> None:
         self.generated_requests += 1
         self.last_response_status = int(response.status)
         body_bytes = bytes(response.body)
@@ -652,8 +655,8 @@ class _DirectPersonaTracker:
                 self.surface_receipts,
                 surface_ids=surface_ids,
                 coverage_status=_coverage_status_for_http_status(int(response.status)),
-                request_method=str(getattr(response.request, "method", "GET")),
-                request_target=str(getattr(response, "url", "")),
+                request_method=request_method or str(getattr(response.request, "method", "GET")),
+                request_target=request_target or str(getattr(response, "url", "")),
                 response_status=int(response.status),
             )
 
@@ -736,7 +739,12 @@ def _execute_request_sequence(
                 json=request_spec.get("json"),
                 follow_redirects=False,
             )
-            tracker.record_response(response, surface_ids)
+            tracker.record_response(
+                response,
+                surface_ids,
+                request_method=method_name,
+                request_target=normalized_url,
+            )
             location = str(response.headers.get("location") or "").strip()
             if (
                 request_spec.get("follow_redirect")
@@ -756,7 +764,12 @@ def _execute_request_sequence(
                         cookies=request_spec.get("cookies"),
                         follow_redirects=False,
                     )
-                    tracker.record_response(redirect_response, surface_ids)
+                    tracker.record_response(
+                        redirect_response,
+                        surface_ids,
+                        request_method="get",
+                        request_target=redirect_url,
+                    )
         except Exception as exc:
             tracker.record_failure(
                 exc,
@@ -850,40 +863,6 @@ def _http_agent_request_sequence(
             headers={"accept": "application/json"},
             cookies=cookies,
         ),
-        _request_spec(
-            "post",
-            urljoin(base_url, "/agent/submit"),
-            headers={
-                "accept": "application/json",
-                "content-type": "application/json",
-            },
-            cookies=cookies,
-            json_body={
-                "mode": "http_agent",
-                "run_id": tracker.run_id,
-                "tick_id": tracker.tick_id,
-            },
-        ),
-        _request_spec(
-            "put",
-            urljoin(base_url, "/agent/update"),
-            headers={
-                "accept": "application/json",
-                "content-type": "application/json",
-            },
-            cookies=cookies,
-            json_body={
-                "mode": "http_agent",
-                "request_sequence": 3,
-            },
-        ),
-        _request_spec(
-            "get",
-            urljoin(base_url, "/agent/redirect"),
-            headers={"accept": "application/json"},
-            cookies=cookies,
-            follow_redirect=True,
-        ),
     ]
     if {"challenge_routing", "rate_pressure", "geo_ip_policy"} & surface_targets:
         requests.append(
@@ -961,6 +940,44 @@ def _http_agent_request_sequence(
                 },
             )
         )
+    requests.extend(
+        [
+            _request_spec(
+                "post",
+                urljoin(base_url, "/agent/submit"),
+                headers={
+                    "accept": "application/json",
+                    "content-type": "application/json",
+                },
+                cookies=cookies,
+                json_body={
+                    "mode": "http_agent",
+                    "run_id": tracker.run_id,
+                    "tick_id": tracker.tick_id,
+                },
+            ),
+            _request_spec(
+                "put",
+                urljoin(base_url, "/agent/update"),
+                headers={
+                    "accept": "application/json",
+                    "content-type": "application/json",
+                },
+                cookies=cookies,
+                json_body={
+                    "mode": "http_agent",
+                    "request_sequence": 3,
+                },
+            ),
+            _request_spec(
+                "get",
+                urljoin(base_url, "/agent/redirect"),
+                headers={"accept": "application/json"},
+                cookies=cookies,
+                follow_redirect=True,
+            ),
+        ]
+    )
     return requests
 
 

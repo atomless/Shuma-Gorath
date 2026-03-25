@@ -112,6 +112,29 @@ class ScraplingDeployPrepTests(unittest.TestCase):
             ["https://edge.example.com:443"],
         )
 
+    def test_local_http_mode_supports_loopback_safe_localhost_seed(self) -> None:
+        receipt = prep.prepare_scrapling_deploy(
+            public_base_url="http://localhost:3000/dashboard/index.html",
+            runtime_mode="ssh_systemd",
+            receipt_output=self.temp_dir / "receipt.json",
+            scope_output=self.temp_dir / "scope.json",
+            seed_output=self.temp_dir / "seed.json",
+            require_https=False,
+        )
+
+        scope_payload = json.loads((self.temp_dir / "scope.json").read_text(encoding="utf-8"))
+        seed_payload = json.loads((self.temp_dir / "seed.json").read_text(encoding="utf-8"))
+
+        self.assertEqual(receipt["public_base_url"], "http://localhost:3000/")
+        self.assertFalse(scope_payload["require_https"])
+        self.assertTrue(scope_payload["deny_ip_literals"])
+        self.assertEqual(scope_payload["allowed_hosts"], ["localhost"])
+        self.assertEqual(seed_payload["primary_start_url"], "http://localhost:3000/")
+        self.assertEqual(
+            receipt["egress"]["required_outbound_hosts"],
+            ["http://localhost:3000"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

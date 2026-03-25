@@ -318,6 +318,17 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
             for entry in list(result.get("surface_receipts") or [])
         }
 
+    def _surface_receipt_statuses(
+        self,
+        result: dict[str, Any],
+        surface_id: str,
+    ) -> list[str]:
+        return [
+            str(entry.get("coverage_status") or "")
+            for entry in list(result.get("surface_receipts") or [])
+            if str(entry.get("surface_id") or "") == surface_id
+        ]
+
     def test_execute_worker_plan_emits_signed_real_scrapling_requests_and_blocks_out_of_scope_targets(self) -> None:
         self.assertIsNotNone(scrapling_worker, "worker module missing")
         result = scrapling_worker.execute_worker_plan(
@@ -417,7 +428,7 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
         beat_payload = self._make_beat_payload(
             "http_agent",
             ["http_agent"],
-            max_requests=6,
+            max_requests=10,
         )
         result = scrapling_worker.execute_worker_plan(
             beat_payload,
@@ -523,6 +534,40 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
         self.assertIn("answer=bad", puzzle["body"])
         self.assertIn("seed=invalid", puzzle["body"])
 
+    def test_public_path_traversal_receipts_keep_pass_observed_when_later_public_request_fails(self) -> None:
+        self.assertIsNotNone(scrapling_worker, "worker module missing")
+        receipts: dict[str, dict[str, Any]] = {}
+
+        scrapling_worker._record_surface_receipt(
+            receipts,
+            surface_ids=["public_path_traversal"],
+            coverage_status="pass_observed",
+            request_method="GET",
+            request_target=f"{self.base_url}catalog?page=1",
+            response_status=200,
+        )
+        scrapling_worker._record_surface_receipt(
+            receipts,
+            surface_ids=["public_path_traversal"],
+            coverage_status="fail_observed",
+            request_method="GET",
+            request_target=f"{self.base_url}detail/2",
+            response_status=429,
+        )
+
+        rendered = scrapling_worker._render_surface_receipts(receipts)
+        public_path_receipts = [
+            entry
+            for entry in rendered
+            if str(entry.get("surface_id") or "") == "public_path_traversal"
+        ]
+
+        self.assertEqual(len(public_path_receipts), 2)
+        self.assertCountEqual(
+            [entry["coverage_status"] for entry in public_path_receipts],
+            ["pass_observed", "fail_observed"],
+        )
+
     def test_execute_worker_plan_http_agent_attempts_owned_request_native_abuse_surfaces(self) -> None:
         self.assertIsNotNone(scrapling_worker, "worker module missing")
         beat_payload = self._make_beat_payload(
@@ -597,6 +642,36 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
         )
         self.assertIn('"token":"invalid"', tarpit["body"])
         self.assertIn('"operation_id":"invalid"', tarpit["body"])
+
+    def test_execute_worker_plan_http_agent_reaches_pow_and_tarpit_with_live_runtime_budget(self) -> None:
+        self.assertIsNotNone(scrapling_worker, "worker module missing")
+        beat_payload = self._make_beat_payload(
+            "http_agent",
+            ["http_agent"],
+            max_requests=8,
+        )
+        result = scrapling_worker.execute_worker_plan(
+            beat_payload,
+            scope_descriptor_path=self.descriptor_path,
+            seed_inventory_path=self.inventory_path,
+            crawldir=self.crawldir,
+            sim_telemetry_secret=SIM_SECRET,
+        )
+
+        self.assertEqual(result["failure_class"], None, msg=json.dumps(result, indent=2))
+        self.assertIn(
+            "fail_observed",
+            self._surface_receipt_statuses(result, "pow_verify_abuse"),
+            msg=json.dumps(result, indent=2),
+        )
+        self.assertIn(
+            "fail_observed",
+            self._surface_receipt_statuses(result, "tarpit_progress_abuse"),
+            msg=json.dumps(result, indent=2),
+        )
+        paths = [(entry["method"], entry["path"]) for entry in self.httpd.requests_seen]
+        self.assertIn(("POST", "/pow/verify"), paths)
+        self.assertIn(("POST", "/tarpit/progress"), paths)
 
     def test_cli_writes_result_file_for_scrapling_worker_plan(self) -> None:
         beat_path = self.temp_dir / "beat.json"

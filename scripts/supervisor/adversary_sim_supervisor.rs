@@ -44,6 +44,78 @@ struct HttpResponse {
     body: String,
 }
 
+fn find_bytes(haystack: &[u8], needle: &[u8]) -> Option<usize> {
+    if needle.is_empty() || haystack.len() < needle.len() {
+        return None;
+    }
+    haystack.windows(needle.len()).position(|window| window == needle)
+}
+
+fn decode_chunked_body(body: &[u8]) -> Result<Vec<u8>, String> {
+    let mut cursor = 0usize;
+    let mut decoded = Vec::new();
+
+    loop {
+        let remaining = &body[cursor..];
+        let Some(size_line_end) = find_bytes(remaining, b"\r\n") else {
+            return Err("invalid chunked response: missing size delimiter".to_string());
+        };
+        let size_line = std::str::from_utf8(&remaining[..size_line_end])
+            .map_err(|_| "invalid chunked response: non-utf8 size line".to_string())?;
+        let size_text = size_line.split(';').next().unwrap_or("").trim();
+        let chunk_size = usize::from_str_radix(size_text, 16)
+            .map_err(|_| "invalid chunked response: bad chunk size".to_string())?;
+        cursor = cursor.saturating_add(size_line_end + 2);
+
+        if chunk_size == 0 {
+            return Ok(decoded);
+        }
+
+        if body.len() < cursor.saturating_add(chunk_size + 2) {
+            return Err("invalid chunked response: truncated chunk".to_string());
+        }
+        decoded.extend_from_slice(&body[cursor..cursor + chunk_size]);
+        cursor = cursor.saturating_add(chunk_size);
+        if &body[cursor..cursor + 2] != b"\r\n" {
+            return Err("invalid chunked response: missing chunk terminator".to_string());
+        }
+        cursor = cursor.saturating_add(2);
+    }
+}
+
+fn parse_http_response(raw: &[u8]) -> Result<HttpResponse, String> {
+    let Some(head_end) = find_bytes(raw, b"\r\n\r\n") else {
+        return Err("invalid HTTP response: missing head/body delimiter".to_string());
+    };
+    let head = String::from_utf8_lossy(&raw[..head_end]).to_string();
+    let body = &raw[head_end + 4..];
+    let status = head
+        .lines()
+        .next()
+        .and_then(|status_line| status_line.split_whitespace().nth(1))
+        .and_then(|raw_code| raw_code.parse::<u16>().ok())
+        .ok_or_else(|| "invalid HTTP response status".to_string())?;
+    let chunked = head.lines().skip(1).any(|line| {
+        let mut parts = line.splitn(2, ':');
+        let header = parts.next().unwrap_or("").trim();
+        let value = parts.next().unwrap_or("").trim();
+        header.eq_ignore_ascii_case("transfer-encoding")
+            && value
+                .split(',')
+                .any(|token| token.trim().eq_ignore_ascii_case("chunked"))
+    });
+    let decoded_body = if chunked {
+        decode_chunked_body(body)?
+    } else {
+        body.to_vec()
+    };
+
+    Ok(HttpResponse {
+        status,
+        body: String::from_utf8_lossy(decoded_body.as_slice()).to_string(),
+    })
+}
+
 fn parse_bool(raw: &str, default: bool) -> bool {
     let value = raw.trim().to_ascii_lowercase();
     match value.as_str() {
@@ -234,18 +306,7 @@ fn request_post(config: &Config, path: &str, body: &str) -> Result<HttpResponse,
     stream
         .read_to_end(&mut buffer)
         .map_err(|err| format!("read failed: {err}"))?;
-    let raw = String::from_utf8_lossy(buffer.as_slice()).to_string();
-    let mut sections = raw.splitn(2, "\r\n\r\n");
-    let head = sections.next().unwrap_or("");
-    let body = sections.next().unwrap_or("").to_string();
-    let status = head
-        .lines()
-        .next()
-        .and_then(|status_line| status_line.split_whitespace().nth(1))
-        .and_then(|raw_code| raw_code.parse::<u16>().ok())
-        .ok_or_else(|| "invalid HTTP response status".to_string())?;
-
-    Ok(HttpResponse { status, body })
+    parse_http_response(buffer.as_slice())
 }
 
 fn request_beat(config: &Config) -> Result<HttpResponse, String> {
@@ -342,6 +403,7 @@ fn build_worker_failure_result(beat_body: &str, failure_class: &str, error: &str
     let run_id = json_string(beat_body, "run_id").unwrap_or_default();
     let tick_id = json_string(beat_body, "tick_id").unwrap_or_default();
     let lane = json_string(beat_body, "lane").unwrap_or_else(|| "scrapling_traffic".to_string());
+    let fulfillment_mode = json_string(beat_body, "fulfillment_mode").unwrap_or_default();
     let tick_started_at = json_u64(beat_body, "tick_started_at").unwrap_or(0);
     let worker_id = format!("adversary-sim-supervisor-{}", std::process::id());
     let tick_completed_at = SystemTime::now()
@@ -349,10 +411,11 @@ fn build_worker_failure_result(beat_body: &str, failure_class: &str, error: &str
         .unwrap_or_else(|_| Duration::from_secs(0))
         .as_secs();
     format!(
-        "{{\"schema_version\":\"adversary-sim-scrapling-worker-result.v1\",\"run_id\":\"{}\",\"tick_id\":\"{}\",\"lane\":\"{}\",\"worker_id\":\"{}\",\"tick_started_at\":{},\"tick_completed_at\":{},\"generated_requests\":0,\"failed_requests\":0,\"last_response_status\":null,\"failure_class\":\"{}\",\"error\":\"{}\",\"crawl_stats\":{{\"requests_count\":0,\"offsite_requests_count\":0,\"blocked_requests_count\":0,\"response_status_count\":{{}},\"response_bytes\":0}},\"scope_rejections\":{{}}}}",
+        "{{\"schema_version\":\"adversary-sim-scrapling-worker-result.v1\",\"run_id\":\"{}\",\"tick_id\":\"{}\",\"lane\":\"{}\",\"fulfillment_mode\":\"{}\",\"worker_id\":\"{}\",\"tick_started_at\":{},\"tick_completed_at\":{},\"generated_requests\":0,\"failed_requests\":0,\"last_response_status\":null,\"failure_class\":\"{}\",\"error\":\"{}\",\"crawl_stats\":{{\"requests_count\":0,\"offsite_requests_count\":0,\"blocked_requests_count\":0,\"response_status_count\":{{}},\"response_bytes\":0}},\"scope_rejections\":{{}}}}",
         json_escape(run_id.as_str()),
         json_escape(tick_id.as_str()),
         json_escape(lane.as_str()),
+        json_escape(fulfillment_mode.as_str()),
         json_escape(worker_id.as_str()),
         tick_started_at,
         tick_completed_at,
@@ -387,7 +450,7 @@ fn run_scrapling_worker(config: &Config, beat_body: &str) -> String {
         .arg("--crawldir")
         .arg(&config.scrapling_crawldir)
         .stdout(Stdio::null())
-        .stderr(Stdio::null());
+        .stderr(Stdio::piped());
     if let Some(path) = config.scrapling_scope_descriptor_path.as_ref() {
         command.arg("--scope-descriptor").arg(path);
     }
@@ -422,10 +485,28 @@ fn run_scrapling_worker(config: &Config, beat_body: &str) -> String {
                         ),
                     }
                 } else {
+                    let stderr_text = child
+                        .stderr
+                        .as_mut()
+                        .map(|stderr| {
+                            let mut captured = String::new();
+                            let _ = stderr.read_to_string(&mut captured);
+                            captured
+                        })
+                        .unwrap_or_default();
+                    let detail = if stderr_text.trim().is_empty() {
+                        format!("worker exited with status {:?}", status.code())
+                    } else {
+                        format!(
+                            "worker exited with status {:?}; stderr={}",
+                            status.code(),
+                            stderr_text.trim()
+                        )
+                    };
                     build_worker_failure_result(
                         beat_body,
                         "transport",
-                        format!("worker exited with status {:?}", status.code()).as_str(),
+                        detail.as_str(),
                     )
                 };
                 let _ = fs::remove_file(&beat_file);
@@ -586,5 +667,32 @@ fn main() {
             std::process::exit(1);
         }
         thread::sleep(Duration::from_millis(config.interval_ms));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_http_response;
+
+    #[test]
+    fn parse_http_response_keeps_plain_json_body() {
+        let response = parse_http_response(
+            b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\"ok\":true}",
+        )
+        .expect("plain response");
+
+        assert_eq!(response.status, 200);
+        assert_eq!(response.body, "{\"ok\":true}");
+    }
+
+    #[test]
+    fn parse_http_response_decodes_chunked_json_body() {
+        let response = parse_http_response(
+            b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nContent-Type: application/json\r\n\r\n1\r\n{\r\n5\r\n\"ok\":\r\n4\r\ntrue\r\n1\r\n}\r\n0\r\n\r\n",
+        )
+        .expect("chunked response");
+
+        assert_eq!(response.status, 200);
+        assert_eq!(response.body, "{\"ok\":true}");
     }
 }

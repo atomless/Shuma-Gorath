@@ -81,12 +81,12 @@ def _default_output_paths(public_base_url: str) -> tuple[Path, Path, Path]:
     )
 
 
-def _scope_payload(allowed_hosts: list[str]) -> dict[str, Any]:
+def _scope_payload(allowed_hosts: list[str], *, require_https: bool) -> dict[str, Any]:
     return {
         "schema_version": shared_host_scope.SCHEMA_VERSION,
         "allowed_hosts": allowed_hosts,
         "denied_path_prefixes": list(shared_host_scope.BASELINE_DENIED_PATH_PREFIXES),
-        "require_https": True,
+        "require_https": require_https,
         "deny_ip_literals": True,
     }
 
@@ -101,6 +101,7 @@ def prepare_scrapling_deploy(
     *,
     public_base_url: str,
     runtime_mode: str,
+    require_https: bool = True,
     receipt_output: Path | None = None,
     scope_output: Path | None = None,
     seed_output: Path | None = None,
@@ -122,7 +123,7 @@ def prepare_scrapling_deploy(
     seed_path = Path(seed_output or default_seed).expanduser().resolve()
     hostname = urlsplit(normalized_public_base_url).hostname or ""
     allowed_hosts = [hostname]
-    scope_payload = _scope_payload(allowed_hosts)
+    scope_payload = _scope_payload(allowed_hosts, require_https=require_https)
     scope_descriptor = shared_host_scope.descriptor_from_payload(scope_payload)
     seed_payload = shared_host_seed_inventory.build_seed_inventory(
         scope_descriptor,
@@ -191,6 +192,10 @@ def prepare_scrapling_deploy(
             "The default deploy-time seed is just the normalized public root URL.",
         ],
     }
+    if not require_https:
+        receipt["notes"].append(
+            "HTTP allowance is for controlled local or test runtimes only; deployment posture must continue to require HTTPS."
+        )
     if runtime_mode == "external_supervisor":
         receipt["notes"].append(
             "Edge/external-supervisor runtime productization is deferred until there is a concrete deployment target worth supporting end to end."
@@ -247,6 +252,11 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         default=DEFAULT_REMOTE_CRAWLDIR,
         help="Runtime remote path for the Scrapling crawldir",
     )
+    parser.add_argument(
+        "--allow-http",
+        action="store_true",
+        help="Allow HTTP primary URLs for controlled local or test runtimes",
+    )
     return parser.parse_args(argv)
 
 
@@ -255,6 +265,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     prepare_scrapling_deploy(
         public_base_url=args.public_base_url,
         runtime_mode=args.runtime_mode,
+        require_https=not args.allow_http,
         receipt_output=Path(args.receipt_output).expanduser().resolve()
         if args.receipt_output
         else None,

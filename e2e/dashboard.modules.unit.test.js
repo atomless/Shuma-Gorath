@@ -1017,7 +1017,7 @@ test('dashboard API client classifies AbortError as cancelled and does not emit 
     assert.equal(disconnectEvents.length, 0);
     assert.equal(telemetryEvents.length, 1);
     assert.equal(telemetryEvents[0].failureClass, 'cancelled');
-    assert.equal(telemetryEvents[0].tab, 'monitoring');
+    assert.equal(telemetryEvents[0].tab, 'game-loop');
     assert.equal(telemetryEvents[0].reason, 'auto-refresh');
     assert.equal(telemetryEvents[0].source, 'tab-refresh');
   });
@@ -5733,18 +5733,14 @@ test('traffic tab preserves the bounded traffic visibility surface', () => {
   assert.match(source, /maintainAspectRatio: false,/);
   assert.match(source, /x: buildMonitoringTimeSeriesXAxis\(\),/);
   assert.match(source, /const fillColor = chartTheme\.timeSeriesFill\.events/);
-  assert.match(source, /'challenge'/);
-  assert.match(source, /'pow'/);
+  assert.match(source, /deriveFreshnessSummary/);
   assert.match(source, /export let autoRefreshEnabled = false;/);
-  assert.match(source, /sameSeries\(chart, trendSeries\.labels, trendSeries\.data\)/);
+  assert.match(source, /sameSeries\(chart, series\.labels, series\.data\)/);
   assert.match(source, /abortRangeEventsFetch\(\);/);
   assert.match(source, /const isRangeFetchInFlight = selectedRangeWindowState\.loading === true;/);
-  assert.match(source, /normalizeReasonRows\(/);
   assert.match(source, /deriveEnforcedMonitoringChartRows\(selectedRangeEvents, \{ topIpLimit: 10 \}\)\.events/);
   assert.match(source, /buildTimeSeries\(enforcedSelectedRangeEvents, selectedTimeRange,/);
   assert.match(source, /deriveMonitoringEventDisplay/);
-  assert.match(source, /const rawFeedPayload = \(event = \{\}\) =>/);
-  assert.match(source, /Object\.keys\(source\)/);
   assert.match(source, /\$: rawRecentEvents = Array\.isArray\(events\.recent_events\)/);
   assert.match(source, /\$: eventWindowTotal = toNonNegativeIntOrNull\(events\?\.recent_events_window\?\.total_events_in_window\);/);
   assert.match(source, /\$: totalBans = \(\(\) => \{/);
@@ -5785,7 +5781,8 @@ test('traffic and diagnostics tabs decompose traffic visibility and furniture di
   assert.match(trafficSource, /<RecentEventsTable/);
   assert.match(trafficSource, /filterOptions=\{eventFilterOptions\}/);
   assert.match(trafficSource, /onFilterChange=\{onEventFilterChange\}/);
-  assert.match(trafficSource, /Recent Events/);
+  assert.match(trafficSource, /data-traffic-section="traffic-overview"/);
+  assert.match(trafficSource, /data-traffic-section="recent-events"/);
   assert.doesNotMatch(trafficSource, /Traffic Visibility/);
   assert.doesNotMatch(trafficSource, /Traffic Telemetry Health/);
   assert.doesNotMatch(trafficSource, />Traffic Overview</);
@@ -5994,9 +5991,9 @@ test('primary charts reuse the shared half doughnut shell for event-type readout
   assert.match(source, /readout=\{eventTypesReadout\}/);
 });
 
-test('diagnostics and ip-ban doughnuts share the canonical largest-to-smallest series normalizer', () => {
-  const diagnosticsSource = fs.readFileSync(
-    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/DiagnosticsTab.svelte'),
+test('traffic and ip-ban doughnuts share the canonical largest-to-smallest series normalizer', () => {
+  const trafficSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/TrafficTab.svelte'),
     'utf8'
   );
   const ipBansSource = fs.readFileSync(
@@ -6004,8 +6001,8 @@ test('diagnostics and ip-ban doughnuts share the canonical largest-to-smallest s
     'utf8'
   );
 
-  assert.match(diagnosticsSource, /buildHalfDoughnutSeries,/);
-  assert.match(diagnosticsSource, /const \{ labels, values: data \} = buildHalfDoughnutSeries\(counts\);/);
+  assert.match(trafficSource, /buildHalfDoughnutSeries,/);
+  assert.match(trafficSource, /const \{ labels, values: data \} = buildHalfDoughnutSeries\(counts\);/);
   assert.match(ipBansSource, /buildHalfDoughnutSeries,/);
   assert.match(ipBansSource, /const \{ labels, values \} = buildHalfDoughnutSeries\(entries\);/);
   assert.match(ipBansSource, /banReasonEntries = buildHalfDoughnutSeries\(Array\.from\(reasonCounts\.entries\(\)\)\)\.entries;/);

@@ -636,10 +636,12 @@ mod tests {
         let hint = derive_escalation_hint(&snapshot.allowed_actions, families.as_slice());
         assert_eq!(hint.decision, "code_evolution_candidate");
         assert_eq!(hint.review_status, "manual_review_required");
-        assert!(hint
+        assert_eq!(hint.guidance_status, "code_evolution_only");
+        assert_eq!(hint.tractability, "code_or_capability_gap");
+        assert!(hint.blockers.contains(&"family_capability_gap".to_string()));
+        assert!(!hint
             .blockers
             .contains(&"no_matching_config_surface".to_string()));
-        assert!(hint.blockers.contains(&"family_capability_gap".to_string()));
     }
 
     #[test]

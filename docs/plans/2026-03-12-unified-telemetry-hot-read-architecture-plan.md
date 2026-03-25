@@ -148,6 +148,11 @@ Instead of recomputing expensive parts from many hourly reads on every request, 
 3. `telemetry:recent_events_tail:v1:<site>`
 4. `telemetry:headline_rollups:v1:<site>`
 
+Current mainline note:
+
+1. the operator snapshot supporting document now legitimately carries a larger machine-first control-loop surface than the original hot-read baseline anticipated,
+2. so its size cap must be kept explicitly bounded but may need periodic rebaseline as long as it remains narrower than bootstrap and still serves canonical machine-first read needs without silent trimming.
+
 These are not a second source of truth. They are write/flush-time projections of the raw store.
 
 ### 4. Update hot-read documents at flush/maintenance time, not per request

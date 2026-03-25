@@ -3115,9 +3115,7 @@ test("adversary sim toggle continue path omits the no-frontier warning after con
     ]);
 
     await waitForDashboardAdversarySimUiState(page, request, true);
-    await expect(page.locator('[data-tab-notice="red-team"]')).not.toContainText(
-      "Continuing without frontier provider calls for this run."
-    );
+    await expect(page.locator('[data-tab-notice="red-team"]')).toHaveCount(0);
     await expect.poll(() => controlRequestCount, { timeout: 5000 }).toBeGreaterThan(0);
   });
 });
@@ -3380,13 +3378,12 @@ test("manual refresh button appends new monitoring delta events when auto-refres
   });
 
   let deltaRequestCount = 0;
-  let monitoringSnapshotRequestCount = 0;
+  let manualRefreshTriggered = false;
   let nonFreshnessDeltaCount = 0;
   await page.route("**/admin/monitoring?hours=*&limit=*", async (route) => {
-    const reason = monitoringSnapshotRequestCount === 0
-      ? "historical-baseline"
-      : "manual-refresh-delta-event";
-    monitoringSnapshotRequestCount += 1;
+    const reason = manualRefreshTriggered
+      ? "manual-refresh-delta-event"
+      : "historical-baseline";
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -3459,12 +3456,12 @@ test("manual refresh button appends new monitoring delta events when auto-refres
 
   await openDashboard(page);
   await openTab(page, "traffic");
-  await expect(page.locator('label[for="auto-refresh-toggle"]')).toBeHidden();
   await expect(page.locator('label[for="auto-refresh-toggle"]')).toBeVisible();
   await expect(page.locator("#refresh-now-btn")).toBeVisible();
   await expect(page.locator("#monitoring-events tbody")).not.toContainText("manual-refresh-delta-event");
 
   const beforeRefreshDeltaCalls = deltaRequestCount;
+  manualRefreshTriggered = true;
   await page.click("#refresh-now-btn");
   await expect(page.locator("#monitoring-events tbody")).toContainText("manual-refresh-delta-event");
   expect(deltaRequestCount).toBeGreaterThan(beforeRefreshDeltaCalls);
@@ -3499,8 +3496,8 @@ test("route remount preserves keyboard navigation, ban/unban, verification save,
   await page.goto("about:blank");
   await openDashboard(page);
 
-  const monitoringTab = page.locator("#dashboard-tab-game-loop");
-  await monitoringTab.focus();
+  const trafficTab = page.locator("#dashboard-tab-traffic");
+  await trafficTab.focus();
   await page.keyboard.press("ArrowRight");
   await expect(page).toHaveURL(/#ip-bans$/);
   await assertActiveTabPanelVisibility(page, "ip-bans");

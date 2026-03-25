@@ -2,6 +2,42 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-03-25)
+
+### BASELINE-REPAIR-1: restore truthful green baseline after MZ-T4 exposed full-suite drift
+
+- [x] Aligned stale baseline expectations with the already-landed contracts in:
+  - [`src/observability/benchmark_results.rs`](../src/observability/benchmark_results.rs)
+  - [`src/providers/external.rs`](../src/providers/external.rs)
+- [x] Rebaselined the operator-snapshot hot-read budget truthfully in:
+  - [`src/observability/hot_read_documents.rs`](../src/observability/hot_read_documents.rs)
+  - [`docs/plans/2026-03-12-unified-telemetry-hot-read-architecture-plan.md`](../docs/plans/2026-03-12-unified-telemetry-hot-read-architecture-plan.md)
+- [x] Repaired the broad-suite-only Scrapling/runtime baseline drift by:
+  - restoring local Scrapling runtime prep and secret wiring in [`Makefile`](../Makefile) and [`scripts/deploy/scrapling_deploy_prep.py`](../scripts/deploy/scrapling_deploy_prep.py)
+  - hardening the host supervisor transport/parser and worker-failure receipts in [`scripts/supervisor/adversary_sim_supervisor.rs`](../scripts/supervisor/adversary_sim_supervisor.rs)
+  - fixing Scrapling worker receipt preservation and live-budget owned-surface reachability in [`scripts/supervisor/scrapling_worker.py`](../scripts/supervisor/scrapling_worker.py)
+  - tightening the running-target runtime surface gate around recent-run owned-surface closure and loopback ban cleanup in [`scripts/tests/adversary_runtime_toggle_surface_gate.py`](../scripts/tests/adversary_runtime_toggle_surface_gate.py)
+  - correcting recent-run aggregation so operator snapshot recent runs stay truthful when coverage is driven by receipt events in [`src/admin/api.rs`](../src/admin/api.rs)
+- [x] Rebased the focused proof surface in:
+  - [`scripts/tests/test_scrapling_worker.py`](../scripts/tests/test_scrapling_worker.py)
+  - [`scripts/tests/test_adversary_runtime_toggle_surface_gate.py`](../scripts/tests/test_adversary_runtime_toggle_surface_gate.py)
+  - [`scripts/tests/test_adversary_sim_make_targets.py`](../scripts/tests/test_adversary_sim_make_targets.py)
+  - [`scripts/tests/test_adversary_sim_supervisor.py`](../scripts/tests/test_adversary_sim_supervisor.py)
+  - [`scripts/tests/test_scrapling_deploy_prep.py`](../scripts/tests/test_scrapling_deploy_prep.py)
+  - [`e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+- [x] Added the tranche paper trail in:
+  - [`docs/research/2026-03-24-baseline-repair-after-mz-t4-full-suite-review.md`](../docs/research/2026-03-24-baseline-repair-after-mz-t4-full-suite-review.md)
+  - [`docs/plans/2026-03-24-baseline-repair-after-mz-t4-full-suite-plan.md`](../docs/plans/2026-03-24-baseline-repair-after-mz-t4-full-suite-plan.md)
+  - [`docs/research/2026-03-24-baseline-repair-after-mz-t4-full-suite-post-implementation-review.md`](../docs/research/2026-03-24-baseline-repair-after-mz-t4-full-suite-post-implementation-review.md)
+- [x] Evidence:
+  - `make test-adversary-sim-scrapling-worker`
+  - `make test-adversary-sim-scrapling-coverage-receipts`
+  - `make test-adversary-sim-runtime-surface-unit`
+  - `make test-adversary-sim-runtime-surface`
+  - `make test`
+  - `git diff --check`
+
 ## Additional completions (2026-03-24)
 
 ### MZ-T4: canonical maze verification wiring

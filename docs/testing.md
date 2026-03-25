@@ -283,7 +283,7 @@ make test-adversarial-smoke
 
 Available profiles:
 - `make test-adversarial-fast` - mandatory fast matrix (`smoke + abuse + Akamai`)
-- `make test-adversary-sim-runtime-surface` - runtime-toggle integration gate that verifies required deterministic defense-surface telemetry categories (challenge/JS/PoW/rate/GEO/maze-tarpit/fingerprint-CDP/ban) and asserts live-only monitoring summary paths remain clean while adversary-sim runs on a running server
+- `make test-adversary-sim-runtime-surface` - runtime-toggle integration gate that proves a real recent `scrapling_traffic` run reaches `owned_surface_coverage.overall_status=covered` in `operator_snapshot_v1`, while live-only monitoring summary paths remain clean on the running target
 - `make test-adversarial-smoke` - mandatory fast smoke gate (`SIM-T0`..`SIM-T4`)
 - `make test-adversarial-abuse` - mandatory replay/stale/order-cadence abuse regressions
 - `make test-adversarial-akamai` - mandatory Akamai signal fixture coverage
@@ -302,7 +302,7 @@ Available profiles:
 - `make test-scrapling-deploy-shared-host` - focused shared-host deploy proof for the Scrapling prep helper, Linode deploy wiring, normalized `ssh_systemd` receipt extension, and `make remote-update` preservation of the same scope/seed artifact contract
 - `make test-adversary-sim-scrapling-category-fit` - focused Scrapling ownership-contract proof for canonical lane fulfillment rows, request-native `fulfillment_mode` rotation, and the bounded worker-plan `category_targets` contract
 - `make test-adversary-sim-scrapling-coverage-receipts` - focused Scrapling owned-surface receipt proof across worker-emitted surface receipts, recent-sim-run coverage aggregation, and operator-snapshot projection of owned-surface closure
-- `make test-adversary-sim-scrapling-worker` - focused real Scrapling lane gate covering the internal beat/result contract, bounded crawler plus direct-request persona execution, mode-specific signed sim telemetry on real requests, and host-side supervisor source-contract wiring
+- `make test-adversary-sim-scrapling-worker` - focused real Scrapling lane gate covering the internal beat/result contract, bounded crawler plus direct-request persona execution, mode-specific signed sim telemetry on real requests, host-side supervisor source-contract wiring, and the supervisor's HTTP transport parser contract
 - `make test-adversarial-sim-tag-contract` - signed simulation-tag contract parity check across lane contract, runner, and container worker
 - `make test-adversarial-coverage-contract` - canonical `full_coverage` contract parity check across SIM2 plan rows, manifests, runner enforcement, and the frozen unit-level coverage-contract matrix
 - `make test-adversarial-llm-fit` - bounded LLM browser/request fulfillment-plan contract proof across runtime beat payloads and frontier/container contract artifacts
@@ -330,8 +330,8 @@ Shared-host Scrapling proof map:
 - `make test-scrapling-deploy-shared-host` proves the shared-host deploy/update automation carries the same inferred scope/seed/env contract end to end.
 - `make test-adversary-sim-scrapling-category-fit` proves the bounded category-ownership and worker-plan target contract for the current request-native Scrapling track.
 - `make test-adversary-sim-scrapling-coverage-receipts` proves the bounded owned-surface receipt and recent-run closure contract for the current request-native Scrapling track.
-- `make test-adversary-sim-scrapling-worker` proves the hosted worker lane itself.
-- `make test-adversary-sim-runtime-surface` proves the running target keeps the defense surface live while adversary simulation remains no-impact to normal user traffic.
+- `make test-adversary-sim-scrapling-worker` proves the hosted worker lane itself, including host-side supervisor parsing and fail-closed worker result shaping.
+- `make test-adversary-sim-runtime-surface` proves the running target records a covered recent Scrapling owned-surface run while adversary simulation remains no-impact to normal user traffic.
 - none of those targets make Fermyon/Akamai edge a supported full hosted Scrapling worker target; that edge runtime remains outside the current supported contract.
 
 Structural refactor proof map:
@@ -381,7 +381,7 @@ Dashboard adversary-sim orchestration control contract:
 - `make test-adversary-sim-lifecycle` is the focused regression gate for this contract: it must prove seeded desired-state semantics, runtime/config projection after cache reset, stale expired-run recovery, stale-state reconciliation diagnostics, auto-window expiry without a second enabled flag, and internal beat diagnostics.
 - `make test-adversary-sim-lane-contract` is the focused additive-migration gate for `SIM-SCR-0`: it must prove the new desired/active lane fields, the zeroed lane-diagnostics scaffold, and preservation of legacy lane-status compatibility without changing runtime routing.
 - `make test-adversary-sim-lane-selection` is the focused control-path gate for `SIM-SCR-1`: it must prove strict lane validation, lane-aware idempotency, off-state lane persistence, and truthful desired-versus-active divergence while runtime routing is still synthetic-only.
-- `make test-adversary-sim-scrapling-worker` is the focused worker-routing gate for `SIM-SCR-6`: it must prove beat-boundary lane activation, internal worker-plan/result exchange, fail-closed stale-result rejection, and real Scrapling traffic bounded by the shared-host scope-and-seed contract.
+- `make test-adversary-sim-scrapling-worker` is the focused worker-routing gate for `SIM-SCR-6`: it must prove beat-boundary lane activation, internal worker-plan/result exchange, fail-closed stale-result rejection, host-supervisor parser truth, and real Scrapling traffic bounded by the shared-host scope-and-seed contract.
 - `POST /internal/adversary-sim/beat` and `POST /internal/adversary-sim/worker-result` are internal-only endpoints used by host-side supervisor workers; dashboard clients never call them directly.
 - Host-side supervisor requests must satisfy trusted-forwarding (`X-Shuma-Forwarded-Secret`, loopback `X-Forwarded-For`, `X-Forwarded-Proto: https`) and send the internal supervisor marker header. Only `/admin/adversary-sim/status`, `/internal/adversary-sim/beat`, and `/internal/adversary-sim/worker-result` bypass the public admin IP allowlist under that internal supervisor contract.
 - Runtime generation cadence ownership is backend/supervisor-only: dashboard refresh cadence must not control traffic generation.

@@ -1667,8 +1667,9 @@ mod tests {
     }
 
     #[test]
-    fn verified_identity_provider_returns_disabled_when_provider_path_is_off() {
-        let cfg = crate::config::defaults().clone();
+    fn verified_identity_provider_returns_not_attempted_when_provider_path_is_off() {
+        let mut cfg = crate::config::defaults().clone();
+        cfg.verified_identity.enabled = true;
         let req = crate::test_support::request_with_headers("/", &[]);
         let store = crate::test_support::InMemoryStore::default();
 
@@ -1676,7 +1677,7 @@ mod tests {
 
         assert_eq!(
             result.status,
-            crate::bot_identity::verification::IdentityVerificationResultStatus::Disabled
+            crate::bot_identity::verification::IdentityVerificationResultStatus::NotAttempted
         );
     }
 

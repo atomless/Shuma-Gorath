@@ -294,6 +294,15 @@ fn is_external_monitoring_event(record: &EventLogRecord) -> bool {
     !matches!(record.entry.event, EventType::AdminAction) && record.entry.admin.is_none()
 }
 
+fn is_recent_sim_run_receipt_event(record: &EventLogRecord) -> bool {
+    !record.scrapling_surface_receipts.is_empty()
+        && record
+            .sim_run_id
+            .as_deref()
+            .map(|value| !value.trim().is_empty())
+            .unwrap_or(false)
+}
+
 #[derive(Debug, Clone, Default)]
 struct EventSecuritySanitizationResult {
     scrubbed_fields: u64,
@@ -1679,6 +1688,7 @@ mod tests {
             .owned_surface_coverage
             .as_ref()
             .expect("owned surface coverage");
+        assert_eq!(row.monitoring_event_count, 3);
         assert_eq!(owned_surface_coverage.overall_status, "covered");
         assert_eq!(owned_surface_coverage.required_surface_ids.len(), 8);
         assert!(owned_surface_coverage.blocking_surface_ids.is_empty());
@@ -13100,7 +13110,11 @@ pub(crate) fn monitoring_recent_sim_run_summaries<S: crate::challenge::KeyValueS
 ) -> Vec<crate::observability::hot_read_documents::MonitoringRecentSimRunSummary> {
     let mut grouped: BTreeMap<String, MonitoringRecentSimRunAccumulator> = BTreeMap::new();
 
-    for stored in load_recent_monitoring_event_records_with_keys(store, now, hours) {
+    for stored in load_recent_event_records_with_keys(store, now, hours) {
+        let receipt_event = is_recent_sim_run_receipt_event(&stored.record);
+        if !is_external_monitoring_event(&stored.record) && !receipt_event {
+            continue;
+        }
         let run_id = stored
             .record
             .sim_run_id
@@ -13150,7 +13164,6 @@ pub(crate) fn monitoring_recent_sim_run_summaries<S: crate::challenge::KeyValueS
                     ban_outcome_count: 0,
                     surface_observations: Vec::new(),
                 });
-        accumulator.monitoring_event_count = accumulator.monitoring_event_count.saturating_add(1);
         if ts > 0 {
             accumulator.first_ts = if accumulator.first_ts == 0 {
                 ts
@@ -13173,9 +13186,13 @@ pub(crate) fn monitoring_recent_sim_run_summaries<S: crate::challenge::KeyValueS
         for category_id in observed_category_ids {
             accumulator.observed_category_ids.insert(category_id);
         }
-        accumulator.defense_keys.insert(defense);
-        if monitoring_sim_run_is_ban_outcome(&stored.record) {
-            accumulator.ban_outcome_count = accumulator.ban_outcome_count.saturating_add(1);
+        if !receipt_event {
+            accumulator.monitoring_event_count =
+                accumulator.monitoring_event_count.saturating_add(1);
+            accumulator.defense_keys.insert(defense);
+            if monitoring_sim_run_is_ban_outcome(&stored.record) {
+                accumulator.ban_outcome_count = accumulator.ban_outcome_count.saturating_add(1);
+            }
         }
         accumulator
             .surface_observations

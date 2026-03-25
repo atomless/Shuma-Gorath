@@ -28,7 +28,10 @@ const HOT_READ_RETENTION_MAX_BYTES: usize = 8 * 1024;
 const HOT_READ_RECENT_EVENTS_TAIL_MAX_BYTES: usize = 32 * 1024;
 const HOT_READ_RECENT_SIM_RUNS_MAX_BYTES: usize = 8 * 1024;
 const HOT_READ_MONITORING_SUMMARY_MAX_BYTES: usize = 24 * 1024;
-const HOT_READ_OPERATOR_SNAPSHOT_MAX_BYTES: usize = 40 * 1024;
+// The machine-first operator snapshot now carries the legal move ring, game contract,
+// benchmark results, and episode archive. Keep it narrower than bootstrap, but give
+// it enough headroom to stay truthful without silently trimming canonical fields.
+const HOT_READ_OPERATOR_SNAPSHOT_MAX_BYTES: usize = 60 * 1024;
 const HOT_READ_RECENT_EVENTS_TAIL_MAX_RECORDS: usize = 40;
 const HOT_READ_RECENT_SIM_RUNS_MAX_RECORDS: usize = 12;
 const HOT_READ_MONITORING_SUMMARY_TOP_LIMIT: usize = 10;
@@ -500,6 +503,7 @@ mod tests {
         assert!(recent_sim_runs.max_serialized_bytes < bootstrap.max_serialized_bytes);
         assert!(monitoring_summary.max_serialized_bytes < bootstrap.max_serialized_bytes);
         assert!(operator_snapshot.max_serialized_bytes < bootstrap.max_serialized_bytes);
+        assert_eq!(operator_snapshot.max_serialized_bytes, 60 * 1024);
         assert_eq!(recent_events.freshness.stale_after_seconds, 10);
         assert_eq!(recent_sim_runs.freshness.stale_after_seconds, 10);
         assert_eq!(monitoring_summary_top_limit(), 10);

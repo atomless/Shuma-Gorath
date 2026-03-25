@@ -8,6 +8,17 @@ MAKEFILE = REPO_ROOT / "Makefile"
 
 
 class AdversarySimMakeTargetTests(unittest.TestCase):
+    def test_local_scrapling_runtime_env_exports_sim_tag_secret_to_host_supervisor(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        self.assertIn(
+            "SCRAPLING_LOCAL_RUNTIME_ENV := SHUMA_SIM_TELEMETRY_SECRET=$(SHUMA_SIM_TELEMETRY_SECRET)",
+            source,
+        )
+        self.assertIn(
+            "SHUMA_ADVERSARY_SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE) $(SCRAPLING_LOCAL_RUNTIME_ENV) SPIN_ALWAYS_BUILD=0 ./scripts/run_with_oversight_supervisor.sh",
+            source,
+        )
+
     def test_lifecycle_target_uses_current_stale_state_selectors(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")
         match = re.search(
@@ -174,6 +185,18 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
             "scripts.tests.test_scrapling_worker.ScraplingWorkerUnitTests.test_execute_worker_plan_http_agent_attempts_owned_request_native_abuse_surfaces",
             body,
         )
+
+    def test_scrapling_worker_target_includes_supervisor_transport_unit_checks(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-adversary-sim-scrapling-worker:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn("test-adversary-sim-supervisor-unit", body)
+        self.assertIn("scripts/tests/test_adversary_sim_supervisor.py", body)
 
 
 if __name__ == "__main__":
