@@ -48,6 +48,13 @@ It should define:
 5. the regression-anchor obligations for code change proposals,
 6. and the assumption that later run-to-homeostasis execution operates over an attacker/defender/judge game contract rather than a two-agent duel.
 
+That triadic role contract is now settled through `RSI-ROLES-1`:
+
+1. the attacker is the LLM-backed adversary player in the sim harness,
+2. the defender is the LLM-backed bounded diagnosis/config player,
+3. the judge is the machine-first benchmark stack,
+4. and Monitoring or Game Loop remains the human-readable projection of that judge rather than an agent surface.
+
 ## Episode lifecycle
 
 Later recursive-improvement runs should no longer be modeled as single reconcile invocations only.
@@ -115,6 +122,7 @@ Current note:
 1. `RSI-SCORE-1` is now landed.
 2. Homeostasis inputs should therefore be taken from the explicit `comparison_contract.homeostasis_input_ids` surface in `recursive_improvement_game_contract_v1.evaluator_scorecard` rather than improvised later per-agent heuristics.
 3. `RSI-GAME-1C` is now landed, so bounded completed-episode memory and homeostasis summary are machine-first archive surfaces rather than later UI or agent-local inventions.
+4. `RSI-ROLES-1` is now landed, so later run-to-homeostasis execution must preserve the settled attacker/defender/judge split instead of drifting into a self-judging duel.
 
 # Definition Of Done
 

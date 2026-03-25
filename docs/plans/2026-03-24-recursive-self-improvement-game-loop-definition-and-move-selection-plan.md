@@ -226,6 +226,16 @@ Implementation note:
 3. Monitoring remains the human-readable projection of that judge,
 4. and later autonomy cannot widen the rules, evaluator, or move set by implication.
 
+Implementation note:
+
+1. `RSI-ROLES-1` is now landed.
+2. The canonical later recursive-improvement role split is now frozen as:
+   1. LLM-backed attacker agent in the sim harness,
+   2. LLM-backed defender agent over bounded diagnosis and config moves,
+   3. the machine-first benchmark stack as the independent judge,
+   4. and Monitoring or Game Loop as the human-readable projection of that judge rather than a player surface.
+3. Later recursive-improvement phases must now inherit that split instead of self-defining their own judging authority.
+
 Additional prerequisite note:
 
 1. `RSI-ROLES-1` may still be planned before the fuller attacker-side runtime is ready,
@@ -248,6 +258,7 @@ Current note:
 
 1. `RSI-GAME-1A`, `RSI-GAME-1B`, `RSI-SCORE-1`, and `RSI-GAME-1C` are now landed.
 2. `RSI-GAME-MAINLINE-1A` and `RSI-GAME-MAINLINE-1B` are now landed, so the first working game-loop proof lane is complete.
+3. `RSI-ROLES-1` is now landed, so later player-side contract work should treat the triadic attacker/defender/judge split as fixed rather than provisional.
 
 # Definition Of Done
 

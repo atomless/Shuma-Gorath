@@ -231,7 +231,7 @@ Decompose the two later LLM-backed player roles so the recursive-improvement gam
 2. Keep the judge decomposition first: `RSI-GAME-1A`, `RSI-GAME-1B`, and `RSI-GAME-1C`.
 3. Land `RSI-SCORE-1`, `RSI-PROTO-1`, and `RSI-EVAL-1` before any player role is treated as protocol-complete.
 4. Land `RSI-AUDIT-1` before player-side runtimes are treated as operationally auditable.
-5. Define `RSI-ROLES-1` and the player-role decomposition before reopening the later autonomous LLM lanes.
+5. `RSI-ROLES-1` is now landed and fixes the attacker/defender/judge split before reopening the later autonomous LLM lanes.
 6. Land `SIM-LLM-1A` and `SIM-LLM-1B` before treating the full attacker runtime as execution-ready.
 7. Land `OVR-AGENT-2A` before any defender-agent runtime planning is treated as execution-ready.
 8. Land `OVR-AGENT-2B` before `OVR-AGENT-2C`.

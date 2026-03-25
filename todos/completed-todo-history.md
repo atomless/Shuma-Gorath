@@ -4,6 +4,31 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-24)
 
+### RSI-ROLES-1: Attacker, defender, and independent-judge role contract
+
+- [x] Landed the canonical triadic recursive-improvement role split in:
+  - [`docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](../docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md)
+  - [`docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](../docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md)
+  - [`docs/plans/2026-03-24-llm-player-role-decomposition-plan.md`](../docs/plans/2026-03-24-llm-player-role-decomposition-plan.md)
+  - [`docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](../docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md)
+  so later recursive-improvement work now inherits one explicit split:
+  - attacker as the LLM-backed sim-harness player
+  - defender as the LLM-backed bounded diagnosis/config player
+  - judge as the machine-first benchmark stack
+  - Monitoring or Game Loop as the human-readable projection of that judge rather than a player surface
+- [x] Removed the now-landed blocker from:
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+  and rewired downstream blocked items so they consume `RSI-ROLES-1` as a settled prerequisite instead of a still-hypothetical one.
+- [x] Added the closeout review in:
+  - [`docs/research/2026-03-24-rsi-roles-1-triadic-role-contract-post-implementation-review.md`](../docs/research/2026-03-24-rsi-roles-1-triadic-role-contract-post-implementation-review.md)
+  and refreshed the docs indexes in:
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`docs/plans/README.md`](../docs/plans/README.md)
+- [x] Why:
+  - the game contract, scorecard, move-selection policy, and episode archive were already landed, but the repo still needed one explicit role contract so later attacker or defender planning could not quietly collapse into a self-judging duel
+- [x] Evidence:
+  - `git diff --check`
+
 ### RSI-GAME-MAINLINE-1B: Stronger follow-on first-working-loop proof
 
 - [x] Extended the first working game-loop proof into the shared-host verifier layer in:

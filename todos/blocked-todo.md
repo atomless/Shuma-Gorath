@@ -133,13 +133,10 @@ Reference context:
   Blocker: defer until `CTRL-SURFACE-1`, `CTRL-SURFACE-2`, `CTRL-SURFACE-3`, `RSI-PROTO-1`, `MON-OVERHAUL-1`, and `TUNE-SURFACE-1A` are settled enough that the defender can be defined against the landed truthful rules, truthful judge outputs, a truthful legal move ring, and a canonical player-protocol layer. The defender must consume machine-first inputs and must not redefine the evaluator, operator targets, or hard-never config surface.
 
 - [ ] OVR-AGENT-2B Reopen the first recommendation-only LLM defender runtime over the proven closed config loop.
-  Blocker: defer until `OVR-AGENT-2A`, `OVR-APPLY-1`, `SIM-PROTECTED-1`, `OPS-OBJECTIVES-3`, `OPS-BENCH-3`, `RSI-ROLES-1`, `RSI-EVAL-1`, and `RSI-AUDIT-1A` all exist. This first runtime must stay recommend-only and separate from `OVR-CODE-1`.
+  Blocker: defer until `OVR-AGENT-2A`, `OVR-APPLY-1`, `SIM-PROTECTED-1`, `OPS-OBJECTIVES-3`, `OPS-BENCH-3`, `RSI-EVAL-1`, and `RSI-AUDIT-1A` all exist. This first runtime must stay recommend-only and separate from `OVR-CODE-1`, and it must inherit the now-landed `RSI-ROLES-1` attacker/defender/judge split.
 
 - [ ] OVR-AGENT-2C Reopen the later bounded autonomous defender episode controller for run-to-homeostasis execution.
-  Blocker: defer until `OVR-AGENT-2A`, `OVR-AGENT-2B`, `RSI-METH-1`, `RSI-ROLES-1`, `RSI-EVAL-1`, and `RSI-AUDIT-1` all exist. This later phase may orchestrate bounded episodes, but it must continue to operate inside the sacred evaluator, the legal move ring, the refusal or escalation semantics defined earlier, and the canonical episode-lineage contract.
-
-- [ ] RSI-ROLES-1 Define the later attacker, defender, and independent-judge role contract before any dual-agent or broader autonomous loop design becomes execution-ready.
-  Blocker: defer execution until the landed game contract, move-selection policy, episode archive, and judge scorecard have made the rules, move ring, episode memory, and score semantics explicit. Keep it blocked until `SIM-LLM-1A` and `OVR-AGENT-2A` are otherwise ready to reopen. `RSI-ROLES-1` must land before later frontier-model players are treated as execution-ready, because the machine-first benchmark stack and its human-readable Monitoring projection must remain the independent judge rather than collapsing into a self-judging duel.
+  Blocker: defer until `OVR-AGENT-2A`, `OVR-AGENT-2B`, `RSI-METH-1`, `RSI-EVAL-1`, and `RSI-AUDIT-1` all exist. This later phase may orchestrate bounded episodes, but it must continue to operate inside the sacred evaluator, the legal move ring, the refusal or escalation semantics defined earlier, the canonical episode-lineage contract, and the now-landed `RSI-ROLES-1` role split.
 
 - [ ] RSI-PROTO-1 Define the canonical attacker and defender protocol schemas under the independent judge.
   Blocker: defer execution until the landed game contract and `RSI-ROLES-1` make the broader game and role boundaries explicit enough that player-side message envelopes can be frozen without ambiguity. Keep it blocked until `SIM-LLM-1A` and `OVR-AGENT-2A` are otherwise close to reopening, so the protocol layer is shaped against settled player roles rather than speculative future runtimes. `RSI-PROTO-1` must land before `SIM-LLM-1A` and `OVR-AGENT-2A` are treated as execution-ready, because later LLM players need one canonical observation, action, proposal, refusal, and receipt vocabulary rather than parallel per-role schemas.
@@ -154,7 +151,7 @@ Reference context:
   Blocker: defer until the landed episode archive and judge scorecard plus `RSI-PROTO-1` and `RSI-EVAL-1` exist so the provenance vocabulary can bind to settled episode ids, scorecard revisions, protocol revisions, and evaluation revisions instead of retrofitting them later.
 
 - [ ] RSI-AUDIT-1B Define the GitHub-backed provenance contract for later code-evolution proposals, including branch, PR, review, check, merge, revert, and optional artifact-attestation refs.
-  Blocker: defer until `RSI-AUDIT-1A`, `RSI-ROLES-1`, and `OVR-CODE-1` are otherwise close to reopening, so GitHub lineage is shaped against the settled shared episode vocabulary and the later code-evolution scope rather than vague future aspirations.
+  Blocker: defer until `RSI-AUDIT-1A` and `OVR-CODE-1` are otherwise close to reopening, so GitHub lineage is shaped against the now-landed `RSI-ROLES-1` split, the settled shared episode vocabulary, and the later code-evolution scope rather than vague future aspirations.
 
 - [ ] RSI-AUDIT-1C Define the machine-first retrieval and operator-projection contract for audit lineage over config and later code episodes.
   Blocker: defer until `RSI-AUDIT-1A` and `RSI-AUDIT-1B` exist, and until later operator-facing recursive-improvement projection work is close enough that the audit surface can be shaped around truthful machine-first lineage rather than ad hoc UI-first reporting.

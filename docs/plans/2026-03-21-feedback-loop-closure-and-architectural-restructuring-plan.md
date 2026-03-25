@@ -416,6 +416,11 @@ The remaining protocol-level contracts under that game should also stay explicit
 3. `RSI-EVAL-1` for the boundary between player-visible protected evidence and judge-held-out evaluation contexts,
 4. and `RSI-AUDIT-1` for canonical config and later GitHub-backed code provenance across recursive-improvement episodes.
 
+Current note:
+
+1. `RSI-GAME-1A`, `RSI-GAME-1B`, `RSI-SCORE-1`, `RSI-GAME-1C`, `RSI-GAME-MAINLINE-1A`, `RSI-GAME-MAINLINE-1B`, and `RSI-ROLES-1` are now landed.
+2. The remaining recursive-improvement contract gap is no longer the high-level role split, but the player protocol, held-out evaluation, and audit lineage contracts that sit on top of it.
+
 ### `OVR-AGENT-2A..2C`
 
 Reopen the later LLM-backed defender-agent track only after the first shared-host agent loop, the first closed config loop, Monitoring projection, Tuning surface, replay-promotion contract, and central-intelligence architecture all exist.
