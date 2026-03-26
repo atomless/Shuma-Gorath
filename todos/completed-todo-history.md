@@ -4,6 +4,34 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-26)
 
+### SIM-SCR-FULL-1C3 Operator Truth Audit And SIM-SCR-FULL-1 Closure
+
+- [x] Audited the current operator-facing Scrapling picture across:
+  - [`dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
+  - [`docs/dashboard-tabs/game-loop.md`](../docs/dashboard-tabs/game-loop.md)
+  - [`e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`src/observability/benchmark_results.rs`](../src/observability/benchmark_results.rs)
+  - [`src/observability/benchmark_scrapling_surface_contract.rs`](../src/observability/benchmark_scrapling_surface_contract.rs)
+  so the repo now states explicitly that the old “Scrapling is fully blocked” reading was a projection artifact: category posture achievement and Scrapling surface-contract truth are distinct planes and must not be silently read as one attacker-success metric.
+- [x] Tightened the Game Loop wording and rendered proof in:
+  - [`dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
+  - [`docs/dashboard-tabs/game-loop.md`](../docs/dashboard-tabs/game-loop.md)
+  - [`e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`Makefile`](../Makefile)
+  so the tab now says `Category Posture Achievement`, labels the compact corroborating row as `Latest Scrapling Surface Contract`, and freezes a rendered case where category posture can read `100.0%` while required Scrapling surfaces remain blocking.
+- [x] Closed the audit in:
+  - [`docs/research/2026-03-26-sim-scr-full-1c3-operator-truth-audit-post-implementation-review.md`](../docs/research/2026-03-26-sim-scr-full-1c3-operator-truth-audit-post-implementation-review.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  and with that closure `SIM-SCR-FULL-1` is now treated as landed, moving the next active mainline to `RSI-SCORE-2`.
+- [x] Why:
+  - the user correctly identified that the current page could be read as “Scrapling is 100% unable to breach Shuma,” and the audit confirmed that what looked like clean attacker defeat was actually category-level posture math being read too closely to the separate Scrapling surface-contract plane.
+- [x] Evidence:
+  - `make test-benchmark-results-contract`
+  - `make test-adversary-sim-scrapling-coverage-receipts`
+  - `make test-dashboard-game-loop-accountability`
+  - `git diff --check`
+
 ### SIM-SCR-FULL-1C2 Surface-Contract Controller-Grade Repair
 
 - [x] Added the controller-grade Scrapling surface-contract benchmark family and tuning guardrails across:

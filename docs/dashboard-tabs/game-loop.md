@@ -28,14 +28,14 @@ Current behavior:
   - bounded recent multi-loop oversight history rather than only the latest cycle,
   - completed judged-cycle lineage from the bounded episode archive, including retained versus rolled-back counts plus the current homeostasis summary,
   - true numeric budget usage for likely-human friction plus suspicious forwarded requests, bytes, and latency,
-  - taxonomy rows as `Category Target Achievement` rather than fake configured per-category budgets,
+  - taxonomy rows as `Category Posture Achievement`, explicitly described as category-level posture-alignment math rather than attacker surface-success proof,
   - benchmark escalation decision, candidate action families, and latest oversight apply or refusal context,
   - a bounded preview of remaining benchmark pressure plus recent config-change context from the operator snapshot,
-  - and explicit trust or blocker rows for classification readiness, coverage, protected replay status, tuning eligibility, verified-identity guardrails, and the latest compact Scrapling evidence-readiness corroboration.
+  - and explicit trust or blocker rows for classification readiness, coverage, protected replay status, tuning eligibility, verified-identity guardrails, and the latest compact Scrapling surface-contract corroboration.
 - Directs operators and contributors to `#diagnostics` for deep subsystem inspection and rawer contributor-facing telemetry.
 - Keeps detailed adversary proof out of the tab:
   - `Red Team` is where operators verify Scrapling personas, categories, and owned-surface receipts,
-  - `Game Loop` only shows a bounded corroborating signal so attacker truth is visible without turning the tab into a forensic adversary surface.
+  - `Game Loop` only shows bounded corroborating signals, and must say clearly when a row is category posture math rather than direct attacker surface-contract truth, so attacker truth is visible without turning the tab into a forensic adversary surface.
 
 Current limitation:
 

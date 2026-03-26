@@ -118,11 +118,12 @@ Current note:
 - `SIM-LLM-1C1` is now landed: the later attacker has a real live frontier action-generation seam with provider-vs-fallback lineage and Shuma-blind host-hint sanitization.
 - `SIM-LLM-1C2` is now landed: the host-side supervisor dispatches the dedicated LLM runtime worker, reuses the existing container black-box runner for request-mode execution, and ingests a typed `adversary-sim-llm-runtime-result.v1` payload instead of overloading the Scrapling worker result contract.
 - The current full-spectrum Scrapling baseline and first working Game Loop proof are now treated as baseline capability, not the unlock condition for later stance relaxation or LLM runtime work.
+- `SIM-SCR-FULL-1` is now landed: full-spectrum Scrapling capability, receipt-backed category and defense-surface truth, controller-grade surface-contract scoring, and the operator truth audit are complete, so the next mainline moves to `RSI-SCORE-2`.
 - Before further mainline completion claims, the repo now requires explicit acceptance-gate discipline. Do not describe `STANCE-MODEL-1`, `SIM-SCR-FULL-1`, `RSI-GAME-HO-1`, or `RSI-GAME-HO-2` as complete from planning progress, baseline capability, or dashboard pressure signals alone.
 - The immediate non-LLM mainline is now:
   - `VERIFY-GATE-1`
   - `STANCE-MODEL-1`
-  - `SIM-SCR-FULL-1`
+  - `RSI-SCORE-2`
   - `RSI-GAME-HO-1`
 - After that strict Scrapling-only proof, the next reopening should be the remaining LLM attacker runtime slice `SIM-LLM-1C3`.
 - Do not open `humans_plus_verified_only` until a later second strict-baseline proof has shown retained config-change improvement under both Scrapling and LLM attacker pressure.
@@ -143,30 +144,6 @@ Current stance:
 - The primary product value is exact non-human restriction and exception management; looser treatment for named verified bots remains an explicit opt-in later policy choice.
 - `STANCE-MODEL-1` is now landed: verified identity is no longer a second top-level stance system, and current follow-on work should treat the resolved effective policy contract as the only policy truth.
 - Do not bundle authorization policy, low-cost profiles, or dashboard control surfaces into the first tranche.
-
-- [ ] SIM-SCR-FULL-1 Mature Scrapling to the full attacker-relevant capability Shuma assigns to the non-agent or non-LLM adversary spectrum before any stance relaxation or later LLM lane work.
-  - Reference context:
-    - [`docs/research/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-review.md`](../docs/research/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-review.md)
-    - [`docs/research/2026-03-26-sim-scr-full-spectrum-adversary-mandate-review.md`](../docs/research/2026-03-26-sim-scr-full-spectrum-adversary-mandate-review.md)
-    - [`docs/research/2026-03-26-sim-scr-full-1a-full-spectrum-capability-matrix-refresh-review.md`](../docs/research/2026-03-26-sim-scr-full-1a-full-spectrum-capability-matrix-refresh-review.md)
-    - [`docs/research/2026-03-26-strict-loop-breach-signal-and-llm-resequence-review.md`](../docs/research/2026-03-26-strict-loop-breach-signal-and-llm-resequence-review.md)
-    - [`docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](../docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)
-    - [`docs/plans/2026-03-25-sim-scr-cap-1-capability-matrix-plan.md`](../docs/plans/2026-03-25-sim-scr-cap-1-capability-matrix-plan.md)
-    - [`docs/plans/2026-03-25-scrapling-full-attacker-capability-principle-plan.md`](../docs/plans/2026-03-25-scrapling-full-attacker-capability-principle-plan.md)
-    - [`docs/plans/2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md`](../docs/plans/2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md)
-    - [`docs/plans/2026-03-26-sim-scr-full-spectrum-capability-implementation-plan.md`](../docs/plans/2026-03-26-sim-scr-full-spectrum-capability-implementation-plan.md)
-  - Closure gate:
-    - runtime: full ratified Scrapling capability matrix for the non-agent or non-LLM lane implemented, with no attacker-relevant Scrapling power left unused unless an overt exclusion record explains why it does not materially increase attack power against Shuma defenses, is already covered elsewhere with proof, or would be unsafe or untruthful to claim yet
-    - receipt/API: machine-first surfaces carry receipt-backed category and defense-surface evidence, including pass-where-expected and fail-where-expected truth
-    - dashboard/admin: `Red Team` projects that full-power evidence faithfully and `Game Loop` does not imply more attacker maturity than the backend proves
-    - proof: focused `make` paths must pass for worker/runtime behavior, category fulfillment, receipt-backed surface coverage, and operator-visible evidence
-    - insufficient: request-native baseline only, upstream capability claims without Shuma-local proof, or coverage claims without pass/fail expectation truth
-  - [ ] SIM-SCR-FULL-1C Add receipt-backed proof showing which defenses Scrapling touched, which it passed where expected, which it failed where expected, and which non-human categories and defense surfaces it exercised.
-  - [ ] SIM-SCR-FULL-1C3 Audit the current operator-facing Scrapling performance picture against machine-first receipts and prove whether the current "fully blocked" reading is truthful or a projection artifact before further strict-loop proof claims.
-    - Proof required:
-      - `make test-adversary-sim-scrapling-coverage-receipts`
-      - `make test-dashboard-game-loop-accountability`
-      - `git diff --check`
 
 - [ ] RSI-SCORE-2 Upgrade the judge, diagnoser, and move selector so strict-loop proof is exploit-first, evidence-quality-aware, urgency-aware, and capable of explicit config-exhaustion referral before `RSI-GAME-HO-1`.
   - Reference context:

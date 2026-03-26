@@ -151,6 +151,16 @@ pub(crate) fn latest_scrapling_surface_contract_state(
     } else {
         "outside_budget"
     };
+    let blocking_surface_labels: Vec<String> = blocking_surface_ids
+        .iter()
+        .map(|surface_id| {
+            coverage
+                .surface_labels
+                .get(surface_id)
+                .cloned()
+                .unwrap_or_else(|| surface_id.clone())
+        })
+        .collect();
     let note = if blocking_surface_ids.is_empty() && coverage.overall_status == "covered" {
         format!(
             "Latest Scrapling run {} satisfied all {} required defense-surface contracts.",
@@ -161,7 +171,7 @@ pub(crate) fn latest_scrapling_surface_contract_state(
         format!(
             "Latest Scrapling run {} still has blocking required defense surfaces: {}.",
             run.run_id,
-            blocking_surface_ids.join(", ")
+            blocking_surface_labels.join(", ")
         )
     };
 

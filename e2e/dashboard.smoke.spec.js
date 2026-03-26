@@ -2113,6 +2113,10 @@ test("game loop projects benchmark and oversight accountability from machine-fir
   await expect(page.locator("#game-loop-budget-usage")).toContainText("Suspicious Forwarded Request Rate");
   await expect(page.locator("#game-loop-budget-usage")).toContainText("Target 2.0%");
   await expect(page.locator("#game-loop-budget-usage")).toContainText("Current 1.8%");
+  await expect(page.locator("#game-loop-category-target-achievement")).toContainText("Category Posture Achievement");
+  await expect(page.locator("#game-loop-category-target-achievement")).toContainText(
+    "These rows score category-level posture alignment"
+  );
   await expect(page.locator("#game-loop-category-target-achievement")).toContainText("AI Scraper Bot");
   await expect(page.locator("#game-loop-category-target-achievement")).toContainText("Target Blocked");
   await expect(page.locator("#game-loop-category-target-achievement")).toContainText("Achieved 42.0%");
@@ -2372,10 +2376,240 @@ test("game loop tab corroborates latest scrapling evidence readiness", async ({ 
   await expect(page.locator("#game-loop-budget-usage")).toContainText("Current 0.0% leakage");
   await expect(page.locator("#game-loop-budget-usage")).toContainText("Target 0.0% leakage");
   await expect(page.locator("#game-loop-budget-usage")).toContainText("100.0% non-human suppression achieved");
-  await expect(page.locator("#game-loop-trust-blockers")).toContainText("Latest Scrapling Evidence");
+  await expect(page.locator("#game-loop-trust-blockers")).toContainText("Latest Scrapling Surface Contract");
   await expect(page.locator("#game-loop-trust-blockers")).toContainText("Covered");
-  await expect(page.locator("#game-loop-trust-blockers")).toContainText("2 / 2");
+  await expect(page.locator("#game-loop-trust-blockers")).toContainText("2 / 2 required surfaces");
   await expect(page.locator("#game-loop-trust-blockers")).toContainText("Indexing Bot");
+});
+
+test("game loop distinguishes category posture achievement from scrapling surface contract truth", async ({ page }) => {
+  await page.route("**/admin/operator-snapshot", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "operator_snapshot_v1",
+        generated_at: 1774306900,
+        objectives: {
+          profile_id: "human_only_private",
+          revision: "objective-1774306900",
+          window_hours: 24,
+          category_postures: [
+            {
+              category_id: "ai_scraper_bot",
+              posture: "blocked"
+            }
+          ]
+        },
+        runtime_posture: {
+          shadow_mode: false,
+          fail_mode: "closed",
+          runtime_environment: "runtime-prod",
+          gateway_deployment_profile: "shared_server",
+          adversary_sim_available: true
+        },
+        live_traffic: {
+          traffic_origin: "live",
+          execution_mode: "enforced",
+          total_requests: 1200,
+          forwarded_requests: 860,
+          short_circuited_requests: 340
+        },
+        shadow_mode: {
+          enabled: false,
+          total_actions: 0,
+          pass_through_total: 0
+        },
+        adversary_sim: {
+          traffic_origin: "adversary_sim",
+          execution_mode: "enforced",
+          total_requests: 180,
+          forwarded_requests: 9,
+          short_circuited_requests: 171,
+          recent_runs: [
+            {
+              run_id: "sim-attack-partial",
+              lane: "scrapling_traffic",
+              profile: "scrapling_runtime_lane",
+              observed_fulfillment_modes: ["bulk_scraper", "browser_automation"],
+              observed_category_ids: ["ai_scraper_bot", "automated_browser"],
+              monitoring_event_count: 64,
+              owned_surface_coverage: {
+                overall_status: "partial",
+                canonical_surface_ids: ["challenge_routing", "maze_navigation"],
+                surface_labels: {
+                  challenge_routing: "Challenge Routing",
+                  maze_navigation: "Maze Navigation"
+                },
+                required_surface_ids: ["challenge_routing", "maze_navigation"],
+                satisfied_surface_ids: ["challenge_routing"],
+                blocking_surface_ids: ["maze_navigation"],
+                receipts: []
+              }
+            }
+          ]
+        },
+        recent_changes: {
+          rows: []
+        },
+        verified_identity: {
+          availability: "supported",
+          enabled: true,
+          native_web_bot_auth_enabled: true,
+          provider_assertions_enabled: true,
+          effective_non_human_policy: {
+            profile_id: "human_only_private",
+            objective_revision: "objective-1774306900",
+            verified_identity_override_mode: "strict_human_only",
+            rows: []
+          },
+          taxonomy_alignment: {
+            status: "aligned"
+          }
+        }
+      })
+    });
+  });
+
+  await page.route("**/admin/benchmark-results", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "benchmark_results_v1",
+        generated_at: 1774306900,
+        overall_status: "outside_budget",
+        improvement_status: "regressed",
+        coverage_status: "supported",
+        baseline_reference: {
+          reference_kind: "prior_window",
+          status: "available",
+          subject_kind: "prior_window",
+          generated_at: 1774220500,
+          note: "Compared against the previous watch window."
+        },
+        tuning_eligibility: {
+          status: "blocked",
+          blockers: [
+            "scrapling_surface_contract_not_ready",
+            "scrapling_surface_blocking:maze_navigation"
+          ]
+        },
+        non_human_classification: {
+          status: "ready",
+          blockers: [],
+          live_receipt_count: 6,
+          adversary_sim_receipt_count: 3
+        },
+        non_human_coverage: {
+          overall_status: "covered",
+          blocking_reasons: [],
+          blocking_category_ids: []
+        },
+        escalation_hint: {
+          decision: "observe_longer",
+          review_status: "manual_review_required",
+          trigger_family_ids: ["scrapling_surface_contract"],
+          candidate_action_families: [],
+          blockers: ["scrapling_surface_contract_not_ready"],
+          note: "Current evidence cannot justify a bounded config recommendation while required Scrapling surfaces remain blocking."
+        },
+        replay_promotion: {
+          availability: "materialized",
+          evidence_status: "protected",
+          tuning_eligible: true,
+          protected_lineage_count: 1,
+          eligibility_blockers: []
+        },
+        families: [
+          {
+            family_id: "scrapling_surface_contract",
+            status: "outside_budget",
+            capability_gate: "supported",
+            note: "Latest Scrapling run sim-attack-partial still has blocking required defense surfaces: Maze Navigation.",
+            metrics: [
+              {
+                metric_id: "scrapling_required_surface_satisfaction_rate",
+                status: "outside_budget",
+                current: 0.5,
+                target: 1.0,
+                delta: -0.5,
+                exactness: "derived",
+                basis: "observed_recent_run_surface_receipts",
+                capability_gate: "supported"
+              }
+            ]
+          },
+          {
+            family_id: "non_human_category_posture",
+            status: "inside_budget",
+            capability_gate: "supported",
+            note: "Per-category posture alignment remains exact for the observed category.",
+            metrics: [
+              {
+                metric_id: "category_posture_alignment:ai_scraper_bot",
+                status: "inside_budget",
+                current: 1.0,
+                target: 1.0,
+                delta: 0.0,
+                exactness: "derived",
+                basis: "observed",
+                capability_gate: "supported"
+              }
+            ]
+          }
+        ]
+      })
+    });
+  });
+
+  await page.route("**/admin/oversight/history", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "oversight_history_v1",
+        rows: []
+      })
+    });
+  });
+
+  await page.route("**/admin/oversight/agent/status", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "oversight_agent_status_v1",
+        execution_boundary: "shared_host_only",
+        periodic_trigger: {
+          surface: "host_supervisor_wrapper",
+          wrapper_command: "scripts/run_with_oversight_supervisor.sh",
+          default_interval_seconds: 300
+        },
+        latest_decision: {},
+        recent_runs: []
+      })
+    });
+  });
+
+  await openDashboard(page);
+  await openTab(page, "game-loop");
+
+  await expect(page.locator("#game-loop-category-target-achievement")).toContainText(
+    "These rows score category-level posture alignment"
+  );
+  await expect(page.locator("#game-loop-category-target-achievement")).toContainText("AI Scraper Bot");
+  await expect(page.locator("#game-loop-category-target-achievement")).toContainText("Target Blocked");
+  await expect(page.locator("#game-loop-category-target-achievement")).toContainText("Achieved 100.0%");
+  await expect(page.locator("#game-loop-trust-blockers")).toContainText("Latest Scrapling Surface Contract");
+  await expect(page.locator("#game-loop-trust-blockers")).toContainText("Partial");
+  await expect(page.locator("#game-loop-trust-blockers")).toContainText("1 / 2 required surfaces");
+  await expect(page.locator("[data-game-loop-section='pressure-sits']")).toContainText(
+    "Scrapling Surface Contract"
+  );
+  await expect(page.locator("[data-game-loop-section='pressure-sits']")).toContainText(
+    "Maze Navigation"
+  );
 });
 
 test("traffic manual refresh renders bounded traffic sections and preserves furniture diagnostics separately", async ({ page }) => {

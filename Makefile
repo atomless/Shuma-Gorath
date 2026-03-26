@@ -2126,7 +2126,7 @@ test-dashboard-game-loop-accountability: ## Run focused dashboard Game Loop mach
 		e2e/dashboard.modules.unit.test.js
 	@if $(MAKE) --no-print-directory spin-wait-ready; then \
 		$(MAKE) --no-print-directory seed-dashboard-data || exit 1; \
-		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) ./scripts/tests/run_dashboard_e2e.sh --grep "game loop projects benchmark and oversight accountability from machine-first contracts|game loop tab corroborates latest scrapling evidence readiness"; \
+		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) ./scripts/tests/run_dashboard_e2e.sh --grep "game loop projects benchmark and oversight accountability from machine-first contracts|game loop tab corroborates latest scrapling evidence readiness|game loop distinguishes category posture achievement from scrapling surface contract truth"; \
 	else \
 		echo "$(RED)❌ Error: Spin server not ready$(NC)"; \
 		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \

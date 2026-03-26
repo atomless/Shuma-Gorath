@@ -598,7 +598,10 @@
             {/if}
           </article>
           <article id="game-loop-category-target-achievement" class="card panel panel-border pad-md-b">
-            <h3 class="caps-label">Category Target Achievement</h3>
+            <h3 class="caps-label">Category Posture Achievement</h3>
+            <p class="text-muted">
+              These rows score category-level posture alignment. They do not prove whether Scrapling satisfied or failed its required defense-surface contract.
+            </p>
             {#if categoryTargetRows.length === 0}
               <p class="text-muted">No category target-achievement rows are materialized yet.</p>
             {:else}
@@ -697,16 +700,16 @@
               </span>
             </div>
             <div class="info-row">
-              <span class="info-label text-muted">Latest Scrapling Evidence:</span>
+              <span class="info-label text-muted">Latest Scrapling Surface Contract:</span>
               <span class="status-value">
                 {#if latestScraplingEvidence?.ownedSurfaceCoverage}
                   {humanizeToken(latestScraplingEvidence.ownedSurfaceCoverage.overallStatus)}
                   | {formatNumber(latestScraplingEvidence.ownedSurfaceCoverage.satisfiedSurfaceCount, '0')}
                   / {formatNumber(latestScraplingEvidence.ownedSurfaceCoverage.requiredSurfaceCount, '0')}
-                  surfaces
+                  required surfaces
                   | categories {latestScraplingEvidence.observedCategoryIds.map((value) => humanizeToken(value)).join(', ') || 'not available'}
                 {:else}
-                  No receipt-backed Scrapling evidence is materialized yet.
+                  No receipt-backed Scrapling surface-contract evidence is materialized yet.
                 {/if}
               </span>
             </div>
