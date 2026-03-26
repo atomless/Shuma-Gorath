@@ -1178,6 +1178,102 @@ mod tests {
     }
 
     #[test]
+    fn benchmark_results_fail_closed_when_adversary_sim_categories_are_only_projected_from_recent_runs() {
+        let store = TestStore::new();
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::Live,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::PublicContent,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: Some(RequestOutcomeLane {
+                    lane: TrafficLane::VerifiedBot,
+                    exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
+                    basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
+                }),
+                non_human_category: None,
+                outcome_class: RequestOutcomeClass::Forwarded,
+                response_kind: ResponseKind::ForwardAllow,
+                http_status: 200,
+                response_bytes: 120,
+                forwarded_upstream_latency_ms: None,
+                forward_attempted: true,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::PolicyGraphVerifiedIdentityTranche,
+            },
+        );
+        let summary = summarize_with_store(&store, 24, 10);
+        let snapshot = build_operator_snapshot_payload(
+            &store,
+            "default",
+            1_700_000_360,
+            &summary,
+            &[OperatorSnapshotRecentSimRun {
+                run_id: "simrun-request-native".to_string(),
+                lane: "scrapling_traffic".to_string(),
+                profile: "scrapling_runtime_lane".to_string(),
+                observed_fulfillment_modes: vec![
+                    "crawler".to_string(),
+                    "bulk_scraper".to_string(),
+                    "http_agent".to_string(),
+                ],
+                observed_category_ids: vec![
+                    "indexing_bot".to_string(),
+                    "ai_scraper_bot".to_string(),
+                    "http_agent".to_string(),
+                ],
+                first_ts: 1_700_000_300,
+                last_ts: 1_700_000_340,
+                monitoring_event_count: 9,
+                defense_delta_count: 2,
+                ban_outcome_count: 0,
+                owned_surface_coverage: None,
+            }],
+            OperatorSnapshotRecentChanges::default(),
+            1_700_000_360,
+            1_700_000_360,
+            1_700_000_360,
+        );
+
+        let payload = build_benchmark_results_from_snapshot_sections(
+            snapshot.generated_at,
+            1_700_000_360,
+            &snapshot.window,
+            &snapshot.objectives,
+            &snapshot.live_traffic,
+            &snapshot.adversary_sim,
+            &snapshot.non_human_traffic,
+            &snapshot.budget_distance,
+            &summary,
+            &defaults(),
+            &snapshot.allowed_actions,
+            &ReplayPromotionSummary::not_materialized(),
+            None,
+        );
+
+        assert_eq!(payload.non_human_classification.status, "partial");
+        assert!(payload
+            .tuning_eligibility
+            .blockers
+            .contains(&"non_human_classification_not_ready".to_string()));
+        let family = payload
+            .families
+            .iter()
+            .find(|family| family.family_id == "non_human_category_posture")
+            .expect("category posture family");
+        let indexing = family
+            .metrics
+            .iter()
+            .find(|metric| metric.metric_id == "category_posture_alignment:indexing_bot")
+            .expect("indexing posture metric");
+        assert_eq!(indexing.status, "insufficient_evidence");
+        assert_eq!(indexing.current, None);
+        assert_eq!(indexing.basis, "projected_recent_sim_run");
+    }
+
+    #[test]
     fn benchmark_results_fail_closed_when_non_human_coverage_is_not_ready() {
         let store = TestStore::new();
         record_request_outcome(
@@ -1408,7 +1504,7 @@ mod tests {
     }
 
     #[test]
-    fn benchmark_results_surface_scrapling_request_native_category_coverage() {
+    fn benchmark_results_surface_recent_run_only_scrapling_category_coverage_as_stale() {
         let store = TestStore::new();
         record_request_outcome(
             &store,
@@ -1483,10 +1579,14 @@ mod tests {
             None,
         );
 
-        assert_eq!(payload.non_human_classification.status, "ready");
-        assert_eq!(payload.non_human_coverage.covered_category_count, 3);
-        assert_eq!(payload.non_human_coverage.overall_status, "partial");
+        assert_eq!(payload.non_human_classification.status, "partial");
+        assert_eq!(payload.non_human_coverage.stale_category_count, 3);
+        assert_eq!(payload.non_human_coverage.overall_status, "stale");
         assert_eq!(payload.tuning_eligibility.status, "blocked");
+        assert!(payload
+            .tuning_eligibility
+            .blockers
+            .contains(&"non_human_classification_not_ready".to_string()));
     }
 
     #[test]

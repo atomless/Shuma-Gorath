@@ -356,12 +356,10 @@ fn receipt_from_category_row(
 fn sim_receipts_from_recent_runs(
     recent_sim_runs: &[OperatorSnapshotRecentSimRun],
     categories: &[NonHumanCategoryDescriptor],
-    sim_scope: Option<&RequestOutcomeScopeSummaryRow>,
+    _sim_scope: Option<&RequestOutcomeScopeSummaryRow>,
 ) -> Vec<NonHumanClassificationReceipt> {
     let mut receipts: BTreeMap<String, NonHumanClassificationReceipt> = BTreeMap::new();
     for run in recent_sim_runs {
-        let (forwarded_requests, short_circuited_requests) =
-            projected_recent_run_outcomes(run.monitoring_event_count, sim_scope);
         for category_id in &run.observed_category_ids {
             let Some(category) = categories
                 .iter()
@@ -379,23 +377,14 @@ fn sim_receipts_from_recent_runs(
                     category_id: category_id.clone(),
                     category_label: category.label.clone(),
                     assignment_status: "classified".to_string(),
-                    exactness: "exact".to_string(),
-                    basis: "observed".to_string(),
-                    degradation_status: "current".to_string(),
+                    exactness: "derived".to_string(),
+                    basis: "projected_recent_sim_run".to_string(),
+                    degradation_status: "degraded".to_string(),
                     total_requests: 0,
                     forwarded_requests: 0,
                     short_circuited_requests: 0,
                     evidence_references: Vec::new(),
                 });
-            entry.total_requests = entry
-                .total_requests
-                .saturating_add(run.monitoring_event_count);
-            entry.forwarded_requests = entry
-                .forwarded_requests
-                .saturating_add(forwarded_requests);
-            entry.short_circuited_requests = entry
-                .short_circuited_requests
-                .saturating_add(short_circuited_requests);
             let reference = format!(
                 "recent_sim_runs:{}:{}:{}",
                 run.run_id, run.profile, category_id
@@ -406,57 +395,6 @@ fn sim_receipts_from_recent_runs(
         }
     }
     receipts.into_values().collect()
-}
-
-fn projected_recent_run_outcomes(
-    run_total_requests: u64,
-    sim_scope: Option<&RequestOutcomeScopeSummaryRow>,
-) -> (u64, u64) {
-    let Some(scope) = sim_scope else {
-        return (0, 0);
-    };
-    if run_total_requests == 0 || scope.total_requests == 0 {
-        return (0, 0);
-    }
-
-    let mut forwarded_requests = proportional_count(
-        run_total_requests,
-        scope.forwarded_requests,
-        scope.total_requests,
-    );
-    let mut short_circuited_requests = proportional_count(
-        run_total_requests,
-        scope.short_circuited_requests,
-        scope.total_requests,
-    );
-    let observed_total = forwarded_requests.saturating_add(short_circuited_requests);
-    if observed_total > run_total_requests {
-        let overflow = observed_total - run_total_requests;
-        if short_circuited_requests >= forwarded_requests {
-            short_circuited_requests = short_circuited_requests.saturating_sub(overflow);
-        } else {
-            forwarded_requests = forwarded_requests.saturating_sub(overflow);
-        }
-    } else if observed_total < run_total_requests {
-        let remainder = run_total_requests - observed_total;
-        if scope.short_circuited_requests >= scope.forwarded_requests {
-            short_circuited_requests = short_circuited_requests.saturating_add(remainder);
-        } else {
-            forwarded_requests = forwarded_requests.saturating_add(remainder);
-        }
-    }
-
-    (forwarded_requests, short_circuited_requests)
-}
-
-fn proportional_count(run_total_requests: u64, numerator: u64, denominator: u64) -> u64 {
-    if run_total_requests == 0 || numerator == 0 || denominator == 0 {
-        return 0;
-    }
-    run_total_requests
-        .saturating_mul(numerator)
-        .saturating_add(denominator / 2)
-        / denominator
 }
 
 fn lane_from_summary_value(value: &str) -> Option<TrafficLane> {
@@ -649,7 +587,7 @@ mod tests {
     }
 
     #[test]
-    fn classification_summary_projects_scrapling_recent_run_category_receipts() {
+    fn classification_summary_marks_recent_run_only_sim_category_receipts_as_degraded() {
         let mut summary = MonitoringSummary::default();
         summary.request_outcomes.by_lane = vec![RequestOutcomeLaneSummaryRow {
             traffic_origin: "live".to_string(),
@@ -708,8 +646,10 @@ mod tests {
             }],
         );
 
-        assert_eq!(readiness.status, "ready");
-        assert!(readiness.blockers.is_empty());
+        assert_eq!(readiness.status, "partial");
+        assert!(readiness
+            .blockers
+            .contains(&"degraded_category_receipts_present".to_string()));
         assert_eq!(readiness.live_receipt_count, 1);
         assert_eq!(readiness.adversary_sim_receipt_count, 3);
         assert_eq!(receipts.len(), 4);
@@ -726,9 +666,12 @@ mod tests {
             .iter()
             .find(|receipt| receipt.category_id == "ai_scraper_bot")
             .expect("ai scraper receipt");
-        assert_eq!(ai_scraper.total_requests, 9);
-        assert_eq!(ai_scraper.forwarded_requests, 2);
-        assert_eq!(ai_scraper.short_circuited_requests, 7);
+        assert_eq!(ai_scraper.exactness, "derived");
+        assert_eq!(ai_scraper.basis, "projected_recent_sim_run");
+        assert_eq!(ai_scraper.degradation_status, "degraded");
+        assert_eq!(ai_scraper.total_requests, 0);
+        assert_eq!(ai_scraper.forwarded_requests, 0);
+        assert_eq!(ai_scraper.short_circuited_requests, 0);
     }
 
     #[test]

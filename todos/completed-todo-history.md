@@ -4,6 +4,24 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-26)
 
+### SIM-SCR-FULL-1C1 Category-Native Adversary-Sim Receipt Repair
+
+- [x] Replaced projected exact per-category adversary-sim receipts with explicit degraded recent-run evidence across:
+  - [`src/observability/non_human_classification.rs`](../src/observability/non_human_classification.rs)
+  - [`src/observability/operator_snapshot_non_human.rs`](../src/observability/operator_snapshot_non_human.rs)
+  - [`src/observability/benchmark_results.rs`](../src/observability/benchmark_results.rs)
+  so recent Scrapling-run category presence is still visible, but Shuma no longer copies one aggregate run envelope into every observed category as though it were category-native request truth.
+- [x] Closed the tranche with an explicit post-implementation review in:
+  - [`docs/research/2026-03-26-sim-scr-full-1c1-category-native-receipt-post-implementation-review.md`](../docs/research/2026-03-26-sim-scr-full-1c1-category-native-receipt-post-implementation-review.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  and removed `SIM-SCR-FULL-1C1` from the active queue in [`todos/todo.md`](../todos/todo.md).
+- [x] Why:
+  - the old logic could make category posture alignment look exact and ready even when Shuma only knew that a recent Scrapling run had observed a category, not how many category-native requests were forwarded or short-circuited.
+- [x] Evidence:
+  - `make test-traffic-classification-contract`
+  - `make test-benchmark-results-contract`
+  - `make test-adversary-sim-scrapling-category-fit`
+
 ### Strict-Loop Breach-Signal And LLM Resequencing Planning Refinement
 
 - [x] Added the strict-loop breach-signal and adversary resequencing driver in:

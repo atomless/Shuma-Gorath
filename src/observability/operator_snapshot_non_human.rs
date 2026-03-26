@@ -69,7 +69,7 @@ mod tests {
     }
 
     #[test]
-    fn non_human_snapshot_summary_projects_scrapling_full_spectrum_coverage() {
+    fn non_human_snapshot_summary_marks_recent_run_only_scrapling_categories_as_stale() {
         let mut monitoring = MonitoringSummary::default();
         monitoring.request_outcomes.by_lane = vec![RequestOutcomeLaneSummaryRow {
             traffic_origin: "live".to_string(),
@@ -117,9 +117,14 @@ mod tests {
             }],
         );
 
-        assert_eq!(summary.readiness.status, "ready");
+        assert_eq!(summary.readiness.status, "partial");
         assert_eq!(summary.readiness.adversary_sim_receipt_count, 4);
-        assert_eq!(summary.coverage.covered_category_count, 4);
+        assert_eq!(summary.coverage.overall_status, "stale");
+        assert_eq!(summary.coverage.stale_category_count, 4);
+        assert!(summary
+            .readiness
+            .blockers
+            .contains(&"degraded_category_receipts_present".to_string()));
         assert!(summary
             .receipts
             .iter()
