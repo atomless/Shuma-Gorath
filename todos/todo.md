@@ -161,11 +161,22 @@ Current stance:
     - proof: focused `make` paths must pass for worker/runtime behavior, category fulfillment, receipt-backed surface coverage, and operator-visible evidence
     - insufficient: request-native baseline only, upstream capability claims without Shuma-local proof, or coverage claims without pass/fail expectation truth
   - [ ] SIM-SCR-FULL-1C Add receipt-backed proof showing which defenses Scrapling touched, which it passed where expected, which it failed where expected, and which non-human categories and defense surfaces it exercised.
+  - [ ] SIM-SCR-FULL-1C1 Replace projected recent-run category receipts with category-native adversary-sim evidence or explicit degraded status so `category_posture_alignment:*` no longer copies one run envelope into every observed category when `request_outcomes.by_non_human_category` is absent.
+    - Proof required:
+      - `make test-traffic-classification-contract`
+      - `make test-benchmark-results-contract`
+      - `make test-adversary-sim-scrapling-category-fit`
+  - [ ] SIM-SCR-FULL-1C2 Feed Scrapling defense-surface contract truth into controller-grade scoring or hard tuning-readiness gates so aggregate suspicious-origin suppression cannot declare the loop healthy while required adversary surfaces remain unsatisfied.
+    - Proof required:
+      - `make test-adversary-sim-scrapling-coverage-receipts`
+      - `make test-benchmark-results-contract`
+      - `make test-oversight-reconcile`
 
 - [ ] RSI-GAME-HO-1 Fully operationally prove the strict `human_only_private` Scrapling-driven game loop before any later relaxed stance.
   - Reference context:
     - [`docs/research/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-review.md`](../docs/research/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-review.md)
     - [`docs/research/2026-03-26-strict-human-only-loop-and-human-traversal-calibration-review.md`](../docs/research/2026-03-26-strict-human-only-loop-and-human-traversal-calibration-review.md)
+    - [`docs/research/2026-03-26-game-loop-scoring-and-diagnoser-audit.md`](../docs/research/2026-03-26-game-loop-scoring-and-diagnoser-audit.md)
     - [`docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](../docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)
     - [`docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](../docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md)
     - [`docs/plans/2026-03-24-rsi-game-mainline-first-working-loop-plan.md`](../docs/plans/2026-03-24-rsi-game-mainline-first-working-loop-plan.md)
@@ -176,6 +187,9 @@ Current stance:
     - proof: focused `make` paths must pass for strict-stance runtime behavior and repeated judged-cycle proof on the local sim-public surface first; later human-traversal calibration and live-host realism stay separate named proof rings
     - insufficient: one successful loop, one canary apply, recommendation generation without retained improvement, current mixed-site default budgets still appearing as the strict target, or unresolved dashboard/runtime mismatch that still contradicts the claimed improvement
   - [ ] RSI-GAME-HO-1A Run the existing machine-first loop against the corrected `human_only_private` stance with verified non-human traffic still denied under that strict baseline.
+  - [ ] RSI-GAME-HO-1A1 Separate aggregate budget pressure, per-category target achievement, and Scrapling defense-surface satisfaction in `Game Loop` rendering and copy so operators cannot read them as one attacker-success score.
+    - Proof required:
+      - `make test-dashboard-game-loop-accountability`
   - [ ] RSI-GAME-HO-1B Repeat Scrapling-driven cycles until recommendations become bounded config changes, later runs occur against those changed configs, and watch windows judge retain or rollback truthfully many times rather than once.
   - [ ] RSI-GAME-HO-1C Define and satisfy the unlock condition showing retained config changes and measured improvement toward the strict target, not merely one successful end-to-end cycle.
 

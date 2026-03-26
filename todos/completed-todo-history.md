@@ -4,6 +4,28 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-26)
 
+### RSI-GAME-HO-1 / SIM-SCR-FULL-1 Game Loop Scoring And Diagnoser Audit
+
+- [x] Audited the current scoring and recommendation chain across:
+  - [`src/observability/non_human_classification.rs`](../src/observability/non_human_classification.rs)
+  - [`src/observability/benchmark_non_human_categories.rs`](../src/observability/benchmark_non_human_categories.rs)
+  - [`src/observability/benchmark_adversary_effectiveness.rs`](../src/observability/benchmark_adversary_effectiveness.rs)
+  - [`src/observability/benchmark_results.rs`](../src/observability/benchmark_results.rs)
+  - [`src/observability/benchmark_results_comparison.rs`](../src/observability/benchmark_results_comparison.rs)
+  - [`src/admin/oversight_reconcile.rs`](../src/admin/oversight_reconcile.rs)
+  - [`dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
+  so the repo now has an explicit record of what the diagnoser really uses for config-change recommendations and where current Game Loop semantics are easier to misread than the backend truth supports.
+- [x] Captured the audit and its follow-on tasks in:
+  - [`docs/research/2026-03-26-game-loop-scoring-and-diagnoser-audit.md`](../docs/research/2026-03-26-game-loop-scoring-and-diagnoser-audit.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  so the current mainline now explicitly records the two highest-severity scoring gaps: projected whole-run category receipts and the absence of Scrapling surface-contract truth from controller-grade tuning decisions.
+- [x] Why:
+  - the user correctly identified that the current page can read as contradictory, and the audit confirmed the core issue is not just wording: the diagnoser currently tunes from aggregate suspicious-origin and likely-human benchmark pressure, while richer Scrapling attacker-proof surfaces remain mostly corroborating rather than controller-grade evidence.
+- [x] Evidence:
+  - cited code paths in [`docs/research/2026-03-26-game-loop-scoring-and-diagnoser-audit.md`](../docs/research/2026-03-26-game-loop-scoring-and-diagnoser-audit.md)
+  - `git diff --check`
+
 ### RSI-GAME-HO-1B Repeated Judged-Cycle Proof Step
 
 - [x] Strengthened the local mainline route proof across:
