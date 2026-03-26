@@ -159,6 +159,26 @@ pub(crate) fn benchmark_suite_v1() -> BenchmarkSuiteContract {
                 ],
             ),
             family(
+                "scrapling_surface_contract",
+                "Did the latest Scrapling run satisfy the required Shuma defense-surface contract, or are required surfaces still blocking?",
+                "adversary_sim:scrapling_owned_surfaces",
+                "partially_supported",
+                &[
+                    (
+                        "scrapling_required_surface_satisfaction_rate",
+                        "adversary_sim:scrapling_owned_surfaces",
+                        "maximize_ratio",
+                        "supported",
+                    ),
+                    (
+                        "scrapling_blocking_required_surface_count",
+                        "adversary_sim:scrapling_owned_surfaces",
+                        "max_ratio_budget",
+                        "supported",
+                    ),
+                ],
+            ),
+            family(
                 "likely_human_friction",
                 "How much friction or denial is Shuma imposing on likely-human or interactive traffic, and is that within budget?",
                 "live:ingress_primary:enforced:likely_human",
@@ -300,11 +320,15 @@ mod tests {
         assert_eq!(suite.input_contract, "operator_snapshot_v1");
         assert_eq!(suite.comparison_modes.len(), 3);
         assert_eq!(suite.subject_kinds.len(), 4);
-        assert_eq!(suite.families.len(), 5);
+        assert_eq!(suite.families.len(), 6);
         assert!(suite
             .families
             .iter()
             .any(|family| family.id == "suspicious_origin_cost"));
+        assert!(suite
+            .families
+            .iter()
+            .any(|family| family.id == "scrapling_surface_contract"));
         let suspicious_origin_cost = suite
             .families
             .iter()

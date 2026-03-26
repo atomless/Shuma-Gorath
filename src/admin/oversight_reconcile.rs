@@ -748,4 +748,31 @@ mod tests {
             .refusal_reasons
             .contains(&"verified_identity_botness_conflict_guardrail".to_string()));
     }
+
+    #[test]
+    fn observe_longer_when_scrapling_surface_contract_is_not_ready() {
+        let cfg = defaults().clone();
+        let mut snapshot = sample_snapshot();
+        snapshot.benchmark_results.overall_status = "outside_budget".to_string();
+        snapshot.benchmark_results.escalation_hint.decision = "observe_longer".to_string();
+        snapshot.benchmark_results.escalation_hint.problem_class =
+            "scrapling_surface_contract_gap".to_string();
+        snapshot.benchmark_results.tuning_eligibility.status = "blocked".to_string();
+        snapshot.benchmark_results.tuning_eligibility.blockers = vec![
+            "scrapling_surface_contract_not_ready".to_string(),
+            "scrapling_surface_blocking:maze_navigation".to_string(),
+        ];
+        snapshot.benchmark_results.escalation_hint.blockers =
+            snapshot.benchmark_results.tuning_eligibility.blockers.clone();
+
+        let result = reconcile(&cfg, &snapshot, "manual_admin");
+
+        assert_eq!(reconcile_outcome(&result), "observe_longer");
+        assert!(result
+            .refusal_reasons
+            .contains(&"scrapling_surface_contract_not_ready".to_string()));
+        assert!(result
+            .refusal_reasons
+            .contains(&"scrapling_surface_blocking:maze_navigation".to_string()));
+    }
 }

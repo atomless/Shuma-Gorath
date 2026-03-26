@@ -203,10 +203,11 @@ fn primary_outside_budget_family<'a>(
 fn family_priority(family_id: &str) -> u8 {
     match family_id {
         "likely_human_friction" => 0,
-        "suspicious_origin_cost" => 1,
-        "beneficial_non_human_posture" => 2,
-        "non_human_category_posture" => 3,
-        "representative_adversary_effectiveness" => 4,
+        "scrapling_surface_contract" => 1,
+        "suspicious_origin_cost" => 2,
+        "beneficial_non_human_posture" => 3,
+        "non_human_category_posture" => 4,
+        "representative_adversary_effectiveness" => 5,
         _ => 10,
     }
 }
@@ -252,6 +253,15 @@ fn classify_problem(family: &BenchmarkFamilyResult) -> ProblemClassification {
                 action_families: benchmark_action_families("suspicious_origin_cost"),
             }
         }
+        "scrapling_surface_contract" => ProblemClassification {
+            problem_class: "scrapling_surface_contract_gap",
+            decision: "code_evolution_candidate",
+            guidance_status: "code_evolution_only",
+            tractability: "code_or_capability_gap",
+            expected_direction: "close_required_scrapling_surface_gaps",
+            note: "Latest Scrapling defense-surface contract misses mean the loop cannot yet treat aggregate suspicious-origin suppression as operationally healthy or tuning-ready.",
+            action_families: &[],
+        },
         "beneficial_non_human_posture" => ProblemClassification {
             problem_class: "beneficial_non_human_harm",
             decision: "code_evolution_candidate",
@@ -565,6 +575,29 @@ mod tests {
         );
 
         assert_eq!(hint.problem_class, "category_posture_gap");
+        assert_eq!(hint.guidance_status, "code_evolution_only");
+        assert_eq!(hint.tractability, "code_or_capability_gap");
+        assert_eq!(hint.decision, "code_evolution_candidate");
+        assert!(hint.candidate_action_families.is_empty());
+    }
+
+    #[test]
+    fn escalation_hint_marks_scrapling_surface_contract_gap_as_code_evolution_only() {
+        let hint = derive_escalation_hint(
+            &allowed_actions_v1(),
+            &[family_with_metrics(
+                "scrapling_surface_contract",
+                "outside_budget",
+                "supported",
+                vec![metric(
+                    "scrapling_required_surface_satisfaction_rate",
+                    "outside_budget",
+                    "supported",
+                )],
+            )],
+        );
+
+        assert_eq!(hint.problem_class, "scrapling_surface_contract_gap");
         assert_eq!(hint.guidance_status, "code_evolution_only");
         assert_eq!(hint.tractability, "code_or_capability_gap");
         assert_eq!(hint.decision, "code_evolution_candidate");

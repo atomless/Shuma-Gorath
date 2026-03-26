@@ -4,6 +4,32 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-26)
 
+### SIM-SCR-FULL-1C2 Surface-Contract Controller-Grade Repair
+
+- [x] Added the controller-grade Scrapling surface-contract benchmark family and tuning guardrails across:
+  - [`src/observability/benchmark_scrapling_surface_contract.rs`](../src/observability/benchmark_scrapling_surface_contract.rs)
+  - [`src/observability/benchmark_results.rs`](../src/observability/benchmark_results.rs)
+  - [`src/observability/benchmark_results_comparison.rs`](../src/observability/benchmark_results_comparison.rs)
+  - [`src/observability/benchmark_suite.rs`](../src/observability/benchmark_suite.rs)
+  so the latest Scrapling run's required-surface truth now becomes machine-first benchmark input instead of staying only a corroborating Red Team surface.
+- [x] Threaded the fail-closed controller behavior through:
+  - [`src/admin/oversight_reconcile.rs`](../src/admin/oversight_reconcile.rs)
+  - [`src/admin/api.rs`](../src/admin/api.rs)
+  and closed the tranche in:
+  - [`docs/research/2026-03-26-sim-scr-full-1c2-surface-contract-controller-grade-post-implementation-review.md`](../docs/research/2026-03-26-sim-scr-full-1c2-surface-contract-controller-grade-post-implementation-review.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  so aggregate suspicious-origin suppression can no longer by itself make the loop look healthy or tuning-ready while named required Scrapling surfaces remain blocking.
+- [x] Why:
+  - the game-loop scoring audit showed that required Scrapling surface misses were still mostly corroborating truth, which meant the controller could treat aggregate leakage pressure as “good enough” even when the attacker contract was visibly unsatisfied in Red Team.
+- [x] Evidence:
+  - `make test-adversary-sim-scrapling-coverage-receipts`
+  - `make test-benchmark-results-contract`
+  - `make test-benchmark-suite-contract`
+  - `make test-benchmark-comparison-contract`
+  - `make test-oversight-reconcile`
+  - `git diff --check`
+
 ### SIM-SCR-FULL-1C1 Category-Native Adversary-Sim Receipt Repair
 
 - [x] Replaced projected exact per-category adversary-sim receipts with explicit degraded recent-run evidence across:

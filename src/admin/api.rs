@@ -2499,6 +2499,14 @@ mod tests {
             .and_then(|value| value.as_array())
             .map(|rows| rows.iter().any(|row| {
                 row.get("id").and_then(|value| value.as_str())
+                    == Some("scrapling_surface_contract")
+            }))
+            .unwrap_or(false));
+        assert!(payload
+            .get("families")
+            .and_then(|value| value.as_array())
+            .map(|rows| rows.iter().any(|row| {
+                row.get("id").and_then(|value| value.as_str())
                     == Some("non_human_category_posture")
             }))
             .unwrap_or(false));
@@ -2618,6 +2626,14 @@ mod tests {
             .map(|rows| rows.iter().any(|row| {
                 row.get("family_id").and_then(|value| value.as_str())
                     == Some("suspicious_origin_cost")
+            }))
+            .unwrap_or(false));
+        assert!(payload
+            .get("families")
+            .and_then(|value| value.as_array())
+            .map(|rows| rows.iter().any(|row| {
+                row.get("family_id").and_then(|value| value.as_str())
+                    == Some("scrapling_surface_contract")
             }))
             .unwrap_or(false));
         assert!(payload
