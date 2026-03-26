@@ -4,6 +4,25 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-26)
 
+### RSI-GAME-HO-1B Game Loop Episode-Archive Lineage Projection
+
+- [x] Preserved bounded episode-archive lineage through the dashboard API adapter path across:
+  - [`dashboard/src/lib/domain/api-client.js`](../dashboard/src/lib/domain/api-client.js)
+  so `oversight_history_v1` and `oversight_agent_status_v1` now keep the completed-cycle archive contract instead of silently dropping retained or rolled-back judged-cycle rows before the Game Loop tab can use them.
+- [x] Projected repeated judged-cycle truth in the Game Loop tab across:
+  - [`dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
+  so `Recent Loop Progress` now shows completed judged-cycle lineage, retained versus rolled-back counts, and the current homeostasis summary rather than implying only one latest-cycle view.
+- [x] Tightened the focused proof in:
+  - [`e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`docs/dashboard-tabs/game-loop.md`](../docs/dashboard-tabs/game-loop.md)
+  - [`docs/testing.md`](../docs/testing.md)
+  so the contract now asserts bounded `episode_archive` adaptation and rendered Game Loop lineage output against machine-first oversight fixtures.
+- [x] Why:
+  - repeated retain versus rollback truth is part of the closure gate for `RSI-GAME-HO-1`, and the dashboard was previously dropping the archive contract at the adapter boundary, which made the Game Loop tab unable to show that lineage even when the backend persisted it.
+- [x] Evidence:
+  - `make test-dashboard-game-loop-accountability`
+
 ### STANCE-MODEL-1 Canonical Effective Non-Human Policy
 
 - [x] Landed the canonical effective-policy contract across:

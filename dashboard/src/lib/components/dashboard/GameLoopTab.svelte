@@ -283,6 +283,20 @@
   $: latestHistoryRow = latestHistoryRows[0] || null;
   $: latestDecision = asRecord(oversightAgentStatus?.latest_decision);
   $: latestRecentRun = toArray(oversightAgentStatus?.recent_runs)[0] || null;
+  $: episodeArchive = asRecord(oversightHistory?.episode_archive?.schema_version
+    ? oversightHistory?.episode_archive
+    : oversightAgentStatus?.episode_archive);
+  $: episodeArchiveRows = toArray(episodeArchive?.rows);
+  $: judgedCycleRows = episodeArchiveRows.filter((row) => {
+    const outcome = String(row?.retain_or_rollback || '').trim();
+    return outcome === 'retained' || outcome === 'rolled_back';
+  });
+  $: retainedCycleCount = judgedCycleRows.filter(
+    (row) => String(row?.retain_or_rollback || '').trim() === 'retained'
+  ).length;
+  $: rolledBackCycleCount = judgedCycleRows.filter(
+    (row) => String(row?.retain_or_rollback || '').trim() === 'rolled_back'
+  ).length;
   $: currentObjectiveProfileId = String(operatorSnapshot?.objectives?.profile_id || '').trim();
   $: currentPolicyProfile = resolveGameLoopPolicyProfile(currentObjectiveProfileId);
   $: suspiciousOriginCostFamily = findBenchmarkFamily('suspicious_origin_cost');
@@ -468,6 +482,15 @@
               <span class="status-value">
                 {formatNumber(oversightAgentStatus?.periodic_trigger?.default_interval_seconds, '0')}s
                 via <code>{oversightAgentStatus?.periodic_trigger?.surface || 'n/a'}</code>
+              </span>
+            </div>
+            <div id="game-loop-progress-lineage" class="info-row">
+              <span class="info-label text-muted">Cycle Lineage:</span>
+              <span class="status-value">
+                {formatNumber(judgedCycleRows.length, '0')} completed judged cycles
+                | {formatNumber(retainedCycleCount, '0')} retained
+                | {formatNumber(rolledBackCycleCount, '0')} rolled back
+                | homeostasis {humanizeToken(episodeArchive?.homeostasis?.status, 'sentence')}
               </span>
             </div>
           </div>

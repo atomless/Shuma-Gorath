@@ -745,6 +745,35 @@ const adaptOversightApply = (value) => {
   };
 };
 
+const adaptOversightEpisodeArchiveRow = (value) => {
+  const source = asRecord(value);
+  return {
+    episode_id: String(source.episode_id || ''),
+    proposal_status: String(source.proposal_status || ''),
+    watch_window_result: String(source.watch_window_result || ''),
+    retain_or_rollback: String(source.retain_or_rollback || ''),
+    cycle_judgment: String(source.cycle_judgment || ''),
+    homeostasis_eligible: source.homeostasis_eligible === true
+  };
+};
+
+const adaptOversightEpisodeArchive = (value) => {
+  const source = asRecord(value);
+  const homeostasis = asRecord(source.homeostasis);
+  return {
+    schema_version: String(source.schema_version || ''),
+    homeostasis: {
+      status: String(homeostasis.status || ''),
+      judged_cycle_count: Number(homeostasis.judged_cycle_count || 0),
+      minimum_completed_cycles_for_homeostasis: Number(
+        homeostasis.minimum_completed_cycles_for_homeostasis || 0
+      ),
+      note: String(homeostasis.note || '')
+    },
+    rows: asObjectArray(source.rows).map(adaptOversightEpisodeArchiveRow)
+  };
+};
+
 const adaptOversightDecision = (value) => {
   const source = asRecord(value);
   const proposal = asRecord(source.proposal);
@@ -785,6 +814,7 @@ export const adaptOversightHistory = (payload) => {
   const source = asRecord(payload);
   return {
     schema_version: String(source.schema_version || ''),
+    episode_archive: adaptOversightEpisodeArchive(source.episode_archive),
     rows: asObjectArray(source.rows).map(adaptOversightDecision)
   };
 };
@@ -821,6 +851,7 @@ export const adaptOversightAgentStatus = (payload) => {
       qualifying_completion: String(postSimTrigger.qualifying_completion || ''),
       dedupe_key: String(postSimTrigger.dedupe_key || '')
     },
+    episode_archive: adaptOversightEpisodeArchive(source.episode_archive),
     latest_run: adaptOversightAgentRun(source.latest_run),
     latest_decision: adaptOversightDecision(source.latest_decision),
     recent_runs: asObjectArray(source.recent_runs).map(adaptOversightAgentRun)

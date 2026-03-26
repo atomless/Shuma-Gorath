@@ -1974,6 +1974,26 @@ test("game loop projects benchmark and oversight accountability from machine-fir
       contentType: "application/json",
       body: JSON.stringify({
         schema_version: "oversight_history_v1",
+        episode_archive: {
+          schema_version: "oversight_episode_archive_v1",
+          homeostasis: {
+            status: "not_enough_completed_cycles"
+          },
+          rows: [
+            {
+              episode_id: "episode-2",
+              proposal_status: "accepted",
+              watch_window_result: "improved",
+              retain_or_rollback: "retained"
+            },
+            {
+              episode_id: "episode-1",
+              proposal_status: "accepted",
+              watch_window_result: "regressed",
+              retain_or_rollback: "rolled_back"
+            }
+          ]
+        },
         rows: [
           {
             decision_id: "ovr-2",
@@ -2046,6 +2066,20 @@ test("game loop projects benchmark and oversight accountability from machine-fir
           outcome: "canary_applied",
           summary: "Applied a bounded fingerprint tightening patch."
         },
+        episode_archive: {
+          schema_version: "oversight_episode_archive_v1",
+          homeostasis: {
+            status: "not_enough_completed_cycles"
+          },
+          rows: [
+            {
+              episode_id: "episode-2",
+              proposal_status: "accepted",
+              watch_window_result: "improved",
+              retain_or_rollback: "retained"
+            }
+          ]
+        },
         recent_runs: [
           {
             run_id: "run-1",
@@ -2071,6 +2105,10 @@ test("game loop projects benchmark and oversight accountability from machine-fir
   await expect(page.locator("#game-loop-current-status-improvement")).toHaveText(/Improved/i);
   await expect(page.locator("#game-loop-current-status-controller-action")).toHaveText(/Canary Applied/i);
   await expect(page.locator("#game-loop-progress-history")).toContainText("Applied a bounded fingerprint tightening patch.");
+  await expect(page.locator("#game-loop-progress-lineage")).toContainText("2 completed judged cycles");
+  await expect(page.locator("#game-loop-progress-lineage")).toContainText("1 retained");
+  await expect(page.locator("#game-loop-progress-lineage")).toContainText("1 rolled back");
+  await expect(page.locator("#game-loop-progress-lineage")).toContainText("not enough completed cycles");
   await expect(page.locator("#game-loop-budget-usage")).toContainText("Likely Human Friction Rate");
   await expect(page.locator("#game-loop-budget-usage")).toContainText("Suspicious Forwarded Request Rate");
   await expect(page.locator("#game-loop-budget-usage")).toContainText("Target 2.0%");

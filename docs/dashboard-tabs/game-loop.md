@@ -26,6 +26,7 @@ Current behavior:
 - Surfaces:
   - current benchmark overall status, improvement status, tuning eligibility, and latest controller action,
   - bounded recent multi-loop oversight history rather than only the latest cycle,
+  - completed judged-cycle lineage from the bounded episode archive, including retained versus rolled-back counts plus the current homeostasis summary,
   - true numeric budget usage for likely-human friction plus suspicious forwarded requests, bytes, and latency,
   - taxonomy rows as `Category Target Achievement` rather than fake configured per-category budgets,
   - benchmark escalation decision, candidate action families, and latest oversight apply or refusal context,

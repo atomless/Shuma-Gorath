@@ -6596,6 +6596,26 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
 
   const oversightHistory = apiModule.adaptOversightHistory({
     schema_version: 'oversight_history_v1',
+    episode_archive: {
+      schema_version: 'oversight_episode_archive_v1',
+      homeostasis: {
+        status: 'not_enough_completed_cycles'
+      },
+      rows: [
+        {
+          episode_id: 'episode-2',
+          proposal_status: 'accepted',
+          watch_window_result: 'improved',
+          retain_or_rollback: 'retained'
+        },
+        {
+          episode_id: 'episode-1',
+          proposal_status: 'accepted',
+          watch_window_result: 'regressed',
+          retain_or_rollback: 'rolled_back'
+        }
+      ]
+    },
     rows: [
       {
         decision_id: 'ovr-1',
@@ -6623,6 +6643,11 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
   });
 
   assert.equal(oversightHistory.schema_version, 'oversight_history_v1');
+  assert.equal(oversightHistory.episode_archive.schema_version, 'oversight_episode_archive_v1');
+  assert.equal(oversightHistory.episode_archive.homeostasis.status, 'not_enough_completed_cycles');
+  assert.equal(oversightHistory.episode_archive.rows.length, 2);
+  assert.equal(oversightHistory.episode_archive.rows[0].retain_or_rollback, 'retained');
+  assert.equal(oversightHistory.episode_archive.rows[1].retain_or_rollback, 'rolled_back');
   assert.equal(oversightHistory.rows.length, 1);
   assert.equal(oversightHistory.rows[0].apply.stage, 'canary_applied');
 
@@ -6646,6 +6671,20 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
       outcome: 'canary_applied',
       summary: 'Applied a bounded fingerprint tightening patch.'
     },
+    episode_archive: {
+      schema_version: 'oversight_episode_archive_v1',
+      homeostasis: {
+        status: 'not_enough_completed_cycles'
+      },
+      rows: [
+        {
+          episode_id: 'episode-2',
+          proposal_status: 'accepted',
+          watch_window_result: 'improved',
+          retain_or_rollback: 'retained'
+        }
+      ]
+    },
     recent_runs: [
       {
         run_id: 'run-1',
@@ -6665,6 +6704,8 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
 
   assert.equal(oversightStatus.schema_version, 'oversight_agent_status_v1');
   assert.equal(oversightStatus.latest_decision.outcome, 'canary_applied');
+  assert.equal(oversightStatus.episode_archive.schema_version, 'oversight_episode_archive_v1');
+  assert.equal(oversightStatus.episode_archive.rows[0].retain_or_rollback, 'retained');
   assert.equal(oversightStatus.recent_runs[0].execution.apply.stage, 'canary_applied');
 });
 
