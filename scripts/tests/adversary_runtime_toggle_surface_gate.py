@@ -217,6 +217,10 @@ class RuntimeToggleSurfaceGate:
         self,
         operator_snapshot_body: Dict[str, Any],
     ) -> Dict[str, Any]:
+        objectives = self._as_obj(operator_snapshot_body.get("objectives"))
+        verified_identity = self._as_obj(operator_snapshot_body.get("verified_identity"))
+        effective_policy = self._as_obj(verified_identity.get("effective_non_human_policy"))
+        budget_rows = self._as_list(self._as_obj(operator_snapshot_body.get("budget_distance")).get("rows"))
         adversary_sim = self._as_obj(operator_snapshot_body.get("adversary_sim"))
         recent_runs = self._as_list(adversary_sim.get("recent_runs"))
         for row in recent_runs:
@@ -229,6 +233,22 @@ class RuntimeToggleSurfaceGate:
             return {
                 "run_id": str(run.get("run_id") or "").strip(),
                 "overall_status": str(coverage.get("overall_status") or "").strip(),
+                "profile_id": str(objectives.get("profile_id") or "").strip(),
+                "verified_identity_override_mode": str(
+                    effective_policy.get("verified_identity_override_mode") or ""
+                ).strip(),
+                "suspicious_forwarded_request_target": self._budget_target(
+                    budget_rows,
+                    "suspicious_forwarded_request_rate",
+                ),
+                "suspicious_forwarded_byte_target": self._budget_target(
+                    budget_rows,
+                    "suspicious_forwarded_byte_rate",
+                ),
+                "suspicious_forwarded_latency_target": self._budget_target(
+                    budget_rows,
+                    "suspicious_forwarded_latency_share",
+                ),
                 "required_surface_ids": [
                     str(value).strip()
                     for value in self._as_list(coverage.get("required_surface_ids"))
@@ -248,6 +268,11 @@ class RuntimeToggleSurfaceGate:
         return {
             "run_id": "",
             "overall_status": "",
+            "profile_id": "",
+            "verified_identity_override_mode": "",
+            "suspicious_forwarded_request_target": None,
+            "suspicious_forwarded_byte_target": None,
+            "suspicious_forwarded_latency_target": None,
             "required_surface_ids": [],
             "blocking_surface_ids": [],
             "observed_fulfillment_modes": [],
@@ -258,6 +283,11 @@ class RuntimeToggleSurfaceGate:
         last_seen = {
             "run_id": "",
             "overall_status": "",
+            "profile_id": "",
+            "verified_identity_override_mode": "",
+            "suspicious_forwarded_request_target": None,
+            "suspicious_forwarded_byte_target": None,
+            "suspicious_forwarded_latency_target": None,
             "required_surface_ids": [],
             "blocking_surface_ids": [],
             "observed_fulfillment_modes": [],
@@ -279,6 +309,39 @@ class RuntimeToggleSurfaceGate:
 
         return last_seen
 
+    def poll_post_sim_oversight_run(self, sim_run_id: str) -> Dict[str, Any]:
+        deadline = time.time() + float(self.timeout_seconds)
+        last_seen = {
+            "run_id": "",
+            "trigger_kind": "",
+            "sim_run_id": "",
+            "apply_stage": "",
+        }
+
+        while time.time() < deadline:
+            status = self.request("GET", "/admin/oversight/agent/status")
+            if status["status"] != 200:
+                time.sleep(1)
+                continue
+            recent_runs = self._as_list(self._as_obj(status["body"]).get("recent_runs"))
+            for row in recent_runs:
+                run = self._as_obj(row)
+                if str(run.get("trigger_kind") or "").strip() != "post_adversary_sim":
+                    continue
+                if str(run.get("sim_run_id") or "").strip() != sim_run_id:
+                    continue
+                execution = self._as_obj(run.get("execution"))
+                apply = self._as_obj(execution.get("apply"))
+                return {
+                    "run_id": str(run.get("run_id") or "").strip(),
+                    "trigger_kind": str(run.get("trigger_kind") or "").strip(),
+                    "sim_run_id": str(run.get("sim_run_id") or "").strip(),
+                    "apply_stage": str(apply.get("stage") or "").strip(),
+                }
+            time.sleep(1)
+
+        return last_seen
+
     def poll_live_summary_matches_baseline(self, baseline: Dict[str, int]) -> Dict[str, int]:
         deadline = time.time() + float(self.timeout_seconds)
         counts = dict(baseline)
@@ -296,6 +359,19 @@ class RuntimeToggleSurfaceGate:
             time.sleep(1)
 
         return counts
+
+    @staticmethod
+    def _budget_target(rows: list[Any], metric: str) -> Optional[float]:
+        for row in rows:
+            budget_row = row if isinstance(row, dict) else {}
+            if str(budget_row.get("metric") or "").strip() != metric:
+                continue
+            target = budget_row.get("target")
+            try:
+                return float(target)
+            except (TypeError, ValueError):
+                return None
+        return None
 
 
 def main() -> int:
@@ -345,6 +421,7 @@ def main() -> int:
         gate.toggle(False, "off")
     except Exception as exc:  # noqa: BLE001
         print(f"[runtime-surface-gate] warning: failed to toggle off: {exc}", file=sys.stderr)
+    oversight_run = gate.poll_post_sim_oversight_run(str(coverage.get("run_id") or ""))
     try:
         gate.clear_loopback_bans()
     except Exception as exc:  # noqa: BLE001
@@ -357,6 +434,43 @@ def main() -> int:
         )
         print(
             f"[runtime-surface-gate] coverage={json.dumps(coverage, sort_keys=True)}",
+            file=sys.stderr,
+        )
+        return 1
+
+    if coverage.get("profile_id") != "human_only_private":
+        print(
+            "[runtime-surface-gate] strict operator-objectives profile was not active: "
+            + json.dumps(coverage, sort_keys=True),
+            file=sys.stderr,
+        )
+        return 1
+
+    if coverage.get("verified_identity_override_mode") != "strict_human_only":
+        print(
+            "[runtime-surface-gate] verified identity was not locked to strict human-only mode: "
+            + json.dumps(coverage, sort_keys=True),
+            file=sys.stderr,
+        )
+        return 1
+
+    for field in (
+        "suspicious_forwarded_request_target",
+        "suspicious_forwarded_byte_target",
+        "suspicious_forwarded_latency_target",
+    ):
+        if coverage.get(field) != 0.0:
+            print(
+                "[runtime-surface-gate] strict suspicious leakage target was not zero: "
+                + json.dumps(coverage, sort_keys=True),
+                file=sys.stderr,
+            )
+            return 1
+
+    if oversight_run.get("sim_run_id") != coverage.get("run_id"):
+        print(
+            "[runtime-surface-gate] post-sim oversight trigger did not materialize for the completed Scrapling run: "
+            + json.dumps({"coverage": coverage, "oversight_run": oversight_run}, sort_keys=True),
             file=sys.stderr,
         )
         return 1
@@ -377,6 +491,8 @@ def main() -> int:
     print(
         "[runtime-surface-gate] PASS coverage="
         + json.dumps(coverage, sort_keys=True)
+        + " oversight="
+        + json.dumps(oversight_run, sort_keys=True)
         + " live_summary="
         + json.dumps(live_summary_counts, sort_keys=True)
     )

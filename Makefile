@@ -1407,6 +1407,24 @@ test-rsi-game-mainline: ## Run focused first-working-loop mainline proof checks
 	@cargo test post_sim_oversight_route_records_repeated_retained_and_rolled_back_episodes_against_changed_configs -- --nocapture
 	@python3 -m unittest scripts.tests.test_live_feedback_loop_remote.LiveFeedbackLoopRemoteBehaviorTests.test_run_records_terminal_follow_on_judgment_and_episode_archive
 
+test-rsi-game-human-only-strict: ## Run focused strict human-only stance proof checks for the current machine-first loop
+	@echo "$(CYAN)🧪 Running strict human-only loop stance proof checks...$(NC)"
+	@./scripts/set_crate_type.sh rlib
+	@cargo test post_sim_oversight_route_archives_strict_human_only_profile_context -- --nocapture
+	@cargo test runtime::non_human_policy::tests::strict_human_only_profiles_suppress_verified_identity_overrides -- --exact --nocapture
+	@cargo test bot_identity::policy::tests::resolve_identity_policy_strict_profiles_suppress_named_overrides -- --exact --nocapture
+	@cargo test observability::operator_snapshot::tests::snapshot_payload_projects_strict_human_only_budgets_from_adversary_sim_scope -- --exact --nocapture
+	@cargo test observability::benchmark_results::tests::benchmark_results_materialize_strict_human_only_suspicious_origin_metrics_from_adversary_sim -- --exact --nocapture
+	@$(MAKE) --no-print-directory test-adversary-sim-runtime-surface-unit
+	@$(MAKE) --no-print-directory test-adversary-sim-runtime-surface
+
+test-rsi-game-human-only-proof: ## Run focused repeated strict human-only loop proof checks with measured retained improvement
+	@echo "$(CYAN)🧪 Running repeated strict human-only loop proof checks...$(NC)"
+	@$(MAKE) --no-print-directory test-rsi-game-human-only-strict
+	@./scripts/set_crate_type.sh rlib
+	@cargo test execute_oversight_cycle_at_records_ten_retained_improving_cycles_toward_strict_zero_leakage -- --nocapture
+	@$(MAKE) --no-print-directory test-oversight-episode-archive
+
 test-scrapling-game-loop-mainline: ## Run the current active mainline proof bundle (attacker-faithful Scrapling plus first working game loop)
 	@echo "$(CYAN)🧪 Running active Scrapling -> game-loop mainline proof bundle...$(NC)"
 	@$(MAKE) --no-print-directory test-adversary-sim-scrapling-owned-surface-contract

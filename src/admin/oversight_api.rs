@@ -924,7 +924,7 @@ fn completed_episode_guardrail_triggers(
 #[cfg(test)]
 mod tests {
     use super::{
-        execute_reconcile_cycle, handle_admin_oversight_agent_status,
+        execute_oversight_cycle_at, execute_reconcile_cycle, handle_admin_oversight_agent_status,
         handle_admin_oversight_history, handle_admin_oversight_reconcile,
         handle_internal_oversight_agent_run,
     };
@@ -1201,6 +1201,7 @@ mod tests {
             crate::observability::operator_snapshot_objectives::default_operator_objectives(
                 1_700_000_100,
             );
+        profile.window_hours = 1;
         profile.rollout_guardrails.automated_apply_status = "canary_only".to_string();
         crate::observability::operator_objectives_store::save_operator_objectives(
             store,
@@ -1406,5 +1407,161 @@ mod tests {
             .expect("config lookup")
             .expect("persisted config");
         assert_eq!(persisted_config, original_config);
+    }
+
+    #[test]
+    fn execute_oversight_cycle_at_records_ten_retained_improving_cycles_toward_strict_zero_leakage() {
+        let store = TestStore::new();
+        seed_canary_only_objectives(&store);
+
+        let mut cfg = defaults().clone();
+        cfg.fingerprint_signal_enabled = false;
+        cfg.cdp_detection_enabled = false;
+        cfg.pow_enabled = false;
+        cfg.challenge_puzzle_enabled = false;
+        cfg.not_a_bot_enabled = false;
+        cfg.not_a_bot_risk_threshold = 1;
+        cfg.maze_enabled = false;
+        cfg.maze_auto_ban = false;
+        cfg.js_required_enforced = false;
+        crate::test_support::seed_candidate_snapshot_with_candidate_families(
+            &store,
+            cfg,
+            1_700_000_200,
+            0.42,
+            "outside_budget",
+            &["fingerprint_signal"],
+        );
+
+        let cycle_plan = [
+            ("fingerprint_signal", "cdp_detection", 1_700_001_000, 0.34, "outside_budget"),
+            ("cdp_detection", "proof_of_work", 1_700_002_000, 0.28, "outside_budget"),
+            ("proof_of_work", "proof_of_work", 1_700_003_000, 0.22, "outside_budget"),
+            ("proof_of_work", "challenge", 1_700_004_000, 0.18, "outside_budget"),
+            ("challenge", "challenge", 1_700_005_000, 0.14, "outside_budget"),
+            ("challenge", "not_a_bot", 1_700_006_000, 0.10, "outside_budget"),
+            ("not_a_bot", "maze_core", 1_700_007_000, 0.07, "outside_budget"),
+            ("maze_core", "maze_core", 1_700_008_000, 0.05, "outside_budget"),
+            ("maze_core", "core_policy", 1_700_009_000, 0.03, "outside_budget"),
+            ("core_policy", "core_policy", 1_700_010_000, 0.0, "inside_budget"),
+        ];
+
+        let start_ts = 1_700_100_000u64;
+        for (index, (expected_family, next_family, generated_at, retained_rate, status)) in
+            cycle_plan.iter().enumerate()
+        {
+            let post_sim = execute_oversight_cycle_at(
+                &store,
+                "default",
+                "post_adversary_sim",
+                crate::admin::oversight_apply::OversightApplyMode::ExecuteCanary,
+                start_ts + (index as u64 * 10_000),
+            )
+            .expect("post-sim cycle succeeds");
+            assert_eq!(post_sim.apply.stage, "canary_applied");
+            assert_eq!(post_sim.apply.patch_family.as_deref(), Some(*expected_family));
+
+            let canary_cfg =
+                crate::config::Config::load(&store, "default").expect("canary config loads");
+            crate::test_support::seed_candidate_snapshot_with_candidate_families(
+                &store,
+                canary_cfg,
+                *generated_at,
+                *retained_rate,
+                status,
+                &[*next_family],
+            );
+
+            let periodic = execute_oversight_cycle_at(
+                &store,
+                "default",
+                "periodic_supervisor",
+                crate::admin::oversight_apply::OversightApplyMode::ExecuteCanary,
+                start_ts + (index as u64 * 10_000) + 3_601,
+            )
+            .expect("periodic cycle succeeds");
+            assert_eq!(periodic.apply.stage, "improved");
+            assert_eq!(periodic.apply.patch_family.as_deref(), Some(*expected_family));
+        }
+
+        let final_cfg =
+            crate::config::Config::load(&store, "default").expect("final config loads");
+        assert!(final_cfg.fingerprint_signal_enabled);
+        assert!(final_cfg.cdp_detection_enabled);
+        assert!(final_cfg.pow_enabled);
+        assert!(final_cfg.challenge_puzzle_enabled);
+        assert!(final_cfg.not_a_bot_enabled);
+        assert!(final_cfg.maze_enabled);
+        assert!(final_cfg.maze_auto_ban);
+        assert!(final_cfg.js_required_enforced);
+
+        let history_request = Request::builder()
+            .method(Method::Get)
+            .uri("/admin/oversight/history")
+            .body(Vec::new())
+            .build();
+        let history_response = handle_admin_oversight_history(&history_request, &store, "default");
+        assert_eq!(*history_response.status(), 200);
+        let history_payload: serde_json::Value =
+            serde_json::from_slice(history_response.body()).expect("history decodes");
+
+        let rows = history_payload["episode_archive"]["rows"]
+            .as_array()
+            .expect("episode archive rows");
+        assert_eq!(rows.len(), 10);
+        assert!(rows.iter().all(|row| {
+            row["retain_or_rollback"].as_str() == Some("retained")
+                && row["evaluation_context"]["profile_id"].as_str() == Some("human_only_private")
+                && row["proposal_status"].as_str() == Some("accepted")
+                && row["watch_window_result"].as_str() == Some("improved")
+        }));
+
+        let retained_families: std::collections::BTreeSet<String> = rows
+            .iter()
+            .filter_map(|row| row["proposal"]["patch_family"].as_str().map(str::to_string))
+            .collect();
+        assert!(retained_families.len() >= 7);
+
+        let latest_request_current = rows[0]["benchmark_deltas"]
+            .as_array()
+            .and_then(|families| {
+                families.iter().find(|family| {
+                    family["family_id"].as_str() == Some("suspicious_origin_cost")
+                })
+            })
+            .and_then(|family| family["metric_deltas"].as_array())
+            .and_then(|metrics| {
+                metrics.iter().find(|metric| {
+                    metric["metric_id"].as_str() == Some("suspicious_forwarded_request_rate")
+                })
+            })
+            .and_then(|metric| metric["current"].as_f64())
+            .expect("latest request current");
+        let oldest_baseline_request = rows[rows.len() - 1]["baseline_scorecard"]["families"]
+            .as_array()
+            .and_then(|families| {
+                families.iter().find(|family| {
+                    family["family_id"].as_str() == Some("suspicious_origin_cost")
+                })
+            })
+            .and_then(|family| family["metrics"].as_array())
+            .and_then(|metrics| {
+                metrics.iter().find(|metric| {
+                    metric["metric_id"].as_str() == Some("suspicious_forwarded_request_rate")
+                })
+            })
+            .and_then(|metric| metric["current"].as_f64())
+            .expect("oldest baseline request current");
+        assert!(latest_request_current < oldest_baseline_request);
+        assert_eq!(latest_request_current, 0.0);
+
+        assert_eq!(
+            history_payload["episode_archive"]["homeostasis"]["status"].as_str(),
+            Some("improving")
+        );
+        assert_eq!(
+            history_payload["episode_archive"]["homeostasis"]["break_status"].as_str(),
+            Some("not_triggered")
+        );
     }
 }

@@ -6278,6 +6278,125 @@ mod admin_config_tests {
     }
 
     #[test]
+    fn post_sim_oversight_route_archives_strict_human_only_profile_context() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "shared-server");
+        std::env::set_var("SHUMA_API_KEY", "oversight-human-only-proof-test-key");
+        std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+
+        let store = TestStore::default();
+        crate::test_support::seed_canary_only_objectives(&store);
+
+        let mut cfg = crate::config::defaults().clone();
+        cfg.fingerprint_signal_enabled = false;
+        crate::test_support::seed_apply_ready_snapshot(&store, cfg);
+
+        let snapshot_req = Request::builder()
+            .method(Method::Get)
+            .uri("/admin/operator-snapshot")
+            .header("host", "localhost:3000")
+            .header("authorization", "Bearer changeme-dev-only-api-key")
+            .header("origin", "http://localhost:3000")
+            .header("sec-fetch-site", "same-origin")
+            .body(Vec::new())
+            .build();
+        let snapshot_resp = handle_admin_operator_snapshot(&snapshot_req, &store);
+        assert_eq!(*snapshot_resp.status(), 200u16);
+        let snapshot_json: serde_json::Value =
+            serde_json::from_slice(snapshot_resp.body()).expect("snapshot decodes");
+        assert_eq!(
+            snapshot_json["objectives"]["profile_id"].as_str(),
+            Some("human_only_private")
+        );
+        assert_eq!(
+            snapshot_json["verified_identity"]["effective_non_human_policy"]
+                ["verified_identity_override_mode"]
+                .as_str(),
+            Some("strict_human_only")
+        );
+
+        let post_sim_req = make_internal_oversight_request(
+            "oversight-human-only-proof-test-key",
+            serde_json::to_vec(&serde_json::json!({
+                "trigger_kind": "post_adversary_sim",
+                "sim_run_id": "simrun-human-only-proof-001",
+                "sim_completion_reason": "auto_window_expired"
+            }))
+            .expect("json body")
+            .as_slice(),
+        );
+        let post_sim_resp =
+            handle_internal_oversight_agent_run(&post_sim_req, &store, "default");
+        assert_eq!(*post_sim_resp.status(), 200u16);
+
+        let mut active_canary: serde_json::Value = serde_json::from_slice(
+            &store
+                .get("oversight_active_canary:v1:default")
+                .expect("active canary lookup")
+                .expect("active canary present"),
+        )
+        .expect("active canary decodes");
+        active_canary["opened_at_ts"] = serde_json::json!(1);
+        active_canary["watch_window_end_at"] = serde_json::json!(1);
+        store
+            .set(
+                "oversight_active_canary:v1:default",
+                &serde_json::to_vec(&active_canary).expect("active canary encodes"),
+            )
+            .expect("active canary update");
+
+        let canary_cfg =
+            crate::config::Config::load(&store, "default").expect("canary config loads");
+        crate::test_support::seed_candidate_snapshot(
+            &store,
+            canary_cfg,
+            1_700_004_100,
+            0.12,
+            "inside_budget",
+        );
+
+        let periodic_req = make_internal_oversight_request(
+            "oversight-human-only-proof-test-key",
+            serde_json::to_vec(&serde_json::json!({
+                "trigger_kind": "periodic_supervisor"
+            }))
+            .expect("json body")
+            .as_slice(),
+        );
+        let periodic_resp = handle_internal_oversight_agent_run(&periodic_req, &store, "default");
+        assert_eq!(*periodic_resp.status(), 200u16);
+
+        let history_req = Request::builder()
+            .method(Method::Get)
+            .uri("/admin/oversight/history")
+            .body(Vec::new())
+            .build();
+        let history_resp = handle_admin_oversight_history(&history_req, &store, "default");
+        assert_eq!(*history_resp.status(), 200u16);
+        let history_json: serde_json::Value =
+            serde_json::from_slice(history_resp.body()).expect("history decodes");
+        assert_eq!(
+            history_json["episode_archive"]["rows"][0]["evaluation_context"]["profile_id"]
+                .as_str(),
+            Some("human_only_private")
+        );
+        assert_eq!(
+            history_json["episode_archive"]["rows"][0]["retain_or_rollback"].as_str(),
+            Some("retained")
+        );
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+        std::env::remove_var("SHUMA_API_KEY");
+        std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
+    }
+
+    #[test]
     fn post_sim_oversight_route_records_repeated_retained_and_rolled_back_episodes_against_changed_configs(
     ) {
         let _lock = crate::test_support::lock_env();

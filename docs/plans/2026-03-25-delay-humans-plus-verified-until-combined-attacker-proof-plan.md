@@ -91,8 +91,8 @@ When it opens, it should be framed as:
 
 # Backlog Integration
 
-1. Keep `STANCE-MODEL-1`, `SIM-SCR-FULL-1`, and `RSI-GAME-HO-1` in the active queue.
-2. Keep `SIM-LLM-1C3` blocked only until those earlier strict-baseline prerequisites are complete.
+1. `STANCE-MODEL-1`, `SIM-SCR-FULL-1`, and `RSI-GAME-HO-1` are now satisfied.
+2. Make `SIM-LLM-1C3` the next active mainline now that those earlier strict-baseline prerequisites are complete.
 3. Add blocked `RSI-GAME-HO-2` as the required combined-attacker strict-baseline follow-on after `SIM-LLM-1C3`.
 4. Re-block `RSI-GAME-HV-1` behind `RSI-GAME-HO-2`, not just behind `RSI-GAME-HO-1`.
 

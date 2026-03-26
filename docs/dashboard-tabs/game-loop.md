@@ -47,7 +47,7 @@ Current limitation:
 - The remaining strict-loop limitation is now tranche-level rather than seed-level:
   - adversary-sim lanes are treated as `100%` non-human traffic during the first strict loop,
   - suspicious forwarded request, byte, and latency leakage should therefore move toward zero or equivalent fail-closed suppression in that phase,
-  - repeated judged config-change improvement is still the missing proof surface for `RSI-GAME-HO-1`,
+  - repeated judged config-change improvement on the local `/sim/public/*` surface is now proven through `make test-rsi-game-human-only-proof`,
   - and later human traversal calibration must remain a separate proof ring rather than something inferred from sim traffic alone.
 
 Refresh behavior:

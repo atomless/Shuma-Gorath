@@ -72,6 +72,28 @@ class RuntimeToggleSurfaceGateTests(unittest.TestCase):
                     }
                 ]
             },
+            "objectives": {"profile_id": "human_only_private"},
+            "verified_identity": {
+                "effective_non_human_policy": {
+                    "verified_identity_override_mode": "strict_human_only"
+                }
+            },
+            "budget_distance": {
+                "rows": [
+                    {
+                        "metric": "suspicious_forwarded_request_rate",
+                        "target": 0.0,
+                    },
+                    {
+                        "metric": "suspicious_forwarded_byte_rate",
+                        "target": 0.0,
+                    },
+                    {
+                        "metric": "suspicious_forwarded_latency_share",
+                        "target": 0.0,
+                    },
+                ]
+            },
         }
 
         def fake_request(method, path, payload=None, extra_headers=None):
@@ -85,6 +107,11 @@ class RuntimeToggleSurfaceGateTests(unittest.TestCase):
 
         self.assertEqual(coverage["run_id"], "sim-run-001")
         self.assertEqual(coverage["overall_status"], "covered")
+        self.assertEqual(coverage["profile_id"], "human_only_private")
+        self.assertEqual(coverage["verified_identity_override_mode"], "strict_human_only")
+        self.assertEqual(coverage["suspicious_forwarded_request_target"], 0.0)
+        self.assertEqual(coverage["suspicious_forwarded_byte_target"], 0.0)
+        self.assertEqual(coverage["suspicious_forwarded_latency_target"], 0.0)
         self.assertEqual(
             coverage["required_surface_ids"],
             [
@@ -184,7 +211,29 @@ class RuntimeToggleSurfaceGateTests(unittest.TestCase):
                                     },
                                 }
                             ]
-                        }
+                        },
+                        "objectives": {"profile_id": "human_only_private"},
+                        "verified_identity": {
+                            "effective_non_human_policy": {
+                                "verified_identity_override_mode": "strict_human_only"
+                            }
+                        },
+                        "budget_distance": {
+                            "rows": [
+                                {
+                                    "metric": "suspicious_forwarded_request_rate",
+                                    "target": 0.0,
+                                },
+                                {
+                                    "metric": "suspicious_forwarded_byte_rate",
+                                    "target": 0.0,
+                                },
+                                {
+                                    "metric": "suspicious_forwarded_latency_share",
+                                    "target": 0.0,
+                                },
+                            ]
+                        },
                     },
                     "raw": "",
                 },
@@ -204,7 +253,29 @@ class RuntimeToggleSurfaceGateTests(unittest.TestCase):
                                     },
                                 }
                             ]
-                        }
+                        },
+                        "objectives": {"profile_id": "human_only_private"},
+                        "verified_identity": {
+                            "effective_non_human_policy": {
+                                "verified_identity_override_mode": "strict_human_only"
+                            }
+                        },
+                        "budget_distance": {
+                            "rows": [
+                                {
+                                    "metric": "suspicious_forwarded_request_rate",
+                                    "target": 0.0,
+                                },
+                                {
+                                    "metric": "suspicious_forwarded_byte_rate",
+                                    "target": 0.0,
+                                },
+                                {
+                                    "metric": "suspicious_forwarded_latency_share",
+                                    "target": 0.0,
+                                },
+                            ]
+                        },
                     },
                     "raw": "",
                 },
@@ -222,7 +293,65 @@ class RuntimeToggleSurfaceGateTests(unittest.TestCase):
 
         self.assertEqual(coverage["run_id"], "sim-run-002")
         self.assertEqual(coverage["overall_status"], "covered")
+        self.assertEqual(coverage["profile_id"], "human_only_private")
+        self.assertEqual(coverage["verified_identity_override_mode"], "strict_human_only")
         self.assertEqual(coverage["observed_fulfillment_modes"], ["http_agent"])
+
+    def test_poll_post_sim_oversight_run_waits_for_matching_completed_sim_run(self) -> None:
+        gate = runtime_surface_gate.RuntimeToggleSurfaceGate(
+            base_url="http://127.0.0.1:3000",
+            api_key="test-api-key",
+            forwarded_secret="forwarded-secret",
+            health_secret="health-secret",
+            timeout_seconds=2,
+        )
+
+        responses = iter(
+            [
+                {
+                    "status": 200,
+                    "body": {
+                        "recent_runs": [
+                            {
+                                "run_id": "ovragent-other",
+                                "trigger_kind": "post_adversary_sim",
+                                "sim_run_id": "sim-run-other",
+                                "execution": {"apply": {"stage": "refused"}},
+                            }
+                        ]
+                    },
+                    "raw": "",
+                },
+                {
+                    "status": 200,
+                    "body": {
+                        "recent_runs": [
+                            {
+                                "run_id": "ovragent-post-sim-1",
+                                "trigger_kind": "post_adversary_sim",
+                                "sim_run_id": "sim-run-002",
+                                "execution": {"apply": {"stage": "canary_applied"}},
+                            }
+                        ]
+                    },
+                    "raw": "",
+                },
+            ]
+        )
+
+        def fake_request(method, path, payload=None, extra_headers=None):
+            self.assertEqual(method, "GET")
+            self.assertEqual(path, "/admin/oversight/agent/status")
+            return next(responses)
+
+        gate.request = fake_request
+
+        oversight_run = gate.poll_post_sim_oversight_run("sim-run-002")
+
+        self.assertEqual(oversight_run["run_id"], "ovragent-post-sim-1")
+        self.assertEqual(oversight_run["trigger_kind"], "post_adversary_sim")
+        self.assertEqual(oversight_run["sim_run_id"], "sim-run-002")
+        self.assertEqual(oversight_run["apply_stage"], "canary_applied")
 
     def test_live_summary_counts_read_live_only_summary_paths(self) -> None:
         gate = runtime_surface_gate.RuntimeToggleSurfaceGate(

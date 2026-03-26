@@ -211,16 +211,12 @@ When it opens, it should:
 
 # Backlog Integration
 
-1. Keep `VERIFY-GATE-1` as the immediate next process prerequisite.
-2. After `VERIFY-GATE-1`, keep `STANCE-MODEL-1` as the next design and implementation prerequisite.
-3. After `STANCE-MODEL-1`, make `SIM-SCR-FULL-1` the next mainline instead of any LLM runtime slice.
-4. Keep `SIM-SCR-FULL-1C3` as the explicit truth-audit gate before further strict-loop proof claims.
-5. After `SIM-SCR-FULL-1`, make `RSI-SCORE-2` the next mainline so the judge and diagnoser are fit for exploit-first strict-loop proof.
-6. After `RSI-SCORE-2`, make `RSI-GAME-HO-1` the next mainline by default.
-7. Exception: if the `SIM-SCR-FULL-1C3` truth audit and `RSI-SCORE-2` together prove that full-power Scrapling still cannot generate controller-grade breach signals under the unchanged strict stance, promote `SIM-LLM-1C3` before further `RSI-GAME-HO-1` proof claims rather than weakening the strict baseline.
-8. After `SIM-LLM-1C3`, add `RSI-GAME-HO-2` as the mixed Scrapling-plus-LLM strict-baseline proof.
-9. Block `RSI-GAME-HV-1` until `RSI-GAME-HO-2` proves real repeated improvement.
-10. Before claiming the strict baseline is human-safe or ready for broader operator use, add the separate human traversal calibration ring over the discovered strict config.
+1. `VERIFY-GATE-1`, `STANCE-MODEL-1`, `SIM-SCR-FULL-1`, `RSI-SCORE-2`, and `RSI-GAME-HO-1` are now satisfied in that order.
+2. `SIM-SCR-FULL-1C3` served as the explicit truth-audit gate before further strict-loop proof claims, and it is now closed.
+3. The next active mainline is `SIM-LLM-1C3`.
+4. After `SIM-LLM-1C3`, add `RSI-GAME-HO-2` as the mixed Scrapling-plus-LLM strict-baseline proof.
+5. Block `RSI-GAME-HV-1` until `RSI-GAME-HO-2` proves real repeated improvement.
+6. Before claiming the strict baseline is human-safe or ready for broader operator use, add the separate human traversal calibration ring over the discovered strict config.
 
 # Definition Of Done
 

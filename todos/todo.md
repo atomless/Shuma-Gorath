@@ -119,15 +119,27 @@ Current note:
 - `SIM-LLM-1C2` is now landed: the host-side supervisor dispatches the dedicated LLM runtime worker, reuses the existing container black-box runner for request-mode execution, and ingests a typed `adversary-sim-llm-runtime-result.v1` payload instead of overloading the Scrapling worker result contract.
 - The current full-spectrum Scrapling baseline and first working Game Loop proof are now treated as baseline capability, not the unlock condition for later stance relaxation or LLM runtime work.
 - `SIM-SCR-FULL-1` is now landed: full-spectrum Scrapling capability, receipt-backed category and defense-surface truth, controller-grade surface-contract scoring, and the operator truth audit are complete, so the next mainline moves to `RSI-SCORE-2`.
+- `RSI-SCORE-2` is now landed: the judge, diagnoser, move selector, and Game Loop projection now preserve exploit progress, evidence quality, urgency, named breach loci, and config-exhaustion or code-referral truth as separate planes.
+- `RSI-GAME-HO-1` is now landed: the strict `human_only_private` loop is proven on the local `/sim/public/*` surface with live strict-stance runtime checks, post-sim oversight lineage, and repeated retained movement toward zero suspicious leakage.
 - Before further mainline completion claims, the repo now requires explicit acceptance-gate discipline. Do not describe `STANCE-MODEL-1`, `SIM-SCR-FULL-1`, `RSI-GAME-HO-1`, or `RSI-GAME-HO-2` as complete from planning progress, baseline capability, or dashboard pressure signals alone.
-- The immediate non-LLM mainline is now:
-  - `VERIFY-GATE-1`
-  - `STANCE-MODEL-1`
-  - `RSI-SCORE-2`
-  - `RSI-GAME-HO-1`
-- After that strict Scrapling-only proof, the next reopening should be the remaining LLM attacker runtime slice `SIM-LLM-1C3`.
+- The next active mainline is now the remaining LLM attacker runtime slice `SIM-LLM-1C3`.
 - Do not open `humans_plus_verified_only` until a later second strict-baseline proof has shown retained config-change improvement under both Scrapling and LLM attacker pressure.
-- `DIAG-CLEANUP-1` and `MON-OVERHAUL-1C` are now both landed, so the deferred Game Loop and Diagnostics follow-on queue is currently clear while later LLM runtime work stays blocked.
+- `DIAG-CLEANUP-1` and `MON-OVERHAUL-1C` are now both landed, so the deferred Game Loop and Diagnostics follow-on queue is currently clear while the later combined-attacker strict-baseline proof still stays blocked behind `SIM-LLM-1C3`.
+
+- [ ] SIM-LLM-1C3 Close the runtime proof chain and recent-run projection for the live `bot_red_team` actor.
+  - Reference context:
+    - [`docs/research/2026-03-25-sim-llm-1c-runtime-readiness-review.md`](../docs/research/2026-03-25-sim-llm-1c-runtime-readiness-review.md)
+    - [`docs/research/2026-03-25-sim-llm-1c1-live-frontier-action-generation-post-implementation-review.md`](../docs/research/2026-03-25-sim-llm-1c1-live-frontier-action-generation-post-implementation-review.md)
+    - [`docs/research/2026-03-25-sim-llm-1c2-runtime-dispatch-and-ingest-post-implementation-review.md`](../docs/research/2026-03-25-sim-llm-1c2-runtime-dispatch-and-ingest-post-implementation-review.md)
+    - [`docs/plans/2026-03-25-sim-llm-1c-runtime-decomposition-plan.md`](../docs/plans/2026-03-25-sim-llm-1c-runtime-decomposition-plan.md)
+    - [`docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](../docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)
+    - [`docs/plans/2026-03-25-delay-humans-plus-verified-until-combined-attacker-proof-plan.md`](../docs/plans/2026-03-25-delay-humans-plus-verified-until-combined-attacker-proof-plan.md)
+  - Closure gate:
+    - runtime/sim: `bot_red_team` can execute bounded live runtime work through the normal adversary-sim beat path with typed receipts rather than stopping at dispatch-only or placeholder state
+    - API/snapshot: recent-run and machine-first surfaces truthfully project the live LLM runtime receipts and lineage end to end rather than leaving the actor invisible after execution
+    - dashboard/admin: operator surfaces can see truthful recent LLM-lane activity without overstating maturity from lane presence alone, and the lane no longer reads as effectively disabled once the proof chain is closed
+    - proof: focused `make` paths must pass for runtime receipt projection, recent-run visibility, and rendered operator proof
+    - insufficient: supervisor dispatch without recent-run visibility, typed ingest without operator projection, or a lane that still appears placeholder-only after execution
 
 ## P1 Verified Bot Identity And Web Bot Auth Foundation
 
@@ -144,39 +156,6 @@ Current stance:
 - The primary product value is exact non-human restriction and exception management; looser treatment for named verified bots remains an explicit opt-in later policy choice.
 - `STANCE-MODEL-1` is now landed: verified identity is no longer a second top-level stance system, and current follow-on work should treat the resolved effective policy contract as the only policy truth.
 - Do not bundle authorization policy, low-cost profiles, or dashboard control surfaces into the first tranche.
-
-- [ ] RSI-SCORE-2 Upgrade the judge, diagnoser, and move selector so strict-loop proof is exploit-first, evidence-quality-aware, urgency-aware, and capable of explicit config-exhaustion referral before `RSI-GAME-HO-1`.
-  - Reference context:
-    - [`docs/research/2026-03-26-game-loop-scoring-and-diagnoser-audit.md`](../docs/research/2026-03-26-game-loop-scoring-and-diagnoser-audit.md)
-    - [`docs/research/2026-03-26-ideal-rsi-game-loop-scoring-review.md`](../docs/research/2026-03-26-ideal-rsi-game-loop-scoring-review.md)
-    - [`docs/research/2026-03-26-game-loop-terrain-locality-and-breach-diagnosis-review.md`](../docs/research/2026-03-26-game-loop-terrain-locality-and-breach-diagnosis-review.md)
-    - [`docs/plans/2026-03-26-rsi-score-2-exploit-first-judge-and-diagnoser-plan.md`](../docs/plans/2026-03-26-rsi-score-2-exploit-first-judge-and-diagnoser-plan.md)
-    - [`docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](../docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)
-  - Closure gate:
-    - runtime/benchmark: the scorecard remains lexicographic with `scalarization=forbidden`, and `benchmark_results_v1` gains first-class terrain-local exploit-progress, evidence-quality, and urgency semantics rather than relying on aggregate suspicious-origin suppression plus coarse adversary proxies alone
-    - reconcile/controller: controller-grade logic distinguishes judge state from diagnosis and move ranking, low-confidence or poorly localized exploit evidence cannot drive fine-grained config moves, repeated safe config failures can emit an explicit config-exhaustion or code-evolution referral, and chosen moves are tied to named breach loci plus the smallest credible repair surface
-    - dashboard/admin: `Game Loop` separates guardrails, exploit progress, evidence quality, urgency, named breach loci, and config-exhaustion or code-referral truth instead of making them read like one attacker-success score
-    - proof: focused `make` paths must pass for exploit-progress scoring, evidence-quality gating, urgency and homeostasis-break semantics, reconcile behavior, and rendered Game Loop accountability
-    - insufficient: aggregate suspicious-origin leakage rows only, no machine-visible breach loci, low-confidence evidence still driving config recommendations, scattershot multi-family moves without localized causal basis, homeostasis that ignores sudden bypass regressions, or no explicit route from bounded config failure to code-gap escalation
-- [ ] RSI-GAME-HO-1 Fully operationally prove the strict `human_only_private` Scrapling-driven game loop before any later relaxed stance.
-  - Reference context:
-    - [`docs/research/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-review.md`](../docs/research/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-review.md)
-    - [`docs/research/2026-03-26-strict-human-only-loop-and-human-traversal-calibration-review.md`](../docs/research/2026-03-26-strict-human-only-loop-and-human-traversal-calibration-review.md)
-    - [`docs/research/2026-03-26-game-loop-scoring-and-diagnoser-audit.md`](../docs/research/2026-03-26-game-loop-scoring-and-diagnoser-audit.md)
-    - [`docs/research/2026-03-26-ideal-rsi-game-loop-scoring-review.md`](../docs/research/2026-03-26-ideal-rsi-game-loop-scoring-review.md)
-    - [`docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](../docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)
-    - [`docs/plans/2026-03-26-rsi-score-2-exploit-first-judge-and-diagnoser-plan.md`](../docs/plans/2026-03-26-rsi-score-2-exploit-first-judge-and-diagnoser-plan.md)
-    - [`docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](../docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md)
-    - [`docs/plans/2026-03-24-rsi-game-mainline-first-working-loop-plan.md`](../docs/plans/2026-03-24-rsi-game-mainline-first-working-loop-plan.md)
-  - Closure gate:
-    - runtime/config: the loop runs against `human_only_private`, verified non-human stays denied, the strict sim-only phase treats adversary-sim lanes as `100%` non-human traffic and drives suspicious forwarded leakage toward zero or equivalent fail-closed suppression rather than the seeded mixed-public `10%` budgets, the exploit-first `RSI-SCORE-2` judge is active, bounded config recommendations are applied, later Scrapling runs execute against changed config, and repeated retain/rollback judgments occur rather than one-off plumbing
-    - API/snapshot: recent changes, oversight history, and related machine-first surfaces show repeated cycle lineage, applied changes, and retained vs rolled-back outcomes
-    - dashboard/admin: `Game Loop` projects the strict stance truthfully, shows repeated change context, shows measured movement toward the strict target rather than only recommendation plumbing or legacy mismatch rows, preserves the richer `RSI-SCORE-2` judge planes, keeps later human-traversal calibration explicit rather than implying that sim traffic already proved likely-human safety, and does not rely on a weakened baseline to manufacture proof
-    - proof: focused `make` paths must pass for strict-stance runtime behavior and repeated judged-cycle proof on the local sim-public surface first; later human-traversal calibration and live-host realism stay separate named proof rings
-    - insufficient: one successful loop, one canary apply, recommendation generation without retained improvement, current mixed-site default budgets still appearing as the strict target, weakened-baseline proof standing in for strict-loop proof, or unresolved dashboard/runtime mismatch that still contradicts the claimed improvement
-  - [ ] RSI-GAME-HO-1A Run the existing machine-first loop against the corrected `human_only_private` stance with verified non-human traffic still denied under that strict baseline.
-  - [ ] RSI-GAME-HO-1B Repeat Scrapling-driven cycles until recommendations become bounded config changes, later runs occur against those changed configs, and watch windows judge retain or rollback truthfully many times rather than once.
-  - [ ] RSI-GAME-HO-1C Define and satisfy the unlock condition showing retained config changes and measured improvement toward the strict target, not merely one successful end-to-end cycle.
 
 ## P1 Production Adversary-Sim Operating Contract
 

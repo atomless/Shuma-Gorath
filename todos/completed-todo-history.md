@@ -4,6 +4,46 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-26)
 
+### RSI-GAME-HO-1 Strict Human-Only Operational Proof
+
+- [x] Added the strict local proof targets in:
+  - [`Makefile`](../Makefile)
+  - [`scripts/tests/adversary_runtime_toggle_surface_gate.py`](../scripts/tests/adversary_runtime_toggle_surface_gate.py)
+  - [`scripts/tests/test_adversary_runtime_toggle_surface_gate.py`](../scripts/tests/test_adversary_runtime_toggle_surface_gate.py)
+  so `make test-rsi-game-human-only-strict` now proves the live local loop runs under `human_only_private`, preserves `strict_human_only` verified-identity suppression, derives `0.0` suspicious-forwarded request, byte, and latency targets from adversary-sim scope, exercises the local `/sim/public/*` surface, and records a matching `post_adversary_sim` oversight run.
+- [x] Added repeated retained-improvement proof in:
+  - [`src/admin/api.rs`](../src/admin/api.rs)
+  - [`src/admin/oversight_api.rs`](../src/admin/oversight_api.rs)
+  - [`Makefile`](../Makefile)
+  so `make test-rsi-game-human-only-proof` now proves repeated bounded config-change cycles under the strict baseline, ten retained improving episodes archived with `human_only_private` lineage, and measured movement to zero suspicious leakage rather than one-off canary plumbing.
+- [x] Closed the tranche in:
+  - [`docs/research/2026-03-26-rsi-game-ho-1-strict-human-only-operational-proof-post-implementation-review.md`](../docs/research/2026-03-26-rsi-game-ho-1-strict-human-only-operational-proof-post-implementation-review.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`docs/dashboard-tabs/game-loop.md`](../docs/dashboard-tabs/game-loop.md)
+  - [`docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](../docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+  so the next active mainline is now `SIM-LLM-1C3`, while blocked `RSI-GAME-HO-2` remains the later combined-attacker strict-baseline proof.
+- [x] Why:
+  - the strict-score tranches and earlier repeated-cycle route proof had made the loop trustworthy in pieces, but the repo still lacked one truthful closure bar for the strict `human_only_private` baseline itself: live strict runtime truth, post-sim oversight lineage, and repeated retained improvement toward the strict target.
+- [x] Evidence:
+  - `make test-rsi-game-human-only-strict`
+  - `make test-rsi-game-human-only-proof`
+  - `git diff --check`
+
+### RSI-SCORE-2 Top-Level Queue Closure
+
+- [x] Removed the stale top-level `RSI-SCORE-2` item from [`todos/todo.md`](../todos/todo.md) now that all five sub-tranches `RSI-SCORE-2A..E` were already landed and archived below.
+- [x] Why:
+  - the scoring work itself was complete, but the active queue still incorrectly showed the umbrella tranche as open. That stale backlog state would have left the repo claiming both that `RSI-SCORE-2` was complete and that it was still pending.
+- [x] Evidence:
+  - [`docs/research/2026-03-26-rsi-score-2a-exploit-progress-post-implementation-review.md`](../docs/research/2026-03-26-rsi-score-2a-exploit-progress-post-implementation-review.md)
+  - [`docs/research/2026-03-26-rsi-score-2b-evidence-quality-and-diagnosis-confidence-post-implementation-review.md`](../docs/research/2026-03-26-rsi-score-2b-evidence-quality-and-diagnosis-confidence-post-implementation-review.md)
+  - [`docs/research/2026-03-26-rsi-score-2c-urgency-and-homeostasis-break-post-implementation-review.md`](../docs/research/2026-03-26-rsi-score-2c-urgency-and-homeostasis-break-post-implementation-review.md)
+  - [`docs/research/2026-03-26-rsi-score-2d-move-selection-and-config-ring-exhaustion-post-implementation-review.md`](../docs/research/2026-03-26-rsi-score-2d-move-selection-and-config-ring-exhaustion-post-implementation-review.md)
+  - [`docs/research/2026-03-26-rsi-score-2e-game-loop-rich-judge-truth-post-implementation-review.md`](../docs/research/2026-03-26-rsi-score-2e-game-loop-rich-judge-truth-post-implementation-review.md)
+
 ### RSI-SCORE-2E Game Loop Rich Judge Truth
 
 - [x] Extended the Game Loop operator surface across:
