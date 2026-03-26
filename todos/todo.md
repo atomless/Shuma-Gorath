@@ -144,12 +144,14 @@ Current stance:
 - The repo now treats the independent verified-identity top-level stance as design debt: `STANCE-MODEL-1` should replace it with one canonical non-human stance model and a resolved effective policy contract before broader permissive verified-identity posture work continues.
 - Do not bundle authorization policy, low-cost profiles, or dashboard control surfaces into the first tranche.
 
-- [ ] RSI-GAME-HO-2 Re-run the strict `human_only_private` Game Loop under combined Scrapling plus LLM attacker pressure.
+- [ ] RSI-GAME-HO-2A Add the first strict `human_only_private` Game Loop proof that includes both Scrapling and `bot_red_team` attacker pressure.
   - Reference context:
     - [`docs/research/2026-03-25-sim-llm-1c3-runtime-proof-closure-post-implementation-review.md`](../docs/research/2026-03-25-sim-llm-1c3-runtime-proof-closure-post-implementation-review.md)
     - [`docs/research/2026-03-25-sim-llm-browser-1-container-browser-mode-post-implementation-review.md`](../docs/research/2026-03-25-sim-llm-browser-1-container-browser-mode-post-implementation-review.md)
+    - [`docs/research/2026-03-25-rsi-game-ho-2a-combined-attacker-baseline-readiness-review.md`](../docs/research/2026-03-25-rsi-game-ho-2a-combined-attacker-baseline-readiness-review.md)
     - [`docs/plans/2026-03-25-sim-llm-1c3-runtime-proof-closure-plan.md`](../docs/plans/2026-03-25-sim-llm-1c3-runtime-proof-closure-plan.md)
     - [`docs/plans/2026-03-25-delay-humans-plus-verified-until-combined-attacker-proof-plan.md`](../docs/plans/2026-03-25-delay-humans-plus-verified-until-combined-attacker-proof-plan.md)
+    - [`docs/plans/2026-03-25-rsi-game-ho-2a-combined-attacker-baseline-plan.md`](../docs/plans/2026-03-25-rsi-game-ho-2a-combined-attacker-baseline-plan.md)
     - [`docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](../docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)
     - [`docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md`](../docs/plans/2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md)
     - [`docs/plans/2026-03-24-llm-player-role-decomposition-plan.md`](../docs/plans/2026-03-24-llm-player-role-decomposition-plan.md)

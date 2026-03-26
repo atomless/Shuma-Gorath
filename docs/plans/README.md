@@ -36,6 +36,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-25-rsi-game-ho-1a-human-only-private-loop-plan.md`](2026-03-25-rsi-game-ho-1a-human-only-private-loop-plan.md) - Makes the first working machine-first loop explicitly prove the strict `human_only_private` baseline before repeated-cycle work continues
 - [`2026-03-25-rsi-game-ho-1b-repeated-strict-cycle-plan.md`](2026-03-25-rsi-game-ho-1b-repeated-strict-cycle-plan.md) - Proves repeated strict-baseline config-change iteration over retained state rather than one lucky human-only loop cycle
 - [`2026-03-25-rsi-game-ho-1c-strict-improvement-unlock-plan.md`](2026-03-25-rsi-game-ho-1c-strict-improvement-unlock-plan.md) - Makes the strict `human_only_private` unlock condition machine-checkable through explicit archive evidence of repeated improving completed cycles
+- [`2026-03-25-rsi-game-ho-2a-combined-attacker-baseline-plan.md`](2026-03-25-rsi-game-ho-2a-combined-attacker-baseline-plan.md) - Adds the first strict-baseline mixed-attacker proof slice with both Scrapling and `bot_red_team` pressure in the same Game Loop story
 - [`2026-03-25-sim-scr-full-1a-non-agent-capability-matrix-refresh-plan.md`](2026-03-25-sim-scr-full-1a-non-agent-capability-matrix-refresh-plan.md) - Refreshes the Scrapling matrix so dynamic and stealth capability for owned surfaces is in-scope by default under the fuller non-agent remit
 - [`2026-03-25-sim-scr-full-1b-browser-session-foundation-plan.md`](2026-03-25-sim-scr-full-1b-browser-session-foundation-plan.md) - Adds the first runtime and worker foundation for dynamic and stealth Scrapling sessions before browser-driven challenge behavior lands
 - [`2026-03-25-sim-scr-full-1b2-browser-runtime-provisioning-plan.md`](2026-03-25-sim-scr-full-1b2-browser-runtime-provisioning-plan.md) - Makes the repo-owned Scrapling runtime provision a real Playwright browser and fail readiness closed until browser-backed sessions are actually executable
@@ -110,6 +111,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-25-rsi-game-ho-1a-human-only-private-loop-plan.md`](2026-03-25-rsi-game-ho-1a-human-only-private-loop-plan.md)
 - [`2026-03-25-rsi-game-ho-1b-repeated-strict-cycle-plan.md`](2026-03-25-rsi-game-ho-1b-repeated-strict-cycle-plan.md)
 - [`2026-03-25-rsi-game-ho-1c-strict-improvement-unlock-plan.md`](2026-03-25-rsi-game-ho-1c-strict-improvement-unlock-plan.md)
+- [`2026-03-25-rsi-game-ho-2a-combined-attacker-baseline-plan.md`](2026-03-25-rsi-game-ho-2a-combined-attacker-baseline-plan.md)
 - [`2026-03-25-delay-humans-plus-verified-until-combined-attacker-proof-plan.md`](2026-03-25-delay-humans-plus-verified-until-combined-attacker-proof-plan.md)
 - [`2026-03-25-sim-scr-rn-1-request-native-fidelity-plan.md`](2026-03-25-sim-scr-rn-1-request-native-fidelity-plan.md)
 - [`2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-plan.md`](2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-plan.md)

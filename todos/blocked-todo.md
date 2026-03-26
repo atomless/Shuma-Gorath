@@ -9,8 +9,14 @@ Security finding validity and closure status live in `todos/security-review.md`.
 
 ## P0 Blocked by Shared-Host Discovery and Runtime-Safety Gates
 
+- [ ] RSI-GAME-HO-2B Repeat retained config-change improvement under combined Scrapling plus LLM attacker pressure.
+  Blocker: keep blocked until `RSI-GAME-HO-2A` lands. Do not claim repeated mixed-attacker iteration before the first truthful combined-attacker strict-baseline proof exists.
+
+- [ ] RSI-GAME-HO-2C Make the mixed-attacker strict-baseline unlock condition explicit.
+  Blocker: keep blocked until `RSI-GAME-HO-2B` lands. This unlock slice should only open once repeated mixed-attacker retained improvement is already real.
+
 - [ ] RSI-GAME-HV-1 Run the later `humans_plus_verified_only` sweep.
-  Blocker: keep blocked until `RSI-GAME-HO-2` proves repeated retained improvement under the strict `human_only_private` baseline with both Scrapling and LLM attacker pressure. Do not open this looser stance merely because one bounded loop works or because verified identity exists.
+  Blocker: keep blocked until `RSI-GAME-HO-2C` proves repeated retained improvement under the strict `human_only_private` baseline with both Scrapling and LLM attacker pressure. Do not open this looser stance merely because one bounded loop works or because verified identity exists.
 
 - [ ] SIM-SCR-CHALLENGE-2C Adopt broader browser or stealth Scrapling capability for the Scrapling-owned surface subset identified by the active capability matrix.
   Blocker: `SIM-SCR-FULL-1A` made dynamic or stealth Scrapling in-scope by default for Scrapling-owned surfaces where the refreshed non-agent matrix requires it. `SIM-SCR-FULL-1B2B` then landed the first browser-backed owned DOM challenge slice, `SIM-SCR-FULL-1B3` recorded that no further currently owned surface required another browser or stealth implementation slice before receipt-proof closure, and `SIM-SCR-FULL-1C` has now closed the full-power receipt trail. Keep this item blocked unless a later owned-surface decision reopens a new bounded browser or stealth requirement beyond the now-implemented not-a-bot and puzzle DOM path. Keep it bounded to Scrapling-owned surfaces and require runtime, receipt, and deploy proof rather than upstream capability claims alone.
