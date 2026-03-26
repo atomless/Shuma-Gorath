@@ -359,9 +359,10 @@ mod tests {
     use super::{latest_recent_sim_run_id, reconcile, OversightReconcileResult};
     use crate::config::{allowed_actions_v1, defaults};
     use crate::observability::benchmark_results::{
-        unavailable_benchmark_diagnosis_evidence_quality, BenchmarkBaselineReference,
-        BenchmarkEscalationHint, BenchmarkExploitLocus, BenchmarkFamilyResult, BenchmarkMetricResult,
-        BenchmarkResultsPayload, BenchmarkTuningEligibility,
+        unavailable_benchmark_diagnosis_evidence_quality, unavailable_benchmark_urgency_summary,
+        BenchmarkBaselineReference, BenchmarkEscalationHint, BenchmarkExploitLocus,
+        BenchmarkFamilyResult, BenchmarkMetricResult, BenchmarkResultsPayload,
+        BenchmarkTuningEligibility,
         BENCHMARK_RESULTS_SCHEMA_VERSION,
     };
     use crate::observability::benchmark_suite::BENCHMARK_SUITE_SCHEMA_VERSION;
@@ -478,6 +479,7 @@ mod tests {
                 breach_loci: Vec::new(),
                 note: "Config tuning candidate.".to_string(),
             },
+            urgency: unavailable_benchmark_urgency_summary(),
             replay_promotion: ReplayPromotionSummary::not_materialized(),
         };
         let mut section_metadata = BTreeMap::new();

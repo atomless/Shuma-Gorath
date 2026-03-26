@@ -4,6 +4,33 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-26)
 
+### RSI-SCORE-2C Urgency And Event-Triggered Homeostasis Break
+
+- [x] Added first-class urgency and break semantics across:
+  - [`src/observability/benchmark_urgency.rs`](../src/observability/benchmark_urgency.rs)
+  - [`src/observability/benchmark_results.rs`](../src/observability/benchmark_results.rs)
+  - [`src/observability/benchmark_comparison.rs`](../src/observability/benchmark_comparison.rs)
+  so benchmark results now expose short and long exploit-pressure and likely-human-harm windows, explicit homeostasis-break reasons, and archive-level homeostasis can break immediately from the latest urgent regression instead of waiting for a coarse rolling-history label.
+- [x] Threaded restart-baseline lineage and break proof through:
+  - [`src/observability/operator_snapshot.rs`](../src/observability/operator_snapshot.rs)
+  - [`src/admin/oversight_api.rs`](../src/admin/oversight_api.rs)
+  - [`src/admin/oversight_agent.rs`](../src/admin/oversight_agent.rs)
+  - [`Makefile`](../Makefile)
+  - [`docs/testing.md`](../docs/testing.md)
+  so completed episodes now preserve the safe baseline re-entered after retain or rollback and `make test-rsi-score-urgency-and-homeostasis` becomes the canonical proof surface for this slice.
+- [x] Closed the tranche in:
+  - [`docs/research/2026-03-26-rsi-score-2c-urgency-and-homeostasis-break-post-implementation-review.md`](../docs/research/2026-03-26-rsi-score-2c-urgency-and-homeostasis-break-post-implementation-review.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  so `RSI-SCORE-2D` is now the next active scoring step.
+- [x] Why:
+  - the old loop could only say “improving”, “mixed”, or “homeostasis”, which meant a fresh exploit regression could be drowned inside older flat history and the archive still would not say why homeostasis broke or which safe baseline the loop had to re-enter.
+- [x] Evidence:
+  - `make test-rsi-score-urgency-and-homeostasis`
+  - `make test-rsi-game-mainline`
+  - `make test-oversight-episode-archive`
+  - `git diff --check`
+
 ### RSI-SCORE-2B Evidence-Quality And Diagnosis-Confidence Gates
 
 - [x] Added first-class exploit-evidence quality assessment across:

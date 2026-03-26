@@ -14,7 +14,8 @@ use super::oversight_decision_ledger::{
 use super::oversight_reconcile::{reconcile, OversightReconcileResult};
 use crate::observability::benchmark_comparison::{
     benchmark_episode_delta_summary, classify_homeostasis, comparable_snapshot_from_results,
-    BenchmarkCompletedCycleJudgment,
+    unavailable_homeostasis_restart_baseline, BenchmarkCompletedCycleJudgment,
+    BenchmarkHomeostasisRestartBaseline,
 };
 use crate::observability::decision_ledger::OperatorDecisionEvidenceReference;
 use crate::observability::operator_snapshot::{
@@ -124,6 +125,10 @@ pub(crate) fn load_oversight_episode_archive<S: crate::challenge::KeyValueStore>
         .map(|row| BenchmarkCompletedCycleJudgment {
             episode_id: row.episode_id.clone(),
             judgment: row.cycle_judgment.clone(),
+            urgency_status: row.benchmark_urgency_status.clone(),
+            homeostasis_break_status: row.homeostasis_break_status.clone(),
+            homeostasis_break_reasons: row.homeostasis_break_reasons.clone(),
+            restart_baseline: row.restart_baseline.clone(),
         })
         .collect::<Vec<_>>();
 
@@ -635,6 +640,12 @@ fn completed_episode_record(
                 false,
             ),
         };
+    let (
+        benchmark_urgency_status,
+        homeostasis_break_status,
+        homeostasis_break_reasons,
+        restart_baseline,
+    ) = completed_episode_homeostasis_state(snapshot, apply, active_canary_episode_context);
 
     Some(OperatorSnapshotEpisodeRecord {
         episode_id: decision.decision_id.clone(),
@@ -659,6 +670,10 @@ fn completed_episode_record(
         hard_guardrail_triggers: completed_episode_guardrail_triggers(snapshot, reconcile, apply),
         cycle_judgment: cycle_judgment.to_string(),
         homeostasis_eligible,
+        benchmark_urgency_status,
+        homeostasis_break_status,
+        homeostasis_break_reasons,
+        restart_baseline,
         evidence_references: decision
             .evidence_references
             .iter()
@@ -712,6 +727,75 @@ fn rollback_cycle_judgment(apply: &OversightApplyResult) -> &'static str {
         Some("neutral") | Some("not_available") => "flat",
         _ => "guardrail_blocked",
     }
+}
+
+fn completed_episode_homeostasis_state(
+    snapshot: &crate::observability::operator_snapshot::OperatorSnapshotHotReadPayload,
+    apply: &OversightApplyResult,
+    active_canary_episode_context: Option<
+        &crate::admin::oversight_apply::OversightActiveCanaryEpisodeContext,
+    >,
+) -> (
+    String,
+    String,
+    Vec<String>,
+    BenchmarkHomeostasisRestartBaseline,
+) {
+    let mut break_reasons = snapshot
+        .benchmark_results
+        .urgency
+        .homeostasis_break_reasons
+        .clone();
+    if apply.stage == super::oversight_apply::OVERSIGHT_APPLY_STAGE_ROLLBACK_APPLIED
+        && apply.comparison_status.as_deref() == Some("regressed")
+        && !break_reasons.contains(&"candidate_baseline_regressed".to_string())
+    {
+        break_reasons.push("candidate_baseline_regressed".to_string());
+    }
+    let break_status = if break_reasons.is_empty() {
+        "not_triggered".to_string()
+    } else {
+        "triggered".to_string()
+    };
+    let urgency_status = if break_status == "triggered"
+        && snapshot.benchmark_results.urgency.status == "steady"
+    {
+        "critical".to_string()
+    } else {
+        snapshot.benchmark_results.urgency.status.clone()
+    };
+    let restart_baseline = match apply.stage.as_str() {
+        super::oversight_apply::OVERSIGHT_APPLY_STAGE_IMPROVED => BenchmarkHomeostasisRestartBaseline {
+            status: "available".to_string(),
+            generated_at: Some(snapshot.benchmark_results.generated_at),
+            subject_kind: Some(snapshot.benchmark_results.subject_kind.clone()),
+            source: "retained_candidate".to_string(),
+            note: "Latest retained candidate snapshot becomes the safe restart baseline.".to_string(),
+        },
+        super::oversight_apply::OVERSIGHT_APPLY_STAGE_ROLLBACK_APPLIED => active_canary_episode_context
+            .map(|context| BenchmarkHomeostasisRestartBaseline {
+                status: "available".to_string(),
+                generated_at: Some(context.baseline_snapshot.generated_at),
+                subject_kind: Some(context.baseline_snapshot.subject_kind.clone()),
+                source: "pre_canary_baseline".to_string(),
+                note: "Rollback re-entered the exact pre-canary safe baseline.".to_string(),
+            })
+            .unwrap_or_else(|| {
+                unavailable_homeostasis_restart_baseline(
+                    "Rollback completed without an active-canary baseline context.",
+                )
+            }),
+        _ => unavailable_homeostasis_restart_baseline(
+            "No accepted or re-entered safe baseline is recorded for this episode.",
+        ),
+    };
+
+    (
+        urgency_status,
+        break_status,
+        break_reasons,
+        restart_baseline,
+    )
 }
 
 fn completed_episode_guardrail_triggers(

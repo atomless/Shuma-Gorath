@@ -29,7 +29,8 @@ pub(crate) use super::operator_snapshot_live_traffic::{
     OperatorSnapshotRecentSimRun, OperatorSnapshotShadowMode,
 };
 pub(crate) use super::benchmark_comparison::{
-    BenchmarkComparableSnapshot, BenchmarkEpisodeFamilyDelta, BenchmarkHomeostasisSummary,
+    BenchmarkComparableSnapshot, BenchmarkEpisodeFamilyDelta, BenchmarkHomeostasisRestartBaseline,
+    BenchmarkHomeostasisSummary,
 };
 pub(crate) use super::operator_snapshot_objectives::{
     OperatorObjectiveBudget, OperatorObjectivesProfile, RecursiveImprovementGameContract,
@@ -118,6 +119,14 @@ pub(crate) struct OperatorSnapshotEpisodeRecord {
     pub hard_guardrail_triggers: Vec<String>,
     pub cycle_judgment: String,
     pub homeostasis_eligible: bool,
+    #[serde(default = "default_episode_benchmark_urgency_status")]
+    pub benchmark_urgency_status: String,
+    #[serde(default = "default_episode_homeostasis_break_status")]
+    pub homeostasis_break_status: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub homeostasis_break_reasons: Vec<String>,
+    #[serde(default)]
+    pub restart_baseline: BenchmarkHomeostasisRestartBaseline,
     pub evidence_references: Vec<crate::observability::decision_ledger::OperatorDecisionEvidenceReference>,
 }
 
@@ -148,6 +157,14 @@ pub(crate) struct OperatorSnapshotHotReadPayload {
     pub benchmark_results: BenchmarkResultsPayload,
     pub verified_identity: OperatorSnapshotVerifiedIdentitySummary,
     pub replay_promotion: ReplayPromotionSummary,
+}
+
+fn default_episode_benchmark_urgency_status() -> String {
+    "not_available".to_string()
+}
+
+fn default_episode_homeostasis_break_status() -> String {
+    "not_triggered".to_string()
 }
 
 pub(crate) fn operator_snapshot_watch_window_hours(summary_hours: u64) -> u64 {

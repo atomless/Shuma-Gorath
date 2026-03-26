@@ -62,9 +62,44 @@ pub(crate) struct BenchmarkEpisodeFamilyDelta {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct BenchmarkHomeostasisRestartBaseline {
+    pub status: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub generated_at: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub subject_kind: Option<String>,
+    pub source: String,
+    pub note: String,
+}
+
+impl Default for BenchmarkHomeostasisRestartBaseline {
+    fn default() -> Self {
+        unavailable_homeostasis_restart_baseline("No restart baseline is currently recorded.")
+    }
+}
+
+pub(crate) fn unavailable_homeostasis_restart_baseline(
+    note: &str,
+) -> BenchmarkHomeostasisRestartBaseline {
+    BenchmarkHomeostasisRestartBaseline {
+        status: "not_available".to_string(),
+        generated_at: None,
+        subject_kind: None,
+        source: "not_available".to_string(),
+        note: note.to_string(),
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub(crate) struct BenchmarkCompletedCycleJudgment {
     pub episode_id: String,
     pub judgment: String,
+    pub urgency_status: String,
+    pub homeostasis_break_status: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub homeostasis_break_reasons: Vec<String>,
+    #[serde(default)]
+    pub restart_baseline: BenchmarkHomeostasisRestartBaseline,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -73,6 +108,12 @@ pub(crate) struct BenchmarkHomeostasisSummary {
     pub judged_cycle_count: usize,
     pub considered_episode_ids: Vec<String>,
     pub status: String,
+    pub urgency_status: String,
+    pub break_status: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub break_reasons: Vec<String>,
+    #[serde(default)]
+    pub restart_baseline: BenchmarkHomeostasisRestartBaseline,
     pub note: String,
 }
 
@@ -150,12 +191,45 @@ pub(crate) fn classify_homeostasis(
         .map(|judgment| judgment.episode_id.clone())
         .collect::<Vec<_>>();
     let judged_cycle_count = judgments.len();
+    let latest_urgency_status = judgments
+        .first()
+        .map(|judgment| judgment.urgency_status.clone())
+        .unwrap_or_else(|| "not_available".to_string());
+    let latest_restart_baseline = judgments
+        .first()
+        .map(|judgment| judgment.restart_baseline.clone())
+        .unwrap_or_else(|| {
+            unavailable_homeostasis_restart_baseline(
+                "No completed cycle has recorded a restart baseline yet.",
+            )
+        });
+    if let Some(latest) = judgments
+        .first()
+        .filter(|judgment| judgment.homeostasis_break_status == "triggered")
+    {
+        return BenchmarkHomeostasisSummary {
+            minimum_completed_cycles_for_homeostasis,
+            judged_cycle_count,
+            considered_episode_ids,
+            status: "broken".to_string(),
+            urgency_status: latest.urgency_status.clone(),
+            break_status: "triggered".to_string(),
+            break_reasons: latest.homeostasis_break_reasons.clone(),
+            restart_baseline: latest.restart_baseline.clone(),
+            note: "Homeostasis is broken immediately when the latest completed cycle records an urgent exploit or harm regression."
+                .to_string(),
+        };
+    }
     if judged_cycle_count < minimum_completed_cycles_for_homeostasis as usize {
         return BenchmarkHomeostasisSummary {
             minimum_completed_cycles_for_homeostasis,
             judged_cycle_count,
             considered_episode_ids,
             status: "not_enough_completed_cycles".to_string(),
+            urgency_status: latest_urgency_status,
+            break_status: "not_triggered".to_string(),
+            break_reasons: Vec::new(),
+            restart_baseline: latest_restart_baseline,
             note: "Homeostasis remains unset until enough completed watch-window judgments exist."
                 .to_string(),
         };
@@ -182,6 +256,10 @@ pub(crate) fn classify_homeostasis(
         judged_cycle_count,
         considered_episode_ids,
         status: status.to_string(),
+        urgency_status: latest_urgency_status,
+        break_status: "not_triggered".to_string(),
+        break_reasons: Vec::new(),
+        restart_baseline: latest_restart_baseline,
         note: "Homeostasis is classified conservatively from explicit completed-cycle judgments rather than ad hoc trend prose."
             .to_string(),
     }
@@ -498,7 +576,8 @@ mod tests {
         comparable_snapshot_from_results, BenchmarkComparableSnapshot,
     };
     use crate::observability::benchmark_results::{
-        unavailable_benchmark_diagnosis_evidence_quality, BenchmarkExploitLocus,
+        unavailable_benchmark_diagnosis_evidence_quality,
+        unavailable_benchmark_urgency_summary, BenchmarkExploitLocus,
         BenchmarkFamilyResult, BenchmarkMetricResult, BenchmarkResultsPayload,
     };
     use crate::observability::operator_snapshot::OperatorSnapshotWindow;
@@ -707,6 +786,7 @@ mod tests {
                 breach_loci: Vec::new(),
                 note: "test".to_string(),
             },
+            urgency: unavailable_benchmark_urgency_summary(),
             replay_promotion:
                 crate::observability::replay_promotion::ReplayPromotionSummary::not_materialized(),
         };
@@ -842,6 +922,11 @@ mod tests {
                 BenchmarkCompletedCycleJudgment {
                     episode_id: "episode-1".to_string(),
                     judgment: "improved".to_string(),
+                    urgency_status: "steady".to_string(),
+                    homeostasis_break_status: "not_triggered".to_string(),
+                    homeostasis_break_reasons: Vec::new(),
+                    restart_baseline:
+                        super::unavailable_homeostasis_restart_baseline("not needed"),
                 };
                 3
             ],
@@ -860,6 +945,11 @@ mod tests {
                 .map(|idx| BenchmarkCompletedCycleJudgment {
                     episode_id: format!("improving-{idx}"),
                     judgment: "improved".to_string(),
+                    urgency_status: "steady".to_string(),
+                    homeostasis_break_status: "not_triggered".to_string(),
+                    homeostasis_break_reasons: Vec::new(),
+                    restart_baseline:
+                        super::unavailable_homeostasis_restart_baseline("not needed"),
                 })
                 .collect::<Vec<_>>(),
             10,
@@ -873,6 +963,11 @@ mod tests {
                     } else {
                         "regressed".to_string()
                     },
+                    urgency_status: "steady".to_string(),
+                    homeostasis_break_status: "not_triggered".to_string(),
+                    homeostasis_break_reasons: Vec::new(),
+                    restart_baseline:
+                        super::unavailable_homeostasis_restart_baseline("not needed"),
                 })
                 .collect::<Vec<_>>(),
             10,
@@ -882,6 +977,11 @@ mod tests {
                 .map(|idx| BenchmarkCompletedCycleJudgment {
                     episode_id: format!("flat-{idx}"),
                     judgment: "flat".to_string(),
+                    urgency_status: "steady".to_string(),
+                    homeostasis_break_status: "not_triggered".to_string(),
+                    homeostasis_break_reasons: Vec::new(),
+                    restart_baseline:
+                        super::unavailable_homeostasis_restart_baseline("not needed"),
                 })
                 .collect::<Vec<_>>(),
             10,
@@ -891,5 +991,48 @@ mod tests {
         assert_eq!(mixed.status, "mixed");
         assert_eq!(flat.status, "homeostasis");
         assert_eq!(flat.considered_episode_ids.len(), 10);
+    }
+
+    #[test]
+    fn homeostasis_breaks_immediately_when_latest_cycle_reports_exploit_regression() {
+        let summary = classify_homeostasis(
+            &std::iter::once(BenchmarkCompletedCycleJudgment {
+                episode_id: "episode-break".to_string(),
+                judgment: "regressed".to_string(),
+                urgency_status: "critical".to_string(),
+                homeostasis_break_status: "triggered".to_string(),
+                homeostasis_break_reasons: vec!["exploit_success_regressed".to_string()],
+                restart_baseline: super::BenchmarkHomeostasisRestartBaseline {
+                    status: "available".to_string(),
+                    generated_at: Some(150),
+                    subject_kind: Some("candidate".to_string()),
+                    source: "retained_candidate".to_string(),
+                    note: "Latest accepted safe baseline.".to_string(),
+                },
+            })
+            .chain((0..9).map(|idx| BenchmarkCompletedCycleJudgment {
+                episode_id: format!("flat-{idx}"),
+                judgment: "flat".to_string(),
+                urgency_status: "steady".to_string(),
+                homeostasis_break_status: "not_triggered".to_string(),
+                homeostasis_break_reasons: Vec::new(),
+                restart_baseline:
+                    super::unavailable_homeostasis_restart_baseline("not needed"),
+            }))
+            .collect::<Vec<_>>(),
+            10,
+        );
+
+        assert_eq!(summary.status, "broken");
+        assert_eq!(summary.urgency_status, "critical");
+        assert_eq!(summary.break_status, "triggered");
+        assert!(summary
+            .break_reasons
+            .contains(&"exploit_success_regressed".to_string()));
+        assert_eq!(summary.restart_baseline.generated_at, Some(150));
+        assert_eq!(
+            summary.restart_baseline.source,
+            "retained_candidate"
+        );
     }
 }

@@ -1101,11 +1101,29 @@ mod tests {
         assert_eq!(status.episode_archive.rows[0].watch_window_result, "rollback_applied");
         assert_eq!(status.episode_archive.rows[0].retain_or_rollback, "rolled_back");
         assert_eq!(
+            status.episode_archive.rows[0].homeostasis_break_status,
+            "triggered"
+        );
+        assert!(status.episode_archive.rows[0]
+            .homeostasis_break_reasons
+            .contains(&"candidate_baseline_regressed".to_string()));
+        assert_eq!(
             status.episode_archive.rows[0]
                 .proposal
                 .as_ref()
                 .map(|proposal| proposal.patch_family.as_str()),
             Some("fingerprint_signal")
+        );
+        assert_eq!(status.episode_archive.homeostasis.status, "broken");
+        assert_eq!(status.episode_archive.homeostasis.break_status, "triggered");
+        assert!(status
+            .episode_archive
+            .homeostasis
+            .break_reasons
+            .contains(&"candidate_baseline_regressed".to_string()));
+        assert_eq!(
+            status.episode_archive.homeostasis.restart_baseline.generated_at,
+            status.episode_archive.rows[0].restart_baseline.generated_at
         );
     }
 
@@ -1177,8 +1195,17 @@ mod tests {
         assert_eq!(status.episode_archive.rows[0].retain_or_rollback, "retained");
         assert!(status.episode_archive.rows[0].homeostasis_eligible);
         assert_eq!(
+            status.episode_archive.rows[0].homeostasis_break_status,
+            "not_triggered"
+        );
+        assert_eq!(
+            status.episode_archive.rows[0].restart_baseline.source,
+            "retained_candidate"
+        );
+        assert_eq!(
             status.episode_archive.homeostasis.status,
             "not_enough_completed_cycles"
         );
+        assert_eq!(status.episode_archive.homeostasis.break_status, "not_triggered");
     }
 }
