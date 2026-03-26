@@ -88,6 +88,7 @@ Planning-first workflow is mandatory unless the user explicitly stipulates a dif
    - avoid mixing unrelated refactors and feature/bug work in the same commit,
    - run relevant Makefile verification before each commit,
    - push after each validated atomic commit unless the user explicitly asks for batching,
+   - NEVER MAKE BRANCHES BECAUSE YOU ARE INCAPABLE OF MANAGING THEM.
    - after changes are merged, clean up merged branches as housekeeping (delete merged local topic branches and merged remote topic branches), while preserving protected branches such as `main`.
 12. Document security, operational, and resource implications.
 13. TODO housekeeping is immediate, not batched:
