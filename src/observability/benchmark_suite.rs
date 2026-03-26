@@ -179,6 +179,32 @@ pub(crate) fn benchmark_suite_v1() -> BenchmarkSuiteContract {
                 ],
             ),
             family(
+                "scrapling_exploit_progress",
+                "How far did the latest Scrapling run advance through defended terrain, and which breach loci were penetrated?",
+                "adversary_sim:scrapling_owned_surfaces",
+                "partially_supported",
+                &[
+                    (
+                        "scrapling_breach_surface_rate",
+                        "adversary_sim:scrapling_owned_surfaces",
+                        "max_ratio_budget",
+                        "supported",
+                    ),
+                    (
+                        "scrapling_deepest_breach_stage_ratio",
+                        "adversary_sim:scrapling_owned_surfaces",
+                        "max_ratio_budget",
+                        "supported",
+                    ),
+                    (
+                        "scrapling_pass_surface_success_rate",
+                        "adversary_sim:scrapling_owned_surfaces",
+                        "max_ratio_budget",
+                        "supported",
+                    ),
+                ],
+            ),
+            family(
                 "likely_human_friction",
                 "How much friction or denial is Shuma imposing on likely-human or interactive traffic, and is that within budget?",
                 "live:ingress_primary:enforced:likely_human",
@@ -320,7 +346,7 @@ mod tests {
         assert_eq!(suite.input_contract, "operator_snapshot_v1");
         assert_eq!(suite.comparison_modes.len(), 3);
         assert_eq!(suite.subject_kinds.len(), 4);
-        assert_eq!(suite.families.len(), 6);
+        assert_eq!(suite.families.len(), 7);
         assert!(suite
             .families
             .iter()
@@ -329,6 +355,10 @@ mod tests {
             .families
             .iter()
             .any(|family| family.id == "scrapling_surface_contract"));
+        assert!(suite
+            .families
+            .iter()
+            .any(|family| family.id == "scrapling_exploit_progress"));
         let suspicious_origin_cost = suite
             .families
             .iter()
@@ -346,6 +376,23 @@ mod tests {
             .families
             .iter()
             .any(|family| family.id == "non_human_category_posture"));
+        let exploit_progress = suite
+            .families
+            .iter()
+            .find(|family| family.id == "scrapling_exploit_progress")
+            .expect("scrapling exploit progress family");
+        assert!(exploit_progress
+            .metrics
+            .iter()
+            .any(|metric| metric.metric_id == "scrapling_breach_surface_rate"));
+        assert!(exploit_progress
+            .metrics
+            .iter()
+            .any(|metric| metric.metric_id == "scrapling_deepest_breach_stage_ratio"));
+        assert!(exploit_progress
+            .metrics
+            .iter()
+            .any(|metric| metric.metric_id == "scrapling_pass_surface_success_rate"));
         assert!(suite
             .decision_boundaries
             .iter()

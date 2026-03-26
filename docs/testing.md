@@ -403,6 +403,7 @@ Structural refactor proof map:
 - `make test-controller-hard-boundaries` is the focused `CTRL-SURFACE-3` gate for explicit rejection of controller-forbidden families and apply refusal when a proposal is not controller-tunable.
 - `make test-rsi-game-contract` is the focused `RSI-GAME-1A` gate for the canonical recursive-improvement game contract, its projection through `operator_snapshot_v1`, and its reuse in `oversight_history_v1`.
 - `make test-rsi-scorecard-contract` is the focused `RSI-SCORE-1` gate for explicit judge-scorecard partitioning across optimization targets, hard guardrails, regression inputs, diagnostic contexts, and homeostasis comparison inputs.
+- `make test-rsi-score-exploit-progress` is the focused `RSI-SCORE-2A` gate for exploit-progress scoring, breach-locus regression comparison, scorecard wiring, and the existing Scrapling coverage-receipt proof surface.
 - `make test-rsi-game-mainline` is the focused `RSI-GAME-MAINLINE-1A` plus `RSI-GAME-MAINLINE-1B` gate for the first explicit working self-improving loop on the current mainline.
 - `make test-oversight-episode-archive` is the focused `RSI-GAME-1C` gate for bounded completed-episode persistence, baseline scorecards, truthful terminal proposal outcomes for both retained and rolled-back canaries, and conservative homeostasis classification over recent judged cycles.
 - `make test-oversight-move-selection-policy` is the focused `RSI-GAME-1B` gate for shortfall-attribution, explicit problem classes, bounded family guidance, and the reconcile-to-patch-policy bridge.

@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
 
 use super::benchmark_results::{
-    BenchmarkBaselineReference, BenchmarkFamilyResult, BenchmarkMetricResult,
+    BenchmarkBaselineReference, BenchmarkExploitLocus, BenchmarkFamilyResult,
+    BenchmarkMetricResult,
     BenchmarkResultsPayload,
 };
 use super::benchmark_results_comparison::{
@@ -24,6 +26,8 @@ pub(crate) struct BenchmarkComparableFamily {
     pub family_id: String,
     pub status: String,
     pub capability_gate: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub exploit_loci: Vec<BenchmarkExploitLocus>,
     pub metrics: Vec<BenchmarkComparableMetric>,
 }
 
@@ -52,6 +56,8 @@ pub(crate) struct BenchmarkEpisodeFamilyDelta {
     pub family_id: String,
     pub status: String,
     pub comparison_status: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub exploit_loci: Vec<BenchmarkExploitLocus>,
     pub metric_deltas: Vec<BenchmarkEpisodeMetricDelta>,
 }
 
@@ -92,6 +98,7 @@ pub(crate) fn comparable_snapshot_from_results(
                 family_id: family.family_id.clone(),
                 status: family.status.clone(),
                 capability_gate: family.capability_gate.clone(),
+                exploit_loci: family.exploit_loci.clone(),
                 metrics: family
                     .metrics
                     .iter()
@@ -117,6 +124,7 @@ pub(crate) fn benchmark_episode_delta_summary(
             family_id: family.family_id.clone(),
             status: family.status.clone(),
             comparison_status: family.comparison_status.clone(),
+            exploit_loci: family.exploit_loci.clone(),
             metric_deltas: family
                 .metrics
                 .iter()
@@ -293,9 +301,13 @@ fn apply_family_comparison(
     }
 
     let family_status_comparison = compare_status_value(family.status.as_str(), reference_family.status.as_str());
+    let loci_comparison =
+        compare_exploit_loci(family.exploit_loci.as_slice(), reference_family.exploit_loci.as_slice());
     family.comparison_status = if family_status_comparison == "neutral" {
+        let mut statuses = metric_statuses;
+        statuses.push(loci_comparison);
         aggregate_comparison_status(
-            metric_statuses
+            statuses
                 .iter()
                 .map(|status| status.as_str())
                 .collect::<Vec<_>>()
@@ -414,6 +426,29 @@ fn compare_status_value(current: &str, reference: &str) -> &'static str {
     }
 }
 
+fn compare_exploit_loci(
+    current: &[BenchmarkExploitLocus],
+    reference: &[BenchmarkExploitLocus],
+) -> String {
+    let current_ids: BTreeSet<_> = current.iter().map(|locus| locus.locus_id.as_str()).collect();
+    let reference_ids: BTreeSet<_> = reference
+        .iter()
+        .map(|locus| locus.locus_id.as_str())
+        .collect();
+    let added = current_ids.difference(&reference_ids).next().is_some();
+    let removed = reference_ids.difference(&current_ids).next().is_some();
+
+    if added && removed {
+        "mixed".to_string()
+    } else if added {
+        "regressed".to_string()
+    } else if removed {
+        "improved".to_string()
+    } else {
+        "neutral".to_string()
+    }
+}
+
 fn status_rank(status: &str) -> Option<i8> {
     match status {
         "inside_budget" => Some(3),
@@ -441,6 +476,9 @@ fn metric_direction(metric_id: &str) -> Option<MetricDirection> {
         | "scenario_goal_success_rate"
         | "scenario_origin_reach_rate"
         | "scenario_regression_status"
+        | "scrapling_breach_surface_rate"
+        | "scrapling_deepest_breach_stage_ratio"
+        | "scrapling_pass_surface_success_rate"
         | "friction_mismatch_rate"
         | "deny_mismatch_rate" => Some(MetricDirection::LowerIsBetter),
         "suspicious_short_circuit_rate"
@@ -460,7 +498,8 @@ mod tests {
         comparable_snapshot_from_results, BenchmarkComparableSnapshot,
     };
     use crate::observability::benchmark_results::{
-        BenchmarkFamilyResult, BenchmarkMetricResult, BenchmarkResultsPayload,
+        BenchmarkExploitLocus, BenchmarkFamilyResult, BenchmarkMetricResult,
+        BenchmarkResultsPayload,
     };
     use crate::observability::operator_snapshot::OperatorSnapshotWindow;
 
@@ -488,6 +527,7 @@ mod tests {
             note: "test".to_string(),
             baseline_status: None,
             comparison_status: "not_available".to_string(),
+            exploit_loci: Vec::new(),
             metrics: vec![metric],
         }
     }
@@ -508,6 +548,7 @@ mod tests {
                 family_id: "beneficial_non_human_posture".to_string(),
                 status: "outside_budget".to_string(),
                 capability_gate: "supported".to_string(),
+                exploit_loci: Vec::new(),
                 metrics: vec![super::BenchmarkComparableMetric {
                     metric_id: "deny_mismatch_rate".to_string(),
                     status: "outside_budget".to_string(),
@@ -544,6 +585,7 @@ mod tests {
                 family_id: "suspicious_origin_cost".to_string(),
                 status: "outside_budget".to_string(),
                 capability_gate: "supported".to_string(),
+                exploit_loci: Vec::new(),
                 metrics: vec![
                     super::BenchmarkComparableMetric {
                         metric_id: "suspicious_forwarded_latency_share".to_string(),
@@ -567,6 +609,7 @@ mod tests {
             note: "test".to_string(),
             baseline_status: None,
             comparison_status: "not_available".to_string(),
+            exploit_loci: Vec::new(),
             metrics: vec![
                 metric(
                     "suspicious_forwarded_latency_share",
@@ -672,6 +715,7 @@ mod tests {
         assert_eq!(comparable.subject_kind, "current_instance");
         assert_eq!(comparable.families.len(), 1);
         assert_eq!(comparable.families[0].metrics[0].metric_id, "allowed_as_intended_rate");
+        assert!(comparable.families[0].exploit_loci.is_empty());
     }
 
     #[test]
@@ -690,6 +734,7 @@ mod tests {
                 family_id: "beneficial_non_human_posture".to_string(),
                 status: "inside_budget".to_string(),
                 capability_gate: "supported".to_string(),
+                exploit_loci: Vec::new(),
                 metrics: vec![super::BenchmarkComparableMetric {
                     metric_id: "allowed_as_intended_rate".to_string(),
                     status: "inside_budget".to_string(),
@@ -712,6 +757,80 @@ mod tests {
         assert_eq!(improvement, "improved");
         assert_eq!(families[0].metrics[0].baseline_current, Some(0.9));
         assert_eq!(families[0].metrics[0].comparison_status, "improved");
+    }
+
+    #[test]
+    fn prior_window_comparison_marks_new_exploit_loci_as_regressed_even_when_metrics_are_flat() {
+        let reference = BenchmarkComparableSnapshot {
+            generated_at: 100,
+            subject_kind: "current_instance".to_string(),
+            watch_window: OperatorSnapshotWindow {
+                start_ts: 1,
+                end_ts: 100,
+                duration_seconds: 100,
+            },
+            coverage_status: "supported".to_string(),
+            overall_status: "outside_budget".to_string(),
+            families: vec![super::BenchmarkComparableFamily {
+                family_id: "scrapling_exploit_progress".to_string(),
+                status: "outside_budget".to_string(),
+                capability_gate: "supported".to_string(),
+                exploit_loci: vec![BenchmarkExploitLocus {
+                    locus_id: "public_path_traversal".to_string(),
+                    locus_label: "Public Path Traversal".to_string(),
+                    stage_id: "exposure".to_string(),
+                    evidence_status: "progress_observed".to_string(),
+                    sample_request_method: "GET".to_string(),
+                    sample_request_path: "/sim/public/landing".to_string(),
+                    sample_response_status: Some(200),
+                }],
+                metrics: vec![super::BenchmarkComparableMetric {
+                    metric_id: "scrapling_breach_surface_rate".to_string(),
+                    status: "outside_budget".to_string(),
+                    current: Some(0.5),
+                    capability_gate: "supported".to_string(),
+                }],
+            }],
+        };
+        let mut families = vec![BenchmarkFamilyResult {
+            family_id: "scrapling_exploit_progress".to_string(),
+            status: "outside_budget".to_string(),
+            capability_gate: "supported".to_string(),
+            note: "test".to_string(),
+            baseline_status: None,
+            comparison_status: "not_available".to_string(),
+            exploit_loci: vec![
+                BenchmarkExploitLocus {
+                    locus_id: "public_path_traversal".to_string(),
+                    locus_label: "Public Path Traversal".to_string(),
+                    stage_id: "exposure".to_string(),
+                    evidence_status: "progress_observed".to_string(),
+                    sample_request_method: "GET".to_string(),
+                    sample_request_path: "/sim/public/landing".to_string(),
+                    sample_response_status: Some(200),
+                },
+                BenchmarkExploitLocus {
+                    locus_id: "maze_navigation".to_string(),
+                    locus_label: "Maze Navigation".to_string(),
+                    stage_id: "interactive".to_string(),
+                    evidence_status: "progress_observed".to_string(),
+                    sample_request_method: "GET".to_string(),
+                    sample_request_path: "/maze".to_string(),
+                    sample_response_status: Some(200),
+                },
+            ],
+            metrics: vec![metric(
+                "scrapling_breach_surface_rate",
+                Some(0.5),
+                "outside_budget",
+            )],
+        }];
+
+        let (_, improvement) =
+            apply_prior_window_comparison(200, families.as_mut_slice(), Some(&reference));
+
+        assert_eq!(improvement, "regressed");
+        assert_eq!(families[0].comparison_status, "regressed");
     }
 
     #[test]

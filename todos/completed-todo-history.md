@@ -4,6 +4,34 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-26)
 
+### RSI-SCORE-2A Exploit-Progress Scoring
+
+- [x] Added a first-class exploit-progress benchmark family across:
+  - [`src/observability/benchmark_scrapling_exploit_progress.rs`](../src/observability/benchmark_scrapling_exploit_progress.rs)
+  - [`src/observability/benchmark_results.rs`](../src/observability/benchmark_results.rs)
+  - [`src/observability/benchmark_suite.rs`](../src/observability/benchmark_suite.rs)
+  so the judge now scores terrain-local Scrapling advance through `scrapling_breach_surface_rate`, `scrapling_deepest_breach_stage_ratio`, and `scrapling_pass_surface_success_rate` rather than leaning only on suspicious-origin aggregate pressure.
+- [x] Threaded machine-readable breach loci and novelty comparison through:
+  - [`src/observability/benchmark_comparison.rs`](../src/observability/benchmark_comparison.rs)
+  - [`src/observability/benchmark_results_comparison.rs`](../src/observability/benchmark_results_comparison.rs)
+  - [`src/observability/operator_snapshot_objectives.rs`](../src/observability/operator_snapshot_objectives.rs)
+  so the scorecard now names exploit progress as an explicit optimization target and prior-window comparison can mark a run as regressed when a new breach locus appears even if the headline totals stay flat.
+- [x] Added the focused proof path and tranche closeout in:
+  - [`Makefile`](../Makefile)
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`docs/research/2026-03-26-rsi-score-2a-exploit-progress-post-implementation-review.md`](../docs/research/2026-03-26-rsi-score-2a-exploit-progress-post-implementation-review.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  so `make test-rsi-score-exploit-progress` is now the canonical proof surface for this slice and `RSI-SCORE-2B` becomes the next active step.
+- [x] Why:
+  - the scoring audit and the user’s terrain model both showed that Shuma needed to distinguish “did Scrapling behave like a real attacker?” from “how far did that attacker actually advance through the defended site?”, and the old judge had no first-class exploit-progress plane for that.
+- [x] Evidence:
+  - `make test-rsi-score-exploit-progress`
+  - `make test-rsi-scorecard-contract`
+  - `make test-benchmark-suite-contract`
+  - `make test-benchmark-results-contract`
+  - `git diff --check`
+
 ### SIM-SCR-FULL-1C3 Operator Truth Audit And SIM-SCR-FULL-1 Closure
 
 - [x] Audited the current operator-facing Scrapling picture across:

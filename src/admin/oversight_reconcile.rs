@@ -445,6 +445,7 @@ mod tests {
                 note: "Suspicious origin cost outside budget.".to_string(),
                 baseline_status: Some("outside_budget".to_string()),
                 comparison_status: "regressed".to_string(),
+                exploit_loci: Vec::new(),
                 metrics: vec![BenchmarkMetricResult {
                     metric_id: "suspicious_forwarded_request_rate".to_string(),
                     status: "outside_budget".to_string(),

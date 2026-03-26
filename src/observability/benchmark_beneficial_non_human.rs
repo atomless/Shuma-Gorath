@@ -24,6 +24,7 @@ pub(super) fn beneficial_non_human_posture_family(
             note: "Verified-identity benchmarking is configured off for this site, so the beneficial non-human family is currently not applicable.".to_string(),
             baseline_status: None,
             comparison_status: "not_available".to_string(),
+            exploit_loci: Vec::new(),
             metrics: vec![
                 not_applicable_metric("allowed_as_intended_rate"),
                 not_applicable_metric("friction_mismatch_rate"),
@@ -127,6 +128,7 @@ pub(super) fn beneficial_non_human_posture_family(
         ),
         baseline_status: None,
         comparison_status: "not_available".to_string(),
+        exploit_loci: Vec::new(),
         metrics,
     }
 }

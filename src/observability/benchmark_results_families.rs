@@ -76,6 +76,7 @@ pub(super) fn suspicious_origin_cost_family(
         },
         baseline_status: None,
         comparison_status: "not_available".to_string(),
+        exploit_loci: Vec::new(),
         metrics,
     }
 }
@@ -99,6 +100,7 @@ pub(super) fn likely_human_friction_family(
         note: "Current results are budgeted on observed likely-human friction while interactive and hard-block breakdowns remain to be materialized.".to_string(),
         baseline_status: None,
         comparison_status: "not_available".to_string(),
+        exploit_loci: Vec::new(),
         metrics,
     }
 }

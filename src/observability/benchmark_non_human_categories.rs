@@ -26,6 +26,7 @@ pub(super) fn non_human_category_posture_family(
             .to_string(),
         baseline_status: None,
         comparison_status: "not_available".to_string(),
+        exploit_loci: Vec::new(),
         metrics,
     }
 }

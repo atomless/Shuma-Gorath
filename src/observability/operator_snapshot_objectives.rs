@@ -267,6 +267,18 @@ pub(crate) fn recursive_improvement_game_contract_v1(
                     "Suspicious forwarded latency share remains distinct from request reach so high-latency leakage cannot hide behind request-count improvements.",
                 ),
                 scorecard_entry(
+                    "scrapling_exploit_progress",
+                    "benchmark_results_v1",
+                    "scrapling_exploit_progress",
+                    vec![
+                        "scrapling_breach_surface_rate".to_string(),
+                        "scrapling_deepest_breach_stage_ratio".to_string(),
+                        "scrapling_pass_surface_success_rate".to_string(),
+                    ],
+                    "optimization_target",
+                    "Exploit progress must be judged explicitly from terrain-local Scrapling breach evidence rather than inferred only from aggregate suspicious-origin pressure.",
+                ),
+                scorecard_entry(
                     "category_target_achievement",
                     "operator_objectives_v1.category_postures + benchmark_results_v1",
                     "non_human_category_posture",
@@ -356,6 +368,7 @@ pub(crate) fn recursive_improvement_game_contract_v1(
                     "suspicious_origin_request_budget".to_string(),
                     "suspicious_origin_byte_budget".to_string(),
                     "suspicious_origin_latency_budget".to_string(),
+                    "scrapling_exploit_progress".to_string(),
                     "category_target_achievement".to_string(),
                     "beneficial_non_human_no_harm".to_string(),
                     "representative_adversary_regression".to_string(),
@@ -365,6 +378,7 @@ pub(crate) fn recursive_improvement_game_contract_v1(
                     "suspicious_origin_request_budget".to_string(),
                     "suspicious_origin_byte_budget".to_string(),
                     "suspicious_origin_latency_budget".to_string(),
+                    "scrapling_exploit_progress".to_string(),
                     "category_target_achievement".to_string(),
                     "representative_adversary_regression".to_string(),
                     "prior_window_progress".to_string(),
@@ -933,7 +947,7 @@ mod tests {
         );
         assert_eq!(
             contract.evaluator_scorecard.optimization_targets.len(),
-            5
+            6
         );
         assert_eq!(contract.evaluator_scorecard.hard_guardrails.len(), 1);
         assert_eq!(contract.evaluator_scorecard.regression_inputs.len(), 2);
@@ -947,6 +961,11 @@ mod tests {
             .optimization_targets
             .iter()
             .any(|entry| entry.score_id == "likely_human_friction_budget"));
+        assert!(contract
+            .evaluator_scorecard
+            .optimization_targets
+            .iter()
+            .any(|entry| entry.score_id == "scrapling_exploit_progress"));
         assert!(contract
             .evaluator_scorecard
             .optimization_targets
@@ -1035,6 +1054,12 @@ mod tests {
             .iter()
             .find(|entry| entry.score_id == "category_target_achievement")
             .expect("category target achievement present");
+        let exploit_progress = contract
+            .evaluator_scorecard
+            .optimization_targets
+            .iter()
+            .find(|entry| entry.score_id == "scrapling_exploit_progress")
+            .expect("scrapling exploit progress present");
         let beneficial_guardrail = contract
             .evaluator_scorecard
             .hard_guardrails
@@ -1059,6 +1084,15 @@ mod tests {
         assert!(category_target.metric_ids.contains(
             &"category_posture_alignment:verified_beneficial_bot".to_string()
         ));
+        assert_eq!(exploit_progress.family_id, "scrapling_exploit_progress");
+        assert_eq!(
+            exploit_progress.metric_ids,
+            vec![
+                "scrapling_breach_surface_rate".to_string(),
+                "scrapling_deepest_breach_stage_ratio".to_string(),
+                "scrapling_pass_surface_success_rate".to_string(),
+            ]
+        );
         assert_eq!(
             beneficial_guardrail.metric_ids,
             vec![
@@ -1086,6 +1120,7 @@ mod tests {
                 "suspicious_origin_request_budget".to_string(),
                 "suspicious_origin_byte_budget".to_string(),
                 "suspicious_origin_latency_budget".to_string(),
+                "scrapling_exploit_progress".to_string(),
                 "category_target_achievement".to_string(),
                 "beneficial_non_human_no_harm".to_string(),
                 "representative_adversary_regression".to_string(),

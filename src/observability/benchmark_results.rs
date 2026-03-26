@@ -16,6 +16,7 @@ use crate::observability::operator_snapshot_objectives::{
 use super::benchmark_adversary_effectiveness::representative_adversary_effectiveness_family;
 use super::benchmark_beneficial_non_human::beneficial_non_human_posture_family;
 use super::benchmark_non_human_categories::non_human_category_posture_family;
+use super::benchmark_scrapling_exploit_progress::scrapling_exploit_progress_family;
 use super::benchmark_scrapling_surface_contract::{
     scrapling_surface_contract_family, scrapling_surface_contract_tuning_blockers,
 };
@@ -72,6 +73,18 @@ pub(crate) struct BenchmarkMetricResult {
     pub comparison_status: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct BenchmarkExploitLocus {
+    pub locus_id: String,
+    pub locus_label: String,
+    pub stage_id: String,
+    pub evidence_status: String,
+    pub sample_request_method: String,
+    pub sample_request_path: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sample_response_status: Option<u16>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub(crate) struct BenchmarkFamilyResult {
     pub family_id: String,
@@ -85,6 +98,8 @@ pub(crate) struct BenchmarkFamilyResult {
         skip_serializing_if = "is_benchmark_comparison_not_available"
     )]
     pub comparison_status: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub exploit_loci: Vec<BenchmarkExploitLocus>,
     pub metrics: Vec<BenchmarkMetricResult>,
 }
 
@@ -165,6 +180,7 @@ pub(crate) fn build_benchmark_results_from_snapshot_sections(
     );
     let friction_family = likely_human_friction_family(budget_distance);
     let scrapling_surface_family = scrapling_surface_contract_family(adversary_sim);
+    let scrapling_exploit_family = scrapling_exploit_progress_family(adversary_sim);
     let adversary_family = representative_adversary_effectiveness_family(adversary_sim);
     let verified_identity =
         super::operator_snapshot_verified_identity::verified_identity_summary(
@@ -184,6 +200,7 @@ pub(crate) fn build_benchmark_results_from_snapshot_sections(
     let mut families = vec![
         suspicious_family,
         friction_family,
+        scrapling_exploit_family,
         scrapling_surface_family,
         adversary_family,
         non_human_family,
@@ -692,6 +709,7 @@ mod tests {
             note: "identity posture is missing".to_string(),
             baseline_status: None,
             comparison_status: "not_available".to_string(),
+            exploit_loci: Vec::new(),
             metrics: vec![BenchmarkMetricResult {
                 metric_id: "allowed_as_intended_rate".to_string(),
                 status: "not_yet_supported".to_string(),
@@ -1763,6 +1781,24 @@ mod tests {
             .find(|family| family.family_id == "scrapling_surface_contract")
             .expect("scrapling surface contract family");
         assert_eq!(family.status, "inside_budget");
+        let exploit_progress = payload
+            .families
+            .iter()
+            .find(|family| family.family_id == "scrapling_exploit_progress")
+            .expect("scrapling exploit progress family");
+        assert_eq!(exploit_progress.status, "outside_budget");
+        assert!(exploit_progress.note.contains("Public Path Traversal"));
+        assert!(exploit_progress.note.contains("Challenge Routing"));
+        assert_eq!(exploit_progress.exploit_loci.len(), 2);
+        assert_eq!(
+            exploit_progress.exploit_loci[0].locus_id,
+            "public_path_traversal"
+        );
+        assert_eq!(
+            exploit_progress.exploit_loci[1].locus_id,
+            "challenge_routing"
+        );
+        assert_eq!(payload.overall_status, "outside_budget");
         assert!(!payload
             .tuning_eligibility
             .blockers

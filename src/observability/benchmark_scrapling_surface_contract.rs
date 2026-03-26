@@ -86,6 +86,7 @@ pub(crate) fn scrapling_surface_contract_family(
         note: state.note,
         baseline_status: None,
         comparison_status: "not_available".to_string(),
+        exploit_loci: Vec::new(),
         metrics,
     }
 }

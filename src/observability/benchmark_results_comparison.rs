@@ -203,11 +203,12 @@ fn primary_outside_budget_family<'a>(
 fn family_priority(family_id: &str) -> u8 {
     match family_id {
         "likely_human_friction" => 0,
-        "scrapling_surface_contract" => 1,
-        "suspicious_origin_cost" => 2,
-        "beneficial_non_human_posture" => 3,
-        "non_human_category_posture" => 4,
-        "representative_adversary_effectiveness" => 5,
+        "scrapling_exploit_progress" => 1,
+        "scrapling_surface_contract" => 2,
+        "suspicious_origin_cost" => 3,
+        "beneficial_non_human_posture" => 4,
+        "non_human_category_posture" => 5,
+        "representative_adversary_effectiveness" => 6,
         _ => 10,
     }
 }
@@ -253,6 +254,15 @@ fn classify_problem(family: &BenchmarkFamilyResult) -> ProblemClassification {
                 action_families: benchmark_action_families("suspicious_origin_cost"),
             }
         }
+        "scrapling_exploit_progress" => ProblemClassification {
+            problem_class: "scrapling_exploit_progress_gap",
+            decision: "code_evolution_candidate",
+            guidance_status: "code_evolution_only",
+            tractability: "code_or_capability_gap",
+            expected_direction: "reduce_scrapling_exploit_progress",
+            note: "Terrain-local Scrapling exploit progress is still non-zero, so the judge must treat the current posture as attacker-permeable even when aggregate leakage looks low.",
+            action_families: &[],
+        },
         "scrapling_surface_contract" => ProblemClassification {
             problem_class: "scrapling_surface_contract_gap",
             decision: "code_evolution_candidate",
@@ -395,6 +405,7 @@ mod tests {
             note: "test family".to_string(),
             baseline_status: None,
             comparison_status: "not_available".to_string(),
+            exploit_loci: Vec::new(),
             metrics: vec![BenchmarkMetricResult {
                 metric_id: format!("{family_id}_metric"),
                 status: status.to_string(),
@@ -440,6 +451,7 @@ mod tests {
             note: "test family".to_string(),
             baseline_status: None,
             comparison_status: "not_available".to_string(),
+            exploit_loci: Vec::new(),
             metrics,
         }
     }
@@ -598,6 +610,29 @@ mod tests {
         );
 
         assert_eq!(hint.problem_class, "scrapling_surface_contract_gap");
+        assert_eq!(hint.guidance_status, "code_evolution_only");
+        assert_eq!(hint.tractability, "code_or_capability_gap");
+        assert_eq!(hint.decision, "code_evolution_candidate");
+        assert!(hint.candidate_action_families.is_empty());
+    }
+
+    #[test]
+    fn escalation_hint_marks_scrapling_exploit_progress_gap_as_code_evolution_only() {
+        let hint = derive_escalation_hint(
+            &allowed_actions_v1(),
+            &[family_with_metrics(
+                "scrapling_exploit_progress",
+                "outside_budget",
+                "supported",
+                vec![metric(
+                    "scrapling_breach_surface_rate",
+                    "outside_budget",
+                    "supported",
+                )],
+            )],
+        );
+
+        assert_eq!(hint.problem_class, "scrapling_exploit_progress_gap");
         assert_eq!(hint.guidance_status, "code_evolution_only");
         assert_eq!(hint.tractability, "code_or_capability_gap");
         assert_eq!(hint.decision, "code_evolution_candidate");

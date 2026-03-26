@@ -61,6 +61,7 @@ pub(super) fn representative_adversary_effectiveness_family(
         ),
         baseline_status: None,
         comparison_status: "not_available".to_string(),
+        exploit_loci: Vec::new(),
         metrics,
     }
 }
