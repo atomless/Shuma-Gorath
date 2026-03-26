@@ -1814,7 +1814,12 @@ test("game loop projects benchmark and oversight accountability from machine-fir
           enabled: true,
           native_web_bot_auth_enabled: true,
           provider_assertions_enabled: true,
-          non_human_traffic_stance: "deny_all_non_human",
+          effective_non_human_policy: {
+            profile_id: "site_default_v1",
+            objective_revision: "objective-1774306800",
+            verified_identity_override_mode: "explicit_overrides_eligible",
+            rows: []
+          },
           taxonomy_alignment: {
             status: "degraded"
           }
@@ -2075,7 +2080,24 @@ test("game loop projects benchmark and oversight accountability from machine-fir
   await expect(page.locator("#game-loop-category-target-achievement")).toContainText("Achieved 42.0%");
   await expect(page.locator("#game-loop-change-judgment")).toContainText("Observe Longer");
   await expect(page.locator("#game-loop-trust-blockers")).toContainText("Tuning Eligibility");
+  await expect(page.locator("#game-loop-trust-blockers")).toContainText("Policy Profile");
+  await expect(page.locator("#game-loop-trust-blockers")).toContainText("Mixed Site Default");
+  await expect(page.locator("#game-loop-trust-blockers")).toContainText("strict human only not active");
+  await expect(page.locator("#game-loop-trust-blockers")).toContainText(
+    "10% suspicious-forwarded budgets remain mixed-site defaults here, not the strict human-only target."
+  );
+  await expect(page.locator("#game-loop-trust-blockers")).toContainText(
+    "Separate real-human traversal calibration remains required"
+  );
   await expect(page.locator("#game-loop-trust-blockers")).toContainText("Verified Identity");
+  await expect(page.locator("#game-loop-trust-blockers")).toContainText("Verified Handling");
+  await expect(page.locator("#game-loop-trust-blockers")).toContainText(
+    "Current machine-loop posture is still the mixed-site default"
+  );
+  await expect(page.locator("#game-loop-trust-blockers")).toContainText("verified mode");
+  await expect(page.locator("#game-loop-trust-blockers")).toContainText(
+    "explicit overrides eligible"
+  );
   await expect(page.locator("#game-loop-trust-blockers")).toContainText("Degraded");
   await expect(page.locator("#game-loop-trust-blockers")).toContainText("verified identity taxonomy alignment guardrail");
 });
@@ -2089,7 +2111,7 @@ test("game loop tab corroborates latest scrapling evidence readiness", async ({ 
         schema_version: "operator_snapshot_v1",
         generated_at: 1774306800,
         objectives: {
-          profile_id: "site_default_v1",
+          profile_id: "human_only_private",
           revision: "objective-1774306800",
           window_hours: 24,
           category_postures: []
@@ -2148,7 +2170,12 @@ test("game loop tab corroborates latest scrapling evidence readiness", async ({ 
           enabled: true,
           native_web_bot_auth_enabled: true,
           provider_assertions_enabled: true,
-          non_human_traffic_stance: "deny_all_non_human",
+          effective_non_human_policy: {
+            profile_id: "human_only_private",
+            objective_revision: "objective-1774306800",
+            verified_identity_override_mode: "strict_human_only",
+            rows: []
+          },
           taxonomy_alignment: {
             status: "aligned"
           }
@@ -2204,7 +2231,68 @@ test("game loop tab corroborates latest scrapling evidence readiness", async ({ 
           protected_lineage_count: 2,
           eligibility_blockers: []
         },
-        families: []
+        families: [
+          {
+            family_id: "likely_human_friction",
+            status: "inside_budget",
+            capability_gate: "supported",
+            note: "Likely-human friction remains inside budget.",
+            metrics: [
+              {
+                metric_id: "likely_human_friction_rate",
+                status: "inside_budget",
+                current: 0.018,
+                target: 0.02,
+                delta: -0.002,
+                exactness: "exact",
+                basis: "observed",
+                capability_gate: "supported",
+                comparison_delta: -0.001
+              }
+            ]
+          },
+          {
+            family_id: "suspicious_origin_cost",
+            status: "inside_budget",
+            capability_gate: "supported",
+            note: "Strict non-human leakage is fully suppressed in the current watch window.",
+            metrics: [
+              {
+                metric_id: "suspicious_forwarded_request_rate",
+                status: "inside_budget",
+                current: 0.0,
+                target: 0.0,
+                delta: 0.0,
+                exactness: "derived",
+                basis: "observed",
+                capability_gate: "supported",
+                comparison_delta: 0.0
+              },
+              {
+                metric_id: "suspicious_forwarded_byte_rate",
+                status: "inside_budget",
+                current: 0.0,
+                target: 0.0,
+                delta: 0.0,
+                exactness: "derived",
+                basis: "observed",
+                capability_gate: "supported",
+                comparison_delta: 0.0
+              },
+              {
+                metric_id: "suspicious_forwarded_latency_share",
+                status: "inside_budget",
+                current: 0.0,
+                target: 0.0,
+                delta: 0.0,
+                exactness: "derived",
+                basis: "observed",
+                capability_gate: "supported",
+                comparison_delta: 0.0
+              }
+            ]
+          }
+        ]
       })
     });
   });
@@ -2240,6 +2328,12 @@ test("game loop tab corroborates latest scrapling evidence readiness", async ({ 
 
   await openDashboard(page);
   await openTab(page, "game-loop");
+  await expect(page.locator("#game-loop-budget-usage")).toContainText("Non-Human Request Suppression");
+  await expect(page.locator("#game-loop-budget-usage")).toContainText("Non-Human Byte Suppression");
+  await expect(page.locator("#game-loop-budget-usage")).toContainText("Non-Human Latency Suppression");
+  await expect(page.locator("#game-loop-budget-usage")).toContainText("Current 0.0% leakage");
+  await expect(page.locator("#game-loop-budget-usage")).toContainText("Target 0.0% leakage");
+  await expect(page.locator("#game-loop-budget-usage")).toContainText("100.0% non-human suppression achieved");
   await expect(page.locator("#game-loop-trust-blockers")).toContainText("Latest Scrapling Evidence");
   await expect(page.locator("#game-loop-trust-blockers")).toContainText("Covered");
   await expect(page.locator("#game-loop-trust-blockers")).toContainText("2 / 2");
@@ -2823,7 +2917,12 @@ test("verification tab surfaces verified identity controls and health summary", 
           enabled: true,
           native_web_bot_auth_enabled: true,
           provider_assertions_enabled: true,
-          non_human_traffic_stance: "allow_verified_by_category",
+          effective_non_human_policy: {
+            profile_id: "humans_plus_verified_only",
+            objective_revision: "objective-1774224000",
+            verified_identity_override_mode: "explicit_overrides_eligible",
+            rows: []
+          },
           named_policy_count: 2,
           service_profile_count: 4,
           attempts: 12,
@@ -3614,6 +3713,37 @@ test("red team tab surfaces receipt-backed scrapling attack evidence from recent
             ban_outcome_count: 1,
             owned_surface_coverage: {
               overall_status: "partial",
+              canonical_surface_ids: [
+                "public_path_traversal",
+                "challenge_routing",
+                "rate_pressure",
+                "geo_ip_policy",
+                "not_a_bot_submit",
+                "puzzle_submit_or_escalation",
+                "pow_verify_abuse",
+                "tarpit_progress_abuse",
+                "maze_navigation",
+                "js_verification_execution",
+                "browser_automation_detection",
+                "cdp_report_ingestion",
+                "verified_identity_attestation"
+              ],
+              surface_labels: {
+                public_path_traversal: "Public Path Traversal",
+                challenge_routing: "Challenge Routing",
+                rate_pressure: "Rate Pressure",
+                geo_ip_policy: "Geo Or IP Policy",
+                not_a_bot_submit: "Not-a-Bot Submit",
+                puzzle_submit_or_escalation: "Puzzle Submit Or Escalation",
+                pow_verify_abuse: "PoW Verify Abuse",
+                tarpit_progress_abuse: "Tarpit Progress Abuse",
+                maze_navigation: "Maze Navigation",
+                js_verification_execution: "JavaScript Verification Execution",
+                browser_automation_detection: "Browser CDP Automation Detection"
+                ,
+                cdp_report_ingestion: "CDP Report Ingestion",
+                verified_identity_attestation: "Verified Identity Attestation"
+              },
               required_surface_ids: [
                 "challenge_routing",
                 "not_a_bot_submit",
@@ -3703,9 +3833,39 @@ test("red team tab surfaces receipt-backed scrapling attack evidence from recent
   await expect(page.locator("#adversary-runs tbody")).toContainText("AI Scraper Bot");
   await expect(page.locator("#adversary-runs tbody")).toContainText("Partial");
   await expect(page.locator("#red-team-scrapling-evidence")).not.toContainText("Coverage Status");
+  await expect(page.locator("#red-team-scrapling-evidence h2")).toHaveText("Scrapling");
   await expect(page.locator("#red-team-scrapling-evidence")).toContainText("Scrapling Modes Used");
   await expect(page.locator("#red-team-scrapling-evidence")).toContainText("Non-human Categories Fulfilled");
   await expect(page.locator("#red-team-scrapling-evidence")).toContainText("Defence Surfaces Covered");
+  await expect(page.locator('#red-team-scrapling-surface-checklist li')).toHaveCount(13);
+  await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="public_path_traversal"]')).toContainText("Public Path Traversal");
+  await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="challenge_routing"]')).toContainText("Challenge Routing");
+  await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="rate_pressure"]')).toContainText("Rate Pressure");
+  await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="geo_ip_policy"]')).toContainText("Geo Or IP Policy");
+  await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="not_a_bot_submit"]')).toContainText("Not-a-Bot Submit");
+  await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="puzzle_submit_or_escalation"]')).toContainText("Puzzle Submit Or Escalation");
+  await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="pow_verify_abuse"]')).toContainText("PoW Verify Abuse");
+  await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="tarpit_progress_abuse"]')).toContainText("Tarpit Progress Abuse");
+  await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="maze_navigation"]')).toContainText("Maze Navigation");
+  await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="js_verification_execution"]')).toContainText("JavaScript Verification Execution");
+  await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="browser_automation_detection"]')).toContainText("Browser CDP Automation Detection");
+  await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="cdp_report_ingestion"]')).toContainText("CDP Report Ingestion");
+  await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="verified_identity_attestation"]')).toContainText("Verified Identity Attestation");
+  await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="challenge_routing"]')).toHaveAttribute("data-surface-state", "satisfied");
+  await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="not_a_bot_submit"]')).toHaveAttribute("data-surface-state", "satisfied");
+  await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="pow_verify_abuse"]')).toHaveAttribute("data-surface-state", "blocking");
+  await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="public_path_traversal"]')).toHaveAttribute("data-surface-state", "not_required");
+  await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="rate_pressure"]')).toHaveAttribute("data-surface-state", "not_required");
+  await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="geo_ip_policy"]')).toHaveAttribute("data-surface-state", "not_required");
+  await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="puzzle_submit_or_escalation"]')).toHaveAttribute("data-surface-state", "not_required");
+  await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="tarpit_progress_abuse"]')).toHaveAttribute("data-surface-state", "not_required");
+  await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="maze_navigation"]')).toHaveAttribute("data-surface-state", "not_required");
+  await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="js_verification_execution"]')).toHaveAttribute("data-surface-state", "not_required");
+  await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="browser_automation_detection"]')).toHaveAttribute("data-surface-state", "not_required");
+  await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="cdp_report_ingestion"]')).toHaveAttribute("data-surface-state", "not_required");
+  await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="verified_identity_attestation"]')).toHaveAttribute("data-surface-state", "not_required");
+  await expect(page.locator('#red-team-scrapling-surface-checklist')).toHaveCSS("list-style-type", "none");
+  await expect(page.locator('#red-team-scrapling-surface-checklist')).toHaveCSS("padding-left", "0px");
   await expect(page.locator("#red-team-scrapling-evidence")).toContainText("simrun-scrapling-proof");
   await expect(page.locator("#red-team-scrapling-evidence")).toContainText("2 / 3");
   await expect(page.locator("#red-team-scrapling-evidence")).toContainText("POST /challenge/not-a-bot-checkbox");

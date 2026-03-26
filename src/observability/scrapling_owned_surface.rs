@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, BTreeSet};
 pub(crate) const SCRAPLING_OWNED_SURFACE_SCHEMA_VERSION: &str =
     "scrapling_owned_surface_contract_v1";
 
-const SCRAPLING_OWNED_SURFACE_TARGETS: [&str; 8] = [
+const SCRAPLING_OWNED_SURFACE_TARGETS: [&str; 11] = [
     "public_path_traversal",
     "challenge_routing",
     "rate_pressure",
@@ -15,6 +15,9 @@ const SCRAPLING_OWNED_SURFACE_TARGETS: [&str; 8] = [
     "puzzle_submit_or_escalation",
     "pow_verify_abuse",
     "tarpit_progress_abuse",
+    "maze_navigation",
+    "js_verification_execution",
+    "browser_automation_detection",
 ];
 const SCRAPLING_CRAWLER_SURFACE_TARGETS: [&str; 4] = [
     "public_path_traversal",
@@ -38,6 +41,18 @@ const SCRAPLING_HTTP_AGENT_SURFACE_TARGETS: [&str; 7] = [
     "puzzle_submit_or_escalation",
     "pow_verify_abuse",
     "tarpit_progress_abuse",
+];
+const SCRAPLING_BROWSER_AUTOMATION_SURFACE_TARGETS: [&str; 4] = [
+    "challenge_routing",
+    "maze_navigation",
+    "js_verification_execution",
+    "browser_automation_detection",
+];
+const SCRAPLING_STEALTH_BROWSER_SURFACE_TARGETS: [&str; 4] = [
+    "challenge_routing",
+    "maze_navigation",
+    "js_verification_execution",
+    "browser_automation_detection",
 ];
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -90,6 +105,10 @@ pub(crate) struct ScraplingOwnedSurfaceCoverageReceipt {
 pub(crate) struct ScraplingOwnedSurfaceCoverageSummary {
     pub overall_status: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub canonical_surface_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub surface_labels: BTreeMap<String, String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub required_surface_ids: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub satisfied_surface_ids: Vec<String>,
@@ -113,6 +132,14 @@ pub(crate) fn scrapling_owned_surface_targets_for_mode(mode: &str) -> Vec<String
             .map(|value| (*value).to_string())
             .collect(),
         "bulk_scraper" => SCRAPLING_BULK_SCRAPER_SURFACE_TARGETS
+            .iter()
+            .map(|value| (*value).to_string())
+            .collect(),
+        "browser_automation" => SCRAPLING_BROWSER_AUTOMATION_SURFACE_TARGETS
+            .iter()
+            .map(|value| (*value).to_string())
+            .collect(),
+        "stealth_browser" => SCRAPLING_STEALTH_BROWSER_SURFACE_TARGETS
             .iter()
             .map(|value| (*value).to_string())
             .collect(),
@@ -149,6 +176,16 @@ pub(crate) fn summarize_scrapling_owned_surface_coverage(
     }
 
     let summary = canonical_scrapling_owned_surface_summary();
+    let canonical_surface_ids: Vec<String> = summary
+        .rows
+        .iter()
+        .map(|row| row.surface_id.clone())
+        .collect();
+    let surface_labels: BTreeMap<String, String> = summary
+        .rows
+        .iter()
+        .map(|row| (row.surface_id.clone(), row.surface_label.clone()))
+        .collect();
     let row_by_id: BTreeMap<_, _> = summary
         .rows
         .into_iter()
@@ -223,6 +260,8 @@ pub(crate) fn summarize_scrapling_owned_surface_coverage(
 
     Some(ScraplingOwnedSurfaceCoverageSummary {
         overall_status,
+        canonical_surface_ids,
+        surface_labels,
         required_surface_ids,
         satisfied_surface_ids,
         blocking_surface_ids,
@@ -315,32 +354,32 @@ pub(crate) fn canonical_scrapling_owned_surface_summary() -> ScraplingOwnedSurfa
         row(
             "maze_navigation",
             "Maze Navigation",
-            "other_lane",
+            "owned",
             "browser_or_stealth",
-            "must_not_touch",
-            "outside_scrapling_scope",
-            &[],
-            "Meaningful maze traversal remains a browser-class interaction and belongs to a browser-capable lane unless reassigned explicitly later.",
+            "must_touch",
+            "should_pass_some",
+            &["browser_automation", "stealth_browser"],
+            "Browser-capable Scrapling personas must attempt truthful maze traversal against the same maze path a hostile browser would encounter.",
         ),
         row(
             "js_verification_execution",
             "JavaScript Verification Execution",
-            "other_lane",
+            "owned",
             "browser_or_stealth",
-            "must_not_touch",
-            "outside_scrapling_scope",
-            &[],
-            "Executing JavaScript verification truthfully is browser-class behavior, not current request-native Scrapling ownership.",
+            "must_touch",
+            "should_pass_some",
+            &["browser_automation", "stealth_browser"],
+            "Browser-capable Scrapling personas must execute the live JavaScript verification surface rather than leaving it untested.",
         ),
         row(
             "browser_automation_detection",
-            "Browser Automation Detection",
-            "other_lane",
+            "Browser CDP Automation Detection",
+            "owned",
             "browser_or_stealth",
-            "must_not_touch",
-            "outside_scrapling_scope",
-            &[],
-            "Browser automation and anti-automation detection belong to browser-capable adversary lanes, not the request-native Scrapling lane.",
+            "must_touch",
+            "mixed_outcomes",
+            &["browser_automation", "stealth_browser"],
+            "Browser-capable Scrapling personas must pressure Shuma's browser-automation detection surface and receipt whether automation was detected or not.",
         ),
         row(
             "cdp_report_ingestion",
@@ -468,8 +507,8 @@ mod tests {
             summary.schema_version,
             SCRAPLING_OWNED_SURFACE_SCHEMA_VERSION
         );
-        assert_eq!(summary.owned_surface_count, 8);
-        assert_eq!(summary.other_lane_surface_count, 3);
+        assert_eq!(summary.owned_surface_count, 11);
+        assert_eq!(summary.other_lane_surface_count, 0);
         assert_eq!(summary.out_of_scope_surface_count, 2);
 
         let not_a_bot = summary
@@ -491,10 +530,28 @@ mod tests {
             .iter()
             .find(|row| row.surface_id == "maze_navigation")
             .unwrap();
-        assert_eq!(maze.assignment_status, "other_lane");
+        assert_eq!(maze.assignment_status, "owned");
         assert_eq!(maze.required_transport, "browser_or_stealth");
-        assert_eq!(maze.interaction_requirement, "must_not_touch");
-        assert_eq!(maze.success_contract, "outside_scrapling_scope");
+        assert_eq!(maze.interaction_requirement, "must_touch");
+        assert_eq!(maze.success_contract, "should_pass_some");
+        assert_eq!(
+            maze.fulfillment_modes,
+            vec![
+                "browser_automation".to_string(),
+                "stealth_browser".to_string()
+            ]
+        );
+
+        let browser_detection = summary
+            .rows
+            .iter()
+            .find(|row| row.surface_id == "browser_automation_detection")
+            .unwrap();
+        assert_eq!(
+            browser_detection.surface_label,
+            "Browser CDP Automation Detection"
+        );
+        assert_eq!(browser_detection.assignment_status, "owned");
 
         let verified_identity = summary
             .rows
@@ -507,7 +564,7 @@ mod tests {
     }
 
     #[test]
-    fn scrapling_owned_surface_target_helpers_match_request_native_persona_contract() {
+    fn scrapling_owned_surface_target_helpers_match_full_spectrum_persona_contract() {
         assert_eq!(
             scrapling_owned_surface_targets(),
             vec![
@@ -519,6 +576,9 @@ mod tests {
                 "puzzle_submit_or_escalation",
                 "pow_verify_abuse",
                 "tarpit_progress_abuse",
+                "maze_navigation",
+                "js_verification_execution",
+                "browser_automation_detection",
             ]
         );
         assert_eq!(
@@ -553,10 +613,29 @@ mod tests {
                 "tarpit_progress_abuse",
             ]
         );
+        assert_eq!(
+            scrapling_owned_surface_targets_for_mode("browser_automation"),
+            vec![
+                "challenge_routing",
+                "maze_navigation",
+                "js_verification_execution",
+                "browser_automation_detection",
+            ]
+        );
+        assert_eq!(
+            scrapling_owned_surface_targets_for_mode("stealth_browser"),
+            vec![
+                "challenge_routing",
+                "maze_navigation",
+                "js_verification_execution",
+                "browser_automation_detection",
+            ]
+        );
         assert!(scrapling_owned_surface_targets_for_mode("unknown_mode").is_empty());
         assert_eq!(
             scrapling_owned_surface_targets_for_modes(&[
                 "crawler".to_string(),
+                "browser_automation".to_string(),
                 "http_agent".to_string()
             ]),
             vec![
@@ -568,6 +647,9 @@ mod tests {
                 "puzzle_submit_or_escalation",
                 "pow_verify_abuse",
                 "tarpit_progress_abuse",
+                "maze_navigation",
+                "js_verification_execution",
+                "browser_automation_detection",
             ]
         );
     }
@@ -575,7 +657,11 @@ mod tests {
     #[test]
     fn owned_surface_coverage_summary_marks_all_required_surfaces_covered_when_contracts_are_met() {
         let summary = summarize_scrapling_owned_surface_coverage(
-            &["bulk_scraper".to_string(), "http_agent".to_string()],
+            &[
+                "bulk_scraper".to_string(),
+                "browser_automation".to_string(),
+                "http_agent".to_string(),
+            ],
             &[
                 ScraplingSurfaceObservationReceipt {
                     surface_id: "public_path_traversal".to_string(),
@@ -641,14 +727,66 @@ mod tests {
                     sample_request_path: "/tarpit/progress".to_string(),
                     sample_response_status: Some(400),
                 },
+                ScraplingSurfaceObservationReceipt {
+                    surface_id: "maze_navigation".to_string(),
+                    coverage_status: "pass_observed".to_string(),
+                    attempt_count: 1,
+                    sample_request_method: "GET".to_string(),
+                    sample_request_path: "/maze/start".to_string(),
+                    sample_response_status: Some(200),
+                },
+                ScraplingSurfaceObservationReceipt {
+                    surface_id: "js_verification_execution".to_string(),
+                    coverage_status: "pass_observed".to_string(),
+                    attempt_count: 1,
+                    sample_request_method: "GET".to_string(),
+                    sample_request_path: "/pow".to_string(),
+                    sample_response_status: Some(200),
+                },
+                ScraplingSurfaceObservationReceipt {
+                    surface_id: "browser_automation_detection".to_string(),
+                    coverage_status: "fail_observed".to_string(),
+                    attempt_count: 1,
+                    sample_request_method: "GET".to_string(),
+                    sample_request_path: "/pow".to_string(),
+                    sample_response_status: Some(200),
+                },
             ],
         )
         .expect("coverage summary");
 
         assert_eq!(summary.overall_status, "covered");
         assert!(summary.blocking_surface_ids.is_empty());
-        assert_eq!(summary.required_surface_ids.len(), 8);
-        assert_eq!(summary.satisfied_surface_ids.len(), 8);
+        assert_eq!(summary.canonical_surface_ids.len(), 13);
+        assert!(summary
+            .canonical_surface_ids
+            .contains(&"cdp_report_ingestion".to_string()));
+        assert!(summary
+            .canonical_surface_ids
+            .contains(&"verified_identity_attestation".to_string()));
+        assert_eq!(
+            summary
+                .surface_labels
+                .get("browser_automation_detection")
+                .map(String::as_str),
+            Some("Browser CDP Automation Detection")
+        );
+        assert_eq!(
+            summary
+                .surface_labels
+                .get("cdp_report_ingestion")
+                .map(String::as_str),
+            Some("CDP Report Ingestion")
+        );
+        assert_eq!(
+            summary
+                .surface_labels
+                .get("verified_identity_attestation")
+                .map(String::as_str),
+            Some("Verified Identity Attestation")
+        );
+        assert_eq!(summary.required_surface_ids.len(), 11);
+        assert_eq!(summary.satisfied_surface_ids.len(), 11);
         assert!(summary
             .receipts
             .iter()
@@ -658,7 +796,7 @@ mod tests {
     #[test]
     fn owned_surface_coverage_summary_leaves_missing_or_wrong_outcomes_blocking() {
         let summary = summarize_scrapling_owned_surface_coverage(
-            &["http_agent".to_string()],
+            &["stealth_browser".to_string(), "http_agent".to_string()],
             &[
                 ScraplingSurfaceObservationReceipt {
                     surface_id: "challenge_routing".to_string(),
@@ -676,17 +814,42 @@ mod tests {
                     sample_request_path: "/pow/verify".to_string(),
                     sample_response_status: Some(200),
                 },
+                ScraplingSurfaceObservationReceipt {
+                    surface_id: "browser_automation_detection".to_string(),
+                    coverage_status: "transport_error".to_string(),
+                    attempt_count: 1,
+                    sample_request_method: "GET".to_string(),
+                    sample_request_path: "/pow".to_string(),
+                    sample_response_status: None,
+                },
             ],
         )
         .expect("coverage summary");
 
         assert_eq!(summary.overall_status, "partial");
+        assert_eq!(summary.canonical_surface_ids.len(), 13);
+        assert!(summary
+            .canonical_surface_ids
+            .contains(&"cdp_report_ingestion".to_string()));
+        assert!(summary
+            .canonical_surface_ids
+            .contains(&"verified_identity_attestation".to_string()));
+        assert_eq!(
+            summary
+                .surface_labels
+                .get("browser_automation_detection")
+                .map(String::as_str),
+            Some("Browser CDP Automation Detection")
+        );
         assert!(summary
             .blocking_surface_ids
             .contains(&"pow_verify_abuse".to_string()));
         assert!(summary
             .blocking_surface_ids
             .contains(&"not_a_bot_submit".to_string()));
+        assert!(summary
+            .blocking_surface_ids
+            .contains(&"maze_navigation".to_string()));
         let pow = summary
             .receipts
             .iter()
@@ -694,5 +857,12 @@ mod tests {
             .expect("pow receipt");
         assert_eq!(pow.coverage_status, "pass_observed");
         assert!(!pow.satisfied);
+        let detection = summary
+            .receipts
+            .iter()
+            .find(|receipt| receipt.surface_id == "browser_automation_detection")
+            .expect("browser detection receipt");
+        assert_eq!(detection.coverage_status, "transport_error");
+        assert!(!detection.satisfied);
     }
 }

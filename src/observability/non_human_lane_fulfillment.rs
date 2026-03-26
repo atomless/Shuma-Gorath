@@ -9,20 +9,19 @@ use crate::runtime::non_human_taxonomy::{
 pub(crate) const NON_HUMAN_LANE_FULFILLMENT_SCHEMA_VERSION: &str =
     "non_human_lane_fulfillment_v1";
 
-const SCRAPLING_OWNED_CATEGORY_TARGETS: [&str; 3] = [
+const SCRAPLING_OWNED_CATEGORY_TARGETS: [&str; 4] = [
     "indexing_bot",
     "ai_scraper_bot",
+    "automated_browser",
     "http_agent",
 ];
 const SCRAPLING_RUNTIME_PROFILE_PREFIX: &str = "scrapling_runtime_lane";
 const SCRAPLING_CRAWLER_CATEGORY_TARGETS: [&str; 1] = ["indexing_bot"];
 const SCRAPLING_BULK_SCRAPER_CATEGORY_TARGETS: [&str; 1] = ["ai_scraper_bot"];
+const SCRAPLING_BROWSER_AUTOMATION_CATEGORY_TARGETS: [&str; 1] = ["automated_browser"];
+const SCRAPLING_STEALTH_BROWSER_CATEGORY_TARGETS: [&str; 1] = ["automated_browser"];
 const SCRAPLING_HTTP_AGENT_CATEGORY_TARGETS: [&str; 1] = ["http_agent"];
-const LLM_BROWSER_CATEGORY_TARGETS: [&str; 3] = [
-    "automated_browser",
-    "browser_agent",
-    "agent_on_behalf_of_human",
-];
+const LLM_BROWSER_CATEGORY_TARGETS: [&str; 2] = ["browser_agent", "agent_on_behalf_of_human"];
 const LLM_REQUEST_CATEGORY_TARGETS: [&str; 2] = ["http_agent", "ai_scraper_bot"];
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -59,6 +58,14 @@ pub(crate) fn scrapling_category_targets_for_mode(mode: &str) -> Vec<String> {
             .map(|value| (*value).to_string())
             .collect(),
         "bulk_scraper" => SCRAPLING_BULK_SCRAPER_CATEGORY_TARGETS
+            .iter()
+            .map(|value| (*value).to_string())
+            .collect(),
+        "browser_automation" => SCRAPLING_BROWSER_AUTOMATION_CATEGORY_TARGETS
+            .iter()
+            .map(|value| (*value).to_string())
+            .collect(),
+        "stealth_browser" => SCRAPLING_STEALTH_BROWSER_CATEGORY_TARGETS
             .iter()
             .map(|value| (*value).to_string())
             .collect(),
@@ -176,9 +183,9 @@ fn lane_assignment_for_category(
         ),
         NonHumanCategoryId::AutomatedBrowser => (
             "mapped",
-            "bot_red_team",
-            "browser_mode",
-            "Bounded LLM browser mode is the intended fulfillment lane for browser automation pressure.",
+            "scrapling_traffic",
+            "browser_automation",
+            "Browser-capable Scrapling personas are the intended fulfillment lane for non-agent browser automation pressure.",
         ),
         NonHumanCategoryId::HttpAgent => (
             "mapped",
@@ -273,10 +280,15 @@ mod tests {
     }
 
     #[test]
-    fn lane_target_helpers_match_bounded_fulfillment_modes() {
+    fn lane_target_helpers_match_full_spectrum_fulfillment_modes() {
         assert_eq!(
             scrapling_category_targets(),
-            vec!["indexing_bot", "ai_scraper_bot", "http_agent"]
+            vec![
+                "indexing_bot",
+                "ai_scraper_bot",
+                "automated_browser",
+                "http_agent"
+            ]
         );
         assert_eq!(
             scrapling_category_targets_for_mode("crawler"),
@@ -287,13 +299,21 @@ mod tests {
             vec!["ai_scraper_bot"]
         );
         assert_eq!(
+            scrapling_category_targets_for_mode("browser_automation"),
+            vec!["automated_browser"]
+        );
+        assert_eq!(
+            scrapling_category_targets_for_mode("stealth_browser"),
+            vec!["automated_browser"]
+        );
+        assert_eq!(
             scrapling_category_targets_for_mode("http_agent"),
             vec!["http_agent"]
         );
         assert!(scrapling_category_targets_for_mode("unknown_mode").is_empty());
         assert_eq!(
             llm_category_targets_for_mode("browser_mode"),
-            vec!["automated_browser", "browser_agent", "agent_on_behalf_of_human"]
+            vec!["browser_agent", "agent_on_behalf_of_human"]
         );
         assert_eq!(
             llm_category_targets_for_mode("request_mode"),
@@ -306,7 +326,7 @@ mod tests {
     fn runtime_profile_observation_helper_normalizes_scrapling_modes_into_categories() {
         let (profile, modes, categories) = observed_category_targets_for_runtime_profile(
             "scrapling_traffic",
-            "scrapling_runtime_lane.crawler.bulk_scraper.http_agent",
+            "scrapling_runtime_lane.crawler.bulk_scraper.browser_automation.stealth_browser.http_agent",
         );
         assert_eq!(profile, "scrapling_runtime_lane");
         assert_eq!(
@@ -314,6 +334,8 @@ mod tests {
             vec![
                 "crawler".to_string(),
                 "bulk_scraper".to_string(),
+                "browser_automation".to_string(),
+                "stealth_browser".to_string(),
                 "http_agent".to_string()
             ]
         );
@@ -322,6 +344,7 @@ mod tests {
             vec![
                 "indexing_bot".to_string(),
                 "ai_scraper_bot".to_string(),
+                "automated_browser".to_string(),
                 "http_agent".to_string()
             ]
         );

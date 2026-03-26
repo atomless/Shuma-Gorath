@@ -1306,6 +1306,7 @@ test-benchmark-suite-contract: ## Run focused machine-first benchmark suite cont
 test-benchmark-results-contract: ## Run focused machine-first benchmark results contract checks
 	@echo "$(CYAN)🧪 Running benchmark results contract checks...$(NC)"
 	@./scripts/set_crate_type.sh rlib
+	@cargo test observability::non_human_classification::tests:: -- --nocapture
 	@cargo test observability::benchmark_results::tests:: -- --nocapture
 	@cargo test admin::api::tests::handle_admin_benchmark_results_returns_bounded_current_instance_contract -- --exact --nocapture
 	@cargo test admin::api::tests::handle_admin_benchmark_results_returns_503_without_materialized_snapshot -- --exact --nocapture
@@ -1556,8 +1557,36 @@ test-adversary-sim-scrapling-category-fit: ## Focused Scrapling category-fit gat
 	@echo "$(CYAN)🧪 Running adversary-sim Scrapling category-fit gate...$(NC)"
 	@./scripts/set_crate_type.sh rlib
 	@cargo test observability::non_human_lane_fulfillment::tests:: -- --nocapture
-	@cargo test admin::adversary_sim_lane_runtime::tests::scrapling_fulfillment_modes_cycle_across_request_native_personas -- --exact --nocapture
+	@cargo test admin::adversary_sim_lane_runtime::tests::scrapling_fulfillment_modes_cycle_across_full_spectrum_personas -- --exact --nocapture
 	@cargo test admin::api::admin_config_tests::adversary_sim_internal_beat_returns_scrapling_worker_plan_and_switches_active_lane -- --exact --nocapture
+
+test-adversary-sim-scrapling-browser-capability: ## Focused Scrapling browser-capability gate (browser persona worker execution plus browser owned-surface receipts)
+	@echo "$(CYAN)🧪 Running adversary-sim Scrapling browser-capability gate...$(NC)"
+	@./scripts/set_crate_type.sh rlib
+	@cargo test observability::non_human_lane_fulfillment::tests:: -- --nocapture
+	@cargo test observability::scrapling_owned_surface::tests:: -- --nocapture
+	@cargo test admin::api::tests::recent_sim_run_history_normalizes_scrapling_profiles_and_aggregates_observed_categories -- --exact --nocapture
+	@cargo test observability::operator_snapshot_non_human::tests::non_human_snapshot_summary_projects_scrapling_full_spectrum_coverage -- --exact --nocapture
+	@cargo test observability::operator_snapshot::tests::snapshot_payload_projects_recent_run_owned_surface_coverage -- --exact --nocapture
+	@if [ ! -x "$(SCRAPLING_VENV_PYTHON)" ]; then \
+		echo "$(RED)❌ Error: $(SCRAPLING_VENV_PYTHON) not found.$(NC)"; \
+		echo "$(YELLOW)   Run make setup or make setup-runtime to provision the repo-owned Scrapling worker runtime.$(NC)"; \
+		exit 1; \
+	fi
+	@$(SCRAPLING_VENV_PYTHON) -m unittest scripts.tests.test_scrapling_worker.ScraplingWorkerUnitTests.test_execute_worker_plan_browser_automation_attempts_browser_owned_surfaces
+	@$(SCRAPLING_VENV_PYTHON) -m unittest scripts.tests.test_scrapling_worker.ScraplingWorkerUnitTests.test_execute_worker_plan_stealth_browser_attempts_browser_owned_surfaces
+
+test-adversary-sim-scrapling-proxy-capability: ## Focused Scrapling proxy-capability gate (beat-plan proxy plumbing plus worker proxy kwargs contracts)
+	@echo "$(CYAN)🧪 Running adversary-sim Scrapling proxy-capability gate...$(NC)"
+	@./scripts/set_crate_type.sh rlib
+	@cargo test admin::api::admin_config_tests::adversary_sim_internal_beat_returns_scrapling_worker_plan_and_switches_active_lane -- --exact --nocapture
+	@if [ ! -x "$(SCRAPLING_VENV_PYTHON)" ]; then \
+		echo "$(RED)❌ Error: $(SCRAPLING_VENV_PYTHON) not found.$(NC)"; \
+		echo "$(YELLOW)   Run make setup or make setup-runtime to provision the repo-owned Scrapling worker runtime.$(NC)"; \
+		exit 1; \
+	fi
+	@$(SCRAPLING_VENV_PYTHON) -m unittest scripts.tests.test_scrapling_worker.ScraplingWorkerUnitTests.test_request_native_session_kwargs_accept_optional_proxy_contract
+	@$(SCRAPLING_VENV_PYTHON) -m unittest scripts.tests.test_scrapling_worker.ScraplingWorkerUnitTests.test_browser_session_kwargs_accept_optional_proxy_contract
 
 test-adversary-sim-scrapling-malicious-request-native: ## Focused Scrapling malicious request-native gate (owned route contract plus malicious bulk/http persona submits)
 	@echo "$(CYAN)🧪 Running adversary-sim Scrapling malicious request-native gate...$(NC)"
@@ -2091,11 +2120,11 @@ test-dashboard-game-loop-accountability: ## Run focused dashboard Game Loop mach
 	fi
 	@$(MAKE) --no-print-directory test-dashboard-svelte-check
 	@node --test \
-		--test-name-pattern='dashboard game loop accountability adapters normalize benchmark and oversight payloads safely|dashboard game loop accountability refresh populates machine snapshots through behavior' \
+		--test-name-pattern='dashboard game loop accountability adapters normalize benchmark and oversight payloads safely|dashboard game loop policy truth stops presenting legacy verified-identity stance as the strict target|dashboard game loop accountability refresh populates machine snapshots through behavior' \
 		e2e/dashboard.modules.unit.test.js
 	@if $(MAKE) --no-print-directory spin-wait-ready; then \
 		$(MAKE) --no-print-directory seed-dashboard-data || exit 1; \
-		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) ./scripts/tests/run_dashboard_e2e.sh --grep "game loop projects benchmark and oversight accountability from machine-first contracts"; \
+		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) ./scripts/tests/run_dashboard_e2e.sh --grep "game loop projects benchmark and oversight accountability from machine-first contracts|game loop tab corroborates latest scrapling evidence readiness"; \
 	else \
 		echo "$(RED)❌ Error: Spin server not ready$(NC)"; \
 		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \

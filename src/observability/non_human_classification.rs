@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use crate::bot_identity::contracts::IdentityCategory;
 use crate::observability::monitoring::{
     MonitoringSummary, RequestOutcomeCategorySummaryRow, RequestOutcomeLaneSummaryRow,
-    VerifiedIdentitySeenRow,
+    RequestOutcomeScopeSummaryRow, VerifiedIdentitySeenRow,
 };
 use crate::observability::operator_snapshot_live_traffic::OperatorSnapshotRecentSimRun;
 use crate::runtime::non_human_taxonomy::{
@@ -165,6 +165,11 @@ pub(crate) fn summarize_non_human_classification(
     Vec<NonHumanClassificationReceipt>,
 ) {
     let taxonomy = canonical_non_human_taxonomy();
+    let sim_scope = summary.request_outcomes.by_scope.iter().find(|row| {
+        row.traffic_origin == "adversary_sim"
+            && row.measurement_scope == "ingress_primary"
+            && row.execution_mode == "enforced"
+    });
     let mut receipts: Vec<NonHumanClassificationReceipt> = if summary
         .request_outcomes
         .by_non_human_category
@@ -187,7 +192,31 @@ pub(crate) fn summarize_non_human_classification(
             .filter_map(|row| receipt_from_lane_row(row, recent_sim_runs, &taxonomy.categories))
             .collect()
     };
-    let mut sim_receipts = sim_receipts_from_recent_runs(recent_sim_runs, &taxonomy.categories);
+    let mut sim_receipts: BTreeMap<String, NonHumanClassificationReceipt> = summary
+        .request_outcomes
+        .by_non_human_category
+        .iter()
+        .filter(|row| row.traffic_origin == "adversary_sim")
+        .filter_map(|row| receipt_from_category_row(row, recent_sim_runs, &taxonomy.categories))
+        .map(|receipt| (receipt.category_id.clone(), receipt))
+        .collect();
+    for receipt in sim_receipts_from_recent_runs(recent_sim_runs, &taxonomy.categories, sim_scope) {
+        sim_receipts
+            .entry(receipt.category_id.clone())
+            .and_modify(|existing| {
+                for reference in &receipt.evidence_references {
+                    if !existing
+                        .evidence_references
+                        .iter()
+                        .any(|value| value == reference)
+                    {
+                        existing.evidence_references.push(reference.clone());
+                    }
+                }
+            })
+            .or_insert(receipt);
+    }
+    let mut sim_receipts: Vec<_> = sim_receipts.into_values().collect();
     if sim_receipts.is_empty() {
         sim_receipts = summary
             .request_outcomes
@@ -327,9 +356,12 @@ fn receipt_from_category_row(
 fn sim_receipts_from_recent_runs(
     recent_sim_runs: &[OperatorSnapshotRecentSimRun],
     categories: &[NonHumanCategoryDescriptor],
+    sim_scope: Option<&RequestOutcomeScopeSummaryRow>,
 ) -> Vec<NonHumanClassificationReceipt> {
     let mut receipts: BTreeMap<String, NonHumanClassificationReceipt> = BTreeMap::new();
     for run in recent_sim_runs {
+        let (forwarded_requests, short_circuited_requests) =
+            projected_recent_run_outcomes(run.monitoring_event_count, sim_scope);
         for category_id in &run.observed_category_ids {
             let Some(category) = categories
                 .iter()
@@ -358,6 +390,12 @@ fn sim_receipts_from_recent_runs(
             entry.total_requests = entry
                 .total_requests
                 .saturating_add(run.monitoring_event_count);
+            entry.forwarded_requests = entry
+                .forwarded_requests
+                .saturating_add(forwarded_requests);
+            entry.short_circuited_requests = entry
+                .short_circuited_requests
+                .saturating_add(short_circuited_requests);
             let reference = format!(
                 "recent_sim_runs:{}:{}:{}",
                 run.run_id, run.profile, category_id
@@ -368,6 +406,57 @@ fn sim_receipts_from_recent_runs(
         }
     }
     receipts.into_values().collect()
+}
+
+fn projected_recent_run_outcomes(
+    run_total_requests: u64,
+    sim_scope: Option<&RequestOutcomeScopeSummaryRow>,
+) -> (u64, u64) {
+    let Some(scope) = sim_scope else {
+        return (0, 0);
+    };
+    if run_total_requests == 0 || scope.total_requests == 0 {
+        return (0, 0);
+    }
+
+    let mut forwarded_requests = proportional_count(
+        run_total_requests,
+        scope.forwarded_requests,
+        scope.total_requests,
+    );
+    let mut short_circuited_requests = proportional_count(
+        run_total_requests,
+        scope.short_circuited_requests,
+        scope.total_requests,
+    );
+    let observed_total = forwarded_requests.saturating_add(short_circuited_requests);
+    if observed_total > run_total_requests {
+        let overflow = observed_total - run_total_requests;
+        if short_circuited_requests >= forwarded_requests {
+            short_circuited_requests = short_circuited_requests.saturating_sub(overflow);
+        } else {
+            forwarded_requests = forwarded_requests.saturating_sub(overflow);
+        }
+    } else if observed_total < run_total_requests {
+        let remainder = run_total_requests - observed_total;
+        if scope.short_circuited_requests >= scope.forwarded_requests {
+            short_circuited_requests = short_circuited_requests.saturating_add(remainder);
+        } else {
+            forwarded_requests = forwarded_requests.saturating_add(remainder);
+        }
+    }
+
+    (forwarded_requests, short_circuited_requests)
+}
+
+fn proportional_count(run_total_requests: u64, numerator: u64, denominator: u64) -> u64 {
+    if run_total_requests == 0 || numerator == 0 || denominator == 0 {
+        return 0;
+    }
+    run_total_requests
+        .saturating_mul(numerator)
+        .saturating_add(denominator / 2)
+        / denominator
 }
 
 fn lane_from_summary_value(value: &str) -> Option<TrafficLane> {
@@ -484,7 +573,7 @@ mod tests {
     };
     use crate::observability::monitoring::{
         MonitoringSummary, RequestOutcomeCategorySummaryRow, RequestOutcomeLaneSummaryRow,
-        VerifiedIdentitySeenRow,
+        RequestOutcomeScopeSummaryRow, VerifiedIdentitySeenRow,
     };
     use crate::observability::operator_snapshot_live_traffic::OperatorSnapshotRecentSimRun;
 
@@ -579,6 +668,20 @@ mod tests {
             short_circuited_response_bytes: 0,
             control_response_bytes: 0,
         }];
+        summary.request_outcomes.by_scope = vec![RequestOutcomeScopeSummaryRow {
+            traffic_origin: "adversary_sim".to_string(),
+            measurement_scope: "ingress_primary".to_string(),
+            execution_mode: "enforced".to_string(),
+            total_requests: 9,
+            forwarded_requests: 2,
+            short_circuited_requests: 7,
+            control_response_requests: 0,
+            response_bytes: 900,
+            forwarded_upstream_latency_ms_total: 0,
+            forwarded_response_bytes: 200,
+            short_circuited_response_bytes: 700,
+            control_response_bytes: 0,
+        }];
 
         let (readiness, receipts) = summarize_non_human_classification(
             &summary,
@@ -619,6 +722,13 @@ mod tests {
         assert!(receipts
             .iter()
             .any(|receipt| receipt.category_id == "http_agent"));
+        let ai_scraper = receipts
+            .iter()
+            .find(|receipt| receipt.category_id == "ai_scraper_bot")
+            .expect("ai scraper receipt");
+        assert_eq!(ai_scraper.total_requests, 9);
+        assert_eq!(ai_scraper.forwarded_requests, 2);
+        assert_eq!(ai_scraper.short_circuited_requests, 7);
     }
 
     #[test]

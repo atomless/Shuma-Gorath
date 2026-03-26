@@ -107,7 +107,7 @@ import sys
 if sys.version_info < (3, 10):
     raise SystemExit(1)
 
-from scrapling.fetchers import FetcherSession  # noqa: F401
+from scrapling.fetchers import DynamicSession, FetcherSession, StealthySession  # noqa: F401
 import anyio  # noqa: F401
 import curl_cffi  # noqa: F401
 

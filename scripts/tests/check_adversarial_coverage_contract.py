@@ -325,6 +325,15 @@ def validate_coverage_contract() -> List[str]:
         errors.append(
             "coverage contract ai_scraper_bot must map to bulk_scraper in this tranche"
         )
+    automated_browser_row = dict(category_rows.get("automated_browser") or {})
+    if str(automated_browser_row.get("runtime_lane") or "").strip() != "scrapling_traffic":
+        errors.append(
+            "coverage contract automated_browser must map to scrapling_traffic in this tranche"
+        )
+    if str(automated_browser_row.get("fulfillment_mode") or "").strip() != "browser_automation":
+        errors.append(
+            "coverage contract automated_browser must map to browser_automation in this tranche"
+        )
     http_agent_row = dict(category_rows.get("http_agent") or {})
     if str(http_agent_row.get("runtime_lane") or "").strip() != "scrapling_traffic":
         errors.append(

@@ -6,6 +6,10 @@ use crate::observability::non_human_classification::{
     summarize_verified_identity_taxonomy_alignment, NonHumanClassificationReceipt,
     VerifiedIdentityTaxonomyAlignmentSummary,
 };
+use crate::observability::operator_snapshot_objectives::OperatorObjectivesProfile;
+use crate::runtime::non_human_policy::{
+    effective_non_human_policy_summary, EffectiveNonHumanPolicySummary,
+};
 
 const TOP_VERIFIED_IDENTITY_ROWS: usize = 3;
 
@@ -22,7 +26,7 @@ pub(crate) struct OperatorSnapshotVerifiedIdentitySummary {
     pub enabled: bool,
     pub native_web_bot_auth_enabled: bool,
     pub provider_assertions_enabled: bool,
-    pub non_human_traffic_stance: String,
+    pub effective_non_human_policy: EffectiveNonHumanPolicySummary,
     pub named_policy_count: usize,
     pub service_profile_count: usize,
     pub attempts: u64,
@@ -46,6 +50,7 @@ pub(crate) struct OperatorSnapshotVerifiedIdentitySummary {
 pub(super) fn verified_identity_summary(
     summary: &MonitoringSummary,
     cfg: &Config,
+    objectives: &OperatorObjectivesProfile,
     non_human_receipts: &[NonHumanClassificationReceipt],
 ) -> OperatorSnapshotVerifiedIdentitySummary {
     let policy_row = summary
@@ -63,7 +68,7 @@ pub(super) fn verified_identity_summary(
         enabled: cfg.verified_identity.enabled,
         native_web_bot_auth_enabled: cfg.verified_identity.native_web_bot_auth_enabled,
         provider_assertions_enabled: cfg.verified_identity.provider_assertions_enabled,
-        non_human_traffic_stance: cfg.verified_identity.non_human_traffic_stance.as_str().to_string(),
+        effective_non_human_policy: effective_non_human_policy_summary(objectives),
         named_policy_count: cfg.verified_identity.named_policies.len(),
         service_profile_count: cfg.verified_identity.service_profiles.len(),
         attempts: summary.verified_identity.attempts,
@@ -182,6 +187,9 @@ mod tests {
         let snapshot = verified_identity_summary(
             &summary,
             &cfg,
+            &crate::observability::operator_snapshot_objectives::default_operator_objectives(
+                1_700_000_000,
+            ),
             &[NonHumanClassificationReceipt {
                 traffic_origin: "live".to_string(),
                 measurement_scope: "ingress_primary".to_string(),
@@ -207,6 +215,14 @@ mod tests {
         assert!(snapshot.enabled);
         assert_eq!(snapshot.named_policy_count, 0);
         assert_eq!(snapshot.service_profile_count, 4);
+        assert_eq!(
+            snapshot.effective_non_human_policy.profile_id,
+            "human_only_private"
+        );
+        assert_eq!(
+            snapshot.effective_non_human_policy.verified_identity_override_mode,
+            "strict_human_only"
+        );
         assert_eq!(snapshot.attempts, 4);
         assert_eq!(snapshot.top_categories[0].label, "search");
         assert_eq!(snapshot.taxonomy_alignment.status, "aligned");
@@ -225,7 +241,12 @@ mod tests {
         cfg.verified_identity.enabled = false;
         cfg.verified_identity.native_web_bot_auth_enabled = false;
         cfg.verified_identity.provider_assertions_enabled = false;
-        let snapshot = verified_identity_summary(&MonitoringSummary::default(), &cfg, &[]);
+        let snapshot = verified_identity_summary(
+            &MonitoringSummary::default(),
+            &cfg,
+            &crate::observability::operator_snapshot_objectives::default_operator_objectives(0),
+            &[],
+        );
 
         assert_eq!(snapshot.availability, "not_configured");
         assert!(!snapshot.enabled);
@@ -249,7 +270,12 @@ mod tests {
             },
         );
 
-        let snapshot = verified_identity_summary(&summary, &cfg, &[]);
+        let snapshot = verified_identity_summary(
+            &summary,
+            &cfg,
+            &crate::observability::operator_snapshot_objectives::default_operator_objectives(0),
+            &[],
+        );
 
         assert_eq!(snapshot.taxonomy_alignment.status, "insufficient_evidence");
         assert_eq!(snapshot.taxonomy_alignment.insufficient_evidence_count, 2);

@@ -4,6 +4,297 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-26)
 
+### STANCE-MODEL-1 Canonical Effective Non-Human Policy
+
+- [x] Landed the canonical effective-policy contract across:
+  - [`src/runtime/non_human_policy.rs`](../src/runtime/non_human_policy.rs)
+  - [`src/bot_identity/policy.rs`](../src/bot_identity/policy.rs)
+  - [`src/runtime/policy_graph.rs`](../src/runtime/policy_graph.rs)
+  - [`src/runtime/policy_pipeline.rs`](../src/runtime/policy_pipeline.rs)
+  so Shuma now resolves verified identity inside one canonical non-human stance model, with `human_only_private` suppressing verified-identity overrides and `humans_plus_verified_only` exposing the later explicit-override mode through the same contract.
+- [x] Removed the independent verified-identity stance authority across:
+  - [`src/config/mod.rs`](../src/config/mod.rs)
+  - [`src/admin/api.rs`](../src/admin/api.rs)
+  - [`config/defaults.env`](../config/defaults.env)
+  - [`scripts/config_seed.sh`](../scripts/config_seed.sh)
+  - [`dashboard/src/lib/domain/config-schema.js`](../dashboard/src/lib/domain/config-schema.js)
+  so `verified_identity.non_human_traffic_stance` and `SHUMA_VERIFIED_IDENTITY_NON_HUMAN_TRAFFIC_STANCE` no longer exist as a second policy regime in config, admin, export, or dashboard Advanced JSON.
+- [x] Rebased machine-first projection and operator truth across:
+  - [`src/observability/operator_snapshot_verified_identity.rs`](../src/observability/operator_snapshot_verified_identity.rs)
+  - [`src/observability/benchmark_beneficial_non_human.rs`](../src/observability/benchmark_beneficial_non_human.rs)
+  - [`dashboard/src/lib/domain/api-client.js`](../dashboard/src/lib/domain/api-client.js)
+  - [`dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
+  so snapshot, benchmark, Verification, and Game Loop now project `effective_non_human_policy` and verified-identity override lineage rather than the legacy split-model stance.
+- [x] Closed the planning and documentation chain in:
+  - [`docs/plans/2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md`](../docs/plans/2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md)
+  - [`docs/research/2026-03-26-stance-model-1-post-implementation-review.md`](../docs/research/2026-03-26-stance-model-1-post-implementation-review.md)
+  - [`docs/configuration.md`](../docs/configuration.md)
+  - [`docs/security-hardening.md`](../docs/security-hardening.md)
+  - [`docs/api.md`](../docs/api.md)
+  so the repo now documents the resolved policy contract instead of the removed top-level verified-identity stance.
+- [x] Why:
+  - the old design let runtime, snapshot, and Game Loop disagree about whether verified identity had its own top-level stance authority, which made the strict human-only baseline too easy to misread and undermined the feedback-loop methodology.
+- [x] Evidence:
+  - `make test-verified-identity-policy`
+  - `make test-verified-identity-config`
+  - `make test-operator-objectives-contract`
+  - `make test-benchmark-results-contract`
+  - `make test-dashboard-game-loop-accountability`
+  - `make test-dashboard-verified-identity-pane`
+
+### UI-RED-SCRAPLING-4 Full-Surface Checklist Semantics
+
+- [x] Broadened the Red Team Scrapling checklist source across:
+  - [`src/observability/scrapling_owned_surface.rs`](../src/observability/scrapling_owned_surface.rs)
+  - [`src/observability/operator_snapshot.rs`](../src/observability/operator_snapshot.rs)
+  so the recent-run coverage summary now carries the full current canonical Scrapling defense-surface matrix, not just the required or owned subset, and non-required rows therefore render as explicit dash states.
+- [x] Updated the dashboard rendering and shared list styling in:
+  - [`dashboard/src/lib/components/dashboard/monitoring/ScraplingEvidencePanel.svelte`](../dashboard/src/lib/components/dashboard/monitoring/ScraplingEvidencePanel.svelte)
+  - [`dashboard/style.css`](../dashboard/style.css)
+  so the Scrapling checklist now renders every current matrix row without bullets, relying only on the tick or cross or dash markers the user asked for.
+- [x] Tightened the focused proof and docs in:
+  - [`e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`docs/dashboard-tabs/red-team.md`](../docs/dashboard-tabs/red-team.md)
+  - [`docs/testing.md`](../docs/testing.md)
+  so the contract now asserts the broader 13-row checklist and the bulletless rendered surface.
+- [x] Why:
+  - the user correctly pointed out that Shuma owns the defense surfaces, not the lanes, so the Red Team panel needed to show the full current defense-surface matrix with per-run expected-hit semantics instead of a truncated lane-owned subset.
+- [x] Evidence:
+  - `make test-adversary-sim-scrapling-coverage-receipts`
+  - `make test-dashboard-scrapling-evidence`
+  - `git diff --check`
+
+### UI-RED-SCRAPLING-3 Canonical Surface Label Parity
+
+- [x] Corrected the Scrapling owned-surface terminology path across:
+  - [`src/observability/scrapling_owned_surface.rs`](../src/observability/scrapling_owned_surface.rs)
+  - [`src/observability/operator_snapshot.rs`](../src/observability/operator_snapshot.rs)
+  - [`dashboard/src/lib/components/dashboard/monitoring-view-model.js`](../dashboard/src/lib/components/dashboard/monitoring-view-model.js)
+  - [`dashboard/src/lib/components/dashboard/monitoring/ScraplingEvidencePanel.svelte`](../dashboard/src/lib/components/dashboard/monitoring/ScraplingEvidencePanel.svelte)
+  so the Red Team Scrapling checklist and receipt table now render canonical backend surface labels such as `Browser CDP Automation Detection` instead of lossy token-humanized variants like `Browser Automation Detection` or `Js Verification Execution`.
+- [x] Tightened the focused proof in:
+  - [`e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  so the rendered contract now asserts the canonical surface labels rather than the old ad-hoc humanization output.
+- [x] Why:
+  - the user correctly flagged that inconsistent surface naming would blur the distinction between Scrapling attacker capability and Shuma's own defense surfaces, which is especially risky around CDP automation terminology.
+- [x] Evidence:
+  - `make test-adversary-sim-scrapling-coverage-receipts`
+  - `make test-dashboard-scrapling-evidence`
+  - `git diff --check`
+
+### UI-RED-SCRAPLING-2 Scrapling Surface Checklist Truthfulness
+
+- [x] Refined the Red Team Scrapling evidence surface across:
+  - [`dashboard/src/lib/components/dashboard/monitoring/ScraplingEvidencePanel.svelte`](../dashboard/src/lib/components/dashboard/monitoring/ScraplingEvidencePanel.svelte)
+  - [`dashboard/src/lib/components/dashboard/monitoring-view-model.js`](../dashboard/src/lib/components/dashboard/monitoring-view-model.js)
+  - [`src/observability/scrapling_owned_surface.rs`](../src/observability/scrapling_owned_surface.rs)
+  - [`src/observability/operator_snapshot.rs`](../src/observability/operator_snapshot.rs)
+  so the panel is now titled `Scrapling`, keeps the high-level required/satisfied/blocking stat cards, and renders every canonical Scrapling-owned surface with a truthful tick or cross or dash state instead of only showing the latest receipt table.
+- [x] Updated the focused proof and operator docs in:
+  - [`e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`docs/dashboard-tabs/red-team.md`](../docs/dashboard-tabs/red-team.md)
+  - [`docs/testing.md`](../docs/testing.md)
+  so the contract now proves the renamed section and all-surface checklist rendering against the recent-run coverage summary.
+- [x] Why:
+  - the user wanted the Red Team page to show all Scrapling surfaces explicitly, with success and failure states that make required coverage gaps obvious instead of forcing operators to infer them from the sample receipts alone.
+- [x] Evidence:
+  - `make test-adversary-sim-scrapling-coverage-receipts`
+  - `make test-dashboard-scrapling-evidence`
+
+### SIM-SCR-FULL-1B Browser, Stealth, And Proxy Capability Adoption
+
+- [x] Shipped the remaining active Scrapling capability tranche across:
+  - [`scripts/supervisor/scrapling_worker.py`](../scripts/supervisor/scrapling_worker.py)
+  - [`scripts/bootstrap/scrapling_runtime.sh`](../scripts/bootstrap/scrapling_runtime.sh)
+  - [`src/admin/adversary_sim_worker_plan.rs`](../src/admin/adversary_sim_worker_plan.rs)
+  - [`src/admin/adversary_sim_lane_runtime.rs`](../src/admin/adversary_sim_lane_runtime.rs)
+  - [`src/admin/api.rs`](../src/admin/api.rs)
+  - [`src/observability/non_human_lane_fulfillment.rs`](../src/observability/non_human_lane_fulfillment.rs)
+  - [`src/observability/scrapling_owned_surface.rs`](../src/observability/scrapling_owned_surface.rs)
+  - [`src/observability/operator_snapshot.rs`](../src/observability/operator_snapshot.rs)
+  - [`src/observability/operator_snapshot_non_human.rs`](../src/observability/operator_snapshot_non_human.rs)
+  so Scrapling now owns `automated_browser`, executes dynamic-browser and stealth-browser personas, touches `maze_navigation`, `js_verification_execution`, and `browser_automation_detection`, and carries optional request and browser proxy plan support with local proof.
+- [x] Updated the focused proof surface in:
+  - [`Makefile`](../Makefile)
+  - [`scripts/tests/test_scrapling_worker.py`](../scripts/tests/test_scrapling_worker.py)
+  - [`scripts/tests/test_llm_fulfillment.py`](../scripts/tests/test_llm_fulfillment.py)
+  - [`scripts/tests/test_llm_runtime_worker.py`](../scripts/tests/test_llm_runtime_worker.py)
+  - [`scripts/tests/adversarial/coverage_contract.v2.json`](../scripts/tests/adversarial/coverage_contract.v2.json)
+  - [`scripts/tests/test_adversarial_coverage_contract.py`](../scripts/tests/test_adversarial_coverage_contract.py)
+  - [`scripts/tests/check_adversarial_coverage_contract.py`](../scripts/tests/check_adversarial_coverage_contract.py)
+  so the repo now freezes the full-spectrum Scrapling lane contract and the ownership move away from the LLM lane.
+- [x] Wrote the closeout review in:
+  - [`docs/research/2026-03-26-sim-scr-full-1b-browser-and-proxy-capability-post-implementation-review.md`](../docs/research/2026-03-26-sim-scr-full-1b-browser-and-proxy-capability-post-implementation-review.md)
+  and corrected the remaining operator and roadmap docs in:
+  - [`docs/adversarial-operator-guide.md`](../docs/adversarial-operator-guide.md)
+  - [`docs/api.md`](../docs/api.md)
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`docs/current-system-architecture.md`](../docs/current-system-architecture.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+  so the repo no longer describes browser ownership as undecided or Scrapling as request-native only.
+- [x] Why:
+  - the user required the Scrapling lane to stop being a polite half-adversary and to adopt all attacker-relevant Scrapling capability that materially strengthens attacks against Shuma defenses unless explicitly excluded with overt reasoning.
+- [x] Evidence:
+  - `make test-adversary-sim-scrapling-category-fit`
+  - `make test-adversary-sim-scrapling-browser-capability`
+  - `make test-adversary-sim-scrapling-proxy-capability`
+  - `make test-adversary-sim-scrapling-coverage-receipts`
+  - `make test-adversarial-coverage-receipts`
+  - `make test-adversarial-llm-fit`
+  - `make test-adversarial-llm-runtime-dispatch`
+  - `git diff --check`
+
+### SIM-SCR-FULL-1A Full-Spectrum Capability Matrix Refresh
+
+- [x] Wrote the refreshed matrix review in:
+  - [`docs/research/2026-03-26-sim-scr-full-1a-full-spectrum-capability-matrix-refresh-review.md`](../docs/research/2026-03-26-sim-scr-full-1a-full-spectrum-capability-matrix-refresh-review.md)
+  so the repo now records a concrete keep or adopt or exclude answer under the stronger mandate instead of an open-ended instruction to be "more Scrapling somehow".
+- [x] Wrote the execution plan in:
+  - [`docs/plans/2026-03-26-sim-scr-full-spectrum-capability-implementation-plan.md`](../docs/plans/2026-03-26-sim-scr-full-spectrum-capability-implementation-plan.md)
+  so the code tranche now has a named task sequence, exact file touchpoints, and focused `make` proof paths.
+- [x] Updated the active backlog in:
+  - [`todos/todo.md`](../todos/todo.md)
+  so `SIM-SCR-FULL-1A` is no longer an unresolved matrix question, and the remaining active work is split into:
+  - browser and stealth adoption plus truthful `automated_browser` ownership,
+  - immediate proxy follow-on inside `SIM-SCR-FULL-1B`,
+  - and the later end-to-end receipt closure slice.
+- [x] Why:
+  - the user asked for the replan to be carried out and then for implementation to proceed,
+  - and that required the repo to turn the broader full-spectrum mandate into one explicit capability ledger and one executable implementation plan.
+- [x] Scope note:
+  - this is a planning and sequencing closeout, not shipped browser or proxy behavior yet.
+- [x] Evidence:
+  - `git diff --check`
+
+### SIM-SCR Full-Spectrum Adversary Mandate Realignment
+
+- [x] Wrote the clarified mandate review in:
+  - [`docs/research/2026-03-26-sim-scr-full-spectrum-adversary-mandate-review.md`](../docs/research/2026-03-26-sim-scr-full-spectrum-adversary-mandate-review.md)
+  so the repo now records the stronger source-of-truth requirement:
+  - the adversary sim should cover the full spectrum of non-human attackers across the Scrapling and LLM lanes,
+  - Scrapling must not leave attacker-relevant power unused if that power materially increases attacks on Shuma defenses,
+  - and any remaining omission must be overtly reasoned rather than inherited from the earlier request-native boundary.
+- [x] Reopened the active planning chain and backlog in:
+  - [`docs/plans/2026-03-25-scrapling-full-attacker-capability-principle-plan.md`](../docs/plans/2026-03-25-scrapling-full-attacker-capability-principle-plan.md)
+  - [`docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](../docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+  so `SIM-SCR-FULL-1A` is active again under the stronger full-spectrum mandate, and blocked browser or stealth items no longer serve as a parking lot for attacker-relevant Scrapling power that belongs in the active maturity tranche.
+- [x] Marked the earlier same-day closure interpretation as superseded in:
+  - [`docs/research/2026-03-26-sim-scr-full-1a-ratified-capability-matrix-closure-review.md`](../docs/research/2026-03-26-sim-scr-full-1a-ratified-capability-matrix-closure-review.md)
+  so the repo no longer presents two conflicting answers about whether `SIM-SCR-FULL-1A` is currently closed.
+- [x] Updated the research index in:
+  - [`docs/research/README.md`](../docs/research/README.md)
+- [x] Why:
+  - the user clarified that the adversary harness must represent the full non-human attacker spectrum and that Scrapling must not remain a polite half-adversary,
+  - so the earlier narrower interpretation of the matrix as already closed was no longer acceptable source-of-truth.
+- [x] Evidence:
+  - `git diff --check`
+
+### SIM-SCR-FULL-1A Ratified Capability Matrix Closure
+
+- [x] Wrote the closure review in:
+  - [`docs/research/2026-03-26-sim-scr-full-1a-ratified-capability-matrix-closure-review.md`](../docs/research/2026-03-26-sim-scr-full-1a-ratified-capability-matrix-closure-review.md)
+  so the repo now explicitly records that the matrix-freeze contract later named by `SIM-SCR-FULL-1A` was already satisfied by the settled `SIM-SCR-CAP-1` work, and that this slice is a consistency closeout rather than new attacker-capability delivery.
+- [x] Synced the active plan and backlog in:
+  - [`docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](../docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+  so `SIM-SCR-FULL-1A` no longer remains open in the active queue, `SIM-SCR-FULL-1B` and `SIM-SCR-FULL-1C` stay as the real remaining Scrapling maturity slices, and `SIM-SCR-CHALLENGE-2C` remains blocked under the settled matrix unless later ownership or insufficiency evidence deliberately reopens it.
+- [x] Updated the research index in:
+  - [`docs/research/README.md`](../docs/research/README.md)
+- [x] Why:
+  - the user asked to carry out the matrix-freeze task itself,
+  - and the repo already had the ratified answer but still left an open-task story that implied the capability-ownership question was unresolved.
+- [x] Scope note:
+  - superseded later the same day by the clarified full-spectrum adversary mandate, which re-opened `SIM-SCR-FULL-1A` under a stronger requirement than the narrower request-native interpretation captured here.
+- [x] Evidence:
+  - `git diff --check`
+
+### Strict Human-Only Seed And Leakage Truth Repair
+
+- [x] Shipped the strict-seed and telemetry-truth repair across:
+  - [`src/observability/operator_snapshot_objectives.rs`](../src/observability/operator_snapshot_objectives.rs)
+  - [`src/observability/operator_objectives_store.rs`](../src/observability/operator_objectives_store.rs)
+  - [`src/observability/operator_snapshot.rs`](../src/observability/operator_snapshot.rs)
+  - [`src/observability/benchmark_results.rs`](../src/observability/benchmark_results.rs)
+  - [`src/observability/benchmark_results_families.rs`](../src/observability/benchmark_results_families.rs)
+  - [`src/observability/non_human_classification.rs`](../src/observability/non_human_classification.rs)
+  - [`src/admin/api.rs`](../src/admin/api.rs)
+  - [`src/admin/operator_objectives_api.rs`](../src/admin/operator_objectives_api.rs)
+  - [`src/observability/hot_read_projection.rs`](../src/observability/hot_read_projection.rs)
+  - [`src/observability/benchmark_beneficial_non_human.rs`](../src/observability/benchmark_beneficial_non_human.rs)
+  - [`e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`Makefile`](../Makefile)
+  so the repo now:
+  - seeds `human_only_private` instead of the mixed-site `site_default_v1` profile,
+  - auto-upgrades previously persisted seeded `site_default_v1` operator-objective state on load,
+  - measures strict suspicious leakage from adversary-sim scope rather than live suspicious-automation traffic when the strict profile is active,
+  - blocks verified and other non-human categories by default under that strict seed,
+  - and stops flattening adversary-sim category receipts into fake zero-forwarded or zero-short-circuited rows that made Scrapling look `0%` effective even when traffic was actually being suppressed.
+- [x] Why:
+  - the user correctly flagged that the development default should be strict human-only rather than mixed-site,
+  - and the Game Loop numbers were making Scrapling appear totally ineffective because the category-receipt path was dropping the observed forwarded or short-circuited outcome counts.
+- [x] Evidence:
+  - `make test-operator-objectives-contract`
+  - `make test-benchmark-results-contract`
+  - `make test-dashboard-game-loop-accountability`
+- [x] Scope note:
+  - this ships the strict default and the telemetry repair, but it does not close `STANCE-MODEL-1` or `RSI-GAME-HO-1`; repeated judged config-change improvement under the strict loop is still open work.
+
+### VERIFY-GATE-1 Proof-Surface Closure
+
+- [x] Closed the remaining executable-proof gap for strict human-only Game Loop truth in:
+  - [`dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
+  - [`e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`Makefile`](../Makefile)
+  - [`docs/testing.md`](../docs/testing.md)
+  so the focused dashboard accountability lane now proves:
+  - Game Loop no longer presents the legacy verified-identity request-path stance as though it were the strict human-only policy truth,
+  - `site_default_v1` mixed-site suspicious-forwarded budgets are called out explicitly as mixed-site defaults rather than the intended strict `human_only_private` target,
+  - and later real-human traversal remains an explicit separate proof ring instead of being silently inferred from adversary-sim traffic.
+- [x] Why:
+  - `VERIFY-GATE-1A` and the completion-discipline cleanup already froze the acceptance criteria and wording rules,
+  - and the remaining gap was an executable rendered proof lane that enforced the strict-vs-mixed distinction the user flagged in the Game Loop tab.
+- [x] Evidence:
+  - `make test-dashboard-game-loop-accountability`
+
+### Strict Human-Only Loop And Human Traversal Calibration Alignment
+
+- [x] Wrote the stance-clarification review in:
+  - [`docs/research/2026-03-26-strict-human-only-loop-and-human-traversal-calibration-review.md`](../docs/research/2026-03-26-strict-human-only-loop-and-human-traversal-calibration-review.md)
+  so the repo now explicitly records:
+  - adversary-sim lanes are the authoritative `100%` non-human pressure source for the strict loop,
+  - the current `10%` suspicious forwarded budgets are seeded mixed-site defaults rather than the intended strict human-only target,
+  - local `/sim/public/*` is the intended first public surface for strict-loop iteration,
+  - and later human traversal calibration must stay separate from the sim-only exclusion gate.
+- [x] Tightened the active planning chain in:
+  - [`docs/plans/2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md`](../docs/plans/2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md)
+  - [`docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](../docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)
+  - [`docs/plans/2026-03-26-acceptance-gate-and-completion-claim-discipline-plan.md`](../docs/plans/2026-03-26-acceptance-gate-and-completion-claim-discipline-plan.md)
+  so the strict human-only loop now explicitly:
+  - treats adversary-sim traffic as fully non-human,
+  - requires tighter strict-loop target semantics than the seeded mixed-site defaults,
+  - uses local sim-public proof first,
+  - and leaves live-host plus human traversal realism as separate later proof rings.
+- [x] Synced that stance into the active backlog and operator-facing docs in:
+  - [`todos/todo.md`](../todos/todo.md)
+  - [`docs/dashboard-tabs/game-loop.md`](../docs/dashboard-tabs/game-loop.md)
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  so contributors and operators are less likely to misread today's Game Loop numbers as the intended strict `human_only_private` target.
+- [x] Why:
+  - the user correctly identified that the current Game Loop copy could be read as too loose for a strict human-only development stance,
+  - and the repo needed to say plainly that "keep all sim traffic out first, then measure real human friction separately" is the intended sequence.
+- [x] Evidence:
+  - `git diff --check`
+
 ### VERIFY-GATE-1A Explicit Acceptance Gates
 
 - [x] Froze the explicit closure gates for:

@@ -266,7 +266,6 @@ cat > "${tmp_json}" <<EOF
     "enabled": $(bool_norm "${SHUMA_VERIFIED_IDENTITY_ENABLED}"),
     "native_web_bot_auth_enabled": $(bool_norm "${SHUMA_VERIFIED_IDENTITY_NATIVE_WEB_BOT_AUTH_ENABLED}"),
     "provider_assertions_enabled": $(bool_norm "${SHUMA_VERIFIED_IDENTITY_PROVIDER_ASSERTIONS_ENABLED}"),
-    "non_human_traffic_stance": "${SHUMA_VERIFIED_IDENTITY_NON_HUMAN_TRAFFIC_STANCE}",
     "replay_window_seconds": ${SHUMA_VERIFIED_IDENTITY_REPLAY_WINDOW_SECONDS},
     "clock_skew_seconds": ${SHUMA_VERIFIED_IDENTITY_CLOCK_SKEW_SECONDS},
     "directory_cache_ttl_seconds": ${SHUMA_VERIFIED_IDENTITY_DIRECTORY_CACHE_TTL_SECONDS},

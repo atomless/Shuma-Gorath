@@ -510,6 +510,9 @@ fn next_scrapling_worker_plan(now: u64, state: &mut ControlState) -> ScraplingWo
     let tick_id = format!("scrapling-tick-{}-{:016x}", now, random::<u64>());
     let fulfillment_mode = scrapling_fulfillment_mode_for_tick(state.generated_tick_count);
     let runtime_profile = deterministic_runtime_profile();
+    let request_proxy_url = optional_scrapling_proxy_env("ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_URL");
+    let browser_proxy_url = optional_scrapling_proxy_env("ADVERSARY_SIM_SCRAPLING_BROWSER_PROXY_URL")
+        .or_else(|| request_proxy_url.clone());
     state.pending_worker_tick_id = Some(tick_id.clone());
     state.pending_worker_started_at = Some(now);
     state.updated_at = now;
@@ -532,9 +535,13 @@ fn next_scrapling_worker_plan(now: u64, state: &mut ControlState) -> ScraplingWo
             public_search: runtime_profile.paths.public_search.clone(),
             not_a_bot_checkbox: runtime_profile.paths.not_a_bot_checkbox.clone(),
             challenge_submit: runtime_profile.paths.challenge_submit.clone(),
+            pow: runtime_profile.paths.pow.clone(),
             pow_verify: runtime_profile.paths.pow_verify.clone(),
             tarpit_progress: crate::tarpit::progress_path().to_string(),
+            maze_entry: crate::maze::entry_path("scrapling-browser"),
         },
+        request_proxy_url,
+        browser_proxy_url,
         tick_started_at: now,
         max_requests: SCRAPLING_MAX_REQUESTS_PER_TICK,
         max_depth: SCRAPLING_MAX_DEPTH_PER_TICK,
@@ -544,11 +551,20 @@ fn next_scrapling_worker_plan(now: u64, state: &mut ControlState) -> ScraplingWo
 }
 
 fn scrapling_fulfillment_mode_for_tick(generated_tick_count: u64) -> &'static str {
-    match generated_tick_count % 3 {
+    match generated_tick_count % 5 {
         0 => "crawler",
         1 => "bulk_scraper",
+        2 => "browser_automation",
+        3 => "stealth_browser",
         _ => "http_agent",
     }
+}
+
+fn optional_scrapling_proxy_env(name: &str) -> Option<String> {
+    std::env::var(name)
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
 }
 
 #[cfg(test)]
@@ -556,11 +572,13 @@ mod tests {
     use super::scrapling_fulfillment_mode_for_tick;
 
     #[test]
-    fn scrapling_fulfillment_modes_cycle_across_request_native_personas() {
+    fn scrapling_fulfillment_modes_cycle_across_full_spectrum_personas() {
         assert_eq!(scrapling_fulfillment_mode_for_tick(0), "crawler");
         assert_eq!(scrapling_fulfillment_mode_for_tick(1), "bulk_scraper");
-        assert_eq!(scrapling_fulfillment_mode_for_tick(2), "http_agent");
-        assert_eq!(scrapling_fulfillment_mode_for_tick(3), "crawler");
+        assert_eq!(scrapling_fulfillment_mode_for_tick(2), "browser_automation");
+        assert_eq!(scrapling_fulfillment_mode_for_tick(3), "stealth_browser");
+        assert_eq!(scrapling_fulfillment_mode_for_tick(4), "http_agent");
+        assert_eq!(scrapling_fulfillment_mode_for_tick(5), "crawler");
     }
 }
 

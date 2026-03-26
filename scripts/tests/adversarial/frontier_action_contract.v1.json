@@ -113,7 +113,6 @@
           "browser_click"
         ],
         "category_targets": [
-          "automated_browser",
           "browser_agent",
           "agent_on_behalf_of_human"
         ]

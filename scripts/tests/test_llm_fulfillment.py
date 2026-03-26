@@ -71,7 +71,7 @@ class LlmFulfillmentUnitTests(unittest.TestCase):
         self.assertIn("local_candidate", plan["supported_backend_kinds"])
         self.assertEqual(
             plan["category_targets"],
-            ["automated_browser", "browser_agent", "agent_on_behalf_of_human"],
+            ["browser_agent", "agent_on_behalf_of_human"],
         )
         self.assertEqual(
             plan["capability_envelope"]["allowed_tools"],

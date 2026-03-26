@@ -17,7 +17,9 @@ use super::operator_objectives_store::load_or_seed_operator_objectives;
 use super::operator_snapshot_live_traffic::{
     adversary_sim_section, human_friction_row, lane_row, live_traffic_section, scope_row,
 };
-use super::operator_snapshot_objectives::DEFAULT_WINDOW_HOURS;
+use super::operator_snapshot_objectives::{
+    objective_profile_is_strict_human_only, DEFAULT_WINDOW_HOURS,
+};
 use super::operator_snapshot_runtime_posture::{runtime_posture, runtime_shadow_mode};
 use super::operator_snapshot_verified_identity::verified_identity_summary;
 use super::replay_promotion::load_replay_promotion_summary;
@@ -206,6 +208,7 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
     let budget_distance = budget_distance_summary(
         &objectives,
         live_scope.as_ref(),
+        sim_scope.as_ref(),
         likely_human_lane.as_ref(),
         suspicious_lane.as_ref(),
         human_friction.as_ref(),
@@ -222,8 +225,12 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
         crate::admin::load_oversight_episode_archive(store, site_id, &game_contract);
     let cfg = crate::config::load_runtime_cached(store, site_id)
         .unwrap_or_else(|_| crate::config::defaults().clone());
-    let verified_identity =
-        verified_identity_summary(summary, &cfg, non_human_traffic.receipts.as_slice());
+    let verified_identity = verified_identity_summary(
+        summary,
+        &cfg,
+        &objectives,
+        non_human_traffic.receipts.as_slice(),
+    );
     let (replay_promotion, replay_promotion_refreshed_at_ts) =
         load_replay_promotion_summary(store, site_id);
     let prior_window_reference =
@@ -343,24 +350,38 @@ fn operator_snapshot_section_metadata(
 fn budget_distance_summary(
     objectives: &OperatorObjectivesProfile,
     live_scope: Option<&RequestOutcomeScopeSummaryRow>,
+    sim_scope: Option<&RequestOutcomeScopeSummaryRow>,
     likely_human_lane: Option<&RequestOutcomeLaneSummaryRow>,
     suspicious_lane: Option<&RequestOutcomeLaneSummaryRow>,
     human_friction: Option<&HumanFrictionSegmentRow>,
 ) -> OperatorBudgetDistanceSummary {
     let mut rows = Vec::new();
+    let strict_human_only = objective_profile_is_strict_human_only(objectives);
     for budget in &objectives.budgets {
         let row = match budget.metric.as_str() {
             "likely_human_friction_rate" => {
                 build_friction_budget_row(budget, likely_human_lane, human_friction)
             }
             "suspicious_forwarded_request_rate" => {
-                build_suspicious_forwarded_request_budget_row(budget, suspicious_lane)
+                if strict_human_only {
+                    build_strict_non_human_forwarded_request_budget_row(budget, sim_scope)
+                } else {
+                    build_suspicious_forwarded_request_budget_row(budget, suspicious_lane)
+                }
             }
             "suspicious_forwarded_byte_rate" => {
-                build_suspicious_forwarded_byte_budget_row(budget, suspicious_lane)
+                if strict_human_only {
+                    build_strict_non_human_forwarded_byte_budget_row(budget, sim_scope)
+                } else {
+                    build_suspicious_forwarded_byte_budget_row(budget, suspicious_lane)
+                }
             }
             "suspicious_forwarded_latency_share" => {
-                build_suspicious_forwarded_latency_budget_row(budget, live_scope, suspicious_lane)
+                if strict_human_only {
+                    build_strict_non_human_forwarded_latency_budget_row(budget, sim_scope)
+                } else {
+                    build_suspicious_forwarded_latency_budget_row(budget, live_scope, suspicious_lane)
+                }
             }
             _ => None,
         };
@@ -369,6 +390,20 @@ fn budget_distance_summary(
         }
     }
     OperatorBudgetDistanceSummary { rows }
+}
+
+fn build_strict_non_human_forwarded_request_budget_row(
+    budget: &OperatorObjectiveBudget,
+    sim_scope: Option<&RequestOutcomeScopeSummaryRow>,
+) -> Option<OperatorBudgetDistanceRow> {
+    let scope = sim_scope?;
+    Some(budget_row(
+        budget,
+        scope.total_requests,
+        ratio(scope.forwarded_requests, scope.total_requests),
+        "derived".to_string(),
+        "observed".to_string(),
+    ))
 }
 
 fn build_friction_budget_row(
@@ -406,6 +441,24 @@ fn build_suspicious_forwarded_request_budget_row(
     ))
 }
 
+fn build_strict_non_human_forwarded_byte_budget_row(
+    budget: &OperatorObjectiveBudget,
+    sim_scope: Option<&RequestOutcomeScopeSummaryRow>,
+) -> Option<OperatorBudgetDistanceRow> {
+    let scope = sim_scope?;
+    let total_bytes = scope
+        .forwarded_response_bytes
+        .saturating_add(scope.short_circuited_response_bytes)
+        .saturating_add(scope.control_response_bytes);
+    Some(budget_row(
+        budget,
+        scope.total_requests,
+        ratio(scope.forwarded_response_bytes, total_bytes),
+        "derived".to_string(),
+        "observed".to_string(),
+    ))
+}
+
 fn build_suspicious_forwarded_byte_budget_row(
     budget: &OperatorObjectiveBudget,
     suspicious_lane: Option<&RequestOutcomeLaneSummaryRow>,
@@ -422,6 +475,20 @@ fn build_suspicious_forwarded_byte_budget_row(
         current,
         lane.exactness.clone(),
         lane.basis.clone(),
+    ))
+}
+
+fn build_strict_non_human_forwarded_latency_budget_row(
+    budget: &OperatorObjectiveBudget,
+    sim_scope: Option<&RequestOutcomeScopeSummaryRow>,
+) -> Option<OperatorBudgetDistanceRow> {
+    let scope = sim_scope?;
+    Some(budget_row(
+        budget,
+        scope.total_requests,
+        if scope.forwarded_requests > 0 { 1.0 } else { 0.0 },
+        "derived".to_string(),
+        "observed".to_string(),
     ))
 }
 
@@ -601,7 +668,7 @@ mod tests {
         );
 
         assert_eq!(payload.schema_version, OPERATOR_SNAPSHOT_SCHEMA_VERSION);
-        assert_eq!(payload.objectives.profile_id, "site_default_v1");
+        assert_eq!(payload.objectives.profile_id, "human_only_private");
         assert_eq!(payload.objectives.schema_version, "operator_objectives_v1");
         assert_eq!(payload.objectives.category_postures.len(), 8);
         assert_eq!(
@@ -612,7 +679,7 @@ mod tests {
                 .find(|row| row.category_id.as_str() == "verified_beneficial_bot")
                 .expect("verified beneficial category posture")
                 .posture,
-            "allowed"
+            "blocked"
         );
         assert!(payload
             .budget_distance
@@ -729,11 +796,14 @@ mod tests {
                 observed_fulfillment_modes: vec![
                     "crawler".to_string(),
                     "bulk_scraper".to_string(),
+                    "browser_automation".to_string(),
+                    "stealth_browser".to_string(),
                     "http_agent".to_string(),
                 ],
                 observed_category_ids: vec![
                     "indexing_bot".to_string(),
                     "ai_scraper_bot".to_string(),
+                    "automated_browser".to_string(),
                     "http_agent".to_string(),
                 ],
                 first_ts: 1_700_000_000,
@@ -750,12 +820,17 @@ mod tests {
         );
 
         assert_eq!(payload.non_human_traffic.readiness.status, "ready");
-        assert_eq!(payload.non_human_traffic.coverage.covered_category_count, 3);
+        assert_eq!(payload.non_human_traffic.coverage.covered_category_count, 4);
         assert!(payload
             .non_human_traffic
             .receipts
             .iter()
             .any(|receipt| receipt.category_id == "ai_scraper_bot"));
+        assert!(payload
+            .non_human_traffic
+            .receipts
+            .iter()
+            .any(|receipt| receipt.category_id == "automated_browser"));
         assert!(payload
             .non_human_traffic
             .receipts
@@ -779,11 +854,14 @@ mod tests {
                 observed_fulfillment_modes: vec![
                     "crawler".to_string(),
                     "bulk_scraper".to_string(),
+                    "browser_automation".to_string(),
+                    "stealth_browser".to_string(),
                     "http_agent".to_string(),
                 ],
                 observed_category_ids: vec![
                     "indexing_bot".to_string(),
                     "ai_scraper_bot".to_string(),
+                    "automated_browser".to_string(),
                     "http_agent".to_string(),
                 ],
                 first_ts: 1_700_000_000,
@@ -794,13 +872,82 @@ mod tests {
                 owned_surface_coverage: Some(
                     crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageSummary {
                         overall_status: "covered".to_string(),
+                        canonical_surface_ids: vec![
+                            "public_path_traversal".to_string(),
+                            "challenge_routing".to_string(),
+                            "not_a_bot_submit".to_string(),
+                            "not_a_bot_submit_alternative".to_string(),
+                            "puzzle_submit".to_string(),
+                            "pow_verify_abuse".to_string(),
+                            "tarpit_progress_abuse".to_string(),
+                            "json_endpoint_abuse".to_string(),
+                            "maze_navigation".to_string(),
+                            "js_verification_execution".to_string(),
+                            "browser_automation_detection".to_string(),
+                            "cdp_report_ingestion".to_string(),
+                            "verified_identity_attestation".to_string(),
+                        ],
+                        surface_labels: std::collections::BTreeMap::from([
+                            (
+                                "public_path_traversal".to_string(),
+                                "Public Path Traversal".to_string(),
+                            ),
+                            (
+                                "challenge_routing".to_string(),
+                                "Challenge Routing".to_string(),
+                            ),
+                            ("not_a_bot_submit".to_string(), "Not-a-Bot Submit".to_string()),
+                            (
+                                "not_a_bot_submit_alternative".to_string(),
+                                "Not-a-Bot Submit Alternative".to_string(),
+                            ),
+                            ("puzzle_submit".to_string(), "Puzzle Submit".to_string()),
+                            (
+                                "pow_verify_abuse".to_string(),
+                                "PoW Verify Abuse".to_string(),
+                            ),
+                            (
+                                "tarpit_progress_abuse".to_string(),
+                                "Tarpit Progress Abuse".to_string(),
+                            ),
+                            (
+                                "json_endpoint_abuse".to_string(),
+                                "JSON Endpoint Abuse".to_string(),
+                            ),
+                            (
+                                "maze_navigation".to_string(),
+                                "Maze Navigation".to_string(),
+                            ),
+                            (
+                                "js_verification_execution".to_string(),
+                                "JavaScript Verification Execution".to_string(),
+                            ),
+                            (
+                                "browser_automation_detection".to_string(),
+                                "Browser CDP Automation Detection".to_string(),
+                            ),
+                            (
+                                "cdp_report_ingestion".to_string(),
+                                "CDP Report Ingestion".to_string(),
+                            ),
+                            (
+                                "verified_identity_attestation".to_string(),
+                                "Verified Identity Attestation".to_string(),
+                            ),
+                        ]),
                         required_surface_ids: vec![
                             "public_path_traversal".to_string(),
                             "challenge_routing".to_string(),
+                            "maze_navigation".to_string(),
+                            "js_verification_execution".to_string(),
+                            "browser_automation_detection".to_string(),
                         ],
                         satisfied_surface_ids: vec![
                             "public_path_traversal".to_string(),
                             "challenge_routing".to_string(),
+                            "maze_navigation".to_string(),
+                            "js_verification_execution".to_string(),
+                            "browser_automation_detection".to_string(),
                         ],
                         blocking_surface_ids: Vec::new(),
                         receipts: vec![
@@ -824,6 +971,36 @@ mod tests {
                                 sample_request_path: "/sim/public/search?q=scrapling".to_string(),
                                 sample_response_status: Some(200),
                             },
+                            crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageReceipt {
+                                surface_id: "maze_navigation".to_string(),
+                                success_contract: "should_pass_some".to_string(),
+                                coverage_status: "pass_observed".to_string(),
+                                satisfied: true,
+                                attempt_count: 1,
+                                sample_request_method: "GET".to_string(),
+                                sample_request_path: "/maze/start".to_string(),
+                                sample_response_status: Some(200),
+                            },
+                            crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageReceipt {
+                                surface_id: "js_verification_execution".to_string(),
+                                success_contract: "should_pass_some".to_string(),
+                                coverage_status: "pass_observed".to_string(),
+                                satisfied: true,
+                                attempt_count: 1,
+                                sample_request_method: "GET".to_string(),
+                                sample_request_path: "/pow".to_string(),
+                                sample_response_status: Some(200),
+                            },
+                            crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageReceipt {
+                                surface_id: "browser_automation_detection".to_string(),
+                                success_contract: "mixed_outcomes".to_string(),
+                                coverage_status: "fail_observed".to_string(),
+                                satisfied: true,
+                                attempt_count: 1,
+                                sample_request_method: "GET".to_string(),
+                                sample_request_path: "/pow".to_string(),
+                                sample_response_status: Some(200),
+                            },
                         ],
                     },
                 ),
@@ -845,12 +1022,12 @@ mod tests {
             .as_ref()
             .expect("owned surface coverage");
         assert_eq!(owned_surface_coverage.overall_status, "covered");
-        assert_eq!(owned_surface_coverage.required_surface_ids.len(), 2);
+        assert_eq!(owned_surface_coverage.required_surface_ids.len(), 5);
         assert!(owned_surface_coverage.blocking_surface_ids.is_empty());
     }
 
     #[test]
-    fn snapshot_payload_projects_suspicious_forwarded_latency_budget_row() {
+    fn snapshot_payload_projects_strict_human_only_budgets_from_adversary_sim_scope() {
         let store = TestStore::new();
         record_request_outcome(
             &store,
@@ -876,10 +1053,37 @@ mod tests {
                 policy_source: PolicySource::CleanAllow,
             },
         );
+        for _ in 0..3 {
+            record_request_outcome(
+                &store,
+                &RenderedRequestOutcome {
+                    traffic_origin: TrafficOrigin::AdversarySim,
+                    measurement_scope: MeasurementScope::IngressPrimary,
+                    route_action_family: RouteActionFamily::PublicContent,
+                    execution_mode: ExecutionMode::Enforced,
+                    traffic_lane: Some(RequestOutcomeLane {
+                        lane: TrafficLane::SuspiciousAutomation,
+                        exactness:
+                            crate::observability::hot_read_contract::TelemetryExactness::Derived,
+                        basis: crate::observability::hot_read_contract::TelemetryBasis::Mixed,
+                    }),
+                    non_human_category: None,
+                    outcome_class: RequestOutcomeClass::ShortCircuited,
+                    response_kind: ResponseKind::NotABot,
+                    http_status: 200,
+                    response_bytes: 55,
+                    forwarded_upstream_latency_ms: None,
+                    forward_attempted: false,
+                    forward_failure_class: None,
+                    intended_action: None,
+                    policy_source: PolicySource::PolicyGraphSecondTranche,
+                },
+            );
+        }
         record_request_outcome(
             &store,
             &RenderedRequestOutcome {
-                traffic_origin: TrafficOrigin::Live,
+                traffic_origin: TrafficOrigin::AdversarySim,
                 measurement_scope: MeasurementScope::IngressPrimary,
                 route_action_family: RouteActionFamily::PublicContent,
                 execution_mode: ExecutionMode::Enforced,
@@ -918,22 +1122,27 @@ mod tests {
             .budget_distance
             .rows
             .iter()
+            .find(|row| row.metric == "suspicious_forwarded_request_rate")
+            .expect("request budget row");
+        let latency_row = payload
+            .budget_distance
+            .rows
+            .iter()
             .find(|row| row.metric == "suspicious_forwarded_latency_share")
             .expect("latency-share budget row");
 
-        assert_eq!(payload.live_traffic.forwarded_upstream_latency_ms_total, 100);
-        assert_eq!(
-            payload
-                .live_traffic
-                .suspicious_automation
-                .as_ref()
-                .expect("suspicious lane")
-                .forwarded_upstream_latency_ms_total,
-            70
-        );
-        assert_eq!(row.eligible_requests, 1);
-        assert!((row.current - 0.7).abs() < 0.000_001);
+        assert_eq!(payload.live_traffic.forwarded_upstream_latency_ms_total, 30);
+        assert_eq!(payload.adversary_sim.total_requests, 4);
+        assert_eq!(payload.adversary_sim.forwarded_requests, 1);
+        assert_eq!(payload.adversary_sim.short_circuited_requests, 3);
+        assert_eq!(payload.adversary_sim.forwarded_upstream_latency_ms_total, 70);
+        assert_eq!(row.target, 0.0);
+        assert!((row.current - 0.25).abs() < 0.000_001);
         assert_eq!(row.status, "outside_budget");
+        assert!(payload.live_traffic.suspicious_automation.is_none());
+        assert_eq!(latency_row.eligible_requests, 4);
+        assert!((latency_row.current - 1.0).abs() < 0.000_001);
+        assert_eq!(latency_row.status, "outside_budget");
     }
 
     #[test]

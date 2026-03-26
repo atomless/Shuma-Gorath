@@ -6,6 +6,7 @@ use super::operator_snapshot::{
 pub(super) fn suspicious_origin_cost_family(
     lane: Option<&OperatorSnapshotLane>,
     budget_distance: &OperatorBudgetDistanceSummary,
+    strict_human_only_private: bool,
 ) -> BenchmarkFamilyResult {
     let request_budget = budget_row(
         budget_distance.rows.as_slice(),
@@ -66,8 +67,13 @@ pub(super) fn suspicious_origin_cost_family(
         family_id: "suspicious_origin_cost".to_string(),
         status: aggregate_budget_status(metrics.as_slice()),
         capability_gate: "supported".to_string(),
-        note: "Derived from the live suspicious-automation lane and current budget-distance rows."
-            .to_string(),
+        note: if strict_human_only_private {
+            "Derived from the adversary-sim scope and strict zero-leakage budget-distance rows for the human-only reference loop."
+                .to_string()
+        } else {
+            "Derived from the live suspicious-automation lane and current budget-distance rows."
+                .to_string()
+        },
         baseline_status: None,
         comparison_status: "not_available".to_string(),
         metrics,

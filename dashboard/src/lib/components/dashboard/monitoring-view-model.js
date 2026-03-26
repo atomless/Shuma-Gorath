@@ -858,10 +858,42 @@ const toSummaryStringArray = (value) =>
     .map((entry) => String(entry || '').trim())
     .filter(Boolean);
 
-const shapeOwnedSurfaceCoverageReceipt = (receipt = {}) => {
+const toSummaryLabelMap = (value) => {
+  const source = value && typeof value === 'object' ? value : {};
+  return Object.fromEntries(
+    Object.entries(source)
+      .map(([key, label]) => [String(key || '').trim(), String(label || '').trim()])
+      .filter(([key, label]) => key && label)
+  );
+};
+
+const formatOwnedSurfaceLabelFallback = (surfaceId) => String(surfaceId || '')
+  .trim()
+  .replace(/[_-]+/g, ' ')
+  .replace(/\s+/g, ' ')
+  .split(' ')
+  .filter(Boolean)
+  .map((word) => {
+    const lowered = word.toLowerCase();
+    if (lowered === 'ai') return 'AI';
+    if (lowered === 'cdp') return 'CDP';
+    if (lowered === 'http') return 'HTTP';
+    if (lowered === 'ip') return 'IP';
+    if (lowered === 'js') return 'JavaScript';
+    if (lowered === 'pow') return 'PoW';
+    return lowered.charAt(0).toUpperCase() + lowered.slice(1);
+  })
+  .join(' ');
+
+const resolveOwnedSurfaceLabel = (surfaceId, surfaceLabels = {}) =>
+  String(surfaceLabels?.[surfaceId] || '').trim() || formatOwnedSurfaceLabelFallback(surfaceId);
+
+const shapeOwnedSurfaceCoverageReceipt = (receipt = {}, surfaceLabels = {}) => {
   const source = receipt && typeof receipt === 'object' ? receipt : {};
+  const surfaceId = String(source.surfaceId || source.surface_id || '').trim();
   return {
-    surfaceId: String(source.surfaceId || source.surface_id || '').trim(),
+    surfaceId,
+    surfaceLabel: resolveOwnedSurfaceLabel(surfaceId, surfaceLabels),
     successContract: String(source.successContract || source.success_contract || '').trim(),
     coverageStatus: String(source.coverageStatus || source.coverage_status || '').trim(),
     satisfied: source.satisfied === true,
@@ -875,16 +907,39 @@ const shapeOwnedSurfaceCoverageReceipt = (receipt = {}) => {
   };
 };
 
+const buildSurfaceChecklistRows = (
+  canonicalSurfaceIds = [],
+  surfaceLabels = {},
+  requiredSurfaceIds = [],
+  satisfiedSurfaceIds = []
+) => {
+  const requiredSurfaceSet = new Set(requiredSurfaceIds);
+  const satisfiedSurfaceSet = new Set(satisfiedSurfaceIds);
+  return canonicalSurfaceIds.map((surfaceId) => ({
+    surfaceId,
+    surfaceLabel: resolveOwnedSurfaceLabel(surfaceId, surfaceLabels),
+    state: !requiredSurfaceSet.has(surfaceId)
+      ? 'not_required'
+      : satisfiedSurfaceSet.has(surfaceId)
+        ? 'satisfied'
+        : 'blocking'
+  }));
+};
+
 const shapeOwnedSurfaceCoverage = (coverage = {}) => {
   const source = coverage && typeof coverage === 'object' ? coverage : {};
+  const canonicalSurfaceIds = toSummaryStringArray(source.canonicalSurfaceIds || source.canonical_surface_ids);
+  const surfaceLabels = toSummaryLabelMap(source.surfaceLabels || source.surface_labels);
   const requiredSurfaceIds = toSummaryStringArray(source.requiredSurfaceIds || source.required_surface_ids);
   const satisfiedSurfaceIds = toSummaryStringArray(source.satisfiedSurfaceIds || source.satisfied_surface_ids);
   const blockingSurfaceIds = toSummaryStringArray(source.blockingSurfaceIds || source.blocking_surface_ids);
   const receipts = (Array.isArray(source.receipts) ? source.receipts : [])
-    .map((receipt) => shapeOwnedSurfaceCoverageReceipt(receipt))
+    .map((receipt) => shapeOwnedSurfaceCoverageReceipt(receipt, surfaceLabels))
     .filter((receipt) => receipt.surfaceId);
   if (
     !String(source.overallStatus || source.overall_status || '').trim() &&
+    canonicalSurfaceIds.length === 0 &&
+    Object.keys(surfaceLabels).length === 0 &&
     requiredSurfaceIds.length === 0 &&
     satisfiedSurfaceIds.length === 0 &&
     blockingSurfaceIds.length === 0 &&
@@ -894,12 +949,20 @@ const shapeOwnedSurfaceCoverage = (coverage = {}) => {
   }
   return {
     overallStatus: String(source.overallStatus || source.overall_status || '').trim(),
+    canonicalSurfaceIds,
+    surfaceLabels,
     requiredSurfaceIds,
     requiredSurfaceCount: requiredSurfaceIds.length,
     satisfiedSurfaceIds,
     satisfiedSurfaceCount: satisfiedSurfaceIds.length,
     blockingSurfaceIds,
     blockingSurfaceCount: blockingSurfaceIds.length,
+    surfaceChecklistRows: buildSurfaceChecklistRows(
+      canonicalSurfaceIds,
+      surfaceLabels,
+      requiredSurfaceIds,
+      satisfiedSurfaceIds
+    ),
     receipts
   };
 };

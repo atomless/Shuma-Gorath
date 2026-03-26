@@ -111,12 +111,13 @@ Current note:
 - The current attacker-faithful Scrapling prerequisite for owned request-native surfaces is satisfied through `SIM-SCR-CHALLENGE-2A`, `SIM-SCR-CHALLENGE-2B`, and `SIM-SCR-CHALLENGE-2D`, but that is now the baseline rather than the full maturity target.
 - `SIM-SCR-CAP-1` is now landed: it froze the upstream capability matrix and omission ledger, and the request-native attacker-fidelity follow-on `SIM-SCR-RN-1` is now landed too.
 - `SIM-SCR-RN-1` is now landed: the request-native Scrapling lane explicitly pins attacker-faithful Chrome impersonation and stealthy header shaping while no longer advertising itself with an internal worker `User-Agent`.
-- `SIM-SCR-CHALLENGE-2C` remains blocked unless Shuma later ratifies browser-class Scrapling-owned surfaces or the current request-native lane later proves insufficient for a currently owned surface.
+- `SIM-SCR-FULL-1B1` and `SIM-SCR-FULL-1B2` are now landed: Scrapling now owns `automated_browser`, uses dynamic-browser and stealth-browser personas against `maze_navigation`, `js_verification_execution`, and `browser_automation_detection`, and carries optional request and browser proxy plan support with local proof.
+- `SIM-SCR-CHALLENGE-2C` remains blocked only for residual post-matrix browser or stealth follow-on if later receipts show the adopted browser or stealth runtime is still insufficient for a Scrapling-owned surface.
 - `SIM-LLM-1A` and `SIM-LLM-1B` are now landed.
 - The later full attacker runtime `SIM-LLM-1C` is no longer treated as one implicit next step.
 - `SIM-LLM-1C1` is now landed: the later attacker has a real live frontier action-generation seam with provider-vs-fallback lineage and Shuma-blind host-hint sanitization.
 - `SIM-LLM-1C2` is now landed: the host-side supervisor dispatches the dedicated LLM runtime worker, reuses the existing container black-box runner for request-mode execution, and ingests a typed `adversary-sim-llm-runtime-result.v1` payload instead of overloading the Scrapling worker result contract.
-- The current request-native Scrapling baseline and first working Game Loop proof are now treated as baseline capability, not the unlock condition for later stance relaxation or LLM runtime work.
+- The current full-spectrum Scrapling baseline and first working Game Loop proof are now treated as baseline capability, not the unlock condition for later stance relaxation or LLM runtime work.
 - Before further mainline completion claims, the repo now requires explicit acceptance-gate discipline. Do not describe `STANCE-MODEL-1`, `SIM-SCR-FULL-1`, `RSI-GAME-HO-1`, or `RSI-GAME-HO-2` as complete from planning progress, baseline capability, or dashboard pressure signals alone.
 - The immediate non-LLM mainline is now:
   - `VERIFY-GATE-1`
@@ -140,63 +141,40 @@ Current stance:
 - Verified identity now sits after the delivered machine-first telemetry/snapshot foundations and before mature adversary-sim expansion.
 - The first execution slices should stay observe-only: identity contracts, config, provider normalization, telemetry, and request-path annotations without routing change.
 - The primary product value is exact non-human restriction and exception management; looser treatment for named verified bots remains an explicit opt-in later policy choice.
-- The repo now treats the independent verified-identity top-level stance as design debt: `STANCE-MODEL-1` should replace it with one canonical non-human stance model and a resolved effective policy contract before broader permissive verified-identity posture work continues.
+- `STANCE-MODEL-1` is now landed: verified identity is no longer a second top-level stance system, and current follow-on work should treat the resolved effective policy contract as the only policy truth.
 - Do not bundle authorization policy, low-cost profiles, or dashboard control surfaces into the first tranche.
-
-- [ ] VERIFY-GATE-1 Freeze acceptance gates and completion-claim discipline for the active Scrapling and Game Loop mainline before further closure claims.
-  - Reference context:
-    - [`docs/research/2026-03-26-acceptance-gate-and-completion-claim-discipline-review.md`](../docs/research/2026-03-26-acceptance-gate-and-completion-claim-discipline-review.md)
-    - [`docs/plans/2026-03-26-acceptance-gate-and-completion-claim-discipline-plan.md`](../docs/plans/2026-03-26-acceptance-gate-and-completion-claim-discipline-plan.md)
-    - [`docs/research/2026-03-26-verify-gate-1a-explicit-acceptance-gates-post-implementation-review.md`](../docs/research/2026-03-26-verify-gate-1a-explicit-acceptance-gates-post-implementation-review.md)
-    - [`docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](../docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)
-    - [`docs/plans/2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md`](../docs/plans/2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md)
-  - [ ] VERIFY-GATE-1B Wire any missing focused proof paths so those acceptance gates are executable rather than conversational.
-  - [ ] VERIFY-GATE-1C Keep completion language disciplined: planning completions must stay clearly labeled as planning-only, and no open feature tranche may be described as complete.
-
-- [ ] STANCE-MODEL-1 Replace the independent verified-identity stance with canonical non-human stance presets and one resolved effective policy contract.
-  - Reference context:
-    - [`docs/research/2026-03-25-canonical-non-human-stance-and-verified-identity-override-review.md`](../docs/research/2026-03-25-canonical-non-human-stance-and-verified-identity-override-review.md)
-    - [`docs/plans/2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md`](../docs/plans/2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md)
-    - [`docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](../docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md)
-    - [`docs/plans/2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-implementation-plan.md`](../docs/plans/2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-implementation-plan.md)
-  - Closure gate:
-    - runtime/config: one canonical non-human stance authority, no independent verified-identity top-level stance authority, and machine-readable `human_only_private` plus `humans_plus_verified_only` semantics enforced through one resolved policy contract
-    - API/snapshot: resolved effective policy and verified-identity override lineage materialized in machine-readable admin or snapshot surfaces
-    - dashboard/admin: `Game Loop`, `Verification`, and relevant operator control surfaces project the resolved policy rather than the old split model
-    - proof: focused `make` paths must pass for runtime policy behavior, API/snapshot projection, and rendered dashboard truth
-    - insufficient: docs-only redesign, config naming without runtime enforcement, or legacy dual-stance benchmark semantics still driving the operator surface
-  - [ ] STANCE-MODEL-1A Define canonical stance presets and the resolved effective policy contract, including `human_only_private` and `humans_plus_verified_only`.
-  - [ ] STANCE-MODEL-1B Rebase verified identity onto evidence, named exceptions, and service-profile overrides instead of an independent top-level stance.
-  - [ ] STANCE-MODEL-1C Thread the resolved effective policy into runtime, operator snapshot, benchmark/Game Loop, and the later Tuning surface so all consumers read the same policy truth.
 
 - [ ] SIM-SCR-FULL-1 Mature Scrapling to the full attacker-relevant capability Shuma assigns to the non-agent or non-LLM adversary spectrum before any stance relaxation or later LLM lane work.
   - Reference context:
     - [`docs/research/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-review.md`](../docs/research/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-review.md)
+    - [`docs/research/2026-03-26-sim-scr-full-spectrum-adversary-mandate-review.md`](../docs/research/2026-03-26-sim-scr-full-spectrum-adversary-mandate-review.md)
+    - [`docs/research/2026-03-26-sim-scr-full-1a-full-spectrum-capability-matrix-refresh-review.md`](../docs/research/2026-03-26-sim-scr-full-1a-full-spectrum-capability-matrix-refresh-review.md)
     - [`docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](../docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)
+    - [`docs/plans/2026-03-25-sim-scr-cap-1-capability-matrix-plan.md`](../docs/plans/2026-03-25-sim-scr-cap-1-capability-matrix-plan.md)
     - [`docs/plans/2026-03-25-scrapling-full-attacker-capability-principle-plan.md`](../docs/plans/2026-03-25-scrapling-full-attacker-capability-principle-plan.md)
     - [`docs/plans/2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md`](../docs/plans/2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md)
+    - [`docs/plans/2026-03-26-sim-scr-full-spectrum-capability-implementation-plan.md`](../docs/plans/2026-03-26-sim-scr-full-spectrum-capability-implementation-plan.md)
   - Closure gate:
-    - runtime: full ratified Scrapling capability matrix for the non-agent or non-LLM lane implemented, or any omitted capability explicitly excluded rather than silently unimplemented
+    - runtime: full ratified Scrapling capability matrix for the non-agent or non-LLM lane implemented, with no attacker-relevant Scrapling power left unused unless an overt exclusion record explains why it does not materially increase attack power against Shuma defenses, is already covered elsewhere with proof, or would be unsafe or untruthful to claim yet
     - receipt/API: machine-first surfaces carry receipt-backed category and defense-surface evidence, including pass-where-expected and fail-where-expected truth
     - dashboard/admin: `Red Team` projects that full-power evidence faithfully and `Game Loop` does not imply more attacker maturity than the backend proves
     - proof: focused `make` paths must pass for worker/runtime behavior, category fulfillment, receipt-backed surface coverage, and operator-visible evidence
     - insufficient: request-native baseline only, upstream capability claims without Shuma-local proof, or coverage claims without pass/fail expectation truth
-  - [ ] SIM-SCR-FULL-1A Freeze the full attacker-relevant upstream Scrapling capability matrix for the non-agent or non-LLM spectrum Shuma assigns to Scrapling, with explicit exclusions only where the lane should not own a capability.
-  - [ ] SIM-SCR-FULL-1B Implement the remaining Scrapling power required by that matrix so the lane no longer stops at the current request-native baseline.
   - [ ] SIM-SCR-FULL-1C Add receipt-backed proof showing which defenses Scrapling touched, which it passed where expected, which it failed where expected, and which non-human categories and defense surfaces it exercised.
 
 - [ ] RSI-GAME-HO-1 Fully operationally prove the strict `human_only_private` Scrapling-driven game loop before any later relaxed stance.
   - Reference context:
     - [`docs/research/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-review.md`](../docs/research/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-review.md)
+    - [`docs/research/2026-03-26-strict-human-only-loop-and-human-traversal-calibration-review.md`](../docs/research/2026-03-26-strict-human-only-loop-and-human-traversal-calibration-review.md)
     - [`docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](../docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)
     - [`docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](../docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md)
     - [`docs/plans/2026-03-24-rsi-game-mainline-first-working-loop-plan.md`](../docs/plans/2026-03-24-rsi-game-mainline-first-working-loop-plan.md)
   - Closure gate:
-    - runtime/config: the loop runs against `human_only_private`, verified non-human stays denied, bounded config recommendations are applied, later Scrapling runs execute against changed config, and repeated retain/rollback judgments occur rather than one-off plumbing
+    - runtime/config: the loop runs against `human_only_private`, verified non-human stays denied, the strict sim-only phase treats adversary-sim lanes as `100%` non-human traffic and drives suspicious forwarded leakage toward zero or equivalent fail-closed suppression rather than the seeded mixed-public `10%` budgets, bounded config recommendations are applied, later Scrapling runs execute against changed config, and repeated retain/rollback judgments occur rather than one-off plumbing
     - API/snapshot: recent changes, oversight history, and related machine-first surfaces show repeated cycle lineage, applied changes, and retained vs rolled-back outcomes
-    - dashboard/admin: `Game Loop` projects the strict stance truthfully, shows repeated change context, and shows measured movement toward the strict target rather than only recommendation plumbing or legacy mismatch rows
-    - proof: focused `make` paths must pass for strict-stance runtime behavior and repeated judged-cycle proof
-    - insufficient: one successful loop, one canary apply, recommendation generation without retained improvement, or unresolved dashboard/runtime mismatch that still contradicts the claimed improvement
+    - dashboard/admin: `Game Loop` projects the strict stance truthfully, shows repeated change context, shows measured movement toward the strict target rather than only recommendation plumbing or legacy mismatch rows, and keeps later human-traversal calibration explicit rather than implying that sim traffic already proved likely-human safety
+    - proof: focused `make` paths must pass for strict-stance runtime behavior and repeated judged-cycle proof on the local sim-public surface first; later human-traversal calibration and live-host realism stay separate named proof rings
+    - insufficient: one successful loop, one canary apply, recommendation generation without retained improvement, current mixed-site default budgets still appearing as the strict target, or unresolved dashboard/runtime mismatch that still contradicts the claimed improvement
   - [ ] RSI-GAME-HO-1A Run the existing machine-first loop against the corrected `human_only_private` stance with verified non-human traffic still denied under that strict baseline.
   - [ ] RSI-GAME-HO-1B Repeat Scrapling-driven cycles until recommendations become bounded config changes, later runs occur against those changed configs, and watch windows judge retain or rollback truthfully many times rather than once.
   - [ ] RSI-GAME-HO-1C Define and satisfy the unlock condition showing retained config changes and measured improvement toward the strict target, not merely one successful end-to-end cycle.

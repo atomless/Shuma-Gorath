@@ -135,24 +135,27 @@ The same adversarial contract family now also freezes the first category-to-lane
    - canonical non-human categories,
    - `mapped` versus `gap` assignment status,
    - intended runtime lane and fulfillment mode,
-   - request-native Scrapling coverage basis where that proof is now receipt-backed,
+   - Scrapling coverage basis where request-native and browser-native proof is now receipt-backed,
    - scenario references kept explicitly as intent support rather than coverage proof.
 2. `scenario_intent_matrix.v1.json -> rows[].non_human_category_targets`
    - scenario-level intended non-human category targets,
    - alignment checks against the coverage contract,
    - execution-evidence annotation for later coverage receipts.
-`make test-adversarial-coverage-contract` and `make test-adversarial-scenario-review` freeze the fulfillment matrix itself. `make test-adversarial-coverage-receipts` now proves the current request-native Scrapling coverage receipts that later Monitoring and bounded tuning consume.
-For the current request-native expansion, Scrapling now owns these canonical categories in the frozen fulfillment matrix:
+`make test-adversarial-coverage-contract` and `make test-adversarial-scenario-review` freeze the fulfillment matrix itself. `make test-adversarial-coverage-receipts` now proves the current full-spectrum Scrapling coverage receipts that later Monitoring and bounded tuning consume.
+For the current full-spectrum expansion, Scrapling now owns these canonical categories in the frozen fulfillment matrix:
 1. `indexing_bot` via `crawler`
 2. `ai_scraper_bot` via `bulk_scraper`
-3. `http_agent` via `http_agent`
-The internal Scrapling worker plan now carries `fulfillment_mode` plus bounded `category_targets` so the shared-host lane can ask for a specific request-native persona without pretending the whole lane is one undifferentiated crawler.
+3. `automated_browser` via `browser_automation` and `stealth_browser`
+4. `http_agent` via `http_agent`
+The internal Scrapling worker plan now carries `fulfillment_mode`, bounded `category_targets`, and optional request or browser proxy hints so the shared-host lane can ask for a specific request-native or browser persona without pretending the whole lane is one undifferentiated crawler.
 That persona split is now implemented in the worker itself:
 1. `crawler` keeps the bounded spider traversal behavior,
 2. `bulk_scraper` performs breadth-first direct retrieval over pagination and detail targets inside the shared-host scope fence,
-3. `http_agent` performs bounded direct request traffic with method mix, cookies, JSON request bodies, and in-scope redirect follow-up.
-Those live worker requests now also carry mode-specific signed simulation telemetry (`scrapling_runtime_lane.<mode>`), and the recent-sim hot-read projection folds that back into normalized Scrapling run summaries with observed fulfillment modes and observed category ids. That is the current machine-first basis for proving request-native Scrapling coverage of `indexing_bot`, `ai_scraper_bot`, and `http_agent`.
-`automated_browser`, `browser_agent`, and `agent_on_behalf_of_human` remain outside Scrapling ownership and stay mapped to the bounded LLM/browser track for now.
+3. `browser_automation` executes public traversal, JS verification, and maze progression through a dynamic browser session,
+4. `stealth_browser` repeats that browser path with stealth settings and browser-detection pressure,
+5. `http_agent` performs bounded direct request traffic with method mix, cookies, JSON request bodies, and in-scope redirect follow-up.
+Those live worker requests now also carry mode-specific signed simulation telemetry (`scrapling_runtime_lane.<mode>`), and the recent-sim hot-read projection folds that back into normalized Scrapling run summaries with observed fulfillment modes, observed category ids, and owned-surface receipts. That is the current machine-first basis for proving full-spectrum Scrapling coverage of `indexing_bot`, `ai_scraper_bot`, `automated_browser`, and `http_agent`, plus owned-surface evidence for `maze_navigation`, `js_verification_execution`, and `browser_automation_detection`.
+`browser_agent` and `agent_on_behalf_of_human` remain outside Scrapling ownership and stay mapped to the bounded LLM/browser track for now.
 For loopback-hosted Spin targets, the runner selects the least-surprising reachable Docker transport per host platform: bridge + `host.docker.internal` where that reaches host loopback, and Linux host-network mode when bridge reachability would otherwise fail against a `127.0.0.1`-bound server.
 Signed capability envelopes for executable worker actions are enforced via `scripts/tests/frontier_capability_envelope.py` host/worker validation.
 Browser-lane execution proof is enforced via `latest_report.json -> gates.browser_execution_gates`.

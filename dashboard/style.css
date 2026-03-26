@@ -1724,6 +1724,11 @@ input:checked+.toggle-slider:before {
   gap: 8px;
 }
 
+.metric-list--plain {
+  list-style: none;
+  padding-left: 0;
+}
+
 .metric-list li {
   color: var(--panel-fg);
 }

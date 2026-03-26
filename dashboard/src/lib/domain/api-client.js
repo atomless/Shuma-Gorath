@@ -506,6 +506,7 @@ export const adaptOperatorSnapshot = (payload) => {
   const verifiedIdentity = asRecord(source.verified_identity);
   const taxonomyAlignment = asRecord(verifiedIdentity.taxonomy_alignment);
   const policyTranche = asRecord(verifiedIdentity.policy_tranche);
+  const effectiveNonHumanPolicy = asRecord(verifiedIdentity.effective_non_human_policy);
   return {
     schema_version: String(source.schema_version || ''),
     generated_at: Number(source.generated_at || 0),
@@ -572,7 +573,24 @@ export const adaptOperatorSnapshot = (payload) => {
       enabled: verifiedIdentity.enabled === true,
       native_web_bot_auth_enabled: verifiedIdentity.native_web_bot_auth_enabled === true,
       provider_assertions_enabled: verifiedIdentity.provider_assertions_enabled === true,
-      non_human_traffic_stance: String(verifiedIdentity.non_human_traffic_stance || ''),
+      effective_non_human_policy: {
+        schema_version: String(effectiveNonHumanPolicy.schema_version || ''),
+        profile_id: String(effectiveNonHumanPolicy.profile_id || ''),
+        objective_revision: String(effectiveNonHumanPolicy.objective_revision || ''),
+        verified_identity_override_mode: String(
+          effectiveNonHumanPolicy.verified_identity_override_mode || ''
+        ),
+        rows: asObjectArray(effectiveNonHumanPolicy.rows).map((entry) => {
+          const row = asRecord(entry);
+          return {
+            category_id: String(row.category_id || ''),
+            base_posture: String(row.base_posture || ''),
+            effective_posture: String(row.effective_posture || ''),
+            verified_identity_handling: String(row.verified_identity_handling || ''),
+            authority: String(row.authority || '')
+          };
+        })
+      },
       named_policy_count: Number(verifiedIdentity.named_policy_count || 0),
       service_profile_count: Number(verifiedIdentity.service_profile_count || 0),
       attempts: Number(verifiedIdentity.attempts || 0),

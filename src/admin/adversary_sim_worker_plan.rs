@@ -25,8 +25,10 @@ pub struct ScraplingRuntimePaths {
     pub public_search: String,
     pub not_a_bot_checkbox: String,
     pub challenge_submit: String,
+    pub pow: String,
     pub pow_verify: String,
     pub tarpit_progress: String,
+    pub maze_entry: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -43,6 +45,10 @@ pub struct ScraplingWorkerPlan {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub surface_targets: Vec<String>,
     pub runtime_paths: ScraplingRuntimePaths,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub request_proxy_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub browser_proxy_url: Option<String>,
     pub tick_started_at: u64,
     pub max_requests: u64,
     pub max_depth: u64,

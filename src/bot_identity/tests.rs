@@ -1,6 +1,6 @@
 use super::{
     contracts::{IdentityCategory, IdentityProvenance, IdentityScheme, VerificationStrength},
-    policy::{IdentityPolicyAction, IdentityPolicyOutcome, NonHumanTrafficStance, ServiceProfile},
+    policy::{IdentityPolicyAction, IdentityPolicyOutcome, ServiceProfile},
     telemetry::IdentityVerificationTelemetryRecord,
     verification::{
         IdentityVerificationFailure, IdentityVerificationFreshness, IdentityVerificationResult,
@@ -30,10 +30,6 @@ fn canonical_verified_identity_labels_are_stable() {
 
 #[test]
 fn restrictive_default_policy_shapes_are_explicit() {
-    assert_eq!(
-        NonHumanTrafficStance::DenyAllNonHuman.as_str(),
-        "deny_all_non_human"
-    );
     assert_eq!(ServiceProfile::MetadataOnly.as_str(), "metadata_only");
     assert_eq!(IdentityPolicyAction::Allow.as_str(), "allow");
     assert_eq!(

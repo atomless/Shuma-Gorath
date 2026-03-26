@@ -300,7 +300,14 @@ pub(crate) fn maybe_handle_policy_graph_verified_identity_tranche(
         },
     );
 
-    let decisions = crate::runtime::policy_graph::evaluate_verified_identity_tranche(&facts, cfg);
+    let objectives = crate::observability::operator_objectives_store::load_operator_objectives(
+        store, site_id,
+    )
+    .unwrap_or_else(|| {
+        crate::observability::operator_snapshot_objectives::default_operator_objectives(0)
+    });
+    let decisions =
+        crate::runtime::policy_graph::evaluate_verified_identity_tranche(&facts, cfg, &objectives);
     execute_decision_sequence(decisions, &facts, &context, &capabilities)
 }
 

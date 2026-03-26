@@ -157,7 +157,7 @@ class RuntimeToggleSurfaceGate:
             raise RuntimeError(f"health check failed: status={response['status']} body={response['raw'][:200]}")
 
     def clear_loopback_bans(self) -> None:
-        for ip in ("127.0.0.1", "::1"):
+        for ip in ("127.0.0.1", "::1", "unknown"):
             response = self.request("POST", f"/admin/unban?ip={ip}")
             if response["status"] != 200:
                 raise RuntimeError(
@@ -335,12 +335,20 @@ def main() -> int:
             gate.toggle(False, "off-error")
         except Exception:
             pass
+        try:
+            gate.clear_loopback_bans()
+        except Exception:
+            pass
         return 1
 
     try:
         gate.toggle(False, "off")
     except Exception as exc:  # noqa: BLE001
         print(f"[runtime-surface-gate] warning: failed to toggle off: {exc}", file=sys.stderr)
+    try:
+        gate.clear_loopback_bans()
+    except Exception as exc:  # noqa: BLE001
+        print(f"[runtime-surface-gate] warning: failed to clear loopback bans: {exc}", file=sys.stderr)
 
     if coverage.get("overall_status") != "covered":
         print(

@@ -46,8 +46,8 @@
 </script>
 
 <SectionBlock
-  title="Latest Scrapling Evidence"
-  description="Receipt-backed proof from the most recent Scrapling run: observed personas, categories, owned-surface coverage, and sample attack receipts."
+  title="Scrapling"
+  description="Receipt-backed proof from the most recent Scrapling run: observed personas, categories, defense-surface coverage, and sample attack receipts."
   id="red-team-scrapling-evidence"
 >
   {#if !runEvidence}
@@ -72,6 +72,29 @@
         {loading}
         value={formatCompactNumber(runEvidence.ownedSurfaceCoverage?.blockingSurfaceCount || 0, '0')}
       />
+    </div>
+
+    <div class="panel panel-border pad-md-b">
+      <h3>Surface Checklist</h3>
+      <ul id="red-team-scrapling-surface-checklist" class="metric-list metric-list--plain">
+        {#if toArray(runEvidence.ownedSurfaceCoverage?.surfaceChecklistRows).length === 0}
+          <li class="text-muted">No surface checklist available</li>
+        {:else}
+          {#each runEvidence.ownedSurfaceCoverage.surfaceChecklistRows as row (row.surfaceId)}
+            <li
+              aria-label={`${row.state} ${row.surfaceLabel || humanizeToken(row.surfaceId)}`}
+              data-surface-id={row.surfaceId}
+              data-surface-state={row.state}
+            >
+              <strong aria-hidden="true">
+                {#if row.state === 'satisfied'}&#10003;{:else if row.state === 'blocking'}&#10005;{:else}-{/if}
+              </strong>
+              {' '}
+              {row.surfaceLabel || humanizeToken(row.surfaceId)}
+            </li>
+          {/each}
+        {/if}
+      </ul>
     </div>
 
     <div class="status-rows">
@@ -115,7 +138,7 @@
           {:else}
             {#each runEvidence.ownedSurfaceCoverage.receipts as receipt (receipt.surfaceId)}
               <tr>
-                <td>{humanizeToken(receipt.surfaceId)}</td>
+                <td>{receipt.surfaceLabel || humanizeToken(receipt.surfaceId)}</td>
                 <td>{humanizeToken(receipt.successContract)}</td>
                 <td>
                   {humanizeToken(receipt.coverageStatus)}

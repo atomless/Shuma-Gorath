@@ -36,6 +36,17 @@ Current behavior:
   - `Red Team` is where operators verify Scrapling personas, categories, and owned-surface receipts,
   - `Game Loop` only shows a bounded corroborating signal so attacker truth is visible without turning the tab into a forensic adversary surface.
 
+Current limitation:
+
+- The seeded operator-objective profile now defaults to `human_only_private`, so the normal current Game Loop stance is the strict human-only reference profile from [`src/observability/operator_snapshot_objectives.rs`](../../src/observability/operator_snapshot_objectives.rs).
+- Suspicious forwarded request, byte, and latency budgets now derive from adversary-sim scope when that strict profile is active.
+- Legacy or explicitly selected `site_default_v1` payloads can still be rendered for comparison or test coverage, and when they appear the tab must label them as mixed-site defaults rather than the strict `human_only_private` target.
+- The remaining strict-loop limitation is now tranche-level rather than seed-level:
+  - adversary-sim lanes are treated as `100%` non-human traffic during the first strict loop,
+  - suspicious forwarded request, byte, and latency leakage should therefore move toward zero or equivalent fail-closed suppression in that phase,
+  - repeated judged config-change improvement is still the missing proof surface for `RSI-GAME-HO-1`,
+  - and later human traversal calibration must remain a separate proof ring rather than something inferred from sim traffic alone.
+
 Refresh behavior:
 
 - On Game Loop activation, the dashboard runtime now refreshes shared config plus the bounded machine-first accountability reads listed above.

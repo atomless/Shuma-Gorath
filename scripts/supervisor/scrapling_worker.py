@@ -24,18 +24,24 @@ from scripts.tests import shared_host_scope
 from scripts.tests import sim_tag_helpers
 
 
-def _import_scrapling() -> tuple[Any, Any, Any]:
-    from scrapling.fetchers import FetcherSession
+def _import_scrapling() -> tuple[Any, Any, Any, Any, Any]:
+    from scrapling.fetchers import DynamicSession, FetcherSession, StealthySession
     from scrapling.spiders import Request, Spider
 
-    return FetcherSession, Request, Spider
+    return DynamicSession, FetcherSession, StealthySession, Request, Spider
 
 
 class WorkerConfigError(ValueError):
     """Raised when required worker inputs are missing or invalid."""
 
 
-SCRAPLING_FULFILLMENT_MODES = {"crawler", "bulk_scraper", "http_agent"}
+SCRAPLING_FULFILLMENT_MODES = {
+    "crawler",
+    "bulk_scraper",
+    "browser_automation",
+    "stealth_browser",
+    "http_agent",
+}
 
 
 def _load_json(path: Path) -> dict[str, Any]:
@@ -78,6 +84,15 @@ def _env_or_arg(value: str | None, env_name: str) -> str | None:
     return env_value or None
 
 
+def _normalize_optional_proxy_url(raw_proxy: Any) -> str | None:
+    value = str(raw_proxy or "").strip()
+    if not value:
+        return None
+    if "\r" in value or "\n" in value:
+        raise WorkerConfigError("worker_plan proxy URLs must not contain newline characters")
+    return value
+
+
 def _normalize_category_targets(raw_targets: Any) -> list[str]:
     if not isinstance(raw_targets, list):
         return []
@@ -93,6 +108,8 @@ def _expected_category_targets_for_mode(fulfillment_mode: str) -> list[str]:
     return {
         "crawler": ["indexing_bot"],
         "bulk_scraper": ["ai_scraper_bot"],
+        "browser_automation": ["automated_browser"],
+        "stealth_browser": ["automated_browser"],
         "http_agent": ["http_agent"],
     }.get(fulfillment_mode, [])
 
@@ -124,6 +141,18 @@ def _expected_surface_targets_for_mode(fulfillment_mode: str) -> list[str]:
             "not_a_bot_submit",
             "puzzle_submit_or_escalation",
         ],
+        "browser_automation": [
+            "challenge_routing",
+            "maze_navigation",
+            "js_verification_execution",
+            "browser_automation_detection",
+        ],
+        "stealth_browser": [
+            "challenge_routing",
+            "maze_navigation",
+            "js_verification_execution",
+            "browser_automation_detection",
+        ],
         "http_agent": [
             "challenge_routing",
             "rate_pressure",
@@ -141,8 +170,10 @@ def _normalize_runtime_paths(raw_paths: Any) -> dict[str, str]:
         "public_search",
         "not_a_bot_checkbox",
         "challenge_submit",
+        "pow",
         "pow_verify",
         "tarpit_progress",
+        "maze_entry",
     )
     if not isinstance(raw_paths, dict):
         raise WorkerConfigError("worker_plan runtime_paths must be an object")
@@ -318,8 +349,9 @@ def _request_native_session_kwargs(
     *,
     timeout_seconds: float,
     accept_header: str,
+    proxy_url: str | None = None,
 ) -> dict[str, Any]:
-    return {
+    kwargs = {
         "impersonate": "chrome",
         "stealthy_headers": True,
         "follow_redirects": False,
@@ -327,6 +359,40 @@ def _request_native_session_kwargs(
         "retries": 1,
         "headers": {"accept": accept_header},
     }
+    if proxy_url:
+        kwargs["proxy"] = proxy_url
+    return kwargs
+
+
+def _browser_session_kwargs(
+    *,
+    fulfillment_mode: str,
+    timeout_ms: int,
+    proxy_url: str | None = None,
+) -> dict[str, Any]:
+    kwargs: dict[str, Any] = {
+        "headless": True,
+        "disable_resources": False,
+        "google_search": False,
+        "network_idle": False,
+        "load_dom": True,
+        "timeout": timeout_ms,
+        "wait": min(500, max(100, timeout_ms // 12)),
+        "retries": 1,
+        "retry_delay": 0,
+        "locale": "en-GB",
+    }
+    if fulfillment_mode == "stealth_browser":
+        kwargs.update(
+            {
+                "hide_canvas": True,
+                "block_webrtc": True,
+                "allow_webgl": True,
+            }
+        )
+    if proxy_url:
+        kwargs["proxy"] = proxy_url
+    return kwargs
 
 
 def _signed_headers(
@@ -1008,6 +1074,7 @@ def _execute_bulk_scraper_persona(
     )
     surface_targets = set(_normalize_surface_targets(plan.get("surface_targets")))
     runtime_paths = _normalize_runtime_paths(plan.get("runtime_paths"))
+    request_proxy_url = _normalize_optional_proxy_url(plan.get("request_proxy_url"))
     start_urls = _normalized_start_urls(seed_inventory)
     request_targets = _bulk_scraper_request_urls(start_urls)
     visited: set[str] = set()
@@ -1015,6 +1082,7 @@ def _execute_bulk_scraper_persona(
         **_request_native_session_kwargs(
             timeout_seconds=max(1.0, min(30.0, tracker.max_ms / 1000.0)),
             accept_header="text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            proxy_url=request_proxy_url,
         ),
     ) as session:
         for raw_target in request_targets:
@@ -1094,6 +1162,7 @@ def _execute_http_agent_persona(
     )
     surface_targets = set(_normalize_surface_targets(plan.get("surface_targets")))
     runtime_paths = _normalize_runtime_paths(plan.get("runtime_paths"))
+    request_proxy_url = _normalize_optional_proxy_url(plan.get("request_proxy_url"))
     start_urls = _normalized_start_urls(seed_inventory)
     if not start_urls:
         raise WorkerConfigError("seed inventory must contain at least one accepted start or hint URL")
@@ -1108,6 +1177,7 @@ def _execute_http_agent_persona(
         **_request_native_session_kwargs(
             timeout_seconds=max(1.0, min(30.0, tracker.max_ms / 1000.0)),
             accept_header="application/json",
+            proxy_url=request_proxy_url,
         ),
     ) as session:
         _execute_request_sequence(
@@ -1116,6 +1186,241 @@ def _execute_http_agent_persona(
             base_url=base_url,
             requests=requests,
         )
+    return tracker.result_payload()
+
+
+def _record_browser_surface_result(
+    tracker: _DirectPersonaTracker,
+    *,
+    surface_id: str,
+    coverage_status: str,
+    request_target: str,
+    response_status: int | None,
+) -> None:
+    _record_surface_receipt(
+        tracker.surface_receipts,
+        surface_ids=[surface_id],
+        coverage_status=coverage_status,
+        request_method="GET",
+        request_target=request_target,
+        response_status=response_status,
+    )
+
+
+def _pow_surface_page_action(state: dict[str, Any]):
+    def action(page) -> None:
+        state["pow_details"] = page.evaluate(
+            """async () => {
+                const hasCheck = typeof window._checkCDPAutomation === "function";
+                let detected = null;
+                if (hasCheck) {
+                    try {
+                        const result = await window._checkCDPAutomation();
+                        if (typeof result === "boolean") {
+                            detected = result;
+                        } else if (result && typeof result.detected === "boolean") {
+                            detected = result.detected;
+                        }
+                    } catch (_error) {
+                        detected = null;
+                    }
+                }
+                return {
+                    has_check: hasCheck,
+                    detected: detected,
+                    cookie: document.cookie || "",
+                    body_text: (document.body && document.body.innerText) || "",
+                    location: window.location.pathname + window.location.search,
+                };
+            }"""
+        )
+
+    return action
+
+
+def _maze_navigation_page_action(state: dict[str, Any]):
+    def action(page) -> None:
+        state["before_url"] = page.url
+        locator = page.locator("[data-link-kind='maze']").first
+        state["link_count"] = locator.count()
+        if int(state["link_count"] or 0) < 1:
+            return
+        locator.click()
+        page.wait_for_load_state("networkidle")
+        try:
+            bootstrap = page.locator("#maze-bootstrap").text_content()
+        except Exception as exc:  # pragma: no cover - real page variance is receipted below.
+            state["bootstrap_error"] = str(exc)
+            bootstrap = ""
+        state["bootstrap"] = bootstrap or ""
+        state["after_url"] = page.url
+
+    return action
+
+
+def _execute_browser_persona(
+    browser_session_cls: Any,
+    *,
+    plan: dict[str, Any],
+    descriptor: shared_host_scope.SharedHostScopeDescriptor,
+    seed_inventory: dict[str, Any],
+    sim_telemetry_secret: str,
+) -> dict[str, Any]:
+    tracker = _DirectPersonaTracker(
+        plan=plan,
+        descriptor=descriptor,
+        sim_telemetry_secret=sim_telemetry_secret,
+    )
+    surface_targets = set(_normalize_surface_targets(plan.get("surface_targets")))
+    runtime_paths = _normalize_runtime_paths(plan.get("runtime_paths"))
+    browser_proxy_url = _normalize_optional_proxy_url(plan.get("browser_proxy_url")) or _normalize_optional_proxy_url(
+        plan.get("request_proxy_url")
+    )
+    start_urls = _normalized_start_urls(seed_inventory)
+    if not start_urls:
+        raise WorkerConfigError("seed inventory must contain at least one accepted start or hint URL")
+    base_url = start_urls[0]
+    timeout_ms = max(1000, tracker.max_ms)
+
+    with browser_session_cls(
+        **_browser_session_kwargs(
+            fulfillment_mode=tracker.fulfillment_mode,
+            timeout_ms=timeout_ms,
+            proxy_url=browser_proxy_url,
+        ),
+    ) as session:
+        if "challenge_routing" in surface_targets and not tracker.should_stop():
+            challenge_target = _absolute_target(
+                base_url,
+                _route_with_query(
+                    runtime_paths["public_search"],
+                    f"q=scrapling-{tracker.fulfillment_mode}",
+                ),
+            )
+            try:
+                response = session.fetch(
+                    challenge_target,
+                    extra_headers=tracker.next_headers({"accept-language": "en-GB,en;q=0.8"}),
+                )
+                tracker.record_response(
+                    response,
+                    ["challenge_routing"],
+                    request_method="get",
+                    request_target=challenge_target,
+                )
+            except Exception as exc:
+                tracker.record_failure(
+                    exc,
+                    surface_ids=["challenge_routing"],
+                    request_method="get",
+                    request_target=challenge_target,
+                )
+                return tracker.result_payload()
+
+        if (
+            {"js_verification_execution", "browser_automation_detection"} & surface_targets
+            and not tracker.should_stop()
+        ):
+            pow_target = _absolute_target(base_url, runtime_paths["pow"])
+            pow_state: dict[str, Any] = {}
+            try:
+                response = session.fetch(
+                    pow_target,
+                    extra_headers=tracker.next_headers({"accept-language": "en-GB,en;q=0.8"}),
+                    page_action=_pow_surface_page_action(pow_state),
+                )
+                tracker.record_response(
+                    response,
+                    request_method="get",
+                    request_target=pow_target,
+                )
+                response_status = int(response.status)
+                pow_details = (
+                    pow_state.get("pow_details")
+                    if isinstance(pow_state.get("pow_details"), dict)
+                    else {}
+                )
+                pow_cookie = str(pow_details.get("cookie") or "")
+                pow_body_text = str(pow_details.get("body_text") or "")
+                js_executed = bool(pow_details.get("has_check")) or "js_verified=" in pow_cookie or "Verifying" in pow_body_text
+                if "js_verification_execution" in surface_targets:
+                    _record_browser_surface_result(
+                        tracker,
+                        surface_id="js_verification_execution",
+                        coverage_status="pass_observed" if js_executed else "fail_observed",
+                        request_target=pow_target,
+                        response_status=response_status,
+                    )
+                if "browser_automation_detection" in surface_targets:
+                    detected = pow_details.get("detected")
+                    detection_status = (
+                        "fail_observed"
+                        if detected is True
+                        else "pass_observed"
+                        if detected is False
+                        else "fail_observed"
+                        if js_executed
+                        else "transport_error"
+                    )
+                    _record_browser_surface_result(
+                        tracker,
+                        surface_id="browser_automation_detection",
+                        coverage_status=detection_status,
+                        request_target=pow_target,
+                        response_status=response_status,
+                    )
+            except Exception as exc:
+                tracker.record_failure(
+                    exc,
+                    surface_ids=[
+                        surface_id
+                        for surface_id in (
+                            "js_verification_execution",
+                            "browser_automation_detection",
+                        )
+                        if surface_id in surface_targets
+                    ],
+                    request_method="get",
+                    request_target=pow_target,
+                )
+                return tracker.result_payload()
+
+        if "maze_navigation" in surface_targets and not tracker.should_stop():
+            maze_target = _absolute_target(base_url, runtime_paths["maze_entry"])
+            maze_state: dict[str, Any] = {}
+            try:
+                response = session.fetch(
+                    maze_target,
+                    extra_headers=tracker.next_headers({"accept-language": "en-GB,en;q=0.8"}),
+                    page_action=_maze_navigation_page_action(maze_state),
+                )
+                tracker.record_response(
+                    response,
+                    request_method="get",
+                    request_target=maze_target,
+                )
+                after_url = str(maze_state.get("after_url") or "")
+                before_url = str(maze_state.get("before_url") or "")
+                maze_passed = (
+                    int(maze_state.get("link_count") or 0) > 0
+                    and bool(after_url)
+                    and after_url != before_url
+                )
+                _record_browser_surface_result(
+                    tracker,
+                    surface_id="maze_navigation",
+                    coverage_status="pass_observed" if maze_passed else "fail_observed",
+                    request_target=maze_target,
+                    response_status=int(response.status),
+                )
+            except Exception as exc:
+                tracker.record_failure(
+                    exc,
+                    surface_ids=["maze_navigation"],
+                    request_method="get",
+                    request_target=maze_target,
+                )
+
     return tracker.result_payload()
 
 
@@ -1138,7 +1443,7 @@ def execute_worker_plan(
         fulfillment_mode = str(plan.get("fulfillment_mode") or "").strip()
         if fulfillment_mode not in SCRAPLING_FULFILLMENT_MODES:
             raise WorkerConfigError(
-                "worker_plan fulfillment_mode must be one of crawler, bulk_scraper, http_agent"
+                "worker_plan fulfillment_mode must be one of crawler, bulk_scraper, browser_automation, stealth_browser, http_agent"
             )
         category_targets = _normalize_category_targets(plan.get("category_targets"))
         expected_targets = _expected_category_targets_for_mode(fulfillment_mode)
@@ -1162,7 +1467,7 @@ def execute_worker_plan(
         if not _normalized_start_urls(seed_inventory):
             raise WorkerConfigError("seed inventory must contain at least one accepted start or hint URL")
 
-        fetcher_session_cls, request_cls, spider_cls = _import_scrapling()
+        dynamic_session_cls, fetcher_session_cls, stealthy_session_cls, request_cls, spider_cls = _import_scrapling()
         if fulfillment_mode == "crawler":
             spider_class = _build_spider_class(fetcher_session_cls, request_cls, spider_cls)
             crawldir.mkdir(parents=True, exist_ok=True)
@@ -1207,6 +1512,22 @@ def execute_worker_plan(
         if fulfillment_mode == "bulk_scraper":
             return _execute_bulk_scraper_persona(
                 fetcher_session_cls,
+                plan=plan,
+                descriptor=descriptor,
+                seed_inventory=seed_inventory,
+                sim_telemetry_secret=sim_telemetry_secret,
+            )
+        if fulfillment_mode == "browser_automation":
+            return _execute_browser_persona(
+                dynamic_session_cls,
+                plan=plan,
+                descriptor=descriptor,
+                seed_inventory=seed_inventory,
+                sim_telemetry_secret=sim_telemetry_secret,
+            )
+        if fulfillment_mode == "stealth_browser":
+            return _execute_browser_persona(
+                stealthy_session_cls,
                 plan=plan,
                 descriptor=descriptor,
                 seed_inventory=seed_inventory,

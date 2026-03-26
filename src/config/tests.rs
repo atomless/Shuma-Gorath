@@ -593,10 +593,6 @@ fn defaults_enable_both_signal_and_action_paths() {
     assert!(cfg.verified_identity.enabled);
     assert!(cfg.verified_identity.native_web_bot_auth_enabled);
     assert!(cfg.verified_identity.provider_assertions_enabled);
-    assert_eq!(
-        cfg.verified_identity.non_human_traffic_stance,
-        crate::bot_identity::policy::NonHumanTrafficStance::DenyAllNonHuman
-    );
     assert_eq!(cfg.verified_identity.service_profiles.len(), 4);
 }
 
@@ -607,38 +603,9 @@ fn verified_identity_defaults_are_seeded_and_restrictive() {
     assert!(cfg.verified_identity.enabled);
     assert!(cfg.verified_identity.native_web_bot_auth_enabled);
     assert!(cfg.verified_identity.provider_assertions_enabled);
-    assert_eq!(
-        cfg.verified_identity.non_human_traffic_stance,
-        crate::bot_identity::policy::NonHumanTrafficStance::DenyAllNonHuman
-    );
     assert!(cfg.verified_identity.named_policies.is_empty());
     assert!(cfg.verified_identity.category_defaults.is_empty());
     assert_eq!(cfg.verified_identity.service_profiles.len(), 4);
-}
-
-#[test]
-fn verified_identity_non_human_traffic_stance_accepts_expected_values() {
-    assert_eq!(
-        parse_non_human_traffic_stance("deny_all_non_human"),
-        Some(crate::bot_identity::policy::NonHumanTrafficStance::DenyAllNonHuman)
-    );
-    assert_eq!(
-        parse_non_human_traffic_stance(" allow_only_explicit_verified_identities "),
-        Some(
-            crate::bot_identity::policy::NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities
-        )
-    );
-    assert_eq!(
-        parse_non_human_traffic_stance("allow_verified_by_category"),
-        Some(crate::bot_identity::policy::NonHumanTrafficStance::AllowVerifiedByCategory)
-    );
-    assert_eq!(
-        parse_non_human_traffic_stance("allow_verified_with_low_cost_profiles_only"),
-        Some(
-            crate::bot_identity::policy::NonHumanTrafficStance::AllowVerifiedWithLowCostProfilesOnly
-        )
-    );
-    assert_eq!(parse_non_human_traffic_stance("invalid"), None);
 }
 
 #[test]

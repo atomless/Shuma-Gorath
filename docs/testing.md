@@ -49,6 +49,8 @@ make test-adversarial-llm-runtime-dispatch # Focused bounded LLM runtime dispatc
 make test-scrapling-game-loop-mainline # Focused active-mainline bundle: attacker-faithful Scrapling plus the first working game loop
 make test-adversary-sim-scrapling-owned-surface-contract # Focused Scrapling owned-surface matrix and success-contract gate
 make test-adversary-sim-scrapling-category-fit # Focused Scrapling category-ownership and worker-plan contract gate
+make test-adversary-sim-scrapling-browser-capability # Focused Scrapling browser and stealth persona capability gate
+make test-adversary-sim-scrapling-proxy-capability # Focused Scrapling request and browser proxy-capability gate
 make test-adversary-sim-scrapling-malicious-request-native # Focused attacker-faithful malicious request-native Scrapling behavior gate
 make test-adversary-sim-scrapling-coverage-receipts # Focused Scrapling owned-surface receipt and recent-run closure gate
 make test-rsi-game-mainline # Focused first-working-loop mainline proof: automatic post-sim hook, route-level canary -> judged archive loop, plus shared-host verifier terminal follow-on proof
@@ -126,6 +128,12 @@ That command is the fastest truthful local/pre-merge proof bundle for the curren
 - `make test-adversary-sim-scrapling-coverage-receipts`
 - `make test-rsi-game-mainline`
 
+Additional scope notes:
+
+- This local path is expected to run against the loopback-hosted `/sim/public/*` realism pages when adversary-sim is enabled. That dummy surface is the intended first public surface for strict-loop iteration when there is no real hosted site behind Shuma.
+- It proves attacker-faithful Scrapling plus the first working game loop only.
+- It does not yet prove repeated retained improvement under the strict `human_only_private` loop, the later human-traversal calibration that must be measured from real human sessions, or the live-host realism layer on its own.
+
 ## 🐙 Make-Target Contract Lanes
 
 Selector-only Makefile proof now lives in explicit contract lanes instead of being hidden inside feature-behavior targets:
@@ -198,8 +206,8 @@ Notes:
 - `make test-host-impact-telemetry`, `make test-host-impact-benchmark`, and `make test-oversight-host-impact` are the narrow pre-Monitoring proof path for the host-impact proxy track; use them instead of broader monitoring/controller suites when only the forwarded-latency cost proxy changed.
 - `make test-dashboard-verified-identity-pane` is the narrow proof path for the first-class `Verified Identity` pane in `Verification`; it covers operator-snapshot hydration, shared config-surface ownership, and a rendered config-save round-trip without dragging in broader Monitoring work.
 - `make test-dashboard-red-team-truth-basis` is the narrow proof path for Red Team status-truth surfacing; it covers status adaptation, runtime normalization, and a rendered persisted-event lower-bound state without turning the slice into early Monitoring work.
-- `make test-dashboard-scrapling-evidence` is the narrow proof path for receipt-backed Scrapling attack evidence surfacing; it covers bounded recent-run adaptation of fulfillment modes, category coverage, and owned-surface receipts plus rendered proof that `Red Team` carries the detailed evidence while `Game Loop` only carries compact corroboration.
-- `make test-dashboard-game-loop-accountability` is the narrow proof path for `MON-OVERHAUL-1B`; it covers dashboard adapters, bounded snapshot wiring through the refresh runtime, and a rendered Playwright proof that the Game Loop tab projects benchmark and oversight machine contracts rather than placeholder copy.
+- `make test-dashboard-scrapling-evidence` is the narrow proof path for receipt-backed Scrapling attack evidence surfacing; it covers bounded recent-run adaptation of fulfillment modes, category coverage, canonical full-surface checklist state for the current Scrapling surface matrix, and per-surface receipts plus rendered proof that `Red Team` carries the detailed evidence while `Game Loop` only carries compact corroboration.
+- `make test-dashboard-game-loop-accountability` is the narrow proof path for `MON-OVERHAUL-1B`; it covers dashboard adapters, bounded snapshot wiring through the refresh runtime, and a rendered Playwright proof that the Game Loop tab projects benchmark and oversight machine contracts rather than placeholder copy. It is also the focused rendered truth check that the seeded `human_only_private` default stays strict and any legacy `site_default_v1` payload is labeled as mixed-site rather than the strict sim-only target.
 - `make test-dashboard-traffic-pane` is the narrow proof path for `TRAFFIC-TAB-1`; it covers traffic-first tab ordering, shared refresh-bar eligibility across `Traffic` and `Game Loop`, and a rendered Playwright proof that Traffic owns the traffic picture while Diagnostics narrows toward furniture proof.
 - `make test-dashboard-runtime-unit-contracts` is the narrow non-rendered proof path for dashboard native-runtime and refresh-runtime behavior; use it when auth/session restore, cache invalidation, or config-mutation invalidation logic changes without needing broader Playwright churn.
 - `make test-scrapling-game-loop-mainline` is the fastest truthful local/pre-merge proof path for the current active mainline. It bundles the attacker-faithful Scrapling owned-surface, malicious request-native, coverage-receipt, and first-working-game-loop gates without implying live/shared-host operational proof.
@@ -342,13 +350,15 @@ Available profiles:
 - `make test-shared-host-seed-contract` - minimal shared-host seed inventory contract parity check, including required primary URL handling, bounded `robots.txt` hint ingestion, provenance merge, and rejection diagnostics
 - `make prepare-scrapling-deploy` - shared-host deploy-prep helper that infers the fail-closed scope fence, root-only seed, runtime env mappings, and deploy-time receipt from the canonical public base URL
 - `make test-scrapling-deploy-shared-host` - focused shared-host deploy proof for the Scrapling prep helper, Linode deploy wiring, normalized `ssh_systemd` receipt extension, and `make remote-update` preservation of the same scope/seed artifact contract
-- `make test-adversary-sim-scrapling-category-fit` - focused Scrapling ownership-contract proof for canonical lane fulfillment rows, request-native `fulfillment_mode` rotation, and the bounded worker-plan `category_targets` contract
+- `make test-adversary-sim-scrapling-category-fit` - focused Scrapling ownership-contract proof for canonical lane fulfillment rows, full-spectrum `fulfillment_mode` rotation, and the bounded worker-plan `category_targets` contract
+- `make test-adversary-sim-scrapling-browser-capability` - focused Scrapling browser-capability gate covering dynamic-browser and stealth-browser worker execution plus browser-owned-surface receipts
+- `make test-adversary-sim-scrapling-proxy-capability` - focused Scrapling proxy-capability gate covering optional request and browser proxy beat-plan plumbing plus worker proxy kwargs contracts
 - `make test-adversary-sim-scrapling-coverage-receipts` - focused Scrapling owned-surface receipt proof across worker-emitted surface receipts, recent-sim-run coverage aggregation, and operator-snapshot projection of owned-surface closure
-- `make test-adversary-sim-scrapling-worker` - focused real Scrapling lane gate covering the internal beat/result contract, bounded crawler plus direct-request persona execution, mode-specific signed sim telemetry on real requests, host-side supervisor source-contract wiring, and the supervisor's HTTP transport parser contract
+- `make test-adversary-sim-scrapling-worker` - focused real Scrapling lane gate covering the internal beat/result contract, bounded crawler and direct-request personas plus dynamic-browser and stealth-browser execution, mode-specific signed sim telemetry on real requests, host-side supervisor source-contract wiring, and the supervisor's HTTP transport parser contract
 - `make test-adversarial-sim-tag-contract` - signed simulation-tag contract parity check across lane contract, runner, and container worker
 - `make test-adversarial-coverage-contract` - canonical `full_coverage` contract parity check across SIM2 plan rows, manifests, runner enforcement, and the frozen unit-level coverage-contract matrix
 - `make test-adversarial-llm-fit` - bounded LLM browser/request fulfillment-plan contract proof across runtime beat payloads, live frontier action-generation lineage, Shuma-blind host-hint sanitization, and frontier/container contract artifacts
-- `make test-adversarial-coverage-receipts` - canonical category-coverage receipt proof across adversarial coverage/scenario contracts, recent-sim request-native Scrapling category receipts, the non-human coverage summary, and fail-closed benchmark gating when mapped categories are not yet covered
+- `make test-adversarial-coverage-receipts` - canonical category-coverage receipt proof across adversarial coverage/scenario contracts, recent-sim full-spectrum Scrapling category receipts, the non-human coverage summary, and fail-closed benchmark gating when mapped categories are not yet covered
 - `make test-verified-identity-calibration-readiness` - focused bridge gate for the current verified-identity calibration seams: taxonomy-crosswalk entry point, verified-identity snapshot section, beneficial non-human benchmark materialization, and reconcile fail-closed readiness
 - `make test-verified-identity-taxonomy-crosswalk` - focused `VID-TAX-1` proof for verified-identity category projection through runtime classification, request-outcome telemetry, non-human receipts, and snapshot projection
 - `make test-verified-identity-alignment-receipts` - focused `VID-TAX-2` proof for machine-first verified-identity alignment receipts and bounded snapshot summary materialization
@@ -370,8 +380,10 @@ Shared-host Scrapling proof map:
 
 - `make prepare-scrapling-deploy` proves deploy-time inference and receipt generation only.
 - `make test-scrapling-deploy-shared-host` proves the shared-host deploy/update automation carries the same inferred scope/seed/env contract end to end.
-- `make test-adversary-sim-scrapling-category-fit` proves the bounded category-ownership and worker-plan target contract for the current request-native Scrapling track.
-- `make test-adversary-sim-scrapling-coverage-receipts` proves the bounded owned-surface receipt and recent-run closure contract for the current request-native Scrapling track.
+- `make test-adversary-sim-scrapling-category-fit` proves the bounded category-ownership and worker-plan target contract for the current full-spectrum Scrapling track.
+- `make test-adversary-sim-scrapling-browser-capability` proves the browser and stealth personas execute browser-owned surfaces and materialize receipt-backed coverage.
+- `make test-adversary-sim-scrapling-proxy-capability` proves optional request and browser proxy inputs flow from the beat plan into the worker session kwargs without overstating live distributed-origin proof.
+- `make test-adversary-sim-scrapling-coverage-receipts` proves the bounded owned-surface receipt and recent-run closure contract for the current full-spectrum Scrapling track.
 - `make test-adversary-sim-scrapling-worker` proves the hosted worker lane itself, including host-side supervisor parsing and fail-closed worker result shaping.
 - `make test-adversary-sim-runtime-surface` proves the running target records a covered recent Scrapling owned-surface run while adversary simulation remains no-impact to normal user traffic.
 - none of those targets make Fermyon/Akamai edge a supported full hosted Scrapling worker target; that edge runtime remains outside the current supported contract.
@@ -410,6 +422,7 @@ Structural refactor proof map:
 - `make test-adversary-sim-domain-contract` is the focused backend adversary-sim lifecycle and lane-domain gate that stays off the live runtime-surface path.
 
 Simulation realism pages are available at `/sim/public/landing`, `/sim/public/docs`, `/sim/public/pricing`, `/sim/public/contact`, and `/sim/public/search?q=...` only when both availability gates are true: `SHUMA_ADVERSARY_SIM_AVAILABLE=true` and the effective adversary-sim desired state is enabled (seeded initially by `SHUMA_ADVERSARY_SIM_ENABLED`, then projected from persisted control state after the first `POST /admin/adversary-sim/control` write).
+These pages are the intended first local public surface for strict-loop development and proof when contributors do not yet have a real hosted origin behind Shuma.
 Dashboard DOM-class contract for runtime/simulation affordances:
 - `<html>` must include exactly one runtime environment class: `runtime-dev` or `runtime-prod` (derived from trusted runtime config).
 - `<html>` connection state classes are heartbeat-owned: runtime boots in `disconnected`, flips to `connected` after successful heartbeat, enters `degraded` on heartbeat failures, and transitions to `disconnected` after configured hysteresis threshold (`N`) of consecutive heartbeat failures.

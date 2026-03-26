@@ -2,10 +2,11 @@ use crate::challenge::KeyValueStore;
 
 use super::operator_snapshot_objectives::{
     default_operator_objectives, validate_operator_objectives, OperatorObjectivesProfile,
-    OPERATOR_OBJECTIVES_SCHEMA_VERSION,
+    HUMAN_ONLY_PRIVATE_OBJECTIVE_PROFILE_ID, OPERATOR_OBJECTIVES_SCHEMA_VERSION,
 };
 
 const OPERATOR_OBJECTIVES_PREFIX: &str = "operator_objectives:v1";
+const LEGACY_SITE_DEFAULT_OBJECTIVE_PROFILE_ID: &str = "site_default_v1";
 
 pub(crate) fn operator_objectives_key(site_id: &str) -> String {
     format!("{OPERATOR_OBJECTIVES_PREFIX}:{site_id}")
@@ -33,6 +34,13 @@ pub(crate) fn load_or_seed_operator_objectives<S: KeyValueStore>(
     generated_at_ts: u64,
 ) -> OperatorObjectivesProfile {
     if let Some(profile) = load_operator_objectives(store, site_id) {
+        if should_upgrade_legacy_seeded_default(&profile) {
+            let upgraded = default_operator_objectives(generated_at_ts);
+            if save_operator_objectives(store, site_id, &upgraded).is_ok() {
+                return upgraded;
+            }
+            return upgraded;
+        }
         return profile;
     }
 
@@ -43,6 +51,12 @@ pub(crate) fn load_or_seed_operator_objectives<S: KeyValueStore>(
         // Keep snapshot materialization progressing even if the first persistence attempt fails.
         profile
     }
+}
+
+fn should_upgrade_legacy_seeded_default(profile: &OperatorObjectivesProfile) -> bool {
+    profile.source == "seeded_default_profile"
+        && profile.profile_id == LEGACY_SITE_DEFAULT_OBJECTIVE_PROFILE_ID
+        && profile.profile_id != HUMAN_ONLY_PRIVATE_OBJECTIVE_PROFILE_ID
 }
 
 pub(crate) fn save_operator_objectives<S: KeyValueStore>(
@@ -110,13 +124,33 @@ mod tests {
         let seeded = load_or_seed_operator_objectives(&store, "default", 1_700_000_000);
         let loaded = load_or_seed_operator_objectives(&store, "default", 1_700_000_100);
 
-        assert_eq!(seeded.profile_id, "site_default_v1");
+        assert_eq!(seeded.profile_id, "human_only_private");
         assert_eq!(seeded.revision, "rev-1700000000");
         assert_eq!(loaded.revision, "rev-1700000000");
         assert!(store
             .get(&operator_objectives_key("default"))
             .expect("lookup succeeds")
             .is_some());
+    }
+
+    #[test]
+    fn load_or_seed_operator_objectives_upgrades_legacy_seeded_mixed_site_profile() {
+        let store = TestStore::new();
+        let mut legacy = default_operator_objectives(1_699_999_900);
+        legacy.profile_id = "site_default_v1".to_string();
+
+        save_operator_objectives(&store, "default", &legacy).expect("save succeeds");
+
+        let loaded = load_or_seed_operator_objectives(&store, "default", 1_700_000_000);
+
+        assert_eq!(loaded.profile_id, "human_only_private");
+        assert_eq!(loaded.revision, "rev-1700000000");
+        assert_eq!(
+            load_operator_objectives(&store, "default")
+                .expect("profile loads")
+                .profile_id,
+            "human_only_private"
+        );
     }
 
     #[test]

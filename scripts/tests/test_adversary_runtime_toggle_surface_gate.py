@@ -129,7 +129,7 @@ class RuntimeToggleSurfaceGateTests(unittest.TestCase):
         self.assertEqual(captured["payload"]["ban_durations"]["rate_limit"], 1)
         self.assertEqual(captured["payload"]["ban_durations"]["tarpit_persistence"], 1)
 
-    def test_clear_loopback_bans_posts_unban_for_both_loopback_identities(self) -> None:
+    def test_clear_loopback_bans_posts_unban_for_loopback_and_unknown_identities(self) -> None:
         gate = runtime_surface_gate.RuntimeToggleSurfaceGate(
             base_url="http://127.0.0.1:3000",
             api_key="test-api-key",
@@ -153,6 +153,7 @@ class RuntimeToggleSurfaceGateTests(unittest.TestCase):
             [
                 ("POST", "/admin/unban?ip=127.0.0.1"),
                 ("POST", "/admin/unban?ip=::1"),
+                ("POST", "/admin/unban?ip=unknown"),
             ],
         )
 

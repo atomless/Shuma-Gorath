@@ -168,7 +168,6 @@
   "verified_identity.enabled": "Enables the verified-identity subsystem for observe-only normalization and later policy phases.",
   "verified_identity.native_web_bot_auth_enabled": "Controls whether native Web Bot Auth verification inputs are accepted.",
   "verified_identity.provider_assertions_enabled": "Controls whether provider-normalized verified-bot or signed-agent assertions are accepted.",
-  "verified_identity.non_human_traffic_stance": "Top-level operator stance for authenticated non-human traffic. Verification does not imply authorization.",
   "verified_identity.replay_window_seconds": "Replay-protection window in seconds for signed identity material.",
   "verified_identity.clock_skew_seconds": "Maximum accepted clock skew in seconds for verified-identity timestamps.",
   "verified_identity.directory_cache_ttl_seconds": "Cache lifetime in seconds for verified-identity directory material.",

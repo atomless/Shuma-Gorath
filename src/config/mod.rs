@@ -548,8 +548,6 @@ pub struct VerifiedIdentityConfig {
     pub native_web_bot_auth_enabled: bool,
     #[serde(default = "default_verified_identity_provider_assertions_enabled")]
     pub provider_assertions_enabled: bool,
-    #[serde(default = "default_verified_identity_non_human_traffic_stance")]
-    pub non_human_traffic_stance: crate::bot_identity::policy::NonHumanTrafficStance,
     #[serde(default = "default_verified_identity_replay_window_seconds")]
     pub replay_window_seconds: u64,
     #[serde(default = "default_verified_identity_clock_skew_seconds")]
@@ -572,7 +570,6 @@ impl Default for VerifiedIdentityConfig {
             enabled: default_verified_identity_enabled(),
             native_web_bot_auth_enabled: default_verified_identity_native_web_bot_auth_enabled(),
             provider_assertions_enabled: default_verified_identity_provider_assertions_enabled(),
-            non_human_traffic_stance: default_verified_identity_non_human_traffic_stance(),
             replay_window_seconds: default_verified_identity_replay_window_seconds(),
             clock_skew_seconds: default_verified_identity_clock_skew_seconds(),
             directory_cache_ttl_seconds: default_verified_identity_directory_cache_ttl_seconds(),
@@ -2744,24 +2741,6 @@ pub(crate) fn parse_provider_backend(value: &str) -> Option<ProviderBackend> {
     }
 }
 
-pub(crate) fn parse_non_human_traffic_stance(
-    value: &str,
-) -> Option<crate::bot_identity::policy::NonHumanTrafficStance> {
-    match value.trim().to_ascii_lowercase().as_str() {
-        "deny_all_non_human" => Some(crate::bot_identity::policy::NonHumanTrafficStance::DenyAllNonHuman),
-        "allow_only_explicit_verified_identities" => Some(
-            crate::bot_identity::policy::NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities,
-        ),
-        "allow_verified_by_category" => Some(
-            crate::bot_identity::policy::NonHumanTrafficStance::AllowVerifiedByCategory,
-        ),
-        "allow_verified_with_low_cost_profiles_only" => Some(
-            crate::bot_identity::policy::NonHumanTrafficStance::AllowVerifiedWithLowCostProfilesOnly,
-        ),
-        _ => None,
-    }
-}
-
 pub(crate) fn parse_edge_integration_mode(value: &str) -> Option<EdgeIntegrationMode> {
     match value.trim().to_ascii_lowercase().as_str() {
         "off" => Some(EdgeIntegrationMode::Off),
@@ -3957,17 +3936,6 @@ fn default_verified_identity_native_web_bot_auth_enabled() -> bool {
 
 fn default_verified_identity_provider_assertions_enabled() -> bool {
     defaults_bool("SHUMA_VERIFIED_IDENTITY_PROVIDER_ASSERTIONS_ENABLED")
-}
-
-fn default_verified_identity_non_human_traffic_stance(
-) -> crate::bot_identity::policy::NonHumanTrafficStance {
-    let raw = defaults_raw("SHUMA_VERIFIED_IDENTITY_NON_HUMAN_TRAFFIC_STANCE");
-    parse_non_human_traffic_stance(raw.as_str()).unwrap_or_else(|| {
-        panic!(
-            "Invalid verified identity non-human traffic stance default for SHUMA_VERIFIED_IDENTITY_NON_HUMAN_TRAFFIC_STANCE={}",
-            raw
-        )
-    })
 }
 
 fn default_verified_identity_replay_window_seconds() -> u64 {

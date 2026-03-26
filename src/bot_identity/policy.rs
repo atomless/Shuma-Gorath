@@ -4,30 +4,6 @@ use super::contracts::{IdentityCategory, IdentityScheme};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub(crate) enum NonHumanTrafficStance {
-    DenyAllNonHuman,
-    AllowOnlyExplicitVerifiedIdentities,
-    AllowVerifiedByCategory,
-    AllowVerifiedWithLowCostProfilesOnly,
-}
-
-impl NonHumanTrafficStance {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            NonHumanTrafficStance::DenyAllNonHuman => "deny_all_non_human",
-            NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities => {
-                "allow_only_explicit_verified_identities"
-            }
-            NonHumanTrafficStance::AllowVerifiedByCategory => "allow_verified_by_category",
-            NonHumanTrafficStance::AllowVerifiedWithLowCostProfilesOnly => {
-                "allow_verified_with_low_cost_profiles_only"
-            }
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
 pub(crate) enum ServiceProfile {
     BrowserLike,
     StructuredAgent,
@@ -154,20 +130,32 @@ impl IdentityPolicyOutcome {
 enum IdentityPolicyResolutionSource {
     NamedPolicy(String),
     CategoryDefault(IdentityCategory),
-    TopLevelStance(NonHumanTrafficStance),
+    CanonicalCategoryPosture(String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum IdentityPolicyResolutionSourceKind {
     NamedPolicy,
     CategoryDefault,
-    TopLevelStance,
+    CanonicalCategoryPosture,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct IdentityPolicyContext {
+    pub profile_id: String,
+    pub verified_identity_override_mode: String,
+    pub canonical_category_id: String,
+    pub base_posture: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct IdentityPolicyResolution {
     pub outcome: IdentityPolicyOutcome,
     pub service_profile_id: Option<String>,
+    pub profile_id: String,
+    pub verified_identity_override_mode: String,
+    pub canonical_category_id: String,
+    pub base_posture: String,
     source: IdentityPolicyResolutionSource,
 }
 
@@ -176,7 +164,9 @@ impl IdentityPolicyResolution {
         match self.source {
             IdentityPolicyResolutionSource::NamedPolicy(_) => "named_policy",
             IdentityPolicyResolutionSource::CategoryDefault(_) => "category_default",
-            IdentityPolicyResolutionSource::TopLevelStance(_) => "top_level_stance",
+            IdentityPolicyResolutionSource::CanonicalCategoryPosture(_) => {
+                "canonical_category_posture"
+            }
         }
     }
 
@@ -184,7 +174,9 @@ impl IdentityPolicyResolution {
         match &self.source {
             IdentityPolicyResolutionSource::NamedPolicy(policy_id) => policy_id.as_str(),
             IdentityPolicyResolutionSource::CategoryDefault(category) => category.as_str(),
-            IdentityPolicyResolutionSource::TopLevelStance(stance) => stance.as_str(),
+            IdentityPolicyResolutionSource::CanonicalCategoryPosture(category_id) => {
+                category_id.as_str()
+            }
         }
     }
 
@@ -196,42 +188,40 @@ impl IdentityPolicyResolution {
             IdentityPolicyResolutionSource::CategoryDefault(_) => {
                 IdentityPolicyResolutionSourceKind::CategoryDefault
             }
-            IdentityPolicyResolutionSource::TopLevelStance(_) => {
-                IdentityPolicyResolutionSourceKind::TopLevelStance
+            IdentityPolicyResolutionSource::CanonicalCategoryPosture(_) => {
+                IdentityPolicyResolutionSourceKind::CanonicalCategoryPosture
             }
         }
     }
 }
 
 pub(crate) fn resolve_identity_policy(
-    stance: NonHumanTrafficStance,
+    context: &IdentityPolicyContext,
     named_policies: &[IdentityPolicyEntry],
     category_defaults: &[IdentityCategoryDefaultAction],
     service_profiles: &[IdentityServiceProfileBinding],
     identity: &super::contracts::VerifiedIdentityEvidence,
     request_path: &str,
 ) -> IdentityPolicyResolution {
-    for policy in named_policies {
-        if !matcher_matches(&policy.matcher, identity, request_path) {
-            continue;
+    if context.verified_identity_override_mode == "explicit_overrides_eligible" {
+        for policy in named_policies {
+            if !matcher_matches(&policy.matcher, identity, request_path) {
+                continue;
+            }
+            return resolution_from_action(
+                context,
+                &policy.action,
+                service_profiles,
+                IdentityPolicyResolutionSource::NamedPolicy(policy.policy_id.clone()),
+            );
         }
-        return resolution_from_action(
-            &policy.action,
-            service_profiles,
-            IdentityPolicyResolutionSource::NamedPolicy(policy.policy_id.clone()),
-        );
-    }
 
-    if matches!(
-        stance,
-        NonHumanTrafficStance::AllowVerifiedByCategory
-            | NonHumanTrafficStance::AllowVerifiedWithLowCostProfilesOnly
-    ) {
         for category_default in category_defaults {
             if category_default.category != identity.category {
                 continue;
             }
             return resolution_from_action(
+                context,
                 &category_default.action,
                 service_profiles,
                 IdentityPolicyResolutionSource::CategoryDefault(category_default.category),
@@ -240,9 +230,23 @@ pub(crate) fn resolve_identity_policy(
     }
 
     IdentityPolicyResolution {
-        outcome: IdentityPolicyOutcome::Deny,
+        outcome: fallback_outcome_for_posture(context.base_posture.as_str()),
         service_profile_id: None,
-        source: IdentityPolicyResolutionSource::TopLevelStance(stance),
+        profile_id: context.profile_id.clone(),
+        verified_identity_override_mode: context.verified_identity_override_mode.clone(),
+        canonical_category_id: context.canonical_category_id.clone(),
+        base_posture: context.base_posture.clone(),
+        source: IdentityPolicyResolutionSource::CanonicalCategoryPosture(
+            context.canonical_category_id.clone(),
+        ),
+    }
+}
+
+fn fallback_outcome_for_posture(posture: &str) -> IdentityPolicyOutcome {
+    match posture {
+        "allowed" | "tolerated" | "cost_reduced" => IdentityPolicyOutcome::Observe,
+        "restricted" => IdentityPolicyOutcome::Restrict,
+        _ => IdentityPolicyOutcome::Deny,
     }
 }
 
@@ -284,6 +288,7 @@ fn matcher_matches(
 }
 
 fn resolution_from_action(
+    context: &IdentityPolicyContext,
     action: &IdentityPolicyAction,
     service_profiles: &[IdentityServiceProfileBinding],
     source: IdentityPolicyResolutionSource,
@@ -292,21 +297,37 @@ fn resolution_from_action(
         IdentityPolicyAction::Deny => IdentityPolicyResolution {
             outcome: IdentityPolicyOutcome::Deny,
             service_profile_id: None,
+            profile_id: context.profile_id.clone(),
+            verified_identity_override_mode: context.verified_identity_override_mode.clone(),
+            canonical_category_id: context.canonical_category_id.clone(),
+            base_posture: context.base_posture.clone(),
             source,
         },
         IdentityPolicyAction::Restrict => IdentityPolicyResolution {
             outcome: IdentityPolicyOutcome::Restrict,
             service_profile_id: None,
+            profile_id: context.profile_id.clone(),
+            verified_identity_override_mode: context.verified_identity_override_mode.clone(),
+            canonical_category_id: context.canonical_category_id.clone(),
+            base_posture: context.base_posture.clone(),
             source,
         },
         IdentityPolicyAction::Observe => IdentityPolicyResolution {
             outcome: IdentityPolicyOutcome::Observe,
             service_profile_id: None,
+            profile_id: context.profile_id.clone(),
+            verified_identity_override_mode: context.verified_identity_override_mode.clone(),
+            canonical_category_id: context.canonical_category_id.clone(),
+            base_posture: context.base_posture.clone(),
             source,
         },
         IdentityPolicyAction::Allow => IdentityPolicyResolution {
             outcome: IdentityPolicyOutcome::Allow,
             service_profile_id: None,
+            profile_id: context.profile_id.clone(),
+            verified_identity_override_mode: context.verified_identity_override_mode.clone(),
+            canonical_category_id: context.canonical_category_id.clone(),
+            base_posture: context.base_posture.clone(),
             source,
         },
         IdentityPolicyAction::UseServiceProfile(profile_id) => {
@@ -320,6 +341,10 @@ fn resolution_from_action(
             IdentityPolicyResolution {
                 outcome: IdentityPolicyOutcome::UseServiceProfile(profile),
                 service_profile_id: Some(profile_id.clone()),
+                profile_id: context.profile_id.clone(),
+                verified_identity_override_mode: context.verified_identity_override_mode.clone(),
+                canonical_category_id: context.canonical_category_id.clone(),
+                base_posture: context.base_posture.clone(),
                 source,
             }
         }
@@ -367,6 +392,24 @@ mod tests {
         ]
     }
 
+    fn strict_context() -> IdentityPolicyContext {
+        IdentityPolicyContext {
+            profile_id: "human_only_private".to_string(),
+            verified_identity_override_mode: "strict_human_only".to_string(),
+            canonical_category_id: "agent_on_behalf_of_human".to_string(),
+            base_posture: "blocked".to_string(),
+        }
+    }
+
+    fn relaxed_context() -> IdentityPolicyContext {
+        IdentityPolicyContext {
+            profile_id: "humans_plus_verified_only".to_string(),
+            verified_identity_override_mode: "explicit_overrides_eligible".to_string(),
+            canonical_category_id: "agent_on_behalf_of_human".to_string(),
+            base_posture: "blocked".to_string(),
+        }
+    }
+
     #[test]
     fn resolve_identity_policy_prefers_first_matching_named_policy() {
         let policies = vec![
@@ -390,14 +433,8 @@ mod tests {
             },
         ];
 
-        let resolution = resolve_identity_policy(
-            NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities,
-            &policies,
-            &[],
-            &service_profiles(),
-            &identity(),
-            "/",
-        );
+        let resolution =
+            resolve_identity_policy(&relaxed_context(), &policies, &[], &service_profiles(), &identity(), "/");
 
         assert_eq!(resolution.outcome, IdentityPolicyOutcome::Deny);
         assert_eq!(resolution.source_label(), "named_policy");
@@ -418,7 +455,7 @@ mod tests {
         }];
 
         let resolution = resolve_identity_policy(
-            NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities,
+            &relaxed_context(),
             &policies,
             &[],
             &service_profiles(),
@@ -427,11 +464,8 @@ mod tests {
         );
 
         assert_eq!(resolution.outcome, IdentityPolicyOutcome::Deny);
-        assert_eq!(resolution.source_label(), "top_level_stance");
-        assert_eq!(
-            resolution.source_id(),
-            NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities.as_str()
-        );
+        assert_eq!(resolution.source_label(), "canonical_category_posture");
+        assert_eq!(resolution.source_id(), "agent_on_behalf_of_human");
     }
 
     #[test]
@@ -442,7 +476,7 @@ mod tests {
         }];
 
         let resolution = resolve_identity_policy(
-            NonHumanTrafficStance::AllowVerifiedByCategory,
+            &relaxed_context(),
             &[],
             &category_defaults,
             &service_profiles(),
@@ -460,24 +494,19 @@ mod tests {
     }
 
     #[test]
-    fn resolve_identity_policy_restrictive_stances_fall_back_to_deny() {
-        for stance in [
-            NonHumanTrafficStance::DenyAllNonHuman,
-            NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities,
-        ] {
-            let resolution = resolve_identity_policy(
-                stance,
-                &[],
-                &[],
-                &service_profiles(),
-                &identity(),
-                "/",
-            );
+    fn resolve_identity_policy_strict_profiles_fall_back_to_canonical_category_deny() {
+        let resolution = resolve_identity_policy(
+            &strict_context(),
+            &[],
+            &[],
+            &service_profiles(),
+            &identity(),
+            "/",
+        );
 
-            assert_eq!(resolution.outcome, IdentityPolicyOutcome::Deny);
-            assert_eq!(resolution.source_label(), "top_level_stance");
-            assert_eq!(resolution.source_id(), stance.as_str());
-        }
+        assert_eq!(resolution.outcome, IdentityPolicyOutcome::Deny);
+        assert_eq!(resolution.source_label(), "canonical_category_posture");
+        assert_eq!(resolution.source_id(), "agent_on_behalf_of_human");
     }
 
     #[test]
@@ -506,7 +535,10 @@ mod tests {
         ];
 
         let observe = resolve_identity_policy(
-            NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities,
+            &IdentityPolicyContext {
+                base_posture: "tolerated".to_string(),
+                ..relaxed_context()
+            },
             &policies,
             &[],
             &service_profiles(),
@@ -514,7 +546,10 @@ mod tests {
             "/observe/path",
         );
         let restrict = resolve_identity_policy(
-            NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities,
+            &IdentityPolicyContext {
+                base_posture: "restricted".to_string(),
+                ..relaxed_context()
+            },
             &policies,
             &[],
             &service_profiles(),
@@ -524,5 +559,30 @@ mod tests {
 
         assert_eq!(observe.outcome, IdentityPolicyOutcome::Observe);
         assert_eq!(restrict.outcome, IdentityPolicyOutcome::Restrict);
+    }
+
+    #[test]
+    fn resolve_identity_policy_strict_profiles_suppress_named_overrides() {
+        let resolution = resolve_identity_policy(
+            &strict_context(),
+            &[IdentityPolicyEntry {
+                policy_id: "allow-openai".to_string(),
+                description: None,
+                matcher: IdentityPolicyMatcher {
+                    operator: Some("openai".to_string()),
+                    ..IdentityPolicyMatcher::default()
+                },
+                action: IdentityPolicyAction::Allow,
+            }],
+            &[],
+            &service_profiles(),
+            &identity(),
+            "/",
+        );
+
+        assert_eq!(resolution.outcome, IdentityPolicyOutcome::Deny);
+        assert_eq!(resolution.source_label(), "canonical_category_posture");
+        assert_eq!(resolution.profile_id, "human_only_private");
+        assert_eq!(resolution.verified_identity_override_mode, "strict_human_only");
     }
 }

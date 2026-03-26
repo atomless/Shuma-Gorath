@@ -949,7 +949,7 @@ mod tests {
         )
         .expect("operator snapshot document");
         assert_eq!(snapshot.payload.schema_version, "operator_snapshot_v1");
-        assert_eq!(snapshot.payload.objectives.profile_id, "site_default_v1");
+        assert_eq!(snapshot.payload.objectives.profile_id, "human_only_private");
         assert!(
             snapshot
                 .payload

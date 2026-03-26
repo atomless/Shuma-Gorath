@@ -86,7 +86,7 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
             "fulfillment_mode": "browser_mode",
             "backend_kind": "frontier_reference",
             "backend_state": "configured",
-            "category_targets": ["automated_browser"],
+            "category_targets": ["browser_agent"],
             "capability_envelope": {"max_actions": 4, "max_time_budget_seconds": 90},
         }
         generation = {

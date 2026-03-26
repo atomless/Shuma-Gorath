@@ -13,13 +13,13 @@ pub(crate) const RECURSIVE_IMPROVEMENT_GAME_CONTRACT_SCHEMA_VERSION: &str =
     "recursive_improvement_game_contract_v1";
 const RECURSIVE_IMPROVEMENT_GAME_CONTRACT_ID: &str = "shuma_recursive_improvement_game_v1";
 
-const SITE_DEFAULT_OBJECTIVE_PROFILE_ID: &str = "site_default_v1";
+pub(crate) const HUMAN_ONLY_PRIVATE_OBJECTIVE_PROFILE_ID: &str = "human_only_private";
+pub(crate) const HUMANS_PLUS_VERIFIED_ONLY_OBJECTIVE_PROFILE_ID: &str =
+    "humans_plus_verified_only";
 pub(super) const DEFAULT_WINDOW_HOURS: u64 = 24;
 const DEFAULT_NEAR_LIMIT_RATIO: f64 = 0.75;
 const LIKELY_HUMAN_FRICTION_TARGET: f64 = 0.02;
-const SUSPICIOUS_FORWARDED_REQUEST_TARGET: f64 = 0.10;
-const SUSPICIOUS_FORWARDED_BYTE_TARGET: f64 = 0.10;
-const SUSPICIOUS_FORWARDED_LATENCY_SHARE_TARGET: f64 = 0.10;
+const STRICT_NON_HUMAN_LEAKAGE_TARGET: f64 = 0.0;
 const DEFAULT_MAX_GOAL_SUCCESS_RATE: f64 = 0.0;
 const DEFAULT_MIN_ESCALATION_RATE: f64 = 0.25;
 const MAX_OBJECTIVE_BUDGET_ROWS: usize = 8;
@@ -162,6 +162,22 @@ pub(crate) fn operator_objectives_watch_window_seconds(
     profile: &OperatorObjectivesProfile,
 ) -> u64 {
     profile.window_hours.saturating_mul(3600)
+}
+
+pub(crate) fn objective_profile_is_strict_human_only(
+    profile: &OperatorObjectivesProfile,
+) -> bool {
+    profile.profile_id == HUMAN_ONLY_PRIVATE_OBJECTIVE_PROFILE_ID
+}
+
+#[cfg(test)]
+pub(crate) fn humans_plus_verified_only_operator_objectives(
+    updated_at_ts: u64,
+) -> OperatorObjectivesProfile {
+    let mut profile = default_operator_objectives(updated_at_ts);
+    profile.profile_id = HUMANS_PLUS_VERIFIED_ONLY_OBJECTIVE_PROFILE_ID.to_string();
+    profile.source = "preset_profile".to_string();
+    profile
 }
 
 pub(crate) fn recursive_improvement_game_contract_v1(
@@ -474,7 +490,7 @@ fn budget_metric_ids(
 pub(crate) fn default_operator_objectives(updated_at_ts: u64) -> OperatorObjectivesProfile {
     OperatorObjectivesProfile {
         schema_version: OPERATOR_OBJECTIVES_SCHEMA_VERSION.to_string(),
-        profile_id: SITE_DEFAULT_OBJECTIVE_PROFILE_ID.to_string(),
+        profile_id: HUMAN_ONLY_PRIVATE_OBJECTIVE_PROFILE_ID.to_string(),
         revision: objective_revision(updated_at_ts),
         updated_at_ts,
         source: "seeded_default_profile".to_string(),
@@ -494,27 +510,27 @@ pub(crate) fn default_operator_objectives(updated_at_ts: u64) -> OperatorObjecti
                 budget_id: "suspicious_forwarded_requests".to_string(),
                 metric: "suspicious_forwarded_request_rate".to_string(),
                 comparator: "max_ratio".to_string(),
-                target: SUSPICIOUS_FORWARDED_REQUEST_TARGET,
+                target: STRICT_NON_HUMAN_LEAKAGE_TARGET,
                 near_limit_ratio: DEFAULT_NEAR_LIMIT_RATIO,
-                eligible_population: "live:ingress_primary:enforced:suspicious_automation"
+                eligible_population: "adversary_sim:ingress_primary:enforced:non_human"
                     .to_string(),
             },
             OperatorObjectiveBudget {
                 budget_id: "suspicious_forwarded_bytes".to_string(),
                 metric: "suspicious_forwarded_byte_rate".to_string(),
                 comparator: "max_ratio".to_string(),
-                target: SUSPICIOUS_FORWARDED_BYTE_TARGET,
+                target: STRICT_NON_HUMAN_LEAKAGE_TARGET,
                 near_limit_ratio: DEFAULT_NEAR_LIMIT_RATIO,
-                eligible_population: "live:ingress_primary:enforced:suspicious_automation"
+                eligible_population: "adversary_sim:ingress_primary:enforced:non_human"
                     .to_string(),
             },
             OperatorObjectiveBudget {
                 budget_id: "suspicious_forwarded_latency".to_string(),
                 metric: "suspicious_forwarded_latency_share".to_string(),
                 comparator: "max_ratio".to_string(),
-                target: SUSPICIOUS_FORWARDED_LATENCY_SHARE_TARGET,
+                target: STRICT_NON_HUMAN_LEAKAGE_TARGET,
                 near_limit_ratio: DEFAULT_NEAR_LIMIT_RATIO,
-                eligible_population: "live:ingress_primary:enforced:suspicious_automation"
+                eligible_population: "adversary_sim:ingress_primary:enforced:non_human"
                     .to_string(),
             },
         ],
@@ -671,14 +687,14 @@ fn objective_revision(updated_at_ts: u64) -> String {
 
 fn default_category_postures() -> Vec<OperatorObjectiveCategoryPosture> {
     vec![
-        category_posture(NonHumanCategoryId::IndexingBot, "cost_reduced"),
+        category_posture(NonHumanCategoryId::IndexingBot, "blocked"),
         category_posture(NonHumanCategoryId::AiScraperBot, "blocked"),
         category_posture(NonHumanCategoryId::AutomatedBrowser, "blocked"),
-        category_posture(NonHumanCategoryId::HttpAgent, "restricted"),
-        category_posture(NonHumanCategoryId::BrowserAgent, "restricted"),
-        category_posture(NonHumanCategoryId::AgentOnBehalfOfHuman, "tolerated"),
-        category_posture(NonHumanCategoryId::VerifiedBeneficialBot, "allowed"),
-        category_posture(NonHumanCategoryId::UnknownNonHuman, "restricted"),
+        category_posture(NonHumanCategoryId::HttpAgent, "blocked"),
+        category_posture(NonHumanCategoryId::BrowserAgent, "blocked"),
+        category_posture(NonHumanCategoryId::AgentOnBehalfOfHuman, "blocked"),
+        category_posture(NonHumanCategoryId::VerifiedBeneficialBot, "blocked"),
+        category_posture(NonHumanCategoryId::UnknownNonHuman, "blocked"),
     ]
 }
 
@@ -751,11 +767,11 @@ mod tests {
     use crate::config::controller_legal_move_ring_v1;
 
     #[test]
-    fn default_operator_objectives_expose_site_owned_profile_and_budget_catalog() {
+    fn default_operator_objectives_seed_human_only_private_profile_and_budget_catalog() {
         let profile = default_operator_objectives(1_700_000_000);
 
         assert_eq!(profile.schema_version, OPERATOR_OBJECTIVES_SCHEMA_VERSION);
-        assert_eq!(profile.profile_id, "site_default_v1");
+        assert_eq!(profile.profile_id, "human_only_private");
         assert_eq!(profile.revision, "rev-1700000000");
         assert_eq!(profile.updated_at_ts, 1_700_000_000);
         assert_eq!(profile.source, "seeded_default_profile");
@@ -763,21 +779,22 @@ mod tests {
         assert_eq!(profile.compliance_semantics, "max_ratio_budget");
         assert_eq!(profile.category_postures.len(), 8);
         assert_eq!(profile.category_postures[0].category_id.as_str(), "indexing_bot");
-        assert_eq!(profile.category_postures[0].posture, "cost_reduced");
-        assert_eq!(
-            profile
-                .category_postures
-                .iter()
-                .find(|row| row.category_id.as_str() == "verified_beneficial_bot")
-                .expect("verified beneficial bot row")
-                .posture,
-            "allowed"
-        );
+        assert!(profile
+            .category_postures
+            .iter()
+            .all(|row| row.posture == "blocked"));
         assert_eq!(profile.budgets.len(), 4);
         assert_eq!(profile.budgets[0].budget_id, "likely_human_friction");
         assert_eq!(profile.budgets[1].metric, "suspicious_forwarded_request_rate");
         assert_eq!(profile.budgets[2].metric, "suspicious_forwarded_byte_rate");
         assert_eq!(profile.budgets[3].metric, "suspicious_forwarded_latency_share");
+        assert_eq!(profile.budgets[1].target, 0.0);
+        assert_eq!(profile.budgets[2].target, 0.0);
+        assert_eq!(profile.budgets[3].target, 0.0);
+        assert_eq!(
+            profile.budgets[1].eligible_population,
+            "adversary_sim:ingress_primary:enforced:non_human"
+        );
     }
 
     #[test]

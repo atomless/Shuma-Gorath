@@ -138,6 +138,47 @@ class _RecordingHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
+        if self.path == "/pow":
+            body = (
+                "<html><body>"
+                '<script>'
+                "window._checkCDPAutomation=function(){return document.body.dataset.detected==='1';};"
+                "document.cookie='js_verified=1; path=/';"
+                "</script>"
+                '<div id="pow-bootstrap" data-js-verified="1">pow</div>'
+                "</body></html>"
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        if self.path == "/maze/start":
+            body = (
+                "<html><body>"
+                '<div id="maze-bootstrap">start</div>'
+                '<a data-link-kind="maze" href="/maze/next">next</a>'
+                "</body></html>"
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        if self.path == "/maze/next":
+            body = (
+                "<html><body>"
+                '<div id="maze-bootstrap">next</div>'
+                "</body></html>"
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if self.path.startswith("/agent/ping"):
             body = json.dumps({"ok": True, "path": self.path}).encode("utf-8")
             self.send_response(200)
@@ -187,6 +228,10 @@ class _RecordingHandler(http.server.BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
+            return
+        if self.path == "/fingerprint-report":
+            self.send_response(204)
+            self.end_headers()
             return
         if self.path == "/pow/verify":
             body = json.dumps({"verified": False}).encode("utf-8")
@@ -271,6 +316,18 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
                 "not_a_bot_submit",
                 "puzzle_submit_or_escalation",
             ],
+            "browser_automation": [
+                "challenge_routing",
+                "maze_navigation",
+                "js_verification_execution",
+                "browser_automation_detection",
+            ],
+            "stealth_browser": [
+                "challenge_routing",
+                "maze_navigation",
+                "js_verification_execution",
+                "browser_automation_detection",
+            ],
             "http_agent": [
                 "challenge_routing",
                 "rate_pressure",
@@ -296,8 +353,10 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
                     "public_search": "/sim/public/search",
                     "not_a_bot_checkbox": "/challenge/not-a-bot-checkbox",
                     "challenge_submit": "/challenge/puzzle",
+                    "pow": "/pow",
                     "pow_verify": "/pow/verify",
                     "tarpit_progress": "/tarpit/progress",
+                    "maze_entry": "/maze/start",
                 },
                 "tick_started_at": int(time.time()),
                 "max_requests": max_requests,
@@ -344,6 +403,30 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
         self.assertEqual(kwargs["timeout"], 4.0)
         self.assertEqual(kwargs["headers"]["accept"], "application/json")
         self.assertNotIn("user-agent", {key.lower(): value for key, value in kwargs["headers"].items()})
+
+    def test_request_native_session_kwargs_accept_optional_proxy_contract(self) -> None:
+        self.assertIsNotNone(scrapling_worker, "worker module missing")
+
+        kwargs = scrapling_worker._request_native_session_kwargs(  # type: ignore[attr-defined]
+            timeout_seconds=4.0,
+            accept_header="application/json",
+            proxy_url="http://127.0.0.1:8899",
+        )
+
+        self.assertEqual(kwargs["proxy"], "http://127.0.0.1:8899")
+
+    def test_browser_session_kwargs_accept_optional_proxy_contract(self) -> None:
+        self.assertIsNotNone(scrapling_worker, "worker module missing")
+
+        kwargs = scrapling_worker._browser_session_kwargs(  # type: ignore[attr-defined]
+            fulfillment_mode="stealth_browser",
+            timeout_ms=4000,
+            proxy_url="http://127.0.0.1:9900",
+        )
+
+        self.assertEqual(kwargs["proxy"], "http://127.0.0.1:9900")
+        self.assertTrue(kwargs["hide_canvas"])
+        self.assertTrue(kwargs["block_webrtc"])
 
     def test_execute_worker_plan_no_longer_advertises_internal_worker_user_agent(self) -> None:
         self.assertIsNotNone(scrapling_worker, "worker module missing")
@@ -708,6 +791,82 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
         paths = [(entry["method"], entry["path"]) for entry in self.httpd.requests_seen]
         self.assertIn(("POST", "/pow/verify"), paths)
         self.assertIn(("POST", "/tarpit/progress"), paths)
+
+    def test_execute_worker_plan_browser_automation_attempts_browser_owned_surfaces(self) -> None:
+        self.assertIsNotNone(scrapling_worker, "worker module missing")
+        beat_payload = self._make_beat_payload(
+            "browser_automation",
+            ["automated_browser"],
+            max_requests=6,
+        )
+        result = scrapling_worker.execute_worker_plan(
+            beat_payload,
+            scope_descriptor_path=self.descriptor_path,
+            seed_inventory_path=self.inventory_path,
+            crawldir=self.crawldir,
+            sim_telemetry_secret=SIM_SECRET,
+        )
+
+        self.assertEqual(result["lane"], "scrapling_traffic")
+        self.assertEqual(result["fulfillment_mode"], "browser_automation")
+        self.assertEqual(result["failure_class"], None, msg=json.dumps(result, indent=2))
+        receipts = self._surface_receipts_by_id(result)
+        self.assertEqual(
+            receipts["js_verification_execution"]["coverage_status"],
+            "pass_observed",
+            msg=json.dumps(result, indent=2),
+        )
+        self.assertEqual(
+            receipts["maze_navigation"]["coverage_status"],
+            "pass_observed",
+            msg=json.dumps(result, indent=2),
+        )
+        self.assertIn(
+            receipts["browser_automation_detection"]["coverage_status"],
+            {"pass_observed", "fail_observed"},
+            msg=json.dumps(result, indent=2),
+        )
+        paths = [(entry["method"], entry["path"]) for entry in self.httpd.requests_seen]
+        self.assertIn(("GET", "/pow"), paths)
+        self.assertIn(("GET", "/maze/start"), paths)
+
+    def test_execute_worker_plan_stealth_browser_attempts_browser_owned_surfaces(self) -> None:
+        self.assertIsNotNone(scrapling_worker, "worker module missing")
+        beat_payload = self._make_beat_payload(
+            "stealth_browser",
+            ["automated_browser"],
+            max_requests=6,
+        )
+        result = scrapling_worker.execute_worker_plan(
+            beat_payload,
+            scope_descriptor_path=self.descriptor_path,
+            seed_inventory_path=self.inventory_path,
+            crawldir=self.crawldir,
+            sim_telemetry_secret=SIM_SECRET,
+        )
+
+        self.assertEqual(result["lane"], "scrapling_traffic")
+        self.assertEqual(result["fulfillment_mode"], "stealth_browser")
+        self.assertEqual(result["failure_class"], None, msg=json.dumps(result, indent=2))
+        receipts = self._surface_receipts_by_id(result)
+        self.assertEqual(
+            receipts["js_verification_execution"]["coverage_status"],
+            "pass_observed",
+            msg=json.dumps(result, indent=2),
+        )
+        self.assertEqual(
+            receipts["maze_navigation"]["coverage_status"],
+            "pass_observed",
+            msg=json.dumps(result, indent=2),
+        )
+        self.assertIn(
+            receipts["browser_automation_detection"]["coverage_status"],
+            {"pass_observed", "fail_observed"},
+            msg=json.dumps(result, indent=2),
+        )
+        paths = [(entry["method"], entry["path"]) for entry in self.httpd.requests_seen]
+        self.assertIn(("GET", "/pow"), paths)
+        self.assertIn(("GET", "/maze/start"), paths)
 
     def test_cli_writes_result_file_for_scrapling_worker_plan(self) -> None:
         beat_path = self.temp_dir / "beat.json"

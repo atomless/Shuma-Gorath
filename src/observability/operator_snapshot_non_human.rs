@@ -69,7 +69,7 @@ mod tests {
     }
 
     #[test]
-    fn non_human_snapshot_summary_projects_scrapling_request_native_coverage() {
+    fn non_human_snapshot_summary_projects_scrapling_full_spectrum_coverage() {
         let mut monitoring = MonitoringSummary::default();
         monitoring.request_outcomes.by_lane = vec![RequestOutcomeLaneSummaryRow {
             traffic_origin: "live".to_string(),
@@ -98,11 +98,14 @@ mod tests {
                 observed_fulfillment_modes: vec![
                     "crawler".to_string(),
                     "bulk_scraper".to_string(),
+                    "browser_automation".to_string(),
+                    "stealth_browser".to_string(),
                     "http_agent".to_string(),
                 ],
                 observed_category_ids: vec![
                     "indexing_bot".to_string(),
                     "ai_scraper_bot".to_string(),
+                    "automated_browser".to_string(),
                     "http_agent".to_string(),
                 ],
                 first_ts: 1_700_000_000,
@@ -115,12 +118,16 @@ mod tests {
         );
 
         assert_eq!(summary.readiness.status, "ready");
-        assert_eq!(summary.readiness.adversary_sim_receipt_count, 3);
-        assert_eq!(summary.coverage.covered_category_count, 3);
+        assert_eq!(summary.readiness.adversary_sim_receipt_count, 4);
+        assert_eq!(summary.coverage.covered_category_count, 4);
         assert!(summary
             .receipts
             .iter()
             .any(|receipt| receipt.category_id == "ai_scraper_bot"));
+        assert!(summary
+            .receipts
+            .iter()
+            .any(|receipt| receipt.category_id == "automated_browser"));
         assert!(summary
             .receipts
             .iter()

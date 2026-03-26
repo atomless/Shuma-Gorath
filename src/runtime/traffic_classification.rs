@@ -381,7 +381,21 @@ mod tests {
             classify_current_runtime_branch(&CurrentRuntimeBranch::PolicyDecision(
                 PolicyDecision::VerifiedIdentityPolicyAllow {
                     resolution: crate::bot_identity::policy::resolve_identity_policy(
-                        crate::bot_identity::policy::NonHumanTrafficStance::DenyAllNonHuman,
+                        &crate::runtime::non_human_policy::verified_identity_policy_context(
+                            &crate::observability::operator_snapshot_objectives::humans_plus_verified_only_operator_objectives(1),
+                            &VerifiedIdentityEvidence {
+                                scheme: IdentityScheme::ProviderSignedAgent,
+                                stable_identity: "chatgpt-agent".to_string(),
+                                operator: "openai".to_string(),
+                                category: IdentityCategory::UserTriggeredAgent,
+                                verification_strength:
+                                    crate::bot_identity::contracts::VerificationStrength::ProviderAsserted,
+                                end_user_controlled: true,
+                                directory_source: None,
+                                provenance:
+                                    crate::bot_identity::contracts::IdentityProvenance::Provider,
+                            },
+                        ),
                         &[crate::bot_identity::policy::IdentityPolicyEntry {
                             policy_id: "allow-openai".to_string(),
                             description: None,

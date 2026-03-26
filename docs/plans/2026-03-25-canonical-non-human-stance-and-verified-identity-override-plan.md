@@ -1,9 +1,10 @@
 Date: 2026-03-25
-Status: Proposed
+Status: Implemented (2026-03-26 tranche complete; closeout in `../research/2026-03-26-stance-model-1-post-implementation-review.md`)
 
 Related context:
 
 - [`../research/2026-03-25-canonical-non-human-stance-and-verified-identity-override-review.md`](../research/2026-03-25-canonical-non-human-stance-and-verified-identity-override-review.md)
+- [`../research/2026-03-26-strict-human-only-loop-and-human-traversal-calibration-review.md`](../research/2026-03-26-strict-human-only-loop-and-human-traversal-calibration-review.md)
 - [`../research/2026-03-24-reference-stance-and-run-to-homeostasis-review.md`](../research/2026-03-24-reference-stance-and-run-to-homeostasis-review.md)
 - [`2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-implementation-plan.md`](2026-03-16-agentic-era-verified-bot-identity-and-webbotauth-implementation-plan.md)
 - [`2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md)
@@ -32,6 +33,7 @@ Replace the current dual-stance model with one canonical non-human stance system
 5. `humans_plus_verified_only` should be the first later relaxed verified-identity sweep candidate after the strict baseline proves useful under both Scrapling and later LLM attacker pressure.
 6. Runtime, benchmark, Game Loop, and Tuning should all consume one resolved effective policy contract rather than parallel interpretations.
 7. Because Shuma is pre-launch, this should be implemented as a clean architectural correction rather than a compatibility layer.
+8. When the strict reference stance is active, Game Loop must stop inheriting the seeded mixed-site `10%` suspicious forwarded budgets and instead project zero or equivalent fail-closed non-human suppression targets for the sim-only phase.
 
 # Execution Shape
 
@@ -116,12 +118,15 @@ It should produce:
 2. Show when verified identity is being denied by the current stance versus when an explicit verified override applies.
 3. Keep operator-facing product stance editing separate from later development reference stance execution.
 4. Ensure Game Loop’s first reference stance is `human_only_private`, with later relaxed sweeps including `humans_plus_verified_only`.
+5. When `human_only_private` is active, ensure suspicious forwarded request, byte, and latency targets no longer project the seeded mixed-site `10%` defaults as though they were the strict reference budget.
+6. Keep later human traversal calibration explicit and separate from the sim-only strict proof so likely-human friction is measured from real human sessions rather than inferred from adversary-sim traffic.
 
 **Acceptance:**
 
 1. Game Loop output is interpretable against the policy runtime actually enforces.
 2. Benchmark rows no longer overstate disagreement created purely by policy-model mismatch.
 3. Tuning continues to edit operator-facing posture without inventing a second stance system.
+4. Strict-reference Game Loop output no longer reads like a mixed public-web target when the repo intends a deny-all-non-human reference game.
 
 ## `STANCE-MODEL-1D`: Sequence the later methodology around the corrected stance model
 

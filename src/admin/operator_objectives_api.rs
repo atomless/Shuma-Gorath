@@ -224,7 +224,7 @@ mod tests {
         );
         assert_eq!(
             payload.get("profile_id").and_then(|value| value.as_str()),
-            Some("site_default_v1")
+            Some("human_only_private")
         );
     }
 

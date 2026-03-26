@@ -64,6 +64,51 @@
     ui: 'UI'
   });
 
+  const zeroTargetSuppressionMetricIds = new Set([
+    'suspicious_forwarded_request_rate',
+    'suspicious_forwarded_byte_rate',
+    'suspicious_forwarded_latency_share'
+  ]);
+
+  const zeroTargetSuppressionLabels = Object.freeze({
+    suspicious_forwarded_request_rate: 'Non-Human Request Suppression',
+    suspicious_forwarded_byte_rate: 'Non-Human Byte Suppression',
+    suspicious_forwarded_latency_share: 'Non-Human Latency Suppression'
+  });
+
+  const knownGameLoopPolicyProfiles = Object.freeze({
+    site_default_v1: {
+      label: 'Mixed Site Default',
+      activationStatus: 'strict_human_only_not_active',
+      simOnlyTargetSummary:
+        '10% suspicious-forwarded budgets remain mixed-site defaults here, not the strict human-only target.',
+      humanCalibrationSummary:
+        'Separate real-human traversal calibration remains required; adversary-sim alone cannot prove likely-human safety.',
+      verifiedHandlingSummary:
+        'Current machine-loop posture is still the mixed-site default, so verified-identity relaxation is not the strict reference target.'
+    },
+    human_only_private: {
+      label: 'Human Only Private',
+      activationStatus: 'strict_human_only_active',
+      simOnlyTargetSummary:
+        'Strict sim-only proof should drive known non-human leakage toward zero or equivalent fail-closed suppression.',
+      humanCalibrationSummary:
+        'Separate real-human traversal calibration is still required after the strict config is found.',
+      verifiedHandlingSummary:
+        'Strict loop must still deny or equivalently suppress verified non-human traffic; verified identity stays telemetry and attribution.'
+    },
+    humans_plus_verified_only: {
+      label: 'Humans Plus Verified Only',
+      activationStatus: 'later_relaxed_verified_sweep',
+      simOnlyTargetSummary:
+        'This is a later relaxed verified-only sweep, not the strict human-only reference loop.',
+      humanCalibrationSummary:
+        'Real-human traversal measurement remains a separate proof ring from adversary-sim traffic.',
+      verifiedHandlingSummary:
+        'Verified non-human traffic can be evaluated separately here without reopening general unverified non-human access.'
+    }
+  });
+
   const asRecord = (value) =>
     value && typeof value === 'object' ? value : {};
   const toArray = (value) => (Array.isArray(value) ? value : []);
@@ -83,6 +128,42 @@
     return words.join(' ');
   };
 
+  const resolveGameLoopPolicyProfile = (profileId) => {
+    const normalized = String(profileId || '').trim();
+    if (normalized && knownGameLoopPolicyProfiles[normalized]) {
+      return {
+        profileId: normalized,
+        recognized: true,
+        ...knownGameLoopPolicyProfiles[normalized]
+      };
+    }
+    if (!normalized) {
+      return {
+        profileId: '',
+        recognized: false,
+        label: 'Not Available',
+        activationStatus: 'objective_profile_not_available',
+        simOnlyTargetSummary: 'Objective profile is not materialized yet.',
+        humanCalibrationSummary:
+          'Separate real-human traversal calibration remains required when evaluating likely-human safety.',
+        verifiedHandlingSummary:
+          'Verified-identity handling cannot be interpreted until the objective profile is available.'
+      };
+    }
+    return {
+      profileId: normalized,
+      recognized: false,
+      label: humanizeToken(normalized),
+      activationStatus: 'custom_profile_active',
+      simOnlyTargetSummary:
+        'This profile is custom, so strict-loop target semantics must be read from the persisted profile and active proof plan.',
+      humanCalibrationSummary:
+        'Separate real-human traversal calibration remains required when evaluating likely-human safety.',
+      verifiedHandlingSummary:
+        'Verified-identity handling under this custom profile must be interpreted from the persisted posture matrix, not the legacy request-path stance alone.'
+    };
+  };
+
   const formatTimestamp = (value) => formatUnixSecondsLocal(value, '-');
 
   const formatNumber = (value, fallback = 'n/a') => {
@@ -90,6 +171,11 @@
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) return fallback;
     return formatCompactNumber(numeric, '0');
+  };
+
+  const asFiniteNumber = (value) => {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : null;
   };
 
   const metricLooksRatio = (metricId = '') => /(rate|ratio|share|percent|mismatch)/i.test(metricId);
@@ -112,12 +198,18 @@
   };
 
   const ratioToTarget = (current, target) => {
-    const currentNumeric = Number(current);
-    const targetNumeric = Number(target);
-    if (!Number.isFinite(currentNumeric) || !Number.isFinite(targetNumeric) || targetNumeric <= 0) {
+    const currentNumeric = asFiniteNumber(current);
+    const targetNumeric = asFiniteNumber(target);
+    if (currentNumeric === null || targetNumeric === null || targetNumeric <= 0) {
       return null;
     }
     return currentNumeric / targetNumeric;
+  };
+
+  const zeroTargetSuppressionRatio = (current) => {
+    const currentNumeric = asFiniteNumber(current);
+    if (currentNumeric === null) return null;
+    return Math.max(0, Math.min(1, 1 - currentNumeric));
   };
 
   const clampPercent = (value) => {
@@ -130,6 +222,28 @@
     const numeric = Number(ratio);
     if (!Number.isFinite(numeric)) return 'Target usage unavailable';
     return `${(numeric * 100).toFixed(0)}% of target`;
+  };
+
+  const isZeroTargetSuppressionMetric = (metricId, target) =>
+    zeroTargetSuppressionMetricIds.has(String(metricId || '').trim()) && asFiniteNumber(target) === 0;
+
+  const formatLeakageMetricValue = (metricId, value) => {
+    const formatted = formatMetricValue(metricId, value);
+    return formatted === 'n/a' ? formatted : `${formatted} leakage`;
+  };
+
+  const formatSuppressionAchievementText = (ratio) => {
+    const numeric = Number(ratio);
+    if (!Number.isFinite(numeric)) return 'Suppression progress unavailable';
+    return `${(numeric * 100).toFixed(1)}% non-human suppression achieved`;
+  };
+
+  const budgetMetricLabel = (metricId, zeroTargetSuppression) => {
+    const normalized = String(metricId || '').trim();
+    if (zeroTargetSuppression && zeroTargetSuppressionLabels[normalized]) {
+      return zeroTargetSuppressionLabels[normalized];
+    }
+    return humanizeToken(normalized);
   };
 
   const categoryIdFromMetric = (metricId = '') => {
@@ -169,6 +283,8 @@
   $: latestHistoryRow = latestHistoryRows[0] || null;
   $: latestDecision = asRecord(oversightAgentStatus?.latest_decision);
   $: latestRecentRun = toArray(oversightAgentStatus?.recent_runs)[0] || null;
+  $: currentObjectiveProfileId = String(operatorSnapshot?.objectives?.profile_id || '').trim();
+  $: currentPolicyProfile = resolveGameLoopPolicyProfile(currentObjectiveProfileId);
   $: suspiciousOriginCostFamily = findBenchmarkFamily('suspicious_origin_cost');
   $: likelyHumanFrictionFamily = findBenchmarkFamily('likely_human_friction');
   $: pressureFamilies = toArray(benchmarkResults?.families).filter((family) =>
@@ -189,18 +305,30 @@
       toArray(family?.metrics)
         .filter((metric) => metric && metric.target !== null && metric.target !== undefined)
         .map((metric) => {
-          const usageRatio = ratioToTarget(metric.current, metric.target);
+          const zeroTargetSuppression = isZeroTargetSuppressionMetric(
+            metric.metric_id,
+            metric.target
+          );
+          const usageRatio = zeroTargetSuppression
+            ? zeroTargetSuppressionRatio(metric.current)
+            : ratioToTarget(metric.current, metric.target);
           return {
             metricId: metric.metric_id,
-            label: humanizeToken(metric.metric_id),
-            currentText: formatMetricValue(metric.metric_id, metric.current),
-            targetText: formatMetricValue(metric.metric_id, metric.target),
+            label: budgetMetricLabel(metric.metric_id, zeroTargetSuppression),
+            currentText: zeroTargetSuppression
+              ? formatLeakageMetricValue(metric.metric_id, metric.current)
+              : formatMetricValue(metric.metric_id, metric.current),
+            targetText: zeroTargetSuppression
+              ? formatLeakageMetricValue(metric.metric_id, metric.target)
+              : formatMetricValue(metric.metric_id, metric.target),
             deltaText: formatSignedMetricValue(metric.metric_id, metric.delta),
             comparisonText:
               metric.comparison_delta !== null && metric.comparison_delta !== undefined
                 ? formatSignedMetricValue(metric.metric_id, metric.comparison_delta)
                 : '',
-            usageText: formatTargetRatioText(usageRatio),
+            usageText: zeroTargetSuppression
+              ? formatSuppressionAchievementText(usageRatio)
+              : formatTargetRatioText(usageRatio),
             meterPercent: clampPercent((usageRatio || 0) * 100),
             statusText: humanizeToken(metric.status, 'sentence')
           };
@@ -256,6 +384,9 @@
     }
   ];
   $: trustBlockers = dedupeStrings([
+    ...(currentObjectiveProfileId === 'human_only_private'
+      ? []
+      : ['strict_human_only_reference_not_active']),
     ...(benchmarkResults?.tuning_eligibility?.blockers || []),
     ...(benchmarkResults?.non_human_classification?.blockers || []),
     ...(benchmarkResults?.non_human_coverage?.blocking_reasons || []),
@@ -486,6 +617,22 @@
         <div id="game-loop-trust-blockers" class="panel panel-soft pad-md">
           <div class="status-rows">
             <div class="info-row">
+              <span class="info-label text-muted">Policy Profile:</span>
+              <span class="status-value">
+                {currentPolicyProfile.label}
+                | profile {currentPolicyProfile.profileId || 'not available'}
+                | {humanizeToken(currentPolicyProfile.activationStatus, 'sentence')}
+              </span>
+            </div>
+            <div class="info-row">
+              <span class="info-label text-muted">Sim-Only Target:</span>
+              <span class="status-value">{currentPolicyProfile.simOnlyTargetSummary}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label text-muted">Human Calibration:</span>
+              <span class="status-value">{currentPolicyProfile.humanCalibrationSummary}</span>
+            </div>
+            <div class="info-row">
               <span class="info-label text-muted">Classification:</span>
               <span class="status-value">
                 {humanizeToken(benchmarkResults?.non_human_classification?.status)}
@@ -517,7 +664,13 @@
               <span class="status-value">
                 {humanizeToken(operatorSnapshot?.verified_identity?.availability)}
                 | alignment {humanizeToken(operatorSnapshot?.verified_identity?.taxonomy_alignment?.status)}
-                | stance {humanizeToken(operatorSnapshot?.verified_identity?.non_human_traffic_stance, 'sentence')}
+                | verified mode {humanizeToken(operatorSnapshot?.verified_identity?.effective_non_human_policy?.verified_identity_override_mode, 'sentence')}
+              </span>
+            </div>
+            <div class="info-row">
+              <span class="info-label text-muted">Verified Handling:</span>
+              <span class="status-value">
+                {currentPolicyProfile.verifiedHandlingSummary}
               </span>
             </div>
             <div class="info-row">

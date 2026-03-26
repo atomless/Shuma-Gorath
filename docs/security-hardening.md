@@ -45,8 +45,11 @@ When enabled:
 ## 🐙 Verified-Identity Authorization Posture
 
 - Verified identity must not be treated as unconditional allow. Authentication only gives Shuma a trustworthy subject for local policy.
+- The canonical non-human stance authority now lives in `operator_objectives_v1.category_postures` and the derived `effective_non_human_policy_v1` summary, not in a separate verified-identity top-level stance setting.
 - Named verified-identity policy entries are evaluated first, in configured order. The first matching entry wins.
-- Category defaults are only consulted for `allow_verified_by_category` and `allow_verified_with_low_cost_profiles_only`.
+- When `effective_non_human_policy.verified_identity_override_mode=strict_human_only`, verified identity remains evidence only and neither named policies nor category defaults override the strict canonical category posture.
+- When `effective_non_human_policy.verified_identity_override_mode=explicit_overrides_eligible`, named policies and category defaults become explicit overrides inside the canonical stance model.
+- If no explicit override matches, verified identity falls back to the canonical category posture for the crosswalked non-human category.
 - `allow` and non-`denied` `use_service_profile(...)` actions short-circuit before the later <abbr title="Geolocation">GEO</abbr>, botness, and <abbr title="JavaScript">JS</abbr> stages. Operators must only grant them where that earlier allow is acceptable.
 - `observe` and `restrict` do not short-circuit in the current tranche. They preserve policy outcome visibility while still allowing the later defence stages to run.
 - Low-cost service-profile names such as `structured_agent` and `metadata_only` are resolved now for policy truth and auditability, but they do not yet change the rendered response shape. Do not assume a lower-cost delivery contract exists until that later tranche lands.

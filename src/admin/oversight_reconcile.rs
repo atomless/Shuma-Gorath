@@ -617,7 +617,10 @@ mod tests {
                 enabled: false,
                 native_web_bot_auth_enabled: false,
                 provider_assertions_enabled: false,
-                non_human_traffic_stance: "allow_only_named_verified_identities".to_string(),
+                effective_non_human_policy:
+                    crate::runtime::non_human_policy::effective_non_human_policy_summary(
+                        &objectives,
+                    ),
                 named_policy_count: 0,
                 service_profile_count: 0,
                 attempts: 0,

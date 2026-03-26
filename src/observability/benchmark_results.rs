@@ -6,10 +6,13 @@ use crate::observability::benchmark_suite::BENCHMARK_SUITE_SCHEMA_VERSION;
 use crate::observability::non_human_classification::NonHumanClassificationReadiness;
 use crate::observability::non_human_coverage::NonHumanCoverageSummary;
 use crate::observability::operator_snapshot::{
-    OperatorBudgetDistanceSummary, OperatorSnapshotAdversarySim, OperatorSnapshotLiveTraffic,
-    OperatorSnapshotNonHumanTrafficSummary, OperatorSnapshotWindow, ReplayPromotionSummary,
+    OperatorBudgetDistanceSummary, OperatorSnapshotAdversarySim, OperatorSnapshotLane,
+    OperatorSnapshotLiveTraffic, OperatorSnapshotNonHumanTrafficSummary, OperatorSnapshotWindow,
+    ReplayPromotionSummary,
 };
-use crate::observability::operator_snapshot_objectives::OperatorObjectivesProfile;
+use crate::observability::operator_snapshot_objectives::{
+    objective_profile_is_strict_human_only, OperatorObjectivesProfile,
+};
 use super::benchmark_adversary_effectiveness::representative_adversary_effectiveness_family;
 use super::benchmark_beneficial_non_human::beneficial_non_human_posture_family;
 use super::benchmark_non_human_categories::non_human_category_posture_family;
@@ -149,14 +152,21 @@ pub(crate) fn build_benchmark_results_from_snapshot_sections(
     replay_promotion: &ReplayPromotionSummary,
     prior_window_reference: Option<&BenchmarkComparableSnapshot>,
 ) -> BenchmarkResultsPayload {
-    let suspicious_family =
-        suspicious_origin_cost_family(live_traffic.suspicious_automation.as_ref(), budget_distance);
+    let strict_human_only_private = objective_profile_is_strict_human_only(objectives);
+    let suspicious_tracking_lane =
+        suspicious_origin_tracking_lane(objectives, live_traffic, adversary_sim);
+    let suspicious_family = suspicious_origin_cost_family(
+        suspicious_tracking_lane.as_ref(),
+        budget_distance,
+        strict_human_only_private,
+    );
     let friction_family = likely_human_friction_family(budget_distance);
     let adversary_family = representative_adversary_effectiveness_family(adversary_sim);
     let verified_identity =
         super::operator_snapshot_verified_identity::verified_identity_summary(
             summary,
             cfg,
+            objectives,
             non_human_traffic.receipts.as_slice(),
         );
     let non_human_family = beneficial_non_human_posture_family(
@@ -221,6 +231,28 @@ pub(crate) fn build_benchmark_results_from_snapshot_sections(
         replay_promotion: replay_promotion.clone(),
         families,
     }
+}
+
+fn suspicious_origin_tracking_lane(
+    objectives: &OperatorObjectivesProfile,
+    live_traffic: &OperatorSnapshotLiveTraffic,
+    adversary_sim: &OperatorSnapshotAdversarySim,
+) -> Option<OperatorSnapshotLane> {
+    if objective_profile_is_strict_human_only(objectives) {
+        return Some(OperatorSnapshotLane {
+            lane: "adversary_sim".to_string(),
+            exactness: "derived".to_string(),
+            basis: "observed".to_string(),
+            total_requests: adversary_sim.total_requests,
+            forwarded_requests: adversary_sim.forwarded_requests,
+            short_circuited_requests: adversary_sim.short_circuited_requests,
+            control_response_requests: adversary_sim.control_response_requests,
+            forwarded_upstream_latency_ms_total: adversary_sim.forwarded_upstream_latency_ms_total,
+            forwarded_response_bytes: adversary_sim.forwarded_response_bytes,
+            shuma_served_response_bytes: adversary_sim.shuma_served_response_bytes,
+        });
+    }
+    live_traffic.suspicious_automation.clone()
 }
 
 fn tuning_eligibility(
@@ -727,8 +759,6 @@ mod tests {
         );
         let mut cfg = defaults().clone();
         cfg.verified_identity.enabled = true;
-        cfg.verified_identity.non_human_traffic_stance =
-            crate::bot_identity::policy::NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities;
 
         let payload = build_benchmark_results_from_snapshot_sections(
             snapshot.generated_at,
@@ -781,7 +811,7 @@ mod tests {
     }
 
     #[test]
-    fn benchmark_results_materialize_host_impact_metrics_in_suspicious_origin_cost_family() {
+    fn benchmark_results_materialize_strict_human_only_suspicious_origin_metrics_from_adversary_sim() {
         let store = TestStore::new();
         record_request_outcome(
             &store,
@@ -831,6 +861,57 @@ mod tests {
                 policy_source: PolicySource::CleanAllow,
             },
         );
+        for _ in 0..3 {
+            record_request_outcome(
+                &store,
+                &RenderedRequestOutcome {
+                    traffic_origin: TrafficOrigin::AdversarySim,
+                    measurement_scope: MeasurementScope::IngressPrimary,
+                    route_action_family: RouteActionFamily::PublicContent,
+                    execution_mode: ExecutionMode::Enforced,
+                    traffic_lane: Some(RequestOutcomeLane {
+                        lane: TrafficLane::SuspiciousAutomation,
+                        exactness:
+                            crate::observability::hot_read_contract::TelemetryExactness::Derived,
+                        basis: crate::observability::hot_read_contract::TelemetryBasis::Mixed,
+                    }),
+                    non_human_category: None,
+                    outcome_class: RequestOutcomeClass::ShortCircuited,
+                    response_kind: ResponseKind::NotABot,
+                    http_status: 200,
+                    response_bytes: 55,
+                    forwarded_upstream_latency_ms: None,
+                    forward_attempted: false,
+                    forward_failure_class: None,
+                    intended_action: None,
+                    policy_source: PolicySource::PolicyGraphSecondTranche,
+                },
+            );
+        }
+        record_request_outcome(
+            &store,
+            &RenderedRequestOutcome {
+                traffic_origin: TrafficOrigin::AdversarySim,
+                measurement_scope: MeasurementScope::IngressPrimary,
+                route_action_family: RouteActionFamily::PublicContent,
+                execution_mode: ExecutionMode::Enforced,
+                traffic_lane: Some(RequestOutcomeLane {
+                    lane: TrafficLane::SuspiciousAutomation,
+                    exactness: crate::observability::hot_read_contract::TelemetryExactness::Derived,
+                    basis: crate::observability::hot_read_contract::TelemetryBasis::Mixed,
+                }),
+                non_human_category: None,
+                outcome_class: RequestOutcomeClass::Forwarded,
+                response_kind: ResponseKind::ForwardAllow,
+                http_status: 200,
+                response_bytes: 90,
+                forwarded_upstream_latency_ms: Some(50),
+                forward_attempted: true,
+                forward_failure_class: None,
+                intended_action: None,
+                policy_source: PolicySource::CleanAllow,
+            },
+        );
         let summary = summarize_with_store(&store, 24, 10);
         let snapshot = build_operator_snapshot_payload(
             &store,
@@ -865,6 +946,11 @@ mod tests {
             .iter()
             .find(|family| family.family_id == "suspicious_origin_cost")
             .expect("suspicious origin cost family");
+        let request_rate = suspicious
+            .metrics
+            .iter()
+            .find(|metric| metric.metric_id == "suspicious_forwarded_request_rate")
+            .expect("request-rate metric");
         let latency_share = suspicious
             .metrics
             .iter()
@@ -876,10 +962,13 @@ mod tests {
             .find(|metric| metric.metric_id == "suspicious_average_forward_latency_ms")
             .expect("average latency metric");
 
+        assert!(suspicious.note.contains("adversary-sim scope"));
+        assert_eq!(request_rate.target, Some(0.0));
+        assert_eq!(request_rate.current, Some(0.25));
         assert_eq!(latency_share.status, "outside_budget");
-        assert!((latency_share.current.expect("latency share current") - 0.7).abs() < 0.000_001);
+        assert!((latency_share.current.expect("latency share current") - 1.0).abs() < 0.000_001);
         assert_eq!(average_latency.status, "tracking_only");
-        assert!((average_latency.current.expect("average latency current") - 70.0).abs() < 0.000_001);
+        assert!((average_latency.current.expect("average latency current") - 50.0).abs() < 0.000_001);
     }
 
     #[test]
@@ -913,10 +1002,16 @@ mod tests {
                 control_response_requests: 0,
             },
         );
-        let objectives =
+        let mut objectives =
             crate::observability::operator_snapshot_objectives::default_operator_objectives(
                 1_700_000_500,
             );
+        objectives
+            .category_postures
+            .iter_mut()
+            .find(|row| row.category_id.as_str() == "agent_on_behalf_of_human")
+            .expect("agent-on-behalf-of-human posture")
+            .posture = "tolerated".to_string();
 
         let payload = build_benchmark_results_from_snapshot_sections(
             1_700_000_500,
@@ -1516,8 +1611,8 @@ mod tests {
             .iter()
             .find(|metric| metric.metric_id == "category_posture_alignment:verified_beneficial_bot")
             .expect("verified beneficial posture metric");
-        assert_eq!(beneficial.status, "inside_budget");
-        assert_eq!(beneficial.current, Some(1.0));
+        assert_eq!(beneficial.status, "outside_budget");
+        assert_eq!(beneficial.current, Some(0.0));
         assert_eq!(beneficial.target, Some(1.0));
 
         let indexing = family
@@ -1525,8 +1620,8 @@ mod tests {
             .iter()
             .find(|metric| metric.metric_id == "category_posture_alignment:indexing_bot")
             .expect("indexing posture metric");
-        assert_eq!(indexing.status, "inside_budget");
+        assert_eq!(indexing.status, "near_limit");
         assert_eq!(indexing.current, Some(0.75));
-        assert_eq!(indexing.target, Some(0.5));
+        assert_eq!(indexing.target, Some(1.0));
     }
 }

@@ -145,7 +145,7 @@ flowchart LR
 
 The live control loop now also depends on three newer truth-preserving seams:
 
-1. request-native Scrapling coverage receipts for `indexing_bot`, `ai_scraper_bot`, and `http_agent`,
+1. full-spectrum Scrapling coverage receipts for `indexing_bot`, `ai_scraper_bot`, `automated_browser`, and `http_agent`, including request-native and browser-owned surface evidence,
 2. forwarded-latency host-impact telemetry and the derived `suspicious_forwarded_latency_share` benchmark proxy inside the existing suspicious-origin cost family,
 3. and adversary-sim status read recovery from persisted monitoring-event lower bounds, surfaced as `truth_basis` plus bounded `persisted_event_evidence` when mutable counters under-report completed runs.
 

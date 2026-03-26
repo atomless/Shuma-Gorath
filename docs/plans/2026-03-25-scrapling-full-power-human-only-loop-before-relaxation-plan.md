@@ -4,6 +4,9 @@ Status: Proposed
 Related context:
 
 - [`../research/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-review.md`](../research/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-review.md)
+- [`../research/2026-03-26-strict-human-only-loop-and-human-traversal-calibration-review.md`](../research/2026-03-26-strict-human-only-loop-and-human-traversal-calibration-review.md)
+- [`../research/2026-03-26-sim-scr-full-spectrum-adversary-mandate-review.md`](../research/2026-03-26-sim-scr-full-spectrum-adversary-mandate-review.md)
+- [`2026-03-25-sim-scr-cap-1-capability-matrix-plan.md`](2026-03-25-sim-scr-cap-1-capability-matrix-plan.md)
 - [`2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md`](2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md)
 - [`2026-03-24-rsi-game-mainline-first-working-loop-plan.md`](2026-03-24-rsi-game-mainline-first-working-loop-plan.md)
 - [`2026-03-25-scrapling-full-attacker-capability-principle-plan.md`](2026-03-25-scrapling-full-attacker-capability-principle-plan.md)
@@ -26,6 +29,9 @@ Define the post-`STANCE-MODEL-1` execution order so Shuma does not relax stance 
 5. The remaining LLM attacker runtime should reopen after the first strict Scrapling-only proof, but before any relaxed verified-identity sweep.
 6. The relaxed sweep should wait for a second strict-baseline proof that includes both Scrapling and LLM attacker pressure.
 7. Before any of those tranches are described as complete, `VERIFY-GATE-1` must freeze the exact runtime, API, dashboard, and `make` proof required for closure.
+8. During the strict sim-only phase, adversary-sim lanes are authoritative `100%` non-human traffic and should drive suspicious forwarded request, byte, and latency leakage toward zero or equivalent fail-closed suppression rather than the seeded mixed-site `10%` budgets.
+9. Local loopback-hosted `/sim/public/*` pages are the first execution surface for strict-loop iteration when no real hosted site sits behind Shuma.
+10. Human traversal against the discovered strict config is a later separate calibration ring, first local and then live, not something to infer from adversary-sim traffic.
 
 # Execution Shape
 
@@ -37,13 +43,15 @@ It should treat the current request-native Scrapling lane as a truthful baseline
 
 ### `SIM-SCR-FULL-1A`
 
-Freeze the full-power capability matrix for the non-agent or non-LLM adversary spectrum assigned to Scrapling.
+Reopen and ratify the full attacker-relevant Scrapling capability matrix under the full-spectrum non-human adversary mandate.
 
 Required contract:
 
-1. identify the full attacker-relevant upstream Scrapling capability set Shuma expects to own in Scrapling,
-2. include request-native, browser, stealth, challenge-interaction, and bypass-style capability where relevant,
-3. and record explicit exclusions only where they are intentionally out of scope for Scrapling.
+1. evaluate every upstream Scrapling capability against whether it materially increases effective attack power against Shuma defenses or closes an uncovered non-human attacker gap,
+2. keep such capability in scope for the active Scrapling lane unless there is an overt exclusion record,
+3. treat browser or stealth classification alone as insufficient reason to assign a capability away from Scrapling,
+4. allow exclusions only when the repo explicitly records that the capability does not increase adversary power, is already covered elsewhere with proof and no resulting gap, or would be unsafe or untruthful to claim without further runtime or receipt work,
+5. and, if stronger Scrapling capability requires taxonomy or receipt expansion, define that expansion instead of weakening the lane by default.
 
 ### `SIM-SCR-FULL-1B`
 
@@ -52,8 +60,9 @@ Implement the remaining Scrapling capability required by that matrix.
 Required contract:
 
 1. Shuma should no longer rely on the current polite subset,
-2. Scrapling should be capable of touching and, where realistic, passing the defenses a real non-agent adversary should be able to pass,
-3. and failing the defenses it should fail.
+2. Scrapling should use every retained capability that materially strengthens attacks on Shuma-owned surfaces rather than stopping at the earlier request-native baseline,
+3. Scrapling should be capable of touching and, where realistic, passing the defenses a real non-agent adversary should be able to pass,
+4. and failing the defenses it should fail.
 
 ### `SIM-SCR-FULL-1C`
 
@@ -79,6 +88,7 @@ Required contract:
 1. verified non-human traffic remains denied under this stance,
 2. benchmarks and Game Loop project the strict stance truthfully,
 3. and the existing loop machinery runs against this corrected stance.
+4. the strict view no longer presents the seeded mixed-site `10%` suspicious forwarded budgets as though they were the human-only target.
 
 ### `RSI-GAME-HO-1B`
 
@@ -92,6 +102,7 @@ Required contract:
 4. later Scrapling runs occur against the changed config,
 5. watch windows judge retain or rollback truthfully,
 6. and this repeats enough times to show non-noisy improvement toward the strict target rather than a single lucky cycle.
+7. for this sim-only proof ring, the suspicious forwarded request, byte, and latency targets are zero or equivalent fail-closed suppression targets because the input traffic is known non-human adversary traffic.
 
 ### `RSI-GAME-HO-1C`
 
@@ -103,6 +114,19 @@ Required contract:
 2. actual retained config changes,
 3. measured improvement toward the strict target,
 4. and clear evidence that the loop is not merely exercising rollback or recommendation plumbing.
+
+## Human traversal calibration after strict-baseline discovery
+
+This is a required follow-on proof ring after Shuma finds a strict config that suppresses adversary-sim traffic.
+
+It is deliberately separate from the sim-only exclusion gate above.
+
+Required contract:
+
+1. real human-driven traversals run against the discovered strict config,
+2. likely-human friction is measured from live human telemetry rather than adversary-sim inference,
+3. local `/sim/public/*` remains the first fast calibration surface when there is no real hosted site behind Shuma,
+4. and Linode or another shared-host target becomes the later realism and public-network verification surface.
 
 ## `SIM-LLM-1C3`: Remaining LLM attacker runtime proof closure
 
@@ -147,6 +171,7 @@ When it opens, it should:
 5. After `RSI-GAME-HO-1`, reopen `SIM-LLM-1C3`.
 6. After `SIM-LLM-1C3`, add `RSI-GAME-HO-2` as the mixed Scrapling-plus-LLM strict-baseline proof.
 7. Block `RSI-GAME-HV-1` until `RSI-GAME-HO-2` proves real repeated improvement.
+8. Before claiming the strict baseline is human-safe or ready for broader operator use, add the separate human traversal calibration ring over the discovered strict config.
 
 # Definition Of Done
 

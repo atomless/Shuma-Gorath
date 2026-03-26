@@ -4,6 +4,7 @@ Status: Proposed
 Related context:
 
 - [`../research/2026-03-26-acceptance-gate-and-completion-claim-discipline-review.md`](../research/2026-03-26-acceptance-gate-and-completion-claim-discipline-review.md)
+- [`../research/2026-03-26-strict-human-only-loop-and-human-traversal-calibration-review.md`](../research/2026-03-26-strict-human-only-loop-and-human-traversal-calibration-review.md)
 - [`2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)
 - [`2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md`](2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md)
 - [`2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md)
@@ -97,10 +98,14 @@ Each gate should answer, explicitly:
    - recent changes, oversight history, and other machine-first surfaces show repeated cycle lineage, applied changes, and retained vs rolled-back outcomes.
 3. Operator-visible truth:
    - `Game Loop` projects the strict stance truthfully,
+   - does not keep showing the seeded mixed-site `10%` suspicious forwarded budgets as though they were the strict target,
    - shows the repeated change context,
-   - and shows measured movement toward the strict target rather than only recommendation plumbing or legacy mismatch rows.
+   - shows measured movement toward the strict target rather than only recommendation plumbing or legacy mismatch rows,
+   - and keeps later human traversal calibration explicit instead of implying that sim traffic itself proved likely-human safety.
 4. Focused proof:
-   - focused `make` paths exist and pass for strict-stance runtime behavior and repeated judged-cycle proof.
+   - focused `make` paths exist and pass for strict-stance runtime behavior and repeated judged-cycle proof,
+   - with local `/sim/public/*` or equivalent loopback sim-public proof accepted as the first truthful strict-loop surface,
+   - while later live-host and human traversal calibration remain separate named follow-on proofs.
 5. Insufficient evidence:
    - one successful loop,
    - one canary apply,
@@ -138,6 +143,8 @@ Required contract:
 2. if a tranche claims dashboard truth, it must have rendered proof,
 3. if a tranche claims repeated loop improvement, it must have proof over repeated judged cycles and retained changes rather than single-cycle plumbing,
 4. and if a required proof path does not exist yet in `Makefile`, it must be added before the tranche is eligible for closure.
+5. Strict sim-only proof paths should use the loopback-hosted `/sim/public/*` surface first when that is the truthful fast path already supported by the repo.
+6. Human traversal calibration and live shared-host realism must be named as separate proof surfaces rather than being silently collapsed into the first strict sim-only gate.
 
 ## `VERIFY-GATE-1C`: Completion-language discipline and audit-trail cleanup
 

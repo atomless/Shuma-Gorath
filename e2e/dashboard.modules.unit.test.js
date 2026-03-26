@@ -3402,6 +3402,36 @@ test('monitoring view model and status module remain pure snapshot transforms', 
         observed_category_ids: ['ai_scraper_bot', 'http_agent'],
         owned_surface_coverage: {
           overall_status: 'partial',
+          canonical_surface_ids: [
+            'public_path_traversal',
+            'challenge_routing',
+            'rate_pressure',
+            'geo_ip_policy',
+            'not_a_bot_submit',
+            'puzzle_submit_or_escalation',
+            'pow_verify_abuse',
+            'tarpit_progress_abuse',
+            'maze_navigation',
+            'browser_automation_detection',
+            'js_verification_execution',
+            'cdp_report_ingestion',
+            'verified_identity_attestation'
+          ],
+          surface_labels: {
+            public_path_traversal: 'Public Path Traversal',
+            challenge_routing: 'Challenge Routing',
+            rate_pressure: 'Rate Pressure',
+            geo_ip_policy: 'Geo Or IP Policy',
+            not_a_bot_submit: 'Not-a-Bot Submit',
+            puzzle_submit_or_escalation: 'Puzzle Submit Or Escalation',
+            pow_verify_abuse: 'PoW Verify Abuse',
+            tarpit_progress_abuse: 'Tarpit Progress Abuse',
+            maze_navigation: 'Maze Navigation',
+            browser_automation_detection: 'Browser CDP Automation Detection',
+            js_verification_execution: 'JavaScript Verification Execution',
+            cdp_report_ingestion: 'CDP Report Ingestion',
+            verified_identity_attestation: 'Verified Identity Attestation'
+          },
           required_surface_ids: ['challenge_routing', 'pow_verify_abuse'],
           satisfied_surface_ids: ['challenge_routing'],
           blocking_surface_ids: ['pow_verify_abuse'],
@@ -3459,9 +3489,77 @@ test('monitoring view model and status module remain pure snapshot transforms', 
       summarizedRuns.runRows[0].ownedSurfaceCoverage?.overallStatus,
       'partial'
     );
+    assert.deepEqual(
+      summarizedRuns.runRows[0].ownedSurfaceCoverage?.canonicalSurfaceIds,
+      [
+        'public_path_traversal',
+        'challenge_routing',
+        'rate_pressure',
+        'geo_ip_policy',
+        'not_a_bot_submit',
+        'puzzle_submit_or_escalation',
+        'pow_verify_abuse',
+        'tarpit_progress_abuse',
+        'maze_navigation',
+        'browser_automation_detection',
+        'js_verification_execution',
+        'cdp_report_ingestion',
+        'verified_identity_attestation'
+      ]
+    );
+    assert.equal(
+      summarizedRuns.runRows[0].ownedSurfaceCoverage?.surfaceLabels?.browser_automation_detection,
+      'Browser CDP Automation Detection'
+    );
+    assert.deepEqual(
+      summarizedRuns.runRows[0].ownedSurfaceCoverage?.surfaceChecklistRows,
+      [
+        { surfaceId: 'public_path_traversal', surfaceLabel: 'Public Path Traversal', state: 'not_required' },
+        { surfaceId: 'challenge_routing', surfaceLabel: 'Challenge Routing', state: 'satisfied' },
+        { surfaceId: 'rate_pressure', surfaceLabel: 'Rate Pressure', state: 'not_required' },
+        { surfaceId: 'geo_ip_policy', surfaceLabel: 'Geo Or IP Policy', state: 'not_required' },
+        { surfaceId: 'not_a_bot_submit', surfaceLabel: 'Not-a-Bot Submit', state: 'not_required' },
+        {
+          surfaceId: 'puzzle_submit_or_escalation',
+          surfaceLabel: 'Puzzle Submit Or Escalation',
+          state: 'not_required'
+        },
+        { surfaceId: 'pow_verify_abuse', surfaceLabel: 'PoW Verify Abuse', state: 'blocking' },
+        {
+          surfaceId: 'tarpit_progress_abuse',
+          surfaceLabel: 'Tarpit Progress Abuse',
+          state: 'not_required'
+        },
+        { surfaceId: 'maze_navigation', surfaceLabel: 'Maze Navigation', state: 'not_required' },
+        {
+          surfaceId: 'browser_automation_detection',
+          surfaceLabel: 'Browser CDP Automation Detection',
+          state: 'not_required'
+        },
+        {
+          surfaceId: 'js_verification_execution',
+          surfaceLabel: 'JavaScript Verification Execution',
+          state: 'not_required'
+        },
+        {
+          surfaceId: 'cdp_report_ingestion',
+          surfaceLabel: 'CDP Report Ingestion',
+          state: 'not_required'
+        },
+        {
+          surfaceId: 'verified_identity_attestation',
+          surfaceLabel: 'Verified Identity Attestation',
+          state: 'not_required'
+        }
+      ]
+    );
     assert.equal(
       summarizedRuns.runRows[0].ownedSurfaceCoverage?.receipts?.[0]?.surfaceId,
       'challenge_routing'
+    );
+    assert.equal(
+      summarizedRuns.runRows[0].ownedSurfaceCoverage?.receipts?.[0]?.surfaceLabel,
+      'Challenge Routing'
     );
     assert.equal(summarizedRuns.activeBanCount, 1);
 
@@ -4814,7 +4912,7 @@ test('config form utils and JSON object helpers preserve parser contracts', { co
     assert.equal(schema.advancedConfigTemplatePaths.includes('verified_identity.enabled'), true);
     assert.equal(
       schema.advancedConfigTemplatePaths.includes('verified_identity.non_human_traffic_stance'),
-      true
+      false
     );
     assert.equal(schema.advancedConfigTemplatePaths.includes('verified_identity.named_policies'), true);
     assert.equal(
@@ -6347,13 +6445,13 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
     schema_version: 'operator_snapshot_v1',
     generated_at: 1774306800,
     objectives: {
-      profile_id: 'site_default_v1',
+      profile_id: 'human_only_private',
       revision: 'objective-1774306800',
       window_hours: 24,
       category_postures: [
         {
           category_id: 'indexing_bot',
-          posture: 'cost_reduced'
+          posture: 'blocked'
         },
         {
           category_id: 'ai_scraper_bot',
@@ -6363,17 +6461,35 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
     },
     verified_identity: {
       availability: 'ready',
+      effective_non_human_policy: {
+        profile_id: 'human_only_private',
+        objective_revision: 'objective-1774306800',
+        verified_identity_override_mode: 'strict_human_only',
+        rows: [
+          {
+            category_id: 'agent_on_behalf_of_human',
+            base_posture: 'blocked',
+            effective_posture: 'blocked',
+            verified_identity_handling: 'verified_identity_evidence_only',
+            authority: 'operator_objectives_v1.category_postures'
+          }
+        ]
+      },
       taxonomy_alignment: {
         status: 'degraded'
       }
     }
   });
 
-  assert.equal(operatorSnapshot.objectives.profile_id, 'site_default_v1');
+  assert.equal(operatorSnapshot.objectives.profile_id, 'human_only_private');
   assert.equal(operatorSnapshot.objectives.category_postures.length, 2);
   assert.equal(operatorSnapshot.objectives.category_postures[1].category_id, 'ai_scraper_bot');
   assert.equal(operatorSnapshot.objectives.category_postures[1].posture, 'blocked');
   assert.equal(operatorSnapshot.verified_identity.taxonomy_alignment.status, 'degraded');
+  assert.equal(
+    operatorSnapshot.verified_identity.effective_non_human_policy.verified_identity_override_mode,
+    'strict_human_only'
+  );
 
   const benchmarkResults = apiModule.adaptBenchmarkResults({
     schema_version: 'benchmark_results_v1',
@@ -6550,6 +6666,26 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
   assert.equal(oversightStatus.schema_version, 'oversight_agent_status_v1');
   assert.equal(oversightStatus.latest_decision.outcome, 'canary_applied');
   assert.equal(oversightStatus.recent_runs[0].execution.apply.stage, 'canary_applied');
+});
+
+test('dashboard game loop policy truth stops presenting legacy verified-identity stance as the strict target', () => {
+  const gameLoopSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/GameLoopTab.svelte'),
+    'utf8'
+  );
+
+  assert.match(gameLoopSource, /const knownGameLoopPolicyProfiles = Object\.freeze\(/);
+  assert.match(gameLoopSource, /strict_human_only_reference_not_active/);
+  assert.match(gameLoopSource, /Policy Profile:/);
+  assert.match(gameLoopSource, /Sim-Only Target:/);
+  assert.match(gameLoopSource, /Human Calibration:/);
+  assert.match(gameLoopSource, /Verified Handling:/);
+  assert.match(gameLoopSource, /verified mode/);
+  assert.match(
+    gameLoopSource,
+    /effective_non_human_policy\?\.verified_identity_override_mode/
+  );
+  assert.doesNotMatch(gameLoopSource, /legacy request path/);
 });
 
 test('dashboard game loop accountability refresh populates machine snapshots through behavior', { concurrency: false }, async () => {

@@ -18,12 +18,16 @@ Panel:
   - bounded persisted-event evidence summary when recent monitoring facts were used to recover completed-run truth.
 - `Recent Red Team Runs`:
   - recent adversary simulation run identifiers derived from a compact monitoring-backed run-history summary,
-  - observed fulfillment modes, category coverage, and owned-surface closure summaries for each bounded run row,
+  - observed fulfillment modes, category coverage, and defense-surface closure summaries for each bounded run row,
   - freshness-aware empty/degraded messaging so delayed telemetry is not misread as no activity.
-- `Latest Scrapling Evidence`:
+- `Scrapling`:
   - receipt-backed projection of the most recent Scrapling run visible in the bounded monitoring window,
-  - observed Scrapling personas, observed non-human taxonomy categories, owned-surface closure counts, and per-surface sample receipts,
-  - explicit operator proof of where Scrapling passed or failed against the request-native defenses it currently owns.
+  - observed Scrapling personas, observed non-human taxonomy categories, and high-level defense-surface closure counts,
+  - a full surface checklist that shows every canonical surface row in the current Scrapling defense-surface matrix with:
+    - a tick when the latest run was required to hit it and did hit it,
+    - a cross when the latest run was required to hit it but did not,
+    - a dash when the latest run was not expected to hit it,
+  - per-surface sample receipts so operators can inspect why a required surface satisfied or blocked.
 
 Behavior:
 

@@ -1,6 +1,7 @@
 pub(crate) mod kv_gate;
 pub(crate) mod capabilities;
 pub(crate) mod effect_intents;
+pub(crate) mod non_human_policy;
 pub(crate) mod non_human_taxonomy;
 pub(crate) mod policy_pipeline;
 pub(crate) mod policy_graph;

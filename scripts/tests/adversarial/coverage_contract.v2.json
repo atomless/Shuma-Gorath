@@ -83,17 +83,11 @@
       },
       "automated_browser": {
         "assignment_status": "mapped",
-        "runtime_lane": "bot_red_team",
-        "fulfillment_mode": "browser_mode",
-        "supporting_scenarios": [
-          "sim_t2_geo_challenge",
-          "sim_t3_geo_maze",
-          "sim_t4_honeypot_deny_temp",
-          "sim_t3_geo_block",
-          "sim_t2_challenge_puzzle_failure",
-          "sim_t3_header_spoofing_abuse"
-        ],
-        "notes": "Bounded LLM browser mode is the intended fulfillment lane for browser automation pressure; listed scenarios are intent-aligned references and not yet coverage proof."
+        "runtime_lane": "scrapling_traffic",
+        "fulfillment_mode": "browser_automation",
+        "coverage_basis": "recent_sim_telemetry_receipts",
+        "supporting_scenarios": [],
+        "notes": "Browser-capable Scrapling personas are the intended fulfillment lane for non-agent browser automation pressure, and coverage must now be proved through recent sim telemetry receipts rather than scenario intent alone."
       },
       "http_agent": {
         "assignment_status": "mapped",

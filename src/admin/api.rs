@@ -1559,7 +1559,9 @@ mod tests {
         for (offset, sim_profile) in [
             (0u64, "scrapling_runtime_lane.crawler"),
             (1u64, "scrapling_runtime_lane.bulk_scraper"),
-            (2u64, "scrapling_runtime_lane.http_agent"),
+            (2u64, "scrapling_runtime_lane.browser_automation"),
+            (3u64, "scrapling_runtime_lane.stealth_browser"),
+            (4u64, "scrapling_runtime_lane.http_agent"),
         ] {
             let _guard = crate::runtime::sim_telemetry::enter(Some(
                 crate::runtime::sim_telemetry::SimulationRequestMetadata {
@@ -1665,6 +1667,30 @@ mod tests {
                         sample_request_path: "/tarpit/progress".to_string(),
                         sample_response_status: Some(400),
                     },
+                    crate::observability::scrapling_owned_surface::ScraplingSurfaceObservationReceipt {
+                        surface_id: "maze_navigation".to_string(),
+                        coverage_status: "pass_observed".to_string(),
+                        attempt_count: 1,
+                        sample_request_method: "GET".to_string(),
+                        sample_request_path: "/maze/start".to_string(),
+                        sample_response_status: Some(200),
+                    },
+                    crate::observability::scrapling_owned_surface::ScraplingSurfaceObservationReceipt {
+                        surface_id: "js_verification_execution".to_string(),
+                        coverage_status: "pass_observed".to_string(),
+                        attempt_count: 1,
+                        sample_request_method: "GET".to_string(),
+                        sample_request_path: "/pow".to_string(),
+                        sample_response_status: Some(200),
+                    },
+                    crate::observability::scrapling_owned_surface::ScraplingSurfaceObservationReceipt {
+                        surface_id: "browser_automation_detection".to_string(),
+                        coverage_status: "fail_observed".to_string(),
+                        attempt_count: 1,
+                        sample_request_method: "GET".to_string(),
+                        sample_request_path: "/pow".to_string(),
+                        sample_response_status: Some(200),
+                    },
                 ],
             },
         );
@@ -1679,23 +1705,26 @@ mod tests {
         assert_eq!(
             row.observed_fulfillment_modes,
             vec![
+                "browser_automation".to_string(),
                 "bulk_scraper".to_string(),
                 "crawler".to_string(),
-                "http_agent".to_string()
+                "http_agent".to_string(),
+                "stealth_browser".to_string()
             ]
         );
         let owned_surface_coverage = row
             .owned_surface_coverage
             .as_ref()
             .expect("owned surface coverage");
-        assert_eq!(row.monitoring_event_count, 3);
+        assert_eq!(row.monitoring_event_count, 5);
         assert_eq!(owned_surface_coverage.overall_status, "covered");
-        assert_eq!(owned_surface_coverage.required_surface_ids.len(), 8);
+        assert_eq!(owned_surface_coverage.required_surface_ids.len(), 11);
         assert!(owned_surface_coverage.blocking_surface_ids.is_empty());
         assert_eq!(
             row.observed_category_ids,
             vec![
                 "ai_scraper_bot".to_string(),
+                "automated_browser".to_string(),
                 "http_agent".to_string(),
                 "indexing_bot".to_string()
             ]
@@ -2285,7 +2314,7 @@ mod tests {
                 .get("objectives")
                 .and_then(|value| value.get("profile_id"))
                 .and_then(|value| value.as_str()),
-            Some("site_default_v1")
+            Some("human_only_private")
         );
         assert!(payload
             .get("objectives")
@@ -3932,8 +3961,6 @@ mod admin_config_tests {
         cfg.verified_identity.enabled = true;
         cfg.verified_identity.native_web_bot_auth_enabled = false;
         cfg.verified_identity.provider_assertions_enabled = true;
-        cfg.verified_identity.non_human_traffic_stance =
-            crate::bot_identity::policy::NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities;
         cfg.verified_identity.replay_window_seconds = 180;
         cfg.verified_identity.clock_skew_seconds = 15;
         cfg.verified_identity.directory_cache_ttl_seconds = 900;
@@ -3993,12 +4020,9 @@ mod admin_config_tests {
             env.get("SHUMA_VERIFIED_IDENTITY_PROVIDER_ASSERTIONS_ENABLED"),
             Some(&serde_json::json!("true"))
         );
-        assert_eq!(
-            env.get("SHUMA_VERIFIED_IDENTITY_NON_HUMAN_TRAFFIC_STANCE"),
-            Some(&serde_json::json!(
-                "allow_only_explicit_verified_identities"
-            ))
-        );
+        assert!(env
+            .get("SHUMA_VERIFIED_IDENTITY_NON_HUMAN_TRAFFIC_STANCE")
+            .is_none());
         assert_eq!(
             env.get("SHUMA_VERIFIED_IDENTITY_NAMED_POLICIES"),
             Some(&serde_json::json!(json_env(
@@ -4155,9 +4179,7 @@ mod admin_config_tests {
         assert!(env_text.contains("SHUMA_VERIFIED_IDENTITY_ENABLED=true"));
         assert!(env_text.contains("SHUMA_VERIFIED_IDENTITY_NATIVE_WEB_BOT_AUTH_ENABLED=false"));
         assert!(env_text.contains("SHUMA_VERIFIED_IDENTITY_PROVIDER_ASSERTIONS_ENABLED=true"));
-        assert!(env_text.contains(
-            "SHUMA_VERIFIED_IDENTITY_NON_HUMAN_TRAFFIC_STANCE=allow_only_explicit_verified_identities"
-        ));
+        assert!(!env_text.contains("SHUMA_VERIFIED_IDENTITY_NON_HUMAN_TRAFFIC_STANCE="));
         assert!(env_text.contains("SHUMA_HONEYPOT_ENABLED=false"));
         assert!(env_text.contains("SHUMA_BROWSER_POLICY_ENABLED=false"));
         assert!(env_text.contains("SHUMA_BYPASS_ALLOWLISTS_ENABLED=false"));
@@ -5288,6 +5310,14 @@ mod admin_config_tests {
         std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "shared-server");
         std::env::set_var("SHUMA_API_KEY", "sim-scrapling-beat-test-key");
         std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+        std::env::set_var(
+            "ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_URL",
+            "http://127.0.0.1:8899",
+        );
+        std::env::set_var(
+            "ADVERSARY_SIM_SCRAPLING_BROWSER_PROXY_URL",
+            "http://127.0.0.1:9900",
+        );
 
         let store = TestStore::default();
         let auth = bearer_rw_auth();
@@ -5367,6 +5397,20 @@ mod admin_config_tests {
         assert_eq!(
             beat_json
                 .get("worker_plan")
+                .and_then(|value| value.get("request_proxy_url"))
+                .and_then(|value| value.as_str()),
+            Some("http://127.0.0.1:8899")
+        );
+        assert_eq!(
+            beat_json
+                .get("worker_plan")
+                .and_then(|value| value.get("browser_proxy_url"))
+                .and_then(|value| value.as_str()),
+            Some("http://127.0.0.1:9900")
+        );
+        assert_eq!(
+            beat_json
+                .get("worker_plan")
                 .and_then(|value| value.get("runtime_paths"))
                 .and_then(|value| value.get("not_a_bot_checkbox"))
                 .and_then(|value| value.as_str()),
@@ -5384,10 +5428,25 @@ mod admin_config_tests {
             beat_json
                 .get("worker_plan")
                 .and_then(|value| value.get("runtime_paths"))
+                .and_then(|value| value.get("pow"))
+                .and_then(|value| value.as_str()),
+            Some("/pow")
+        );
+        assert_eq!(
+            beat_json
+                .get("worker_plan")
+                .and_then(|value| value.get("runtime_paths"))
                 .and_then(|value| value.get("pow_verify"))
                 .and_then(|value| value.as_str()),
             Some("/pow/verify")
         );
+        let maze_entry = beat_json
+            .get("worker_plan")
+            .and_then(|value| value.get("runtime_paths"))
+            .and_then(|value| value.get("maze_entry"))
+            .and_then(|value| value.as_str())
+            .expect("maze entry path");
+        assert!(maze_entry.starts_with(crate::maze::entry_path("").as_str()));
         assert_eq!(
             beat_json
                 .get("worker_plan")
@@ -5431,6 +5490,8 @@ mod admin_config_tests {
         std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
         std::env::remove_var("SHUMA_API_KEY");
         std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
+        std::env::remove_var("ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_URL");
+        std::env::remove_var("ADVERSARY_SIM_SCRAPLING_BROWSER_PROXY_URL");
     }
 
     #[test]
@@ -5495,7 +5556,6 @@ mod admin_config_tests {
                         .collect::<Vec<_>>()
                 }),
             Some(vec![
-                "automated_browser",
                 "browser_agent",
                 "agent_on_behalf_of_human"
             ])
@@ -5774,7 +5834,7 @@ mod admin_config_tests {
             "provider": "openai",
             "model_id": "gpt-5-mini",
             "fallback_reason": null,
-            "category_targets": ["automated_browser", "browser_agent", "agent_on_behalf_of_human"],
+            "category_targets": ["browser_agent", "agent_on_behalf_of_human"],
             "generated_action_count": 2,
             "executed_action_count": 2,
             "failed_action_count": 0,
@@ -11263,7 +11323,6 @@ mod admin_config_tests {
                 "enabled": true,
                 "native_web_bot_auth_enabled": true,
                 "provider_assertions_enabled": true,
-                "non_human_traffic_stance": "allow_only_explicit_verified_identities",
                 "replay_window_seconds": 180,
                 "clock_skew_seconds": 15,
                 "directory_cache_ttl_seconds": 900,
@@ -11292,12 +11351,7 @@ mod admin_config_tests {
             verified_identity.get("enabled"),
             Some(&serde_json::Value::Bool(true))
         );
-        assert_eq!(
-            verified_identity.get("non_human_traffic_stance"),
-            Some(&serde_json::Value::String(
-                "allow_only_explicit_verified_identities".to_string()
-            ))
-        );
+        assert!(verified_identity.get("non_human_traffic_stance").is_none());
         assert_eq!(
             verified_identity
                 .get("named_policies")
@@ -11309,10 +11363,28 @@ mod admin_config_tests {
         let saved_cfg: crate::config::Config =
             serde_json::from_slice(&store.get("config:default").unwrap().unwrap()).unwrap();
         assert!(saved_cfg.verified_identity.enabled);
-        assert_eq!(
-            saved_cfg.verified_identity.non_human_traffic_stance,
-            crate::bot_identity::policy::NonHumanTrafficStance::AllowOnlyExplicitVerifiedIdentities
-        );
+        assert_eq!(saved_cfg.verified_identity.named_policies.len(), 1);
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+    }
+
+    #[test]
+    fn admin_config_rejects_legacy_verified_identity_stance_patch() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        let store = TestStore::default();
+
+        let body = br#"{
+            "verified_identity": {
+                "non_human_traffic_stance": "allow_only_explicit_verified_identities"
+            }
+        }"#
+        .to_vec();
+        let req = make_request(Method::Post, "/admin/config", body);
+        let resp = handle_admin_config(&req, &store, "default");
+        assert_eq!(*resp.status(), 400u16);
+        let msg = String::from_utf8_lossy(resp.body());
+        assert!(msg.contains("unknown field `non_human_traffic_stance`"));
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
     }
@@ -13822,13 +13894,6 @@ pub(super) fn config_export_env_entries(cfg: &crate::config::Config) -> Vec<(Str
             bool_env(cfg.verified_identity.provider_assertions_enabled).to_string(),
         ),
         (
-            "SHUMA_VERIFIED_IDENTITY_NON_HUMAN_TRAFFIC_STANCE".to_string(),
-            cfg.verified_identity
-                .non_human_traffic_stance
-                .as_str()
-                .to_string(),
-        ),
-        (
             "SHUMA_VERIFIED_IDENTITY_REPLAY_WINDOW_SECONDS".to_string(),
             cfg.verified_identity.replay_window_seconds.to_string(),
         ),
@@ -14965,7 +15030,6 @@ struct AdminVerifiedIdentityPatch {
     enabled: Option<bool>,
     native_web_bot_auth_enabled: Option<bool>,
     provider_assertions_enabled: Option<bool>,
-    non_human_traffic_stance: Option<crate::bot_identity::policy::NonHumanTrafficStance>,
     replay_window_seconds: Option<u64>,
     clock_skew_seconds: Option<u64>,
     directory_cache_ttl_seconds: Option<u64>,
@@ -16914,11 +16978,6 @@ pub(super) fn handle_admin_config_internal(
                 changed = true;
                 verified_identity_changed = true;
             }
-            if let Some(value) = patch.non_human_traffic_stance {
-                cfg.verified_identity.non_human_traffic_stance = value;
-                changed = true;
-                verified_identity_changed = true;
-            }
             if let Some(value) = patch.replay_window_seconds {
                 cfg.verified_identity.replay_window_seconds = value;
                 changed = true;
@@ -16966,15 +17025,13 @@ pub(super) fn handle_admin_config_internal(
                     ip: None,
                     reason: Some("verified_identity_config_update".to_string()),
                     outcome: Some(format!(
-                        "enabled:{}->{} native:{}->{} provider:{}->{} stance:{}->{} replay:{}->{} skew:{}->{} cache_ttl:{}->{} freshness:{}->{} policies:{}->{} category_defaults:{}->{} profiles:{}->{}",
+                        "enabled:{}->{} native:{}->{} provider:{}->{} replay:{}->{} skew:{}->{} cache_ttl:{}->{} freshness:{}->{} policies:{}->{} category_defaults:{}->{} profiles:{}->{}",
                         old_verified_identity.enabled,
                         cfg.verified_identity.enabled,
                         old_verified_identity.native_web_bot_auth_enabled,
                         cfg.verified_identity.native_web_bot_auth_enabled,
                         old_verified_identity.provider_assertions_enabled,
                         cfg.verified_identity.provider_assertions_enabled,
-                        old_verified_identity.non_human_traffic_stance.as_str(),
-                        cfg.verified_identity.non_human_traffic_stance.as_str(),
                         old_verified_identity.replay_window_seconds,
                         cfg.verified_identity.replay_window_seconds,
                         old_verified_identity.clock_skew_seconds,
