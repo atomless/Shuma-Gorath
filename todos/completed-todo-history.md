@@ -4,6 +4,18 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-26)
 
+### RSI-SCORE-IDEAL-1 Exploratory RSI-Ready Game Loop Scoring Review
+
+- [x] Produced an exploratory design review across:
+  - [`docs/research/2026-03-26-ideal-rsi-game-loop-scoring-review.md`](../docs/research/2026-03-26-ideal-rsi-game-loop-scoring-review.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  so the repo now has an explicit north-star model for how Shuma's judge, diagnoser, and move selector should evolve beyond the current bounded family system when the goal is fast adaptation against new adversary bypasses.
+- [x] Why:
+  - the user asked for an ideal-world exploration of what would make the scoring system genuinely fit an RSI loop, and the review concludes that the key upgrades are exploit-progress scoring, evidence-quality gates, burn-rate urgency, and event-triggered homeostasis break rather than a single larger blended score.
+- [x] Evidence:
+  - cited repo contracts plus the external sources listed in [`docs/research/2026-03-26-ideal-rsi-game-loop-scoring-review.md`](../docs/research/2026-03-26-ideal-rsi-game-loop-scoring-review.md)
+  - `git diff --check`
+
 ### RSI-GAME-HO-1 / SIM-SCR-FULL-1 Game Loop Scoring And Diagnoser Audit
 
 - [x] Audited the current scoring and recommendation chain across:
