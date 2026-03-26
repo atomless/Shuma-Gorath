@@ -1,12 +1,14 @@
 use serde::{Deserialize, Serialize};
 
 use crate::config::Config;
+use crate::observability::benchmark_results::BenchmarkExploitLocus;
 use crate::observability::operator_snapshot::{
     OperatorBudgetDistanceRow, OperatorSnapshotHotReadPayload, OperatorSnapshotRecentSimRun,
 };
 
 use super::oversight_patch_policy::{
-    propose_patch, OversightPatchPolicyError, OversightPatchProposal, OversightProblemClass,
+    rank_patch_candidates, OversightPatchCandidate, OversightPatchPolicyError,
+    OversightPatchProposal, OversightProblemClass,
 };
 
 pub(crate) const OVERSIGHT_RECONCILE_SCHEMA_VERSION: &str = "oversight_reconcile_v1";
@@ -40,7 +42,48 @@ pub(crate) struct OversightReconcileResult {
     pub latest_sim_run_id: Option<String>,
     pub replay_promotion_availability: String,
     pub snapshot_generated_at: u64,
+    pub judge: OversightJudgeState,
+    pub diagnosis: OversightDiagnosis,
+    pub move_selection: OversightMoveSelection,
     pub evidence_references: Vec<OversightEvidenceReference>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct OversightJudgeState {
+    pub overall_status: String,
+    pub improvement_status: String,
+    pub urgency_status: String,
+    pub evidence_quality_status: String,
+    pub note: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct OversightDiagnosis {
+    pub status: String,
+    pub problem_class: String,
+    pub confidence: String,
+    pub distributed_failure_status: String,
+    pub repair_surface_status: String,
+    pub repair_surface_candidates: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub breach_loci: Vec<BenchmarkExploitLocus>,
+    pub note: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub(crate) struct OversightMoveSelection {
+    pub status: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub selected_family: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub selected_breach_locus_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bounded_repair_surface: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub ranked_candidates: Vec<OversightPatchCandidate>,
+    pub config_ring_status: String,
+    pub code_evolution_status: String,
+    pub note: String,
 }
 
 pub(crate) fn reconcile(
@@ -48,6 +91,8 @@ pub(crate) fn reconcile(
     snapshot: &OperatorSnapshotHotReadPayload,
     trigger_source: &str,
 ) -> OversightReconcileResult {
+    let benchmark = &snapshot.benchmark_results;
+    let judge = judge_state(snapshot);
     let stale_reasons = stale_evidence_reasons(snapshot);
     if !stale_reasons.is_empty() {
         return result_without_proposal(
@@ -56,6 +101,13 @@ pub(crate) fn reconcile(
             "refuse_stale_evidence",
             "Oversight refused to propose change because at least one required input section is stale.",
             stale_reasons,
+            snapshot.benchmark_results.escalation_hint.problem_class.as_str(),
+            "blocked_by_guardrail",
+            Vec::new(),
+            None,
+            "not_evaluated",
+            "not_required",
+            judge,
         );
     }
 
@@ -67,10 +119,16 @@ pub(crate) fn reconcile(
             "refuse_contradictory_evidence",
             "Oversight refused to propose change because the bounded evidence surfaces disagree about the current subject.",
             contradictions,
+            snapshot.benchmark_results.escalation_hint.problem_class.as_str(),
+            "blocked_by_guardrail",
+            Vec::new(),
+            None,
+            "not_evaluated",
+            "not_required",
+            judge,
         );
     }
 
-    let benchmark = &snapshot.benchmark_results;
     if benchmark.overall_status == "inside_budget" {
         return result_without_proposal(
             snapshot,
@@ -78,6 +136,13 @@ pub(crate) fn reconcile(
             "within_budget",
             "Current benchmark summary is inside budget; no config recommendation is justified.",
             Vec::new(),
+            benchmark.escalation_hint.problem_class.as_str(),
+            "not_required",
+            Vec::new(),
+            None,
+            "not_applicable",
+            "not_required",
+            judge,
         );
     }
     if benchmark.escalation_hint.decision == "observe_longer"
@@ -89,6 +154,29 @@ pub(crate) fn reconcile(
             "observe_longer",
             "Current evidence does not yet justify a bounded config recommendation; continue observing the next window.",
             benchmark.escalation_hint.blockers.clone(),
+            benchmark.escalation_hint.problem_class.as_str(),
+            "observe_longer",
+            Vec::new(),
+            None,
+            "not_evaluated",
+            "not_required",
+            judge,
+        );
+    }
+    if benchmark.escalation_hint.decision == "code_evolution_candidate" {
+        return result_without_proposal(
+            snapshot,
+            trigger_source,
+            "code_evolution_referral",
+            "Current outside-budget evidence points to a code-evolution gap rather than a bounded config repair.",
+            benchmark.escalation_hint.blockers.clone(),
+            benchmark.escalation_hint.problem_class.as_str(),
+            "code_evolution_referral",
+            Vec::new(),
+            None,
+            "not_applicable",
+            "required",
+            judge,
         );
     }
     if benchmark.escalation_hint.decision != "config_tuning_candidate" {
@@ -102,19 +190,26 @@ pub(crate) fn reconcile(
             "no_change",
             "Current outside-budget evidence does not map cleanly to a bounded config recommendation.",
             reasons,
+            benchmark.escalation_hint.problem_class.as_str(),
+            "not_selected",
+            Vec::new(),
+            None,
+            "not_evaluated",
+            "not_required",
+            judge,
         );
     }
 
     let problem_class = primary_problem_class(snapshot)
         .unwrap_or(OversightProblemClass::SuspiciousOriginReachOverspend);
-    let proposal = match propose_patch(
+    let ranked_candidates = match rank_patch_candidates(
         cfg,
         &snapshot.allowed_actions,
         benchmark.escalation_hint.candidate_action_families.as_slice(),
         problem_class,
         &snapshot.replay_promotion,
     ) {
-        Ok(proposal) => proposal,
+        Ok(candidates) => candidates,
         Err(OversightPatchPolicyError::NoCandidateFamily) => {
             return result_without_proposal(
                 snapshot,
@@ -122,6 +217,13 @@ pub(crate) fn reconcile(
                 "no_change",
                 "No bounded config family candidates are currently available for the observed benchmark pressure.",
                 vec!["no_candidate_family".to_string()],
+                problem_class.as_str(),
+                "not_selected",
+                Vec::new(),
+                None,
+                "not_evaluated",
+                "not_required",
+                judge,
             );
         }
         Err(OversightPatchPolicyError::UnsupportedCandidateFamily(family)) => {
@@ -131,15 +233,29 @@ pub(crate) fn reconcile(
                 "no_change",
                 "The benchmark hint referenced a family that is not currently proposal-safe.",
                 vec![format!("unsupported_candidate_family:{family}")],
+                problem_class.as_str(),
+                "not_selected",
+                Vec::new(),
+                None,
+                "not_evaluated",
+                "not_required",
+                judge,
             );
         }
         Err(OversightPatchPolicyError::NoBoundedPatch(families)) => {
             return result_without_proposal(
                 snapshot,
                 trigger_source,
-                "no_change",
-                "The selected candidate families did not yield a smaller bounded patch from the current config state.",
+                "code_evolution_referral",
+                "The selected candidate families did not yield a smaller bounded patch from the current config state, so this gap must escalate beyond bounded config tuning.",
                 vec![format!("no_bounded_patch:{families}")],
+                problem_class.as_str(),
+                "code_evolution_referral",
+                Vec::new(),
+                None,
+                "not_applicable",
+                "required",
+                judge,
             );
         }
         Err(OversightPatchPolicyError::InvalidPatch(reason)) => {
@@ -149,9 +265,40 @@ pub(crate) fn reconcile(
                 "refuse_contradictory_evidence",
                 "Patch shaping failed because the bounded controller action surface and the proposed patch disagreed.",
                 vec![format!("invalid_patch:{reason}")],
+                problem_class.as_str(),
+                "blocked_by_guardrail",
+                Vec::new(),
+                None,
+                "not_evaluated",
+                "not_required",
+                judge,
             );
         }
     };
+    if let Some(exhausted_family) = config_ring_exhausted_family(snapshot, ranked_candidates.as_slice())
+    {
+        return result_without_proposal(
+            snapshot,
+            trigger_source,
+            "config_ring_exhausted",
+            "Recent bounded move history shows the current config ring has already failed repeatedly at this repair surface; escalate to code review instead of repeating near-equivalent config moves.",
+            vec![format!("config_ring_exhausted:{exhausted_family}")],
+            problem_class.as_str(),
+            "config_ring_exhausted",
+            ranked_candidates.clone(),
+            None,
+            "exhausted",
+            "review_required",
+            judge,
+        );
+    }
+    let selected = ranked_candidates
+        .first()
+        .expect("ranked candidates must not be empty")
+        .clone();
+    let selected_family = selected.family.clone();
+    let proposal = selected.proposal.clone();
+    let diagnosis = diagnosis(snapshot, problem_class.as_str());
 
     OversightReconcileResult {
         schema_version: OVERSIGHT_RECONCILE_SCHEMA_VERSION.to_string(),
@@ -172,6 +319,17 @@ pub(crate) fn reconcile(
         latest_sim_run_id: latest_recent_sim_run_id(snapshot),
         replay_promotion_availability: snapshot.replay_promotion.availability.clone(),
         snapshot_generated_at: snapshot.generated_at,
+        judge,
+        diagnosis: diagnosis.clone(),
+        move_selection: move_selection(
+            snapshot,
+            "selected",
+            ranked_candidates,
+            Some(selected_family.clone()),
+            Some(selected_family),
+            "bounded_ring_available",
+            "not_required",
+        ),
         evidence_references: evidence_references(snapshot),
     }
 }
@@ -182,7 +340,15 @@ fn result_without_proposal(
     outcome: &str,
     summary: &str,
     refusal_reasons: Vec<String>,
+    problem_class: &str,
+    move_selection_status: &str,
+    ranked_candidates: Vec<OversightPatchCandidate>,
+    selected_family: Option<String>,
+    config_ring_status: &str,
+    code_evolution_status: &str,
+    judge: OversightJudgeState,
 ) -> OversightReconcileResult {
+    let diagnosis = diagnosis(snapshot, problem_class);
     OversightReconcileResult {
         schema_version: OVERSIGHT_RECONCILE_SCHEMA_VERSION.to_string(),
         generated_at: snapshot.generated_at,
@@ -214,8 +380,143 @@ fn result_without_proposal(
         latest_sim_run_id: latest_recent_sim_run_id(snapshot),
         replay_promotion_availability: snapshot.replay_promotion.availability.clone(),
         snapshot_generated_at: snapshot.generated_at,
+        judge,
+        diagnosis,
+        move_selection: move_selection(
+            snapshot,
+            move_selection_status,
+            ranked_candidates,
+            selected_family.clone(),
+            selected_family,
+            config_ring_status,
+            code_evolution_status,
+        ),
         evidence_references: evidence_references(snapshot),
     }
+}
+
+fn judge_state(snapshot: &OperatorSnapshotHotReadPayload) -> OversightJudgeState {
+    OversightJudgeState {
+        overall_status: snapshot.benchmark_results.overall_status.clone(),
+        improvement_status: snapshot.benchmark_results.improvement_status.clone(),
+        urgency_status: snapshot.benchmark_results.urgency.status.clone(),
+        evidence_quality_status: snapshot
+            .benchmark_results
+            .escalation_hint
+            .evidence_quality
+            .status
+            .clone(),
+        note: "Judge state is copied directly from benchmark results so diagnosis and move selection cannot silently rewrite scored truth."
+            .to_string(),
+    }
+}
+
+fn diagnosis(snapshot: &OperatorSnapshotHotReadPayload, problem_class: &str) -> OversightDiagnosis {
+    let breach_loci = snapshot
+        .benchmark_results
+        .escalation_hint
+        .breach_loci
+        .clone();
+    let repair_surface_candidates = snapshot
+        .benchmark_results
+        .escalation_hint
+        .candidate_action_families
+        .clone();
+    let status = if breach_loci.is_empty() {
+        "aggregate_only"
+    } else if breach_loci.len() == 1 {
+        "localized"
+    } else {
+        "distributed"
+    };
+    let distributed_failure_status = if breach_loci.is_empty() {
+        "not_localized"
+    } else if breach_loci.len() == 1 {
+        "single_locus"
+    } else {
+        "distributed_failure_evidence"
+    };
+    let repair_surface_status = match repair_surface_candidates.len() {
+        0 => "not_available",
+        1 => "single_family",
+        _ => "multiple_candidate_families",
+    };
+
+    OversightDiagnosis {
+        status: status.to_string(),
+        problem_class: problem_class.to_string(),
+        confidence: snapshot
+            .benchmark_results
+            .escalation_hint
+            .evidence_quality
+            .diagnosis_confidence
+            .clone(),
+        distributed_failure_status: distributed_failure_status.to_string(),
+        repair_surface_status: repair_surface_status.to_string(),
+        repair_surface_candidates,
+        breach_loci: breach_loci.clone(),
+        note: if breach_loci.is_empty() {
+            "Diagnosis is still aggregate and has not yet localized the breach locus.".to_string()
+        } else {
+            format!(
+                "Diagnosis localizes the shortfall at: {}.",
+                breach_loci
+                    .iter()
+                    .map(|locus| locus.locus_label.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        },
+    }
+}
+
+fn move_selection(
+    snapshot: &OperatorSnapshotHotReadPayload,
+    status: &str,
+    ranked_candidates: Vec<OversightPatchCandidate>,
+    selected_family: Option<String>,
+    bounded_repair_surface: Option<String>,
+    config_ring_status: &str,
+    code_evolution_status: &str,
+) -> OversightMoveSelection {
+    OversightMoveSelection {
+        status: status.to_string(),
+        selected_breach_locus_ids: snapshot
+            .benchmark_results
+            .escalation_hint
+            .breach_loci
+            .iter()
+            .map(|locus| locus.locus_id.clone())
+            .collect(),
+        selected_family,
+        bounded_repair_surface,
+        ranked_candidates,
+        config_ring_status: config_ring_status.to_string(),
+        code_evolution_status: code_evolution_status.to_string(),
+        note: "Move selection is kept explicit so the repo can distinguish selected bounded config moves from code referrals and exhausted rings."
+            .to_string(),
+    }
+}
+
+fn config_ring_exhausted_family(
+    snapshot: &OperatorSnapshotHotReadPayload,
+    ranked_candidates: &[OversightPatchCandidate],
+) -> Option<String> {
+    let primary = ranked_candidates.first()?;
+    let repeated_failures = snapshot
+        .episode_archive
+        .rows
+        .iter()
+        .filter(|row| row.homeostasis_eligible && row.retain_or_rollback == "rolled_back")
+        .filter(|row| {
+            row.proposal
+                .as_ref()
+                .map(|proposal| proposal.patch_family.as_str() == primary.family.as_str())
+                .unwrap_or(false)
+        })
+        .take(2)
+        .count();
+    (repeated_failures >= 2).then(|| primary.family.clone())
 }
 
 pub(crate) fn stale_evidence_reasons(snapshot: &OperatorSnapshotHotReadPayload) -> Vec<String> {
@@ -374,7 +675,10 @@ mod tests {
     };
     use crate::observability::non_human_coverage::NonHumanCoverageSummary;
     use crate::observability::operator_snapshot::{
-        OperatorBudgetDistanceRow, OperatorBudgetDistanceSummary, OperatorSnapshotHotReadPayload,
+        BenchmarkComparableSnapshot, BenchmarkHomeostasisRestartBaseline,
+        OperatorBudgetDistanceRow, OperatorBudgetDistanceSummary, OperatorSnapshotEpisodeArchive,
+        OperatorSnapshotEpisodeEvaluationContext, OperatorSnapshotEpisodeProposal,
+        OperatorSnapshotEpisodeRecord, OperatorSnapshotHotReadPayload,
         OperatorSnapshotSectionMetadata, OperatorSnapshotWindow,
     };
     use crate::observability::operator_snapshot_live_traffic::{
@@ -830,5 +1134,154 @@ mod tests {
         assert!(result
             .refusal_reasons
             .contains(&"scrapling_exploit_evidence_quality_low".to_string()));
+    }
+
+    #[test]
+    fn reconcile_surfaces_selected_move_lineage_for_localized_gap() {
+        let mut cfg = defaults().clone();
+        cfg.fingerprint_signal_enabled = false;
+        let mut snapshot = sample_snapshot();
+        snapshot.benchmark_results.escalation_hint.breach_loci = vec![BenchmarkExploitLocus {
+            locus_id: "public_path_traversal".to_string(),
+            locus_label: "Public Path Traversal".to_string(),
+            stage_id: "exposure".to_string(),
+            evidence_status: "progress_observed".to_string(),
+            sample_request_method: "GET".to_string(),
+            sample_request_path: "/sim/public/landing".to_string(),
+            sample_response_status: Some(200),
+        }];
+        snapshot.benchmark_results.escalation_hint.evidence_quality.status =
+            "high_confidence".to_string();
+        snapshot.benchmark_results.escalation_hint.evidence_quality.diagnosis_confidence =
+            "high".to_string();
+
+        let result = reconcile(&cfg, &snapshot, "manual_admin");
+
+        assert_eq!(result.outcome, "recommend_patch");
+        assert_eq!(result.diagnosis.status, "localized");
+        assert_eq!(result.diagnosis.breach_loci.len(), 1);
+        assert_eq!(result.move_selection.status, "selected");
+        assert_eq!(
+            result.move_selection.selected_family.as_deref(),
+            Some("fingerprint_signal")
+        );
+        assert_eq!(
+            result.move_selection.selected_breach_locus_ids,
+            vec!["public_path_traversal".to_string()]
+        );
+        assert_eq!(result.move_selection.config_ring_status, "bounded_ring_available");
+    }
+
+    #[test]
+    fn reconcile_promotes_code_evolution_candidate_to_first_class_referral() {
+        let cfg = defaults().clone();
+        let mut snapshot = sample_snapshot();
+        snapshot.benchmark_results.escalation_hint.decision =
+            "code_evolution_candidate".to_string();
+        snapshot.benchmark_results.escalation_hint.guidance_status =
+            "code_evolution_only".to_string();
+        snapshot.benchmark_results.escalation_hint.candidate_action_families.clear();
+
+        let result = reconcile(&cfg, &snapshot, "manual_admin");
+
+        assert_eq!(result.outcome, "code_evolution_referral");
+        assert_eq!(result.move_selection.status, "code_evolution_referral");
+        assert_eq!(result.move_selection.code_evolution_status, "required");
+        assert_eq!(result.move_selection.config_ring_status, "not_applicable");
+        assert!(result.proposal.is_none());
+    }
+
+    #[test]
+    fn reconcile_emits_config_ring_exhausted_after_repeated_failed_bounded_moves() {
+        let mut cfg = defaults().clone();
+        cfg.fingerprint_signal_enabled = false;
+        let mut snapshot = sample_snapshot();
+        snapshot.benchmark_results.escalation_hint.breach_loci = vec![BenchmarkExploitLocus {
+            locus_id: "public_path_traversal".to_string(),
+            locus_label: "Public Path Traversal".to_string(),
+            stage_id: "exposure".to_string(),
+            evidence_status: "progress_observed".to_string(),
+            sample_request_method: "GET".to_string(),
+            sample_request_path: "/sim/public/landing".to_string(),
+            sample_response_status: Some(200),
+        }];
+        snapshot.episode_archive = OperatorSnapshotEpisodeArchive {
+            schema_version: "oversight_episode_archive_v1".to_string(),
+            homeostasis: crate::observability::benchmark_comparison::classify_homeostasis(
+                &[],
+                snapshot
+                    .game_contract
+                    .evaluator_scorecard
+                    .comparison_contract
+                    .minimum_completed_cycles_for_homeostasis,
+            ),
+            rows: vec![
+                failed_episode_row("fingerprint_signal", 1_700_000_090),
+                failed_episode_row("fingerprint_signal", 1_700_000_080),
+            ],
+        };
+
+        let result = reconcile(&cfg, &snapshot, "manual_admin");
+
+        assert_eq!(result.outcome, "config_ring_exhausted");
+        assert_eq!(result.move_selection.status, "config_ring_exhausted");
+        assert_eq!(result.move_selection.config_ring_status, "exhausted");
+        assert_eq!(result.move_selection.code_evolution_status, "review_required");
+        assert!(result.proposal.is_none());
+    }
+
+    fn failed_episode_row(family: &str, completed_at_ts: u64) -> OperatorSnapshotEpisodeRecord {
+        OperatorSnapshotEpisodeRecord {
+            episode_id: format!("episode-{family}-{completed_at_ts}"),
+            proposal_id: Some(format!("proposal-{family}-{completed_at_ts}")),
+            completed_at_ts,
+            trigger_source: "periodic_supervisor".to_string(),
+            evaluation_context: OperatorSnapshotEpisodeEvaluationContext {
+                objective_revision: "revision-1".to_string(),
+                profile_id: "human_only_private".to_string(),
+                subject_kind: "current_instance".to_string(),
+                comparison_mode: "prior_window".to_string(),
+            },
+            baseline_scorecard: BenchmarkComparableSnapshot {
+                generated_at: completed_at_ts.saturating_sub(10),
+                subject_kind: "current_instance".to_string(),
+                watch_window: OperatorSnapshotWindow {
+                    start_ts: completed_at_ts.saturating_sub(86_399),
+                    end_ts: completed_at_ts,
+                    duration_seconds: 86_400,
+                },
+                coverage_status: "supported".to_string(),
+                overall_status: "outside_budget".to_string(),
+                families: Vec::new(),
+            },
+            proposal: Some(OperatorSnapshotEpisodeProposal {
+                patch_family: family.to_string(),
+                patch: serde_json::json!({"fingerprint_signal_enabled": true}),
+                expected_impact: "test".to_string(),
+                confidence: "high".to_string(),
+                controller_status: "allowed".to_string(),
+                canary_requirement: "required".to_string(),
+                matched_group_ids: vec!["fingerprint_signal.policy".to_string()],
+                note: "test".to_string(),
+            }),
+            proposal_status: "accepted".to_string(),
+            watch_window_result: "rollback_applied".to_string(),
+            retain_or_rollback: "rolled_back".to_string(),
+            benchmark_deltas: Vec::new(),
+            hard_guardrail_triggers: Vec::new(),
+            cycle_judgment: "regressed".to_string(),
+            homeostasis_eligible: true,
+            benchmark_urgency_status: "critical".to_string(),
+            homeostasis_break_status: "triggered".to_string(),
+            homeostasis_break_reasons: vec!["candidate_baseline_regressed".to_string()],
+            restart_baseline: BenchmarkHomeostasisRestartBaseline {
+                status: "available".to_string(),
+                generated_at: Some(completed_at_ts.saturating_sub(10)),
+                subject_kind: Some("current_instance".to_string()),
+                source: "pre_canary_baseline".to_string(),
+                note: "test".to_string(),
+            },
+            evidence_references: Vec::new(),
+        }
     }
 }

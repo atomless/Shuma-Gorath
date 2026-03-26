@@ -4,6 +4,33 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-26)
 
+### RSI-SCORE-2D Move Selection And Config-Ring Exhaustion
+
+- [x] Added ranked bounded move selection and explicit controller outcome separation across:
+  - [`src/admin/oversight_patch_policy.rs`](../src/admin/oversight_patch_policy.rs)
+  - [`src/admin/oversight_reconcile.rs`](../src/admin/oversight_reconcile.rs)
+  - [`src/admin/oversight_api.rs`](../src/admin/oversight_api.rs)
+  - [`src/admin/oversight_apply.rs`](../src/admin/oversight_apply.rs)
+  so reconcile results now preserve separate `judge`, `diagnosis`, and `move_selection` planes instead of collapsing directly from benchmark pressure to one opaque patch recommendation.
+- [x] Added controller-grade ranked candidate and exhaustion behavior in:
+  - [`src/admin/oversight_patch_policy.rs`](../src/admin/oversight_patch_policy.rs)
+  - [`src/admin/oversight_reconcile.rs`](../src/admin/oversight_reconcile.rs)
+  - [`Makefile`](../Makefile)
+  - [`docs/testing.md`](../docs/testing.md)
+  so Shuma now ranks smallest bounded repair candidates, emits `code_evolution_referral` when the gap is not config-fixable, emits `config_ring_exhausted` when repeated rolled-back moves have already failed at the same repair surface, and proves that contract through `make test-rsi-score-move-selection`.
+- [x] Closed the tranche in:
+  - [`docs/research/2026-03-26-rsi-score-2d-move-selection-and-config-ring-exhaustion-post-implementation-review.md`](../docs/research/2026-03-26-rsi-score-2d-move-selection-and-config-ring-exhaustion-post-implementation-review.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  so `RSI-SCORE-2E` is now the next active scoring step.
+- [x] Why:
+  - the exploit-progress, evidence-quality, and urgency slices made the loop smarter, but the controller still needed to show which localized repair it selected, why that move was smallest and credible, and when config tuning should stop retrying the same bounded ring and escalate outward.
+- [x] Evidence:
+  - `make test-rsi-score-move-selection`
+  - `make test-oversight-reconcile`
+  - `make test-controller-action-surface`
+  - `git diff --check`
+
 ### RSI-SCORE-2C Urgency And Event-Triggered Homeostasis Break
 
 - [x] Added first-class urgency and break semantics across:

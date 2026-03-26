@@ -243,6 +243,73 @@ pub(crate) fn execute_oversight_cycle_at(
                     ),
                     replay_promotion_availability: snapshot.payload.replay_promotion.availability.clone(),
                     snapshot_generated_at: snapshot.payload.generated_at,
+                    judge: crate::admin::oversight_reconcile::OversightJudgeState {
+                        overall_status: snapshot.payload.benchmark_results.overall_status.clone(),
+                        improvement_status: snapshot
+                            .payload
+                            .benchmark_results
+                            .improvement_status
+                            .clone(),
+                        urgency_status: snapshot.payload.benchmark_results.urgency.status.clone(),
+                        evidence_quality_status: snapshot
+                            .payload
+                            .benchmark_results
+                            .escalation_hint
+                            .evidence_quality
+                            .status
+                            .clone(),
+                        note: "Judge state copied from materialized benchmark results.".to_string(),
+                    },
+                    diagnosis: crate::admin::oversight_reconcile::OversightDiagnosis {
+                        status: "aggregate_only".to_string(),
+                        problem_class: snapshot
+                            .payload
+                            .benchmark_results
+                            .escalation_hint
+                            .problem_class
+                            .clone(),
+                        confidence: snapshot
+                            .payload
+                            .benchmark_results
+                            .escalation_hint
+                            .evidence_quality
+                            .diagnosis_confidence
+                            .clone(),
+                        distributed_failure_status: "not_localized".to_string(),
+                        repair_surface_status: "not_available".to_string(),
+                        repair_surface_candidates: snapshot
+                            .payload
+                            .benchmark_results
+                            .escalation_hint
+                            .candidate_action_families
+                            .clone(),
+                        breach_loci: snapshot
+                            .payload
+                            .benchmark_results
+                            .escalation_hint
+                            .breach_loci
+                            .clone(),
+                        note: "Diagnosis remained aggregate because runtime config was unavailable."
+                            .to_string(),
+                    },
+                    move_selection: crate::admin::oversight_reconcile::OversightMoveSelection {
+                        status: "blocked_by_guardrail".to_string(),
+                        selected_family: None,
+                        selected_breach_locus_ids: snapshot
+                            .payload
+                            .benchmark_results
+                            .escalation_hint
+                            .breach_loci
+                            .iter()
+                            .map(|locus| locus.locus_id.clone())
+                            .collect(),
+                        bounded_repair_surface: None,
+                        ranked_candidates: Vec::new(),
+                        config_ring_status: "not_evaluated".to_string(),
+                        code_evolution_status: "not_required".to_string(),
+                        note: "Move selection was skipped because runtime config could not be loaded."
+                            .to_string(),
+                    },
                     evidence_references: vec![
                         crate::admin::oversight_reconcile::OversightEvidenceReference {
                             kind: "operator_snapshot".to_string(),
@@ -278,6 +345,36 @@ pub(crate) fn execute_oversight_cycle_at(
                 latest_sim_run_id: None,
                 replay_promotion_availability: "not_materialized".to_string(),
                 snapshot_generated_at: 0,
+                judge: crate::admin::oversight_reconcile::OversightJudgeState {
+                    overall_status: "not_available".to_string(),
+                    improvement_status: "not_available".to_string(),
+                    urgency_status: "not_available".to_string(),
+                    evidence_quality_status: "not_available".to_string(),
+                    note: "Judge state is unavailable because the operator snapshot is not materialized."
+                        .to_string(),
+                },
+                diagnosis: crate::admin::oversight_reconcile::OversightDiagnosis {
+                    status: "aggregate_only".to_string(),
+                    problem_class: "not_available".to_string(),
+                    confidence: "not_available".to_string(),
+                    distributed_failure_status: "not_localized".to_string(),
+                    repair_surface_status: "not_available".to_string(),
+                    repair_surface_candidates: Vec::new(),
+                    breach_loci: Vec::new(),
+                    note: "Diagnosis is unavailable because the operator snapshot is not materialized."
+                        .to_string(),
+                },
+                move_selection: crate::admin::oversight_reconcile::OversightMoveSelection {
+                    status: "not_selected".to_string(),
+                    selected_family: None,
+                    selected_breach_locus_ids: Vec::new(),
+                    bounded_repair_surface: None,
+                    ranked_candidates: Vec::new(),
+                    config_ring_status: "not_evaluated".to_string(),
+                    code_evolution_status: "not_required".to_string(),
+                    note: "Move selection is unavailable because the operator snapshot is not materialized."
+                        .to_string(),
+                },
                 evidence_references: vec![crate::admin::oversight_reconcile::OversightEvidenceReference {
                     kind: "operator_snapshot".to_string(),
                     reference: "not_materialized".to_string(),

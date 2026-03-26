@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::config::{AllowedActionsSurface, Config};
+use crate::config::{
+    controller_action_family_risk_profile, AllowedActionsSurface, Config,
+};
 use crate::observability::replay_promotion::ReplayPromotionSummary;
 
 pub(crate) const OVERSIGHT_VERIFICATION_WATCH_LIVE_BUDGET_WINDOW: &str =
@@ -46,6 +48,18 @@ pub(crate) struct OversightPatchProposal {
     pub note: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub(crate) struct OversightPatchCandidate {
+    pub family: String,
+    pub priority_rank: usize,
+    pub proposal: OversightPatchProposal,
+    pub likely_human_risk: String,
+    pub tolerated_non_human_risk: String,
+    pub blast_radius: String,
+    pub patch_size: usize,
+    pub note: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum OversightPatchPolicyError {
     NoCandidateFamily,
@@ -54,6 +68,7 @@ pub(crate) enum OversightPatchPolicyError {
     InvalidPatch(String),
 }
 
+#[cfg(test)]
 pub(crate) fn propose_patch(
     cfg: &Config,
     allowed_actions: &AllowedActionsSurface,
@@ -61,6 +76,26 @@ pub(crate) fn propose_patch(
     problem_class: OversightProblemClass,
     replay_promotion: &ReplayPromotionSummary,
 ) -> Result<OversightPatchProposal, OversightPatchPolicyError> {
+    Ok(rank_patch_candidates(
+        cfg,
+        allowed_actions,
+        candidate_families,
+        problem_class,
+        replay_promotion,
+    )?
+    .into_iter()
+    .next()
+    .expect("ranked candidates must contain at least one item")
+    .proposal)
+}
+
+pub(crate) fn rank_patch_candidates(
+    cfg: &Config,
+    allowed_actions: &AllowedActionsSurface,
+    candidate_families: &[String],
+    problem_class: OversightProblemClass,
+    replay_promotion: &ReplayPromotionSummary,
+) -> Result<Vec<OversightPatchCandidate>, OversightPatchPolicyError> {
     if candidate_families.is_empty() {
         return Err(OversightPatchPolicyError::NoCandidateFamily);
     }
@@ -72,7 +107,69 @@ pub(crate) fn propose_patch(
         ));
     }
 
-    let priority = match problem_class {
+    let mut ranked = Vec::new();
+    for (index, family) in candidate_priority(problem_class).iter().enumerate() {
+        if !candidate_families.iter().any(|candidate| candidate == family) {
+            continue;
+        }
+        if !family_is_proposable(allowed_actions, family) {
+            return Err(OversightPatchPolicyError::UnsupportedCandidateFamily(
+                (*family).to_string(),
+            ));
+        }
+        if let Some(patch) = family_patch(cfg, allowed_actions, family, problem_class) {
+            let proposal = build_proposal(
+                allowed_actions,
+                family,
+                patch,
+                problem_class,
+                replay_promotion,
+            )?;
+            let (likely_human_risk, tolerated_non_human_risk, risk_note) =
+                controller_action_family_risk_profile(family)
+                    .map(|risk| {
+                        (
+                            risk.likely_human_risk,
+                            risk.tolerated_non_human_risk,
+                            risk.note,
+                        )
+                    })
+                    .unwrap_or_else(|| {
+                        (
+                            "unknown".to_string(),
+                            "unknown".to_string(),
+                            "No canonical risk profile is currently materialized for this family."
+                                .to_string(),
+                        )
+                    });
+            ranked.push(OversightPatchCandidate {
+                family: (*family).to_string(),
+                priority_rank: index + 1,
+                blast_radius: match proposal.matched_group_ids.len() {
+                    0 | 1 => "single_group".to_string(),
+                    2 => "family_bounded".to_string(),
+                    _ => "multi_group".to_string(),
+                },
+                patch_size: proposal.patch.as_object().map(|patch| patch.len()).unwrap_or(0),
+                likely_human_risk,
+                tolerated_non_human_risk,
+                note: format!("{} {}", risk_note, proposal.note).trim().to_string(),
+                proposal,
+            });
+        }
+    }
+
+    if ranked.is_empty() {
+        Err(OversightPatchPolicyError::NoBoundedPatch(
+            candidate_families.join(","),
+        ))
+    } else {
+        Ok(ranked)
+    }
+}
+
+fn candidate_priority(problem_class: OversightProblemClass) -> &'static [&'static str] {
+    match problem_class {
         OversightProblemClass::LikelyHumanFrictionOverspend => &[
             "proof_of_work",
             "challenge",
@@ -98,31 +195,7 @@ pub(crate) fn propose_patch(
             "maze_core",
             "core_policy",
         ][..],
-    };
-
-    for family in priority {
-        if !candidate_families.iter().any(|candidate| candidate == family) {
-            continue;
-        }
-        if !family_is_proposable(allowed_actions, family) {
-            return Err(OversightPatchPolicyError::UnsupportedCandidateFamily(
-                (*family).to_string(),
-            ));
-        }
-        if let Some(patch) = family_patch(cfg, allowed_actions, family, problem_class) {
-            return build_proposal(
-                allowed_actions,
-                family,
-                patch,
-                problem_class,
-                replay_promotion,
-            );
-        }
     }
-
-    Err(OversightPatchPolicyError::NoBoundedPatch(
-        candidate_families.join(","),
-    ))
 }
 
 fn build_proposal(
@@ -512,7 +585,7 @@ fn step_numeric_path(
 #[cfg(test)]
 mod tests {
     use super::{
-        propose_patch, OversightPatchPolicyError, OversightProblemClass,
+        propose_patch, rank_patch_candidates, OversightPatchPolicyError, OversightProblemClass,
         OVERSIGHT_VERIFICATION_REVIEW_REPLAY_PROMOTION,
     };
     use crate::config::{allowed_actions_v1, defaults};
@@ -769,5 +842,29 @@ mod tests {
         .expect("proposal builds");
 
         assert_eq!(proposal.patch_family, "fingerprint_signal");
+    }
+
+    #[test]
+    fn rank_patch_candidates_prefers_smallest_low_friction_candidate_first() {
+        let mut cfg = defaults().clone();
+        cfg.fingerprint_signal_enabled = false;
+        cfg.pow_enabled = true;
+        cfg.pow_difficulty = 15;
+
+        let ranked = rank_patch_candidates(
+            &cfg,
+            &allowed_actions_v1(),
+            &["proof_of_work".to_string(), "fingerprint_signal".to_string()],
+            OversightProblemClass::SuspiciousOriginReachOverspend,
+            &ReplayPromotionSummary::not_materialized(),
+        )
+        .expect("ranked candidates build");
+
+        assert_eq!(ranked[0].family, "fingerprint_signal");
+        assert_eq!(ranked[0].priority_rank, 1);
+        assert_eq!(ranked[0].likely_human_risk, "low");
+        assert_eq!(ranked[0].blast_radius, "single_group");
+        assert!(ranked[0].patch_size >= 1);
+        assert_eq!(ranked[1].family, "proof_of_work");
     }
 }

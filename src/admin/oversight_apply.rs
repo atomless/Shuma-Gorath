@@ -601,6 +601,33 @@ mod tests {
             latest_sim_run_id: None,
             replay_promotion_availability: "available".to_string(),
             snapshot_generated_at: 1_700_000_000,
+            judge: crate::admin::oversight_reconcile::OversightJudgeState {
+                overall_status: "outside_budget".to_string(),
+                improvement_status: "regressing".to_string(),
+                urgency_status: "elevated".to_string(),
+                evidence_quality_status: "high_confidence".to_string(),
+                note: "test".to_string(),
+            },
+            diagnosis: crate::admin::oversight_reconcile::OversightDiagnosis {
+                status: "localized".to_string(),
+                problem_class: "likely_human_friction_overspend".to_string(),
+                confidence: "high".to_string(),
+                distributed_failure_status: "single_locus".to_string(),
+                repair_surface_status: "single_family".to_string(),
+                repair_surface_candidates: vec!["challenge".to_string()],
+                breach_loci: Vec::new(),
+                note: "test".to_string(),
+            },
+            move_selection: crate::admin::oversight_reconcile::OversightMoveSelection {
+                status: "selected".to_string(),
+                selected_family: Some("challenge".to_string()),
+                selected_breach_locus_ids: Vec::new(),
+                bounded_repair_surface: Some("challenge".to_string()),
+                ranked_candidates: Vec::new(),
+                config_ring_status: "bounded_ring_available".to_string(),
+                code_evolution_status: "not_required".to_string(),
+                note: "test".to_string(),
+            },
             evidence_references: Vec::new(),
         }
     }
