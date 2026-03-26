@@ -359,8 +359,9 @@ mod tests {
     use super::{latest_recent_sim_run_id, reconcile, OversightReconcileResult};
     use crate::config::{allowed_actions_v1, defaults};
     use crate::observability::benchmark_results::{
-        BenchmarkBaselineReference, BenchmarkEscalationHint, BenchmarkFamilyResult,
-        BenchmarkMetricResult, BenchmarkResultsPayload, BenchmarkTuningEligibility,
+        unavailable_benchmark_diagnosis_evidence_quality, BenchmarkBaselineReference,
+        BenchmarkEscalationHint, BenchmarkExploitLocus, BenchmarkFamilyResult, BenchmarkMetricResult,
+        BenchmarkResultsPayload, BenchmarkTuningEligibility,
         BENCHMARK_RESULTS_SCHEMA_VERSION,
     };
     use crate::observability::benchmark_suite::BENCHMARK_SUITE_SCHEMA_VERSION;
@@ -473,6 +474,8 @@ mod tests {
                 candidate_action_families: vec!["fingerprint_signal".to_string()],
                 family_guidance: vec![],
                 blockers: Vec::new(),
+                evidence_quality: unavailable_benchmark_diagnosis_evidence_quality(),
+                breach_loci: Vec::new(),
                 note: "Config tuning candidate.".to_string(),
             },
             replay_promotion: ReplayPromotionSummary::not_materialized(),
@@ -775,5 +778,55 @@ mod tests {
         assert!(result
             .refusal_reasons
             .contains(&"scrapling_surface_blocking:maze_navigation".to_string()));
+    }
+
+    #[test]
+    fn observe_longer_when_exploit_progress_evidence_is_low_confidence() {
+        let cfg = defaults().clone();
+        let mut snapshot = sample_snapshot();
+        snapshot.benchmark_results.overall_status = "outside_budget".to_string();
+        snapshot.benchmark_results.escalation_hint.decision = "observe_longer".to_string();
+        snapshot.benchmark_results.escalation_hint.problem_class =
+            "scrapling_exploit_progress_gap".to_string();
+        snapshot.benchmark_results.tuning_eligibility.status = "blocked".to_string();
+        snapshot.benchmark_results.tuning_eligibility.blockers =
+            vec!["scrapling_exploit_evidence_quality_low".to_string()];
+        snapshot.benchmark_results.escalation_hint.blockers =
+            snapshot.benchmark_results.tuning_eligibility.blockers.clone();
+        snapshot.benchmark_results.escalation_hint.evidence_quality =
+            crate::observability::benchmark_results::BenchmarkDiagnosisEvidenceQuality {
+                status: "low_confidence".to_string(),
+                diagnosis_confidence: "low".to_string(),
+                attribution_status: "category_native".to_string(),
+                sample_status: "sufficient".to_string(),
+                freshness_status: "fresh_recent_run".to_string(),
+                persona_diversity_status: "single_persona".to_string(),
+                reproducibility_status: "single_run_only".to_string(),
+                locality_status: "localized".to_string(),
+                breach_loci: vec![BenchmarkExploitLocus {
+                    locus_id: "public_path_traversal".to_string(),
+                    locus_label: "Public Path Traversal".to_string(),
+                    stage_id: "exposure".to_string(),
+                    evidence_status: "progress_observed".to_string(),
+                    sample_request_method: "GET".to_string(),
+                    sample_request_path: "/sim/public/landing".to_string(),
+                    sample_response_status: Some(200),
+                }],
+                note: "Single-persona exploit evidence is not yet strong enough for bounded tuning."
+                    .to_string(),
+            };
+        snapshot.benchmark_results.escalation_hint.breach_loci = snapshot
+            .benchmark_results
+            .escalation_hint
+            .evidence_quality
+            .breach_loci
+            .clone();
+
+        let result = reconcile(&cfg, &snapshot, "manual_admin");
+
+        assert_eq!(reconcile_outcome(&result), "observe_longer");
+        assert!(result
+            .refusal_reasons
+            .contains(&"scrapling_exploit_evidence_quality_low".to_string()));
     }
 }

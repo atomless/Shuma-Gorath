@@ -2,6 +2,7 @@ pub(crate) mod benchmark_adversary_effectiveness;
 pub(crate) mod benchmark_comparison;
 pub(crate) mod benchmark_beneficial_non_human;
 pub(crate) mod benchmark_non_human_categories;
+pub(crate) mod benchmark_scrapling_evidence_quality;
 pub(crate) mod benchmark_scrapling_exploit_progress;
 pub(crate) mod benchmark_scrapling_surface_contract;
 pub(crate) mod benchmark_history;

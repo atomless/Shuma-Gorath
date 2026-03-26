@@ -498,8 +498,8 @@ mod tests {
         comparable_snapshot_from_results, BenchmarkComparableSnapshot,
     };
     use crate::observability::benchmark_results::{
-        BenchmarkExploitLocus, BenchmarkFamilyResult, BenchmarkMetricResult,
-        BenchmarkResultsPayload,
+        unavailable_benchmark_diagnosis_evidence_quality, BenchmarkExploitLocus,
+        BenchmarkFamilyResult, BenchmarkMetricResult, BenchmarkResultsPayload,
     };
     use crate::observability::operator_snapshot::OperatorSnapshotWindow;
 
@@ -703,6 +703,8 @@ mod tests {
                 candidate_action_families: Vec::new(),
                 family_guidance: Vec::new(),
                 blockers: Vec::new(),
+                evidence_quality: unavailable_benchmark_diagnosis_evidence_quality(),
+                breach_loci: Vec::new(),
                 note: "test".to_string(),
             },
             replay_promotion:

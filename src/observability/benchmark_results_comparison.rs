@@ -4,7 +4,7 @@ use crate::config::{controller_action_family_risk_profile, AllowedActionsSurface
 
 use super::benchmark_results::{
     BenchmarkBaselineReference, BenchmarkEscalationFamilyGuidance, BenchmarkEscalationHint,
-    BenchmarkFamilyResult,
+    BenchmarkFamilyResult, unavailable_benchmark_diagnosis_evidence_quality,
 };
 
 #[cfg(test)]
@@ -115,6 +115,8 @@ pub(super) fn derive_escalation_hint(
             candidate_action_families: Vec::new(),
             family_guidance: Vec::new(),
             blockers,
+            evidence_quality: unavailable_benchmark_diagnosis_evidence_quality(),
+            breach_loci: Vec::new(),
             note:
                 "Current benchmark evidence does not yet justify config or code escalation; keep observing additional windows."
                     .to_string(),
@@ -154,6 +156,8 @@ pub(super) fn derive_escalation_hint(
             candidate_action_families,
             family_guidance,
             blockers: Vec::new(),
+            evidence_quality: unavailable_benchmark_diagnosis_evidence_quality(),
+            breach_loci: Vec::new(),
             note: classification.note.to_string(),
         };
     }
@@ -171,6 +175,8 @@ pub(super) fn derive_escalation_hint(
         candidate_action_families,
         family_guidance,
         blockers: blockers.into_iter().collect(),
+        evidence_quality: unavailable_benchmark_diagnosis_evidence_quality(),
+        breach_loci: Vec::new(),
         note: if classification.decision == "config_tuning_candidate" {
             "Observed benchmark misses do not map cleanly to a still-legal bounded config move from the current surface, so code or capability evolution remains the next review path."
                 .to_string()

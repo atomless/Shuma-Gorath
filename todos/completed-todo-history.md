@@ -4,6 +4,32 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-26)
 
+### RSI-SCORE-2B Evidence-Quality And Diagnosis-Confidence Gates
+
+- [x] Added first-class exploit-evidence quality assessment across:
+  - [`src/observability/benchmark_scrapling_evidence_quality.rs`](../src/observability/benchmark_scrapling_evidence_quality.rs)
+  - [`src/observability/benchmark_results.rs`](../src/observability/benchmark_results.rs)
+  - [`src/observability/benchmark_results_comparison.rs`](../src/observability/benchmark_results_comparison.rs)
+  - [`src/observability/benchmark_comparison.rs`](../src/observability/benchmark_comparison.rs)
+  so the benchmark and escalation surfaces now expose diagnosis-confidence, attribution, sample sufficiency, freshness, persona diversity, reproducibility, locality, and named breach loci rather than treating exploit progress as automatically tuning-ready.
+- [x] Threaded the fail-closed controller behavior through:
+  - [`src/admin/oversight_reconcile.rs`](../src/admin/oversight_reconcile.rs)
+  - [`Makefile`](../Makefile)
+  - [`docs/testing.md`](../docs/testing.md)
+  so low-confidence exploit evidence now blocks bounded config tuning, the reconcile path preserves `observe_longer`, and `make test-rsi-score-evidence-quality` becomes the canonical proof surface for this slice.
+- [x] Closed the tranche in:
+  - [`docs/research/2026-03-26-rsi-score-2b-evidence-quality-and-diagnosis-confidence-post-implementation-review.md`](../docs/research/2026-03-26-rsi-score-2b-evidence-quality-and-diagnosis-confidence-post-implementation-review.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  so `RSI-SCORE-2C` is now the next active scoring step.
+- [x] Why:
+  - the exploit-progress tranche made attacker advance visible, but the loop still needed an explicit way to distinguish controller-grade localized proof from weak single-run evidence before it could make fine-grained config recommendations safely.
+- [x] Evidence:
+  - `make test-rsi-score-evidence-quality`
+  - `make test-benchmark-results-contract`
+  - `make test-oversight-reconcile`
+  - `git diff --check`
+
 ### RSI-SCORE-2A Exploit-Progress Scoring
 
 - [x] Added a first-class exploit-progress benchmark family across:
