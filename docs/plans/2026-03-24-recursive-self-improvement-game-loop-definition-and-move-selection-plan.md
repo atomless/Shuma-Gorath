@@ -8,6 +8,7 @@ Related context:
 - [`../research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md`](../research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md)
 - [`../research/2026-03-24-scorecard-protocol-and-held-out-eval-separation-review.md`](../research/2026-03-24-scorecard-protocol-and-held-out-eval-separation-review.md)
 - [`../research/2026-03-24-game-loop-audit-trail-and-github-provenance-review.md`](../research/2026-03-24-game-loop-audit-trail-and-github-provenance-review.md)
+- [`../research/2026-03-26-game-loop-terrain-locality-and-breach-diagnosis-review.md`](../research/2026-03-26-game-loop-terrain-locality-and-breach-diagnosis-review.md)
 - [`2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md)
 - [`2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md)
 - [`2026-03-24-scorecard-protocol-and-held-out-eval-separation-plan.md`](2026-03-24-scorecard-protocol-and-held-out-eval-separation-plan.md)
@@ -49,6 +50,8 @@ Put more simply, the later contract should make it explicit that Shuma's recursi
 8. Later execution-ready player planning should consume separate contracts for judge score semantics, player protocol schemas, and held-out evaluation separation rather than letting those details remain implicit inside the broader game contract.
 9. Episode memory alone is not enough; later recursive-improvement phases also need a canonical audit and provenance contract that links judge outcomes to config and later GitHub-backed code lineage.
 10. Judge-side game-contract work can proceed before fuller attacker-side runtime maturity, but broader player-side game-loop execution must remain blocked until Scrapling-owned defense surfaces are attacker-faithful and receipt-backed.
+11. The host site should be treated as the game terrain: shortfall attribution and move selection are incomplete unless they preserve where on the terrain the adversary advanced, which defense layer failed there, and what bounded repair surface can act locally.
+12. Broad board-wide retuning is not the default move policy; the controller should prefer the smallest credible local repair and only widen the move when the evidence shows a distributed weakness.
 
 ## Task 0: Focused Verification Prep
 
@@ -124,7 +127,8 @@ Put more simply, the later contract should make it explicit that Shuma's recursi
    2. which action families are eligible for each problem class,
    3. which direction of change is expected,
    4. what human-friction or tolerated-traffic risk each family carries,
-   5. and when evidence is too weak to justify any move.
+   5. when evidence is too weak to justify any move,
+   6. and which terrain-local breach loci each bounded family can plausibly repair.
 3. Classify shortfall-to-change tractability explicitly:
    1. exact bounded config moves,
    2. family-level bounded policy choice,
@@ -136,12 +140,15 @@ Put more simply, the later contract should make it explicit that Shuma's recursi
    2. bounded heuristic guidance,
    3. insufficient evidence,
    4. and code-evolution-only gaps.
+7. Make the move-selection contract preserve the named breach locus and why the chosen move is the smallest credible local repair.
+8. Treat broad multi-family moves as an exception that requires explicit distributed-failure evidence rather than defaulting to scattershot change.
 
 **Acceptance criteria:**
 
 1. benchmark shortfalls no longer imply a move only through broad static family priorities,
 2. the move-selection policy is explicit and reviewable,
-3. and the loop can explain why a given shortfall justifies a given bounded move family.
+3. the loop can explain which terrain-local shortfall justifies a given bounded move family,
+4. and the loop can explain why the chosen move is the smallest credible repair instead of a broader scattershot adjustment.
 
 **Verification:**
 

@@ -4,6 +4,23 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-26)
 
+### RSI-SCORE-2 Terrain-Locality And Precise-Move Planning Refinement
+
+- [x] Added the terrain-local scoring and diagnosis driver in:
+  - [`docs/research/2026-03-26-game-loop-terrain-locality-and-breach-diagnosis-review.md`](../docs/research/2026-03-26-game-loop-terrain-locality-and-breach-diagnosis-review.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  so the repo now states explicitly that the host site is the game terrain, breach evidence must be localized to concrete loci, and controller moves must default to the smallest effective repair rather than scattershot board-wide retuning.
+- [x] Threaded that locality requirement through the active planning chain in:
+  - [`docs/plans/2026-03-26-rsi-score-2-exploit-first-judge-and-diagnoser-plan.md`](../docs/plans/2026-03-26-rsi-score-2-exploit-first-judge-and-diagnoser-plan.md)
+  - [`docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](../docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md)
+  - [`docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](../docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  so `RSI-SCORE-2` and the older game-contract plan now require terrain-local breach loci, diagnosis locality, and smallest-effective repair selection as explicit pass or fail conditions.
+- [x] Why:
+  - the user clarified that the Game Loop must behave like defense on a board, where precise weakness localization and efficient local repair matter more than broad budget pressure or scattershot config change, and the prior plan wording did not make that constraint strong enough.
+- [x] Evidence:
+  - `git diff --check`
+
 ### RSI-SCORE-2 Planning And Backlog Integration
 
 - [x] Converted the exploratory scoring review into execution-ready planning across:

@@ -8,6 +8,7 @@ Related context:
 - [`../research/2026-03-26-sim-scr-full-spectrum-adversary-mandate-review.md`](../research/2026-03-26-sim-scr-full-spectrum-adversary-mandate-review.md)
 - [`../research/2026-03-26-game-loop-scoring-and-diagnoser-audit.md`](../research/2026-03-26-game-loop-scoring-and-diagnoser-audit.md)
 - [`../research/2026-03-26-ideal-rsi-game-loop-scoring-review.md`](../research/2026-03-26-ideal-rsi-game-loop-scoring-review.md)
+- [`../research/2026-03-26-game-loop-terrain-locality-and-breach-diagnosis-review.md`](../research/2026-03-26-game-loop-terrain-locality-and-breach-diagnosis-review.md)
 - [`2026-03-25-sim-scr-cap-1-capability-matrix-plan.md`](2026-03-25-sim-scr-cap-1-capability-matrix-plan.md)
 - [`2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md`](2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md)
 - [`2026-03-24-rsi-game-mainline-first-working-loop-plan.md`](2026-03-24-rsi-game-mainline-first-working-loop-plan.md)
@@ -36,6 +37,7 @@ Define the post-`STANCE-MODEL-1` execution order so Shuma does not relax stance 
 9. Local loopback-hosted `/sim/public/*` pages are the first execution surface for strict-loop iteration when no real hosted site sits behind Shuma.
 10. Human traversal against the discovered strict config is a later separate calibration ring, first local and then live, not something to infer from adversary-sim traffic.
 11. Before strict-loop proof resumes, the judge and diagnoser must be upgraded so aggregate suspicious-origin suppression is no longer allowed to stand in for exploit defeat, low-confidence evidence cannot drive fine-grained config moves, and sudden new bypasses can break homeostasis immediately.
+12. That scoring upgrade must treat the host site as terrain, preserve terrain-local breach loci, and prefer the smallest effective local repair rather than scattershot board-wide retuning.
 
 # Execution Shape
 
@@ -85,11 +87,11 @@ This tranche should begin only after `SIM-SCR-FULL-1C1` and `SIM-SCR-FULL-1C2` h
 
 ### `RSI-SCORE-2A`
 
-Add exploit-progress scoring so the judge can tell the difference between aggregate suppression and real attacker defeat.
+Add terrain-local exploit-progress scoring so the judge can tell the difference between aggregate suppression and real attacker defeat, and can name where the adversary advanced.
 
 ### `RSI-SCORE-2B`
 
-Add evidence-quality and diagnosis-confidence gates so low-confidence exploit evidence cannot drive fine-grained config tuning.
+Add evidence-quality and diagnosis-confidence gates so low-confidence or poorly localized exploit evidence cannot drive fine-grained config tuning.
 
 ### `RSI-SCORE-2C`
 
@@ -97,11 +99,11 @@ Add urgency scoring and event-triggered homeostasis break so new bypasses interr
 
 ### `RSI-SCORE-2D`
 
-Separate judge, diagnoser, and move selector more sharply and add an explicit config-ring exhaustion verdict for code-evolution referral.
+Separate judge, diagnoser, and move selector more sharply, require smallest-effective localized repair selection, and add an explicit config-ring exhaustion verdict for code-evolution referral.
 
 ### `RSI-SCORE-2E`
 
-Project the richer judge truth in `Game Loop` so operators can distinguish guardrail pressure, exploit progress, evidence quality, urgency, and config-exhaustion or code-referral outcomes.
+Project the richer judge truth in `Game Loop` so operators can distinguish guardrail pressure, exploit progress, evidence quality, urgency, named breach loci, and config-exhaustion or code-referral outcomes.
 
 ## `RSI-GAME-HO-1`: Strict `human_only_private` operational proof over repeated cycles
 
@@ -131,6 +133,7 @@ Required contract:
 5. watch windows judge retain or rollback truthfully,
 6. and this repeats enough times to show non-noisy improvement toward the strict target rather than a single lucky cycle.
 7. for this sim-only proof ring, the suspicious forwarded request, byte, and latency targets are zero or equivalent fail-closed suppression targets because the input traffic is known non-human adversary traffic.
+8. the retained recommendations are terrain-localized and causally justified rather than broad multi-family config sweeps without a named breach locus.
 
 ### `RSI-GAME-HO-1C`
 

@@ -176,20 +176,21 @@ Current stance:
   - Reference context:
     - [`docs/research/2026-03-26-game-loop-scoring-and-diagnoser-audit.md`](../docs/research/2026-03-26-game-loop-scoring-and-diagnoser-audit.md)
     - [`docs/research/2026-03-26-ideal-rsi-game-loop-scoring-review.md`](../docs/research/2026-03-26-ideal-rsi-game-loop-scoring-review.md)
+    - [`docs/research/2026-03-26-game-loop-terrain-locality-and-breach-diagnosis-review.md`](../docs/research/2026-03-26-game-loop-terrain-locality-and-breach-diagnosis-review.md)
     - [`docs/plans/2026-03-26-rsi-score-2-exploit-first-judge-and-diagnoser-plan.md`](../docs/plans/2026-03-26-rsi-score-2-exploit-first-judge-and-diagnoser-plan.md)
     - [`docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](../docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)
   - Closure gate:
-    - runtime/benchmark: the scorecard remains lexicographic with `scalarization=forbidden`, and `benchmark_results_v1` gains first-class exploit-progress, evidence-quality, and urgency semantics rather than relying on aggregate suspicious-origin suppression plus coarse adversary proxies alone
-    - reconcile/controller: controller-grade logic distinguishes judge state from diagnosis and move ranking, low-confidence exploit evidence cannot drive fine-grained config moves, and repeated safe config failures can emit an explicit config-exhaustion or code-evolution referral
-    - dashboard/admin: `Game Loop` separates guardrails, exploit progress, evidence quality, urgency, and config-exhaustion or code-referral truth instead of making them read like one attacker-success score
+    - runtime/benchmark: the scorecard remains lexicographic with `scalarization=forbidden`, and `benchmark_results_v1` gains first-class terrain-local exploit-progress, evidence-quality, and urgency semantics rather than relying on aggregate suspicious-origin suppression plus coarse adversary proxies alone
+    - reconcile/controller: controller-grade logic distinguishes judge state from diagnosis and move ranking, low-confidence or poorly localized exploit evidence cannot drive fine-grained config moves, repeated safe config failures can emit an explicit config-exhaustion or code-evolution referral, and chosen moves are tied to named breach loci plus the smallest credible repair surface
+    - dashboard/admin: `Game Loop` separates guardrails, exploit progress, evidence quality, urgency, named breach loci, and config-exhaustion or code-referral truth instead of making them read like one attacker-success score
     - proof: focused `make` paths must pass for exploit-progress scoring, evidence-quality gating, urgency and homeostasis-break semantics, reconcile behavior, and rendered Game Loop accountability
-    - insufficient: aggregate suspicious-origin leakage rows only, low-confidence evidence still driving config recommendations, homeostasis that ignores sudden bypass regressions, or no explicit route from bounded config failure to code-gap escalation
-  - [ ] RSI-SCORE-2A Add exploit-progress scoring over per-surface contract satisfaction, exploit depth, success reliability, attacker cost where available, and novelty versus the accepted baseline.
+    - insufficient: aggregate suspicious-origin leakage rows only, no machine-visible breach loci, low-confidence evidence still driving config recommendations, scattershot multi-family moves without localized causal basis, homeostasis that ignores sudden bypass regressions, or no explicit route from bounded config failure to code-gap escalation
+  - [ ] RSI-SCORE-2A Add exploit-progress scoring over per-surface contract satisfaction, terrain-local exploit depth, success reliability, attacker cost where available, novelty versus the accepted baseline, and machine-visible breach loci.
     - Proof required:
       - `make test-rsi-score-exploit-progress`
       - `make test-benchmark-results-contract`
       - `make test-adversary-sim-scrapling-coverage-receipts`
-  - [ ] RSI-SCORE-2B Add evidence-quality and diagnosis-confidence gates so category-native versus projected evidence, sample sufficiency, freshness, persona diversity, and reproducibility determine whether fine-grained config tuning is allowed.
+  - [ ] RSI-SCORE-2B Add evidence-quality and diagnosis-confidence gates so category-native versus projected evidence, sample sufficiency, freshness, persona diversity, reproducibility, and breach-locus locality determine whether fine-grained config tuning is allowed.
     - Proof required:
       - `make test-rsi-score-evidence-quality`
       - `make test-benchmark-results-contract`
@@ -199,12 +200,12 @@ Current stance:
       - `make test-rsi-score-urgency-and-homeostasis`
       - `make test-rsi-game-mainline`
       - `make test-oversight-episode-archive`
-  - [ ] RSI-SCORE-2D Separate judge, diagnoser, and move selector more sharply and add explicit config-ring exhaustion or code-evolution referral when bounded safe config moves cannot close the exploit gap.
+  - [ ] RSI-SCORE-2D Separate judge, diagnoser, and move selector more sharply, require smallest-effective localized repair selection, and add explicit config-ring exhaustion or code-evolution referral when bounded safe config moves cannot close the exploit gap.
     - Proof required:
       - `make test-rsi-score-move-selection`
       - `make test-oversight-reconcile`
       - `make test-controller-action-surface`
-  - [ ] RSI-SCORE-2E Project the richer judge truth in `Game Loop` so operators can distinguish guardrails, exploit progress, evidence quality, urgency, and config-exhaustion or code-referral states at a glance.
+  - [ ] RSI-SCORE-2E Project the richer judge truth in `Game Loop` so operators can distinguish guardrails, exploit progress, evidence quality, urgency, named breach loci, and config-exhaustion or code-referral states at a glance.
     - Proof required:
       - `make test-dashboard-game-loop-accountability`
 
