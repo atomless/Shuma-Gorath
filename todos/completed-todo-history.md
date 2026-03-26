@@ -4,6 +4,36 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-26)
 
+### Acceptance-Gate Discipline And Completion-Claim Cleanup
+
+- [x] Wrote the process-failure review in:
+  - [`docs/research/2026-03-26-acceptance-gate-and-completion-claim-discipline-review.md`](../docs/research/2026-03-26-acceptance-gate-and-completion-claim-discipline-review.md)
+  so the repo now explicitly records the real failure mode:
+  - the backlog still kept `STANCE-MODEL-1`, `SIM-SCR-FULL-1`, and `RSI-GAME-HO-1` open,
+  - but planning completions, baseline capability, and partial proof were being described too closely to feature closure.
+- [x] Wrote the execution-ready corrective plan in:
+  - [`docs/plans/2026-03-26-acceptance-gate-and-completion-claim-discipline-plan.md`](../docs/plans/2026-03-26-acceptance-gate-and-completion-claim-discipline-plan.md)
+  with the new immediate process order:
+  - `VERIFY-GATE-1`
+  - `STANCE-MODEL-1`
+  - `SIM-SCR-FULL-1`
+  - `RSI-GAME-HO-1`
+- [x] Added the active acceptance-discipline tranche in:
+  - [`todos/todo.md`](../todos/todo.md)
+  so future closure of the stance-model, full-power Scrapling, and strict-loop tranches now depends on explicit runtime, API, dashboard, and `make` proof gates instead of conversational progress summaries.
+- [x] Synced that sequencing correction into:
+  - [`docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](../docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md)
+  - [`docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
+  - [`docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](../docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`docs/plans/README.md`](../docs/plans/README.md)
+- [x] Corrected the older completion wording below so planning completions no longer read as though `RSI-GAME-HO-1` or `SIM-SCR-FULL-1` were already delivered feature tranches.
+- [x] Why:
+  - the user correctly identified a dangerous gap between progress claims and product reality,
+  - and continuing mainline work without explicit acceptance gates would make that gap repeat.
+- [x] Evidence:
+  - `git diff --check`
+
 ### Dashboard Trailing-Slash Operator Login Recovery
 
 - [x] Restored dashboard root entry behavior so both `/dashboard` and `/dashboard/` now redirect to [`/dashboard/index.html`](../src/runtime/request_router.rs) in the early router, instead of allowing `/dashboard/` to fall through into the bot-defence runtime.
@@ -33,7 +63,7 @@ Moved from active TODO files on 2026-02-14.
 - [x] Wrote the sequencing review in:
   - [`docs/research/2026-03-25-delay-humans-plus-verified-until-combined-attacker-proof-review.md`](../docs/research/2026-03-25-delay-humans-plus-verified-until-combined-attacker-proof-review.md)
   so the repo now records the stricter reasoning:
-  - `RSI-GAME-HO-1` proves the strict loop works with full-power Scrapling,
+  - `RSI-GAME-HO-1` is the tranche that should prove the strict loop works with full-power Scrapling once it is actually implemented,
   - but it does not by itself justify loosening away from `human_only_private`,
   - and the later LLM attacker should be in the loop before any relaxed verified-identity sweep opens.
 - [x] Wrote the execution-ready follow-on plan in:
@@ -56,7 +86,7 @@ Moved from active TODO files on 2026-02-14.
   - [`todos/todo.md`](../todos/todo.md)
   - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
 - [x] Why:
-  - the user clarified that loosening the stance does little to verify the Game Loop beyond what `RSI-GAME-HO-1` already proves,
+  - the user clarified that loosening the stance does little to verify the Game Loop beyond what `RSI-GAME-HO-1` is intended to prove once it is actually delivered,
   - and that the real next standard is repeated positive config-tweak impact under the strict stance with both Scrapling and LLM runs included.
 - [x] Evidence:
   - `git diff --check`

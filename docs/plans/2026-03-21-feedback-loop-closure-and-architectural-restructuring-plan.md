@@ -378,14 +378,15 @@ It should also show bounded progress over recent completed loops against benchma
 
 The Monitoring follow-on sequence is now explicitly three-way: after `MON-OVERHAUL-1B` makes loop accountability real, `TRAFFIC-TAB-1` should move the current traffic-facing Diagnostics surface into a dedicated `Traffic` tab, `DIAG-CLEANUP-1` should then narrow Diagnostics to furniture-operational proof, and only then should `MON-OVERHAUL-1C` land against the cleaned ownership boundary. That later Game Loop slice should keep the existing overall top line, make the true numeric objective budgets readable as target-vs-current budget usage, and express taxonomy categories as target-achievement rows rather than inventing fake per-category budgets.
 
-That operator-surface follow-on is no longer the immediate mainline. The stricter post-2026-03-25 order is now:
+That operator-surface follow-on is no longer the immediate mainline. The stricter post-2026-03-26 order is now:
 
-1. `STANCE-MODEL-1`,
-2. `SIM-SCR-FULL-1` so Scrapling reaches the full attacker-relevant capability Shuma assigns to the non-agent or non-LLM lane,
-3. `RSI-GAME-HO-1` so the strict `human_only_private` loop is rerun many times until retained config changes and measured improvement are proven under full-power Scrapling pressure,
-4. then `SIM-LLM-1C3` so the later LLM attacker is a real loop participant,
-5. then `RSI-GAME-HO-2` so the strict stance is re-proved under combined Scrapling plus LLM attacker pressure,
-6. only then `RSI-GAME-HV-1` as the later `humans_plus_verified_only` comparison sweep.
+1. `VERIFY-GATE-1` so the active mainline tranches have explicit acceptance gates and no further completion claims drift ahead of executable proof,
+2. `STANCE-MODEL-1`,
+3. `SIM-SCR-FULL-1` so Scrapling reaches the full attacker-relevant capability Shuma assigns to the non-agent or non-LLM lane,
+4. `RSI-GAME-HO-1` so the strict `human_only_private` loop is rerun many times until retained config changes and measured improvement are proven under full-power Scrapling pressure,
+5. then `SIM-LLM-1C3` so the later LLM attacker is a real loop participant,
+6. then `RSI-GAME-HO-2` so the strict stance is re-proved under combined Scrapling plus LLM attacker pressure,
+7. only then `RSI-GAME-HV-1` as the later `humans_plus_verified_only` comparison sweep.
 
 `RSI-GAME-MAINLINE-1A` and `RSI-GAME-MAINLINE-1B` remain valuable because they prove the first working loop exists, but they are now treated as baseline capability rather than as sufficient evidence to relax stance or reopen later LLM runtime work.
 

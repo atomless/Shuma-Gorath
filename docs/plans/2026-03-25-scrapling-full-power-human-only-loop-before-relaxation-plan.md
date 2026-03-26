@@ -25,6 +25,7 @@ Define the post-`STANCE-MODEL-1` execution order so Shuma does not relax stance 
 4. `humans_plus_verified_only` is a later gated second stance, not the next automatic move.
 5. The remaining LLM attacker runtime should reopen after the first strict Scrapling-only proof, but before any relaxed verified-identity sweep.
 6. The relaxed sweep should wait for a second strict-baseline proof that includes both Scrapling and LLM attacker pressure.
+7. Before any of those tranches are described as complete, `VERIFY-GATE-1` must freeze the exact runtime, API, dashboard, and `make` proof required for closure.
 
 # Execution Shape
 
@@ -139,12 +140,13 @@ When it opens, it should:
 
 # Backlog Integration
 
-1. Keep `STANCE-MODEL-1` as the immediate next design and implementation prerequisite.
-2. After `STANCE-MODEL-1`, make `SIM-SCR-FULL-1` the next mainline instead of any LLM runtime slice.
-3. After `SIM-SCR-FULL-1`, make `RSI-GAME-HO-1` the next mainline.
-4. After `RSI-GAME-HO-1`, reopen `SIM-LLM-1C3`.
-5. After `SIM-LLM-1C3`, add `RSI-GAME-HO-2` as the mixed Scrapling-plus-LLM strict-baseline proof.
-6. Block `RSI-GAME-HV-1` until `RSI-GAME-HO-2` proves real repeated improvement.
+1. Keep `VERIFY-GATE-1` as the immediate next process prerequisite.
+2. After `VERIFY-GATE-1`, keep `STANCE-MODEL-1` as the next design and implementation prerequisite.
+3. After `STANCE-MODEL-1`, make `SIM-SCR-FULL-1` the next mainline instead of any LLM runtime slice.
+4. After `SIM-SCR-FULL-1`, make `RSI-GAME-HO-1` the next mainline.
+5. After `RSI-GAME-HO-1`, reopen `SIM-LLM-1C3`.
+6. After `SIM-LLM-1C3`, add `RSI-GAME-HO-2` as the mixed Scrapling-plus-LLM strict-baseline proof.
+7. Block `RSI-GAME-HV-1` until `RSI-GAME-HO-2` proves real repeated improvement.
 
 # Definition Of Done
 

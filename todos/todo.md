@@ -1,6 +1,6 @@
 # TODO Roadmap
 
-Last updated: 2026-03-25
+Last updated: 2026-03-26
 
 This is the active execution-ready work queue.
 Blocked or contingent work lives in `todos/blocked-todo.md`.
@@ -117,7 +117,9 @@ Current note:
 - `SIM-LLM-1C1` is now landed: the later attacker has a real live frontier action-generation seam with provider-vs-fallback lineage and Shuma-blind host-hint sanitization.
 - `SIM-LLM-1C2` is now landed: the host-side supervisor dispatches the dedicated LLM runtime worker, reuses the existing container black-box runner for request-mode execution, and ingests a typed `adversary-sim-llm-runtime-result.v1` payload instead of overloading the Scrapling worker result contract.
 - The current request-native Scrapling baseline and first working Game Loop proof are now treated as baseline capability, not the unlock condition for later stance relaxation or LLM runtime work.
+- Before further mainline completion claims, the repo now requires explicit acceptance-gate discipline. Do not describe `STANCE-MODEL-1`, `SIM-SCR-FULL-1`, `RSI-GAME-HO-1`, or `RSI-GAME-HO-2` as complete from planning progress, baseline capability, or dashboard pressure signals alone.
 - The immediate non-LLM mainline is now:
+  - `VERIFY-GATE-1`
   - `STANCE-MODEL-1`
   - `SIM-SCR-FULL-1`
   - `RSI-GAME-HO-1`
@@ -140,6 +142,16 @@ Current stance:
 - The primary product value is exact non-human restriction and exception management; looser treatment for named verified bots remains an explicit opt-in later policy choice.
 - The repo now treats the independent verified-identity top-level stance as design debt: `STANCE-MODEL-1` should replace it with one canonical non-human stance model and a resolved effective policy contract before broader permissive verified-identity posture work continues.
 - Do not bundle authorization policy, low-cost profiles, or dashboard control surfaces into the first tranche.
+
+- [ ] VERIFY-GATE-1 Freeze acceptance gates and completion-claim discipline for the active Scrapling and Game Loop mainline before further closure claims.
+  - Reference context:
+    - [`docs/research/2026-03-26-acceptance-gate-and-completion-claim-discipline-review.md`](../docs/research/2026-03-26-acceptance-gate-and-completion-claim-discipline-review.md)
+    - [`docs/plans/2026-03-26-acceptance-gate-and-completion-claim-discipline-plan.md`](../docs/plans/2026-03-26-acceptance-gate-and-completion-claim-discipline-plan.md)
+    - [`docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](../docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)
+    - [`docs/plans/2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md`](../docs/plans/2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md)
+  - [ ] VERIFY-GATE-1A Freeze explicit acceptance gates for `STANCE-MODEL-1`, `SIM-SCR-FULL-1`, `RSI-GAME-HO-1`, and later `RSI-GAME-HO-2`, including the exact runtime, API, dashboard, and `make` proof required for closure.
+  - [ ] VERIFY-GATE-1B Wire any missing focused proof paths so those acceptance gates are executable rather than conversational.
+  - [ ] VERIFY-GATE-1C Keep completion language disciplined: planning completions must stay clearly labeled as planning-only, and no open feature tranche may be described as complete.
 
 - [ ] STANCE-MODEL-1 Replace the independent verified-identity stance with canonical non-human stance presets and one resolved effective policy contract.
   - Reference context:
