@@ -1358,6 +1358,7 @@ test-oversight-episode-archive: ## Run focused oversight episode-archive and hom
 	@cargo test observability::benchmark_comparison::tests::homeostasis_requires_ten_completed_cycle_judgments_before_classifying -- --exact --nocapture
 	@cargo test observability::benchmark_comparison::tests::homeostasis_distinguishes_improving_mixed_and_flat_recent_cycles -- --exact --nocapture
 	@cargo test admin::oversight_api::tests::manual_reconcile_route_records_observe_longer_when_classification_is_not_ready -- --exact --nocapture
+	@cargo test admin::oversight_agent::tests::agent_cycle_rolls_back_canary_when_candidate_window_regresses -- --exact --nocapture
 	@cargo test admin::oversight_agent::tests::agent_cycle_keeps_canary_when_candidate_window_improves -- --exact --nocapture
 
 test-rsi-game-mainline: ## Run focused first-working-loop mainline proof checks
@@ -1365,6 +1366,7 @@ test-rsi-game-mainline: ## Run focused first-working-loop mainline proof checks
 	@./scripts/set_crate_type.sh rlib
 	@cargo test adversary_sim_completion_triggers_post_sim_oversight_agent_once -- --nocapture
 	@cargo test post_sim_oversight_route_can_apply_improve_and_archive_first_working_game_loop -- --nocapture
+	@cargo test post_sim_oversight_route_records_repeated_retained_and_rolled_back_episodes_against_changed_configs -- --nocapture
 	@python3 -m unittest scripts.tests.test_live_feedback_loop_remote.LiveFeedbackLoopRemoteBehaviorTests.test_run_records_terminal_follow_on_judgment_and_episode_archive
 
 test-scrapling-game-loop-mainline: ## Run the current active mainline proof bundle (attacker-faithful Scrapling plus first working game loop)

@@ -4,6 +4,30 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-26)
 
+### RSI-GAME-HO-1B Repeated Judged-Cycle Proof Step
+
+- [x] Strengthened the local mainline route proof across:
+  - [`src/admin/api.rs`](../src/admin/api.rs)
+  - [`src/test_support.rs`](../src/test_support.rs)
+  - [`Makefile`](../Makefile)
+  so `make test-rsi-game-mainline` now proves one episode can be retained, a later episode can start from that changed config, and the later judged cycle can be rolled back while both completed outcomes remain visible in the machine-first archive surfaces.
+- [x] Corrected terminal episode-archive truth across:
+  - [`src/admin/oversight_api.rs`](../src/admin/oversight_api.rs)
+  - [`src/admin/oversight_apply.rs`](../src/admin/oversight_apply.rs)
+  - [`src/admin/oversight_agent.rs`](../src/admin/oversight_agent.rs)
+  so terminal `improved` and `rollback_applied` rows now archive the active canary proposal and baseline snapshot that were actually under judgment, rather than drifting to whatever reconcile proposal happened to exist when the watch window closed.
+- [x] Closed the proof and paper-trail updates in:
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`docs/research/2026-03-26-rsi-game-ho-1b-repeated-judged-cycle-proof-post-implementation-review.md`](../docs/research/2026-03-26-rsi-game-ho-1b-repeated-judged-cycle-proof-post-implementation-review.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  so the repo now documents this as a repeated judged-cycle proof step rather than overstating it as full `RSI-GAME-HO-1B` closure.
+- [x] Why:
+  - the stronger repeated-cycle proof exposed a real provenance bug in episode history: repeated retain versus rollback rows could otherwise have shown the wrong proposal family, which would have made the Game Loop's long-horizon truth unreliable exactly where the strict-loop methodology depends on it.
+- [x] Evidence:
+  - `make test-rsi-game-mainline`
+  - `make test-oversight-episode-archive`
+  - `git diff --check`
+
 ### RSI-GAME-HO-1B Game Loop Episode-Archive Lineage Projection
 
 - [x] Preserved bounded episode-archive lineage through the dashboard API adapter path across:

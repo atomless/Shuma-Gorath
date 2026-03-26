@@ -90,7 +90,14 @@ pub(crate) fn seed_apply_ready_snapshot<S: crate::challenge::KeyValueStore>(
     store: &S,
     cfg: crate::config::Config,
 ) {
-    seed_candidate_snapshot(store, cfg, 1_700_000_200, 0.42, "outside_budget");
+    seed_candidate_snapshot_with_candidate_families(
+        store,
+        cfg,
+        1_700_000_200,
+        0.42,
+        "outside_budget",
+        &["fingerprint_signal"],
+    );
 }
 
 pub(crate) fn seed_candidate_snapshot<S: crate::challenge::KeyValueStore>(
@@ -99,6 +106,24 @@ pub(crate) fn seed_candidate_snapshot<S: crate::challenge::KeyValueStore>(
     generated_at_ts: u64,
     suspicious_forwarded_request_rate: f64,
     overall_status: &str,
+) {
+    seed_candidate_snapshot_with_candidate_families(
+        store,
+        cfg,
+        generated_at_ts,
+        suspicious_forwarded_request_rate,
+        overall_status,
+        &["fingerprint_signal"],
+    );
+}
+
+pub(crate) fn seed_candidate_snapshot_with_candidate_families<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    cfg: crate::config::Config,
+    generated_at_ts: u64,
+    suspicious_forwarded_request_rate: f64,
+    overall_status: &str,
+    candidate_action_families: &[&str],
 ) {
     store
         .set(
@@ -184,7 +209,10 @@ pub(crate) fn seed_candidate_snapshot<S: crate::challenge::KeyValueStore>(
     payload.benchmark_results.escalation_hint.trigger_family_ids =
         vec!["suspicious_origin_cost".to_string()];
     payload.benchmark_results.escalation_hint.candidate_action_families =
-        vec!["fingerprint_signal".to_string()];
+        candidate_action_families
+            .iter()
+            .map(|family| (*family).to_string())
+            .collect();
     payload.benchmark_results.escalation_hint.blockers.clear();
     payload.benchmark_results.replay_promotion = payload.replay_promotion.clone();
     if let Some(row) = payload.budget_distance.rows.get_mut(0) {

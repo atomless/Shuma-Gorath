@@ -1095,6 +1095,18 @@ mod tests {
             row.decision_kind.as_deref() == Some("oversight_canary_rollback")
                 && row.decision_status.as_deref() == Some("rolled_back")
         }));
+
+        let status = build_status_payload(&store, "default");
+        assert_eq!(status.episode_archive.schema_version, "oversight_episode_archive_v1");
+        assert_eq!(status.episode_archive.rows[0].watch_window_result, "rollback_applied");
+        assert_eq!(status.episode_archive.rows[0].retain_or_rollback, "rolled_back");
+        assert_eq!(
+            status.episode_archive.rows[0]
+                .proposal
+                .as_ref()
+                .map(|proposal| proposal.patch_family.as_str()),
+            Some("fingerprint_signal")
+        );
     }
 
     #[test]

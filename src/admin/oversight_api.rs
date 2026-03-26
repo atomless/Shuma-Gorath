@@ -14,7 +14,7 @@ use super::oversight_decision_ledger::{
 use super::oversight_reconcile::{reconcile, OversightReconcileResult};
 use crate::observability::benchmark_comparison::{
     benchmark_episode_delta_summary, classify_homeostasis, comparable_snapshot_from_results,
-    BenchmarkCompletedCycleJudgment, BenchmarkComparableSnapshot,
+    BenchmarkCompletedCycleJudgment,
 };
 use crate::observability::decision_ledger::OperatorDecisionEvidenceReference;
 use crate::observability::operator_snapshot::{
@@ -287,8 +287,8 @@ pub(crate) fn execute_oversight_cycle_at(
     };
 
     let recorded_result = apply_validation_to_result(reconcile_result, &validation);
-    let active_canary_baseline_snapshot =
-        super::oversight_apply::load_active_canary_baseline_snapshot(store, site_id);
+    let active_canary_episode_context =
+        super::oversight_apply::load_active_canary_episode_context(store, site_id);
     let apply = evaluate_apply_cycle(
         store,
         site_id,
@@ -355,7 +355,7 @@ pub(crate) fn execute_oversight_cycle_at(
         &decision,
         &recorded_result,
         &apply,
-        active_canary_baseline_snapshot.as_ref(),
+        active_canary_episode_context.as_ref(),
     ) {
         record_completed_episode(store, site_id, episode_record)?;
     }
@@ -580,7 +580,9 @@ fn completed_episode_record(
     decision: &OversightDecisionRecord,
     reconcile: &OversightReconcileResult,
     apply: &OversightApplyResult,
-    active_canary_baseline_snapshot: Option<&BenchmarkComparableSnapshot>,
+    active_canary_episode_context: Option<
+        &crate::admin::oversight_apply::OversightActiveCanaryEpisodeContext,
+    >,
 ) -> Option<OperatorSnapshotEpisodeRecord> {
     let snapshot = snapshot?;
     if !matches!(
@@ -594,16 +596,21 @@ fn completed_episode_record(
 
     let baseline_scorecard = match apply.stage.as_str() {
         super::oversight_apply::OVERSIGHT_APPLY_STAGE_IMPROVED
-        | super::oversight_apply::OVERSIGHT_APPLY_STAGE_ROLLBACK_APPLIED => active_canary_baseline_snapshot
-            .cloned()
+        | super::oversight_apply::OVERSIGHT_APPLY_STAGE_ROLLBACK_APPLIED => active_canary_episode_context
+            .map(|context| context.baseline_snapshot.clone())
             .unwrap_or_else(|| comparable_snapshot_from_results(&snapshot.benchmark_results)),
         _ => comparable_snapshot_from_results(&snapshot.benchmark_results),
     };
-    let proposal = reconcile.proposal.as_ref().map(project_episode_proposal);
-    let proposal_id = reconcile
-        .proposal
-        .as_ref()
-        .map(|proposal| proposal_id(snapshot.generated_at, proposal));
+    let episode_proposal = match apply.stage.as_str() {
+        super::oversight_apply::OVERSIGHT_APPLY_STAGE_IMPROVED
+        | super::oversight_apply::OVERSIGHT_APPLY_STAGE_ROLLBACK_APPLIED => active_canary_episode_context
+            .map(|context| &context.proposal)
+            .or(reconcile.proposal.as_ref()),
+        _ => reconcile.proposal.as_ref(),
+    };
+    let proposal = episode_proposal.map(project_episode_proposal);
+    let proposal_id =
+        episode_proposal.map(|proposal| proposal_id(snapshot.generated_at, proposal));
     let (proposal_status, watch_window_result, retain_or_rollback, cycle_judgment, homeostasis_eligible) =
         match apply.stage.as_str() {
             super::oversight_apply::OVERSIGHT_APPLY_STAGE_IMPROVED => (

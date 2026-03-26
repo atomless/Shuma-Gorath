@@ -81,6 +81,12 @@ struct OversightActiveCanaryState {
     previous_config: Config,
 }
 
+#[derive(Debug, Clone)]
+pub(crate) struct OversightActiveCanaryEpisodeContext {
+    pub baseline_snapshot: BenchmarkComparableSnapshot,
+    pub proposal: OversightPatchProposal,
+}
+
 pub(crate) fn evaluate_apply_cycle<S: KeyValueStore>(
     store: &S,
     site_id: &str,
@@ -459,11 +465,14 @@ fn load_active_canary<S: KeyValueStore>(
     (state.schema_version == OVERSIGHT_ACTIVE_CANARY_SCHEMA_VERSION).then_some(state)
 }
 
-pub(crate) fn load_active_canary_baseline_snapshot<S: KeyValueStore>(
+pub(crate) fn load_active_canary_episode_context<S: KeyValueStore>(
     store: &S,
     site_id: &str,
-) -> Option<BenchmarkComparableSnapshot> {
-    load_active_canary(store, site_id).map(|state| state.baseline_snapshot)
+) -> Option<OversightActiveCanaryEpisodeContext> {
+    load_active_canary(store, site_id).map(|state| OversightActiveCanaryEpisodeContext {
+        baseline_snapshot: state.baseline_snapshot,
+        proposal: state.proposal,
+    })
 }
 
 fn save_active_canary<S: KeyValueStore>(
