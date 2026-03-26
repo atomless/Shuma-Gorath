@@ -1379,6 +1379,11 @@ test-rsi-game-human-only-improvement: ## Run focused strict human-only unlock-co
 	@./scripts/set_crate_type.sh rlib
 	@cargo test oversight_history_reports_strict_human_only_unlock_after_repeated_improving_cycles -- --nocapture
 
+test-rsi-game-human-only-mixed-baseline: ## Run focused first mixed-attacker strict human-only baseline proof checks
+	@echo "$(CYAN)🧪 Running mixed-attacker strict human-only baseline proof checks...$(NC)"
+	@./scripts/set_crate_type.sh rlib
+	@cargo test post_sim_oversight_route_accepts_bot_red_team_after_retained_scrapling_cycle -- --nocapture
+
 test-scrapling-game-loop-mainline: ## Run the current active mainline proof bundle (attacker-faithful Scrapling plus strict human-only unlock proofs)
 	@echo "$(CYAN)🧪 Running active Scrapling -> game-loop mainline proof bundle...$(NC)"
 	@$(MAKE) --no-print-directory test-adversary-sim-scrapling-owned-surface-contract

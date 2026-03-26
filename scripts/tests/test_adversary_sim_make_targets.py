@@ -306,6 +306,28 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
             body,
         )
 
+    def test_rsi_game_human_only_mixed_baseline_target_is_first_combined_attacker_proof(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-rsi-game-human-only-mixed-baseline:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn(
+            "post_sim_oversight_route_accepts_bot_red_team_after_retained_scrapling_cycle",
+            body,
+        )
+        self.assertNotIn(
+            "post_sim_oversight_route_repeats_human_only_cycles_with_retained_then_rolled_back_config",
+            body,
+        )
+        self.assertNotIn(
+            "oversight_history_reports_strict_human_only_unlock_after_repeated_improving_cycles",
+            body,
+        )
+
     def test_make_target_contract_lane_runs_selector_suite_explicitly(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")
         match = re.search(

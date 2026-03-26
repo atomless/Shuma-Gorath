@@ -9,9 +9,6 @@ Security finding validity and closure status live in `todos/security-review.md`.
 
 ## P0 Blocked by Shared-Host Discovery and Runtime-Safety Gates
 
-- [ ] RSI-GAME-HO-2B Repeat retained config-change improvement under combined Scrapling plus LLM attacker pressure.
-  Blocker: keep blocked until `RSI-GAME-HO-2A` lands. Do not claim repeated mixed-attacker iteration before the first truthful combined-attacker strict-baseline proof exists.
-
 - [ ] RSI-GAME-HO-2C Make the mixed-attacker strict-baseline unlock condition explicit.
   Blocker: keep blocked until `RSI-GAME-HO-2B` lands. This unlock slice should only open once repeated mixed-attacker retained improvement is already real.
 

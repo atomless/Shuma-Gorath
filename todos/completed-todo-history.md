@@ -4,6 +4,30 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-25)
 
+### `RSI-GAME-HO-2A` Combined-Attacker Baseline
+
+- [x] Added the first focused mixed-attacker strict-baseline route proof in:
+  - [`src/admin/api.rs`](../src/admin/api.rs)
+  so the strict `human_only_private` loop now proves a retained Scrapling-driven change can hand off into a later `bot_red_team` post-sim canary on that retained config while both lanes remain visible in recent-run truth.
+- [x] Added the focused proof surface in:
+  - [`Makefile`](../Makefile)
+  - [`scripts/tests/test_adversary_sim_make_targets.py`](../scripts/tests/test_adversary_sim_make_targets.py)
+  - [`docs/testing.md`](../docs/testing.md)
+  so `make test-rsi-game-human-only-mixed-baseline` now names and proves the first mixed-attacker strict-baseline seam explicitly instead of leaving it implicit in future umbrella work.
+- [x] Recorded the tranche in:
+  - [`docs/research/2026-03-25-rsi-game-ho-2a-combined-attacker-baseline-readiness-review.md`](../docs/research/2026-03-25-rsi-game-ho-2a-combined-attacker-baseline-readiness-review.md)
+  - [`docs/plans/2026-03-25-rsi-game-ho-2a-combined-attacker-baseline-plan.md`](../docs/plans/2026-03-25-rsi-game-ho-2a-combined-attacker-baseline-plan.md)
+  - [`docs/research/2026-03-25-rsi-game-ho-2a-combined-attacker-baseline-post-implementation-review.md`](../docs/research/2026-03-25-rsi-game-ho-2a-combined-attacker-baseline-post-implementation-review.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`docs/plans/README.md`](../docs/plans/README.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+  so `RSI-GAME-HO-2B` is now the active next mixed-attacker strict-baseline tranche and `RSI-GAME-HO-2C` remains explicitly blocked behind it.
+- [x] Evidence:
+  - `make test-rsi-game-human-only-mixed-baseline`
+  - `make test-adversary-sim-make-target-contract`
+  - `git diff --check`
+
 ### `SIM-LLM-BROWSER-1` Container Browser-Mode Fulfillment
 
 - [x] Landed bounded browser-mode fulfillment inside the existing LLM black-box seam in:

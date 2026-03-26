@@ -6644,6 +6644,272 @@ mod admin_config_tests {
     }
 
     #[test]
+    fn post_sim_oversight_route_accepts_bot_red_team_after_retained_scrapling_cycle() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "shared-server");
+        std::env::set_var("SHUMA_API_KEY", "oversight-game-loop-mixed-test-key");
+        std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+
+        let store = TestStore::default();
+        crate::test_support::seed_canary_only_human_only_private_objectives(&store);
+
+        let now = now_ts();
+        let scrapling_run_started_at = now.saturating_sub(120);
+        let llm_run_started_at = now.saturating_sub(60);
+
+        {
+            let _guard = crate::runtime::sim_telemetry::enter(Some(
+                crate::runtime::sim_telemetry::SimulationRequestMetadata {
+                    sim_run_id: "simrun-game-loop-mixed-scrapling-001".to_string(),
+                    sim_profile: "scrapling_runtime_lane.http_agent".to_string(),
+                    sim_lane: "scrapling_traffic".to_string(),
+                },
+            ));
+            log_event(
+                &store,
+                &EventLogEntry {
+                    ts: scrapling_run_started_at,
+                    event: EventType::Challenge,
+                    ip: Some("198.51.100.88".to_string()),
+                    reason: Some("challenge_required".to_string()),
+                    outcome: Some("challenge".to_string()),
+                    admin: None,
+                },
+            );
+        }
+
+        let mut cfg = crate::config::defaults().clone();
+        cfg.fingerprint_signal_enabled = false;
+        cfg.cdp_detection_enabled = false;
+        crate::test_support::seed_apply_ready_snapshot(&store, cfg);
+
+        let first_post_sim_req = make_internal_oversight_request(
+            "oversight-game-loop-mixed-test-key",
+            serde_json::to_vec(&serde_json::json!({
+                "trigger_kind": "post_adversary_sim",
+                "sim_run_id": "simrun-game-loop-mixed-scrapling-001",
+                "sim_completion_reason": "auto_window_expired"
+            }))
+            .expect("json body")
+            .as_slice(),
+        );
+        let first_post_sim_resp =
+            handle_internal_oversight_agent_run(&first_post_sim_req, &store, "default");
+        assert_eq!(*first_post_sim_resp.status(), 200u16);
+
+        let mut first_active_canary: serde_json::Value = serde_json::from_slice(
+            &store
+                .get("oversight_active_canary:v1:default")
+                .expect("active canary lookup")
+                .expect("active canary present"),
+        )
+        .expect("active canary decodes");
+        first_active_canary["opened_at_ts"] = serde_json::json!(1);
+        first_active_canary["watch_window_end_at"] = serde_json::json!(1);
+        store
+            .set(
+                "oversight_active_canary:v1:default",
+                &serde_json::to_vec(&first_active_canary).expect("active canary encodes"),
+            )
+            .expect("active canary update");
+
+        let first_canary_cfg =
+            crate::config::Config::load(&store, "default").expect("first canary config loads");
+        crate::test_support::seed_candidate_snapshot_with_action_families(
+            &store,
+            first_canary_cfg,
+            1_700_004_100,
+            0.12,
+            "inside_budget",
+            &["fingerprint_signal", "cdp_detection"],
+        );
+
+        let periodic_req = make_internal_oversight_request(
+            "oversight-game-loop-mixed-test-key",
+            serde_json::to_vec(&serde_json::json!({
+                "trigger_kind": "periodic_supervisor"
+            }))
+            .expect("json body")
+            .as_slice(),
+        );
+        let first_periodic_resp =
+            handle_internal_oversight_agent_run(&periodic_req, &store, "default");
+        assert_eq!(*first_periodic_resp.status(), 200u16);
+
+        let retained_cfg =
+            crate::config::Config::load(&store, "default").expect("retained config loads");
+        assert!(retained_cfg.fingerprint_signal_enabled);
+        assert!(!retained_cfg.cdp_detection_enabled);
+
+        persist_event_record(
+            &store,
+            EventLogRecord {
+                entry: EventLogEntry {
+                    ts: llm_run_started_at,
+                    event: EventType::AdminAction,
+                    ip: None,
+                    reason: Some("llm_runtime_receipts".to_string()),
+                    outcome: Some("executed_actions".to_string()),
+                    admin: None,
+                },
+                taxonomy: None,
+                outcome_code: None,
+                botness_score: None,
+                sim_run_id: Some("simrun-game-loop-mixed-llm-002".to_string()),
+                sim_profile: Some("llm_runtime_lane.browser_mode".to_string()),
+                sim_lane: Some("bot_red_team".to_string()),
+                is_simulation: true,
+                scrapling_surface_receipts: Vec::new(),
+                llm_runtime: Some(
+                    crate::observability::llm_runtime_recent_run::LlmRuntimeRecentRunSummary {
+                        fulfillment_mode: "browser_mode".to_string(),
+                        backend_kind: "frontier_reference".to_string(),
+                        backend_state: "configured".to_string(),
+                        generation_source: "provider_response".to_string(),
+                        provider: "openai".to_string(),
+                        model_id: "gpt-5-mini".to_string(),
+                        fallback_reason: None,
+                        status: "provider_backed".to_string(),
+                        generated_action_count: 3,
+                        executed_action_count: 3,
+                        failed_action_count: 0,
+                        last_response_status: Some(403),
+                        terminal_failure: None,
+                        action_outcomes:
+                            crate::observability::llm_runtime_recent_run::LlmRuntimeActionOutcomeSummary {
+                                allowed_action_count: 1,
+                                intercepted_action_count: 2,
+                                error_action_count: 0,
+                            },
+                        action_receipts: vec![
+                            crate::observability::llm_runtime_recent_run::LlmRuntimeActionReceiptSummary {
+                                action_index: 1,
+                                action_type: "browser_navigate".to_string(),
+                                path: "/".to_string(),
+                                label: Some("root".to_string()),
+                                status: Some(200),
+                                error: None,
+                            },
+                            crate::observability::llm_runtime_recent_run::LlmRuntimeActionReceiptSummary {
+                                action_index: 2,
+                                action_type: "browser_snapshot".to_string(),
+                                path: "/challenge/not-a-bot-checkbox".to_string(),
+                                label: Some("challenge".to_string()),
+                                status: Some(403),
+                                error: None,
+                            },
+                            crate::observability::llm_runtime_recent_run::LlmRuntimeActionReceiptSummary {
+                                action_index: 3,
+                                action_type: "browser_click".to_string(),
+                                path: "/challenge/not-a-bot-checkbox".to_string(),
+                                label: Some("submit".to_string()),
+                                status: Some(403),
+                                error: None,
+                            },
+                        ],
+                    },
+                ),
+                execution: EventExecutionMetadata::default(),
+            },
+        );
+
+        let recent_runs = monitoring_recent_sim_run_summaries(&store, now, 24, 10);
+        let scrapling_row = recent_runs
+            .iter()
+            .find(|value| value.run_id == "simrun-game-loop-mixed-scrapling-001")
+            .expect("scrapling row");
+        assert_eq!(scrapling_row.lane, "scrapling_traffic");
+        assert_eq!(
+            scrapling_row.observed_category_ids,
+            vec!["http_agent".to_string()]
+        );
+        let llm_row = recent_runs
+            .iter()
+            .find(|value| value.run_id == "simrun-game-loop-mixed-llm-002")
+            .expect("llm row");
+        assert_eq!(llm_row.lane, "bot_red_team");
+        assert_eq!(llm_row.observed_fulfillment_modes, vec!["browser_mode".to_string()]);
+        assert_eq!(
+            llm_row.observed_category_ids,
+            vec![
+                "agent_on_behalf_of_human".to_string(),
+                "automated_browser".to_string(),
+                "browser_agent".to_string()
+            ]
+        );
+        assert_eq!(
+            llm_row
+                .llm_runtime
+                .as_ref()
+                .expect("llm runtime")
+                .status,
+            "provider_backed"
+        );
+
+        crate::test_support::seed_candidate_snapshot_with_action_families(
+            &store,
+            retained_cfg.clone(),
+            1_700_005_100,
+            0.42,
+            "outside_budget",
+            &["fingerprint_signal", "cdp_detection"],
+        );
+
+        let second_post_sim_req = make_internal_oversight_request(
+            "oversight-game-loop-mixed-test-key",
+            serde_json::to_vec(&serde_json::json!({
+                "trigger_kind": "post_adversary_sim",
+                "sim_run_id": "simrun-game-loop-mixed-llm-002",
+                "sim_completion_reason": "auto_window_expired"
+            }))
+            .expect("json body")
+            .as_slice(),
+        );
+        let second_post_sim_resp =
+            handle_internal_oversight_agent_run(&second_post_sim_req, &store, "default");
+        assert_eq!(*second_post_sim_resp.status(), 200u16);
+        let second_post_sim_json: serde_json::Value =
+            serde_json::from_slice(second_post_sim_resp.body()).expect("post-sim response decodes");
+        assert_eq!(
+            second_post_sim_json["run"]["execution"]["apply"]["patch_family"].as_str(),
+            Some("cdp_detection")
+        );
+
+        let second_canary_cfg =
+            crate::config::Config::load(&store, "default").expect("second canary config loads");
+        assert!(second_canary_cfg.fingerprint_signal_enabled);
+        assert!(second_canary_cfg.cdp_detection_enabled);
+
+        let status_req = Request::builder()
+            .method(Method::Get)
+            .uri("/admin/oversight/agent/status")
+            .body(Vec::new())
+            .build();
+        let status_resp = handle_admin_oversight_agent_status(&status_req, &store, "default");
+        assert_eq!(*status_resp.status(), 200u16);
+        let status_json: serde_json::Value =
+            serde_json::from_slice(status_resp.body()).expect("status decodes");
+        assert_eq!(
+            status_json["latest_run"]["sim_run_id"].as_str(),
+            Some("simrun-game-loop-mixed-llm-002")
+        );
+        assert_eq!(
+            status_json["latest_run"]["execution"]["apply"]["stage"].as_str(),
+            Some("canary_applied")
+        );
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+        std::env::remove_var("SHUMA_API_KEY");
+        std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
+    }
+
+    #[test]
     fn adversary_sim_control_enable_recovers_from_stale_expired_running_state() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
