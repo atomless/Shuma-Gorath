@@ -172,24 +172,59 @@ Current stance:
       - `make test-benchmark-results-contract`
       - `make test-oversight-reconcile`
 
+- [ ] RSI-SCORE-2 Upgrade the judge, diagnoser, and move selector so strict-loop proof is exploit-first, evidence-quality-aware, urgency-aware, and capable of explicit config-exhaustion referral before `RSI-GAME-HO-1`.
+  - Reference context:
+    - [`docs/research/2026-03-26-game-loop-scoring-and-diagnoser-audit.md`](../docs/research/2026-03-26-game-loop-scoring-and-diagnoser-audit.md)
+    - [`docs/research/2026-03-26-ideal-rsi-game-loop-scoring-review.md`](../docs/research/2026-03-26-ideal-rsi-game-loop-scoring-review.md)
+    - [`docs/plans/2026-03-26-rsi-score-2-exploit-first-judge-and-diagnoser-plan.md`](../docs/plans/2026-03-26-rsi-score-2-exploit-first-judge-and-diagnoser-plan.md)
+    - [`docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](../docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)
+  - Closure gate:
+    - runtime/benchmark: the scorecard remains lexicographic with `scalarization=forbidden`, and `benchmark_results_v1` gains first-class exploit-progress, evidence-quality, and urgency semantics rather than relying on aggregate suspicious-origin suppression plus coarse adversary proxies alone
+    - reconcile/controller: controller-grade logic distinguishes judge state from diagnosis and move ranking, low-confidence exploit evidence cannot drive fine-grained config moves, and repeated safe config failures can emit an explicit config-exhaustion or code-evolution referral
+    - dashboard/admin: `Game Loop` separates guardrails, exploit progress, evidence quality, urgency, and config-exhaustion or code-referral truth instead of making them read like one attacker-success score
+    - proof: focused `make` paths must pass for exploit-progress scoring, evidence-quality gating, urgency and homeostasis-break semantics, reconcile behavior, and rendered Game Loop accountability
+    - insufficient: aggregate suspicious-origin leakage rows only, low-confidence evidence still driving config recommendations, homeostasis that ignores sudden bypass regressions, or no explicit route from bounded config failure to code-gap escalation
+  - [ ] RSI-SCORE-2A Add exploit-progress scoring over per-surface contract satisfaction, exploit depth, success reliability, attacker cost where available, and novelty versus the accepted baseline.
+    - Proof required:
+      - `make test-rsi-score-exploit-progress`
+      - `make test-benchmark-results-contract`
+      - `make test-adversary-sim-scrapling-coverage-receipts`
+  - [ ] RSI-SCORE-2B Add evidence-quality and diagnosis-confidence gates so category-native versus projected evidence, sample sufficiency, freshness, persona diversity, and reproducibility determine whether fine-grained config tuning is allowed.
+    - Proof required:
+      - `make test-rsi-score-evidence-quality`
+      - `make test-benchmark-results-contract`
+      - `make test-oversight-reconcile`
+  - [ ] RSI-SCORE-2C Add multiwindow urgency scoring and event-triggered homeostasis break so newly successful bypasses interrupt the loop immediately and re-anchor it to the last accepted safe baseline.
+    - Proof required:
+      - `make test-rsi-score-urgency-and-homeostasis`
+      - `make test-rsi-game-mainline`
+      - `make test-oversight-episode-archive`
+  - [ ] RSI-SCORE-2D Separate judge, diagnoser, and move selector more sharply and add explicit config-ring exhaustion or code-evolution referral when bounded safe config moves cannot close the exploit gap.
+    - Proof required:
+      - `make test-rsi-score-move-selection`
+      - `make test-oversight-reconcile`
+      - `make test-controller-action-surface`
+  - [ ] RSI-SCORE-2E Project the richer judge truth in `Game Loop` so operators can distinguish guardrails, exploit progress, evidence quality, urgency, and config-exhaustion or code-referral states at a glance.
+    - Proof required:
+      - `make test-dashboard-game-loop-accountability`
+
 - [ ] RSI-GAME-HO-1 Fully operationally prove the strict `human_only_private` Scrapling-driven game loop before any later relaxed stance.
   - Reference context:
     - [`docs/research/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-review.md`](../docs/research/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-review.md)
     - [`docs/research/2026-03-26-strict-human-only-loop-and-human-traversal-calibration-review.md`](../docs/research/2026-03-26-strict-human-only-loop-and-human-traversal-calibration-review.md)
     - [`docs/research/2026-03-26-game-loop-scoring-and-diagnoser-audit.md`](../docs/research/2026-03-26-game-loop-scoring-and-diagnoser-audit.md)
+    - [`docs/research/2026-03-26-ideal-rsi-game-loop-scoring-review.md`](../docs/research/2026-03-26-ideal-rsi-game-loop-scoring-review.md)
     - [`docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](../docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)
+    - [`docs/plans/2026-03-26-rsi-score-2-exploit-first-judge-and-diagnoser-plan.md`](../docs/plans/2026-03-26-rsi-score-2-exploit-first-judge-and-diagnoser-plan.md)
     - [`docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](../docs/plans/2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md)
     - [`docs/plans/2026-03-24-rsi-game-mainline-first-working-loop-plan.md`](../docs/plans/2026-03-24-rsi-game-mainline-first-working-loop-plan.md)
   - Closure gate:
-    - runtime/config: the loop runs against `human_only_private`, verified non-human stays denied, the strict sim-only phase treats adversary-sim lanes as `100%` non-human traffic and drives suspicious forwarded leakage toward zero or equivalent fail-closed suppression rather than the seeded mixed-public `10%` budgets, bounded config recommendations are applied, later Scrapling runs execute against changed config, and repeated retain/rollback judgments occur rather than one-off plumbing
+    - runtime/config: the loop runs against `human_only_private`, verified non-human stays denied, the strict sim-only phase treats adversary-sim lanes as `100%` non-human traffic and drives suspicious forwarded leakage toward zero or equivalent fail-closed suppression rather than the seeded mixed-public `10%` budgets, the exploit-first `RSI-SCORE-2` judge is active, bounded config recommendations are applied, later Scrapling runs execute against changed config, and repeated retain/rollback judgments occur rather than one-off plumbing
     - API/snapshot: recent changes, oversight history, and related machine-first surfaces show repeated cycle lineage, applied changes, and retained vs rolled-back outcomes
-    - dashboard/admin: `Game Loop` projects the strict stance truthfully, shows repeated change context, shows measured movement toward the strict target rather than only recommendation plumbing or legacy mismatch rows, and keeps later human-traversal calibration explicit rather than implying that sim traffic already proved likely-human safety
+    - dashboard/admin: `Game Loop` projects the strict stance truthfully, shows repeated change context, shows measured movement toward the strict target rather than only recommendation plumbing or legacy mismatch rows, preserves the richer `RSI-SCORE-2` judge planes, and keeps later human-traversal calibration explicit rather than implying that sim traffic already proved likely-human safety
     - proof: focused `make` paths must pass for strict-stance runtime behavior and repeated judged-cycle proof on the local sim-public surface first; later human-traversal calibration and live-host realism stay separate named proof rings
     - insufficient: one successful loop, one canary apply, recommendation generation without retained improvement, current mixed-site default budgets still appearing as the strict target, or unresolved dashboard/runtime mismatch that still contradicts the claimed improvement
   - [ ] RSI-GAME-HO-1A Run the existing machine-first loop against the corrected `human_only_private` stance with verified non-human traffic still denied under that strict baseline.
-  - [ ] RSI-GAME-HO-1A1 Separate aggregate budget pressure, per-category target achievement, and Scrapling defense-surface satisfaction in `Game Loop` rendering and copy so operators cannot read them as one attacker-success score.
-    - Proof required:
-      - `make test-dashboard-game-loop-accountability`
   - [ ] RSI-GAME-HO-1B Repeat Scrapling-driven cycles until recommendations become bounded config changes, later runs occur against those changed configs, and watch windows judge retain or rollback truthfully many times rather than once.
   - [ ] RSI-GAME-HO-1C Define and satisfy the unlock condition showing retained config changes and measured improvement toward the strict target, not merely one successful end-to-end cycle.
 

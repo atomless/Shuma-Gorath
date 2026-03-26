@@ -4,6 +4,19 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-26)
 
+### RSI-SCORE-2 Planning And Backlog Integration
+
+- [x] Converted the exploratory scoring review into execution-ready planning across:
+  - [`docs/plans/2026-03-26-rsi-score-2-exploit-first-judge-and-diagnoser-plan.md`](../docs/plans/2026-03-26-rsi-score-2-exploit-first-judge-and-diagnoser-plan.md)
+  - [`docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](../docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)
+  - [`docs/plans/README.md`](../docs/plans/README.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  so the repo now treats exploit-first judge and diagnoser work as a named prerequisite between Scrapling evidence truth and strict-loop proof rather than a loose future aspiration.
+- [x] Why:
+  - the exploratory review established a stronger north-star scoring model, but without a named tranche, explicit sequencing, and pass or fail acceptance gates, the mainline could still drift back into proving the loop against a judge we already know is too weak.
+- [x] Evidence:
+  - `git diff --check`
+
 ### RSI-SCORE-IDEAL-1 Exploratory RSI-Ready Game Loop Scoring Review
 
 - [x] Produced an exploratory design review across:

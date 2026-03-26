@@ -6,10 +6,13 @@ Related context:
 - [`../research/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-review.md`](../research/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-review.md)
 - [`../research/2026-03-26-strict-human-only-loop-and-human-traversal-calibration-review.md`](../research/2026-03-26-strict-human-only-loop-and-human-traversal-calibration-review.md)
 - [`../research/2026-03-26-sim-scr-full-spectrum-adversary-mandate-review.md`](../research/2026-03-26-sim-scr-full-spectrum-adversary-mandate-review.md)
+- [`../research/2026-03-26-game-loop-scoring-and-diagnoser-audit.md`](../research/2026-03-26-game-loop-scoring-and-diagnoser-audit.md)
+- [`../research/2026-03-26-ideal-rsi-game-loop-scoring-review.md`](../research/2026-03-26-ideal-rsi-game-loop-scoring-review.md)
 - [`2026-03-25-sim-scr-cap-1-capability-matrix-plan.md`](2026-03-25-sim-scr-cap-1-capability-matrix-plan.md)
 - [`2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md`](2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md)
 - [`2026-03-24-rsi-game-mainline-first-working-loop-plan.md`](2026-03-24-rsi-game-mainline-first-working-loop-plan.md)
 - [`2026-03-25-scrapling-full-attacker-capability-principle-plan.md`](2026-03-25-scrapling-full-attacker-capability-principle-plan.md)
+- [`2026-03-26-rsi-score-2-exploit-first-judge-and-diagnoser-plan.md`](2026-03-26-rsi-score-2-exploit-first-judge-and-diagnoser-plan.md)
 - [`../../todos/todo.md`](../../todos/todo.md)
 - [`../../todos/blocked-todo.md`](../../todos/blocked-todo.md)
 
@@ -32,6 +35,7 @@ Define the post-`STANCE-MODEL-1` execution order so Shuma does not relax stance 
 8. During the strict sim-only phase, adversary-sim lanes are authoritative `100%` non-human traffic and should drive suspicious forwarded request, byte, and latency leakage toward zero or equivalent fail-closed suppression rather than the seeded mixed-site `10%` budgets.
 9. Local loopback-hosted `/sim/public/*` pages are the first execution surface for strict-loop iteration when no real hosted site sits behind Shuma.
 10. Human traversal against the discovered strict config is a later separate calibration ring, first local and then live, not something to infer from adversary-sim traffic.
+11. Before strict-loop proof resumes, the judge and diagnoser must be upgraded so aggregate suspicious-origin suppression is no longer allowed to stand in for exploit defeat, low-confidence evidence cannot drive fine-grained config moves, and sudden new bypasses can break homeostasis immediately.
 
 # Execution Shape
 
@@ -75,9 +79,33 @@ Required contract:
 3. which it failed where expected,
 4. and which non-human categories and defense surfaces it actually exercised.
 
+## `RSI-SCORE-2`: Exploit-first judge and diagnoser before strict-loop proof
+
+This tranche should begin only after `SIM-SCR-FULL-1C1` and `SIM-SCR-FULL-1C2` have repaired the known evidence-truth gaps.
+
+### `RSI-SCORE-2A`
+
+Add exploit-progress scoring so the judge can tell the difference between aggregate suppression and real attacker defeat.
+
+### `RSI-SCORE-2B`
+
+Add evidence-quality and diagnosis-confidence gates so low-confidence exploit evidence cannot drive fine-grained config tuning.
+
+### `RSI-SCORE-2C`
+
+Add urgency scoring and event-triggered homeostasis break so new bypasses interrupt a flat loop immediately.
+
+### `RSI-SCORE-2D`
+
+Separate judge, diagnoser, and move selector more sharply and add an explicit config-ring exhaustion verdict for code-evolution referral.
+
+### `RSI-SCORE-2E`
+
+Project the richer judge truth in `Game Loop` so operators can distinguish guardrail pressure, exploit progress, evidence quality, urgency, and config-exhaustion or code-referral outcomes.
+
 ## `RSI-GAME-HO-1`: Strict `human_only_private` operational proof over repeated cycles
 
-This tranche should begin only after `SIM-SCR-FULL-1` is satisfied.
+This tranche should begin only after `SIM-SCR-FULL-1` and `RSI-SCORE-2` are satisfied.
 
 ### `RSI-GAME-HO-1A`
 
@@ -167,18 +195,19 @@ When it opens, it should:
 1. Keep `VERIFY-GATE-1` as the immediate next process prerequisite.
 2. After `VERIFY-GATE-1`, keep `STANCE-MODEL-1` as the next design and implementation prerequisite.
 3. After `STANCE-MODEL-1`, make `SIM-SCR-FULL-1` the next mainline instead of any LLM runtime slice.
-4. After `SIM-SCR-FULL-1`, make `RSI-GAME-HO-1` the next mainline.
-5. After `RSI-GAME-HO-1`, reopen `SIM-LLM-1C3`.
-6. After `SIM-LLM-1C3`, add `RSI-GAME-HO-2` as the mixed Scrapling-plus-LLM strict-baseline proof.
-7. Block `RSI-GAME-HV-1` until `RSI-GAME-HO-2` proves real repeated improvement.
-8. Before claiming the strict baseline is human-safe or ready for broader operator use, add the separate human traversal calibration ring over the discovered strict config.
+4. After `SIM-SCR-FULL-1`, make `RSI-SCORE-2` the next mainline so the judge and diagnoser are fit for exploit-first strict-loop proof.
+5. After `RSI-SCORE-2`, make `RSI-GAME-HO-1` the next mainline.
+6. After `RSI-GAME-HO-1`, reopen `SIM-LLM-1C3`.
+7. After `SIM-LLM-1C3`, add `RSI-GAME-HO-2` as the mixed Scrapling-plus-LLM strict-baseline proof.
+8. Block `RSI-GAME-HV-1` until `RSI-GAME-HO-2` proves real repeated improvement.
+9. Before claiming the strict baseline is human-safe or ready for broader operator use, add the separate human traversal calibration ring over the discovered strict config.
 
 # Definition Of Done
 
 This planning tranche is satisfied when:
 
 1. the repo explicitly says the next post-stance-model work is full-power Scrapling, not LLM runtime,
-2. the strict `human_only_private` operational proof is defined as repeated improvement through real config-change cycles,
+2. the repo explicitly inserts exploit-first scoring and diagnoser work between full-power Scrapling evidence truth and strict-loop proof,
 3. the later LLM attacker runtime is sequenced before any relaxed verified-identity sweep,
 4. the later `humans_plus_verified_only` sweep is blocked on the combined Scrapling-plus-LLM strict-baseline proof,
 5. and relaxed stance work no longer doubles as loop verification.
