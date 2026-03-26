@@ -28,6 +28,31 @@
 6. Consider resource efficiency and cost-placement impact (bandwidth/CPU/memory/energy, and whether cost is shifted toward malicious bots).
 7. If a change touches any provider capability boundary (`rate_limiter`, `ban_store`, `challenge_engine`, `maze_tarpit`, `fingerprint_signal`), implement it through the provider interface/registry flow instead of introducing direct module calls on the hot path.
 
+## Acceptance Criteria And Definition Of Done
+
+For any non-trivial change, contributors must define success before implementation begins.
+
+1. Write explicit acceptance criteria for the tranche, not just implementation notes.
+2. Write acceptance criteria as clear pass/fail outcomes that describe what must be true when the work is done.
+3. Identify the proof surface for each important criterion where applicable:
+   - runtime behavior,
+   - API or persisted payload shape,
+   - dashboard or operator-visible rendering,
+   - operational or security artifact,
+   - documentation contract.
+4. Record the verification path for each criterion where applicable, preferably as the exact `make ...` command or the exact cited evidence path.
+5. Treat the project's Definition of Done as the shared minimum quality bar for every change, but do not confuse that with tranche-specific acceptance criteria. Both must be satisfied.
+
+## Planning, TODOs, And Completion Claims
+
+For any non-trivial plan, TODO, or completion note:
+
+1. Plans must state the acceptance criteria and how they will be proven.
+2. TODO items must state both the deliverable and the evidence required before the item may move to completed history.
+3. Completion notes must cite the verification actually run or the concrete evidence reviewed.
+4. If the work completed is planning-only, sequencing-only, or audit-only, say that explicitly and do not imply shipped feature behavior.
+5. If any acceptance criterion is still unproven, contradicted by observed behavior, or flaky, keep the item open or reopen it instead of marking it complete.
+
 ## Variable Lifecycle (Required for `SHUMA_*` changes)
 
 When adding or changing configuration variables, keep one source-of-truth and wire every lifecycle stage:

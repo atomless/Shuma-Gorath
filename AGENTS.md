@@ -41,8 +41,11 @@ Planning-first workflow is mandatory unless the user explicitly stipulates a dif
 2. For any non-trivial feature, architectural change, telemetry/control-plane change, or multi-step tranche, establish and preserve the full planning chain in order:
    - perform or refresh the necessary research first and capture it in `docs/research/` before implementation,
    - convert that research into one or more plan/design docs in `docs/plans/`,
+   - define explicit acceptance criteria for each tranche before implementation begins; those criteria MUST be observable, measurable, and written as pass/fail outcomes rather than intent,
+   - identify the proof surface for each important acceptance criterion where applicable (for example runtime behavior, API payload, dashboard rendering, operational artifact, or documentation contract),
+   - record the verification path for each criterion where applicable, using exact `make` targets or exact cited evidence paths rather than vague promises to test later,
    - update roadmap or sequencing docs when the work changes execution order or dependencies,
-   - manifest execution as atomic checklist TODOs in `todos/todo.md` or `todos/blocked-todo.md`,
+   - manifest execution as atomic checklist TODOs in `todos/todo.md` or `todos/blocked-todo.md`, with each non-trivial TODO stating both the deliverable and the proof required for closure,
    - execute one atomic tranche at a time, not a blended mega-change,
    - move completed TODOs immediately to the top of `todos/completed-todo-history.md` with the completion date,
    - conduct a post-implementation review after every tranche,
@@ -94,8 +97,9 @@ Planning-first workflow is mandatory unless the user explicitly stipulates a dif
    - prepend new completion entries to the top of `todos/completed-todo-history.md`,
    - include the completion date for the moved entries,
    - preserve the original TODO section title(s) as headings in the archive entry.
+   - completion records MUST distinguish planning-only, sequencing-only, audit-only, or policy-only work from shipped behavior; agents MUST NOT use wording that makes planning completion read like feature delivery,
    - immediately after completing any TODO tranche, review the recently completed TODOs and their linked plan requirements as a consistency check,
-   - confirm the delivered result actually met the planned requirements and did so with the architectural, security, and operational excellence demanded by this project; if it did not, continue the work or reopen the TODO instead of reporting completion.
+   - confirm the delivered result actually met the planned requirements and every defined acceptance criterion, and did so with the architectural, security, and operational excellence demanded by this project; if it did not, continue the work or reopen the TODO instead of reporting completion.
 14. For any new `SHUMA_*` variable, follow the single-source-of-truth lifecycle:
    - define/update canonical default in `config/defaults.env` first and classify it as env-only or KV-tunable,
    - wire seeding/bootstrap paths so `make config-seed`/`make setup` produce a correct local baseline (at minimum update `scripts/config_seed.sh`, `scripts/bootstrap/setup.sh`, and `Makefile` env wiring/help as applicable),
@@ -118,11 +122,12 @@ Planning-first workflow is mandatory unless the user explicitly stipulates a dif
 17. Non-negotiable completion proof for large tranches/refactors (release-blocking):
    - for any large feature tranche, cross-cutting refactor, or architecture migration, agents MUST NOT claim "working", "complete", or "done" without end-to-end proof across runtime, CI, and UI surfaces;
    - Definition of Done for such work MUST include explicit acceptance checks proving expected traffic/data flow and shape at every boundary: generation/emission, persistence/telemetry, API read paths, and dashboard rendering/refresh behavior;
+   - agents MUST treat tranche-specific acceptance criteria as a first-class contract in addition to the shared Definition of Done; if the tranche criteria were not explicitly written before implementation, the slice is incomplete until they are,
    - for dashboard telemetry or hot-read changes specifically, proof MUST cover the full data path end-to-end: backend emission/materialization, admin API payload shape, dashboard API-client normalization/adaptation, runtime/store merge, and the rendered tab or panel DOM that operators actually use;
    - unit or source-contract coverage for only one boundary is insufficient for dashboard telemetry changes. Agents MUST add or update tests at the boundary where the regression could be hidden, and MUST include at least one rendered proof when the user-facing dashboard output changes;
    - for dashboard UI composition changes specifically, agents MUST inspect the final rendered DOM/component structure for duplicate section chrome, redundant headings, nested section shells, repeated divider lines, and border wrappers without meaningful owned content; this inspection must consider the whole tab/panel rather than only the edited local subtree; if any are present, the slice is incomplete even if tests pass;
    - for adversary-simulation work specifically, completion MUST prove (1) traffic is generated, (2) traffic is persisted/observable in monitoring APIs, (3) traffic is rendered in dashboard sections expected by spec, and (4) CI/runtime gates assert those outcomes;
-   - when any required proof is missing or flaky, agents MUST report the slice as incomplete, continue debugging, and must not present status as complete.
+   - when any required proof is missing, contradictory, or flaky, agents MUST report the slice as incomplete, continue debugging, and must not present status as complete.
 18. Non-negotiable Make target truth-in-naming rule (release-blocking):
    - agents MUST NOT add, rename, or document any `make` target whose name implies behavior/scope/isolation that the implementation does not actually guarantee;
    - before claiming a new `make` command is complete, agents MUST verify and document its real blast radius and data scope (for example runtime-specific vs shared keyspace, dev-only vs prod-only, destructive vs non-destructive);

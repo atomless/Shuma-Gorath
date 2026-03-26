@@ -4,6 +4,34 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-26)
 
+### Canonical Policy For Acceptance Criteria And Proof Governance
+
+- [x] Wrote the policy-governance review in:
+  - [`docs/research/2026-03-26-project-policy-acceptance-criteria-and-proof-governance-review.md`](../docs/research/2026-03-26-project-policy-acceptance-criteria-and-proof-governance-review.md)
+  so the repo now explicitly records the process principle:
+  - Shuma needs both a shared Definition of Done and tranche-specific acceptance criteria,
+  - and completion claims must be tied to explicit proof, not implied progress.
+- [x] Wrote the execution-ready policy plan in:
+  - [`docs/plans/2026-03-26-project-policy-acceptance-criteria-and-proof-governance-plan.md`](../docs/plans/2026-03-26-project-policy-acceptance-criteria-and-proof-governance-plan.md)
+  covering the three canonical policy surfaces:
+  - [`docs/project-principles.md`](../docs/project-principles.md)
+  - [`CONTRIBUTING.md`](../CONTRIBUTING.md)
+  - [`AGENTS.md`](../AGENTS.md)
+- [x] Strengthened the canonical policy docs so they now require:
+  - explicit acceptance criteria for non-trivial work,
+  - proof surfaces and verification paths where applicable,
+  - TODOs that record the closure evidence required,
+  - and completion wording that distinguishes planning-only work from shipped behavior.
+- [x] Updated the docs indexes in:
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`docs/plans/README.md`](../docs/plans/README.md)
+  so the governance rule is discoverable from the normal planning and research entry points.
+- [x] Why:
+  - the repo needed this standard elevated into durable canonical policy, not left only in the latest plan notes,
+  - and future planning/TODO/completion discipline should now be anchored in project-wide governance.
+- [x] Evidence:
+  - `git diff --check`
+
 ### Acceptance-Gate Discipline And Completion-Claim Cleanup
 
 - [x] Wrote the process-failure review in:

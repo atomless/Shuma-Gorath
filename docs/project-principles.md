@@ -58,6 +58,12 @@ Shuma-Gorath exists to provide layered, practical bot defense that teams can dep
 
 - MUST include tests for behavior changes and regressions.
 - MUST keep <abbr title="Continuous Integration">CI</abbr> as the minimum quality bar for merge.
+- MUST define explicit acceptance criteria before implementing any non-trivial feature, tranche, architectural change, telemetry/control-plane change, or process/governance change.
+- MUST write those acceptance criteria as observable and measurable pass/fail outcomes rather than intent, effort, or partial progress.
+- MUST identify the proof surface for each non-trivial acceptance criterion (for example runtime behavior, API payload, dashboard rendering, operational artifact, or documentation contract) and the verification command or evidence path used to prove it where applicable.
+- MUST distinguish the shared project Definition of Done from tranche-specific acceptance criteria: the Definition of Done is the organizational minimum quality bar, while tranche acceptance criteria define the specific outcomes that must be proven for that slice.
+- MUST NOT describe planning completion, baseline capability, or partial proof as delivered feature completion.
+- MUST keep work open when the defined acceptance proof is missing, contradictory, or still flaky.
 - SHOULD keep tests colocated with modules when possible and add integration tests for cross-module behavior.
 
 ### P6. Clarity and Documentation
@@ -146,9 +152,11 @@ If trade-offs are non-trivial, record an <abbr title="Architecture Decision Reco
 ## External References That Informed This Document
 
 - OpenTelemetry specification principles (user-driven, stable, simple, consistent): https://opentelemetry.io/docs/specs/otel/specification-principles/
+- Scrum Guide 2020, Definition of Done: https://scrumguides.org/scrum-guide
 - Go 1 compatibility expectations: https://go.dev/doc/go1compat
 - Kubernetes deprecation and lifecycle discipline: https://kubernetes.io/docs/reference/using-api/deprecation-policy/
 - Rust editions compatibility model: https://doc.rust-lang.org/book/appendix-05-editions.html
 - Django design philosophies (loose coupling, explicitness, consistency): https://docs.djangoproject.com/en/5.2/misc/design-philosophies/
+- Atlassian acceptance criteria guidance (clarity, testability, measurability): https://www.atlassian.com/work-management/project-management/acceptance-criteria/
 - Twelve-Factor operational guidance (config, logs, parity): https://12factor.net/
 - Python Zen (explicitness/readability pragmatism): https://peps.python.org/pep-0020/
