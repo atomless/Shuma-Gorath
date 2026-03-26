@@ -136,7 +136,7 @@ mod tests {
                 false,
                 "configured",
                 "provider_response",
-                Some("browser_mode_not_supported"),
+                Some("transport_failure"),
                 None,
                 0,
             ),

@@ -77,7 +77,7 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
         self.assertEqual(result["last_response_status"], 404)
         self.assertEqual(result["action_receipts"][1]["status"], 404)
 
-    def test_build_llm_runtime_result_can_fail_closed_for_unsupported_browser_mode(self):
+    def test_build_llm_runtime_result_can_fail_closed_for_browser_runtime_failure(self):
         plan = {
             "schema_version": "adversary-sim-llm-fulfillment-plan.v1",
             "run_id": "simrun-llm-runtime",
@@ -110,17 +110,17 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
             report_payload=None,
             tick_completed_at=1_700_000_201,
             worker_id="llm-runtime-worker-test",
-            error="browser_mode_dispatch_not_yet_supported_by_blackbox_worker",
+            error="browser_runtime_transport_failure",
             failure_class="transport",
-            terminal_failure="browser_mode_not_supported",
+            terminal_failure="transport_failure",
         )
 
         self.assertFalse(result["passed"])
         self.assertEqual(result["failure_class"], "transport")
-        self.assertEqual(result["terminal_failure"], "browser_mode_not_supported")
+        self.assertEqual(result["terminal_failure"], "transport_failure")
         self.assertEqual(
             result["error"],
-            "browser_mode_dispatch_not_yet_supported_by_blackbox_worker",
+            "browser_runtime_transport_failure",
         )
         self.assertEqual(result["action_receipts"][0]["action_type"], "browser_navigate")
         self.assertEqual(result["action_receipts"][0]["path"], "/")
@@ -213,6 +213,106 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
         self.assertEqual(
             report["worker_payload"]["traffic"][1]["status"],
             403,
+        )
+
+    def test_run_blackbox_mode_passes_browser_allowed_tools_and_reads_report(self):
+        plan = {
+            "schema_version": "adversary-sim-llm-fulfillment-plan.v1",
+            "run_id": "simrun-llm-runtime",
+            "tick_id": "llm-fit-tick-4",
+            "lane": "bot_red_team",
+            "fulfillment_mode": "browser_mode",
+            "backend_kind": "frontier_reference",
+            "backend_state": "configured",
+            "category_targets": ["automated_browser", "browser_agent"],
+            "capability_envelope": {
+                "allowed_tools": ["browser_navigate", "browser_snapshot", "browser_click"],
+                "max_actions": 3,
+                "max_time_budget_seconds": 90,
+            },
+        }
+        generation = {
+            "generation_source": "provider_response",
+            "provider": "openai",
+            "model_id": "gpt-5-mini",
+            "actions": [
+                {
+                    "action_index": 1,
+                    "action_type": "browser_navigate",
+                    "path": "/",
+                    "label": "root",
+                },
+                {
+                    "action_index": 2,
+                    "action_type": "browser_click",
+                    "path": "/sim/public/landing",
+                    "label": "Get Started",
+                },
+            ],
+        }
+
+        observed = {}
+        with tempfile.TemporaryDirectory() as temp_dir:
+            report_path = Path(temp_dir) / "llm-browser-runtime-report.json"
+
+            def fake_runner(command, *, capture_output, text, check, cwd):
+                observed["command"] = list(command)
+                observed["cwd"] = cwd
+                report_path.write_text(
+                    json.dumps(
+                        {
+                            "passed": True,
+                            "worker_payload": {
+                                "requests_sent": 2,
+                                "errors": [],
+                                "traffic": [
+                                    {
+                                        "action_index": 1,
+                                        "action_type": "browser_navigate",
+                                        "path": "/",
+                                        "status": 200,
+                                    },
+                                    {
+                                        "action_index": 2,
+                                        "action_type": "browser_click",
+                                        "path": "/sim/public/landing",
+                                        "status": 200,
+                                    },
+                                ],
+                            },
+                            "terminal_failure": {"terminal_failure": "", "reason": ""},
+                            "worker_failure_detail": "",
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                return subprocess.CompletedProcess(
+                    args=command,
+                    returncode=0,
+                    stdout="runner-stdout",
+                    stderr="runner-stderr",
+                )
+
+            report = llm_runtime_worker.run_blackbox_mode(
+                base_url="http://127.0.0.1:3000/",
+                fulfillment_plan=plan,
+                generation_result=generation,
+                runner=fake_runner,
+                report_path=report_path,
+            )
+
+        self.assertEqual(observed["cwd"], str(llm_runtime_worker.REPO_ROOT))
+        self.assertIn("--frontier-actions", observed["command"])
+        self.assertIn("--allowed-tools", observed["command"])
+        allowed_tools_index = observed["command"].index("--allowed-tools") + 1
+        self.assertEqual(
+            json.loads(observed["command"][allowed_tools_index]),
+            ["browser_navigate", "browser_snapshot", "browser_click"],
+        )
+        self.assertEqual(report["_runner_exit_code"], 0)
+        self.assertEqual(
+            report["worker_payload"]["traffic"][0]["action_type"],
+            "browser_navigate",
         )
 
 

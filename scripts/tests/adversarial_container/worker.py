@@ -11,7 +11,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, List
 
 from scripts.tests.frontier_action_contract import (
     FrontierActionContractError,
@@ -40,6 +40,7 @@ LANE_CONTRACT_PATH = DEFAULT_CONTRACT_DIR / "lane_contract.v1.json"
 SIM_TAG_CONTRACT_PATH = DEFAULT_CONTRACT_DIR / "sim_tag_contract.v1.json"
 FRONTIER_ACTION_CONTRACT_PATH = DEFAULT_CONTRACT_DIR / "frontier_action_contract.v1.json"
 FRONTIER_ACTIONS_ENV = "BLACKBOX_ACTIONS"
+ALLOWED_TOOLS_ENV = "BLACKBOX_ALLOWED_TOOLS"
 CAPABILITY_ENVELOPES_ENV = "BLACKBOX_ACTION_ENVELOPES"
 CAPABILITY_VERIFY_KEY_ENV = "BLACKBOX_CAPABILITY_VERIFY_KEY"
 
@@ -212,6 +213,234 @@ def make_request(
         }
 
 
+def parse_allowed_tools(raw_value: str) -> List[str]:
+    text = str(raw_value or "").strip()
+    if not text:
+        return []
+    try:
+        payload = json.loads(text)
+    except Exception:
+        return []
+    if not isinstance(payload, list):
+        return []
+    normalized = []
+    for item in payload:
+        value = str(item or "").strip()
+        if not value or value in normalized:
+            continue
+        normalized.append(value)
+    return normalized
+
+
+def resolve_worker_actions(
+    raw_actions: str,
+    *,
+    contract: Dict[str, Any],
+    base_url: str,
+    allowed_origins: List[str],
+    request_budget: int,
+    allowed_tools: List[str],
+) -> List[Dict[str, Any]]:
+    action_type_overrides = allowed_tools or None
+    return resolve_frontier_actions(
+        raw_actions,
+        contract=contract,
+        base_url=base_url,
+        allowed_origins=allowed_origins,
+        request_budget=request_budget,
+        allowed_tools_override=allowed_tools or None,
+        allowed_action_types_override=action_type_overrides,
+    )
+
+
+def default_playwright_factory():
+    from playwright.sync_api import sync_playwright
+
+    return sync_playwright()
+
+
+def _response_status(response: Any, fallback: int = 0) -> int:
+    if response is None:
+        return fallback
+    status_attr = getattr(response, "status", None)
+    if callable(status_attr):
+        try:
+            return int(status_attr())
+        except Exception:
+            return fallback
+    try:
+        return int(status_attr or fallback)
+    except Exception:
+        return fallback
+
+
+def _page_title(page: Any) -> str:
+    try:
+        return str(page.title() or "").strip()
+    except Exception:
+        return ""
+
+
+def _page_content_sample(page: Any, max_chars: int = 160) -> str:
+    try:
+        return str(page.content() or "")[:max_chars]
+    except Exception:
+        return ""
+
+
+def _page_url(page: Any) -> str:
+    value = getattr(page, "url", "")
+    if callable(value):
+        try:
+            value = value()
+        except Exception:
+            value = ""
+    return str(value or "").strip()
+
+
+def _navigate_page(page: Any, url: str) -> Any:
+    return page.goto(url, wait_until="domcontentloaded", timeout=15000)
+
+
+def _browser_selector_candidates(action: Dict[str, Any]) -> List[str]:
+    label = str(action.get("label") or "").strip()
+    if not label:
+        return ["a[href]", "button", '[role="button"]']
+    escaped = label.replace("\\", "\\\\").replace('"', '\\"')
+    return [
+        f'a:has-text("{escaped}")',
+        f'button:has-text("{escaped}")',
+        f'[role="button"]:has-text("{escaped}")',
+        f'text="{escaped}"',
+    ]
+
+
+def _browser_click(page: Any, action: Dict[str, Any]) -> None:
+    selectors = _browser_selector_candidates(action)
+    for selector in selectors:
+        locator = page.locator(selector)
+        try:
+            count = int(locator.count() or 0)
+        except Exception:
+            count = 0
+        if count < 1:
+            continue
+        try:
+            if hasattr(locator, "is_visible") and not locator.is_visible():
+                continue
+        except Exception:
+            continue
+        locator.click(timeout=5000)
+        try:
+            page.wait_for_load_state("domcontentloaded", timeout=5000)
+        except Exception:
+            pass
+        try:
+            page.wait_for_timeout(250)
+        except Exception:
+            pass
+        return
+    raise RuntimeError(
+        "browser_click_target_not_found:"
+        + (str(action.get("label") or "").strip() or str(action.get("path") or "").strip() or "unknown")
+    )
+
+
+def execute_browser_actions(
+    *,
+    base_url: str,
+    sim_headers: Dict[str, str],
+    resolved_actions: List[Dict[str, Any]],
+    time_budget_seconds: int,
+    playwright_factory: Callable[[], Any] | None = None,
+    run_id: str = "",
+) -> Dict[str, Any]:
+    factory = playwright_factory or default_playwright_factory
+    started = time.monotonic()
+    traffic: List[Dict[str, Any]] = []
+    errors: List[str] = []
+    requests_sent = 0
+
+    with factory() as playwright:
+        browser = playwright.chromium.launch(headless=True)
+        try:
+            context = browser.new_context(
+                extra_http_headers=sim_headers,
+                ignore_https_errors=True,
+            )
+            try:
+                page = context.new_page()
+                for action in resolved_actions:
+                    if (time.monotonic() - started) >= max(1, int(time_budget_seconds)):
+                        errors.append("time_budget_exhausted")
+                        break
+
+                    if run_id:
+                        emit_heartbeat(run_id, "before_action", action_index=requests_sent + 1)
+
+                    action_type = str(action.get("action_type") or "").strip()
+                    action_url = str(action.get("url") or "").strip()
+                    receipt: Dict[str, Any] = {
+                        "action_index": int(action.get("action_index") or requests_sent + 1),
+                        "action_type": action_type,
+                        "path": str(action.get("path") or "").strip(),
+                        "url": action_url,
+                        "status": 0,
+                        "latency_ms": 0,
+                    }
+                    if str(action.get("label") or "").strip():
+                        receipt["label"] = str(action.get("label")).strip()
+
+                    action_started = time.monotonic()
+                    try:
+                        if action_type == "browser_navigate":
+                            response = _navigate_page(page, action_url)
+                            receipt["status"] = _response_status(response, fallback=200)
+                            receipt["page_title"] = _page_title(page)
+                            receipt["body_sample"] = _page_content_sample(page)
+                            receipt["observed_url"] = _page_url(page) or action_url
+                        elif action_type == "browser_snapshot":
+                            response = _navigate_page(page, action_url)
+                            receipt["status"] = _response_status(response, fallback=200)
+                            receipt["page_title"] = _page_title(page)
+                            receipt["body_sample"] = _page_content_sample(page)
+                            receipt["observed_url"] = _page_url(page) or action_url
+                        elif action_type == "browser_click":
+                            if _page_url(page) != action_url:
+                                response = _navigate_page(page, action_url)
+                            else:
+                                response = None
+                            _browser_click(page, action)
+                            receipt["status"] = _response_status(response, fallback=200) or 200
+                            receipt["page_title"] = _page_title(page)
+                            receipt["body_sample"] = _page_content_sample(page)
+                            receipt["observed_url"] = _page_url(page) or action_url
+                        else:
+                            raise RuntimeError(f"unsupported_browser_action:{action_type}")
+                    except Exception as exc:
+                        receipt["status"] = 0
+                        receipt["error"] = str(exc)
+                        errors.append(str(exc))
+
+                    receipt["latency_ms"] = int((time.monotonic() - action_started) * 1000)
+                    traffic.append(receipt)
+                    requests_sent += 1
+
+                    if run_id:
+                        emit_heartbeat(run_id, "after_action", action_index=requests_sent)
+            finally:
+                context.close()
+        finally:
+            browser.close()
+
+    return {
+        "requests_sent": requests_sent,
+        "traffic": traffic,
+        "errors": errors,
+        "driver_runtime": "playwright_chromium",
+    }
+
+
 def append_policy_audit_event(
     events: List[Dict[str, Any]],
     *,
@@ -253,6 +482,7 @@ def main() -> int:
     allowed_origins = [origin.strip() for origin in allowed_origins_raw.split(",") if origin.strip()]
     request_budget = parse_positive_int("BLACKBOX_REQUEST_BUDGET", 24)
     time_budget_seconds = parse_positive_int("BLACKBOX_TIME_BUDGET_SECONDS", 120)
+    allowed_tools = parse_allowed_tools(os.environ.get(ALLOWED_TOOLS_ENV, ""))
     start = time.monotonic()
     lane_contract_error = ""
     lane_contract: Dict[str, Any] = {}
@@ -272,7 +502,7 @@ def main() -> int:
     non_root = os.getuid() != 0
     no_workspace_mount = workspace_mount_absent()
     admin_credentials_absent = not forbidden_env_present
-    tooling_limited = True  # Worker is intentionally limited to urllib-based HTTP traffic.
+    tooling_limited = True  # Worker is intentionally limited to bounded contract-approved tooling.
     egress_allowlist_enforced = True
     ephemeral_run_identity = bool(run_id)
 
@@ -305,6 +535,7 @@ def main() -> int:
         "evidence_channel_append_only": True,
         "control_plane_mutation_allowed": False,
         "observed_env_keys": [key for key in observed_env_keys if key.startswith("BLACKBOX_")],
+        "allowed_tools": allowed_tools,
         "request_budget": request_budget,
         "time_budget_seconds": time_budget_seconds,
         "traffic": [],
@@ -393,12 +624,13 @@ def main() -> int:
     capability_validation_errors: List[str] = []
     if not errors:
         try:
-            resolved_actions = resolve_frontier_actions(
+            resolved_actions = resolve_worker_actions(
                 os.environ.get(FRONTIER_ACTIONS_ENV, ""),
                 contract=frontier_action_contract,
                 base_url=base_url,
                 allowed_origins=allowed_origins,
                 request_budget=request_budget,
+                allowed_tools=allowed_tools,
             )
             payload["action_validation_passed"] = True
             payload["resolved_action_count"] = len(resolved_actions)
@@ -449,69 +681,117 @@ def main() -> int:
             payload["capability_validation_passed"] = True
 
     requests_sent = 0
-    for action in resolved_actions:
-        if errors:
-            break
-        if requests_sent >= request_budget:
-            break
-        if requests_sent >= len(sim_tag_envelopes):
-            errors.append("sim_tag_envelopes_exhausted")
+    has_browser_actions = any(
+        str(action.get("action_type") or "").strip().startswith("browser_")
+        for action in resolved_actions
+    )
+    has_request_actions = any(
+        not str(action.get("action_type") or "").strip().startswith("browser_")
+        for action in resolved_actions
+    )
+    if has_browser_actions and has_request_actions:
+        errors.append("mixed_action_types_unsupported")
+        append_policy_audit_event(
+            policy_audit,
+            stage="validation",
+            decision="deny",
+            code="mixed_action_types_unsupported",
+        )
+
+    if not errors and has_browser_actions:
+        browser_headers = dict(sim_headers)
+        if sim_tag_envelopes:
+            envelope = sim_tag_envelopes[0]
+            browser_headers[SIM_TAG_HEADER_TIMESTAMP] = envelope["ts"]
+            browser_headers[SIM_TAG_HEADER_NONCE] = envelope["nonce"]
+            browser_headers[SIM_TAG_HEADER_SIGNATURE] = envelope["signature"]
+        browser_report = execute_browser_actions(
+            base_url=base_url,
+            sim_headers=browser_headers,
+            resolved_actions=resolved_actions,
+            time_budget_seconds=time_budget_seconds,
+            run_id=run_id,
+        )
+        payload["traffic"].extend(list(browser_report.get("traffic") or []))
+        requests_sent = int(browser_report.get("requests_sent") or 0)
+        statuses.extend(
+            int(dict(item).get("status") or 0)
+            for item in list(browser_report.get("traffic") or [])
+            if isinstance(item, dict)
+        )
+        for error in list(browser_report.get("errors") or []):
+            errors.append(str(error))
             append_policy_audit_event(
                 policy_audit,
                 stage="execution",
                 decision="deny",
-                code="sim_tag_envelopes_exhausted",
-                action=action,
+                code="browser_action_failed",
+                detail=str(error),
             )
-            break
-        if (time.monotonic() - start) >= time_budget_seconds:
-            errors.append("time_budget_exhausted")
-            append_policy_audit_event(
-                policy_audit,
-                stage="execution",
-                decision="deny",
-                code="time_budget_exhausted",
-                action=action,
-            )
-            break
-        envelope = sim_tag_envelopes[requests_sent]
-        request_headers = dict(sim_headers)
-        request_headers[SIM_TAG_HEADER_TIMESTAMP] = envelope["ts"]
-        request_headers[SIM_TAG_HEADER_NONCE] = envelope["nonce"]
-        request_headers[SIM_TAG_HEADER_SIGNATURE] = envelope["signature"]
-        url = str(action.get("url") or "")
-        if not enforce_allowlist(url, allowed_origins):
-            errors.append(f"egress_disallowed:{url}")
-            append_policy_audit_event(
-                policy_audit,
-                stage="execution",
-                decision="deny",
-                code="egress_disallowed",
-                detail=url,
-                action=action,
-            )
-            break
-        emit_heartbeat(run_id, "before_action", action_index=requests_sent + 1)
-        result = make_request(url, request_headers)
-        result["action_index"] = action.get("action_index")
-        result["action_type"] = action.get("action_type")
-        result["path"] = action.get("path")
-        if str(action.get("label") or "").strip():
-            result["label"] = str(action.get("label")).strip()
-        payload["traffic"].append(result)
-        requests_sent += 1
-        statuses.append(int(result.get("status", 0)))
-        emit_heartbeat(run_id, "after_action", action_index=requests_sent)
-        if result.get("status", 0) == 0:
-            errors.append(str(result.get("error") or "request_failed"))
-            append_policy_audit_event(
-                policy_audit,
-                stage="execution",
-                decision="deny",
-                code="request_failed",
-                detail=str(result.get("error") or "request_failed"),
-                action=action,
-            )
+    else:
+        for action in resolved_actions:
+            if errors:
+                break
+            if requests_sent >= request_budget:
+                break
+            if requests_sent >= len(sim_tag_envelopes):
+                errors.append("sim_tag_envelopes_exhausted")
+                append_policy_audit_event(
+                    policy_audit,
+                    stage="execution",
+                    decision="deny",
+                    code="sim_tag_envelopes_exhausted",
+                    action=action,
+                )
+                break
+            if (time.monotonic() - start) >= time_budget_seconds:
+                errors.append("time_budget_exhausted")
+                append_policy_audit_event(
+                    policy_audit,
+                    stage="execution",
+                    decision="deny",
+                    code="time_budget_exhausted",
+                    action=action,
+                )
+                break
+            envelope = sim_tag_envelopes[requests_sent]
+            request_headers = dict(sim_headers)
+            request_headers[SIM_TAG_HEADER_TIMESTAMP] = envelope["ts"]
+            request_headers[SIM_TAG_HEADER_NONCE] = envelope["nonce"]
+            request_headers[SIM_TAG_HEADER_SIGNATURE] = envelope["signature"]
+            url = str(action.get("url") or "")
+            if not enforce_allowlist(url, allowed_origins):
+                errors.append(f"egress_disallowed:{url}")
+                append_policy_audit_event(
+                    policy_audit,
+                    stage="execution",
+                    decision="deny",
+                    code="egress_disallowed",
+                    detail=url,
+                    action=action,
+                )
+                break
+            emit_heartbeat(run_id, "before_action", action_index=requests_sent + 1)
+            result = make_request(url, request_headers)
+            result["action_index"] = action.get("action_index")
+            result["action_type"] = action.get("action_type")
+            result["path"] = action.get("path")
+            if str(action.get("label") or "").strip():
+                result["label"] = str(action.get("label")).strip()
+            payload["traffic"].append(result)
+            requests_sent += 1
+            statuses.append(int(result.get("status", 0)))
+            emit_heartbeat(run_id, "after_action", action_index=requests_sent)
+            if result.get("status", 0) == 0:
+                errors.append(str(result.get("error") or "request_failed"))
+                append_policy_audit_event(
+                    policy_audit,
+                    stage="execution",
+                    decision="deny",
+                    code="request_failed",
+                    detail=str(result.get("error") or "request_failed"),
+                    action=action,
+                )
 
     payload["requests_sent"] = requests_sent
     payload["errors"] = errors

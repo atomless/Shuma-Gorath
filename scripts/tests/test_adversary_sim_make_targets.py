@@ -147,6 +147,23 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
             body,
         )
 
+    def test_llm_browser_runtime_target_uses_container_and_dashboard_proof_paths(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-adversarial-llm-browser-runtime:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn("test-adversarial-llm-fit", body)
+        self.assertIn("scripts/tests/adversarial_container_runner.py", body)
+        self.assertIn("scripts/tests/adversarial_container/worker.py", body)
+        self.assertIn("scripts/tests/test_adversarial_container_runner.py", body)
+        self.assertIn("scripts/tests/test_adversarial_container_worker.py", body)
+        self.assertIn("test-adversarial-llm-runtime-proof", body)
+        self.assertIn("test-dashboard-red-team-llm-runtime", body)
+
     def test_scrapling_category_fit_target_uses_bounded_selectors(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")
         match = re.search(

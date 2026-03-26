@@ -425,6 +425,8 @@ def resolve_frontier_actions(
     base_url: str,
     allowed_origins: List[str],
     request_budget: int,
+    allowed_tools_override: Sequence[str] | None = None,
+    allowed_action_types_override: Sequence[str] | None = None,
 ) -> List[Dict[str, Any]]:
     parsed = parse_frontier_actions(raw_actions)
     if not parsed:
@@ -435,4 +437,6 @@ def resolve_frontier_actions(
         base_url=base_url,
         allowed_origins=allowed_origins,
         request_budget=request_budget,
+        allowed_tools_override=allowed_tools_override,
+        allowed_action_types_override=allowed_action_types_override,
     )

@@ -46,6 +46,7 @@ SIM_TAG_CONTRACT_PATH = "scripts/tests/adversarial/sim_tag_contract.v1.json"
 DEFAULT_FRONTIER_ACTION_CONTRACT_PATH = "scripts/tests/adversarial/frontier_action_contract.v1.json"
 DEFAULT_CONTAINER_RUNTIME_PROFILE_PATH = "scripts/tests/adversarial/container_runtime_profile.v1.json"
 FRONTIER_ACTIONS_ENV = "SHUMA_BLACKBOX_ACTIONS"
+ALLOWED_TOOLS_ENV = "BLACKBOX_ALLOWED_TOOLS"
 CAPABILITY_ENVELOPES_ENV = "BLACKBOX_ACTION_ENVELOPES"
 CAPABILITY_VERIFY_KEY_ENV = "BLACKBOX_CAPABILITY_VERIFY_KEY"
 DEFAULT_CLEANUP_TTL_HOURS = 72
@@ -850,6 +851,7 @@ def container_command(
     time_budget_seconds: int,
     sim_tag_envelopes_json: str,
     frontier_actions_json: str,
+    allowed_tools_json: str,
     capability_envelopes_json: str,
     capability_verify_key: str,
     docker_flags: List[str] | None = None,
@@ -886,6 +888,8 @@ def container_command(
         "-e",
         f"BLACKBOX_ACTIONS={frontier_actions_json}",
         "-e",
+        f"{ALLOWED_TOOLS_ENV}={allowed_tools_json}",
+        "-e",
         f"{CAPABILITY_ENVELOPES_ENV}={capability_envelopes_json}",
         "-e",
         f"{CAPABILITY_VERIFY_KEY_ENV}={capability_verify_key}",
@@ -904,6 +908,7 @@ def run_container_worker(
     time_budget_seconds: int,
     sim_tag_envelopes_json: str,
     frontier_actions_json: str,
+    allowed_tools_json: str,
     capability_envelopes_json: str,
     capability_verify_key: str,
     docker_flags: List[str],
@@ -922,6 +927,7 @@ def run_container_worker(
         time_budget_seconds=time_budget_seconds,
         sim_tag_envelopes_json=sim_tag_envelopes_json,
         frontier_actions_json=frontier_actions_json,
+        allowed_tools_json=allowed_tools_json,
         capability_envelopes_json=capability_envelopes_json,
         capability_verify_key=capability_verify_key,
         docker_flags=docker_flags,
@@ -1135,6 +1141,11 @@ def main() -> int:
         help="Optional frontier action JSON list (defaults to contract default_actions)",
     )
     parser.add_argument(
+        "--allowed-tools",
+        default=os.environ.get(ALLOWED_TOOLS_ENV, ""),
+        help="Optional action-type override JSON list passed into the worker.",
+    )
+    parser.add_argument(
         "--cleanup-ttl-hours",
         default=os.environ.get("SHUMA_FRONTIER_ARTIFACT_TTL_HOURS", str(DEFAULT_CLEANUP_TTL_HOURS)),
         help="Retention TTL for frontier container report artifacts",
@@ -1229,6 +1240,7 @@ def main() -> int:
     frontier_action_source_error = ""
     frontier_action_lineage: List[Dict[str, Any]] = []
     frontier_candidate_rejections: List[Dict[str, Any]] = []
+    allowed_tools_json = str(args.allowed_tools or "").strip()
     forbidden_secret_values = [
         str(os.environ.get(env_key) or "").strip()
         for env_key in sorted(FORBIDDEN_ENV_KEYS)
@@ -1365,6 +1377,7 @@ def main() -> int:
             time_budget_seconds=time_budget_seconds,
             sim_tag_envelopes_json=sim_tag_envelopes_json,
             frontier_actions_json=frontier_actions_json,
+            allowed_tools_json=allowed_tools_json,
             capability_envelopes_json=capability_envelopes_json,
             capability_verify_key=capability_verify_key,
             docker_flags=docker_flags,

@@ -117,14 +117,16 @@ Current note:
 - `SIM-LLM-1C1` is now landed: the later attacker has a real live frontier action-generation seam with provider-vs-fallback lineage and Shuma-blind host-hint sanitization.
 - `SIM-LLM-1C2` is now landed: the host-side supervisor dispatches the dedicated LLM runtime worker, reuses the existing container black-box runner for request-mode execution, and ingests a typed `adversary-sim-llm-runtime-result.v1` payload instead of overloading the Scrapling worker result contract.
 - `SIM-LLM-1C3` is now landed: the live `bot_red_team` runtime leaves immutable bounded receipt events and projects provider/degraded/failed-closed lineage through recent-run hot reads and `operator_snapshot_v1`.
+- `SIM-LLM-BROWSER-1` is now landed: the live `bot_red_team` actor executes bounded browser-mode fulfillment inside the existing containerized black-box lane and Red Team renders that evidence through the existing recent-run surface.
 - The current request-native Scrapling baseline and first working Game Loop proof are now treated as baseline capability, not the unlock condition for later stance relaxation or LLM runtime work.
 - The immediate non-LLM mainline is now:
   - `STANCE-MODEL-1`
   - `SIM-SCR-FULL-1`
   - `RSI-GAME-HO-1`
-- After that strict Scrapling-only proof, the request-mode LLM runtime proof chain is now closed; the next honest blocker before mixed-attacker strict-loop work is executed browser-mode fulfillment for the browser-owned non-human categories.
+- The full first-class LLM attacker runtime unblock is now complete for the currently owned request-plus-browser category surface.
+- The next honest blocker before any later relaxed verified-identity sweep is the combined-attacker strict-loop tranche `RSI-GAME-HO-2`.
 - Do not open `humans_plus_verified_only` until a later second strict-baseline proof has shown retained config-change improvement under both Scrapling and LLM attacker pressure.
-- `DIAG-CLEANUP-1` and `MON-OVERHAUL-1C` are now both landed, so the deferred Game Loop and Diagnostics follow-on queue is currently clear while later LLM runtime work stays blocked.
+- `DIAG-CLEANUP-1` and `MON-OVERHAUL-1C` are now both landed, so the deferred Game Loop and Diagnostics follow-on queue is currently clear while the mixed-attacker strict-loop proof becomes the active next gate.
 
 ## P1 Verified Bot Identity And Web Bot Auth Foundation
 
@@ -142,9 +144,10 @@ Current stance:
 - The repo now treats the independent verified-identity top-level stance as design debt: `STANCE-MODEL-1` should replace it with one canonical non-human stance model and a resolved effective policy contract before broader permissive verified-identity posture work continues.
 - Do not bundle authorization policy, low-cost profiles, or dashboard control surfaces into the first tranche.
 
-- [ ] SIM-LLM-BROWSER-1 Land bounded executed browser-mode fulfillment for the live `bot_red_team` actor and prove browser-owned category coverage.
+- [ ] RSI-GAME-HO-2 Re-run the strict `human_only_private` Game Loop under combined Scrapling plus LLM attacker pressure.
   - Reference context:
     - [`docs/research/2026-03-25-sim-llm-1c3-runtime-proof-closure-post-implementation-review.md`](../docs/research/2026-03-25-sim-llm-1c3-runtime-proof-closure-post-implementation-review.md)
+    - [`docs/research/2026-03-25-sim-llm-browser-1-container-browser-mode-post-implementation-review.md`](../docs/research/2026-03-25-sim-llm-browser-1-container-browser-mode-post-implementation-review.md)
     - [`docs/plans/2026-03-25-sim-llm-1c3-runtime-proof-closure-plan.md`](../docs/plans/2026-03-25-sim-llm-1c3-runtime-proof-closure-plan.md)
     - [`docs/plans/2026-03-25-delay-humans-plus-verified-until-combined-attacker-proof-plan.md`](../docs/plans/2026-03-25-delay-humans-plus-verified-until-combined-attacker-proof-plan.md)
     - [`docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](../docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)

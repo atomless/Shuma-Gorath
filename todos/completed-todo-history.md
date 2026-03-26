@@ -4,6 +4,36 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-25)
 
+### `SIM-LLM-BROWSER-1` Container Browser-Mode Fulfillment
+
+- [x] Landed bounded browser-mode fulfillment inside the existing LLM black-box seam in:
+  - [`scripts/supervisor/llm_runtime_worker.py`](../scripts/supervisor/llm_runtime_worker.py)
+  - [`scripts/tests/adversarial_container_runner.py`](../scripts/tests/adversarial_container_runner.py)
+  - [`scripts/tests/frontier_action_contract.py`](../scripts/tests/frontier_action_contract.py)
+  - [`scripts/tests/adversarial_container/worker.py`](../scripts/tests/adversarial_container/worker.py)
+  - [`scripts/tests/adversarial_container/Dockerfile`](../scripts/tests/adversarial_container/Dockerfile)
+  so the live `bot_red_team` actor now executes bounded `browser_navigate`, `browser_snapshot`, and `browser_click` actions through the existing containerized capability boundary instead of failing closed merely because the fulfillment plan chose browser mode.
+- [x] Closed the dashboard proof seam in:
+  - [`dashboard/src/routes/+page.svelte`](../dashboard/src/routes/+page.svelte)
+  - [`dashboard/src/lib/components/dashboard/RedTeamTab.svelte`](../dashboard/src/lib/components/dashboard/RedTeamTab.svelte)
+  - [`e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`Makefile`](../Makefile)
+  - [`docs/testing.md`](../docs/testing.md)
+  so Red Team now renders browser-mode recent-run evidence through the existing recent-run surface and the focused proof path fails closed if the route-level lane gate silently rejects `bot_red_team`.
+- [x] Recorded the tranche in:
+  - [`docs/research/2026-03-25-sim-llm-browser-1-container-browser-mode-readiness-review.md`](../docs/research/2026-03-25-sim-llm-browser-1-container-browser-mode-readiness-review.md)
+  - [`docs/plans/2026-03-25-sim-llm-browser-1-container-browser-mode-plan.md`](../docs/plans/2026-03-25-sim-llm-browser-1-container-browser-mode-plan.md)
+  - [`docs/research/2026-03-25-sim-llm-browser-1-container-browser-mode-post-implementation-review.md`](../docs/research/2026-03-25-sim-llm-browser-1-container-browser-mode-post-implementation-review.md)
+  - [`docs/plans/README.md`](../docs/plans/README.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+  so the remaining browser-mode blocker for the current first-class LLM attacker runtime is now closed, the umbrella blockers `SIM-LLM-1` and `SIM-LLM-1C` are cleared for the currently owned request-plus-browser surface, and `RSI-GAME-HO-2` becomes the next active strict-baseline tranche.
+- [x] Evidence:
+  - `make test-adversarial-llm-browser-runtime`
+  - `git diff --check`
+
 ### `SIM-LLM-1C3` Runtime Proof Closure
 
 - [x] Added one shared bounded LLM recent-run summary contract in:

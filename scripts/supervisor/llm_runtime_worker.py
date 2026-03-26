@@ -232,7 +232,7 @@ def build_llm_runtime_result(
     }
 
 
-def run_request_mode_blackbox(
+def run_blackbox_mode(
     *,
     base_url: str,
     fulfillment_plan: dict[str, Any],
@@ -249,6 +249,11 @@ def run_request_mode_blackbox(
         10,
         int(capability_envelope.get("max_time_budget_seconds") or 120),
     )
+    allowed_tools = [
+        str(item).strip()
+        for item in list(capability_envelope.get("allowed_tools") or [])
+        if str(item).strip()
+    ]
     if report_path is None:
         report_fd, report_file = tempfile.mkstemp(
             prefix="shuma-llm-runtime-report-",
@@ -267,6 +272,8 @@ def run_request_mode_blackbox(
         str(base_url).strip(),
         "--frontier-actions",
         json.dumps(list(generation_result.get("actions") or []), separators=(",", ":")),
+        "--allowed-tools",
+        json.dumps(allowed_tools, separators=(",", ":")),
         "--request-budget",
         str(request_budget),
         "--time-budget-seconds",
@@ -330,36 +337,42 @@ def main() -> int:
         public_hint_paths=public_hint_paths,
     )
 
-    if str(fulfillment_plan.get("fulfillment_mode") or "").strip() == "browser_mode":
-        result = build_llm_runtime_result(
-            fulfillment_plan=fulfillment_plan,
-            generation_result=generation_result,
-            report_payload=None,
-            tick_completed_at=tick_completed_at,
-            worker_id=worker_id,
-            error="browser_mode_dispatch_not_yet_supported_by_blackbox_worker",
-            failure_class="transport",
-            terminal_failure="browser_mode_not_supported",
-        )
-    else:
-        report_payload = run_request_mode_blackbox(
-            base_url=base_url,
-            fulfillment_plan=fulfillment_plan,
-            generation_result=generation_result,
-        )
-        result = build_llm_runtime_result(
-            fulfillment_plan=fulfillment_plan,
-            generation_result=generation_result,
-            report_payload=report_payload,
-            tick_completed_at=tick_completed_at,
-            worker_id=worker_id,
-        )
+    report_payload = run_blackbox_mode(
+        base_url=base_url,
+        fulfillment_plan=fulfillment_plan,
+        generation_result=generation_result,
+    )
+    result = build_llm_runtime_result(
+        fulfillment_plan=fulfillment_plan,
+        generation_result=generation_result,
+        report_payload=report_payload,
+        tick_completed_at=tick_completed_at,
+        worker_id=worker_id,
+    )
 
     Path(args.result_output_file).write_text(
         json.dumps(result, separators=(",", ":")),
         encoding="utf-8",
     )
     return 0 if bool(result.get("passed")) else 1
+
+
+# Retained as a compatibility helper for focused request-mode tests.
+def run_request_mode_blackbox(
+    *,
+    base_url: str,
+    fulfillment_plan: dict[str, Any],
+    generation_result: dict[str, Any],
+    runner: Any = subprocess.run,
+    report_path: Path | None = None,
+) -> dict[str, Any]:
+    return run_blackbox_mode(
+        base_url=base_url,
+        fulfillment_plan=fulfillment_plan,
+        generation_result=generation_result,
+        runner=runner,
+        report_path=report_path,
+    )
 
 
 if __name__ == "__main__":

@@ -3455,6 +3455,36 @@ test('monitoring view model and status module remain pure snapshot transforms', 
         }
       },
       {
+        run_id: 'run-summary-browser',
+        lane: 'bot_red_team',
+        profile: 'llm_runtime_lane.browser_mode',
+        first_ts: 1710000300,
+        last_ts: 1710000400,
+        monitoring_event_count: 4,
+        defense_delta_count: 1,
+        ban_outcome_count: 0,
+        observed_fulfillment_modes: ['browser_mode'],
+        observed_category_ids: ['automated_browser', 'browser_agent'],
+        owned_surface_coverage: {
+          overall_status: 'covered',
+          required_surface_ids: ['root_traversal'],
+          satisfied_surface_ids: ['root_traversal'],
+          blocking_surface_ids: [],
+          receipts: [
+            {
+              surface_id: 'root_traversal',
+              success_contract: 'should_pass_some',
+              coverage_status: 'pass_observed',
+              satisfied: true,
+              attempt_count: 1,
+              sample_request_method: 'GET',
+              sample_request_path: '/',
+              sample_response_status: 200
+            }
+          ]
+        }
+      },
+      {
         run_id: 'run-summary-1',
         lane: 'browser_realistic',
         profile: 'full_coverage',
@@ -3469,39 +3499,44 @@ test('monitoring view model and status module remain pure snapshot transforms', 
     ]);
     assert.deepEqual(
       summarizedRuns.runRows.map((row) => row.runId),
-      ['run-summary-2', 'run-summary-1']
+      ['run-summary-browser', 'run-summary-2', 'run-summary-1']
     );
-    assert.equal(summarizedRuns.runRows[0].defenseDeltaCount, 2);
+    const browserRun = summarizedRuns.runRows.find((row) => row.runId === 'run-summary-browser');
+    assert.equal(browserRun?.lane, 'bot_red_team');
+    assert.deepEqual(browserRun?.observedFulfillmentModes, ['browser_mode']);
+    assert.deepEqual(browserRun?.observedCategoryIds, ['automated_browser', 'browser_agent']);
+    assert.equal(browserRun?.ownedSurfaceCoverage?.overallStatus, 'covered');
+    assert.equal(summarizedRuns.runRows[1].defenseDeltaCount, 2);
     assert.deepEqual(
-      summarizedRuns.runRows[0].observedFulfillmentModes,
+      summarizedRuns.runRows[1].observedFulfillmentModes,
       ['bulk_scraper', 'http_agent']
     );
     assert.deepEqual(
-      summarizedRuns.runRows[0].observedCategoryIds,
+      summarizedRuns.runRows[1].observedCategoryIds,
       ['ai_scraper_bot', 'http_agent']
     );
     assert.equal(
-      summarizedRuns.runRows[0].ownedSurfaceCoverage?.overallStatus,
+      summarizedRuns.runRows[1].ownedSurfaceCoverage?.overallStatus,
       'partial'
     );
     assert.equal(
-      summarizedRuns.runRows[0].ownedSurfaceCoverage?.exercisedSurfaceCount,
+      summarizedRuns.runRows[1].ownedSurfaceCoverage?.exercisedSurfaceCount,
       3
     );
     assert.equal(
-      summarizedRuns.runRows[0].ownedSurfaceCoverage?.expectedPassCount,
+      summarizedRuns.runRows[1].ownedSurfaceCoverage?.expectedPassCount,
       1
     );
     assert.equal(
-      summarizedRuns.runRows[0].ownedSurfaceCoverage?.expectedFailCount,
+      summarizedRuns.runRows[1].ownedSurfaceCoverage?.expectedFailCount,
       1
     );
     assert.equal(
-      summarizedRuns.runRows[0].ownedSurfaceCoverage?.mixedOutcomeCount,
+      summarizedRuns.runRows[1].ownedSurfaceCoverage?.mixedOutcomeCount,
       1
     );
     assert.equal(
-      summarizedRuns.runRows[0].ownedSurfaceCoverage?.receipts?.[0]?.surfaceId,
+      summarizedRuns.runRows[1].ownedSurfaceCoverage?.receipts?.[0]?.surfaceId,
       'challenge_routing'
     );
     assert.equal(summarizedRuns.activeBanCount, 1);
@@ -5472,7 +5507,7 @@ test('red team tab reuses verification-style config panel primitives for its adv
   assert.match(redTeamTabSource, /<select[\s\S]*id="adversary-sim-lane-select"[\s\S]*class="input-field"[\s\S]*on:change=\{handleLaneChange\}/m);
   assert.match(redTeamTabSource, /<option value="synthetic_traffic">Synthetic Traffic<\/option>/);
   assert.match(redTeamTabSource, /<option value="scrapling_traffic">Scrapling Traffic<\/option>/);
-  assert.match(redTeamTabSource, /<option value="bot_red_team" disabled>Bot Red Team \(coming soon\)<\/option>/);
+  assert.match(redTeamTabSource, /<option value="bot_red_team">Bot Red Team<\/option>/);
   assert.match(redTeamTabSource, /<p id="adversary-sim-lifecycle-copy" class="control-desc text-muted">\{lifecycleCopy\}<\/p>/);
   assert.match(redTeamTabSource, /class="dashboard-adversary-sim-progress"/);
   assert.match(redTeamTabSource, /class="dashboard-adversary-sim-progress__fill"/);

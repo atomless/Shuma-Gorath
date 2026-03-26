@@ -3174,7 +3174,7 @@ test("adversary sim toggle emits fresh telemetry visible in monitoring raw feed"
   });
 });
 
-test("adversary sim lane selector keeps off-state desired versus active truth and disables bot red team", async ({ page, request }) => {
+test("adversary sim lane selector keeps off-state desired versus active truth and allows bot red team", async ({ page, request }) => {
   test.setTimeout(180_000);
   await withRestoredAdversarySimConfig(request, async () => {
     await forceAdversarySimDisabled(request);
@@ -3196,7 +3196,7 @@ test("adversary sim lane selector keeps off-state desired versus active truth an
     await expect(laneSelect).toHaveValue("scrapling_traffic");
     await expect(page.locator("#adversary-sim-lane-state-desired")).toContainText("Scrapling Traffic");
     await expect(page.locator("#adversary-sim-lane-state-active")).toContainText("Not running");
-    await expect(botRedTeamOption).toBeDisabled();
+    await expect(botRedTeamOption).toBeEnabled();
 
     await laneSelect.selectOption("synthetic_traffic");
     await expect.poll(async () => {
@@ -3204,6 +3204,14 @@ test("adversary sim lane selector keeps off-state desired versus active truth an
       return String(payload?.desired_lane || "").trim().toLowerCase();
     }, { timeout: 30000 }).toBe("synthetic_traffic");
     await expect(page.locator("#adversary-sim-lane-state-desired")).toContainText("Synthetic Traffic");
+    await expect(page.locator("#adversary-sim-lane-state-active")).toContainText("Not running");
+
+    await laneSelect.selectOption("bot_red_team");
+    await expect.poll(async () => {
+      const payload = await fetchAdversarySimStatus(request);
+      return String(payload?.desired_lane || "").trim().toLowerCase();
+    }, { timeout: 30000 }).toBe("bot_red_team");
+    await expect(page.locator("#adversary-sim-lane-state-desired")).toContainText("Bot Red Team");
     await expect(page.locator("#adversary-sim-lane-state-active")).toContainText("Not running");
   });
 });
@@ -3838,6 +3846,108 @@ test("red team tab surfaces receipt-backed scrapling attack evidence from recent
   await expect(page.locator("#red-team-scrapling-evidence")).toContainText("Pass Observed | satisfied");
   await expect(page.locator("#red-team-scrapling-evidence")).toContainText("Fail Observed | satisfied");
   await expect(page.locator("#red-team-scrapling-evidence")).toContainText("PoW Verify Abuse");
+});
+
+test("red team tab renders bot red team browser-mode recent run evidence", async ({ page }) => {
+  const buildMonitoringPayload = () => ({
+    summary: {
+      honeypot: { total_hits: 0, unique_crawlers: 0, top_crawlers: [], top_paths: [] },
+      challenge: { total_failures: 0, unique_offenders: 0, top_offenders: [], reasons: {}, trend: [] },
+      pow: {
+        total_failures: 0,
+        total_successes: 0,
+        total_attempts: 0,
+        success_ratio: 0,
+        unique_offenders: 0,
+        top_offenders: [],
+        failures_by_reason: {},
+        challenge_success_by_reason: {}
+      },
+      fingerprinting: { by_outcome: {}, top_ips: [], assessments: [] },
+      geo: { by_outcome: {}, top_countries: [] },
+      ip_range: { by_outcome: {}, top_ranges: [] },
+      rate_limit: { by_outcome: {}, top_ips: [] }
+    },
+    details: {
+      events: {
+        events: [],
+        recent_sim_runs: [
+          {
+            run_id: "simrun-bot-red-team-browser",
+            lane: "bot_red_team",
+            profile: "llm_runtime_lane.browser_mode",
+            first_ts: 1710001000,
+            last_ts: 1710001090,
+            monitoring_event_count: 3,
+            defense_delta_count: 1,
+            ban_outcome_count: 0,
+            observed_fulfillment_modes: ["browser_mode"],
+            observed_category_ids: ["automated_browser", "browser_agent"],
+            owned_surface_coverage: {
+              overall_status: "covered",
+              required_surface_ids: ["root_traversal"],
+              satisfied_surface_ids: ["root_traversal"],
+              blocking_surface_ids: [],
+              receipts: [
+                {
+                  surface_id: "root_traversal",
+                  success_contract: "should_pass_some",
+                  coverage_status: "pass_observed",
+                  satisfied: true,
+                  attempt_count: 1,
+                  sample_request_method: "GET",
+                  sample_request_path: "/",
+                  sample_response_status: 200
+                }
+              ]
+            }
+          }
+        ],
+        event_counts: {},
+        top_ips: [],
+        unique_ips: 0
+      },
+      bans: { bans: [] },
+      maze: { total_hits: 0, unique_crawlers: 0, maze_auto_bans: 0, top_crawlers: [] },
+      cdp: { stats: { total_detections: 0, auto_bans: 0 }, config: {}, fingerprint_stats: {} },
+      cdp_events: { events: [] }
+    }
+  });
+
+  await page.route("**/admin/monitoring?hours=*&limit=*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(buildMonitoringPayload())
+    });
+  });
+  await page.route("**/admin/monitoring/delta?hours=*&limit=*", async (route) => {
+    const url = new URL(route.request().url());
+    const afterCursor = (url.searchParams.get("after_cursor") || "").trim();
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        after_cursor: afterCursor,
+        window_end_cursor: "cursor-bot-red-team-browser",
+        next_cursor: "cursor-bot-red-team-browser",
+        has_more: false,
+        overflow: "none",
+        events: [],
+        recent_sim_runs: buildMonitoringPayload().details.events.recent_sim_runs,
+        freshness: { state: "fresh", lag_ms: 0, transport: "cursor_delta_poll" }
+      })
+    });
+  });
+
+  await openDashboard(page);
+  await openTab(page, "red-team");
+  await expect(page.locator("#adversary-runs tbody")).toContainText("simrun-bot-red-team-browser");
+  await expect(page.locator("#adversary-runs tbody")).toContainText("bot_red_team");
+  await expect(page.locator("#adversary-runs tbody")).toContainText("Browser Mode");
+  await expect(page.locator("#adversary-runs tbody")).toContainText("Automated Browser");
+  await expect(page.locator("#adversary-runs tbody")).toContainText("Browser Agent");
+  await expect(page.locator("#adversary-runs tbody")).toContainText("Covered | 1 / 1 surfaces");
 });
 
 test("manual refresh button appends new monitoring delta events when auto-refresh is off", async ({ page }) => {
