@@ -1052,6 +1052,18 @@ test("dashboard login route remains functional after direct navigation and refre
   assertNoRuntimeFailures(page);
 });
 
+test("dashboard trailing-slash root preserves operator login flow", async ({ page }) => {
+  ensureRuntimeGuard(page);
+  await page.goto(`${BASE_URL}/dashboard/`);
+  await expect(page).toHaveURL(/\/dashboard\/login\.html\?next=/);
+  await expect(page.locator("#login-form")).toBeVisible();
+  await page.fill("#current-password", API_KEY);
+  await page.click("#login-submit");
+  await expect(page).toHaveURL(/\/dashboard\/index\.html/);
+  await waitForDashboardSessionAuthenticated(page, 15000);
+  assertNoRuntimeFailures(page);
+});
+
 test("logged-out dashboard navigation keeps the auth gate visible until redirect", async ({ page }) => {
   ensureRuntimeGuard(page);
 

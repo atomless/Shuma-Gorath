@@ -72,6 +72,22 @@ fn early_router_redirects_dashboard_root_to_index_html() {
 }
 
 #[test]
+fn early_router_redirects_dashboard_trailing_slash_root_to_index_html() {
+    let req = request(Method::Get, "/dashboard/");
+    let caps = capabilities();
+    let resp = maybe_handle_early_route(&req, "/dashboard/", &caps);
+    assert!(resp.is_some());
+    let resp = resp.unwrap();
+    assert_eq!(*resp.status(), 308u16);
+    let location = resp
+        .headers()
+        .find(|(name, _)| name.eq_ignore_ascii_case("location"))
+        .and_then(|(_, value)| value.as_str())
+        .unwrap_or("");
+    assert_eq!(location, "/dashboard/index.html");
+}
+
+#[test]
 fn not_a_bot_failure_policy_routes_user_failures_to_maze() {
     assert_eq!(
         classify_not_a_bot_failure_enforcement(crate::challenge::NotABotSubmitOutcome::FailedScore),

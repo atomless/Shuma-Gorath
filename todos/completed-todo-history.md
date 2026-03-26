@@ -2,6 +2,30 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-03-26)
+
+### Dashboard Trailing-Slash Operator Login Recovery
+
+- [x] Restored dashboard root entry behavior so both `/dashboard` and `/dashboard/` now redirect to [`/dashboard/index.html`](../src/runtime/request_router.rs) in the early router, instead of allowing `/dashboard/` to fall through into the bot-defence runtime.
+- [x] Added route-level regression guards in:
+  - [`src/runtime/request_router/tests.rs`](../src/runtime/request_router/tests.rs)
+  - [`tests/routing_order_integration.rs`](../tests/routing_order_integration.rs)
+  so the trailing-slash dashboard entry contract is proven both in the early router and through the full request handler.
+- [x] Added a real browser regression test in:
+  - [`e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  proving that entering through `/dashboard/` preserves the operator login flow and reaches the authenticated dashboard shell.
+- [x] Repaired a brittle Red Team dashboard source-shape assertion in:
+  - [`e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  so the focused dashboard verification path no longer fails on harmless multiline imports.
+- [x] Why:
+  - loading `http://127.0.0.1:3000/dashboard/` was entering the bot-defence runtime instead of the dashboard shell,
+  - which made operator login appear broken and could surface misleading gateway-forward failures against the configured upstream origin.
+- [x] Evidence:
+  - `make test-integration`
+  - `make test-dashboard-e2e PLAYWRIGHT_ARGS='--grep "dashboard trailing-slash root preserves operator login flow"'`
+  - `curl -i http://127.0.0.1:3000/dashboard/`
+  - `git diff --check`
+
 ## Additional completions (2026-03-25)
 
 ### Delay `humans_plus_verified_only` Until Combined-Attacker Strict Proof

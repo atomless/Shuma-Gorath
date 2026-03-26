@@ -424,7 +424,9 @@ pub(crate) fn maybe_handle_early_route(
         return Some(response);
     }
 
-    if path == "/dashboard" && (*req.method() == Method::Get || *req.method() == Method::Head) {
+    if (path == "/dashboard" || path == "/dashboard/")
+        && (*req.method() == Method::Get || *req.method() == Method::Head)
+    {
         return Some(
             Response::builder()
                 .status(308)

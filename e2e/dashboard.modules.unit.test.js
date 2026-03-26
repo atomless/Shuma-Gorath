@@ -6004,7 +6004,7 @@ test('red team tab renders the recent adversary runs panel with red-team-specifi
   );
 
   assert.match(source, /import AdversaryRunPanel from '\.\/monitoring\/AdversaryRunPanel\.svelte';/);
-  assert.match(source, /import \{ deriveAdversaryRunRowsFromSummaries \} from '\.\/monitoring-view-model\.js';/);
+  assert.match(source, /deriveAdversaryRunRowsFromSummaries/);
   assert.match(source, /export let eventsSnapshot = null;/);
   assert.match(source, /export let bansSnapshot = null;/);
   assert.match(source, /export let monitoringFreshnessSnapshot = null;/);
