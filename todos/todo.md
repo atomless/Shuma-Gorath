@@ -149,6 +149,7 @@ Current stance:
     - [`docs/research/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-review.md`](../docs/research/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-review.md)
     - [`docs/research/2026-03-26-sim-scr-full-spectrum-adversary-mandate-review.md`](../docs/research/2026-03-26-sim-scr-full-spectrum-adversary-mandate-review.md)
     - [`docs/research/2026-03-26-sim-scr-full-1a-full-spectrum-capability-matrix-refresh-review.md`](../docs/research/2026-03-26-sim-scr-full-1a-full-spectrum-capability-matrix-refresh-review.md)
+    - [`docs/research/2026-03-26-strict-loop-breach-signal-and-llm-resequence-review.md`](../docs/research/2026-03-26-strict-loop-breach-signal-and-llm-resequence-review.md)
     - [`docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](../docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)
     - [`docs/plans/2026-03-25-sim-scr-cap-1-capability-matrix-plan.md`](../docs/plans/2026-03-25-sim-scr-cap-1-capability-matrix-plan.md)
     - [`docs/plans/2026-03-25-scrapling-full-attacker-capability-principle-plan.md`](../docs/plans/2026-03-25-scrapling-full-attacker-capability-principle-plan.md)
@@ -171,6 +172,11 @@ Current stance:
       - `make test-adversary-sim-scrapling-coverage-receipts`
       - `make test-benchmark-results-contract`
       - `make test-oversight-reconcile`
+  - [ ] SIM-SCR-FULL-1C3 Audit the current operator-facing Scrapling performance picture against machine-first receipts and prove whether the current "fully blocked" reading is truthful or a projection artifact before further strict-loop proof claims.
+    - Proof required:
+      - `make test-adversary-sim-scrapling-coverage-receipts`
+      - `make test-dashboard-game-loop-accountability`
+      - `git diff --check`
 
 - [ ] RSI-SCORE-2 Upgrade the judge, diagnoser, and move selector so strict-loop proof is exploit-first, evidence-quality-aware, urgency-aware, and capable of explicit config-exhaustion referral before `RSI-GAME-HO-1`.
   - Reference context:
@@ -222,9 +228,9 @@ Current stance:
   - Closure gate:
     - runtime/config: the loop runs against `human_only_private`, verified non-human stays denied, the strict sim-only phase treats adversary-sim lanes as `100%` non-human traffic and drives suspicious forwarded leakage toward zero or equivalent fail-closed suppression rather than the seeded mixed-public `10%` budgets, the exploit-first `RSI-SCORE-2` judge is active, bounded config recommendations are applied, later Scrapling runs execute against changed config, and repeated retain/rollback judgments occur rather than one-off plumbing
     - API/snapshot: recent changes, oversight history, and related machine-first surfaces show repeated cycle lineage, applied changes, and retained vs rolled-back outcomes
-    - dashboard/admin: `Game Loop` projects the strict stance truthfully, shows repeated change context, shows measured movement toward the strict target rather than only recommendation plumbing or legacy mismatch rows, preserves the richer `RSI-SCORE-2` judge planes, and keeps later human-traversal calibration explicit rather than implying that sim traffic already proved likely-human safety
+    - dashboard/admin: `Game Loop` projects the strict stance truthfully, shows repeated change context, shows measured movement toward the strict target rather than only recommendation plumbing or legacy mismatch rows, preserves the richer `RSI-SCORE-2` judge planes, keeps later human-traversal calibration explicit rather than implying that sim traffic already proved likely-human safety, and does not rely on a weakened baseline to manufacture proof
     - proof: focused `make` paths must pass for strict-stance runtime behavior and repeated judged-cycle proof on the local sim-public surface first; later human-traversal calibration and live-host realism stay separate named proof rings
-    - insufficient: one successful loop, one canary apply, recommendation generation without retained improvement, current mixed-site default budgets still appearing as the strict target, or unresolved dashboard/runtime mismatch that still contradicts the claimed improvement
+    - insufficient: one successful loop, one canary apply, recommendation generation without retained improvement, current mixed-site default budgets still appearing as the strict target, weakened-baseline proof standing in for strict-loop proof, or unresolved dashboard/runtime mismatch that still contradicts the claimed improvement
   - [ ] RSI-GAME-HO-1A Run the existing machine-first loop against the corrected `human_only_private` stance with verified non-human traffic still denied under that strict baseline.
   - [ ] RSI-GAME-HO-1B Repeat Scrapling-driven cycles until recommendations become bounded config changes, later runs occur against those changed configs, and watch windows judge retain or rollback truthfully many times rather than once.
   - [ ] RSI-GAME-HO-1C Define and satisfy the unlock condition showing retained config changes and measured improvement toward the strict target, not merely one successful end-to-end cycle.

@@ -4,6 +4,22 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-26)
 
+### Strict-Loop Breach-Signal And LLM Resequencing Planning Refinement
+
+- [x] Added the strict-loop breach-signal and adversary resequencing driver in:
+  - [`docs/research/2026-03-26-strict-loop-breach-signal-and-llm-resequence-review.md`](../docs/research/2026-03-26-strict-loop-breach-signal-and-llm-resequence-review.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  so the repo now states explicitly that strict-loop proof must not weaken `human_only_private`, that the current Scrapling picture must be audited against machine-first truth first, and that earlier LLM-lane promotion is only justified if full-power Scrapling still cannot generate controller-grade breach signals under the unchanged strict stance.
+- [x] Threaded that sequencing correction into:
+  - [`docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](../docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+  so the active backlog now includes an explicit `SIM-SCR-FULL-1C3` Scrapling truth-audit step, forbids weaker-baseline proof for `RSI-GAME-HO-1`, and gives `SIM-LLM-1C3` an evidence-driven promotion rule instead of forcing a weaker strict-loop proof strategy.
+- [x] Why:
+  - the user correctly called out that weakening the strict human-only posture to make the loop look alive would prove the wrong thing, while also pointing out that if full-power Scrapling still cannot generate meaningful breach signals then stronger adversaries must move earlier.
+- [x] Evidence:
+  - `git diff --check`
+
 ### RSI-SCORE-2 Terrain-Locality And Precise-Move Planning Refinement
 
 - [x] Added the terrain-local scoring and diagnosis driver in:

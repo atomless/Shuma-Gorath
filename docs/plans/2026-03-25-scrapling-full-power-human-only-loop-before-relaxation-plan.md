@@ -9,6 +9,7 @@ Related context:
 - [`../research/2026-03-26-game-loop-scoring-and-diagnoser-audit.md`](../research/2026-03-26-game-loop-scoring-and-diagnoser-audit.md)
 - [`../research/2026-03-26-ideal-rsi-game-loop-scoring-review.md`](../research/2026-03-26-ideal-rsi-game-loop-scoring-review.md)
 - [`../research/2026-03-26-game-loop-terrain-locality-and-breach-diagnosis-review.md`](../research/2026-03-26-game-loop-terrain-locality-and-breach-diagnosis-review.md)
+- [`../research/2026-03-26-strict-loop-breach-signal-and-llm-resequence-review.md`](../research/2026-03-26-strict-loop-breach-signal-and-llm-resequence-review.md)
 - [`2026-03-25-sim-scr-cap-1-capability-matrix-plan.md`](2026-03-25-sim-scr-cap-1-capability-matrix-plan.md)
 - [`2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md`](2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md)
 - [`2026-03-24-rsi-game-mainline-first-working-loop-plan.md`](2026-03-24-rsi-game-mainline-first-working-loop-plan.md)
@@ -38,6 +39,9 @@ Define the post-`STANCE-MODEL-1` execution order so Shuma does not relax stance 
 10. Human traversal against the discovered strict config is a later separate calibration ring, first local and then live, not something to infer from adversary-sim traffic.
 11. Before strict-loop proof resumes, the judge and diagnoser must be upgraded so aggregate suspicious-origin suppression is no longer allowed to stand in for exploit defeat, low-confidence evidence cannot drive fine-grained config moves, and sudden new bypasses can break homeostasis immediately.
 12. That scoring upgrade must treat the host site as terrain, preserve terrain-local breach loci, and prefer the smallest effective local repair rather than scattershot board-wide retuning.
+13. The strict proof ring must not weaken `human_only_private` merely to manufacture a breach signal or recommendation; if a positive-control ring is needed, it must be explicit, separate, and not counted as proof that the strict stance itself is operationally proven.
+14. Before further strict-loop claims, Shuma must explicitly answer whether the current Game Loop picture of Scrapling being fully blocked is truthful or a presentation artifact.
+15. If full-power Scrapling plus truthful exploit-first scoring still cannot generate controller-grade breach signals under the unchanged strict stance, promoting `SIM-LLM-1C3` earlier becomes the correct next adversary-strength move.
 
 # Execution Shape
 
@@ -80,6 +84,16 @@ Required contract:
 2. which it passed where expected,
 3. which it failed where expected,
 4. and which non-human categories and defense surfaces it actually exercised.
+
+### `SIM-SCR-FULL-1C3`
+
+Audit the current operator picture of Scrapling performance before further strict-loop proof claims.
+
+Required contract:
+
+1. compare machine-first Scrapling receipts, Red Team truth, and Game Loop projection,
+2. explicitly answer whether the current "fully blocked" reading is truthful or misleading,
+3. and record any remaining projection gaps that could make Scrapling look weaker or stronger than the receipts support.
 
 ## `RSI-SCORE-2`: Exploit-first judge and diagnoser before strict-loop proof
 
@@ -134,6 +148,7 @@ Required contract:
 6. and this repeats enough times to show non-noisy improvement toward the strict target rather than a single lucky cycle.
 7. for this sim-only proof ring, the suspicious forwarded request, byte, and latency targets are zero or equivalent fail-closed suppression targets because the input traffic is known non-human adversary traffic.
 8. the retained recommendations are terrain-localized and causally justified rather than broad multi-family config sweeps without a named breach locus.
+9. the tranche does not rely on loosening `human_only_private` or any weaker policy baseline merely to create breach-positive evidence.
 
 ### `RSI-GAME-HO-1C`
 
@@ -161,13 +176,14 @@ Required contract:
 
 ## `SIM-LLM-1C3`: Remaining LLM attacker runtime proof closure
 
-After `RSI-GAME-HO-1`, the next meaningful runtime slice is the final LLM attacker proof closure.
+After `RSI-GAME-HO-1`, the default next meaningful runtime slice is the final LLM attacker proof closure.
 
 Required contract:
 
 1. runtime receipts are projected truthfully,
 2. recent-run visibility is complete,
 3. and the later LLM attacker becomes a real black-box runtime participant in the loop.
+4. If `SIM-SCR-FULL-1C3` plus `RSI-SCORE-2` prove that full-power Scrapling still cannot generate controller-grade breach signals under the unchanged strict stance, promoting this tranche earlier is the correct evidence-driven exception to the default order.
 
 ## `RSI-GAME-HO-2`: Strict `human_only_private` proof with both Scrapling and LLM pressure
 
@@ -198,12 +214,13 @@ When it opens, it should:
 1. Keep `VERIFY-GATE-1` as the immediate next process prerequisite.
 2. After `VERIFY-GATE-1`, keep `STANCE-MODEL-1` as the next design and implementation prerequisite.
 3. After `STANCE-MODEL-1`, make `SIM-SCR-FULL-1` the next mainline instead of any LLM runtime slice.
-4. After `SIM-SCR-FULL-1`, make `RSI-SCORE-2` the next mainline so the judge and diagnoser are fit for exploit-first strict-loop proof.
-5. After `RSI-SCORE-2`, make `RSI-GAME-HO-1` the next mainline.
-6. After `RSI-GAME-HO-1`, reopen `SIM-LLM-1C3`.
-7. After `SIM-LLM-1C3`, add `RSI-GAME-HO-2` as the mixed Scrapling-plus-LLM strict-baseline proof.
-8. Block `RSI-GAME-HV-1` until `RSI-GAME-HO-2` proves real repeated improvement.
-9. Before claiming the strict baseline is human-safe or ready for broader operator use, add the separate human traversal calibration ring over the discovered strict config.
+4. Keep `SIM-SCR-FULL-1C3` as the explicit truth-audit gate before further strict-loop proof claims.
+5. After `SIM-SCR-FULL-1`, make `RSI-SCORE-2` the next mainline so the judge and diagnoser are fit for exploit-first strict-loop proof.
+6. After `RSI-SCORE-2`, make `RSI-GAME-HO-1` the next mainline by default.
+7. Exception: if the `SIM-SCR-FULL-1C3` truth audit and `RSI-SCORE-2` together prove that full-power Scrapling still cannot generate controller-grade breach signals under the unchanged strict stance, promote `SIM-LLM-1C3` before further `RSI-GAME-HO-1` proof claims rather than weakening the strict baseline.
+8. After `SIM-LLM-1C3`, add `RSI-GAME-HO-2` as the mixed Scrapling-plus-LLM strict-baseline proof.
+9. Block `RSI-GAME-HV-1` until `RSI-GAME-HO-2` proves real repeated improvement.
+10. Before claiming the strict baseline is human-safe or ready for broader operator use, add the separate human traversal calibration ring over the discovered strict config.
 
 # Definition Of Done
 
@@ -211,6 +228,7 @@ This planning tranche is satisfied when:
 
 1. the repo explicitly says the next post-stance-model work is full-power Scrapling, not LLM runtime,
 2. the repo explicitly inserts exploit-first scoring and diagnoser work between full-power Scrapling evidence truth and strict-loop proof,
-3. the later LLM attacker runtime is sequenced before any relaxed verified-identity sweep,
-4. the later `humans_plus_verified_only` sweep is blocked on the combined Scrapling-plus-LLM strict-baseline proof,
-5. and relaxed stance work no longer doubles as loop verification.
+3. the repo explicitly forbids weakening `human_only_private` as a way to manufacture strict-loop proof,
+4. the later LLM attacker runtime is sequenced before any relaxed verified-identity sweep, with an explicit evidence-driven promotion rule if full-power Scrapling still cannot generate breach signals,
+5. the later `humans_plus_verified_only` sweep is blocked on the combined Scrapling-plus-LLM strict-baseline proof,
+6. and relaxed stance work no longer doubles as loop verification.
