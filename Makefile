@@ -2160,11 +2160,11 @@ test-dashboard-game-loop-accountability: ## Run focused dashboard Game Loop mach
 	fi
 	@$(MAKE) --no-print-directory test-dashboard-svelte-check
 	@node --test \
-		--test-name-pattern='dashboard game loop accountability adapters normalize benchmark and oversight payloads safely|dashboard game loop policy truth stops presenting legacy verified-identity stance as the strict target|dashboard game loop accountability refresh populates machine snapshots through behavior' \
+		--test-name-pattern='dashboard game loop accountability adapters normalize benchmark and oversight payloads safely|dashboard game loop policy truth stops presenting legacy verified-identity stance as the strict target|dashboard game loop accountability source distinguishes judge planes and localized move outcome|dashboard game loop accountability refresh populates machine snapshots through behavior' \
 		e2e/dashboard.modules.unit.test.js
 	@if $(MAKE) --no-print-directory spin-wait-ready; then \
 		$(MAKE) --no-print-directory seed-dashboard-data || exit 1; \
-		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) ./scripts/tests/run_dashboard_e2e.sh --grep "game loop projects benchmark and oversight accountability from machine-first contracts|game loop tab corroborates latest scrapling evidence readiness|game loop distinguishes category posture achievement from scrapling surface contract truth"; \
+		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) ./scripts/tests/run_dashboard_e2e.sh --grep "game loop projects benchmark and oversight accountability from machine-first contracts|game loop tab corroborates latest scrapling evidence readiness|game loop distinguishes category posture achievement from scrapling surface contract truth|game loop tab separates judge planes, breach loci, and config exhaustion state"; \
 	else \
 		echo "$(RED)❌ Error: Spin server not ready$(NC)"; \
 		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \

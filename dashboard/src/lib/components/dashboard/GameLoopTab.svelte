@@ -279,6 +279,24 @@
     return next;
   };
 
+  const firstPrefixedValue = (values, prefix) =>
+    dedupeStrings(values).find((entry) => entry.startsWith(prefix)) || '';
+
+  const removePrefix = (value, prefix) =>
+    String(value || '').startsWith(prefix) ? String(value || '').slice(prefix.length) : String(value || '');
+
+  const formatLocusSample = (locus) => {
+    const source = asRecord(locus);
+    const method = String(source.sample_request_method || '').trim();
+    const path = String(source.sample_request_path || '').trim();
+    const status = asFiniteNumber(source.sample_response_status);
+    const parts = [];
+    const requestLine = [method, path].filter(Boolean).join(' ');
+    if (requestLine) parts.push(requestLine);
+    if (status !== null) parts.push(`-> ${formatNumber(status, '0')}`);
+    return parts.join(' ') || 'Sample unavailable';
+  };
+
   $: latestHistoryRows = toArray(oversightHistory?.rows).slice(0, 6);
   $: latestHistoryRow = latestHistoryRows[0] || null;
   $: latestDecision = asRecord(oversightAgentStatus?.latest_decision);
@@ -301,10 +319,58 @@
   $: currentPolicyProfile = resolveGameLoopPolicyProfile(currentObjectiveProfileId);
   $: suspiciousOriginCostFamily = findBenchmarkFamily('suspicious_origin_cost');
   $: likelyHumanFrictionFamily = findBenchmarkFamily('likely_human_friction');
+  $: exploitProgressFamily = findBenchmarkFamily('scrapling_exploit_progress');
+  $: evidenceQuality = asRecord(benchmarkResults?.escalation_hint?.evidence_quality);
+  $: urgencySummary = asRecord(benchmarkResults?.urgency);
   $: pressureFamilies = toArray(benchmarkResults?.families).filter((family) =>
     family && (family.status === 'outside_budget' || family.status === 'near_limit')
   );
   $: recentChanges = toArray(operatorSnapshot?.recent_changes?.rows).slice(0, 3);
+  $: latestMoveOutcome = String(
+    latestHistoryRow?.outcome || latestDecision?.outcome || benchmarkResults?.escalation_hint?.decision || ''
+  ).trim();
+  $: selectedRepairSurface = String(
+    latestHistoryRow?.proposal?.patch_family ||
+      benchmarkResults?.escalation_hint?.family_guidance?.[0]?.family ||
+      benchmarkResults?.escalation_hint?.candidate_action_families?.[0] ||
+      ''
+  ).trim();
+  $: configRingBlockedToken = firstPrefixedValue(
+    [
+      ...toArray(benchmarkResults?.tuning_eligibility?.blockers),
+      ...toArray(benchmarkResults?.escalation_hint?.blockers),
+      ...toArray(latestHistoryRow?.refusal_reasons)
+    ],
+    'config_ring_exhausted:'
+  );
+  $: configRingBlockedFamily = removePrefix(configRingBlockedToken, 'config_ring_exhausted:');
+  $: configRingStatus =
+    latestMoveOutcome === 'config_ring_exhausted' || configRingBlockedToken
+      ? 'exhausted'
+      : selectedRepairSurface
+        ? 'bounded_ring_available'
+        : 'not_evaluated';
+  $: codeEvolutionStatus =
+    latestMoveOutcome === 'code_evolution_referral' ||
+    benchmarkResults?.escalation_hint?.decision === 'code_evolution_candidate'
+      ? 'required'
+      : 'not_required';
+  $: breachLoci = (() => {
+    const escalationLoci = toArray(benchmarkResults?.escalation_hint?.breach_loci);
+    if (escalationLoci.length > 0) return escalationLoci;
+    const evidenceLoci = toArray(evidenceQuality?.breach_loci);
+    if (evidenceLoci.length > 0) return evidenceLoci;
+    return toArray(exploitProgressFamily?.exploit_loci);
+  })();
+  $: homeostasisSummary = asRecord(episodeArchive?.homeostasis);
+  $: homeostasisBreakReasons = dedupeStrings([
+    ...toArray(homeostasisSummary?.break_reasons),
+    ...toArray(urgencySummary?.homeostasis_break_reasons)
+  ]);
+  $: homeostasisBreakStatus = String(
+    homeostasisSummary?.break_status || urgencySummary?.homeostasis_break_status || ''
+  ).trim();
+  $: restartBaseline = asRecord(homeostasisSummary?.restart_baseline);
   $: categoryPostureTargets = new Map(
     toArray(operatorSnapshot?.objectives?.category_postures).map((row) => [
       String(row?.category_id || '').trim(),
@@ -367,6 +433,20 @@
       };
     })
     .filter((row) => row.categoryId);
+  $: exploitProgressRows = toArray(exploitProgressFamily?.metrics)
+    .map((metric) => ({
+      metricId: metric?.metric_id,
+      label: humanizeToken(metric?.metric_id),
+      currentText: formatMetricValue(metric?.metric_id, metric?.current),
+      targetText: formatMetricValue(metric?.metric_id, metric?.target),
+      deltaText: formatSignedMetricValue(metric?.metric_id, metric?.delta),
+      comparisonText:
+        metric?.comparison_delta !== null && metric?.comparison_delta !== undefined
+          ? formatSignedMetricValue(metric?.metric_id, metric?.comparison_delta)
+          : '',
+      statusText: humanizeToken(metric?.status, 'sentence')
+    }))
+    .filter((row) => row.metricId);
   $: currentStatusCards = [
     {
       title: 'Overall Status',
@@ -383,12 +463,44 @@
       note: benchmarkResults?.baseline_reference?.note || 'Awaiting a comparable prior-window reference.'
     },
     {
+      title: 'Exploit Progress',
+      valueId: 'game-loop-current-status-exploit-progress',
+      value: humanizeToken(exploitProgressFamily?.status),
+      note:
+        exploitProgressFamily?.note ||
+        'No receipt-backed exploit-progress summary is materialized yet.'
+    },
+    {
+      title: 'Evidence Quality',
+      valueId: 'game-loop-current-status-evidence-quality',
+      value: humanizeToken(evidenceQuality?.status),
+      note:
+        evidenceQuality?.note ||
+        'Diagnosis confidence and evidence quality have not been materialized yet.'
+    },
+    {
+      title: 'Urgency',
+      valueId: 'game-loop-current-status-urgency',
+      value: humanizeToken(urgencySummary?.status),
+      note: urgencySummary?.note || 'Urgency scoring is not materialized yet.'
+    },
+    {
       title: 'Tuning Eligibility',
       valueId: 'game-loop-current-status-tuning-eligibility',
       value: humanizeToken(benchmarkResults?.tuning_eligibility?.status),
       note: benchmarkResults?.tuning_eligibility?.blockers?.length
         ? `${benchmarkResults.tuning_eligibility.blockers.length} blocker(s) active`
         : 'No explicit tuning blockers are currently active.'
+    },
+    {
+      title: 'Move Outcome',
+      valueId: 'game-loop-current-status-move-outcome',
+      value: humanizeToken(latestMoveOutcome),
+      note:
+        latestHistoryRow?.summary ||
+        latestDecision?.summary ||
+        benchmarkResults?.escalation_hint?.note ||
+        'No bounded move or escalation outcome is recorded yet.'
     },
     {
       title: 'Latest Controller Action',
@@ -493,6 +605,21 @@
                 | homeostasis {humanizeToken(episodeArchive?.homeostasis?.status, 'sentence')}
               </span>
             </div>
+            <div id="game-loop-progress-break-state" class="info-row">
+              <span class="info-label text-muted">Homeostasis Break:</span>
+              <span class="status-value">
+                {humanizeToken(homeostasisBreakStatus, 'sentence')}
+                {#if homeostasisBreakReasons.length}
+                  | reasons {homeostasisBreakReasons.map((reason) => humanizeToken(reason, 'sentence')).join(', ')}
+                {/if}
+                {#if restartBaseline?.source}
+                  | restart baseline {humanizeToken(restartBaseline.source, 'sentence')}
+                  {#if restartBaseline.generated_at}
+                    @ {formatTimestamp(restartBaseline.generated_at)}
+                  {/if}
+                {/if}
+              </span>
+            </div>
           </div>
         </div>
         <div id="game-loop-progress-history" class="panel panel-soft pad-md">
@@ -543,12 +670,49 @@
         <div id="game-loop-change-judgment" class="panel panel-soft pad-md">
           <div class="status-rows">
             <div class="info-row">
-              <span class="info-label text-muted">Benchmark decision:</span>
-              <span class="status-value">{humanizeToken(benchmarkResults?.escalation_hint?.decision)}</span>
+              <span class="info-label text-muted">Judge State:</span>
+              <span class="status-value">
+                {humanizeToken(benchmarkResults?.overall_status)}
+                | improvement {humanizeToken(benchmarkResults?.improvement_status, 'sentence')}
+                | urgency {humanizeToken(urgencySummary?.status, 'sentence')}
+              </span>
             </div>
             <div class="info-row">
-              <span class="info-label text-muted">Review status:</span>
-              <span class="status-value">{humanizeToken(benchmarkResults?.escalation_hint?.review_status)}</span>
+              <span class="info-label text-muted">Evidence Quality:</span>
+              <span class="status-value">
+                {humanizeToken(evidenceQuality?.status)}
+                | attribution {humanizeToken(evidenceQuality?.attribution_status)}
+                | locality {humanizeToken(evidenceQuality?.locality_status)}
+              </span>
+            </div>
+            <div class="info-row">
+              <span class="info-label text-muted">Diagnosis Confidence:</span>
+              <span class="status-value">
+                {humanizeToken(evidenceQuality?.diagnosis_confidence)}
+                | problem class {humanizeToken(benchmarkResults?.escalation_hint?.problem_class)}
+                | repair surface {humanizeToken(selectedRepairSurface)}
+              </span>
+            </div>
+            <div class="info-row">
+              <span class="info-label text-muted">Move Or Escalation:</span>
+              <span class="status-value">
+                {humanizeToken(latestMoveOutcome)}
+                | benchmark {humanizeToken(benchmarkResults?.escalation_hint?.decision)}
+                | review {humanizeToken(benchmarkResults?.escalation_hint?.review_status)}
+              </span>
+            </div>
+            <div class="info-row">
+              <span class="info-label text-muted">Config Ring:</span>
+              <span class="status-value">
+                {humanizeToken(configRingStatus)}
+                {#if configRingBlockedFamily}
+                  | exhausted at {humanizeToken(configRingBlockedFamily)}
+                {/if}
+              </span>
+            </div>
+            <div class="info-row">
+              <span class="info-label text-muted">Code Evolution:</span>
+              <span class="status-value">{humanizeToken(codeEvolutionStatus)}</span>
             </div>
             <div class="info-row">
               <span class="info-label text-muted">Latest decision:</span>
@@ -573,6 +737,22 @@
             </p>
           {/if}
 
+          {#if breachLoci.length}
+            <div id="game-loop-breach-loci">
+              <p class="caps-label">Named Breach Loci</p>
+              <ul class="metric-list">
+                {#each breachLoci as locus (`${locus.locus_id}-${locus.sample_request_path}`)}
+                  <li>
+                    <strong>{locus.locus_label || humanizeToken(locus.locus_id)}</strong>:
+                    {humanizeToken(locus.evidence_status, 'sentence')} |
+                    {humanizeToken(locus.stage_id, 'sentence')} |
+                    {formatLocusSample(locus)}
+                  </li>
+                {/each}
+              </ul>
+            </div>
+          {/if}
+
           {#if benchmarkResults?.escalation_hint?.blockers?.length}
             <p class="text-muted">
               Decision blockers:
@@ -582,6 +762,38 @@
         </div>
       {:else if section.id === 'pressure-sits'}
         <div class="stats-cards">
+          <article id="game-loop-exploit-progress" class="card panel panel-border pad-md-b">
+            <h3 class="caps-label">Exploit Progress</h3>
+            <p class="text-muted">
+              This surface tracks where Scrapling actually advanced through the defended terrain. It is separate from category posture and separate from the compact Red Team corroboration row.
+            </p>
+            <div class="status-rows">
+              <div class="info-row">
+                <span class="info-label text-muted">Status:</span>
+                <span class="status-value">
+                  {humanizeToken(exploitProgressFamily?.status)}
+                  | comparison {humanizeToken(exploitProgressFamily?.comparison_status, 'sentence')}
+                </span>
+              </div>
+              <div class="info-row">
+                <span class="info-label text-muted">Note:</span>
+                <span class="status-value">{exploitProgressFamily?.note || 'Exploit progress is not materialized yet.'}</span>
+              </div>
+            </div>
+            {#if exploitProgressRows.length}
+              <ul class="metric-list">
+                {#each exploitProgressRows as row (row.metricId)}
+                  <li>
+                    <strong>{row.label}</strong>:
+                    Current {row.currentText} | Goal {row.targetText} | {row.statusText}
+                    {#if row.comparisonText}
+                      | vs prior {row.comparisonText}
+                    {/if}
+                  </li>
+                {/each}
+              </ul>
+            {/if}
+          </article>
           <article class="card panel panel-border pad-md-b">
             <h3 class="caps-label">Benchmark Pressure</h3>
             {#if pressureFamilies.length === 0}

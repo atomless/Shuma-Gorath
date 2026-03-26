@@ -634,6 +634,19 @@ const adaptBenchmarkMetricResult = (value) => {
   };
 };
 
+const adaptBenchmarkExploitLocus = (value) => {
+  const source = asRecord(value);
+  return {
+    locus_id: String(source.locus_id || ''),
+    locus_label: String(source.locus_label || ''),
+    stage_id: String(source.stage_id || ''),
+    evidence_status: String(source.evidence_status || ''),
+    sample_request_method: String(source.sample_request_method || ''),
+    sample_request_path: String(source.sample_request_path || ''),
+    sample_response_status: adaptOptionalNumber(source.sample_response_status)
+  };
+};
+
 const adaptBenchmarkFamilyResult = (value) => {
   const source = asRecord(value);
   return {
@@ -643,6 +656,7 @@ const adaptBenchmarkFamilyResult = (value) => {
     note: String(source.note || ''),
     baseline_status: String(source.baseline_status || ''),
     comparison_status: String(source.comparison_status || ''),
+    exploit_loci: asObjectArray(source.exploit_loci).map(adaptBenchmarkExploitLocus),
     metrics: asObjectArray(source.metrics).map(adaptBenchmarkMetricResult)
   };
 };
@@ -651,10 +665,12 @@ export const adaptBenchmarkResults = (payload) => {
   const source = asRecord(payload);
   const watchWindow = asRecord(source.watch_window);
   const baselineReference = asRecord(source.baseline_reference);
+  const urgency = asRecord(source.urgency);
   const nonHumanClassification = asRecord(source.non_human_classification);
   const nonHumanCoverage = asRecord(source.non_human_coverage);
   const tuningEligibility = asRecord(source.tuning_eligibility);
   const escalationHint = asRecord(source.escalation_hint);
+  const evidenceQuality = asRecord(escalationHint.evidence_quality);
   const replayPromotion = asRecord(source.replay_promotion);
   return {
     schema_version: String(source.schema_version || ''),
@@ -664,6 +680,18 @@ export const adaptBenchmarkResults = (payload) => {
     coverage_status: String(source.coverage_status || ''),
     overall_status: String(source.overall_status || ''),
     improvement_status: String(source.improvement_status || ''),
+    urgency: {
+      status: String(urgency.status || ''),
+      exploit_short_window_status: String(urgency.exploit_short_window_status || ''),
+      exploit_long_window_status: String(urgency.exploit_long_window_status || ''),
+      likely_human_short_window_status: String(urgency.likely_human_short_window_status || ''),
+      likely_human_long_window_status: String(urgency.likely_human_long_window_status || ''),
+      homeostasis_break_status: String(urgency.homeostasis_break_status || ''),
+      homeostasis_break_reasons: Array.isArray(urgency.homeostasis_break_reasons)
+        ? urgency.homeostasis_break_reasons.map((value) => String(value || ''))
+        : [],
+      note: String(urgency.note || '')
+    },
     watch_window: {
       start_ts: Number(watchWindow.start_ts || 0),
       end_ts: Number(watchWindow.end_ts || 0),
@@ -700,17 +728,47 @@ export const adaptBenchmarkResults = (payload) => {
         : []
     },
     escalation_hint: {
+      availability: String(escalationHint.availability || ''),
       decision: String(escalationHint.decision || ''),
       review_status: String(escalationHint.review_status || ''),
+      problem_class: String(escalationHint.problem_class || ''),
+      guidance_status: String(escalationHint.guidance_status || ''),
+      tractability: String(escalationHint.tractability || ''),
+      expected_direction: String(escalationHint.expected_direction || ''),
       trigger_family_ids: Array.isArray(escalationHint.trigger_family_ids)
         ? escalationHint.trigger_family_ids.map((value) => String(value || ''))
+        : [],
+      trigger_metric_ids: Array.isArray(escalationHint.trigger_metric_ids)
+        ? escalationHint.trigger_metric_ids.map((value) => String(value || ''))
         : [],
       candidate_action_families: Array.isArray(escalationHint.candidate_action_families)
         ? escalationHint.candidate_action_families.map((value) => String(value || ''))
         : [],
+      family_guidance: asObjectArray(escalationHint.family_guidance).map((entry) => {
+        const source = asRecord(entry);
+        return {
+          family: String(source.family || ''),
+          likely_human_risk: String(source.likely_human_risk || ''),
+          tolerated_non_human_risk: String(source.tolerated_non_human_risk || ''),
+          note: String(source.note || '')
+        };
+      }),
       blockers: Array.isArray(escalationHint.blockers)
         ? escalationHint.blockers.map((value) => String(value || ''))
         : [],
+      evidence_quality: {
+        status: String(evidenceQuality.status || ''),
+        diagnosis_confidence: String(evidenceQuality.diagnosis_confidence || ''),
+        attribution_status: String(evidenceQuality.attribution_status || ''),
+        sample_status: String(evidenceQuality.sample_status || ''),
+        freshness_status: String(evidenceQuality.freshness_status || ''),
+        persona_diversity_status: String(evidenceQuality.persona_diversity_status || ''),
+        reproducibility_status: String(evidenceQuality.reproducibility_status || ''),
+        locality_status: String(evidenceQuality.locality_status || ''),
+        breach_loci: asObjectArray(evidenceQuality.breach_loci).map(adaptBenchmarkExploitLocus),
+        note: String(evidenceQuality.note || '')
+      },
+      breach_loci: asObjectArray(escalationHint.breach_loci).map(adaptBenchmarkExploitLocus),
       note: String(escalationHint.note || '')
     },
     replay_promotion: {
@@ -745,6 +803,15 @@ const adaptOversightApply = (value) => {
   };
 };
 
+const adaptHomeostasisRestartBaseline = (value) => {
+  const source = asRecord(value);
+  return {
+    source: String(source.source || ''),
+    generated_at: adaptOptionalNumber(source.generated_at),
+    note: String(source.note || '')
+  };
+};
+
 const adaptOversightEpisodeArchiveRow = (value) => {
   const source = asRecord(value);
   return {
@@ -753,7 +820,13 @@ const adaptOversightEpisodeArchiveRow = (value) => {
     watch_window_result: String(source.watch_window_result || ''),
     retain_or_rollback: String(source.retain_or_rollback || ''),
     cycle_judgment: String(source.cycle_judgment || ''),
-    homeostasis_eligible: source.homeostasis_eligible === true
+    homeostasis_eligible: source.homeostasis_eligible === true,
+    benchmark_urgency_status: String(source.benchmark_urgency_status || ''),
+    homeostasis_break_status: String(source.homeostasis_break_status || ''),
+    homeostasis_break_reasons: Array.isArray(source.homeostasis_break_reasons)
+      ? source.homeostasis_break_reasons.map((entry) => String(entry || ''))
+      : [],
+    restart_baseline: adaptHomeostasisRestartBaseline(source.restart_baseline)
   };
 };
 
@@ -768,6 +841,12 @@ const adaptOversightEpisodeArchive = (value) => {
       minimum_completed_cycles_for_homeostasis: Number(
         homeostasis.minimum_completed_cycles_for_homeostasis || 0
       ),
+      urgency_status: String(homeostasis.urgency_status || ''),
+      break_status: String(homeostasis.break_status || ''),
+      break_reasons: Array.isArray(homeostasis.break_reasons)
+        ? homeostasis.break_reasons.map((entry) => String(entry || ''))
+        : [],
+      restart_baseline: adaptHomeostasisRestartBaseline(homeostasis.restart_baseline),
       note: String(homeostasis.note || '')
     },
     rows: asObjectArray(source.rows).map(adaptOversightEpisodeArchiveRow)

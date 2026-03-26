@@ -4,6 +4,30 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-26)
 
+### RSI-SCORE-2E Game Loop Rich Judge Truth
+
+- [x] Extended the Game Loop operator surface across:
+  - [`dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
+  - [`dashboard/src/lib/domain/api-client.js`](../dashboard/src/lib/domain/api-client.js)
+  so the tab now renders exploit progress, evidence quality, urgency, homeostasis-break state, named breach loci, and config-exhaustion or code-referral status as separate judge planes instead of letting those truths collapse into one blended accountability impression.
+- [x] Added focused source, adapter, and rendered proof in:
+  - [`e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`Makefile`](../Makefile)
+  - [`docs/testing.md`](../docs/testing.md)
+  so `make test-dashboard-game-loop-accountability` now proves the richer Game Loop wording, data adaptation, and rendered breach-locality or config-exhaustion state.
+- [x] Closed the tranche in:
+  - [`docs/research/2026-03-26-rsi-score-2e-game-loop-rich-judge-truth-post-implementation-review.md`](../docs/research/2026-03-26-rsi-score-2e-game-loop-rich-judge-truth-post-implementation-review.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`docs/dashboard-tabs/game-loop.md`](../docs/dashboard-tabs/game-loop.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  so the scoring mainline is now fully landed and the next active proof tranche is `RSI-GAME-HO-1`.
+- [x] Why:
+  - the richer scoring tranches were already in the backend, but the Game Loop tab still made it too easy to read category posture, compact Scrapling corroboration, and controller readiness as if they were one attacker-success score. The UI needed to make those planes explicit before the strict-loop proof could be called operator-trustworthy.
+- [x] Evidence:
+  - `make test-dashboard-game-loop-accountability`
+  - `git diff --check`
+
 ### RSI-SCORE-2D Move Selection And Config-Ring Exhaustion
 
 - [x] Added ranked bounded move selection and explicit controller outcome separation across:

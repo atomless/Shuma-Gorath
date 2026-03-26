@@ -6497,6 +6497,16 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
     overall_status: 'outside_budget',
     improvement_status: 'improved',
     coverage_status: 'supported',
+    urgency: {
+      status: 'critical',
+      exploit_short_window_status: 'critical',
+      exploit_long_window_status: 'elevated',
+      likely_human_short_window_status: 'steady',
+      likely_human_long_window_status: 'steady',
+      homeostasis_break_status: 'triggered',
+      homeostasis_break_reasons: ['exploit_success_regressed'],
+      note: 'Urgent exploit regression detected.'
+    },
     watch_window: {
       start_ts: 1774220400,
       end_ts: 1774306799,
@@ -6525,11 +6535,58 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
       blocking_category_ids: ['ai_scraper_bot']
     },
     escalation_hint: {
+      availability: 'available',
       decision: 'observe_longer',
       review_status: 'manual_review_required',
+      problem_class: 'scrapling_exploit_progress_gap',
+      guidance_status: 'bounded_family_guidance',
+      tractability: 'family_level_policy_choice',
+      expected_direction: 'tighten',
       trigger_family_ids: ['suspicious_origin_cost'],
+      trigger_metric_ids: ['scrapling_breach_surface_rate'],
       candidate_action_families: ['fingerprint_signal'],
+      family_guidance: [
+        {
+          family: 'fingerprint_signal',
+          likely_human_risk: 'low',
+          tolerated_non_human_risk: 'low',
+          note: 'Tighten fingerprint signal first.'
+        }
+      ],
       blockers: ['verified_identity_taxonomy_alignment_guardrail'],
+      evidence_quality: {
+        status: 'medium_confidence',
+        diagnosis_confidence: 'medium',
+        attribution_status: 'category_native',
+        sample_status: 'sufficient',
+        freshness_status: 'fresh',
+        persona_diversity_status: 'diverse',
+        reproducibility_status: 'reproduced',
+        locality_status: 'localized',
+        breach_loci: [
+          {
+            locus_id: 'maze_navigation',
+            locus_label: 'Maze Navigation',
+            stage_id: 'challenge_traversal',
+            evidence_status: 'progress_observed',
+            sample_request_method: 'GET',
+            sample_request_path: '/maze',
+            sample_response_status: 200
+          }
+        ],
+        note: 'Localized enough for bounded move review.'
+      },
+      breach_loci: [
+        {
+          locus_id: 'maze_navigation',
+          locus_label: 'Maze Navigation',
+          stage_id: 'challenge_traversal',
+          evidence_status: 'progress_observed',
+          sample_request_method: 'GET',
+          sample_request_path: '/maze',
+          sample_response_status: 200
+        }
+      ],
       note: 'Wait for more protected evidence.'
     },
     replay_promotion: {
@@ -6581,10 +6638,24 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
 
   assert.equal(benchmarkResults.schema_version, 'benchmark_results_v1');
   assert.equal(benchmarkResults.overall_status, 'outside_budget');
+  assert.equal(benchmarkResults.urgency.status, 'critical');
+  assert.equal(benchmarkResults.urgency.homeostasis_break_status, 'triggered');
+  assert.deepEqual(benchmarkResults.urgency.homeostasis_break_reasons, [
+    'exploit_success_regressed'
+  ]);
   assert.equal(benchmarkResults.tuning_eligibility.status, 'blocked');
   assert.deepEqual(benchmarkResults.tuning_eligibility.blockers, [
     'verified_identity_taxonomy_alignment_guardrail'
   ]);
+  assert.equal(benchmarkResults.escalation_hint.problem_class, 'scrapling_exploit_progress_gap');
+  assert.equal(benchmarkResults.escalation_hint.guidance_status, 'bounded_family_guidance');
+  assert.equal(benchmarkResults.escalation_hint.tractability, 'family_level_policy_choice');
+  assert.equal(benchmarkResults.escalation_hint.evidence_quality.status, 'medium_confidence');
+  assert.equal(
+    benchmarkResults.escalation_hint.evidence_quality.diagnosis_confidence,
+    'medium'
+  );
+  assert.equal(benchmarkResults.escalation_hint.breach_loci[0].locus_label, 'Maze Navigation');
   assert.equal(benchmarkResults.families[0].family_id, 'suspicious_origin_cost');
   assert.equal(benchmarkResults.families[0].metrics[0].comparison_delta, -0.08);
   assert.equal(benchmarkResults.families[1].family_id, 'non_human_category_posture');
@@ -6599,20 +6670,45 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
     episode_archive: {
       schema_version: 'oversight_episode_archive_v1',
       homeostasis: {
-        status: 'not_enough_completed_cycles'
+        status: 'broken',
+        urgency_status: 'critical',
+        break_status: 'triggered',
+        break_reasons: ['exploit_success_regressed'],
+        restart_baseline: {
+          source: 'retained_candidate_baseline',
+          generated_at: 1774303200,
+          note: 'Restarted from the last retained baseline.'
+        },
+        note: 'Urgent exploit regression forced a homeostasis break.'
       },
       rows: [
         {
           episode_id: 'episode-2',
           proposal_status: 'accepted',
           watch_window_result: 'improved',
-          retain_or_rollback: 'retained'
+          retain_or_rollback: 'retained',
+          benchmark_urgency_status: 'steady',
+          homeostasis_break_status: 'not_triggered',
+          homeostasis_break_reasons: [],
+          restart_baseline: {
+            source: 'retained_candidate_baseline',
+            generated_at: 1774303200,
+            note: 'Retained candidate became the restart baseline.'
+          }
         },
         {
           episode_id: 'episode-1',
           proposal_status: 'accepted',
           watch_window_result: 'regressed',
-          retain_or_rollback: 'rolled_back'
+          retain_or_rollback: 'rolled_back',
+          benchmark_urgency_status: 'critical',
+          homeostasis_break_status: 'triggered',
+          homeostasis_break_reasons: ['candidate_baseline_regressed'],
+          restart_baseline: {
+            source: 'restored_prior_baseline',
+            generated_at: 1774220400,
+            note: 'Rollback restored the prior accepted baseline.'
+          }
         }
       ]
     },
@@ -6644,10 +6740,24 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
 
   assert.equal(oversightHistory.schema_version, 'oversight_history_v1');
   assert.equal(oversightHistory.episode_archive.schema_version, 'oversight_episode_archive_v1');
-  assert.equal(oversightHistory.episode_archive.homeostasis.status, 'not_enough_completed_cycles');
+  assert.equal(oversightHistory.episode_archive.homeostasis.status, 'broken');
+  assert.equal(oversightHistory.episode_archive.homeostasis.urgency_status, 'critical');
+  assert.equal(oversightHistory.episode_archive.homeostasis.break_status, 'triggered');
+  assert.deepEqual(oversightHistory.episode_archive.homeostasis.break_reasons, [
+    'exploit_success_regressed'
+  ]);
+  assert.equal(
+    oversightHistory.episode_archive.homeostasis.restart_baseline.source,
+    'retained_candidate_baseline'
+  );
   assert.equal(oversightHistory.episode_archive.rows.length, 2);
   assert.equal(oversightHistory.episode_archive.rows[0].retain_or_rollback, 'retained');
   assert.equal(oversightHistory.episode_archive.rows[1].retain_or_rollback, 'rolled_back');
+  assert.equal(oversightHistory.episode_archive.rows[1].homeostasis_break_status, 'triggered');
+  assert.equal(
+    oversightHistory.episode_archive.rows[1].restart_baseline.source,
+    'restored_prior_baseline'
+  );
   assert.equal(oversightHistory.rows.length, 1);
   assert.equal(oversightHistory.rows[0].apply.stage, 'canary_applied');
 
@@ -6727,6 +6837,35 @@ test('dashboard game loop policy truth stops presenting legacy verified-identity
     /effective_non_human_policy\?\.verified_identity_override_mode/
   );
   assert.doesNotMatch(gameLoopSource, /legacy request path/);
+});
+
+test('dashboard game loop accountability source distinguishes judge planes and localized move outcome', () => {
+  const gameLoopSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/GameLoopTab.svelte'),
+    'utf8'
+  );
+  const apiClientSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/domain/api-client.js'),
+    'utf8'
+  );
+
+  assert.match(gameLoopSource, /game-loop-current-status-exploit-progress/);
+  assert.match(gameLoopSource, /game-loop-current-status-evidence-quality/);
+  assert.match(gameLoopSource, /game-loop-current-status-urgency/);
+  assert.match(gameLoopSource, /game-loop-current-status-move-outcome/);
+  assert.match(gameLoopSource, /game-loop-progress-break-state/);
+  assert.match(gameLoopSource, /game-loop-exploit-progress/);
+  assert.match(gameLoopSource, /game-loop-breach-loci/);
+  assert.match(gameLoopSource, /Judge State:/);
+  assert.match(gameLoopSource, /Diagnosis Confidence:/);
+  assert.match(gameLoopSource, /Move Or Escalation:/);
+  assert.match(gameLoopSource, /Config Ring:/);
+  assert.match(gameLoopSource, /Code Evolution:/);
+
+  assert.match(apiClientSource, /const urgency = asRecord\(source\.urgency\);/);
+  assert.match(apiClientSource, /const evidenceQuality = asRecord\(escalationHint\.evidence_quality\);/);
+  assert.match(apiClientSource, /homeostasis_break_reasons/);
+  assert.match(apiClientSource, /restart_baseline/);
 });
 
 test('dashboard game loop accountability refresh populates machine snapshots through behavior', { concurrency: false }, async () => {

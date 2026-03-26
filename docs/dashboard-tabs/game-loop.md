@@ -24,18 +24,20 @@ Current behavior:
   - `oversight_history_v1`
   - `oversight_agent_status_v1`
 - Surfaces:
-  - current benchmark overall status, improvement status, tuning eligibility, and latest controller action,
+  - current benchmark overall status and improvement status plus separate current cards for exploit progress, evidence quality, urgency, tuning eligibility, move outcome, and latest controller action,
   - bounded recent multi-loop oversight history rather than only the latest cycle,
-  - completed judged-cycle lineage from the bounded episode archive, including retained versus rolled-back counts plus the current homeostasis summary,
+  - completed judged-cycle lineage from the bounded episode archive, including retained versus rolled-back counts plus explicit homeostasis-break reasons and restart-baseline lineage,
   - true numeric budget usage for likely-human friction plus suspicious forwarded requests, bytes, and latency,
+  - a first-class `Exploit Progress` panel showing terrain-local attacker advance separately from category posture,
   - taxonomy rows as `Category Posture Achievement`, explicitly described as category-level posture-alignment math rather than attacker surface-success proof,
-  - benchmark escalation decision, candidate action families, and latest oversight apply or refusal context,
+  - explicit judge, evidence-quality, diagnosis-confidence, move or escalation, config-ring, code-evolution, and named breach-locus state inside `What The Loop Decided`,
   - a bounded preview of remaining benchmark pressure plus recent config-change context from the operator snapshot,
   - and explicit trust or blocker rows for classification readiness, coverage, protected replay status, tuning eligibility, verified-identity guardrails, and the latest compact Scrapling surface-contract corroboration.
 - Directs operators and contributors to `#diagnostics` for deep subsystem inspection and rawer contributor-facing telemetry.
 - Keeps detailed adversary proof out of the tab:
   - `Red Team` is where operators verify Scrapling personas, categories, and owned-surface receipts,
-  - `Game Loop` only shows bounded corroborating signals, and must say clearly when a row is category posture math rather than direct attacker surface-contract truth, so attacker truth is visible without turning the tab into a forensic adversary surface.
+  - `Game Loop` only shows bounded corroborating signals for the detailed attacker receipts, and must say clearly when a row is category posture math rather than direct attacker surface-contract truth, so attacker truth is visible without turning the tab into a forensic adversary surface.
+  - the tab now treats exploit progress as a separate judge plane from both category posture and compact Scrapling corroboration.
 
 Current limitation:
 

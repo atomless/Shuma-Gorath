@@ -2382,6 +2382,383 @@ test("game loop tab corroborates latest scrapling evidence readiness", async ({ 
   await expect(page.locator("#game-loop-trust-blockers")).toContainText("Indexing Bot");
 });
 
+test("game loop tab separates judge planes, breach loci, and config exhaustion state", async ({ page }) => {
+  await page.route("**/admin/operator-snapshot", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "operator_snapshot_v1",
+        generated_at: 1774306800,
+        objectives: {
+          profile_id: "human_only_private",
+          revision: "objective-1774306800",
+          window_hours: 24,
+          category_postures: []
+        },
+        runtime_posture: {
+          shadow_mode: false,
+          fail_mode: "closed",
+          runtime_environment: "runtime-prod",
+          gateway_deployment_profile: "shared_server",
+          adversary_sim_available: true
+        },
+        live_traffic: {
+          traffic_origin: "live",
+          execution_mode: "enforced",
+          total_requests: 1200,
+          forwarded_requests: 800,
+          short_circuited_requests: 400
+        },
+        adversary_sim: {
+          traffic_origin: "adversary_sim",
+          execution_mode: "enforced",
+          total_requests: 210,
+          forwarded_requests: 18,
+          short_circuited_requests: 192,
+          recent_runs: [
+            {
+              run_id: "sim-attack-gap",
+              lane: "scrapling_traffic",
+              profile: "scrapling_runtime_lane",
+              observed_fulfillment_modes: ["dynamic_browser", "stealth_browser"],
+              observed_category_ids: ["automated_browser", "ai_scraper_bot"],
+              monitoring_event_count: 88,
+              owned_surface_coverage: {
+                overall_status: "partial",
+                required_surface_ids: [
+                  "maze_navigation",
+                  "browser_automation_detection",
+                  "js_verification_execution"
+                ],
+                satisfied_surface_ids: ["maze_navigation"],
+                blocking_surface_ids: [
+                  "browser_automation_detection",
+                  "js_verification_execution"
+                ],
+                receipts: [
+                  {
+                    surface_id: "maze_navigation",
+                    status: "pass_observed",
+                    sample_request_method: "GET",
+                    sample_request_path: "/maze",
+                    sample_response_status: 200
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        recent_changes: {
+          rows: [
+            {
+              changed_at_ts: 1774303200,
+              change_summary: "Raised browser automation threshold after the prior exploit window."
+            }
+          ]
+        },
+        verified_identity: {
+          availability: "supported",
+          enabled: true,
+          native_web_bot_auth_enabled: true,
+          provider_assertions_enabled: true,
+          effective_non_human_policy: {
+            profile_id: "human_only_private",
+            objective_revision: "objective-1774306800",
+            verified_identity_override_mode: "strict_human_only",
+            rows: []
+          },
+          taxonomy_alignment: {
+            status: "aligned"
+          }
+        }
+      })
+    });
+  });
+
+  await page.route("**/admin/benchmark-results", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "benchmark_results_v1",
+        generated_at: 1774306800,
+        overall_status: "outside_budget",
+        improvement_status: "regressed",
+        coverage_status: "supported",
+        urgency: {
+          status: "critical",
+          exploit_short_window_status: "critical",
+          exploit_long_window_status: "elevated",
+          likely_human_short_window_status: "steady",
+          likely_human_long_window_status: "steady",
+          homeostasis_break_status: "triggered",
+          homeostasis_break_reasons: ["exploit_success_regressed"],
+          note: "Urgent exploit regression detected in the latest completed cycle."
+        },
+        baseline_reference: {
+          reference_kind: "prior_window",
+          status: "available",
+          subject_kind: "prior_window",
+          generated_at: 1774220400,
+          note: "Compared against the previous watch window."
+        },
+        tuning_eligibility: {
+          status: "blocked",
+          blockers: ["config_ring_exhausted:fingerprint_signal"]
+        },
+        non_human_classification: {
+          status: "ready",
+          blockers: [],
+          live_receipt_count: 6,
+          adversary_sim_receipt_count: 5
+        },
+        non_human_coverage: {
+          overall_status: "covered",
+          blocking_reasons: [],
+          blocking_category_ids: []
+        },
+        escalation_hint: {
+          availability: "available",
+          decision: "config_tuning_candidate",
+          review_status: "manual_review_required",
+          problem_class: "scrapling_exploit_progress_gap",
+          guidance_status: "bounded_family_guidance",
+          tractability: "family_level_policy_choice",
+          expected_direction: "tighten",
+          trigger_family_ids: ["scrapling_exploit_progress"],
+          trigger_metric_ids: [
+            "scrapling_breach_surface_rate",
+            "scrapling_deepest_breach_stage_ratio"
+          ],
+          candidate_action_families: ["fingerprint_signal", "cdp_detection"],
+          family_guidance: [
+            {
+              family: "fingerprint_signal",
+              likely_human_risk: "low",
+              tolerated_non_human_risk: "low",
+              note: "Tighten fingerprint signal first."
+            }
+          ],
+          blockers: ["config_ring_exhausted:fingerprint_signal"],
+          evidence_quality: {
+            status: "high_confidence",
+            diagnosis_confidence: "high",
+            attribution_status: "category_native",
+            sample_status: "sufficient",
+            freshness_status: "fresh",
+            persona_diversity_status: "diverse",
+            reproducibility_status: "reproduced",
+            locality_status: "localized",
+            breach_loci: [
+              {
+                locus_id: "maze_navigation",
+                locus_label: "Maze Navigation",
+                stage_id: "challenge_traversal",
+                evidence_status: "progress_observed",
+                sample_request_method: "GET",
+                sample_request_path: "/maze",
+                sample_response_status: 200
+              },
+              {
+                locus_id: "browser_automation_detection",
+                locus_label: "Browser CDP Automation Detection",
+                stage_id: "automation_detection",
+                evidence_status: "progress_observed",
+                sample_request_method: "GET",
+                sample_request_path: "/detail/2",
+                sample_response_status: 200
+              }
+            ],
+            note: "Exploit progress is localized and reproducible."
+          },
+          breach_loci: [
+            {
+              locus_id: "maze_navigation",
+              locus_label: "Maze Navigation",
+              stage_id: "challenge_traversal",
+              evidence_status: "progress_observed",
+              sample_request_method: "GET",
+              sample_request_path: "/maze",
+              sample_response_status: 200
+            },
+            {
+              locus_id: "browser_automation_detection",
+              locus_label: "Browser CDP Automation Detection",
+              stage_id: "automation_detection",
+              evidence_status: "progress_observed",
+              sample_request_method: "GET",
+              sample_request_path: "/detail/2",
+              sample_response_status: 200
+            }
+          ],
+          note: "Localized browser-side exploit progress remains outside budget."
+        },
+        replay_promotion: {
+          availability: "materialized",
+          evidence_status: "protected",
+          tuning_eligible: true,
+          protected_lineage_count: 3,
+          eligibility_blockers: []
+        },
+        families: [
+          {
+            family_id: "scrapling_exploit_progress",
+            status: "outside_budget",
+            capability_gate: "supported",
+            comparison_status: "regressed",
+            note: "Latest Scrapling run made positive exploit progress at Maze Navigation and Browser CDP Automation Detection.",
+            exploit_loci: [
+              {
+                locus_id: "maze_navigation",
+                locus_label: "Maze Navigation",
+                stage_id: "challenge_traversal",
+                evidence_status: "progress_observed",
+                sample_request_method: "GET",
+                sample_request_path: "/maze",
+                sample_response_status: 200
+              },
+              {
+                locus_id: "browser_automation_detection",
+                locus_label: "Browser CDP Automation Detection",
+                stage_id: "automation_detection",
+                evidence_status: "progress_observed",
+                sample_request_method: "GET",
+                sample_request_path: "/detail/2",
+                sample_response_status: 200
+              }
+            ],
+            metrics: [
+              {
+                metric_id: "scrapling_breach_surface_rate",
+                status: "outside_budget",
+                current: 0.67,
+                target: 0.0,
+                delta: 0.67,
+                comparison_delta: 0.22
+              },
+              {
+                metric_id: "scrapling_deepest_breach_stage_ratio",
+                status: "outside_budget",
+                current: 0.75,
+                target: 0.0,
+                delta: 0.75,
+                comparison_delta: 0.25
+              }
+            ]
+          }
+        ]
+      })
+    });
+  });
+
+  await page.route("**/admin/oversight/history", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "oversight_history_v1",
+        episode_archive: {
+          schema_version: "oversight_episode_archive_v1",
+          homeostasis: {
+            status: "broken",
+            urgency_status: "critical",
+            break_status: "triggered",
+            break_reasons: ["exploit_success_regressed"],
+            restart_baseline: {
+              source: "retained_candidate_baseline",
+              generated_at: 1774303200,
+              note: "Restarted from the last retained baseline."
+            },
+            note: "Urgent exploit regression forced a homeostasis break."
+          },
+          rows: [
+            {
+              episode_id: "episode-2",
+              proposal_status: "accepted",
+              watch_window_result: "regressed",
+              retain_or_rollback: "rolled_back",
+              benchmark_urgency_status: "critical",
+              homeostasis_break_status: "triggered",
+              homeostasis_break_reasons: ["candidate_baseline_regressed"],
+              restart_baseline: {
+                source: "retained_candidate_baseline",
+                generated_at: 1774303200,
+                note: "Restarted from the last retained baseline."
+              }
+            }
+          ]
+        },
+        rows: [
+          {
+            decision_id: "ovr-2",
+            recorded_at_ts: 1774306800,
+            trigger_source: "periodic_supervisor",
+            outcome: "config_ring_exhausted",
+            summary: "Fingerprint signal tuning ring is exhausted; escalate to code review.",
+            benchmark_overall_status: "outside_budget",
+            improvement_status: "regressed",
+            replay_promotion_availability: "materialized",
+            trigger_family_ids: ["scrapling_exploit_progress"],
+            candidate_action_families: ["fingerprint_signal", "cdp_detection"],
+            refusal_reasons: ["config_ring_exhausted:fingerprint_signal"],
+            validation_status: "valid",
+            validation_issues: []
+          }
+        ]
+      })
+    });
+  });
+
+  await page.route("**/admin/oversight/agent/status", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "oversight_agent_status_v1",
+        execution_boundary: "shared_host_only",
+        periodic_trigger: {
+          surface: "host_supervisor_wrapper",
+          wrapper_command: "scripts/run_with_oversight_supervisor.sh",
+          default_interval_seconds: 300
+        },
+        latest_decision: {
+          decision_id: "ovr-2",
+          recorded_at_ts: 1774306800,
+          trigger_source: "periodic_supervisor",
+          outcome: "config_ring_exhausted",
+          summary: "Fingerprint signal tuning ring is exhausted; escalate to code review."
+        },
+        recent_runs: []
+      })
+    });
+  });
+
+  await openDashboard(page);
+  await openTab(page, "game-loop");
+  await expect(page.locator("#game-loop-current-status-exploit-progress")).toHaveText(/Outside Budget/i);
+  await expect(page.locator("#game-loop-current-status-evidence-quality")).toHaveText(/High Confidence/i);
+  await expect(page.locator("#game-loop-current-status-urgency")).toHaveText(/Critical/i);
+  await expect(page.locator("#game-loop-current-status-move-outcome")).toHaveText(/Config Ring Exhausted/i);
+  await expect(page.locator("#game-loop-progress-break-state")).toContainText("triggered");
+  await expect(page.locator("#game-loop-progress-break-state")).toContainText("exploit success regressed");
+  await expect(page.locator("#game-loop-exploit-progress")).toContainText("Outside Budget");
+  await expect(page.locator("#game-loop-exploit-progress")).toContainText("Maze Navigation");
+  await expect(page.locator("#game-loop-exploit-progress")).toContainText("Browser CDP Automation Detection");
+  await expect(page.locator("#game-loop-breach-loci")).toContainText("Maze Navigation");
+  await expect(page.locator("#game-loop-breach-loci")).toContainText("GET /maze");
+  await expect(page.locator("#game-loop-breach-loci")).toContainText("GET /detail/2");
+  await expect(page.locator("#game-loop-change-judgment")).toContainText("Judge State");
+  await expect(page.locator("#game-loop-change-judgment")).toContainText("Diagnosis Confidence");
+  await expect(page.locator("#game-loop-change-judgment")).toContainText("Move Or Escalation");
+  await expect(page.locator("#game-loop-change-judgment")).toContainText("Localized");
+  await expect(page.locator("#game-loop-change-judgment")).toContainText("Fingerprint Signal");
+  await expect(page.locator("#game-loop-change-judgment")).toContainText("Config Ring");
+  await expect(page.locator("#game-loop-change-judgment")).toContainText("Exhausted");
+  await expect(page.locator("#game-loop-change-judgment")).toContainText("Code Evolution");
+  await expect(page.locator("#game-loop-change-judgment")).toContainText("Not Required");
+});
+
 test("game loop distinguishes category posture achievement from scrapling surface contract truth", async ({ page }) => {
   await page.route("**/admin/operator-snapshot", async (route) => {
     await route.fulfill({
