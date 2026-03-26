@@ -1,6 +1,6 @@
 # Blocked TODO Roadmap
 
-Last updated: 2026-03-25
+Last updated: 2026-03-26
 
 This file holds gated, contingent, or explicitly deferred work that is not execution-ready.
 Move an item back into `todos/todo.md` only when its blocking condition is cleared.
@@ -20,6 +20,12 @@ Security finding validity and closure status live in `todos/security-review.md`.
 
 - [ ] RSI-GAME-HO-2 Re-run the strict `human_only_private` Game Loop under combined Scrapling plus LLM attacker pressure.
   Blocker: keep blocked until `SIM-LLM-1C3` lands. This second strict-baseline tranche should prove repeated retained config-change improvement toward the strict target with both Scrapling and LLM attacker runs included in the loop before any later relaxed verified-identity sweep opens.
+  - Closure gate:
+    - runtime/config: both Scrapling and the later LLM attacker contribute pressure under `human_only_private`, recommendations become bounded config changes, later mixed-attacker runs occur against changed config, and repeated retained changes show positive movement toward the strict target
+    - API/snapshot: machine-first surfaces preserve mixed-attacker lineage and judged retain/rollback outcomes across repeated cycles
+    - dashboard/admin: `Red Team` and `Game Loop` truthfully show both lanes contributing to the strict-baseline proof without overstating maturity from mere lane presence
+    - proof: focused `make` paths must pass for mixed-attacker repeated-cycle proof
+    - insufficient: one mixed handoff, both lanes merely appearing in recent runs, or lack of repeated retained improvement under the strict stance
 
 - [ ] RSI-GAME-HV-1 Run the later `humans_plus_verified_only` sweep.
   Blocker: keep blocked until `STANCE-MODEL-1` lands, `SIM-SCR-FULL-1` closes the full-power Scrapling lane, `RSI-GAME-HO-1` proves the first strict Scrapling-only loop, `SIM-LLM-1C3` lands, and `RSI-GAME-HO-2` proves repeated retained improvement under the strict `human_only_private` baseline with both Scrapling and LLM attacker pressure. Do not open this looser stance merely because one bounded loop works or because verified identity exists.

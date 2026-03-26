@@ -42,6 +42,92 @@ Each gate should answer, explicitly:
 4. which focused `make` targets must pass,
 5. and what evidence is still insufficient even if some precursor slice is already landed.
 
+### Frozen closure gate: `STANCE-MODEL-1`
+
+`STANCE-MODEL-1` may move to completed history only when all of the following are true:
+
+1. Runtime/config truth:
+   - one canonical non-human stance authority exists,
+   - the independent verified-identity top-level stance is no longer authoritative,
+   - and `human_only_private` plus `humans_plus_verified_only` are machine-readable and enforced through the same resolved policy contract.
+2. API/snapshot truth:
+   - the resolved effective policy is materialized in admin or snapshot surfaces in a machine-readable form,
+   - and verified-identity override lineage is explicit rather than implied.
+3. Dashboard/admin truth:
+   - `Game Loop`, `Verification`, and any relevant operator control surfaces project the resolved policy rather than the old split model.
+4. Focused proof:
+   - focused `make` paths exist and pass for runtime policy behavior, API/snapshot projection, and rendered dashboard truth.
+5. Insufficient evidence:
+   - docs-only redesign,
+   - config naming without runtime enforcement,
+   - or legacy Game Loop posture rows still driven by the old dual-stance semantics.
+
+### Frozen closure gate: `SIM-SCR-FULL-1`
+
+`SIM-SCR-FULL-1` may move to completed history only when all of the following are true:
+
+1. Runtime truth:
+   - the full ratified Scrapling capability matrix for the non-agent or non-LLM lane is implemented,
+   - or any omitted capability is explicitly excluded by the active matrix rather than silently unimplemented.
+2. Receipt/API truth:
+   - recent-run, snapshot, or equivalent machine-first surfaces carry receipt-backed evidence of categories fulfilled and defense surfaces touched,
+   - including which surfaces were passed where expected and failed where expected.
+3. Operator-visible truth:
+   - `Red Team` projects that full-power evidence faithfully,
+   - and `Game Loop` does not imply more attacker maturity than the backend actually proves.
+4. Focused proof:
+   - focused `make` paths exist and pass for worker/runtime behavior, category fulfillment, receipt-backed surface coverage, and operator-visible evidence.
+5. Insufficient evidence:
+   - request-native baseline only,
+   - upstream Scrapling capability claims without Shuma-local proof,
+   - or coverage claims that do not distinguish pass/fail expectations.
+
+### Frozen closure gate: `RSI-GAME-HO-1`
+
+`RSI-GAME-HO-1` may move to completed history only when all of the following are true:
+
+1. Runtime/config truth:
+   - the loop actually runs against `human_only_private`,
+   - verified non-human traffic remains denied under that stance,
+   - bounded config recommendations are generated,
+   - config changes are applied,
+   - later Scrapling runs occur against the changed config,
+   - and retain or rollback judgments occur over repeated cycles rather than once.
+2. API/snapshot truth:
+   - recent changes, oversight history, and other machine-first surfaces show repeated cycle lineage, applied changes, and retained vs rolled-back outcomes.
+3. Operator-visible truth:
+   - `Game Loop` projects the strict stance truthfully,
+   - shows the repeated change context,
+   - and shows measured movement toward the strict target rather than only recommendation plumbing or legacy mismatch rows.
+4. Focused proof:
+   - focused `make` paths exist and pass for strict-stance runtime behavior and repeated judged-cycle proof.
+5. Insufficient evidence:
+   - one successful loop,
+   - one canary apply,
+   - recommendation generation without retained improvement,
+   - or unresolved dashboard/runtime mismatch where the operator surface still contradicts the claimed improvement.
+
+### Frozen closure gate: `RSI-GAME-HO-2`
+
+`RSI-GAME-HO-2` may move from blocked to completed only when all of the following are true:
+
+1. Runtime/config truth:
+   - both Scrapling and the later LLM attacker contribute pressure under `human_only_private`,
+   - recommendations become bounded config changes,
+   - later mixed-attacker runs occur against those changed configs,
+   - and repeated retained changes show positive movement toward the strict target.
+2. API/snapshot truth:
+   - machine-first surfaces preserve mixed-attacker lineage and judged retain/rollback outcomes across repeated cycles.
+3. Operator-visible truth:
+   - `Red Team` and `Game Loop` truthfully show both lanes contributing to the strict-baseline proof,
+   - without overstating mixed-attacker maturity from mere lane presence.
+4. Focused proof:
+   - focused `make` paths exist and pass for mixed-attacker repeated-cycle proof.
+5. Insufficient evidence:
+   - one mixed handoff,
+   - both lanes merely appearing in recent runs,
+   - or lack of repeated retained improvement under the strict stance.
+
 ## `VERIFY-GATE-1B`: Turn the gates into executable proof surfaces
 
 After the gates are frozen, the next implementation work should wire any missing proof paths so completion is machine-checkable rather than conversational.

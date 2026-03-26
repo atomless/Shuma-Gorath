@@ -4,6 +4,25 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-26)
 
+### VERIFY-GATE-1A Explicit Acceptance Gates
+
+- [x] Froze the explicit closure gates for:
+  - `STANCE-MODEL-1`
+  - `SIM-SCR-FULL-1`
+  - `RSI-GAME-HO-1`
+  - blocked later `RSI-GAME-HO-2`
+  across:
+  - [`todos/todo.md`](../todos/todo.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+  - [`docs/plans/2026-03-26-acceptance-gate-and-completion-claim-discipline-plan.md`](../docs/plans/2026-03-26-acceptance-gate-and-completion-claim-discipline-plan.md)
+- [x] Added the closeout note in:
+  - [`docs/research/2026-03-26-verify-gate-1a-explicit-acceptance-gates-post-implementation-review.md`](../docs/research/2026-03-26-verify-gate-1a-explicit-acceptance-gates-post-implementation-review.md)
+- [x] Why:
+  - the mainline now has explicit runtime, API, dashboard, and proof bars for the major strict-loop tranches,
+  - and “insufficient for closure” states are now written down rather than inferred.
+- [x] Evidence:
+  - `git diff --check`
+
 ### Canonical Policy For Acceptance Criteria And Proof Governance
 
 - [x] Wrote the policy-governance review in:
