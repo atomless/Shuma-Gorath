@@ -121,10 +121,40 @@ Current note:
 - `SIM-SCR-FULL-1` is now landed: full-spectrum Scrapling capability, receipt-backed category and defense-surface truth, controller-grade surface-contract scoring, and the operator truth audit are complete, so the next mainline moves to `RSI-SCORE-2`.
 - `RSI-SCORE-2` is now landed: the judge, diagnoser, move selector, and Game Loop projection now preserve exploit progress, evidence quality, urgency, named breach loci, and config-exhaustion or code-referral truth as separate planes.
 - `RSI-GAME-HO-1` is now landed: the strict `human_only_private` loop is proven on the local `/sim/public/*` surface with live strict-stance runtime checks, post-sim oversight lineage, and repeated retained movement toward zero suspicious leakage.
+- A March 27 audit reopened one scoring truth gap before more mainline claims: Scrapling category posture still lacks exact adversary-sim category receipts, so the immediate next slice is a focused `Category Posture Truth Repair` before returning to broader mainline work.
+- A March 27 doctrine review also froze the next wider refactor boundary: the Game Loop must now be treated explicitly as board-state scoring over the host site, with no simulator-side privileged identity, breach-local host-cost attribution, explicit failed-move memory, a later bounded frontier-LLM code ring, and a separate real-human friction calibration ring.
 - Before further mainline completion claims, the repo now requires explicit acceptance-gate discipline. Do not describe `STANCE-MODEL-1`, `SIM-SCR-FULL-1`, `RSI-GAME-HO-1`, or `RSI-GAME-HO-2` as complete from planning progress, baseline capability, or dashboard pressure signals alone.
-- The next active mainline is now the remaining LLM attacker runtime slice `SIM-LLM-1C3`.
+- The next active mainline after the scoring repair remains the remaining LLM attacker runtime slice `SIM-LLM-1C3`.
 - Do not open `humans_plus_verified_only` until a later second strict-baseline proof has shown retained config-change improvement under both Scrapling and LLM attacker pressure.
 - `DIAG-CLEANUP-1` and `MON-OVERHAUL-1C` are now both landed, so the deferred Game Loop and Diagnostics follow-on queue is currently clear while the later combined-attacker strict-baseline proof still stays blocked behind `SIM-LLM-1C3`.
+
+- [ ] RSI-SCORE-2F Repair Game Loop category-posture truth for Scrapling-populated categories.
+  - Reference context:
+    - [`docs/research/2026-03-27-game-loop-category-posture-scoring-audit.md`](../docs/research/2026-03-27-game-loop-category-posture-scoring-audit.md)
+    - [`docs/plans/2026-03-27-game-loop-category-posture-truth-repair-plan.md`](../docs/plans/2026-03-27-game-loop-category-posture-truth-repair-plan.md)
+    - [`docs/plans/2026-03-26-rsi-score-2-exploit-first-judge-and-diagnoser-plan.md`](../docs/plans/2026-03-26-rsi-score-2-exploit-first-judge-and-diagnoser-plan.md)
+  - Closure gate:
+    - benchmark and dashboard: projected or degraded category rows must stay explicitly unscored and must not render like measured `0% achieved`
+    - classification: exact category receipts for Scrapling-populated categories may only come from Shuma-side request or behavior inference that real external traffic could also satisfy; sim persona labels must not be used as category truth
+    - scoring: when exact Shuma-side category receipts exist, `non_human_category_posture` must be able to emit real partial blocked-share values from them rather than only degraded `projected_recent_sim_run` placeholders
+    - proof: `make test-benchmark-results-contract` and `make test-dashboard-game-loop-accountability` for the honesty repair, then `make test-traffic-classification-contract` and `make test-adversary-sim-scrapling-category-fit` only as real shared-path inference lands
+    - insufficient: projected zero-count category placeholders, null rows that still look like `0% achieved`, sim-tag-derived category truth, or category scoring that only appears trustworthy at `0%` and `100%`
+
+- [ ] RSI-GAME-BOARD-1 Refactor Game Loop around board-state doctrine and shared-path sim truth.
+  - Reference context:
+    - [`docs/research/2026-03-27-game-loop-board-state-and-shared-path-truth-review.md`](../docs/research/2026-03-27-game-loop-board-state-and-shared-path-truth-review.md)
+    - [`docs/plans/2026-03-27-game-loop-board-state-refactor-plan.md`](../docs/plans/2026-03-27-game-loop-board-state-refactor-plan.md)
+    - [`docs/research/2026-03-26-game-loop-terrain-locality-and-breach-diagnosis-review.md`](../docs/research/2026-03-26-game-loop-terrain-locality-and-breach-diagnosis-review.md)
+    - [`docs/research/2026-03-26-strict-human-only-loop-and-human-traversal-calibration-review.md`](../docs/research/2026-03-26-strict-human-only-loop-and-human-traversal-calibration-review.md)
+    - [`docs/plans/2026-03-24-llm-player-role-decomposition-plan.md`](../docs/plans/2026-03-24-llm-player-role-decomposition-plan.md)
+  - Closure gate:
+    - doctrine: Game Loop docs, scoring, and controller semantics must explicitly treat the host site as the board, Shuma defenses as the movable pieces, and adversary-sim traffic as traffic that shares the same judge path as real traffic
+    - truth path: sim metadata may support harness control or audit only and must not become category truth, exploit truth, or tuning truth
+    - scoring: the loop must preserve distinct planes for origin leakage and human-cost guardrails, terrain breach progress and host cost, and surface-contract or tuning-readiness state
+    - config loop: the controller must preserve failed bounded moves, rollback lineage, and anti-repeat memory tied to named breach loci
+    - later rings: the planning chain for frontier-LLM code suggestions and real-human friction calibration must be explicit and bounded rather than implied
+    - proof: follow the named substep proofs in `docs/plans/2026-03-27-game-loop-board-state-refactor-plan.md`; documentation alignment is sufficient for the planning-only substeps, while runtime or dashboard substeps must name focused `make` proofs
+    - insufficient: aggregate-only pressure readouts with no named breach locus, simulator-side convenience labels in scoring, repeated near-equivalent failed config moves with no explicit memory, or vague later references to code evolution or human friction with no bounded contract
 
 - [ ] SIM-LLM-1C3 Close the runtime proof chain and recent-run projection for the live `bot_red_team` actor.
   - Reference context:
