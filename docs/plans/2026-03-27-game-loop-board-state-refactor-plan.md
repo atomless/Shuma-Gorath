@@ -5,10 +5,12 @@ Related context:
 
 - [`../research/2026-03-27-game-loop-board-state-and-shared-path-truth-review.md`](../research/2026-03-27-game-loop-board-state-and-shared-path-truth-review.md)
 - [`../research/2026-03-27-game-loop-category-posture-scoring-audit.md`](../research/2026-03-27-game-loop-category-posture-scoring-audit.md)
+- [`../research/2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-review.md`](../research/2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-review.md)
 - [`../research/2026-03-26-game-loop-terrain-locality-and-breach-diagnosis-review.md`](../research/2026-03-26-game-loop-terrain-locality-and-breach-diagnosis-review.md)
 - [`../research/2026-03-26-strict-human-only-loop-and-human-traversal-calibration-review.md`](../research/2026-03-26-strict-human-only-loop-and-human-traversal-calibration-review.md)
 - [`2026-03-27-ovr-code-1-frontier-llm-code-evolution-ring-plan.md`](2026-03-27-ovr-code-1-frontier-llm-code-evolution-ring-plan.md)
 - [`2026-03-27-human-friction-calibration-ring-plan.md`](2026-03-27-human-friction-calibration-ring-plan.md)
+- [`2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-plan.md`](2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-plan.md)
 - [`2026-03-26-rsi-score-2-exploit-first-judge-and-diagnoser-plan.md`](2026-03-26-rsi-score-2-exploit-first-judge-and-diagnoser-plan.md)
 - [`2026-03-24-llm-player-role-decomposition-plan.md`](2026-03-24-llm-player-role-decomposition-plan.md)
 - [`../../todos/todo.md`](../../todos/todo.md)
@@ -36,6 +38,10 @@ Implementation status update (2026-03-27):
    - and the Game Loop UI now projects guardrails, board-state breach progress, surface-contract satisfaction, and loop actionability as distinct planes.
 2. The later planning-only substeps for the frontier-LLM code-evolution ring and the real human-friction calibration ring are now being broken out into dedicated follow-on plans rather than left as vague future work.
 3. The remaining open runtime truth gap inside this broader refactor is still the exact shared-path category-inference gap tracked separately in `RSI-SCORE-2F2`.
+4. The later March 27 architecture clarification now tightens this plan further:
+   - restriction scoring is the main quest,
+   - recognition quality is a separate evaluation rail,
+   - and abuse-driven confidence escalation is part of the board-state doctrine rather than an optional later heuristic.
 
 # Core Decisions
 
@@ -45,10 +51,12 @@ Implementation status update (2026-03-27):
    1. origin leakage and human-cost guardrails,
    2. terrain breach progress and host cost beyond the defended boundary,
    3. surface-contract satisfaction and tuning readiness.
-4. Treat breach-local host-cost attribution as a first-class requirement for fine-grained config tuning.
-5. Treat failed-move memory as part of controller correctness, not later polish.
-6. Treat frontier-LLM code suggestion as a later bounded ring that begins only from explicit code-gap referral or config-ring exhaustion.
-7. Treat human-friction measurement as a separate later calibration ring over real human evidence, not a relaxation of the strict sim-only loop.
+4. Require the later recognition-evaluation rail to stay separate from restriction scoring, even when simulator-known labels are available after the fact.
+5. Treat breach-local host-cost attribution as a first-class requirement for fine-grained config tuning.
+6. Treat failed-move memory as part of controller correctness, not later polish.
+7. Treat frontier-LLM code suggestion as a later bounded ring that begins only from explicit code-gap referral or config-ring exhaustion.
+8. Treat human-friction measurement as a separate later calibration ring over real human evidence, not a relaxation of the strict sim-only loop.
+9. Treat Shuma confidence as something that accumulates through defense layers and can also be raised by short-window abuse pressure even when explicit identity signals stay weak.
 
 # Refactor Shape
 
@@ -62,6 +70,10 @@ Required contract:
 2. Simulator metadata may remain available for harness control, replay, and offline audit, but it must not become category truth or score inputs.
 3. Category or exploit rows with insufficient exact Shuma-side evidence remain explicitly unscored.
 4. Game Loop wording makes the shared-path rule explicit enough that operators do not misread projected presence as measured category performance.
+5. The refactor must remain compatible with the later three-rail split:
+   1. defense rail,
+   2. restriction-scoring rail,
+   3. recognition-evaluation rail.
 
 Acceptance criteria:
 
@@ -154,11 +166,12 @@ Acceptance criteria:
 # Sequencing
 
 1. Finish `RSI-SCORE-2F` first because the shared-path doctrine already fails if the Game Loop pretends to know exact category truth it does not possess.
-2. Land `RSI-GAME-BOARD-1A` before any renewed claim that Game Loop category or exploit scoring is shared-path truthful.
-3. Land `RSI-GAME-BOARD-1B` before any renewed claim that the board-state model is materially reflected in controller-grade scoring.
-4. Land `RSI-GAME-BOARD-1C` before any renewed claim that the config loop can avoid wasteful repeated failed moves.
-5. Use `RSI-GAME-BOARD-1D` to reopen later `OVR-CODE-1` planning on explicit doctrine rather than vague future intent.
-6. Use `RSI-GAME-BOARD-1E` to reopen later human-friction calibration work without weakening the strict non-human exclusion ring.
+2. Apply the later restriction-vs-recognition clarification before re-elevating category posture as a first-class Game Loop score for undeclared hostile traffic.
+3. Land `RSI-GAME-BOARD-1A` before any renewed claim that Game Loop category or exploit scoring is shared-path truthful.
+4. Land `RSI-GAME-BOARD-1B` before any renewed claim that the board-state model is materially reflected in controller-grade scoring.
+5. Land `RSI-GAME-BOARD-1C` before any renewed claim that the config loop can avoid wasteful repeated failed moves.
+6. Use `RSI-GAME-BOARD-1D` to reopen later `OVR-CODE-1` planning on explicit doctrine rather than vague future intent.
+7. Use `RSI-GAME-BOARD-1E` to reopen later human-friction calibration work without weakening the strict non-human exclusion ring.
 
 # Definition Of Done
 

@@ -122,26 +122,30 @@ Current note:
 - `RSI-SCORE-2` is now landed: the judge, diagnoser, move selector, and Game Loop projection now preserve exploit progress, evidence quality, urgency, named breach loci, and config-exhaustion or code-referral truth as separate planes.
 - `RSI-GAME-HO-1` is now landed: the strict `human_only_private` loop is proven on the local `/sim/public/*` surface with live strict-stance runtime checks, post-sim oversight lineage, and repeated retained movement toward zero suspicious leakage.
 - A March 27 accountability slice is now landed: Game Loop category posture rows render honestly as `Unscored` when exact shared-path evidence is missing, exploit loci now carry host-cost channels plus repair-family hints, localized high-confidence exploit progress can now drive bounded config tuning, and the Game Loop page now projects origin leakage, board-state breach progress, and loop actionability as separate planes.
-- The remaining immediate Game Loop gaps are no longer just "exact category inference later". March 27 review shows five still-open Scrapling-first rigor failures: vague `Loop Actionability` blocker output, vague `Named Breach Loci`, wholly unscored current Scrapling categories, incomplete proof of JS verification and PoW surface exercise, and still-implicit owned-surface dependency semantics.
-- The next active Scrapling-first rigor sequence is now `SIM-SCR-FULL-1C4` -> `SIM-SCR-FULL-1C5` -> `RSI-SCORE-2F3` -> `RSI-GAME-BOARD-1F` -> `RSI-GAME-BOARD-1G`.
+- The later March 27 architecture clarification now tightens the Game Loop shape further: restriction scoring is the main quest, recognition quality is a separate evaluation quest, simulator-known category labels remain forbidden in runtime and tuning, and abuse-driven confidence escalation is required as the backstop when explicit hostile identity signals stay weak.
+- The remaining immediate Game Loop gaps are therefore no longer just "exact category inference later". They are: incomplete proof of JS verification and PoW surface exercise, still-implicit owned-surface dependency semantics, missing recognition-evaluation clarity, restriction scoring that still overstates category posture, vague `Loop Actionability` blocker output, and vague `Named Breach Loci`.
+- The next active Scrapling-first rigor sequence is now `SIM-SCR-FULL-1C4` -> `SIM-SCR-FULL-1C5` -> `RSI-SCORE-2F2` -> `RSI-SCORE-2F3` -> `RSI-GAME-BOARD-1F` -> `RSI-GAME-BOARD-1G`.
 - The board-state doctrine now has explicit follow-on planning for a later frontier-LLM code-evolution ring and a later real-human friction calibration ring, but both remain blocked from execution.
 - Before further mainline completion claims, the repo now requires explicit acceptance-gate discipline. Do not describe `STANCE-MODEL-1`, `SIM-SCR-FULL-1`, `RSI-GAME-HO-1`, or `RSI-GAME-HO-2` as complete from planning progress, baseline capability, or dashboard pressure signals alone.
 - The next attacker-runtime mainline remains `SIM-LLM-1C3`, but only after the current Scrapling-first Game Loop rigor repairs land and the Scrapling loop stops depending on vague or missing truth.
 - Do not open `humans_plus_verified_only` until a later second strict-baseline proof has shown retained config-change improvement under both Scrapling and LLM attacker pressure.
 - `DIAG-CLEANUP-1` and `MON-OVERHAUL-1C` are now both landed, so the deferred Game Loop and Diagnostics follow-on queue is currently clear while the later combined-attacker strict-baseline proof still stays blocked behind `SIM-LLM-1C3`.
 
-- [ ] RSI-SCORE-2F2 Audit and land only real shared-path exact category inference for non-verified Scrapling-populated categories.
+- [ ] RSI-SCORE-2F2 Define the recognition-evaluation rail and audit only real shared-path exact hostile-category inference for non-verified Scrapling traffic.
   - Reference context:
     - [`docs/research/2026-03-27-game-loop-category-posture-scoring-audit.md`](../docs/research/2026-03-27-game-loop-category-posture-scoring-audit.md)
+    - [`docs/research/2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-review.md`](../docs/research/2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-review.md)
     - [`docs/research/2026-03-27-game-loop-shared-path-locality-and-actionability-post-implementation-review.md`](../docs/research/2026-03-27-game-loop-shared-path-locality-and-actionability-post-implementation-review.md)
     - [`docs/plans/2026-03-27-game-loop-category-posture-truth-repair-plan.md`](../docs/plans/2026-03-27-game-loop-category-posture-truth-repair-plan.md)
+    - [`docs/plans/2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-plan.md`](../docs/plans/2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-plan.md)
     - [`docs/plans/2026-03-26-rsi-score-2-exploit-first-judge-and-diagnoser-plan.md`](../docs/plans/2026-03-26-rsi-score-2-exploit-first-judge-and-diagnoser-plan.md)
   - Closure gate:
+    - doctrine: the repo must explicitly define a recognition-evaluation rail that may compare simulator-known category intent against Shuma inference after the fact without leaking that harness truth into runtime or tuning
     - audit: the repo must explicitly state which non-verified Scrapling-populated categories Shuma can currently infer exactly from shared-path request or behavior evidence, and which still remain only `unknown_non_human`
     - classification: exact category receipts for Scrapling-populated categories may only come from Shuma-side request or behavior inference that real external traffic could also satisfy; sim persona labels, recent-run category presence, and worker fulfillment modes must not be used as category truth
-    - scoring: when exact Shuma-side category receipts exist, `non_human_category_posture` must emit real partial blocked-share values from them rather than only degraded `projected_recent_sim_run` placeholders
+    - evaluation: harness-truth category comparison may be added only in evaluation surfaces and must not become the Game Loop restriction score
     - proof: `make test-benchmark-results-contract`, `make test-dashboard-game-loop-accountability`, and `make test-traffic-classification-contract`, plus `make test-adversary-sim-scrapling-category-fit` if new exact shared-path inference lands
-    - insufficient: projected zero-count category placeholders, null rows that still look like `0% achieved`, sim-tag-derived category truth, or category scoring that only appears trustworthy because the live rows remain stuck at `0%` or `100%`
+    - insufficient: projected zero-count category placeholders, null rows that still look like `0% achieved`, sim-tag-derived category truth, or any architecture where simulator-known categories directly drive runtime or tuning behavior
 
 - [ ] SIM-SCR-FULL-1C4 Audit and repair Scrapling owned-surface exercise proof for JS verification, browser detection, PoW, tarpit, and maze.
   - Reference context:
@@ -167,17 +171,20 @@ Current note:
     - proof: `make test-adversary-sim-scrapling-coverage-receipts`, `make test-dashboard-scrapling-evidence`, and `make test-dashboard-game-loop-accountability`
     - insufficient: absent dependency semantics, blocking lists that hide not-reached prerequisites, or operator surfaces that still make tarpit or maze relationships guesswork
 
-- [ ] RSI-SCORE-2F3 Land exact shared-path category posture scoring for the current Scrapling-populated categories.
+- [ ] RSI-SCORE-2F3 Recenter restriction scoring on board progression, host cost, Shuma confidence, and the abuse-driven backstop.
   - Reference context:
     - [`docs/research/2026-03-27-game-loop-scrapling-proof-and-rigor-gap-review.md`](../docs/research/2026-03-27-game-loop-scrapling-proof-and-rigor-gap-review.md)
+    - [`docs/research/2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-review.md`](../docs/research/2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-review.md)
     - [`docs/plans/2026-03-27-game-loop-scrapling-proof-and-rigor-repair-plan.md`](../docs/plans/2026-03-27-game-loop-scrapling-proof-and-rigor-repair-plan.md)
     - [`docs/plans/2026-03-27-game-loop-category-posture-truth-repair-plan.md`](../docs/plans/2026-03-27-game-loop-category-posture-truth-repair-plan.md)
+    - [`docs/plans/2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-plan.md`](../docs/plans/2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-plan.md)
   - Closure gate:
-    - scoring truth: `Category Posture Achievement` must emit exact shared-path blocked-share values for `indexing_bot`, `ai_scraper_bot`, `automated_browser`, and `http_agent`
-    - classification truth: those exact receipts may come only from Shuma-side request, behavior, response, or browser evidence that real traffic could also produce; sim persona labels, fulfillment modes, and recent-run category declarations remain forbidden as category truth
-    - escalation discipline: if one or more of those categories still cannot be inferred exactly without a larger architecture change, stop and reopen that architecture discussion explicitly instead of faking category precision
-    - proof: `make test-traffic-classification-contract`, `make test-adversary-sim-scrapling-category-fit`, `make test-benchmark-results-contract`, and `make test-dashboard-game-loop-accountability`
-    - insufficient: all current Scrapling categories still reading `Unscored`, exact category rows derived from sim metadata, or continued binary-looking category output that is not backed by real exact receipts
+    - scoring truth: the primary restriction score for undeclared Scrapling traffic must be driven by board progression, host cost, human-friction guardrails, and Shuma's own hostile or non-human confidence rather than exact simulator-known category truth
+    - urgency: non-restriction of high-confidence hostile traffic must weigh more heavily than equally costly lower-confidence traffic
+    - backstop: low-confidence but high-cost traffic must still remain urgent through an explicit anomaly or harm floor
+    - category role: `non_human_category_posture` may remain a secondary diagnostic or recognition-evaluation plane for undeclared hostile traffic, but must not remain the primary restriction score
+    - proof: `make test-traffic-classification-contract`, `make test-benchmark-results-contract`, `make test-rsi-score-exploit-progress`, `make test-rsi-score-evidence-quality`, `make test-rsi-score-move-selection`, and `make test-dashboard-game-loop-accountability`
+    - insufficient: simulator-known category labels influencing runtime or tuning, category posture still reading like the main attacker-restriction score for undeclared traffic, or a restriction model with no abuse-driven confidence backstop for stealthy but expensive traffic
 
 - [ ] RSI-GAME-BOARD-1F Replace flat `Loop Actionability` blockers with typed blocker groups and exact next-fix surfaces.
   - Reference context:
@@ -206,8 +213,10 @@ Current note:
 - [ ] RSI-GAME-BOARD-1 Refactor Game Loop around board-state doctrine and shared-path sim truth.
   - Reference context:
     - [`docs/research/2026-03-27-game-loop-board-state-and-shared-path-truth-review.md`](../docs/research/2026-03-27-game-loop-board-state-and-shared-path-truth-review.md)
+    - [`docs/research/2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-review.md`](../docs/research/2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-review.md)
     - [`docs/research/2026-03-27-game-loop-shared-path-locality-and-actionability-post-implementation-review.md`](../docs/research/2026-03-27-game-loop-shared-path-locality-and-actionability-post-implementation-review.md)
     - [`docs/plans/2026-03-27-game-loop-board-state-refactor-plan.md`](../docs/plans/2026-03-27-game-loop-board-state-refactor-plan.md)
+    - [`docs/plans/2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-plan.md`](../docs/plans/2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-plan.md)
     - [`docs/plans/2026-03-27-game-loop-scrapling-proof-and-rigor-repair-plan.md`](../docs/plans/2026-03-27-game-loop-scrapling-proof-and-rigor-repair-plan.md)
     - [`docs/research/2026-03-26-game-loop-terrain-locality-and-breach-diagnosis-review.md`](../docs/research/2026-03-26-game-loop-terrain-locality-and-breach-diagnosis-review.md)
     - [`docs/research/2026-03-26-strict-human-only-loop-and-human-traversal-calibration-review.md`](../docs/research/2026-03-26-strict-human-only-loop-and-human-traversal-calibration-review.md)
@@ -217,11 +226,12 @@ Current note:
   - Closure gate:
     - doctrine: Game Loop docs, scoring, and controller semantics must explicitly treat the host site as the board, Shuma defenses as the movable pieces, and adversary-sim traffic as traffic that shares the same judge path as real traffic
     - truth path: sim metadata may support harness control or audit only and must not become category truth, exploit truth, or tuning truth
-    - scoring: the loop must preserve distinct planes for origin leakage and human-cost guardrails, terrain breach progress and host cost, and surface-contract or tuning-readiness state
+    - scoring: the loop must preserve distinct planes for origin leakage and human-cost guardrails, terrain breach progress and host cost, surface-contract or tuning-readiness state, and the split between restriction scoring and recognition evaluation
+    - confidence: the loop must treat Shuma confidence as something that accumulates through defense layers and can also rise through short-window abuse pressure when explicit identity signals remain weak
     - config loop: the controller must preserve failed bounded moves, rollback lineage, and anti-repeat memory tied to named breach loci
     - later rings: the planning chain for frontier-LLM code suggestions and real-human friction calibration must be explicit and bounded rather than implied
     - proof: follow the named substep proofs in `docs/plans/2026-03-27-game-loop-board-state-refactor-plan.md`; documentation alignment is sufficient for the planning-only substeps, while runtime or dashboard substeps must name focused `make` proofs
-    - insufficient: aggregate-only pressure readouts with no named breach locus, simulator-side convenience labels in scoring, repeated near-equivalent failed config moves with no explicit memory, or vague later references to code evolution or human friction with no bounded contract
+    - insufficient: aggregate-only pressure readouts with no named breach locus, simulator-side convenience labels in scoring, category posture still acting as the main undeclared-traffic restriction score, repeated near-equivalent failed config moves with no explicit memory, or vague later references to code evolution or human friction with no bounded contract
 
 - [ ] SIM-LLM-1C3 Close the runtime proof chain and recent-run projection for the live `bot_red_team` actor.
   - Reference context:

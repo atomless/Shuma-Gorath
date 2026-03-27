@@ -4,6 +4,32 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-27)
 
+### Game Loop Restriction Vs Recognition Architecture Planning
+
+- [x] Wrote the architecture clarification and execution plan in:
+  - [`docs/research/2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-review.md`](../docs/research/2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-review.md)
+  - [`docs/plans/2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-plan.md`](../docs/plans/2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-plan.md)
+  so the repo now says one explicit thing about:
+  - restriction scoring as the main quest,
+  - recognition quality as a separate evaluation quest,
+  - simulator labels staying out of runtime and tuning,
+  - and abuse-driven confidence escalation acting as the backstop when explicit hostile identity signals stay weak.
+- [x] Updated the active Game Loop planning chain and backlog in:
+  - [`docs/plans/2026-03-27-game-loop-board-state-refactor-plan.md`](../docs/plans/2026-03-27-game-loop-board-state-refactor-plan.md)
+  - [`docs/plans/2026-03-27-game-loop-category-posture-truth-repair-plan.md`](../docs/plans/2026-03-27-game-loop-category-posture-truth-repair-plan.md)
+  - [`docs/plans/2026-03-27-game-loop-scrapling-proof-and-rigor-repair-plan.md`](../docs/plans/2026-03-27-game-loop-scrapling-proof-and-rigor-repair-plan.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+  so the repo no longer frames exact hostile-category posture as the main restriction score for undeclared hostile traffic and instead points `RSI-SCORE-2F2` and `RSI-SCORE-2F3` at the new recognition-vs-restriction split.
+- [x] Why:
+  - the March 27 architecture discussion exposed that the repo was still drifting between category-first and board-state-first Game Loop thinking, which would make later runtime or tuning work dangerously confused.
+- [x] Evidence:
+  - [`docs/research/2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-review.md`](../docs/research/2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-review.md)
+  - [`docs/plans/2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-plan.md`](../docs/plans/2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-plan.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+  - `git diff --check`
+
 ### Game Loop Scrapling Proof And Rigor Repair Planning
 
 - [x] Wrote the new current-state review and focused repair plan in:

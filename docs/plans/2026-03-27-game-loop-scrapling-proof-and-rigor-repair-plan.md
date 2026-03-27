@@ -5,9 +5,11 @@ Related context:
 
 - [`../research/2026-03-27-game-loop-scrapling-proof-and-rigor-gap-review.md`](../research/2026-03-27-game-loop-scrapling-proof-and-rigor-gap-review.md)
 - [`../research/2026-03-27-game-loop-category-posture-scoring-audit.md`](../research/2026-03-27-game-loop-category-posture-scoring-audit.md)
+- [`../research/2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-review.md`](../research/2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-review.md)
 - [`../research/2026-03-27-game-loop-shared-path-locality-and-actionability-post-implementation-review.md`](../research/2026-03-27-game-loop-shared-path-locality-and-actionability-post-implementation-review.md)
 - [`2026-03-27-game-loop-board-state-refactor-plan.md`](2026-03-27-game-loop-board-state-refactor-plan.md)
 - [`2026-03-27-game-loop-category-posture-truth-repair-plan.md`](2026-03-27-game-loop-category-posture-truth-repair-plan.md)
+- [`2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-plan.md`](2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-plan.md)
 - [`../../todos/todo.md`](../../todos/todo.md)
 - [`../../dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
 - [`../../dashboard/src/lib/domain/api-client.js`](../../dashboard/src/lib/domain/api-client.js)
@@ -27,7 +29,7 @@ Close the most immediate Scrapling Game Loop rigor gaps that still prevent the l
 
 1. prove exactly which owned surfaces Scrapling is and is not exercising,
 2. make surface dependencies or independence explicit,
-3. turn current Scrapling categories from wholly unscored into exact shared-path blocked-share measurements,
+3. stop letting current Scrapling categories float ambiguously between restriction scoring and recognition scoring,
 4. replace flat blocker dumps with structured next-fix truth,
 5. and make named breach loci exact enough to support fine-grained config repair.
 
@@ -38,10 +40,11 @@ The frontier-LLM attacker stays deferred until the Scrapling loop produces trust
 
 1. Do not accept vague blocker lists as "actionability".
 2. Do not accept vague or partially fabricated breach loci as "locality".
-3. Do not accept a Game Loop where all current Scrapling categories remain unscored.
+3. Do not accept a Game Loop where the restriction quest and recognition quest are still blurred together.
 4. Do not use simulator labels, fulfillment modes, or recent-run category declarations as category truth.
 5. Do not hide missing proof by coercing null or absent fields into zero.
-6. If exact category scoring for the current Scrapling categories requires a bigger hostile-category inference architecture than the current lane mapping can support, stop and discuss that architecture explicitly before faking progress.
+6. If exact category inference for the current Scrapling categories requires a bigger hostile-category inference architecture than the current lane mapping can support, stop and discuss that architecture explicitly before faking progress.
+7. Do not let simulator-known category labels become a shortcut that makes the recognition quest look solved or the restriction quest look smarter than it really is.
 
 # Execution Tranche
 
@@ -96,29 +99,32 @@ Acceptance criteria:
 
 ## `RSI-SCORE-2F3`
 
-### Exact shared-path category posture scoring for current Scrapling categories
+### Restriction scoring recentering around Shuma confidence, board-state cost, and the abuse backstop
 
 Required contract:
 
-1. `Category Posture Achievement` must emit exact shared-path blocked-share values for the current Scrapling-populated categories:
-   1. `indexing_bot`
-   2. `ai_scraper_bot`
-   3. `automated_browser`
-   4. `http_agent`
-2. the exact receipts must come only from Shuma-side request, behavior, response, or browser evidence that real external traffic could also produce,
-3. no simulator persona label, fulfillment mode, or recent-run category declaration may become category truth,
-4. and if any category still cannot be inferred exactly without a larger architecture change, execution must stop and escalate that architecture fork explicitly.
+1. the primary restriction score for current Scrapling traffic must be driven by:
+   1. board progression,
+   2. host cost,
+   3. human-friction guardrails,
+   4. and Shuma's own hostile or non-human confidence,
+2. category posture for undeclared hostile traffic must not remain the main restriction score,
+3. non-restriction of high-confidence hostile traffic must weigh more heavily than equally costly lower-confidence traffic,
+4. low-confidence but high-cost traffic must still remain urgent through an anomaly or harm floor,
+5. and if this requires a larger architecture change than the current judge model can support, execution must stop and escalate that architecture fork explicitly.
 
 Acceptance criteria:
 
-1. the repo names the exact Shuma-side signals used for each newly exact category,
-2. benchmark tests prove those categories can now score partial blocked-share values from exact receipts rather than degraded placeholders,
-3. the Game Loop no longer renders all four current Scrapling categories as `Unscored`,
+1. the repo explicitly names Shuma confidence and abuse-driven confidence escalation as part of restriction urgency,
+2. benchmark and dashboard contracts stop implying that exact hostile-category posture is the main restriction score for undeclared Scrapling traffic,
+3. the Game Loop projects category posture as a secondary recognition or diagnostic plane unless real shared-path evidence later justifies more,
 4. and focused proof exists through:
    1. `make test-traffic-classification-contract`
-   2. `make test-adversary-sim-scrapling-category-fit`
-   3. `make test-benchmark-results-contract`
-   4. `make test-dashboard-game-loop-accountability`
+   2. `make test-benchmark-results-contract`
+   3. `make test-rsi-score-exploit-progress`
+   4. `make test-rsi-score-evidence-quality`
+   5. `make test-rsi-score-move-selection`
+   6. `make test-dashboard-game-loop-accountability`
 
 ## `RSI-GAME-BOARD-1F`
 
@@ -173,10 +179,11 @@ Acceptance criteria:
 
 1. Land `SIM-SCR-FULL-1C4` first so the repo knows what Scrapling is truly exercising today.
 2. Land `SIM-SCR-FULL-1C5` second so required-surface and dependency truth is settled before further projection cleanup.
-3. Land `RSI-SCORE-2F3` third so category posture becomes useful instead of merely honest.
-4. Land `RSI-GAME-BOARD-1F` fourth so actionability becomes a repair graph rather than a blocker dump.
-5. Land `RSI-GAME-BOARD-1G` fifth so breach locality becomes precise enough to guide bounded config changes.
-6. Only after those slices should the repo reconsider reopening `SIM-LLM-1C3`.
+3. Land `RSI-SCORE-2F2` as the recognition-evaluation audit before using exact category inference for anything stronger than honesty.
+4. Land `RSI-SCORE-2F3` after that so restriction scoring is recentered on confidence, board cost, and progression instead of category posture alone.
+5. Land `RSI-GAME-BOARD-1F` after the scoring reset so actionability becomes a repair graph rather than a blocker dump.
+6. Land `RSI-GAME-BOARD-1G` after that so breach locality becomes precise enough to guide bounded config changes.
+7. Only after those slices should the repo reconsider reopening `SIM-LLM-1C3`.
 
 # Definition Of Done
 
@@ -184,7 +191,7 @@ This rigor tranche is complete when:
 
 1. the repo can prove exactly which current Scrapling-owned surfaces were exercised and how,
 2. the owned-surface contract is explicit about dependency or independence where the operator needs that truth,
-3. the current Scrapling categories have exact shared-path posture scores or the repo has stopped for an explicit architecture discussion,
+3. the repo has separated the recognition quest from the restriction quest instead of blending them through category posture,
 4. the Game Loop actionability surface shows typed next-fix truth rather than one flat blocker list,
 5. breach loci no longer fabricate zeroes for missing data and no longer describe attacker progress too vaguely,
 6. the focused `make` proof targets above pass for each landed sub-slice,
