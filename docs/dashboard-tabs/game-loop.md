@@ -29,7 +29,7 @@ Current behavior:
   - completed judged-cycle lineage from the bounded episode archive, including retained versus rolled-back counts plus explicit homeostasis-break reasons and restart-baseline lineage,
   - true numeric budget usage for likely-human friction plus suspicious forwarded requests, bytes, and latency, with explicit wording that these are guardrails rather than proof of total attacker defeat,
   - a first-class `Terrain Breach Progress` panel showing terrain-local attacker advance separately from category posture,
-  - named breach loci carrying attempt counts, host-cost channels, repair families, and sample request or response evidence,
+  - named breach loci carrying explicit measured-vs-derived-vs-not-materialized truth for attempt counts, host-cost channels, repair families, and sample request or response evidence,
   - taxonomy rows as `Recognition Evaluation`, explicitly described as the categorisation side quest rather than attacker surface-success proof or bounded-tuning truth,
   - category rows that render as `Unscored` with no meter when exact shared-path category evidence is not available,
   - recognition summary counts showing exact matches, collapse to `unknown_non_human`, and still-not-materialized hostile categories separately from the main restriction quest,
@@ -65,6 +65,7 @@ Current limitation:
   - controller diagnosis, recognition evaluation, and move selection are now explicit sibling benchmark surfaces rather than only implicit escalation-hint projections,
   - `Loop Actionability` now groups root causes, controller outcomes, and next-fix surfaces instead of flattening them into one blocker line,
   - and the remaining open Game Loop follow-on work has now moved to breach-locus missing-data honesty plus later controller-rail cleanup rather than still-missing restriction-confidence or abuse-backstop semantics.
+  - breach loci no longer render absent attempt counts as `0 attempts`, and missing board-state hints now stay labeled as `not materialized` instead of flattening into false certainty.
 
 Refresh behavior:
 

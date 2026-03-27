@@ -4,6 +4,37 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-27)
 
+### RSI-GAME-ARCH-1D And RSI-GAME-BOARD-1G Breach-Locus Materialization Honesty
+
+- [x] Completed `RSI-GAME-ARCH-1D` and `RSI-GAME-BOARD-1G` across:
+  - [`../src/observability/benchmark_results.rs`](../src/observability/benchmark_results.rs)
+  - [`../src/observability/benchmark_scrapling_exploit_progress.rs`](../src/observability/benchmark_scrapling_exploit_progress.rs)
+  - [`../src/observability/benchmark_scrapling_evidence_quality.rs`](../src/observability/benchmark_scrapling_evidence_quality.rs)
+  - [`../src/observability/benchmark_results_comparison.rs`](../src/observability/benchmark_results_comparison.rs)
+  - [`../src/observability/benchmark_comparison.rs`](../src/observability/benchmark_comparison.rs)
+  - [`../src/admin/oversight_reconcile.rs`](../src/admin/oversight_reconcile.rs)
+  - [`../dashboard/src/lib/domain/api-client.js`](../dashboard/src/lib/domain/api-client.js)
+  - [`../dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`../docs/dashboard-tabs/game-loop.md`](../docs/dashboard-tabs/game-loop.md)
+  - [`../docs/research/2026-03-27-rsi-game-arch-1d-and-board-1g-breach-locus-honesty-post-implementation-review.md`](../docs/research/2026-03-27-rsi-game-arch-1d-and-board-1g-breach-locus-honesty-post-implementation-review.md)
+- [x] What landed:
+  - breach loci now carry explicit materialization state for attempt counts, host-cost hints, and repair hints,
+  - benchmark builders and comparison fixtures now preserve that truth instead of assuming every field was measured,
+  - dashboard adapters no longer coerce absent breach-locus fields into `0`,
+  - and the Game Loop now renders `attempt count not materialized`, `Host cost not materialized`, and `Repair candidates not materialized` instead of projecting fabricated certainty.
+- [x] Why:
+  - the board-state loop could not be trusted while missing exploit-locus fields were silently turned into fake numbers and vague “not available” wording that hid whether the data was absent, derived, or genuinely measured.
+- [x] Evidence:
+  - [`../docs/research/2026-03-27-rsi-game-arch-1d-and-board-1g-breach-locus-honesty-post-implementation-review.md`](../docs/research/2026-03-27-rsi-game-arch-1d-and-board-1g-breach-locus-honesty-post-implementation-review.md)
+  - `make test-benchmark-results-contract`
+  - `make test-rsi-score-exploit-progress`
+  - `make test-rsi-score-evidence-quality`
+  - `make dashboard-build`
+  - `make test-dashboard-game-loop-accountability`
+  - `git diff --check`
+
 ### RSI-GAME-BOARD-1F Loop-Actionability Grouping And Next-Fix Surfacing
 
 - [x] Completed `RSI-GAME-BOARD-1F` across:

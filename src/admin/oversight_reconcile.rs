@@ -1257,11 +1257,13 @@ mod tests {
                     locus_label: "Public Path Traversal".to_string(),
                     stage_id: "exposure".to_string(),
                     evidence_status: "progress_observed".to_string(),
-                    attempt_count: 2,
+                    attempt_count: Some(2),
+                    attempt_count_status: "measured".to_string(),
                     cost_channel_ids: vec![
                         "public_content_exposure".to_string(),
                         "shuma_served_bytes".to_string(),
                     ],
+                    cost_channel_status: "derived".to_string(),
                     sample_request_method: "GET".to_string(),
                     sample_request_path: "/sim/public/landing".to_string(),
                     sample_response_status: Some(200),
@@ -1270,6 +1272,7 @@ mod tests {
                         "botness".to_string(),
                         "core_policy".to_string(),
                     ],
+                    repair_family_status: "derived".to_string(),
                 }],
                 note: "Single-persona exploit evidence is not yet strong enough for bounded tuning."
                     .to_string(),
@@ -1315,11 +1318,13 @@ mod tests {
             locus_label: "Public Path Traversal".to_string(),
             stage_id: "exposure".to_string(),
             evidence_status: "progress_observed".to_string(),
-            attempt_count: 2,
+            attempt_count: Some(2),
+            attempt_count_status: "measured".to_string(),
             cost_channel_ids: vec![
                 "public_content_exposure".to_string(),
                 "shuma_served_bytes".to_string(),
             ],
+            cost_channel_status: "derived".to_string(),
             sample_request_method: "GET".to_string(),
             sample_request_path: "/sim/public/landing".to_string(),
             sample_response_status: Some(200),
@@ -1328,6 +1333,7 @@ mod tests {
                 "botness".to_string(),
                 "core_policy".to_string(),
             ],
+            repair_family_status: "derived".to_string(),
         }];
         snapshot.benchmark_results.escalation_hint.evidence_quality.status =
             "high_confidence".to_string();
@@ -1392,11 +1398,13 @@ mod tests {
             locus_label: "Public Path Traversal".to_string(),
             stage_id: "exposure".to_string(),
             evidence_status: "progress_observed".to_string(),
-            attempt_count: 2,
+            attempt_count: Some(2),
+            attempt_count_status: "measured".to_string(),
             cost_channel_ids: vec![
                 "public_content_exposure".to_string(),
                 "shuma_served_bytes".to_string(),
             ],
+            cost_channel_status: "derived".to_string(),
             sample_request_method: "GET".to_string(),
             sample_request_path: "/sim/public/landing".to_string(),
             sample_response_status: Some(200),
@@ -1405,6 +1413,7 @@ mod tests {
                 "botness".to_string(),
                 "core_policy".to_string(),
             ],
+            repair_family_status: "derived".to_string(),
         }];
         snapshot.benchmark_results.controller_contract.restriction_diagnosis.status =
             "localized".to_string();

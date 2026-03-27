@@ -2864,10 +2864,14 @@ test("game loop tab separates judge planes, breach loci, and config exhaustion s
   await expect(page.locator("#game-loop-exploit-progress")).toContainText("Browser CDP Automation Detection");
   await expect(page.locator("#game-loop-exploit-progress")).toContainText("Named Breach Loci");
   await expect(page.locator("#game-loop-exploit-progress")).toContainText("Host cost");
-  await expect(page.locator("#game-loop-exploit-progress")).toContainText("repair");
+  await expect(page.locator("#game-loop-exploit-progress")).toContainText("Repair candidates");
   await expect(page.locator("#game-loop-breach-loci")).toContainText("Maze Navigation");
   await expect(page.locator("#game-loop-breach-loci")).toContainText("GET /maze");
   await expect(page.locator("#game-loop-breach-loci")).toContainText("GET /detail/2");
+  await expect(page.locator("#game-loop-breach-loci")).toContainText("attempt count not materialized");
+  await expect(page.locator("#game-loop-breach-loci")).toContainText("Host cost not materialized");
+  await expect(page.locator("#game-loop-breach-loci")).toContainText("Repair candidates not materialized");
+  await expect(page.locator("#game-loop-breach-loci")).not.toContainText("0 attempts");
   await expect(page.locator("#game-loop-surface-contract")).toContainText(
     "Surface Contract Satisfaction"
   );

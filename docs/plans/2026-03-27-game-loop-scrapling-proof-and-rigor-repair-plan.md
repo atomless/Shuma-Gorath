@@ -36,6 +36,11 @@ Close the most immediate Scrapling Game Loop rigor gaps that still prevent the l
 This is still a Scrapling-first tranche.
 The frontier-LLM attacker stays deferred until the Scrapling loop produces trustworthy board-state truth.
 
+Current execution note:
+
+1. `SIM-SCR-FULL-1C4`, `SIM-SCR-FULL-1C5`, `RSI-SCORE-2F2`, `RSI-SCORE-2F3`, `RSI-GAME-BOARD-1F`, `RSI-GAME-ARCH-1D`, and `RSI-GAME-BOARD-1G` are now landed.
+2. The next active follow-on from this rigor chain is `RSI-GAME-ARCH-1E`.
+
 # Core Decisions
 
 1. Do not accept vague blocker lists as "actionability".

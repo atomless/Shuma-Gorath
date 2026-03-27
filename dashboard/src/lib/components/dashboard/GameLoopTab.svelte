@@ -351,6 +351,29 @@
     return items.length ? items.join(', ') : 'not available';
   };
 
+  const formatLocusAttemptText = (locus) => {
+    const source = asRecord(locus);
+    const attemptCount = asFiniteNumber(source.attempt_count);
+    const status = String(source.attempt_count_status || '').trim();
+    if (attemptCount !== null) return `${formatNumber(attemptCount, '0')} attempts measured`;
+    if (status === 'not_applicable') return 'attempt count not applicable';
+    if (status === 'derived') return 'attempt count derived';
+    return 'attempt count not materialized';
+  };
+
+  const formatLocusEvidenceField = (label, values, status) => {
+    const items = dedupeStrings(values);
+    const normalizedStatus = String(status || '').trim();
+    if (items.length) {
+      const qualifier =
+        normalizedStatus && normalizedStatus !== 'measured' ? ` ${humanizeToken(normalizedStatus, 'sentence')}` : '';
+      return `${label}${qualifier}: ${humanizeList(items)}`;
+    }
+    if (normalizedStatus === 'not_applicable') return `${label} not applicable`;
+    if (normalizedStatus === 'derived') return `${label} derived`;
+    return `${label} not materialized`;
+  };
+
   const blockerTargetToken = (value) => {
     const normalized = String(value || '').trim();
     const separatorIndex = normalized.indexOf(':');
@@ -1141,12 +1164,16 @@
                       <strong>{locus.locus_label || humanizeToken(locus.locus_id)}</strong>:
                       {humanizeToken(locus.evidence_status, 'sentence')} |
                       {humanizeToken(locus.stage_id, 'sentence')} |
-                      {formatNumber(locus.attempt_count, '0')} attempts
+                      {formatLocusAttemptText(locus)}
                       <br />
                       <span class="text-muted">
-                        Host cost {humanizeList(locus.cost_channel_ids)}
-                        | repair {humanizeList(locus.repair_family_candidates)}
-                        | {formatLocusSample(locus)}
+                        {formatLocusEvidenceField('Host cost', locus.cost_channel_ids, locus.cost_channel_status)}
+                        | {formatLocusEvidenceField(
+                          'Repair candidates',
+                          locus.repair_family_candidates,
+                          locus.repair_family_status
+                        )}
+                        | Sample {formatLocusSample(locus)}
                       </span>
                     </li>
                   {/each}

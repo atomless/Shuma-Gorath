@@ -6687,11 +6687,28 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
             stage_id: 'challenge_traversal',
             evidence_status: 'progress_observed',
             attempt_count: 3,
+            attempt_count_status: 'measured',
             cost_channel_ids: ['interactive_defense_load', 'shuma_served_bytes'],
+            cost_channel_status: 'derived',
             sample_request_method: 'GET',
             sample_request_path: '/maze',
             sample_response_status: 200,
-            repair_family_candidates: ['maze_core', 'cdp_detection']
+            repair_family_candidates: ['maze_core', 'cdp_detection'],
+            repair_family_status: 'derived'
+          },
+          {
+            locus_id: 'pow_verify_abuse',
+            locus_label: 'PoW Verify Abuse',
+            stage_id: 'challenge_submit',
+            evidence_status: 'progress_observed',
+            attempt_count_status: 'not_materialized',
+            cost_channel_ids: [],
+            cost_channel_status: 'not_materialized',
+            sample_request_method: 'POST',
+            sample_request_path: '/pow/verify',
+            sample_response_status: 202,
+            repair_family_candidates: [],
+            repair_family_status: 'not_materialized'
           }
         ],
         note: 'Localized enough for bounded move review.'
@@ -6703,11 +6720,14 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
           stage_id: 'challenge_traversal',
           evidence_status: 'progress_observed',
           attempt_count: 3,
+          attempt_count_status: 'measured',
           cost_channel_ids: ['interactive_defense_load', 'shuma_served_bytes'],
+          cost_channel_status: 'derived',
           sample_request_method: 'GET',
           sample_request_path: '/maze',
           sample_response_status: 200,
-          repair_family_candidates: ['maze_core', 'cdp_detection']
+          repair_family_candidates: ['maze_core', 'cdp_detection'],
+          repair_family_status: 'derived'
         }
       ],
       note: 'Wait for more protected evidence.'
@@ -6725,11 +6745,14 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
             stage_id: 'challenge_traversal',
             evidence_status: 'progress_observed',
             attempt_count: 3,
+            attempt_count_status: 'measured',
             cost_channel_ids: ['interactive_defense_load', 'shuma_served_bytes'],
+            cost_channel_status: 'derived',
             sample_request_method: 'GET',
             sample_request_path: '/maze',
             sample_response_status: 200,
-            repair_family_candidates: ['maze_core', 'cdp_detection']
+            repair_family_candidates: ['maze_core', 'cdp_detection'],
+            repair_family_status: 'derived'
           }
         ],
         blockers: [
@@ -6872,14 +6895,30 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
   );
   assert.equal(benchmarkResults.escalation_hint.breach_loci[0].locus_label, 'Maze Navigation');
   assert.equal(benchmarkResults.escalation_hint.breach_loci[0].attempt_count, 3);
+  assert.equal(benchmarkResults.escalation_hint.breach_loci[0].attempt_count_status, 'measured');
   assert.deepEqual(benchmarkResults.escalation_hint.breach_loci[0].cost_channel_ids, [
     'interactive_defense_load',
     'shuma_served_bytes'
   ]);
+  assert.equal(benchmarkResults.escalation_hint.breach_loci[0].cost_channel_status, 'derived');
   assert.deepEqual(benchmarkResults.escalation_hint.breach_loci[0].repair_family_candidates, [
     'maze_core',
     'cdp_detection'
   ]);
+  assert.equal(benchmarkResults.escalation_hint.breach_loci[0].repair_family_status, 'derived');
+  assert.equal(benchmarkResults.escalation_hint.evidence_quality.breach_loci[1].attempt_count, null);
+  assert.equal(
+    benchmarkResults.escalation_hint.evidence_quality.breach_loci[1].attempt_count_status,
+    'not_materialized'
+  );
+  assert.equal(
+    benchmarkResults.escalation_hint.evidence_quality.breach_loci[1].cost_channel_status,
+    'not_materialized'
+  );
+  assert.equal(
+    benchmarkResults.escalation_hint.evidence_quality.breach_loci[1].repair_family_status,
+    'not_materialized'
+  );
   assert.equal(benchmarkResults.families[0].family_id, 'suspicious_origin_cost');
   assert.equal(benchmarkResults.families[0].metrics[0].comparison_delta, -0.08);
   assert.equal(benchmarkResults.families[1].family_id, 'non_human_category_posture');
@@ -7117,6 +7156,8 @@ test('dashboard game loop accountability source distinguishes judge planes and l
   assert.match(gameLoopSource, /Code Evolution:/);
   assert.doesNotMatch(gameLoopSource, /Urgency Split:/);
   assert.match(gameLoopSource, /Host cost/);
+  assert.match(gameLoopSource, /Repair candidates/);
+  assert.match(gameLoopSource, /attempt count not materialized/);
   assert.match(gameLoopSource, /simulator metadata does not count as category truth/);
 
   assert.match(apiClientSource, /const urgency = asRecord\(source\.urgency\);/);
@@ -7126,7 +7167,10 @@ test('dashboard game loop accountability source distinguishes judge planes and l
   assert.match(apiClientSource, /move_selection/);
   assert.match(apiClientSource, /blocker_group/);
   assert.match(apiClientSource, /attempt_count/);
+  assert.match(apiClientSource, /attempt_count_status/);
+  assert.match(apiClientSource, /cost_channel_status/);
   assert.match(apiClientSource, /repair_family_candidates/);
+  assert.match(apiClientSource, /repair_family_status/);
   assert.match(apiClientSource, /cost_channel_ids/);
   assert.match(apiClientSource, /homeostasis_break_reasons/);
   assert.match(apiClientSource, /restart_baseline/);

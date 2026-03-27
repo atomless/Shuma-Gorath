@@ -64,11 +64,19 @@ pub(crate) fn scrapling_evidence_quality_assessment(
             .unwrap_or_else(|| receipt.surface_id.clone()),
             stage_id: stage_id(receipt.surface_id.as_str()).to_string(),
             evidence_status: "progress_observed".to_string(),
-            attempt_count: receipt.attempt_count,
+            attempt_count: Some(receipt.attempt_count),
+            attempt_count_status: "measured".to_string(),
             cost_channel_ids: host_cost_channels_for_surface(receipt.surface_id.as_str())
                 .iter()
                 .map(|channel| (*channel).to_string())
                 .collect(),
+            cost_channel_status: if host_cost_channels_for_surface(receipt.surface_id.as_str())
+                .is_empty()
+            {
+                "not_materialized".to_string()
+            } else {
+                "derived".to_string()
+            },
             sample_request_method: receipt.sample_request_method.clone(),
             sample_request_path: receipt.sample_request_path.clone(),
             sample_response_status: receipt.sample_response_status,
@@ -76,6 +84,13 @@ pub(crate) fn scrapling_evidence_quality_assessment(
                 .iter()
                 .map(|family| (*family).to_string())
                 .collect(),
+            repair_family_status: if repair_families_for_surface(receipt.surface_id.as_str())
+                .is_empty()
+            {
+                "not_materialized".to_string()
+            } else {
+                "derived".to_string()
+            },
         })
         .collect();
     let attribution_status = if breach_loci.is_empty() {

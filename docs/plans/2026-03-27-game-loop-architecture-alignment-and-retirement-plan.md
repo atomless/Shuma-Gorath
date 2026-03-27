@@ -24,7 +24,8 @@ Implementation status update (2026-03-27):
 2. `RSI-GAME-ARCH-1B` is landed: category posture is no longer a primary restriction optimization target or top-level restriction trigger for undeclared hostile traffic.
 3. `RSI-GAME-ARCH-1C` is now landed: controller-grade diagnosis, recognition evaluation, and move selection are explicit sibling contracts, and reconcile no longer depends primarily on one escalation-hint oracle.
 4. `RSI-GAME-BOARD-1F` is now landed: the dashboard projects grouped root causes, controller outcomes, and next-fix surfaces instead of one blocker dump.
-5. The next architecture-alignment step is now `RSI-GAME-ARCH-1D`, followed by `RSI-GAME-BOARD-1G`.
+5. `RSI-GAME-ARCH-1D` and `RSI-GAME-BOARD-1G` are now landed: breach loci carry explicit materialization truth end to end, and the dashboard no longer coerces missing values into fake zeros.
+6. The next architecture-alignment step is now `RSI-GAME-ARCH-1E`.
 
 # Core Decisions
 

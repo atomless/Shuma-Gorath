@@ -149,16 +149,19 @@ pub(crate) struct BenchmarkExploitLocus {
     pub locus_label: String,
     pub stage_id: String,
     pub evidence_status: String,
-    #[serde(default)]
-    pub attempt_count: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attempt_count: Option<u64>,
+    pub attempt_count_status: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub cost_channel_ids: Vec<String>,
+    pub cost_channel_status: String,
     pub sample_request_method: String,
     pub sample_request_path: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sample_response_status: Option<u16>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub repair_family_candidates: Vec<String>,
+    pub repair_family_status: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
