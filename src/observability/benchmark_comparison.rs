@@ -786,6 +786,8 @@ mod tests {
                 breach_loci: Vec::new(),
                 note: "test".to_string(),
             },
+            controller_contract:
+                crate::observability::benchmark_results::unavailable_benchmark_controller_contract(),
             urgency: unavailable_benchmark_urgency_summary(),
             replay_promotion:
                 crate::observability::replay_promotion::ReplayPromotionSummary::not_materialized(),

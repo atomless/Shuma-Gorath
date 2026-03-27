@@ -75,6 +75,42 @@ pub(crate) fn unavailable_benchmark_urgency_summary() -> BenchmarkUrgencySummary
     }
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn unavailable_benchmark_controller_contract() -> BenchmarkControllerContract {
+    BenchmarkControllerContract {
+        restriction_diagnosis: BenchmarkRestrictionDiagnosis {
+            problem_class: "not_available".to_string(),
+            status: "not_available".to_string(),
+            confidence: "not_available".to_string(),
+            repair_surface_candidates: Vec::new(),
+            breach_loci: Vec::new(),
+            blockers: Vec::new(),
+            note: "Restriction diagnosis is not available because the controller contract is not materialized yet."
+                .to_string(),
+        },
+        recognition_evaluation: BenchmarkRecognitionEvaluationStatus {
+            status: "not_available".to_string(),
+            trigger_family_ids: Vec::new(),
+            blockers: Vec::new(),
+            note: "Recognition evaluation is not available because the controller contract is not materialized yet."
+                .to_string(),
+        },
+        move_selection: BenchmarkMoveSelectionGuidance {
+            decision: "observe_longer".to_string(),
+            review_status: "manual_review_required".to_string(),
+            guidance_status: "not_available".to_string(),
+            tractability: "not_available".to_string(),
+            expected_direction: "continue_observing".to_string(),
+            trigger_family_ids: Vec::new(),
+            candidate_action_families: Vec::new(),
+            family_guidance: Vec::new(),
+            blockers: Vec::new(),
+            note: "Move-selection guidance is not available because the controller contract is not materialized yet."
+                .to_string(),
+        },
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub(crate) struct BenchmarkBaselineReference {
     pub reference_kind: String,
@@ -202,6 +238,62 @@ pub(crate) struct BenchmarkEscalationHint {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct BenchmarkControllerBlocker {
+    pub blocker_id: String,
+    pub blocker_group: String,
+    pub note: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct BenchmarkRestrictionDiagnosis {
+    pub problem_class: String,
+    pub status: String,
+    pub confidence: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub repair_surface_candidates: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub breach_loci: Vec<BenchmarkExploitLocus>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub blockers: Vec<BenchmarkControllerBlocker>,
+    pub note: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct BenchmarkRecognitionEvaluationStatus {
+    pub status: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub trigger_family_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub blockers: Vec<BenchmarkControllerBlocker>,
+    pub note: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct BenchmarkMoveSelectionGuidance {
+    pub decision: String,
+    pub review_status: String,
+    pub guidance_status: String,
+    pub tractability: String,
+    pub expected_direction: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub trigger_family_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub candidate_action_families: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub family_guidance: Vec<BenchmarkEscalationFamilyGuidance>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub blockers: Vec<BenchmarkControllerBlocker>,
+    pub note: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct BenchmarkControllerContract {
+    pub restriction_diagnosis: BenchmarkRestrictionDiagnosis,
+    pub recognition_evaluation: BenchmarkRecognitionEvaluationStatus,
+    pub move_selection: BenchmarkMoveSelectionGuidance,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub(crate) struct BenchmarkTuningEligibility {
     pub status: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -225,6 +317,7 @@ pub(crate) struct BenchmarkResultsPayload {
     pub tuning_eligibility: BenchmarkTuningEligibility,
     pub families: Vec<BenchmarkFamilyResult>,
     pub escalation_hint: BenchmarkEscalationHint,
+    pub controller_contract: BenchmarkControllerContract,
     pub urgency: BenchmarkUrgencySummary,
     pub replay_promotion: ReplayPromotionSummary,
 }
@@ -327,6 +420,8 @@ pub(crate) fn build_benchmark_results_from_snapshot_sections(
         non_human_traffic.restriction_readiness.status.as_str(),
         &exploit_evidence_quality,
     );
+    let controller_contract =
+        benchmark_controller_contract(families.as_slice(), &tuning_eligibility, &escalation_hint);
 
     BenchmarkResultsPayload {
         schema_version: BENCHMARK_RESULTS_SCHEMA_VERSION.to_string(),
@@ -346,6 +441,7 @@ pub(crate) fn build_benchmark_results_from_snapshot_sections(
             .compact_for_benchmark(),
         tuning_eligibility,
         escalation_hint,
+        controller_contract,
         urgency,
         replay_promotion: replay_promotion.clone(),
         families,
@@ -435,6 +531,188 @@ fn attach_exploit_evidence_quality(
     hint.evidence_quality = exploit_evidence_quality.clone();
     hint.breach_loci = exploit_evidence_quality.breach_loci.clone();
     hint
+}
+
+fn benchmark_controller_contract(
+    families: &[BenchmarkFamilyResult],
+    tuning_eligibility: &BenchmarkTuningEligibility,
+    escalation_hint: &BenchmarkEscalationHint,
+) -> BenchmarkControllerContract {
+    let move_selection_blockers = typed_controller_blockers(
+        tuning_eligibility
+            .blockers
+            .iter()
+            .chain(escalation_hint.blockers.iter())
+            .cloned()
+            .collect(),
+    );
+    let move_selection = BenchmarkMoveSelectionGuidance {
+        decision: escalation_hint.decision.clone(),
+        review_status: escalation_hint.review_status.clone(),
+        guidance_status: escalation_hint.guidance_status.clone(),
+        tractability: escalation_hint.tractability.clone(),
+        expected_direction: escalation_hint.expected_direction.clone(),
+        trigger_family_ids: escalation_hint.trigger_family_ids.clone(),
+        candidate_action_families: escalation_hint.candidate_action_families.clone(),
+        family_guidance: escalation_hint.family_guidance.clone(),
+        blockers: move_selection_blockers.clone(),
+        note: escalation_hint.note.clone(),
+    };
+
+    let restriction_diagnosis = BenchmarkRestrictionDiagnosis {
+        problem_class: escalation_hint.problem_class.clone(),
+        status: if escalation_hint.breach_loci.is_empty() {
+            if move_selection_blockers.is_empty() {
+                "aggregate_only".to_string()
+            } else {
+                "blocked_by_missing_truth".to_string()
+            }
+        } else if escalation_hint.breach_loci.len() == 1 {
+            "localized".to_string()
+        } else {
+            "distributed".to_string()
+        },
+        confidence: escalation_hint.evidence_quality.diagnosis_confidence.clone(),
+        repair_surface_candidates: escalation_hint.candidate_action_families.clone(),
+        breach_loci: escalation_hint.breach_loci.clone(),
+        blockers: move_selection_blockers.clone(),
+        note: if escalation_hint.breach_loci.is_empty() {
+            if move_selection_blockers.is_empty() {
+                "Restriction diagnosis is still aggregate and does not yet localize a repair locus."
+                    .to_string()
+            } else {
+                format!(
+                    "Restriction diagnosis is blocked by {} typed controller blocker(s).",
+                    move_selection_blockers.len()
+                )
+            }
+        } else {
+            format!(
+                "Restriction diagnosis localizes the shortfall at: {}.",
+                escalation_hint
+                    .breach_loci
+                    .iter()
+                    .map(|locus| locus.locus_label.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        },
+    };
+
+    BenchmarkControllerContract {
+        restriction_diagnosis,
+        recognition_evaluation: recognition_evaluation_status(families),
+        move_selection,
+    }
+}
+
+fn recognition_evaluation_status(
+    families: &[BenchmarkFamilyResult],
+) -> BenchmarkRecognitionEvaluationStatus {
+    let Some(family) = families
+        .iter()
+        .find(|family| family.family_id == "non_human_category_posture")
+    else {
+        return BenchmarkRecognitionEvaluationStatus {
+            status: "not_materialized".to_string(),
+            trigger_family_ids: Vec::new(),
+            blockers: Vec::new(),
+            note: "Recognition evaluation is not materialized in the current benchmark family set."
+                .to_string(),
+        };
+    };
+
+    let blockers = if family.status == "outside_budget" {
+        typed_controller_blockers(vec!["recognition_evaluation_outside_budget_only".to_string()])
+    } else {
+        Vec::new()
+    };
+    let status = match family.status.as_str() {
+        "outside_budget" => "needs_work",
+        "near_limit" => "watching",
+        "inside_budget" => "steady",
+        "insufficient_evidence" => "unscored",
+        other => other,
+    };
+
+    BenchmarkRecognitionEvaluationStatus {
+        status: status.to_string(),
+        trigger_family_ids: vec![family.family_id.clone()],
+        blockers,
+        note: if family.status == "outside_budget" {
+            "Recognition evaluation is outside budget, but remains a side quest rather than a bounded-tuning oracle for undeclared hostile traffic."
+                .to_string()
+        } else {
+            "Recognition evaluation remains explicit and separate from restriction scoring."
+                .to_string()
+        },
+    }
+}
+
+fn typed_controller_blockers(blocker_ids: Vec<String>) -> Vec<BenchmarkControllerBlocker> {
+    let mut blocker_ids = blocker_ids;
+    blocker_ids.sort();
+    blocker_ids.dedup();
+    blocker_ids
+        .into_iter()
+        .map(|blocker_id| BenchmarkControllerBlocker {
+            blocker_group: controller_blocker_group(blocker_id.as_str()).to_string(),
+            note: controller_blocker_note(blocker_id.as_str()).to_string(),
+            blocker_id,
+        })
+        .collect()
+}
+
+fn controller_blocker_group(blocker_id: &str) -> &'static str {
+    if blocker_id == "recognition_evaluation_outside_budget_only" {
+        "recognition_evaluation"
+    } else if blocker_id.starts_with("non_human_classification")
+        || blocker_id.starts_with("restriction_receipts_")
+        || blocker_id.starts_with("non_human_")
+    {
+        "shared_classification"
+    } else if blocker_id.contains("surface_contract") {
+        "surface_proof"
+    } else if blocker_id.contains("evidence_quality") || blocker_id == "insufficient_evidence" {
+        "evidence_quality"
+    } else if blocker_id == "no_matching_config_surface"
+        || blocker_id == "no_candidate_family"
+        || blocker_id.starts_with("no_bounded_patch:")
+    {
+        "bounded_move"
+    } else if blocker_id == "near_limit_only" || blocker_id == "outside_budget_not_observed" {
+        "observation_window"
+    } else if blocker_id.starts_with("verified_identity_")
+        || blocker_id == "protected_tuning_evidence_not_ready"
+    {
+        "controller_guardrail"
+    } else {
+        "controller_guardrail"
+    }
+}
+
+fn controller_blocker_note(blocker_id: &str) -> &'static str {
+    match controller_blocker_group(blocker_id) {
+        "recognition_evaluation" => {
+            "Recognition quality still needs work, but this remains evaluator-only rather than a runtime or tuning shortcut."
+        }
+        "shared_classification" => {
+            "Restriction-grade shared-path classification or receipt truth is not ready enough yet."
+        }
+        "surface_proof" => {
+            "Surface-contract proof is still missing or blocking, so bounded repair cannot yet rely on this locus cleanly."
+        }
+        "evidence_quality" => {
+            "Exploit evidence is not yet strong enough to justify a bounded config move."
+        }
+        "bounded_move" => {
+            "No still-legal bounded config move maps cleanly to the current pressure surface."
+        }
+        "observation_window" => {
+            "The loop still needs another observation window before it can justify a bounded move."
+        }
+        _ => "A controller guardrail is still blocking bounded config tuning.",
+    }
 }
 
 fn scrapling_exploit_evidence_quality_blockers(

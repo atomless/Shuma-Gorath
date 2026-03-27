@@ -62,6 +62,7 @@ Current limitation:
 - The main current architecture limitation has now narrowed:
   - category posture no longer drives the top-level restriction status or bounded-tuning escalation when it is the only outside-budget family,
   - restriction urgency now explicitly carries `Restriction Confidence` and `Abuse Backstop` as separate machine-first states rather than flattening them into one urgency label,
+  - controller diagnosis, recognition evaluation, and move selection are now explicit sibling benchmark surfaces rather than only implicit escalation-hint projections,
   - and the remaining open Game Loop follow-on work has now moved to typed `Loop Actionability` blockers plus more exact breach-locus and controller-rail cleanup rather than still-missing restriction-confidence or abuse-backstop semantics.
 
 Refresh behavior:

@@ -618,6 +618,13 @@ mod tests {
                 breach_loci: Vec::new(),
                 note: "test".to_string(),
             },
+            recognition_evaluation:
+                crate::observability::benchmark_results::BenchmarkRecognitionEvaluationStatus {
+                    status: "steady".to_string(),
+                    trigger_family_ids: vec!["non_human_category_posture".to_string()],
+                    blockers: Vec::new(),
+                    note: "test".to_string(),
+                },
             move_selection: crate::admin::oversight_reconcile::OversightMoveSelection {
                 status: "selected".to_string(),
                 selected_family: Some("challenge".to_string()),

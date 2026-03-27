@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
 
 use crate::config::Config;
-use crate::observability::benchmark_results::BenchmarkExploitLocus;
+use crate::observability::benchmark_results::{
+    BenchmarkControllerBlocker, BenchmarkExploitLocus, BenchmarkRecognitionEvaluationStatus,
+};
 use crate::observability::operator_snapshot::{
     OperatorBudgetDistanceRow, OperatorSnapshotHotReadPayload, OperatorSnapshotRecentSimRun,
 };
@@ -44,6 +46,7 @@ pub(crate) struct OversightReconcileResult {
     pub snapshot_generated_at: u64,
     pub judge: OversightJudgeState,
     pub diagnosis: OversightDiagnosis,
+    pub recognition_evaluation: BenchmarkRecognitionEvaluationStatus,
     pub move_selection: OversightMoveSelection,
     pub evidence_references: Vec<OversightEvidenceReference>,
 }
@@ -92,6 +95,7 @@ pub(crate) fn reconcile(
     trigger_source: &str,
 ) -> OversightReconcileResult {
     let benchmark = &snapshot.benchmark_results;
+    let controller_move_selection = &benchmark.controller_contract.move_selection;
     let judge = judge_state(snapshot);
     let stale_reasons = stale_evidence_reasons(snapshot);
     if !stale_reasons.is_empty() {
@@ -101,7 +105,7 @@ pub(crate) fn reconcile(
             "refuse_stale_evidence",
             "Oversight refused to propose change because at least one required input section is stale.",
             stale_reasons,
-            snapshot.benchmark_results.escalation_hint.problem_class.as_str(),
+            controller_problem_class(snapshot).as_str(),
             "blocked_by_guardrail",
             Vec::new(),
             None,
@@ -119,7 +123,7 @@ pub(crate) fn reconcile(
             "refuse_contradictory_evidence",
             "Oversight refused to propose change because the bounded evidence surfaces disagree about the current subject.",
             contradictions,
-            snapshot.benchmark_results.escalation_hint.problem_class.as_str(),
+            controller_problem_class(snapshot).as_str(),
             "blocked_by_guardrail",
             Vec::new(),
             None,
@@ -136,7 +140,7 @@ pub(crate) fn reconcile(
             "within_budget",
             "Current benchmark summary is inside budget; no config recommendation is justified.",
             Vec::new(),
-            benchmark.escalation_hint.problem_class.as_str(),
+            controller_problem_class(snapshot).as_str(),
             "not_required",
             Vec::new(),
             None,
@@ -145,7 +149,7 @@ pub(crate) fn reconcile(
             judge,
         );
     }
-    if benchmark.escalation_hint.decision == "observe_longer"
+    if controller_move_selection.decision == "observe_longer"
         || benchmark.overall_status == "near_limit"
     {
         return result_without_proposal(
@@ -153,8 +157,8 @@ pub(crate) fn reconcile(
             trigger_source,
             "observe_longer",
             "Current evidence does not yet justify a bounded config recommendation; continue observing the next window.",
-            benchmark.escalation_hint.blockers.clone(),
-            benchmark.escalation_hint.problem_class.as_str(),
+            controller_blocker_ids(controller_move_selection.blockers.as_slice()),
+            controller_problem_class(snapshot).as_str(),
             "observe_longer",
             Vec::new(),
             None,
@@ -163,14 +167,14 @@ pub(crate) fn reconcile(
             judge,
         );
     }
-    if benchmark.escalation_hint.decision == "code_evolution_candidate" {
+    if controller_move_selection.decision == "code_evolution_candidate" {
         return result_without_proposal(
             snapshot,
             trigger_source,
             "code_evolution_referral",
             "Current outside-budget evidence points to a code-evolution gap rather than a bounded config repair.",
-            benchmark.escalation_hint.blockers.clone(),
-            benchmark.escalation_hint.problem_class.as_str(),
+            controller_blocker_ids(controller_move_selection.blockers.as_slice()),
+            controller_problem_class(snapshot).as_str(),
             "code_evolution_referral",
             Vec::new(),
             None,
@@ -179,8 +183,8 @@ pub(crate) fn reconcile(
             judge,
         );
     }
-    if benchmark.escalation_hint.decision != "config_tuning_candidate" {
-        let mut reasons = benchmark.escalation_hint.blockers.clone();
+    if controller_move_selection.decision != "config_tuning_candidate" {
+        let mut reasons = controller_blocker_ids(controller_move_selection.blockers.as_slice());
         if reasons.is_empty() {
             reasons.push("config_surface_not_authoritative".to_string());
         }
@@ -190,7 +194,7 @@ pub(crate) fn reconcile(
             "no_change",
             "Current outside-budget evidence does not map cleanly to a bounded config recommendation.",
             reasons,
-            benchmark.escalation_hint.problem_class.as_str(),
+            controller_problem_class(snapshot).as_str(),
             "not_selected",
             Vec::new(),
             None,
@@ -205,7 +209,7 @@ pub(crate) fn reconcile(
     let ranked_candidates = match rank_patch_candidates(
         cfg,
         &snapshot.allowed_actions,
-        benchmark.escalation_hint.candidate_action_families.as_slice(),
+        controller_move_selection.candidate_action_families.as_slice(),
         problem_class,
         &snapshot.replay_promotion,
     ) {
@@ -310,10 +314,10 @@ pub(crate) fn reconcile(
         benchmark_overall_status: benchmark.overall_status.clone(),
         improvement_status: benchmark.improvement_status.clone(),
         problem_class: problem_class.as_str().to_string(),
-        guidance_status: "exact_bounded_move".to_string(),
-        tractability: "exact_bounded_config_move".to_string(),
-        trigger_family_ids: benchmark.escalation_hint.trigger_family_ids.clone(),
-        candidate_action_families: benchmark.escalation_hint.candidate_action_families.clone(),
+        guidance_status: controller_move_selection.guidance_status.clone(),
+        tractability: controller_move_selection.tractability.clone(),
+        trigger_family_ids: controller_move_selection.trigger_family_ids.clone(),
+        candidate_action_families: controller_move_selection.candidate_action_families.clone(),
         refusal_reasons: Vec::new(),
         proposal: Some(proposal),
         latest_sim_run_id: latest_recent_sim_run_id(snapshot),
@@ -321,6 +325,11 @@ pub(crate) fn reconcile(
         snapshot_generated_at: snapshot.generated_at,
         judge,
         diagnosis: diagnosis.clone(),
+        recognition_evaluation: snapshot
+            .benchmark_results
+            .controller_contract
+            .recognition_evaluation
+            .clone(),
         move_selection: move_selection(
             snapshot,
             "selected",
@@ -358,21 +367,29 @@ fn result_without_proposal(
         objective_revision: snapshot.objectives.revision.clone(),
         benchmark_overall_status: snapshot.benchmark_results.overall_status.clone(),
         improvement_status: snapshot.benchmark_results.improvement_status.clone(),
-        problem_class: snapshot.benchmark_results.escalation_hint.problem_class.clone(),
+        problem_class: controller_problem_class(snapshot),
         guidance_status: snapshot
             .benchmark_results
-            .escalation_hint
+            .controller_contract
+            .move_selection
             .guidance_status
             .clone(),
-        tractability: snapshot.benchmark_results.escalation_hint.tractability.clone(),
+        tractability: snapshot
+            .benchmark_results
+            .controller_contract
+            .move_selection
+            .tractability
+            .clone(),
         trigger_family_ids: snapshot
             .benchmark_results
-            .escalation_hint
+            .controller_contract
+            .move_selection
             .trigger_family_ids
             .clone(),
         candidate_action_families: snapshot
             .benchmark_results
-            .escalation_hint
+            .controller_contract
+            .move_selection
             .candidate_action_families
             .clone(),
         refusal_reasons,
@@ -382,6 +399,11 @@ fn result_without_proposal(
         snapshot_generated_at: snapshot.generated_at,
         judge,
         diagnosis,
+        recognition_evaluation: snapshot
+            .benchmark_results
+            .controller_contract
+            .recognition_evaluation
+            .clone(),
         move_selection: move_selection(
             snapshot,
             move_selection_status,
@@ -412,25 +434,15 @@ fn judge_state(snapshot: &OperatorSnapshotHotReadPayload) -> OversightJudgeState
 }
 
 fn diagnosis(snapshot: &OperatorSnapshotHotReadPayload, problem_class: &str) -> OversightDiagnosis {
-    let breach_loci = snapshot
-        .benchmark_results
-        .escalation_hint
-        .breach_loci
-        .clone();
-    let repair_surface_candidates = snapshot
-        .benchmark_results
-        .escalation_hint
-        .candidate_action_families
-        .clone();
-    let status = if breach_loci.is_empty() {
-        "aggregate_only"
-    } else if breach_loci.len() == 1 {
-        "localized"
-    } else {
-        "distributed"
-    };
+    let controller_diagnosis = &snapshot.benchmark_results.controller_contract.restriction_diagnosis;
+    let breach_loci = controller_diagnosis.breach_loci.clone();
+    let repair_surface_candidates = controller_diagnosis.repair_surface_candidates.clone();
     let distributed_failure_status = if breach_loci.is_empty() {
-        "not_localized"
+        if controller_diagnosis.status == "blocked_by_missing_truth" {
+            "blocked_by_missing_truth"
+        } else {
+            "not_localized"
+        }
     } else if breach_loci.len() == 1 {
         "single_locus"
     } else {
@@ -443,30 +455,14 @@ fn diagnosis(snapshot: &OperatorSnapshotHotReadPayload, problem_class: &str) -> 
     };
 
     OversightDiagnosis {
-        status: status.to_string(),
+        status: controller_diagnosis.status.clone(),
         problem_class: problem_class.to_string(),
-        confidence: snapshot
-            .benchmark_results
-            .escalation_hint
-            .evidence_quality
-            .diagnosis_confidence
-            .clone(),
+        confidence: controller_diagnosis.confidence.clone(),
         distributed_failure_status: distributed_failure_status.to_string(),
         repair_surface_status: repair_surface_status.to_string(),
         repair_surface_candidates,
         breach_loci: breach_loci.clone(),
-        note: if breach_loci.is_empty() {
-            "Diagnosis is still aggregate and has not yet localized the breach locus.".to_string()
-        } else {
-            format!(
-                "Diagnosis localizes the shortfall at: {}.",
-                breach_loci
-                    .iter()
-                    .map(|locus| locus.locus_label.as_str())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            )
-        },
+        note: controller_diagnosis.note.clone(),
     }
 }
 
@@ -483,7 +479,8 @@ fn move_selection(
         status: status.to_string(),
         selected_breach_locus_ids: snapshot
             .benchmark_results
-            .escalation_hint
+            .controller_contract
+            .restriction_diagnosis
             .breach_loci
             .iter()
             .map(|locus| locus.locus_id.clone())
@@ -575,25 +572,26 @@ fn primary_problem_class(
         Some(OversightProblemClass::SuspiciousOriginLatencyOverspend)
     } else if suspicious_reach_outside_budget {
         Some(OversightProblemClass::SuspiciousOriginReachOverspend)
-    } else if snapshot.benchmark_results.escalation_hint.problem_class
+    } else if controller_problem_class(snapshot)
         == "scrapling_exploit_progress_gap"
     {
         Some(OversightProblemClass::ScraplingExploitProgressGap)
-    } else if snapshot.benchmark_results.escalation_hint.problem_class
+    } else if controller_problem_class(snapshot)
         == "likely_human_friction_overspend"
     {
         Some(OversightProblemClass::LikelyHumanFrictionOverspend)
-    } else if snapshot.benchmark_results.escalation_hint.problem_class
+    } else if controller_problem_class(snapshot)
         == "suspicious_forwarded_latency_overspend"
     {
         Some(OversightProblemClass::SuspiciousOriginLatencyOverspend)
-    } else if snapshot.benchmark_results.escalation_hint.problem_class
+    } else if controller_problem_class(snapshot)
         == "suspicious_forwarded_reach_overspend"
     {
         Some(OversightProblemClass::SuspiciousOriginReachOverspend)
     } else if snapshot
         .benchmark_results
-        .escalation_hint
+        .controller_contract
+        .move_selection
         .trigger_family_ids
         .iter()
         .any(|family| family == "scrapling_exploit_progress")
@@ -601,7 +599,8 @@ fn primary_problem_class(
         Some(OversightProblemClass::ScraplingExploitProgressGap)
     } else if snapshot
         .benchmark_results
-        .escalation_hint
+        .controller_contract
+        .move_selection
         .trigger_family_ids
         .iter()
         .any(|family| family == "likely_human_friction")
@@ -609,7 +608,8 @@ fn primary_problem_class(
         Some(OversightProblemClass::LikelyHumanFrictionOverspend)
     } else if snapshot
         .benchmark_results
-        .escalation_hint
+        .controller_contract
+        .move_selection
         .trigger_family_ids
         .iter()
         .any(|family| family == "suspicious_origin_cost")
@@ -618,6 +618,22 @@ fn primary_problem_class(
     } else {
         None
     }
+}
+
+fn controller_problem_class(snapshot: &OperatorSnapshotHotReadPayload) -> String {
+    snapshot
+        .benchmark_results
+        .controller_contract
+        .restriction_diagnosis
+        .problem_class
+        .clone()
+}
+
+fn controller_blocker_ids(blockers: &[BenchmarkControllerBlocker]) -> Vec<String> {
+    blockers
+        .iter()
+        .map(|blocker| blocker.blocker_id.clone())
+        .collect()
 }
 
 fn budget_row_status<'a>(rows: &'a [OperatorBudgetDistanceRow], metric: &str) -> Option<&'a str> {
@@ -673,8 +689,10 @@ mod tests {
     use crate::config::{allowed_actions_v1, defaults};
     use crate::observability::benchmark_results::{
         unavailable_benchmark_diagnosis_evidence_quality, unavailable_benchmark_urgency_summary,
-        BenchmarkBaselineReference, BenchmarkEscalationHint, BenchmarkExploitLocus,
-        BenchmarkFamilyResult, BenchmarkMetricResult, BenchmarkResultsPayload,
+        BenchmarkBaselineReference, BenchmarkControllerBlocker, BenchmarkControllerContract,
+        BenchmarkEscalationHint, BenchmarkExploitLocus, BenchmarkFamilyResult,
+        BenchmarkMetricResult, BenchmarkMoveSelectionGuidance,
+        BenchmarkRecognitionEvaluationStatus, BenchmarkRestrictionDiagnosis, BenchmarkResultsPayload,
         BenchmarkTuningEligibility,
         BENCHMARK_RESULTS_SCHEMA_VERSION,
     };
@@ -794,6 +812,37 @@ mod tests {
                 evidence_quality: unavailable_benchmark_diagnosis_evidence_quality(),
                 breach_loci: Vec::new(),
                 note: "Config tuning candidate.".to_string(),
+            },
+            controller_contract: BenchmarkControllerContract {
+                restriction_diagnosis: BenchmarkRestrictionDiagnosis {
+                    problem_class: "suspicious_forwarded_reach_overspend".to_string(),
+                    status: "aggregate_only".to_string(),
+                    confidence: "medium".to_string(),
+                    repair_surface_candidates: vec!["fingerprint_signal".to_string()],
+                    breach_loci: Vec::new(),
+                    blockers: Vec::new(),
+                    note: "Restriction diagnosis is still aggregate and does not yet localize a repair locus."
+                        .to_string(),
+                },
+                recognition_evaluation: BenchmarkRecognitionEvaluationStatus {
+                    status: "steady".to_string(),
+                    trigger_family_ids: vec!["non_human_category_posture".to_string()],
+                    blockers: Vec::new(),
+                    note: "Recognition evaluation remains explicit and separate from restriction scoring."
+                        .to_string(),
+                },
+                move_selection: BenchmarkMoveSelectionGuidance {
+                    decision: "config_tuning_candidate".to_string(),
+                    review_status: "manual_review_required".to_string(),
+                    guidance_status: "bounded_family_guidance".to_string(),
+                    tractability: "family_level_policy_choice".to_string(),
+                    expected_direction: "tighten_suspicious_origin_controls".to_string(),
+                    trigger_family_ids: vec!["suspicious_origin_cost".to_string()],
+                    candidate_action_families: vec!["fingerprint_signal".to_string()],
+                    family_guidance: Vec::new(),
+                    blockers: Vec::new(),
+                    note: "Config tuning candidate.".to_string(),
+                },
             },
             urgency: unavailable_benchmark_urgency_summary(),
             replay_promotion: ReplayPromotionSummary::not_materialized(),
@@ -996,6 +1045,14 @@ mod tests {
         result.outcome.as_str()
     }
 
+    fn controller_blocker(blocker_id: &str, blocker_group: &str) -> BenchmarkControllerBlocker {
+        BenchmarkControllerBlocker {
+            blocker_id: blocker_id.to_string(),
+            blocker_group: blocker_group.to_string(),
+            note: "test".to_string(),
+        }
+    }
+
     #[test]
     fn recommend_patch_when_outside_budget_maps_to_bounded_candidate_family() {
         let mut cfg = defaults().clone();
@@ -1006,8 +1063,8 @@ mod tests {
 
         assert_eq!(reconcile_outcome(&result), "recommend_patch");
         assert_eq!(result.problem_class, "suspicious_forwarded_reach_overspend");
-        assert_eq!(result.guidance_status, "exact_bounded_move");
-        assert_eq!(result.tractability, "exact_bounded_config_move");
+        assert_eq!(result.guidance_status, "bounded_family_guidance");
+        assert_eq!(result.tractability, "family_level_policy_choice");
         assert_eq!(
             result
                 .proposal
@@ -1017,6 +1074,29 @@ mod tests {
             "fingerprint_signal"
         );
         assert_eq!(latest_recent_sim_run_id(&snapshot).as_deref(), Some("simrun-001"));
+    }
+
+    #[test]
+    fn reconcile_prefers_explicit_controller_move_selection_over_legacy_escalation_hint() {
+        let mut cfg = defaults().clone();
+        cfg.fingerprint_signal_enabled = false;
+        let mut snapshot = sample_snapshot();
+        snapshot.benchmark_results.escalation_hint.decision = "observe_longer".to_string();
+        snapshot.benchmark_results.escalation_hint.candidate_action_families.clear();
+
+        let result = reconcile(&cfg, &snapshot, "manual_admin");
+
+        assert_eq!(reconcile_outcome(&result), "recommend_patch");
+        assert_eq!(result.move_selection.status, "selected");
+        assert_eq!(result.recognition_evaluation.status, "steady");
+        assert_eq!(
+            result
+                .proposal
+                .as_ref()
+                .expect("proposal present")
+                .patch_family,
+            "fingerprint_signal"
+        );
     }
 
     #[test]
@@ -1094,6 +1174,14 @@ mod tests {
         snapshot.benchmark_results.escalation_hint.decision = "observe_longer".to_string();
         snapshot.benchmark_results.escalation_hint.blockers =
             vec!["verified_identity_botness_conflict_guardrail".to_string()];
+        snapshot.benchmark_results.controller_contract.move_selection.decision =
+            "observe_longer".to_string();
+        snapshot.benchmark_results.controller_contract.move_selection.blockers = vec![
+            controller_blocker(
+                "verified_identity_botness_conflict_guardrail",
+                "controller_guardrail",
+            ),
+        ];
 
         let result = reconcile(&cfg, &snapshot, "manual_admin");
 
@@ -1118,6 +1206,17 @@ mod tests {
         ];
         snapshot.benchmark_results.escalation_hint.blockers =
             snapshot.benchmark_results.tuning_eligibility.blockers.clone();
+        snapshot
+            .benchmark_results
+            .controller_contract
+            .restriction_diagnosis
+            .problem_class = "scrapling_surface_contract_gap".to_string();
+        snapshot.benchmark_results.controller_contract.move_selection.decision =
+            "observe_longer".to_string();
+        snapshot.benchmark_results.controller_contract.move_selection.blockers = vec![
+            controller_blocker("scrapling_surface_contract_not_ready", "surface_proof"),
+            controller_blocker("scrapling_surface_blocking:maze_navigation", "surface_proof"),
+        ];
 
         let result = reconcile(&cfg, &snapshot, "manual_admin");
 
@@ -1181,6 +1280,22 @@ mod tests {
             .evidence_quality
             .breach_loci
             .clone();
+        snapshot
+            .benchmark_results
+            .controller_contract
+            .restriction_diagnosis
+            .problem_class = "scrapling_exploit_progress_gap".to_string();
+        snapshot.benchmark_results.controller_contract.restriction_diagnosis.status =
+            "blocked_by_missing_truth".to_string();
+        snapshot.benchmark_results.controller_contract.restriction_diagnosis.confidence =
+            "low".to_string();
+        snapshot.benchmark_results.controller_contract.restriction_diagnosis.breach_loci =
+            snapshot.benchmark_results.escalation_hint.breach_loci.clone();
+        snapshot.benchmark_results.controller_contract.move_selection.decision =
+            "observe_longer".to_string();
+        snapshot.benchmark_results.controller_contract.move_selection.blockers = vec![
+            controller_blocker("scrapling_exploit_evidence_quality_low", "evidence_quality"),
+        ];
 
         let result = reconcile(&cfg, &snapshot, "manual_admin");
 
@@ -1218,6 +1333,12 @@ mod tests {
             "high_confidence".to_string();
         snapshot.benchmark_results.escalation_hint.evidence_quality.diagnosis_confidence =
             "high".to_string();
+        snapshot.benchmark_results.controller_contract.restriction_diagnosis.status =
+            "localized".to_string();
+        snapshot.benchmark_results.controller_contract.restriction_diagnosis.confidence =
+            "high".to_string();
+        snapshot.benchmark_results.controller_contract.restriction_diagnosis.breach_loci =
+            snapshot.benchmark_results.escalation_hint.breach_loci.clone();
 
         let result = reconcile(&cfg, &snapshot, "manual_admin");
 
@@ -1245,6 +1366,12 @@ mod tests {
         snapshot.benchmark_results.escalation_hint.guidance_status =
             "code_evolution_only".to_string();
         snapshot.benchmark_results.escalation_hint.candidate_action_families.clear();
+        snapshot.benchmark_results.controller_contract.move_selection.decision =
+            "code_evolution_candidate".to_string();
+        snapshot.benchmark_results.controller_contract.move_selection.guidance_status =
+            "code_evolution_only".to_string();
+        snapshot.benchmark_results.controller_contract.move_selection.candidate_action_families
+            .clear();
 
         let result = reconcile(&cfg, &snapshot, "manual_admin");
 
@@ -1279,6 +1406,10 @@ mod tests {
                 "core_policy".to_string(),
             ],
         }];
+        snapshot.benchmark_results.controller_contract.restriction_diagnosis.status =
+            "localized".to_string();
+        snapshot.benchmark_results.controller_contract.restriction_diagnosis.breach_loci =
+            snapshot.benchmark_results.escalation_hint.breach_loci.clone();
         snapshot.episode_archive = OperatorSnapshotEpisodeArchive {
             schema_version: "oversight_episode_archive_v1".to_string(),
             homeostasis: crate::observability::benchmark_comparison::classify_homeostasis(

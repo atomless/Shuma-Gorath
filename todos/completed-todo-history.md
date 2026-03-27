@@ -4,6 +4,31 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-27)
 
+### RSI-GAME-ARCH-1C Explicit Controller Contract Refactor
+
+- [x] Completed `RSI-GAME-ARCH-1C` across:
+  - [`../src/observability/benchmark_results.rs`](../src/observability/benchmark_results.rs)
+  - [`../src/admin/oversight_reconcile.rs`](../src/admin/oversight_reconcile.rs)
+  - [`../src/admin/oversight_api.rs`](../src/admin/oversight_api.rs)
+  - [`../src/admin/oversight_apply.rs`](../src/admin/oversight_apply.rs)
+  - [`../src/observability/benchmark_comparison.rs`](../src/observability/benchmark_comparison.rs)
+  - [`../src/test_support.rs`](../src/test_support.rs)
+  - [`../docs/dashboard-tabs/game-loop.md`](../docs/dashboard-tabs/game-loop.md)
+  - [`../docs/research/2026-03-27-rsi-game-arch-1c-controller-contract-post-implementation-review.md`](../docs/research/2026-03-27-rsi-game-arch-1c-controller-contract-post-implementation-review.md)
+- [x] What landed:
+  - benchmark results now materialize explicit sibling controller surfaces for restriction diagnosis, recognition evaluation, and move selection,
+  - reconcile now consumes those controller surfaces directly rather than primarily branching on the monolithic escalation-hint decision,
+  - typed controller blockers are now first-class machine-first outputs,
+  - and the manual oversight route now reuses the shared controller-contract-aware snapshot seed so route tests cannot drift from the real controller contract.
+- [x] Why:
+  - the newer restriction-vs-recognition Game Loop architecture was still bottlenecked through one escalation-hint oracle, which muddied controller ownership and let one route-level fixture stay on an older truth path.
+- [x] Evidence:
+  - [`../docs/research/2026-03-27-rsi-game-arch-1c-controller-contract-post-implementation-review.md`](../docs/research/2026-03-27-rsi-game-arch-1c-controller-contract-post-implementation-review.md)
+  - `make test-rsi-score-move-selection`
+  - `make test-rsi-game-mainline`
+  - `make test-dashboard-game-loop-accountability`
+  - `git diff --check`
+
 ### RSI-SCORE-2F3 Restriction-Confidence And Abuse-Backstop Scoring
 
 - [x] Completed `RSI-SCORE-2F3` across:

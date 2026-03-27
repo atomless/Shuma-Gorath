@@ -211,29 +211,39 @@ pub(crate) fn execute_oversight_cycle_at(
                     objective_revision: snapshot.payload.objectives.revision.clone(),
                     benchmark_overall_status: snapshot.payload.benchmark_results.overall_status.clone(),
                     improvement_status: snapshot.payload.benchmark_results.improvement_status.clone(),
-                    problem_class: snapshot.payload.benchmark_results.escalation_hint.problem_class.clone(),
+                    problem_class: snapshot
+                        .payload
+                        .benchmark_results
+                        .controller_contract
+                        .restriction_diagnosis
+                        .problem_class
+                        .clone(),
                     guidance_status: snapshot
                         .payload
                         .benchmark_results
-                        .escalation_hint
+                        .controller_contract
+                        .move_selection
                         .guidance_status
                         .clone(),
                     tractability: snapshot
                         .payload
                         .benchmark_results
-                        .escalation_hint
+                        .controller_contract
+                        .move_selection
                         .tractability
                         .clone(),
                     trigger_family_ids: snapshot
                         .payload
                         .benchmark_results
-                        .escalation_hint
+                        .controller_contract
+                        .move_selection
                         .trigger_family_ids
                         .clone(),
                     candidate_action_families: snapshot
                         .payload
                         .benchmark_results
-                        .escalation_hint
+                        .controller_contract
+                        .move_selection
                         .candidate_action_families
                         .clone(),
                     refusal_reasons: vec!["config_unavailable".to_string()],
@@ -261,44 +271,60 @@ pub(crate) fn execute_oversight_cycle_at(
                         note: "Judge state copied from materialized benchmark results.".to_string(),
                     },
                     diagnosis: crate::admin::oversight_reconcile::OversightDiagnosis {
-                        status: "aggregate_only".to_string(),
+                        status: snapshot
+                            .payload
+                            .benchmark_results
+                            .controller_contract
+                            .restriction_diagnosis
+                            .status
+                            .clone(),
                         problem_class: snapshot
                             .payload
                             .benchmark_results
-                            .escalation_hint
+                            .controller_contract
+                            .restriction_diagnosis
                             .problem_class
                             .clone(),
                         confidence: snapshot
                             .payload
                             .benchmark_results
-                            .escalation_hint
-                            .evidence_quality
-                            .diagnosis_confidence
+                            .controller_contract
+                            .restriction_diagnosis
+                            .confidence
                             .clone(),
                         distributed_failure_status: "not_localized".to_string(),
                         repair_surface_status: "not_available".to_string(),
                         repair_surface_candidates: snapshot
                             .payload
                             .benchmark_results
-                            .escalation_hint
-                            .candidate_action_families
+                            .controller_contract
+                            .restriction_diagnosis
+                            .repair_surface_candidates
                             .clone(),
                         breach_loci: snapshot
                             .payload
                             .benchmark_results
-                            .escalation_hint
+                            .controller_contract
+                            .restriction_diagnosis
                             .breach_loci
                             .clone(),
                         note: "Diagnosis remained aggregate because runtime config was unavailable."
                             .to_string(),
                     },
+                    recognition_evaluation: snapshot
+                        .payload
+                        .benchmark_results
+                        .controller_contract
+                        .recognition_evaluation
+                        .clone(),
                     move_selection: crate::admin::oversight_reconcile::OversightMoveSelection {
                         status: "blocked_by_guardrail".to_string(),
                         selected_family: None,
                         selected_breach_locus_ids: snapshot
                             .payload
                             .benchmark_results
-                            .escalation_hint
+                            .controller_contract
+                            .restriction_diagnosis
                             .breach_loci
                             .iter()
                             .map(|locus| locus.locus_id.clone())
@@ -364,6 +390,9 @@ pub(crate) fn execute_oversight_cycle_at(
                     note: "Diagnosis is unavailable because the operator snapshot is not materialized."
                         .to_string(),
                 },
+                recognition_evaluation:
+                    crate::observability::benchmark_results::unavailable_benchmark_controller_contract()
+                        .recognition_evaluation,
                 move_selection: crate::admin::oversight_reconcile::OversightMoveSelection {
                     status: "not_selected".to_string(),
                     selected_family: None,
@@ -1095,117 +1124,6 @@ mod tests {
             .expect("snapshot seed");
     }
 
-    fn seed_apply_ready_snapshot(store: &TestStore, cfg: crate::config::Config) {
-        store
-            .set(
-                "config:default",
-                &serialize_persisted_kv_config(&cfg).expect("cfg serializes"),
-            )
-            .expect("config seed");
-        record_request_outcome(
-            store,
-            &RenderedRequestOutcome {
-                traffic_origin: TrafficOrigin::Live,
-                measurement_scope: MeasurementScope::IngressPrimary,
-                route_action_family: RouteActionFamily::PublicContent,
-                execution_mode: ExecutionMode::Enforced,
-                traffic_lane: Some(RequestOutcomeLane {
-                    lane: TrafficLane::SuspiciousAutomation,
-                    exactness: crate::observability::hot_read_contract::TelemetryExactness::Exact,
-                    basis: crate::observability::hot_read_contract::TelemetryBasis::Observed,
-                }),
-                non_human_category: None,
-                outcome_class: RequestOutcomeClass::Forwarded,
-                response_kind: ResponseKind::ForwardAllow,
-                http_status: 200,
-                response_bytes: 2_000,
-                forwarded_upstream_latency_ms: None,
-                forward_attempted: true,
-                forward_failure_class: None,
-                intended_action: None,
-                policy_source: PolicySource::PolicyGraphSecondTranche,
-            },
-        );
-        let summary = summarize_with_store(store, 24, 10);
-        let mut payload = build_operator_snapshot_payload(
-            store,
-            "default",
-            1_700_000_200,
-            &summary,
-            &[],
-            OperatorSnapshotRecentChanges::default(),
-            1_700_000_200,
-            1_700_000_200,
-            1_700_000_200,
-        );
-        payload.non_human_traffic.restriction_readiness.status = "ready".to_string();
-        payload.non_human_traffic.restriction_readiness.blockers.clear();
-        payload.non_human_traffic.restriction_readiness.live_receipt_count = 1;
-        payload.non_human_traffic
-            .restriction_readiness
-            .adversary_sim_receipt_count = 1;
-        payload.non_human_traffic.coverage.overall_status = "covered".to_string();
-        payload.non_human_traffic.coverage.blocking_reasons.clear();
-        payload.non_human_traffic.coverage.blocking_category_ids.clear();
-        payload.non_human_traffic.coverage.mapped_category_count = 6;
-        payload.non_human_traffic.coverage.covered_category_count = 6;
-        payload.non_human_traffic.coverage.partial_category_count = 0;
-        payload.non_human_traffic.coverage.stale_category_count = 0;
-        payload.non_human_traffic.coverage.unavailable_category_count = 0;
-        payload.non_human_traffic.coverage.uncovered_category_count = 2;
-        payload.non_human_traffic.recognition_evaluation.readiness =
-            payload.non_human_traffic.restriction_readiness.clone();
-        payload.non_human_traffic.recognition_evaluation.coverage =
-            payload.non_human_traffic.coverage.clone();
-        payload.replay_promotion.availability = "materialized".to_string();
-        payload.replay_promotion.evidence_status = "protected".to_string();
-        payload.replay_promotion.tuning_eligible = true;
-        payload.replay_promotion.protected_basis = "replay_promoted_lineage".to_string();
-        payload.replay_promotion.protected_lineage_count = 1;
-        payload.replay_promotion.eligibility_blockers.clear();
-        payload.benchmark_results.coverage_status = "partial_support".to_string();
-        payload.benchmark_results.overall_status = "outside_budget".to_string();
-        payload.benchmark_results.improvement_status = "regressed".to_string();
-        payload.benchmark_results.non_human_classification =
-            payload.non_human_traffic.restriction_readiness.clone();
-        payload.benchmark_results.non_human_coverage =
-            payload
-                .non_human_traffic
-                .recognition_evaluation
-                .coverage
-                .compact_for_benchmark();
-        payload.benchmark_results.tuning_eligibility.status = "eligible".to_string();
-        payload.benchmark_results.tuning_eligibility.blockers.clear();
-        payload.benchmark_results.escalation_hint.availability = "partial_support".to_string();
-        payload.benchmark_results.escalation_hint.decision =
-            "config_tuning_candidate".to_string();
-        payload.benchmark_results.escalation_hint.review_status =
-            "manual_review_required".to_string();
-        payload.benchmark_results.escalation_hint.trigger_family_ids =
-            vec!["suspicious_origin_cost".to_string()];
-        payload.benchmark_results.escalation_hint.candidate_action_families =
-            vec!["fingerprint_signal".to_string()];
-        payload.benchmark_results.escalation_hint.blockers.clear();
-        payload.benchmark_results.replay_promotion = payload.replay_promotion.clone();
-        let document = HotReadDocumentEnvelope {
-            metadata: HotReadDocumentMetadata {
-                schema_version: operator_snapshot_document_contract()
-                    .schema_version
-                    .to_string(),
-                site_id: "default".to_string(),
-                generated_at_ts: 1_700_000_200,
-                trigger: HotReadUpdateTrigger::RepairRebuild,
-            },
-            payload,
-        };
-        store
-            .set(
-                operator_snapshot_document_key("default").as_str(),
-                &serde_json::to_vec(&document).expect("document serializes"),
-            )
-            .expect("snapshot seed");
-    }
-
     fn seed_canary_only_objectives(store: &TestStore) {
         let mut profile =
             crate::observability::operator_snapshot_objectives::default_operator_objectives(
@@ -1393,7 +1311,7 @@ mod tests {
         let mut cfg = defaults().clone();
         cfg.fingerprint_signal_enabled = false;
         seed_canary_only_objectives(&store);
-        seed_apply_ready_snapshot(&store, cfg);
+        crate::test_support::seed_apply_ready_snapshot(&store, cfg);
         let original_config = store
             .get("config:default")
             .expect("config lookup")

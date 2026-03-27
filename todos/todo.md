@@ -127,7 +127,7 @@ Current note:
 - `RSI-SCORE-2F2` is now landed: the recognition-evaluation rail truthfully counts current collapse to `unknown_non_human` as a Shuma inference outcome and no longer lets harness-only `projected_recent_sim_run` placeholders masquerade as degraded category matches.
 - `RSI-GAME-ARCH-1B` is now landed: category posture is no longer a primary optimization target or main-loop overall-status trigger for undeclared hostile traffic, and the Game Loop now projects it as `Recognition Evaluation` rather than as the main restriction scoreboard.
 - `RSI-SCORE-2F3` is now landed: the Game Loop and benchmark contract explicitly surface `Restriction Confidence` and `Abuse Backstop`, and the Make-driven proof path now executes dedicated urgency tests for that model.
-- The next active Scrapling-first rigor and architecture sequence is now `RSI-GAME-ARCH-1C` -> `RSI-GAME-BOARD-1F` -> `RSI-GAME-ARCH-1D` -> `RSI-GAME-BOARD-1G` -> `RSI-GAME-ARCH-1E`.
+- `RSI-GAME-ARCH-1C` is now landed: controller diagnosis, recognition evaluation, and move selection are explicit sibling contracts, route-level reconcile fixtures now reuse the shared controller-contract-aware snapshot seed, and the next active sequence is `RSI-GAME-BOARD-1F` -> `RSI-GAME-ARCH-1D` -> `RSI-GAME-BOARD-1G` -> `RSI-GAME-ARCH-1E`.
 - The board-state doctrine now has explicit follow-on planning for a later frontier-LLM code-evolution ring and a later real-human friction calibration ring, but both remain blocked from execution.
 - Before further mainline completion claims, the repo now requires explicit acceptance-gate discipline. Do not describe `STANCE-MODEL-1`, `SIM-SCR-FULL-1`, `RSI-GAME-HO-1`, or `RSI-GAME-HO-2` as complete from planning progress, baseline capability, or dashboard pressure signals alone.
 - The next attacker-runtime mainline remains `SIM-LLM-1C3`, but only after the current Scrapling-first Game Loop rigor repairs land and the Scrapling loop stops depending on vague or missing truth.
@@ -145,18 +145,6 @@ Current note:
     - controller truth: the page must distinguish "blocked by missing truth" from "blocked because no credible bounded move remains"
     - proof: `make test-benchmark-results-contract`, `make test-rsi-score-evidence-quality`, and `make test-dashboard-game-loop-accountability`
     - insufficient: one flat blocker string, blocker output with no causal ordering, or actionability text that still does not tell the operator what to fix first
-
-- [ ] RSI-GAME-ARCH-1C Refactor controller inputs so reconcile stops depending on one monolithic escalation-hint oracle.
-  - Reference context:
-    - [`docs/research/2026-03-27-game-loop-architecture-alignment-gap-review.md`](../docs/research/2026-03-27-game-loop-architecture-alignment-gap-review.md)
-    - [`docs/plans/2026-03-27-game-loop-architecture-alignment-and-retirement-plan.md`](../docs/plans/2026-03-27-game-loop-architecture-alignment-and-retirement-plan.md)
-    - [`docs/plans/2026-03-27-game-loop-board-state-refactor-plan.md`](../docs/plans/2026-03-27-game-loop-board-state-refactor-plan.md)
-  - Closure gate:
-    - separation: judge, recognition evaluation, restriction diagnosis, and move selection must become explicit sibling contracts rather than implicit projections from one escalation hint
-    - controller truth: `oversight_reconcile` must consume those explicit contracts rather than mostly branching on `benchmark.escalation_hint.decision`
-    - modularity: bounded move selection, code referral, and ring exhaustion must remain explicit and independently testable
-    - proof: `make test-rsi-score-move-selection`, `make test-rsi-game-mainline`, and `make test-dashboard-game-loop-accountability`
-    - insufficient: reconcile still acting as a thin wrapper around benchmark escalation-hint strings, or typed blocker work that only changes the UI while controller ownership remains muddled
 
 - [ ] RSI-GAME-BOARD-1G Make `Named Breach Loci` surface-exact and honest about missing data.
   - Reference context:

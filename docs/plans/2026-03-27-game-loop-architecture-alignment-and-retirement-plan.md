@@ -22,7 +22,8 @@ Implementation status update (2026-03-27):
 
 1. `RSI-GAME-ARCH-1A` is landed: restriction-grade and recognition-evaluation evidence are now split in snapshot assembly.
 2. `RSI-GAME-ARCH-1B` is landed: category posture is no longer a primary restriction optimization target or top-level restriction trigger for undeclared hostile traffic.
-3. The next architecture-alignment step is now `RSI-GAME-ARCH-1C`.
+3. `RSI-GAME-ARCH-1C` is now landed: controller-grade diagnosis, recognition evaluation, and move selection are explicit sibling contracts, and reconcile no longer depends primarily on one escalation-hint oracle.
+4. The next architecture-alignment step is now `RSI-GAME-BOARD-1F`, followed by `RSI-GAME-ARCH-1D`.
 
 # Core Decisions
 
