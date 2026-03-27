@@ -91,7 +91,13 @@
               </strong>
               {' '}
               {row.surfaceLabel || humanizeToken(row.surfaceId)}
-              <span class="text-muted"> {row.stateLabel || humanizeToken(row.state)}</span>
+              <span class="text-muted">
+                {' '}
+                {row.stateLabel || humanizeToken(row.state)}
+                {#if row.dependencyLabel}
+                  | {row.dependencyLabel}
+                {/if}
+              </span>
             </li>
           {/each}
         {/if}
@@ -143,7 +149,13 @@
                 <td>{humanizeToken(receipt.successContract)}</td>
                 <td>
                   {humanizeToken(receipt.coverageStatus)}
-                  <span class="text-muted"> | {receipt.surfaceStateLabel || (receipt.satisfied ? 'satisfied' : 'blocked')}</span>
+                  <span class="text-muted">
+                    {' '}
+                    | {receipt.surfaceStateLabel || (receipt.satisfied ? 'satisfied' : 'blocked')}
+                    {#if receipt.dependencyLabel}
+                      | {receipt.dependencyLabel}
+                    {/if}
+                  </span>
                 </td>
                 <td>{formatCompactNumber(receipt.attemptCount || 0, '0')}</td>
                 <td><code>{formatSample(receipt)}</code></td>

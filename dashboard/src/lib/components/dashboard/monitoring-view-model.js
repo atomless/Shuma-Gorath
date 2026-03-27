@@ -890,18 +890,28 @@ const resolveOwnedSurfaceLabel = (surfaceId, surfaceLabels = {}) =>
 
 const deriveRequiredSurfaceState = (receipt = {}, satisfiedFallback = false) => {
   const source = receipt && typeof receipt === 'object' ? receipt : {};
+  const explicitState = String(source.surfaceState || source.surface_state || '').trim();
+  if (explicitState) return explicitState;
   const satisfied = source.satisfied === true || satisfiedFallback === true;
   if (satisfied) return 'satisfied';
   const attemptCount = Number(source.attemptCount || source.attempt_count || 0);
   return attemptCount > 0 ? 'attempted_blocked' : 'unreached';
 };
 
-const formatOwnedSurfaceStateLabel = (state = '') => {
+const formatOwnedSurfaceStateLabel = (state = '', blockedBySurfaceIds = [], surfaceLabels = {}) => {
   switch (String(state || '').trim()) {
     case 'satisfied':
       return 'satisfied';
     case 'attempted_blocked':
       return 'attempted and blocked';
+    case 'blocked_by_prerequisite': {
+      const blockedBy = (Array.isArray(blockedBySurfaceIds) ? blockedBySurfaceIds : [])
+        .map((surfaceId) => resolveOwnedSurfaceLabel(surfaceId, surfaceLabels))
+        .filter(Boolean);
+      return blockedBy.length > 0
+        ? `blocked by prerequisite: ${blockedBy.join(', ')}`
+        : 'blocked by prerequisite';
+    }
     case 'unreached':
       return 'required but unreached';
     case 'not_required':
@@ -911,18 +921,54 @@ const formatOwnedSurfaceStateLabel = (state = '') => {
   }
 };
 
+const formatOwnedSurfaceDependencyLabel = (dependencyKind = '', dependencySurfaceIds = [], surfaceLabels = {}) => {
+  switch (String(dependencyKind || '').trim()) {
+    case 'independent':
+      return 'independent surface';
+    case 'co_materialized': {
+      const related = (Array.isArray(dependencySurfaceIds) ? dependencySurfaceIds : [])
+        .map((surfaceId) => resolveOwnedSurfaceLabel(surfaceId, surfaceLabels))
+        .filter(Boolean);
+      return related.length > 0
+        ? `co-materialized with ${related.join(', ')}`
+        : 'co-materialized surface';
+    }
+    case 'requires_prior_surface_pass': {
+      const required = (Array.isArray(dependencySurfaceIds) ? dependencySurfaceIds : [])
+        .map((surfaceId) => resolveOwnedSurfaceLabel(surfaceId, surfaceLabels))
+        .filter(Boolean);
+      return required.length > 0
+        ? `requires prior ${required.join(', ')}`
+        : 'requires prior surface';
+    }
+    default:
+      return '';
+  }
+};
+
 const shapeOwnedSurfaceCoverageReceipt = (receipt = {}, surfaceLabels = {}) => {
   const source = receipt && typeof receipt === 'object' ? receipt : {};
   const surfaceId = String(source.surfaceId || source.surface_id || '').trim();
   const surfaceState = deriveRequiredSurfaceState(source, source.satisfied === true);
+  const blockedBySurfaceIds = toSummaryStringArray(source.blockedBySurfaceIds || source.blocked_by_surface_ids);
+  const dependencyKind = String(source.dependencyKind || source.dependency_kind || '').trim();
+  const dependencySurfaceIds = toSummaryStringArray(source.dependencySurfaceIds || source.dependency_surface_ids);
   return {
     surfaceId,
     surfaceLabel: resolveOwnedSurfaceLabel(surfaceId, surfaceLabels),
     successContract: String(source.successContract || source.success_contract || '').trim(),
+    dependencyKind,
+    dependencySurfaceIds,
     coverageStatus: String(source.coverageStatus || source.coverage_status || '').trim(),
     satisfied: source.satisfied === true,
     surfaceState,
-    surfaceStateLabel: formatOwnedSurfaceStateLabel(surfaceState),
+    surfaceStateLabel: formatOwnedSurfaceStateLabel(surfaceState, blockedBySurfaceIds, surfaceLabels),
+    blockedBySurfaceIds,
+    dependencyLabel: formatOwnedSurfaceDependencyLabel(
+      dependencyKind,
+      dependencySurfaceIds,
+      surfaceLabels
+    ),
     attemptCount: Number(source.attemptCount || source.attempt_count || 0),
     sampleRequestMethod: String(source.sampleRequestMethod || source.sample_request_method || '').trim(),
     sampleRequestPath: String(source.sampleRequestPath || source.sample_request_path || '').trim(),
@@ -952,12 +998,24 @@ const buildSurfaceChecklistRows = (
     const state = !requiredSurfaceSet.has(surfaceId)
       ? 'not_required'
       : deriveRequiredSurfaceState(receipt, satisfiedSurfaceSet.has(surfaceId));
-    return {
+    const dependencyLabel =
+      state === 'not_required' || state === 'satisfied'
+        ? ''
+        : String(receipt?.dependencyLabel || '').trim();
+    const row = {
       surfaceId,
       surfaceLabel: resolveOwnedSurfaceLabel(surfaceId, surfaceLabels),
       state,
-      stateLabel: formatOwnedSurfaceStateLabel(state)
+      stateLabel: formatOwnedSurfaceStateLabel(
+        state,
+        receipt?.blockedBySurfaceIds,
+        surfaceLabels
+      )
     };
+    if (dependencyLabel) {
+      row.dependencyLabel = dependencyLabel;
+    }
+    return row;
   });
 };
 

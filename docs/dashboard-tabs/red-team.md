@@ -29,7 +29,12 @@ Panel:
     - a dash when the latest run was not expected to hit it,
     - explicit state text so a required miss is no longer ambiguous:
       - `attempted and blocked` means Scrapling reached the surface and failed its contract there,
+      - `blocked by prerequisite` means the surface was required but an earlier prerequisite surface did not satisfy its required pass contract,
       - `required but unreached` means the latest run never produced an attempt receipt for that required surface,
+    - dependency labels where they matter:
+      - `independent surface` means the row is not modeled as downstream of another owned surface,
+      - `co-materialized with ...` means the row is expected to show up as part of the same browser interaction path as another owned surface,
+      - `blocked by prerequisite ...` means the current coverage miss is explicitly downstream of an earlier required pass surface,
   - per-surface sample receipts so operators can inspect why a required surface satisfied or blocked.
 
 Behavior:

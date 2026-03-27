@@ -1,6 +1,6 @@
 use crate::observability::operator_snapshot::OperatorSnapshotAdversarySim;
 use crate::observability::operator_snapshot_live_traffic::OperatorSnapshotRecentSimRun;
-use crate::observability::scrapling_owned_surface::coverage_receipt_state_label;
+use crate::observability::scrapling_owned_surface::coverage_receipt_operator_detail_label;
 
 use super::benchmark_results::{BenchmarkFamilyResult, BenchmarkMetricResult};
 use super::benchmark_results_families::aggregate_budget_status;
@@ -166,7 +166,10 @@ pub(crate) fn latest_scrapling_surface_contract_state(
                         .get(surface_id)
                         .cloned()
                         .unwrap_or_else(|| surface_id.clone());
-                    format!("{label} ({})", coverage_receipt_state_label(receipt))
+                    format!(
+                        "{label} ({})",
+                        coverage_receipt_operator_detail_label(receipt, &coverage.surface_labels)
+                    )
                 })
                 .unwrap_or_else(|| {
                     coverage

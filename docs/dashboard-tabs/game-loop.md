@@ -34,6 +34,7 @@ Current behavior:
   - category rows that render as `Unscored` with no meter when exact shared-path category evidence is not available,
   - a separate `Surface Contract Satisfaction` panel so compact Scrapling corroboration stays distinct from both exploit progress and category posture,
   - surface-contract blocking rows that now distinguish `attempted and blocked` from `required but unreached` when receipt-backed proof is present,
+  - surface-contract blocker rows now carry dependency detail where available so the tab can distinguish an independent local miss from a downstream prerequisite miss,
   - explicit judge, evidence-quality, diagnosis-confidence, move or escalation, config-ring, code-evolution, and named breach-locus state inside `Loop Actionability`,
   - recent config-change context from the operator snapshot,
   - and explicit trust or blocker rows for classification readiness, coverage, protected replay status, tuning eligibility, verified-identity guardrails, and the shared-path rule that simulator metadata does not count as category truth.

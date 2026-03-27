@@ -4,6 +4,27 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-27)
 
+### SIM-SCR-FULL-1C5 Owned-Surface Dependency And Contract-Rigor Repair
+
+- [x] Completed `SIM-SCR-FULL-1C5` across:
+  - [`src/observability/scrapling_owned_surface.rs`](../src/observability/scrapling_owned_surface.rs)
+  - [`src/observability/benchmark_scrapling_surface_contract.rs`](../src/observability/benchmark_scrapling_surface_contract.rs)
+  - [`dashboard/src/lib/components/dashboard/monitoring-view-model.js`](../dashboard/src/lib/components/dashboard/monitoring-view-model.js)
+  - [`dashboard/src/lib/components/dashboard/monitoring/ScraplingEvidencePanel.svelte`](../dashboard/src/lib/components/dashboard/monitoring/ScraplingEvidencePanel.svelte)
+  - [`dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
+  - [`docs/research/2026-03-27-sim-scr-full-1c5-owned-surface-dependency-post-implementation-review.md`](../docs/research/2026-03-27-sim-scr-full-1c5-owned-surface-dependency-post-implementation-review.md)
+- [x] What landed:
+  - made dependency semantics explicit on the canonical Scrapling owned-surface matrix and coverage receipts,
+  - proved that `pow_verify_abuse`, `tarpit_progress_abuse`, `maze_navigation`, and `js_verification_execution` are currently independent surfaces in the Shuma board rather than silently downstream guesses,
+  - and made Red Team plus Game Loop render dependency-aware proof such as `independent surface`, `co-materialized with js verification execution`, or explicit prerequisite blocking when present.
+- [x] Why:
+  - the user correctly called out that the loop could not guide clean repair moves while operators still had to infer whether a missing surface was a local miss, a downstream prerequisite miss, or just not part of the run at all.
+- [x] Evidence:
+  - [`docs/research/2026-03-27-sim-scr-full-1c5-owned-surface-dependency-post-implementation-review.md`](../docs/research/2026-03-27-sim-scr-full-1c5-owned-surface-dependency-post-implementation-review.md)
+  - `make test-adversary-sim-scrapling-coverage-receipts`
+  - `make test-dashboard-scrapling-evidence`
+  - `make test-dashboard-game-loop-accountability`
+
 ### SIM-SCR-FULL-1C4 Scrapling Surface Exercise Proof Repair
 
 - [x] Completed `SIM-SCR-FULL-1C4` across:

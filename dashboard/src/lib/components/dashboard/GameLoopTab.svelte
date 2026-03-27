@@ -452,6 +452,10 @@
       return blockingReceipts.map((receipt) => {
         const label = String(receipt?.surfaceLabel || '').trim() || humanizeToken(receipt?.surfaceId);
         const stateLabel = String(receipt?.surfaceStateLabel || '').trim();
+        const dependencyLabel = String(receipt?.dependencyLabel || '').trim();
+        if (stateLabel && dependencyLabel) {
+          return `${label} (${stateLabel} | ${dependencyLabel})`;
+        }
         return stateLabel ? `${label} (${stateLabel})` : label;
       });
     }

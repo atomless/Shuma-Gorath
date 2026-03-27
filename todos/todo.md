@@ -124,7 +124,7 @@ Current note:
 - A March 27 accountability slice is now landed: Game Loop category posture rows render honestly as `Unscored` when exact shared-path evidence is missing, exploit loci now carry host-cost channels plus repair-family hints, localized high-confidence exploit progress can now drive bounded config tuning, and the Game Loop page now projects origin leakage, board-state breach progress, and loop actionability as separate planes.
 - The later March 27 architecture clarification now tightens the Game Loop shape further: restriction scoring is the main quest, recognition quality is a separate evaluation quest, simulator-known category labels remain forbidden in runtime and tuning, and abuse-driven confidence escalation is required as the backstop when explicit hostile identity signals stay weak.
 - The remaining immediate Game Loop gaps are therefore no longer just "exact category inference later". They are: incomplete proof of JS verification and PoW surface exercise, still-implicit owned-surface dependency semantics, missing recognition-evaluation clarity, restriction scoring that still overstates category posture, vague `Loop Actionability` blocker output, vague `Named Breach Loci`, and a deeper architecture problem where snapshot, benchmark, controller, and dashboard layers still re-entangle recognition evaluation, restriction scoring, and board-state truth through the older family-first model.
-- The next active Scrapling-first rigor and architecture sequence is now `SIM-SCR-FULL-1C5` -> `RSI-GAME-ARCH-1A` -> `RSI-SCORE-2F2` -> `RSI-GAME-ARCH-1B` -> `RSI-SCORE-2F3` -> `RSI-GAME-ARCH-1C` -> `RSI-GAME-BOARD-1F` -> `RSI-GAME-ARCH-1D` -> `RSI-GAME-BOARD-1G` -> `RSI-GAME-ARCH-1E`.
+- The next active Scrapling-first rigor and architecture sequence is now `RSI-GAME-ARCH-1A` -> `RSI-SCORE-2F2` -> `RSI-GAME-ARCH-1B` -> `RSI-SCORE-2F3` -> `RSI-GAME-ARCH-1C` -> `RSI-GAME-BOARD-1F` -> `RSI-GAME-ARCH-1D` -> `RSI-GAME-BOARD-1G` -> `RSI-GAME-ARCH-1E`.
 - The board-state doctrine now has explicit follow-on planning for a later frontier-LLM code-evolution ring and a later real-human friction calibration ring, but both remain blocked from execution.
 - Before further mainline completion claims, the repo now requires explicit acceptance-gate discipline. Do not describe `STANCE-MODEL-1`, `SIM-SCR-FULL-1`, `RSI-GAME-HO-1`, or `RSI-GAME-HO-2` as complete from planning progress, baseline capability, or dashboard pressure signals alone.
 - The next attacker-runtime mainline remains `SIM-LLM-1C3`, but only after the current Scrapling-first Game Loop rigor repairs land and the Scrapling loop stops depending on vague or missing truth.
@@ -158,18 +158,6 @@ Current note:
     - modularity: restriction scoring, recognition evaluation, and runtime defense truth must each have a clear owning module boundary
     - proof: `make test-benchmark-results-contract`, `make test-traffic-classification-contract`, and `make test-dashboard-game-loop-accountability`
     - insufficient: projected recent-sim category receipts still gating controller readiness on the same path as restriction-grade observed evidence, or any snapshot contract where the three rails are still materially blended
-
-- [ ] SIM-SCR-FULL-1C5 Tighten Scrapling owned-surface dependency and contract rigor.
-  - Reference context:
-    - [`docs/research/2026-03-27-game-loop-scrapling-proof-and-rigor-gap-review.md`](../docs/research/2026-03-27-game-loop-scrapling-proof-and-rigor-gap-review.md)
-    - [`docs/plans/2026-03-27-game-loop-scrapling-proof-and-rigor-repair-plan.md`](../docs/plans/2026-03-27-game-loop-scrapling-proof-and-rigor-repair-plan.md)
-    - [`docs/plans/2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-plan.md`](../docs/plans/2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-plan.md)
-  - Closure gate:
-    - contract truth: the canonical owned-surface matrix must explicitly encode whether `pow_verify_abuse`, `tarpit_progress_abuse`, `maze_navigation`, and `js_verification_execution` are independent or prerequisite-linked
-    - projection truth: required and blocking surface summaries must distinguish not-required, not-reached-because-blocked-earlier, and attempted-and-failed
-    - operator truth: Red Team and Game Loop must stop leaving the operator to infer maze/tarpit or JS/PoW dependency semantics from code alone
-    - proof: `make test-adversary-sim-scrapling-coverage-receipts`, `make test-dashboard-scrapling-evidence`, and `make test-dashboard-game-loop-accountability`
-    - insufficient: absent dependency semantics, blocking lists that hide not-reached prerequisites, or operator surfaces that still make tarpit or maze relationships guesswork
 
 - [ ] RSI-SCORE-2F3 Recenter restriction scoring on board progression, host cost, Shuma confidence, and the abuse-driven backstop.
   - Reference context:

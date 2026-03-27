@@ -2870,8 +2870,12 @@ test("game loop distinguishes category posture achievement from scrapling surfac
                   {
                     surface_id: "challenge_routing",
                     success_contract: "mixed_outcomes",
+                    dependency_kind: "independent",
+                    dependency_surface_ids: [],
                     coverage_status: "pass_observed",
+                    surface_state: "satisfied",
                     satisfied: true,
+                    blocked_by_surface_ids: [],
                     attempt_count: 3,
                     sample_request_method: "GET",
                     sample_request_path: "/challenge",
@@ -2880,8 +2884,12 @@ test("game loop distinguishes category posture achievement from scrapling surfac
                   {
                     surface_id: "maze_navigation",
                     success_contract: "should_pass_some",
+                    dependency_kind: "independent",
+                    dependency_surface_ids: [],
                     coverage_status: "unavailable",
+                    surface_state: "unreached",
                     satisfied: false,
+                    blocked_by_surface_ids: [],
                     attempt_count: 0,
                     sample_request_method: "",
                     sample_request_path: "",
@@ -2969,7 +2977,7 @@ test("game loop distinguishes category posture achievement from scrapling surfac
             family_id: "scrapling_surface_contract",
             status: "outside_budget",
             capability_gate: "supported",
-            note: "Latest Scrapling run sim-attack-partial still has blocking required defense surfaces: Maze Navigation (required but unreached).",
+            note: "Latest Scrapling run sim-attack-partial still has blocking required defense surfaces: Maze Navigation (required but unreached | independent surface).",
             metrics: [
               {
                 metric_id: "scrapling_required_surface_satisfaction_rate",
@@ -3063,7 +3071,7 @@ test("game loop distinguishes category posture achievement from scrapling surfac
     "Surface Contract Satisfaction"
   );
   await expect(page.locator("[data-game-loop-section='pressure-sits']")).toContainText(
-    "Maze Navigation (required but unreached)"
+    "Maze Navigation (required but unreached | independent surface)"
   );
 });
 
@@ -4484,8 +4492,12 @@ test("red team tab surfaces receipt-backed scrapling attack evidence from recent
                 {
                   surface_id: "challenge_routing",
                   success_contract: "mixed_outcomes",
+                  dependency_kind: "independent",
+                  dependency_surface_ids: [],
                   coverage_status: "pass_observed",
+                  surface_state: "satisfied",
                   satisfied: true,
+                  blocked_by_surface_ids: [],
                   attempt_count: 6,
                   sample_request_method: "GET",
                   sample_request_path: "/sim/public/search?q=scrapling",
@@ -4494,8 +4506,12 @@ test("red team tab surfaces receipt-backed scrapling attack evidence from recent
                 {
                   surface_id: "not_a_bot_submit",
                   success_contract: "should_fail",
+                  dependency_kind: "independent",
+                  dependency_surface_ids: [],
                   coverage_status: "pass_observed",
+                  surface_state: "attempted_blocked",
                   satisfied: false,
+                  blocked_by_surface_ids: [],
                   attempt_count: 2,
                   sample_request_method: "POST",
                   sample_request_path: "/challenge/not-a-bot-checkbox",
@@ -4504,8 +4520,12 @@ test("red team tab surfaces receipt-backed scrapling attack evidence from recent
                 {
                   surface_id: "pow_verify_abuse",
                   success_contract: "should_fail",
+                  dependency_kind: "independent",
+                  dependency_surface_ids: [],
                   coverage_status: "unavailable",
+                  surface_state: "unreached",
                   satisfied: false,
+                  blocked_by_surface_ids: [],
                   attempt_count: 0,
                   sample_request_method: "",
                   sample_request_path: "",
@@ -4594,8 +4614,8 @@ test("red team tab surfaces receipt-backed scrapling attack evidence from recent
   await expect(page.locator('#red-team-scrapling-surface-checklist')).toHaveCSS("padding-left", "0px");
   await expect(page.locator("#red-team-scrapling-evidence")).toContainText("simrun-scrapling-proof");
   await expect(page.locator("#red-team-scrapling-evidence")).toContainText("1 / 3");
-  await expect(page.locator("#red-team-scrapling-evidence")).toContainText("Not-a-Bot Submit attempted and blocked");
-  await expect(page.locator("#red-team-scrapling-evidence")).toContainText("PoW Verify Abuse required but unreached");
+  await expect(page.locator("#red-team-scrapling-evidence")).toContainText("Not-a-Bot Submit attempted and blocked | independent surface");
+  await expect(page.locator("#red-team-scrapling-evidence")).toContainText("PoW Verify Abuse required but unreached | independent surface");
   await expect(page.locator("#red-team-scrapling-evidence")).toContainText("POST /challenge/not-a-bot-checkbox");
   await expect(page.locator("#red-team-scrapling-evidence")).toContainText("PoW Verify Abuse");
 });

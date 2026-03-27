@@ -1730,8 +1730,12 @@ mod tests {
                             crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageReceipt {
                                 surface_id: "challenge_routing".to_string(),
                                 success_contract: "mixed_outcomes".to_string(),
+                                dependency_kind: "independent".to_string(),
+                                dependency_surface_ids: Vec::new(),
                                 coverage_status: "pass_observed".to_string(),
+                                surface_state: "satisfied".to_string(),
                                 satisfied: true,
+                                blocked_by_surface_ids: Vec::new(),
                                 attempt_count: 2,
                                 sample_request_method: "GET".to_string(),
                                 sample_request_path: "/challenge".to_string(),
@@ -1740,8 +1744,12 @@ mod tests {
                             crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageReceipt {
                                 surface_id: "maze_navigation".to_string(),
                                 success_contract: "should_pass_some".to_string(),
+                                dependency_kind: "independent".to_string(),
+                                dependency_surface_ids: Vec::new(),
                                 coverage_status: "fail_observed".to_string(),
+                                surface_state: "attempted_blocked".to_string(),
                                 satisfied: false,
+                                blocked_by_surface_ids: Vec::new(),
                                 attempt_count: 2,
                                 sample_request_method: "GET".to_string(),
                                 sample_request_path: "/maze".to_string(),
@@ -1780,7 +1788,9 @@ mod tests {
             .find(|family| family.family_id == "scrapling_surface_contract")
             .expect("scrapling surface contract family");
         assert_eq!(family.status, "outside_budget");
-        assert!(family.note.contains("Maze Navigation (attempted and blocked)"));
+        assert!(family
+            .note
+            .contains("Maze Navigation (attempted and blocked | independent surface)"));
         assert_eq!(payload.overall_status, "outside_budget");
         assert_eq!(payload.tuning_eligibility.status, "blocked");
         assert!(payload
@@ -1848,8 +1858,12 @@ mod tests {
                             crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageReceipt {
                                 surface_id: "public_path_traversal".to_string(),
                                 success_contract: "should_pass_some".to_string(),
+                                dependency_kind: "independent".to_string(),
+                                dependency_surface_ids: Vec::new(),
                                 coverage_status: "pass_observed".to_string(),
+                                surface_state: "satisfied".to_string(),
                                 satisfied: true,
+                                blocked_by_surface_ids: Vec::new(),
                                 attempt_count: 2,
                                 sample_request_method: "GET".to_string(),
                                 sample_request_path: "/sim/public/landing".to_string(),
@@ -1858,8 +1872,12 @@ mod tests {
                             crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageReceipt {
                                 surface_id: "challenge_routing".to_string(),
                                 success_contract: "mixed_outcomes".to_string(),
+                                dependency_kind: "independent".to_string(),
+                                dependency_surface_ids: Vec::new(),
                                 coverage_status: "pass_observed".to_string(),
+                                surface_state: "satisfied".to_string(),
                                 satisfied: true,
+                                blocked_by_surface_ids: Vec::new(),
                                 attempt_count: 1,
                                 sample_request_method: "GET".to_string(),
                                 sample_request_path: "/challenge".to_string(),
@@ -1972,8 +1990,12 @@ mod tests {
                             crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageReceipt {
                                 surface_id: "public_path_traversal".to_string(),
                                 success_contract: "should_pass_some".to_string(),
+                                dependency_kind: "independent".to_string(),
+                                dependency_surface_ids: Vec::new(),
                                 coverage_status: "pass_observed".to_string(),
+                                surface_state: "satisfied".to_string(),
                                 satisfied: true,
+                                blocked_by_surface_ids: Vec::new(),
                                 attempt_count: 1,
                                 sample_request_method: "GET".to_string(),
                                 sample_request_path: "/sim/public/landing".to_string(),
@@ -1982,8 +2004,12 @@ mod tests {
                             crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageReceipt {
                                 surface_id: "challenge_routing".to_string(),
                                 success_contract: "mixed_outcomes".to_string(),
+                                dependency_kind: "independent".to_string(),
+                                dependency_surface_ids: Vec::new(),
                                 coverage_status: "pass_observed".to_string(),
+                                surface_state: "satisfied".to_string(),
                                 satisfied: true,
+                                blocked_by_surface_ids: Vec::new(),
                                 attempt_count: 1,
                                 sample_request_method: "GET".to_string(),
                                 sample_request_path: "/challenge".to_string(),
@@ -2086,8 +2112,12 @@ mod tests {
                                 crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageReceipt {
                                     surface_id: "public_path_traversal".to_string(),
                                     success_contract: "should_pass_some".to_string(),
+                                    dependency_kind: "independent".to_string(),
+                                    dependency_surface_ids: Vec::new(),
                                     coverage_status: "pass_observed".to_string(),
+                                    surface_state: "satisfied".to_string(),
                                     satisfied: true,
+                                    blocked_by_surface_ids: Vec::new(),
                                     attempt_count: 2,
                                     sample_request_method: "GET".to_string(),
                                     sample_request_path: "/sim/public/landing".to_string(),
@@ -2096,8 +2126,12 @@ mod tests {
                                 crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageReceipt {
                                     surface_id: "challenge_routing".to_string(),
                                     success_contract: "mixed_outcomes".to_string(),
+                                    dependency_kind: "independent".to_string(),
+                                    dependency_surface_ids: Vec::new(),
                                     coverage_status: "pass_observed".to_string(),
+                                    surface_state: "satisfied".to_string(),
                                     satisfied: true,
+                                    blocked_by_surface_ids: Vec::new(),
                                     attempt_count: 2,
                                     sample_request_method: "GET".to_string(),
                                     sample_request_path: "/challenge".to_string(),
@@ -2154,8 +2188,12 @@ mod tests {
                                 crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageReceipt {
                                     surface_id: "public_path_traversal".to_string(),
                                     success_contract: "should_pass_some".to_string(),
+                                    dependency_kind: "independent".to_string(),
+                                    dependency_surface_ids: Vec::new(),
                                     coverage_status: "pass_observed".to_string(),
+                                    surface_state: "satisfied".to_string(),
                                     satisfied: true,
+                                    blocked_by_surface_ids: Vec::new(),
                                     attempt_count: 2,
                                     sample_request_method: "GET".to_string(),
                                     sample_request_path: "/sim/public/landing".to_string(),
@@ -2164,8 +2202,12 @@ mod tests {
                                 crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageReceipt {
                                     surface_id: "challenge_routing".to_string(),
                                     success_contract: "mixed_outcomes".to_string(),
+                                    dependency_kind: "independent".to_string(),
+                                    dependency_surface_ids: Vec::new(),
                                     coverage_status: "pass_observed".to_string(),
+                                    surface_state: "satisfied".to_string(),
                                     satisfied: true,
+                                    blocked_by_surface_ids: Vec::new(),
                                     attempt_count: 2,
                                     sample_request_method: "GET".to_string(),
                                     sample_request_path: "/challenge".to_string(),
@@ -2246,8 +2288,12 @@ mod tests {
                             crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageReceipt {
                                 surface_id: "public_path_traversal".to_string(),
                                 success_contract: "should_pass_some".to_string(),
+                                dependency_kind: "independent".to_string(),
+                                dependency_surface_ids: Vec::new(),
                                 coverage_status: "fail_observed".to_string(),
+                                surface_state: "attempted_blocked".to_string(),
                                 satisfied: false,
+                                blocked_by_surface_ids: Vec::new(),
                                 attempt_count: 1,
                                 sample_request_method: "GET".to_string(),
                                 sample_request_path: "/sim/public/landing".to_string(),
@@ -2332,8 +2378,12 @@ mod tests {
                             crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageReceipt {
                                 surface_id: "public_path_traversal".to_string(),
                                 success_contract: "should_pass_some".to_string(),
+                                dependency_kind: "independent".to_string(),
+                                dependency_surface_ids: Vec::new(),
                                 coverage_status: "pass_observed".to_string(),
+                                surface_state: "satisfied".to_string(),
                                 satisfied: true,
+                                blocked_by_surface_ids: Vec::new(),
                                 attempt_count: 2,
                                 sample_request_method: "GET".to_string(),
                                 sample_request_path: "/sim/public/landing".to_string(),
@@ -2342,8 +2392,12 @@ mod tests {
                             crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageReceipt {
                                 surface_id: "challenge_routing".to_string(),
                                 success_contract: "mixed_outcomes".to_string(),
+                                dependency_kind: "independent".to_string(),
+                                dependency_surface_ids: Vec::new(),
                                 coverage_status: "pass_observed".to_string(),
+                                surface_state: "satisfied".to_string(),
                                 satisfied: true,
+                                blocked_by_surface_ids: Vec::new(),
                                 attempt_count: 1,
                                 sample_request_method: "GET".to_string(),
                                 sample_request_path: "/challenge".to_string(),

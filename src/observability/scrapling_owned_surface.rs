@@ -63,6 +63,9 @@ pub(crate) struct ScraplingOwnedSurfaceRow {
     pub required_transport: String,
     pub interaction_requirement: String,
     pub success_contract: String,
+    pub dependency_kind: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub dependency_surface_ids: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fulfillment_modes: Vec<String>,
     pub notes: String,
@@ -92,8 +95,14 @@ pub(crate) struct ScraplingSurfaceObservationReceipt {
 pub(crate) struct ScraplingOwnedSurfaceCoverageReceipt {
     pub surface_id: String,
     pub success_contract: String,
+    pub dependency_kind: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub dependency_surface_ids: Vec<String>,
     pub coverage_status: String,
+    pub surface_state: String,
     pub satisfied: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub blocked_by_surface_ids: Vec<String>,
     pub attempt_count: u64,
     pub sample_request_method: String,
     pub sample_request_path: String,
@@ -200,9 +209,8 @@ pub(crate) fn summarize_scrapling_owned_surface_coverage(
             .push(observation);
     }
 
-    let mut receipts = Vec::new();
-    let mut satisfied_surface_ids = Vec::new();
-    let mut blocking_surface_ids = Vec::new();
+    let required_surface_set: BTreeSet<_> = required_surface_ids.iter().cloned().collect();
+    let mut receipt_drafts = Vec::new();
 
     for surface_id in &required_surface_ids {
         let Some(row) = row_by_id.get(surface_id) else {
@@ -233,16 +241,62 @@ pub(crate) fn summarize_scrapling_owned_surface_coverage(
                 })
                 .unwrap_or_else(|| (String::new(), String::new(), None));
 
-        if satisfied {
-            satisfied_surface_ids.push(surface_id.clone());
-        } else {
+        receipt_drafts.push((
+            surface_id.clone(),
+            row.clone(),
+            coverage_status,
+            satisfied,
+            attempt_count,
+            sample_request_method,
+            sample_request_path,
+            sample_response_status,
+        ));
+    }
+
+    let satisfied_surface_ids: Vec<String> = receipt_drafts
+        .iter()
+        .filter(|(_, _, _, satisfied, _, _, _, _)| *satisfied)
+        .map(|(surface_id, _, _, _, _, _, _, _)| surface_id.clone())
+        .collect();
+    let satisfied_surface_set: BTreeSet<_> = satisfied_surface_ids.iter().cloned().collect();
+    let mut receipts = Vec::new();
+    let mut blocking_surface_ids = Vec::new();
+
+    for (
+        surface_id,
+        row,
+        coverage_status,
+        satisfied,
+        attempt_count,
+        sample_request_method,
+        sample_request_path,
+        sample_response_status,
+    ) in receipt_drafts
+    {
+        let blocked_by_surface_ids = blocked_prerequisite_surface_ids(
+            row.dependency_kind.as_str(),
+            row.dependency_surface_ids.as_slice(),
+            &required_surface_set,
+            &satisfied_surface_set,
+        );
+        let surface_state = coverage_receipt_state_from_parts(
+            satisfied,
+            attempt_count,
+            blocked_by_surface_ids.as_slice(),
+        )
+        .to_string();
+        if !satisfied {
             blocking_surface_ids.push(surface_id.clone());
         }
         receipts.push(ScraplingOwnedSurfaceCoverageReceipt {
-            surface_id: surface_id.clone(),
+            surface_id,
             success_contract: row.success_contract.clone(),
+            dependency_kind: row.dependency_kind.clone(),
+            dependency_surface_ids: row.dependency_surface_ids.clone(),
             coverage_status,
+            surface_state,
             satisfied,
+            blocked_by_surface_ids,
             attempt_count,
             sample_request_method,
             sample_request_path,
@@ -270,23 +324,121 @@ pub(crate) fn summarize_scrapling_owned_surface_coverage(
 }
 
 pub(crate) fn coverage_receipt_state(receipt: &ScraplingOwnedSurfaceCoverageReceipt) -> &'static str {
-    if receipt.satisfied {
+    if !receipt.surface_state.trim().is_empty() {
+        return match receipt.surface_state.as_str() {
+            "satisfied" => "satisfied",
+            "attempted_blocked" => "attempted_blocked",
+            "blocked_by_prerequisite" => "blocked_by_prerequisite",
+            "unreached" => "unreached",
+            _ => "unreached",
+        };
+    }
+    coverage_receipt_state_from_parts(
+        receipt.satisfied,
+        receipt.attempt_count,
+        receipt.blocked_by_surface_ids.as_slice(),
+    )
+}
+
+fn coverage_receipt_state_from_parts(
+    satisfied: bool,
+    attempt_count: u64,
+    blocked_by_surface_ids: &[String],
+) -> &'static str {
+    if satisfied {
         "satisfied"
-    } else if receipt.attempt_count > 0 {
+    } else if attempt_count > 0 {
         "attempted_blocked"
+    } else if !blocked_by_surface_ids.is_empty() {
+        "blocked_by_prerequisite"
     } else {
         "unreached"
     }
 }
 
+fn format_surface_label_list(
+    surface_ids: &[String],
+    surface_labels: Option<&BTreeMap<String, String>>,
+) -> String {
+    surface_ids
+        .iter()
+        .map(|surface_id| {
+            surface_labels
+                .and_then(|labels| labels.get(surface_id))
+                .cloned()
+                .unwrap_or_else(|| surface_id.clone())
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 pub(crate) fn coverage_receipt_state_label(
     receipt: &ScraplingOwnedSurfaceCoverageReceipt,
-) -> &'static str {
+) -> String {
     match coverage_receipt_state(receipt) {
-        "satisfied" => "satisfied",
-        "attempted_blocked" => "attempted and blocked",
-        "unreached" => "required but unreached",
-        _ => "state unavailable",
+        "satisfied" => "satisfied".to_string(),
+        "attempted_blocked" => "attempted and blocked".to_string(),
+        "blocked_by_prerequisite" => {
+            if receipt.blocked_by_surface_ids.is_empty() {
+                "blocked by prerequisite".to_string()
+            } else {
+                format!(
+                    "blocked by prerequisite: {}",
+                    format_surface_label_list(receipt.blocked_by_surface_ids.as_slice(), None)
+                )
+            }
+        }
+        "unreached" => "required but unreached".to_string(),
+        _ => "state unavailable".to_string(),
+    }
+}
+
+pub(crate) fn coverage_receipt_dependency_label(
+    receipt: &ScraplingOwnedSurfaceCoverageReceipt,
+    surface_labels: &BTreeMap<String, String>,
+) -> String {
+    match receipt.dependency_kind.as_str() {
+        "independent" => "independent surface".to_string(),
+        "co_materialized" => {
+            if receipt.dependency_surface_ids.is_empty() {
+                "co-materialized surface".to_string()
+            } else {
+                format!(
+                    "co-materialized with {}",
+                    format_surface_label_list(
+                        receipt.dependency_surface_ids.as_slice(),
+                        Some(surface_labels),
+                    )
+                )
+            }
+        }
+        "requires_prior_surface_pass" => {
+            if receipt.dependency_surface_ids.is_empty() {
+                "requires prior surface".to_string()
+            } else {
+                format!(
+                    "requires prior {}",
+                    format_surface_label_list(
+                        receipt.dependency_surface_ids.as_slice(),
+                        Some(surface_labels),
+                    )
+                )
+            }
+        }
+        _ => String::new(),
+    }
+}
+
+pub(crate) fn coverage_receipt_operator_detail_label(
+    receipt: &ScraplingOwnedSurfaceCoverageReceipt,
+    surface_labels: &BTreeMap<String, String>,
+) -> String {
+    let state_label = coverage_receipt_state_label(receipt);
+    let dependency_label = coverage_receipt_dependency_label(receipt, surface_labels);
+    if dependency_label.is_empty() || coverage_receipt_state(receipt) == "blocked_by_prerequisite" {
+        state_label
+    } else {
+        format!("{state_label} | {dependency_label}")
     }
 }
 
@@ -299,6 +451,8 @@ pub(crate) fn canonical_scrapling_owned_surface_summary() -> ScraplingOwnedSurfa
             "request_native",
             "must_touch",
             "should_pass_some",
+            "independent",
+            &[],
             &["crawler", "bulk_scraper"],
             "Crawler and bulk-scraper personas must be able to discover and retrieve ordinary public content on the attacked host.",
         ),
@@ -309,6 +463,8 @@ pub(crate) fn canonical_scrapling_owned_surface_summary() -> ScraplingOwnedSurfa
             "request_native",
             "must_touch",
             "mixed_outcomes",
+            "independent",
+            &[],
             &["crawler", "bulk_scraper", "http_agent"],
             "Request-native Scrapling traffic must encounter Shuma's challenge-selection path rather than silently avoiding it.",
         ),
@@ -319,6 +475,8 @@ pub(crate) fn canonical_scrapling_owned_surface_summary() -> ScraplingOwnedSurfa
             "request_native",
             "must_touch",
             "mixed_outcomes",
+            "independent",
+            &[],
             &["crawler", "bulk_scraper", "http_agent"],
             "Malicious request-native Scrapling should generate bursty access that can still pass some requests while also triggering rate-based pressure.",
         ),
@@ -329,6 +487,8 @@ pub(crate) fn canonical_scrapling_owned_surface_summary() -> ScraplingOwnedSurfa
             "request_native",
             "must_touch",
             "mixed_outcomes",
+            "independent",
+            &[],
             &["crawler", "bulk_scraper", "http_agent"],
             "Scrapling-owned request-native traffic should traverse the same geo and IP policy surfaces real hostile traffic would encounter.",
         ),
@@ -339,6 +499,8 @@ pub(crate) fn canonical_scrapling_owned_surface_summary() -> ScraplingOwnedSurfa
             "request_native",
             "must_touch",
             "should_fail",
+            "independent",
+            &[],
             &["bulk_scraper", "http_agent"],
             "Malicious request-native Scrapling must attempt the Not-a-Bot submit or fail path instead of leaving that defense untouched.",
         ),
@@ -349,6 +511,8 @@ pub(crate) fn canonical_scrapling_owned_surface_summary() -> ScraplingOwnedSurfa
             "request_native",
             "must_touch",
             "should_fail",
+            "independent",
+            &[],
             &["bulk_scraper", "http_agent"],
             "When challenge routing escalates, Scrapling-owned malicious request-native traffic should attempt puzzle submission or puzzle escalation paths and fail honestly.",
         ),
@@ -359,6 +523,8 @@ pub(crate) fn canonical_scrapling_owned_surface_summary() -> ScraplingOwnedSurfa
             "request_native",
             "must_touch",
             "should_fail",
+            "independent",
+            &[],
             &["http_agent"],
             "Direct-request Scrapling traffic should attempt PoW verification abuse where that surface belongs to the request-native malicious path.",
         ),
@@ -369,6 +535,8 @@ pub(crate) fn canonical_scrapling_owned_surface_summary() -> ScraplingOwnedSurfa
             "request_native",
             "must_touch",
             "should_fail",
+            "independent",
+            &[],
             &["http_agent"],
             "If Scrapling owns the full request-native challenge-abuse path, the direct-request persona must also attempt tarpit progress abuse rather than leaving it to the deterministic lane forever.",
         ),
@@ -379,6 +547,8 @@ pub(crate) fn canonical_scrapling_owned_surface_summary() -> ScraplingOwnedSurfa
             "browser_or_stealth",
             "must_touch",
             "should_pass_some",
+            "independent",
+            &[],
             &["browser_automation", "stealth_browser"],
             "Browser-capable Scrapling personas must attempt truthful maze traversal against the same maze path a hostile browser would encounter.",
         ),
@@ -389,6 +559,8 @@ pub(crate) fn canonical_scrapling_owned_surface_summary() -> ScraplingOwnedSurfa
             "browser_or_stealth",
             "must_touch",
             "should_pass_some",
+            "independent",
+            &[],
             &["browser_automation", "stealth_browser"],
             "Browser-capable Scrapling personas must execute the live JavaScript verification surface rather than leaving it untested.",
         ),
@@ -399,6 +571,8 @@ pub(crate) fn canonical_scrapling_owned_surface_summary() -> ScraplingOwnedSurfa
             "browser_or_stealth",
             "must_touch",
             "mixed_outcomes",
+            "co_materialized",
+            &["js_verification_execution"],
             &["browser_automation", "stealth_browser"],
             "Browser-capable Scrapling personas must pressure Shuma's browser-automation detection surface and receipt whether automation was detected or not.",
         ),
@@ -409,6 +583,8 @@ pub(crate) fn canonical_scrapling_owned_surface_summary() -> ScraplingOwnedSurfa
             "not_applicable",
             "must_not_touch",
             "outside_scrapling_scope",
+            "independent",
+            &[],
             &[],
             "A malicious attacker should not self-report CDP detection signals, so this surface is intentionally outside Scrapling ownership.",
         ),
@@ -419,6 +595,8 @@ pub(crate) fn canonical_scrapling_owned_surface_summary() -> ScraplingOwnedSurfa
             "not_applicable",
             "must_not_touch",
             "outside_scrapling_scope",
+            "independent",
+            &[],
             &[],
             "Verified-identity attestation is not part of malicious Scrapling behavior and must not be claimed as Scrapling-owned adversary coverage.",
         ),
@@ -453,6 +631,8 @@ fn row(
     required_transport: &str,
     interaction_requirement: &str,
     success_contract: &str,
+    dependency_kind: &str,
+    dependency_surface_ids: &[&str],
     fulfillment_modes: &[&str],
     notes: &str,
 ) -> ScraplingOwnedSurfaceRow {
@@ -463,12 +643,34 @@ fn row(
         required_transport: required_transport.to_string(),
         interaction_requirement: interaction_requirement.to_string(),
         success_contract: success_contract.to_string(),
+        dependency_kind: dependency_kind.to_string(),
+        dependency_surface_ids: dependency_surface_ids
+            .iter()
+            .map(|value| (*value).to_string())
+            .collect(),
         fulfillment_modes: fulfillment_modes
             .iter()
             .map(|value| (*value).to_string())
             .collect(),
         notes: notes.to_string(),
     }
+}
+
+fn blocked_prerequisite_surface_ids(
+    dependency_kind: &str,
+    dependency_surface_ids: &[String],
+    required_surface_ids: &BTreeSet<String>,
+    satisfied_surface_ids: &BTreeSet<String>,
+) -> Vec<String> {
+    if dependency_kind != "requires_prior_surface_pass" {
+        return Vec::new();
+    }
+    dependency_surface_ids
+        .iter()
+        .filter(|surface_id| required_surface_ids.contains(*surface_id))
+        .filter(|surface_id| !satisfied_surface_ids.contains(*surface_id))
+        .cloned()
+        .collect()
 }
 
 fn best_surface_observation<'a>(
@@ -515,7 +717,8 @@ fn surface_status_satisfies_contract(success_contract: &str, coverage_status: &s
 #[cfg(test)]
 mod tests {
     use super::{
-        canonical_scrapling_owned_surface_summary, coverage_receipt_state,
+        canonical_scrapling_owned_surface_summary, coverage_receipt_dependency_label,
+        coverage_receipt_operator_detail_label, coverage_receipt_state,
         coverage_receipt_state_label, scrapling_owned_surface_targets,
         scrapling_owned_surface_targets_for_mode, scrapling_owned_surface_targets_for_modes,
         summarize_scrapling_owned_surface_coverage, ScraplingSurfaceObservationReceipt,
@@ -542,6 +745,8 @@ mod tests {
         assert_eq!(not_a_bot.required_transport, "request_native");
         assert_eq!(not_a_bot.interaction_requirement, "must_touch");
         assert_eq!(not_a_bot.success_contract, "should_fail");
+        assert_eq!(not_a_bot.dependency_kind, "independent");
+        assert!(not_a_bot.dependency_surface_ids.is_empty());
         assert_eq!(
             not_a_bot.fulfillment_modes,
             vec!["bulk_scraper".to_string(), "http_agent".to_string()]
@@ -556,6 +761,8 @@ mod tests {
         assert_eq!(maze.required_transport, "browser_or_stealth");
         assert_eq!(maze.interaction_requirement, "must_touch");
         assert_eq!(maze.success_contract, "should_pass_some");
+        assert_eq!(maze.dependency_kind, "independent");
+        assert!(maze.dependency_surface_ids.is_empty());
         assert_eq!(
             maze.fulfillment_modes,
             vec![
@@ -574,6 +781,11 @@ mod tests {
             "Browser CDP Automation Detection"
         );
         assert_eq!(browser_detection.assignment_status, "owned");
+        assert_eq!(browser_detection.dependency_kind, "co_materialized");
+        assert_eq!(
+            browser_detection.dependency_surface_ids,
+            vec!["js_verification_execution".to_string()]
+        );
 
         let verified_identity = summary
             .rows
@@ -888,6 +1100,14 @@ mod tests {
         assert!(!detection.satisfied);
         assert_eq!(coverage_receipt_state(detection), "attempted_blocked");
         assert_eq!(coverage_receipt_state_label(detection), "attempted and blocked");
+        assert_eq!(
+            coverage_receipt_dependency_label(detection, &summary.surface_labels),
+            "co-materialized with JavaScript Verification Execution"
+        );
+        assert_eq!(
+            coverage_receipt_operator_detail_label(detection, &summary.surface_labels),
+            "attempted and blocked | co-materialized with JavaScript Verification Execution"
+        );
         let maze = summary
             .receipts
             .iter()
@@ -897,5 +1117,13 @@ mod tests {
         assert_eq!(maze.attempt_count, 0);
         assert_eq!(coverage_receipt_state(maze), "unreached");
         assert_eq!(coverage_receipt_state_label(maze), "required but unreached");
+        assert_eq!(
+            coverage_receipt_dependency_label(maze, &summary.surface_labels),
+            "independent surface"
+        );
+        assert_eq!(
+            coverage_receipt_operator_detail_label(maze, &summary.surface_labels),
+            "required but unreached | independent surface"
+        );
     }
 }
