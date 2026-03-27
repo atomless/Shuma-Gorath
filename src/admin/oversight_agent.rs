@@ -723,6 +723,17 @@ mod tests {
         payload.benchmark_results.controller_contract.move_selection.note =
             "Config tuning candidate.".to_string();
         payload.benchmark_results.replay_promotion = payload.replay_promotion.clone();
+        payload.benchmark_results.protected_evidence =
+            crate::observability::benchmark_results::BenchmarkProtectedEvidenceSummary {
+                availability: "materialized".to_string(),
+                evidence_status: "protected".to_string(),
+                tuning_eligible: true,
+                protected_basis: "replay_promoted_lineage".to_string(),
+                protected_lineage_count: 1,
+                eligibility_blockers: Vec::new(),
+                note: "Protected tuning evidence is backed by replay-promoted lineage."
+                    .to_string(),
+            };
         if let Some(row) = payload.budget_distance.rows.get_mut(0) {
             row.current = suspicious_forwarded_request_rate;
             row.delta = suspicious_forwarded_request_rate - row.target;

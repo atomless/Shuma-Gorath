@@ -128,24 +128,12 @@ Current note:
 - `RSI-GAME-ARCH-1B` is now landed: category posture is no longer a primary optimization target or main-loop overall-status trigger for undeclared hostile traffic, and the Game Loop now projects it as `Recognition Evaluation` rather than as the main restriction scoreboard.
 - `RSI-SCORE-2F3` is now landed: the Game Loop and benchmark contract explicitly surface `Restriction Confidence` and `Abuse Backstop`, and the Make-driven proof path now executes dedicated urgency tests for that model.
 - `RSI-GAME-ARCH-1C`, `RSI-GAME-ARCH-1D`, `RSI-GAME-BOARD-1F`, and `RSI-GAME-BOARD-1G` are now landed: controller diagnosis, recognition evaluation, and move selection are explicit sibling contracts, `Loop Actionability` now groups root causes, controller outcomes, and next-fix surfaces, and breach loci now preserve materialization truth instead of fabricating `0 attempts` or generic missing-data wording.
-- A fresh live audit on 2026-03-27 first exposed, and the repo has now fixed, the last major purity break between restriction tuning and recognition evaluation: `RSI-GAME-ARCH-1F` is landed, so the next live blocker is now protected tuning evidence for strong Scrapling runtime pressure.
+- A fresh live audit on 2026-03-27 first exposed, and the repo has now fixed, the live protected-evidence blocker: `RSI-GAME-ARCH-1G` is now landed, so strong live Scrapling runtime pressure can count as protected tuning evidence without replay-lineage materialization.
 - The board-state doctrine now has explicit follow-on planning for a later frontier-LLM code-evolution ring and a later real-human friction calibration ring, but both remain blocked from execution.
 - Before further mainline completion claims, the repo now requires explicit acceptance-gate discipline. Do not describe `STANCE-MODEL-1`, `SIM-SCR-FULL-1`, `RSI-GAME-HO-1`, or `RSI-GAME-HO-2` as complete from planning progress, baseline capability, or dashboard pressure signals alone.
 - The next attacker-runtime mainline remains `SIM-LLM-1C3`, but only after the current Scrapling-first Game Loop rigor repairs land and the Scrapling loop stops depending on vague or missing truth.
 - Do not open `humans_plus_verified_only` until a later second strict-baseline proof has shown retained config-change improvement under both Scrapling and LLM attacker pressure.
 - `DIAG-CLEANUP-1` and `MON-OVERHAUL-1C` are now both landed, so the deferred Game Loop and Diagnostics follow-on queue is currently clear while the later combined-attacker strict-baseline proof still stays blocked behind `SIM-LLM-1C3`.
-
-- [ ] RSI-GAME-ARCH-1G Make strong live Scrapling runtime evidence eligible as protected tuning evidence.
-  - Reference context:
-    - [`docs/research/2026-03-27-game-loop-live-protected-scrapling-evidence-gap-review.md`](../docs/research/2026-03-27-game-loop-live-protected-scrapling-evidence-gap-review.md)
-    - [`docs/plans/2026-03-27-game-loop-live-protected-scrapling-evidence-plan.md`](../docs/plans/2026-03-27-game-loop-live-protected-scrapling-evidence-plan.md)
-    - [`docs/plans/2026-03-27-game-loop-architecture-alignment-and-retirement-plan.md`](../docs/plans/2026-03-27-game-loop-architecture-alignment-and-retirement-plan.md)
-  - Closure gate:
-    - protected basis: strong live Scrapling runtime board evidence must be able to count as protected tuning evidence, not only replay-promoted lineage
-    - safety: `synthetic_traffic` must remain ineligible and raw frontier or LLM discovery must remain advisory until replay-promoted or equivalently confirmed
-    - purity: simulator-known persona/category labels must remain absent from runtime and restriction tuning
-    - proof: `make test-protected-tuning-evidence`, `make test-benchmark-results-contract`, `make test-rsi-score-move-selection`, `make test-dashboard-game-loop-accountability`, plus cited live payload evidence showing the controller is no longer blocked on `protected_lineage_missing` and `protected_tuning_evidence_not_ready` when strong Scrapling runtime evidence is present
-    - insufficient: any fix that reopens simulator-label leakage, weakens synthetic/advisory safety gates, or still leaves the live controller blocked purely because the Scrapling runtime path lacks a protected basis
 
 - [ ] RSI-GAME-ARCH-1E Retire replaced category-first Game Loop surfaces only after full-path replacement proof.
   - Reference context:

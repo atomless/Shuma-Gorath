@@ -6751,6 +6751,15 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
       status: 'blocked',
       blockers: ['verified_identity_taxonomy_alignment_guardrail']
     },
+    protected_evidence: {
+      availability: 'materialized',
+      evidence_status: 'protected',
+      tuning_eligible: true,
+      protected_basis: 'live_scrapling_runtime',
+      protected_lineage_count: 0,
+      eligibility_blockers: [],
+      note: 'Strong live Scrapling runtime proof is protected.'
+    },
     non_human_classification: {
       status: 'ready',
       blockers: [],
@@ -6992,6 +7001,8 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
   assert.deepEqual(benchmarkResults.tuning_eligibility.blockers, [
     'verified_identity_taxonomy_alignment_guardrail'
   ]);
+  assert.equal(benchmarkResults.protected_evidence.evidence_status, 'protected');
+  assert.equal(benchmarkResults.protected_evidence.protected_basis, 'live_scrapling_runtime');
   assert.equal(benchmarkResults.escalation_hint.problem_class, 'scrapling_exploit_progress_gap');
   assert.equal(
     benchmarkResults.escalation_hint.guidance_status,

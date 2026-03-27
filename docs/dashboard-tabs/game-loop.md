@@ -38,7 +38,7 @@ Current behavior:
   - surface-contract blocker rows now carry dependency detail where available so the tab can distinguish an independent local miss from a downstream prerequisite miss,
   - explicit judge, restriction quest, recognition quest, grouped root-cause blockers, grouped controller outcomes, next-fix surfaces, move or escalation, config-ring, and code-evolution state inside `Loop Actionability`,
   - recent config-change context from the operator snapshot,
-  - and explicit trust or blocker rows for classification readiness, coverage, protected replay status, tuning eligibility, verified-identity guardrails, and the shared-path rule that simulator metadata does not count as category truth.
+  - and explicit trust or blocker rows for classification readiness, coverage, effective protected evidence, replay-lineage context, tuning eligibility, verified-identity guardrails, and the shared-path rule that simulator metadata does not count as category truth.
 - Directs operators and contributors to `#diagnostics` for deep subsystem inspection and rawer contributor-facing telemetry.
 - Keeps detailed adversary proof out of the tab:
   - `Red Team` is where operators verify Scrapling personas, categories, and owned-surface receipts,
@@ -64,7 +64,8 @@ Current limitation:
   - restriction urgency now explicitly carries `Restriction Confidence` and `Abuse Backstop` as separate machine-first states rather than flattening them into one urgency label,
   - controller diagnosis, recognition evaluation, and move selection are now explicit sibling benchmark surfaces rather than only implicit escalation-hint projections,
   - `Loop Actionability` now groups root causes, controller outcomes, and next-fix surfaces instead of flattening them into one blocker line,
-  - and the remaining open Game Loop follow-on work has now moved to breach-locus missing-data honesty plus later controller-rail cleanup rather than still-missing restriction-confidence or abuse-backstop semantics.
+  - the effective protected-evidence rail now admits strong live Scrapling runtime proof as a protected basis when the board-state evidence is localized, shared-path, and reproduced across the recent window, while replay lineage remains a separate provenance row rather than the only protected source,
+  - and the remaining open Game Loop follow-on work has now moved to later controller-rail cleanup rather than still-missing restriction-confidence, abuse-backstop, or live protected-evidence semantics.
   - breach loci no longer render absent attempt counts as `0 attempts`, and missing board-state hints now stay labeled as `not materialized` instead of flattening into false certainty.
 
 Refresh behavior:

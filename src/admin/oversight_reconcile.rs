@@ -211,7 +211,7 @@ pub(crate) fn reconcile(
         &snapshot.allowed_actions,
         controller_move_selection.candidate_action_families.as_slice(),
         problem_class,
-        &snapshot.replay_promotion,
+        &benchmark.protected_evidence,
     ) {
         Ok(candidates) => candidates,
         Err(OversightPatchPolicyError::NoCandidateFamily) => {
@@ -774,6 +774,17 @@ mod tests {
                 status: "eligible".to_string(),
                 blockers: Vec::new(),
             },
+            protected_evidence:
+                crate::observability::benchmark_results::BenchmarkProtectedEvidenceSummary {
+                    availability: "materialized".to_string(),
+                    evidence_status: "protected".to_string(),
+                    tuning_eligible: true,
+                    protected_basis: "replay_promoted_lineage".to_string(),
+                    protected_lineage_count: 1,
+                    eligibility_blockers: Vec::new(),
+                    note: "Protected tuning evidence is backed by replay-promoted lineage."
+                        .to_string(),
+                },
             families: vec![BenchmarkFamilyResult {
                 family_id: "suspicious_origin_cost".to_string(),
                 status: "outside_budget".to_string(),

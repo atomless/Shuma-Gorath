@@ -4,7 +4,7 @@ use serde_json::json;
 use crate::config::{
     controller_action_family_risk_profile, AllowedActionsSurface, Config,
 };
-use crate::observability::replay_promotion::ReplayPromotionSummary;
+use crate::observability::benchmark_results::BenchmarkProtectedEvidenceSummary;
 
 pub(crate) const OVERSIGHT_VERIFICATION_WATCH_LIVE_BUDGET_WINDOW: &str =
     "watch_live_budget_window";
@@ -78,14 +78,14 @@ pub(crate) fn propose_patch(
     allowed_actions: &AllowedActionsSurface,
     candidate_families: &[String],
     problem_class: OversightProblemClass,
-    replay_promotion: &ReplayPromotionSummary,
+    protected_evidence: &BenchmarkProtectedEvidenceSummary,
 ) -> Result<OversightPatchProposal, OversightPatchPolicyError> {
     Ok(rank_patch_candidates(
         cfg,
         allowed_actions,
         candidate_families,
         problem_class,
-        replay_promotion,
+        protected_evidence,
     )?
     .into_iter()
     .next()
@@ -98,7 +98,7 @@ pub(crate) fn rank_patch_candidates(
     allowed_actions: &AllowedActionsSurface,
     candidate_families: &[String],
     problem_class: OversightProblemClass,
-    replay_promotion: &ReplayPromotionSummary,
+    protected_evidence: &BenchmarkProtectedEvidenceSummary,
 ) -> Result<Vec<OversightPatchCandidate>, OversightPatchPolicyError> {
     if candidate_families.is_empty() {
         return Err(OversightPatchPolicyError::NoCandidateFamily);
@@ -136,7 +136,7 @@ pub(crate) fn rank_patch_candidates(
                 family,
                 patch,
                 problem_class,
-                replay_promotion,
+                protected_evidence,
             )?;
             let (likely_human_risk, tolerated_non_human_risk, risk_note) =
                 controller_action_family_risk_profile(family)
@@ -217,7 +217,7 @@ fn build_proposal(
     family: &str,
     patch: serde_json::Value,
     problem_class: OversightProblemClass,
-    replay_promotion: &ReplayPromotionSummary,
+    protected_evidence: &BenchmarkProtectedEvidenceSummary,
 ) -> Result<OversightPatchProposal, OversightPatchPolicyError> {
     let patch_object = patch
         .as_object()
@@ -230,9 +230,8 @@ fn build_proposal(
         OVERSIGHT_VERIFICATION_WATCH_LIVE_BUDGET_WINDOW.to_string(),
         OVERSIGHT_VERIFICATION_RERUN_ADVERSARY_SIM.to_string(),
     ];
-    if !replay_promotion.tuning_eligible
-        || replay_promotion.blocking_required
-        || replay_promotion.pending_owner_review_count > 0
+    if protected_evidence.protected_basis == "replay_promoted_lineage"
+        && !protected_evidence.tuning_eligible
     {
         required_verification.push(
             OVERSIGHT_VERIFICATION_REVIEW_REPLAY_PROMOTION.to_string(),
@@ -617,7 +616,21 @@ mod tests {
         OVERSIGHT_VERIFICATION_REVIEW_REPLAY_PROMOTION,
     };
     use crate::config::{allowed_actions_v1, defaults};
-    use crate::observability::replay_promotion::ReplayPromotionSummary;
+    use crate::observability::benchmark_results::{
+        unavailable_benchmark_protected_evidence_summary, BenchmarkProtectedEvidenceSummary,
+    };
+
+    fn replay_review_required_protected_evidence() -> BenchmarkProtectedEvidenceSummary {
+        BenchmarkProtectedEvidenceSummary {
+            availability: "materialized".to_string(),
+            evidence_status: "advisory_only".to_string(),
+            tuning_eligible: false,
+            protected_basis: "replay_promoted_lineage".to_string(),
+            protected_lineage_count: 1,
+            eligibility_blockers: vec!["replay_promotion_owner_review_pending".to_string()],
+            note: "Replay lineage is materialized but still advisory.".to_string(),
+        }
+    }
 
     #[test]
     fn suspicious_cost_policy_prefers_low_friction_signal_families_first() {
@@ -631,7 +644,7 @@ mod tests {
             &allowed_actions_v1(),
             &["proof_of_work".to_string(), "fingerprint_signal".to_string()],
             OversightProblemClass::SuspiciousOriginReachOverspend,
-            &ReplayPromotionSummary::not_materialized(),
+            &unavailable_benchmark_protected_evidence_summary(),
         )
         .expect("proposal builds");
 
@@ -650,7 +663,7 @@ mod tests {
             &allowed_actions_v1(),
             &["not_a_bot".to_string()],
             OversightProblemClass::LikelyHumanFrictionOverspend,
-            &ReplayPromotionSummary::not_materialized(),
+            &unavailable_benchmark_protected_evidence_summary(),
         )
         .expect("proposal builds");
 
@@ -668,7 +681,7 @@ mod tests {
             &allowed_actions_v1(),
             &["challenge".to_string()],
             OversightProblemClass::LikelyHumanFrictionOverspend,
-            &ReplayPromotionSummary::not_materialized(),
+            &unavailable_benchmark_protected_evidence_summary(),
         )
         .expect("proposal builds");
 
@@ -688,7 +701,7 @@ mod tests {
             &allowed_actions_v1(),
             &["core_policy".to_string()],
             OversightProblemClass::LikelyHumanFrictionOverspend,
-            &ReplayPromotionSummary::not_materialized(),
+            &unavailable_benchmark_protected_evidence_summary(),
         )
         .expect("proposal builds");
 
@@ -707,7 +720,7 @@ mod tests {
             &allowed_actions_v1(),
             &["verified_identity".to_string()],
             OversightProblemClass::SuspiciousOriginReachOverspend,
-            &ReplayPromotionSummary::not_materialized(),
+            &unavailable_benchmark_protected_evidence_summary(),
         )
         .expect_err("verified identity must remain controller-forbidden");
 
@@ -726,7 +739,7 @@ mod tests {
             &allowed_actions_v1(),
             &["provider_selection".to_string()],
             OversightProblemClass::SuspiciousOriginReachOverspend,
-            &ReplayPromotionSummary::not_materialized(),
+            &unavailable_benchmark_protected_evidence_summary(),
         )
         .expect_err("provider selection must remain controller-forbidden");
 
@@ -745,7 +758,7 @@ mod tests {
             &allowed_actions_v1(),
             &["robots_policy".to_string()],
             OversightProblemClass::SuspiciousOriginReachOverspend,
-            &ReplayPromotionSummary::not_materialized(),
+            &unavailable_benchmark_protected_evidence_summary(),
         )
         .expect_err("robots policy must remain controller-forbidden");
 
@@ -762,7 +775,7 @@ mod tests {
             &allowed_actions_v1(),
             &["allowlists".to_string()],
             OversightProblemClass::SuspiciousOriginReachOverspend,
-            &ReplayPromotionSummary::not_materialized(),
+            &unavailable_benchmark_protected_evidence_summary(),
         )
         .expect_err("allowlists must remain controller-forbidden");
 
@@ -779,7 +792,7 @@ mod tests {
             &allowed_actions_v1(),
             &["tarpit".to_string()],
             OversightProblemClass::SuspiciousOriginReachOverspend,
-            &ReplayPromotionSummary::not_materialized(),
+            &unavailable_benchmark_protected_evidence_summary(),
         )
         .expect_err("tarpit must remain controller-forbidden");
 
@@ -793,15 +806,13 @@ mod tests {
     fn replay_promotion_blocker_adds_review_requirement() {
         let mut cfg = defaults().clone();
         cfg.fingerprint_signal_enabled = false;
-        let mut replay = ReplayPromotionSummary::not_materialized();
-        replay.blocking_required = true;
 
         let proposal = propose_patch(
             &cfg,
             &allowed_actions_v1(),
             &["fingerprint_signal".to_string()],
             OversightProblemClass::SuspiciousOriginReachOverspend,
-            &replay,
+            &replay_review_required_protected_evidence(),
         )
         .expect("proposal builds");
 
@@ -820,11 +831,38 @@ mod tests {
             &allowed_actions_v1(),
             &["fingerprint_signal".to_string()],
             OversightProblemClass::SuspiciousOriginReachOverspend,
-            &ReplayPromotionSummary::not_materialized(),
+            &replay_review_required_protected_evidence(),
         )
         .expect("proposal builds");
 
         assert!(proposal
+            .required_verification
+            .contains(&OVERSIGHT_VERIFICATION_REVIEW_REPLAY_PROMOTION.to_string()));
+    }
+
+    #[test]
+    fn live_runtime_protected_evidence_does_not_require_replay_review() {
+        let mut cfg = defaults().clone();
+        cfg.fingerprint_signal_enabled = false;
+
+        let proposal = propose_patch(
+            &cfg,
+            &allowed_actions_v1(),
+            &["fingerprint_signal".to_string()],
+            OversightProblemClass::SuspiciousOriginReachOverspend,
+            &BenchmarkProtectedEvidenceSummary {
+                availability: "materialized".to_string(),
+                evidence_status: "protected".to_string(),
+                tuning_eligible: true,
+                protected_basis: "live_scrapling_runtime".to_string(),
+                protected_lineage_count: 0,
+                eligibility_blockers: Vec::new(),
+                note: "Strong live Scrapling runtime evidence is protected.".to_string(),
+            },
+        )
+        .expect("proposal builds");
+
+        assert!(!proposal
             .required_verification
             .contains(&OVERSIGHT_VERIFICATION_REVIEW_REPLAY_PROMOTION.to_string()));
     }
@@ -839,7 +877,7 @@ mod tests {
             &allowed_actions_v1(),
             &["proof_of_work".to_string()],
             OversightProblemClass::LikelyHumanFrictionOverspend,
-            &ReplayPromotionSummary::not_materialized(),
+            &unavailable_benchmark_protected_evidence_summary(),
         )
         .expect_err("no lower bounded patch exists");
 
@@ -865,7 +903,7 @@ mod tests {
                 "fingerprint_signal".to_string(),
             ],
             OversightProblemClass::SuspiciousOriginLatencyOverspend,
-            &ReplayPromotionSummary::not_materialized(),
+            &unavailable_benchmark_protected_evidence_summary(),
         )
         .expect("proposal builds");
 
@@ -884,7 +922,7 @@ mod tests {
             &allowed_actions_v1(),
             &["proof_of_work".to_string(), "fingerprint_signal".to_string()],
             OversightProblemClass::SuspiciousOriginReachOverspend,
-            &ReplayPromotionSummary::not_materialized(),
+            &unavailable_benchmark_protected_evidence_summary(),
         )
         .expect("ranked candidates build");
 
@@ -907,7 +945,7 @@ mod tests {
             &allowed_actions_v1(),
             &["challenge".to_string(), "fingerprint_signal".to_string()],
             OversightProblemClass::ScraplingExploitProgressGap,
-            &ReplayPromotionSummary::not_materialized(),
+            &unavailable_benchmark_protected_evidence_summary(),
         )
         .expect("ranked candidates build");
 

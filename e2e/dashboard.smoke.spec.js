@@ -1855,6 +1855,14 @@ test("game loop projects benchmark and oversight accountability from machine-fir
           status: "blocked",
           blockers: ["verified_identity_taxonomy_alignment_guardrail"]
         },
+        protected_evidence: {
+          availability: "materialized",
+          evidence_status: "protected",
+          tuning_eligible: true,
+          protected_basis: "live_scrapling_runtime",
+          protected_lineage_count: 0,
+          eligibility_blockers: []
+        },
         non_human_classification: {
           status: "ready",
           blockers: [],
@@ -2159,6 +2167,9 @@ test("game loop projects benchmark and oversight accountability from machine-fir
   await expect(page.locator("#game-loop-trust-blockers")).toContainText("Verified Identity");
   await expect(page.locator("#game-loop-trust-blockers")).toContainText("Verified Handling");
   await expect(page.locator("#game-loop-trust-blockers")).toContainText("Judge Path");
+  await expect(page.locator("#game-loop-trust-blockers")).toContainText("Protected Evidence");
+  await expect(page.locator("#game-loop-trust-blockers")).toContainText("live scrapling runtime");
+  await expect(page.locator("#game-loop-trust-blockers")).toContainText("Replay Lineage");
   await expect(page.locator("#game-loop-trust-blockers")).toContainText(
     "simulator metadata does not count as category truth"
   );
@@ -2275,6 +2286,14 @@ test("game loop tab corroborates latest scrapling evidence readiness", async ({ 
         tuning_eligibility: {
           status: "eligible",
           blockers: []
+        },
+        protected_evidence: {
+          availability: "materialized",
+          evidence_status: "protected",
+          tuning_eligible: true,
+          protected_basis: "replay_promoted_lineage",
+          protected_lineage_count: 2,
+          eligibility_blockers: []
         },
         non_human_classification: {
           status: "ready",
@@ -2538,6 +2557,14 @@ test("game loop tab separates judge planes, breach loci, and config exhaustion s
         tuning_eligibility: {
           status: "blocked",
           blockers: ["config_ring_exhausted:fingerprint_signal"]
+        },
+        protected_evidence: {
+          availability: "materialized",
+          evidence_status: "protected",
+          tuning_eligible: true,
+          protected_basis: "live_scrapling_runtime",
+          protected_lineage_count: 0,
+          eligibility_blockers: []
         },
         non_human_classification: {
           status: "ready",
@@ -3091,6 +3118,14 @@ test("game loop distinguishes recognition evaluation from scrapling surface cont
             "scrapling_surface_contract_not_ready",
             "scrapling_surface_blocking:maze_navigation"
           ]
+        },
+        protected_evidence: {
+          availability: "materialized",
+          evidence_status: "protected",
+          tuning_eligible: true,
+          protected_basis: "replay_promoted_lineage",
+          protected_lineage_count: 1,
+          eligibility_blockers: []
         },
         non_human_classification: {
           status: "ready",

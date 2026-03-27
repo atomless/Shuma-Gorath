@@ -47,7 +47,7 @@
       id: 'trust-and-blockers',
       title: 'Trust And Blockers',
       description:
-        'Evidence readiness, protected replay status, coverage state, and explicit blockers that explain how trustworthy the current conclusion is.'
+        'Evidence readiness, protected evidence status, replay-lineage context, coverage state, and explicit blockers that explain how trustworthy the current conclusion is.'
     }
   ]);
 
@@ -519,6 +519,7 @@
   $: likelyHumanFrictionFamily = findBenchmarkFamily('likely_human_friction');
   $: exploitProgressFamily = findBenchmarkFamily('scrapling_exploit_progress');
   $: evidenceQuality = asRecord(benchmarkResults?.escalation_hint?.evidence_quality);
+  $: protectedEvidence = asRecord(benchmarkResults?.protected_evidence);
   $: controllerContract = asRecord(benchmarkResults?.controller_contract);
   $: restrictionDiagnosis = asRecord(controllerContract?.restriction_diagnosis);
   $: controllerRecognitionEvaluation = asRecord(controllerContract?.recognition_evaluation);
@@ -873,7 +874,7 @@
     ...(benchmarkResults?.tuning_eligibility?.blockers || []),
     ...(benchmarkResults?.non_human_classification?.blockers || []),
     ...(benchmarkResults?.non_human_coverage?.blocking_reasons || []),
-    ...(benchmarkResults?.replay_promotion?.eligibility_blockers || [])
+    ...(benchmarkResults?.protected_evidence?.eligibility_blockers || [])
   ]);
 </script>
 
@@ -1323,7 +1324,16 @@
               <span class="status-value">{humanizeToken(benchmarkResults?.non_human_coverage?.overall_status)}</span>
             </div>
             <div class="info-row">
-              <span class="info-label text-muted">Protected Replay:</span>
+              <span class="info-label text-muted">Protected Evidence:</span>
+              <span class="status-value">
+                {humanizeToken(protectedEvidence?.availability)}
+                | evidence {humanizeToken(protectedEvidence?.evidence_status, 'sentence')}
+                | basis {humanizeToken(protectedEvidence?.protected_basis, 'sentence')}
+                | lineage {formatNumber(protectedEvidence?.protected_lineage_count, '0')}
+              </span>
+            </div>
+            <div class="info-row">
+              <span class="info-label text-muted">Replay Lineage:</span>
               <span class="status-value">
                 {humanizeToken(benchmarkResults?.replay_promotion?.availability)}
                 | evidence {humanizeToken(benchmarkResults?.replay_promotion?.evidence_status, 'sentence')}

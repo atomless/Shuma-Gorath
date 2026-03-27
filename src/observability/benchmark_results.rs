@@ -301,6 +301,33 @@ pub(crate) struct BenchmarkTuningEligibility {
     pub blockers: Vec<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct BenchmarkProtectedEvidenceSummary {
+    pub availability: String,
+    pub evidence_status: String,
+    pub tuning_eligible: bool,
+    pub protected_basis: String,
+    #[serde(default)]
+    pub protected_lineage_count: u64,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub eligibility_blockers: Vec<String>,
+    pub note: String,
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn unavailable_benchmark_protected_evidence_summary(
+) -> BenchmarkProtectedEvidenceSummary {
+    BenchmarkProtectedEvidenceSummary {
+        availability: "not_materialized".to_string(),
+        evidence_status: "not_materialized".to_string(),
+        tuning_eligible: false,
+        protected_basis: "none".to_string(),
+        protected_lineage_count: 0,
+        eligibility_blockers: vec!["protected_tuning_evidence_not_ready".to_string()],
+        note: "Protected tuning evidence is not materialized yet.".to_string(),
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub(crate) struct BenchmarkResultsPayload {
     pub schema_version: String,
@@ -316,6 +343,7 @@ pub(crate) struct BenchmarkResultsPayload {
     pub non_human_classification: NonHumanClassificationReadiness,
     pub non_human_coverage: NonHumanCoverageSummary,
     pub tuning_eligibility: BenchmarkTuningEligibility,
+    pub protected_evidence: BenchmarkProtectedEvidenceSummary,
     pub families: Vec<BenchmarkFamilyResult>,
     pub escalation_hint: BenchmarkEscalationHint,
     pub controller_contract: BenchmarkControllerContract,
@@ -381,12 +409,17 @@ pub(crate) fn build_benchmark_results_from_snapshot_sections(
         families.as_mut_slice(),
         prior_window_reference,
     );
+    let protected_evidence = protected_tuning_evidence_summary(
+        replay_promotion,
+        families.as_slice(),
+        &exploit_evidence_quality,
+    );
     let tuning_eligibility =
         tuning_eligibility(
             adversary_sim,
             non_human_traffic,
-            replay_promotion,
             &verified_identity,
+            &protected_evidence,
             families.as_slice(),
             &exploit_evidence_quality,
         );
@@ -441,6 +474,7 @@ pub(crate) fn build_benchmark_results_from_snapshot_sections(
             .coverage
             .compact_for_benchmark(),
         tuning_eligibility,
+        protected_evidence,
         escalation_hint,
         controller_contract,
         urgency,
@@ -474,8 +508,8 @@ fn suspicious_origin_tracking_lane(
 fn tuning_eligibility(
     adversary_sim: &OperatorSnapshotAdversarySim,
     non_human_traffic: &OperatorSnapshotNonHumanTrafficSummary,
-    replay_promotion: &ReplayPromotionSummary,
     verified_identity: &OperatorSnapshotVerifiedIdentitySummary,
+    protected_evidence: &BenchmarkProtectedEvidenceSummary,
     families: &[BenchmarkFamilyResult],
     exploit_evidence_quality: &BenchmarkDiagnosisEvidenceQuality,
 ) -> BenchmarkTuningEligibility {
@@ -492,12 +526,12 @@ fn tuning_eligibility(
         blockers.extend(non_human_traffic.restriction_readiness.blockers.iter().cloned());
         blockers
     } else {
-        replay_promotion
+        protected_evidence
             .eligibility_blockers
             .iter()
             .cloned()
             .chain(
-                (!replay_promotion.tuning_eligible)
+                (!protected_evidence.tuning_eligible)
                     .then(|| "protected_tuning_evidence_not_ready".to_string())
                     .into_iter(),
             )
@@ -522,6 +556,110 @@ fn tuning_eligibility(
             "blocked".to_string()
         },
         blockers,
+    }
+}
+
+fn protected_tuning_evidence_summary(
+    replay_promotion: &ReplayPromotionSummary,
+    families: &[BenchmarkFamilyResult],
+    exploit_evidence_quality: &BenchmarkDiagnosisEvidenceQuality,
+) -> BenchmarkProtectedEvidenceSummary {
+    let exploit_progress_outside_budget = families.iter().any(|family| {
+        family.family_id == "scrapling_exploit_progress" && family.status == "outside_budget"
+    });
+    let live_runtime_protected = exploit_progress_outside_budget
+        && exploit_evidence_quality.status == "high_confidence"
+        && matches!(
+            exploit_evidence_quality.attribution_status.as_str(),
+            "surface_native_shared_path" | "category_and_surface_native"
+        )
+        && exploit_evidence_quality.recent_window_support_status == "reproduced_recently"
+        && !exploit_evidence_quality.breach_loci.is_empty();
+    if live_runtime_protected {
+        return BenchmarkProtectedEvidenceSummary {
+            availability: "materialized".to_string(),
+            evidence_status: "protected".to_string(),
+            tuning_eligible: true,
+            protected_basis: "live_scrapling_runtime".to_string(),
+            protected_lineage_count: replay_promotion.protected_lineage_count,
+            eligibility_blockers: Vec::new(),
+            note: format!(
+                "Protected tuning evidence is backed by strong live Scrapling runtime proof across the recent window at: {}.",
+                exploit_evidence_quality
+                    .breach_loci
+                    .iter()
+                    .map(|locus| locus.locus_label.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+        };
+    }
+
+    if replay_promotion.tuning_eligible {
+        return BenchmarkProtectedEvidenceSummary {
+            availability: replay_promotion.availability.clone(),
+            evidence_status: if replay_promotion.evidence_status.is_empty() {
+                "protected".to_string()
+            } else {
+                replay_promotion.evidence_status.clone()
+            },
+            tuning_eligible: true,
+            protected_basis: if replay_promotion.protected_basis.is_empty() {
+                "replay_promoted_lineage".to_string()
+            } else {
+                replay_promotion.protected_basis.clone()
+            },
+            protected_lineage_count: replay_promotion.protected_lineage_count,
+            eligibility_blockers: replay_promotion.eligibility_blockers.clone(),
+            note: if replay_promotion.protected_lineage_count > 0 {
+                format!(
+                    "Protected tuning evidence is backed by {} replay-promoted lineage row(s).",
+                    replay_promotion.protected_lineage_count
+                )
+            } else {
+                "Protected tuning evidence is backed by replay-promoted lineage."
+                    .to_string()
+            },
+        };
+    }
+
+    let mut eligibility_blockers = replay_promotion.eligibility_blockers.clone();
+    if exploit_progress_outside_budget {
+        eligibility_blockers.push("live_scrapling_runtime_not_protected_yet".to_string());
+    }
+    eligibility_blockers.sort();
+    eligibility_blockers.dedup();
+
+    BenchmarkProtectedEvidenceSummary {
+        availability: replay_promotion.availability.clone(),
+        evidence_status: if replay_promotion.evidence_status.is_empty() {
+            if exploit_progress_outside_budget {
+                "advisory_only".to_string()
+            } else {
+                "not_materialized".to_string()
+            }
+        } else {
+            replay_promotion.evidence_status.clone()
+        },
+        tuning_eligible: false,
+        protected_basis: "none".to_string(),
+        protected_lineage_count: replay_promotion.protected_lineage_count,
+        eligibility_blockers,
+        note: if exploit_progress_outside_budget {
+            format!(
+                "Live Scrapling runtime pressure is visible, but it is not protected tuning evidence yet because exploit evidence status={}, attribution={}, recent window={}, and replay protection status={}.",
+                exploit_evidence_quality.status,
+                exploit_evidence_quality.attribution_status,
+                exploit_evidence_quality.recent_window_support_status,
+                replay_promotion.evidence_status
+            )
+        } else if replay_promotion.availability == "not_materialized" {
+            "Protected tuning evidence is not materialized yet because neither replay lineage nor strong live Scrapling runtime proof is available."
+                .to_string()
+        } else {
+            "Protected tuning evidence is not ready yet because replay lineage remains advisory or incomplete."
+                .to_string()
+        },
     }
 }
 
@@ -2801,6 +2939,11 @@ mod tests {
                 .recent_window_support_status,
             "reproduced_recently"
         );
+        assert_eq!(payload.protected_evidence.evidence_status, "protected");
+        assert_eq!(
+            payload.protected_evidence.protected_basis,
+            "live_scrapling_runtime"
+        );
         assert_eq!(payload.tuning_eligibility.status, "eligible");
         assert!(!payload
             .tuning_eligibility
@@ -2810,6 +2953,213 @@ mod tests {
             .tuning_eligibility
             .blockers
             .contains(&"degraded_category_receipts_present".to_string()));
+        assert_eq!(payload.escalation_hint.decision, "config_tuning_candidate");
+    }
+
+    #[test]
+    fn benchmark_results_allow_strong_live_scrapling_runtime_without_replay_lineage() {
+        let store = TestStore::new();
+        let summary = summarize_with_store(&store, 24, 10);
+        let mut snapshot = build_operator_snapshot_payload(
+            &store,
+            "default",
+            1_700_000_398,
+            &summary,
+            &[
+                OperatorSnapshotRecentSimRun {
+                    run_id: "simrun-scrapling-prior".to_string(),
+                    lane: "scrapling_traffic".to_string(),
+                    profile: "scrapling_runtime_lane".to_string(),
+                    observed_fulfillment_modes: vec!["crawler".to_string()],
+                    observed_category_ids: vec!["indexing_bot".to_string()],
+                    first_ts: 1_700_000_300,
+                    last_ts: 1_700_000_340,
+                    monitoring_event_count: 6,
+                    defense_delta_count: 0,
+                    ban_outcome_count: 0,
+                    owned_surface_coverage: Some(
+                        crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageSummary {
+                            overall_status: "covered".to_string(),
+                            canonical_surface_ids: vec![
+                                "public_path_traversal".to_string(),
+                                "challenge_routing".to_string(),
+                            ],
+                            surface_labels: std::collections::BTreeMap::from([
+                                (
+                                    "public_path_traversal".to_string(),
+                                    "Public Path Traversal".to_string(),
+                                ),
+                                (
+                                    "challenge_routing".to_string(),
+                                    "Challenge Routing".to_string(),
+                                ),
+                            ]),
+                            required_surface_ids: vec![
+                                "public_path_traversal".to_string(),
+                                "challenge_routing".to_string(),
+                            ],
+                            satisfied_surface_ids: vec![
+                                "public_path_traversal".to_string(),
+                                "challenge_routing".to_string(),
+                            ],
+                            blocking_surface_ids: Vec::new(),
+                            receipts: vec![
+                                crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageReceipt {
+                                    surface_id: "public_path_traversal".to_string(),
+                                    success_contract: "should_pass_some".to_string(),
+                                    dependency_kind: "independent".to_string(),
+                                    dependency_surface_ids: Vec::new(),
+                                    coverage_status: "pass_observed".to_string(),
+                                    surface_state: "satisfied".to_string(),
+                                    satisfied: true,
+                                    blocked_by_surface_ids: Vec::new(),
+                                    attempt_count: 2,
+                                    sample_request_method: "GET".to_string(),
+                                    sample_request_path: "/sim/public/landing".to_string(),
+                                    sample_response_status: Some(200),
+                                },
+                                crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageReceipt {
+                                    surface_id: "challenge_routing".to_string(),
+                                    success_contract: "mixed_outcomes".to_string(),
+                                    dependency_kind: "independent".to_string(),
+                                    dependency_surface_ids: Vec::new(),
+                                    coverage_status: "pass_observed".to_string(),
+                                    surface_state: "satisfied".to_string(),
+                                    satisfied: true,
+                                    blocked_by_surface_ids: Vec::new(),
+                                    attempt_count: 2,
+                                    sample_request_method: "GET".to_string(),
+                                    sample_request_path: "/challenge".to_string(),
+                                    sample_response_status: Some(200),
+                                },
+                            ],
+                        },
+                    ),
+                },
+                OperatorSnapshotRecentSimRun {
+                    run_id: "simrun-scrapling-current".to_string(),
+                    lane: "scrapling_traffic".to_string(),
+                    profile: "scrapling_runtime_lane".to_string(),
+                    observed_fulfillment_modes: vec![
+                        "crawler".to_string(),
+                        "bulk_scraper".to_string(),
+                    ],
+                    observed_category_ids: vec![
+                        "indexing_bot".to_string(),
+                        "ai_scraper_bot".to_string(),
+                    ],
+                    first_ts: 1_700_000_350,
+                    last_ts: 1_700_000_397,
+                    monitoring_event_count: 8,
+                    defense_delta_count: 0,
+                    ban_outcome_count: 0,
+                    owned_surface_coverage: Some(
+                        crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageSummary {
+                            overall_status: "covered".to_string(),
+                            canonical_surface_ids: vec![
+                                "public_path_traversal".to_string(),
+                                "challenge_routing".to_string(),
+                            ],
+                            surface_labels: std::collections::BTreeMap::from([
+                                (
+                                    "public_path_traversal".to_string(),
+                                    "Public Path Traversal".to_string(),
+                                ),
+                                (
+                                    "challenge_routing".to_string(),
+                                    "Challenge Routing".to_string(),
+                                ),
+                            ]),
+                            required_surface_ids: vec![
+                                "public_path_traversal".to_string(),
+                                "challenge_routing".to_string(),
+                            ],
+                            satisfied_surface_ids: vec![
+                                "public_path_traversal".to_string(),
+                                "challenge_routing".to_string(),
+                            ],
+                            blocking_surface_ids: Vec::new(),
+                            receipts: vec![
+                                crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageReceipt {
+                                    surface_id: "public_path_traversal".to_string(),
+                                    success_contract: "should_pass_some".to_string(),
+                                    dependency_kind: "independent".to_string(),
+                                    dependency_surface_ids: Vec::new(),
+                                    coverage_status: "pass_observed".to_string(),
+                                    surface_state: "satisfied".to_string(),
+                                    satisfied: true,
+                                    blocked_by_surface_ids: Vec::new(),
+                                    attempt_count: 2,
+                                    sample_request_method: "GET".to_string(),
+                                    sample_request_path: "/sim/public/landing".to_string(),
+                                    sample_response_status: Some(200),
+                                },
+                                crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageReceipt {
+                                    surface_id: "challenge_routing".to_string(),
+                                    success_contract: "mixed_outcomes".to_string(),
+                                    dependency_kind: "independent".to_string(),
+                                    dependency_surface_ids: Vec::new(),
+                                    coverage_status: "pass_observed".to_string(),
+                                    surface_state: "satisfied".to_string(),
+                                    satisfied: true,
+                                    blocked_by_surface_ids: Vec::new(),
+                                    attempt_count: 2,
+                                    sample_request_method: "GET".to_string(),
+                                    sample_request_path: "/challenge".to_string(),
+                                    sample_response_status: Some(200),
+                                },
+                            ],
+                        },
+                    ),
+                },
+            ],
+            OperatorSnapshotRecentChanges::default(),
+            1_700_000_398,
+            1_700_000_398,
+            1_700_000_398,
+        );
+        snapshot.non_human_traffic = covered_non_human_summary();
+        snapshot.non_human_traffic.restriction_readiness.status = "partial".to_string();
+        snapshot.non_human_traffic.restriction_readiness.blockers = vec![
+            "insufficient_category_evidence".to_string(),
+            "degraded_category_receipts_present".to_string(),
+        ];
+        snapshot.non_human_traffic.recognition_evaluation.readiness =
+            snapshot.non_human_traffic.restriction_readiness.clone();
+
+        let payload = build_benchmark_results_from_snapshot_sections(
+            snapshot.generated_at,
+            1_700_000_398,
+            &snapshot.window,
+            &snapshot.objectives,
+            &snapshot.live_traffic,
+            &snapshot.adversary_sim,
+            &snapshot.non_human_traffic,
+            &snapshot.budget_distance,
+            &summary,
+            &defaults(),
+            &snapshot.allowed_actions,
+            &ReplayPromotionSummary::not_materialized(),
+            None,
+        );
+
+        assert_eq!(payload.escalation_hint.evidence_quality.status, "high_confidence");
+        assert_eq!(
+            payload
+                .escalation_hint
+                .evidence_quality
+                .recent_window_support_status,
+            "reproduced_recently"
+        );
+        assert_eq!(payload.tuning_eligibility.status, "eligible");
+        assert!(!payload
+            .tuning_eligibility
+            .blockers
+            .contains(&"protected_lineage_missing".to_string()));
+        assert!(!payload
+            .tuning_eligibility
+            .blockers
+            .contains(&"protected_tuning_evidence_not_ready".to_string()));
         assert_eq!(payload.escalation_hint.decision, "config_tuning_candidate");
     }
 

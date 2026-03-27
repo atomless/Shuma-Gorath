@@ -768,6 +768,7 @@ mod tests {
                 status: "eligible".to_string(),
                 blockers: Vec::new(),
             },
+            protected_evidence: crate::observability::benchmark_results::unavailable_benchmark_protected_evidence_summary(),
             families: vec![family(metric("allowed_as_intended_rate", Some(1.0), "inside_budget"))],
             escalation_hint: crate::observability::benchmark_results::BenchmarkEscalationHint {
                 availability: "supported".to_string(),

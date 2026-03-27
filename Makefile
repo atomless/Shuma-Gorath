@@ -1211,6 +1211,7 @@ test-protected-tuning-evidence: ## Run focused protected-evidence eligibility ch
 	@$(MAKE) --no-print-directory test-replay-promotion-contract
 	@./scripts/set_crate_type.sh rlib
 	@cargo test observability::benchmark_results::tests::benchmark_results_fail_closed_when_protected_tuning_evidence_is_not_ready -- --exact --nocapture
+	@cargo test observability::benchmark_results::tests::benchmark_results_allow_strong_live_scrapling_runtime_without_replay_lineage -- --exact --nocapture
 	@cargo test admin::oversight_patch_policy::tests::advisory_only_replay_promotion_requires_review_verification -- --exact --nocapture
 	@cargo test observability::operator_snapshot::tests::snapshot_payload_surfaces_materialized_replay_promotion_summary -- --exact --nocapture
 	@cargo test admin::api::tests::handle_admin_benchmark_results_returns_bounded_current_instance_contract -- --exact --nocapture

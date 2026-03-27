@@ -4,6 +4,38 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-27)
 
+### RSI-GAME-ARCH-1G Live Protected Evidence For Strong Scrapling Runtime Pressure
+
+- [x] Completed `RSI-GAME-ARCH-1G` across:
+  - [`../src/observability/benchmark_results.rs`](../src/observability/benchmark_results.rs)
+  - [`../src/admin/oversight_patch_policy.rs`](../src/admin/oversight_patch_policy.rs)
+  - [`../src/admin/oversight_reconcile.rs`](../src/admin/oversight_reconcile.rs)
+  - [`../src/observability/benchmark_comparison.rs`](../src/observability/benchmark_comparison.rs)
+  - [`../src/test_support.rs`](../src/test_support.rs)
+  - [`../src/admin/oversight_agent.rs`](../src/admin/oversight_agent.rs)
+  - [`../dashboard/src/lib/domain/api-client.js`](../dashboard/src/lib/domain/api-client.js)
+  - [`../dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`../docs/api.md`](../docs/api.md)
+  - [`../docs/configuration.md`](../docs/configuration.md)
+  - [`../docs/dashboard-tabs/game-loop.md`](../docs/dashboard-tabs/game-loop.md)
+  - [`../docs/research/2026-03-27-rsi-game-arch-1g-live-protected-evidence-post-implementation-review.md`](../docs/research/2026-03-27-rsi-game-arch-1g-live-protected-evidence-post-implementation-review.md)
+- [x] What landed:
+  - `benchmark_results_v1` now carries an explicit `protected_evidence` summary separate from replay-lineage provenance,
+  - effective protected evidence now prefers strong live Scrapling runtime proof when the current board-state evidence is localized, shared-path, and reproduced,
+  - tuning eligibility and bounded move shaping no longer require replay-lineage review when the protected basis is live Scrapling runtime,
+  - and the Game Loop now renders `Protected Evidence` and `Replay Lineage` as separate trust rows.
+- [x] Why:
+  - the live Scrapling loop could not become a real RSI path while strong repeated board-state pressure still failed closed only because replay-promoted lineage had not been materialized.
+- [x] Evidence:
+  - [`../docs/research/2026-03-27-rsi-game-arch-1g-live-protected-evidence-post-implementation-review.md`](../docs/research/2026-03-27-rsi-game-arch-1g-live-protected-evidence-post-implementation-review.md)
+  - `make test-protected-tuning-evidence`
+  - `make test-benchmark-results-contract`
+  - `make test-rsi-score-move-selection`
+  - `make test-dashboard-game-loop-accountability`
+  - `git diff --check`
+
 ### Baseline Repair: IP-Bans Refresh Resilience And Operator-Snapshot Hot-Read Rebaseline
 
 - [x] Completed an unplanned but required baseline-repair slice across:

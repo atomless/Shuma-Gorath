@@ -823,6 +823,7 @@ export const adaptBenchmarkResults = (payload) => {
   const nonHumanClassification = asRecord(source.non_human_classification);
   const nonHumanCoverage = asRecord(source.non_human_coverage);
   const tuningEligibility = asRecord(source.tuning_eligibility);
+  const protectedEvidence = asRecord(source.protected_evidence);
   const escalationHint = asRecord(source.escalation_hint);
   const evidenceQuality = asRecord(escalationHint.evidence_quality);
   const controllerContract = asRecord(source.controller_contract);
@@ -868,6 +869,17 @@ export const adaptBenchmarkResults = (payload) => {
       blockers: Array.isArray(tuningEligibility.blockers)
         ? tuningEligibility.blockers.map((value) => String(value || ''))
         : []
+    },
+    protected_evidence: {
+      availability: String(protectedEvidence.availability || ''),
+      evidence_status: String(protectedEvidence.evidence_status || ''),
+      tuning_eligible: protectedEvidence.tuning_eligible === true,
+      protected_basis: String(protectedEvidence.protected_basis || ''),
+      protected_lineage_count: Number(protectedEvidence.protected_lineage_count || 0),
+      eligibility_blockers: Array.isArray(protectedEvidence.eligibility_blockers)
+        ? protectedEvidence.eligibility_blockers.map((value) => String(value || ''))
+        : [],
+      note: String(protectedEvidence.note || '')
     },
     escalation_hint: {
       availability: String(escalationHint.availability || ''),
