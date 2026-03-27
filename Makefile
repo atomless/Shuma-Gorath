@@ -1212,6 +1212,8 @@ test-protected-tuning-evidence: ## Run focused protected-evidence eligibility ch
 	@./scripts/set_crate_type.sh rlib
 	@cargo test observability::benchmark_results::tests::benchmark_results_fail_closed_when_protected_tuning_evidence_is_not_ready -- --exact --nocapture
 	@cargo test observability::benchmark_results::tests::benchmark_results_allow_strong_live_scrapling_runtime_without_replay_lineage -- --exact --nocapture
+	@cargo test admin::oversight_reconcile::tests::refuse_stale_replay_metadata_when_replay_promoted_lineage_is_current_basis -- --exact --nocapture
+	@cargo test admin::oversight_reconcile::tests::allow_stale_replay_metadata_when_live_runtime_protected_basis_is_current -- --exact --nocapture
 	@cargo test admin::oversight_patch_policy::tests::advisory_only_replay_promotion_requires_review_verification -- --exact --nocapture
 	@cargo test observability::operator_snapshot::tests::snapshot_payload_surfaces_materialized_replay_promotion_summary -- --exact --nocapture
 	@cargo test admin::api::tests::handle_admin_benchmark_results_returns_bounded_current_instance_contract -- --exact --nocapture
@@ -1456,6 +1458,7 @@ test-oversight-apply: ## Run focused closed-loop oversight canary apply and roll
 	@cargo test manual_reconcile_route_exposes_apply_eligibility_without_mutating_config -- --nocapture
 	@cargo test agent_cycle_refuses_canary_apply_when_rollout_guardrail_is_manual_only -- --nocapture
 	@cargo test agent_cycle_can_apply_one_canary_when_rollout_guardrail_is_canary_only -- --nocapture
+	@cargo test agent_cycle_can_apply_one_canary_with_live_runtime_protected_evidence_even_if_replay_metadata_is_stale -- --nocapture
 	@cargo test agent_cycle_reports_watch_window_open_before_candidate_window_ends -- --nocapture
 	@cargo test agent_cycle_rolls_back_canary_when_candidate_window_regresses -- --nocapture
 	@cargo test agent_cycle_keeps_canary_when_candidate_window_improves -- --nocapture

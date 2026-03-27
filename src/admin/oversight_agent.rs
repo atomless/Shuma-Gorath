@@ -432,7 +432,8 @@ mod tests {
     };
     use crate::observability::monitoring::{record_request_outcome, summarize_with_store};
     use crate::observability::operator_snapshot::{
-        build_operator_snapshot_payload, OperatorSnapshotRecentChanges,
+        build_operator_snapshot_payload, OperatorSnapshotHotReadPayload,
+        OperatorSnapshotRecentChanges,
     };
     use crate::runtime::effect_intents::ExecutionMode;
     use crate::runtime::request_outcome::{
@@ -797,6 +798,25 @@ mod tests {
         .expect("objectives save");
     }
 
+    fn mutate_seeded_snapshot(
+        store: &TestStore,
+        mutate: impl FnOnce(&mut OperatorSnapshotHotReadPayload),
+    ) {
+        let key = operator_snapshot_document_key("default");
+        let raw = store
+            .get(key.as_str())
+            .expect("snapshot lookup")
+            .expect("seeded snapshot");
+        let mut document: HotReadDocumentEnvelope<OperatorSnapshotHotReadPayload> =
+            serde_json::from_slice(raw.as_slice()).expect("snapshot document decodes");
+        mutate(&mut document.payload);
+        store.set(
+            key.as_str(),
+            &serde_json::to_vec(&document).expect("snapshot document serializes"),
+        )
+        .expect("snapshot update");
+    }
+
     #[test]
     fn agent_cycle_records_periodic_supervisor_run_and_exposes_latest_run() {
         let store = TestStore::new();
@@ -1019,6 +1039,58 @@ mod tests {
         cfg.fingerprint_signal_enabled = false;
         seed_canary_only_objectives(&store);
         seed_apply_ready_snapshot(&store, cfg);
+        let original_config = store
+            .get("config:default")
+            .expect("config lookup")
+            .expect("seeded config");
+
+        let execution = execute_agent_cycle(
+            &store,
+            "default",
+            OversightAgentTrigger {
+                kind: OversightAgentTriggerKind::PeriodicSupervisor,
+                requested_at_ts: 1_700_000_300,
+                sim_run_id: None,
+                sim_completion_reason: None,
+            },
+        )
+        .expect("agent cycle succeeds");
+
+        let payload = serde_json::to_value(&execution.run.execution).expect("payload serializes");
+        assert_eq!(payload["reconcile"]["outcome"], "recommend_patch");
+        assert_eq!(payload["apply"]["stage"], "canary_applied");
+        assert_eq!(payload["apply"]["patch_family"], "fingerprint_signal");
+
+        let persisted_config = store
+            .get("config:default")
+            .expect("config lookup")
+            .expect("persisted config");
+        assert_ne!(persisted_config, original_config);
+    }
+
+    #[test]
+    fn agent_cycle_can_apply_one_canary_with_live_runtime_protected_evidence_even_if_replay_metadata_is_stale() {
+        let store = TestStore::new();
+        let mut cfg = defaults().clone();
+        cfg.fingerprint_signal_enabled = false;
+        seed_canary_only_objectives(&store);
+        seed_apply_ready_snapshot(&store, cfg);
+        mutate_seeded_snapshot(&store, |payload| {
+            payload
+                .section_metadata
+                .get_mut("replay_promotion")
+                .expect("replay metadata present")
+                .refreshed_at_ts = payload.generated_at - payload.window.duration_seconds - 1;
+            payload.replay_promotion =
+                crate::observability::operator_snapshot::ReplayPromotionSummary::not_materialized();
+            payload.benchmark_results.replay_promotion = payload.replay_promotion.clone();
+            payload.benchmark_results.protected_evidence.protected_basis =
+                "live_scrapling_runtime".to_string();
+            payload.benchmark_results.protected_evidence.protected_lineage_count = 0;
+            payload.benchmark_results.protected_evidence.note =
+                "Strong live Scrapling runtime evidence is protected without replay lineage."
+                    .to_string();
+        });
         let original_config = store
             .get("config:default")
             .expect("config lookup")

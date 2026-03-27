@@ -518,7 +518,7 @@ fn config_ring_exhausted_family(
 
 pub(crate) fn stale_evidence_reasons(snapshot: &OperatorSnapshotHotReadPayload) -> Vec<String> {
     let max_age_seconds = snapshot.window.duration_seconds.max(1);
-    ["live_traffic", "adversary_sim", "benchmark_results", "replay_promotion"]
+    required_stale_evidence_sections(snapshot)
         .iter()
         .filter_map(|key| {
             let metadata = snapshot.section_metadata.get(*key)?;
@@ -530,6 +530,18 @@ pub(crate) fn stale_evidence_reasons(snapshot: &OperatorSnapshotHotReadPayload) 
             }
         })
         .collect()
+}
+
+fn required_stale_evidence_sections(
+    snapshot: &OperatorSnapshotHotReadPayload,
+) -> Vec<&'static str> {
+    let mut sections = vec!["live_traffic", "adversary_sim", "benchmark_results"];
+    if snapshot.benchmark_results.protected_evidence.protected_basis
+        == "replay_promoted_lineage"
+    {
+        sections.push("replay_promotion");
+    }
+    sections
 }
 
 pub(crate) fn contradictory_evidence_reasons(
@@ -1126,6 +1138,49 @@ mod tests {
         assert!(result
             .refusal_reasons
             .contains(&"benchmark_results_stale".to_string()));
+    }
+
+    #[test]
+    fn refuse_stale_replay_metadata_when_replay_promoted_lineage_is_current_basis() {
+        let cfg = defaults().clone();
+        let mut snapshot = sample_snapshot();
+        snapshot
+            .section_metadata
+            .get_mut("replay_promotion")
+            .expect("replay metadata present")
+            .refreshed_at_ts = snapshot.generated_at - snapshot.window.duration_seconds - 1;
+
+        let result = reconcile(&cfg, &snapshot, "manual_admin");
+
+        assert_eq!(reconcile_outcome(&result), "refuse_stale_evidence");
+        assert!(result
+            .refusal_reasons
+            .contains(&"replay_promotion_stale".to_string()));
+    }
+
+    #[test]
+    fn allow_stale_replay_metadata_when_live_runtime_protected_basis_is_current() {
+        let mut cfg = defaults().clone();
+        cfg.fingerprint_signal_enabled = false;
+        let mut snapshot = sample_snapshot();
+        snapshot
+            .section_metadata
+            .get_mut("replay_promotion")
+            .expect("replay metadata present")
+            .refreshed_at_ts = snapshot.generated_at - snapshot.window.duration_seconds - 1;
+        snapshot.replay_promotion = ReplayPromotionSummary::not_materialized();
+        snapshot.benchmark_results.replay_promotion = snapshot.replay_promotion.clone();
+        snapshot.benchmark_results.protected_evidence.protected_basis =
+            "live_scrapling_runtime".to_string();
+        snapshot.benchmark_results.protected_evidence.protected_lineage_count = 0;
+        snapshot.benchmark_results.protected_evidence.note =
+            "Strong live Scrapling runtime evidence is protected without replay lineage."
+                .to_string();
+
+        let result = reconcile(&cfg, &snapshot, "manual_admin");
+
+        assert_eq!(reconcile_outcome(&result), "recommend_patch");
+        assert!(result.refusal_reasons.is_empty());
     }
 
     #[test]

@@ -4,6 +4,49 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-27)
 
+### RSI-GAME-ARCH-1I Runtime-Dev Seeded Canary Apply Default
+
+- [x] Completed `RSI-GAME-ARCH-1I` across:
+  - [`../src/observability/operator_objectives_store.rs`](../src/observability/operator_objectives_store.rs)
+  - [`../Makefile`](../Makefile)
+  - [`../docs/configuration.md`](../docs/configuration.md)
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../docs/research/2026-03-27-rsi-game-arch-1i-runtime-dev-canary-seed-post-implementation-review.md`](../docs/research/2026-03-27-rsi-game-arch-1i-runtime-dev-canary-seed-post-implementation-review.md)
+- [x] What landed:
+  - runtime-dev seeded default objectives now auto-upgrade to `canary_only`,
+  - runtime-prod seeded defaults remain `manual_only`,
+  - operator-owned profiles remain untouched,
+  - and live local Scrapling pressure can now progress into `canary_applied` once the current objectives actually permit mutation.
+- [x] Why:
+  - after the stale-guard repair, the live local strict Scrapling loop was still stopping at `automated_apply_manual_only`, so the next necessary step was a narrow dev-only defaulting fix that did not silently broaden the production default or overwrite operator-owned objectives.
+- [x] Evidence:
+  - [`../docs/research/2026-03-27-rsi-game-arch-1i-runtime-dev-canary-seed-post-implementation-review.md`](../docs/research/2026-03-27-rsi-game-arch-1i-runtime-dev-canary-seed-post-implementation-review.md)
+  - `make test-operator-objectives-contract`
+  - `make test-oversight-apply`
+  - `make test-adversary-sim-runtime-surface`
+  - live local evidence from `GET /admin/operator-snapshot` and `GET /admin/oversight/agent/status` after explicitly updating the current operator-owned profile to `canary_only`
+
+### RSI-GAME-ARCH-1H Live Protected Evidence Stale-Guard Alignment
+
+- [x] Completed `RSI-GAME-ARCH-1H` across:
+  - [`../src/admin/oversight_reconcile.rs`](../src/admin/oversight_reconcile.rs)
+  - [`../src/admin/oversight_agent.rs`](../src/admin/oversight_agent.rs)
+  - [`../Makefile`](../Makefile)
+  - [`../docs/research/2026-03-27-rsi-game-arch-1h-live-protected-evidence-stale-guard-post-implementation-review.md`](../docs/research/2026-03-27-rsi-game-arch-1h-live-protected-evidence-stale-guard-post-implementation-review.md)
+- [x] What landed:
+  - reconcile and apply now derive stale required-input sections from the active protected-evidence basis,
+  - replay freshness still fail-closes replay-lineage-based tuning,
+  - and strong live Scrapling runtime evidence no longer fails closed solely because replay metadata is stale.
+- [x] Why:
+  - the benchmark and patch-policy layers already trusted live protected Scrapling runtime evidence, but the controller still refused to act because it was using the old replay-only stale-input rule.
+- [x] Evidence:
+  - [`../docs/research/2026-03-27-rsi-game-arch-1h-live-protected-evidence-stale-guard-post-implementation-review.md`](../docs/research/2026-03-27-rsi-game-arch-1h-live-protected-evidence-stale-guard-post-implementation-review.md)
+  - `make test-protected-tuning-evidence`
+  - `make test-rsi-score-move-selection`
+  - `make test-oversight-apply`
+  - `make test-adversary-sim-runtime-surface`
+  - live local evidence from `POST /admin/oversight/reconcile` showing `recommend_patch` instead of `refuse_stale_evidence`
+
 ### RSI-GAME-ARCH-1G Live Protected Evidence For Strong Scrapling Runtime Pressure
 
 - [x] Completed `RSI-GAME-ARCH-1G` across:

@@ -372,6 +372,10 @@ Operator-objectives contract notes:
 - `rollout_guardrails.automated_apply_status` must be `manual_only` or `canary_only`.
 - `rollout_guardrails.automated_apply_status=manual_only` means the agent may diagnose and preview eligibility but must not mutate config.
 - `rollout_guardrails.automated_apply_status=canary_only` means the shared-host agent may apply at most one controller-approved config-family canary, hold it through the protected watch window, and either retain it on improved evidence or restore the exact pre-canary config on rollback.
+- Seeded-default rollout mode differs by runtime:
+  - `runtime_prod` seeded defaults stay `manual_only`.
+  - `runtime_dev` seeded defaults auto-upgrade to `canary_only` only while the profile is still a seeded default.
+  - Operator-edited profiles are not auto-rewritten by that runtime-dev convenience upgrade.
 - `rollout_guardrails.code_evolution_status` must be `review_required`.
 - Successful objective writes assign a new server-owned revision, record a bounded decision/evidence row for later reconcile reasoning, and refresh `operator_snapshot_v1`.
 

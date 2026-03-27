@@ -41,10 +41,21 @@ pub(crate) fn load_or_seed_operator_objectives<S: KeyValueStore>(
             }
             return upgraded;
         }
+        if should_upgrade_runtime_dev_seeded_default(&profile) {
+            let upgraded = runtime_dev_seeded_default_operator_objectives(generated_at_ts);
+            if save_operator_objectives(store, site_id, &upgraded).is_ok() {
+                return upgraded;
+            }
+            return upgraded;
+        }
         return profile;
     }
 
-    let profile = default_operator_objectives(generated_at_ts);
+    let profile = if crate::config::runtime_environment().is_dev() {
+        runtime_dev_seeded_default_operator_objectives(generated_at_ts)
+    } else {
+        default_operator_objectives(generated_at_ts)
+    };
     if save_operator_objectives(store, site_id, &profile).is_ok() {
         profile
     } else {
@@ -57,6 +68,18 @@ fn should_upgrade_legacy_seeded_default(profile: &OperatorObjectivesProfile) -> 
     profile.source == "seeded_default_profile"
         && profile.profile_id == LEGACY_SITE_DEFAULT_OBJECTIVE_PROFILE_ID
         && profile.profile_id != HUMAN_ONLY_PRIVATE_OBJECTIVE_PROFILE_ID
+}
+
+fn should_upgrade_runtime_dev_seeded_default(profile: &OperatorObjectivesProfile) -> bool {
+    crate::config::runtime_environment().is_dev()
+        && profile.source == "seeded_default_profile"
+        && profile.rollout_guardrails.automated_apply_status == "manual_only"
+}
+
+fn runtime_dev_seeded_default_operator_objectives(updated_at_ts: u64) -> OperatorObjectivesProfile {
+    let mut profile = default_operator_objectives(updated_at_ts);
+    profile.rollout_guardrails.automated_apply_status = "canary_only".to_string();
+    profile
 }
 
 pub(crate) fn save_operator_objectives<S: KeyValueStore>(
@@ -119,6 +142,8 @@ mod tests {
 
     #[test]
     fn load_or_seed_operator_objectives_persists_default_profile_once() {
+        let _lock = crate::test_support::lock_env();
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
         let store = TestStore::new();
 
         let seeded = load_or_seed_operator_objectives(&store, "default", 1_700_000_000);
@@ -126,6 +151,10 @@ mod tests {
 
         assert_eq!(seeded.profile_id, "human_only_private");
         assert_eq!(seeded.revision, "rev-1700000000");
+        assert_eq!(
+            seeded.rollout_guardrails.automated_apply_status,
+            "manual_only"
+        );
         assert_eq!(loaded.revision, "rev-1700000000");
         assert!(store
             .get(&operator_objectives_key("default"))
@@ -135,6 +164,8 @@ mod tests {
 
     #[test]
     fn load_or_seed_operator_objectives_upgrades_legacy_seeded_mixed_site_profile() {
+        let _lock = crate::test_support::lock_env();
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
         let store = TestStore::new();
         let mut legacy = default_operator_objectives(1_699_999_900);
         legacy.profile_id = "site_default_v1".to_string();
@@ -155,6 +186,8 @@ mod tests {
 
     #[test]
     fn save_operator_objectives_round_trips_valid_profile() {
+        let _lock = crate::test_support::lock_env();
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
         let store = TestStore::new();
         let profile = default_operator_objectives(1_700_000_000);
 
@@ -162,5 +195,58 @@ mod tests {
         let loaded = load_operator_objectives(&store, "default").expect("profile loads");
 
         assert_eq!(loaded, profile);
+    }
+
+    #[test]
+    fn load_or_seed_operator_objectives_seeds_canary_only_in_runtime_dev() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        let store = TestStore::new();
+
+        let seeded = load_or_seed_operator_objectives(&store, "default", 1_700_000_000);
+
+        assert_eq!(seeded.profile_id, "human_only_private");
+        assert_eq!(
+            seeded.rollout_guardrails.automated_apply_status,
+            "canary_only"
+        );
+    }
+
+    #[test]
+    fn load_or_seed_operator_objectives_upgrades_existing_seeded_manual_only_profile_in_runtime_dev() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        let store = TestStore::new();
+        let profile = default_operator_objectives(1_699_999_900);
+
+        save_operator_objectives(&store, "default", &profile).expect("save succeeds");
+
+        let loaded = load_or_seed_operator_objectives(&store, "default", 1_700_000_000);
+
+        assert_eq!(loaded.revision, "rev-1700000000");
+        assert_eq!(
+            loaded.rollout_guardrails.automated_apply_status,
+            "canary_only"
+        );
+    }
+
+    #[test]
+    fn load_or_seed_operator_objectives_does_not_override_operator_owned_manual_only_profile_in_runtime_dev() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        let store = TestStore::new();
+        let mut profile = default_operator_objectives(1_699_999_900);
+        profile.source = "admin_api".to_string();
+
+        save_operator_objectives(&store, "default", &profile).expect("save succeeds");
+
+        let loaded = load_or_seed_operator_objectives(&store, "default", 1_700_000_000);
+
+        assert_eq!(loaded.revision, "rev-1699999900");
+        assert_eq!(
+            loaded.rollout_guardrails.automated_apply_status,
+            "manual_only"
+        );
+        assert_eq!(loaded.source, "admin_api");
     }
 }
