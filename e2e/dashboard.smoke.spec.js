@@ -2768,7 +2768,8 @@ test("game loop tab separates judge planes, breach loci, and config exhaustion s
   await openTab(page, "game-loop");
   await expect(page.locator("#game-loop-current-status-exploit-progress")).toHaveText(/Outside Budget/i);
   await expect(page.locator("#game-loop-current-status-evidence-quality")).toHaveText(/High Confidence/i);
-  await expect(page.locator("#game-loop-current-status-urgency")).toHaveText(/Critical/i);
+  await expect(page.locator("#game-loop-current-status-exploit-urgency")).toHaveText(/Critical|Outside Budget/i);
+  await expect(page.locator("#game-loop-current-status-human-friction-urgency")).toHaveText(/Steady/i);
   await expect(page.locator("#game-loop-current-status-loop-actionability")).toContainText(
     /config ring exhausted/i
   );
@@ -2786,6 +2787,8 @@ test("game loop tab separates judge planes, breach loci, and config exhaustion s
   await expect(page.locator("#game-loop-breach-loci")).toContainText("Maze Navigation");
   await expect(page.locator("#game-loop-breach-loci")).toContainText("GET /maze");
   await expect(page.locator("#game-loop-breach-loci")).toContainText("GET /detail/2");
+  await expect(page.locator("#game-loop-change-judgment")).toContainText("Exploit urgency");
+  await expect(page.locator("#game-loop-change-judgment")).toContainText("Human friction urgency");
   await expect(page.locator("#game-loop-surface-contract")).toContainText(
     "Surface Contract Satisfaction"
   );

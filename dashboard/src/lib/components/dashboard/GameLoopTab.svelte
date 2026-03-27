@@ -310,6 +310,11 @@
     return items.length ? items.join(', ') : 'not available';
   };
 
+  const joinStatusSummary = (parts, fallback) => {
+    const normalized = dedupeStrings(parts.filter(Boolean));
+    return normalized.length ? normalized.join(' | ') : fallback;
+  };
+
   $: latestHistoryRows = toArray(oversightHistory?.rows).slice(0, 6);
   $: latestHistoryRow = latestHistoryRows[0] || null;
   $: latestDecision = asRecord(oversightAgentStatus?.latest_decision);
@@ -398,6 +403,36 @@
   $: homeostasisBreakStatus = String(
     homeostasisSummary?.break_status || urgencySummary?.homeostasis_break_status || ''
   ).trim();
+  $: exploitUrgencyValue = humanizeToken(urgencySummary?.exploit_short_window_status);
+  $: exploitUrgencyNote = joinStatusSummary(
+    [
+      urgencySummary?.exploit_short_window_status
+        ? `Short window ${humanizeToken(urgencySummary?.exploit_short_window_status, 'sentence')}`
+        : '',
+      urgencySummary?.exploit_long_window_status
+        ? `Trend ${humanizeToken(urgencySummary?.exploit_long_window_status, 'sentence')}`
+        : '',
+      homeostasisBreakStatus
+        ? `Homeostasis ${humanizeToken(homeostasisBreakStatus, 'sentence')}`
+        : ''
+    ],
+    urgencySummary?.note || 'Exploit urgency is not materialized yet.'
+  );
+  $: humanFrictionUrgencyValue = humanizeToken(urgencySummary?.likely_human_short_window_status);
+  $: humanFrictionUrgencyNote = joinStatusSummary(
+    [
+      urgencySummary?.likely_human_short_window_status
+        ? `Short window ${humanizeToken(
+            urgencySummary?.likely_human_short_window_status,
+            'sentence'
+          )}`
+        : '',
+      urgencySummary?.likely_human_long_window_status
+        ? `Trend ${humanizeToken(urgencySummary?.likely_human_long_window_status, 'sentence')}`
+        : ''
+    ],
+    'Human-friction urgency is not materialized yet.'
+  );
   $: restartBaseline = asRecord(homeostasisSummary?.restart_baseline);
   $: categoryPostureTargets = new Map(
     toArray(operatorSnapshot?.objectives?.category_postures).map((row) => [
@@ -520,10 +555,16 @@
         'Diagnosis confidence and evidence quality have not been materialized yet.'
     },
     {
-      title: 'Urgency',
-      valueId: 'game-loop-current-status-urgency',
-      value: humanizeToken(urgencySummary?.status),
-      note: urgencySummary?.note || 'Urgency scoring is not materialized yet.'
+      title: 'Exploit Urgency',
+      valueId: 'game-loop-current-status-exploit-urgency',
+      value: exploitUrgencyValue,
+      note: exploitUrgencyNote
+    },
+    {
+      title: 'Human Friction Urgency',
+      valueId: 'game-loop-current-status-human-friction-urgency',
+      value: humanFrictionUrgencyValue,
+      note: humanFrictionUrgencyNote
     }
   ];
   $: trustBlockers = dedupeStrings([
@@ -698,7 +739,19 @@
               <span class="status-value">
                 {humanizeToken(benchmarkResults?.overall_status)}
                 | improvement {humanizeToken(benchmarkResults?.improvement_status, 'sentence')}
-                | urgency {humanizeToken(urgencySummary?.status, 'sentence')}
+                | coverage {humanizeToken(benchmarkResults?.coverage_status, 'sentence')}
+              </span>
+            </div>
+            <div class="info-row">
+              <span class="info-label text-muted">Urgency Split:</span>
+              <span class="status-value">
+                Exploit urgency {humanizeToken(urgencySummary?.exploit_short_window_status, 'sentence')}
+                | trend {humanizeToken(urgencySummary?.exploit_long_window_status, 'sentence')}
+                | Human friction urgency {humanizeToken(
+                  urgencySummary?.likely_human_short_window_status,
+                  'sentence'
+                )}
+                | trend {humanizeToken(urgencySummary?.likely_human_long_window_status, 'sentence')}
               </span>
             </div>
             <div class="info-row">

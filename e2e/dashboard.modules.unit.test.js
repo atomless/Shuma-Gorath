@@ -6885,13 +6885,17 @@ test('dashboard game loop accountability source distinguishes judge planes and l
 
   assert.match(gameLoopSource, /game-loop-current-status-exploit-progress/);
   assert.match(gameLoopSource, /game-loop-current-status-evidence-quality/);
-  assert.match(gameLoopSource, /game-loop-current-status-urgency/);
+  assert.match(gameLoopSource, /game-loop-current-status-exploit-urgency/);
+  assert.match(gameLoopSource, /game-loop-current-status-human-friction-urgency/);
+  assert.doesNotMatch(gameLoopSource, /game-loop-current-status-urgency/);
   assert.match(gameLoopSource, /game-loop-current-status-loop-actionability/);
   assert.match(gameLoopSource, /game-loop-progress-break-state/);
   assert.match(gameLoopSource, /game-loop-exploit-progress/);
   assert.match(gameLoopSource, /game-loop-breach-loci/);
   assert.match(gameLoopSource, /game-loop-surface-contract/);
   assert.match(gameLoopSource, /Judge State:/);
+  assert.match(gameLoopSource, /Exploit urgency/);
+  assert.match(gameLoopSource, /Human friction urgency/);
   assert.match(gameLoopSource, /Loop Actionability:/);
   assert.match(gameLoopSource, /Diagnosis:/);
   assert.match(gameLoopSource, /Move Or Escalation:/);
