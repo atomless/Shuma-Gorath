@@ -572,6 +572,12 @@ mod tests {
                     },
                     simulator_ground_truth:
                         crate::observability::non_human_classification::NonHumanSimulatorGroundTruthSummary::default(),
+                    comparison_status: "not_observed".to_string(),
+                    current_exact_match_count: 0,
+                    degraded_match_count: 0,
+                    collapsed_to_unknown_count: 0,
+                    not_materialized_count: 0,
+                    comparison_rows: Vec::new(),
                     receipts: Vec::new(),
                 },
         }
@@ -1329,6 +1335,12 @@ mod tests {
                         },
                         simulator_ground_truth:
                             crate::observability::non_human_classification::NonHumanSimulatorGroundTruthSummary::default(),
+                        comparison_status: "not_observed".to_string(),
+                        current_exact_match_count: 0,
+                        degraded_match_count: 0,
+                        collapsed_to_unknown_count: 0,
+                        not_materialized_count: 0,
+                        comparison_rows: Vec::new(),
                         receipts: Vec::new(),
                     },
             },

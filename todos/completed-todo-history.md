@@ -4,6 +4,27 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-27)
 
+### RSI-SCORE-2F2 Recognition-Evaluation Rail Audit And Honest Collapse-To-Unknown Proof
+
+- [x] Completed `RSI-SCORE-2F2` across:
+  - [`src/observability/operator_snapshot_non_human.rs`](../src/observability/operator_snapshot_non_human.rs)
+  - [`src/observability/non_human_classification.rs`](../src/observability/non_human_classification.rs)
+  - [`src/observability/benchmark_results.rs`](../src/observability/benchmark_results.rs)
+  - [`src/observability/benchmark_beneficial_non_human.rs`](../src/observability/benchmark_beneficial_non_human.rs)
+  - [`src/admin/oversight_reconcile.rs`](../src/admin/oversight_reconcile.rs)
+  - [`docs/research/2026-03-27-rsi-score-2f2-recognition-evaluation-rail-post-implementation-review.md`](../docs/research/2026-03-27-rsi-score-2f2-recognition-evaluation-rail-post-implementation-review.md)
+- [x] What landed:
+  - recognition evaluation now treats current collapse to `unknown_non_human` as a real Shuma inference outcome rather than silently missing it,
+  - harness-only `projected_recent_sim_run` category placeholders no longer count as degraded recognition matches,
+  - and the recognition side quest now stays honest about which hostile categories are still not exact on the shared hostile path.
+- [x] Why:
+  - the new three-rail Game Loop design depends on simulator truth being powerful for evaluation without ever becoming a fake runtime oracle, and the evaluator still had a subtle path where it could overstate Shuma’s current categorisation ability.
+- [x] Evidence:
+  - [`docs/research/2026-03-27-rsi-score-2f2-recognition-evaluation-rail-post-implementation-review.md`](../docs/research/2026-03-27-rsi-score-2f2-recognition-evaluation-rail-post-implementation-review.md)
+  - `make test-traffic-classification-contract`
+  - `make test-benchmark-results-contract`
+  - `make test-dashboard-game-loop-accountability`
+
 ### RSI-GAME-ARCH-1A Restriction-Vs-Recognition Snapshot Split
 
 - [x] Completed `RSI-GAME-ARCH-1A` across:
