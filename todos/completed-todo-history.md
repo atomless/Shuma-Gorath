@@ -4,6 +4,34 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-27)
 
+### RSI-GAME-ARCH-1B Restriction-First Score Spine Reset
+
+- [x] Completed `RSI-GAME-ARCH-1B` across:
+  - [`src/observability/operator_snapshot_objectives.rs`](../src/observability/operator_snapshot_objectives.rs)
+  - [`src/observability/benchmark_results_comparison.rs`](../src/observability/benchmark_results_comparison.rs)
+  - [`src/observability/benchmark_suite.rs`](../src/observability/benchmark_suite.rs)
+  - [`src/observability/benchmark_results.rs`](../src/observability/benchmark_results.rs)
+  - [`dashboard/src/lib/domain/api-client.js`](../dashboard/src/lib/domain/api-client.js)
+  - [`dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
+  - [`e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`docs/dashboard-tabs/game-loop.md`](../docs/dashboard-tabs/game-loop.md)
+  - [`docs/research/2026-03-27-rsi-game-arch-1b-restriction-first-score-spine-post-implementation-review.md`](../docs/research/2026-03-27-rsi-game-arch-1b-restriction-first-score-spine-post-implementation-review.md)
+- [x] What landed:
+  - removed category posture from the recursive-improvement optimization targets, rollback inputs, and homeostasis inputs for undeclared hostile traffic,
+  - stopped `non_human_category_posture` from acting as the main overall-status or escalation trigger when it is the only outside-budget family,
+  - re-scoped the family as recognition evaluation in the benchmark contract,
+  - and renamed the Game Loop card to `Recognition Evaluation` so the categorisation side quest is clearly separated from the main restriction quest.
+- [x] Why:
+  - the March 27 architecture clarification required the Game Loop to stop using category posture as if it were the attacker scoreboard for undeclared hostile traffic and instead make restriction-first board state the main spine.
+- [x] Evidence:
+  - [`docs/research/2026-03-27-rsi-game-arch-1b-restriction-first-score-spine-post-implementation-review.md`](../docs/research/2026-03-27-rsi-game-arch-1b-restriction-first-score-spine-post-implementation-review.md)
+  - `make test-operator-objectives-contract`
+  - `make test-benchmark-results-contract`
+  - `make test-rsi-score-move-selection`
+  - `make dashboard-build`
+  - `make test-dashboard-game-loop-accountability`
+
 ### RSI-SCORE-2F2 Recognition-Evaluation Rail Audit And Honest Collapse-To-Unknown Proof
 
 - [x] Completed `RSI-SCORE-2F2` across:

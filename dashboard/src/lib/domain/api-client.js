@@ -150,6 +150,58 @@ const adaptCountEntries = (value) => {
 /**
  * @param {unknown} value
  */
+const adaptNonHumanClassificationReadiness = (value) => {
+  const source = asRecord(value);
+  return {
+    status: String(source.status || ''),
+    blockers: Array.isArray(source.blockers)
+      ? source.blockers.map((entry) => String(entry || ''))
+      : [],
+    live_receipt_count: Number(source.live_receipt_count || 0),
+    adversary_sim_receipt_count: Number(source.adversary_sim_receipt_count || 0)
+  };
+};
+
+/**
+ * @param {unknown} value
+ */
+const adaptNonHumanCoverageSummary = (value) => {
+  const source = asRecord(value);
+  return {
+    overall_status: String(source.overall_status || ''),
+    blocking_reasons: Array.isArray(source.blocking_reasons)
+      ? source.blocking_reasons.map((entry) => String(entry || ''))
+      : [],
+    blocking_category_ids: Array.isArray(source.blocking_category_ids)
+      ? source.blocking_category_ids.map((entry) => String(entry || ''))
+      : []
+  };
+};
+
+/**
+ * @param {unknown} value
+ */
+const adaptRecognitionComparisonRow = (value) => {
+  const source = asRecord(value);
+  return {
+    category_id: String(source.category_id || ''),
+    category_label: String(source.category_label || ''),
+    inference_capability_status: String(source.inference_capability_status || ''),
+    comparison_status: String(source.comparison_status || ''),
+    inferred_category_id: String(source.inferred_category_id || ''),
+    inferred_category_label: String(source.inferred_category_label || ''),
+    exactness: String(source.exactness || ''),
+    basis: String(source.basis || ''),
+    note: String(source.note || ''),
+    evidence_references: Array.isArray(source.evidence_references)
+      ? source.evidence_references.map((entry) => String(entry || ''))
+      : []
+  };
+};
+
+/**
+ * @param {unknown} value
+ */
 const adaptLaneCounterState = (value) => {
   const source = asRecord(value);
   return {
@@ -504,6 +556,9 @@ export const adaptOperatorSnapshot = (payload) => {
   const adversarySim = asRecord(source.adversary_sim);
   const recentChanges = asRecord(source.recent_changes);
   const verifiedIdentity = asRecord(source.verified_identity);
+  const nonHumanTraffic = asRecord(source.non_human_traffic);
+  const restrictionReadiness = asRecord(nonHumanTraffic.restriction_readiness);
+  const recognitionEvaluation = asRecord(nonHumanTraffic.recognition_evaluation);
   const taxonomyAlignment = asRecord(verifiedIdentity.taxonomy_alignment);
   const policyTranche = asRecord(verifiedIdentity.policy_tranche);
   const effectiveNonHumanPolicy = asRecord(verifiedIdentity.effective_non_human_policy);
@@ -567,6 +622,24 @@ export const adaptOperatorSnapshot = (payload) => {
           expected_impact_summary: String(record.expected_impact_summary || '')
         };
       })
+    },
+    non_human_traffic: {
+      availability: String(nonHumanTraffic.availability || ''),
+      restriction_readiness: adaptNonHumanClassificationReadiness(restrictionReadiness),
+      recognition_evaluation: {
+        comparison_status: String(recognitionEvaluation.comparison_status || ''),
+        current_exact_match_count: Number(recognitionEvaluation.current_exact_match_count || 0),
+        degraded_match_count: Number(recognitionEvaluation.degraded_match_count || 0),
+        collapsed_to_unknown_count: Number(
+          recognitionEvaluation.collapsed_to_unknown_count || 0
+        ),
+        not_materialized_count: Number(recognitionEvaluation.not_materialized_count || 0),
+        readiness: adaptNonHumanClassificationReadiness(recognitionEvaluation.readiness),
+        coverage: adaptNonHumanCoverageSummary(recognitionEvaluation.coverage),
+        comparison_rows: asObjectArray(recognitionEvaluation.comparison_rows).map(
+          adaptRecognitionComparisonRow
+        )
+      }
     },
     verified_identity: {
       availability: String(verifiedIdentity.availability || ''),
@@ -711,23 +784,8 @@ export const adaptBenchmarkResults = (payload) => {
       generated_at: adaptOptionalNumber(baselineReference.generated_at),
       note: String(baselineReference.note || '')
     },
-    non_human_classification: {
-      status: String(nonHumanClassification.status || ''),
-      blockers: Array.isArray(nonHumanClassification.blockers)
-        ? nonHumanClassification.blockers.map((value) => String(value || ''))
-        : [],
-      live_receipt_count: Number(nonHumanClassification.live_receipt_count || 0),
-      adversary_sim_receipt_count: Number(nonHumanClassification.adversary_sim_receipt_count || 0)
-    },
-    non_human_coverage: {
-      overall_status: String(nonHumanCoverage.overall_status || ''),
-      blocking_reasons: Array.isArray(nonHumanCoverage.blocking_reasons)
-        ? nonHumanCoverage.blocking_reasons.map((value) => String(value || ''))
-        : [],
-      blocking_category_ids: Array.isArray(nonHumanCoverage.blocking_category_ids)
-        ? nonHumanCoverage.blocking_category_ids.map((value) => String(value || ''))
-        : []
-    },
+    non_human_classification: adaptNonHumanClassificationReadiness(nonHumanClassification),
+    non_human_coverage: adaptNonHumanCoverageSummary(nonHumanCoverage),
     tuning_eligibility: {
       status: String(tuningEligibility.status || ''),
       blockers: Array.isArray(tuningEligibility.blockers)

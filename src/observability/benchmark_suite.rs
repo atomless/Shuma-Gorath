@@ -297,9 +297,9 @@ pub(crate) fn benchmark_suite_v1() -> BenchmarkSuiteContract {
             BenchmarkFamilyContract {
                 id: "non_human_category_posture".to_string(),
                 decision_question:
-                    "Are observed category outcomes aligning with the operator's persisted per-category non-human posture?"
+                    "How well is Shuma's shared-path recognition aligning with simulator-ground-truth hostile category intent, without letting that harness truth drive runtime restriction?"
                         .to_string(),
-                eligible_population: "non_human_category_receipts".to_string(),
+                eligible_population: "recognition_evaluation_category_receipts".to_string(),
                 comparison_modes: vec![
                     "prior_window".to_string(),
                     "baseline".to_string(),

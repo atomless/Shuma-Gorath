@@ -41,7 +41,7 @@
       id: 'pressure-sits',
       title: 'Board State',
       description:
-        'Terrain breach progress, surface-contract satisfaction, category posture scoring, and recent change context shown as separate truths.'
+        'Terrain breach progress, surface-contract satisfaction, recognition evaluation, and recent change context shown as separate truths.'
     },
     {
       id: 'trust-and-blockers',
@@ -335,6 +335,7 @@
   ).length;
   $: currentObjectiveProfileId = String(operatorSnapshot?.objectives?.profile_id || '').trim();
   $: currentPolicyProfile = resolveGameLoopPolicyProfile(currentObjectiveProfileId);
+  $: recognitionEvaluation = asRecord(operatorSnapshot?.non_human_traffic?.recognition_evaluation);
   $: suspiciousOriginCostFamily = findBenchmarkFamily('suspicious_origin_cost');
   $: likelyHumanFrictionFamily = findBenchmarkFamily('likely_human_friction');
   $: exploitProgressFamily = findBenchmarkFamily('scrapling_exploit_progress');
@@ -919,13 +920,31 @@
               <p class="text-muted">No receipt-backed Scrapling surface-contract evidence is materialized yet.</p>
             {/if}
           </article>
-          <article id="game-loop-category-target-achievement" class="card panel panel-border pad-md-b">
-            <h3 class="caps-label">Category Posture Achievement</h3>
+          <article id="game-loop-recognition-evaluation" class="card panel panel-border pad-md-b">
+            <h3 class="caps-label">Recognition Evaluation</h3>
             <p class="text-muted">
-              These rows score category-level posture alignment from Shuma-side evidence. They do not prove whether Scrapling satisfied or failed its required defense-surface contract.
+              These rows are the recognition side quest. They compare Shuma-side category inference against simulator-known intent after the fact and must not drive bounded tuning or runtime restriction directly.
             </p>
+            <div class="status-rows">
+              <div class="info-row">
+                <span class="info-label text-muted">Recognition Status:</span>
+                <span class="status-value">
+                  {humanizeToken(recognitionEvaluation?.comparison_status)}
+                  | readiness {humanizeToken(recognitionEvaluation?.readiness?.status)}
+                  | coverage {humanizeToken(recognitionEvaluation?.coverage?.overall_status)}
+                </span>
+              </div>
+              <div class="info-row">
+                <span class="info-label text-muted">Recognition Summary:</span>
+                <span class="status-value">
+                  exact {formatNumber(recognitionEvaluation?.current_exact_match_count, '0')}
+                  | collapsed unknown {formatNumber(recognitionEvaluation?.collapsed_to_unknown_count, '0')}
+                  | not materialized {formatNumber(recognitionEvaluation?.not_materialized_count, '0')}
+                </span>
+              </div>
+            </div>
             {#if categoryTargetRows.length === 0}
-              <p class="text-muted">No category target-achievement rows are materialized yet.</p>
+              <p class="text-muted">No recognition-evaluation rows are materialized yet.</p>
             {:else}
               <div class="game-loop-meter-list">
                 {#each categoryTargetRows as row (row.categoryId)}

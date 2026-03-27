@@ -278,14 +278,6 @@ pub(crate) fn recursive_improvement_game_contract_v1(
                     "optimization_target",
                     "Exploit progress must be judged explicitly from terrain-local Scrapling breach evidence rather than inferred only from aggregate suspicious-origin pressure.",
                 ),
-                scorecard_entry(
-                    "category_target_achievement",
-                    "operator_objectives_v1.category_postures + benchmark_results_v1",
-                    "non_human_category_posture",
-                    category_metric_ids.clone(),
-                    "optimization_target",
-                    "Per-category target achievement is judged as explicit target-vs-achieved outcome, not as a fake scalar budget.",
-                ),
             ],
             hard_guardrails: vec![scorecard_entry(
                 "beneficial_non_human_no_harm",
@@ -320,7 +312,6 @@ pub(crate) fn recursive_improvement_game_contract_v1(
                         "overall_improvement_status".to_string(),
                         "family_comparison_status:suspicious_origin_cost".to_string(),
                         "family_comparison_status:likely_human_friction".to_string(),
-                        "family_comparison_status:non_human_category_posture".to_string(),
                     ],
                     "regression_input",
                     "The judge preserves machine-first prior-window progress semantics instead of allowing later players to invent their own trend story.",
@@ -350,6 +341,14 @@ pub(crate) fn recursive_improvement_game_contract_v1(
                     "diagnostic_context",
                     "Representative adversary diagnostics explain pressure shape without replacing the canonical regression inputs.",
                 ),
+                scorecard_entry(
+                    "category_recognition_evaluation",
+                    "operator_objectives_v1.category_postures + benchmark_results_v1 + operator_snapshot_v1.non_human_traffic.recognition_evaluation",
+                    "non_human_category_posture",
+                    category_metric_ids.clone(),
+                    "diagnostic_context",
+                    "Per-category posture rows remain part of the recognition side quest for undeclared hostile traffic and must not behave like the primary restriction score that drives bounded tuning.",
+                ),
             ],
             comparison_contract: RecursiveImprovementEpisodeComparisonContract {
                 source_contract: "benchmark_results_v1 + benchmark_comparison_v1".to_string(),
@@ -369,7 +368,6 @@ pub(crate) fn recursive_improvement_game_contract_v1(
                     "suspicious_origin_byte_budget".to_string(),
                     "suspicious_origin_latency_budget".to_string(),
                     "scrapling_exploit_progress".to_string(),
-                    "category_target_achievement".to_string(),
                     "beneficial_non_human_no_harm".to_string(),
                     "representative_adversary_regression".to_string(),
                 ],
@@ -379,7 +377,6 @@ pub(crate) fn recursive_improvement_game_contract_v1(
                     "suspicious_origin_byte_budget".to_string(),
                     "suspicious_origin_latency_budget".to_string(),
                     "scrapling_exploit_progress".to_string(),
-                    "category_target_achievement".to_string(),
                     "representative_adversary_regression".to_string(),
                     "prior_window_progress".to_string(),
                 ],
@@ -414,9 +411,9 @@ pub(crate) fn recursive_improvement_game_contract_v1(
                 gate_id: "tuning_eligibility_guardrail".to_string(),
                 source_contract: "benchmark_results_v1.tuning_eligibility".to_string(),
                 requirement:
-                    "protected evidence, category coverage, and verified-identity no-harm checks must remain eligible before tuning.".to_string(),
+                    "restriction-grade confidence, protected evidence, and verified-identity no-harm checks must remain eligible before tuning.".to_string(),
                 failure_outcome: "observe_longer".to_string(),
-                note: "Outside-budget pressure alone is insufficient when protected or category-aware evidence is not yet trustworthy."
+                note: "Outside-budget pressure alone is insufficient when restriction-grade confidence or protected evidence is not yet trustworthy."
                     .to_string(),
             },
             RecursiveImprovementSafetyGate {
@@ -947,11 +944,11 @@ mod tests {
         );
         assert_eq!(
             contract.evaluator_scorecard.optimization_targets.len(),
-            6
+            5
         );
         assert_eq!(contract.evaluator_scorecard.hard_guardrails.len(), 1);
         assert_eq!(contract.evaluator_scorecard.regression_inputs.len(), 2);
-        assert_eq!(contract.evaluator_scorecard.diagnostic_contexts.len(), 2);
+        assert_eq!(contract.evaluator_scorecard.diagnostic_contexts.len(), 3);
         assert!(contract
             .evaluator_scorecard
             .family_ids
@@ -970,7 +967,7 @@ mod tests {
             .evaluator_scorecard
             .optimization_targets
             .iter()
-            .any(|entry| entry.score_id == "category_target_achievement"));
+            .all(|entry| entry.score_id != "category_target_achievement"));
         assert!(contract
             .evaluator_scorecard
             .hard_guardrails
@@ -996,6 +993,11 @@ mod tests {
             .diagnostic_contexts
             .iter()
             .any(|entry| entry.score_id == "representative_adversary_diagnostics"));
+        assert!(contract
+            .evaluator_scorecard
+            .diagnostic_contexts
+            .iter()
+            .any(|entry| entry.score_id == "category_recognition_evaluation"));
         assert_eq!(
             contract
                 .evaluator_scorecard
@@ -1048,18 +1050,18 @@ mod tests {
         let legal_move_ring = controller_legal_move_ring_v1();
         let contract = recursive_improvement_game_contract_v1(&objectives, &legal_move_ring);
 
-        let category_target = contract
-            .evaluator_scorecard
-            .optimization_targets
-            .iter()
-            .find(|entry| entry.score_id == "category_target_achievement")
-            .expect("category target achievement present");
         let exploit_progress = contract
             .evaluator_scorecard
             .optimization_targets
             .iter()
             .find(|entry| entry.score_id == "scrapling_exploit_progress")
             .expect("scrapling exploit progress present");
+        let category_recognition = contract
+            .evaluator_scorecard
+            .diagnostic_contexts
+            .iter()
+            .find(|entry| entry.score_id == "category_recognition_evaluation")
+            .expect("category recognition evaluation present");
         let beneficial_guardrail = contract
             .evaluator_scorecard
             .hard_guardrails
@@ -1073,15 +1075,15 @@ mod tests {
             .find(|entry| entry.score_id == "suspicious_origin_diagnostics")
             .expect("suspicious origin diagnostics present");
 
+        assert_eq!(category_recognition.family_id, "non_human_category_posture");
         assert_eq!(
-            category_target.family_id,
-            "non_human_category_posture"
+            category_recognition.metric_ids.len(),
+            objectives.category_postures.len()
         );
-        assert_eq!(category_target.metric_ids.len(), objectives.category_postures.len());
-        assert!(category_target.metric_ids.contains(
+        assert!(category_recognition.metric_ids.contains(
             &"category_posture_alignment:indexing_bot".to_string()
         ));
-        assert!(category_target.metric_ids.contains(
+        assert!(category_recognition.metric_ids.contains(
             &"category_posture_alignment:verified_beneficial_bot".to_string()
         ));
         assert_eq!(exploit_progress.family_id, "scrapling_exploit_progress");
@@ -1121,7 +1123,6 @@ mod tests {
                 "suspicious_origin_byte_budget".to_string(),
                 "suspicious_origin_latency_budget".to_string(),
                 "scrapling_exploit_progress".to_string(),
-                "category_target_achievement".to_string(),
                 "beneficial_non_human_no_harm".to_string(),
                 "representative_adversary_regression".to_string(),
             ]

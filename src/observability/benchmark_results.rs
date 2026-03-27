@@ -310,7 +310,7 @@ pub(crate) fn build_benchmark_results_from_snapshot_sections(
             blockers: tuning_eligibility.blockers.clone(),
             evidence_quality: unavailable_benchmark_diagnosis_evidence_quality(),
             breach_loci: Vec::new(),
-            note: "Current benchmark pressure cannot justify tuning because category-aware protected evidence is not yet eligible for controller-grade judgment."
+            note: "Current benchmark pressure cannot justify tuning because restriction-grade confidence, protected evidence, or no-harm guardrails are not yet eligible for controller-grade judgment."
                 .to_string(),
         },
             &exploit_evidence_quality,

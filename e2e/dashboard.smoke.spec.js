@@ -2135,13 +2135,13 @@ test("game loop projects benchmark and oversight accountability from machine-fir
   await expect(page.locator("#game-loop-outcome-frontier")).toContainText(
     "These rows are guardrails"
   );
-  await expect(page.locator("#game-loop-category-target-achievement")).toContainText("Category Posture Achievement");
-  await expect(page.locator("#game-loop-category-target-achievement")).toContainText(
-    "These rows score category-level posture alignment"
+  await expect(page.locator("#game-loop-recognition-evaluation")).toContainText("Recognition Evaluation");
+  await expect(page.locator("#game-loop-recognition-evaluation")).toContainText(
+    "These rows are the recognition side quest"
   );
-  await expect(page.locator("#game-loop-category-target-achievement")).toContainText("AI Scraper Bot");
-  await expect(page.locator("#game-loop-category-target-achievement")).toContainText("Target Blocked");
-  await expect(page.locator("#game-loop-category-target-achievement")).toContainText("Achieved 42.0%");
+  await expect(page.locator("#game-loop-recognition-evaluation")).toContainText("AI Scraper Bot");
+  await expect(page.locator("#game-loop-recognition-evaluation")).toContainText("Target Blocked");
+  await expect(page.locator("#game-loop-recognition-evaluation")).toContainText("Achieved 42.0%");
   await expect(page.locator("#game-loop-change-judgment")).toContainText(/observe longer/i);
   await expect(page.locator("#game-loop-change-judgment")).toContainText("Loop Actionability");
   await expect(page.locator("#game-loop-change-judgment")).toContainText(/canary applied/i);
@@ -2804,7 +2804,7 @@ test("game loop tab separates judge planes, breach loci, and config exhaustion s
   await expect(page.locator("#game-loop-change-judgment")).toContainText("Not Required");
 });
 
-test("game loop distinguishes category posture achievement from scrapling surface contract truth", async ({ page }) => {
+test("game loop distinguishes recognition evaluation from scrapling surface contract truth", async ({ page }) => {
   await page.route("**/admin/operator-snapshot", async (route) => {
     await route.fulfill({
       status: 200,
@@ -2902,6 +2902,57 @@ test("game loop distinguishes category posture achievement from scrapling surfac
         },
         recent_changes: {
           rows: []
+        },
+        non_human_traffic: {
+          availability: "taxonomy_seeded",
+          restriction_readiness: {
+            status: "ready",
+            blockers: [],
+            live_receipt_count: 6,
+            adversary_sim_receipt_count: 3
+          },
+          recognition_evaluation: {
+            comparison_status: "mixed",
+            current_exact_match_count: 1,
+            degraded_match_count: 0,
+            collapsed_to_unknown_count: 1,
+            not_materialized_count: 0,
+            readiness: {
+              status: "partial",
+              blockers: ["exact_category_inference_not_ready"],
+              live_receipt_count: 6,
+              adversary_sim_receipt_count: 3
+            },
+            coverage: {
+              overall_status: "partial",
+              blocking_reasons: ["mapped_categories_have_partial_coverage"],
+              blocking_category_ids: ["automated_browser"]
+            },
+            comparison_rows: [
+              {
+                category_id: "ai_scraper_bot",
+                category_label: "AI Scraper Bot",
+                inference_capability_status: "candidate",
+                comparison_status: "current_exact_match",
+                inferred_category_id: "ai_scraper_bot",
+                inferred_category_label: "AI Scraper Bot",
+                exactness: "derived",
+                basis: "observed",
+                note: "Shared-path inference matched this category."
+              },
+              {
+                category_id: "automated_browser",
+                category_label: "Automated Browser",
+                inference_capability_status: "candidate",
+                comparison_status: "collapsed_to_unknown_non_human",
+                inferred_category_id: "unknown_non_human",
+                inferred_category_label: "Unknown Non Human",
+                exactness: "derived",
+                basis: "observed",
+                note: "Recognition collapsed to unknown."
+              }
+            ]
+          }
         },
         verified_identity: {
           availability: "supported",
@@ -3056,15 +3107,19 @@ test("game loop distinguishes category posture achievement from scrapling surfac
   await openDashboard(page);
   await openTab(page, "game-loop");
 
-  await expect(page.locator("#game-loop-category-target-achievement")).toContainText(
-    "These rows score category-level posture alignment"
+  await expect(page.locator("#game-loop-recognition-evaluation")).toContainText(
+    "These rows are the recognition side quest"
   );
-  await expect(page.locator("#game-loop-category-target-achievement")).toContainText("AI Scraper Bot");
-  await expect(page.locator("#game-loop-category-target-achievement")).toContainText("Target Blocked");
-  await expect(page.locator("#game-loop-category-target-achievement")).toContainText("Achieved 75.0%");
-  await expect(page.locator("#game-loop-category-target-achievement")).toContainText("Automated Browser");
-  await expect(page.locator("#game-loop-category-target-achievement")).toContainText("Achieved Unscored");
-  await expect(page.locator("#game-loop-category-target-achievement .game-loop-meter__fill")).toHaveCount(1);
+  await expect(page.locator("#game-loop-recognition-evaluation")).toContainText("Recognition Evaluation");
+  await expect(page.locator("#game-loop-recognition-evaluation")).toContainText("Recognition Status:");
+  await expect(page.locator("#game-loop-recognition-evaluation")).toContainText("Recognition Summary:");
+  await expect(page.locator("#game-loop-recognition-evaluation")).toContainText("AI Scraper Bot");
+  await expect(page.locator("#game-loop-recognition-evaluation")).toContainText("Target Blocked");
+  await expect(page.locator("#game-loop-recognition-evaluation")).toContainText("Achieved 75.0%");
+  await expect(page.locator("#game-loop-recognition-evaluation")).toContainText("Automated Browser");
+  await expect(page.locator("#game-loop-recognition-evaluation")).toContainText("Achieved Unscored");
+  await expect(page.locator("#game-loop-recognition-evaluation")).toContainText("collapsed unknown 1");
+  await expect(page.locator("#game-loop-recognition-evaluation .game-loop-meter__fill")).toHaveCount(1);
   await expect(page.locator("#game-loop-surface-contract")).toContainText("Partial");
   await expect(page.locator("#game-loop-surface-contract")).toContainText("1 / 2 required surfaces");
   await expect(page.locator("[data-game-loop-section='pressure-sits']")).toContainText(

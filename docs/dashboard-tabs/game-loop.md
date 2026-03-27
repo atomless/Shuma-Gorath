@@ -30,8 +30,9 @@ Current behavior:
   - true numeric budget usage for likely-human friction plus suspicious forwarded requests, bytes, and latency, with explicit wording that these are guardrails rather than proof of total attacker defeat,
   - a first-class `Terrain Breach Progress` panel showing terrain-local attacker advance separately from category posture,
   - named breach loci carrying attempt counts, host-cost channels, repair families, and sample request or response evidence,
-  - taxonomy rows as `Category Posture Achievement`, explicitly described as category-level posture-alignment math rather than attacker surface-success proof,
+  - taxonomy rows as `Recognition Evaluation`, explicitly described as the categorisation side quest rather than attacker surface-success proof or bounded-tuning truth,
   - category rows that render as `Unscored` with no meter when exact shared-path category evidence is not available,
+  - recognition summary counts showing exact matches, collapse to `unknown_non_human`, and still-not-materialized hostile categories separately from the main restriction quest,
   - a separate `Surface Contract Satisfaction` panel so compact Scrapling corroboration stays distinct from both exploit progress and category posture,
   - surface-contract blocking rows that now distinguish `attempted and blocked` from `required but unreached` when receipt-backed proof is present,
   - surface-contract blocker rows now carry dependency detail where available so the tab can distinguish an independent local miss from a downstream prerequisite miss,
@@ -57,7 +58,10 @@ Current limitation:
 - The remaining Game Loop truthfulness limitation is still category-specific:
   - non-verified suspicious automation still routes mostly through `unknown_non_human`,
   - recent Scrapling category presence can still appear only as degraded `projected_recent_sim_run` evidence,
-  - so exact live category posture scoring for Scrapling-populated categories remains intentionally unscored until Shuma itself can infer those categories from real shared-path request or behavior evidence.
+  - so exact live recognition scoring for Scrapling-populated categories remains intentionally unscored until Shuma itself can infer those categories from real shared-path request or behavior evidence.
+- The main current architecture limitation has now narrowed:
+  - category posture no longer drives the top-level restriction status or bounded-tuning escalation when it is the only outside-budget family,
+  - but the stricter restriction-confidence weighting and abuse-backstop urgency model still remains open follow-on work under `RSI-SCORE-2F3`.
 
 Refresh behavior:
 

@@ -33,8 +33,9 @@ Implementation status update (2026-03-27):
    1. the defense rail,
    2. the restriction-scoring rail,
    3. and the recognition-evaluation rail.
-4. No runtime behavior is changed by this planning slice.
-5. The purpose of this plan is to stop the repo drifting back into category posture as if it were the primary restriction score for undeclared hostile traffic.
+4. `RSI-SCORE-2F2` is now landed and keeps the recognition-evaluation rail honest about collapse to `unknown_non_human`.
+5. `RSI-GAME-ARCH-1B` is now landed and stops category posture from acting like the primary restriction scoreboard.
+6. `RSI-SCORE-2F3` remains open because confidence weighting and the abuse-driven backstop still need to become more explicit in the restriction scorer itself.
 
 # Core Decisions
 

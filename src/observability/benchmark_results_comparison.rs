@@ -49,19 +49,23 @@ pub(super) fn overall_coverage_status(families: &[BenchmarkFamilyResult]) -> Str
 }
 
 pub(super) fn overall_status(families: &[BenchmarkFamilyResult]) -> String {
-    if families
+    let judged_families = restriction_judgment_families(families);
+    if judged_families
         .iter()
         .any(|family| family.status == "outside_budget")
     {
         "outside_budget".to_string()
-    } else if families.iter().any(|family| family.status == "near_limit") {
+    } else if judged_families
+        .iter()
+        .any(|family| family.status == "near_limit")
+    {
         "near_limit".to_string()
-    } else if families
+    } else if judged_families
         .iter()
         .any(|family| family.status == "inside_budget")
     {
         "inside_budget".to_string()
-    } else if families
+    } else if judged_families
         .iter()
         .any(|family| family.status == "insufficient_evidence")
     {
@@ -75,22 +79,52 @@ pub(super) fn derive_escalation_hint(
     allowed_actions: &AllowedActionsSurface,
     families: &[BenchmarkFamilyResult],
 ) -> BenchmarkEscalationHint {
-    let outside_budget_families: Vec<&BenchmarkFamilyResult> = families
+    let judged_families = restriction_judgment_families(families);
+    let outside_budget_families: Vec<&BenchmarkFamilyResult> = judged_families
         .iter()
+        .copied()
         .filter(|family| family.status == "outside_budget")
         .collect();
-    let near_limit_families: Vec<&BenchmarkFamilyResult> = families
+    let recognition_outside_budget_families: Vec<&BenchmarkFamilyResult> = families
         .iter()
+        .filter(|family| !family_drives_primary_restriction_judgment(family.family_id.as_str()))
+        .filter(|family| family.status == "outside_budget")
+        .collect();
+    let near_limit_families: Vec<&BenchmarkFamilyResult> = judged_families
+        .iter()
+        .copied()
         .filter(|family| family.status == "near_limit")
         .collect();
-    let insufficient_families: Vec<&BenchmarkFamilyResult> = families
+    let insufficient_families: Vec<&BenchmarkFamilyResult> = judged_families
         .iter()
+        .copied()
         .filter(|family| family.status == "insufficient_evidence")
         .collect();
 
     let review_status = "manual_review_required".to_string();
 
     if outside_budget_families.is_empty() {
+        if !recognition_outside_budget_families.is_empty() {
+            let primary_recognition_family =
+                primary_outside_budget_family(recognition_outside_budget_families.as_slice());
+            return BenchmarkEscalationHint {
+                availability: family_availability(primary_recognition_family).to_string(),
+                decision: "observe_longer".to_string(),
+                review_status,
+                problem_class: "recognition_evaluation_gap".to_string(),
+                guidance_status: "recognition_side_quest".to_string(),
+                tractability: "not_actionable_yet".to_string(),
+                expected_direction: "improve_recognition_quality".to_string(),
+                trigger_family_ids: family_ids(&recognition_outside_budget_families),
+                trigger_metric_ids: outside_budget_metric_ids(primary_recognition_family),
+                candidate_action_families: Vec::new(),
+                family_guidance: Vec::new(),
+                blockers: vec!["recognition_evaluation_outside_budget_only".to_string()],
+                evidence_quality: unavailable_benchmark_diagnosis_evidence_quality(),
+                breach_loci: Vec::new(),
+                note: "Restriction-grade board progression, host cost, and human-friction guardrails do not currently justify bounded tuning, but recognition evaluation still shows categorisation or confidence gaps that Shuma should learn from without treating simulator labels as runtime truth.".to_string(),
+            };
+        }
         let mut blockers = Vec::new();
         let trigger_family_ids = if !near_limit_families.is_empty() {
             blockers.push("near_limit_only".to_string());
@@ -183,6 +217,24 @@ pub(super) fn derive_escalation_hint(
         } else {
             classification.note.to_string()
         },
+    }
+}
+
+fn family_drives_primary_restriction_judgment(family_id: &str) -> bool {
+    !matches!(family_id, "non_human_category_posture")
+}
+
+fn restriction_judgment_families<'a>(
+    families: &'a [BenchmarkFamilyResult],
+) -> Vec<&'a BenchmarkFamilyResult> {
+    let primary: Vec<_> = families
+        .iter()
+        .filter(|family| family_drives_primary_restriction_judgment(family.family_id.as_str()))
+        .collect();
+    if primary.is_empty() {
+        families.iter().collect()
+    } else {
+        primary
     }
 }
 
@@ -308,12 +360,12 @@ fn classify_problem(family: &BenchmarkFamilyResult) -> ProblemClassification {
             action_families: Vec::new(),
         },
         "non_human_category_posture" => ProblemClassification {
-            problem_class: "category_posture_gap",
-            decision: "code_evolution_candidate",
-            guidance_status: "code_evolution_only",
-            tractability: "code_or_capability_gap",
-            expected_direction: "improve_category_target_achievement",
-            note: "Category posture misses indicate classification, evidence, or defense-capability gaps rather than a clean bounded config move.",
+            problem_class: "recognition_evaluation_gap",
+            decision: "observe_longer",
+            guidance_status: "recognition_side_quest",
+            tractability: "not_actionable_yet",
+            expected_direction: "improve_recognition_quality",
+            note: "Category posture rows now belong to the recognition side quest for undeclared hostile traffic and should inform categorisation learning rather than directly driving bounded restriction tuning.",
             action_families: Vec::new(),
         },
         "representative_adversary_effectiveness" => ProblemClassification {
@@ -531,6 +583,17 @@ mod tests {
     }
 
     #[test]
+    fn overall_status_ignores_recognition_only_outside_budget_pressure() {
+        let families = vec![
+            family("suspicious_origin_cost", "inside_budget", "supported"),
+            family("scrapling_exploit_progress", "inside_budget", "supported"),
+            family("non_human_category_posture", "outside_budget", "partially_supported"),
+        ];
+
+        assert_eq!(overall_status(families.as_slice()), "inside_budget");
+    }
+
+    #[test]
     fn escalation_hint_proposes_config_tuning_for_addressable_budget_breach() {
         let hint = derive_escalation_hint(
             &allowed_actions_v1(),
@@ -621,7 +684,7 @@ mod tests {
     }
 
     #[test]
-    fn escalation_hint_marks_category_posture_gap_as_code_evolution_only() {
+    fn escalation_hint_treats_category_posture_gap_as_recognition_side_quest() {
         let hint = derive_escalation_hint(
             &allowed_actions_v1(),
             &[family_with_metrics(
@@ -636,10 +699,16 @@ mod tests {
             )],
         );
 
-        assert_eq!(hint.problem_class, "category_posture_gap");
-        assert_eq!(hint.guidance_status, "code_evolution_only");
-        assert_eq!(hint.tractability, "code_or_capability_gap");
-        assert_eq!(hint.decision, "code_evolution_candidate");
+        assert_eq!(hint.problem_class, "recognition_evaluation_gap");
+        assert_eq!(hint.guidance_status, "recognition_side_quest");
+        assert_eq!(hint.tractability, "not_actionable_yet");
+        assert_eq!(hint.decision, "observe_longer");
+        assert!(hint
+            .trigger_family_ids
+            .contains(&"non_human_category_posture".to_string()));
+        assert!(hint
+            .blockers
+            .contains(&"recognition_evaluation_outside_budget_only".to_string()));
         assert!(hint.candidate_action_families.is_empty());
     }
 

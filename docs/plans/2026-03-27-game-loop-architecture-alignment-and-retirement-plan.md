@@ -18,6 +18,12 @@ Turn the architecture-alignment audit into execution-ready refactor guidance so 
 1. the newer board-state-first, restriction-vs-recognition design,
 2. and the older family-first, category-posture-led architecture.
 
+Implementation status update (2026-03-27):
+
+1. `RSI-GAME-ARCH-1A` is landed: restriction-grade and recognition-evaluation evidence are now split in snapshot assembly.
+2. `RSI-GAME-ARCH-1B` is landed: category posture is no longer a primary restriction optimization target or top-level restriction trigger for undeclared hostile traffic.
+3. The next architecture-alignment step is now `RSI-GAME-ARCH-1C`.
+
 # Core Decisions
 
 1. Do not treat the current category-first benchmark stack as "dead"; replace it deliberately and then retire it.

@@ -123,9 +123,10 @@ Current note:
 - `RSI-GAME-HO-1` is now landed: the strict `human_only_private` loop is proven on the local `/sim/public/*` surface with live strict-stance runtime checks, post-sim oversight lineage, and repeated retained movement toward zero suspicious leakage.
 - A March 27 accountability slice is now landed: Game Loop category posture rows render honestly as `Unscored` when exact shared-path evidence is missing, exploit loci now carry host-cost channels plus repair-family hints, localized high-confidence exploit progress can now drive bounded config tuning, and the Game Loop page now projects origin leakage, board-state breach progress, and loop actionability as separate planes.
 - The later March 27 architecture clarification now tightens the Game Loop shape further: restriction scoring is the main quest, recognition quality is a separate evaluation quest, simulator-known category labels remain forbidden in runtime and tuning, and abuse-driven confidence escalation is required as the backstop when explicit hostile identity signals stay weak.
-- The remaining immediate Game Loop gaps are therefore no longer just "exact category inference later". They are: restriction scoring that still overstates category posture, vague `Loop Actionability` blocker output, vague `Named Breach Loci`, and a deeper architecture problem where snapshot, benchmark, controller, and dashboard layers still re-entangle recognition evaluation, restriction scoring, and board-state truth through the older family-first model.
+- The remaining immediate Game Loop gaps are therefore no longer just "exact category inference later". They are: explicit confidence-weighted restriction scoring and abuse backstop urgency, vague `Loop Actionability` blocker output, vague `Named Breach Loci`, and a deeper architecture problem where snapshot, benchmark, controller, and dashboard layers still re-entangle recognition evaluation, restriction scoring, and board-state truth through the older family-first model.
 - `RSI-SCORE-2F2` is now landed: the recognition-evaluation rail truthfully counts current collapse to `unknown_non_human` as a Shuma inference outcome and no longer lets harness-only `projected_recent_sim_run` placeholders masquerade as degraded category matches.
-- The next active Scrapling-first rigor and architecture sequence is now `RSI-GAME-ARCH-1B` -> `RSI-SCORE-2F3` -> `RSI-GAME-ARCH-1C` -> `RSI-GAME-BOARD-1F` -> `RSI-GAME-ARCH-1D` -> `RSI-GAME-BOARD-1G` -> `RSI-GAME-ARCH-1E`.
+- `RSI-GAME-ARCH-1B` is now landed: category posture is no longer a primary optimization target or main-loop overall-status trigger for undeclared hostile traffic, and the Game Loop now projects it as `Recognition Evaluation` rather than as the main restriction scoreboard.
+- The next active Scrapling-first rigor and architecture sequence is now `RSI-SCORE-2F3` -> `RSI-GAME-ARCH-1C` -> `RSI-GAME-BOARD-1F` -> `RSI-GAME-ARCH-1D` -> `RSI-GAME-BOARD-1G` -> `RSI-GAME-ARCH-1E`.
 - The board-state doctrine now has explicit follow-on planning for a later frontier-LLM code-evolution ring and a later real-human friction calibration ring, but both remain blocked from execution.
 - Before further mainline completion claims, the repo now requires explicit acceptance-gate discipline. Do not describe `STANCE-MODEL-1`, `SIM-SCR-FULL-1`, `RSI-GAME-HO-1`, or `RSI-GAME-HO-2` as complete from planning progress, baseline capability, or dashboard pressure signals alone.
 - The next attacker-runtime mainline remains `SIM-LLM-1C3`, but only after the current Scrapling-first Game Loop rigor repairs land and the Scrapling loop stops depending on vague or missing truth.
@@ -146,18 +147,6 @@ Current note:
     - category role: `non_human_category_posture` may remain a secondary diagnostic or recognition-evaluation plane for undeclared hostile traffic, but must not remain the primary restriction score
     - proof: `make test-traffic-classification-contract`, `make test-benchmark-results-contract`, `make test-rsi-score-exploit-progress`, `make test-rsi-score-evidence-quality`, `make test-rsi-score-move-selection`, and `make test-dashboard-game-loop-accountability`
     - insufficient: simulator-known category labels influencing runtime or tuning, category posture still reading like the main attacker-restriction score for undeclared traffic, or a restriction model with no abuse-driven confidence backstop for stealthy but expensive traffic
-
-- [ ] RSI-GAME-ARCH-1B Replace the category-first restriction objective and benchmark spine with restriction-first score surfaces.
-  - Reference context:
-    - [`docs/research/2026-03-27-game-loop-architecture-alignment-gap-review.md`](../docs/research/2026-03-27-game-loop-architecture-alignment-gap-review.md)
-    - [`docs/plans/2026-03-27-game-loop-architecture-alignment-and-retirement-plan.md`](../docs/plans/2026-03-27-game-loop-architecture-alignment-and-retirement-plan.md)
-    - [`docs/plans/2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-plan.md`](../docs/plans/2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-plan.md)
-  - Closure gate:
-    - objective truth: undeclared hostile traffic must no longer be optimized primarily through exact hostile-category posture targets
-    - benchmark truth: `benchmark_suite_v1` and `benchmark_results_v1` must expose restriction-first score surfaces centered on board progression, host cost, confidence, abuse backstop, and human-friction guardrails
-    - retirement readiness: `default_category_postures()` and `non_human_category_posture` may only remain where they have an explicitly secondary diagnostic or recognition-evaluation role
-    - proof: `make test-benchmark-results-contract`, `make test-rsi-score-exploit-progress`, `make test-rsi-score-evidence-quality`, `make test-rsi-score-move-selection`, and `make test-dashboard-game-loop-accountability`
-    - insufficient: category posture still living as the primary hostile-restriction family for undeclared traffic, or replacement metrics that still indirectly depend on simulator-known category truth
 
 - [ ] RSI-GAME-BOARD-1F Replace flat `Loop Actionability` blockers with typed blocker groups and exact next-fix surfaces.
   - Reference context:

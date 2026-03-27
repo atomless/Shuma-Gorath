@@ -6524,6 +6524,47 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
         }
       ]
     },
+    non_human_traffic: {
+      availability: 'taxonomy_seeded',
+      restriction_readiness: {
+        status: 'ready',
+        blockers: [],
+        live_receipt_count: 4,
+        adversary_sim_receipt_count: 3
+      },
+      recognition_evaluation: {
+        comparison_status: 'mixed',
+        current_exact_match_count: 1,
+        degraded_match_count: 0,
+        collapsed_to_unknown_count: 1,
+        not_materialized_count: 2,
+        readiness: {
+          status: 'partial',
+          blockers: ['exact_category_inference_not_ready'],
+          live_receipt_count: 4,
+          adversary_sim_receipt_count: 3
+        },
+        coverage: {
+          overall_status: 'partial',
+          blocking_reasons: ['mapped_categories_have_partial_coverage'],
+          blocking_category_ids: ['automated_browser']
+        },
+        comparison_rows: [
+          {
+            category_id: 'ai_scraper_bot',
+            category_label: 'AI Scraper Bot',
+            inference_capability_status: 'candidate',
+            comparison_status: 'collapsed_to_unknown_non_human',
+            inferred_category_id: 'unknown_non_human',
+            inferred_category_label: 'Unknown Non Human',
+            exactness: 'derived',
+            basis: 'observed',
+            note: 'Recognition is still coarse.',
+            evidence_references: ['receipt:1']
+          }
+        ]
+      }
+    },
     verified_identity: {
       availability: 'ready',
       effective_non_human_policy: {
@@ -6550,6 +6591,15 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
   assert.equal(operatorSnapshot.objectives.category_postures.length, 2);
   assert.equal(operatorSnapshot.objectives.category_postures[1].category_id, 'ai_scraper_bot');
   assert.equal(operatorSnapshot.objectives.category_postures[1].posture, 'blocked');
+  assert.equal(operatorSnapshot.non_human_traffic.recognition_evaluation.comparison_status, 'mixed');
+  assert.equal(
+    operatorSnapshot.non_human_traffic.recognition_evaluation.collapsed_to_unknown_count,
+    1
+  );
+  assert.equal(
+    operatorSnapshot.non_human_traffic.recognition_evaluation.comparison_rows[0].category_id,
+    'ai_scraper_bot'
+  );
   assert.equal(operatorSnapshot.verified_identity.taxonomy_alignment.status, 'degraded');
   assert.equal(
     operatorSnapshot.verified_identity.effective_non_human_policy.verified_identity_override_mode,
