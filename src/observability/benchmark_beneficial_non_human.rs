@@ -297,12 +297,16 @@ fn protected_verified_conflict_sample(
         .collect::<std::collections::BTreeSet<_>>();
 
     for category_id in protected_categories {
-        for receipt in non_human_traffic.receipts.iter().filter(|receipt| {
+        for receipt in non_human_traffic
+            .restriction_receipts
+            .iter()
+            .filter(|receipt| {
             receipt.traffic_origin == "live"
                 && receipt.category_id == category_id
                 && receipt.assignment_status == "classified"
                 && receipt.degradation_status == "current"
-        }) {
+            })
+        {
             total_requests = total_requests.saturating_add(receipt.total_requests);
             short_circuited_requests = short_circuited_requests
                 .saturating_add(receipt.short_circuited_requests);
@@ -332,12 +336,16 @@ fn user_triggered_agent_conflict_sample(
 
     let mut total_requests = 0u64;
     let mut short_circuited_requests = 0u64;
-    for receipt in non_human_traffic.receipts.iter().filter(|receipt| {
+    for receipt in non_human_traffic
+        .restriction_receipts
+        .iter()
+        .filter(|receipt| {
         receipt.traffic_origin == "live"
             && receipt.category_id == "agent_on_behalf_of_human"
             && receipt.assignment_status == "classified"
             && receipt.degradation_status == "current"
-    }) {
+        })
+    {
         total_requests = total_requests.saturating_add(receipt.total_requests);
         short_circuited_requests =
             short_circuited_requests.saturating_add(receipt.short_circuited_requests);
@@ -365,9 +373,11 @@ mod tests {
     };
     use crate::observability::non_human_classification::{
         NonHumanClassificationReadiness, NonHumanClassificationReceipt,
-        VerifiedIdentityTaxonomyAlignmentReceipt, VerifiedIdentityTaxonomyAlignmentSummary,
+        NonHumanSimulatorGroundTruthSummary, VerifiedIdentityTaxonomyAlignmentReceipt,
+        VerifiedIdentityTaxonomyAlignmentSummary,
     };
     use crate::observability::non_human_coverage::NonHumanCoverageSummary;
+    use crate::observability::operator_snapshot_non_human::OperatorSnapshotNonHumanRecognitionEvaluationSummary;
     use crate::observability::operator_snapshot::{
         OperatorSnapshotNonHumanTrafficSummary, OperatorSnapshotVerifiedIdentitySummary,
     };
@@ -377,12 +387,6 @@ mod tests {
         OperatorSnapshotNonHumanTrafficSummary {
             availability: "taxonomy_seeded".to_string(),
             taxonomy: crate::runtime::non_human_taxonomy::canonical_non_human_taxonomy(),
-            readiness: NonHumanClassificationReadiness {
-                status: "ready".to_string(),
-                blockers: Vec::new(),
-                live_receipt_count: 1,
-                adversary_sim_receipt_count: 1,
-            },
             coverage: NonHumanCoverageSummary {
                 schema_version: "non_human_coverage_v1".to_string(),
                 overall_status: "covered".to_string(),
@@ -397,8 +401,14 @@ mod tests {
                 uncovered_category_count: 2,
                 receipts: Vec::new(),
             },
+            restriction_readiness: NonHumanClassificationReadiness {
+                status: "ready".to_string(),
+                blockers: Vec::new(),
+                live_receipt_count: 1,
+                adversary_sim_receipt_count: 1,
+            },
             decision_chain: vec![],
-            receipts: vec![NonHumanClassificationReceipt {
+            restriction_receipts: vec![NonHumanClassificationReceipt {
                 traffic_origin: "live".to_string(),
                 measurement_scope: "ingress_primary".to_string(),
                 execution_mode: "enforced".to_string(),
@@ -414,6 +424,30 @@ mod tests {
                 short_circuited_requests: 4,
                 evidence_references: vec![],
             }],
+            recognition_evaluation: OperatorSnapshotNonHumanRecognitionEvaluationSummary {
+                readiness: NonHumanClassificationReadiness {
+                    status: "ready".to_string(),
+                    blockers: Vec::new(),
+                    live_receipt_count: 1,
+                    adversary_sim_receipt_count: 1,
+                },
+                coverage: NonHumanCoverageSummary {
+                    schema_version: "non_human_coverage_v1".to_string(),
+                    overall_status: "covered".to_string(),
+                    blocking_reasons: Vec::new(),
+                    blocking_category_ids: Vec::new(),
+                    mapped_category_count: 6,
+                    gap_category_count: 2,
+                    covered_category_count: 6,
+                    partial_category_count: 0,
+                    stale_category_count: 0,
+                    unavailable_category_count: 0,
+                    uncovered_category_count: 2,
+                    receipts: Vec::new(),
+                },
+                simulator_ground_truth: NonHumanSimulatorGroundTruthSummary::default(),
+                receipts: Vec::new(),
+            },
         }
     }
 

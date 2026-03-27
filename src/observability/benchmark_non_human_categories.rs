@@ -37,12 +37,14 @@ fn category_posture_metric(
 ) -> BenchmarkMetricResult {
     let category_id = row.category_id.as_str();
     let metric_id = format!("category_posture_alignment:{category_id}");
+    let recognition_evaluation = &non_human_traffic.recognition_evaluation;
     let receipts: Vec<_> = non_human_traffic
+        .recognition_evaluation
         .receipts
         .iter()
         .filter(|receipt| receipt.category_id == category_id)
         .collect();
-    let coverage_status = non_human_traffic
+    let coverage_status = recognition_evaluation
         .coverage
         .receipts
         .iter()

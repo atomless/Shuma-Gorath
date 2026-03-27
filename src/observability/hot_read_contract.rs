@@ -191,7 +191,7 @@ const OPERATOR_SNAPSHOT_COMPONENTS: [HotReadComponentContract; 14] = [
         ownership_tier: HotReadOwnershipTier::SupportingSummary,
         canonical_source: HotReadCanonicalSource::DirectStateSnapshot,
         projection_model: HotReadProjectionModel::DeterministicRebuild,
-        note: "Non-human traffic section exposes the seeded canonical taxonomy, the classifier decision chain, bounded category receipts, and readiness blockers on the same operator-facing contract used later by category-aware objective, coverage, and tuning gates.",
+        note: "Non-human traffic section exposes the seeded canonical taxonomy, the classifier decision chain, explicit restriction-grade receipts, recognition-evaluation receipts, and simulator ground-truth evaluation summaries without leaking simulator labels into runtime or tuning.",
     },
     HotReadComponentContract {
         key: "benchmark_results",

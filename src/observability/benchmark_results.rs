@@ -257,7 +257,7 @@ pub(crate) fn build_benchmark_results_from_snapshot_sections(
             summary,
             cfg,
             objectives,
-            non_human_traffic.receipts.as_slice(),
+            non_human_traffic.restriction_receipts.as_slice(),
         );
     let non_human_family = beneficial_non_human_posture_family(
         summary,
@@ -331,8 +331,11 @@ pub(crate) fn build_benchmark_results_from_snapshot_sections(
         coverage_status: overall_coverage_status(families.as_slice()),
         overall_status: overall_status(families.as_slice()),
         improvement_status,
-        non_human_classification: non_human_traffic.readiness.clone(),
-        non_human_coverage: non_human_traffic.coverage.compact_for_benchmark(),
+        non_human_classification: non_human_traffic.restriction_readiness.clone(),
+        non_human_coverage: non_human_traffic
+            .recognition_evaluation
+            .coverage
+            .compact_for_benchmark(),
         tuning_eligibility,
         escalation_hint,
         urgency,
@@ -377,16 +380,23 @@ fn tuning_eligibility(
     let exploit_progress_surface_native_high_confidence = exploit_progress_outside_budget
         && exploit_evidence_quality.status == "high_confidence"
         && exploit_evidence_quality.attribution_status == "surface_native_shared_path";
-    let mut blockers = if non_human_traffic.readiness.status != "ready"
+    let mut blockers = if non_human_traffic.restriction_readiness.status != "ready"
         && !exploit_progress_surface_native_high_confidence
     {
         let mut blockers = vec!["non_human_classification_not_ready".to_string()];
-        blockers.extend(non_human_traffic.readiness.blockers.iter().cloned());
+        blockers.extend(non_human_traffic.restriction_readiness.blockers.iter().cloned());
         blockers
     } else {
-        non_human_traffic
-            .coverage
-            .protected_tuning_blockers(replay_promotion)
+        replay_promotion
+            .eligibility_blockers
+            .iter()
+            .cloned()
+            .chain(
+                (!replay_promotion.tuning_eligible)
+                    .then(|| "protected_tuning_evidence_not_ready".to_string())
+                    .into_iter(),
+            )
+            .collect()
     };
     blockers.extend(scrapling_surface_contract_tuning_blockers(adversary_sim));
     blockers.extend(scrapling_exploit_evidence_quality_blockers(
@@ -516,12 +526,6 @@ mod tests {
         crate::observability::operator_snapshot::OperatorSnapshotNonHumanTrafficSummary {
             availability: "taxonomy_seeded".to_string(),
             taxonomy: crate::runtime::non_human_taxonomy::canonical_non_human_taxonomy(),
-            readiness: crate::observability::non_human_classification::NonHumanClassificationReadiness {
-                status: "ready".to_string(),
-                blockers: Vec::new(),
-                live_receipt_count: 1,
-                adversary_sim_receipt_count: 1,
-            },
             coverage: crate::observability::non_human_coverage::NonHumanCoverageSummary {
                 schema_version: "non_human_coverage_v1".to_string(),
                 overall_status: "covered".to_string(),
@@ -536,8 +540,40 @@ mod tests {
                 uncovered_category_count: 2,
                 receipts: Vec::new(),
             },
+            restriction_readiness: crate::observability::non_human_classification::NonHumanClassificationReadiness {
+                status: "ready".to_string(),
+                blockers: Vec::new(),
+                live_receipt_count: 1,
+                adversary_sim_receipt_count: 1,
+            },
             decision_chain: Vec::new(),
-            receipts: Vec::new(),
+            restriction_receipts: Vec::new(),
+            recognition_evaluation:
+                crate::observability::operator_snapshot_non_human::OperatorSnapshotNonHumanRecognitionEvaluationSummary {
+                    readiness: crate::observability::non_human_classification::NonHumanClassificationReadiness {
+                        status: "ready".to_string(),
+                        blockers: Vec::new(),
+                        live_receipt_count: 1,
+                        adversary_sim_receipt_count: 1,
+                    },
+                    coverage: crate::observability::non_human_coverage::NonHumanCoverageSummary {
+                        schema_version: "non_human_coverage_v1".to_string(),
+                        overall_status: "covered".to_string(),
+                        blocking_reasons: Vec::new(),
+                        blocking_category_ids: Vec::new(),
+                        mapped_category_count: 6,
+                        gap_category_count: 2,
+                        covered_category_count: 6,
+                        partial_category_count: 0,
+                        stale_category_count: 0,
+                        unavailable_category_count: 0,
+                        uncovered_category_count: 2,
+                        receipts: Vec::new(),
+                    },
+                    simulator_ground_truth:
+                        crate::observability::non_human_classification::NonHumanSimulatorGroundTruthSummary::default(),
+                    receipts: Vec::new(),
+                },
         }
     }
 
@@ -773,6 +809,8 @@ mod tests {
         snapshot.non_human_traffic.coverage.partial_category_count = 0;
         snapshot.non_human_traffic.coverage.stale_category_count = 0;
         snapshot.non_human_traffic.coverage.unavailable_category_count = 0;
+        snapshot.non_human_traffic.recognition_evaluation.coverage =
+            snapshot.non_human_traffic.coverage.clone();
 
         let payload = build_benchmark_results_from_snapshot_sections(
             snapshot.generated_at,
@@ -1230,12 +1268,6 @@ mod tests {
             &crate::observability::operator_snapshot::OperatorSnapshotNonHumanTrafficSummary {
                 availability: "taxonomy_seeded".to_string(),
                 taxonomy: crate::runtime::non_human_taxonomy::canonical_non_human_taxonomy(),
-                readiness: crate::observability::non_human_classification::NonHumanClassificationReadiness {
-                    status: "ready".to_string(),
-                    blockers: Vec::new(),
-                    live_receipt_count: 1,
-                    adversary_sim_receipt_count: 1,
-                },
                 coverage: crate::observability::non_human_coverage::NonHumanCoverageSummary {
                     schema_version: "non_human_coverage_v1".to_string(),
                     overall_status: "covered".to_string(),
@@ -1250,8 +1282,14 @@ mod tests {
                     uncovered_category_count: 2,
                     receipts: Vec::new(),
                 },
+                restriction_readiness: crate::observability::non_human_classification::NonHumanClassificationReadiness {
+                    status: "ready".to_string(),
+                    blockers: Vec::new(),
+                    live_receipt_count: 1,
+                    adversary_sim_receipt_count: 1,
+                },
                 decision_chain: Vec::new(),
-                receipts: vec![crate::observability::non_human_classification::NonHumanClassificationReceipt {
+                restriction_receipts: vec![crate::observability::non_human_classification::NonHumanClassificationReceipt {
                     traffic_origin: "live".to_string(),
                     measurement_scope: "ingress_primary".to_string(),
                     execution_mode: "enforced".to_string(),
@@ -1267,6 +1305,32 @@ mod tests {
                     short_circuited_requests: 4,
                     evidence_references: Vec::new(),
                 }],
+                recognition_evaluation:
+                    crate::observability::operator_snapshot_non_human::OperatorSnapshotNonHumanRecognitionEvaluationSummary {
+                        readiness: crate::observability::non_human_classification::NonHumanClassificationReadiness {
+                            status: "ready".to_string(),
+                            blockers: Vec::new(),
+                            live_receipt_count: 1,
+                            adversary_sim_receipt_count: 1,
+                        },
+                        coverage: crate::observability::non_human_coverage::NonHumanCoverageSummary {
+                            schema_version: "non_human_coverage_v1".to_string(),
+                            overall_status: "covered".to_string(),
+                            blocking_reasons: Vec::new(),
+                            blocking_category_ids: Vec::new(),
+                            mapped_category_count: 6,
+                            gap_category_count: 2,
+                            covered_category_count: 6,
+                            partial_category_count: 0,
+                            stale_category_count: 0,
+                            unavailable_category_count: 0,
+                            uncovered_category_count: 2,
+                            receipts: Vec::new(),
+                        },
+                        simulator_ground_truth:
+                            crate::observability::non_human_classification::NonHumanSimulatorGroundTruthSummary::default(),
+                        receipts: Vec::new(),
+                    },
             },
             &crate::observability::operator_snapshot::OperatorBudgetDistanceSummary {
                 rows: Vec::new(),
@@ -1537,11 +1601,7 @@ mod tests {
         assert!(payload
             .escalation_hint
             .blockers
-            .contains(&"non_human_category_coverage_not_ready".to_string()));
-        assert!(payload
-            .escalation_hint
-            .blockers
-            .contains(&"mapped_categories_have_unavailable_coverage".to_string()));
+            .contains(&"protected_tuning_evidence_not_ready".to_string()));
     }
 
     #[test]
@@ -1649,6 +1709,8 @@ mod tests {
         snapshot.non_human_traffic.coverage.partial_category_count = 0;
         snapshot.non_human_traffic.coverage.stale_category_count = 0;
         snapshot.non_human_traffic.coverage.unavailable_category_count = 0;
+        snapshot.non_human_traffic.recognition_evaluation.coverage =
+            snapshot.non_human_traffic.coverage.clone();
 
         let payload = build_benchmark_results_from_snapshot_sections(
             snapshot.generated_at,

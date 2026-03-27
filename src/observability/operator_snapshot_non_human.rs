@@ -5,35 +5,56 @@ use crate::runtime::non_human_taxonomy::{canonical_non_human_taxonomy, NonHumanT
 
 use super::operator_snapshot_live_traffic::OperatorSnapshotRecentSimRun;
 use super::non_human_classification::{
-    non_human_decision_chain, summarize_non_human_classification, NonHumanClassificationReadiness,
-    NonHumanClassificationReceipt,
+    non_human_decision_chain, summarize_non_human_recognition_evaluation,
+    summarize_non_human_restriction_classification,
+    summarize_non_human_simulator_ground_truth, NonHumanClassificationReadiness,
+    NonHumanClassificationReceipt, NonHumanSimulatorGroundTruthSummary,
 };
 use super::non_human_coverage::{summarize_non_human_coverage, NonHumanCoverageSummary};
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct OperatorSnapshotNonHumanRecognitionEvaluationSummary {
+    pub readiness: NonHumanClassificationReadiness,
+    pub coverage: NonHumanCoverageSummary,
+    pub simulator_ground_truth: NonHumanSimulatorGroundTruthSummary,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub receipts: Vec<NonHumanClassificationReceipt>,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub(crate) struct OperatorSnapshotNonHumanTrafficSummary {
     pub availability: String,
     pub taxonomy: NonHumanTaxonomyCatalog,
-    pub readiness: NonHumanClassificationReadiness,
     pub coverage: NonHumanCoverageSummary,
+    pub restriction_readiness: NonHumanClassificationReadiness,
     pub decision_chain: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub receipts: Vec<NonHumanClassificationReceipt>,
+    pub restriction_receipts: Vec<NonHumanClassificationReceipt>,
+    pub recognition_evaluation: OperatorSnapshotNonHumanRecognitionEvaluationSummary,
 }
 
 pub(super) fn non_human_traffic_summary(
     summary: &MonitoringSummary,
     recent_sim_runs: &[OperatorSnapshotRecentSimRun],
 ) -> OperatorSnapshotNonHumanTrafficSummary {
-    let (readiness, receipts) = summarize_non_human_classification(summary, recent_sim_runs);
-    let coverage = summarize_non_human_coverage(receipts.as_slice());
+    let (restriction_readiness, restriction_receipts) =
+        summarize_non_human_restriction_classification(summary, recent_sim_runs);
+    let (recognition_readiness, recognition_receipts) =
+        summarize_non_human_recognition_evaluation(summary, recent_sim_runs);
+    let coverage = summarize_non_human_coverage(recognition_receipts.as_slice());
     OperatorSnapshotNonHumanTrafficSummary {
         availability: "taxonomy_seeded".to_string(),
         taxonomy: canonical_non_human_taxonomy(),
-        readiness,
-        coverage,
+        coverage: coverage.clone(),
+        restriction_readiness,
         decision_chain: non_human_decision_chain(),
-        receipts,
+        restriction_receipts,
+        recognition_evaluation: OperatorSnapshotNonHumanRecognitionEvaluationSummary {
+            readiness: recognition_readiness,
+            coverage,
+            simulator_ground_truth: summarize_non_human_simulator_ground_truth(recent_sim_runs),
+            receipts: recognition_receipts,
+        },
     }
 }
 
@@ -52,11 +73,16 @@ mod tests {
         assert_eq!(summary.availability, "taxonomy_seeded");
         assert_eq!(summary.taxonomy.schema_version, "non_human_taxonomy_v1");
         assert_eq!(summary.taxonomy.categories.len(), 8);
-        assert_eq!(summary.readiness.status, "not_observed");
+        assert_eq!(summary.restriction_readiness.status, "not_observed");
         assert_eq!(summary.coverage.schema_version, "non_human_coverage_v1");
         assert_eq!(summary.coverage.overall_status, "unavailable");
         assert_eq!(summary.coverage.mapped_category_count, 6);
         assert_eq!(summary.coverage.gap_category_count, 2);
+        assert_eq!(summary.recognition_evaluation.readiness.status, "not_observed");
+        assert_eq!(
+            summary.recognition_evaluation.simulator_ground_truth.status,
+            "not_observed"
+        );
         assert_eq!(
             summary.decision_chain,
             vec![
@@ -117,26 +143,49 @@ mod tests {
             }],
         );
 
-        assert_eq!(summary.readiness.status, "partial");
-        assert_eq!(summary.readiness.adversary_sim_receipt_count, 4);
+        assert_eq!(summary.restriction_readiness.status, "partial");
+        assert_eq!(
+            summary.restriction_readiness.adversary_sim_receipt_count,
+            0
+        );
+        assert!(summary
+            .restriction_readiness
+            .blockers
+            .contains(&"adversary_sim_non_human_receipts_missing".to_string()));
+        assert_eq!(summary.recognition_evaluation.readiness.status, "partial");
+        assert_eq!(
+            summary.recognition_evaluation.readiness.adversary_sim_receipt_count,
+            4
+        );
         assert_eq!(summary.coverage.overall_status, "stale");
         assert_eq!(summary.coverage.stale_category_count, 4);
         assert!(summary
+            .recognition_evaluation
             .readiness
             .blockers
             .contains(&"degraded_category_receipts_present".to_string()));
         assert!(summary
+            .recognition_evaluation
             .receipts
             .iter()
             .any(|receipt| receipt.category_id == "ai_scraper_bot"));
         assert!(summary
+            .recognition_evaluation
             .receipts
             .iter()
             .any(|receipt| receipt.category_id == "automated_browser"));
         assert!(summary
+            .recognition_evaluation
             .receipts
             .iter()
             .any(|receipt| receipt.category_id == "http_agent"));
+        assert_eq!(
+            summary
+                .recognition_evaluation
+                .simulator_ground_truth
+                .recent_sim_run_count,
+            1
+        );
     }
 
     #[test]
@@ -163,9 +212,9 @@ mod tests {
 
         let summary = non_human_traffic_summary(&monitoring, &[]);
 
-        assert_eq!(summary.readiness.live_receipt_count, 1);
+        assert_eq!(summary.restriction_readiness.live_receipt_count, 1);
         assert!(summary
-            .receipts
+            .restriction_receipts
             .iter()
             .any(|receipt| receipt.category_id == "indexing_bot"));
     }

@@ -246,7 +246,7 @@ pub(crate) fn build_operator_snapshot_payload<S: KeyValueStore>(
         summary,
         &cfg,
         &objectives,
-        non_human_traffic.receipts.as_slice(),
+        non_human_traffic.restriction_receipts.as_slice(),
     );
     let (replay_promotion, replay_promotion_refreshed_at_ts) =
         load_replay_promotion_summary(store, site_id);
@@ -836,19 +836,21 @@ mod tests {
             1_700_000_050,
         );
 
-        assert_eq!(payload.non_human_traffic.readiness.status, "partial");
+        assert_eq!(payload.non_human_traffic.restriction_readiness.status, "partial");
         assert!(payload
             .non_human_traffic
+            .recognition_evaluation
             .readiness
             .blockers
             .contains(&"degraded_category_receipts_present".to_string()));
         assert!(payload
             .non_human_traffic
-            .readiness
+            .restriction_readiness
             .live_receipt_count
             > 0);
         assert!(payload
             .non_human_traffic
+            .recognition_evaluation
             .readiness
             .adversary_sim_receipt_count
             > 0);
@@ -856,16 +858,19 @@ mod tests {
         assert_eq!(payload.non_human_traffic.coverage.stale_category_count, 4);
         assert!(payload
             .non_human_traffic
+            .recognition_evaluation
             .receipts
             .iter()
             .any(|receipt| receipt.category_id == "ai_scraper_bot"));
         assert!(payload
             .non_human_traffic
+            .recognition_evaluation
             .receipts
             .iter()
             .any(|receipt| receipt.category_id == "automated_browser"));
         assert!(payload
             .non_human_traffic
+            .recognition_evaluation
             .receipts
             .iter()
             .any(|receipt| receipt.category_id == "http_agent"));

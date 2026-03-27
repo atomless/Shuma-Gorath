@@ -896,12 +896,6 @@ mod tests {
             non_human_traffic: OperatorSnapshotNonHumanTrafficSummary {
                 availability: "taxonomy_seeded".to_string(),
                 taxonomy: crate::runtime::non_human_taxonomy::canonical_non_human_taxonomy(),
-                readiness: NonHumanClassificationReadiness {
-                    status: "ready".to_string(),
-                    blockers: Vec::new(),
-                    live_receipt_count: 1,
-                    adversary_sim_receipt_count: 1,
-                },
                 coverage: NonHumanCoverageSummary {
                     schema_version: "non_human_coverage_v1".to_string(),
                     overall_status: "covered".to_string(),
@@ -916,8 +910,40 @@ mod tests {
                     uncovered_category_count: 2,
                     receipts: Vec::new(),
                 },
+                restriction_readiness: NonHumanClassificationReadiness {
+                    status: "ready".to_string(),
+                    blockers: Vec::new(),
+                    live_receipt_count: 1,
+                    adversary_sim_receipt_count: 1,
+                },
                 decision_chain: non_human_decision_chain(),
-                receipts: Vec::new(),
+                restriction_receipts: Vec::new(),
+                recognition_evaluation:
+                    crate::observability::operator_snapshot_non_human::OperatorSnapshotNonHumanRecognitionEvaluationSummary {
+                        readiness: NonHumanClassificationReadiness {
+                            status: "ready".to_string(),
+                            blockers: Vec::new(),
+                            live_receipt_count: 1,
+                            adversary_sim_receipt_count: 1,
+                        },
+                        coverage: NonHumanCoverageSummary {
+                            schema_version: "non_human_coverage_v1".to_string(),
+                            overall_status: "covered".to_string(),
+                            blocking_reasons: Vec::new(),
+                            blocking_category_ids: Vec::new(),
+                            mapped_category_count: 6,
+                            gap_category_count: 2,
+                            covered_category_count: 6,
+                            partial_category_count: 0,
+                            stale_category_count: 0,
+                            unavailable_category_count: 0,
+                            uncovered_category_count: 2,
+                            receipts: Vec::new(),
+                        },
+                        simulator_ground_truth:
+                            crate::observability::non_human_classification::NonHumanSimulatorGroundTruthSummary::default(),
+                        receipts: Vec::new(),
+                    },
             },
             allowed_actions: allowed_actions_v1(),
             game_contract:

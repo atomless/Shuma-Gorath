@@ -4,6 +4,27 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-27)
 
+### RSI-GAME-ARCH-1A Restriction-Vs-Recognition Snapshot Split
+
+- [x] Completed `RSI-GAME-ARCH-1A` across:
+  - [`src/observability/non_human_classification.rs`](../src/observability/non_human_classification.rs)
+  - [`src/observability/operator_snapshot_non_human.rs`](../src/observability/operator_snapshot_non_human.rs)
+  - [`src/observability/benchmark_non_human_categories.rs`](../src/observability/benchmark_non_human_categories.rs)
+  - [`src/observability/benchmark_results.rs`](../src/observability/benchmark_results.rs)
+  - [`docs/research/2026-03-27-rsi-game-arch-1a-restriction-vs-recognition-snapshot-split-post-implementation-review.md`](../docs/research/2026-03-27-rsi-game-arch-1a-restriction-vs-recognition-snapshot-split-post-implementation-review.md)
+- [x] What landed:
+  - split non-human snapshot evidence into explicit restriction-grade and recognition-evaluation rails,
+  - added explicit simulator ground-truth summaries for the recognition rail,
+  - moved projected recent-sim category presence out of controller-facing restriction readiness,
+  - and stopped bounded tuning eligibility from depending on degraded projected sim receipts.
+- [x] Why:
+  - the user correctly identified that the loop could not become a real game while one mixed category evidence stream was still pretending to be both runtime-grade truth and evaluation-only simulator truth at once.
+- [x] Evidence:
+  - [`docs/research/2026-03-27-rsi-game-arch-1a-restriction-vs-recognition-snapshot-split-post-implementation-review.md`](../docs/research/2026-03-27-rsi-game-arch-1a-restriction-vs-recognition-snapshot-split-post-implementation-review.md)
+  - `make test-benchmark-results-contract`
+  - `make test-traffic-classification-contract`
+  - `make test-dashboard-game-loop-accountability`
+
 ### SIM-SCR-FULL-1C5 Owned-Surface Dependency And Contract-Rigor Repair
 
 - [x] Completed `SIM-SCR-FULL-1C5` across:

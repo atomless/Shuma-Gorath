@@ -394,7 +394,7 @@ Structural refactor proof map:
 
 - `make test-admin-machine-contracts` is the focused admin read-contract gate for the recent-change ledger plus the machine-first operator snapshot and benchmark endpoints.
 - `make test-traffic-taxonomy-contract` is the focused taxonomy gate for the seeded canonical non-human category catalog plus its first machine-first operator-snapshot projection.
-- `make test-traffic-classification-contract` is the focused classification gate for lane-to-category receipts, the operator-snapshot non-human readiness surface, and fail-closed benchmark escalation when category evidence is not yet protected enough for tuning.
+- `make test-traffic-classification-contract` is the focused classification gate for lane-to-category receipts, the operator-snapshot non-human readiness surface, the March 27 restriction-vs-recognition rail split, and fail-closed benchmark escalation when category evidence is not yet protected enough for tuning.
 - `make test-adversarial-coverage-receipts` is the focused `SIM-SCR-COVER-2` gate for canonical category-coverage receipts, explicit mapped-category blockers, and fail-closed benchmark escalation when mapped fulfillment coverage is not yet complete enough for tuning.
 - `make test-protected-tuning-evidence` is the focused SIM-PROTECTED gate for advisory-versus-protected replay lineage, explicit synthetic-lane ineligibility, snapshot and benchmark replay-summary visibility, and replay-review requirements before tuning proposals can proceed.
 - `make test-operator-objectives-category-contract` is the focused OPS-OBJECTIVES gate for canonical category posture rows, objective validation, admin persistence, decision-ledger targeting, and snapshot projection.

@@ -7,7 +7,6 @@ use super::non_human_classification::NonHumanClassificationReceipt;
 use super::non_human_lane_fulfillment::{
     canonical_non_human_lane_fulfillment, NonHumanLaneFulfillmentRow,
 };
-use super::replay_promotion::ReplayPromotionSummary;
 
 pub(crate) const NON_HUMAN_COVERAGE_SCHEMA_VERSION: &str = "non_human_coverage_v1";
 
@@ -42,26 +41,6 @@ impl NonHumanCoverageSummary {
         let mut compact = self.clone();
         compact.receipts.clear();
         compact
-    }
-
-    pub(crate) fn mapped_categories_are_covered(&self) -> bool {
-        self.overall_status == "covered"
-    }
-
-    pub(crate) fn protected_tuning_blockers(
-        &self,
-        replay_promotion: &ReplayPromotionSummary,
-    ) -> Vec<String> {
-        let mut blockers = Vec::new();
-        if !self.mapped_categories_are_covered() {
-            blockers.push("non_human_category_coverage_not_ready".to_string());
-            blockers.extend(self.blocking_reasons.iter().cloned());
-        }
-        if !replay_promotion.tuning_eligible {
-            blockers.push("protected_tuning_evidence_not_ready".to_string());
-            blockers.extend(replay_promotion.eligibility_blockers.iter().cloned());
-        }
-        blockers
     }
 }
 

@@ -51,6 +51,23 @@ pub(crate) struct NonHumanClassificationReceipt {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct NonHumanSimulatorGroundTruthCategory {
+    pub category_id: String,
+    pub category_label: String,
+    pub recent_run_count: usize,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub evidence_references: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub(crate) struct NonHumanSimulatorGroundTruthSummary {
+    pub status: String,
+    pub recent_sim_run_count: usize,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub categories: Vec<NonHumanSimulatorGroundTruthCategory>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub(crate) struct VerifiedIdentityTaxonomyAlignmentReceipt {
     pub operator: String,
     pub stable_identity: String,
@@ -157,7 +174,32 @@ pub(crate) fn summarize_verified_identity_taxonomy_alignment(
     summary_row
 }
 
-pub(crate) fn summarize_non_human_classification(
+pub(crate) fn summarize_non_human_restriction_classification(
+    summary: &MonitoringSummary,
+    recent_sim_runs: &[OperatorSnapshotRecentSimRun],
+) -> (
+    NonHumanClassificationReadiness,
+    Vec<NonHumanClassificationReceipt>,
+) {
+    let taxonomy = canonical_non_human_taxonomy();
+    let mut receipts = collect_current_receipts_for_origin(
+        summary,
+        recent_sim_runs,
+        &taxonomy.categories,
+        "live",
+    );
+    let sim_receipts = collect_current_receipts_for_origin(
+        summary,
+        recent_sim_runs,
+        &taxonomy.categories,
+        "adversary_sim",
+    );
+    receipts.extend(sim_receipts);
+    sort_receipts(&mut receipts);
+    (build_readiness(receipts.as_slice()), receipts)
+}
+
+pub(crate) fn summarize_non_human_recognition_evaluation(
     summary: &MonitoringSummary,
     recent_sim_runs: &[OperatorSnapshotRecentSimRun],
 ) -> (
@@ -170,34 +212,20 @@ pub(crate) fn summarize_non_human_classification(
             && row.measurement_scope == "ingress_primary"
             && row.execution_mode == "enforced"
     });
-    let mut receipts: Vec<NonHumanClassificationReceipt> = if summary
-        .request_outcomes
-        .by_non_human_category
-        .iter()
-        .any(|row| row.traffic_origin == "live")
-    {
-        summary
-            .request_outcomes
-            .by_non_human_category
-            .iter()
-            .filter(|row| row.traffic_origin == "live")
-            .filter_map(|row| receipt_from_category_row(row, recent_sim_runs, &taxonomy.categories))
-            .collect()
-    } else {
-        summary
-            .request_outcomes
-            .by_lane
-            .iter()
-            .filter(|row| row.traffic_origin == "live")
-            .filter_map(|row| receipt_from_lane_row(row, recent_sim_runs, &taxonomy.categories))
-            .collect()
-    };
-    let mut sim_receipts: BTreeMap<String, NonHumanClassificationReceipt> = summary
-        .request_outcomes
-        .by_non_human_category
-        .iter()
-        .filter(|row| row.traffic_origin == "adversary_sim")
-        .filter_map(|row| receipt_from_category_row(row, recent_sim_runs, &taxonomy.categories))
+    let mut receipts = collect_current_receipts_for_origin(
+        summary,
+        recent_sim_runs,
+        &taxonomy.categories,
+        "live",
+    );
+    let mut sim_receipts: BTreeMap<String, NonHumanClassificationReceipt> =
+        collect_current_receipts_for_origin(
+            summary,
+            recent_sim_runs,
+            &taxonomy.categories,
+            "adversary_sim",
+        )
+        .into_iter()
         .map(|receipt| (receipt.category_id.clone(), receipt))
         .collect();
     for receipt in sim_receipts_from_recent_runs(recent_sim_runs, &taxonomy.categories, sim_scope) {
@@ -216,24 +244,103 @@ pub(crate) fn summarize_non_human_classification(
             })
             .or_insert(receipt);
     }
-    let mut sim_receipts: Vec<_> = sim_receipts.into_values().collect();
-    if sim_receipts.is_empty() {
-        sim_receipts = summary
+    receipts.extend(sim_receipts.into_values());
+    sort_receipts(&mut receipts);
+    (build_readiness(receipts.as_slice()), receipts)
+}
+
+pub(crate) fn summarize_non_human_simulator_ground_truth(
+    recent_sim_runs: &[OperatorSnapshotRecentSimRun],
+) -> NonHumanSimulatorGroundTruthSummary {
+    let taxonomy = canonical_non_human_taxonomy();
+    let mut categories: BTreeMap<String, NonHumanSimulatorGroundTruthCategory> = BTreeMap::new();
+    for run in recent_sim_runs {
+        for category_id in &run.observed_category_ids {
+            let Some(category) = taxonomy
+                .categories
+                .iter()
+                .find(|descriptor| descriptor.category_id.as_str() == category_id)
+            else {
+                continue;
+            };
+            let entry = categories
+                .entry(category_id.clone())
+                .or_insert_with(|| NonHumanSimulatorGroundTruthCategory {
+                    category_id: category_id.clone(),
+                    category_label: category.label.clone(),
+                    recent_run_count: 0,
+                    evidence_references: Vec::new(),
+                });
+            entry.recent_run_count = entry.recent_run_count.saturating_add(1);
+            let reference = format!(
+                "recent_sim_runs:{}:{}:{}",
+                run.run_id, run.profile, category_id
+            );
+            if !entry.evidence_references.iter().any(|value| value == &reference) {
+                entry.evidence_references.push(reference);
+            }
+        }
+    }
+
+    NonHumanSimulatorGroundTruthSummary {
+        status: if categories.is_empty() {
+            "not_observed".to_string()
+        } else {
+            "observed_recent_runs".to_string()
+        },
+        recent_sim_run_count: recent_sim_runs.len(),
+        categories: categories.into_values().collect(),
+    }
+}
+
+fn traffic_origin_sort_key(value: &str) -> u8 {
+    match value {
+        "live" => 0,
+        "adversary_sim" => 1,
+        _ => 2,
+    }
+}
+
+fn collect_current_receipts_for_origin(
+    summary: &MonitoringSummary,
+    recent_sim_runs: &[OperatorSnapshotRecentSimRun],
+    categories: &[NonHumanCategoryDescriptor],
+    traffic_origin: &str,
+) -> Vec<NonHumanClassificationReceipt> {
+    if summary
+        .request_outcomes
+        .by_non_human_category
+        .iter()
+        .any(|row| row.traffic_origin == traffic_origin)
+    {
+        summary
+            .request_outcomes
+            .by_non_human_category
+            .iter()
+            .filter(|row| row.traffic_origin == traffic_origin)
+            .filter_map(|row| receipt_from_category_row(row, recent_sim_runs, categories))
+            .collect()
+    } else {
+        summary
             .request_outcomes
             .by_lane
             .iter()
-            .filter(|row| row.traffic_origin == "adversary_sim")
-            .filter_map(|row| receipt_from_lane_row(row, recent_sim_runs, &taxonomy.categories))
-            .collect();
+            .filter(|row| row.traffic_origin == traffic_origin)
+            .filter_map(|row| receipt_from_lane_row(row, recent_sim_runs, categories))
+            .collect()
     }
-    receipts.extend(sim_receipts);
+}
+
+fn sort_receipts(receipts: &mut Vec<NonHumanClassificationReceipt>) {
     receipts.sort_by(|left, right| {
         traffic_origin_sort_key(left.traffic_origin.as_str())
             .cmp(&traffic_origin_sort_key(right.traffic_origin.as_str()))
             .then_with(|| left.category_id.cmp(&right.category_id))
             .then_with(|| left.lane.cmp(&right.lane))
     });
+}
 
+fn build_readiness(receipts: &[NonHumanClassificationReceipt]) -> NonHumanClassificationReadiness {
     let live_receipt_count = receipts
         .iter()
         .filter(|receipt| receipt.traffic_origin == "live")
@@ -271,22 +378,11 @@ pub(crate) fn summarize_non_human_classification(
         "partial".to_string()
     };
 
-    (
-        NonHumanClassificationReadiness {
-            status,
-            blockers,
-            live_receipt_count,
-            adversary_sim_receipt_count,
-        },
-        receipts,
-    )
-}
-
-fn traffic_origin_sort_key(value: &str) -> u8 {
-    match value {
-        "live" => 0,
-        "adversary_sim" => 1,
-        _ => 2,
+    NonHumanClassificationReadiness {
+        status,
+        blockers,
+        live_receipt_count,
+        adversary_sim_receipt_count,
     }
 }
 
@@ -507,7 +603,9 @@ fn alignment_sort_key(status: &str) -> u8 {
 #[cfg(test)]
 mod tests {
     use super::{
-        summarize_non_human_classification, summarize_verified_identity_taxonomy_alignment,
+        summarize_non_human_recognition_evaluation,
+        summarize_non_human_restriction_classification,
+        summarize_verified_identity_taxonomy_alignment,
     };
     use crate::observability::monitoring::{
         MonitoringSummary, RequestOutcomeCategorySummaryRow, RequestOutcomeLaneSummaryRow,
@@ -555,7 +653,7 @@ mod tests {
             },
         ];
 
-        let (readiness, receipts) = summarize_non_human_classification(
+        let (readiness, receipts) = summarize_non_human_restriction_classification(
             &summary,
             &[OperatorSnapshotRecentSimRun {
                 run_id: "simrun-001".to_string(),
@@ -621,7 +719,7 @@ mod tests {
             control_response_bytes: 0,
         }];
 
-        let (readiness, receipts) = summarize_non_human_classification(
+        let (readiness, receipts) = summarize_non_human_recognition_evaluation(
             &summary,
             &[OperatorSnapshotRecentSimRun {
                 run_id: "simrun-request-native".to_string(),
@@ -696,7 +794,7 @@ mod tests {
             control_response_bytes: 0,
         }];
 
-        let (readiness, receipts) = summarize_non_human_classification(&summary, &[]);
+        let (readiness, receipts) = summarize_non_human_restriction_classification(&summary, &[]);
 
         assert_eq!(readiness.live_receipt_count, 1);
         assert_eq!(receipts[0].category_id, "indexing_bot");
@@ -779,7 +877,8 @@ mod tests {
             },
         ];
 
-        let (_, receipts) = summarize_non_human_classification(&classification_summary, &[]);
+        let (_, receipts) =
+            summarize_non_human_restriction_classification(&classification_summary, &[]);
         let alignment =
             summarize_verified_identity_taxonomy_alignment(&verified_summary, receipts.as_slice());
 

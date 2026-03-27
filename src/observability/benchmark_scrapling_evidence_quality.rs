@@ -80,7 +80,7 @@ pub(crate) fn scrapling_evidence_quality_assessment(
         .collect();
     let attribution_status = if breach_loci.is_empty() {
         "projected_or_incomplete"
-    } else if non_human_traffic.readiness.status == "ready" {
+    } else if non_human_traffic.restriction_readiness.status == "ready" {
         "category_and_surface_native"
     } else {
         "surface_native_shared_path"

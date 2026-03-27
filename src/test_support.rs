@@ -169,10 +169,12 @@ pub(crate) fn seed_candidate_snapshot_with_candidate_families<S: crate::challeng
         generated_at_ts,
         generated_at_ts,
     );
-    payload.non_human_traffic.readiness.status = "ready".to_string();
-    payload.non_human_traffic.readiness.blockers.clear();
-    payload.non_human_traffic.readiness.live_receipt_count = 1;
-    payload.non_human_traffic.readiness.adversary_sim_receipt_count = 1;
+    payload.non_human_traffic.restriction_readiness.status = "ready".to_string();
+    payload.non_human_traffic.restriction_readiness.blockers.clear();
+    payload.non_human_traffic.restriction_readiness.live_receipt_count = 1;
+    payload.non_human_traffic
+        .restriction_readiness
+        .adversary_sim_receipt_count = 1;
     payload.non_human_traffic.coverage.overall_status = "covered".to_string();
     payload.non_human_traffic.coverage.blocking_reasons.clear();
     payload.non_human_traffic.coverage.blocking_category_ids.clear();
@@ -182,6 +184,10 @@ pub(crate) fn seed_candidate_snapshot_with_candidate_families<S: crate::challeng
     payload.non_human_traffic.coverage.stale_category_count = 0;
     payload.non_human_traffic.coverage.unavailable_category_count = 0;
     payload.non_human_traffic.coverage.uncovered_category_count = 2;
+    payload.non_human_traffic.recognition_evaluation.readiness =
+        payload.non_human_traffic.restriction_readiness.clone();
+    payload.non_human_traffic.recognition_evaluation.coverage =
+        payload.non_human_traffic.coverage.clone();
     payload.replay_promotion.availability = "materialized".to_string();
     payload.replay_promotion.evidence_status = "protected".to_string();
     payload.replay_promotion.tuning_eligible = true;
@@ -197,9 +203,14 @@ pub(crate) fn seed_candidate_snapshot_with_candidate_families<S: crate::challeng
     } else {
         "regressed".to_string()
     };
-    payload.benchmark_results.non_human_classification = payload.non_human_traffic.readiness.clone();
+    payload.benchmark_results.non_human_classification =
+        payload.non_human_traffic.restriction_readiness.clone();
     payload.benchmark_results.non_human_coverage =
-        payload.non_human_traffic.coverage.compact_for_benchmark();
+        payload
+            .non_human_traffic
+            .recognition_evaluation
+            .coverage
+            .compact_for_benchmark();
     payload.benchmark_results.tuning_eligibility.status = "eligible".to_string();
     payload.benchmark_results.tuning_eligibility.blockers.clear();
     payload.benchmark_results.escalation_hint.availability = "partial_support".to_string();
