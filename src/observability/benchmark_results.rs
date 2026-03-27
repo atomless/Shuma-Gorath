@@ -1780,7 +1780,7 @@ mod tests {
             .find(|family| family.family_id == "scrapling_surface_contract")
             .expect("scrapling surface contract family");
         assert_eq!(family.status, "outside_budget");
-        assert!(family.note.contains("Maze Navigation"));
+        assert!(family.note.contains("Maze Navigation (attempted and blocked)"));
         assert_eq!(payload.overall_status, "outside_budget");
         assert_eq!(payload.tuning_eligibility.status, "blocked");
         assert!(payload

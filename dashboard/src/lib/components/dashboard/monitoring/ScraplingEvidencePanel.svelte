@@ -87,10 +87,11 @@
               data-surface-state={row.state}
             >
               <strong aria-hidden="true">
-                {#if row.state === 'satisfied'}&#10003;{:else if row.state === 'blocking'}&#10005;{:else}-{/if}
+                {#if row.state === 'satisfied'}&#10003;{:else if row.state === 'not_required'}-{:else}&#10005;{/if}
               </strong>
               {' '}
               {row.surfaceLabel || humanizeToken(row.surfaceId)}
+              <span class="text-muted"> {row.stateLabel || humanizeToken(row.state)}</span>
             </li>
           {/each}
         {/if}
@@ -142,11 +143,7 @@
                 <td>{humanizeToken(receipt.successContract)}</td>
                 <td>
                   {humanizeToken(receipt.coverageStatus)}
-                  {#if receipt.satisfied}
-                    <span class="text-muted"> | satisfied</span>
-                  {:else}
-                    <span class="text-muted"> | blocked</span>
-                  {/if}
+                  <span class="text-muted"> | {receipt.surfaceStateLabel || (receipt.satisfied ? 'satisfied' : 'blocked')}</span>
                 </td>
                 <td>{formatCompactNumber(receipt.attemptCount || 0, '0')}</td>
                 <td><code>{formatSample(receipt)}</code></td>

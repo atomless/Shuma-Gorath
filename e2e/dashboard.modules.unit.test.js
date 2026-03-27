@@ -3432,9 +3432,9 @@ test('monitoring view model and status module remain pure snapshot transforms', 
             cdp_report_ingestion: 'CDP Report Ingestion',
             verified_identity_attestation: 'Verified Identity Attestation'
           },
-          required_surface_ids: ['challenge_routing', 'pow_verify_abuse'],
+          required_surface_ids: ['challenge_routing', 'not_a_bot_submit', 'pow_verify_abuse'],
           satisfied_surface_ids: ['challenge_routing'],
-          blocking_surface_ids: ['pow_verify_abuse'],
+          blocking_surface_ids: ['not_a_bot_submit', 'pow_verify_abuse'],
           receipts: [
             {
               surface_id: 'challenge_routing',
@@ -3444,6 +3444,16 @@ test('monitoring view model and status module remain pure snapshot transforms', 
               attempt_count: 4,
               sample_request_method: 'GET',
               sample_request_path: '/sim/public/search?q=scrapling',
+              sample_response_status: 200
+            },
+            {
+              surface_id: 'not_a_bot_submit',
+              success_contract: 'should_fail',
+              coverage_status: 'pass_observed',
+              satisfied: false,
+              attempt_count: 2,
+              sample_request_method: 'POST',
+              sample_request_path: '/challenge/not-a-bot-checkbox',
               sample_response_status: 200
             },
             {
@@ -3514,42 +3524,83 @@ test('monitoring view model and status module remain pure snapshot transforms', 
     assert.deepEqual(
       summarizedRuns.runRows[0].ownedSurfaceCoverage?.surfaceChecklistRows,
       [
-        { surfaceId: 'public_path_traversal', surfaceLabel: 'Public Path Traversal', state: 'not_required' },
-        { surfaceId: 'challenge_routing', surfaceLabel: 'Challenge Routing', state: 'satisfied' },
-        { surfaceId: 'rate_pressure', surfaceLabel: 'Rate Pressure', state: 'not_required' },
-        { surfaceId: 'geo_ip_policy', surfaceLabel: 'Geo Or IP Policy', state: 'not_required' },
-        { surfaceId: 'not_a_bot_submit', surfaceLabel: 'Not-a-Bot Submit', state: 'not_required' },
+        {
+          surfaceId: 'public_path_traversal',
+          surfaceLabel: 'Public Path Traversal',
+          state: 'not_required',
+          stateLabel: 'not required this run'
+        },
+        {
+          surfaceId: 'challenge_routing',
+          surfaceLabel: 'Challenge Routing',
+          state: 'satisfied',
+          stateLabel: 'satisfied'
+        },
+        {
+          surfaceId: 'rate_pressure',
+          surfaceLabel: 'Rate Pressure',
+          state: 'not_required',
+          stateLabel: 'not required this run'
+        },
+        {
+          surfaceId: 'geo_ip_policy',
+          surfaceLabel: 'Geo Or IP Policy',
+          state: 'not_required',
+          stateLabel: 'not required this run'
+        },
+        {
+          surfaceId: 'not_a_bot_submit',
+          surfaceLabel: 'Not-a-Bot Submit',
+          state: 'attempted_blocked',
+          stateLabel: 'attempted and blocked'
+        },
         {
           surfaceId: 'puzzle_submit_or_escalation',
           surfaceLabel: 'Puzzle Submit Or Escalation',
-          state: 'not_required'
+          state: 'not_required',
+          stateLabel: 'not required this run'
         },
-        { surfaceId: 'pow_verify_abuse', surfaceLabel: 'PoW Verify Abuse', state: 'blocking' },
+        {
+          surfaceId: 'pow_verify_abuse',
+          surfaceLabel: 'PoW Verify Abuse',
+          state: 'unreached',
+          stateLabel: 'required but unreached'
+        },
         {
           surfaceId: 'tarpit_progress_abuse',
           surfaceLabel: 'Tarpit Progress Abuse',
-          state: 'not_required'
+          state: 'not_required',
+          stateLabel: 'not required this run'
         },
-        { surfaceId: 'maze_navigation', surfaceLabel: 'Maze Navigation', state: 'not_required' },
+        {
+          surfaceId: 'maze_navigation',
+          surfaceLabel: 'Maze Navigation',
+          state: 'not_required',
+          stateLabel: 'not required this run'
+        },
         {
           surfaceId: 'browser_automation_detection',
           surfaceLabel: 'Browser CDP Automation Detection',
-          state: 'not_required'
+          state: 'not_required',
+          stateLabel: 'not required this run'
         },
         {
           surfaceId: 'js_verification_execution',
           surfaceLabel: 'JavaScript Verification Execution',
-          state: 'not_required'
+          state: 'not_required',
+          stateLabel: 'not required this run'
         },
         {
           surfaceId: 'cdp_report_ingestion',
           surfaceLabel: 'CDP Report Ingestion',
-          state: 'not_required'
+          state: 'not_required',
+          stateLabel: 'not required this run'
         },
         {
           surfaceId: 'verified_identity_attestation',
           surfaceLabel: 'Verified Identity Attestation',
-          state: 'not_required'
+          state: 'not_required',
+          stateLabel: 'not required this run'
         }
       ]
     );

@@ -444,9 +444,19 @@
     toArray(operatorSnapshot?.adversary_sim?.recent_runs)
   );
   $: surfaceContractCoverage = asRecord(latestScraplingEvidence?.ownedSurfaceCoverage);
-  $: surfaceContractBlockingLabels = toArray(surfaceContractCoverage?.blockingSurfaceIds).map((surfaceId) =>
-    humanizeToken(surfaceId)
-  );
+  $: surfaceContractBlockingLabels = (() => {
+    const blockingReceipts = toArray(surfaceContractCoverage?.receipts).filter(
+      (receipt) => receipt && receipt.satisfied !== true
+    );
+    if (blockingReceipts.length > 0) {
+      return blockingReceipts.map((receipt) => {
+        const label = String(receipt?.surfaceLabel || '').trim() || humanizeToken(receipt?.surfaceId);
+        const stateLabel = String(receipt?.surfaceStateLabel || '').trim();
+        return stateLabel ? `${label} (${stateLabel})` : label;
+      });
+    }
+    return toArray(surfaceContractCoverage?.blockingSurfaceIds).map((surfaceId) => humanizeToken(surfaceId));
+  })();
   $: budgetUsageRows = [likelyHumanFrictionFamily, suspiciousOriginCostFamily]
     .flatMap((family) =>
       toArray(family?.metrics)

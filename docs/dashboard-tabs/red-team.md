@@ -27,6 +27,9 @@ Panel:
     - a tick when the latest run was required to hit it and did hit it,
     - a cross when the latest run was required to hit it but did not,
     - a dash when the latest run was not expected to hit it,
+    - explicit state text so a required miss is no longer ambiguous:
+      - `attempted and blocked` means Scrapling reached the surface and failed its contract there,
+      - `required but unreached` means the latest run never produced an attempt receipt for that required surface,
   - per-surface sample receipts so operators can inspect why a required surface satisfied or blocked.
 
 Behavior:

@@ -269,6 +269,27 @@ pub(crate) fn summarize_scrapling_owned_surface_coverage(
     })
 }
 
+pub(crate) fn coverage_receipt_state(receipt: &ScraplingOwnedSurfaceCoverageReceipt) -> &'static str {
+    if receipt.satisfied {
+        "satisfied"
+    } else if receipt.attempt_count > 0 {
+        "attempted_blocked"
+    } else {
+        "unreached"
+    }
+}
+
+pub(crate) fn coverage_receipt_state_label(
+    receipt: &ScraplingOwnedSurfaceCoverageReceipt,
+) -> &'static str {
+    match coverage_receipt_state(receipt) {
+        "satisfied" => "satisfied",
+        "attempted_blocked" => "attempted and blocked",
+        "unreached" => "required but unreached",
+        _ => "state unavailable",
+    }
+}
+
 pub(crate) fn canonical_scrapling_owned_surface_summary() -> ScraplingOwnedSurfaceSummary {
     let rows = vec![
         row(
@@ -494,7 +515,8 @@ fn surface_status_satisfies_contract(success_contract: &str, coverage_status: &s
 #[cfg(test)]
 mod tests {
     use super::{
-        canonical_scrapling_owned_surface_summary, scrapling_owned_surface_targets,
+        canonical_scrapling_owned_surface_summary, coverage_receipt_state,
+        coverage_receipt_state_label, scrapling_owned_surface_targets,
         scrapling_owned_surface_targets_for_mode, scrapling_owned_surface_targets_for_modes,
         summarize_scrapling_owned_surface_coverage, ScraplingSurfaceObservationReceipt,
         SCRAPLING_OWNED_SURFACE_SCHEMA_VERSION,
@@ -864,5 +886,16 @@ mod tests {
             .expect("browser detection receipt");
         assert_eq!(detection.coverage_status, "transport_error");
         assert!(!detection.satisfied);
+        assert_eq!(coverage_receipt_state(detection), "attempted_blocked");
+        assert_eq!(coverage_receipt_state_label(detection), "attempted and blocked");
+        let maze = summary
+            .receipts
+            .iter()
+            .find(|receipt| receipt.surface_id == "maze_navigation")
+            .expect("maze receipt");
+        assert_eq!(maze.coverage_status, "unavailable");
+        assert_eq!(maze.attempt_count, 0);
+        assert_eq!(coverage_receipt_state(maze), "unreached");
+        assert_eq!(coverage_receipt_state_label(maze), "required but unreached");
     }
 }

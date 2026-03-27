@@ -888,15 +888,41 @@ const formatOwnedSurfaceLabelFallback = (surfaceId) => String(surfaceId || '')
 const resolveOwnedSurfaceLabel = (surfaceId, surfaceLabels = {}) =>
   String(surfaceLabels?.[surfaceId] || '').trim() || formatOwnedSurfaceLabelFallback(surfaceId);
 
+const deriveRequiredSurfaceState = (receipt = {}, satisfiedFallback = false) => {
+  const source = receipt && typeof receipt === 'object' ? receipt : {};
+  const satisfied = source.satisfied === true || satisfiedFallback === true;
+  if (satisfied) return 'satisfied';
+  const attemptCount = Number(source.attemptCount || source.attempt_count || 0);
+  return attemptCount > 0 ? 'attempted_blocked' : 'unreached';
+};
+
+const formatOwnedSurfaceStateLabel = (state = '') => {
+  switch (String(state || '').trim()) {
+    case 'satisfied':
+      return 'satisfied';
+    case 'attempted_blocked':
+      return 'attempted and blocked';
+    case 'unreached':
+      return 'required but unreached';
+    case 'not_required':
+      return 'not required this run';
+    default:
+      return 'state unavailable';
+  }
+};
+
 const shapeOwnedSurfaceCoverageReceipt = (receipt = {}, surfaceLabels = {}) => {
   const source = receipt && typeof receipt === 'object' ? receipt : {};
   const surfaceId = String(source.surfaceId || source.surface_id || '').trim();
+  const surfaceState = deriveRequiredSurfaceState(source, source.satisfied === true);
   return {
     surfaceId,
     surfaceLabel: resolveOwnedSurfaceLabel(surfaceId, surfaceLabels),
     successContract: String(source.successContract || source.success_contract || '').trim(),
     coverageStatus: String(source.coverageStatus || source.coverage_status || '').trim(),
     satisfied: source.satisfied === true,
+    surfaceState,
+    surfaceStateLabel: formatOwnedSurfaceStateLabel(surfaceState),
     attemptCount: Number(source.attemptCount || source.attempt_count || 0),
     sampleRequestMethod: String(source.sampleRequestMethod || source.sample_request_method || '').trim(),
     sampleRequestPath: String(source.sampleRequestPath || source.sample_request_path || '').trim(),
@@ -911,19 +937,28 @@ const buildSurfaceChecklistRows = (
   canonicalSurfaceIds = [],
   surfaceLabels = {},
   requiredSurfaceIds = [],
-  satisfiedSurfaceIds = []
+  satisfiedSurfaceIds = [],
+  receipts = []
 ) => {
   const requiredSurfaceSet = new Set(requiredSurfaceIds);
   const satisfiedSurfaceSet = new Set(satisfiedSurfaceIds);
-  return canonicalSurfaceIds.map((surfaceId) => ({
-    surfaceId,
-    surfaceLabel: resolveOwnedSurfaceLabel(surfaceId, surfaceLabels),
-    state: !requiredSurfaceSet.has(surfaceId)
+  const receiptBySurfaceId = new Map(
+    (Array.isArray(receipts) ? receipts : [])
+      .filter((receipt) => receipt && receipt.surfaceId)
+      .map((receipt) => [receipt.surfaceId, receipt])
+  );
+  return canonicalSurfaceIds.map((surfaceId) => {
+    const receipt = receiptBySurfaceId.get(surfaceId);
+    const state = !requiredSurfaceSet.has(surfaceId)
       ? 'not_required'
-      : satisfiedSurfaceSet.has(surfaceId)
-        ? 'satisfied'
-        : 'blocking'
-  }));
+      : deriveRequiredSurfaceState(receipt, satisfiedSurfaceSet.has(surfaceId));
+    return {
+      surfaceId,
+      surfaceLabel: resolveOwnedSurfaceLabel(surfaceId, surfaceLabels),
+      state,
+      stateLabel: formatOwnedSurfaceStateLabel(state)
+    };
+  });
 };
 
 const shapeOwnedSurfaceCoverage = (coverage = {}) => {
@@ -961,7 +996,8 @@ const shapeOwnedSurfaceCoverage = (coverage = {}) => {
       canonicalSurfaceIds,
       surfaceLabels,
       requiredSurfaceIds,
-      satisfiedSurfaceIds
+      satisfiedSurfaceIds,
+      receipts
     ),
     receipts
   };

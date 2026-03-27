@@ -2866,7 +2866,28 @@ test("game loop distinguishes category posture achievement from scrapling surfac
                 required_surface_ids: ["challenge_routing", "maze_navigation"],
                 satisfied_surface_ids: ["challenge_routing"],
                 blocking_surface_ids: ["maze_navigation"],
-                receipts: []
+                receipts: [
+                  {
+                    surface_id: "challenge_routing",
+                    success_contract: "mixed_outcomes",
+                    coverage_status: "pass_observed",
+                    satisfied: true,
+                    attempt_count: 3,
+                    sample_request_method: "GET",
+                    sample_request_path: "/challenge",
+                    sample_response_status: 200
+                  },
+                  {
+                    surface_id: "maze_navigation",
+                    success_contract: "should_pass_some",
+                    coverage_status: "unavailable",
+                    satisfied: false,
+                    attempt_count: 0,
+                    sample_request_method: "",
+                    sample_request_path: "",
+                    sample_response_status: null
+                  }
+                ]
               }
             }
           ]
@@ -2948,7 +2969,7 @@ test("game loop distinguishes category posture achievement from scrapling surfac
             family_id: "scrapling_surface_contract",
             status: "outside_budget",
             capability_gate: "supported",
-            note: "Latest Scrapling run sim-attack-partial still has blocking required defense surfaces: Maze Navigation.",
+            note: "Latest Scrapling run sim-attack-partial still has blocking required defense surfaces: Maze Navigation (required but unreached).",
             metrics: [
               {
                 metric_id: "scrapling_required_surface_satisfaction_rate",
@@ -3042,7 +3063,7 @@ test("game loop distinguishes category posture achievement from scrapling surfac
     "Surface Contract Satisfaction"
   );
   await expect(page.locator("[data-game-loop-section='pressure-sits']")).toContainText(
-    "Maze Navigation"
+    "Maze Navigation (required but unreached)"
   );
 });
 
@@ -4456,10 +4477,9 @@ test("red team tab surfaces receipt-backed scrapling attack evidence from recent
                 "pow_verify_abuse"
               ],
               satisfied_surface_ids: [
-                "challenge_routing",
-                "not_a_bot_submit"
+                "challenge_routing"
               ],
-              blocking_surface_ids: ["pow_verify_abuse"],
+              blocking_surface_ids: ["not_a_bot_submit", "pow_verify_abuse"],
               receipts: [
                 {
                   surface_id: "challenge_routing",
@@ -4474,12 +4494,12 @@ test("red team tab surfaces receipt-backed scrapling attack evidence from recent
                 {
                   surface_id: "not_a_bot_submit",
                   success_contract: "should_fail",
-                  coverage_status: "fail_observed",
-                  satisfied: true,
+                  coverage_status: "pass_observed",
+                  satisfied: false,
                   attempt_count: 2,
                   sample_request_method: "POST",
                   sample_request_path: "/challenge/not-a-bot-checkbox",
-                  sample_response_status: 400
+                  sample_response_status: 200
                 },
                 {
                   surface_id: "pow_verify_abuse",
@@ -4558,8 +4578,8 @@ test("red team tab surfaces receipt-backed scrapling attack evidence from recent
   await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="cdp_report_ingestion"]')).toContainText("CDP Report Ingestion");
   await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="verified_identity_attestation"]')).toContainText("Verified Identity Attestation");
   await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="challenge_routing"]')).toHaveAttribute("data-surface-state", "satisfied");
-  await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="not_a_bot_submit"]')).toHaveAttribute("data-surface-state", "satisfied");
-  await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="pow_verify_abuse"]')).toHaveAttribute("data-surface-state", "blocking");
+  await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="not_a_bot_submit"]')).toHaveAttribute("data-surface-state", "attempted_blocked");
+  await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="pow_verify_abuse"]')).toHaveAttribute("data-surface-state", "unreached");
   await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="public_path_traversal"]')).toHaveAttribute("data-surface-state", "not_required");
   await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="rate_pressure"]')).toHaveAttribute("data-surface-state", "not_required");
   await expect(page.locator('#red-team-scrapling-surface-checklist [data-surface-id="geo_ip_policy"]')).toHaveAttribute("data-surface-state", "not_required");
@@ -4573,7 +4593,9 @@ test("red team tab surfaces receipt-backed scrapling attack evidence from recent
   await expect(page.locator('#red-team-scrapling-surface-checklist')).toHaveCSS("list-style-type", "none");
   await expect(page.locator('#red-team-scrapling-surface-checklist')).toHaveCSS("padding-left", "0px");
   await expect(page.locator("#red-team-scrapling-evidence")).toContainText("simrun-scrapling-proof");
-  await expect(page.locator("#red-team-scrapling-evidence")).toContainText("2 / 3");
+  await expect(page.locator("#red-team-scrapling-evidence")).toContainText("1 / 3");
+  await expect(page.locator("#red-team-scrapling-evidence")).toContainText("Not-a-Bot Submit attempted and blocked");
+  await expect(page.locator("#red-team-scrapling-evidence")).toContainText("PoW Verify Abuse required but unreached");
   await expect(page.locator("#red-team-scrapling-evidence")).toContainText("POST /challenge/not-a-bot-checkbox");
   await expect(page.locator("#red-team-scrapling-evidence")).toContainText("PoW Verify Abuse");
 });

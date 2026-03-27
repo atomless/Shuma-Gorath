@@ -4,6 +4,29 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-27)
 
+### SIM-SCR-FULL-1C4 Scrapling Surface Exercise Proof Repair
+
+- [x] Completed `SIM-SCR-FULL-1C4` across:
+  - [`src/observability/scrapling_owned_surface.rs`](../src/observability/scrapling_owned_surface.rs)
+  - [`src/observability/benchmark_scrapling_surface_contract.rs`](../src/observability/benchmark_scrapling_surface_contract.rs)
+  - [`dashboard/src/lib/components/dashboard/monitoring-view-model.js`](../dashboard/src/lib/components/dashboard/monitoring-view-model.js)
+  - [`dashboard/src/lib/components/dashboard/monitoring/ScraplingEvidencePanel.svelte`](../dashboard/src/lib/components/dashboard/monitoring/ScraplingEvidencePanel.svelte)
+  - [`dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
+  - [`docs/research/2026-03-27-sim-scr-full-1c4-surface-exercise-proof-post-implementation-review.md`](../docs/research/2026-03-27-sim-scr-full-1c4-surface-exercise-proof-post-implementation-review.md)
+- [x] What landed:
+  - proved that current Scrapling was already attempting `js_verification_execution`, `browser_automation_detection`, `pow_verify_abuse`, `tarpit_progress_abuse`, and `maze_navigation`,
+  - repaired the projection path so required surfaces now render as `satisfied`, `attempted and blocked`, or `required but unreached` instead of collapsing every miss into one vague blocking state,
+  - and made the surface-contract benchmark note plus the Red Team and Game Loop panels reflect that proof explicitly.
+- [x] Why:
+  - the user correctly called out that the Game Loop and Red Team surfaces were still too vague to tell whether Scrapling had actually tried a surface or had simply never reached it.
+- [x] Evidence:
+  - [`docs/research/2026-03-27-sim-scr-full-1c4-surface-exercise-proof-post-implementation-review.md`](../docs/research/2026-03-27-sim-scr-full-1c4-surface-exercise-proof-post-implementation-review.md)
+  - `make test-benchmark-results-contract`
+  - `make test-adversary-sim-scrapling-coverage-receipts`
+  - `make test-dashboard-scrapling-evidence`
+  - `make test-dashboard-game-loop-accountability`
+  - `make test-adversary-sim-runtime-surface`
+
 ### Game Loop Architecture Alignment Audit And Refactor Planning
 
 - [x] Wrote the cross-cutting architecture audit and refactor plan in:
