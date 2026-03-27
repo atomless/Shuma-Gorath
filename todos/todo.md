@@ -122,10 +122,11 @@ Current note:
 - `RSI-SCORE-2` is now landed: the judge, diagnoser, move selector, and Game Loop projection now preserve exploit progress, evidence quality, urgency, named breach loci, and config-exhaustion or code-referral truth as separate planes.
 - `RSI-GAME-HO-1` is now landed: the strict `human_only_private` loop is proven on the local `/sim/public/*` surface with live strict-stance runtime checks, post-sim oversight lineage, and repeated retained movement toward zero suspicious leakage.
 - A March 27 accountability slice is now landed: Game Loop category posture rows render honestly as `Unscored` when exact shared-path evidence is missing, exploit loci now carry host-cost channels plus repair-family hints, localized high-confidence exploit progress can now drive bounded config tuning, and the Game Loop page now projects origin leakage, board-state breach progress, and loop actionability as separate planes.
-- The remaining immediate truth gap is still exact shared-path category inference for non-verified Scrapling-populated categories. The next active scoring slice is therefore the still-open `RSI-SCORE-2F2`, not broader closure claims.
+- The remaining immediate Game Loop gaps are no longer just "exact category inference later". March 27 review shows five still-open Scrapling-first rigor failures: vague `Loop Actionability` blocker output, vague `Named Breach Loci`, wholly unscored current Scrapling categories, incomplete proof of JS verification and PoW surface exercise, and still-implicit owned-surface dependency semantics.
+- The next active Scrapling-first rigor sequence is now `SIM-SCR-FULL-1C4` -> `SIM-SCR-FULL-1C5` -> `RSI-SCORE-2F3` -> `RSI-GAME-BOARD-1F` -> `RSI-GAME-BOARD-1G`.
 - The board-state doctrine now has explicit follow-on planning for a later frontier-LLM code-evolution ring and a later real-human friction calibration ring, but both remain blocked from execution.
 - Before further mainline completion claims, the repo now requires explicit acceptance-gate discipline. Do not describe `STANCE-MODEL-1`, `SIM-SCR-FULL-1`, `RSI-GAME-HO-1`, or `RSI-GAME-HO-2` as complete from planning progress, baseline capability, or dashboard pressure signals alone.
-- The next attacker-runtime mainline after the scoring truth repair remains `SIM-LLM-1C3`.
+- The next attacker-runtime mainline remains `SIM-LLM-1C3`, but only after the current Scrapling-first Game Loop rigor repairs land and the Scrapling loop stops depending on vague or missing truth.
 - Do not open `humans_plus_verified_only` until a later second strict-baseline proof has shown retained config-change improvement under both Scrapling and LLM attacker pressure.
 - `DIAG-CLEANUP-1` and `MON-OVERHAUL-1C` are now both landed, so the deferred Game Loop and Diagnostics follow-on queue is currently clear while the later combined-attacker strict-baseline proof still stays blocked behind `SIM-LLM-1C3`.
 
@@ -142,11 +143,72 @@ Current note:
     - proof: `make test-benchmark-results-contract`, `make test-dashboard-game-loop-accountability`, and `make test-traffic-classification-contract`, plus `make test-adversary-sim-scrapling-category-fit` if new exact shared-path inference lands
     - insufficient: projected zero-count category placeholders, null rows that still look like `0% achieved`, sim-tag-derived category truth, or category scoring that only appears trustworthy because the live rows remain stuck at `0%` or `100%`
 
+- [ ] SIM-SCR-FULL-1C4 Audit and repair Scrapling owned-surface exercise proof for JS verification, browser detection, PoW, tarpit, and maze.
+  - Reference context:
+    - [`docs/research/2026-03-27-game-loop-scrapling-proof-and-rigor-gap-review.md`](../docs/research/2026-03-27-game-loop-scrapling-proof-and-rigor-gap-review.md)
+    - [`docs/plans/2026-03-27-game-loop-scrapling-proof-and-rigor-repair-plan.md`](../docs/plans/2026-03-27-game-loop-scrapling-proof-and-rigor-repair-plan.md)
+    - [`docs/research/2026-03-24-scrapling-challenge-surface-and-defense-coverage-review.md`](../docs/research/2026-03-24-scrapling-challenge-surface-and-defense-coverage-review.md)
+  - Closure gate:
+    - runtime proof: the repo must prove whether the current Scrapling worker actually exercises `js_verification_execution`, `browser_automation_detection`, `pow_verify_abuse`, `tarpit_progress_abuse`, and `maze_navigation`
+    - proof chain: worker receipt -> recent run -> owned-surface coverage -> benchmark -> Game Loop must preserve those attempts truthfully
+    - operator truth: the operator must be able to distinguish attempted-and-satisfied, attempted-and-blocked, required-but-never-reached, and not-required surfaces
+    - proof: `make test-adversary-sim-scrapling-coverage-receipts`, `make test-adversary-sim-runtime-surface`, and `make test-dashboard-game-loop-accountability`
+    - insufficient: worker code that attempts the surface but no operator-visible receipt, coverage summaries that obscure attempted failures as absence, or Game Loop wording that cannot explain whether the surface was attempted at all
+
+- [ ] SIM-SCR-FULL-1C5 Tighten Scrapling owned-surface dependency and contract rigor.
+  - Reference context:
+    - [`docs/research/2026-03-27-game-loop-scrapling-proof-and-rigor-gap-review.md`](../docs/research/2026-03-27-game-loop-scrapling-proof-and-rigor-gap-review.md)
+    - [`docs/plans/2026-03-27-game-loop-scrapling-proof-and-rigor-repair-plan.md`](../docs/plans/2026-03-27-game-loop-scrapling-proof-and-rigor-repair-plan.md)
+    - [`docs/plans/2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-plan.md`](../docs/plans/2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-plan.md)
+  - Closure gate:
+    - contract truth: the canonical owned-surface matrix must explicitly encode whether `pow_verify_abuse`, `tarpit_progress_abuse`, `maze_navigation`, and `js_verification_execution` are independent or prerequisite-linked
+    - projection truth: required and blocking surface summaries must distinguish not-required, not-reached-because-blocked-earlier, and attempted-and-failed
+    - operator truth: Red Team and Game Loop must stop leaving the operator to infer maze/tarpit or JS/PoW dependency semantics from code alone
+    - proof: `make test-adversary-sim-scrapling-coverage-receipts`, `make test-dashboard-scrapling-evidence`, and `make test-dashboard-game-loop-accountability`
+    - insufficient: absent dependency semantics, blocking lists that hide not-reached prerequisites, or operator surfaces that still make tarpit or maze relationships guesswork
+
+- [ ] RSI-SCORE-2F3 Land exact shared-path category posture scoring for the current Scrapling-populated categories.
+  - Reference context:
+    - [`docs/research/2026-03-27-game-loop-scrapling-proof-and-rigor-gap-review.md`](../docs/research/2026-03-27-game-loop-scrapling-proof-and-rigor-gap-review.md)
+    - [`docs/plans/2026-03-27-game-loop-scrapling-proof-and-rigor-repair-plan.md`](../docs/plans/2026-03-27-game-loop-scrapling-proof-and-rigor-repair-plan.md)
+    - [`docs/plans/2026-03-27-game-loop-category-posture-truth-repair-plan.md`](../docs/plans/2026-03-27-game-loop-category-posture-truth-repair-plan.md)
+  - Closure gate:
+    - scoring truth: `Category Posture Achievement` must emit exact shared-path blocked-share values for `indexing_bot`, `ai_scraper_bot`, `automated_browser`, and `http_agent`
+    - classification truth: those exact receipts may come only from Shuma-side request, behavior, response, or browser evidence that real traffic could also produce; sim persona labels, fulfillment modes, and recent-run category declarations remain forbidden as category truth
+    - escalation discipline: if one or more of those categories still cannot be inferred exactly without a larger architecture change, stop and reopen that architecture discussion explicitly instead of faking category precision
+    - proof: `make test-traffic-classification-contract`, `make test-adversary-sim-scrapling-category-fit`, `make test-benchmark-results-contract`, and `make test-dashboard-game-loop-accountability`
+    - insufficient: all current Scrapling categories still reading `Unscored`, exact category rows derived from sim metadata, or continued binary-looking category output that is not backed by real exact receipts
+
+- [ ] RSI-GAME-BOARD-1F Replace flat `Loop Actionability` blockers with typed blocker groups and exact next-fix surfaces.
+  - Reference context:
+    - [`docs/research/2026-03-27-game-loop-scrapling-proof-and-rigor-gap-review.md`](../docs/research/2026-03-27-game-loop-scrapling-proof-and-rigor-gap-review.md)
+    - [`docs/plans/2026-03-27-game-loop-scrapling-proof-and-rigor-repair-plan.md`](../docs/plans/2026-03-27-game-loop-scrapling-proof-and-rigor-repair-plan.md)
+    - [`docs/plans/2026-03-27-game-loop-board-state-refactor-plan.md`](../docs/plans/2026-03-27-game-loop-board-state-refactor-plan.md)
+  - Closure gate:
+    - structure: `Loop Actionability` must separate shared classification blockers, evidence-quality blockers, specific surface-proof blockers, controller gating blockers, and next exact fix surfaces
+    - causality: the operator must be able to see which blockers are root causes versus downstream symptoms
+    - controller truth: the page must distinguish "blocked by missing truth" from "blocked because no credible bounded move remains"
+    - proof: `make test-benchmark-results-contract`, `make test-rsi-score-evidence-quality`, and `make test-dashboard-game-loop-accountability`
+    - insufficient: one flat blocker string, blocker output with no causal ordering, or actionability text that still does not tell the operator what to fix first
+
+- [ ] RSI-GAME-BOARD-1G Make `Named Breach Loci` surface-exact and honest about missing data.
+  - Reference context:
+    - [`docs/research/2026-03-27-game-loop-scrapling-proof-and-rigor-gap-review.md`](../docs/research/2026-03-27-game-loop-scrapling-proof-and-rigor-gap-review.md)
+    - [`docs/plans/2026-03-27-game-loop-scrapling-proof-and-rigor-repair-plan.md`](../docs/plans/2026-03-27-game-loop-scrapling-proof-and-rigor-repair-plan.md)
+    - [`docs/plans/2026-03-27-game-loop-board-state-refactor-plan.md`](../docs/plans/2026-03-27-game-loop-board-state-refactor-plan.md)
+  - Closure gate:
+    - locality: each breach locus must name the exact owned surface and the exact request or browser sample that proved attacker progress
+    - honesty: missing `attempt_count`, host-cost, or repair data must render as not materialized rather than as `0` or generic "not available" certainty
+    - repairability: the operator must be able to tell which defense surface fell short and which repair surface is implicated without relying on generic stage labels alone
+    - proof: `make test-rsi-score-exploit-progress`, `make test-benchmark-results-contract`, and `make test-dashboard-game-loop-accountability`
+    - insufficient: `0 attempts` for absent data, breach loci that cannot identify the real surface that failed, or generic `Host cost not available` / `repair not available` wording that hides whether data is missing or simply not mapped
+
 - [ ] RSI-GAME-BOARD-1 Refactor Game Loop around board-state doctrine and shared-path sim truth.
   - Reference context:
     - [`docs/research/2026-03-27-game-loop-board-state-and-shared-path-truth-review.md`](../docs/research/2026-03-27-game-loop-board-state-and-shared-path-truth-review.md)
     - [`docs/research/2026-03-27-game-loop-shared-path-locality-and-actionability-post-implementation-review.md`](../docs/research/2026-03-27-game-loop-shared-path-locality-and-actionability-post-implementation-review.md)
     - [`docs/plans/2026-03-27-game-loop-board-state-refactor-plan.md`](../docs/plans/2026-03-27-game-loop-board-state-refactor-plan.md)
+    - [`docs/plans/2026-03-27-game-loop-scrapling-proof-and-rigor-repair-plan.md`](../docs/plans/2026-03-27-game-loop-scrapling-proof-and-rigor-repair-plan.md)
     - [`docs/research/2026-03-26-game-loop-terrain-locality-and-breach-diagnosis-review.md`](../docs/research/2026-03-26-game-loop-terrain-locality-and-breach-diagnosis-review.md)
     - [`docs/research/2026-03-26-strict-human-only-loop-and-human-traversal-calibration-review.md`](../docs/research/2026-03-26-strict-human-only-loop-and-human-traversal-calibration-review.md)
     - [`docs/plans/2026-03-24-llm-player-role-decomposition-plan.md`](../docs/plans/2026-03-24-llm-player-role-decomposition-plan.md)

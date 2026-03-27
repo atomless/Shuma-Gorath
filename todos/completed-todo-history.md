@@ -4,6 +4,29 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-27)
 
+### Game Loop Scrapling Proof And Rigor Repair Planning
+
+- [x] Wrote the new current-state review and focused repair plan in:
+  - [`docs/research/2026-03-27-game-loop-scrapling-proof-and-rigor-gap-review.md`](../docs/research/2026-03-27-game-loop-scrapling-proof-and-rigor-gap-review.md)
+  - [`docs/plans/2026-03-27-game-loop-scrapling-proof-and-rigor-repair-plan.md`](../docs/plans/2026-03-27-game-loop-scrapling-proof-and-rigor-repair-plan.md)
+  so the repo now explicitly captures the user-called-out gaps around vague `Loop Actionability` blockers, vague `Named Breach Loci`, wholly unscored Scrapling categories, incomplete proof of JS verification and PoW surface exercise, and still-implicit owned-surface dependency semantics.
+- [x] Updated the active backlog in:
+  - [`todos/todo.md`](../todos/todo.md)
+  to make the next Scrapling-first execution order explicit:
+  - `SIM-SCR-FULL-1C4`
+  - `SIM-SCR-FULL-1C5`
+  - `RSI-SCORE-2F3`
+  - `RSI-GAME-BOARD-1F`
+  - `RSI-GAME-BOARD-1G`
+  before the later `SIM-LLM-1C3` runtime reopen.
+- [x] Why:
+  - the user correctly called out that the current Game Loop still cannot answer, with enough rigor, exactly what failed, where it failed, whether Scrapling truly exercised key owned surfaces, or what should be fixed next.
+- [x] Evidence:
+  - [`docs/research/2026-03-27-game-loop-scrapling-proof-and-rigor-gap-review.md`](../docs/research/2026-03-27-game-loop-scrapling-proof-and-rigor-gap-review.md)
+  - [`docs/plans/2026-03-27-game-loop-scrapling-proof-and-rigor-repair-plan.md`](../docs/plans/2026-03-27-game-loop-scrapling-proof-and-rigor-repair-plan.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  - `git diff --check`
+
 ### RSI-SCORE-2F1 Honest Unscored Category Posture Rendering
 
 - [x] Repaired Game Loop category-posture honesty across:
