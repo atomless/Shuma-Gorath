@@ -4,6 +4,54 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-27)
 
+### Baseline Repair: IP-Bans Refresh Resilience And Operator-Snapshot Hot-Read Rebaseline
+
+- [x] Completed an unplanned but required baseline-repair slice across:
+  - [`../dashboard/src/lib/runtime/dashboard-runtime-refresh.js`](../dashboard/src/lib/runtime/dashboard-runtime-refresh.js)
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`../Makefile`](../Makefile)
+  - [`../src/observability/hot_read_documents.rs`](../src/observability/hot_read_documents.rs)
+  - [`../docs/plans/2026-03-12-unified-telemetry-hot-read-architecture-plan.md`](../docs/plans/2026-03-12-unified-telemetry-hot-read-architecture-plan.md)
+- [x] What landed:
+  - the IP-bans tab now stays usable when support reads such as range suggestions fail after delta bans succeed,
+  - focused dashboard Make targets now cover that recovery contract and tab-state smoke path,
+  - and the operator-snapshot hot-read contract is now explicitly rebaselined as a bounded machine-first control document instead of a bootstrap-sized supporting summary.
+- [x] Why:
+  - the in-flight Game Loop tranche exposed a real dashboard usability bug and a stale hot-read size contract that broke the canonical full-suite path even though the machine-first payload had legitimately grown.
+- [x] Evidence:
+  - `make test-dashboard-ip-bans-refresh-contract`
+  - `make test-dashboard-e2e-tab-state-transitions`
+  - `make test-telemetry-hot-read-contract`
+  - `make test-telemetry-hot-read-projection`
+  - `make test`
+  - `git diff --check`
+
+### RSI-GAME-ARCH-1F Restriction-Tuning Purity And Recent-Window Board Evidence
+
+- [x] Completed `RSI-GAME-ARCH-1F` across:
+  - [`../src/observability/benchmark_results.rs`](../src/observability/benchmark_results.rs)
+  - [`../src/observability/benchmark_scrapling_evidence_quality.rs`](../src/observability/benchmark_scrapling_evidence_quality.rs)
+  - [`../src/observability/benchmark_urgency.rs`](../src/observability/benchmark_urgency.rs)
+  - [`../src/admin/oversight_reconcile.rs`](../src/admin/oversight_reconcile.rs)
+  - [`../dashboard/src/lib/domain/api-client.js`](../dashboard/src/lib/domain/api-client.js)
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`../docs/research/2026-03-27-rsi-game-arch-1f-restriction-tuning-purity-post-implementation-review.md`](../docs/research/2026-03-27-rsi-game-arch-1f-restriction-tuning-purity-post-implementation-review.md)
+- [x] What landed:
+  - restriction tuning no longer imports recognition-side category blockers in the strong Scrapling board-state case,
+  - exploit evidence quality now uses `recent_window_support_status` instead of simulator-persona diversity,
+  - dashboard and tests now preserve that recent-window contract end to end,
+  - and live local benchmark truth now reduces the remaining controller blockers to protected-evidence guardrails rather than recognition leakage.
+- [x] Why:
+  - the Game Loop could not become a real bounded Scrapling RSI path while recognition-evaluation defects and simulator-derived persona metadata were still blocking restriction tuning after the board already showed localized, repeated incursions.
+- [x] Evidence:
+  - [`../docs/research/2026-03-27-rsi-game-arch-1f-restriction-tuning-purity-post-implementation-review.md`](../docs/research/2026-03-27-rsi-game-arch-1f-restriction-tuning-purity-post-implementation-review.md)
+  - `make test-rsi-score-evidence-quality`
+  - `make test-rsi-score-move-selection`
+  - `make dashboard-build`
+  - `make test-dashboard-game-loop-accountability`
+  - `git diff --check`
+
 ### RSI-GAME-ARCH-1D And RSI-GAME-BOARD-1G Breach-Locus Materialization Honesty
 
 - [x] Completed `RSI-GAME-ARCH-1D` and `RSI-GAME-BOARD-1G` across:

@@ -25,7 +25,9 @@ Implementation status update (2026-03-27):
 3. `RSI-GAME-ARCH-1C` is now landed: controller-grade diagnosis, recognition evaluation, and move selection are explicit sibling contracts, and reconcile no longer depends primarily on one escalation-hint oracle.
 4. `RSI-GAME-BOARD-1F` is now landed: the dashboard projects grouped root causes, controller outcomes, and next-fix surfaces instead of one blocker dump.
 5. `RSI-GAME-ARCH-1D` and `RSI-GAME-BOARD-1G` are now landed: breach loci carry explicit materialization truth end to end, and the dashboard no longer coerces missing values into fake zeros.
-6. The next architecture-alignment step is now `RSI-GAME-ARCH-1E`.
+6. `RSI-GAME-ARCH-1F` is now landed: restriction tuning no longer imports recognition-side category blockers in the strong Scrapling board-state case, and exploit confidence no longer depends on simulator-persona diversity.
+7. Live follow-on review now exposes a narrower remaining blocker: strong live Scrapling runtime evidence is still not protected tuning evidence.
+8. The next architecture-alignment step is therefore `RSI-GAME-ARCH-1G`, and only after that does `RSI-GAME-ARCH-1E` become the retirement slice.
 
 # Core Decisions
 
@@ -148,7 +150,53 @@ Acceptance criteria:
    1. `make test-benchmark-results-contract`
    2. `make test-dashboard-game-loop-accountability`
    3. `make test`
-   4. and cited contract-path evidence in docs.
+4. and cited contract-path evidence in docs.
+
+## `RSI-GAME-ARCH-1F`
+
+### Purge recognition leakage from restriction tuning and replace simulator-persona gating with recent-window board evidence
+
+Required contract:
+
+1. restriction tuning must stay independent of recognition-evaluation blockers once surface-native board evidence is already strong enough,
+2. restriction-grade exploit confidence must not depend on simulator-derived persona labels or fulfillment modes,
+3. recent-window support must be derived from breach evidence rather than simulator metadata,
+4. and only then should legacy category-first retirement proceed.
+
+Acceptance criteria:
+
+1. `benchmark_results` and controller assembly stop importing recognition-evaluation blockers as restriction blockers in the strong surface-native exploit case,
+2. `benchmark_scrapling_evidence_quality` no longer uses simulator-derived persona diversity as a decisive confidence input,
+3. replacement evidence-quality fields are board-state-derived and proof-backed,
+4. focused proof exists through:
+   1. `make test-benchmark-results-contract`
+   2. `make test-rsi-score-evidence-quality`
+   3. `make test-rsi-score-move-selection`
+   4. `make test-dashboard-game-loop-accountability`
+5. live payload inspection shows the controller is no longer blocked purely by recognition-side gaps in the strong Scrapling board-state case.
+
+## `RSI-GAME-ARCH-1G`
+
+### Make strong live Scrapling runtime evidence a protected tuning basis
+
+Required contract:
+
+1. protected tuning evidence must stay fail-closed for `synthetic_traffic` and advisory frontier or LLM discovery,
+2. but the live Scrapling runtime path must be able to become protected when the board-state evidence is already runtime-native and strong enough,
+3. and the controller must be able to act on that basis without reopening simulator-label leakage.
+
+Acceptance criteria:
+
+1. protected-evidence status is no longer limited to replay-promoted lineage only,
+2. strong live Scrapling runtime evidence has an explicit protected basis,
+3. `tuning_eligibility` can clear `protected_lineage_missing` and `protected_tuning_evidence_not_ready` on that basis,
+4. synthetic and advisory evidence remain ineligible,
+5. proof later exists through:
+   1. `make test-protected-tuning-evidence`
+   2. `make test-benchmark-results-contract`
+   3. `make test-rsi-score-move-selection`
+   4. `make test-dashboard-game-loop-accountability`
+6. and live payload inspection shows the controller can progress from observation into a bounded move when the Scrapling runtime evidence is already strong enough.
 
 # Sequencing
 
@@ -158,7 +206,9 @@ Acceptance criteria:
 4. land `RSI-GAME-ARCH-1B` before or together with `RSI-SCORE-2F3`,
 5. land `RSI-GAME-ARCH-1C` before or together with `RSI-GAME-BOARD-1F`,
 6. land `RSI-GAME-ARCH-1D` before or together with `RSI-GAME-BOARD-1G`,
-7. land `RSI-GAME-ARCH-1E` only after the replacement architecture is proven.
+7. land `RSI-GAME-ARCH-1F` before any retirement claims about the replacement architecture,
+8. land `RSI-GAME-ARCH-1G` before `RSI-GAME-ARCH-1E`,
+9. land `RSI-GAME-ARCH-1E` only after the replacement architecture is proven.
 
 # Definition Of Done
 

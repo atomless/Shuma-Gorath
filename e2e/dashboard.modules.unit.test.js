@@ -2440,6 +2440,117 @@ test('dashboard refresh runtime preserves unavailable ban-state markers instead 
   });
 });
 
+test('ip-bans refresh keeps the tab usable when range suggestions fail after delta bans succeed', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
+    const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
+
+    const store = storeModule.createDashboardStore({ initialTab: 'ip-bans' });
+    let suggestionsCallCount = 0;
+    const apiClient = {
+      async getConfig() {
+        return {
+          config: {},
+          runtime: {
+            admin_config_write_enabled: true,
+            runtime_environment: 'runtime-prod'
+          }
+        };
+      },
+      async getBans() {
+        return {
+          bans: [{
+            ip: '198.51.100.10',
+            reason: 'seed-ban',
+            banned_at: 1_700_000_000,
+            expires: 1_700_000_600
+          }]
+        };
+      },
+      async getIpRangeSuggestions() {
+        suggestionsCallCount += 1;
+        if (suggestionsCallCount > 1) {
+          throw new Error('temporary ban endpoint outage');
+        }
+        return {
+          summary: {
+            suggestions_total: 1,
+            low_risk: 1,
+            medium_risk: 0,
+            high_risk: 0
+          },
+          suggestions: [{
+            cidr: '198.51.100.0/24',
+            ip_family: 'ipv4',
+            bot_evidence_score: 18.1,
+            human_evidence_score: 0,
+            collateral_risk: 0.05,
+            confidence: 0.91,
+            risk_band: 'low',
+            recommended_action: 'deny_temp',
+            recommended_mode: 'enforce',
+            evidence_counts: { honeypot: 12 },
+            safer_alternatives: [],
+            guardrail_notes: []
+          }]
+        };
+      },
+      async getIpBansDelta(params = {}) {
+        if (Number(params.limit || 0) === 1) {
+          return {
+            after_cursor: '',
+            window_end_cursor: 'seed-cursor-1',
+            next_cursor: 'seed-cursor-1',
+            has_more: false,
+            overflow: 'none',
+            events: [],
+            active_bans: [],
+            freshness: { state: 'fresh', transport: 'cursor_delta_poll' }
+          };
+        }
+        return {
+          after_cursor: String(params.after_cursor || ''),
+          window_end_cursor: 'delta-cursor-2',
+          next_cursor: 'delta-cursor-2',
+          has_more: false,
+          overflow: 'none',
+          events: [],
+          active_bans: [{
+            ip: '198.51.100.250',
+            reason: 'manual_ban',
+            banned_at: 1_700_000_050,
+            expires: 1_700_000_650
+          }],
+          freshness: { state: 'fresh', transport: 'cursor_delta_poll' }
+        };
+      }
+    };
+
+    const runtime = refreshModule.createDashboardRefreshRuntime({
+      normalizeTab: (value) => String(value || ''),
+      getApiClient: () => apiClient,
+      getStateStore: () => store,
+      deriveMonitoringAnalytics: () => ({ ban_count: 0, shadow_mode: false, fail_mode: 'open' }),
+      storage: null
+    });
+
+    await runtime.refreshDashboardForTab('ip-bans', 'manual-refresh');
+    await runtime.refreshDashboardForTab('ip-bans', 'manual-refresh');
+
+    const ipBansStatus = store.getState().tabStatus['ip-bans'];
+    assert.equal(ipBansStatus.loading, false);
+    assert.equal(String(ipBansStatus.error || ''), '');
+    assert.equal(
+      ((store.getSnapshot('bans') || {}).bans || []).some((row) => row.ip === '198.51.100.250'),
+      true
+    );
+    assert.equal(
+      Number((store.getSnapshot('ipRangeSuggestions') || {}).summary?.suggestions_total || 0),
+      1
+    );
+  });
+});
+
 test('monitoring tab shows bootstrap telemetry before slow full monitoring details resolve', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
@@ -6677,8 +6788,7 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
         attribution_status: 'surface_native_shared_path',
         sample_status: 'sufficient',
         freshness_status: 'fresh',
-        persona_diversity_status: 'diverse',
-        reproducibility_status: 'reproduced',
+        recent_window_support_status: 'reproduced_recently',
         locality_status: 'localized',
         breach_loci: [
           {

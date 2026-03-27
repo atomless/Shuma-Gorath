@@ -847,28 +847,51 @@ export function createDashboardRefreshRuntime(options = {}) {
       reason,
       source: 'tab-refresh'
     });
+    const readIpRangeSuggestions = async () => {
+      try {
+        return await dashboardApiClient.getIpRangeSuggestions(
+          { hours: IP_RANGE_SUGGESTIONS_HOURS, limit: IP_RANGE_SUGGESTIONS_LIMIT },
+          requestOptions
+        );
+      } catch (_error) {
+        return null;
+      }
+    };
+    const readSharedConfigSupport = async () => {
+      if (!includeConfigRefresh) return null;
+      try {
+        return await refreshSharedConfig(reason, runtimeOptions);
+      } catch (_error) {
+        return null;
+      }
+    };
+    const applyIpRangeSuggestionsSupport = (ipRangeSuggestions) => {
+      if (!ipRangeSuggestions || typeof ipRangeSuggestions !== 'object') return;
+      const compactSuggestions = compactIpRangeSuggestionsSnapshot(ipRangeSuggestions);
+      applySnapshots({ ipRangeSuggestions });
+      const existingCache = readCache(IP_BANS_CACHE_KEY) || {};
+      writeCache(IP_BANS_CACHE_KEY, {
+        ...existingCache,
+        ipRangeSuggestions: compactSuggestions
+      });
+    };
     const fetchFullIpBans = async () => {
       const [bansData, ipRangeSuggestions, configEnvelope] = await Promise.all([
         dashboardApiClient.getBans(requestOptions),
-        dashboardApiClient.getIpRangeSuggestions(
-          { hours: IP_RANGE_SUGGESTIONS_HOURS, limit: IP_RANGE_SUGGESTIONS_LIMIT },
-          requestOptions
-        ),
-        includeConfigRefresh ? refreshSharedConfig(reason, runtimeOptions) : Promise.resolve(null)
+        readIpRangeSuggestions(),
+        readSharedConfigSupport()
       ]);
       const compactBans = compactBansSnapshot(bansData);
-      const compactSuggestions = compactIpRangeSuggestionsSnapshot(ipRangeSuggestions);
-      applySnapshots({
-        bans: bansData,
-        ipRangeSuggestions
-      });
+      applySnapshots({ bans: bansData });
       baselineState.ipBans = true;
+      applyIpRangeSuggestionsSupport(ipRangeSuggestions);
       if (hasConfigEnvelope(configEnvelope)) {
         applyConfigEnvelope(configEnvelope);
       }
+      const existingCache = readCache(IP_BANS_CACHE_KEY) || {};
       writeCache(IP_BANS_CACHE_KEY, {
-        bans: compactBans,
-        ipRangeSuggestions: compactSuggestions
+        ...existingCache,
+        bans: compactBans
       });
       try {
         await seedCursorToWindowEnd('ip-bans', requestOptions);
@@ -894,21 +917,12 @@ export function createDashboardRefreshRuntime(options = {}) {
         );
         syncCursorFromDelta('ip-bans', delta);
         applyIpBansDeltaSnapshots(delta, 'cursor_delta_poll');
-        const ipRangeSuggestions = await dashboardApiClient.getIpRangeSuggestions(
-          { hours: IP_RANGE_SUGGESTIONS_HOURS, limit: IP_RANGE_SUGGESTIONS_LIMIT },
-          requestOptions
-        );
-        const compactSuggestions = compactIpRangeSuggestionsSnapshot(ipRangeSuggestions);
-        applySnapshots({ ipRangeSuggestions });
-        const existingCache = readCache(IP_BANS_CACHE_KEY) || {};
-        writeCache(IP_BANS_CACHE_KEY, {
-          ...existingCache,
-          ipRangeSuggestions: compactSuggestions
-        });
+        const ipRangeSuggestions = await readIpRangeSuggestions();
+        applyIpRangeSuggestionsSupport(ipRangeSuggestions);
         if (delta.overflow === 'limit_exceeded') {
           await fetchFullIpBans();
         } else if (includeConfigRefresh) {
-          const configEnvelope = await refreshSharedConfig(reason, runtimeOptions);
+          const configEnvelope = await readSharedConfigSupport();
           if (hasConfigEnvelope(configEnvelope)) {
             applyConfigEnvelope(configEnvelope);
           }

@@ -151,7 +151,8 @@ Instead of recomputing expensive parts from many hourly reads on every request, 
 Current mainline note:
 
 1. the operator snapshot supporting document now legitimately carries a larger machine-first control-loop surface than the original hot-read baseline anticipated,
-2. so its size cap must be kept explicitly bounded but may need periodic rebaseline as long as it remains narrower than bootstrap and still serves canonical machine-first read needs without silent trimming.
+2. so its size cap must be kept explicitly bounded and may need periodic rebaseline against measured machine-first control-plane reality rather than against the monitoring bootstrap render budget,
+3. and bootstrap-vs-operator-snapshot budgeting must now be treated as two separate concerns: compact operator render readiness for bootstrap, and truthful machine-first control payload for `operator_snapshot_v1`.
 
 These are not a second source of truth. They are write/flush-time projections of the raw store.
 

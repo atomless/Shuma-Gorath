@@ -904,8 +904,7 @@ export const adaptBenchmarkResults = (payload) => {
         attribution_status: String(evidenceQuality.attribution_status || ''),
         sample_status: String(evidenceQuality.sample_status || ''),
         freshness_status: String(evidenceQuality.freshness_status || ''),
-        persona_diversity_status: String(evidenceQuality.persona_diversity_status || ''),
-        reproducibility_status: String(evidenceQuality.reproducibility_status || ''),
+        recent_window_support_status: String(evidenceQuality.recent_window_support_status || ''),
         locality_status: String(evidenceQuality.locality_status || ''),
         breach_loci: asObjectArray(evidenceQuality.breach_loci).map(adaptBenchmarkExploitLocus),
         note: String(evidenceQuality.note || '')

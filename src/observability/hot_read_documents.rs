@@ -29,9 +29,11 @@ const HOT_READ_RECENT_EVENTS_TAIL_MAX_BYTES: usize = 32 * 1024;
 const HOT_READ_RECENT_SIM_RUNS_MAX_BYTES: usize = 8 * 1024;
 const HOT_READ_MONITORING_SUMMARY_MAX_BYTES: usize = 24 * 1024;
 // The machine-first operator snapshot now carries the legal move ring, game contract,
-// benchmark results, and episode archive. Keep it narrower than bootstrap, but give
-// it enough headroom to stay truthful without silently trimming canonical fields.
-const HOT_READ_OPERATOR_SNAPSHOT_MAX_BYTES: usize = 60 * 1024;
+// benchmark results, controller contract, and episode archive. It is no longer a
+// lightweight supporting summary, so keep it explicitly bounded as its own
+// machine-first control document rather than forcing it under the monitoring
+// bootstrap render budget.
+const HOT_READ_OPERATOR_SNAPSHOT_MAX_BYTES: usize = 384 * 1024;
 const HOT_READ_RECENT_EVENTS_TAIL_MAX_RECORDS: usize = 40;
 const HOT_READ_RECENT_SIM_RUNS_MAX_RECORDS: usize = 12;
 const HOT_READ_MONITORING_SUMMARY_TOP_LIMIT: usize = 10;
@@ -484,7 +486,8 @@ mod tests {
     }
 
     #[test]
-    fn supporting_summary_contracts_are_narrower_than_bootstrap_document() {
+    fn supporting_summary_contracts_stay_narrower_than_bootstrap_while_operator_snapshot_has_its_own_bound(
+    ) {
         let bootstrap = monitoring_bootstrap_document_contract();
         let retention = monitoring_retention_summary_document_contract();
         let security_privacy = monitoring_security_privacy_summary_document_contract();
@@ -502,8 +505,8 @@ mod tests {
         assert!(recent_events.max_serialized_bytes < bootstrap.max_serialized_bytes);
         assert!(recent_sim_runs.max_serialized_bytes < bootstrap.max_serialized_bytes);
         assert!(monitoring_summary.max_serialized_bytes < bootstrap.max_serialized_bytes);
-        assert!(operator_snapshot.max_serialized_bytes < bootstrap.max_serialized_bytes);
-        assert_eq!(operator_snapshot.max_serialized_bytes, 60 * 1024);
+        assert!(operator_snapshot.max_serialized_bytes > bootstrap.max_serialized_bytes);
+        assert_eq!(operator_snapshot.max_serialized_bytes, 384 * 1024);
         assert_eq!(recent_events.freshness.stale_after_seconds, 10);
         assert_eq!(recent_sim_runs.freshness.stale_after_seconds, 10);
         assert_eq!(monitoring_summary_top_limit(), 10);

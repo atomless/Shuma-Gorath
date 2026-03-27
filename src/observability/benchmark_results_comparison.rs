@@ -227,15 +227,10 @@ fn family_drives_primary_restriction_judgment(family_id: &str) -> bool {
 fn restriction_judgment_families<'a>(
     families: &'a [BenchmarkFamilyResult],
 ) -> Vec<&'a BenchmarkFamilyResult> {
-    let primary: Vec<_> = families
+    families
         .iter()
         .filter(|family| family_drives_primary_restriction_judgment(family.family_id.as_str()))
-        .collect();
-    if primary.is_empty() {
-        families.iter().collect()
-    } else {
-        primary
-    }
+        .collect()
 }
 
 struct ProblemClassification {

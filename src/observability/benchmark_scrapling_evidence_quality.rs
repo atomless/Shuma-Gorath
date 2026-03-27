@@ -22,8 +22,7 @@ pub(crate) fn scrapling_evidence_quality_assessment(
             attribution_status: "not_available".to_string(),
             sample_status: "missing_recent_run".to_string(),
             freshness_status: "missing_recent_run".to_string(),
-            persona_diversity_status: "not_available".to_string(),
-            reproducibility_status: "not_available".to_string(),
+            recent_window_support_status: "not_available".to_string(),
             locality_status: "not_localized".to_string(),
             breach_loci: Vec::new(),
             note: "No recent Scrapling run is visible, so exploit diagnosis cannot yet justify a bounded config move.".to_string(),
@@ -36,12 +35,7 @@ pub(crate) fn scrapling_evidence_quality_assessment(
             attribution_status: "surface_receipts_missing".to_string(),
             sample_status: "missing_surface_receipts".to_string(),
             freshness_status: "fresh_recent_run".to_string(),
-            persona_diversity_status: if run.observed_fulfillment_modes.is_empty() {
-                "not_available".to_string()
-            } else {
-                "single_persona".to_string()
-            },
-            reproducibility_status: "not_available".to_string(),
+            recent_window_support_status: "not_available".to_string(),
             locality_status: "not_localized".to_string(),
             breach_loci: Vec::new(),
             note: format!(
@@ -105,12 +99,7 @@ pub(crate) fn scrapling_evidence_quality_assessment(
     } else {
         "insufficient"
     };
-    let persona_diversity_status = match run.observed_fulfillment_modes.len() {
-        0 => "not_available",
-        1 => "single_persona",
-        _ => "multi_persona",
-    };
-    let reproducibility_status = reproducibility_status(
+    let recent_window_support_status = recent_window_support_status(
         adversary_sim,
         run.run_id.as_str(),
         breach_loci.as_slice(),
@@ -125,8 +114,7 @@ pub(crate) fn scrapling_evidence_quality_assessment(
         "category_and_surface_native" | "surface_native_shared_path"
     )
         && sample_status == "sufficient"
-        && persona_diversity_status == "multi_persona"
-        && reproducibility_status == "reproduced_recently"
+        && recent_window_support_status == "reproduced_recently"
         && locality_status == "localized";
 
     BenchmarkDiagnosisEvidenceQuality {
@@ -143,13 +131,12 @@ pub(crate) fn scrapling_evidence_quality_assessment(
         attribution_status: attribution_status.to_string(),
         sample_status: sample_status.to_string(),
         freshness_status: "fresh_recent_run".to_string(),
-        persona_diversity_status: persona_diversity_status.to_string(),
-        reproducibility_status: reproducibility_status.to_string(),
+        recent_window_support_status: recent_window_support_status.to_string(),
         locality_status: locality_status.to_string(),
         breach_loci: breach_loci.clone(),
         note: if high_confidence {
             format!(
-                "Latest Scrapling exploit evidence is localized, multi-persona, and reproduced at: {}.",
+                "Latest Scrapling exploit evidence is localized and supported across the recent board-state window at: {}.",
                 breach_loci
                     .iter()
                     .map(|locus| locus.locus_label.as_str())
@@ -158,18 +145,17 @@ pub(crate) fn scrapling_evidence_quality_assessment(
             )
         } else {
             format!(
-                "Latest Scrapling exploit evidence remains too weak for fine-grained tuning because attribution={}, samples={}, personas={}, reproducibility={}, locality={}.",
+                "Latest Scrapling exploit evidence remains too weak for fine-grained tuning because attribution={}, samples={}, recent_window={}, locality={}.",
                 attribution_status,
                 sample_status,
-                persona_diversity_status,
-                reproducibility_status,
+                recent_window_support_status,
                 locality_status
             )
         },
     }
 }
 
-fn reproducibility_status(
+fn recent_window_support_status(
     adversary_sim: &OperatorSnapshotAdversarySim,
     current_run_id: &str,
     breach_loci: &[BenchmarkExploitLocus],

@@ -1249,8 +1249,7 @@ mod tests {
                 attribution_status: "category_native".to_string(),
                 sample_status: "sufficient".to_string(),
                 freshness_status: "fresh_recent_run".to_string(),
-                persona_diversity_status: "single_persona".to_string(),
-                reproducibility_status: "single_run_only".to_string(),
+                recent_window_support_status: "single_run_only".to_string(),
                 locality_status: "localized".to_string(),
                 breach_loci: vec![BenchmarkExploitLocus {
                     locus_id: "public_path_traversal".to_string(),
@@ -1274,7 +1273,7 @@ mod tests {
                     ],
                     repair_family_status: "derived".to_string(),
                 }],
-                note: "Single-persona exploit evidence is not yet strong enough for bounded tuning."
+                note: "Single-run exploit evidence is not yet strong enough for bounded tuning."
                     .to_string(),
             };
         snapshot.benchmark_results.escalation_hint.breach_loci = snapshot

@@ -2579,8 +2579,7 @@ test("game loop tab separates judge planes, breach loci, and config exhaustion s
             attribution_status: "category_native",
             sample_status: "sufficient",
             freshness_status: "fresh",
-            persona_diversity_status: "diverse",
-            reproducibility_status: "reproduced",
+            recent_window_support_status: "reproduced_recently",
             locality_status: "localized",
             breach_loci: [
               {

@@ -644,11 +644,84 @@ mod tests {
             "config_tuning_candidate".to_string();
         payload.benchmark_results.escalation_hint.review_status =
             "manual_review_required".to_string();
+        payload.benchmark_results.escalation_hint.problem_class =
+            "suspicious_forwarded_reach_overspend".to_string();
+        payload.benchmark_results.escalation_hint.guidance_status =
+            "bounded_family_guidance".to_string();
+        payload.benchmark_results.escalation_hint.tractability =
+            "family_level_policy_choice".to_string();
+        payload.benchmark_results.escalation_hint.expected_direction =
+            "tighten_suspicious_origin_controls".to_string();
         payload.benchmark_results.escalation_hint.trigger_family_ids =
             vec!["suspicious_origin_cost".to_string()];
+        payload.benchmark_results.escalation_hint.trigger_metric_ids =
+            vec!["suspicious_forwarded_request_rate".to_string()];
         payload.benchmark_results.escalation_hint.candidate_action_families =
             vec!["fingerprint_signal".to_string()];
         payload.benchmark_results.escalation_hint.blockers.clear();
+        payload.benchmark_results.escalation_hint.note =
+            "Config tuning candidate.".to_string();
+        payload.benchmark_results.controller_contract.restriction_diagnosis.problem_class =
+            "suspicious_forwarded_reach_overspend".to_string();
+        payload.benchmark_results.controller_contract.restriction_diagnosis.status =
+            "aggregate_only".to_string();
+        payload.benchmark_results.controller_contract.restriction_diagnosis.confidence =
+            "medium".to_string();
+        payload
+            .benchmark_results
+            .controller_contract
+            .restriction_diagnosis
+            .repair_surface_candidates = vec!["fingerprint_signal".to_string()];
+        payload
+            .benchmark_results
+            .controller_contract
+            .restriction_diagnosis
+            .blockers
+            .clear();
+        payload.benchmark_results.controller_contract.restriction_diagnosis.note =
+            "Restriction diagnosis is still aggregate and does not yet localize a repair locus."
+                .to_string();
+        payload.benchmark_results.controller_contract.recognition_evaluation.status =
+            "steady".to_string();
+        payload
+            .benchmark_results
+            .controller_contract
+            .recognition_evaluation
+            .trigger_family_ids = vec!["non_human_category_posture".to_string()];
+        payload
+            .benchmark_results
+            .controller_contract
+            .recognition_evaluation
+            .blockers
+            .clear();
+        payload.benchmark_results.controller_contract.recognition_evaluation.note =
+            "Recognition evaluation remains explicit and separate from restriction scoring."
+                .to_string();
+        payload.benchmark_results.controller_contract.move_selection.decision =
+            "config_tuning_candidate".to_string();
+        payload.benchmark_results.controller_contract.move_selection.review_status =
+            "manual_review_required".to_string();
+        payload.benchmark_results.controller_contract.move_selection.guidance_status =
+            "bounded_family_guidance".to_string();
+        payload.benchmark_results.controller_contract.move_selection.tractability =
+            "family_level_policy_choice".to_string();
+        payload.benchmark_results.controller_contract.move_selection.expected_direction =
+            "tighten_suspicious_origin_controls".to_string();
+        payload.benchmark_results.controller_contract.move_selection.trigger_family_ids =
+            vec!["suspicious_origin_cost".to_string()];
+        payload
+            .benchmark_results
+            .controller_contract
+            .move_selection
+            .candidate_action_families = vec!["fingerprint_signal".to_string()];
+        payload
+            .benchmark_results
+            .controller_contract
+            .move_selection
+            .blockers
+            .clear();
+        payload.benchmark_results.controller_contract.move_selection.note =
+            "Config tuning candidate.".to_string();
         payload.benchmark_results.replay_promotion = payload.replay_promotion.clone();
         if let Some(row) = payload.budget_distance.rows.get_mut(0) {
             row.current = suspicious_forwarded_request_rate;
