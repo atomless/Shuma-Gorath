@@ -1,5 +1,5 @@
 Date: 2026-03-27
-Status: Proposed
+Status: In progress
 
 Related context:
 
@@ -7,6 +7,8 @@ Related context:
 - [`../research/2026-03-27-game-loop-category-posture-scoring-audit.md`](../research/2026-03-27-game-loop-category-posture-scoring-audit.md)
 - [`../research/2026-03-26-game-loop-terrain-locality-and-breach-diagnosis-review.md`](../research/2026-03-26-game-loop-terrain-locality-and-breach-diagnosis-review.md)
 - [`../research/2026-03-26-strict-human-only-loop-and-human-traversal-calibration-review.md`](../research/2026-03-26-strict-human-only-loop-and-human-traversal-calibration-review.md)
+- [`2026-03-27-ovr-code-1-frontier-llm-code-evolution-ring-plan.md`](2026-03-27-ovr-code-1-frontier-llm-code-evolution-ring-plan.md)
+- [`2026-03-27-human-friction-calibration-ring-plan.md`](2026-03-27-human-friction-calibration-ring-plan.md)
 - [`2026-03-26-rsi-score-2-exploit-first-judge-and-diagnoser-plan.md`](2026-03-26-rsi-score-2-exploit-first-judge-and-diagnoser-plan.md)
 - [`2026-03-24-llm-player-role-decomposition-plan.md`](2026-03-24-llm-player-role-decomposition-plan.md)
 - [`../../todos/todo.md`](../../todos/todo.md)
@@ -25,6 +27,15 @@ Refactor the Game Loop around an explicit board-state doctrine:
 
 This tranche does not replace the earlier score-vector work.
 It tightens and operationalizes it so the next iterations remain faithful to the board-state model and cannot drift back toward sim-privileged or aggregate-only reasoning.
+
+Implementation status update (2026-03-27):
+
+1. The first runtime or UI slice of this plan is now landed:
+   - breach loci now preserve `attempt_count`, host-cost channels, and repair-family candidates,
+   - localized high-confidence exploit progress can now become a bounded config-tuning candidate,
+   - and the Game Loop UI now projects guardrails, board-state breach progress, surface-contract satisfaction, and loop actionability as distinct planes.
+2. The later planning-only substeps for the frontier-LLM code-evolution ring and the real human-friction calibration ring are now being broken out into dedicated follow-on plans rather than left as vague future work.
+3. The remaining open runtime truth gap inside this broader refactor is still the exact shared-path category-inference gap tracked separately in `RSI-SCORE-2F2`.
 
 # Core Decisions
 

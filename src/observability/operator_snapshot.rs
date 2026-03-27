@@ -836,8 +836,24 @@ mod tests {
             1_700_000_050,
         );
 
-        assert_eq!(payload.non_human_traffic.readiness.status, "ready");
-        assert_eq!(payload.non_human_traffic.coverage.covered_category_count, 4);
+        assert_eq!(payload.non_human_traffic.readiness.status, "partial");
+        assert!(payload
+            .non_human_traffic
+            .readiness
+            .blockers
+            .contains(&"degraded_category_receipts_present".to_string()));
+        assert!(payload
+            .non_human_traffic
+            .readiness
+            .live_receipt_count
+            > 0);
+        assert!(payload
+            .non_human_traffic
+            .readiness
+            .adversary_sim_receipt_count
+            > 0);
+        assert_eq!(payload.non_human_traffic.coverage.overall_status, "stale");
+        assert_eq!(payload.non_human_traffic.coverage.stale_category_count, 4);
         assert!(payload
             .non_human_traffic
             .receipts

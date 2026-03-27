@@ -2,6 +2,84 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-03-27)
+
+### RSI-SCORE-2F1 Honest Unscored Category Posture Rendering
+
+- [x] Repaired Game Loop category-posture honesty across:
+  - [`src/observability/benchmark_non_human_categories.rs`](../src/observability/benchmark_non_human_categories.rs)
+  - [`dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
+  - [`Makefile`](../Makefile)
+  so projected or degraded Scrapling-populated category rows now stay `current = null`, render as `Unscored`, and no longer collapse into fake `0% achieved` bars on the Game Loop page.
+- [x] Added focused proof that exact category receipts can still score partial blocked shares when Shuma really has them in:
+  - [`src/observability/benchmark_non_human_categories.rs`](../src/observability/benchmark_non_human_categories.rs)
+  - [`docs/research/2026-03-27-game-loop-shared-path-locality-and-actionability-post-implementation-review.md`](../docs/research/2026-03-27-game-loop-shared-path-locality-and-actionability-post-implementation-review.md)
+  so the slice improves honesty without inventing new exact category truth from simulator metadata.
+- [x] Why:
+  - the user correctly called out that category posture had only been readable as `100%` or `0%`, and the `0%` case was especially misleading because projected adversary-sim category presence was visually collapsing into measured failure.
+- [x] Evidence:
+  - `make test-benchmark-results-contract`
+  - `make test-dashboard-game-loop-accountability`
+  - `make test-traffic-classification-contract`
+  - `git diff --check`
+
+### Game Loop Shared-Path Locality And Actionability Slice
+
+- [x] Landed the first board-state accountability slice across:
+  - [`src/observability/benchmark_results.rs`](../src/observability/benchmark_results.rs)
+  - [`src/observability/benchmark_results_comparison.rs`](../src/observability/benchmark_results_comparison.rs)
+  - [`src/observability/benchmark_scrapling_evidence_quality.rs`](../src/observability/benchmark_scrapling_evidence_quality.rs)
+  - [`src/observability/benchmark_scrapling_exploit_progress.rs`](../src/observability/benchmark_scrapling_exploit_progress.rs)
+  - [`src/admin/oversight_patch_policy.rs`](../src/admin/oversight_patch_policy.rs)
+  - [`src/admin/oversight_reconcile.rs`](../src/admin/oversight_reconcile.rs)
+  - [`dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
+  - [`dashboard/src/lib/domain/api-client.js`](../dashboard/src/lib/domain/api-client.js)
+  - [`e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`Makefile`](../Makefile)
+  so named breach loci now preserve attempt counts, host-cost channels, and repair-family candidates, high-confidence surface-native exploit progress can now drive bounded config-tuning candidates, and the Game Loop page now separates origin leakage, board-state breach progress, surface-contract truth, and loop actionability much more clearly.
+- [x] Recorded the tranche closeout and repo alignment in:
+  - [`docs/research/2026-03-27-game-loop-shared-path-locality-and-actionability-post-implementation-review.md`](../docs/research/2026-03-27-game-loop-shared-path-locality-and-actionability-post-implementation-review.md)
+  - [`docs/dashboard-tabs/game-loop.md`](../docs/dashboard-tabs/game-loop.md)
+  - [`docs/testing.md`](../docs/testing.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`docs/plans/README.md`](../docs/plans/README.md)
+  so the repo now says one consistent thing about what this slice did and what it did not yet solve.
+- [x] Why:
+  - the Game Loop needed to stop looking like one blended score and start behaving more like a board-state judge with breach-local evidence that can support precise bounded moves.
+- [x] Evidence:
+  - `make test-rsi-score-exploit-progress`
+  - `make test-rsi-score-evidence-quality`
+  - `make test-rsi-score-move-selection`
+  - `make test-dashboard-game-loop-accountability`
+  - `git diff --check`
+
+### OVR-CODE-1 Frontier LLM Code-Evolution Ring Planning
+
+- [x] Wrote the later frontier-LLM code-evolution handoff plan in:
+  - [`docs/plans/2026-03-27-ovr-code-1-frontier-llm-code-evolution-ring-plan.md`](../docs/plans/2026-03-27-ovr-code-1-frontier-llm-code-evolution-ring-plan.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+  so the later code ring now has an explicit sacred-input contract, recommendation-first output shape, strict-reference regression anchor, and clear blocked execution boundary.
+- [x] Why:
+  - the user asked for the frontier-LLM code-evolution ring to be planned now but held back until the Scrapling loop is proven strongly enough that later code changes can be judged from trustworthy machine-first evidence.
+- [x] Evidence:
+  - [`docs/plans/2026-03-27-ovr-code-1-frontier-llm-code-evolution-ring-plan.md`](../docs/plans/2026-03-27-ovr-code-1-frontier-llm-code-evolution-ring-plan.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+
+### HUM-FRIC-1 Human-Friction Calibration Ring Research And Plan
+
+- [x] Wrote the later human-friction calibration review and plan in:
+  - [`docs/research/2026-03-27-human-friction-calibration-ring-review.md`](../docs/research/2026-03-27-human-friction-calibration-ring-review.md)
+  - [`docs/plans/2026-03-27-human-friction-calibration-ring-plan.md`](../docs/plans/2026-03-27-human-friction-calibration-ring-plan.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+  so the repo now treats human-friction as a separate real-human calibration ring over journey success and burden, not as something adversary-sim traffic can stand in for.
+- [x] Why:
+  - the user asked for research, planning, and discussion on how to measure human burden later without weakening the strict adversary loop or polluting it with simulated traffic.
+- [x] Evidence:
+  - [`docs/research/2026-03-27-human-friction-calibration-ring-review.md`](../docs/research/2026-03-27-human-friction-calibration-ring-review.md)
+  - [`docs/plans/2026-03-27-human-friction-calibration-ring-plan.md`](../docs/plans/2026-03-27-human-friction-calibration-ring-plan.md)
+  - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
+
 ## Additional completions (2026-03-26)
 
 ### RSI-GAME-HO-1 Strict Human-Only Operational Proof

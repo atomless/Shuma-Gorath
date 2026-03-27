@@ -297,6 +297,127 @@ class RuntimeToggleSurfaceGateTests(unittest.TestCase):
         self.assertEqual(coverage["verified_identity_override_mode"], "strict_human_only")
         self.assertEqual(coverage["observed_fulfillment_modes"], ["http_agent"])
 
+    def test_poll_recent_scrapling_run_coverage_ignores_preexisting_covered_run_ids(self) -> None:
+        gate = runtime_surface_gate.RuntimeToggleSurfaceGate(
+            base_url="http://127.0.0.1:3000",
+            api_key="test-api-key",
+            forwarded_secret="forwarded-secret",
+            health_secret="health-secret",
+            timeout_seconds=2,
+        )
+
+        responses = iter(
+            [
+                {
+                    "status": 200,
+                    "body": {
+                        "adversary_sim": {
+                            "recent_runs": [
+                                {
+                                    "run_id": "sim-run-stale",
+                                    "lane": "scrapling_traffic",
+                                    "observed_fulfillment_modes": ["crawler"],
+                                    "owned_surface_coverage": {
+                                        "overall_status": "covered",
+                                        "required_surface_ids": ["public_path_traversal"],
+                                        "blocking_surface_ids": [],
+                                    },
+                                }
+                            ]
+                        },
+                        "objectives": {"profile_id": "human_only_private"},
+                        "verified_identity": {
+                            "effective_non_human_policy": {
+                                "verified_identity_override_mode": "strict_human_only"
+                            }
+                        },
+                        "budget_distance": {
+                            "rows": [
+                                {
+                                    "metric": "suspicious_forwarded_request_rate",
+                                    "target": 0.0,
+                                },
+                                {
+                                    "metric": "suspicious_forwarded_byte_rate",
+                                    "target": 0.0,
+                                },
+                                {
+                                    "metric": "suspicious_forwarded_latency_share",
+                                    "target": 0.0,
+                                },
+                            ]
+                        },
+                    },
+                    "raw": "",
+                },
+                {
+                    "status": 200,
+                    "body": {
+                        "adversary_sim": {
+                            "recent_runs": [
+                                {
+                                    "run_id": "sim-run-fresh",
+                                    "lane": "scrapling_traffic",
+                                    "observed_fulfillment_modes": ["stealth_browser"],
+                                    "owned_surface_coverage": {
+                                        "overall_status": "covered",
+                                        "required_surface_ids": ["browser_automation_detection"],
+                                        "blocking_surface_ids": [],
+                                    },
+                                },
+                                {
+                                    "run_id": "sim-run-stale",
+                                    "lane": "scrapling_traffic",
+                                    "observed_fulfillment_modes": ["crawler"],
+                                    "owned_surface_coverage": {
+                                        "overall_status": "covered",
+                                        "required_surface_ids": ["public_path_traversal"],
+                                        "blocking_surface_ids": [],
+                                    },
+                                },
+                            ]
+                        },
+                        "objectives": {"profile_id": "human_only_private"},
+                        "verified_identity": {
+                            "effective_non_human_policy": {
+                                "verified_identity_override_mode": "strict_human_only"
+                            }
+                        },
+                        "budget_distance": {
+                            "rows": [
+                                {
+                                    "metric": "suspicious_forwarded_request_rate",
+                                    "target": 0.0,
+                                },
+                                {
+                                    "metric": "suspicious_forwarded_byte_rate",
+                                    "target": 0.0,
+                                },
+                                {
+                                    "metric": "suspicious_forwarded_latency_share",
+                                    "target": 0.0,
+                                },
+                            ]
+                        },
+                    },
+                    "raw": "",
+                },
+            ]
+        )
+
+        def fake_request(method, path, payload=None, extra_headers=None):
+            self.assertEqual(method, "GET")
+            self.assertIn("/admin/operator-snapshot", path)
+            return next(responses)
+
+        gate.request = fake_request
+
+        coverage = gate.poll_recent_scrapling_run_coverage(existing_run_ids={"sim-run-stale"})
+
+        self.assertEqual(coverage["run_id"], "sim-run-fresh")
+        self.assertEqual(coverage["overall_status"], "covered")
+        self.assertEqual(coverage["observed_fulfillment_modes"], ["stealth_browser"])
+
     def test_poll_post_sim_oversight_run_waits_for_matching_completed_sim_run(self) -> None:
         gate = runtime_surface_gate.RuntimeToggleSurfaceGate(
             base_url="http://127.0.0.1:3000",

@@ -6539,10 +6539,10 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
       decision: 'observe_longer',
       review_status: 'manual_review_required',
       problem_class: 'scrapling_exploit_progress_gap',
-      guidance_status: 'bounded_family_guidance',
-      tractability: 'family_level_policy_choice',
+      guidance_status: 'localized_exploit_progress_guidance',
+      tractability: 'localized_config_repair',
       expected_direction: 'tighten',
-      trigger_family_ids: ['suspicious_origin_cost'],
+      trigger_family_ids: ['scrapling_exploit_progress'],
       trigger_metric_ids: ['scrapling_breach_surface_rate'],
       candidate_action_families: ['fingerprint_signal'],
       family_guidance: [
@@ -6557,7 +6557,7 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
       evidence_quality: {
         status: 'medium_confidence',
         diagnosis_confidence: 'medium',
-        attribution_status: 'category_native',
+        attribution_status: 'surface_native_shared_path',
         sample_status: 'sufficient',
         freshness_status: 'fresh',
         persona_diversity_status: 'diverse',
@@ -6569,9 +6569,12 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
             locus_label: 'Maze Navigation',
             stage_id: 'challenge_traversal',
             evidence_status: 'progress_observed',
+            attempt_count: 3,
+            cost_channel_ids: ['interactive_defense_load', 'shuma_served_bytes'],
             sample_request_method: 'GET',
             sample_request_path: '/maze',
-            sample_response_status: 200
+            sample_response_status: 200,
+            repair_family_candidates: ['maze_core', 'cdp_detection']
           }
         ],
         note: 'Localized enough for bounded move review.'
@@ -6582,9 +6585,12 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
           locus_label: 'Maze Navigation',
           stage_id: 'challenge_traversal',
           evidence_status: 'progress_observed',
+          attempt_count: 3,
+          cost_channel_ids: ['interactive_defense_load', 'shuma_served_bytes'],
           sample_request_method: 'GET',
           sample_request_path: '/maze',
-          sample_response_status: 200
+          sample_response_status: 200,
+          repair_family_candidates: ['maze_core', 'cdp_detection']
         }
       ],
       note: 'Wait for more protected evidence.'
@@ -6630,6 +6636,16 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
             target: 1,
             delta: -0.58,
             comparison_status: 'not_available'
+          },
+          {
+            metric_id: 'category_posture_alignment:automated_browser',
+            status: 'insufficient_evidence',
+            current: null,
+            target: 1,
+            delta: null,
+            comparison_status: 'not_available',
+            basis: 'projected_recent_sim_run',
+            capability_gate: 'partially_supported'
           }
         ]
       }
@@ -6648,14 +6664,26 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
     'verified_identity_taxonomy_alignment_guardrail'
   ]);
   assert.equal(benchmarkResults.escalation_hint.problem_class, 'scrapling_exploit_progress_gap');
-  assert.equal(benchmarkResults.escalation_hint.guidance_status, 'bounded_family_guidance');
-  assert.equal(benchmarkResults.escalation_hint.tractability, 'family_level_policy_choice');
+  assert.equal(
+    benchmarkResults.escalation_hint.guidance_status,
+    'localized_exploit_progress_guidance'
+  );
+  assert.equal(benchmarkResults.escalation_hint.tractability, 'localized_config_repair');
   assert.equal(benchmarkResults.escalation_hint.evidence_quality.status, 'medium_confidence');
   assert.equal(
     benchmarkResults.escalation_hint.evidence_quality.diagnosis_confidence,
     'medium'
   );
   assert.equal(benchmarkResults.escalation_hint.breach_loci[0].locus_label, 'Maze Navigation');
+  assert.equal(benchmarkResults.escalation_hint.breach_loci[0].attempt_count, 3);
+  assert.deepEqual(benchmarkResults.escalation_hint.breach_loci[0].cost_channel_ids, [
+    'interactive_defense_load',
+    'shuma_served_bytes'
+  ]);
+  assert.deepEqual(benchmarkResults.escalation_hint.breach_loci[0].repair_family_candidates, [
+    'maze_core',
+    'cdp_detection'
+  ]);
   assert.equal(benchmarkResults.families[0].family_id, 'suspicious_origin_cost');
   assert.equal(benchmarkResults.families[0].metrics[0].comparison_delta, -0.08);
   assert.equal(benchmarkResults.families[1].family_id, 'non_human_category_posture');
@@ -6663,6 +6691,12 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
     benchmarkResults.families[1].metrics[0].metric_id,
     'category_posture_alignment:ai_scraper_bot'
   );
+  assert.equal(
+    benchmarkResults.families[1].metrics[1].metric_id,
+    'category_posture_alignment:automated_browser'
+  );
+  assert.equal(benchmarkResults.families[1].metrics[1].current, null);
+  assert.equal(benchmarkResults.families[1].metrics[1].basis, 'projected_recent_sim_run');
   assert.equal(benchmarkResults.families[1].metrics[0].target, 1);
 
   const oversightHistory = apiModule.adaptOversightHistory({
@@ -6852,18 +6886,25 @@ test('dashboard game loop accountability source distinguishes judge planes and l
   assert.match(gameLoopSource, /game-loop-current-status-exploit-progress/);
   assert.match(gameLoopSource, /game-loop-current-status-evidence-quality/);
   assert.match(gameLoopSource, /game-loop-current-status-urgency/);
-  assert.match(gameLoopSource, /game-loop-current-status-move-outcome/);
+  assert.match(gameLoopSource, /game-loop-current-status-loop-actionability/);
   assert.match(gameLoopSource, /game-loop-progress-break-state/);
   assert.match(gameLoopSource, /game-loop-exploit-progress/);
   assert.match(gameLoopSource, /game-loop-breach-loci/);
+  assert.match(gameLoopSource, /game-loop-surface-contract/);
   assert.match(gameLoopSource, /Judge State:/);
-  assert.match(gameLoopSource, /Diagnosis Confidence:/);
+  assert.match(gameLoopSource, /Loop Actionability:/);
+  assert.match(gameLoopSource, /Diagnosis:/);
   assert.match(gameLoopSource, /Move Or Escalation:/);
   assert.match(gameLoopSource, /Config Ring:/);
   assert.match(gameLoopSource, /Code Evolution:/);
+  assert.match(gameLoopSource, /Host cost/);
+  assert.match(gameLoopSource, /simulator metadata does not count as category truth/);
 
   assert.match(apiClientSource, /const urgency = asRecord\(source\.urgency\);/);
   assert.match(apiClientSource, /const evidenceQuality = asRecord\(escalationHint\.evidence_quality\);/);
+  assert.match(apiClientSource, /attempt_count/);
+  assert.match(apiClientSource, /repair_family_candidates/);
+  assert.match(apiClientSource, /cost_channel_ids/);
   assert.match(apiClientSource, /homeostasis_break_reasons/);
   assert.match(apiClientSource, /restart_baseline/);
 });

@@ -111,10 +111,16 @@ pub(crate) struct BenchmarkExploitLocus {
     pub locus_label: String,
     pub stage_id: String,
     pub evidence_status: String,
+    #[serde(default)]
+    pub attempt_count: u64,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub cost_channel_ids: Vec<String>,
     pub sample_request_method: String,
     pub sample_request_path: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sample_response_status: Option<u16>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub repair_family_candidates: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -365,7 +371,15 @@ fn tuning_eligibility(
     families: &[BenchmarkFamilyResult],
     exploit_evidence_quality: &BenchmarkDiagnosisEvidenceQuality,
 ) -> BenchmarkTuningEligibility {
-    let mut blockers = if non_human_traffic.readiness.status != "ready" {
+    let exploit_progress_outside_budget = families.iter().any(|family| {
+        family.family_id == "scrapling_exploit_progress" && family.status == "outside_budget"
+    });
+    let exploit_progress_surface_native_high_confidence = exploit_progress_outside_budget
+        && exploit_evidence_quality.status == "high_confidence"
+        && exploit_evidence_quality.attribution_status == "surface_native_shared_path";
+    let mut blockers = if non_human_traffic.readiness.status != "ready"
+        && !exploit_progress_surface_native_high_confidence
+    {
         let mut blockers = vec!["non_human_classification_not_ready".to_string()];
         blockers.extend(non_human_traffic.readiness.blockers.iter().cloned());
         blockers

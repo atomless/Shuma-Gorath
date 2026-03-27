@@ -1467,13 +1467,13 @@ test("game loop, traffic, and diagnostics tabs expose their ownership split", as
   ).toContainText("Recent Loop Progress");
   await expect(
     page.locator('#dashboard-panel-game-loop [data-game-loop-section="outcome-frontier"]')
-  ).toContainText("Outcome Frontier");
+  ).toContainText("Origin Leakage And Human Cost");
   await expect(
     page.locator('#dashboard-panel-game-loop [data-game-loop-section="change-judgment"]')
-  ).toContainText("What The Loop Decided");
+  ).toContainText("Loop Actionability");
   await expect(
     page.locator('#dashboard-panel-game-loop [data-game-loop-section="pressure-sits"]')
-  ).toContainText("Where The Pressure Sits");
+  ).toContainText("Board State");
   await expect(
     page.locator('#dashboard-panel-game-loop [data-game-loop-section="trust-and-blockers"]')
   ).toContainText("Trust And Blockers");
@@ -2103,7 +2103,15 @@ test("game loop projects benchmark and oversight accountability from machine-fir
 
   await expect(page.locator("#game-loop-current-status-overall-status")).toHaveText(/Outside Budget/i);
   await expect(page.locator("#game-loop-current-status-improvement")).toHaveText(/Improved/i);
-  await expect(page.locator("#game-loop-current-status-controller-action")).toHaveText(/Canary Applied/i);
+  await expect(page.locator("#game-loop-current-status-loop-actionability")).toContainText(
+    /observe longer/i
+  );
+  await expect(page.locator("#game-loop-current-status-loop-actionability")).toContainText(
+    /canary applied/i
+  );
+  await expect(page.locator("#game-loop-current-status-loop-actionability")).not.toContainText(
+    "No Config Move Applied"
+  );
   await expect(page.locator("#game-loop-progress-history")).toContainText("Applied a bounded fingerprint tightening patch.");
   await expect(page.locator("#game-loop-progress-lineage")).toContainText("2 completed judged cycles");
   await expect(page.locator("#game-loop-progress-lineage")).toContainText("1 retained");
@@ -2113,6 +2121,9 @@ test("game loop projects benchmark and oversight accountability from machine-fir
   await expect(page.locator("#game-loop-budget-usage")).toContainText("Suspicious Forwarded Request Rate");
   await expect(page.locator("#game-loop-budget-usage")).toContainText("Target 2.0%");
   await expect(page.locator("#game-loop-budget-usage")).toContainText("Current 1.8%");
+  await expect(page.locator("#game-loop-outcome-frontier")).toContainText(
+    "These rows are guardrails"
+  );
   await expect(page.locator("#game-loop-category-target-achievement")).toContainText("Category Posture Achievement");
   await expect(page.locator("#game-loop-category-target-achievement")).toContainText(
     "These rows score category-level posture alignment"
@@ -2120,7 +2131,10 @@ test("game loop projects benchmark and oversight accountability from machine-fir
   await expect(page.locator("#game-loop-category-target-achievement")).toContainText("AI Scraper Bot");
   await expect(page.locator("#game-loop-category-target-achievement")).toContainText("Target Blocked");
   await expect(page.locator("#game-loop-category-target-achievement")).toContainText("Achieved 42.0%");
-  await expect(page.locator("#game-loop-change-judgment")).toContainText("Observe Longer");
+  await expect(page.locator("#game-loop-change-judgment")).toContainText(/observe longer/i);
+  await expect(page.locator("#game-loop-change-judgment")).toContainText("Loop Actionability");
+  await expect(page.locator("#game-loop-change-judgment")).toContainText(/canary applied/i);
+  await expect(page.locator("#game-loop-change-judgment")).not.toContainText("No Config Move Applied");
   await expect(page.locator("#game-loop-trust-blockers")).toContainText("Tuning Eligibility");
   await expect(page.locator("#game-loop-trust-blockers")).toContainText("Policy Profile");
   await expect(page.locator("#game-loop-trust-blockers")).toContainText("Mixed Site Default");
@@ -2133,6 +2147,10 @@ test("game loop projects benchmark and oversight accountability from machine-fir
   );
   await expect(page.locator("#game-loop-trust-blockers")).toContainText("Verified Identity");
   await expect(page.locator("#game-loop-trust-blockers")).toContainText("Verified Handling");
+  await expect(page.locator("#game-loop-trust-blockers")).toContainText("Judge Path");
+  await expect(page.locator("#game-loop-trust-blockers")).toContainText(
+    "simulator metadata does not count as category truth"
+  );
   await expect(page.locator("#game-loop-trust-blockers")).toContainText(
     "Current machine-loop posture is still the mixed-site default"
   );
@@ -2376,10 +2394,11 @@ test("game loop tab corroborates latest scrapling evidence readiness", async ({ 
   await expect(page.locator("#game-loop-budget-usage")).toContainText("Current 0.0% leakage");
   await expect(page.locator("#game-loop-budget-usage")).toContainText("Target 0.0% leakage");
   await expect(page.locator("#game-loop-budget-usage")).toContainText("100.0% non-human suppression achieved");
-  await expect(page.locator("#game-loop-trust-blockers")).toContainText("Latest Scrapling Surface Contract");
-  await expect(page.locator("#game-loop-trust-blockers")).toContainText("Covered");
-  await expect(page.locator("#game-loop-trust-blockers")).toContainText("2 / 2 required surfaces");
-  await expect(page.locator("#game-loop-trust-blockers")).toContainText("Indexing Bot");
+  await expect(page.locator("#game-loop-surface-contract")).toContainText(
+    "Surface Contract Satisfaction"
+  );
+  await expect(page.locator("#game-loop-surface-contract")).toContainText("Covered");
+  await expect(page.locator("#game-loop-surface-contract")).toContainText("2 / 2 required surfaces");
 });
 
 test("game loop tab separates judge planes, breach loci, and config exhaustion state", async ({ page }) => {
@@ -2739,19 +2758,31 @@ test("game loop tab separates judge planes, breach loci, and config exhaustion s
   await expect(page.locator("#game-loop-current-status-exploit-progress")).toHaveText(/Outside Budget/i);
   await expect(page.locator("#game-loop-current-status-evidence-quality")).toHaveText(/High Confidence/i);
   await expect(page.locator("#game-loop-current-status-urgency")).toHaveText(/Critical/i);
-  await expect(page.locator("#game-loop-current-status-move-outcome")).toHaveText(/Config Ring Exhausted/i);
+  await expect(page.locator("#game-loop-current-status-loop-actionability")).toContainText(
+    /config ring exhausted/i
+  );
+  await expect(page.locator("#game-loop-current-status-loop-actionability")).toContainText(
+    "No Config Move Applied"
+  );
   await expect(page.locator("#game-loop-progress-break-state")).toContainText("triggered");
   await expect(page.locator("#game-loop-progress-break-state")).toContainText("exploit success regressed");
   await expect(page.locator("#game-loop-exploit-progress")).toContainText("Outside Budget");
   await expect(page.locator("#game-loop-exploit-progress")).toContainText("Maze Navigation");
   await expect(page.locator("#game-loop-exploit-progress")).toContainText("Browser CDP Automation Detection");
+  await expect(page.locator("#game-loop-exploit-progress")).toContainText("Named Breach Loci");
+  await expect(page.locator("#game-loop-exploit-progress")).toContainText("Host cost");
+  await expect(page.locator("#game-loop-exploit-progress")).toContainText("repair");
   await expect(page.locator("#game-loop-breach-loci")).toContainText("Maze Navigation");
   await expect(page.locator("#game-loop-breach-loci")).toContainText("GET /maze");
   await expect(page.locator("#game-loop-breach-loci")).toContainText("GET /detail/2");
+  await expect(page.locator("#game-loop-surface-contract")).toContainText(
+    "Surface Contract Satisfaction"
+  );
   await expect(page.locator("#game-loop-change-judgment")).toContainText("Judge State");
-  await expect(page.locator("#game-loop-change-judgment")).toContainText("Diagnosis Confidence");
+  await expect(page.locator("#game-loop-change-judgment")).toContainText("Loop Actionability");
+  await expect(page.locator("#game-loop-change-judgment")).toContainText("Diagnosis:");
   await expect(page.locator("#game-loop-change-judgment")).toContainText("Move Or Escalation");
-  await expect(page.locator("#game-loop-change-judgment")).toContainText("Localized");
+  await expect(page.locator("#game-loop-change-judgment")).toContainText(/localized/i);
   await expect(page.locator("#game-loop-change-judgment")).toContainText("Fingerprint Signal");
   await expect(page.locator("#game-loop-change-judgment")).toContainText("Config Ring");
   await expect(page.locator("#game-loop-change-judgment")).toContainText("Exhausted");
@@ -2919,19 +2950,29 @@ test("game loop distinguishes category posture achievement from scrapling surfac
           },
           {
             family_id: "non_human_category_posture",
-            status: "inside_budget",
-            capability_gate: "supported",
-            note: "Per-category posture alignment remains exact for the observed category.",
+            status: "partial",
+            capability_gate: "partially_supported",
+            note: "Per-category posture alignment remains exact for one observed category while another row is still unscored.",
             metrics: [
               {
                 metric_id: "category_posture_alignment:ai_scraper_bot",
-                status: "inside_budget",
-                current: 1.0,
+                status: "outside_budget",
+                current: 0.75,
                 target: 1.0,
-                delta: 0.0,
+                delta: -0.25,
                 exactness: "derived",
                 basis: "observed",
                 capability_gate: "supported"
+              },
+              {
+                metric_id: "category_posture_alignment:automated_browser",
+                status: "insufficient_evidence",
+                current: null,
+                target: 1.0,
+                delta: null,
+                exactness: "derived",
+                basis: "projected_recent_sim_run",
+                capability_gate: "partially_supported"
               }
             ]
           }
@@ -2977,12 +3018,14 @@ test("game loop distinguishes category posture achievement from scrapling surfac
   );
   await expect(page.locator("#game-loop-category-target-achievement")).toContainText("AI Scraper Bot");
   await expect(page.locator("#game-loop-category-target-achievement")).toContainText("Target Blocked");
-  await expect(page.locator("#game-loop-category-target-achievement")).toContainText("Achieved 100.0%");
-  await expect(page.locator("#game-loop-trust-blockers")).toContainText("Latest Scrapling Surface Contract");
-  await expect(page.locator("#game-loop-trust-blockers")).toContainText("Partial");
-  await expect(page.locator("#game-loop-trust-blockers")).toContainText("1 / 2 required surfaces");
+  await expect(page.locator("#game-loop-category-target-achievement")).toContainText("Achieved 75.0%");
+  await expect(page.locator("#game-loop-category-target-achievement")).toContainText("Automated Browser");
+  await expect(page.locator("#game-loop-category-target-achievement")).toContainText("Achieved Unscored");
+  await expect(page.locator("#game-loop-category-target-achievement .game-loop-meter__fill")).toHaveCount(1);
+  await expect(page.locator("#game-loop-surface-contract")).toContainText("Partial");
+  await expect(page.locator("#game-loop-surface-contract")).toContainText("1 / 2 required surfaces");
   await expect(page.locator("[data-game-loop-section='pressure-sits']")).toContainText(
-    "Scrapling Surface Contract"
+    "Surface Contract Satisfaction"
   );
   await expect(page.locator("[data-game-loop-section='pressure-sits']")).toContainText(
     "Maze Navigation"

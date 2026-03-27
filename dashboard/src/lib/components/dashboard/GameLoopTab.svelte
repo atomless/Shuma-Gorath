@@ -27,21 +27,21 @@
     },
     {
       id: 'outcome-frontier',
-      title: 'Outcome Frontier',
+      title: 'Origin Leakage And Human Cost',
       description:
-        'Suspicious non-human cost reduction and measured human-friction impact, kept separate instead of collapsed into one opaque score.'
+        'These guardrails measure suspicious-origin leakage and measured human friction. They do not, by themselves, prove total attacker defeat.'
     },
     {
       id: 'change-judgment',
-      title: 'What The Loop Decided',
+      title: 'Loop Actionability',
       description:
-        'The machine-first benchmark decision, candidate action families, and latest oversight recommendation or apply outcome.'
+        'The machine-first decision state, bounded move readiness, and whether the controller actually applied a config move or stayed blocked.'
     },
     {
       id: 'pressure-sits',
-      title: 'Where The Pressure Sits',
+      title: 'Board State',
       description:
-        'A bounded preview of the benchmark families still carrying pressure, plus nearby recent config-change context from the operator snapshot.'
+        'Terrain breach progress, surface-contract satisfaction, category posture scoring, and recent change context shown as separate truths.'
     },
     {
       id: 'trust-and-blockers',
@@ -69,6 +69,7 @@
     'suspicious_forwarded_byte_rate',
     'suspicious_forwarded_latency_share'
   ]);
+  const terminalLoopOutcomes = new Set(['config_ring_exhausted', 'code_evolution_referral']);
 
   const zeroTargetSuppressionLabels = Object.freeze({
     suspicious_forwarded_request_rate: 'Non-Human Request Suppression',
@@ -174,6 +175,7 @@
   };
 
   const asFiniteNumber = (value) => {
+    if (value === null || value === undefined || value === '') return null;
     const numeric = Number(value);
     return Number.isFinite(numeric) ? numeric : null;
   };
@@ -196,6 +198,12 @@
     if (!Number.isFinite(numeric)) return fallback;
     return `${(numeric * 100).toFixed(1)}%`;
   };
+
+  const formatCategoryAchievedText = (current) =>
+    asFiniteNumber(current) === null ? 'Unscored' : formatRatioPercent(current);
+
+  const formatCategoryAchievementText = (ratio, unscored) =>
+    unscored ? 'Unscored pending exact evidence' : formatTargetRatioText(ratio);
 
   const ratioToTarget = (current, target) => {
     const currentNumeric = asFiniteNumber(current);
@@ -297,6 +305,11 @@
     return parts.join(' ') || 'Sample unavailable';
   };
 
+  const humanizeList = (values, mode = 'sentence') => {
+    const items = dedupeStrings(values).map((value) => humanizeToken(value, mode));
+    return items.length ? items.join(', ') : 'not available';
+  };
+
   $: latestHistoryRows = toArray(oversightHistory?.rows).slice(0, 6);
   $: latestHistoryRow = latestHistoryRows[0] || null;
   $: latestDecision = asRecord(oversightAgentStatus?.latest_decision);
@@ -322,13 +335,11 @@
   $: exploitProgressFamily = findBenchmarkFamily('scrapling_exploit_progress');
   $: evidenceQuality = asRecord(benchmarkResults?.escalation_hint?.evidence_quality);
   $: urgencySummary = asRecord(benchmarkResults?.urgency);
-  $: pressureFamilies = toArray(benchmarkResults?.families).filter((family) =>
-    family && (family.status === 'outside_budget' || family.status === 'near_limit')
-  );
   $: recentChanges = toArray(operatorSnapshot?.recent_changes?.rows).slice(0, 3);
   $: latestMoveOutcome = String(
     latestHistoryRow?.outcome || latestDecision?.outcome || benchmarkResults?.escalation_hint?.decision || ''
   ).trim();
+  $: latestApplyStage = String(latestHistoryRow?.apply?.stage || '').trim();
   $: selectedRepairSurface = String(
     latestHistoryRow?.proposal?.patch_family ||
       benchmarkResults?.escalation_hint?.family_guidance?.[0]?.family ||
@@ -355,6 +366,23 @@
     benchmarkResults?.escalation_hint?.decision === 'code_evolution_candidate'
       ? 'required'
       : 'not_required';
+  $: loopActionabilityDecisionToken = terminalLoopOutcomes.has(latestMoveOutcome)
+    ? latestMoveOutcome
+    : benchmarkResults?.escalation_hint?.decision;
+  $: loopActionabilityApplyText = latestApplyStage
+    ? humanizeToken(latestApplyStage, 'sentence')
+    : 'No Config Move Applied';
+  $: loopActionabilityText = dedupeStrings([
+    humanizeToken(benchmarkResults?.tuning_eligibility?.status),
+    humanizeToken(loopActionabilityDecisionToken, 'sentence'),
+    loopActionabilityApplyText
+  ]).join(' | ');
+  $: loopActionabilityNote = benchmarkResults?.tuning_eligibility?.blockers?.length
+    ? `Blocked by ${benchmarkResults.tuning_eligibility.blockers.length} active guardrail(s) or readiness blocker(s).`
+    : latestHistoryRow?.summary ||
+      latestDecision?.summary ||
+      benchmarkResults?.escalation_hint?.note ||
+      'No bounded config move has been applied yet.';
   $: breachLoci = (() => {
     const escalationLoci = toArray(benchmarkResults?.escalation_hint?.breach_loci);
     if (escalationLoci.length > 0) return escalationLoci;
@@ -379,6 +407,10 @@
   );
   $: latestScraplingEvidence = deriveLatestScraplingEvidenceFromSummaries(
     toArray(operatorSnapshot?.adversary_sim?.recent_runs)
+  );
+  $: surfaceContractCoverage = asRecord(latestScraplingEvidence?.ownedSurfaceCoverage);
+  $: surfaceContractBlockingLabels = toArray(surfaceContractCoverage?.blockingSurfaceIds).map((surfaceId) =>
+    humanizeToken(surfaceId)
   );
   $: budgetUsageRows = [likelyHumanFrictionFamily, suspiciousOriginCostFamily]
     .flatMap((family) =>
@@ -418,15 +450,18 @@
     .map((metric) => {
       const categoryId = categoryIdFromMetric(metric?.metric_id);
       const targetPosture = categoryPostureTargets.get(categoryId) || '';
+      const currentValue = asFiniteNumber(metric?.current);
+      const isUnscored = currentValue === null;
       const achievementRatio = ratioToTarget(metric?.current, metric?.target);
       return {
         categoryId,
         label: humanizeToken(categoryId),
         targetPostureText: humanizeToken(targetPosture),
-        achievedText: formatRatioPercent(metric?.current),
+        achievedText: formatCategoryAchievedText(metric?.current),
         targetText: formatRatioPercent(metric?.target),
-        achievementText: formatTargetRatioText(achievementRatio),
-        meterPercent: clampPercent((achievementRatio || 0) * 100),
+        achievementText: formatCategoryAchievementText(achievementRatio, isUnscored),
+        meterPercent: isUnscored ? null : clampPercent((achievementRatio || 0) * 100),
+        isUnscored,
         statusText: humanizeToken(metric?.status, 'sentence'),
         capabilityText: humanizeToken(metric?.capability_gate, 'sentence'),
         basisText: humanizeToken(metric?.basis, 'sentence')
@@ -463,7 +498,13 @@
       note: benchmarkResults?.baseline_reference?.note || 'Awaiting a comparable prior-window reference.'
     },
     {
-      title: 'Exploit Progress',
+      title: 'Loop Actionability',
+      valueId: 'game-loop-current-status-loop-actionability',
+      value: loopActionabilityText,
+      note: loopActionabilityNote
+    },
+    {
+      title: 'Terrain Breach Progress',
       valueId: 'game-loop-current-status-exploit-progress',
       value: humanizeToken(exploitProgressFamily?.status),
       note:
@@ -483,30 +524,6 @@
       valueId: 'game-loop-current-status-urgency',
       value: humanizeToken(urgencySummary?.status),
       note: urgencySummary?.note || 'Urgency scoring is not materialized yet.'
-    },
-    {
-      title: 'Tuning Eligibility',
-      valueId: 'game-loop-current-status-tuning-eligibility',
-      value: humanizeToken(benchmarkResults?.tuning_eligibility?.status),
-      note: benchmarkResults?.tuning_eligibility?.blockers?.length
-        ? `${benchmarkResults.tuning_eligibility.blockers.length} blocker(s) active`
-        : 'No explicit tuning blockers are currently active.'
-    },
-    {
-      title: 'Move Outcome',
-      valueId: 'game-loop-current-status-move-outcome',
-      value: humanizeToken(latestMoveOutcome),
-      note:
-        latestHistoryRow?.summary ||
-        latestDecision?.summary ||
-        benchmarkResults?.escalation_hint?.note ||
-        'No bounded move or escalation outcome is recorded yet.'
-    },
-    {
-      title: 'Latest Controller Action',
-      valueId: 'game-loop-current-status-controller-action',
-      value: humanizeToken(latestHistoryRow?.apply?.stage || latestDecision?.outcome),
-      note: latestHistoryRow?.summary || latestDecision?.summary || 'No oversight decision has been recorded yet.'
     }
   ];
   $: trustBlockers = dedupeStrings([
@@ -644,7 +661,10 @@
         </div>
       {:else if section.id === 'outcome-frontier'}
         <div id="game-loop-outcome-frontier" class="panel panel-soft pad-md">
-          <h3 class="caps-label">Budget Usage</h3>
+          <h3 class="caps-label">Origin Leakage And Human Cost</h3>
+          <p class="text-muted">
+            These rows are guardrails. They can be fully inside budget even while terrain breach progress is still non-zero elsewhere on the board.
+          </p>
           {#if budgetUsageRows.length === 0}
             <p class="text-muted">No numeric objective budgets are materialized yet.</p>
           {:else}
@@ -670,6 +690,10 @@
         <div id="game-loop-change-judgment" class="panel panel-soft pad-md">
           <div class="status-rows">
             <div class="info-row">
+              <span class="info-label text-muted">Loop Actionability:</span>
+              <span class="status-value">{loopActionabilityText}</span>
+            </div>
+            <div class="info-row">
               <span class="info-label text-muted">Judge State:</span>
               <span class="status-value">
                 {humanizeToken(benchmarkResults?.overall_status)}
@@ -686,7 +710,7 @@
               </span>
             </div>
             <div class="info-row">
-              <span class="info-label text-muted">Diagnosis Confidence:</span>
+              <span class="info-label text-muted">Diagnosis:</span>
               <span class="status-value">
                 {humanizeToken(evidenceQuality?.diagnosis_confidence)}
                 | problem class {humanizeToken(benchmarkResults?.escalation_hint?.problem_class)}
@@ -737,22 +761,6 @@
             </p>
           {/if}
 
-          {#if breachLoci.length}
-            <div id="game-loop-breach-loci">
-              <p class="caps-label">Named Breach Loci</p>
-              <ul class="metric-list">
-                {#each breachLoci as locus (`${locus.locus_id}-${locus.sample_request_path}`)}
-                  <li>
-                    <strong>{locus.locus_label || humanizeToken(locus.locus_id)}</strong>:
-                    {humanizeToken(locus.evidence_status, 'sentence')} |
-                    {humanizeToken(locus.stage_id, 'sentence')} |
-                    {formatLocusSample(locus)}
-                  </li>
-                {/each}
-              </ul>
-            </div>
-          {/if}
-
           {#if benchmarkResults?.escalation_hint?.blockers?.length}
             <p class="text-muted">
               Decision blockers:
@@ -763,9 +771,9 @@
       {:else if section.id === 'pressure-sits'}
         <div class="stats-cards">
           <article id="game-loop-exploit-progress" class="card panel panel-border pad-md-b">
-            <h3 class="caps-label">Exploit Progress</h3>
+            <h3 class="caps-label">Terrain Breach Progress</h3>
             <p class="text-muted">
-              This surface tracks where Scrapling actually advanced through the defended terrain. It is separate from category posture and separate from the compact Red Team corroboration row.
+              This surface tracks where Scrapling actually advanced through the defended terrain. It is separate from origin leakage budgets and separate from category posture scoring.
             </p>
             <div class="status-rows">
               <div class="info-row">
@@ -780,6 +788,27 @@
                 <span class="status-value">{exploitProgressFamily?.note || 'Exploit progress is not materialized yet.'}</span>
               </div>
             </div>
+            {#if breachLoci.length}
+              <div id="game-loop-breach-loci">
+                <p class="caps-label">Named Breach Loci</p>
+                <ul class="metric-list">
+                  {#each breachLoci as locus (`${locus.locus_id}-${locus.sample_request_path}`)}
+                    <li>
+                      <strong>{locus.locus_label || humanizeToken(locus.locus_id)}</strong>:
+                      {humanizeToken(locus.evidence_status, 'sentence')} |
+                      {humanizeToken(locus.stage_id, 'sentence')} |
+                      {formatNumber(locus.attempt_count, '0')} attempts
+                      <br />
+                      <span class="text-muted">
+                        Host cost {humanizeList(locus.cost_channel_ids)}
+                        | repair {humanizeList(locus.repair_family_candidates)}
+                        | {formatLocusSample(locus)}
+                      </span>
+                    </li>
+                  {/each}
+                </ul>
+              </div>
+            {/if}
             {#if exploitProgressRows.length}
               <ul class="metric-list">
                 {#each exploitProgressRows as row (row.metricId)}
@@ -794,25 +823,39 @@
               </ul>
             {/if}
           </article>
-          <article class="card panel panel-border pad-md-b">
-            <h3 class="caps-label">Benchmark Pressure</h3>
-            {#if pressureFamilies.length === 0}
-              <p class="text-muted">No benchmark families are currently near limit or outside budget.</p>
+          <article id="game-loop-surface-contract" class="card panel panel-border pad-md-b">
+            <h3 class="caps-label">Surface Contract Satisfaction</h3>
+            <p class="text-muted">
+              This surface asks whether Scrapling satisfied the required defense-surface contract for the latest run. It is not the same as category posture achievement.
+            </p>
+            {#if latestScraplingEvidence?.ownedSurfaceCoverage}
+              <div class="status-rows">
+                <div class="info-row">
+                  <span class="info-label text-muted">Status:</span>
+                  <span class="status-value">
+                    {humanizeToken(surfaceContractCoverage.overallStatus)}
+                    | {formatNumber(surfaceContractCoverage.satisfiedSurfaceCount, '0')}
+                    / {formatNumber(surfaceContractCoverage.requiredSurfaceCount, '0')}
+                    required surfaces
+                  </span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label text-muted">Blocking Surfaces:</span>
+                  <span class="status-value">
+                    {surfaceContractBlockingLabels.length
+                      ? surfaceContractBlockingLabels.join(', ')
+                      : 'None'}
+                  </span>
+                </div>
+              </div>
             {:else}
-              <ul class="metric-list">
-                {#each pressureFamilies as family (family.family_id)}
-                  <li>
-                    <strong>{humanizeToken(family.family_id)}</strong>:
-                    {humanizeToken(family.status)} | {family.note}
-                  </li>
-                {/each}
-              </ul>
+              <p class="text-muted">No receipt-backed Scrapling surface-contract evidence is materialized yet.</p>
             {/if}
           </article>
           <article id="game-loop-category-target-achievement" class="card panel panel-border pad-md-b">
             <h3 class="caps-label">Category Posture Achievement</h3>
             <p class="text-muted">
-              These rows score category-level posture alignment. They do not prove whether Scrapling satisfied or failed its required defense-surface contract.
+              These rows score category-level posture alignment from Shuma-side evidence. They do not prove whether Scrapling satisfied or failed its required defense-surface contract.
             </p>
             {#if categoryTargetRows.length === 0}
               <p class="text-muted">No category target-achievement rows are materialized yet.</p>
@@ -822,7 +865,9 @@
                   <div class="game-loop-meter-row">
                     <p class="caps-label">{row.label}</p>
                     <div class="game-loop-meter" aria-hidden="true">
-                      <span class="game-loop-meter__fill" style={`width: ${row.meterPercent}%;`}></span>
+                      {#if row.meterPercent !== null}
+                        <span class="game-loop-meter__fill" style={`width: ${row.meterPercent}%;`}></span>
+                      {/if}
                     </div>
                     <p class="game-loop-meter-meta text-muted">
                       Target {row.targetPostureText} | Achieved {row.achievedText} | Goal {row.targetText} | {row.achievementText} | {row.statusText}
@@ -871,6 +916,12 @@
               <span class="status-value">{currentPolicyProfile.humanCalibrationSummary}</span>
             </div>
             <div class="info-row">
+              <span class="info-label text-muted">Judge Path:</span>
+              <span class="status-value">
+                Sim and real traffic must share Shuma-side scoring truth; simulator metadata does not count as category truth.
+              </span>
+            </div>
+            <div class="info-row">
               <span class="info-label text-muted">Classification:</span>
               <span class="status-value">
                 {humanizeToken(benchmarkResults?.non_human_classification?.status)}
@@ -909,20 +960,6 @@
               <span class="info-label text-muted">Verified Handling:</span>
               <span class="status-value">
                 {currentPolicyProfile.verifiedHandlingSummary}
-              </span>
-            </div>
-            <div class="info-row">
-              <span class="info-label text-muted">Latest Scrapling Surface Contract:</span>
-              <span class="status-value">
-                {#if latestScraplingEvidence?.ownedSurfaceCoverage}
-                  {humanizeToken(latestScraplingEvidence.ownedSurfaceCoverage.overallStatus)}
-                  | {formatNumber(latestScraplingEvidence.ownedSurfaceCoverage.satisfiedSurfaceCount, '0')}
-                  / {formatNumber(latestScraplingEvidence.ownedSurfaceCoverage.requiredSurfaceCount, '0')}
-                  required surfaces
-                  | categories {latestScraplingEvidence.observedCategoryIds.map((value) => humanizeToken(value)).join(', ') || 'not available'}
-                {:else}
-                  No receipt-backed Scrapling surface-contract evidence is materialized yet.
-                {/if}
               </span>
             </div>
           </div>

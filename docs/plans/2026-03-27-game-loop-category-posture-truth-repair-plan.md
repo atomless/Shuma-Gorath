@@ -1,9 +1,10 @@
 Date: 2026-03-27
-Status: Proposed
+Status: In progress
 
 Related context:
 
 - [`../research/2026-03-27-game-loop-category-posture-scoring-audit.md`](../research/2026-03-27-game-loop-category-posture-scoring-audit.md)
+- [`../research/2026-03-27-game-loop-shared-path-locality-and-actionability-post-implementation-review.md`](../research/2026-03-27-game-loop-shared-path-locality-and-actionability-post-implementation-review.md)
 - [`2026-03-26-rsi-score-2-exploit-first-judge-and-diagnoser-plan.md`](2026-03-26-rsi-score-2-exploit-first-judge-and-diagnoser-plan.md)
 - [`../../src/runtime/request_outcome.rs`](../../src/runtime/request_outcome.rs)
 - [`../../src/runtime/sim_telemetry.rs`](../../src/runtime/sim_telemetry.rs)
@@ -15,6 +16,18 @@ Related context:
 # Objective
 
 Repair `Category Posture Achievement` so it is truthful under strict human-only semantics: projected rows must read as unscored, and exact category scoring for Scrapling traffic must come only from Shuma-side category inference rather than sim persona labels.
+
+Implementation status update (2026-03-27):
+
+1. `RSI-SCORE-2F1` is now landed:
+   - degraded or projected rows stay `current = null`,
+   - the dashboard renders them as `Unscored`,
+   - and the success meter is suppressed instead of reading as `0%`.
+2. The audit portion of `RSI-SCORE-2F2` is also now explicit:
+   - current non-verified suspicious automation still flows mainly through `unknown_non_human`,
+   - recent Scrapling category presence still enters only as degraded `projected_recent_sim_run`,
+   - so no new exact Scrapling-populated category truth was added in this slice.
+3. The remaining open work is the "first exact receipts" part of `RSI-SCORE-2F2`, and it must stay blocked until Shuma can infer those categories from real shared-path evidence rather than simulator persona knowledge.
 
 # Core Decisions
 

@@ -7,23 +7,19 @@ use crate::observability::operator_snapshot::{
 use super::benchmark_results::{
     BenchmarkDiagnosisEvidenceQuality, BenchmarkExploitLocus,
 };
+use super::benchmark_scrapling_exploit_progress::host_cost_channels_for_surface;
+use super::benchmark_scrapling_exploit_progress::repair_families_for_surface;
 use super::benchmark_scrapling_exploit_progress::latest_scrapling_recent_run;
 
 pub(crate) fn scrapling_evidence_quality_assessment(
     adversary_sim: &OperatorSnapshotAdversarySim,
     non_human_traffic: &OperatorSnapshotNonHumanTrafficSummary,
 ) -> BenchmarkDiagnosisEvidenceQuality {
-    let attribution_status = if non_human_traffic.readiness.status == "ready" {
-        "category_native"
-    } else {
-        "projected_or_incomplete"
-    };
-
     let Some(run) = latest_scrapling_recent_run(adversary_sim) else {
         return BenchmarkDiagnosisEvidenceQuality {
             status: "insufficient_evidence".to_string(),
             diagnosis_confidence: "not_available".to_string(),
-            attribution_status: attribution_status.to_string(),
+            attribution_status: "not_available".to_string(),
             sample_status: "missing_recent_run".to_string(),
             freshness_status: "missing_recent_run".to_string(),
             persona_diversity_status: "not_available".to_string(),
@@ -37,7 +33,7 @@ pub(crate) fn scrapling_evidence_quality_assessment(
         return BenchmarkDiagnosisEvidenceQuality {
             status: "insufficient_evidence".to_string(),
             diagnosis_confidence: "not_available".to_string(),
-            attribution_status: attribution_status.to_string(),
+            attribution_status: "surface_receipts_missing".to_string(),
             sample_status: "missing_surface_receipts".to_string(),
             freshness_status: "fresh_recent_run".to_string(),
             persona_diversity_status: if run.observed_fulfillment_modes.is_empty() {
@@ -65,14 +61,30 @@ pub(crate) fn scrapling_evidence_quality_assessment(
                 .surface_labels
                 .get(receipt.surface_id.as_str())
                 .cloned()
-                .unwrap_or_else(|| receipt.surface_id.clone()),
+            .unwrap_or_else(|| receipt.surface_id.clone()),
             stage_id: stage_id(receipt.surface_id.as_str()).to_string(),
             evidence_status: "progress_observed".to_string(),
+            attempt_count: receipt.attempt_count,
+            cost_channel_ids: host_cost_channels_for_surface(receipt.surface_id.as_str())
+                .iter()
+                .map(|channel| (*channel).to_string())
+                .collect(),
             sample_request_method: receipt.sample_request_method.clone(),
             sample_request_path: receipt.sample_request_path.clone(),
             sample_response_status: receipt.sample_response_status,
+            repair_family_candidates: repair_families_for_surface(receipt.surface_id.as_str())
+                .iter()
+                .map(|family| (*family).to_string())
+                .collect(),
         })
         .collect();
+    let attribution_status = if breach_loci.is_empty() {
+        "projected_or_incomplete"
+    } else if non_human_traffic.readiness.status == "ready" {
+        "category_and_surface_native"
+    } else {
+        "surface_native_shared_path"
+    };
     let sample_status = if coverage.receipts.iter().all(|receipt| receipt.attempt_count > 0) {
         "sufficient"
     } else {
@@ -93,7 +105,10 @@ pub(crate) fn scrapling_evidence_quality_assessment(
     } else {
         "localized"
     };
-    let high_confidence = attribution_status == "category_native"
+    let high_confidence = matches!(
+        attribution_status,
+        "category_and_surface_native" | "surface_native_shared_path"
+    )
         && sample_status == "sufficient"
         && persona_diversity_status == "multi_persona"
         && reproducibility_status == "reproduced_recently"

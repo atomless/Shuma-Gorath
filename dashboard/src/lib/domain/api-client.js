@@ -641,9 +641,16 @@ const adaptBenchmarkExploitLocus = (value) => {
     locus_label: String(source.locus_label || ''),
     stage_id: String(source.stage_id || ''),
     evidence_status: String(source.evidence_status || ''),
+    attempt_count: Number(source.attempt_count || 0),
+    cost_channel_ids: Array.isArray(source.cost_channel_ids)
+      ? source.cost_channel_ids.map((entry) => String(entry || '')).filter(Boolean)
+      : [],
     sample_request_method: String(source.sample_request_method || ''),
     sample_request_path: String(source.sample_request_path || ''),
-    sample_response_status: adaptOptionalNumber(source.sample_response_status)
+    sample_response_status: adaptOptionalNumber(source.sample_response_status),
+    repair_family_candidates: Array.isArray(source.repair_family_candidates)
+      ? source.repair_family_candidates.map((entry) => String(entry || '')).filter(Boolean)
+      : []
   };
 };
 

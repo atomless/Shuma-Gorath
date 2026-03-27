@@ -14,9 +14,9 @@ Current behavior:
 - Exposes the bounded Game Loop accountability sections:
   - top status cards and runtime posture rows with no extra framing pane
   - `Recent Loop Progress`
-  - `Outcome Frontier`
-  - `What The Loop Decided`
-  - `Where The Pressure Sits`
+  - `Origin Leakage And Human Cost`
+  - `Loop Actionability`
+  - `Board State`
   - `Trust And Blockers`
 - Projects current machine-first feedback-loop reads from:
   - `operator_snapshot_v1`
@@ -24,15 +24,18 @@ Current behavior:
   - `oversight_history_v1`
   - `oversight_agent_status_v1`
 - Surfaces:
-  - current benchmark overall status and improvement status plus separate current cards for exploit progress, evidence quality, urgency, tuning eligibility, move outcome, and latest controller action,
+  - current benchmark overall status and improvement status plus separate current cards for terrain breach progress, evidence quality, urgency, and top-level loop actionability,
   - bounded recent multi-loop oversight history rather than only the latest cycle,
   - completed judged-cycle lineage from the bounded episode archive, including retained versus rolled-back counts plus explicit homeostasis-break reasons and restart-baseline lineage,
-  - true numeric budget usage for likely-human friction plus suspicious forwarded requests, bytes, and latency,
-  - a first-class `Exploit Progress` panel showing terrain-local attacker advance separately from category posture,
+  - true numeric budget usage for likely-human friction plus suspicious forwarded requests, bytes, and latency, with explicit wording that these are guardrails rather than proof of total attacker defeat,
+  - a first-class `Terrain Breach Progress` panel showing terrain-local attacker advance separately from category posture,
+  - named breach loci carrying attempt counts, host-cost channels, repair families, and sample request or response evidence,
   - taxonomy rows as `Category Posture Achievement`, explicitly described as category-level posture-alignment math rather than attacker surface-success proof,
-  - explicit judge, evidence-quality, diagnosis-confidence, move or escalation, config-ring, code-evolution, and named breach-locus state inside `What The Loop Decided`,
-  - a bounded preview of remaining benchmark pressure plus recent config-change context from the operator snapshot,
-  - and explicit trust or blocker rows for classification readiness, coverage, protected replay status, tuning eligibility, verified-identity guardrails, and the latest compact Scrapling surface-contract corroboration.
+  - category rows that render as `Unscored` with no meter when exact shared-path category evidence is not available,
+  - a separate `Surface Contract Satisfaction` panel so compact Scrapling corroboration stays distinct from both exploit progress and category posture,
+  - explicit judge, evidence-quality, diagnosis-confidence, move or escalation, config-ring, code-evolution, and named breach-locus state inside `Loop Actionability`,
+  - recent config-change context from the operator snapshot,
+  - and explicit trust or blocker rows for classification readiness, coverage, protected replay status, tuning eligibility, verified-identity guardrails, and the shared-path rule that simulator metadata does not count as category truth.
 - Directs operators and contributors to `#diagnostics` for deep subsystem inspection and rawer contributor-facing telemetry.
 - Keeps detailed adversary proof out of the tab:
   - `Red Team` is where operators verify Scrapling personas, categories, and owned-surface receipts,
@@ -49,6 +52,10 @@ Current limitation:
   - suspicious forwarded request, byte, and latency leakage should therefore move toward zero or equivalent fail-closed suppression in that phase,
   - repeated judged config-change improvement on the local `/sim/public/*` surface is now proven through `make test-rsi-game-human-only-proof`,
   - and later human traversal calibration must remain a separate proof ring rather than something inferred from sim traffic alone.
+- The remaining Game Loop truthfulness limitation is still category-specific:
+  - non-verified suspicious automation still routes mostly through `unknown_non_human`,
+  - recent Scrapling category presence can still appear only as degraded `projected_recent_sim_run` evidence,
+  - so exact live category posture scoring for Scrapling-populated categories remains intentionally unscored until Shuma itself can infer those categories from real shared-path request or behavior evidence.
 
 Refresh behavior:
 

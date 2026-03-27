@@ -576,6 +576,10 @@ fn primary_problem_class(
     } else if suspicious_reach_outside_budget {
         Some(OversightProblemClass::SuspiciousOriginReachOverspend)
     } else if snapshot.benchmark_results.escalation_hint.problem_class
+        == "scrapling_exploit_progress_gap"
+    {
+        Some(OversightProblemClass::ScraplingExploitProgressGap)
+    } else if snapshot.benchmark_results.escalation_hint.problem_class
         == "likely_human_friction_overspend"
     {
         Some(OversightProblemClass::LikelyHumanFrictionOverspend)
@@ -587,6 +591,14 @@ fn primary_problem_class(
         == "suspicious_forwarded_reach_overspend"
     {
         Some(OversightProblemClass::SuspiciousOriginReachOverspend)
+    } else if snapshot
+        .benchmark_results
+        .escalation_hint
+        .trigger_family_ids
+        .iter()
+        .any(|family| family == "scrapling_exploit_progress")
+    {
+        Some(OversightProblemClass::ScraplingExploitProgressGap)
     } else if snapshot
         .benchmark_results
         .escalation_hint
@@ -1114,9 +1126,19 @@ mod tests {
                     locus_label: "Public Path Traversal".to_string(),
                     stage_id: "exposure".to_string(),
                     evidence_status: "progress_observed".to_string(),
+                    attempt_count: 2,
+                    cost_channel_ids: vec![
+                        "public_content_exposure".to_string(),
+                        "shuma_served_bytes".to_string(),
+                    ],
                     sample_request_method: "GET".to_string(),
                     sample_request_path: "/sim/public/landing".to_string(),
                     sample_response_status: Some(200),
+                    repair_family_candidates: vec![
+                        "fingerprint_signal".to_string(),
+                        "botness".to_string(),
+                        "core_policy".to_string(),
+                    ],
                 }],
                 note: "Single-persona exploit evidence is not yet strong enough for bounded tuning."
                     .to_string(),
@@ -1146,9 +1168,19 @@ mod tests {
             locus_label: "Public Path Traversal".to_string(),
             stage_id: "exposure".to_string(),
             evidence_status: "progress_observed".to_string(),
+            attempt_count: 2,
+            cost_channel_ids: vec![
+                "public_content_exposure".to_string(),
+                "shuma_served_bytes".to_string(),
+            ],
             sample_request_method: "GET".to_string(),
             sample_request_path: "/sim/public/landing".to_string(),
             sample_response_status: Some(200),
+            repair_family_candidates: vec![
+                "fingerprint_signal".to_string(),
+                "botness".to_string(),
+                "core_policy".to_string(),
+            ],
         }];
         snapshot.benchmark_results.escalation_hint.evidence_quality.status =
             "high_confidence".to_string();
@@ -1201,9 +1233,19 @@ mod tests {
             locus_label: "Public Path Traversal".to_string(),
             stage_id: "exposure".to_string(),
             evidence_status: "progress_observed".to_string(),
+            attempt_count: 2,
+            cost_channel_ids: vec![
+                "public_content_exposure".to_string(),
+                "shuma_served_bytes".to_string(),
+            ],
             sample_request_method: "GET".to_string(),
             sample_request_path: "/sim/public/landing".to_string(),
             sample_response_status: Some(200),
+            repair_family_candidates: vec![
+                "fingerprint_signal".to_string(),
+                "botness".to_string(),
+                "core_policy".to_string(),
+            ],
         }];
         snapshot.episode_archive = OperatorSnapshotEpisodeArchive {
             schema_version: "oversight_episode_archive_v1".to_string(),

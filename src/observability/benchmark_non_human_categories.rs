@@ -219,3 +219,50 @@ fn posture_alignment_status(current: f64, target: Option<f64>) -> String {
         "outside_budget".to_string()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::non_human_category_posture_family;
+    use crate::observability::monitoring::{MonitoringSummary, RequestOutcomeCategorySummaryRow};
+    use crate::observability::operator_snapshot_non_human::non_human_traffic_summary;
+    use crate::observability::operator_snapshot_objectives::default_operator_objectives;
+
+    #[test]
+    fn exact_scrapling_category_receipts_can_score_partial_blocked_share() {
+        let mut monitoring = MonitoringSummary::default();
+        monitoring.request_outcomes.by_non_human_category = vec![RequestOutcomeCategorySummaryRow {
+            traffic_origin: "adversary_sim".to_string(),
+            measurement_scope: "ingress_primary".to_string(),
+            execution_mode: "enforced".to_string(),
+            category_id: "ai_scraper_bot".to_string(),
+            assignment_status: "classified".to_string(),
+            exactness: "exact".to_string(),
+            basis: "observed".to_string(),
+            total_requests: 4,
+            forwarded_requests: 1,
+            short_circuited_requests: 3,
+            control_response_requests: 0,
+            response_bytes: 400,
+            forwarded_upstream_latency_ms_total: 0,
+            forwarded_response_bytes: 100,
+            short_circuited_response_bytes: 300,
+            control_response_bytes: 0,
+        }];
+
+        let objectives = default_operator_objectives(1_700_000_000);
+        let non_human_traffic = non_human_traffic_summary(&monitoring, &[]);
+        let family = non_human_category_posture_family(&objectives, &non_human_traffic);
+        let metric = family
+            .metrics
+            .iter()
+            .find(|metric| metric.metric_id == "category_posture_alignment:ai_scraper_bot")
+            .expect("ai_scraper_bot posture metric");
+
+        assert_eq!(metric.status, "near_limit");
+        assert_eq!(metric.current, Some(0.75));
+        assert_eq!(metric.target, Some(1.0));
+        assert_eq!(metric.delta, Some(-0.25));
+        assert_eq!(metric.capability_gate, "supported");
+        assert_eq!(metric.basis, "observed");
+    }
+}

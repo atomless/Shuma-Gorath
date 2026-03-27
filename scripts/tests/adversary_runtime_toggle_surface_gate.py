@@ -216,6 +216,7 @@ class RuntimeToggleSurfaceGate:
     def recent_scrapling_run_coverage(
         self,
         operator_snapshot_body: Dict[str, Any],
+        existing_run_ids: Optional[set[str]] = None,
     ) -> Dict[str, Any]:
         objectives = self._as_obj(operator_snapshot_body.get("objectives"))
         verified_identity = self._as_obj(operator_snapshot_body.get("verified_identity"))
@@ -223,15 +224,19 @@ class RuntimeToggleSurfaceGate:
         budget_rows = self._as_list(self._as_obj(operator_snapshot_body.get("budget_distance")).get("rows"))
         adversary_sim = self._as_obj(operator_snapshot_body.get("adversary_sim"))
         recent_runs = self._as_list(adversary_sim.get("recent_runs"))
+        existing_run_ids = existing_run_ids or set()
         for row in recent_runs:
             run = self._as_obj(row)
             if str(run.get("lane") or "").strip() != "scrapling_traffic":
+                continue
+            run_id = str(run.get("run_id") or "").strip()
+            if run_id in existing_run_ids:
                 continue
             coverage = self._as_obj(run.get("owned_surface_coverage"))
             if not coverage:
                 continue
             return {
-                "run_id": str(run.get("run_id") or "").strip(),
+                "run_id": run_id,
                 "overall_status": str(coverage.get("overall_status") or "").strip(),
                 "profile_id": str(objectives.get("profile_id") or "").strip(),
                 "verified_identity_override_mode": str(
@@ -278,7 +283,27 @@ class RuntimeToggleSurfaceGate:
             "observed_fulfillment_modes": [],
         }
 
-    def poll_recent_scrapling_run_coverage(self) -> Dict[str, Any]:
+    def current_recent_scrapling_run_ids(self) -> set[str]:
+        operator_snapshot = self.request("GET", "/admin/operator-snapshot")
+        if operator_snapshot["status"] != 200:
+            return set()
+        recent_runs = self._as_list(
+            self._as_obj(self._as_obj(operator_snapshot["body"]).get("adversary_sim")).get("recent_runs")
+        )
+        run_ids: set[str] = set()
+        for row in recent_runs:
+            run = self._as_obj(row)
+            if str(run.get("lane") or "").strip() != "scrapling_traffic":
+                continue
+            run_id = str(run.get("run_id") or "").strip()
+            if run_id:
+                run_ids.add(run_id)
+        return run_ids
+
+    def poll_recent_scrapling_run_coverage(
+        self,
+        existing_run_ids: Optional[set[str]] = None,
+    ) -> Dict[str, Any]:
         deadline = time.time() + float(self.timeout_seconds)
         last_seen = {
             "run_id": "",
@@ -298,7 +323,10 @@ class RuntimeToggleSurfaceGate:
             if operator_snapshot["status"] != 200:
                 time.sleep(1)
                 continue
-            last_seen = self.recent_scrapling_run_coverage(self._as_obj(operator_snapshot["body"]))
+            last_seen = self.recent_scrapling_run_coverage(
+                self._as_obj(operator_snapshot["body"]),
+                existing_run_ids=existing_run_ids,
+            )
             if (
                 last_seen["run_id"]
                 and last_seen["overall_status"] == "covered"
@@ -402,8 +430,9 @@ def main() -> int:
         gate.clear_loopback_bans()
         gate.configure_runtime_surface_profile()
         live_summary_baseline = gate.read_live_summary_counts()
+        existing_run_ids = gate.current_recent_scrapling_run_ids()
         gate.toggle(True, "on")
-        coverage = gate.poll_recent_scrapling_run_coverage()
+        coverage = gate.poll_recent_scrapling_run_coverage(existing_run_ids=existing_run_ids)
         live_summary_counts = gate.poll_live_summary_matches_baseline(live_summary_baseline)
     except Exception as exc:  # noqa: BLE001
         print(f"[runtime-surface-gate] error: {exc}", file=sys.stderr)

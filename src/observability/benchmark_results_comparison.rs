@@ -128,7 +128,7 @@ pub(super) fn derive_escalation_hint(
     let trigger_metric_ids = outside_budget_metric_ids(primary_family);
     let classification = classify_problem(primary_family);
     let candidate_action_families =
-        allowed_candidate_action_families(allowed_actions, classification.action_families);
+        allowed_candidate_action_families(allowed_actions, classification.action_families.as_slice());
     let family_guidance = family_guidance_rows(candidate_action_families.as_slice());
     let mut blockers = BTreeSet::new();
 
@@ -193,7 +193,7 @@ struct ProblemClassification {
     tractability: &'static str,
     expected_direction: &'static str,
     note: &'static str,
-    action_families: &'static [&'static str],
+    action_families: Vec<String>,
 }
 
 fn primary_outside_budget_family<'a>(
@@ -260,15 +260,35 @@ fn classify_problem(family: &BenchmarkFamilyResult) -> ProblemClassification {
                 action_families: benchmark_action_families("suspicious_origin_cost"),
             }
         }
-        "scrapling_exploit_progress" => ProblemClassification {
-            problem_class: "scrapling_exploit_progress_gap",
-            decision: "code_evolution_candidate",
-            guidance_status: "code_evolution_only",
-            tractability: "code_or_capability_gap",
-            expected_direction: "reduce_scrapling_exploit_progress",
-            note: "Terrain-local Scrapling exploit progress is still non-zero, so the judge must treat the current posture as attacker-permeable even when aggregate leakage looks low.",
-            action_families: &[],
-        },
+        "scrapling_exploit_progress" => {
+            let action_families = exploit_progress_action_families(family);
+            let decision = if action_families.is_empty() {
+                "code_evolution_candidate"
+            } else {
+                "config_tuning_candidate"
+            };
+            ProblemClassification {
+                problem_class: "scrapling_exploit_progress_gap",
+                decision,
+                guidance_status: if decision == "config_tuning_candidate" {
+                    "localized_exploit_progress_guidance"
+                } else {
+                    "code_evolution_only"
+                },
+                tractability: if decision == "config_tuning_candidate" {
+                    "localized_config_repair"
+                } else {
+                    "code_or_capability_gap"
+                },
+                expected_direction: "reduce_scrapling_exploit_progress",
+                note: if decision == "config_tuning_candidate" {
+                    "Terrain-local Scrapling exploit progress is backed by named breach loci and bounded repair families, so the controller can prefer the smallest localized config move before escalating to code."
+                } else {
+                    "Terrain-local Scrapling exploit progress is still non-zero, but no approved bounded config families map cleanly to the observed breach loci yet."
+                },
+                action_families,
+            }
+        }
         "scrapling_surface_contract" => ProblemClassification {
             problem_class: "scrapling_surface_contract_gap",
             decision: "code_evolution_candidate",
@@ -276,7 +296,7 @@ fn classify_problem(family: &BenchmarkFamilyResult) -> ProblemClassification {
             tractability: "code_or_capability_gap",
             expected_direction: "close_required_scrapling_surface_gaps",
             note: "Latest Scrapling defense-surface contract misses mean the loop cannot yet treat aggregate suspicious-origin suppression as operationally healthy or tuning-ready.",
-            action_families: &[],
+            action_families: Vec::new(),
         },
         "beneficial_non_human_posture" => ProblemClassification {
             problem_class: "beneficial_non_human_harm",
@@ -285,7 +305,7 @@ fn classify_problem(family: &BenchmarkFamilyResult) -> ProblemClassification {
             tractability: "code_or_capability_gap",
             expected_direction: "protect_beneficial_non_human_traffic",
             note: "Beneficial non-human harm is policy-shaped and remains outside the bounded autonomous config move ring.",
-            action_families: &[],
+            action_families: Vec::new(),
         },
         "non_human_category_posture" => ProblemClassification {
             problem_class: "category_posture_gap",
@@ -294,7 +314,7 @@ fn classify_problem(family: &BenchmarkFamilyResult) -> ProblemClassification {
             tractability: "code_or_capability_gap",
             expected_direction: "improve_category_target_achievement",
             note: "Category posture misses indicate classification, evidence, or defense-capability gaps rather than a clean bounded config move.",
-            action_families: &[],
+            action_families: Vec::new(),
         },
         "representative_adversary_effectiveness" => ProblemClassification {
             problem_class: "representative_adversary_gap",
@@ -303,7 +323,7 @@ fn classify_problem(family: &BenchmarkFamilyResult) -> ProblemClassification {
             tractability: "code_or_capability_gap",
             expected_direction: "reduce_adversary_goal_success",
             note: "Representative adversary effectiveness misses require scenario or capability evolution before autonomous config tuning is trustworthy.",
-            action_families: &[],
+            action_families: Vec::new(),
         },
         _ => ProblemClassification {
             problem_class: "unclassified_outside_budget_gap",
@@ -312,14 +332,14 @@ fn classify_problem(family: &BenchmarkFamilyResult) -> ProblemClassification {
             tractability: "code_or_capability_gap",
             expected_direction: "manual_investigation_required",
             note: "The current outside-budget family does not yet map to an approved bounded move class.",
-            action_families: &[],
+            action_families: Vec::new(),
         },
     }
 }
 
-fn benchmark_action_families(family_id: &str) -> &'static [&'static str] {
+fn benchmark_action_families(family_id: &str) -> Vec<String> {
     match family_id {
-        "suspicious_origin_cost" => &[
+        "suspicious_origin_cost" => vec![
             "maze_core",
             "core_policy",
             "proof_of_work",
@@ -328,17 +348,23 @@ fn benchmark_action_families(family_id: &str) -> &'static [&'static str] {
             "botness",
             "cdp_detection",
             "fingerprint_signal",
-        ],
-        "likely_human_friction" => &[
+        ]
+        .into_iter()
+        .map(str::to_string)
+        .collect(),
+        "likely_human_friction" => vec![
             "core_policy",
             "proof_of_work",
             "challenge",
             "not_a_bot",
             "botness",
             "maze_core",
-        ],
-        "non_human_category_posture" => &[],
-        _ => &[],
+        ]
+        .into_iter()
+        .map(str::to_string)
+        .collect(),
+        "non_human_category_posture" => Vec::new(),
+        _ => Vec::new(),
     }
 }
 
@@ -353,18 +379,36 @@ fn outside_budget_metric_ids(family: &BenchmarkFamilyResult) -> Vec<String> {
 
 fn allowed_candidate_action_families(
     allowed_actions: &AllowedActionsSurface,
-    mapped_families: &[&str],
+    mapped_families: &[String],
 ) -> Vec<String> {
-    let mapped_families = mapped_families.iter().copied().collect::<BTreeSet<_>>();
-    let mut candidate_action_families = BTreeSet::new();
-    for allowed_group in &allowed_actions.groups {
-        if allowed_group.controller_status == "allowed"
-            && mapped_families.contains(allowed_group.family.as_str())
-        {
-            candidate_action_families.insert(allowed_group.family.clone());
+    let allowed = allowed_actions
+        .groups
+        .iter()
+        .filter(|group| group.controller_status == "allowed")
+        .map(|group| group.family.as_str())
+        .collect::<BTreeSet<_>>();
+    let mut seen = BTreeSet::new();
+    let mut candidate_action_families = Vec::new();
+    for family in mapped_families {
+        if !allowed.contains(family.as_str()) || !seen.insert(family.as_str()) {
+            continue;
+        }
+        candidate_action_families.push(family.clone());
+    }
+    candidate_action_families
+}
+
+fn exploit_progress_action_families(family: &BenchmarkFamilyResult) -> Vec<String> {
+    let mut seen = BTreeSet::new();
+    let mut ordered = Vec::new();
+    for locus in &family.exploit_loci {
+        for repair_family in &locus.repair_family_candidates {
+            if seen.insert(repair_family.as_str()) {
+                ordered.push(repair_family.clone());
+            }
         }
     }
-    candidate_action_families.into_iter().collect()
+    ordered
 }
 
 fn family_guidance_rows(
@@ -400,7 +444,7 @@ mod tests {
     };
     use crate::config::allowed_actions_v1;
     use crate::observability::benchmark_results::{
-        BenchmarkFamilyResult, BenchmarkMetricResult,
+        BenchmarkExploitLocus, BenchmarkFamilyResult, BenchmarkMetricResult,
     };
 
     fn family(family_id: &str, status: &str, capability_gate: &str) -> BenchmarkFamilyResult {
@@ -643,6 +687,76 @@ mod tests {
         assert_eq!(hint.tractability, "code_or_capability_gap");
         assert_eq!(hint.decision, "code_evolution_candidate");
         assert!(hint.candidate_action_families.is_empty());
+    }
+
+    #[test]
+    fn escalation_hint_uses_localized_exploit_repair_families_for_config_tuning() {
+        let mut family = family_with_metrics(
+            "scrapling_exploit_progress",
+            "outside_budget",
+            "supported",
+            vec![metric(
+                "scrapling_breach_surface_rate",
+                "outside_budget",
+                "supported",
+            )],
+        );
+        family.exploit_loci = vec![
+            BenchmarkExploitLocus {
+                locus_id: "rate_pressure".to_string(),
+                locus_label: "Rate Pressure".to_string(),
+                stage_id: "exposure".to_string(),
+                evidence_status: "progress_observed".to_string(),
+                attempt_count: 6,
+                cost_channel_ids: vec![
+                    "defense_capacity_pressure".to_string(),
+                    "shuma_served_bytes".to_string(),
+                ],
+                sample_request_method: "GET".to_string(),
+                sample_request_path: "/sim/public/search?q=scrapling".to_string(),
+                sample_response_status: Some(200),
+                repair_family_candidates: vec![
+                    "fingerprint_signal".to_string(),
+                    "botness".to_string(),
+                    "challenge".to_string(),
+                ],
+            },
+            BenchmarkExploitLocus {
+                locus_id: "maze_navigation".to_string(),
+                locus_label: "Maze Navigation".to_string(),
+                stage_id: "interactive".to_string(),
+                evidence_status: "progress_observed".to_string(),
+                attempt_count: 2,
+                cost_channel_ids: vec![
+                    "interactive_defense_load".to_string(),
+                    "shuma_served_bytes".to_string(),
+                ],
+                sample_request_method: "GET".to_string(),
+                sample_request_path: "/maze".to_string(),
+                sample_response_status: Some(200),
+                repair_family_candidates: vec![
+                    "maze_core".to_string(),
+                    "cdp_detection".to_string(),
+                ],
+            },
+        ];
+
+        let hint = derive_escalation_hint(&allowed_actions_v1(), &[family]);
+
+        assert_eq!(hint.problem_class, "scrapling_exploit_progress_gap");
+        assert_eq!(hint.guidance_status, "localized_exploit_progress_guidance");
+        assert_eq!(hint.tractability, "localized_config_repair");
+        assert_eq!(hint.decision, "config_tuning_candidate");
+        assert_eq!(
+            hint.candidate_action_families,
+            vec![
+                "fingerprint_signal".to_string(),
+                "botness".to_string(),
+                "challenge".to_string(),
+                "maze_core".to_string(),
+                "cdp_detection".to_string(),
+            ]
+        );
     }
 
     #[test]
