@@ -1742,6 +1742,7 @@ test("diagnostics defense breakdown summarizes full defense furniture, not just 
 });
 
 test("game loop projects benchmark and oversight accountability from machine-first contracts", async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 1200 });
   await page.route("**/admin/operator-snapshot", async (route) => {
     await route.fulfill({
       status: 200,
@@ -2100,6 +2101,16 @@ test("game loop projects benchmark and oversight accountability from machine-fir
   });
 
   await openDashboard(page);
+
+  await expect(
+    page.locator('#dashboard-panel-game-loop [data-game-loop-section="current-status"] .stats-cards')
+  ).toHaveClass(/stats-cards--summary/);
+  const summaryCardTops = await page
+    .locator('#dashboard-panel-game-loop [data-game-loop-section="current-status"] .stats-cards > .card')
+    .evaluateAll((nodes) =>
+      nodes.map((node) => Math.round(node.getBoundingClientRect().top))
+    );
+  expect(new Set(summaryCardTops).size).toBeGreaterThan(1);
 
   await expect(page.locator("#game-loop-current-status-overall-status")).toHaveText(/Outside Budget/i);
   await expect(page.locator("#game-loop-current-status-improvement")).toHaveText(/Improved/i);

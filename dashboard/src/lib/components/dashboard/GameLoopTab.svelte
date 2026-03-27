@@ -558,7 +558,7 @@
       {/if}
 
       {#if section.id === 'current-status'}
-        <div class="stats-cards">
+        <div class="stats-cards stats-cards--summary">
           {#each currentStatusCards as card (card.valueId)}
             <MetricStatCard title={card.title} valueId={card.valueId} value={card.value}>
               <p class="text-muted">{card.note}</p>
