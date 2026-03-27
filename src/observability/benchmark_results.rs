@@ -65,6 +65,8 @@ pub(crate) fn unavailable_benchmark_urgency_summary() -> BenchmarkUrgencySummary
         status: "not_available".to_string(),
         exploit_short_window_status: "not_available".to_string(),
         exploit_long_window_status: "not_available".to_string(),
+        restriction_confidence_status: "not_available".to_string(),
+        abuse_backstop_status: "not_available".to_string(),
         likely_human_short_window_status: "not_available".to_string(),
         likely_human_long_window_status: "not_available".to_string(),
         homeostasis_break_status: "not_triggered".to_string(),
@@ -169,6 +171,8 @@ pub(crate) struct BenchmarkUrgencySummary {
     pub status: String,
     pub exploit_short_window_status: String,
     pub exploit_long_window_status: String,
+    pub restriction_confidence_status: String,
+    pub abuse_backstop_status: String,
     pub likely_human_short_window_status: String,
     pub likely_human_long_window_status: String,
     pub homeostasis_break_status: String,
@@ -318,7 +322,11 @@ pub(crate) fn build_benchmark_results_from_snapshot_sections(
     } else {
         attach_exploit_evidence_quality(derived_escalation_hint, &exploit_evidence_quality)
     };
-    let urgency = benchmark_urgency_summary(families.as_slice());
+    let urgency = benchmark_urgency_summary(
+        families.as_slice(),
+        non_human_traffic.restriction_readiness.status.as_str(),
+        &exploit_evidence_quality,
+    );
 
     BenchmarkResultsPayload {
         schema_version: BENCHMARK_RESULTS_SCHEMA_VERSION.to_string(),

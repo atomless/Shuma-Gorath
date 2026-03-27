@@ -1326,6 +1326,7 @@ test-rsi-score-evidence-quality: ## Run focused exploit-evidence quality and dia
 test-rsi-score-urgency-and-homeostasis: ## Run focused urgency scoring and homeostasis-break checks
 	@echo "$(CYAN)🧪 Running urgency and homeostasis checks...$(NC)"
 	@./scripts/set_crate_type.sh rlib
+	@cargo test observability::benchmark_urgency::tests:: -- --nocapture
 	@cargo test observability::benchmark_results::tests::benchmark_results_materialize_critical_urgency_when_exploit_progress_regresses -- --exact --nocapture
 	@cargo test observability::benchmark_comparison::tests::homeostasis_breaks_immediately_when_latest_cycle_reports_exploit_regression -- --exact --nocapture
 	@$(MAKE) test-benchmark-results-contract

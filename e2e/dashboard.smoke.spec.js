@@ -2520,6 +2520,8 @@ test("game loop tab separates judge planes, breach loci, and config exhaustion s
           status: "critical",
           exploit_short_window_status: "critical",
           exploit_long_window_status: "elevated",
+          restriction_confidence_status: "high",
+          abuse_backstop_status: "triggered",
           likely_human_short_window_status: "steady",
           likely_human_long_window_status: "steady",
           homeostasis_break_status: "triggered",
@@ -2769,6 +2771,8 @@ test("game loop tab separates judge planes, breach loci, and config exhaustion s
   await expect(page.locator("#game-loop-current-status-exploit-progress")).toHaveText(/Outside Budget/i);
   await expect(page.locator("#game-loop-current-status-evidence-quality")).toHaveText(/High Confidence/i);
   await expect(page.locator("#game-loop-current-status-exploit-urgency")).toHaveText(/Critical|Outside Budget/i);
+  await expect(page.locator("#game-loop-current-status-restriction-confidence")).toHaveText(/High/i);
+  await expect(page.locator("#game-loop-current-status-abuse-backstop")).toHaveText(/Triggered/i);
   await expect(page.locator("#game-loop-current-status-human-friction-urgency")).toHaveText(/Steady/i);
   await expect(page.locator("#game-loop-current-status-loop-actionability")).toContainText(
     /config ring exhausted/i
@@ -2788,6 +2792,8 @@ test("game loop tab separates judge planes, breach loci, and config exhaustion s
   await expect(page.locator("#game-loop-breach-loci")).toContainText("GET /maze");
   await expect(page.locator("#game-loop-breach-loci")).toContainText("GET /detail/2");
   await expect(page.locator("#game-loop-change-judgment")).toContainText("Exploit urgency");
+  await expect(page.locator("#game-loop-change-judgment")).toContainText("Restriction confidence");
+  await expect(page.locator("#game-loop-change-judgment")).toContainText("Abuse backstop");
   await expect(page.locator("#game-loop-change-judgment")).toContainText("Human friction urgency");
   await expect(page.locator("#game-loop-surface-contract")).toContainText(
     "Surface Contract Satisfaction"

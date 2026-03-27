@@ -764,6 +764,8 @@ export const adaptBenchmarkResults = (payload) => {
       status: String(urgency.status || ''),
       exploit_short_window_status: String(urgency.exploit_short_window_status || ''),
       exploit_long_window_status: String(urgency.exploit_long_window_status || ''),
+      restriction_confidence_status: String(urgency.restriction_confidence_status || ''),
+      abuse_backstop_status: String(urgency.abuse_backstop_status || ''),
       likely_human_short_window_status: String(urgency.likely_human_short_window_status || ''),
       likely_human_long_window_status: String(urgency.likely_human_long_window_status || ''),
       homeostasis_break_status: String(urgency.homeostasis_break_status || ''),

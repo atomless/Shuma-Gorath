@@ -6616,6 +6616,8 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
       status: 'critical',
       exploit_short_window_status: 'critical',
       exploit_long_window_status: 'elevated',
+      restriction_confidence_status: 'high',
+      abuse_backstop_status: 'triggered',
       likely_human_short_window_status: 'steady',
       likely_human_long_window_status: 'steady',
       homeostasis_break_status: 'triggered',
@@ -6770,6 +6772,8 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
   assert.equal(benchmarkResults.schema_version, 'benchmark_results_v1');
   assert.equal(benchmarkResults.overall_status, 'outside_budget');
   assert.equal(benchmarkResults.urgency.status, 'critical');
+  assert.equal(benchmarkResults.urgency.restriction_confidence_status, 'high');
+  assert.equal(benchmarkResults.urgency.abuse_backstop_status, 'triggered');
   assert.equal(benchmarkResults.urgency.homeostasis_break_status, 'triggered');
   assert.deepEqual(benchmarkResults.urgency.homeostasis_break_reasons, [
     'exploit_success_regressed'

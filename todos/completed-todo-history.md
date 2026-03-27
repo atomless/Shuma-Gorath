@@ -4,6 +4,37 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-27)
 
+### RSI-SCORE-2F3 Restriction-Confidence And Abuse-Backstop Scoring
+
+- [x] Completed `RSI-SCORE-2F3` across:
+  - [`../Makefile`](../Makefile)
+  - [`../src/observability/benchmark_results.rs`](../src/observability/benchmark_results.rs)
+  - [`../src/observability/benchmark_urgency.rs`](../src/observability/benchmark_urgency.rs)
+  - [`../dashboard/src/lib/domain/api-client.js`](../dashboard/src/lib/domain/api-client.js)
+  - [`../dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`../docs/dashboard-tabs/game-loop.md`](../docs/dashboard-tabs/game-loop.md)
+  - [`../docs/research/2026-03-27-rsi-score-2f3-confidence-and-abuse-backstop-post-implementation-review.md`](../docs/research/2026-03-27-rsi-score-2f3-confidence-and-abuse-backstop-post-implementation-review.md)
+- [x] What landed:
+  - restriction urgency now surfaces `Restriction Confidence` and `Abuse Backstop` as explicit machine-first states,
+  - low-confidence but high-cost pressure now stays urgent through the suspicious-origin-cost backstop instead of relying only on exploit-progress certainty,
+  - the Game Loop now shows those states separately from exploit urgency and human-friction urgency,
+  - and the Make-driven proof path now executes dedicated urgency tests rather than only compiling the new behavior.
+- [x] Why:
+  - the new restriction-vs-recognition architecture was still missing an explicit score-path statement about Shuma confidence and the abuse backstop, which left the loop too easy to read as exploit-progress-only even after category posture had been demoted.
+- [x] Evidence:
+  - [`../docs/research/2026-03-27-rsi-score-2f3-confidence-and-abuse-backstop-post-implementation-review.md`](../docs/research/2026-03-27-rsi-score-2f3-confidence-and-abuse-backstop-post-implementation-review.md)
+  - `make test-traffic-classification-contract`
+  - `make test-benchmark-results-contract`
+  - `make test-rsi-score-exploit-progress`
+  - `make test-rsi-score-evidence-quality`
+  - `make test-rsi-score-urgency-and-homeostasis`
+  - `make test-rsi-score-move-selection`
+  - `make dashboard-build`
+  - `make test-dashboard-game-loop-accountability`
+  - `git diff --check`
+
 ### RSI-GAME-ARCH-1B Restriction-First Score Spine Reset
 
 - [x] Completed `RSI-GAME-ARCH-1B` across:

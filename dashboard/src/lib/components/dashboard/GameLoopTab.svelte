@@ -434,6 +434,39 @@
     ],
     'Human-friction urgency is not materialized yet.'
   );
+  $: restrictionConfidenceValue = humanizeToken(urgencySummary?.restriction_confidence_status);
+  $: restrictionConfidenceNote = joinStatusSummary(
+    [
+      urgencySummary?.restriction_confidence_status
+        ? `Restriction confidence ${humanizeToken(
+            urgencySummary?.restriction_confidence_status,
+            'sentence'
+          )}`
+        : '',
+      benchmarkResults?.non_human_classification?.status
+        ? `Restriction readiness ${humanizeToken(
+            benchmarkResults?.non_human_classification?.status,
+            'sentence'
+          )}`
+        : '',
+      evidenceQuality?.diagnosis_confidence
+        ? `Diagnosis ${humanizeToken(evidenceQuality?.diagnosis_confidence, 'sentence')}`
+        : ''
+    ],
+    'Restriction confidence is not materialized yet.'
+  );
+  $: abuseBackstopValue = humanizeToken(urgencySummary?.abuse_backstop_status);
+  $: abuseBackstopNote = joinStatusSummary(
+    [
+      urgencySummary?.abuse_backstop_status
+        ? `Backstop ${humanizeToken(urgencySummary?.abuse_backstop_status, 'sentence')}`
+        : '',
+      suspiciousOriginCostFamily?.status
+        ? `Suspicious-origin cost ${humanizeToken(suspiciousOriginCostFamily?.status, 'sentence')}`
+        : ''
+    ],
+    'The short-window abuse backstop is not materialized yet.'
+  );
   $: restartBaseline = asRecord(homeostasisSummary?.restart_baseline);
   $: categoryPostureTargets = new Map(
     toArray(operatorSnapshot?.objectives?.category_postures).map((row) => [
@@ -574,6 +607,18 @@
       valueId: 'game-loop-current-status-exploit-urgency',
       value: exploitUrgencyValue,
       note: exploitUrgencyNote
+    },
+    {
+      title: 'Restriction Confidence',
+      valueId: 'game-loop-current-status-restriction-confidence',
+      value: restrictionConfidenceValue,
+      note: restrictionConfidenceNote
+    },
+    {
+      title: 'Abuse Backstop',
+      valueId: 'game-loop-current-status-abuse-backstop',
+      value: abuseBackstopValue,
+      note: abuseBackstopNote
     },
     {
       title: 'Human Friction Urgency',
@@ -762,6 +807,11 @@
               <span class="status-value">
                 Exploit urgency {humanizeToken(urgencySummary?.exploit_short_window_status, 'sentence')}
                 | trend {humanizeToken(urgencySummary?.exploit_long_window_status, 'sentence')}
+                | Restriction confidence {humanizeToken(
+                  urgencySummary?.restriction_confidence_status,
+                  'sentence'
+                )}
+                | Abuse backstop {humanizeToken(urgencySummary?.abuse_backstop_status, 'sentence')}
                 | Human friction urgency {humanizeToken(
                   urgencySummary?.likely_human_short_window_status,
                   'sentence'

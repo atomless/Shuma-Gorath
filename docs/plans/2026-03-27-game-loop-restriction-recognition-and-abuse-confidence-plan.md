@@ -35,7 +35,11 @@ Implementation status update (2026-03-27):
    3. and the recognition-evaluation rail.
 4. `RSI-SCORE-2F2` is now landed and keeps the recognition-evaluation rail honest about collapse to `unknown_non_human`.
 5. `RSI-GAME-ARCH-1B` is now landed and stops category posture from acting like the primary restriction scoreboard.
-6. `RSI-SCORE-2F3` remains open because confidence weighting and the abuse-driven backstop still need to become more explicit in the restriction scorer itself.
+6. `RSI-SCORE-2F3` is now landed: restriction urgency explicitly carries `Restriction Confidence` and `Abuse Backstop`, and the named proof path now executes dedicated urgency tests rather than merely compiling the new behavior.
+7. The remaining open work in this chain is now:
+   1. `RSI-GAME-BOARD-1F`,
+   2. `RSI-GAME-BOARD-1G`,
+   3. and the later controller and retirement cleanup in the architecture-alignment plan.
 
 # Core Decisions
 
@@ -91,12 +95,13 @@ Acceptance criteria:
 
 1. plan and backlog language no longer describe exact hostile-category posture as the primary restriction score for undeclared hostile traffic,
 2. the restriction-scoring contract explicitly names confidence-weighted urgency plus an anomaly or harm floor,
-3. future implementation work is required to prove any runtime or benchmark changes through:
+3. implementation proof for the landed slice exists through:
    1. `make test-benchmark-results-contract`
    2. `make test-rsi-score-exploit-progress`
    3. `make test-rsi-score-evidence-quality`
-   4. `make test-rsi-score-move-selection`
-   5. `make test-dashboard-game-loop-accountability`,
+   4. `make test-rsi-score-urgency-and-homeostasis`
+   5. `make test-rsi-score-move-selection`
+   6. `make test-dashboard-game-loop-accountability`,
 4. and any attempt to use simulator-known category labels in restriction scoring is treated as insufficient.
 
 ## `RSI-GAME-BOARD-1F`

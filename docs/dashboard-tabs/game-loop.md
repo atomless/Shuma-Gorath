@@ -24,7 +24,7 @@ Current behavior:
   - `oversight_history_v1`
   - `oversight_agent_status_v1`
 - Surfaces:
-  - current benchmark overall status and improvement status plus separate current cards for terrain breach progress, evidence quality, urgency, and top-level loop actionability,
+  - current benchmark overall status and improvement status plus separate current cards for terrain breach progress, evidence quality, exploit urgency, restriction confidence, abuse backstop, human-friction urgency, and top-level loop actionability,
   - bounded recent multi-loop oversight history rather than only the latest cycle,
   - completed judged-cycle lineage from the bounded episode archive, including retained versus rolled-back counts plus explicit homeostasis-break reasons and restart-baseline lineage,
   - true numeric budget usage for likely-human friction plus suspicious forwarded requests, bytes, and latency, with explicit wording that these are guardrails rather than proof of total attacker defeat,
@@ -61,7 +61,8 @@ Current limitation:
   - so exact live recognition scoring for Scrapling-populated categories remains intentionally unscored until Shuma itself can infer those categories from real shared-path request or behavior evidence.
 - The main current architecture limitation has now narrowed:
   - category posture no longer drives the top-level restriction status or bounded-tuning escalation when it is the only outside-budget family,
-  - but the stricter restriction-confidence weighting and abuse-backstop urgency model still remains open follow-on work under `RSI-SCORE-2F3`.
+  - restriction urgency now explicitly carries `Restriction Confidence` and `Abuse Backstop` as separate machine-first states rather than flattening them into one urgency label,
+  - and the remaining open Game Loop follow-on work has now moved to typed `Loop Actionability` blockers plus more exact breach-locus and controller-rail cleanup rather than still-missing restriction-confidence or abuse-backstop semantics.
 
 Refresh behavior:
 
