@@ -36,7 +36,7 @@ Current behavior:
   - a separate `Surface Contract Satisfaction` panel so compact Scrapling corroboration stays distinct from both exploit progress and category posture,
   - surface-contract blocking rows that now distinguish `attempted and blocked` from `required but unreached` when receipt-backed proof is present,
   - surface-contract blocker rows now carry dependency detail where available so the tab can distinguish an independent local miss from a downstream prerequisite miss,
-  - explicit judge, evidence-quality, diagnosis-confidence, move or escalation, config-ring, code-evolution, and named breach-locus state inside `Loop Actionability`,
+  - explicit judge, restriction quest, recognition quest, grouped root-cause blockers, grouped controller outcomes, next-fix surfaces, move or escalation, config-ring, and code-evolution state inside `Loop Actionability`,
   - recent config-change context from the operator snapshot,
   - and explicit trust or blocker rows for classification readiness, coverage, protected replay status, tuning eligibility, verified-identity guardrails, and the shared-path rule that simulator metadata does not count as category truth.
 - Directs operators and contributors to `#diagnostics` for deep subsystem inspection and rawer contributor-facing telemetry.
@@ -63,7 +63,8 @@ Current limitation:
   - category posture no longer drives the top-level restriction status or bounded-tuning escalation when it is the only outside-budget family,
   - restriction urgency now explicitly carries `Restriction Confidence` and `Abuse Backstop` as separate machine-first states rather than flattening them into one urgency label,
   - controller diagnosis, recognition evaluation, and move selection are now explicit sibling benchmark surfaces rather than only implicit escalation-hint projections,
-  - and the remaining open Game Loop follow-on work has now moved to typed `Loop Actionability` blockers plus more exact breach-locus and controller-rail cleanup rather than still-missing restriction-confidence or abuse-backstop semantics.
+  - `Loop Actionability` now groups root causes, controller outcomes, and next-fix surfaces instead of flattening them into one blocker line,
+  - and the remaining open Game Loop follow-on work has now moved to breach-locus missing-data honesty plus later controller-rail cleanup rather than still-missing restriction-confidence or abuse-backstop semantics.
 
 Refresh behavior:
 

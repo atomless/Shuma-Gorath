@@ -2626,6 +2626,83 @@ test("game loop tab separates judge planes, breach loci, and config exhaustion s
           ],
           note: "Localized browser-side exploit progress remains outside budget."
         },
+        controller_contract: {
+          restriction_diagnosis: {
+            problem_class: "scrapling_exploit_progress_gap",
+            status: "localized",
+            confidence: "high",
+            repair_surface_candidates: ["fingerprint_signal", "maze_core"],
+            breach_loci: [
+              {
+                locus_id: "maze_navigation",
+                locus_label: "Maze Navigation",
+                stage_id: "challenge_traversal",
+                evidence_status: "progress_observed",
+                sample_request_method: "GET",
+                sample_request_path: "/maze",
+                sample_response_status: 200
+              },
+              {
+                locus_id: "browser_automation_detection",
+                locus_label: "Browser CDP Automation Detection",
+                stage_id: "automation_detection",
+                evidence_status: "progress_observed",
+                sample_request_method: "GET",
+                sample_request_path: "/detail/2",
+                sample_response_status: 200
+              }
+            ],
+            blockers: [
+              {
+                blocker_group: "surface_proof",
+                blocker_id: "scrapling_surface_blocking:browser_automation_detection",
+                note: "Surface proof remains blocked at Browser CDP Automation Detection."
+              },
+              {
+                blocker_group: "surface_proof",
+                blocker_id: "scrapling_surface_blocking:js_verification_execution",
+                note: "Surface proof remains blocked at JavaScript Verification Execution."
+              }
+            ],
+            note: "Restriction diagnosis localizes the shortfall to the browser challenge path."
+          },
+          recognition_evaluation: {
+            status: "steady",
+            trigger_family_ids: ["non_human_category_posture"],
+            blockers: [],
+            note: "Recognition evaluation remains secondary."
+          },
+          move_selection: {
+            decision: "config_tuning_candidate",
+            review_status: "manual_review_required",
+            guidance_status: "bounded_family_guidance",
+            tractability: "family_level_policy_choice",
+            expected_direction: "tighten",
+            trigger_family_ids: ["scrapling_exploit_progress"],
+            candidate_action_families: ["fingerprint_signal", "cdp_detection"],
+            family_guidance: [
+              {
+                family: "fingerprint_signal",
+                likely_human_risk: "low",
+                tolerated_non_human_risk: "low",
+                note: "Tighten fingerprint signal first."
+              }
+            ],
+            blockers: [
+              {
+                blocker_group: "surface_proof",
+                blocker_id: "scrapling_surface_blocking:browser_automation_detection",
+                note: "Surface proof remains blocked at Browser CDP Automation Detection."
+              },
+              {
+                blocker_group: "bounded_move",
+                blocker_id: "config_ring_exhausted:fingerprint_signal",
+                note: "The current bounded tuning ring is exhausted for Fingerprint Signal."
+              }
+            ],
+            note: "A bounded move exists, but the current ring has already been exhausted."
+          }
+        },
         replay_promotion: {
           availability: "materialized",
           evidence_status: "protected",
@@ -2791,16 +2868,24 @@ test("game loop tab separates judge planes, breach loci, and config exhaustion s
   await expect(page.locator("#game-loop-breach-loci")).toContainText("Maze Navigation");
   await expect(page.locator("#game-loop-breach-loci")).toContainText("GET /maze");
   await expect(page.locator("#game-loop-breach-loci")).toContainText("GET /detail/2");
-  await expect(page.locator("#game-loop-change-judgment")).toContainText("Exploit urgency");
-  await expect(page.locator("#game-loop-change-judgment")).toContainText("Restriction confidence");
-  await expect(page.locator("#game-loop-change-judgment")).toContainText("Abuse backstop");
-  await expect(page.locator("#game-loop-change-judgment")).toContainText("Human friction urgency");
   await expect(page.locator("#game-loop-surface-contract")).toContainText(
     "Surface Contract Satisfaction"
   );
   await expect(page.locator("#game-loop-change-judgment")).toContainText("Judge State");
   await expect(page.locator("#game-loop-change-judgment")).toContainText("Loop Actionability");
-  await expect(page.locator("#game-loop-change-judgment")).toContainText("Diagnosis:");
+  await expect(page.locator("#game-loop-change-judgment")).toContainText("Restriction Quest");
+  await expect(page.locator("#game-loop-change-judgment")).toContainText("Recognition Quest");
+  await expect(page.locator("#game-loop-change-judgment")).toContainText("Root Cause Blockers");
+  await expect(page.locator("#game-loop-change-judgment")).toContainText("Surface Proof");
+  await expect(page.locator("#game-loop-change-judgment")).toContainText(
+    "Browser CDP Automation Detection"
+  );
+  await expect(page.locator("#game-loop-change-judgment")).toContainText(
+    "JS Verification Execution"
+  );
+  await expect(page.locator("#game-loop-change-judgment")).toContainText("Controller Outcome");
+  await expect(page.locator("#game-loop-change-judgment")).toContainText("Bounded Move");
+  await expect(page.locator("#game-loop-change-judgment")).toContainText("Next Fix Surfaces");
   await expect(page.locator("#game-loop-change-judgment")).toContainText("Move Or Escalation");
   await expect(page.locator("#game-loop-change-judgment")).toContainText(/localized/i);
   await expect(page.locator("#game-loop-change-judgment")).toContainText("Fingerprint Signal");
@@ -2808,6 +2893,7 @@ test("game loop tab separates judge planes, breach loci, and config exhaustion s
   await expect(page.locator("#game-loop-change-judgment")).toContainText("Exhausted");
   await expect(page.locator("#game-loop-change-judgment")).toContainText("Code Evolution");
   await expect(page.locator("#game-loop-change-judgment")).toContainText("Not Required");
+  await expect(page.locator("#game-loop-change-judgment")).not.toContainText("Urgency Split");
 });
 
 test("game loop distinguishes recognition evaluation from scrapling surface contract truth", async ({ page }) => {

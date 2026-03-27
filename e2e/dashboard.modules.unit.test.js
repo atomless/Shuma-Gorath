@@ -6712,6 +6712,83 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
       ],
       note: 'Wait for more protected evidence.'
     },
+    controller_contract: {
+      restriction_diagnosis: {
+        problem_class: 'scrapling_exploit_progress_gap',
+        status: 'localized',
+        confidence: 'medium',
+        repair_surface_candidates: ['maze_core', 'fingerprint_signal'],
+        breach_loci: [
+          {
+            locus_id: 'maze_navigation',
+            locus_label: 'Maze Navigation',
+            stage_id: 'challenge_traversal',
+            evidence_status: 'progress_observed',
+            attempt_count: 3,
+            cost_channel_ids: ['interactive_defense_load', 'shuma_served_bytes'],
+            sample_request_method: 'GET',
+            sample_request_path: '/maze',
+            sample_response_status: 200,
+            repair_family_candidates: ['maze_core', 'cdp_detection']
+          }
+        ],
+        blockers: [
+          {
+            blocker_group: 'surface_proof',
+            blocker_id: 'scrapling_surface_contract_not_ready',
+            note: 'Surface proof is still incomplete.'
+          }
+        ],
+        note: 'Restriction diagnosis localizes the gap to maze navigation.'
+      },
+      recognition_evaluation: {
+        status: 'needs_work',
+        trigger_family_ids: ['non_human_category_posture'],
+        blockers: [
+          {
+            blocker_group: 'recognition_evaluation',
+            blocker_id: 'recognition_evaluation_outside_budget_only',
+            note: 'Recognition quality still needs work.'
+          }
+        ],
+        note: 'Recognition remains a side quest.'
+      },
+      move_selection: {
+        decision: 'observe_longer',
+        review_status: 'manual_review_required',
+        guidance_status: 'localized_exploit_progress_guidance',
+        tractability: 'localized_config_repair',
+        expected_direction: 'tighten',
+        trigger_family_ids: ['scrapling_exploit_progress'],
+        candidate_action_families: ['fingerprint_signal'],
+        family_guidance: [
+          {
+            family: 'fingerprint_signal',
+            likely_human_risk: 'low',
+            tolerated_non_human_risk: 'low',
+            note: 'Tighten fingerprint signal first.'
+          }
+        ],
+        blockers: [
+          {
+            blocker_group: 'surface_proof',
+            blocker_id: 'scrapling_surface_contract_not_ready',
+            note: 'Surface proof is still incomplete.'
+          },
+          {
+            blocker_group: 'evidence_quality',
+            blocker_id: 'scrapling_exploit_evidence_quality_low',
+            note: 'Exploit evidence quality is still low.'
+          },
+          {
+            blocker_group: 'controller_guardrail',
+            blocker_id: 'verified_identity_taxonomy_alignment_guardrail',
+            note: 'Verified-identity taxonomy alignment still blocks automated tuning.'
+          }
+        ],
+        note: 'Wait for more protected evidence.'
+      }
+    },
     replay_promotion: {
       availability: 'materialized',
       evidence_status: 'protected',
@@ -6817,6 +6894,20 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
   assert.equal(benchmarkResults.families[1].metrics[1].current, null);
   assert.equal(benchmarkResults.families[1].metrics[1].basis, 'projected_recent_sim_run');
   assert.equal(benchmarkResults.families[1].metrics[0].target, 1);
+  assert.equal(benchmarkResults.controller_contract.restriction_diagnosis.status, 'localized');
+  assert.equal(
+    benchmarkResults.controller_contract.restriction_diagnosis.blockers[0].blocker_group,
+    'surface_proof'
+  );
+  assert.equal(benchmarkResults.controller_contract.recognition_evaluation.status, 'needs_work');
+  assert.equal(
+    benchmarkResults.controller_contract.move_selection.blockers[1].blocker_group,
+    'evidence_quality'
+  );
+  assert.equal(
+    benchmarkResults.controller_contract.move_selection.candidate_action_families[0],
+    'fingerprint_signal'
+  );
 
   const oversightHistory = apiModule.adaptOversightHistory({
     schema_version: 'oversight_history_v1',
@@ -7013,18 +7104,27 @@ test('dashboard game loop accountability source distinguishes judge planes and l
   assert.match(gameLoopSource, /game-loop-breach-loci/);
   assert.match(gameLoopSource, /game-loop-surface-contract/);
   assert.match(gameLoopSource, /Judge State:/);
-  assert.match(gameLoopSource, /Exploit urgency/);
-  assert.match(gameLoopSource, /Human friction urgency/);
+  assert.match(gameLoopSource, /Exploit Urgency/);
+  assert.match(gameLoopSource, /Human Friction Urgency/);
   assert.match(gameLoopSource, /Loop Actionability:/);
-  assert.match(gameLoopSource, /Diagnosis:/);
+  assert.match(gameLoopSource, /Restriction Quest:/);
+  assert.match(gameLoopSource, /Recognition Quest:/);
+  assert.match(gameLoopSource, /Root Cause Blockers/);
+  assert.match(gameLoopSource, /Controller Outcome/);
+  assert.match(gameLoopSource, /Next Fix Surfaces/);
   assert.match(gameLoopSource, /Move Or Escalation:/);
   assert.match(gameLoopSource, /Config Ring:/);
   assert.match(gameLoopSource, /Code Evolution:/);
+  assert.doesNotMatch(gameLoopSource, /Urgency Split:/);
   assert.match(gameLoopSource, /Host cost/);
   assert.match(gameLoopSource, /simulator metadata does not count as category truth/);
 
   assert.match(apiClientSource, /const urgency = asRecord\(source\.urgency\);/);
   assert.match(apiClientSource, /const evidenceQuality = asRecord\(escalationHint\.evidence_quality\);/);
+  assert.match(apiClientSource, /const controllerContract = asRecord\(source\.controller_contract\);/);
+  assert.match(apiClientSource, /restriction_diagnosis/);
+  assert.match(apiClientSource, /move_selection/);
+  assert.match(apiClientSource, /blocker_group/);
   assert.match(apiClientSource, /attempt_count/);
   assert.match(apiClientSource, /repair_family_candidates/);
   assert.match(apiClientSource, /cost_channel_ids/);

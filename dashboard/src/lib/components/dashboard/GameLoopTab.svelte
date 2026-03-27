@@ -58,6 +58,7 @@
     http: 'HTTP',
     id: 'ID',
     ip: 'IP',
+    js: 'JS',
     llm: 'LLM',
     pow: 'PoW',
     sim: 'Sim',
@@ -109,6 +110,46 @@
         'Verified non-human traffic can be evaluated separately here without reopening general unverified non-human access.'
     }
   });
+
+  const controllerBlockerGroupMeta = Object.freeze({
+    shared_classification: {
+      label: 'Shared Path Truth',
+      role: 'root'
+    },
+    recognition_evaluation: {
+      label: 'Recognition Quality',
+      role: 'root'
+    },
+    evidence_quality: {
+      label: 'Evidence Quality',
+      role: 'root'
+    },
+    surface_proof: {
+      label: 'Surface Proof',
+      role: 'root'
+    },
+    observation_window: {
+      label: 'Confidence Accumulation',
+      role: 'downstream'
+    },
+    bounded_move: {
+      label: 'Bounded Move',
+      role: 'downstream'
+    },
+    controller_guardrail: {
+      label: 'Controller Guardrails',
+      role: 'downstream'
+    }
+  });
+  const controllerBlockerGroupOrder = Object.freeze([
+    'shared_classification',
+    'recognition_evaluation',
+    'evidence_quality',
+    'surface_proof',
+    'observation_window',
+    'bounded_move',
+    'controller_guardrail'
+  ]);
 
   const asRecord = (value) =>
     value && typeof value === 'object' ? value : {};
@@ -310,6 +351,121 @@
     return items.length ? items.join(', ') : 'not available';
   };
 
+  const blockerTargetToken = (value) => {
+    const normalized = String(value || '').trim();
+    const separatorIndex = normalized.indexOf(':');
+    return separatorIndex >= 0 ? normalized.slice(separatorIndex + 1).trim() : '';
+  };
+
+  const dedupeControllerBlockers = (blockers) => {
+    const seen = new Set();
+    return blockers.filter((blocker) => {
+      const group = String(blocker?.blocker_group || '').trim();
+      const id = String(blocker?.blocker_id || '').trim();
+      if (!group && !id) return false;
+      const key = `${group}:${id}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
+
+  const describeControllerBlockerGroup = (
+    groupId,
+    blockers,
+    {
+      controllerRecognitionEvaluation,
+      restrictionDiagnosis,
+      moveSelection,
+      evidenceQuality,
+      surfaceLabels,
+      repairFamilies
+    }
+  ) => {
+    if (groupId === 'recognition_evaluation') {
+      return joinStatusSummary(
+        [
+          controllerRecognitionEvaluation?.status
+            ? `status ${humanizeToken(controllerRecognitionEvaluation.status, 'sentence')}`
+            : '',
+          controllerRecognitionEvaluation?.note || '',
+          ...blockers.map((blocker) => blocker?.note || '')
+        ],
+        'Recognition quality is not materialized yet.'
+      );
+    }
+    if (groupId === 'evidence_quality') {
+      return joinStatusSummary(
+        [
+          evidenceQuality?.status
+            ? `evidence ${humanizeToken(evidenceQuality.status, 'sentence')}`
+            : '',
+          restrictionDiagnosis?.confidence
+            ? `diagnosis ${humanizeToken(restrictionDiagnosis.confidence, 'sentence')}`
+            : '',
+          ...blockers.map((blocker) => blocker?.note || '')
+        ],
+        'Evidence quality is not materialized yet.'
+      );
+    }
+    if (groupId === 'surface_proof') {
+      return surfaceLabels.length
+        ? surfaceLabels.join(', ')
+        : joinStatusSummary(
+            blockers.map(
+              (blocker) =>
+                blocker?.note ||
+                humanizeToken(blockerTargetToken(blocker?.blocker_id) || blocker?.blocker_id)
+            ),
+            'Surface proof is not yet materialized.'
+          );
+    }
+    if (groupId === 'bounded_move') {
+      return repairFamilies.length
+        ? repairFamilies.join(', ')
+        : joinStatusSummary(
+            [
+              moveSelection?.note || '',
+              ...blockers.map((blocker) => blocker?.note || '')
+            ],
+            'No bounded move details are materialized yet.'
+          );
+    }
+    return joinStatusSummary(
+      blockers.map(
+        (blocker) =>
+          blocker?.note ||
+          humanizeToken(blockerTargetToken(blocker?.blocker_id) || blocker?.blocker_id, 'sentence')
+      ),
+      'No blocker detail is materialized yet.'
+    );
+  };
+
+  const buildControllerBlockerGroups = (blockers, context) => {
+    const grouped = new Map();
+    for (const blocker of dedupeControllerBlockers(blockers)) {
+      const groupId = String(blocker?.blocker_group || '').trim() || 'controller_guardrail';
+      if (!grouped.has(groupId)) grouped.set(groupId, []);
+      grouped.get(groupId).push(blocker);
+    }
+    return controllerBlockerGroupOrder
+      .map((groupId) => {
+        const groupBlockers = grouped.get(groupId) || [];
+        if (groupBlockers.length === 0) return null;
+        const meta = controllerBlockerGroupMeta[groupId] || {
+          label: humanizeToken(groupId),
+          role: 'downstream'
+        };
+        return {
+          id: groupId,
+          label: meta.label,
+          role: meta.role,
+          detail: describeControllerBlockerGroup(groupId, groupBlockers, context)
+        };
+      })
+      .filter(Boolean);
+  };
+
   const joinStatusSummary = (parts, fallback) => {
     const normalized = dedupeStrings(parts.filter(Boolean));
     return normalized.length ? normalized.join(' | ') : fallback;
@@ -340,22 +496,34 @@
   $: likelyHumanFrictionFamily = findBenchmarkFamily('likely_human_friction');
   $: exploitProgressFamily = findBenchmarkFamily('scrapling_exploit_progress');
   $: evidenceQuality = asRecord(benchmarkResults?.escalation_hint?.evidence_quality);
+  $: controllerContract = asRecord(benchmarkResults?.controller_contract);
+  $: restrictionDiagnosis = asRecord(controllerContract?.restriction_diagnosis);
+  $: controllerRecognitionEvaluation = asRecord(controllerContract?.recognition_evaluation);
+  $: moveSelection = asRecord(controllerContract?.move_selection);
   $: urgencySummary = asRecord(benchmarkResults?.urgency);
   $: recentChanges = toArray(operatorSnapshot?.recent_changes?.rows).slice(0, 3);
   $: latestMoveOutcome = String(
-    latestHistoryRow?.outcome || latestDecision?.outcome || benchmarkResults?.escalation_hint?.decision || ''
+    latestHistoryRow?.outcome ||
+      latestDecision?.outcome ||
+      moveSelection?.decision ||
+      benchmarkResults?.escalation_hint?.decision ||
+      ''
   ).trim();
   $: latestApplyStage = String(latestHistoryRow?.apply?.stage || '').trim();
   $: selectedRepairSurface = String(
     latestHistoryRow?.proposal?.patch_family ||
+      moveSelection?.candidate_action_families?.[0] ||
       benchmarkResults?.escalation_hint?.family_guidance?.[0]?.family ||
       benchmarkResults?.escalation_hint?.candidate_action_families?.[0] ||
       ''
   ).trim();
+  $: controllerMoveBlockerIds = toArray(moveSelection?.blockers).map((blocker) =>
+    String(blocker?.blocker_id || '').trim()
+  );
   $: configRingBlockedToken = firstPrefixedValue(
     [
       ...toArray(benchmarkResults?.tuning_eligibility?.blockers),
-      ...toArray(benchmarkResults?.escalation_hint?.blockers),
+      ...controllerMoveBlockerIds,
       ...toArray(latestHistoryRow?.refusal_reasons)
     ],
     'config_ring_exhausted:'
@@ -369,12 +537,13 @@
         : 'not_evaluated';
   $: codeEvolutionStatus =
     latestMoveOutcome === 'code_evolution_referral' ||
+    moveSelection?.decision === 'code_evolution_candidate' ||
     benchmarkResults?.escalation_hint?.decision === 'code_evolution_candidate'
       ? 'required'
       : 'not_required';
   $: loopActionabilityDecisionToken = terminalLoopOutcomes.has(latestMoveOutcome)
     ? latestMoveOutcome
-    : benchmarkResults?.escalation_hint?.decision;
+    : moveSelection?.decision || benchmarkResults?.escalation_hint?.decision;
   $: loopActionabilityApplyText = latestApplyStage
     ? humanizeToken(latestApplyStage, 'sentence')
     : 'No Config Move Applied';
@@ -383,9 +552,56 @@
     humanizeToken(loopActionabilityDecisionToken, 'sentence'),
     loopActionabilityApplyText
   ]).join(' | ');
-  $: loopActionabilityNote = benchmarkResults?.tuning_eligibility?.blockers?.length
-    ? `Blocked by ${benchmarkResults.tuning_eligibility.blockers.length} active guardrail(s) or readiness blocker(s).`
-    : latestHistoryRow?.summary ||
+  $: surfaceLabelLookup = (() => {
+    const map = new Map();
+    for (const receipt of toArray(surfaceContractCoverage?.receipts)) {
+      const surfaceId = String(receipt?.surfaceId || '').trim();
+      const surfaceLabel = String(receipt?.surfaceLabel || '').trim();
+      if (surfaceId && surfaceLabel) map.set(surfaceId, surfaceLabel);
+    }
+    for (const locus of [...toArray(restrictionDiagnosis?.breach_loci), ...toArray(breachLoci)]) {
+      const surfaceId = String(locus?.locus_id || '').trim();
+      const surfaceLabel = String(locus?.locus_label || '').trim();
+      if (surfaceId && surfaceLabel) map.set(surfaceId, surfaceLabel);
+    }
+    return map;
+  })();
+  $: surfaceProofLabels = dedupeStrings([
+    ...toArray(restrictionDiagnosis?.breach_loci).map(
+      (locus) => String(locus?.locus_label || '').trim() || humanizeToken(locus?.locus_id)
+    ),
+    ...dedupeControllerBlockers([...toArray(restrictionDiagnosis?.blockers), ...toArray(moveSelection?.blockers)])
+      .filter((blocker) => String(blocker?.blocker_group || '').trim() === 'surface_proof')
+      .map((blocker) => {
+        const targetToken = blockerTargetToken(blocker?.blocker_id);
+        return surfaceLabelLookup.get(targetToken) || humanizeToken(targetToken);
+      })
+  ]);
+  $: nextRepairFamilyLabels = dedupeStrings([
+    ...toArray(restrictionDiagnosis?.repair_surface_candidates).map((family) => humanizeToken(family)),
+    ...toArray(moveSelection?.candidate_action_families).map((family) => humanizeToken(family))
+  ]);
+  $: controllerBlockerGroups = buildControllerBlockerGroups(
+    [
+      ...toArray(controllerRecognitionEvaluation?.blockers),
+      ...toArray(restrictionDiagnosis?.blockers),
+      ...toArray(moveSelection?.blockers)
+    ],
+    {
+      controllerRecognitionEvaluation,
+      restrictionDiagnosis,
+      moveSelection,
+      evidenceQuality,
+      surfaceLabels: surfaceProofLabels,
+      repairFamilies: nextRepairFamilyLabels
+    }
+  );
+  $: rootCauseBlockerGroups = controllerBlockerGroups.filter((group) => group.role === 'root');
+  $: controllerOutcomeGroups = controllerBlockerGroups.filter((group) => group.role !== 'root');
+  $: loopActionabilityNote = rootCauseBlockerGroups.length
+    ? `${formatNumber(rootCauseBlockerGroups.length, '0')} root-cause blocker group(s): ${rootCauseBlockerGroups.map((group) => group.label).join(', ')}.`
+    : moveSelection?.note ||
+      latestHistoryRow?.summary ||
       latestDecision?.summary ||
       benchmarkResults?.escalation_hint?.note ||
       'No bounded config move has been applied yet.';
@@ -803,44 +1019,30 @@
               </span>
             </div>
             <div class="info-row">
-              <span class="info-label text-muted">Urgency Split:</span>
+              <span class="info-label text-muted">Restriction Quest:</span>
               <span class="status-value">
-                Exploit urgency {humanizeToken(urgencySummary?.exploit_short_window_status, 'sentence')}
-                | trend {humanizeToken(urgencySummary?.exploit_long_window_status, 'sentence')}
-                | Restriction confidence {humanizeToken(
-                  urgencySummary?.restriction_confidence_status,
-                  'sentence'
-                )}
-                | Abuse backstop {humanizeToken(urgencySummary?.abuse_backstop_status, 'sentence')}
-                | Human friction urgency {humanizeToken(
-                  urgencySummary?.likely_human_short_window_status,
-                  'sentence'
-                )}
-                | trend {humanizeToken(urgencySummary?.likely_human_long_window_status, 'sentence')}
+                {humanizeToken(restrictionDiagnosis?.status)}
+                | diagnosis {humanizeToken(restrictionDiagnosis?.confidence, 'sentence')}
+                | problem class {humanizeToken(restrictionDiagnosis?.problem_class)}
               </span>
             </div>
             <div class="info-row">
-              <span class="info-label text-muted">Evidence Quality:</span>
+              <span class="info-label text-muted">Recognition Quest:</span>
               <span class="status-value">
-                {humanizeToken(evidenceQuality?.status)}
-                | attribution {humanizeToken(evidenceQuality?.attribution_status)}
-                | locality {humanizeToken(evidenceQuality?.locality_status)}
-              </span>
-            </div>
-            <div class="info-row">
-              <span class="info-label text-muted">Diagnosis:</span>
-              <span class="status-value">
-                {humanizeToken(evidenceQuality?.diagnosis_confidence)}
-                | problem class {humanizeToken(benchmarkResults?.escalation_hint?.problem_class)}
-                | repair surface {humanizeToken(selectedRepairSurface)}
+                {humanizeToken(controllerRecognitionEvaluation?.status)}
+                {#if controllerRecognitionEvaluation?.trigger_family_ids?.length}
+                  | trigger {controllerRecognitionEvaluation.trigger_family_ids
+                    .map((familyId) => humanizeToken(familyId))
+                    .join(', ')}
+                {/if}
               </span>
             </div>
             <div class="info-row">
               <span class="info-label text-muted">Move Or Escalation:</span>
               <span class="status-value">
                 {humanizeToken(latestMoveOutcome)}
-                | benchmark {humanizeToken(benchmarkResults?.escalation_hint?.decision)}
-                | review {humanizeToken(benchmarkResults?.escalation_hint?.review_status)}
+                | benchmark {humanizeToken(moveSelection?.decision || benchmarkResults?.escalation_hint?.decision)}
+                | review {humanizeToken(moveSelection?.review_status || benchmarkResults?.escalation_hint?.review_status)}
               </span>
             </div>
             <div class="info-row">
@@ -872,18 +1074,42 @@
             </div>
           </div>
 
-          {#if benchmarkResults?.escalation_hint?.candidate_action_families?.length}
-            <p class="text-muted">
-              Candidate action families:
-              {benchmarkResults.escalation_hint.candidate_action_families.map((family) => humanizeToken(family)).join(', ')}
-            </p>
+          {#if rootCauseBlockerGroups.length}
+            <p class="caps-label">Root Cause Blockers</p>
+            <ul class="metric-list">
+              {#each rootCauseBlockerGroups as group (group.id)}
+                <li>
+                  <strong>{group.label}</strong>: {group.detail}
+                </li>
+              {/each}
+            </ul>
           {/if}
 
-          {#if benchmarkResults?.escalation_hint?.blockers?.length}
-            <p class="text-muted">
-              Decision blockers:
-              {benchmarkResults.escalation_hint.blockers.map((blocker) => humanizeToken(blocker, 'sentence')).join(', ')}
-            </p>
+          {#if controllerOutcomeGroups.length}
+            <p class="caps-label">Controller Outcome</p>
+            <ul class="metric-list">
+              {#each controllerOutcomeGroups as group (group.id)}
+                <li>
+                  <strong>{group.label}</strong>: {group.detail}
+                </li>
+              {/each}
+            </ul>
+          {/if}
+
+          {#if surfaceProofLabels.length || nextRepairFamilyLabels.length}
+            <p class="caps-label">Next Fix Surfaces</p>
+            <ul class="metric-list">
+              {#if surfaceProofLabels.length}
+                <li>
+                  <strong>Proof</strong>: {surfaceProofLabels.join(', ')}
+                </li>
+              {/if}
+              {#if nextRepairFamilyLabels.length}
+                <li>
+                  <strong>Repair families</strong>: {nextRepairFamilyLabels.join(', ')}
+                </li>
+              {/if}
+            </ul>
           {/if}
         </div>
       {:else if section.id === 'pressure-sits'}

@@ -36,10 +36,10 @@ Implementation status update (2026-03-27):
 4. `RSI-SCORE-2F2` is now landed and keeps the recognition-evaluation rail honest about collapse to `unknown_non_human`.
 5. `RSI-GAME-ARCH-1B` is now landed and stops category posture from acting like the primary restriction scoreboard.
 6. `RSI-SCORE-2F3` is now landed: restriction urgency explicitly carries `Restriction Confidence` and `Abuse Backstop`, and the named proof path now executes dedicated urgency tests rather than merely compiling the new behavior.
-7. The remaining open work in this chain is now:
-   1. `RSI-GAME-BOARD-1F`,
-   2. `RSI-GAME-BOARD-1G`,
-   3. and the later controller and retirement cleanup in the architecture-alignment plan.
+7. `RSI-GAME-BOARD-1F` is now landed: `Loop Actionability` projects grouped root causes, controller outcomes, and next-fix surfaces from the typed controller contract.
+8. The remaining open work in this chain is now:
+   1. `RSI-GAME-BOARD-1G`,
+   2. and the later controller and retirement cleanup in the architecture-alignment plan.
 
 # Core Decisions
 

@@ -4,6 +4,30 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-27)
 
+### RSI-GAME-BOARD-1F Loop-Actionability Grouping And Next-Fix Surfacing
+
+- [x] Completed `RSI-GAME-BOARD-1F` across:
+  - [`../dashboard/src/lib/domain/api-client.js`](../dashboard/src/lib/domain/api-client.js)
+  - [`../dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`../docs/dashboard-tabs/game-loop.md`](../docs/dashboard-tabs/game-loop.md)
+  - [`../docs/research/2026-03-27-rsi-game-board-1f-loop-actionability-grouping-post-implementation-review.md`](../docs/research/2026-03-27-rsi-game-board-1f-loop-actionability-grouping-post-implementation-review.md)
+- [x] What landed:
+  - the dashboard now adapts `controller_contract` explicitly,
+  - `Loop Actionability` now separates restriction quest state, recognition quest state, root-cause blocker groups, controller-outcome groups, and next-fix surfaces,
+  - the old flat `Decision blockers:` line is gone from the main operator surface,
+  - and exact blocked surfaces now stay visible in the grouped output rather than being flattened into one vague blocker sentence.
+- [x] Why:
+  - the Game Loop was still too noisy and too vague to guide a real RSI repair loop, because it mixed root causes, downstream controller consequences, and missing-proof surfaces into one unreadable blocker dump.
+- [x] Evidence:
+  - [`../docs/research/2026-03-27-rsi-game-board-1f-loop-actionability-grouping-post-implementation-review.md`](../docs/research/2026-03-27-rsi-game-board-1f-loop-actionability-grouping-post-implementation-review.md)
+  - `make dashboard-build`
+  - `make test-benchmark-results-contract`
+  - `make test-rsi-score-evidence-quality`
+  - `make test-dashboard-game-loop-accountability`
+  - `git diff --check`
+
 ### RSI-GAME-ARCH-1C Explicit Controller Contract Refactor
 
 - [x] Completed `RSI-GAME-ARCH-1C` across:

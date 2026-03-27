@@ -741,6 +741,70 @@ const adaptBenchmarkFamilyResult = (value) => {
   };
 };
 
+const adaptBenchmarkControllerBlocker = (value) => {
+  const source = asRecord(value);
+  return {
+    blocker_group: String(source.blocker_group || ''),
+    blocker_id: String(source.blocker_id || ''),
+    note: String(source.note || '')
+  };
+};
+
+const adaptBenchmarkRestrictionDiagnosis = (value) => {
+  const source = asRecord(value);
+  return {
+    problem_class: String(source.problem_class || ''),
+    status: String(source.status || ''),
+    confidence: String(source.confidence || ''),
+    repair_surface_candidates: Array.isArray(source.repair_surface_candidates)
+      ? source.repair_surface_candidates.map((entry) => String(entry || '')).filter(Boolean)
+      : [],
+    breach_loci: asObjectArray(source.breach_loci).map(adaptBenchmarkExploitLocus),
+    blockers: asObjectArray(source.blockers).map(adaptBenchmarkControllerBlocker),
+    note: String(source.note || '')
+  };
+};
+
+const adaptBenchmarkRecognitionEvaluationStatus = (value) => {
+  const source = asRecord(value);
+  return {
+    status: String(source.status || ''),
+    trigger_family_ids: Array.isArray(source.trigger_family_ids)
+      ? source.trigger_family_ids.map((entry) => String(entry || '')).filter(Boolean)
+      : [],
+    blockers: asObjectArray(source.blockers).map(adaptBenchmarkControllerBlocker),
+    note: String(source.note || '')
+  };
+};
+
+const adaptBenchmarkMoveSelectionGuidance = (value) => {
+  const source = asRecord(value);
+  return {
+    decision: String(source.decision || ''),
+    review_status: String(source.review_status || ''),
+    guidance_status: String(source.guidance_status || ''),
+    tractability: String(source.tractability || ''),
+    expected_direction: String(source.expected_direction || ''),
+    trigger_family_ids: Array.isArray(source.trigger_family_ids)
+      ? source.trigger_family_ids.map((entry) => String(entry || '')).filter(Boolean)
+      : [],
+    candidate_action_families: Array.isArray(source.candidate_action_families)
+      ? source.candidate_action_families.map((entry) => String(entry || '')).filter(Boolean)
+      : [],
+    family_guidance: asObjectArray(source.family_guidance).map((entry) => {
+      const guidance = asRecord(entry);
+      return {
+        family: String(guidance.family || ''),
+        likely_human_risk: String(guidance.likely_human_risk || ''),
+        tolerated_non_human_risk: String(guidance.tolerated_non_human_risk || ''),
+        note: String(guidance.note || '')
+      };
+    }),
+    blockers: asObjectArray(source.blockers).map(adaptBenchmarkControllerBlocker),
+    note: String(source.note || '')
+  };
+};
+
 export const adaptBenchmarkResults = (payload) => {
   const source = asRecord(payload);
   const watchWindow = asRecord(source.watch_window);
@@ -751,6 +815,7 @@ export const adaptBenchmarkResults = (payload) => {
   const tuningEligibility = asRecord(source.tuning_eligibility);
   const escalationHint = asRecord(source.escalation_hint);
   const evidenceQuality = asRecord(escalationHint.evidence_quality);
+  const controllerContract = asRecord(source.controller_contract);
   const replayPromotion = asRecord(source.replay_promotion);
   return {
     schema_version: String(source.schema_version || ''),
@@ -837,6 +902,15 @@ export const adaptBenchmarkResults = (payload) => {
       },
       breach_loci: asObjectArray(escalationHint.breach_loci).map(adaptBenchmarkExploitLocus),
       note: String(escalationHint.note || '')
+    },
+    controller_contract: {
+      restriction_diagnosis: adaptBenchmarkRestrictionDiagnosis(
+        controllerContract.restriction_diagnosis
+      ),
+      recognition_evaluation: adaptBenchmarkRecognitionEvaluationStatus(
+        controllerContract.recognition_evaluation
+      ),
+      move_selection: adaptBenchmarkMoveSelectionGuidance(controllerContract.move_selection)
     },
     replay_promotion: {
       availability: String(replayPromotion.availability || ''),

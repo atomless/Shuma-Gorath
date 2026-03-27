@@ -127,24 +127,12 @@ Current note:
 - `RSI-SCORE-2F2` is now landed: the recognition-evaluation rail truthfully counts current collapse to `unknown_non_human` as a Shuma inference outcome and no longer lets harness-only `projected_recent_sim_run` placeholders masquerade as degraded category matches.
 - `RSI-GAME-ARCH-1B` is now landed: category posture is no longer a primary optimization target or main-loop overall-status trigger for undeclared hostile traffic, and the Game Loop now projects it as `Recognition Evaluation` rather than as the main restriction scoreboard.
 - `RSI-SCORE-2F3` is now landed: the Game Loop and benchmark contract explicitly surface `Restriction Confidence` and `Abuse Backstop`, and the Make-driven proof path now executes dedicated urgency tests for that model.
-- `RSI-GAME-ARCH-1C` is now landed: controller diagnosis, recognition evaluation, and move selection are explicit sibling contracts, route-level reconcile fixtures now reuse the shared controller-contract-aware snapshot seed, and the next active sequence is `RSI-GAME-BOARD-1F` -> `RSI-GAME-ARCH-1D` -> `RSI-GAME-BOARD-1G` -> `RSI-GAME-ARCH-1E`.
+- `RSI-GAME-ARCH-1C` and `RSI-GAME-BOARD-1F` are now landed: controller diagnosis, recognition evaluation, and move selection are explicit sibling contracts, `Loop Actionability` now groups root causes, controller outcomes, and next-fix surfaces, and the next active sequence is `RSI-GAME-ARCH-1D` -> `RSI-GAME-BOARD-1G` -> `RSI-GAME-ARCH-1E`.
 - The board-state doctrine now has explicit follow-on planning for a later frontier-LLM code-evolution ring and a later real-human friction calibration ring, but both remain blocked from execution.
 - Before further mainline completion claims, the repo now requires explicit acceptance-gate discipline. Do not describe `STANCE-MODEL-1`, `SIM-SCR-FULL-1`, `RSI-GAME-HO-1`, or `RSI-GAME-HO-2` as complete from planning progress, baseline capability, or dashboard pressure signals alone.
 - The next attacker-runtime mainline remains `SIM-LLM-1C3`, but only after the current Scrapling-first Game Loop rigor repairs land and the Scrapling loop stops depending on vague or missing truth.
 - Do not open `humans_plus_verified_only` until a later second strict-baseline proof has shown retained config-change improvement under both Scrapling and LLM attacker pressure.
 - `DIAG-CLEANUP-1` and `MON-OVERHAUL-1C` are now both landed, so the deferred Game Loop and Diagnostics follow-on queue is currently clear while the later combined-attacker strict-baseline proof still stays blocked behind `SIM-LLM-1C3`.
-
-- [ ] RSI-GAME-BOARD-1F Replace flat `Loop Actionability` blockers with typed blocker groups and exact next-fix surfaces.
-  - Reference context:
-    - [`docs/research/2026-03-27-game-loop-scrapling-proof-and-rigor-gap-review.md`](../docs/research/2026-03-27-game-loop-scrapling-proof-and-rigor-gap-review.md)
-    - [`docs/plans/2026-03-27-game-loop-scrapling-proof-and-rigor-repair-plan.md`](../docs/plans/2026-03-27-game-loop-scrapling-proof-and-rigor-repair-plan.md)
-    - [`docs/plans/2026-03-27-game-loop-board-state-refactor-plan.md`](../docs/plans/2026-03-27-game-loop-board-state-refactor-plan.md)
-  - Closure gate:
-    - structure: `Loop Actionability` must separate shared classification blockers, evidence-quality blockers, specific surface-proof blockers, controller gating blockers, and next exact fix surfaces
-    - causality: the operator must be able to see which blockers are root causes versus downstream symptoms
-    - controller truth: the page must distinguish "blocked by missing truth" from "blocked because no credible bounded move remains"
-    - proof: `make test-benchmark-results-contract`, `make test-rsi-score-evidence-quality`, and `make test-dashboard-game-loop-accountability`
-    - insufficient: one flat blocker string, blocker output with no causal ordering, or actionability text that still does not tell the operator what to fix first
 
 - [ ] RSI-GAME-BOARD-1G Make `Named Breach Loci` surface-exact and honest about missing data.
   - Reference context:
