@@ -4,6 +4,35 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-27)
 
+### Game Loop Architecture Alignment Audit And Refactor Planning
+
+- [x] Wrote the cross-cutting architecture audit and refactor plan in:
+  - [`docs/research/2026-03-27-game-loop-architecture-alignment-gap-review.md`](../docs/research/2026-03-27-game-loop-architecture-alignment-gap-review.md)
+  - [`docs/plans/2026-03-27-game-loop-architecture-alignment-and-retirement-plan.md`](../docs/plans/2026-03-27-game-loop-architecture-alignment-and-retirement-plan.md)
+  so the repo now says explicitly where the current implementation is still misaligned with the newer Game Loop design:
+  - snapshot evidence still blends recognition-evaluation and restriction-grade truth,
+  - category posture still sits too close to the primary restriction spine,
+  - reconcile still depends too heavily on one monolithic escalation hint,
+  - and board-state loci plus blocker contracts are still not typed or honest enough.
+- [x] Updated the active backlog and indexes in:
+  - [`todos/todo.md`](../todos/todo.md)
+  - [`docs/research/README.md`](../docs/research/README.md)
+  - [`docs/plans/README.md`](../docs/plans/README.md)
+  so the next Game Loop queue now includes the architectural alignment tranches:
+  - `RSI-GAME-ARCH-1A`
+  - `RSI-GAME-ARCH-1B`
+  - `RSI-GAME-ARCH-1C`
+  - `RSI-GAME-ARCH-1D`
+  - `RSI-GAME-ARCH-1E`
+  alongside the already-open Scrapling rigor and board-state tasks.
+- [x] Why:
+  - the March 27 architecture discussion and follow-up code audit showed that local UI or scoring fixes alone would not be enough; the repo still needed a deliberate modular refactor path and an explicit retirement plan for the older category-first architecture.
+- [x] Evidence:
+  - [`docs/research/2026-03-27-game-loop-architecture-alignment-gap-review.md`](../docs/research/2026-03-27-game-loop-architecture-alignment-gap-review.md)
+  - [`docs/plans/2026-03-27-game-loop-architecture-alignment-and-retirement-plan.md`](../docs/plans/2026-03-27-game-loop-architecture-alignment-and-retirement-plan.md)
+  - [`todos/todo.md`](../todos/todo.md)
+  - `git diff --check`
+
 ### Game Loop Restriction Vs Recognition Architecture Planning
 
 - [x] Wrote the architecture clarification and execution plan in:
@@ -21,6 +50,12 @@ Moved from active TODO files on 2026-02-14.
   - [`todos/todo.md`](../todos/todo.md)
   - [`todos/blocked-todo.md`](../todos/blocked-todo.md)
   so the repo no longer frames exact hostile-category posture as the main restriction score for undeclared hostile traffic and instead points `RSI-SCORE-2F2` and `RSI-SCORE-2F3` at the new recognition-vs-restriction split.
+- [x] Tightened the same doctrine note in:
+  - [`docs/research/2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-review.md`](../docs/research/2026-03-27-game-loop-restriction-recognition-and-abuse-confidence-review.md)
+  so it now explicitly carries the remaining rationale that had been discussed but was too implicit in the first draft:
+  - the Game Loop must not become a parallel fake classifier,
+  - the evaluator/runtime/restriction-scorer boundary is the key guardrail,
+  - and the sim-to-real privileged-information references are now cited directly via `Learning by Cheating` and `Asymmetric DQN` alongside the TREC anchor.
 - [x] Why:
   - the March 27 architecture discussion exposed that the repo was still drifting between category-first and board-state-first Game Loop thinking, which would make later runtime or tuning work dangerously confused.
 - [x] Evidence:

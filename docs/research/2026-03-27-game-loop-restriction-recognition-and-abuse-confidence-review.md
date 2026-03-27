@@ -30,6 +30,8 @@ The clearer answer is that Shuma needs both recognition work and restriction wor
 
 The Game Loop does not need to know exact non-humanness or exact hostile category at ingress in order to be useful.
 
+The Game Loop must also not become a parallel fake classifier that pretends to know more than Shuma itself can know from runtime evidence.
+
 What it does need is:
 
 1. a truthful record of how much cost or board progression the current traffic caused,
@@ -69,6 +71,9 @@ It asks:
 
 This quest may use simulator-known labels after the fact, but only as harness-evaluation truth.
 It must not tell the defenses what the visitor "really is" while the visit is happening.
+
+This is the same general pattern as privileged-information-for-evaluation rather than privileged-information-for-deployment.
+The evaluator is allowed to know more than the deployed runtime, but that extra knowledge must stay outside the runtime decision loop.
 
 # The Three Rails
 
@@ -116,6 +121,12 @@ It should compare:
 
 This rail is allowed to use privileged harness truth because it is evaluation-only.
 It must not leak back into defense decisions or restriction-tuning scores.
+
+That separation is exactly the important guardrail:
+
+1. the evaluator may know the simulator's exact category,
+2. the runtime must not see it,
+3. and the restriction scorer must not be told what to do by it.
 
 # Confidence Must Accumulate Through Layers
 
@@ -216,6 +227,8 @@ This mirrors the general evaluation separation used in information-retrieval and
 Reference:
 
 - [TREC How To](https://trec.nist.gov/howto.html)
+- [Learning by Cheating](https://arxiv.org/abs/1912.12294)
+- [Asymmetric DQN](https://proceedings.mlr.press/v180/baisero22a.html)
 
 # Planning Implications
 
