@@ -139,7 +139,12 @@ Current note:
 - Before further mainline completion claims, the repo now requires explicit acceptance-gate discipline. Do not describe `STANCE-MODEL-1`, `SIM-SCR-FULL-1`, `RSI-GAME-HO-1`, or `RSI-GAME-HO-2` as complete from planning progress, baseline capability, or dashboard pressure signals alone.
 - `SIM-LLM-1C3` is now landed: the later LLM attacker no longer disappears after runtime ingest, and recent-run or operator surfaces now project truthful additive `bot_red_team` runtime lineage without enabling the lane in controls.
 - Do not open `humans_plus_verified_only` until a later second strict-baseline proof has shown retained config-change improvement under both Scrapling and LLM attacker pressure.
-- `DIAG-CLEANUP-1`, `MON-OVERHAUL-1C`, and `SIM-LLM-1C3` are now all landed, so the later combined-attacker strict-baseline proof is no longer blocked by missing LLM runtime visibility; the remaining blocker is the current Scrapling-first Game Loop rigor and board-state cleanup.
+- `DIAG-CLEANUP-1`, `MON-OVERHAUL-1C`, and `SIM-LLM-1C3` are now all landed, so the later combined-attacker strict-baseline proof is no longer blocked by missing LLM runtime visibility.
+- The real `RSI-GAME-HO-2` blocker is now architectural and explicit:
+  - the loop still models one requested lane and one follow-on run at a time,
+  - controller-grade restriction scoring is still mostly Scrapling-native,
+  - and the current runtime-dev `30s` follow-on window is meaningful for Scrapling but not automatically for the LLM lane's `90s/120s` action budgets.
+- Do not claim mixed-attacker strict-baseline proof until both the multi-lane episode-state contract and the mixed-attacker restriction score spine are landed; recent-run visibility for `bot_red_team` alone is insufficient.
 
 - [ ] RSI-GAME-ARCH-1E Retire replaced category-first Game Loop surfaces only after full-path replacement proof.
   - Reference context:

@@ -4,6 +4,24 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-28)
 
+### Planning Only: RSI-GAME-HO-2 Combined-Attacker Architecture Gap And Replan
+
+- [x] Completed planning-only combined-attacker gap clarification across:
+  - [`../docs/research/2026-03-28-rsi-game-ho-2-combined-attacker-architecture-gap-review.md`](../docs/research/2026-03-28-rsi-game-ho-2-combined-attacker-architecture-gap-review.md)
+  - [`../docs/plans/2026-03-28-rsi-game-ho-2-combined-attacker-orchestration-plan.md`](../docs/plans/2026-03-28-rsi-game-ho-2-combined-attacker-orchestration-plan.md)
+  - [`../todos/todo.md`](../todos/todo.md)
+  - [`../todos/blocked-todo.md`](../todos/blocked-todo.md)
+- [x] What landed:
+  - the repo now states explicitly that `RSI-GAME-HO-2` is no longer blocked by missing LLM runtime visibility,
+  - captures the real remaining blockers as multi-lane episode orchestration, lane-specific meaningful-duration truth, and a mixed-attacker restriction score spine that is not Scrapling-only,
+  - and updates the backlog so stale `SIM-LLM-1C3` blocker wording no longer misdescribes the current state.
+- [x] Why:
+  - after `SIM-LLM-1C3`, the LLM lane is visible in recent runs and operator surfaces, but the controller still cannot truthfully claim mixed-attacker strict-loop proof because the episode state and scoring spine remain effectively single-lane and Scrapling-centric.
+- [x] Evidence:
+  - [`../docs/research/2026-03-28-rsi-game-ho-2-combined-attacker-architecture-gap-review.md`](../docs/research/2026-03-28-rsi-game-ho-2-combined-attacker-architecture-gap-review.md)
+  - [`../docs/plans/2026-03-28-rsi-game-ho-2-combined-attacker-orchestration-plan.md`](../docs/plans/2026-03-28-rsi-game-ho-2-combined-attacker-orchestration-plan.md)
+  - `git diff --check`
+
 ### SIM-LLM-1C3 Recent-Run Projection And Operator Truth Closure
 
 - [x] Completed `SIM-LLM-1C3` across:
