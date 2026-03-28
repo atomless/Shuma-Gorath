@@ -4,6 +4,23 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-28)
 
+### Planning Only: RSI-GAME-ARCH-1L Persistent Iterative Loop Contract
+
+- [x] Completed planning-only continuity clarification for the next shared-host RSI slice across:
+  - [`../docs/research/2026-03-28-rsi-game-arch-1l-persistent-iterative-loop-review.md`](../docs/research/2026-03-28-rsi-game-arch-1l-persistent-iterative-loop-review.md)
+  - [`../docs/plans/2026-03-28-rsi-game-arch-1l-persistent-iterative-loop-plan.md`](../docs/plans/2026-03-28-rsi-game-arch-1l-persistent-iterative-loop-plan.md)
+  - [`../todos/todo.md`](../todos/todo.md)
+- [x] What landed:
+  - the repo now explicitly states that the shared-host Scrapling loop must keep iterating bounded episodes after retained or rolled-back terminal outcomes until an explicit stop condition is reached,
+  - freezes the stop conditions as `inside_budget`, `homeostasis`, `config_ring_exhausted`, or `code_evolution_referral`,
+  - and narrows the next implementation slice to proof first and controller repair only if that proof fails.
+- [x] Why:
+  - after `RSI-GAME-ARCH-1K`, the controller can already open one canary, auto-materialize one protected candidate rerun, and reach one terminal judgment, but the stronger “do not stop until done” RSI contract was still implicit rather than explicitly proven.
+- [x] Evidence:
+  - [`../docs/research/2026-03-28-rsi-game-arch-1l-persistent-iterative-loop-review.md`](../docs/research/2026-03-28-rsi-game-arch-1l-persistent-iterative-loop-review.md)
+  - [`../docs/plans/2026-03-28-rsi-game-arch-1l-persistent-iterative-loop-plan.md`](../docs/plans/2026-03-28-rsi-game-arch-1l-persistent-iterative-loop-plan.md)
+  - `git diff --check`
+
 ### RSI-GAME-ARCH-1K Post-Canary Candidate-Window Materialization
 
 - [x] Completed `RSI-GAME-ARCH-1K` across:
