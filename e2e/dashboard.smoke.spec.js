@@ -534,13 +534,19 @@ async function controlAdversarySimViaAdmin(
   );
 }
 
-async function forceAdversarySimDisabled(request, ip = "127.0.0.1") {
+async function forceAdversarySimDisabled(
+  request,
+  ip = "127.0.0.1",
+  desiredLane = "scrapling_traffic"
+) {
   const timeoutMs = 95_000;
   const deadline = Date.now() + timeoutMs;
   let lastState = adversarySimStatusState({});
   let lastControlError = "";
   let consecutiveSettledPolls = 0;
   let nextControlAttemptAt = 0;
+  const normalizedDesiredLane = String(desiredLane || "").trim().toLowerCase();
+  const shouldNormalizeLane = normalizedDesiredLane.length > 0;
 
   await updateAdminConfig(request, {
     adversary_sim_duration_seconds: 180
@@ -548,7 +554,14 @@ async function forceAdversarySimDisabled(request, ip = "127.0.0.1") {
 
   while (Date.now() < deadline) {
     lastState = adversarySimStatusState(await fetchAdversarySimStatus(request, ip));
-    if (lastState.enabled !== true && lastState.generationActive !== true && lastState.phase === "off") {
+    const desiredLaneSettled =
+      shouldNormalizeLane !== true || lastState.desiredLane === normalizedDesiredLane;
+    if (
+      lastState.enabled !== true &&
+      lastState.generationActive !== true &&
+      lastState.phase === "off" &&
+      desiredLaneSettled
+    ) {
       consecutiveSettledPolls += 1;
       if (consecutiveSettledPolls >= 3) {
         return lastState;
@@ -564,7 +577,8 @@ async function forceAdversarySimDisabled(request, ip = "127.0.0.1") {
           request,
           false,
           ip,
-          Math.max(5_000, Math.min(20_000, deadline - Date.now()))
+          Math.max(5_000, Math.min(20_000, deadline - Date.now())),
+          shouldNormalizeLane ? { lane: normalizedDesiredLane } : {}
         );
         lastControlError = "";
       } catch (error) {

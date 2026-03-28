@@ -17,6 +17,7 @@ pub(crate) mod auth;
 mod operator_objectives_api;
 pub(crate) mod oversight_agent;
 pub(crate) mod oversight_apply;
+pub(crate) mod oversight_follow_on_runs;
 mod oversight_api;
 pub(crate) mod oversight_decision_ledger;
 pub(crate) mod oversight_patch_policy;

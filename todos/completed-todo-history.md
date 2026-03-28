@@ -4,6 +4,35 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-28)
 
+### RSI-GAME-HO-2A1 Multi-Lane Episode And Follow-On Orchestration
+
+- [x] Completed `RSI-GAME-HO-2A1` across:
+  - [`../src/admin/oversight_follow_on_runs.rs`](../src/admin/oversight_follow_on_runs.rs)
+  - [`../src/admin/oversight_apply.rs`](../src/admin/oversight_apply.rs)
+  - [`../src/admin/oversight_agent.rs`](../src/admin/oversight_agent.rs)
+  - [`../src/admin/adversary_sim_llm_lane.rs`](../src/admin/adversary_sim_llm_lane.rs)
+  - [`../src/admin/adversary_sim_api.rs`](../src/admin/adversary_sim_api.rs)
+  - [`../src/admin/api.rs`](../src/admin/api.rs)
+  - [`../src/admin/oversight_api.rs`](../src/admin/oversight_api.rs)
+  - [`../src/admin/mod.rs`](../src/admin/mod.rs)
+  - [`../Makefile`](../Makefile)
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../docs/plans/2026-03-28-rsi-game-ho-2-combined-attacker-orchestration-plan.md`](../docs/plans/2026-03-28-rsi-game-ho-2-combined-attacker-orchestration-plan.md)
+  - [`../docs/research/2026-03-28-rsi-game-ho-2a1-multi-lane-episode-orchestration-post-implementation-review.md`](../docs/research/2026-03-28-rsi-game-ho-2a1-multi-lane-episode-orchestration-post-implementation-review.md)
+- [x] What landed:
+  - candidate-window and continuation state now persist ordered per-lane `required_runs` instead of flattening mixed proof into one requested lane,
+  - the supervisor still starts only one run at a time but now advances from a materialized Scrapling run to the next pending `bot_red_team` run automatically,
+  - post-sim oversight no longer judges after the first materialized lane in a mixed episode,
+  - and runtime-dev mixed follow-ons now carry lane-specific meaningful durations, keeping Scrapling short while preserving a longer truthful minimum for the LLM lane.
+- [x] Why:
+  - after `SIM-LLM-1C3`, the repo could see both lanes, but the loop still lied structurally because it could only model one follow-on run and would otherwise have judged too early under mixed-attacker pressure.
+- [x] Evidence:
+  - [`../docs/research/2026-03-28-rsi-game-ho-2a1-multi-lane-episode-orchestration-post-implementation-review.md`](../docs/research/2026-03-28-rsi-game-ho-2a1-multi-lane-episode-orchestration-post-implementation-review.md)
+  - `make test-rsi-game-mixed-episode-orchestration`
+  - `make test-oversight-agent`
+  - `make test-rsi-game-mainline`
+  - `git diff --check`
+
 ### Planning Only: RSI-GAME-HO-2 Combined-Attacker Architecture Gap And Replan
 
 - [x] Completed planning-only combined-attacker gap clarification across:

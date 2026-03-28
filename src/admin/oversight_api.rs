@@ -1151,12 +1151,17 @@ mod tests {
         )
         .expect("active canary decodes");
         active_canary["candidate_window"]["status"] = serde_json::json!("materialized");
-        active_canary["candidate_window"]["follow_on_run_id"] =
-            serde_json::json!("simrun-candidate-window-001");
-        active_canary["candidate_window"]["follow_on_started_at"] =
-            serde_json::json!(materialized_at_ts.saturating_sub(1));
-        active_canary["candidate_window"]["materialized_at_ts"] =
-            serde_json::json!(materialized_at_ts);
+        active_canary["candidate_window"]["required_runs"] = serde_json::json!([
+            {
+                "lane": "scrapling_traffic",
+                "status": "materialized",
+                "requested_at_ts": materialized_at_ts.saturating_sub(2),
+                "requested_duration_seconds": 30u64,
+                "follow_on_run_id": "simrun-candidate-window-001",
+                "follow_on_started_at": materialized_at_ts.saturating_sub(1),
+                "materialized_at_ts": materialized_at_ts
+            }
+        ]);
         store
             .set(
                 "oversight_active_canary:v1:default",

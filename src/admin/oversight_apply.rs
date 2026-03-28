@@ -35,7 +35,7 @@ pub(crate) const OVERSIGHT_APPLY_STAGE_REFUSED: &str = "refused";
 pub(crate) const OVERSIGHT_APPLY_STAGE_ROLLBACK_APPLIED: &str = "rollback_applied";
 
 const OVERSIGHT_APPLY_SCHEMA_VERSION: &str = "oversight_apply_v1";
-const OVERSIGHT_ACTIVE_CANARY_SCHEMA_VERSION: &str = "oversight_active_canary_v1";
+const OVERSIGHT_ACTIVE_CANARY_SCHEMA_VERSION: &str = "oversight_active_canary_v2";
 const OVERSIGHT_ACTIVE_CANARY_PREFIX: &str = "oversight_active_canary:v1";
 const OVERSIGHT_CONTROLLER_ADMIN_ID: &str = "controller:oversight_canary";
 const OVERSIGHT_CANDIDATE_WINDOW_STATUS_NOT_REQUESTED: &str = "not_requested";
@@ -84,30 +84,15 @@ pub(crate) struct OversightApplyResult {
 struct OversightCandidateWindowState {
     #[serde(default = "default_candidate_window_status")]
     status: String,
-    #[serde(default)]
-    requested_at_ts: u64,
-    #[serde(default)]
-    requested_lane: crate::admin::adversary_sim::RuntimeLane,
-    #[serde(default)]
-    requested_duration_seconds: u64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    follow_on_run_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    follow_on_started_at: Option<u64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    materialized_at_ts: Option<u64>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    required_runs: Vec<crate::admin::oversight_follow_on_runs::OversightRequiredLaneRun>,
 }
 
 impl Default for OversightCandidateWindowState {
     fn default() -> Self {
         Self {
             status: OVERSIGHT_CANDIDATE_WINDOW_STATUS_NOT_REQUESTED.to_string(),
-            requested_at_ts: 0,
-            requested_lane: crate::admin::adversary_sim::RuntimeLane::ScraplingTraffic,
-            requested_duration_seconds: 0,
-            follow_on_run_id: None,
-            follow_on_started_at: None,
-            materialized_at_ts: None,
+            required_runs: Vec::new(),
         }
     }
 }
@@ -159,6 +144,8 @@ pub(crate) struct OversightCandidateWindowStatus {
     pub follow_on_started_at: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub materialized_at_ts: Option<u64>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub required_runs: Vec<crate::admin::oversight_follow_on_runs::OversightRequiredLaneRun>,
 }
 
 fn default_active_canary_declared_watch_window_seconds() -> u64 {
@@ -173,42 +160,49 @@ fn default_candidate_window_status() -> String {
     OVERSIGHT_CANDIDATE_WINDOW_STATUS_NOT_REQUESTED.to_string()
 }
 
+#[cfg(test)]
 pub(crate) fn candidate_window_follow_on_duration_seconds(cfg: &Config) -> u64 {
-    let bounded = crate::admin::adversary_sim::clamp_duration_seconds(cfg.adversary_sim_duration_seconds);
-    if crate::config::runtime_environment().is_dev() {
-        bounded.min(crate::config::ADVERSARY_SIM_DURATION_SECONDS_MIN)
-    } else {
-        bounded
-    }
+    crate::admin::oversight_follow_on_runs::follow_on_duration_seconds_for_lane(
+        cfg,
+        crate::admin::adversary_sim::RuntimeLane::ScraplingTraffic,
+    )
 }
 
 fn candidate_window_status_for_canary(
     active_canary: &OversightActiveCanaryState,
     now: u64,
 ) -> OversightCandidateWindowStatus {
-    let stored_status = active_canary.candidate_window.status.as_str();
-    let projected_status = if matches!(
-        stored_status,
+    let expired = matches!(
+        active_canary.candidate_window.status.as_str(),
         OVERSIGHT_CANDIDATE_WINDOW_STATUS_PENDING | OVERSIGHT_CANDIDATE_WINDOW_STATUS_RUNNING
-    ) && now >= active_canary.watch_window_end_at
-    {
-        OVERSIGHT_CANDIDATE_WINDOW_STATUS_EXPIRED
+    ) && now >= active_canary.watch_window_end_at;
+    let required_runs = crate::admin::oversight_follow_on_runs::project_with_expiration(
+        &active_canary.candidate_window.required_runs,
+        expired,
+    );
+    let focus_run = crate::admin::oversight_follow_on_runs::current_focus_run(&required_runs);
+    let projected_status = if expired {
+        OVERSIGHT_CANDIDATE_WINDOW_STATUS_EXPIRED.to_string()
     } else {
-        stored_status
+        crate::admin::oversight_follow_on_runs::overall_status(
+            &required_runs,
+            OVERSIGHT_CANDIDATE_WINDOW_STATUS_NOT_REQUESTED,
+            OVERSIGHT_CANDIDATE_WINDOW_STATUS_MATERIALIZED,
+        )
     };
     OversightCandidateWindowStatus {
-        status: projected_status.to_string(),
+        status: projected_status,
         canary_id: Some(active_canary.canary_id.clone()),
         patch_family: Some(active_canary.proposal.patch_family.clone()),
-        requested_lane: Some(active_canary.candidate_window.requested_lane.as_str().to_string()),
-        requested_duration_seconds: (active_canary.candidate_window.requested_duration_seconds > 0)
-            .then_some(active_canary.candidate_window.requested_duration_seconds),
-        requested_at_ts: (active_canary.candidate_window.requested_at_ts > 0)
-            .then_some(active_canary.candidate_window.requested_at_ts),
+        requested_lane: focus_run.map(|run| run.lane.as_str().to_string()),
+        requested_duration_seconds: focus_run.map(|run| run.requested_duration_seconds),
+        requested_at_ts: focus_run
+            .and_then(|run| (run.requested_at_ts > 0).then_some(run.requested_at_ts)),
         watch_window_end_at: Some(active_canary.watch_window_end_at),
-        follow_on_run_id: active_canary.candidate_window.follow_on_run_id.clone(),
-        follow_on_started_at: active_canary.candidate_window.follow_on_started_at,
-        materialized_at_ts: active_canary.candidate_window.materialized_at_ts,
+        follow_on_run_id: focus_run.and_then(|run| run.follow_on_run_id.clone()),
+        follow_on_started_at: focus_run.and_then(|run| run.follow_on_started_at),
+        materialized_at_ts: focus_run.and_then(|run| run.materialized_at_ts),
+        required_runs,
     }
 }
 
@@ -230,6 +224,7 @@ pub(crate) fn project_candidate_window_status<S: KeyValueStore>(
             follow_on_run_id: None,
             follow_on_started_at: None,
             materialized_at_ts: None,
+            required_runs: Vec::new(),
         })
 }
 
@@ -340,12 +335,10 @@ pub(crate) fn evaluate_apply_cycle<S: KeyValueStore>(
         previous_config: current_cfg.clone(),
         candidate_window: OversightCandidateWindowState {
             status: OVERSIGHT_CANDIDATE_WINDOW_STATUS_PENDING.to_string(),
-            requested_at_ts: now,
-            requested_lane: crate::admin::adversary_sim::RuntimeLane::ScraplingTraffic,
-            requested_duration_seconds: candidate_window_follow_on_duration_seconds(&updated_cfg),
-            follow_on_run_id: None,
-            follow_on_started_at: None,
-            materialized_at_ts: None,
+            required_runs: crate::admin::oversight_follow_on_runs::default_required_lane_runs(
+                &updated_cfg,
+                now,
+            ),
         },
     };
     save_active_canary(store, site_id, &active_canary)?;
@@ -681,14 +674,19 @@ pub(crate) fn prepare_pending_candidate_window_follow_on<S: KeyValueStore>(
     if current.phase != crate::admin::adversary_sim::ControlPhase::Off {
         return Ok(None);
     }
+    let Some(next_required_run) = crate::admin::oversight_follow_on_runs::current_focus_run(
+        &active_canary.candidate_window.required_runs,
+    ) else {
+        return Ok(None);
+    };
     let lane_selected = crate::admin::adversary_sim::select_desired_lane(
         now,
-        active_canary.candidate_window.requested_lane,
+        next_required_run.lane,
         current,
     );
     let (started_state, _) = match crate::admin::adversary_sim::start_state_with_reason(
         now,
-        active_canary.candidate_window.requested_duration_seconds,
+        next_required_run.requested_duration_seconds,
         &lane_selected,
         OVERSIGHT_CANDIDATE_WINDOW_AUTO_RUN_REASON,
     ) {
@@ -696,9 +694,16 @@ pub(crate) fn prepare_pending_candidate_window_follow_on<S: KeyValueStore>(
         Err(crate::admin::adversary_sim::StartError::QueueFull) => return Ok(None),
     };
     let mut updated_canary = active_canary.clone();
-    updated_canary.candidate_window.status = OVERSIGHT_CANDIDATE_WINDOW_STATUS_RUNNING.to_string();
-    updated_canary.candidate_window.follow_on_run_id = started_state.run_id.clone();
-    updated_canary.candidate_window.follow_on_started_at = Some(now);
+    updated_canary.candidate_window.status =
+        OVERSIGHT_CANDIDATE_WINDOW_STATUS_RUNNING.to_string();
+    crate::admin::oversight_follow_on_runs::start_next_pending_run(
+        &mut updated_canary.candidate_window.required_runs,
+        now,
+        started_state
+            .run_id
+            .as_deref()
+            .expect("started follow-on run id"),
+    );
     Ok(Some((started_state, updated_canary)))
 }
 
@@ -715,21 +720,43 @@ pub(crate) fn mark_candidate_window_materialized_for_run<S: KeyValueStore>(
     site_id: &str,
     completed_at_ts: u64,
     sim_run_id: &str,
-) -> Result<bool, ()> {
+) -> Result<crate::admin::oversight_follow_on_runs::RequiredRunMaterialization, ()> {
     let Some(mut active_canary) = load_active_canary(store, site_id) else {
-        return Ok(false);
+        return Ok(crate::admin::oversight_follow_on_runs::RequiredRunMaterialization {
+            matched: false,
+            all_materialized: false,
+            has_pending: false,
+        });
     };
     if active_canary.candidate_window.status != OVERSIGHT_CANDIDATE_WINDOW_STATUS_RUNNING {
-        return Ok(false);
+        return Ok(crate::admin::oversight_follow_on_runs::RequiredRunMaterialization {
+            matched: false,
+            all_materialized: false,
+            has_pending: active_canary
+                .candidate_window
+                .required_runs
+                .iter()
+                .any(|run| {
+                    run.status
+                        == crate::admin::oversight_follow_on_runs::OVERSIGHT_REQUIRED_RUN_STATUS_PENDING
+                }),
+        });
     }
-    if active_canary.candidate_window.follow_on_run_id.as_deref() != Some(sim_run_id) {
-        return Ok(false);
+    let materialization = crate::admin::oversight_follow_on_runs::mark_run_materialized(
+        &mut active_canary.candidate_window.required_runs,
+        sim_run_id,
+        completed_at_ts,
+    );
+    if !materialization.matched {
+        return Ok(materialization);
     }
-    active_canary.candidate_window.status =
-        OVERSIGHT_CANDIDATE_WINDOW_STATUS_MATERIALIZED.to_string();
-    active_canary.candidate_window.materialized_at_ts = Some(completed_at_ts);
+    active_canary.candidate_window.status = if materialization.all_materialized {
+        OVERSIGHT_CANDIDATE_WINDOW_STATUS_MATERIALIZED.to_string()
+    } else {
+        OVERSIGHT_CANDIDATE_WINDOW_STATUS_PENDING.to_string()
+    };
     save_active_canary(store, site_id, &active_canary)?;
-    Ok(true)
+    Ok(materialization)
 }
 
 fn save_active_canary<S: KeyValueStore>(

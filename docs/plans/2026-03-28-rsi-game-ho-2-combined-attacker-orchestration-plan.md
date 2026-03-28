@@ -1,5 +1,5 @@
 Date: 2026-03-28
-Status: Proposed
+Status: In Progress
 
 Related context:
 
@@ -33,6 +33,8 @@ Turn `RSI-GAME-HO-2` into a truthful combined-attacker strict-baseline proof by 
 ## `RSI-GAME-HO-2A1`
 
 ### Multi-lane episode and follow-on orchestration
+
+Status: Implemented on 2026-03-28. See [`../research/2026-03-28-rsi-game-ho-2a1-multi-lane-episode-orchestration-post-implementation-review.md`](../research/2026-03-28-rsi-game-ho-2a1-multi-lane-episode-orchestration-post-implementation-review.md).
 
 Required contract:
 

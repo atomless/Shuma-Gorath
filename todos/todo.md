@@ -141,10 +141,32 @@ Current note:
 - Do not open `humans_plus_verified_only` until a later second strict-baseline proof has shown retained config-change improvement under both Scrapling and LLM attacker pressure.
 - `DIAG-CLEANUP-1`, `MON-OVERHAUL-1C`, and `SIM-LLM-1C3` are now all landed, so the later combined-attacker strict-baseline proof is no longer blocked by missing LLM runtime visibility.
 - The real `RSI-GAME-HO-2` blocker is now architectural and explicit:
-  - the loop still models one requested lane and one follow-on run at a time,
   - controller-grade restriction scoring is still mostly Scrapling-native,
-  - and the current runtime-dev `30s` follow-on window is meaningful for Scrapling but not automatically for the LLM lane's `90s/120s` action budgets.
-- Do not claim mixed-attacker strict-baseline proof until both the multi-lane episode-state contract and the mixed-attacker restriction score spine are landed; recent-run visibility for `bot_red_team` alone is insufficient.
+  - LLM runtime receipts are visible but not yet board-locus or restriction-grade breach receipts,
+  - and operator/admin projections still need to distinguish mixed-attacker judged episodes from mere recent lane visibility.
+- Do not claim mixed-attacker strict-baseline proof until the mixed-attacker restriction score spine and mixed-attacker proof projection are both landed; recent-run visibility for `bot_red_team` and ordered multi-lane sequencing alone are insufficient.
+
+- [ ] RSI-GAME-HO-2A2 Land the lane-native mixed-attacker restriction score spine.
+  - Reference context:
+    - [`docs/research/2026-03-28-rsi-game-ho-2-combined-attacker-architecture-gap-review.md`](../docs/research/2026-03-28-rsi-game-ho-2-combined-attacker-architecture-gap-review.md)
+    - [`docs/plans/2026-03-28-rsi-game-ho-2-combined-attacker-orchestration-plan.md`](../docs/plans/2026-03-28-rsi-game-ho-2-combined-attacker-orchestration-plan.md)
+  - Closure gate:
+    - score truth: controller-grade restriction scoring must stop being effectively Scrapling-only and must aggregate mixed-attacker pressure without leaking simulator labels into runtime or tuning
+    - LLM evidence: `bot_red_team` runtime receipts must map into restriction-grade board-locus or equivalent breach evidence rather than recent-run visibility only
+    - controller readiness: protected tuning evidence and tuning eligibility must be able to become true because of mixed-attacker board-state evidence
+    - proof: `make test-benchmark-results-contract`, a focused mixed-attacker score-spine target, and `make test-dashboard-game-loop-accountability`
+    - insufficient: additive LLM recent-run rows with no controller-grade breach contract, or mixed-attacker claims still backed by Scrapling-only score families
+
+- [ ] RSI-GAME-HO-2A3 Project mixed-attacker judged-episode truth through operator/admin and Game Loop surfaces.
+  - Reference context:
+    - [`docs/research/2026-03-28-rsi-game-ho-2-combined-attacker-architecture-gap-review.md`](../docs/research/2026-03-28-rsi-game-ho-2-combined-attacker-architecture-gap-review.md)
+    - [`docs/plans/2026-03-28-rsi-game-ho-2-combined-attacker-orchestration-plan.md`](../docs/plans/2026-03-28-rsi-game-ho-2-combined-attacker-orchestration-plan.md)
+  - Closure gate:
+    - snapshot/admin truth: operator snapshot, oversight history, and `/admin/oversight/agent/status` must preserve which lanes contributed to the judged mixed-attacker episode
+    - UI truth: `Red Team` and `Game Loop` must distinguish controller-grade mixed judgment from mere recent lane visibility
+    - wording discipline: rendered copy must not overstate maturity from lane presence or ordered follow-on sequencing alone
+    - proof: focused API or route tests, `make test-dashboard-red-team-truth-basis`, and `make test-dashboard-game-loop-accountability`
+    - insufficient: dashboard visibility of both lanes without judged mixed-episode lineage, or status payloads that still require operators to infer mixed proof from coincidence
 
 - [ ] RSI-GAME-ARCH-1E Retire replaced category-first Game Loop surfaces only after full-path replacement proof.
   - Reference context:

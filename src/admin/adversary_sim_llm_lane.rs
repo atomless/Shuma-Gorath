@@ -154,6 +154,15 @@ pub(crate) fn llm_fulfillment_mode_for_tick(generated_tick_count: u64) -> LlmFul
     }
 }
 
+pub(crate) fn minimum_meaningful_llm_window_seconds() -> u64 {
+    capability_envelope_for_mode(LlmFulfillmentMode::BrowserMode)
+        .max_time_budget_seconds
+        .max(
+            capability_envelope_for_mode(LlmFulfillmentMode::RequestMode)
+                .max_time_budget_seconds,
+        )
+}
+
 fn category_targets_for_mode(mode: LlmFulfillmentMode) -> Vec<String> {
     crate::observability::non_human_lane_fulfillment::llm_category_targets_for_mode(mode.as_str())
 }

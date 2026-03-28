@@ -11,10 +11,9 @@ Security finding validity and closure status live in `todos/security-review.md`.
 
 - [ ] RSI-GAME-HO-2 Re-run the strict `human_only_private` Game Loop under combined Scrapling plus LLM attacker pressure.
   Blocker: `SIM-LLM-1C3` is now landed, so missing LLM runtime visibility is no longer the blocker. Keep this tranche blocked until the combined-attacker architecture frozen in [`../docs/research/2026-03-28-rsi-game-ho-2-combined-attacker-architecture-gap-review.md`](../docs/research/2026-03-28-rsi-game-ho-2-combined-attacker-architecture-gap-review.md) and [`../docs/plans/2026-03-28-rsi-game-ho-2-combined-attacker-orchestration-plan.md`](../docs/plans/2026-03-28-rsi-game-ho-2-combined-attacker-orchestration-plan.md) is approved and landed. The real blocker is now:
-  - the loop still models one requested lane and one follow-on run at a time,
   - controller-grade restriction scoring is still mostly Scrapling-native,
   - LLM runtime receipts are visible but not yet board-locus or restriction-grade breach receipts,
-  - and the runtime-dev `30s` follow-on duration is meaningful for Scrapling but not automatically for the LLM lane's longer action budgets.
+  - mixed-attacker judged-episode truth still needs to be projected through operator/admin and Game Loop surfaces instead of inferred from recent-run coincidence.
   This second strict-baseline tranche must prove repeated retained config-change improvement toward the strict target with both Scrapling and LLM attacker runs included in the loop before any later relaxed verified-identity sweep opens.
   - Closure gate:
     - runtime/config: both Scrapling and the later LLM attacker contribute pressure under `human_only_private`, recommendations become bounded config changes, later mixed-attacker runs occur against changed config, and repeated retained changes show positive movement toward the strict target
