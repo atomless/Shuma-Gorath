@@ -58,6 +58,7 @@ SHUMA_KV_STORE_FAIL_OPEN := $(call strip_wrapping_quotes,$(SHUMA_KV_STORE_FAIL_O
 SHUMA_ENFORCE_HTTPS := $(call strip_wrapping_quotes,$(SHUMA_ENFORCE_HTTPS))
 SHUMA_DEBUG_HEADERS := $(call strip_wrapping_quotes,$(SHUMA_DEBUG_HEADERS))
 SHUMA_RUNTIME_ENV := $(call strip_wrapping_quotes,$(SHUMA_RUNTIME_ENV))
+SHUMA_RUNTIME_DEV_OVERSIGHT_WATCH_WINDOW_SECONDS := $(call strip_wrapping_quotes,$(SHUMA_RUNTIME_DEV_OVERSIGHT_WATCH_WINDOW_SECONDS))
 SHUMA_LOCAL_PROD_DIRECT_MODE := $(call strip_wrapping_quotes,$(SHUMA_LOCAL_PROD_DIRECT_MODE))
 SHUMA_ADVERSARY_SIM_AVAILABLE := $(call strip_wrapping_quotes,$(SHUMA_ADVERSARY_SIM_AVAILABLE))
 SHUMA_SIM_TELEMETRY_SECRET := $(call strip_wrapping_quotes,$(SHUMA_SIM_TELEMETRY_SECRET))
@@ -88,6 +89,7 @@ SHUMA_GATEWAY_TLS_STRICT := $(call strip_wrapping_quotes,$(SHUMA_GATEWAY_TLS_STR
 SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED := $(call strip_wrapping_quotes,$(SHUMA_GATEWAY_RESERVED_ROUTE_COLLISION_CHECK_PASSED))
 SHUMA_ACTIVE_REMOTE := $(call strip_wrapping_quotes,$(SHUMA_ACTIVE_REMOTE))
 SHUMA_RUNTIME_ENV := $(if $(strip $(SHUMA_RUNTIME_ENV)),$(SHUMA_RUNTIME_ENV),runtime-prod)
+SHUMA_RUNTIME_DEV_OVERSIGHT_WATCH_WINDOW_SECONDS := $(if $(strip $(SHUMA_RUNTIME_DEV_OVERSIGHT_WATCH_WINDOW_SECONDS)),$(SHUMA_RUNTIME_DEV_OVERSIGHT_WATCH_WINDOW_SECONDS),$(call defaults_env_lookup,SHUMA_RUNTIME_DEV_OVERSIGHT_WATCH_WINDOW_SECONDS))
 SHUMA_LOCAL_PROD_DIRECT_MODE := $(if $(strip $(SHUMA_LOCAL_PROD_DIRECT_MODE)),$(SHUMA_LOCAL_PROD_DIRECT_MODE),false)
 SHUMA_ADVERSARY_SIM_AVAILABLE := $(if $(strip $(SHUMA_ADVERSARY_SIM_AVAILABLE)),$(SHUMA_ADVERSARY_SIM_AVAILABLE),true)
 SHUMA_FRONTIER_OPENAI_MODEL := $(if $(strip $(SHUMA_FRONTIER_OPENAI_MODEL)),$(SHUMA_FRONTIER_OPENAI_MODEL),gpt-5-mini)
@@ -205,6 +207,7 @@ SPIN_ENV_ONLY_BASE := \
 	--env SHUMA_KV_STORE_FAIL_OPEN=$(SHUMA_KV_STORE_FAIL_OPEN) \
 	--env SHUMA_ENFORCE_HTTPS=$(SHUMA_ENFORCE_HTTPS) \
 	--env SHUMA_RUNTIME_ENV=$(SHUMA_RUNTIME_ENV) \
+	--env SHUMA_RUNTIME_DEV_OVERSIGHT_WATCH_WINDOW_SECONDS=$(SHUMA_RUNTIME_DEV_OVERSIGHT_WATCH_WINDOW_SECONDS) \
 	--env SHUMA_ADVERSARY_SIM_AVAILABLE=$(SHUMA_ADVERSARY_SIM_AVAILABLE) \
 	--env SHUMA_SIM_TELEMETRY_SECRET=$(SHUMA_SIM_TELEMETRY_SECRET) \
 	--env SHUMA_FRONTIER_OPENAI_API_KEY=$(SHUMA_FRONTIER_OPENAI_API_KEY) \
@@ -1459,9 +1462,11 @@ test-oversight-apply: ## Run focused closed-loop oversight canary apply and roll
 	@cargo test agent_cycle_refuses_canary_apply_when_rollout_guardrail_is_manual_only -- --nocapture
 	@cargo test agent_cycle_can_apply_one_canary_when_rollout_guardrail_is_canary_only -- --nocapture
 	@cargo test agent_cycle_can_apply_one_canary_with_live_runtime_protected_evidence_even_if_replay_metadata_is_stale -- --nocapture
+	@cargo test admin::oversight_agent::tests::agent_cycle_uses_runtime_dev_effective_watch_window_override_for_canary_apply -- --exact --nocapture
 	@cargo test agent_cycle_reports_watch_window_open_before_candidate_window_ends -- --nocapture
 	@cargo test agent_cycle_rolls_back_canary_when_candidate_window_regresses -- --nocapture
 	@cargo test agent_cycle_keeps_canary_when_candidate_window_improves -- --nocapture
+	@cargo test admin::api::tests::operator_snapshot_recent_changes_ledger_tracks_changed_config_families -- --exact --nocapture
 
 test-oversight-post-sim-trigger: ## Run focused post-sim oversight agent trigger and wrapper checks
 	@echo "$(CYAN)🧪 Running oversight post-sim trigger checks...$(NC)"
@@ -2665,6 +2670,7 @@ env-help: ## Show supported env-only runtime overrides
 	@echo "  SHUMA_ENFORCE_HTTPS"
 	@echo "  SHUMA_DEBUG_HEADERS"
 	@echo "  SHUMA_RUNTIME_ENV"
+	@echo "  SHUMA_RUNTIME_DEV_OVERSIGHT_WATCH_WINDOW_SECONDS"
 	@echo "  SHUMA_LOCAL_PROD_DIRECT_MODE"
 	@echo "  SHUMA_ADVERSARY_SIM_AVAILABLE"
 	@echo "  SHUMA_SIM_TELEMETRY_SECRET"

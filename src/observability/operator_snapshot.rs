@@ -677,6 +677,8 @@ mod tests {
             OperatorSnapshotRecentChanges {
                 lookback_seconds: watch_window_hours.saturating_mul(3).saturating_mul(3600),
                 watch_window_seconds: watch_window_hours.saturating_mul(3600),
+                declared_watch_window_seconds: watch_window_hours.saturating_mul(3600),
+                watch_window_source: "declared_objective_window".to_string(),
                 rows: Vec::new(),
             },
             1_700_000_000,
@@ -1352,6 +1354,8 @@ mod tests {
             OperatorSnapshotRecentChanges {
                 lookback_seconds: watch_window_hours.saturating_mul(3).saturating_mul(3600),
                 watch_window_seconds: watch_window_hours.saturating_mul(3600),
+                declared_watch_window_seconds: watch_window_hours.saturating_mul(3600),
+                watch_window_source: "declared_objective_window".to_string(),
                 rows: Vec::new(),
             },
             1_700_000_000,

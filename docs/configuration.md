@@ -88,6 +88,7 @@ Post-compaction retention rebaseline note:
 | `SHUMA_ENFORCE_HTTPS` | Yes | `false` | Rejects non-<abbr title="Hypertext Transfer Protocol Secure">HTTPS</abbr> requests when `true` (proxy/header trust rules still apply). |
 | `SHUMA_DEBUG_HEADERS` | Yes | `false` | Enables internal debug headers (for example health diagnostics). Keep `false` in production. |
 | `SHUMA_RUNTIME_ENV` | No | `runtime-prod` | Trusted runtime environment class (`runtime-dev` or `runtime-prod`) surfaced to admin/dashboard/runtime diagnostics and policy telemetry. |
+| `SHUMA_RUNTIME_DEV_OVERSIGHT_WATCH_WINDOW_SECONDS` | No | `300` | Runtime-dev-only effective watch-window cadence override for oversight canary judgment. This must only accelerate local judged cycles; runtime-prod ignores it and declared objective policy remains authoritative outside runtime-dev. |
 | `SHUMA_LOCAL_PROD_DIRECT_MODE` | No | `false` | Local-only runtime escape hatch for `make dev-prod` style localhost runs. When `true`, `runtime-prod` may boot without `SHUMA_GATEWAY_UPSTREAM_ORIGIN` so developers can observe production posture locally without a gateway upstream. This must not be used as a deployment substitute and does not satisfy production/deploy guardrails. |
 | `SHUMA_ADVERSARY_SIM_AVAILABLE` | No | `true` | Env-only availability gate for adversary simulation surfaces in both `runtime-dev` and `runtime-prod`. Default is `true` so deployed operators can use the adversary-sim control surface immediately; set `false` only when a deployment must hide adversary-sim control, status, and simulation-public surfaces entirely. |
 | `SHUMA_SIM_TELEMETRY_SECRET` | No | empty | Simulation-tag signing key used to authenticate `x-shuma-sim-*` telemetry headers when signed tags are used. Required for adversarial simulation lanes that stamp simulation metadata via headers. |
@@ -376,6 +377,7 @@ Operator-objectives contract notes:
   - `runtime_prod` seeded defaults stay `manual_only`.
   - `runtime_dev` seeded defaults auto-upgrade to `canary_only` only while the profile is still a seeded default.
   - Operator-edited profiles are not auto-rewritten by that runtime-dev convenience upgrade.
+- In `runtime_dev`, oversight judgment may also use `SHUMA_RUNTIME_DEV_OVERSIGHT_WATCH_WINDOW_SECONDS` as an explicit effective cadence override. This does not rewrite the declared `window_hours` objective policy; it only shortens local canary judgment timing, and machine-first surfaces must show the effective override when it is active.
 - `rollout_guardrails.code_evolution_status` must be `review_required`.
 - Successful objective writes assign a new server-owned revision, record a bounded decision/evidence row for later reconcile reasoning, and refresh `operator_snapshot_v1`.
 

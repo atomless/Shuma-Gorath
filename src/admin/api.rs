@@ -1929,6 +1929,9 @@ mod tests {
 
     #[test]
     fn operator_snapshot_recent_changes_ledger_tracks_changed_config_families() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_RUNTIME_DEV_OVERSIGHT_WATCH_WINDOW_SECONDS", "300");
         let store = MockStore::new();
         let old_cfg = crate::config::default_seeded_config();
         let mut new_cfg = old_cfg.clone();
@@ -1950,10 +1953,17 @@ mod tests {
         record_operator_snapshot_recent_change_rows(&store, "default", &[row], changed_at_ts);
 
         let (recent_changes, refreshed_at_ts) =
-            load_operator_snapshot_recent_changes(&store, "default", changed_at_ts, 24, 6);
+            load_operator_snapshot_recent_changes(&store, "default", changed_at_ts, 300, 24 * 3600, "runtime_dev_override", 6);
         assert_eq!(refreshed_at_ts, changed_at_ts);
-        assert_eq!(recent_changes.watch_window_seconds, 24 * 3600);
+        assert_eq!(recent_changes.watch_window_seconds, 300);
+        assert_eq!(recent_changes.declared_watch_window_seconds, 24 * 3600);
         assert_eq!(recent_changes.lookback_seconds, 24 * 3 * 3600);
+        let recent_changes_json =
+            serde_json::to_value(&recent_changes).expect("recent changes serialize");
+        assert_eq!(
+            recent_changes_json["watch_window_source"].as_str(),
+            Some("runtime_dev_override")
+        );
         assert_eq!(recent_changes.rows.len(), 1);
         let row = &recent_changes.rows[0];
         assert_eq!(row.change_reason, "config_patch");
@@ -1971,7 +1981,7 @@ mod tests {
         );
         assert_eq!(row.watch_window_status, "collecting_post_change_window");
         assert_eq!(row.watch_window_elapsed_seconds, 0);
-        assert_eq!(row.watch_window_remaining_seconds, 24 * 3600);
+        assert_eq!(row.watch_window_remaining_seconds, 300);
         assert!(row.change_summary.contains("shadow_mode"));
         assert!(row.change_summary.contains("core_policy"));
     }

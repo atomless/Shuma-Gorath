@@ -7,6 +7,11 @@ Move an item back into `todos/todo.md` only when its blocking condition is clear
 Completed work lives in `todos/completed-todo-history.md`.
 Security finding validity and closure status live in `todos/security-review.md`.
 
+## P0 Blocked by Current Game-Loop Architecture Decision
+
+- [ ] RSI-GAME-ARCH-1K Auto-materialize a post-canary candidate window before terminal judgment.
+  Blocker: the March 27 live proof after `RSI-GAME-ARCH-1J` showed that the local strict Scrapling loop can now open a bounded canary and reach real terminal judgment at runtime-dev cadence, but terminal judgment still fail-closes as `candidate_window_not_materialized` unless a second protected post-change Scrapling window is materialized while the canary is open. Reopen only after the repo explicitly decides which component owns that candidate-evidence lifecycle: the oversight agent itself, another supervisor or scheduler, or a different post-change comparable-snapshot mechanism. This is architecture-significant because it changes controller or supervisor ownership, evidence lineage, and the live RSI contract.
+
 ## P0 Blocked by Shared-Host Discovery and Runtime-Safety Gates
 
 - [ ] SIM-LLM-1 Later LLM attacker-agent track in the sim harness.

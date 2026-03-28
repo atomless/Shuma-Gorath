@@ -4,6 +4,43 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-27)
 
+### RSI-GAME-ARCH-1J Runtime-Dev Effective Watch-Window Cadence
+
+- [x] Completed `RSI-GAME-ARCH-1J` across:
+  - [`../src/config/mod.rs`](../src/config/mod.rs)
+  - [`../src/observability/operator_snapshot_objectives.rs`](../src/observability/operator_snapshot_objectives.rs)
+  - [`../src/observability/operator_snapshot_recent_changes.rs`](../src/observability/operator_snapshot_recent_changes.rs)
+  - [`../src/admin/oversight_apply.rs`](../src/admin/oversight_apply.rs)
+  - [`../src/admin/recent_changes_ledger.rs`](../src/admin/recent_changes_ledger.rs)
+  - [`../src/observability/hot_read_projection.rs`](../src/observability/hot_read_projection.rs)
+  - [`../src/admin/api.rs`](../src/admin/api.rs)
+  - [`../src/admin/oversight_agent.rs`](../src/admin/oversight_agent.rs)
+  - [`../Makefile`](../Makefile)
+  - [`../config/defaults.env`](../config/defaults.env)
+  - [`../scripts/bootstrap/setup.sh`](../scripts/bootstrap/setup.sh)
+  - [`../scripts/bootstrap/setup-runtime.sh`](../scripts/bootstrap/setup-runtime.sh)
+  - [`../docs/configuration.md`](../docs/configuration.md)
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../docs/research/2026-03-27-rsi-game-arch-1j-runtime-dev-effective-watch-window-post-implementation-review.md`](../docs/research/2026-03-27-rsi-game-arch-1j-runtime-dev-effective-watch-window-post-implementation-review.md)
+- [x] What landed:
+  - runtime-dev now has an explicit env-only effective watch-window cadence override,
+  - runtime-prod still uses declared operator-objective watch-window policy unchanged,
+  - operator-visible machine-first surfaces now expose effective watch-window seconds, declared watch-window seconds, and the active watch-window source,
+  - and the local strict Scrapling loop can now reach real judged terminal outcomes at development cadence instead of waiting a day.
+- [x] Why:
+  - after the stale-guard and runtime-dev canary-default repairs, the next blocker was no longer controller correctness but controller cadence, because live local objectives still declared a `24h` watch window even after the loop could diagnose and apply a bounded canary.
+- [x] Evidence:
+  - [`../docs/research/2026-03-27-rsi-game-arch-1j-runtime-dev-effective-watch-window-post-implementation-review.md`](../docs/research/2026-03-27-rsi-game-arch-1j-runtime-dev-effective-watch-window-post-implementation-review.md)
+  - `make test-operator-objectives-contract`
+  - `make test-oversight-apply`
+  - `make test-rsi-game-mainline`
+  - `make test-adversary-sim-runtime-surface`
+  - live local evidence from:
+    - `GET /admin/operator-snapshot`
+    - `GET /admin/oversight/agent/status`
+    - `GET /admin/oversight/history`
+    - timed `POST /internal/oversight/agent/run`
+
 ### RSI-GAME-ARCH-1I Runtime-Dev Seeded Canary Apply Default
 
 - [x] Completed `RSI-GAME-ARCH-1I` across:

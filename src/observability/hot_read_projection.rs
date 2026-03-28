@@ -27,7 +27,11 @@ use crate::observability::hot_read_documents::{
 };
 use crate::observability::operator_snapshot::{
     build_operator_snapshot_payload, operator_snapshot_recent_changes_limit,
-    operator_snapshot_watch_window_hours, OperatorSnapshotRecentSimRun,
+    OperatorSnapshotRecentSimRun,
+};
+use crate::observability::operator_snapshot_objectives::{
+    declared_operator_objectives_watch_window_seconds, operator_objectives_watch_window_seconds,
+    operator_objectives_watch_window_source,
 };
 
 fn write_document<S, T>(store: &S, key: String, document: &HotReadDocumentEnvelope<T>) -> Result<(), ()>
@@ -231,13 +235,19 @@ fn build_operator_snapshot_document<S: KeyValueStore>(
         .iter()
         .map(operator_snapshot_recent_sim_run)
         .collect();
-    let watch_window_hours = operator_snapshot_watch_window_hours(summary.payload.hours);
+    let objectives = crate::observability::operator_objectives_store::load_or_seed_operator_objectives(
+        store,
+        site_id,
+        generated_at_ts,
+    );
     let (recent_changes, recent_changes_refreshed_at_ts) =
         crate::admin::load_operator_snapshot_recent_changes(
             store,
             site_id,
             generated_at_ts,
-            watch_window_hours,
+            operator_objectives_watch_window_seconds(&objectives),
+            declared_operator_objectives_watch_window_seconds(&objectives),
+            operator_objectives_watch_window_source(&objectives),
             operator_snapshot_recent_changes_limit(),
         );
 

@@ -119,7 +119,9 @@ pub(crate) fn load_operator_snapshot_recent_changes<S: crate::challenge::KeyValu
     store: &S,
     site_id: &str,
     generated_at_ts: u64,
-    watch_window_hours: u64,
+    watch_window_seconds: u64,
+    declared_watch_window_seconds: u64,
+    watch_window_source: &str,
     max_rows: usize,
 ) -> (
     crate::observability::operator_snapshot::OperatorSnapshotRecentChanges,
@@ -127,10 +129,11 @@ pub(crate) fn load_operator_snapshot_recent_changes<S: crate::challenge::KeyValu
 ) {
     let state = load_operator_snapshot_recent_changes_state(store, site_id);
     let decision_map = crate::observability::decision_ledger::load_recent_decision_map(store, site_id);
-    let watch_window_seconds = watch_window_hours.saturating_mul(3600);
     let lookback_seconds = watch_window_seconds
         .saturating_mul(3)
-        .max(watch_window_seconds);
+        .max(declared_watch_window_seconds.saturating_mul(3))
+        .max(watch_window_seconds)
+        .max(declared_watch_window_seconds);
     let lookback_start_ts = generated_at_ts.saturating_sub(lookback_seconds.saturating_sub(1));
     let rows = state
         .rows
@@ -144,6 +147,8 @@ pub(crate) fn load_operator_snapshot_recent_changes<S: crate::challenge::KeyValu
         crate::observability::operator_snapshot::OperatorSnapshotRecentChanges {
             lookback_seconds,
             watch_window_seconds,
+            declared_watch_window_seconds,
+            watch_window_source: watch_window_source.to_string(),
             rows,
         },
         if state.updated_at_ts == 0 {

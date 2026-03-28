@@ -12,7 +12,10 @@ use crate::observability::decision_ledger::{
     OperatorDecisionEvidenceReference,
 };
 use crate::observability::operator_snapshot::OperatorSnapshotHotReadPayload;
-use crate::observability::operator_snapshot_objectives::operator_objectives_watch_window_seconds;
+use crate::observability::operator_snapshot_objectives::{
+    declared_operator_objectives_watch_window_seconds, operator_objectives_watch_window_seconds,
+    operator_objectives_watch_window_source, OPERATOR_WATCH_WINDOW_SOURCE_DECLARED_OBJECTIVE_WINDOW,
+};
 
 use super::oversight_api::OversightPatchValidation;
 use super::oversight_patch_policy::OversightPatchProposal;
@@ -54,6 +57,10 @@ pub(crate) struct OversightApplyResult {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub watch_window_seconds: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub declared_watch_window_seconds: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub watch_window_source: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub watch_window_started_at: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub watch_window_end_at: Option<u64>,
@@ -75,6 +82,10 @@ struct OversightActiveCanaryState {
     trigger_source: String,
     objective_revision: String,
     watch_window_seconds: u64,
+    #[serde(default = "default_active_canary_declared_watch_window_seconds")]
+    declared_watch_window_seconds: u64,
+    #[serde(default = "default_active_canary_watch_window_source")]
+    watch_window_source: String,
     watch_window_end_at: u64,
     proposal: OversightPatchProposal,
     baseline_snapshot: BenchmarkComparableSnapshot,
@@ -85,6 +96,14 @@ struct OversightActiveCanaryState {
 pub(crate) struct OversightActiveCanaryEpisodeContext {
     pub baseline_snapshot: BenchmarkComparableSnapshot,
     pub proposal: OversightPatchProposal,
+}
+
+fn default_active_canary_declared_watch_window_seconds() -> u64 {
+    0
+}
+
+fn default_active_canary_watch_window_source() -> String {
+    OPERATOR_WATCH_WINDOW_SOURCE_DECLARED_OBJECTIVE_WINDOW.to_string()
 }
 
 pub(crate) fn evaluate_apply_cycle<S: KeyValueStore>(
@@ -143,15 +162,19 @@ pub(crate) fn evaluate_apply_cycle<S: KeyValueStore>(
     };
 
     if mode == OversightApplyMode::PreviewOnly {
+        let watch_window_seconds = operator_objectives_watch_window_seconds(&snapshot.objectives);
+        let declared_watch_window_seconds =
+            declared_operator_objectives_watch_window_seconds(&snapshot.objectives);
+        let watch_window_source = operator_objectives_watch_window_source(&snapshot.objectives);
         return Ok(OversightApplyResult {
             schema_version: OVERSIGHT_APPLY_SCHEMA_VERSION.to_string(),
             stage: OVERSIGHT_APPLY_STAGE_ELIGIBLE.to_string(),
             summary: "This bounded proposal is eligible for shared-host canary apply, but the manual reconcile surface remains preview-only.".to_string(),
             refusal_reasons: Vec::new(),
             patch_family: Some(proposal.patch_family.clone()),
-            watch_window_seconds: Some(operator_objectives_watch_window_seconds(
-                &snapshot.objectives,
-            )),
+            watch_window_seconds: Some(watch_window_seconds),
+            declared_watch_window_seconds: Some(declared_watch_window_seconds),
+            watch_window_source: Some(watch_window_source.to_string()),
             watch_window_started_at: None,
             watch_window_end_at: None,
             baseline_generated_at: Some(snapshot.benchmark_results.generated_at),
@@ -172,6 +195,9 @@ pub(crate) fn evaluate_apply_cycle<S: KeyValueStore>(
         }
     };
     let watch_window_seconds = operator_objectives_watch_window_seconds(&snapshot.objectives);
+    let declared_watch_window_seconds =
+        declared_operator_objectives_watch_window_seconds(&snapshot.objectives);
+    let watch_window_source = operator_objectives_watch_window_source(&snapshot.objectives);
     let active_canary = OversightActiveCanaryState {
         schema_version: OVERSIGHT_ACTIVE_CANARY_SCHEMA_VERSION.to_string(),
         canary_id: canary_id(now, proposal.patch_family.as_str(), &proposal.patch),
@@ -179,6 +205,8 @@ pub(crate) fn evaluate_apply_cycle<S: KeyValueStore>(
         trigger_source: reconcile.trigger_source.clone(),
         objective_revision: snapshot.objectives.revision.clone(),
         watch_window_seconds,
+        declared_watch_window_seconds,
+        watch_window_source: watch_window_source.to_string(),
         watch_window_end_at: now.saturating_add(watch_window_seconds),
         proposal: proposal.clone(),
         baseline_snapshot: comparable_snapshot_from_results(&snapshot.benchmark_results),
@@ -221,6 +249,8 @@ pub(crate) fn evaluate_apply_cycle<S: KeyValueStore>(
         refusal_reasons: Vec::new(),
         patch_family: Some(proposal.patch_family.clone()),
         watch_window_seconds: Some(watch_window_seconds),
+        declared_watch_window_seconds: Some(declared_watch_window_seconds),
+        watch_window_source: Some(watch_window_source.to_string()),
         watch_window_started_at: Some(now),
         watch_window_end_at: Some(active_canary.watch_window_end_at),
         baseline_generated_at: Some(snapshot.benchmark_results.generated_at),
@@ -247,6 +277,8 @@ fn continue_active_canary<S: KeyValueStore>(
             refusal_reasons: Vec::new(),
             patch_family: Some(active_canary.proposal.patch_family.clone()),
             watch_window_seconds: Some(active_canary.watch_window_seconds),
+            declared_watch_window_seconds: Some(active_canary.declared_watch_window_seconds),
+            watch_window_source: Some(active_canary.watch_window_source.clone()),
             watch_window_started_at: Some(active_canary.opened_at_ts),
             watch_window_end_at: Some(active_canary.watch_window_end_at),
             baseline_generated_at: Some(active_canary.baseline_snapshot.generated_at),
@@ -274,6 +306,8 @@ fn continue_active_canary<S: KeyValueStore>(
                 .collect::<Vec<_>>(),
             patch_family: Some(active_canary.proposal.patch_family.clone()),
             watch_window_seconds: Some(active_canary.watch_window_seconds),
+            declared_watch_window_seconds: Some(active_canary.declared_watch_window_seconds),
+            watch_window_source: Some(active_canary.watch_window_source.clone()),
             watch_window_started_at: Some(active_canary.opened_at_ts),
             watch_window_end_at: Some(active_canary.watch_window_end_at),
             baseline_generated_at: Some(active_canary.baseline_snapshot.generated_at),
@@ -292,6 +326,8 @@ fn continue_active_canary<S: KeyValueStore>(
             refusal_reasons: Vec::new(),
             patch_family: Some(active_canary.proposal.patch_family.clone()),
             watch_window_seconds: Some(active_canary.watch_window_seconds),
+            declared_watch_window_seconds: Some(active_canary.declared_watch_window_seconds),
+            watch_window_source: Some(active_canary.watch_window_source.clone()),
             watch_window_started_at: Some(active_canary.opened_at_ts),
             watch_window_end_at: Some(active_canary.watch_window_end_at),
             baseline_generated_at: Some(active_canary.baseline_snapshot.generated_at),
@@ -346,6 +382,8 @@ fn continue_active_canary<S: KeyValueStore>(
         refusal_reasons: Vec::new(),
         patch_family: Some(active_canary.proposal.patch_family.clone()),
         watch_window_seconds: Some(active_canary.watch_window_seconds),
+        declared_watch_window_seconds: Some(active_canary.declared_watch_window_seconds),
+        watch_window_source: Some(active_canary.watch_window_source.clone()),
         watch_window_started_at: Some(active_canary.opened_at_ts),
         watch_window_end_at: Some(active_canary.watch_window_end_at),
         baseline_generated_at: Some(active_canary.baseline_snapshot.generated_at),
@@ -443,6 +481,8 @@ fn refused_result(
         refusal_reasons,
         patch_family: proposal.map(|proposal| proposal.patch_family.clone()),
         watch_window_seconds: None,
+        declared_watch_window_seconds: None,
+        watch_window_source: None,
         watch_window_started_at: None,
         watch_window_end_at: None,
         baseline_generated_at: None,

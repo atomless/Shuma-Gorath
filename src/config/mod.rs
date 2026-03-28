@@ -1668,6 +1668,7 @@ fn validate_env_only_impl() -> Result<(), String> {
     validate_bool_like_var("SHUMA_ENFORCE_HTTPS")?;
     validate_bool_like_var("SHUMA_DEBUG_HEADERS")?;
     validate_optional_runtime_environment_var("SHUMA_RUNTIME_ENV")?;
+    validate_optional_u64_var("SHUMA_RUNTIME_DEV_OVERSIGHT_WATCH_WINDOW_SECONDS")?;
     validate_optional_bool_like_var("SHUMA_LOCAL_PROD_DIRECT_MODE")?;
     validate_optional_bool_like_var("SHUMA_ADVERSARY_SIM_AVAILABLE")?;
     validate_optional_secret_var("SHUMA_ADVERSARY_SIM_EDGE_CRON_SECRET")?;
@@ -2475,6 +2476,15 @@ pub fn runtime_environment() -> RuntimeEnvironment {
     runtime_var_raw_optional("SHUMA_RUNTIME_ENV")
         .and_then(|value| parse_runtime_environment(value.as_str()))
         .unwrap_or(RuntimeEnvironment::RuntimeProd)
+}
+
+pub fn runtime_dev_oversight_watch_window_seconds() -> Option<u64> {
+    if runtime_environment() != RuntimeEnvironment::RuntimeDev {
+        return None;
+    }
+    runtime_var_raw_optional("SHUMA_RUNTIME_DEV_OVERSIGHT_WATCH_WINDOW_SECONDS")
+        .and_then(|value| value.trim().parse::<u64>().ok())
+        .filter(|value| *value > 0)
 }
 
 pub fn local_prod_direct_mode() -> bool {

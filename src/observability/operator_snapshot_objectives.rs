@@ -16,6 +16,10 @@ const RECURSIVE_IMPROVEMENT_GAME_CONTRACT_ID: &str = "shuma_recursive_improvemen
 pub(crate) const HUMAN_ONLY_PRIVATE_OBJECTIVE_PROFILE_ID: &str = "human_only_private";
 pub(crate) const HUMANS_PLUS_VERIFIED_ONLY_OBJECTIVE_PROFILE_ID: &str =
     "humans_plus_verified_only";
+pub(crate) const OPERATOR_WATCH_WINDOW_SOURCE_DECLARED_OBJECTIVE_WINDOW: &str =
+    "declared_objective_window";
+pub(crate) const OPERATOR_WATCH_WINDOW_SOURCE_RUNTIME_DEV_OVERRIDE: &str =
+    "runtime_dev_override";
 pub(super) const DEFAULT_WINDOW_HOURS: u64 = 24;
 const DEFAULT_NEAR_LIMIT_RATIO: f64 = 0.75;
 const LIKELY_HUMAN_FRICTION_TARGET: f64 = 0.02;
@@ -158,10 +162,27 @@ pub(crate) struct RecursiveImprovementGameContract {
     pub regression_anchors: Vec<RecursiveImprovementRegressionAnchor>,
 }
 
-pub(crate) fn operator_objectives_watch_window_seconds(
+pub(crate) fn declared_operator_objectives_watch_window_seconds(
     profile: &OperatorObjectivesProfile,
 ) -> u64 {
     profile.window_hours.saturating_mul(3600)
+}
+
+pub(crate) fn operator_objectives_watch_window_source(
+    _profile: &OperatorObjectivesProfile,
+) -> &'static str {
+    if crate::config::runtime_dev_oversight_watch_window_seconds().is_some() {
+        OPERATOR_WATCH_WINDOW_SOURCE_RUNTIME_DEV_OVERRIDE
+    } else {
+        OPERATOR_WATCH_WINDOW_SOURCE_DECLARED_OBJECTIVE_WINDOW
+    }
+}
+
+pub(crate) fn operator_objectives_watch_window_seconds(
+    profile: &OperatorObjectivesProfile,
+) -> u64 {
+    crate::config::runtime_dev_oversight_watch_window_seconds()
+        .unwrap_or_else(|| declared_operator_objectives_watch_window_seconds(profile))
 }
 
 pub(crate) fn objective_profile_is_strict_human_only(
@@ -769,8 +790,9 @@ fn validate_category_postures(
 #[cfg(test)]
 mod tests {
     use super::{
-        default_operator_objectives, persisted_operator_objectives_from_request,
-        recursive_improvement_game_contract_v1, validate_operator_objectives,
+        default_operator_objectives, operator_objectives_watch_window_seconds,
+        persisted_operator_objectives_from_request, recursive_improvement_game_contract_v1,
+        validate_operator_objectives,
         OperatorObjectiveAdversarySimExpectations, OperatorObjectiveBudget,
         OperatorObjectiveCategoryPosture, OperatorObjectivesRolloutGuardrails,
         OperatorObjectivesUpsertRequest, OPERATOR_OBJECTIVES_SCHEMA_VERSION,
@@ -836,6 +858,28 @@ mod tests {
             profile.rollout_guardrails.code_evolution_status,
             "review_required"
         );
+    }
+
+    #[test]
+    fn operator_objectives_watch_window_seconds_uses_runtime_dev_override_when_present() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_RUNTIME_DEV_OVERSIGHT_WATCH_WINDOW_SECONDS", "300");
+
+        let profile = default_operator_objectives(1_700_000_000);
+
+        assert_eq!(operator_objectives_watch_window_seconds(&profile), 300);
+    }
+
+    #[test]
+    fn operator_objectives_watch_window_seconds_ignores_runtime_dev_override_in_runtime_prod() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-prod");
+        std::env::set_var("SHUMA_RUNTIME_DEV_OVERSIGHT_WATCH_WINDOW_SECONDS", "300");
+
+        let profile = default_operator_objectives(1_700_000_000);
+
+        assert_eq!(operator_objectives_watch_window_seconds(&profile), 24 * 3600);
     }
 
     #[test]

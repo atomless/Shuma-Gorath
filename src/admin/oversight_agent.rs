@@ -996,6 +996,9 @@ mod tests {
 
     #[test]
     fn agent_cycle_refuses_canary_apply_when_rollout_guardrail_is_manual_only() {
+        let _lock = crate::test_support::lock_env();
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_RUNTIME_DEV_OVERSIGHT_WATCH_WINDOW_SECONDS");
         let store = TestStore::new();
         let mut cfg = defaults().clone();
         cfg.fingerprint_signal_enabled = false;
@@ -1121,7 +1124,47 @@ mod tests {
     }
 
     #[test]
+    fn agent_cycle_uses_runtime_dev_effective_watch_window_override_for_canary_apply() {
+        let _lock = crate::test_support::lock_env();
+        std::env::remove_var("SHUMA_RUNTIME_DEV_OVERSIGHT_WATCH_WINDOW_SECONDS");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_RUNTIME_DEV_OVERSIGHT_WATCH_WINDOW_SECONDS", "300");
+        let store = TestStore::new();
+        let mut cfg = defaults().clone();
+        cfg.fingerprint_signal_enabled = false;
+        seed_canary_only_objectives(&store);
+        seed_apply_ready_snapshot(&store, cfg);
+
+        let execution = execute_agent_cycle(
+            &store,
+            "default",
+            OversightAgentTrigger {
+                kind: OversightAgentTriggerKind::PeriodicSupervisor,
+                requested_at_ts: 1_700_000_300,
+                sim_run_id: None,
+                sim_completion_reason: None,
+            },
+        )
+        .expect("agent cycle succeeds");
+
+        assert_eq!(execution.run.execution.apply.stage, "canary_applied");
+        assert_eq!(execution.run.execution.apply.watch_window_seconds, Some(300));
+        assert_eq!(execution.run.execution.apply.watch_window_end_at, Some(1_700_000_600));
+        let apply_json =
+            serde_json::to_value(&execution.run.execution.apply).expect("apply serializes");
+        assert_eq!(
+            apply_json["watch_window_source"].as_str(),
+            Some("runtime_dev_override")
+        );
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_RUNTIME_DEV_OVERSIGHT_WATCH_WINDOW_SECONDS");
+    }
+
+    #[test]
     fn agent_cycle_reports_watch_window_open_before_candidate_window_ends() {
+        let _lock = crate::test_support::lock_env();
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_RUNTIME_DEV_OVERSIGHT_WATCH_WINDOW_SECONDS");
         let store = TestStore::new();
         let mut cfg = defaults().clone();
         cfg.fingerprint_signal_enabled = false;
@@ -1252,7 +1295,15 @@ mod tests {
         }));
 
         let (recent_changes, _) =
-            crate::admin::load_operator_snapshot_recent_changes(&store, "default", 1_700_004_000, 1, 6);
+            crate::admin::load_operator_snapshot_recent_changes(
+                &store,
+                "default",
+                1_700_004_000,
+                3600,
+                3600,
+                "declared_objective_window",
+                6,
+            );
         assert!(recent_changes.rows.iter().any(|row| {
             row.decision_kind.as_deref() == Some("oversight_canary_apply")
                 && row.decision_status.as_deref() == Some("applied")

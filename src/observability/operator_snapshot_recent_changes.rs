@@ -31,5 +31,7 @@ pub(crate) struct OperatorSnapshotRecentChange {
 pub(crate) struct OperatorSnapshotRecentChanges {
     pub lookback_seconds: u64,
     pub watch_window_seconds: u64,
+    pub declared_watch_window_seconds: u64,
+    pub watch_window_source: String,
     pub rows: Vec<OperatorSnapshotRecentChange>,
 }
