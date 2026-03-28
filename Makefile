@@ -1426,6 +1426,7 @@ test-rsi-game-mainline: ## Run focused first-working-loop mainline proof checks
 	@echo "$(CYAN)🧪 Running first-working-loop mainline proof checks...$(NC)"
 	@./scripts/set_crate_type.sh rlib
 	@cargo test adversary_sim_completion_triggers_post_sim_oversight_agent_once -- --nocapture
+	@cargo test adversary_sim_internal_beat_auto_starts_pending_loop_continuation_run_once_after_terminal_improved -- --nocapture
 	@cargo test post_sim_oversight_route_can_apply_improve_and_archive_first_working_game_loop -- --nocapture
 	@cargo test post_sim_oversight_route_records_repeated_retained_and_rolled_back_episodes_against_changed_configs -- --nocapture
 	@python3 -m unittest scripts.tests.test_live_feedback_loop_remote.LiveFeedbackLoopRemoteBehaviorTests.test_run_records_terminal_follow_on_judgment_and_episode_archive

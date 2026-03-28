@@ -76,11 +76,18 @@ pub(crate) fn adversary_sim_status_payload(
     let lease = crate::admin::adversary_sim_control::load_controller_lease(store, site_id);
     let lease_operation_id = lease.as_ref().map(|value| value.operation_id.clone());
     let lease_expires_at = lease.as_ref().map(|value| value.expires_at);
+    let candidate_window_status =
+        crate::admin::oversight_apply::project_candidate_window_status(store, site_id, now);
     let seconds_since_last_successful_beat = projected_state
         .last_generated_at
         .map(|last_generated_at| now.saturating_sub(last_generated_at));
     let generation_active = cfg.adversary_sim_enabled
         && projected_state.phase == crate::admin::adversary_sim::ControlPhase::Running;
+    let supervisor_attention_required = generation_active
+        || candidate_window_status.status == "pending"
+        || crate::admin::oversight_agent::continuation_supervisor_attention_required(
+            store, site_id,
+        );
     if let Some(object) = payload.as_object_mut() {
         if let Some(generation) = object.get_mut("generation").and_then(|value| value.as_object_mut()) {
             generation.insert(
@@ -121,6 +128,10 @@ pub(crate) fn adversary_sim_status_payload(
         object.insert(
             "generation_active".to_string(),
             serde_json::Value::Bool(generation_active),
+        );
+        object.insert(
+            "supervisor_attention_required".to_string(),
+            serde_json::Value::Bool(supervisor_attention_required),
         );
         object.insert(
             "historical_data_visible".to_string(),
@@ -309,7 +320,20 @@ pub(crate) fn handle_internal_adversary_sim_beat(
         Ok(value) => value,
         Err(()) => return Response::new(500, "Key-value store error"),
     };
+    let pending_loop_continuation_follow_on = if pending_candidate_follow_on.is_none() {
+        match crate::admin::oversight_agent::prepare_pending_loop_continuation_follow_on(
+            store, site_id, now, &state,
+        ) {
+            Ok(value) => value,
+            Err(()) => return Response::new(500, "Key-value store error"),
+        }
+    } else {
+        None
+    };
     if let Some((started_state, _)) = pending_candidate_follow_on.as_ref() {
+        state = started_state.clone();
+        crate::admin::adversary_sim::project_effective_desired_state(&mut cfg, &state);
+    } else if let Some((started_state, _)) = pending_loop_continuation_follow_on.as_ref() {
         state = started_state.clone();
         crate::admin::adversary_sim::project_effective_desired_state(&mut cfg, &state);
     }
@@ -317,10 +341,12 @@ pub(crate) fn handle_internal_adversary_sim_beat(
     let summary =
         crate::admin::adversary_sim::run_autonomous_supervisor_ticks(store, &mut state, now);
     let mut persist_candidate_follow_on_update = false;
+    let mut persist_loop_continuation_update = false;
     if state != previous_state {
         match save_adversary_sim_beat_state_if_unchanged(store, site_id, &previous_state, &state) {
             Ok(true) => {
                 persist_candidate_follow_on_update = pending_candidate_follow_on.is_some();
+                persist_loop_continuation_update = pending_loop_continuation_follow_on.is_some();
             }
             Ok(false) => {
                 let snapshot = match load_adversary_sim_lifecycle_snapshot(store, site_id) {
@@ -345,6 +371,17 @@ pub(crate) fn handle_internal_adversary_sim_beat(
         if let Err(()) =
             crate::admin::oversight_apply::save_active_canary_state(store, site_id, &updated_canary)
         {
+            return Response::new(500, "Key-value store error");
+        }
+    }
+    if persist_loop_continuation_update {
+        let (_, updated_continuation) =
+            pending_loop_continuation_follow_on.expect("loop continuation follow-on present");
+        if let Err(()) = crate::admin::oversight_agent::save_loop_continuation_state(
+            store,
+            site_id,
+            &updated_continuation,
+        ) {
             return Response::new(500, "Key-value store error");
         }
     }

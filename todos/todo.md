@@ -134,7 +134,7 @@ Current note:
 - A third same-day live audit exposed the next blocker after that rollout-mode repair: the local strict Scrapling loop could apply a bounded canary and truthfully enter `watch_window_open`, but the operator-owned profile still declared `window_hours=24`, so live retain-vs-rollback judgment was still blocked by cadence rather than by controller correctness.
 - `RSI-GAME-ARCH-1J` is now landed: runtime-dev has an explicit effective watch-window cadence override, machine-first surfaces expose effective versus declared cadence truth, and the local strict Scrapling loop can now reach real terminal judgment without waiting a full day.
 - `RSI-GAME-ARCH-1K` is now landed: canary apply persists explicit candidate-window lifecycle state, adversary-sim supervisor auto-materializes exactly one protected post-change Scrapling follow-on run, periodic judgment can consume that evidence instead of fail-closing as `candidate_window_not_materialized`, and runtime-dev uses the shortest meaningful `30s` follow-on window for that local proof path.
-- `RSI-GAME-ARCH-1L` is now the immediate next controller-mainline slice: prove and, if needed, repair persistent bounded episode continuation so the shared-host Scrapling loop keeps iterating after retained or rolled-back terminal outcomes until it reaches an explicit stop condition such as `inside_budget`, `homeostasis`, `config_ring_exhausted`, or `code_evolution_referral`.
+- `RSI-GAME-ARCH-1L` is now landed: terminal `improved` and `rollback_applied` judgments that remain outside budget persist one fresh bounded Scrapling continuation rerun request, adversary-sim supervisor auto-materializes that rerun, only the later post-rerun oversight judgment may open the next bounded canary, and the shared-host loop now advances as `judge -> rerun -> judge -> next bounded move` until an explicit stop condition is reached.
 - The board-state doctrine now has explicit follow-on planning for a later frontier-LLM code-evolution ring and a later real-human friction calibration ring, but both remain blocked from execution.
 - Before further mainline completion claims, the repo now requires explicit acceptance-gate discipline. Do not describe `STANCE-MODEL-1`, `SIM-SCR-FULL-1`, `RSI-GAME-HO-1`, or `RSI-GAME-HO-2` as complete from planning progress, baseline capability, or dashboard pressure signals alone.
 - The next attacker-runtime mainline remains `SIM-LLM-1C3`, but only after the current Scrapling-first Game Loop rigor repairs land and the Scrapling loop stops depending on vague or missing truth.
@@ -150,19 +150,6 @@ Current note:
     - doc truth: docs, tests, and dashboard copy must stop advertising the retired architecture once the replacement path is live
     - proof: `make test-benchmark-results-contract`, `make test-dashboard-game-loop-accountability`, `make test`, plus cited full-path evidence for each retired surface
     - insufficient: calling legacy category-first paths defunct without full-path verification, or leaving replaced architecture active and operator-visible after the new restriction-first rails are shipped
-
-- [ ] RSI-GAME-ARCH-1L Prove and, if needed, repair persistent bounded episode continuation until the strict Scrapling loop reaches an explicit stop condition.
-  - Reference context:
-    - [`docs/research/2026-03-28-rsi-game-arch-1l-persistent-iterative-loop-review.md`](../docs/research/2026-03-28-rsi-game-arch-1l-persistent-iterative-loop-review.md)
-    - [`docs/plans/2026-03-28-rsi-game-arch-1l-persistent-iterative-loop-plan.md`](../docs/plans/2026-03-28-rsi-game-arch-1l-persistent-iterative-loop-plan.md)
-    - [`docs/plans/2026-03-27-rsi-game-arch-1k-post-canary-candidate-window-plan.md`](../docs/plans/2026-03-27-rsi-game-arch-1k-post-canary-candidate-window-plan.md)
-  - Closure gate:
-    - continuation proof: after a terminal `improved` result that is still outside budget, the next periodic supervisor beat must open the next bounded canary automatically
-    - rollback proof: after a terminal `rollback_applied` result that is still outside budget, the next periodic supervisor beat must do the same
-    - stop proof: `inside_budget`, `homeostasis`, `config_ring_exhausted`, and `code_evolution_referral` must all prevent another canary from reopening
-    - docs truth: operator/testing docs must describe the shared-host Scrapling loop as repeating until an explicit stop condition, rather than implying a one-episode stop
-    - proof: `make test-oversight-agent`, `make test-rsi-game-mainline`, `make test-rsi-game-human-only-proof`, `make test`, plus cited machine-first evidence from `/admin/oversight/agent/status`, `/admin/oversight/history`, and `/admin/operator-snapshot`
-    - insufficient: assuming the periodic supervisor “probably keeps going” without focused retained and rolled-back continuity proof, or claiming persistence while the loop still relies on manual intervention between terminal episodes
 
 - [ ] RSI-GAME-BOARD-1 Refactor Game Loop around board-state doctrine and shared-path sim truth.
   - Reference context:

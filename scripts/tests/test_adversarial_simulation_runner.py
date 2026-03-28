@@ -315,6 +315,345 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
                 admin_headers_2.get("X-Forwarded-For"),
             )
 
+    def test_control_plane_requests_use_separate_timeout_budget(self):
+        manifest = minimal_manifest(schema_version="sim-manifest.v2")
+        with patch.dict(
+            os.environ,
+            {
+                "SHUMA_API_KEY": "test-api-key",
+                "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+                "SHUMA_SIM_TELEMETRY_SECRET": "test-sim-tag-secret",
+            },
+            clear=False,
+        ):
+            sim_runner = runner.Runner(
+                manifest_path=Path("scripts/tests/adversarial/scenario_manifest.v2.json"),
+                manifest=manifest,
+                profile_name="test_profile",
+                execution_lane="black_box",
+                base_url="http://127.0.0.1:3000",
+                request_timeout_seconds=5.0,
+                report_path=Path("scripts/tests/adversarial/latest_report.json"),
+            )
+
+        captured: dict[str, object] = {}
+
+        class _Response:
+            def read(self):
+                return b"{}"
+
+            @property
+            def headers(self):
+                return {}
+
+            def getcode(self):
+                return 200
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+        class _Opener:
+            def open(self, req, timeout=None):
+                captured["timeout"] = timeout
+                captured["url"] = req.full_url
+                return _Response()
+
+        sim_runner.opener = _Opener()  # type: ignore[assignment]
+
+        result = sim_runner.admin_request("GET", "/admin/config")
+
+        self.assertEqual(result.status, 200)
+        self.assertEqual(sim_runner.control_plane_request_timeout_seconds, 30.0)
+        self.assertGreater(sim_runner.control_plane_request_timeout_seconds, sim_runner.request_timeout_seconds)
+        self.assertEqual(captured["timeout"], sim_runner.control_plane_request_timeout_seconds)
+        self.assertEqual(captured["url"], "http://127.0.0.1:3000/admin/config")
+
+    def test_admin_read_request_retries_transient_timeout_failures(self):
+        manifest = minimal_manifest(schema_version="sim-manifest.v2")
+        with patch.dict(
+            os.environ,
+            {
+                "SHUMA_API_KEY": "test-api-key",
+                "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+                "SHUMA_SIM_TELEMETRY_SECRET": "test-sim-tag-secret",
+            },
+            clear=False,
+        ):
+            sim_runner = runner.Runner(
+                manifest_path=Path("scripts/tests/adversarial/scenario_manifest.v2.json"),
+                manifest=manifest,
+                profile_name="test_profile",
+                execution_lane="black_box",
+                base_url="http://127.0.0.1:3000",
+                request_timeout_seconds=5.0,
+                report_path=Path("scripts/tests/adversarial/latest_report.json"),
+            )
+
+        calls = {"count": 0}
+
+        def _admin_request(method, path, json_body=None, headers=None, timeout_seconds=None):
+            calls["count"] += 1
+            if calls["count"] == 1:
+                raise runner.SimulationError(
+                    "HTTP request failed for GET http://127.0.0.1:3000/admin/monitoring/delta?hours=24&limit=40: "
+                    "<urlopen error timed out>"
+                )
+            return runner.HttpResult(status=200, body="{}", headers={}, latency_ms=1)
+
+        sim_runner.admin_request = _admin_request  # type: ignore[assignment]
+
+        result = sim_runner.admin_read_request(
+            "GET",
+            "/admin/monitoring/delta?hours=24&limit=40",
+            timeout_seconds=60.0,
+            max_attempts=3,
+        )
+
+        self.assertEqual(result.status, 200)
+        self.assertEqual(calls["count"], 2)
+
+    def test_simulation_event_snapshot_uses_observation_timeout_budget(self):
+        manifest = minimal_manifest(schema_version="sim-manifest.v2")
+        with patch.dict(
+            os.environ,
+            {
+                "SHUMA_API_KEY": "test-api-key",
+                "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+                "SHUMA_SIM_TELEMETRY_SECRET": "test-sim-tag-secret",
+            },
+            clear=False,
+        ):
+            sim_runner = runner.Runner(
+                manifest_path=Path("scripts/tests/adversarial/scenario_manifest.v2.json"),
+                manifest=manifest,
+                profile_name="test_profile",
+                execution_lane="black_box",
+                base_url="http://127.0.0.1:3000",
+                request_timeout_seconds=5.0,
+                report_path=Path("scripts/tests/adversarial/latest_report.json"),
+            )
+
+        captured: dict[str, object] = {}
+
+        def _admin_read_request(method, path, json_body=None, max_attempts=4, timeout_seconds=None):
+            captured["method"] = method
+            captured["path"] = path
+            captured["max_attempts"] = max_attempts
+            captured["timeout_seconds"] = timeout_seconds
+            return runner.HttpResult(
+                status=200,
+                body=json.dumps({"events": [], "recent_sim_runs": []}),
+                headers={},
+                latency_ms=1,
+            )
+
+        sim_runner.admin_read_request = _admin_read_request  # type: ignore[assignment]
+
+        snapshot = sim_runner.simulation_event_snapshot(hours=24, limit=1000)
+
+        self.assertEqual(snapshot["count"], 0)
+        self.assertEqual(captured["method"], "GET")
+        self.assertEqual(
+            captured["path"],
+            (
+                f"/admin/monitoring/delta?hours={sim_runner.monitoring_hot_read_window_hours}"
+                f"&limit={sim_runner.monitoring_delta_limit}"
+            ),
+        )
+        self.assertEqual(captured["timeout_seconds"], sim_runner.observation_request_timeout_seconds)
+
+    def test_simulation_event_snapshot_prefers_recent_sim_run_summary_count(self):
+        manifest = minimal_manifest(schema_version="sim-manifest.v2")
+        with patch.dict(
+            os.environ,
+            {
+                "SHUMA_API_KEY": "test-api-key",
+                "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+                "SHUMA_SIM_TELEMETRY_SECRET": "test-sim-tag-secret",
+            },
+            clear=False,
+        ):
+            sim_runner = runner.Runner(
+                manifest_path=Path("scripts/tests/adversarial/scenario_manifest.v2.json"),
+                manifest=manifest,
+                profile_name="test_profile",
+                execution_lane="black_box",
+                base_url="http://127.0.0.1:3000",
+                request_timeout_seconds=5.0,
+                report_path=Path("scripts/tests/adversarial/latest_report.json"),
+            )
+
+        sim_runner.admin_read_request = lambda method, path, json_body=None, max_attempts=4, timeout_seconds=None: runner.HttpResult(  # type: ignore[assignment]
+            status=200,
+            body=json.dumps(
+                {
+                    "events": [
+                        {
+                            "reason": "geo_policy_block",
+                            "is_simulation": True,
+                            "sim_run_id": sim_runner.sim_run_id,
+                        },
+                        {
+                            "reason": "ignore_me",
+                            "is_simulation": True,
+                            "sim_run_id": "other-run",
+                        },
+                    ],
+                    "recent_sim_runs": [
+                        {
+                            "run_id": sim_runner.sim_run_id,
+                            "monitoring_event_count": 7,
+                        }
+                    ],
+                }
+            ),
+            headers={},
+            latency_ms=1,
+        )
+
+        snapshot = sim_runner.simulation_event_snapshot(hours=24, limit=1000)
+
+        self.assertEqual(snapshot["count"], 7)
+        self.assertEqual(snapshot["reasons"], ["geo_policy_block"])
+        self.assertEqual(snapshot["reason_counts"], {"geo_policy_block": 1})
+
+    def test_monitoring_snapshot_uses_bootstrap_hot_read_timeout_budget(self):
+        manifest = minimal_manifest(schema_version="sim-manifest.v2")
+        with patch.dict(
+            os.environ,
+            {
+                "SHUMA_API_KEY": "test-api-key",
+                "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+                "SHUMA_SIM_TELEMETRY_SECRET": "test-sim-tag-secret",
+            },
+            clear=False,
+        ):
+            sim_runner = runner.Runner(
+                manifest_path=Path("scripts/tests/adversarial/scenario_manifest.v2.json"),
+                manifest=manifest,
+                profile_name="test_profile",
+                execution_lane="black_box",
+                base_url="http://127.0.0.1:3000",
+                request_timeout_seconds=5.0,
+                report_path=Path("scripts/tests/adversarial/latest_report.json"),
+            )
+
+        captured: dict[str, object] = {}
+
+        def _admin_read_request(method, path, json_body=None, max_attempts=4, timeout_seconds=None):
+            captured["method"] = method
+            captured["path"] = path
+            captured["timeout_seconds"] = timeout_seconds
+            return runner.HttpResult(
+                status=200,
+                body=json.dumps({"summary": {}, "details": {"events": {"recent_events": []}}}),
+                headers={},
+                latency_ms=1,
+            )
+
+        sim_runner.admin_read_request = _admin_read_request  # type: ignore[assignment]
+
+        snapshot = sim_runner.monitoring_snapshot()
+
+        self.assertEqual(snapshot["monitoring_total"], 0)
+        self.assertEqual(captured["method"], "GET")
+        self.assertEqual(
+            captured["path"],
+            (
+                f"/admin/monitoring?hours={sim_runner.monitoring_hot_read_window_hours}"
+                f"&limit={sim_runner.monitoring_bootstrap_limit}&bootstrap=1"
+            ),
+        )
+        self.assertEqual(captured["timeout_seconds"], sim_runner.observation_request_timeout_seconds)
+
+    def test_admin_unban_retries_transient_timeout_failures(self):
+        manifest = minimal_manifest(schema_version="sim-manifest.v2")
+        with patch.dict(
+            os.environ,
+            {
+                "SHUMA_API_KEY": "test-api-key",
+                "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+                "SHUMA_SIM_TELEMETRY_SECRET": "test-sim-tag-secret",
+            },
+            clear=False,
+        ):
+            sim_runner = runner.Runner(
+                manifest_path=Path("scripts/tests/adversarial/scenario_manifest.v2.json"),
+                manifest=manifest,
+                profile_name="test_profile",
+                execution_lane="black_box",
+                base_url="http://127.0.0.1:3000",
+                request_timeout_seconds=5.0,
+                report_path=Path("scripts/tests/adversarial/latest_report.json"),
+            )
+
+        calls = {"count": 0}
+        captured: dict[str, object] = {}
+
+        def _admin_request(method, path, json_body=None, headers=None, timeout_seconds=None):
+            calls["count"] += 1
+            captured["timeout_seconds"] = timeout_seconds
+            if calls["count"] == 1:
+                raise runner.SimulationError(
+                    "HTTP request failed for POST http://127.0.0.1:3000/admin/unban?ip=unknown: "
+                    "<urlopen error timed out>"
+                )
+            return runner.HttpResult(status=200, body="{}", headers={}, latency_ms=1)
+
+        sim_runner.admin_request = _admin_request  # type: ignore[assignment]
+
+        with patch("scripts.tests.adversarial_simulation_runner.time.sleep", return_value=None) as sleep_mock:
+            sim_runner.admin_unban("unknown", reason="cleanup_ips")
+
+        self.assertEqual(calls["count"], 2)
+        self.assertEqual(captured["timeout_seconds"], sim_runner.control_plane_write_timeout_seconds)
+        sleep_mock.assert_called_once()
+
+    def test_admin_patch_uses_control_plane_write_timeout_budget(self):
+        manifest = minimal_manifest(schema_version="sim-manifest.v2")
+        with patch.dict(
+            os.environ,
+            {
+                "SHUMA_API_KEY": "test-api-key",
+                "SHUMA_FORWARDED_IP_SECRET": "forwarded-secret",
+                "SHUMA_SIM_TELEMETRY_SECRET": "test-sim-tag-secret",
+            },
+            clear=False,
+        ):
+            sim_runner = runner.Runner(
+                manifest_path=Path("scripts/tests/adversarial/scenario_manifest.v2.json"),
+                manifest=manifest,
+                profile_name="test_profile",
+                execution_lane="black_box",
+                base_url="http://127.0.0.1:3000",
+                request_timeout_seconds=5.0,
+                report_path=Path("scripts/tests/adversarial/latest_report.json"),
+            )
+
+        captured: dict[str, object] = {}
+
+        def _admin_request(method, path, json_body=None, headers=None, timeout_seconds=None):
+            captured["method"] = method
+            captured["path"] = path
+            captured["timeout_seconds"] = timeout_seconds
+            return runner.HttpResult(
+                status=200,
+                body=json.dumps({"status": "updated"}),
+                headers={},
+                latency_ms=1,
+            )
+
+        sim_runner.admin_request = _admin_request  # type: ignore[assignment]
+
+        sim_runner.admin_patch({"shadow_mode": False})
+
+        self.assertEqual(captured["method"], "POST")
+        self.assertEqual(captured["path"], "/admin/config")
+        self.assertEqual(captured["timeout_seconds"], sim_runner.control_plane_write_timeout_seconds)
+
     def test_execution_phase_transitions_record_suite_contract(self):
         manifest = minimal_manifest(schema_version="sim-manifest.v2")
         with patch.dict(
@@ -374,7 +713,7 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
             )
 
         sim_runner.admin_request = (  # type: ignore[assignment]
-            lambda method, path, json_body=None: runner.HttpResult(
+            lambda method, path, json_body=None, headers=None, timeout_seconds=None: runner.HttpResult(
                 status=200,
                 body=json.dumps({"status": "updated"}),
                 headers={},
@@ -474,7 +813,7 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
 
         captured_headers = {}
 
-        def _admin_request(method, path, json_body=None, headers=None):
+        def _admin_request(method, path, json_body=None, headers=None, timeout_seconds=None):
             captured_headers.clear()
             captured_headers.update(headers or {})
             return runner.HttpResult(
@@ -520,7 +859,7 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
             )
 
         sim_runner.admin_request = (  # type: ignore[assignment]
-            lambda method, path, json_body=None, headers=None: runner.HttpResult(
+            lambda method, path, json_body=None, headers=None, timeout_seconds=None: runner.HttpResult(
                 status=404,
                 body="Not Found",
                 headers={},
@@ -1287,6 +1626,28 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
         self.assertEqual(evidence["browser_request_lineage_count"], 4)
         self.assertTrue(evidence["has_browser_execution_evidence"])
 
+    def test_build_scenario_execution_evidence_treats_browser_request_lineage_as_runtime_evidence(self):
+        evidence = runner.build_scenario_execution_evidence(
+            scenario_id="scenario_browser_allow",
+            request_count_before=2,
+            request_count_after=3,
+            monitoring_before={"monitoring_total": 0, "coverage": {}},
+            monitoring_after={"monitoring_total": 0, "coverage": {}},
+            simulation_event_count_before=0,
+            simulation_event_count_after=0,
+            driver_class="browser_realistic",
+            browser_realism={
+                "browser_js_executed": True,
+                "browser_dom_events": 2,
+                "browser_challenge_dom_path": ["read:body"],
+                "browser_request_lineage_count": 1,
+            },
+        )
+
+        self.assertEqual(evidence["runtime_request_count"], 1)
+        self.assertEqual(evidence["browser_request_lineage_count"], 1)
+        self.assertTrue(evidence["has_runtime_telemetry_evidence"])
+
     def test_seed_ip_range_suggestion_prerequisites_uses_trusted_forwarded_requests(self):
         manifest = minimal_manifest(schema_version="sim-manifest.v2")
         with patch.dict(
@@ -1995,7 +2356,9 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
             runner.HttpResult(status=429, body="Too Many Requests", headers={"retry-after": "1"}, latency_ms=1),
             runner.HttpResult(status=200, body="{}", headers={}, latency_ms=1),
         ]
-        sim_runner.admin_request = lambda method, path, json_body=None: responses.pop(0)  # type: ignore[assignment]
+        sim_runner.admin_request = (  # type: ignore[assignment]
+            lambda method, path, json_body=None, headers=None, timeout_seconds=None: responses.pop(0)
+        )
 
         with patch("scripts.tests.adversarial_simulation_runner.time.sleep", return_value=None) as sleep_mock:
             result = sim_runner.admin_read_request("GET", "/admin/events")
@@ -2027,7 +2390,9 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
             runner.HttpResult(status=429, body="Too Many Requests", headers={"retry-after": "1"}, latency_ms=1),
             runner.HttpResult(status=429, body="Too Many Requests", headers={"retry-after": "1"}, latency_ms=1),
         ]
-        sim_runner.admin_request = lambda method, path, json_body=None: responses.pop(0)  # type: ignore[assignment]
+        sim_runner.admin_request = (  # type: ignore[assignment]
+            lambda method, path, json_body=None, headers=None, timeout_seconds=None: responses.pop(0)
+        )
 
         with patch("scripts.tests.adversarial_simulation_runner.time.sleep", return_value=None):
             result = sim_runner.admin_read_request("GET", "/admin/events", max_attempts=2)
@@ -2054,7 +2419,7 @@ class AdversarialRunnerUnitTests(unittest.TestCase):
                 report_path=Path("scripts/tests/adversarial/latest_report.json"),
             )
 
-        sim_runner.admin_read_request = lambda method, path, json_body=None, max_attempts=4: runner.HttpResult(  # type: ignore[assignment]
+        sim_runner.admin_read_request = lambda method, path, json_body=None, max_attempts=4, timeout_seconds=None: runner.HttpResult(  # type: ignore[assignment]
             status=200,
             body=json.dumps(
                 {

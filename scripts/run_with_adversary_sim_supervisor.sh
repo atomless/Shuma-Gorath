@@ -20,7 +20,7 @@ BASE_URL="${SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL:-http://127.0.0.1:3000}"
 ADMIN_API_KEY="${SHUMA_API_KEY:-}"
 FORWARDED_SECRET="${SHUMA_FORWARDED_IP_SECRET:-}"
 
-is_generation_active() {
+supervisor_attention_required() {
   if [[ -z "${ADMIN_API_KEY}" ]]; then
     return 1
   fi
@@ -40,7 +40,7 @@ is_generation_active() {
     return 1
   fi
 
-  if [[ "${payload}" == *"\"generation_active\":true"* ]]; then
+  if [[ "${payload}" == *"\"generation_active\":true"* || "${payload}" == *"\"supervisor_attention_required\":true"* ]]; then
     return 0
   fi
   return 1
@@ -62,7 +62,7 @@ run_supervisor_manager() {
       SUPERVISOR_WORKER_PID=""
     fi
 
-    if is_generation_active; then
+    if supervisor_attention_required; then
       if [[ -z "${SUPERVISOR_WORKER_PID}" ]]; then
         SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL="${BASE_URL}" \
           SHUMA_ADVERSARY_SIM_SUPERVISOR_EXIT_WHEN_OFF=1 \

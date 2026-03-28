@@ -989,6 +989,24 @@ class Runner:
         self.profile = manifest["profiles"][profile_name]
         self.base_url = base_url.rstrip("/")
         self.request_timeout_seconds = request_timeout_seconds
+        self.control_plane_request_timeout_seconds = max(
+            float(self.request_timeout_seconds) + 20.0,
+            30.0,
+        )
+        self.control_plane_write_timeout_seconds = max(
+            self.control_plane_request_timeout_seconds + 15.0,
+            45.0,
+        )
+        self.observation_request_timeout_seconds = max(
+            self.control_plane_request_timeout_seconds + 30.0,
+            60.0,
+        )
+        # Use the bounded machine-first hot-read contracts for inner-loop observation.
+        # They stay fast because the backend materializes them separately from the
+        # heavyweight forensic monitoring and event queries.
+        self.monitoring_hot_read_window_hours = 24
+        self.monitoring_bootstrap_limit = 5
+        self.monitoring_delta_limit = 40
         self.report_path = report_path
         self.opener = urllib.request.build_opener(NoRedirectHandler())
         self.request_count = 0
@@ -1606,21 +1624,42 @@ class Runner:
             )
 
     def monitoring_snapshot(self) -> Dict[str, Any]:
-        result = self.admin_read_request("GET", "/admin/monitoring?hours=24&limit=5")
+        result = self.admin_read_request(
+            "GET",
+            (
+                f"/admin/monitoring?hours={self.monitoring_hot_read_window_hours}"
+                f"&limit={self.monitoring_bootstrap_limit}&bootstrap=1"
+            ),
+            timeout_seconds=self.observation_request_timeout_seconds,
+        )
         data = parse_json_or_raise(result.body, "Failed to parse /admin/monitoring response")
         return extract_monitoring_snapshot(data)
 
     def simulation_event_snapshot(self, hours: int = 24, limit: int = 500) -> Dict[str, Any]:
-        result = self.admin_read_request("GET", f"/admin/events?hours={hours}&limit={limit}")
+        effective_limit = min(
+            max(1, int(limit)),
+            int(self.monitoring_delta_limit),
+        )
+        result = self.admin_read_request(
+            "GET",
+            (
+                f"/admin/monitoring/delta?hours={self.monitoring_hot_read_window_hours}"
+                f"&limit={effective_limit}"
+            ),
+            timeout_seconds=self.observation_request_timeout_seconds,
+        )
         if result.status != 200:
             detail = collapse_whitespace(result.body)[:160]
             raise SimulationError(
-                f"Failed to read /admin/events: status={result.status} body={detail}"
+                f"Failed to read /admin/monitoring/delta: status={result.status} body={detail}"
             )
-        payload = parse_json_or_raise(result.body, "Failed to parse /admin/events response")
-        recent_events = payload.get("recent_events")
+        payload = parse_json_or_raise(
+            result.body, "Failed to parse /admin/monitoring/delta response"
+        )
+        recent_events = payload.get("events")
+        recent_sim_runs = list_or_empty(payload.get("recent_sim_runs"))
         if not isinstance(recent_events, list):
-            return {"count": 0, "reasons": []}
+            recent_events = []
 
         reasons = set()
         reason_counts: Dict[str, int] = {}
@@ -1636,6 +1675,18 @@ class Runner:
             if reason:
                 reasons.add(reason)
                 reason_counts[reason] = reason_counts.get(reason, 0) + 1
+        recent_run = next(
+            (
+                dict_or_empty(row)
+                for row in recent_sim_runs
+                if str(dict_or_empty(row).get("run_id") or "").strip() == self.sim_run_id
+            ),
+            {},
+        )
+        event_count = max(
+            event_count,
+            int_or_zero(recent_run.get("monitoring_event_count")),
+        )
         return {
             "count": event_count,
             "reasons": sorted(reasons),
@@ -1660,7 +1711,11 @@ class Runner:
         return parse_json_or_raise(result.body, "Failed to parse /admin/ip-range/suggestions response")
 
     def replay_promotion_snapshot(self) -> Dict[str, Any]:
-        result = self.admin_read_request("GET", "/admin/replay-promotion")
+        result = self.admin_read_request(
+            "GET",
+            "/admin/replay-promotion",
+            timeout_seconds=self.observation_request_timeout_seconds,
+        )
         if result.status != 200:
             detail = collapse_whitespace(result.body)[:160]
             raise SimulationError(
@@ -3100,7 +3155,12 @@ class Runner:
                 "keys": sorted(str(key) for key in dict_or_empty(payload).keys()),
             },
         )
-        result = self.admin_request("POST", "/admin/config", json_body=payload)
+        result = self.admin_request(
+            "POST",
+            "/admin/config",
+            json_body=payload,
+            timeout_seconds=self.control_plane_write_timeout_seconds,
+        )
         if result.status != 200:
             detail = collapse_whitespace(result.body)[:160]
             raise SimulationError(f"Failed to apply /admin/config patch: status={result.status} body={detail}")
@@ -3119,7 +3179,20 @@ class Runner:
             details={"ip": str(ip or "")},
         )
         query = urllib.parse.urlencode({"ip": ip})
-        self.admin_request("POST", f"/admin/unban?{query}")
+        attempts = 2
+        for attempt in range(1, attempts + 1):
+            try:
+                self.admin_request(
+                    "POST",
+                    f"/admin/unban?{query}",
+                    timeout_seconds=self.control_plane_write_timeout_seconds,
+                )
+                return
+            except SimulationError as exc:
+                detail = str(exc).strip().lower()
+                if "timed out" not in detail or attempt >= attempts:
+                    raise
+                time.sleep(min(1.0, 0.2 * float(attempt + 1)))
 
     def admin_request(
         self,
@@ -3127,8 +3200,20 @@ class Runner:
         path: str,
         json_body: Optional[Dict[str, Any]] = None,
         headers: Optional[Dict[str, str]] = None,
+        timeout_seconds: Optional[float] = None,
     ) -> HttpResult:
-        return self.control_client.request(method, path, headers=headers, json_body=json_body)
+        effective_timeout_seconds = (
+            self.control_plane_request_timeout_seconds
+            if timeout_seconds is None
+            else float(timeout_seconds)
+        )
+        return self.control_client.request(
+            method,
+            path,
+            headers=headers,
+            json_body=json_body,
+            timeout_seconds=effective_timeout_seconds,
+        )
 
     def admin_read_request(
         self,
@@ -3136,23 +3221,36 @@ class Runner:
         path: str,
         json_body: Optional[Dict[str, Any]] = None,
         max_attempts: int = 4,
+        timeout_seconds: Optional[float] = None,
     ) -> HttpResult:
         attempts = max(1, int(max_attempts))
-        last = self.admin_request(method, path, json_body=json_body)
-        if last.status != 429:
-            return last
+        last: Optional[HttpResult] = None
+        for attempt in range(1, attempts + 1):
+            try:
+                last = self.admin_request(
+                    method,
+                    path,
+                    json_body=json_body,
+                    timeout_seconds=timeout_seconds,
+                )
+            except SimulationError as exc:
+                detail = str(exc).strip().lower()
+                if "timed out" not in detail or attempt >= attempts:
+                    raise
+                time.sleep(min(1.0, 0.2 * float(attempt + 1)))
+                continue
 
-        for attempt in range(2, attempts + 1):
+            if last.status != 429 or attempt >= attempts:
+                return last
+
             retry_after_seconds = int_or_zero((last.headers or {}).get("retry-after"))
             if retry_after_seconds > 0:
                 sleep_seconds = min(2.0, float(retry_after_seconds))
             else:
-                sleep_seconds = min(1.0, 0.2 * float(attempt))
+                sleep_seconds = min(1.0, 0.2 * float(attempt + 1))
             time.sleep(max(0.1, sleep_seconds))
-            last = self.admin_request(method, path, json_body=json_body)
-            if last.status != 429:
-                return last
-        return last
+
+        return last if last is not None else HttpResult(0, "", {}, 0)
 
     def admin_headers(self) -> Dict[str, str]:
         return self.control_client.admin_headers()
@@ -3503,6 +3601,7 @@ class Runner:
         plane: str = "attacker",
         count_request: bool = False,
         trusted_forwarded: bool = False,
+        timeout_seconds: Optional[float] = None,
     ) -> HttpResult:
         if plane not in ALLOWED_REQUEST_PLANES:
             raise SimulationError(f"unknown request plane: {plane}")
@@ -3528,8 +3627,11 @@ class Runner:
             req.add_header(key, value)
 
         start = time.monotonic()
+        effective_timeout_seconds = (
+            self.request_timeout_seconds if timeout_seconds is None else float(timeout_seconds)
+        )
         try:
-            with self.opener.open(req, timeout=self.request_timeout_seconds) as resp:
+            with self.opener.open(req, timeout=effective_timeout_seconds) as resp:
                 body = resp.read().decode("utf-8", errors="replace")
                 headers_map = {k.lower(): v for k, v in resp.headers.items()}
                 status = int(resp.getcode() or 0)

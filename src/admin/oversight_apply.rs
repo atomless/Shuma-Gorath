@@ -173,7 +173,7 @@ fn default_candidate_window_status() -> String {
     OVERSIGHT_CANDIDATE_WINDOW_STATUS_NOT_REQUESTED.to_string()
 }
 
-fn candidate_window_follow_on_duration_seconds(cfg: &Config) -> u64 {
+pub(crate) fn candidate_window_follow_on_duration_seconds(cfg: &Config) -> u64 {
     let bounded = crate::admin::adversary_sim::clamp_duration_seconds(cfg.adversary_sim_duration_seconds);
     if crate::config::runtime_environment().is_dev() {
         bounded.min(crate::config::ADVERSARY_SIM_DURATION_SECONDS_MIN)

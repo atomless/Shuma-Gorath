@@ -34,11 +34,7 @@ Three important pieces are already present:
 
 1. periodic oversight execution is already perpetual on shared-host via [`../../scripts/run_with_oversight_supervisor.sh`](../../scripts/run_with_oversight_supervisor.sh),
 2. post-canary candidate evidence now auto-materializes exactly once through `RSI-GAME-ARCH-1K`,
-3. and after a canary closes, the next periodic reconcile cycle can already open another bounded canary whenever:
-   1. there is no active canary,
-   2. the board is still outside budget,
-   3. tuning remains eligible,
-   4. and the bounded config ring is not exhausted.
+3. and after a canary closes, the next stage of the loop can already re-enter controller judgment from a fresh adversary run rather than from a hand-maintained operator action.
 
 That means the repo is no longer missing the basic ingredients for multi-episode iteration.
 
@@ -52,9 +48,10 @@ The code now proves:
 
 But it does not yet explicitly prove the stronger next-step behavior:
 
-1. after `improved` but still outside budget, the loop must open the next bounded canary automatically on the next controller beat,
+1. after `improved` but still outside budget, the loop must request and materialize another bounded Scrapling rerun automatically,
 2. after `rollback_applied` and still outside budget, the loop must do the same,
-3. and the stop condition must be machine-explicit rather than implicit folklore.
+3. only the later post-rerun oversight judgment should open the next bounded canary,
+4. and the stop condition must be machine-explicit rather than implicit folklore.
 
 ## 3. The stop condition is now clear enough to freeze
 
@@ -62,8 +59,8 @@ The persistent loop should continue only while all of the following remain true:
 
 1. the latest judged board state is still outside budget,
 2. homeostasis is not yet reached,
-3. bounded config tuning is still eligible,
-4. the move selector still has a legal bounded candidate,
+3. bounded tuning or later code-evolution review is still warranted,
+4. the adversary rerun request is still legal and bounded,
 5. and the config ring is not exhausted.
 
 The loop must stop when any of these becomes false and record why:
@@ -89,8 +86,9 @@ Treat the next step as `RSI-GAME-ARCH-1L`: persistent iterative episode continui
 
 Its first responsibility is proof:
 
-1. write focused failing tests that prove the controller keeps going after retained and rolled-back terminal outcomes when the board is still over budget,
-2. only add controller code if that proof fails,
-3. then expose the stop reasons explicitly in the machine-first contract and operator docs.
+1. write focused failing tests that prove the loop requests and materializes a fresh rerun after retained and rolled-back terminal outcomes when the board is still over budget,
+2. only let the later post-rerun oversight judgment open the next bounded canary,
+3. add controller code only where that proof fails,
+4. then expose the continuation and stop reasons explicitly in the machine-first contract and operator docs.
 
 This keeps the next slice honest. If the architecture already satisfies the non-stop RSI requirement, the repo should say so with proof instead of adding redundant orchestration. If it still stops short, the new proof will show exactly where.

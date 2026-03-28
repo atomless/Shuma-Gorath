@@ -618,8 +618,17 @@ async function runScenario(payload) {
       }
 
       if (action === "honeypot_deny_temp") {
-        await navigate(honeypotPath);
-        appendDomPath(evidence, "navigate", honeypotPath);
+        await navigate("/");
+        appendDomPath(evidence, "read", "body");
+        await page.evaluate(async (targetPath) => {
+          const response = await fetch(targetPath, {
+            method: "GET",
+            credentials: "include",
+          });
+          await response.text().catch(() => "");
+          return { status: response.status };
+        }, honeypotPath);
+        appendDomPath(evidence, "fetch", honeypotPath);
         const { response, content } = await navigate("/");
         const status = Number(response?.status() || 0);
         if (

@@ -3846,6 +3846,12 @@ mod admin_config_tests {
             &store,
             crate::runtime::effect_intents::ShadowAction::Challenge,
         );
+        store
+            .set("cdp:detections", b"4")
+            .expect("set cdp detections");
+        store
+            .set("fingerprint:events", b"11")
+            .expect("set fingerprint events");
         {
             let _guard = crate::runtime::sim_telemetry::enter(Some(
                 crate::runtime::sim_telemetry::SimulationRequestMetadata {
@@ -3925,6 +3931,13 @@ mod admin_config_tests {
         );
         assert_eq!(
             body.get("details")
+                .and_then(|value| value.get("cost_governance"))
+                .and_then(|value| value.get("overflow_bucket_accounted"))
+                .and_then(|value| value.as_bool()),
+            Some(true)
+        );
+        assert_eq!(
+            body.get("details")
                 .and_then(|value| value.get("events"))
                 .and_then(|value| value.get("recent_events"))
                 .and_then(|value| value.as_array())
@@ -3938,6 +3951,22 @@ mod admin_config_tests {
                 .and_then(|value| value.as_array())
                 .map(|value| value.len()),
             Some(1)
+        );
+        assert_eq!(
+            body.get("details")
+                .and_then(|value| value.get("cdp"))
+                .and_then(|value| value.get("stats"))
+                .and_then(|value| value.get("total_detections"))
+                .and_then(|value| value.as_u64()),
+            Some(4)
+        );
+        assert_eq!(
+            body.get("details")
+                .and_then(|value| value.get("cdp"))
+                .and_then(|value| value.get("fingerprint_stats"))
+                .and_then(|value| value.get("events"))
+                .and_then(|value| value.as_u64()),
+            Some(11)
         );
         assert_eq!(store.get_keys_calls(), 0);
     }
@@ -3999,6 +4028,17 @@ mod admin_config_tests {
                 .and_then(|value| value.as_str()),
             Some("edge_hot_read_marker")
         );
+        assert_eq!(
+            body.get("details")
+                .and_then(|value| value.get("cost_governance"))
+                .and_then(|value| value.get("overflow_bucket_accounted"))
+                .and_then(|value| value.as_bool()),
+            Some(true)
+        );
+        assert!(body
+            .get("details")
+            .and_then(|value| value.get("cdp"))
+            .is_some());
         assert_eq!(
             body.get("details")
                 .and_then(|value| value.get("events"))
@@ -6367,6 +6407,239 @@ mod admin_config_tests {
         assert_eq!(
             second_idle_beat_json["generation_active"].as_bool(),
             Some(false)
+        );
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+        std::env::remove_var("SHUMA_API_KEY");
+        std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
+    }
+
+    #[test]
+    fn adversary_sim_internal_beat_auto_starts_pending_loop_continuation_run_once_after_terminal_improved(
+    ) {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "shared-server");
+        std::env::set_var("SHUMA_API_KEY", "oversight-loop-continuation-test-key");
+        std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+        crate::test_support::seed_canary_only_objectives(&store);
+
+        let mut cfg = crate::config::defaults().clone();
+        cfg.fingerprint_signal_enabled = false;
+        cfg.cdp_detection_enabled = false;
+        crate::test_support::seed_apply_ready_snapshot(&store, cfg);
+
+        let periodic_req = make_internal_oversight_request(
+            "oversight-loop-continuation-test-key",
+            serde_json::to_vec(&serde_json::json!({
+                "trigger_kind": "periodic_supervisor"
+            }))
+            .expect("json body")
+            .as_slice(),
+        );
+        let first_periodic_resp =
+            handle_internal_oversight_agent_run(&periodic_req, &store, "default");
+        assert_eq!(*first_periodic_resp.status(), 200u16);
+        let _candidate_run_id =
+            materialize_post_canary_candidate_window_run(&store, "oversight-loop-continuation-test-key");
+
+        let mut active_canary: serde_json::Value = serde_json::from_slice(
+            &store
+                .get("oversight_active_canary:v1:default")
+                .expect("active canary lookup")
+                .expect("active canary present"),
+        )
+        .expect("active canary decodes");
+        active_canary["opened_at_ts"] = serde_json::json!(1);
+        active_canary["watch_window_end_at"] = serde_json::json!(1);
+        store
+            .set(
+                "oversight_active_canary:v1:default",
+                &serde_json::to_vec(&active_canary).expect("active canary encodes"),
+            )
+            .expect("active canary update");
+
+        let retained_cfg =
+            crate::config::Config::load(&store, "default").expect("retained config loads");
+        crate::test_support::seed_candidate_snapshot_with_candidate_families(
+            &store,
+            retained_cfg.clone(),
+            1_700_004_100,
+            0.30,
+            "outside_budget",
+            &["fingerprint_signal", "cdp_detection"],
+        );
+
+        let terminal_resp = handle_internal_oversight_agent_run(&periodic_req, &store, "default");
+        assert_eq!(*terminal_resp.status(), 200u16);
+        let terminal_json: serde_json::Value =
+            serde_json::from_slice(terminal_resp.body()).expect("terminal response decodes");
+        assert_eq!(
+            terminal_json["run"]["execution"]["apply"]["stage"].as_str(),
+            Some("improved")
+        );
+
+        let status_req = Request::builder()
+            .method(Method::Get)
+            .uri("/admin/oversight/agent/status")
+            .body(Vec::new())
+            .build();
+        let pending_status_resp =
+            handle_admin_oversight_agent_status(&status_req, &store, "default");
+        assert_eq!(*pending_status_resp.status(), 200u16);
+        let pending_status_json: serde_json::Value =
+            serde_json::from_slice(pending_status_resp.body()).expect("status decodes");
+        assert_eq!(
+            pending_status_json["continuation_run"]["status"].as_str(),
+            Some("pending")
+        );
+        assert_eq!(
+            pending_status_json["continuation_run"]["source_decision_outcome"].as_str(),
+            Some("improved")
+        );
+
+        let sim_status_req = make_request(Method::Get, "/admin/adversary-sim/status", Vec::new());
+        let sim_status_resp =
+            handle_admin_adversary_sim_status(&sim_status_req, &store, "default", &auth);
+        assert_eq!(*sim_status_resp.status(), 200u16);
+        let sim_status_json: serde_json::Value =
+            serde_json::from_slice(sim_status_resp.body()).expect("sim status decodes");
+        assert_eq!(
+            sim_status_json["supervisor_attention_required"].as_bool(),
+            Some(true)
+        );
+
+        let beat_req = make_internal_beat_request("oversight-loop-continuation-test-key");
+        let first_beat_resp = handle_internal_adversary_sim_beat(&beat_req, &store, "default");
+        assert_eq!(*first_beat_resp.status(), 200u16);
+        let first_beat_json: serde_json::Value =
+            serde_json::from_slice(first_beat_resp.body()).expect("beat decodes");
+        assert_eq!(
+            first_beat_json["dispatch_mode"].as_str(),
+            Some("scrapling_worker")
+        );
+        let worker_plan = first_beat_json
+            .get("worker_plan")
+            .cloned()
+            .expect("worker plan present");
+        let continuation_run_id = worker_plan["run_id"]
+            .as_str()
+            .expect("run id")
+            .to_string();
+        let tick_id = worker_plan["tick_id"]
+            .as_str()
+            .expect("tick id")
+            .to_string();
+        let tick_started_at = worker_plan["tick_started_at"]
+            .as_u64()
+            .expect("tick started at");
+        let fulfillment_mode = worker_plan["fulfillment_mode"]
+            .as_str()
+            .expect("fulfillment mode")
+            .to_string();
+
+        let running_state = crate::admin::adversary_sim::load_state(&store, "default");
+        assert_eq!(
+            running_state.last_transition_reason.as_deref(),
+            Some("loop_continuation_follow_on")
+        );
+
+        let running_status_resp =
+            handle_admin_oversight_agent_status(&status_req, &store, "default");
+        let running_status_json: serde_json::Value =
+            serde_json::from_slice(running_status_resp.body()).expect("running status decodes");
+        assert_eq!(
+            running_status_json["continuation_run"]["status"].as_str(),
+            Some("running")
+        );
+        assert_eq!(
+            running_status_json["continuation_run"]["follow_on_run_id"].as_str(),
+            Some(continuation_run_id.as_str())
+        );
+
+        crate::test_support::seed_candidate_snapshot_with_candidate_families(
+            &store,
+            retained_cfg,
+            1_700_008_000,
+            0.28,
+            "outside_budget",
+            &["cdp_detection"],
+        );
+
+        let worker_result_body = serde_json::to_vec(&serde_json::json!({
+            "schema_version": "adversary-sim-scrapling-worker-result.v1",
+            "run_id": continuation_run_id,
+            "tick_id": tick_id,
+            "lane": "scrapling_traffic",
+            "fulfillment_mode": fulfillment_mode,
+            "worker_id": "scrapling-worker-test",
+            "tick_started_at": tick_started_at,
+            "tick_completed_at": tick_started_at.saturating_add(1),
+            "generated_requests": 3,
+            "failed_requests": 0,
+            "last_response_status": 200,
+            "failure_class": null,
+            "error": null,
+            "crawl_stats": {
+                "requests_count": 3,
+                "offsite_requests_count": 0,
+                "blocked_requests_count": 0,
+                "response_status_count": {
+                    "status_200": 3
+                },
+                "response_bytes": 512
+            },
+            "scope_rejections": {},
+            "surface_receipts": []
+        }))
+        .expect("worker result encodes");
+        let worker_result_req = make_internal_worker_result_request(
+            "oversight-loop-continuation-test-key",
+            worker_result_body.as_slice(),
+        );
+        let worker_result_resp =
+            handle_internal_adversary_sim_worker_result(&worker_result_req, &store, "default");
+        assert_eq!(*worker_result_resp.status(), 200u16);
+
+        let mut active_state = crate::admin::adversary_sim::load_state(&store, "default");
+        active_state.ends_at = Some(now_ts().saturating_sub(1));
+        crate::admin::adversary_sim::save_state(&store, "default", &active_state)
+            .expect("state save");
+
+        let completion_beat_resp = handle_internal_adversary_sim_beat(&beat_req, &store, "default");
+        assert_eq!(*completion_beat_resp.status(), 200u16);
+
+        let final_status_resp =
+            handle_admin_oversight_agent_status(&status_req, &store, "default");
+        let final_status_json: serde_json::Value =
+            serde_json::from_slice(final_status_resp.body()).expect("final status decodes");
+        assert_eq!(
+            final_status_json["latest_run"]["trigger_kind"].as_str(),
+            Some("post_adversary_sim")
+        );
+        assert_eq!(
+            final_status_json["latest_run"]["sim_run_id"].as_str(),
+            Some(continuation_run_id.as_str())
+        );
+        assert_eq!(
+            final_status_json["latest_run"]["execution"]["apply"]["stage"].as_str(),
+            Some("canary_applied")
+        );
+        assert_eq!(
+            final_status_json["latest_run"]["execution"]["apply"]["patch_family"].as_str(),
+            Some("cdp_detection")
+        );
+        assert_eq!(
+            final_status_json["continuation_run"]["status"].as_str(),
+            Some("not_requested")
         );
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
@@ -17906,6 +18179,8 @@ pub(super) fn monitoring_bootstrap_hot_read_request_eligible(
 pub(super) fn monitoring_bootstrap_hot_read_payload<S>(
     store: &S,
     site_id: &str,
+    hours: u64,
+    limit: usize,
 ) -> (
     crate::observability::monitoring::MonitoringSummary,
     serde_json::Value,
@@ -17919,11 +18194,30 @@ where
         store, site_id, now,
     );
     let window_end_cursor = bootstrap.payload.window_end_cursor.clone();
+    let end_hour = now / 3600;
+    let start_hour = end_hour.saturating_sub(hours.saturating_sub(1));
+    let query_shape = monitoring_query_shape(
+        store,
+        site_id,
+        start_hour,
+        end_hour,
+        bootstrap.payload.recent_events.len() as u64,
+    );
+    let query_budget = monitoring_query_budget(hours, limit, &query_shape);
+    let cost_governance = monitoring_cost_governance_payload(
+        store,
+        &[],
+        now,
+        &query_budget,
+        &query_shape,
+    );
     let details = json!({
         "hot_read_component_metadata": bootstrap.payload.component_metadata,
         "retention_health": bootstrap.payload.retention_health,
+        "cost_governance": cost_governance,
         "security_privacy": bootstrap.payload.security_privacy,
         "analytics": bootstrap.payload.analytics,
+        "cdp": bootstrap.payload.cdp,
         "events": {
             "recent_events": bootstrap.payload.recent_events,
             "recent_sim_runs": bootstrap.payload.recent_sim_runs,
@@ -17936,7 +18230,6 @@ where
         "bans": { "bans": [] },
         "maze": {},
         "tarpit": {},
-        "cdp": {},
         "cdp_events": { "events": [] }
     });
     (bootstrap.payload.summary, details, window_end_cursor)
@@ -18625,6 +18918,8 @@ where
     S: crate::challenge::KeyValueStore,
 {
     let now = now_ts();
+    let end_hour = now / 3600;
+    let start_hour = end_hour.saturating_sub(hours.saturating_sub(1));
     let bootstrap_recent_event_cap = (limit.saturating_mul(3)).clamp(12, 40);
     let mut records = load_recent_monitoring_event_records(store, now, hours);
     records.sort_by(|left, right| right.entry.ts.cmp(&left.entry.ts));
@@ -18656,10 +18951,26 @@ where
     };
     let retention_health = crate::observability::retention::retention_health(store);
     let security_privacy = security_privacy_payload(store, now, hours, forensic_mode);
+    let query_shape = monitoring_query_shape(
+        store,
+        site_id,
+        start_hour,
+        end_hour,
+        recent_events_raw.len() as u64,
+    );
+    let query_budget = monitoring_query_budget(hours, limit, &query_shape);
+    let cost_governance = monitoring_cost_governance_payload(
+        store,
+        recent_events_raw.as_slice(),
+        now,
+        &query_budget,
+        &query_shape,
+    );
 
     (
         json!({
             "retention_health": retention_health,
+            "cost_governance": cost_governance,
             "security_privacy": security_privacy,
             "analytics": {
                 "ban_count": active_ban_snapshot.count,
@@ -18693,7 +19004,21 @@ where
             },
             "maze": {},
             "tarpit": {},
-            "cdp": {},
+            "cdp": {
+                "stats": {
+                    "total_detections": read_u64_counter(store, "cdp:detections"),
+                    "auto_bans": read_u64_counter(store, "cdp:auto_bans")
+                },
+                "fingerprint_stats": {
+                    "events": read_u64_counter(store, "fingerprint:events"),
+                    "ua_client_hint_mismatch": read_u64_counter(store, "fingerprint:ua_ch_mismatch"),
+                    "ua_transport_mismatch": read_u64_counter(store, "fingerprint:ua_transport_mismatch"),
+                    "temporal_transition": read_u64_counter(store, "fingerprint:temporal_transition"),
+                    "flow_violation": read_u64_counter(store, "fingerprint:flow_violation"),
+                    "persistence_marker_missing": read_u64_counter(store, "fingerprint:persistence_marker_missing"),
+                    "untrusted_transport_header": read_u64_counter(store, "fingerprint:untrusted_transport_header")
+                }
+            },
             "cdp_events": { "events": [] }
         }),
         (!window_end_cursor.is_empty()).then_some(window_end_cursor),

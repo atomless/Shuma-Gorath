@@ -62,7 +62,7 @@ where
         super::api::monitoring_bootstrap_hot_read_request_eligible(hours, forensic_mode);
     let (summary, mut details, bootstrap_window_end_cursor) =
         if hot_read_eligible && (bootstrap_mode || edge_bounded_details_mode) {
-            super::api::monitoring_bootstrap_hot_read_payload(store, "default")
+            super::api::monitoring_bootstrap_hot_read_payload(store, "default", hours, limit)
         } else {
             let summary = crate::observability::monitoring::summarize_with_store(store, hours, limit);
             let (details, window_end_cursor) = if bootstrap_mode || edge_bounded_details_mode {

@@ -111,6 +111,7 @@ class ControlPlaneClient:
         path: str,
         headers: Optional[Dict[str, str]] = None,
         json_body: Optional[Dict[str, Any]] = None,
+        timeout_seconds: Optional[float] = None,
     ) -> HttpResult:
         merged_headers = self.admin_headers()
         if headers:
@@ -122,4 +123,5 @@ class ControlPlaneClient:
             plane="control",
             json_body=json_body,
             count_request=False,
+            timeout_seconds=timeout_seconds,
         )

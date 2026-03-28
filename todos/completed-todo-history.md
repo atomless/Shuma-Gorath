@@ -4,6 +4,34 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-28)
 
+### RSI-GAME-ARCH-1L Persistent Iterative Loop Continuity
+
+- [x] Completed `RSI-GAME-ARCH-1L` across:
+  - [`../src/admin/oversight_agent.rs`](../src/admin/oversight_agent.rs)
+  - [`../src/admin/adversary_sim_api.rs`](../src/admin/adversary_sim_api.rs)
+  - [`../src/admin/api.rs`](../src/admin/api.rs)
+  - [`../src/admin/oversight_apply.rs`](../src/admin/oversight_apply.rs)
+  - [`../scripts/run_with_adversary_sim_supervisor.sh`](../scripts/run_with_adversary_sim_supervisor.sh)
+  - [`../Makefile`](../Makefile)
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../docs/dashboard-tabs/game-loop.md`](../docs/dashboard-tabs/game-loop.md)
+  - [`../docs/plans/2026-03-28-rsi-game-arch-1l-persistent-iterative-loop-plan.md`](../docs/plans/2026-03-28-rsi-game-arch-1l-persistent-iterative-loop-plan.md)
+  - [`../docs/research/2026-03-28-rsi-game-arch-1l-persistent-iterative-loop-post-implementation-review.md`](../docs/research/2026-03-28-rsi-game-arch-1l-persistent-iterative-loop-post-implementation-review.md)
+- [x] What landed:
+  - terminal `improved` and `rollback_applied` judged cycles now persist a fresh bounded continuation rerun request when the board is still outside budget,
+  - adversary-sim supervisor now wakes on that continuation demand and auto-materializes exactly one bounded Scrapling rerun,
+  - only the later post-rerun oversight judgment may open the next bounded canary,
+  - stop reasons are projected machine-first through continuation status instead of being left as implied operator folklore,
+  - and the local strict loop now advances as `judge -> rerun -> judge -> next bounded move` until an explicit stop condition is reached.
+- [x] Why:
+  - after `RSI-GAME-ARCH-1K`, the repo could prove one canary and one candidate-window judgment, but it still fell short of the intended non-stop RSI contract because it did not yet prove continued iteration after retained or rolled-back terminal episodes.
+- [x] Evidence:
+  - [`../docs/research/2026-03-28-rsi-game-arch-1l-persistent-iterative-loop-post-implementation-review.md`](../docs/research/2026-03-28-rsi-game-arch-1l-persistent-iterative-loop-post-implementation-review.md)
+  - `make test-oversight-agent`
+  - `make test-rsi-game-mainline`
+  - `make test-rsi-game-human-only-proof`
+  - `make test`
+
 ### Planning Only: RSI-GAME-ARCH-1L Persistent Iterative Loop Contract
 
 - [x] Completed planning-only continuity clarification for the next shared-host RSI slice across:

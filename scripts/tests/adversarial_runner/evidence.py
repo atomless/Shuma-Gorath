@@ -241,7 +241,10 @@ def build_scenario_execution_evidence(
         browser_js_executed and browser_dom_events > 0 and bool(browser_challenge_dom_path)
     )
     has_runtime_telemetry_evidence = runtime_request_count > 0 and (
-        monitoring_total_delta > 0 or coverage_delta_total > 0 or simulation_event_count_delta > 0
+        monitoring_total_delta > 0
+        or coverage_delta_total > 0
+        or simulation_event_count_delta > 0
+        or browser_request_lineage_count > 0
     )
 
     return {

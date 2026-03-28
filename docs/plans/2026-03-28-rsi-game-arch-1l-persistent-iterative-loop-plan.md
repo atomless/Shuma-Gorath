@@ -1,5 +1,5 @@
 Date: 2026-03-28
-Status: active
+Status: implemented
 
 Related context:
 
@@ -38,38 +38,45 @@ Turn the current one-episode proof into an explicit persistent RSI contract:
 
 Required contract:
 
-1. after a terminal `improved` judgment, if the latest board state is still outside budget and bounded tuning remains eligible, the next controller beat must open the next bounded canary automatically,
+1. after a terminal `improved` judgment, if the latest board state is still outside budget and the loop is still actionable, the next step must be a fresh bounded Scrapling rerun request rather than an immediate next patch,
 2. after a terminal `rollback_applied` judgment, the same must happen under the same conditions,
-3. the loop must stop automatically when:
+3. only the later post-rerun oversight judgment may open the next bounded canary,
+4. the loop must stop automatically when:
    1. the latest board state is inside budget,
    2. homeostasis is reached,
    3. bounded tuning is no longer eligible,
    4. the config ring is exhausted,
    5. or the next gap is code-only,
-4. the stop or continue reason must be machine-readable,
-5. and runtime-dev proof must use the existing shortest meaningful `30s` candidate rerun rather than relaxing the defended stance.
+5. the stop or continue reason must be machine-readable,
+6. and runtime-dev proof must use the existing shortest meaningful `30s` rerun rather than relaxing the defended stance.
 
 Implementation steps:
 
 1. Add failing tests first:
-   - oversight-agent proof that a retained-but-still-overbudget cycle leads to the next canary on the next periodic supervisor beat,
-   - oversight-agent proof that a rolled-back-but-still-overbudget cycle does the same,
-   - a stop-condition proof that inside-budget or config-ring-exhausted state does not reopen another canary,
+   - oversight-agent or route-level proof that a retained-but-still-overbudget cycle persists a pending continuation rerun request,
+   - matching proof that a rolled-back-but-still-overbudget cycle does the same,
+   - adversary-sim supervisor proof that a pending continuation rerun request auto-starts exactly one fresh Scrapling run,
+   - post-rerun proof that the later oversight judgment can then open the next bounded canary from the fresh evidence,
+   - and a stop-condition proof that inside-budget or config-ring-exhausted state does not request another rerun,
    - and, if needed, route-level proof in the existing `test-rsi-game-mainline` bundle.
 2. Check whether the current controller already satisfies those proofs:
    - if yes, keep the code path as-is and only codify the contract in tests, docs, and machine-first notes,
-   - if no, add the smallest controller change needed so the next periodic beat opens the next canary automatically after terminal judgment.
-3. Add or refine machine-first continuation visibility only if the proof shows operators cannot tell why the loop continued or stopped.
-4. Update test and operator docs so the loop is described as a persistent bounded episode runner, not a one-shot canary tool.
-5. Keep cadence changes out of this slice unless the proof shows cadence, not controller logic, is the remaining blocker.
+   - if no, add the smallest orchestration change needed so a terminal judged cycle can request the next rerun automatically and the post-rerun oversight path can continue from there.
+3. Add or refine machine-first continuation visibility so operators can tell:
+   - whether the loop is waiting on a fresh rerun,
+   - whether that rerun is running,
+   - and why the loop stopped instead of continuing.
+4. Update test and operator docs so the loop is described as `judge -> rerun -> judge -> next bounded move`, not as an immediate patch-chaining controller.
+5. Keep cadence changes out of this slice unless the proof shows cadence, not orchestration logic, is the remaining blocker.
 
 Acceptance criteria:
 
-1. a retained terminal episode that is still outside budget leads to a new bounded canary on the next periodic supervisor beat,
+1. a retained terminal episode that is still outside budget leads to one fresh bounded Scrapling rerun request and auto-materialized rerun, not an immediate next patch,
 2. a rolled-back terminal episode that is still outside budget does the same,
-3. an inside-budget or otherwise terminally blocked state does not reopen another canary,
-4. the proof path is canonical and focused,
-5. operator docs now describe the loop as repeating until under budget or homeostasis, rather than implying a one-episode stop.
+3. the later post-rerun oversight judgment can open the next bounded canary from fresh evidence,
+4. an inside-budget or otherwise terminally blocked state does not request another rerun,
+5. the proof path is canonical and focused,
+6. operator docs now describe the loop as repeating until under budget or homeostasis, rather than implying a one-episode stop.
 
 Proof:
 
@@ -81,6 +88,7 @@ Proof:
    - `GET /admin/oversight/agent/status`
    - `GET /admin/oversight/history`
    - `GET /admin/operator-snapshot`
+   - `GET /admin/adversary-sim/status`
 
 # Sequencing
 

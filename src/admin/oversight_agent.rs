@@ -16,7 +16,14 @@ pub(crate) const OVERSIGHT_AGENT_INTERNAL_PATH: &str = "/internal/oversight/agen
 const OVERSIGHT_AGENT_HISTORY_PREFIX: &str = "oversight_agent_runs:v1";
 const OVERSIGHT_AGENT_HISTORY_LIMIT: usize = 12;
 const OVERSIGHT_AGENT_LEASE_PREFIX: &str = "oversight_agent:lease:v1:";
+const OVERSIGHT_LOOP_CONTINUATION_PREFIX: &str = "oversight_loop_continuation:v1:";
 const POST_SIM_EVENT_EVIDENCE_LOOKBACK_HOURS: u64 = 2;
+const OVERSIGHT_LOOP_CONTINUATION_SCHEMA_VERSION: &str = "oversight_loop_continuation_v1";
+const OVERSIGHT_LOOP_CONTINUATION_STATUS_NOT_REQUESTED: &str = "not_requested";
+const OVERSIGHT_LOOP_CONTINUATION_STATUS_PENDING: &str = "pending";
+const OVERSIGHT_LOOP_CONTINUATION_STATUS_RUNNING: &str = "running";
+const OVERSIGHT_LOOP_CONTINUATION_STATUS_STOPPED: &str = "stopped";
+const OVERSIGHT_LOOP_CONTINUATION_AUTO_RUN_REASON: &str = "loop_continuation_follow_on";
 
 pub(crate) fn shared_host_execution_available() -> bool {
     matches!(
@@ -96,6 +103,68 @@ pub(crate) struct OversightAgentPostSimTriggerContract {
     pub dedupe_key: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct OversightLoopContinuationState {
+    schema_version: String,
+    status: String,
+    requested_at_ts: u64,
+    requested_lane: crate::admin::adversary_sim::RuntimeLane,
+    requested_duration_seconds: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    source_decision_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    source_decision_outcome: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    continue_reason: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    stop_reason: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    follow_on_run_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    follow_on_started_at: Option<u64>,
+}
+
+impl Default for OversightLoopContinuationState {
+    fn default() -> Self {
+        Self {
+            schema_version: OVERSIGHT_LOOP_CONTINUATION_SCHEMA_VERSION.to_string(),
+            status: OVERSIGHT_LOOP_CONTINUATION_STATUS_NOT_REQUESTED.to_string(),
+            requested_at_ts: 0,
+            requested_lane: crate::admin::adversary_sim::RuntimeLane::ScraplingTraffic,
+            requested_duration_seconds: 0,
+            source_decision_id: None,
+            source_decision_outcome: None,
+            continue_reason: None,
+            stop_reason: None,
+            follow_on_run_id: None,
+            follow_on_started_at: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct OversightLoopContinuationStatus {
+    pub status: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub requested_lane: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub requested_duration_seconds: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub requested_at_ts: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_decision_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_decision_outcome: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub continue_reason: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stop_reason: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub follow_on_run_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub follow_on_started_at: Option<u64>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub(crate) struct OversightAgentStatusPayload {
     pub schema_version: String,
@@ -103,6 +172,7 @@ pub(crate) struct OversightAgentStatusPayload {
     pub periodic_trigger: OversightAgentPeriodicTriggerContract,
     pub post_sim_trigger: OversightAgentPostSimTriggerContract,
     pub candidate_window: crate::admin::oversight_apply::OversightCandidateWindowStatus,
+    pub continuation_run: OversightLoopContinuationStatus,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub latest_run: Option<OversightAgentRunRecord>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -121,6 +191,10 @@ fn history_run_key(site_id: &str, run_id: &str) -> String {
 
 fn lease_key(site_id: &str) -> String {
     format!("{}{}", OVERSIGHT_AGENT_LEASE_PREFIX, site_id)
+}
+
+fn continuation_key(site_id: &str) -> String {
+    format!("{}{}", OVERSIGHT_LOOP_CONTINUATION_PREFIX, site_id)
 }
 
 fn load_run_index<S: KeyValueStore>(store: &S, site_id: &str) -> Vec<String> {
@@ -183,6 +257,169 @@ fn save_agent_lease<S: KeyValueStore>(
 
 fn release_agent_lease<S: KeyValueStore>(store: &S, site_id: &str) {
     let _ = store.delete(&lease_key(site_id));
+}
+
+fn load_loop_continuation_state<S: KeyValueStore>(
+    store: &S,
+    site_id: &str,
+) -> OversightLoopContinuationState {
+    store
+        .get(continuation_key(site_id).as_str())
+        .ok()
+        .flatten()
+        .and_then(|raw| serde_json::from_slice::<OversightLoopContinuationState>(&raw).ok())
+        .filter(|state| state.schema_version == OVERSIGHT_LOOP_CONTINUATION_SCHEMA_VERSION)
+        .unwrap_or_default()
+}
+
+pub(crate) fn save_loop_continuation_state<S: KeyValueStore>(
+    store: &S,
+    site_id: &str,
+    state: &OversightLoopContinuationState,
+) -> Result<(), ()> {
+    let encoded = serde_json::to_vec(state).map_err(|_| ())?;
+    store.set(continuation_key(site_id).as_str(), encoded.as_slice())
+}
+
+fn continuation_status_for_state(
+    state: &OversightLoopContinuationState,
+) -> OversightLoopContinuationStatus {
+    OversightLoopContinuationStatus {
+        status: state.status.clone(),
+        requested_lane: (state.requested_duration_seconds > 0)
+            .then_some(state.requested_lane.as_str().to_string()),
+        requested_duration_seconds: (state.requested_duration_seconds > 0)
+            .then_some(state.requested_duration_seconds),
+        requested_at_ts: (state.requested_at_ts > 0).then_some(state.requested_at_ts),
+        source_decision_id: state.source_decision_id.clone(),
+        source_decision_outcome: state.source_decision_outcome.clone(),
+        continue_reason: state.continue_reason.clone(),
+        stop_reason: state.stop_reason.clone(),
+        follow_on_run_id: state.follow_on_run_id.clone(),
+        follow_on_started_at: state.follow_on_started_at,
+    }
+}
+
+pub(crate) fn project_loop_continuation_status<S: KeyValueStore>(
+    store: &S,
+    site_id: &str,
+) -> OversightLoopContinuationStatus {
+    continuation_status_for_state(&load_loop_continuation_state(store, site_id))
+}
+
+pub(crate) fn continuation_supervisor_attention_required<S: KeyValueStore>(
+    store: &S,
+    site_id: &str,
+) -> bool {
+    let state = load_loop_continuation_state(store, site_id);
+    matches!(
+        state.status.as_str(),
+        OVERSIGHT_LOOP_CONTINUATION_STATUS_PENDING | OVERSIGHT_LOOP_CONTINUATION_STATUS_RUNNING
+    )
+}
+
+fn continuation_stop_reason(
+    execution: &OversightExecutionPayload,
+    episode_archive: &OperatorSnapshotEpisodeArchive,
+) -> Option<String> {
+    if execution.decision.benchmark_overall_status == "inside_budget" {
+        return Some("inside_budget".to_string());
+    }
+    if episode_archive.homeostasis.status == "homeostasis" {
+        return Some("homeostasis".to_string());
+    }
+    None
+}
+
+fn sync_loop_continuation_state_after_execution<S: KeyValueStore>(
+    store: &S,
+    site_id: &str,
+    recorded_at_ts: u64,
+    execution: &OversightExecutionPayload,
+) -> Result<(), ()> {
+    let terminal_judgment = matches!(
+        execution.apply.stage.as_str(),
+        crate::admin::oversight_apply::OVERSIGHT_APPLY_STAGE_IMPROVED
+            | crate::admin::oversight_apply::OVERSIGHT_APPLY_STAGE_ROLLBACK_APPLIED
+    );
+    let stop_without_request = match execution.reconcile.outcome.as_str() {
+        "within_budget" => Some("inside_budget".to_string()),
+        "config_ring_exhausted" => Some("config_ring_exhausted".to_string()),
+        "code_evolution_referral" => Some("code_evolution_referral".to_string()),
+        _ => None,
+    };
+
+    if !terminal_judgment {
+        if let Some(stop_reason) = stop_without_request {
+            return save_loop_continuation_state(
+                store,
+                site_id,
+                &OversightLoopContinuationState {
+                    status: OVERSIGHT_LOOP_CONTINUATION_STATUS_STOPPED.to_string(),
+                    requested_at_ts: recorded_at_ts,
+                    source_decision_id: Some(execution.decision.decision_id.clone()),
+                    source_decision_outcome: Some(execution.decision.outcome.clone()),
+                    stop_reason: Some(stop_reason),
+                    ..OversightLoopContinuationState::default()
+                },
+            );
+        }
+    }
+
+    if !terminal_judgment {
+        return save_loop_continuation_state(
+            store,
+            site_id,
+            &OversightLoopContinuationState::default(),
+        );
+    }
+
+    let objectives =
+        crate::observability::operator_objectives_store::load_or_seed_operator_objectives(
+            store,
+            site_id,
+            recorded_at_ts,
+        );
+    let game_contract =
+        crate::observability::operator_snapshot_objectives::recursive_improvement_game_contract_v1(
+            &objectives,
+            &crate::config::controller_legal_move_ring_v1(),
+        );
+    let (episode_archive, _) = crate::admin::load_oversight_episode_archive(store, site_id, &game_contract);
+    if let Some(stop_reason) = continuation_stop_reason(execution, &episode_archive) {
+        return save_loop_continuation_state(
+            store,
+            site_id,
+            &OversightLoopContinuationState {
+                status: OVERSIGHT_LOOP_CONTINUATION_STATUS_STOPPED.to_string(),
+                requested_at_ts: recorded_at_ts,
+                source_decision_id: Some(execution.decision.decision_id.clone()),
+                source_decision_outcome: Some(execution.decision.outcome.clone()),
+                stop_reason: Some(stop_reason),
+                ..OversightLoopContinuationState::default()
+            },
+        );
+    }
+
+    let cfg = crate::config::Config::load(store, site_id).map_err(|_| ())?;
+    save_loop_continuation_state(
+        store,
+        site_id,
+        &OversightLoopContinuationState {
+            status: OVERSIGHT_LOOP_CONTINUATION_STATUS_PENDING.to_string(),
+            requested_at_ts: recorded_at_ts,
+            requested_lane: crate::admin::adversary_sim::RuntimeLane::ScraplingTraffic,
+            requested_duration_seconds:
+                crate::admin::oversight_apply::candidate_window_follow_on_duration_seconds(&cfg),
+            source_decision_id: Some(execution.decision.decision_id.clone()),
+            source_decision_outcome: Some(execution.decision.outcome.clone()),
+            continue_reason: Some("still_outside_budget_after_terminal_judgment".to_string()),
+            stop_reason: None,
+            follow_on_run_id: None,
+            follow_on_started_at: None,
+            schema_version: OVERSIGHT_LOOP_CONTINUATION_SCHEMA_VERSION.to_string(),
+        },
+    )
 }
 
 fn run_id(trigger: &OversightAgentTrigger) -> String {
@@ -285,6 +522,7 @@ pub(crate) fn execute_agent_cycle<S: KeyValueStore>(
     let persist_result = persist_run_record(store, site_id, &run);
     release_agent_lease(store, site_id);
     persist_result?;
+    sync_loop_continuation_state_after_execution(store, site_id, now, &run.execution)?;
 
     Ok(OversightAgentExecutionResult {
         schema_version: OVERSIGHT_AGENT_EXECUTION_SCHEMA_VERSION.to_string(),
@@ -333,6 +571,7 @@ pub(crate) fn build_status_payload<S: KeyValueStore>(
         candidate_window: crate::admin::oversight_apply::project_candidate_window_status(
             store, site_id, now,
         ),
+        continuation_run: project_loop_continuation_status(store, site_id),
         latest_run: load_latest_agent_run(store, site_id),
         latest_decision: load_latest_decision(store, site_id),
         episode_archive,
@@ -397,6 +636,43 @@ fn has_persisted_post_sim_event_evidence<S: KeyValueStore>(
     .any(|record| record.is_simulation && record.sim_run_id.as_deref() == Some(sim_run_id))
 }
 
+pub(crate) fn prepare_pending_loop_continuation_follow_on<S: KeyValueStore>(
+    store: &S,
+    site_id: &str,
+    now: u64,
+    current: &crate::admin::adversary_sim::ControlState,
+) -> Result<Option<(
+    crate::admin::adversary_sim::ControlState,
+    OversightLoopContinuationState,
+)>, ()> {
+    let continuation = load_loop_continuation_state(store, site_id);
+    if continuation.status != OVERSIGHT_LOOP_CONTINUATION_STATUS_PENDING {
+        return Ok(None);
+    }
+    if current.phase != crate::admin::adversary_sim::ControlPhase::Off {
+        return Ok(None);
+    }
+    let lane_selected = crate::admin::adversary_sim::select_desired_lane(
+        now,
+        continuation.requested_lane,
+        current,
+    );
+    let (started_state, _) = match crate::admin::adversary_sim::start_state_with_reason(
+        now,
+        continuation.requested_duration_seconds,
+        &lane_selected,
+        OVERSIGHT_LOOP_CONTINUATION_AUTO_RUN_REASON,
+    ) {
+        Ok(started) => started,
+        Err(crate::admin::adversary_sim::StartError::QueueFull) => return Ok(None),
+    };
+    let mut updated = continuation.clone();
+    updated.status = OVERSIGHT_LOOP_CONTINUATION_STATUS_RUNNING.to_string();
+    updated.follow_on_run_id = started_state.run_id.clone();
+    updated.follow_on_started_at = Some(now);
+    Ok(Some((started_state, updated)))
+}
+
 pub(crate) fn maybe_trigger_post_sim_agent_cycle<S: KeyValueStore>(
     store: &S,
     site_id: &str,
@@ -433,8 +709,12 @@ pub(crate) fn maybe_trigger_post_sim_agent_cycle<S: KeyValueStore>(
 mod tests {
     use super::{
         build_status_payload, execute_agent_cycle, load_latest_agent_run,
-        maybe_trigger_post_sim_agent_cycle, post_sim_trigger_for_state_transition,
-        OversightAgentTrigger, OversightAgentTriggerKind,
+        load_loop_continuation_state, maybe_trigger_post_sim_agent_cycle,
+        post_sim_trigger_for_state_transition, prepare_pending_loop_continuation_follow_on,
+        save_loop_continuation_state, OversightAgentTrigger, OversightAgentTriggerKind,
+        OversightLoopContinuationState, OVERSIGHT_LOOP_CONTINUATION_SCHEMA_VERSION,
+        OVERSIGHT_LOOP_CONTINUATION_STATUS_PENDING,
+        OVERSIGHT_LOOP_CONTINUATION_STATUS_RUNNING,
     };
     use crate::challenge::KeyValueStore;
     use crate::config::{defaults, serialize_persisted_kv_config};
@@ -566,6 +846,24 @@ mod tests {
         suspicious_forwarded_request_rate: f64,
         overall_status: &str,
     ) {
+        seed_candidate_snapshot_with_candidate_families(
+            store,
+            cfg,
+            generated_at_ts,
+            suspicious_forwarded_request_rate,
+            overall_status,
+            &["fingerprint_signal"],
+        );
+    }
+
+    fn seed_candidate_snapshot_with_candidate_families(
+        store: &TestStore,
+        cfg: crate::config::Config,
+        generated_at_ts: u64,
+        suspicious_forwarded_request_rate: f64,
+        overall_status: &str,
+        candidate_families: &[&str],
+    ) {
         store
             .set(
                 "config:default",
@@ -669,8 +967,10 @@ mod tests {
             vec!["suspicious_origin_cost".to_string()];
         payload.benchmark_results.escalation_hint.trigger_metric_ids =
             vec!["suspicious_forwarded_request_rate".to_string()];
-        payload.benchmark_results.escalation_hint.candidate_action_families =
-            vec!["fingerprint_signal".to_string()];
+        payload.benchmark_results.escalation_hint.candidate_action_families = candidate_families
+            .iter()
+            .map(|family| (*family).to_string())
+            .collect();
         payload.benchmark_results.escalation_hint.blockers.clear();
         payload.benchmark_results.escalation_hint.note =
             "Config tuning candidate.".to_string();
@@ -726,7 +1026,10 @@ mod tests {
             .benchmark_results
             .controller_contract
             .move_selection
-            .candidate_action_families = vec!["fingerprint_signal".to_string()];
+            .candidate_action_families = candidate_families
+            .iter()
+            .map(|family| (*family).to_string())
+            .collect();
         payload
             .benchmark_results
             .controller_contract
@@ -1517,5 +1820,198 @@ mod tests {
             "not_enough_completed_cycles"
         );
         assert_eq!(status.episode_archive.homeostasis.break_status, "not_triggered");
+        assert_eq!(status.continuation_run.status, "stopped");
+        assert_eq!(
+            status.continuation_run.stop_reason.as_deref(),
+            Some("inside_budget")
+        );
+    }
+
+    #[test]
+    fn agent_cycle_requests_continuation_run_after_retained_terminal_episode_when_still_outside_budget(
+    ) {
+        let store = TestStore::new();
+        let mut cfg = defaults().clone();
+        cfg.fingerprint_signal_enabled = false;
+        cfg.cdp_detection_enabled = false;
+        seed_canary_only_objectives(&store);
+        seed_apply_ready_snapshot(&store, cfg);
+
+        let first = execute_agent_cycle(
+            &store,
+            "default",
+            OversightAgentTrigger {
+                kind: OversightAgentTriggerKind::PeriodicSupervisor,
+                requested_at_ts: 1_700_000_300,
+                sim_run_id: None,
+                sim_completion_reason: None,
+            },
+        )
+        .expect("initial canary apply succeeds");
+        assert_eq!(first.run.execution.apply.stage, "canary_applied");
+
+        let canary_cfg =
+            crate::config::Config::load(&store, "default").expect("canary config loads");
+        seed_candidate_snapshot_with_candidate_families(
+            &store,
+            canary_cfg,
+            1_700_004_100,
+            0.30,
+            "outside_budget",
+            &["fingerprint_signal", "cdp_detection"],
+        );
+        mark_active_canary_candidate_window_materialized(&store, 1_700_004_100);
+
+        let second = execute_agent_cycle(
+            &store,
+            "default",
+            OversightAgentTrigger {
+                kind: OversightAgentTriggerKind::PeriodicSupervisor,
+                requested_at_ts: 1_700_004_100,
+                sim_run_id: None,
+                sim_completion_reason: None,
+            },
+        )
+        .expect("retain cycle succeeds");
+        assert_eq!(second.run.execution.apply.stage, "improved");
+        assert_eq!(second.run.execution.decision.outcome, "improved");
+
+        let status = build_status_payload(&store, "default");
+        assert_eq!(status.continuation_run.status, "pending");
+        assert_eq!(
+            status.continuation_run.source_decision_outcome.as_deref(),
+            Some("improved")
+        );
+        assert_eq!(
+            status.continuation_run.continue_reason.as_deref(),
+            Some("still_outside_budget_after_terminal_judgment")
+        );
+        assert_eq!(
+            status.continuation_run.requested_lane.as_deref(),
+            Some("scrapling_traffic")
+        );
+        assert_eq!(
+            status.continuation_run.requested_duration_seconds,
+            Some(crate::admin::oversight_apply::candidate_window_follow_on_duration_seconds(
+                &crate::config::Config::load(&store, "default").expect("config loads")
+            ))
+        );
+    }
+
+    #[test]
+    fn agent_cycle_requests_continuation_run_after_rollback_terminal_episode_when_still_outside_budget(
+    ) {
+        let store = TestStore::new();
+        let mut cfg = defaults().clone();
+        cfg.fingerprint_signal_enabled = false;
+        seed_canary_only_objectives(&store);
+        seed_apply_ready_snapshot(&store, cfg);
+
+        let first = execute_agent_cycle(
+            &store,
+            "default",
+            OversightAgentTrigger {
+                kind: OversightAgentTriggerKind::PeriodicSupervisor,
+                requested_at_ts: 1_700_000_300,
+                sim_run_id: None,
+                sim_completion_reason: None,
+            },
+        )
+        .expect("initial canary apply succeeds");
+        assert_eq!(first.run.execution.apply.stage, "canary_applied");
+
+        let canary_cfg =
+            crate::config::Config::load(&store, "default").expect("canary config loads");
+        seed_candidate_snapshot(&store, canary_cfg, 1_700_004_000, 0.55, "outside_budget");
+        mark_active_canary_candidate_window_materialized(&store, 1_700_004_000);
+
+        let second = execute_agent_cycle(
+            &store,
+            "default",
+            OversightAgentTrigger {
+                kind: OversightAgentTriggerKind::PeriodicSupervisor,
+                requested_at_ts: 1_700_004_000,
+                sim_run_id: None,
+                sim_completion_reason: None,
+            },
+        )
+        .expect("rollback cycle succeeds");
+        assert_eq!(second.run.execution.apply.stage, "rollback_applied");
+        assert_eq!(second.run.execution.decision.outcome, "rollback_applied");
+
+        let status = build_status_payload(&store, "default");
+        assert_eq!(
+            status.continuation_run.status,
+            "pending",
+            "rollback continuation status={}",
+            serde_json::to_string_pretty(&status.continuation_run)
+                .expect("continuation status serializes")
+        );
+        assert_eq!(
+            status.continuation_run.source_decision_outcome.as_deref(),
+            Some("rollback_applied")
+        );
+        assert_eq!(
+            status.continuation_run.continue_reason.as_deref(),
+            Some("still_outside_budget_after_terminal_judgment")
+        );
+        assert_eq!(
+            status.continuation_run.requested_lane.as_deref(),
+            Some("scrapling_traffic")
+        );
+        assert_eq!(
+            status.continuation_run.requested_duration_seconds,
+            Some(crate::admin::oversight_apply::candidate_window_follow_on_duration_seconds(
+                &crate::config::Config::load(&store, "default").expect("config loads")
+            ))
+        );
+    }
+
+    #[test]
+    fn prepare_pending_loop_continuation_follow_on_keeps_store_pending_until_state_persist_succeeds()
+    {
+        let store = TestStore::new();
+        let requested_duration_seconds = 30;
+        save_loop_continuation_state(
+            &store,
+            "default",
+            &OversightLoopContinuationState {
+                schema_version: OVERSIGHT_LOOP_CONTINUATION_SCHEMA_VERSION.to_string(),
+                status: OVERSIGHT_LOOP_CONTINUATION_STATUS_PENDING.to_string(),
+                requested_at_ts: 1_700_010_000,
+                requested_lane: crate::admin::adversary_sim::RuntimeLane::ScraplingTraffic,
+                requested_duration_seconds,
+                source_decision_id: Some("decision-continuation".to_string()),
+                source_decision_outcome: Some("improved".to_string()),
+                continue_reason: Some("still_outside_budget_after_terminal_judgment".to_string()),
+                stop_reason: None,
+                follow_on_run_id: None,
+                follow_on_started_at: None,
+            },
+        )
+        .expect("pending continuation state saves");
+
+        let current = crate::admin::adversary_sim::ControlState::default();
+        let (_, updated) = prepare_pending_loop_continuation_follow_on(
+            &store,
+            "default",
+            1_700_010_100,
+            &current,
+        )
+        .expect("continuation follow-on prepares")
+        .expect("follow-on returned");
+
+        assert_eq!(updated.status, OVERSIGHT_LOOP_CONTINUATION_STATUS_RUNNING);
+        assert_eq!(updated.follow_on_started_at, Some(1_700_010_100));
+        assert!(updated.follow_on_run_id.is_some());
+
+        let persisted = load_loop_continuation_state(&store, "default");
+        assert_eq!(persisted.status, OVERSIGHT_LOOP_CONTINUATION_STATUS_PENDING);
+        assert_eq!(persisted.follow_on_run_id, None);
+        assert_eq!(persisted.follow_on_started_at, None);
+        assert_eq!(
+            persisted.requested_duration_seconds,
+            requested_duration_seconds
+        );
     }
 }

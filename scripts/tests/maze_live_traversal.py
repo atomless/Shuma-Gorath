@@ -225,7 +225,7 @@ class MazeLiveTraversalGate:
             data = json.dumps(payload).encode("utf-8")
         req = urllib.request.Request(url, data=data, method=method.upper(), headers=headers)
         try:
-            with self.opener.open(req, timeout=10) as response:
+            with self.opener.open(req, timeout=self.timeout_seconds) as response:
                 raw = response.read().decode("utf-8", errors="replace")
                 status = int(getattr(response, "status", 0) or 0)
         except urllib.error.HTTPError as err:

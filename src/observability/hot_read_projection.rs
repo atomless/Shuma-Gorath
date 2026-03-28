@@ -18,6 +18,8 @@ use crate::observability::hot_read_documents::{
     operator_snapshot_document_contract, operator_snapshot_document_key,
     HotReadDocumentEnvelope, HotReadDocumentMetadata, HotReadUpdateTrigger,
     MonitoringBootstrapAnalyticsSummary, MonitoringBootstrapHotReadDocument,
+    MonitoringBootstrapCdpStatsSummary, MonitoringBootstrapCdpSummary,
+    MonitoringBootstrapFingerprintStatsSummary,
     MonitoringBootstrapHotReadPayload, MonitoringRecentEventsTailDocument,
     MonitoringRecentEventsTailPayload, MonitoringRecentSimRunsDocument,
     MonitoringRecentSimRunsPayload, MonitoringRecentSimRunSummary,
@@ -78,6 +80,40 @@ fn analytics_summary<S: KeyValueStore>(store: &S, site_id: &str) -> MonitoringBo
         ban_count: crate::enforcement::ban::list_active_bans(store, site_id).len() as u64,
         shadow_mode: cfg.as_ref().map(|value| value.shadow_mode).unwrap_or(false),
         fail_mode: fail_mode.to_string(),
+    }
+}
+
+fn read_u64_counter<S: KeyValueStore>(store: &S, key: &str) -> u64 {
+    store
+        .get(key)
+        .ok()
+        .flatten()
+        .and_then(|value| String::from_utf8(value).ok())
+        .and_then(|value| value.parse::<u64>().ok())
+        .unwrap_or(0)
+}
+
+fn cdp_summary<S: KeyValueStore>(store: &S) -> MonitoringBootstrapCdpSummary {
+    MonitoringBootstrapCdpSummary {
+        stats: MonitoringBootstrapCdpStatsSummary {
+            total_detections: read_u64_counter(store, "cdp:detections"),
+            auto_bans: read_u64_counter(store, "cdp:auto_bans"),
+        },
+        fingerprint_stats: MonitoringBootstrapFingerprintStatsSummary {
+            events: read_u64_counter(store, "fingerprint:events"),
+            ua_client_hint_mismatch: read_u64_counter(store, "fingerprint:ua_ch_mismatch"),
+            ua_transport_mismatch: read_u64_counter(store, "fingerprint:ua_transport_mismatch"),
+            temporal_transition: read_u64_counter(store, "fingerprint:temporal_transition"),
+            flow_violation: read_u64_counter(store, "fingerprint:flow_violation"),
+            persistence_marker_missing: read_u64_counter(
+                store,
+                "fingerprint:persistence_marker_missing",
+            ),
+            untrusted_transport_header: read_u64_counter(
+                store,
+                "fingerprint:untrusted_transport_header",
+            ),
+        },
     }
 }
 
@@ -470,6 +506,7 @@ fn rebuild_bootstrap_document<S: KeyValueStore>(
             summary: monitoring_summary.payload,
             component_metadata,
             analytics: analytics_summary(store, site_id),
+            cdp: cdp_summary(store),
             retention_health: retention.payload,
             security_privacy: security_privacy.payload,
             security_mode: crate::admin::monitoring_security_view_mode_label(false).to_string(),
@@ -686,6 +723,40 @@ mod tests {
                 .schema_version,
         );
         assert!(bootstrap.is_some());
+    }
+
+    #[test]
+    fn counter_flush_refresh_preserves_cdp_and_fingerprint_stats_in_bootstrap() {
+        let store = MockStore::new();
+        store.set("cdp:detections", b"3").expect("set cdp detections");
+        store.set("cdp:auto_bans", b"1").expect("set cdp auto bans");
+        store
+            .set("fingerprint:events", b"7")
+            .expect("set fingerprint events");
+        store
+            .set("fingerprint:untrusted_transport_header", b"2")
+            .expect("set fingerprint untrusted transport header");
+
+        refresh_after_counter_flush(&store, "default");
+
+        let bootstrap = read_document::<
+            _,
+            crate::observability::hot_read_documents::MonitoringBootstrapHotReadPayload,
+        >(
+            &store,
+            monitoring_bootstrap_document_key("default"),
+            crate::observability::hot_read_documents::monitoring_bootstrap_document_contract()
+                .schema_version,
+        )
+        .expect("bootstrap hot read");
+
+        assert_eq!(bootstrap.payload.cdp.stats.total_detections, 3);
+        assert_eq!(bootstrap.payload.cdp.stats.auto_bans, 1);
+        assert_eq!(bootstrap.payload.cdp.fingerprint_stats.events, 7);
+        assert_eq!(
+            bootstrap.payload.cdp.fingerprint_stats.untrusted_transport_header,
+            2
+        );
     }
 
     #[test]

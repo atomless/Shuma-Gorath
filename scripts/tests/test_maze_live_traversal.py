@@ -1,9 +1,47 @@
 import unittest
+from pathlib import Path
 
 import scripts.tests.maze_live_traversal as maze_live_traversal
 
 
 class MazeLiveTraversalTests(unittest.TestCase):
+    def test_request_uses_configured_timeout_seconds(self) -> None:
+        gate = maze_live_traversal.MazeLiveTraversalGate(
+            base_url="http://127.0.0.1:3000",
+            api_key="test-api-key",
+            forwarded_secret="forwarded-secret",
+            health_secret="health-secret",
+            timeout_seconds=42,
+            report_path=Path("/tmp/maze-live-traversal.json"),
+        )
+        captured: dict[str, object] = {}
+
+        class _Response:
+            status = 200
+
+            def read(self) -> bytes:
+                return b"{}"
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb) -> bool:
+                return False
+
+        class _Opener:
+            def open(self, req, timeout=None):
+                captured["timeout"] = timeout
+                captured["url"] = req.full_url
+                return _Response()
+
+        gate.opener = _Opener()
+
+        response = gate._request("GET", "/health")
+
+        self.assertEqual(response["status"], 200)
+        self.assertEqual(captured["timeout"], 42)
+        self.assertEqual(captured["url"], "http://127.0.0.1:3000/health")
+
     def test_extract_first_maze_link_returns_first_maze_href(self) -> None:
         html = """
         <html><body>

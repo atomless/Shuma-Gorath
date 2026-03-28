@@ -14,7 +14,7 @@ use crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverage
 use crate::observability::retention::RetentionHealth;
 
 const HOT_READ_PREFIX: &str = "telemetry:hot_read:v1";
-const HOT_READ_BOOTSTRAP_SCHEMA_VERSION: &str = "telemetry-hot-read-bootstrap.v5";
+const HOT_READ_BOOTSTRAP_SCHEMA_VERSION: &str = "telemetry-hot-read-bootstrap.v6";
 const HOT_READ_RETENTION_SCHEMA_VERSION: &str = "telemetry-hot-read-retention.v1";
 const HOT_READ_SECURITY_PRIVACY_SCHEMA_VERSION: &str = "telemetry-hot-read-security-privacy.v1";
 const HOT_READ_RECENT_EVENTS_TAIL_SCHEMA_VERSION: &str = "telemetry-hot-read-recent-events.v4";
@@ -102,6 +102,29 @@ pub(crate) struct MonitoringBootstrapAnalyticsSummary {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct MonitoringBootstrapCdpStatsSummary {
+    pub total_detections: u64,
+    pub auto_bans: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct MonitoringBootstrapFingerprintStatsSummary {
+    pub events: u64,
+    pub ua_client_hint_mismatch: u64,
+    pub ua_transport_mismatch: u64,
+    pub temporal_transition: u64,
+    pub flow_violation: u64,
+    pub persistence_marker_missing: u64,
+    pub untrusted_transport_header: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct MonitoringBootstrapCdpSummary {
+    pub stats: MonitoringBootstrapCdpStatsSummary,
+    pub fingerprint_stats: MonitoringBootstrapFingerprintStatsSummary,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct MonitoringRecentEventsWindowSummary {
     pub hours: u64,
     pub requested_limit: usize,
@@ -118,6 +141,7 @@ pub(crate) struct MonitoringBootstrapHotReadPayload {
     pub summary: MonitoringSummary,
     pub component_metadata: BTreeMap<String, HotReadComponentMetadata>,
     pub analytics: MonitoringBootstrapAnalyticsSummary,
+    pub cdp: MonitoringBootstrapCdpSummary,
     pub retention_health: RetentionHealth,
     pub security_privacy: Value,
     pub security_mode: String,
@@ -474,7 +498,7 @@ mod tests {
     #[test]
     fn monitoring_bootstrap_contract_is_bounded_to_payload_budget() {
         let contract = monitoring_bootstrap_document_contract();
-        assert_eq!(contract.schema_version, "telemetry-hot-read-bootstrap.v5");
+        assert_eq!(contract.schema_version, "telemetry-hot-read-bootstrap.v6");
         assert_eq!(
             contract.ownership_tier,
             HotReadOwnershipTier::BootstrapCritical
