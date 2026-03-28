@@ -4,6 +4,40 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-28)
 
+### SIM-LLM-1C3 Recent-Run Projection And Operator Truth Closure
+
+- [x] Completed `SIM-LLM-1C3` across:
+  - [`../src/admin/adversary_sim.rs`](../src/admin/adversary_sim.rs)
+  - [`../src/admin/adversary_sim_api.rs`](../src/admin/adversary_sim_api.rs)
+  - [`../src/admin/adversary_sim_worker_plan.rs`](../src/admin/adversary_sim_worker_plan.rs)
+  - [`../src/admin/api.rs`](../src/admin/api.rs)
+  - [`../src/observability/hot_read_documents.rs`](../src/observability/hot_read_documents.rs)
+  - [`../src/observability/hot_read_projection.rs`](../src/observability/hot_read_projection.rs)
+  - [`../src/observability/non_human_lane_fulfillment.rs`](../src/observability/non_human_lane_fulfillment.rs)
+  - [`../src/observability/operator_snapshot.rs`](../src/observability/operator_snapshot.rs)
+  - [`../src/observability/operator_snapshot_live_traffic.rs`](../src/observability/operator_snapshot_live_traffic.rs)
+  - [`../dashboard/src/lib/components/dashboard/monitoring-view-model.js`](../dashboard/src/lib/components/dashboard/monitoring-view-model.js)
+  - [`../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte`](../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte)
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`../Makefile`](../Makefile)
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../docs/dashboard-tabs/red-team.md`](../docs/dashboard-tabs/red-team.md)
+  - [`../docs/adversarial-operator-guide.md`](../docs/adversarial-operator-guide.md)
+  - [`../docs/plans/2026-03-28-sim-llm-1c3-recent-run-projection-plan.md`](../docs/plans/2026-03-28-sim-llm-1c3-recent-run-projection-plan.md)
+  - [`../docs/research/2026-03-28-sim-llm-1c3-recent-run-projection-post-implementation-review.md`](../docs/research/2026-03-28-sim-llm-1c3-recent-run-projection-post-implementation-review.md)
+- [x] What landed:
+  - live `bot_red_team` runtime results now persist additive recent-run receipt truth instead of disappearing after control-state ingest,
+  - recent-run and operator-snapshot rows now project LLM fulfillment modes, categories, provider-vs-degraded runtime lineage, action counts, and bounded action receipts,
+  - and the existing `Recent Red Team Runs` panel now surfaces that truth without enabling the disabled `bot_red_team` lane control.
+- [x] Why:
+  - `SIM-LLM-1C1` and `SIM-LLM-1C2` had already made the later LLM attacker real at generation and dispatch time, but the actor was still mostly invisible in the shared recent-run proof path Shuma relies on operationally.
+- [x] Evidence:
+  - [`../docs/research/2026-03-28-sim-llm-1c3-recent-run-projection-post-implementation-review.md`](../docs/research/2026-03-28-sim-llm-1c3-recent-run-projection-post-implementation-review.md)
+  - `make test-adversarial-llm-runtime-projection`
+  - `make test`
+  - `git diff --check`
+
 ### RSI-GAME-ARCH-1L Persistent Iterative Loop Continuity
 
 - [x] Completed `RSI-GAME-ARCH-1L` across:

@@ -54,6 +54,43 @@
     const status = humanizeToken(record.overallStatus || '');
     return `${status} | ${satisfied} / ${required} surfaces`;
   };
+  const formatProviderLabel = (value) => {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (normalized === 'openai') return 'OpenAI';
+    if (normalized === 'xai') return 'xAI';
+    return humanizeToken(value);
+  };
+  const formatLaneLabel = (value) => {
+    const normalized = String(value || '').trim();
+    if (!normalized) return '-';
+    return humanizeToken(normalized);
+  };
+  const formatRuntimeSummary = (row = {}) => {
+    const summary = row?.llmRuntimeSummary && typeof row.llmRuntimeSummary === 'object'
+      ? row.llmRuntimeSummary
+      : null;
+    if (!summary) return '-';
+    const parts = [];
+    const generationSource = humanizeToken(summary.generationSource || '');
+    const providerLabel = formatProviderLabel(summary.provider || '');
+    const modelId = String(summary.modelId || '').trim();
+    const executed = formatCompactNumber(summary.executedActionCount || 0, '0');
+    const generated = formatCompactNumber(summary.generatedActionCount || 0, '0');
+    const terminalFailure = humanizeToken(summary.terminalFailure || '');
+    const fallbackReason = humanizeToken(summary.fallbackReason || '');
+    const outcome = summary.failedTickCount > 0 || summary.failureClass || summary.error || summary.terminalFailure
+      ? 'failed'
+      : 'passed';
+    if (generationSource) parts.push(generationSource);
+    if (providerLabel || modelId) {
+      parts.push([providerLabel, modelId].filter(Boolean).join(' '));
+    }
+    parts.push(`${executed} / ${generated} actions`);
+    parts.push(outcome);
+    if (terminalFailure) parts.push(terminalFailure);
+    else if (fallbackReason) parts.push(fallbackReason);
+    return parts.filter(Boolean).join(' | ');
+  };
 </script>
 
 <SectionBlock
@@ -81,6 +118,7 @@
           <th class="caps-label">Profile</th>
           <th class="caps-label">Modes</th>
           <th class="caps-label">Categories</th>
+          <th class="caps-label">Runtime</th>
           <th class="caps-label">Coverage</th>
           <th class="caps-label">Last Event</th>
           <th class="caps-label">Monitoring Deltas</th>
@@ -89,15 +127,16 @@
       </thead>
       <tbody>
         {#if runRows.length === 0}
-          <TableEmptyRow colspan={9}>No adversary runs</TableEmptyRow>
+          <TableEmptyRow colspan={10}>No adversary runs</TableEmptyRow>
         {:else}
           {#each runRows as row}
             <tr>
               <td><code>{row.runId}</code></td>
-              <td>{row.lane || '-'}</td>
+              <td>{formatLaneLabel(row.lane)}</td>
               <td>{row.profile || '-'}</td>
               <td>{formatTokenList(row.observedFulfillmentModes)}</td>
               <td>{formatTokenList(row.observedCategoryIds)}</td>
+              <td>{formatRuntimeSummary(row)}</td>
               <td>{formatCoverageSummary(row.ownedSurfaceCoverage)}</td>
               <td>{formatTime(row.lastTs)}</td>
               <td>

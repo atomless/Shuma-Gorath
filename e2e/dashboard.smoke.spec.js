@@ -4805,6 +4805,144 @@ test("red team tab surfaces receipt-backed scrapling attack evidence from recent
   await expect(page.locator("#red-team-scrapling-evidence")).toContainText("PoW Verify Abuse");
 });
 
+test("red team tab surfaces llm runtime lineage in recent adversary runs", async ({ page }) => {
+  const now = Math.floor(Date.now() / 1000);
+  const buildMonitoringPayload = () => ({
+    summary: {
+      honeypot: { total_hits: 0, unique_crawlers: 0, top_crawlers: [], top_paths: [] },
+      challenge: { total_failures: 0, unique_offenders: 0, top_offenders: [], reasons: {}, trend: [] },
+      pow: {
+        total_failures: 0,
+        total_successes: 0,
+        total_attempts: 0,
+        success_ratio: 0,
+        unique_offenders: 0,
+        top_offenders: [],
+        reasons: {},
+        outcomes: {},
+        trend: []
+      },
+      rate: { total_violations: 0, unique_offenders: 0, top_offenders: [], outcomes: {} },
+      geo: { total_violations: 0, actions: { block: 0, challenge: 0, maze: 0 }, top_countries: [] }
+    },
+    prometheus: { endpoint: "/metrics", notes: [] },
+    details: {
+      analytics: { ban_count: 0, shadow_mode: false, fail_mode: "open" },
+      events: {
+        recent_events: [],
+        recent_sim_runs: [
+          {
+            run_id: "simrun-llm-runtime",
+            lane: "bot_red_team",
+            profile: "llm_runtime_lane",
+            observed_fulfillment_modes: ["request_mode"],
+            observed_category_ids: ["ai_scraper_bot", "http_agent"],
+            first_ts: now - 20,
+            last_ts: now,
+            monitoring_event_count: 0,
+            defense_delta_count: 0,
+            ban_outcome_count: 0,
+            llm_runtime_summary: {
+              receipt_count: 1,
+              fulfillment_mode: "request_mode",
+              category_targets: ["http_agent", "ai_scraper_bot"],
+              backend_kind: "frontier_reference",
+              backend_state: "configured",
+              generation_source: "provider_response",
+              provider: "openai",
+              model_id: "gpt-5-mini",
+              fallback_reason: null,
+              generated_action_count: 2,
+              executed_action_count: 2,
+              failed_action_count: 0,
+              passed_tick_count: 1,
+              failed_tick_count: 0,
+              last_response_status: 404,
+              failure_class: null,
+              error: null,
+              terminal_failure: null,
+              latest_action_receipts: [
+                {
+                  action_index: 1,
+                  action_type: "http_get",
+                  path: "/",
+                  label: "root",
+                  status: 200,
+                  error: null
+                },
+                {
+                  action_index: 2,
+                  action_type: "http_get",
+                  path: "/robots.txt",
+                  label: "robots",
+                  status: 404,
+                  error: null
+                }
+              ]
+            }
+          }
+        ],
+        event_counts: {},
+        top_ips: [],
+        unique_ips: 0
+      },
+      bans: { bans: [] },
+      maze: { total_hits: 0, unique_crawlers: 0, maze_auto_bans: 0, top_crawlers: [] },
+      cdp: { stats: { total_detections: 0, auto_bans: 0 }, config: {}, fingerprint_stats: {} },
+      cdp_events: { events: [] }
+    }
+  });
+
+  await page.route("**/admin/monitoring?hours=*&limit=*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(buildMonitoringPayload())
+    });
+  });
+  await page.route("**/admin/monitoring/delta?hours=*&limit=*", async (route) => {
+    const url = new URL(route.request().url());
+    const afterCursor = (url.searchParams.get("after_cursor") || "").trim();
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        after_cursor: afterCursor,
+        window_end_cursor: "cursor-llm-runtime",
+        next_cursor: "cursor-llm-runtime",
+        has_more: false,
+        overflow: "none",
+        events: [],
+        recent_sim_runs: buildMonitoringPayload().details.events.recent_sim_runs,
+        freshness: { state: "fresh", lag_ms: 0, transport: "cursor_delta_poll" }
+      })
+    });
+  });
+  await page.route("**/admin/ip-bans*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [],
+        freshness: { state: "fresh", lag_ms: 0, transport: "cursor_delta_poll" }
+      })
+    });
+  });
+
+  await openDashboard(page);
+  await openTab(page, "red-team");
+
+  const row = page.locator("#adversary-runs tbody tr").first();
+  await expect(row).toContainText("simrun-llm-runtime");
+  await expect(row).toContainText("Bot Red Team");
+  await expect(row).toContainText("Request Mode");
+  await expect(row).toContainText("AI Scraper Bot, HTTP Agent");
+  await expect(row).toContainText("Provider Response");
+  await expect(row).toContainText("OpenAI");
+  await expect(row).toContainText("gpt-5-mini");
+  await expect(row).toContainText("2 / 2 actions");
+});
+
 test("manual refresh button appends new monitoring delta events when auto-refresh is off", async ({ page }) => {
   const now = Math.floor(Date.now() / 1000);
   const buildMonitoringPayload = (reason = "historical-baseline") => ({

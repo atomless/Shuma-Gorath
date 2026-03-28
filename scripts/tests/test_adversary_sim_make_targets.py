@@ -124,6 +124,25 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
         self.assertIn("test-adversary-sim-supervisor-unit", body)
         self.assertIn("scripts/tests/test_llm_runtime_worker.py", body)
 
+    def test_llm_runtime_projection_target_uses_recent_run_and_dashboard_selectors(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-adversarial-llm-runtime-projection:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn(
+            "recent_sim_run_history_projects_llm_runtime_receipts_and_categories",
+            body,
+        )
+        self.assertIn(
+            "snapshot_payload_projects_recent_run_llm_runtime_summary",
+            body,
+        )
+        self.assertIn("test-dashboard-red-team-truth-basis", body)
+
     def test_scrapling_category_fit_target_uses_bounded_selectors(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")
         match = re.search(

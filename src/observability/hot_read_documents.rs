@@ -12,6 +12,7 @@ use crate::observability::monitoring::MonitoringSummary;
 use crate::observability::operator_snapshot::OperatorSnapshotHotReadPayload;
 use crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageSummary;
 use crate::observability::retention::RetentionHealth;
+use crate::admin::adversary_sim::LlmRuntimeRecentRunSummary;
 
 const HOT_READ_PREFIX: &str = "telemetry:hot_read:v1";
 const HOT_READ_BOOTSTRAP_SCHEMA_VERSION: &str = "telemetry-hot-read-bootstrap.v6";
@@ -176,6 +177,8 @@ pub(crate) struct MonitoringRecentSimRunSummary {
     pub ban_outcome_count: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub owned_surface_coverage: Option<ScraplingOwnedSurfaceCoverageSummary>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub llm_runtime_summary: Option<LlmRuntimeRecentRunSummary>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

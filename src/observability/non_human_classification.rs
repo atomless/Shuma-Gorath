@@ -667,6 +667,7 @@ mod tests {
                 defense_delta_count: 1,
                 ban_outcome_count: 0,
                 owned_surface_coverage: None,
+                llm_runtime_summary: None,
             }],
         );
 
@@ -741,6 +742,7 @@ mod tests {
                 defense_delta_count: 2,
                 ban_outcome_count: 0,
                 owned_surface_coverage: None,
+                llm_runtime_summary: None,
             }],
         );
 

@@ -103,6 +103,8 @@ pub(super) struct EventLogRecord {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub scrapling_surface_receipts:
         Vec<crate::observability::scrapling_owned_surface::ScraplingSurfaceObservationReceipt>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub llm_runtime_summary: Option<crate::admin::adversary_sim::LlmRuntimeRecentRunSummary>,
     #[serde(flatten)]
     pub execution: EventExecutionMetadata,
 }
@@ -119,6 +121,7 @@ impl EventLogRecord {
             sim_lane: None,
             is_simulation: false,
             scrapling_surface_receipts: Vec::new(),
+            llm_runtime_summary: None,
             execution: EventExecutionMetadata::default(),
         }
     }
@@ -295,7 +298,7 @@ fn is_external_monitoring_event(record: &EventLogRecord) -> bool {
 }
 
 fn is_recent_sim_run_receipt_event(record: &EventLogRecord) -> bool {
-    !record.scrapling_surface_receipts.is_empty()
+    (!record.scrapling_surface_receipts.is_empty() || record.llm_runtime_summary.is_some())
         && record
             .sim_run_id
             .as_deref()
@@ -625,6 +628,41 @@ fn telemetry_field_classification_schema() -> serde_json::Value {
         },
         {
             "field": "event.scrapling_surface_receipts.sample_response_status",
+            "class": "internal",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.llm_runtime_summary.fulfillment_mode",
+            "class": "internal",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.llm_runtime_summary.category_targets",
+            "class": "internal",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.llm_runtime_summary.generation_source",
+            "class": "internal",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.llm_runtime_summary.provider",
+            "class": "internal",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.llm_runtime_summary.model_id",
+            "class": "internal",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.llm_runtime_summary.latest_action_receipts.path",
+            "class": "internal",
+            "persistence": "allow"
+        },
+        {
+            "field": "event.llm_runtime_summary.latest_action_receipts.status",
             "class": "internal",
             "persistence": "allow"
         },
@@ -1601,6 +1639,7 @@ mod tests {
                 sim_profile: Some("scrapling_runtime_lane.http_agent".to_string()),
                 sim_lane: Some("scrapling_traffic".to_string()),
                 is_simulation: true,
+                llm_runtime_summary: None,
                 execution: EventExecutionMetadata::default(),
                 scrapling_surface_receipts: vec![
                     crate::observability::scrapling_owned_surface::ScraplingSurfaceObservationReceipt {
@@ -1729,6 +1768,106 @@ mod tests {
                 "indexing_bot".to_string()
             ]
         );
+    }
+
+    #[test]
+    fn recent_sim_run_history_projects_llm_runtime_receipts_and_categories() {
+        let store = MockStore::new();
+        let now = now_ts();
+        let run_started_at = now.saturating_sub(90);
+
+        persist_event_record(
+            &store,
+            EventLogRecord {
+                entry: EventLogEntry {
+                    ts: run_started_at,
+                    event: EventType::AdminAction,
+                    ip: None,
+                    reason: Some("llm_runtime_receipt".to_string()),
+                    outcome: Some("request_mode provider_response".to_string()),
+                    admin: Some("internal".to_string()),
+                },
+                taxonomy: None,
+                outcome_code: None,
+                botness_score: None,
+                sim_run_id: Some("simrun-llm-runtime-proof".to_string()),
+                sim_profile: Some("llm_runtime_lane.request_mode".to_string()),
+                sim_lane: Some("bot_red_team".to_string()),
+                is_simulation: true,
+                scrapling_surface_receipts: Vec::new(),
+                llm_runtime_summary: Some(
+                    crate::admin::adversary_sim::LlmRuntimeRecentRunSummary {
+                        receipt_count: 1,
+                        fulfillment_mode: "request_mode".to_string(),
+                        category_targets: vec![
+                            "http_agent".to_string(),
+                            "ai_scraper_bot".to_string(),
+                        ],
+                        backend_kind: "frontier_reference".to_string(),
+                        backend_state: "configured".to_string(),
+                        generation_source: "provider_response".to_string(),
+                        provider: "openai".to_string(),
+                        model_id: "gpt-5-mini".to_string(),
+                        fallback_reason: None,
+                        generated_action_count: 2,
+                        executed_action_count: 2,
+                        failed_action_count: 0,
+                        passed_tick_count: 1,
+                        failed_tick_count: 0,
+                        last_response_status: Some(200),
+                        failure_class: None,
+                        error: None,
+                        terminal_failure: None,
+                        latest_action_receipts: vec![
+                            crate::admin::adversary_sim_worker_plan::LlmRuntimeActionReceipt {
+                                action_index: 1,
+                                action_type: "http_get".to_string(),
+                                path: "/".to_string(),
+                                label: Some("root".to_string()),
+                                status: Some(200),
+                                error: None,
+                            },
+                            crate::admin::adversary_sim_worker_plan::LlmRuntimeActionReceipt {
+                                action_index: 2,
+                                action_type: "http_get".to_string(),
+                                path: "/robots.txt".to_string(),
+                                label: Some("robots".to_string()),
+                                status: Some(404),
+                                error: None,
+                            },
+                        ],
+                    },
+                ),
+                execution: EventExecutionMetadata::default(),
+            },
+        );
+
+        let recent_runs = monitoring_recent_sim_run_summaries(&store, now, 24, 10);
+        let row = recent_runs
+            .iter()
+            .find(|value| value.run_id == "simrun-llm-runtime-proof")
+            .expect("llm runtime row");
+        assert_eq!(row.lane, "bot_red_team");
+        assert_eq!(row.profile, "llm_runtime_lane");
+        assert_eq!(row.observed_fulfillment_modes, vec!["request_mode".to_string()]);
+        assert_eq!(
+            row.observed_category_ids,
+            vec!["ai_scraper_bot".to_string(), "http_agent".to_string()]
+        );
+        assert!(row.owned_surface_coverage.is_none());
+        let llm_runtime_summary = row
+            .llm_runtime_summary
+            .as_ref()
+            .expect("llm runtime summary");
+        assert_eq!(llm_runtime_summary.backend_kind, "frontier_reference");
+        assert_eq!(llm_runtime_summary.generation_source, "provider_response");
+        assert_eq!(llm_runtime_summary.provider, "openai");
+        assert_eq!(llm_runtime_summary.model_id, "gpt-5-mini");
+        assert_eq!(llm_runtime_summary.generated_action_count, 2);
+        assert_eq!(llm_runtime_summary.executed_action_count, 2);
+        assert_eq!(llm_runtime_summary.failed_action_count, 0);
+        assert_eq!(llm_runtime_summary.passed_tick_count, 1);
+        assert_eq!(llm_runtime_summary.latest_action_receipts.len(), 2);
     }
 
     #[test]
@@ -1904,6 +2043,7 @@ mod tests {
             sim_lane: Some("deterministic_black_box".to_string()),
             is_simulation: true,
             scrapling_surface_receipts: Vec::new(),
+            llm_runtime_summary: None,
             execution: EventExecutionMetadata::default(),
         };
 
@@ -14185,6 +14325,7 @@ struct MonitoringRecentSimRunAccumulator {
     ban_outcome_count: u64,
     surface_observations:
         Vec<crate::observability::scrapling_owned_surface::ScraplingSurfaceObservationReceipt>,
+    llm_runtime_summary: Option<crate::admin::adversary_sim::LlmRuntimeRecentRunSummary>,
 }
 
 fn normalize_monitoring_event_token(value: Option<&str>) -> String {
@@ -14309,6 +14450,7 @@ pub(crate) fn monitoring_recent_sim_run_summaries<S: crate::challenge::KeyValueS
             crate::observability::non_human_lane_fulfillment::observed_category_targets_for_runtime_profile(
                 lane.as_str(),
                 profile.as_str(),
+                stored.record.llm_runtime_summary.as_ref(),
             );
         let defense = classify_monitoring_sim_run_defense(&stored.record);
         let accumulator =
@@ -14326,6 +14468,7 @@ pub(crate) fn monitoring_recent_sim_run_summaries<S: crate::challenge::KeyValueS
                     defense_keys: HashSet::new(),
                     ban_outcome_count: 0,
                     surface_observations: Vec::new(),
+                    llm_runtime_summary: None,
                 });
         if ts > 0 {
             accumulator.first_ts = if accumulator.first_ts == 0 {
@@ -14360,6 +14503,12 @@ pub(crate) fn monitoring_recent_sim_run_summaries<S: crate::challenge::KeyValueS
         accumulator
             .surface_observations
             .extend(stored.record.scrapling_surface_receipts.iter().cloned());
+        if let Some(summary) = stored.record.llm_runtime_summary.as_ref() {
+            match accumulator.llm_runtime_summary.as_mut() {
+                Some(existing) => existing.merge_summary(summary),
+                None => accumulator.llm_runtime_summary = Some(summary.clone()),
+            }
+        }
     }
 
     let mut rows: Vec<_> = grouped
@@ -14388,6 +14537,7 @@ pub(crate) fn monitoring_recent_sim_run_summaries<S: crate::challenge::KeyValueS
                     defense_delta_count: row.defense_keys.len() as u64,
                     ban_outcome_count: row.ban_outcome_count,
                     owned_surface_coverage,
+                    llm_runtime_summary: row.llm_runtime_summary,
                 }
             },
         )

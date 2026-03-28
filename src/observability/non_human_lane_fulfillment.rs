@@ -16,6 +16,7 @@ const SCRAPLING_OWNED_CATEGORY_TARGETS: [&str; 4] = [
     "http_agent",
 ];
 const SCRAPLING_RUNTIME_PROFILE_PREFIX: &str = "scrapling_runtime_lane";
+const LLM_RUNTIME_PROFILE_PREFIX: &str = "llm_runtime_lane";
 const SCRAPLING_CRAWLER_CATEGORY_TARGETS: [&str; 1] = ["indexing_bot"];
 const SCRAPLING_BULK_SCRAPER_CATEGORY_TARGETS: [&str; 1] = ["ai_scraper_bot"];
 const SCRAPLING_BROWSER_AUTOMATION_CATEGORY_TARGETS: [&str; 1] = ["automated_browser"];
@@ -94,8 +95,12 @@ pub(crate) fn llm_category_targets_for_mode(mode: &str) -> Vec<String> {
 pub(crate) fn observed_category_targets_for_runtime_profile(
     runtime_lane: &str,
     sim_profile: &str,
+    llm_runtime_summary: Option<&crate::admin::adversary_sim::LlmRuntimeRecentRunSummary>,
 ) -> (String, Vec<String>, Vec<String>) {
     let normalized_profile = sim_profile.trim();
+    if runtime_lane == "bot_red_team" {
+        return observed_llm_targets_for_runtime_profile(normalized_profile, llm_runtime_summary);
+    }
     if runtime_lane != "scrapling_traffic" || normalized_profile.is_empty() {
         return (normalized_profile.to_string(), Vec::new(), Vec::new());
     }
@@ -131,6 +136,68 @@ pub(crate) fn observed_category_targets_for_runtime_profile(
         observed_modes,
         observed_category_ids,
     )
+}
+
+fn observed_llm_targets_for_runtime_profile(
+    normalized_profile: &str,
+    llm_runtime_summary: Option<&crate::admin::adversary_sim::LlmRuntimeRecentRunSummary>,
+) -> (String, Vec<String>, Vec<String>) {
+    let mut observed_modes = Vec::new();
+    let mut observed_category_ids = Vec::new();
+
+    if let Some(summary) = llm_runtime_summary {
+        let mode = summary.fulfillment_mode.trim();
+        if !mode.is_empty() {
+            observed_modes.push(mode.to_string());
+        }
+        for category_id in &summary.category_targets {
+            let category_id = category_id.trim();
+            if !category_id.is_empty()
+                && !observed_category_ids.iter().any(|value| value == category_id)
+            {
+                observed_category_ids.push(category_id.to_string());
+            }
+        }
+    }
+
+    if observed_modes.is_empty() {
+        if normalized_profile == LLM_RUNTIME_PROFILE_PREFIX {
+            return (
+                LLM_RUNTIME_PROFILE_PREFIX.to_string(),
+                observed_modes,
+                observed_category_ids,
+            );
+        }
+        if let Some(mode) = normalized_profile
+            .strip_prefix(LLM_RUNTIME_PROFILE_PREFIX)
+            .and_then(|value| value.strip_prefix('.'))
+        {
+            let mode = mode.trim();
+            if !mode.is_empty() {
+                observed_modes.push(mode.to_string());
+            }
+        }
+    }
+
+    if observed_category_ids.is_empty() {
+        for mode in &observed_modes {
+            for category_id in llm_category_targets_for_mode(mode) {
+                if !observed_category_ids.iter().any(|value| value == &category_id) {
+                    observed_category_ids.push(category_id);
+                }
+            }
+        }
+    }
+
+    let normalized = if normalized_profile.starts_with(LLM_RUNTIME_PROFILE_PREFIX) {
+        LLM_RUNTIME_PROFILE_PREFIX.to_string()
+    } else if normalized_profile.is_empty() {
+        LLM_RUNTIME_PROFILE_PREFIX.to_string()
+    } else {
+        normalized_profile.to_string()
+    };
+
+    (normalized, observed_modes, observed_category_ids)
 }
 
 pub(crate) fn canonical_non_human_lane_fulfillment() -> NonHumanLaneFulfillmentSummary {
@@ -327,6 +394,7 @@ mod tests {
         let (profile, modes, categories) = observed_category_targets_for_runtime_profile(
             "scrapling_traffic",
             "scrapling_runtime_lane.crawler.bulk_scraper.browser_automation.stealth_browser.http_agent",
+            None,
         );
         assert_eq!(profile, "scrapling_runtime_lane");
         assert_eq!(
@@ -353,9 +421,46 @@ mod tests {
             observed_category_targets_for_runtime_profile(
                 "deterministic_black_box",
                 "fast_smoke",
+                None,
             );
         assert_eq!(unchanged_profile, "fast_smoke");
         assert!(unchanged_modes.is_empty());
         assert!(unchanged_categories.is_empty());
+    }
+
+    #[test]
+    fn runtime_profile_observation_helper_projects_llm_modes_into_categories() {
+        let summary = crate::admin::adversary_sim::LlmRuntimeRecentRunSummary {
+            receipt_count: 1,
+            fulfillment_mode: "request_mode".to_string(),
+            category_targets: vec!["http_agent".to_string(), "ai_scraper_bot".to_string()],
+            backend_kind: "frontier_reference".to_string(),
+            backend_state: "configured".to_string(),
+            generation_source: "provider_response".to_string(),
+            provider: "openai".to_string(),
+            model_id: "gpt-5-mini".to_string(),
+            fallback_reason: None,
+            generated_action_count: 2,
+            executed_action_count: 2,
+            failed_action_count: 0,
+            passed_tick_count: 1,
+            failed_tick_count: 0,
+            last_response_status: Some(200),
+            failure_class: None,
+            error: None,
+            terminal_failure: None,
+            latest_action_receipts: vec![],
+        };
+        let (profile, modes, categories) = observed_category_targets_for_runtime_profile(
+            "bot_red_team",
+            "llm_runtime_lane.request_mode",
+            Some(&summary),
+        );
+        assert_eq!(profile, "llm_runtime_lane");
+        assert_eq!(modes, vec!["request_mode".to_string()]);
+        assert_eq!(
+            categories,
+            vec!["http_agent".to_string(), "ai_scraper_bot".to_string()]
+        );
     }
 }

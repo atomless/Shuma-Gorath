@@ -673,6 +673,7 @@ mod tests {
                 defense_delta_count: 2,
                 ban_outcome_count: 0,
                 owned_surface_coverage: None,
+                llm_runtime_summary: None,
             }],
             OperatorSnapshotRecentChanges {
                 lookback_seconds: watch_window_hours.saturating_mul(3).saturating_mul(3600),
@@ -831,6 +832,7 @@ mod tests {
                 defense_delta_count: 2,
                 ban_outcome_count: 0,
                 owned_surface_coverage: None,
+                llm_runtime_summary: None,
             }],
             OperatorSnapshotRecentChanges::default(),
             1_700_000_050,
@@ -1064,6 +1066,7 @@ mod tests {
                         ],
                     },
                 ),
+                llm_runtime_summary: None,
             }],
             OperatorSnapshotRecentChanges::default(),
             1_700_000_060,
@@ -1084,6 +1087,88 @@ mod tests {
         assert_eq!(owned_surface_coverage.overall_status, "covered");
         assert_eq!(owned_surface_coverage.required_surface_ids.len(), 5);
         assert!(owned_surface_coverage.blocking_surface_ids.is_empty());
+    }
+
+    #[test]
+    fn snapshot_payload_projects_recent_run_llm_runtime_summary() {
+        let store = TestStore::new();
+        let summary = summarize_with_store(&store, 24, 10);
+        let payload = build_operator_snapshot_payload(
+            &store,
+            "default",
+            1_700_000_060,
+            &summary,
+            &[OperatorSnapshotRecentSimRun {
+                run_id: "simrun-llm-runtime".to_string(),
+                lane: "bot_red_team".to_string(),
+                profile: "llm_runtime_lane".to_string(),
+                observed_fulfillment_modes: vec!["request_mode".to_string()],
+                observed_category_ids: vec![
+                    "ai_scraper_bot".to_string(),
+                    "http_agent".to_string(),
+                ],
+                first_ts: 1_700_000_000,
+                last_ts: 1_700_000_040,
+                monitoring_event_count: 0,
+                defense_delta_count: 0,
+                ban_outcome_count: 0,
+                owned_surface_coverage: None,
+                llm_runtime_summary: Some(
+                    crate::admin::adversary_sim::LlmRuntimeRecentRunSummary {
+                        receipt_count: 1,
+                        fulfillment_mode: "request_mode".to_string(),
+                        category_targets: vec![
+                            "http_agent".to_string(),
+                            "ai_scraper_bot".to_string(),
+                        ],
+                        backend_kind: "frontier_reference".to_string(),
+                        backend_state: "configured".to_string(),
+                        generation_source: "provider_response".to_string(),
+                        provider: "openai".to_string(),
+                        model_id: "gpt-5-mini".to_string(),
+                        fallback_reason: None,
+                        generated_action_count: 2,
+                        executed_action_count: 2,
+                        failed_action_count: 0,
+                        passed_tick_count: 1,
+                        failed_tick_count: 0,
+                        last_response_status: Some(200),
+                        failure_class: None,
+                        error: None,
+                        terminal_failure: None,
+                        latest_action_receipts: vec![
+                            crate::admin::adversary_sim_worker_plan::LlmRuntimeActionReceipt {
+                                action_index: 1,
+                                action_type: "http_get".to_string(),
+                                path: "/".to_string(),
+                                label: Some("root".to_string()),
+                                status: Some(200),
+                                error: None,
+                            },
+                        ],
+                    },
+                ),
+            }],
+            OperatorSnapshotRecentChanges::default(),
+            1_700_000_060,
+            1_700_000_060,
+            1_700_000_060,
+        );
+
+        let recent_run = payload
+            .adversary_sim
+            .recent_runs
+            .iter()
+            .find(|row| row.run_id == "simrun-llm-runtime")
+            .expect("recent llm runtime row");
+        let llm_runtime_summary = recent_run
+            .llm_runtime_summary
+            .as_ref()
+            .expect("llm runtime summary");
+        assert_eq!(llm_runtime_summary.generation_source, "provider_response");
+        assert_eq!(llm_runtime_summary.provider, "openai");
+        assert_eq!(llm_runtime_summary.model_id, "gpt-5-mini");
+        assert_eq!(llm_runtime_summary.latest_action_receipts.len(), 1);
     }
 
     #[test]

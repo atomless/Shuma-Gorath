@@ -137,9 +137,9 @@ Current note:
 - `RSI-GAME-ARCH-1L` is now landed: terminal `improved` and `rollback_applied` judgments that remain outside budget persist one fresh bounded Scrapling continuation rerun request, adversary-sim supervisor auto-materializes that rerun, only the later post-rerun oversight judgment may open the next bounded canary, and the shared-host loop now advances as `judge -> rerun -> judge -> next bounded move` until an explicit stop condition is reached.
 - The board-state doctrine now has explicit follow-on planning for a later frontier-LLM code-evolution ring and a later real-human friction calibration ring, but both remain blocked from execution.
 - Before further mainline completion claims, the repo now requires explicit acceptance-gate discipline. Do not describe `STANCE-MODEL-1`, `SIM-SCR-FULL-1`, `RSI-GAME-HO-1`, or `RSI-GAME-HO-2` as complete from planning progress, baseline capability, or dashboard pressure signals alone.
-- The next attacker-runtime mainline remains `SIM-LLM-1C3`, but only after the current Scrapling-first Game Loop rigor repairs land and the Scrapling loop stops depending on vague or missing truth.
+- `SIM-LLM-1C3` is now landed: the later LLM attacker no longer disappears after runtime ingest, and recent-run or operator surfaces now project truthful additive `bot_red_team` runtime lineage without enabling the lane in controls.
 - Do not open `humans_plus_verified_only` until a later second strict-baseline proof has shown retained config-change improvement under both Scrapling and LLM attacker pressure.
-- `DIAG-CLEANUP-1` and `MON-OVERHAUL-1C` are now both landed, so the deferred Game Loop and Diagnostics follow-on queue is currently clear while the later combined-attacker strict-baseline proof still stays blocked behind `SIM-LLM-1C3`.
+- `DIAG-CLEANUP-1`, `MON-OVERHAUL-1C`, and `SIM-LLM-1C3` are now all landed, so the later combined-attacker strict-baseline proof is no longer blocked by missing LLM runtime visibility; the remaining blocker is the current Scrapling-first Game Loop rigor and board-state cleanup.
 
 - [ ] RSI-GAME-ARCH-1E Retire replaced category-first Game Loop surfaces only after full-path replacement proof.
   - Reference context:
@@ -173,21 +173,6 @@ Current note:
     - later rings: the planning chain for frontier-LLM code suggestions and real-human friction calibration must be explicit and bounded rather than implied
     - proof: follow the named substep proofs in `docs/plans/2026-03-27-game-loop-board-state-refactor-plan.md`; documentation alignment is sufficient for the planning-only substeps, while runtime or dashboard substeps must name focused `make` proofs
     - insufficient: aggregate-only pressure readouts with no named breach locus, simulator-side convenience labels in scoring, category posture still acting as the main undeclared-traffic restriction score, repeated near-equivalent failed config moves with no explicit memory, or vague later references to code evolution or human friction with no bounded contract
-
-- [ ] SIM-LLM-1C3 Close the runtime proof chain and recent-run projection for the live `bot_red_team` actor.
-  - Reference context:
-    - [`docs/research/2026-03-25-sim-llm-1c-runtime-readiness-review.md`](../docs/research/2026-03-25-sim-llm-1c-runtime-readiness-review.md)
-    - [`docs/research/2026-03-25-sim-llm-1c1-live-frontier-action-generation-post-implementation-review.md`](../docs/research/2026-03-25-sim-llm-1c1-live-frontier-action-generation-post-implementation-review.md)
-    - [`docs/research/2026-03-25-sim-llm-1c2-runtime-dispatch-and-ingest-post-implementation-review.md`](../docs/research/2026-03-25-sim-llm-1c2-runtime-dispatch-and-ingest-post-implementation-review.md)
-    - [`docs/plans/2026-03-25-sim-llm-1c-runtime-decomposition-plan.md`](../docs/plans/2026-03-25-sim-llm-1c-runtime-decomposition-plan.md)
-    - [`docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](../docs/plans/2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md)
-    - [`docs/plans/2026-03-25-delay-humans-plus-verified-until-combined-attacker-proof-plan.md`](../docs/plans/2026-03-25-delay-humans-plus-verified-until-combined-attacker-proof-plan.md)
-  - Closure gate:
-    - runtime/sim: `bot_red_team` can execute bounded live runtime work through the normal adversary-sim beat path with typed receipts rather than stopping at dispatch-only or placeholder state
-    - API/snapshot: recent-run and machine-first surfaces truthfully project the live LLM runtime receipts and lineage end to end rather than leaving the actor invisible after execution
-    - dashboard/admin: operator surfaces can see truthful recent LLM-lane activity without overstating maturity from lane presence alone, and the lane no longer reads as effectively disabled once the proof chain is closed
-    - proof: focused `make` paths must pass for runtime receipt projection, recent-run visibility, and rendered operator proof
-    - insufficient: supervisor dispatch without recent-run visibility, typed ingest without operator projection, or a lane that still appears placeholder-only after execution
 
 ## P1 Verified Bot Identity And Web Bot Auth Foundation
 

@@ -6112,13 +6112,22 @@ mod tests {
     fn guarded_dimension_cardinality_caps_to_other_bucket() {
         let store = MockStore::default();
         let hour = now_ts() / 3600;
+        let alphabetic_suffix = |mut idx: u64| {
+            let mut chars = ['a'; 4];
+            for position in (0..chars.len()).rev() {
+                chars[position] = (b'a' + (idx % 26) as u8) as char;
+                idx /= 26;
+            }
+            chars.into_iter().collect::<String>()
+        };
 
         for idx in 0..(GUARDED_DIMENSION_CARDINALITY_CAP_PER_HOUR + 2) {
-            // Use path as the guarded high-cardinality dimension under test.
+            // Use alphabetic path segments so normalization keeps the generated
+            // cardinality pressure instead of collapsing numeric ids to a shared bucket.
             record_honeypot_hit(
                 &store,
                 "198.51.100.42",
-                format!("/overflow-check/p{}", idx).as_str(),
+                format!("/overflow-check/segment-{}", alphabetic_suffix(idx)).as_str(),
             );
         }
 

@@ -793,6 +793,9 @@ const shapeAdversaryRunRows = (rows = [], activeBans = []) => {
       const ownedSurfaceCoverage = row?.ownedSurfaceCoverage && typeof row.ownedSurfaceCoverage === 'object'
         ? row.ownedSurfaceCoverage
         : null;
+      const llmRuntimeSummary = row?.llmRuntimeSummary && typeof row.llmRuntimeSummary === 'object'
+        ? row.llmRuntimeSummary
+        : null;
       return {
         runId: row.runId,
         lane: row.lane,
@@ -805,6 +808,7 @@ const shapeAdversaryRunRows = (rows = [], activeBans = []) => {
         observedFulfillmentModes,
         observedCategoryIds,
         ownedSurfaceCoverage,
+        llmRuntimeSummary,
         banOutcomeCount: row.banOutcomeCount,
         monitoringHref: '#game-loop',
         ipBansHref: '#ip-bans'
@@ -1061,6 +1065,55 @@ const shapeOwnedSurfaceCoverage = (coverage = {}) => {
   };
 };
 
+const shapeLlmRuntimeActionReceipt = (receipt = {}) => {
+  const source = receipt && typeof receipt === 'object' ? receipt : {};
+  return {
+    actionIndex: Number(source.actionIndex || source.action_index || 0),
+    actionType: String(source.actionType || source.action_type || '').trim(),
+    path: String(source.path || '').trim(),
+    label: String(source.label || '').trim(),
+    status:
+      source.status === null || source.status === undefined || source.status === ''
+        ? null
+        : Number(source.status || 0),
+    error: String(source.error || '').trim()
+  };
+};
+
+const shapeLlmRuntimeSummary = (summary = {}) => {
+  const source = summary && typeof summary === 'object' ? summary : {};
+  const hasAnyValue = Object.keys(source).length > 0;
+  if (!hasAnyValue) return null;
+  return {
+    receiptCount: Number(source.receiptCount || source.receipt_count || 0),
+    fulfillmentMode: String(source.fulfillmentMode || source.fulfillment_mode || '').trim(),
+    categoryTargets: toSummaryStringArray(source.categoryTargets || source.category_targets),
+    backendKind: String(source.backendKind || source.backend_kind || '').trim(),
+    backendState: String(source.backendState || source.backend_state || '').trim(),
+    generationSource: String(source.generationSource || source.generation_source || '').trim(),
+    provider: String(source.provider || '').trim(),
+    modelId: String(source.modelId || source.model_id || '').trim(),
+    fallbackReason: String(source.fallbackReason || source.fallback_reason || '').trim(),
+    generatedActionCount: Number(source.generatedActionCount || source.generated_action_count || 0),
+    executedActionCount: Number(source.executedActionCount || source.executed_action_count || 0),
+    failedActionCount: Number(source.failedActionCount || source.failed_action_count || 0),
+    passedTickCount: Number(source.passedTickCount || source.passed_tick_count || 0),
+    failedTickCount: Number(source.failedTickCount || source.failed_tick_count || 0),
+    lastResponseStatus:
+      source.lastResponseStatus === null || source.lastResponseStatus === undefined || source.lastResponseStatus === ''
+        ? null
+        : Number(source.lastResponseStatus || source.last_response_status || 0),
+    failureClass: String(source.failureClass || source.failure_class || '').trim(),
+    error: String(source.error || '').trim(),
+    terminalFailure: String(source.terminalFailure || source.terminal_failure || '').trim(),
+    latestActionReceipts: (Array.isArray(source.latestActionReceipts || source.latest_action_receipts)
+      ? source.latestActionReceipts || source.latest_action_receipts
+      : [])
+      .map((receipt) => shapeLlmRuntimeActionReceipt(receipt))
+      .filter((receipt) => receipt.actionIndex > 0 || receipt.actionType || receipt.path)
+  };
+};
+
 export const deriveAdversaryRunRowsFromSummaries = (summaries = [], bans = []) => {
   const rows = Array.isArray(summaries) ? summaries : [];
   const shapedRows = rows
@@ -1081,6 +1134,9 @@ export const deriveAdversaryRunRowsFromSummaries = (summaries = [], bans = []) =
       ),
       ownedSurfaceCoverage: shapeOwnedSurfaceCoverage(
         summary?.ownedSurfaceCoverage || summary?.owned_surface_coverage
+      ),
+      llmRuntimeSummary: shapeLlmRuntimeSummary(
+        summary?.llmRuntimeSummary || summary?.llm_runtime_summary
       ),
       banOutcomeCount: Number(summary?.ban_outcome_count || 0)
     }))

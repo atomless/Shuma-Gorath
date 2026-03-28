@@ -3593,6 +3593,48 @@ test('monitoring view model and status module remain pure snapshot transforms', 
         }
       },
       {
+        run_id: 'run-summary-llm',
+        lane: 'bot_red_team',
+        profile: 'llm_runtime_lane',
+        first_ts: 1710000300,
+        last_ts: 1710000400,
+        monitoring_event_count: 0,
+        defense_delta_count: 0,
+        ban_outcome_count: 0,
+        observed_fulfillment_modes: ['request_mode'],
+        observed_category_ids: ['ai_scraper_bot', 'http_agent'],
+        llm_runtime_summary: {
+          receipt_count: 1,
+          fulfillment_mode: 'request_mode',
+          category_targets: ['http_agent', 'ai_scraper_bot'],
+          backend_kind: 'frontier_reference',
+          backend_state: 'configured',
+          generation_source: 'provider_response',
+          provider: 'openai',
+          model_id: 'gpt-5-mini',
+          fallback_reason: null,
+          generated_action_count: 2,
+          executed_action_count: 2,
+          failed_action_count: 0,
+          passed_tick_count: 1,
+          failed_tick_count: 0,
+          last_response_status: 404,
+          failure_class: null,
+          error: null,
+          terminal_failure: null,
+          latest_action_receipts: [
+            {
+              action_index: 1,
+              action_type: 'http_get',
+              path: '/',
+              label: 'root',
+              status: 200,
+              error: null
+            }
+          ]
+        }
+      },
+      {
         run_id: 'run-summary-1',
         lane: 'browser_realistic',
         profile: 'full_coverage',
@@ -3607,23 +3649,48 @@ test('monitoring view model and status module remain pure snapshot transforms', 
     ]);
     assert.deepEqual(
       summarizedRuns.runRows.map((row) => row.runId),
-      ['run-summary-2', 'run-summary-1']
+      ['run-summary-llm', 'run-summary-2', 'run-summary-1']
     );
-    assert.equal(summarizedRuns.runRows[0].defenseDeltaCount, 2);
+    assert.equal(summarizedRuns.runRows[0].lane, 'bot_red_team');
     assert.deepEqual(
       summarizedRuns.runRows[0].observedFulfillmentModes,
-      ['bulk_scraper', 'http_agent']
+      ['request_mode']
     );
     assert.deepEqual(
       summarizedRuns.runRows[0].observedCategoryIds,
       ['ai_scraper_bot', 'http_agent']
     );
     assert.equal(
-      summarizedRuns.runRows[0].ownedSurfaceCoverage?.overallStatus,
+      summarizedRuns.runRows[0].llmRuntimeSummary?.generationSource,
+      'provider_response'
+    );
+    assert.equal(
+      summarizedRuns.runRows[0].llmRuntimeSummary?.provider,
+      'openai'
+    );
+    assert.equal(
+      summarizedRuns.runRows[0].llmRuntimeSummary?.modelId,
+      'gpt-5-mini'
+    );
+    assert.equal(
+      summarizedRuns.runRows[0].llmRuntimeSummary?.latestActionReceipts?.[0]?.actionType,
+      'http_get'
+    );
+    assert.equal(summarizedRuns.runRows[1].defenseDeltaCount, 2);
+    assert.deepEqual(
+      summarizedRuns.runRows[1].observedFulfillmentModes,
+      ['bulk_scraper', 'http_agent']
+    );
+    assert.deepEqual(
+      summarizedRuns.runRows[1].observedCategoryIds,
+      ['ai_scraper_bot', 'http_agent']
+    );
+    assert.equal(
+      summarizedRuns.runRows[1].ownedSurfaceCoverage?.overallStatus,
       'partial'
     );
     assert.deepEqual(
-      summarizedRuns.runRows[0].ownedSurfaceCoverage?.canonicalSurfaceIds,
+      summarizedRuns.runRows[1].ownedSurfaceCoverage?.canonicalSurfaceIds,
       [
         'public_path_traversal',
         'challenge_routing',
@@ -3641,11 +3708,11 @@ test('monitoring view model and status module remain pure snapshot transforms', 
       ]
     );
     assert.equal(
-      summarizedRuns.runRows[0].ownedSurfaceCoverage?.surfaceLabels?.browser_automation_detection,
+      summarizedRuns.runRows[1].ownedSurfaceCoverage?.surfaceLabels?.browser_automation_detection,
       'Browser CDP Automation Detection'
     );
     assert.deepEqual(
-      summarizedRuns.runRows[0].ownedSurfaceCoverage?.surfaceChecklistRows,
+      summarizedRuns.runRows[1].ownedSurfaceCoverage?.surfaceChecklistRows,
       [
         {
           surfaceId: 'public_path_traversal',
@@ -3730,11 +3797,11 @@ test('monitoring view model and status module remain pure snapshot transforms', 
       ]
     );
     assert.equal(
-      summarizedRuns.runRows[0].ownedSurfaceCoverage?.receipts?.[0]?.surfaceId,
+      summarizedRuns.runRows[1].ownedSurfaceCoverage?.receipts?.[0]?.surfaceId,
       'challenge_routing'
     );
     assert.equal(
-      summarizedRuns.runRows[0].ownedSurfaceCoverage?.receipts?.[0]?.surfaceLabel,
+      summarizedRuns.runRows[1].ownedSurfaceCoverage?.receipts?.[0]?.surfaceLabel,
       'Challenge Routing'
     );
     assert.equal(summarizedRuns.activeBanCount, 1);
@@ -6296,6 +6363,19 @@ test('red team tab renders the recent adversary runs panel with red-team-specifi
   assert.match(source, /id="adversary-sim-persisted-event-evidence"/);
   assert.match(source, /Recovered lower-bound evidence from persisted monitoring events\./);
   assert.match(source, /Direct runtime control counters\./);
+});
+
+test('adversary run panel reserves a runtime column for additive llm runtime truth', () => {
+  const source = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte'),
+    'utf8'
+  );
+
+  assert.match(source, /<th class="caps-label">Runtime<\/th>/);
+  assert.match(source, /const formatLaneLabel = \(value\) => \{/);
+  assert.match(source, /\{formatLaneLabel\(row\.lane\)\}/);
+  assert.match(source, /const formatRuntimeSummary = \(row = \{\}\) => \{/);
+  assert.match(source, /\{formatRuntimeSummary\(row\)\}/);
 });
 
 test('primary charts reuse the shared half doughnut shell for event-type readouts', () => {

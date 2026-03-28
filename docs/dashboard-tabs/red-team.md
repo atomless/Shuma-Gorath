@@ -19,6 +19,11 @@ Panel:
 - `Recent Red Team Runs`:
   - recent adversary simulation run identifiers derived from a compact monitoring-backed run-history summary,
   - observed fulfillment modes, category coverage, and defense-surface closure summaries for each bounded run row,
+  - additive LLM runtime lineage for `bot_red_team` rows when present in the bounded monitoring window:
+    - generation source,
+    - provider and model when available,
+    - action execution counts,
+    - and terminal failure truth when generation degraded or failed,
   - freshness-aware empty/degraded messaging so delayed telemetry is not misread as no activity.
 - `Scrapling`:
   - receipt-backed projection of the most recent Scrapling run visible in the bounded monitoring window,

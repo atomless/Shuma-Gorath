@@ -98,6 +98,39 @@ pub struct LlmRuntimeActionReceipt {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
+pub struct LlmRuntimeRecentRunSummary {
+    pub receipt_count: u64,
+    pub fulfillment_mode: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub category_targets: Vec<String>,
+    pub backend_kind: String,
+    pub backend_state: String,
+    pub generation_source: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub provider: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub model_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fallback_reason: Option<String>,
+    pub generated_action_count: u64,
+    pub executed_action_count: u64,
+    pub failed_action_count: u64,
+    pub passed_tick_count: u64,
+    pub failed_tick_count: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_response_status: Option<u16>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub failure_class: Option<super::adversary_sim::WorkerFailureClass>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub terminal_failure: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub latest_action_receipts: Vec<LlmRuntimeActionReceipt>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct LlmRuntimeResult {
     pub schema_version: String,
     pub run_id: String,
@@ -132,6 +165,69 @@ pub struct LlmRuntimeResult {
     pub terminal_failure: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub action_receipts: Vec<LlmRuntimeActionReceipt>,
+}
+
+impl LlmRuntimeRecentRunSummary {
+    pub fn from_runtime_result(result: &LlmRuntimeResult) -> Self {
+        let passed = result.passed && result.failure_class.is_none() && result.terminal_failure.is_none();
+        LlmRuntimeRecentRunSummary {
+            receipt_count: 1,
+            fulfillment_mode: result.fulfillment_mode.clone(),
+            category_targets: result.category_targets.clone(),
+            backend_kind: result.backend_kind.clone(),
+            backend_state: result.backend_state.clone(),
+            generation_source: result.generation_source.clone(),
+            provider: result.provider.clone(),
+            model_id: result.model_id.clone(),
+            fallback_reason: result.fallback_reason.clone(),
+            generated_action_count: result.generated_action_count,
+            executed_action_count: result.executed_action_count,
+            failed_action_count: result.failed_action_count,
+            passed_tick_count: if passed { 1 } else { 0 },
+            failed_tick_count: if passed { 0 } else { 1 },
+            last_response_status: result.last_response_status,
+            failure_class: result.failure_class,
+            error: result.error.clone(),
+            terminal_failure: result.terminal_failure.clone(),
+            latest_action_receipts: result.action_receipts.clone(),
+        }
+    }
+
+    pub fn merge_summary(&mut self, summary: &LlmRuntimeRecentRunSummary) {
+        self.receipt_count = self.receipt_count.saturating_add(summary.receipt_count);
+        self.fulfillment_mode = summary.fulfillment_mode.clone();
+        self.backend_kind = summary.backend_kind.clone();
+        self.backend_state = summary.backend_state.clone();
+        self.generation_source = summary.generation_source.clone();
+        self.provider = summary.provider.clone();
+        self.model_id = summary.model_id.clone();
+        self.fallback_reason = summary.fallback_reason.clone();
+        self.generated_action_count = self
+            .generated_action_count
+            .saturating_add(summary.generated_action_count);
+        self.executed_action_count = self
+            .executed_action_count
+            .saturating_add(summary.executed_action_count);
+        self.failed_action_count = self
+            .failed_action_count
+            .saturating_add(summary.failed_action_count);
+        self.passed_tick_count = self
+            .passed_tick_count
+            .saturating_add(summary.passed_tick_count);
+        self.failed_tick_count = self
+            .failed_tick_count
+            .saturating_add(summary.failed_tick_count);
+        self.last_response_status = summary.last_response_status;
+        self.failure_class = summary.failure_class;
+        self.error = summary.error.clone();
+        self.terminal_failure = summary.terminal_failure.clone();
+        self.latest_action_receipts = summary.latest_action_receipts.clone();
+        for category_id in &summary.category_targets {
+            if !self.category_targets.iter().any(|value| value == category_id) {
+                self.category_targets.push(category_id.clone());
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
