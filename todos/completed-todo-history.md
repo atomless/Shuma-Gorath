@@ -4,6 +4,23 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-27)
 
+### Planning Only: RSI-GAME-ARCH-1K Post-Canary Candidate-Window Architecture Review
+
+- [x] Completed planning-only architecture clarification for the next live RSI blocker across:
+  - [`../docs/research/2026-03-27-rsi-game-arch-1k-post-canary-candidate-window-review.md`](../docs/research/2026-03-27-rsi-game-arch-1k-post-canary-candidate-window-review.md)
+  - [`../docs/plans/2026-03-27-rsi-game-arch-1k-post-canary-candidate-window-plan.md`](../docs/plans/2026-03-27-rsi-game-arch-1k-post-canary-candidate-window-plan.md)
+  - [`../todos/blocked-todo.md`](../todos/blocked-todo.md)
+- [x] What landed:
+  - the repo now explicitly captures the next live RSI blocker as post-canary candidate-window materialization rather than vague “more automation,”
+  - compares the main ownership options,
+  - and recommends a clean split where oversight declares the need for candidate evidence while adversary-sim supervisor owns the follow-on protected run.
+- [x] Why:
+  - after `RSI-GAME-ARCH-1J`, the live strict Scrapling loop can already open a canary and reach terminal judgment, but it still needs a second protected post-change attack window to make that judgment measured instead of `candidate_window_not_materialized`.
+- [x] Evidence:
+  - [`../docs/research/2026-03-27-rsi-game-arch-1k-post-canary-candidate-window-review.md`](../docs/research/2026-03-27-rsi-game-arch-1k-post-canary-candidate-window-review.md)
+  - [`../docs/plans/2026-03-27-rsi-game-arch-1k-post-canary-candidate-window-plan.md`](../docs/plans/2026-03-27-rsi-game-arch-1k-post-canary-candidate-window-plan.md)
+  - `git diff --check`
+
 ### RSI-GAME-ARCH-1J Runtime-Dev Effective Watch-Window Cadence
 
 - [x] Completed `RSI-GAME-ARCH-1J` across:
