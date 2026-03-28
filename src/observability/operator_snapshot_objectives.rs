@@ -288,16 +288,16 @@ pub(crate) fn recursive_improvement_game_contract_v1(
                     "Suspicious forwarded latency share remains distinct from request reach so high-latency leakage cannot hide behind request-count improvements.",
                 ),
                 scorecard_entry(
-                    "scrapling_exploit_progress",
+                    "mixed_attacker_restriction_progress",
                     "benchmark_results_v1",
-                    "scrapling_exploit_progress",
+                    "mixed_attacker_restriction_progress",
                     vec![
-                        "scrapling_breach_surface_rate".to_string(),
-                        "scrapling_deepest_breach_stage_ratio".to_string(),
-                        "scrapling_pass_surface_success_rate".to_string(),
+                        "mixed_attacker_breach_locus_rate".to_string(),
+                        "mixed_attacker_contributing_lane_rate".to_string(),
+                        "mixed_attacker_deepest_breach_stage_ratio".to_string(),
                     ],
                     "optimization_target",
-                    "Exploit progress must be judged explicitly from terrain-local Scrapling breach evidence rather than inferred only from aggregate suspicious-origin pressure.",
+                    "Restriction pressure must be judged explicitly from terrain-local mixed-attacker breach evidence rather than inferred only from aggregate suspicious-origin pressure.",
                 ),
             ],
             hard_guardrails: vec![scorecard_entry(
@@ -388,7 +388,7 @@ pub(crate) fn recursive_improvement_game_contract_v1(
                     "suspicious_origin_request_budget".to_string(),
                     "suspicious_origin_byte_budget".to_string(),
                     "suspicious_origin_latency_budget".to_string(),
-                    "scrapling_exploit_progress".to_string(),
+                    "mixed_attacker_restriction_progress".to_string(),
                     "beneficial_non_human_no_harm".to_string(),
                     "representative_adversary_regression".to_string(),
                 ],
@@ -397,7 +397,7 @@ pub(crate) fn recursive_improvement_game_contract_v1(
                     "suspicious_origin_request_budget".to_string(),
                     "suspicious_origin_byte_budget".to_string(),
                     "suspicious_origin_latency_budget".to_string(),
-                    "scrapling_exploit_progress".to_string(),
+                    "mixed_attacker_restriction_progress".to_string(),
                     "representative_adversary_regression".to_string(),
                     "prior_window_progress".to_string(),
                 ],
@@ -1006,7 +1006,7 @@ mod tests {
             .evaluator_scorecard
             .optimization_targets
             .iter()
-            .any(|entry| entry.score_id == "scrapling_exploit_progress"));
+            .any(|entry| entry.score_id == "mixed_attacker_restriction_progress"));
         assert!(contract
             .evaluator_scorecard
             .optimization_targets
@@ -1098,8 +1098,8 @@ mod tests {
             .evaluator_scorecard
             .optimization_targets
             .iter()
-            .find(|entry| entry.score_id == "scrapling_exploit_progress")
-            .expect("scrapling exploit progress present");
+            .find(|entry| entry.score_id == "mixed_attacker_restriction_progress")
+            .expect("mixed attacker restriction progress present");
         let category_recognition = contract
             .evaluator_scorecard
             .diagnostic_contexts
@@ -1130,13 +1130,13 @@ mod tests {
         assert!(category_recognition.metric_ids.contains(
             &"category_posture_alignment:verified_beneficial_bot".to_string()
         ));
-        assert_eq!(exploit_progress.family_id, "scrapling_exploit_progress");
+        assert_eq!(exploit_progress.family_id, "mixed_attacker_restriction_progress");
         assert_eq!(
             exploit_progress.metric_ids,
             vec![
-                "scrapling_breach_surface_rate".to_string(),
-                "scrapling_deepest_breach_stage_ratio".to_string(),
-                "scrapling_pass_surface_success_rate".to_string(),
+                "mixed_attacker_breach_locus_rate".to_string(),
+                "mixed_attacker_contributing_lane_rate".to_string(),
+                "mixed_attacker_deepest_breach_stage_ratio".to_string(),
             ]
         );
         assert_eq!(
@@ -1166,7 +1166,7 @@ mod tests {
                 "suspicious_origin_request_budget".to_string(),
                 "suspicious_origin_byte_budget".to_string(),
                 "suspicious_origin_latency_budget".to_string(),
-                "scrapling_exploit_progress".to_string(),
+                "mixed_attacker_restriction_progress".to_string(),
                 "beneficial_non_human_no_harm".to_string(),
                 "representative_adversary_regression".to_string(),
             ]

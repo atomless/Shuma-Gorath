@@ -95,6 +95,7 @@ make test-dashboard-adversary-sim-lane-contract # Focused dashboard lane-contrac
 make test-dashboard-auth-gate # Focused dashboard auth-gate checks for logged-out /dashboard entry
 make test-dashboard-tab-information-architecture # Focused dashboard source + rendered IA proof for tab registry alignment and Monitoring/Traffic/Diagnostics ownership
 make test-dashboard-game-loop-accountability # Focused dashboard behavior + rendered proof for Game Loop benchmark/oversight accountability projection
+make test-rsi-game-mixed-restriction-score-spine # Focused mixed-attacker restriction score-spine proof for controller-grade benchmark/comparison/urgency/move-selection wiring
 make test-dashboard-traffic-pane # Focused dashboard behavior + rendered proof for Traffic ownership, traffic-first ordering, and shared refresh-bar wiring
 make test-dashboard-scrapling-evidence # Focused dashboard behavior + rendered proof for Red Team Scrapling evidence plus compact Game Loop corroboration
 make test-dashboard-runtime-unit-contracts # Focused dashboard native/refresh runtime behavior checks

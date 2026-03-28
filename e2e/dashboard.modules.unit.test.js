@@ -6835,10 +6835,10 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
       availability: 'materialized',
       evidence_status: 'protected',
       tuning_eligible: true,
-      protected_basis: 'live_scrapling_runtime',
+      protected_basis: 'live_mixed_attacker_runtime',
       protected_lineage_count: 0,
       eligibility_blockers: [],
-      note: 'Strong live Scrapling runtime proof is protected.'
+      note: 'Strong live mixed-attacker runtime proof is protected.'
     },
     non_human_classification: {
       status: 'ready',
@@ -6855,12 +6855,12 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
       availability: 'available',
       decision: 'observe_longer',
       review_status: 'manual_review_required',
-      problem_class: 'scrapling_exploit_progress_gap',
+      problem_class: 'mixed_attacker_restriction_gap',
       guidance_status: 'localized_exploit_progress_guidance',
       tractability: 'localized_config_repair',
       expected_direction: 'tighten',
-      trigger_family_ids: ['scrapling_exploit_progress'],
-      trigger_metric_ids: ['scrapling_breach_surface_rate'],
+      trigger_family_ids: ['mixed_attacker_restriction_progress'],
+      trigger_metric_ids: ['mixed_attacker_breach_locus_rate'],
       candidate_action_families: ['fingerprint_signal'],
       family_guidance: [
         {
@@ -6933,7 +6933,7 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
     },
     controller_contract: {
       restriction_diagnosis: {
-        problem_class: 'scrapling_exploit_progress_gap',
+        problem_class: 'mixed_attacker_restriction_gap',
         status: 'localized',
         confidence: 'medium',
         repair_surface_candidates: ['maze_core', 'fingerprint_signal'],
@@ -6981,7 +6981,7 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
         guidance_status: 'localized_exploit_progress_guidance',
         tractability: 'localized_config_repair',
         expected_direction: 'tighten',
-        trigger_family_ids: ['scrapling_exploit_progress'],
+        trigger_family_ids: ['mixed_attacker_restriction_progress'],
         candidate_action_families: ['fingerprint_signal'],
         family_guidance: [
           {
@@ -6999,7 +6999,7 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
           },
           {
             blocker_group: 'evidence_quality',
-            blocker_id: 'scrapling_exploit_evidence_quality_low',
+            blocker_id: 'mixed_attacker_exploit_evidence_quality_low',
             note: 'Exploit evidence quality is still low.'
           },
           {
@@ -7082,8 +7082,8 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
     'verified_identity_taxonomy_alignment_guardrail'
   ]);
   assert.equal(benchmarkResults.protected_evidence.evidence_status, 'protected');
-  assert.equal(benchmarkResults.protected_evidence.protected_basis, 'live_scrapling_runtime');
-  assert.equal(benchmarkResults.escalation_hint.problem_class, 'scrapling_exploit_progress_gap');
+  assert.equal(benchmarkResults.protected_evidence.protected_basis, 'live_mixed_attacker_runtime');
+  assert.equal(benchmarkResults.escalation_hint.problem_class, 'mixed_attacker_restriction_gap');
   assert.equal(
     benchmarkResults.escalation_hint.guidance_status,
     'localized_exploit_progress_guidance'

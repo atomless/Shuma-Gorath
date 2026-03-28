@@ -4,6 +4,39 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-28)
 
+### RSI-GAME-HO-2A2 Lane-Native Mixed-Attacker Restriction Score Spine
+
+- [x] Completed `RSI-GAME-HO-2A2` across:
+  - [`../src/observability/benchmark_mixed_attacker_restriction_progress.rs`](../src/observability/benchmark_mixed_attacker_restriction_progress.rs)
+  - [`../src/observability/benchmark_mixed_attacker_evidence_quality.rs`](../src/observability/benchmark_mixed_attacker_evidence_quality.rs)
+  - [`../src/observability/benchmark_results.rs`](../src/observability/benchmark_results.rs)
+  - [`../src/observability/benchmark_results_comparison.rs`](../src/observability/benchmark_results_comparison.rs)
+  - [`../src/observability/benchmark_suite.rs`](../src/observability/benchmark_suite.rs)
+  - [`../src/observability/benchmark_urgency.rs`](../src/observability/benchmark_urgency.rs)
+  - [`../src/observability/operator_snapshot_objectives.rs`](../src/observability/operator_snapshot_objectives.rs)
+  - [`../src/admin/oversight_patch_policy.rs`](../src/admin/oversight_patch_policy.rs)
+  - [`../src/admin/oversight_reconcile.rs`](../src/admin/oversight_reconcile.rs)
+  - [`../dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`../Makefile`](../Makefile)
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../docs/plans/2026-03-28-rsi-game-ho-2-combined-attacker-orchestration-plan.md`](../docs/plans/2026-03-28-rsi-game-ho-2-combined-attacker-orchestration-plan.md)
+  - [`../docs/research/2026-03-28-rsi-game-ho-2a2-mixed-attacker-restriction-score-spine-post-implementation-review.md`](../docs/research/2026-03-28-rsi-game-ho-2a2-mixed-attacker-restriction-score-spine-post-implementation-review.md)
+- [x] What landed:
+  - controller-grade restriction scoring now materializes a mixed-attacker family instead of relying on a Scrapling-only spine,
+  - `bot_red_team` runtime receipts now map into restriction-grade board loci alongside Scrapling owned-surface receipts,
+  - protected evidence, urgency, operator objectives, and reconcile problem-class wiring now key off `mixed_attacker_restriction_progress` and `mixed_attacker_restriction_gap`,
+  - and the Game Loop accountability proof now corroborates the mixed-attacker rail rather than the retired Scrapling-only controller basis.
+- [x] Why:
+  - after `RSI-GAME-HO-2A1`, the loop could sequence truthful mixed episodes, but the judge was still effectively scoring only Scrapling pressure, which meant the repo still could not claim a real mixed-attacker strict-baseline loop.
+- [x] Evidence:
+  - [`../docs/research/2026-03-28-rsi-game-ho-2a2-mixed-attacker-restriction-score-spine-post-implementation-review.md`](../docs/research/2026-03-28-rsi-game-ho-2a2-mixed-attacker-restriction-score-spine-post-implementation-review.md)
+  - `make test-benchmark-results-contract`
+  - `make test-rsi-game-mixed-restriction-score-spine`
+  - `make test-dashboard-game-loop-accountability`
+  - `git diff --check`
+
 ### RSI-GAME-HO-2A1 Multi-Lane Episode And Follow-On Orchestration
 
 - [x] Completed `RSI-GAME-HO-2A1` across:

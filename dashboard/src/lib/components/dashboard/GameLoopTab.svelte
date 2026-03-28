@@ -517,7 +517,7 @@
   $: recognitionEvaluation = asRecord(operatorSnapshot?.non_human_traffic?.recognition_evaluation);
   $: suspiciousOriginCostFamily = findBenchmarkFamily('suspicious_origin_cost');
   $: likelyHumanFrictionFamily = findBenchmarkFamily('likely_human_friction');
-  $: exploitProgressFamily = findBenchmarkFamily('scrapling_exploit_progress');
+  $: exploitProgressFamily = findBenchmarkFamily('mixed_attacker_restriction_progress');
   $: evidenceQuality = asRecord(benchmarkResults?.escalation_hint?.evidence_quality);
   $: protectedEvidence = asRecord(benchmarkResults?.protected_evidence);
   $: controllerContract = asRecord(benchmarkResults?.controller_contract);
@@ -1141,7 +1141,7 @@
           <article id="game-loop-exploit-progress" class="card panel panel-border pad-md-b">
             <h3 class="caps-label">Terrain Breach Progress</h3>
             <p class="text-muted">
-              This surface tracks where Scrapling actually advanced through the defended terrain. It is separate from origin leakage budgets and separate from category posture scoring.
+              This surface tracks where the current mixed-attacker pressure actually advanced through the defended terrain. It is separate from origin leakage budgets and separate from category posture scoring.
             </p>
             <div class="status-rows">
               <div class="info-row">

@@ -585,9 +585,9 @@ fn primary_problem_class(
     } else if suspicious_reach_outside_budget {
         Some(OversightProblemClass::SuspiciousOriginReachOverspend)
     } else if controller_problem_class(snapshot)
-        == "scrapling_exploit_progress_gap"
+        == "mixed_attacker_restriction_gap"
     {
-        Some(OversightProblemClass::ScraplingExploitProgressGap)
+        Some(OversightProblemClass::MixedAttackerRestrictionGap)
     } else if controller_problem_class(snapshot)
         == "likely_human_friction_overspend"
     {
@@ -606,9 +606,9 @@ fn primary_problem_class(
         .move_selection
         .trigger_family_ids
         .iter()
-        .any(|family| family == "scrapling_exploit_progress")
+        .any(|family| family == "mixed_attacker_restriction_progress")
     {
-        Some(OversightProblemClass::ScraplingExploitProgressGap)
+        Some(OversightProblemClass::MixedAttackerRestrictionGap)
     } else if snapshot
         .benchmark_results
         .controller_contract
@@ -1303,10 +1303,10 @@ mod tests {
         snapshot.benchmark_results.overall_status = "outside_budget".to_string();
         snapshot.benchmark_results.escalation_hint.decision = "observe_longer".to_string();
         snapshot.benchmark_results.escalation_hint.problem_class =
-            "scrapling_exploit_progress_gap".to_string();
+            "mixed_attacker_restriction_gap".to_string();
         snapshot.benchmark_results.tuning_eligibility.status = "blocked".to_string();
         snapshot.benchmark_results.tuning_eligibility.blockers =
-            vec!["scrapling_exploit_evidence_quality_low".to_string()];
+            vec!["mixed_attacker_exploit_evidence_quality_low".to_string()];
         snapshot.benchmark_results.escalation_hint.blockers =
             snapshot.benchmark_results.tuning_eligibility.blockers.clone();
         snapshot.benchmark_results.escalation_hint.evidence_quality =
@@ -1353,7 +1353,7 @@ mod tests {
             .benchmark_results
             .controller_contract
             .restriction_diagnosis
-            .problem_class = "scrapling_exploit_progress_gap".to_string();
+            .problem_class = "mixed_attacker_restriction_gap".to_string();
         snapshot.benchmark_results.controller_contract.restriction_diagnosis.status =
             "blocked_by_missing_truth".to_string();
         snapshot.benchmark_results.controller_contract.restriction_diagnosis.confidence =
@@ -1363,7 +1363,7 @@ mod tests {
         snapshot.benchmark_results.controller_contract.move_selection.decision =
             "observe_longer".to_string();
         snapshot.benchmark_results.controller_contract.move_selection.blockers = vec![
-            controller_blocker("scrapling_exploit_evidence_quality_low", "evidence_quality"),
+            controller_blocker("mixed_attacker_exploit_evidence_quality_low", "evidence_quality"),
         ];
 
         let result = reconcile(&cfg, &snapshot, "manual_admin");
@@ -1371,7 +1371,7 @@ mod tests {
         assert_eq!(reconcile_outcome(&result), "observe_longer");
         assert!(result
             .refusal_reasons
-            .contains(&"scrapling_exploit_evidence_quality_low".to_string()));
+            .contains(&"mixed_attacker_exploit_evidence_quality_low".to_string()));
     }
 
     #[test]

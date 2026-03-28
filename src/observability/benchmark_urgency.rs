@@ -7,9 +7,10 @@ pub(crate) fn benchmark_urgency_summary(
     restriction_readiness_status: &str,
     exploit_evidence_quality: &BenchmarkDiagnosisEvidenceQuality,
 ) -> BenchmarkUrgencySummary {
-    let exploit_short_window_status = family_status(families, "scrapling_exploit_progress");
+    let exploit_short_window_status =
+        family_status(families, "mixed_attacker_restriction_progress");
     let exploit_long_window_status =
-        family_comparison_status(families, "scrapling_exploit_progress");
+        family_comparison_status(families, "mixed_attacker_restriction_progress");
     let suspicious_origin_short_window_status = family_status(families, "suspicious_origin_cost");
     let likely_human_short_window_status = family_status(families, "likely_human_friction");
     let likely_human_long_window_status =
@@ -227,7 +228,7 @@ mod tests {
     fn urgency_raises_confidence_when_restriction_is_ready_and_surface_native() {
         let summary = benchmark_urgency_summary(
             &[
-                family("scrapling_exploit_progress", "outside_budget", "regressed"),
+                family("mixed_attacker_restriction_progress", "outside_budget", "regressed"),
                 family("suspicious_origin_cost", "inside_budget", "improved"),
                 family("likely_human_friction", "inside_budget", "improved"),
             ],
@@ -244,7 +245,7 @@ mod tests {
     fn urgency_uses_suspicious_origin_cost_as_abuse_backstop() {
         let summary = benchmark_urgency_summary(
             &[
-                family("scrapling_exploit_progress", "inside_budget", "improved"),
+                family("mixed_attacker_restriction_progress", "inside_budget", "improved"),
                 family("suspicious_origin_cost", "outside_budget", "regressed"),
                 family("likely_human_friction", "inside_budget", "improved"),
             ],

@@ -15,8 +15,9 @@ use crate::observability::operator_snapshot_objectives::{
 };
 use super::benchmark_adversary_effectiveness::representative_adversary_effectiveness_family;
 use super::benchmark_beneficial_non_human::beneficial_non_human_posture_family;
+use super::benchmark_mixed_attacker_evidence_quality::mixed_attacker_evidence_quality_assessment;
+use super::benchmark_mixed_attacker_restriction_progress::mixed_attacker_restriction_progress_family;
 use super::benchmark_non_human_categories::non_human_category_posture_family;
-use super::benchmark_scrapling_evidence_quality::scrapling_evidence_quality_assessment;
 use super::benchmark_scrapling_exploit_progress::scrapling_exploit_progress_family;
 use super::benchmark_scrapling_surface_contract::{
     scrapling_surface_contract_family, scrapling_surface_contract_tuning_blockers,
@@ -376,6 +377,7 @@ pub(crate) fn build_benchmark_results_from_snapshot_sections(
     );
     let friction_family = likely_human_friction_family(budget_distance);
     let scrapling_surface_family = scrapling_surface_contract_family(adversary_sim);
+    let mixed_attacker_family = mixed_attacker_restriction_progress_family(adversary_sim);
     let scrapling_exploit_family = scrapling_exploit_progress_family(adversary_sim);
     let adversary_family = representative_adversary_effectiveness_family(adversary_sim);
     let verified_identity =
@@ -394,10 +396,11 @@ pub(crate) fn build_benchmark_results_from_snapshot_sections(
     );
     let category_posture_family = non_human_category_posture_family(objectives, non_human_traffic);
     let exploit_evidence_quality =
-        scrapling_evidence_quality_assessment(adversary_sim, non_human_traffic);
+        mixed_attacker_evidence_quality_assessment(adversary_sim, non_human_traffic);
     let mut families = vec![
         suspicious_family,
         friction_family,
+        mixed_attacker_family,
         scrapling_exploit_family,
         scrapling_surface_family,
         adversary_family,
@@ -514,7 +517,8 @@ fn tuning_eligibility(
     exploit_evidence_quality: &BenchmarkDiagnosisEvidenceQuality,
 ) -> BenchmarkTuningEligibility {
     let exploit_progress_outside_budget = families.iter().any(|family| {
-        family.family_id == "scrapling_exploit_progress" && family.status == "outside_budget"
+        family.family_id == "mixed_attacker_restriction_progress"
+            && family.status == "outside_budget"
     });
     let exploit_progress_surface_native_high_confidence = exploit_progress_outside_budget
         && exploit_evidence_quality.status == "high_confidence"
@@ -565,7 +569,8 @@ fn protected_tuning_evidence_summary(
     exploit_evidence_quality: &BenchmarkDiagnosisEvidenceQuality,
 ) -> BenchmarkProtectedEvidenceSummary {
     let exploit_progress_outside_budget = families.iter().any(|family| {
-        family.family_id == "scrapling_exploit_progress" && family.status == "outside_budget"
+        family.family_id == "mixed_attacker_restriction_progress"
+            && family.status == "outside_budget"
     });
     let live_runtime_protected = exploit_progress_outside_budget
         && exploit_evidence_quality.status == "high_confidence"
@@ -580,11 +585,11 @@ fn protected_tuning_evidence_summary(
             availability: "materialized".to_string(),
             evidence_status: "protected".to_string(),
             tuning_eligible: true,
-            protected_basis: "live_scrapling_runtime".to_string(),
+            protected_basis: "live_mixed_attacker_runtime".to_string(),
             protected_lineage_count: replay_promotion.protected_lineage_count,
             eligibility_blockers: Vec::new(),
             note: format!(
-                "Protected tuning evidence is backed by strong live Scrapling runtime proof across the recent window at: {}.",
+                "Protected tuning evidence is backed by strong live mixed-attacker runtime proof across the recent window at: {}.",
                 exploit_evidence_quality
                     .breach_loci
                     .iter()
@@ -625,7 +630,7 @@ fn protected_tuning_evidence_summary(
 
     let mut eligibility_blockers = replay_promotion.eligibility_blockers.clone();
     if exploit_progress_outside_budget {
-        eligibility_blockers.push("live_scrapling_runtime_not_protected_yet".to_string());
+        eligibility_blockers.push("live_mixed_attacker_runtime_not_protected_yet".to_string());
     }
     eligibility_blockers.sort();
     eligibility_blockers.dedup();
@@ -647,14 +652,14 @@ fn protected_tuning_evidence_summary(
         eligibility_blockers,
         note: if exploit_progress_outside_budget {
             format!(
-                "Live Scrapling runtime pressure is visible, but it is not protected tuning evidence yet because exploit evidence status={}, attribution={}, recent window={}, and replay protection status={}.",
+                "Live mixed-attacker runtime pressure is visible, but it is not protected tuning evidence yet because exploit evidence status={}, attribution={}, recent window={}, and replay protection status={}.",
                 exploit_evidence_quality.status,
                 exploit_evidence_quality.attribution_status,
                 exploit_evidence_quality.recent_window_support_status,
                 replay_promotion.evidence_status
             )
         } else if replay_promotion.availability == "not_materialized" {
-            "Protected tuning evidence is not materialized yet because neither replay lineage nor strong live Scrapling runtime proof is available."
+            "Protected tuning evidence is not materialized yet because neither replay lineage nor strong live mixed-attacker runtime proof is available."
                 .to_string()
         } else {
             "Protected tuning evidence is not ready yet because replay lineage remains advisory or incomplete."
@@ -859,10 +864,11 @@ fn scrapling_exploit_evidence_quality_blockers(
     exploit_evidence_quality: &BenchmarkDiagnosisEvidenceQuality,
 ) -> Vec<String> {
     let exploit_progress_outside_budget = families.iter().any(|family| {
-        family.family_id == "scrapling_exploit_progress" && family.status == "outside_budget"
+        family.family_id == "mixed_attacker_restriction_progress"
+            && family.status == "outside_budget"
     });
     if exploit_progress_outside_budget && exploit_evidence_quality.status != "high_confidence" {
-        vec!["scrapling_exploit_evidence_quality_low".to_string()]
+        vec!["mixed_attacker_exploit_evidence_quality_low".to_string()]
     } else {
         Vec::new()
     }
@@ -2446,6 +2452,176 @@ mod tests {
     }
 
     #[test]
+    fn benchmark_results_materialize_mixed_attacker_restriction_family_from_scrapling_and_llm_receipts() {
+        let store = TestStore::new();
+        let summary = summarize_with_store(&store, 24, 10);
+        let mut snapshot = build_operator_snapshot_payload(
+            &store,
+            "default",
+            1_700_000_399,
+            &summary,
+            &[
+                OperatorSnapshotRecentSimRun {
+                    run_id: "simrun-scrapling-current".to_string(),
+                    lane: "scrapling_traffic".to_string(),
+                    profile: "scrapling_runtime_lane".to_string(),
+                    observed_fulfillment_modes: vec!["crawler".to_string()],
+                    observed_category_ids: vec!["indexing_bot".to_string()],
+                    first_ts: 1_700_000_350,
+                    last_ts: 1_700_000_396,
+                    monitoring_event_count: 8,
+                    defense_delta_count: 0,
+                    ban_outcome_count: 0,
+                    owned_surface_coverage: Some(
+                        crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageSummary {
+                            overall_status: "covered".to_string(),
+                            canonical_surface_ids: vec![
+                                "public_path_traversal".to_string(),
+                                "challenge_routing".to_string(),
+                            ],
+                            surface_labels: std::collections::BTreeMap::from([
+                                (
+                                    "public_path_traversal".to_string(),
+                                    "Public Path Traversal".to_string(),
+                                ),
+                                (
+                                    "challenge_routing".to_string(),
+                                    "Challenge Routing".to_string(),
+                                ),
+                            ]),
+                            required_surface_ids: vec![
+                                "public_path_traversal".to_string(),
+                                "challenge_routing".to_string(),
+                            ],
+                            satisfied_surface_ids: vec![
+                                "public_path_traversal".to_string(),
+                                "challenge_routing".to_string(),
+                            ],
+                            blocking_surface_ids: Vec::new(),
+                            receipts: vec![
+                                crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageReceipt {
+                                    surface_id: "public_path_traversal".to_string(),
+                                    success_contract: "should_pass_some".to_string(),
+                                    dependency_kind: "independent".to_string(),
+                                    dependency_surface_ids: Vec::new(),
+                                    coverage_status: "pass_observed".to_string(),
+                                    surface_state: "satisfied".to_string(),
+                                    satisfied: true,
+                                    blocked_by_surface_ids: Vec::new(),
+                                    attempt_count: 2,
+                                    sample_request_method: "GET".to_string(),
+                                    sample_request_path: "/sim/public/landing".to_string(),
+                                    sample_response_status: Some(200),
+                                },
+                                crate::observability::scrapling_owned_surface::ScraplingOwnedSurfaceCoverageReceipt {
+                                    surface_id: "challenge_routing".to_string(),
+                                    success_contract: "mixed_outcomes".to_string(),
+                                    dependency_kind: "independent".to_string(),
+                                    dependency_surface_ids: Vec::new(),
+                                    coverage_status: "pass_observed".to_string(),
+                                    surface_state: "satisfied".to_string(),
+                                    satisfied: true,
+                                    blocked_by_surface_ids: Vec::new(),
+                                    attempt_count: 1,
+                                    sample_request_method: "GET".to_string(),
+                                    sample_request_path: "/challenge".to_string(),
+                                    sample_response_status: Some(200),
+                                },
+                            ],
+                        },
+                    ),
+                    llm_runtime_summary: None,
+                },
+                OperatorSnapshotRecentSimRun {
+                    run_id: "simrun-llm-current".to_string(),
+                    lane: "bot_red_team".to_string(),
+                    profile: "frontier_request_mode".to_string(),
+                    observed_fulfillment_modes: vec!["request_mode".to_string()],
+                    observed_category_ids: vec!["http_agent".to_string(), "ai_scraper_bot".to_string()],
+                    first_ts: 1_700_000_360,
+                    last_ts: 1_700_000_398,
+                    monitoring_event_count: 4,
+                    defense_delta_count: 0,
+                    ban_outcome_count: 0,
+                    owned_surface_coverage: None,
+                    llm_runtime_summary: Some(crate::admin::adversary_sim_worker_plan::LlmRuntimeRecentRunSummary {
+                        receipt_count: 1,
+                        fulfillment_mode: "request_mode".to_string(),
+                        category_targets: vec!["http_agent".to_string(), "ai_scraper_bot".to_string()],
+                        backend_kind: "frontier_reference".to_string(),
+                        backend_state: "available".to_string(),
+                        generation_source: "provider_response".to_string(),
+                        provider: "openai".to_string(),
+                        model_id: "gpt-5-mini".to_string(),
+                        fallback_reason: None,
+                        generated_action_count: 3,
+                        executed_action_count: 3,
+                        failed_action_count: 0,
+                        passed_tick_count: 1,
+                        failed_tick_count: 0,
+                        last_response_status: Some(200),
+                        failure_class: None,
+                        error: None,
+                        terminal_failure: None,
+                        latest_action_receipts: vec![
+                            crate::admin::adversary_sim_worker_plan::LlmRuntimeActionReceipt {
+                                action_index: 0,
+                                action_type: "http_get".to_string(),
+                                path: "/".to_string(),
+                                label: Some("root".to_string()),
+                                status: Some(200),
+                                error: None,
+                            },
+                            crate::admin::adversary_sim_worker_plan::LlmRuntimeActionReceipt {
+                                action_index: 1,
+                                action_type: "http_get".to_string(),
+                                path: "/sim/public/docs".to_string(),
+                                label: Some("docs".to_string()),
+                                status: Some(200),
+                                error: None,
+                            },
+                        ],
+                    }),
+                },
+            ],
+            OperatorSnapshotRecentChanges::default(),
+            1_700_000_399,
+            1_700_000_399,
+            1_700_000_399,
+        );
+        snapshot.non_human_traffic = covered_non_human_summary();
+
+        let payload = build_benchmark_results_from_snapshot_sections(
+            snapshot.generated_at,
+            1_700_000_399,
+            &snapshot.window,
+            &snapshot.objectives,
+            &snapshot.live_traffic,
+            &snapshot.adversary_sim,
+            &snapshot.non_human_traffic,
+            &snapshot.budget_distance,
+            &summary,
+            &defaults(),
+            &snapshot.allowed_actions,
+            &protected_replay_promotion_summary(),
+            None,
+        );
+
+        let family = payload
+            .families
+            .iter()
+            .find(|family| family.family_id == "mixed_attacker_restriction_progress")
+            .expect("mixed attacker restriction family");
+        assert_eq!(family.status, "outside_budget");
+        assert!(family.note.contains("scrapling_traffic"));
+        assert!(family.note.contains("bot_red_team"));
+        assert!(family
+            .exploit_loci
+            .iter()
+            .any(|locus| locus.locus_id == "public_path_traversal"));
+    }
+
+    #[test]
     fn benchmark_results_block_tuning_when_exploit_progress_evidence_is_low_confidence() {
         let store = TestStore::new();
         let summary = summarize_with_store(&store, 24, 10);
@@ -2561,7 +2737,7 @@ mod tests {
         assert!(payload
             .tuning_eligibility
             .blockers
-            .contains(&"scrapling_exploit_evidence_quality_low".to_string()));
+            .contains(&"mixed_attacker_exploit_evidence_quality_low".to_string()));
         assert_eq!(payload.escalation_hint.decision, "observe_longer");
         assert_eq!(payload.escalation_hint.breach_loci.len(), 2);
     }
@@ -2953,7 +3129,7 @@ mod tests {
         assert_eq!(payload.protected_evidence.evidence_status, "protected");
         assert_eq!(
             payload.protected_evidence.protected_basis,
-            "live_scrapling_runtime"
+            "live_mixed_attacker_runtime"
         );
         assert_eq!(payload.tuning_eligibility.status, "eligible");
         assert!(!payload

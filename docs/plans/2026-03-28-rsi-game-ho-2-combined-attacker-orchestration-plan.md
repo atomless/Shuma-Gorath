@@ -58,6 +58,8 @@ Acceptance criteria:
 
 ### Lane-native mixed-attacker restriction score spine
 
+Status: Implemented on 2026-03-28. See [`../research/2026-03-28-rsi-game-ho-2a2-mixed-attacker-restriction-score-spine-post-implementation-review.md`](../research/2026-03-28-rsi-game-ho-2a2-mixed-attacker-restriction-score-spine-post-implementation-review.md).
+
 Required contract:
 
 1. the controller-grade restriction score must stop being effectively Scrapling-only,

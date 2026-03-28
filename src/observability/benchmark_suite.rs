@@ -205,6 +205,32 @@ pub(crate) fn benchmark_suite_v1() -> BenchmarkSuiteContract {
                 ],
             ),
             family(
+                "mixed_attacker_restriction_progress",
+                "How far did the current mixed-attacker episode advance across defended terrain, and which board loci are still leaking costly pressure under both Scrapling and LLM attacker evidence?",
+                "adversary_sim:mixed_attacker_board_state",
+                "partially_supported",
+                &[
+                    (
+                        "mixed_attacker_breach_locus_rate",
+                        "adversary_sim:mixed_attacker_board_state",
+                        "max_ratio_budget",
+                        "supported",
+                    ),
+                    (
+                        "mixed_attacker_contributing_lane_rate",
+                        "adversary_sim:mixed_attacker_board_state",
+                        "max_ratio_budget",
+                        "supported",
+                    ),
+                    (
+                        "mixed_attacker_deepest_breach_stage_ratio",
+                        "adversary_sim:mixed_attacker_board_state",
+                        "max_ratio_budget",
+                        "supported",
+                    ),
+                ],
+            ),
+            family(
                 "likely_human_friction",
                 "How much friction or denial is Shuma imposing on likely-human or interactive traffic, and is that within budget?",
                 "live:ingress_primary:enforced:likely_human",
@@ -346,7 +372,7 @@ mod tests {
         assert_eq!(suite.input_contract, "operator_snapshot_v1");
         assert_eq!(suite.comparison_modes.len(), 3);
         assert_eq!(suite.subject_kinds.len(), 4);
-        assert_eq!(suite.families.len(), 7);
+        assert_eq!(suite.families.len(), 8);
         assert!(suite
             .families
             .iter()
@@ -359,6 +385,10 @@ mod tests {
             .families
             .iter()
             .any(|family| family.id == "scrapling_exploit_progress"));
+        assert!(suite
+            .families
+            .iter()
+            .any(|family| family.id == "mixed_attacker_restriction_progress"));
         let suspicious_origin_cost = suite
             .families
             .iter()
@@ -393,6 +423,23 @@ mod tests {
             .metrics
             .iter()
             .any(|metric| metric.metric_id == "scrapling_pass_surface_success_rate"));
+        let mixed_progress = suite
+            .families
+            .iter()
+            .find(|family| family.id == "mixed_attacker_restriction_progress")
+            .expect("mixed attacker restriction progress family");
+        assert!(mixed_progress
+            .metrics
+            .iter()
+            .any(|metric| metric.metric_id == "mixed_attacker_breach_locus_rate"));
+        assert!(mixed_progress
+            .metrics
+            .iter()
+            .any(|metric| metric.metric_id == "mixed_attacker_contributing_lane_rate"));
+        assert!(mixed_progress
+            .metrics
+            .iter()
+            .any(|metric| metric.metric_id == "mixed_attacker_deepest_breach_stage_ratio"));
         assert!(suite
             .decision_boundaries
             .iter()

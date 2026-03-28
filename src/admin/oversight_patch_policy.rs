@@ -17,7 +17,7 @@ pub(crate) enum OversightProblemClass {
     LikelyHumanFrictionOverspend,
     SuspiciousOriginReachOverspend,
     SuspiciousOriginLatencyOverspend,
-    ScraplingExploitProgressGap,
+    MixedAttackerRestrictionGap,
 }
 
 impl OversightProblemClass {
@@ -32,8 +32,8 @@ impl OversightProblemClass {
             OversightProblemClass::SuspiciousOriginLatencyOverspend => {
                 "suspicious_forwarded_latency_overspend"
             }
-            OversightProblemClass::ScraplingExploitProgressGap => {
-                "scrapling_exploit_progress_gap"
+            OversightProblemClass::MixedAttackerRestrictionGap => {
+                "mixed_attacker_restriction_gap"
             }
         }
     }
@@ -113,7 +113,7 @@ pub(crate) fn rank_patch_candidates(
 
     let ordered_families: Vec<&str> = if matches!(
         problem_class,
-        OversightProblemClass::ScraplingExploitProgressGap
+        OversightProblemClass::MixedAttackerRestrictionGap
     ) {
         candidate_families.iter().map(String::as_str).collect()
     } else {
@@ -208,7 +208,7 @@ fn candidate_priority(problem_class: OversightProblemClass) -> &'static [&'stati
             "maze_core",
             "core_policy",
         ][..],
-        OversightProblemClass::ScraplingExploitProgressGap => &[][..],
+        OversightProblemClass::MixedAttackerRestrictionGap => &[][..],
     }
 }
 
@@ -243,7 +243,7 @@ fn build_proposal(
             "fingerprint_signal",
             OversightProblemClass::SuspiciousOriginReachOverspend
             | OversightProblemClass::SuspiciousOriginLatencyOverspend
-            | OversightProblemClass::ScraplingExploitProgressGap,
+            | OversightProblemClass::MixedAttackerRestrictionGap,
         ) => (
             "Tighten low-friction automated client discrimination at the observed breach loci before broader human-visible defences move.".to_string(),
             "high".to_string(),
@@ -252,7 +252,7 @@ fn build_proposal(
             "cdp_detection",
             OversightProblemClass::SuspiciousOriginReachOverspend
             | OversightProblemClass::SuspiciousOriginLatencyOverspend
-            | OversightProblemClass::ScraplingExploitProgressGap,
+            | OversightProblemClass::MixedAttackerRestrictionGap,
         ) => (
             "Tighten browser automation detection at the observed breach loci while keeping human-facing friction low.".to_string(),
             "high".to_string(),
@@ -281,7 +281,7 @@ fn build_proposal(
             "proof_of_work",
             OversightProblemClass::SuspiciousOriginReachOverspend
             | OversightProblemClass::SuspiciousOriginLatencyOverspend
-            | OversightProblemClass::ScraplingExploitProgressGap,
+            | OversightProblemClass::MixedAttackerRestrictionGap,
         ) => (
             "Increase proof-of-work cost slightly at the implicated breach loci to reduce non-human progress.".to_string(),
             "medium".to_string(),
@@ -290,7 +290,7 @@ fn build_proposal(
             "challenge",
             OversightProblemClass::SuspiciousOriginReachOverspend
             | OversightProblemClass::SuspiciousOriginLatencyOverspend
-            | OversightProblemClass::ScraplingExploitProgressGap,
+            | OversightProblemClass::MixedAttackerRestrictionGap,
         ) => (
             "Tighten challenge posture at the implicated breach loci while keeping the move bounded.".to_string(),
             "medium".to_string(),
@@ -299,7 +299,7 @@ fn build_proposal(
             "not_a_bot",
             OversightProblemClass::SuspiciousOriginReachOverspend
             | OversightProblemClass::SuspiciousOriginLatencyOverspend
-            | OversightProblemClass::ScraplingExploitProgressGap,
+            | OversightProblemClass::MixedAttackerRestrictionGap,
         ) => (
             "Tighten the not-a-bot gate at the implicated breach loci.".to_string(),
             "medium".to_string(),
@@ -308,7 +308,7 @@ fn build_proposal(
             "maze_core",
             OversightProblemClass::SuspiciousOriginReachOverspend
             | OversightProblemClass::SuspiciousOriginLatencyOverspend
-            | OversightProblemClass::ScraplingExploitProgressGap,
+            | OversightProblemClass::MixedAttackerRestrictionGap,
         ) => (
             "Increase maze enforcement intensity at the implicated breach loci to reduce non-human progress.".to_string(),
             "medium".to_string(),
@@ -317,7 +317,7 @@ fn build_proposal(
             "core_policy",
             OversightProblemClass::SuspiciousOriginReachOverspend
             | OversightProblemClass::SuspiciousOriginLatencyOverspend
-            | OversightProblemClass::ScraplingExploitProgressGap,
+            | OversightProblemClass::MixedAttackerRestrictionGap,
         ) => (
             "Re-enable the JS-required gate as a bounded way to close the observed browser-side breach path.".to_string(),
             "medium".to_string(),
@@ -359,7 +359,7 @@ fn family_patch(
             "core_policy",
             OversightProblemClass::SuspiciousOriginReachOverspend
             | OversightProblemClass::SuspiciousOriginLatencyOverspend
-            | OversightProblemClass::ScraplingExploitProgressGap,
+            | OversightProblemClass::MixedAttackerRestrictionGap,
         ) => (!cfg
             .js_required_enforced)
             .then(|| json!({ "js_required_enforced": true })),
@@ -376,7 +376,7 @@ fn family_patch(
             "proof_of_work",
             OversightProblemClass::SuspiciousOriginReachOverspend
             | OversightProblemClass::SuspiciousOriginLatencyOverspend
-            | OversightProblemClass::ScraplingExploitProgressGap,
+            | OversightProblemClass::MixedAttackerRestrictionGap,
         ) => {
             if !cfg.pow_enabled {
                 Some(json!({ "pow_enabled": true }))
@@ -403,7 +403,7 @@ fn family_patch(
             "challenge",
             OversightProblemClass::SuspiciousOriginReachOverspend
             | OversightProblemClass::SuspiciousOriginLatencyOverspend
-            | OversightProblemClass::ScraplingExploitProgressGap,
+            | OversightProblemClass::MixedAttackerRestrictionGap,
         ) => {
             if !cfg.challenge_puzzle_enabled {
                 Some(json!({ "challenge_puzzle_enabled": true }))
@@ -436,7 +436,7 @@ fn family_patch(
             "not_a_bot",
             OversightProblemClass::SuspiciousOriginReachOverspend
             | OversightProblemClass::SuspiciousOriginLatencyOverspend
-            | OversightProblemClass::ScraplingExploitProgressGap,
+            | OversightProblemClass::MixedAttackerRestrictionGap,
         ) => {
             if !cfg.not_a_bot_enabled {
                 Some(json!({ "not_a_bot_enabled": true }))
@@ -461,7 +461,7 @@ fn family_patch(
             "maze_core",
             OversightProblemClass::SuspiciousOriginReachOverspend
             | OversightProblemClass::SuspiciousOriginLatencyOverspend
-            | OversightProblemClass::ScraplingExploitProgressGap,
+            | OversightProblemClass::MixedAttackerRestrictionGap,
         ) => {
             if !cfg.maze_enabled {
                 Some(json!({ "maze_enabled": true }))
@@ -477,7 +477,7 @@ fn family_patch(
             "cdp_detection",
             OversightProblemClass::SuspiciousOriginReachOverspend
             | OversightProblemClass::SuspiciousOriginLatencyOverspend
-            | OversightProblemClass::ScraplingExploitProgressGap,
+            | OversightProblemClass::MixedAttackerRestrictionGap,
         ) => (!cfg
             .cdp_detection_enabled)
             .then(|| json!({ "cdp_detection_enabled": true })),
@@ -485,7 +485,7 @@ fn family_patch(
             "fingerprint_signal",
             OversightProblemClass::SuspiciousOriginReachOverspend
             | OversightProblemClass::SuspiciousOriginLatencyOverspend
-            | OversightProblemClass::ScraplingExploitProgressGap,
+            | OversightProblemClass::MixedAttackerRestrictionGap,
         ) => (!cfg
             .fingerprint_signal_enabled)
             .then(|| json!({ "fingerprint_signal_enabled": true })),
@@ -944,7 +944,7 @@ mod tests {
             &cfg,
             &allowed_actions_v1(),
             &["challenge".to_string(), "fingerprint_signal".to_string()],
-            OversightProblemClass::ScraplingExploitProgressGap,
+            OversightProblemClass::MixedAttackerRestrictionGap,
             &unavailable_benchmark_protected_evidence_summary(),
         )
         .expect("ranked candidates build");

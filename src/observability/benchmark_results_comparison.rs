@@ -256,12 +256,13 @@ fn primary_outside_budget_family<'a>(
 fn family_priority(family_id: &str) -> u8 {
     match family_id {
         "likely_human_friction" => 0,
-        "scrapling_exploit_progress" => 1,
+        "mixed_attacker_restriction_progress" => 1,
         "scrapling_surface_contract" => 2,
         "suspicious_origin_cost" => 3,
         "beneficial_non_human_posture" => 4,
         "non_human_category_posture" => 5,
         "representative_adversary_effectiveness" => 6,
+        "scrapling_exploit_progress" => 7,
         _ => 10,
     }
 }
@@ -307,7 +308,7 @@ fn classify_problem(family: &BenchmarkFamilyResult) -> ProblemClassification {
                 action_families: benchmark_action_families("suspicious_origin_cost"),
             }
         }
-        "scrapling_exploit_progress" => {
+        "mixed_attacker_restriction_progress" => {
             let action_families = exploit_progress_action_families(family);
             let decision = if action_families.is_empty() {
                 "code_evolution_candidate"
@@ -315,7 +316,7 @@ fn classify_problem(family: &BenchmarkFamilyResult) -> ProblemClassification {
                 "config_tuning_candidate"
             };
             ProblemClassification {
-                problem_class: "scrapling_exploit_progress_gap",
+                problem_class: "mixed_attacker_restriction_gap",
                 decision,
                 guidance_status: if decision == "config_tuning_candidate" {
                     "localized_exploit_progress_guidance"
@@ -327,15 +328,24 @@ fn classify_problem(family: &BenchmarkFamilyResult) -> ProblemClassification {
                 } else {
                     "code_or_capability_gap"
                 },
-                expected_direction: "reduce_scrapling_exploit_progress",
+                expected_direction: "reduce_mixed_attacker_restriction_progress",
                 note: if decision == "config_tuning_candidate" {
-                    "Terrain-local Scrapling exploit progress is backed by named breach loci and bounded repair families, so the controller can prefer the smallest localized config move before escalating to code."
+                    "Terrain-local mixed-attacker restriction pressure is backed by named breach loci and bounded repair families, so the controller can prefer the smallest localized config move before escalating to code."
                 } else {
-                    "Terrain-local Scrapling exploit progress is still non-zero, but no approved bounded config families map cleanly to the observed breach loci yet."
+                    "Terrain-local mixed-attacker restriction pressure is still non-zero, but no approved bounded config families map cleanly to the observed breach loci yet."
                 },
                 action_families,
             }
         }
+        "scrapling_exploit_progress" => ProblemClassification {
+            problem_class: "scrapling_exploit_progress_gap",
+            decision: "code_evolution_candidate",
+            guidance_status: "code_evolution_only",
+            tractability: "code_or_capability_gap",
+            expected_direction: "reduce_scrapling_exploit_progress",
+            note: "Scrapling-only exploit progress remains a diagnostic companion family and should not outrank the mixed-attacker restriction score.",
+            action_families: Vec::new(),
+        },
         "scrapling_surface_contract" => ProblemClassification {
             problem_class: "scrapling_surface_contract_gap",
             decision: "code_evolution_candidate",
@@ -754,13 +764,112 @@ mod tests {
     }
 
     #[test]
-    fn escalation_hint_uses_localized_exploit_repair_families_for_config_tuning() {
+    fn escalation_hint_marks_mixed_attacker_restriction_gap_as_code_evolution_only_without_repair_families() {
+        let hint = derive_escalation_hint(
+            &allowed_actions_v1(),
+            &[family_with_metrics(
+                "mixed_attacker_restriction_progress",
+                "outside_budget",
+                "supported",
+                vec![metric(
+                    "mixed_attacker_breach_locus_rate",
+                    "outside_budget",
+                    "supported",
+                )],
+            )],
+        );
+
+        assert_eq!(hint.problem_class, "mixed_attacker_restriction_gap");
+        assert_eq!(hint.guidance_status, "code_evolution_only");
+        assert_eq!(hint.tractability, "code_or_capability_gap");
+        assert_eq!(hint.decision, "code_evolution_candidate");
+        assert!(hint.candidate_action_families.is_empty());
+    }
+
+    #[test]
+    fn escalation_hint_uses_mixed_attacker_restriction_loci_for_localized_config_tuning() {
         let mut family = family_with_metrics(
-            "scrapling_exploit_progress",
+            "mixed_attacker_restriction_progress",
             "outside_budget",
             "supported",
             vec![metric(
-                "scrapling_breach_surface_rate",
+                "mixed_attacker_breach_locus_rate",
+                "outside_budget",
+                "supported",
+            )],
+        );
+        family.exploit_loci = vec![
+            BenchmarkExploitLocus {
+                locus_id: "public_path_traversal".to_string(),
+                locus_label: "Public Path Traversal".to_string(),
+                stage_id: "exposure".to_string(),
+                evidence_status: "progress_observed".to_string(),
+                attempt_count: Some(5),
+                attempt_count_status: "measured".to_string(),
+                cost_channel_ids: vec![
+                    "public_content_exposure".to_string(),
+                    "shuma_served_bytes".to_string(),
+                ],
+                cost_channel_status: "derived".to_string(),
+                sample_request_method: "GET".to_string(),
+                sample_request_path: "/sim/public/docs".to_string(),
+                sample_response_status: Some(200),
+                repair_family_candidates: vec![
+                    "fingerprint_signal".to_string(),
+                    "botness".to_string(),
+                    "core_policy".to_string(),
+                ],
+                repair_family_status: "derived".to_string(),
+            },
+            BenchmarkExploitLocus {
+                locus_id: "maze_navigation".to_string(),
+                locus_label: "Maze Navigation".to_string(),
+                stage_id: "interactive".to_string(),
+                evidence_status: "progress_observed".to_string(),
+                attempt_count: Some(2),
+                attempt_count_status: "measured".to_string(),
+                cost_channel_ids: vec![
+                    "interactive_defense_load".to_string(),
+                    "shuma_served_bytes".to_string(),
+                ],
+                cost_channel_status: "derived".to_string(),
+                sample_request_method: "GET".to_string(),
+                sample_request_path: "/maze".to_string(),
+                sample_response_status: Some(200),
+                repair_family_candidates: vec![
+                    "maze_core".to_string(),
+                    "cdp_detection".to_string(),
+                ],
+                repair_family_status: "derived".to_string(),
+            },
+        ];
+
+        let hint = derive_escalation_hint(&allowed_actions_v1(), &[family]);
+
+        assert_eq!(hint.problem_class, "mixed_attacker_restriction_gap");
+        assert_eq!(hint.guidance_status, "localized_exploit_progress_guidance");
+        assert_eq!(hint.tractability, "localized_config_repair");
+        assert_eq!(hint.decision, "config_tuning_candidate");
+        assert_eq!(
+            hint.candidate_action_families,
+            vec![
+                "fingerprint_signal".to_string(),
+                "botness".to_string(),
+                "core_policy".to_string(),
+                "maze_core".to_string(),
+                "cdp_detection".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn escalation_hint_uses_localized_exploit_repair_families_for_config_tuning() {
+        let mut family = family_with_metrics(
+            "mixed_attacker_restriction_progress",
+            "outside_budget",
+            "supported",
+            vec![metric(
+                "mixed_attacker_breach_locus_rate",
                 "outside_budget",
                 "supported",
             )],
@@ -813,7 +922,7 @@ mod tests {
 
         let hint = derive_escalation_hint(&allowed_actions_v1(), &[family]);
 
-        assert_eq!(hint.problem_class, "scrapling_exploit_progress_gap");
+        assert_eq!(hint.problem_class, "mixed_attacker_restriction_gap");
         assert_eq!(hint.guidance_status, "localized_exploit_progress_guidance");
         assert_eq!(hint.tractability, "localized_config_repair");
         assert_eq!(hint.decision, "config_tuning_candidate");

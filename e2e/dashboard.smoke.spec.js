@@ -1873,7 +1873,7 @@ test("game loop projects benchmark and oversight accountability from machine-fir
           availability: "materialized",
           evidence_status: "protected",
           tuning_eligible: true,
-          protected_basis: "live_scrapling_runtime",
+          protected_basis: "live_mixed_attacker_runtime",
           protected_lineage_count: 0,
           eligibility_blockers: []
         },
@@ -2182,7 +2182,7 @@ test("game loop projects benchmark and oversight accountability from machine-fir
   await expect(page.locator("#game-loop-trust-blockers")).toContainText("Verified Handling");
   await expect(page.locator("#game-loop-trust-blockers")).toContainText("Judge Path");
   await expect(page.locator("#game-loop-trust-blockers")).toContainText("Protected Evidence");
-  await expect(page.locator("#game-loop-trust-blockers")).toContainText("live scrapling runtime");
+  await expect(page.locator("#game-loop-trust-blockers")).toContainText("live mixed attacker runtime");
   await expect(page.locator("#game-loop-trust-blockers")).toContainText("Replay Lineage");
   await expect(page.locator("#game-loop-trust-blockers")).toContainText(
     "simulator metadata does not count as category truth"
@@ -2576,7 +2576,7 @@ test("game loop tab separates judge planes, breach loci, and config exhaustion s
           availability: "materialized",
           evidence_status: "protected",
           tuning_eligible: true,
-          protected_basis: "live_scrapling_runtime",
+          protected_basis: "live_mixed_attacker_runtime",
           protected_lineage_count: 0,
           eligibility_blockers: []
         },
@@ -2595,14 +2595,14 @@ test("game loop tab separates judge planes, breach loci, and config exhaustion s
           availability: "available",
           decision: "config_tuning_candidate",
           review_status: "manual_review_required",
-          problem_class: "scrapling_exploit_progress_gap",
+          problem_class: "mixed_attacker_restriction_gap",
           guidance_status: "bounded_family_guidance",
           tractability: "family_level_policy_choice",
           expected_direction: "tighten",
-          trigger_family_ids: ["scrapling_exploit_progress"],
+          trigger_family_ids: ["mixed_attacker_restriction_progress"],
           trigger_metric_ids: [
-            "scrapling_breach_surface_rate",
-            "scrapling_deepest_breach_stage_ratio"
+            "mixed_attacker_breach_locus_rate",
+            "mixed_attacker_deepest_breach_stage_ratio"
           ],
           candidate_action_families: ["fingerprint_signal", "cdp_detection"],
           family_guidance: [
@@ -2668,7 +2668,7 @@ test("game loop tab separates judge planes, breach loci, and config exhaustion s
         },
         controller_contract: {
           restriction_diagnosis: {
-            problem_class: "scrapling_exploit_progress_gap",
+            problem_class: "mixed_attacker_restriction_gap",
             status: "localized",
             confidence: "high",
             repair_surface_candidates: ["fingerprint_signal", "maze_core"],
@@ -2718,7 +2718,7 @@ test("game loop tab separates judge planes, breach loci, and config exhaustion s
             guidance_status: "bounded_family_guidance",
             tractability: "family_level_policy_choice",
             expected_direction: "tighten",
-            trigger_family_ids: ["scrapling_exploit_progress"],
+            trigger_family_ids: ["mixed_attacker_restriction_progress"],
             candidate_action_families: ["fingerprint_signal", "cdp_detection"],
             family_guidance: [
               {
@@ -2752,7 +2752,7 @@ test("game loop tab separates judge planes, breach loci, and config exhaustion s
         },
         families: [
           {
-            family_id: "scrapling_exploit_progress",
+            family_id: "mixed_attacker_restriction_progress",
             status: "outside_budget",
             capability_gate: "supported",
             comparison_status: "regressed",
@@ -2779,7 +2779,7 @@ test("game loop tab separates judge planes, breach loci, and config exhaustion s
             ],
             metrics: [
               {
-                metric_id: "scrapling_breach_surface_rate",
+                metric_id: "mixed_attacker_breach_locus_rate",
                 status: "outside_budget",
                 current: 0.67,
                 target: 0.0,
@@ -2787,7 +2787,7 @@ test("game loop tab separates judge planes, breach loci, and config exhaustion s
                 comparison_delta: 0.22
               },
               {
-                metric_id: "scrapling_deepest_breach_stage_ratio",
+                metric_id: "mixed_attacker_deepest_breach_stage_ratio",
                 status: "outside_budget",
                 current: 0.75,
                 target: 0.0,
@@ -2848,7 +2848,7 @@ test("game loop tab separates judge planes, breach loci, and config exhaustion s
             benchmark_overall_status: "outside_budget",
             improvement_status: "regressed",
             replay_promotion_availability: "materialized",
-            trigger_family_ids: ["scrapling_exploit_progress"],
+            trigger_family_ids: ["mixed_attacker_restriction_progress"],
             candidate_action_families: ["fingerprint_signal", "cdp_detection"],
             refusal_reasons: ["config_ring_exhausted:fingerprint_signal"],
             validation_status: "valid",

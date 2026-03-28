@@ -141,25 +141,15 @@ Current note:
 - Do not open `humans_plus_verified_only` until a later second strict-baseline proof has shown retained config-change improvement under both Scrapling and LLM attacker pressure.
 - `DIAG-CLEANUP-1`, `MON-OVERHAUL-1C`, and `SIM-LLM-1C3` are now all landed, so the later combined-attacker strict-baseline proof is no longer blocked by missing LLM runtime visibility.
 - The real `RSI-GAME-HO-2` blocker is now architectural and explicit:
-  - controller-grade restriction scoring is still mostly Scrapling-native,
-  - LLM runtime receipts are visible but not yet board-locus or restriction-grade breach receipts,
-  - and operator/admin projections still need to distinguish mixed-attacker judged episodes from mere recent lane visibility.
-- Do not claim mixed-attacker strict-baseline proof until the mixed-attacker restriction score spine and mixed-attacker proof projection are both landed; recent-run visibility for `bot_red_team` and ordered multi-lane sequencing alone are insufficient.
-
-- [ ] RSI-GAME-HO-2A2 Land the lane-native mixed-attacker restriction score spine.
-  - Reference context:
-    - [`docs/research/2026-03-28-rsi-game-ho-2-combined-attacker-architecture-gap-review.md`](../docs/research/2026-03-28-rsi-game-ho-2-combined-attacker-architecture-gap-review.md)
-    - [`docs/plans/2026-03-28-rsi-game-ho-2-combined-attacker-orchestration-plan.md`](../docs/plans/2026-03-28-rsi-game-ho-2-combined-attacker-orchestration-plan.md)
-  - Closure gate:
-    - score truth: controller-grade restriction scoring must stop being effectively Scrapling-only and must aggregate mixed-attacker pressure without leaking simulator labels into runtime or tuning
-    - LLM evidence: `bot_red_team` runtime receipts must map into restriction-grade board-locus or equivalent breach evidence rather than recent-run visibility only
-    - controller readiness: protected tuning evidence and tuning eligibility must be able to become true because of mixed-attacker board-state evidence
-    - proof: `make test-benchmark-results-contract`, a focused mixed-attacker score-spine target, and `make test-dashboard-game-loop-accountability`
-    - insufficient: additive LLM recent-run rows with no controller-grade breach contract, or mixed-attacker claims still backed by Scrapling-only score families
+  - the mixed-attacker restriction score spine is now landed and controller-grade restriction scoring is no longer effectively Scrapling-only,
+  - `bot_red_team` runtime receipts now contribute restriction-grade board loci,
+  - and the next remaining blocker is projection truth: operator/admin and dashboard surfaces still need to distinguish judged mixed-attacker episodes from mere lane visibility.
+- Do not claim mixed-attacker strict-baseline proof from the new score spine alone; mixed-attacker proof projection and repeated retained improvement under mixed pressure still remain required.
 
 - [ ] RSI-GAME-HO-2A3 Project mixed-attacker judged-episode truth through operator/admin and Game Loop surfaces.
   - Reference context:
     - [`docs/research/2026-03-28-rsi-game-ho-2-combined-attacker-architecture-gap-review.md`](../docs/research/2026-03-28-rsi-game-ho-2-combined-attacker-architecture-gap-review.md)
+    - [`docs/research/2026-03-28-rsi-game-ho-2a2-mixed-attacker-restriction-score-spine-post-implementation-review.md`](../docs/research/2026-03-28-rsi-game-ho-2a2-mixed-attacker-restriction-score-spine-post-implementation-review.md)
     - [`docs/plans/2026-03-28-rsi-game-ho-2-combined-attacker-orchestration-plan.md`](../docs/plans/2026-03-28-rsi-game-ho-2-combined-attacker-orchestration-plan.md)
   - Closure gate:
     - snapshot/admin truth: operator snapshot, oversight history, and `/admin/oversight/agent/status` must preserve which lanes contributed to the judged mixed-attacker episode
