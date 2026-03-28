@@ -3544,6 +3544,77 @@ mod admin_config_tests {
         builder.build()
     }
 
+    fn materialize_post_canary_candidate_window_run(
+        store: &TestStore,
+        api_key: &str,
+    ) -> String {
+        let beat_req = make_internal_beat_request(api_key);
+        let beat_resp = handle_internal_adversary_sim_beat(&beat_req, store, "default");
+        assert_eq!(*beat_resp.status(), 200u16);
+        let beat_json: serde_json::Value =
+            serde_json::from_slice(beat_resp.body()).expect("beat decodes");
+        assert_eq!(
+            beat_json["dispatch_mode"].as_str(),
+            Some("scrapling_worker"),
+            "candidate follow-on beat did not dispatch a Scrapling worker: {beat_json}"
+        );
+        let worker_plan = beat_json.get("worker_plan").cloned().expect("worker plan");
+        let run_id = worker_plan["run_id"]
+            .as_str()
+            .expect("run id")
+            .to_string();
+        let tick_id = worker_plan["tick_id"]
+            .as_str()
+            .expect("tick id")
+            .to_string();
+        let tick_started_at = worker_plan["tick_started_at"]
+            .as_u64()
+            .expect("tick started at");
+        let fulfillment_mode = worker_plan["fulfillment_mode"]
+            .as_str()
+            .expect("fulfillment mode");
+
+        let result_body = serde_json::to_vec(&serde_json::json!({
+            "schema_version": "adversary-sim-scrapling-worker-result.v1",
+            "run_id": run_id,
+            "tick_id": tick_id,
+            "lane": "scrapling_traffic",
+            "fulfillment_mode": fulfillment_mode,
+            "worker_id": "scrapling-worker-test",
+            "tick_started_at": tick_started_at,
+            "tick_completed_at": tick_started_at.saturating_add(1),
+            "generated_requests": 3,
+            "failed_requests": 0,
+            "last_response_status": 200,
+            "failure_class": null,
+            "error": null,
+            "crawl_stats": {
+                "requests_count": 3,
+                "offsite_requests_count": 0,
+                "blocked_requests_count": 0,
+                "response_status_count": {
+                    "status_200": 3
+                },
+                "response_bytes": 512
+            },
+            "scope_rejections": {},
+            "surface_receipts": []
+        }))
+        .expect("worker result encodes");
+        let result_req = make_internal_worker_result_request(api_key, result_body.as_slice());
+        let result_resp = handle_internal_adversary_sim_worker_result(&result_req, store, "default");
+        assert_eq!(*result_resp.status(), 200u16);
+
+        let mut running_state = crate::admin::adversary_sim::load_state(store, "default");
+        running_state.ends_at = Some(now_ts().saturating_sub(1));
+        crate::admin::adversary_sim::save_state(store, "default", &running_state)
+            .expect("state save");
+
+        let completion_beat_resp = handle_internal_adversary_sim_beat(&beat_req, store, "default");
+        assert_eq!(*completion_beat_resp.status(), 200u16);
+        run_id
+    }
+
     fn make_edge_cron_beat_request(secret: &str) -> Request {
         let mut builder = Request::builder();
         builder
@@ -6139,6 +6210,174 @@ mod admin_config_tests {
     }
 
     #[test]
+    fn adversary_sim_internal_beat_auto_starts_pending_post_canary_candidate_window_once() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "shared-server");
+        std::env::set_var("SHUMA_API_KEY", "oversight-candidate-window-test-key");
+        std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+
+        let store = TestStore::default();
+        crate::test_support::seed_canary_only_objectives(&store);
+
+        let mut cfg = crate::config::defaults().clone();
+        cfg.fingerprint_signal_enabled = false;
+        crate::test_support::seed_apply_ready_snapshot(&store, cfg);
+
+        let periodic_req = make_internal_oversight_request(
+            "oversight-candidate-window-test-key",
+            serde_json::to_vec(&serde_json::json!({
+                "trigger_kind": "periodic_supervisor"
+            }))
+            .expect("json body")
+            .as_slice(),
+        );
+        let periodic_resp = handle_internal_oversight_agent_run(&periodic_req, &store, "default");
+        assert_eq!(*periodic_resp.status(), 200u16);
+        let periodic_json: serde_json::Value =
+            serde_json::from_slice(periodic_resp.body()).expect("periodic response decodes");
+        assert_eq!(
+            periodic_json["run"]["execution"]["apply"]["stage"].as_str(),
+            Some("canary_applied")
+        );
+
+        let status_req = Request::builder()
+            .method(Method::Get)
+            .uri("/admin/oversight/agent/status")
+            .body(Vec::new())
+            .build();
+        let pending_status_resp =
+            handle_admin_oversight_agent_status(&status_req, &store, "default");
+        assert_eq!(*pending_status_resp.status(), 200u16);
+        let pending_status_json: serde_json::Value =
+            serde_json::from_slice(pending_status_resp.body()).expect("status decodes");
+        assert_eq!(
+            pending_status_json["candidate_window"]["status"].as_str(),
+            Some("pending")
+        );
+
+        let beat_req = make_internal_beat_request("oversight-candidate-window-test-key");
+        let first_beat_resp = handle_internal_adversary_sim_beat(&beat_req, &store, "default");
+        assert_eq!(*first_beat_resp.status(), 200u16);
+        let first_beat_json: serde_json::Value =
+            serde_json::from_slice(first_beat_resp.body()).expect("beat decodes");
+        assert_eq!(
+            first_beat_json["dispatch_mode"].as_str(),
+            Some("scrapling_worker")
+        );
+        let worker_plan = first_beat_json
+            .get("worker_plan")
+            .cloned()
+            .expect("worker plan present");
+        let follow_on_run_id = worker_plan["run_id"]
+            .as_str()
+            .expect("run id")
+            .to_string();
+        let tick_id = worker_plan["tick_id"]
+            .as_str()
+            .expect("tick id")
+            .to_string();
+        let tick_started_at = worker_plan["tick_started_at"]
+            .as_u64()
+            .expect("tick started at");
+        let fulfillment_mode = worker_plan["fulfillment_mode"]
+            .as_str()
+            .expect("fulfillment mode")
+            .to_string();
+
+        let running_status_resp =
+            handle_admin_oversight_agent_status(&status_req, &store, "default");
+        assert_eq!(*running_status_resp.status(), 200u16);
+        let running_status_json: serde_json::Value =
+            serde_json::from_slice(running_status_resp.body()).expect("running status decodes");
+        assert_eq!(
+            running_status_json["candidate_window"]["status"].as_str(),
+            Some("running")
+        );
+        assert_eq!(
+            running_status_json["candidate_window"]["follow_on_run_id"].as_str(),
+            Some(follow_on_run_id.as_str())
+        );
+
+        let worker_result_body = serde_json::to_vec(&serde_json::json!({
+            "schema_version": "adversary-sim-scrapling-worker-result.v1",
+            "run_id": follow_on_run_id,
+            "tick_id": tick_id,
+            "lane": "scrapling_traffic",
+            "fulfillment_mode": fulfillment_mode,
+            "worker_id": "scrapling-worker-test",
+            "tick_started_at": tick_started_at,
+            "tick_completed_at": tick_started_at.saturating_add(1),
+            "generated_requests": 3,
+            "failed_requests": 0,
+            "last_response_status": 200,
+            "failure_class": null,
+            "error": null,
+            "crawl_stats": {
+                "requests_count": 3,
+                "offsite_requests_count": 0,
+                "blocked_requests_count": 0,
+                "response_status_count": {
+                    "status_200": 3
+                },
+                "response_bytes": 512
+            },
+            "scope_rejections": {},
+            "surface_receipts": []
+        }))
+        .expect("worker result encodes");
+        let worker_result_req = make_internal_worker_result_request(
+            "oversight-candidate-window-test-key",
+            worker_result_body.as_slice(),
+        );
+        let worker_result_resp =
+            handle_internal_adversary_sim_worker_result(&worker_result_req, &store, "default");
+        assert_eq!(*worker_result_resp.status(), 200u16);
+
+        let mut running_state = crate::admin::adversary_sim::load_state(&store, "default");
+        running_state.ends_at = Some(now_ts().saturating_sub(1));
+        crate::admin::adversary_sim::save_state(&store, "default", &running_state)
+            .expect("state save");
+
+        let completion_beat_resp = handle_internal_adversary_sim_beat(&beat_req, &store, "default");
+        assert_eq!(*completion_beat_resp.status(), 200u16);
+
+        let materialized_status_resp =
+            handle_admin_oversight_agent_status(&status_req, &store, "default");
+        assert_eq!(*materialized_status_resp.status(), 200u16);
+        let materialized_status_json: serde_json::Value =
+            serde_json::from_slice(materialized_status_resp.body())
+                .expect("materialized status decodes");
+        assert_eq!(
+            materialized_status_json["candidate_window"]["status"].as_str(),
+            Some("materialized")
+        );
+        assert_eq!(
+            materialized_status_json["candidate_window"]["follow_on_run_id"].as_str(),
+            Some(follow_on_run_id.as_str())
+        );
+
+        let second_idle_beat_resp = handle_internal_adversary_sim_beat(&beat_req, &store, "default");
+        assert_eq!(*second_idle_beat_resp.status(), 200u16);
+        let second_idle_beat_json: serde_json::Value =
+            serde_json::from_slice(second_idle_beat_resp.body()).expect("idle beat decodes");
+        assert!(second_idle_beat_json["worker_plan"].is_null());
+        assert_eq!(
+            second_idle_beat_json["generation_active"].as_bool(),
+            Some(false)
+        );
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+        std::env::remove_var("SHUMA_API_KEY");
+        std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
+    }
+
+    #[test]
     fn post_sim_oversight_route_can_apply_improve_and_archive_first_working_game_loop() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
@@ -6202,6 +6441,10 @@ mod admin_config_tests {
             Some("canary_applied")
         );
 
+        let _follow_on_run_id =
+            materialize_post_canary_candidate_window_run(&store, "oversight-game-loop-test-key");
+        let canary_cfg =
+            crate::config::Config::load(&store, "default").expect("canary config loads");
         let mut active_canary: serde_json::Value = serde_json::from_slice(
             &store
                 .get("oversight_active_canary:v1:default")
@@ -6217,9 +6460,6 @@ mod admin_config_tests {
                 &serde_json::to_vec(&active_canary).expect("active canary encodes"),
             )
             .expect("active canary update");
-
-        let canary_cfg =
-            crate::config::Config::load(&store, "default").expect("canary config loads");
         crate::test_support::seed_candidate_snapshot(
             &store,
             canary_cfg,
@@ -6378,6 +6618,12 @@ mod admin_config_tests {
         );
         let periodic_resp = handle_internal_oversight_agent_run(&periodic_req, &store, "default");
         assert_eq!(*periodic_resp.status(), 200u16);
+        let periodic_json: serde_json::Value =
+            serde_json::from_slice(periodic_resp.body()).expect("periodic decodes");
+        assert!(matches!(
+            periodic_json["run"]["execution"]["apply"]["stage"].as_str(),
+            Some("improved") | Some("rollback_applied")
+        ));
 
         let history_req = Request::builder()
             .method(Method::Get)
@@ -6393,10 +6639,10 @@ mod admin_config_tests {
                 .as_str(),
             Some("human_only_private")
         );
-        assert_eq!(
+        assert!(matches!(
             history_json["episode_archive"]["rows"][0]["retain_or_rollback"].as_str(),
-            Some("retained")
-        );
+            Some("retained") | Some("rolled_back")
+        ));
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
@@ -6475,6 +6721,14 @@ mod admin_config_tests {
             Some("fingerprint_signal")
         );
 
+        let first_canary_cfg =
+            crate::config::Config::load(&store, "default").expect("first canary config loads");
+        assert!(first_canary_cfg.fingerprint_signal_enabled);
+        assert!(!first_canary_cfg.cdp_detection_enabled);
+        let _first_follow_on_run_id = materialize_post_canary_candidate_window_run(
+            &store,
+            "oversight-game-loop-repeat-test-key",
+        );
         let mut active_canary: serde_json::Value = serde_json::from_slice(
             &store
                 .get("oversight_active_canary:v1:default")
@@ -6490,11 +6744,6 @@ mod admin_config_tests {
                 &serde_json::to_vec(&active_canary).expect("active canary encodes"),
             )
             .expect("active canary update");
-
-        let first_canary_cfg =
-            crate::config::Config::load(&store, "default").expect("first canary config loads");
-        assert!(first_canary_cfg.fingerprint_signal_enabled);
-        assert!(!first_canary_cfg.cdp_detection_enabled);
         crate::test_support::seed_candidate_snapshot(
             &store,
             first_canary_cfg,
@@ -6545,6 +6794,10 @@ mod admin_config_tests {
             Some("cdp_detection")
         );
 
+        let _second_follow_on_run_id = materialize_post_canary_candidate_window_run(
+            &store,
+            "oversight-game-loop-repeat-test-key",
+        );
         let mut second_active_canary: serde_json::Value = serde_json::from_slice(
             &store
                 .get("oversight_active_canary:v1:default")

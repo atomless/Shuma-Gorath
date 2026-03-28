@@ -102,6 +102,7 @@ pub(crate) struct OversightAgentStatusPayload {
     pub execution_boundary: String,
     pub periodic_trigger: OversightAgentPeriodicTriggerContract,
     pub post_sim_trigger: OversightAgentPostSimTriggerContract,
+    pub candidate_window: crate::admin::oversight_apply::OversightCandidateWindowStatus,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub latest_run: Option<OversightAgentRunRecord>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -329,6 +330,9 @@ pub(crate) fn build_status_payload<S: KeyValueStore>(
                 .to_string(),
             dedupe_key: "sim_run_id".to_string(),
         },
+        candidate_window: crate::admin::oversight_apply::project_candidate_window_status(
+            store, site_id, now,
+        ),
         latest_run: load_latest_agent_run(store, site_id),
         latest_decision: load_latest_decision(store, site_id),
         episode_archive,
@@ -414,6 +418,14 @@ pub(crate) fn maybe_trigger_post_sim_agent_cycle<S: KeyValueStore>(
     let Some(trigger) = trigger else {
         return Ok(None);
     };
+    if let Some(sim_run_id) = trigger.sim_run_id.as_deref() {
+        crate::admin::oversight_apply::mark_candidate_window_materialized_for_run(
+            store,
+            site_id,
+            requested_at_ts,
+            sim_run_id,
+        )?;
+    }
     execute_agent_cycle(store, site_id, trigger).map(Some)
 }
 
@@ -817,6 +829,33 @@ mod tests {
         .expect("snapshot update");
     }
 
+    fn mark_active_canary_candidate_window_materialized(
+        store: &TestStore,
+        materialized_at_ts: u64,
+    ) {
+        let mut active_canary: serde_json::Value = serde_json::from_slice(
+            &store
+                .get("oversight_active_canary:v1:default")
+                .expect("active canary lookup")
+                .expect("active canary present"),
+        )
+        .expect("active canary decodes");
+        active_canary["candidate_window"]["status"] =
+            serde_json::json!("materialized");
+        active_canary["candidate_window"]["follow_on_run_id"] =
+            serde_json::json!("simrun-candidate-window-001");
+        active_canary["candidate_window"]["follow_on_started_at"] =
+            serde_json::json!(materialized_at_ts.saturating_sub(1));
+        active_canary["candidate_window"]["materialized_at_ts"] =
+            serde_json::json!(materialized_at_ts);
+        store
+            .set(
+                "oversight_active_canary:v1:default",
+                &serde_json::to_vec(&active_canary).expect("active canary encodes"),
+            )
+            .expect("active canary save");
+    }
+
     #[test]
     fn agent_cycle_records_periodic_supervisor_run_and_exposes_latest_run() {
         let store = TestStore::new();
@@ -1072,6 +1111,58 @@ mod tests {
     }
 
     #[test]
+    fn agent_cycle_persists_pending_candidate_window_request_and_exposes_it_in_status() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        let store = TestStore::new();
+        let requested_at_ts = crate::admin::now_ts();
+        let mut cfg = defaults().clone();
+        cfg.fingerprint_signal_enabled = false;
+        seed_canary_only_objectives(&store);
+        seed_apply_ready_snapshot(&store, cfg);
+
+        let execution = execute_agent_cycle(
+            &store,
+            "default",
+            OversightAgentTrigger {
+                kind: OversightAgentTriggerKind::PeriodicSupervisor,
+                requested_at_ts,
+                sim_run_id: None,
+                sim_completion_reason: None,
+            },
+        )
+        .expect("agent cycle succeeds");
+
+        assert_eq!(execution.run.execution.apply.stage, "canary_applied");
+
+        let status = build_status_payload(&store, "default");
+        assert_eq!(status.candidate_window.status, "pending");
+        assert_eq!(
+            status.candidate_window.patch_family.as_deref(),
+            Some("fingerprint_signal")
+        );
+        assert_eq!(
+            status.candidate_window.requested_lane.as_deref(),
+            Some("scrapling_traffic")
+        );
+        assert_eq!(status.candidate_window.requested_duration_seconds, Some(30));
+        assert_eq!(
+            status.candidate_window.watch_window_end_at,
+            Some(
+                execution
+                    .run
+                    .execution
+                    .apply
+                    .watch_window_end_at
+                    .expect("watch window end")
+            )
+        );
+        assert!(status.candidate_window.follow_on_run_id.is_none());
+
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+    }
+
+    #[test]
     fn agent_cycle_can_apply_one_canary_with_live_runtime_protected_evidence_even_if_replay_metadata_is_stale() {
         let store = TestStore::new();
         let mut cfg = defaults().clone();
@@ -1246,6 +1337,7 @@ mod tests {
         let canary_cfg =
             crate::config::Config::load(&store, "default").expect("canary config loads");
         seed_candidate_snapshot(&store, canary_cfg, 1_700_004_000, 0.55, "outside_budget");
+        mark_active_canary_candidate_window_materialized(&store, 1_700_004_000);
 
         let second = execute_agent_cycle(
             &store,
@@ -1372,6 +1464,7 @@ mod tests {
         let canary_cfg =
             crate::config::Config::load(&store, "default").expect("canary config loads");
         seed_candidate_snapshot(&store, canary_cfg, 1_700_004_100, 0.12, "inside_budget");
+        mark_active_canary_candidate_window_materialized(&store, 1_700_004_100);
 
         let second = execute_agent_cycle(
             &store,

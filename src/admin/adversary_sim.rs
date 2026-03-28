@@ -20,8 +20,8 @@ use super::adversary_sim_corpus::{
 pub use super::adversary_sim_state::{
     clamp_duration_seconds, control_surface_available, effective_active_lane,
     lane_reconciliation_needed, load_state, process_instance_id, project_effective_desired_state,
-    reconcile_state, save_state, select_desired_lane, start_state, stop_state, ControlPhase,
-    ControlState, RuntimeLane, StartError, Transition,
+    reconcile_state, save_state, select_desired_lane, start_state, start_state_with_reason,
+    stop_state, ControlPhase, ControlState, RuntimeLane, StartError, Transition,
 };
 
 pub const MAX_CONCURRENT_RUNS: u32 = 1;

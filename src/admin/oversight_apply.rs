@@ -38,6 +38,12 @@ const OVERSIGHT_APPLY_SCHEMA_VERSION: &str = "oversight_apply_v1";
 const OVERSIGHT_ACTIVE_CANARY_SCHEMA_VERSION: &str = "oversight_active_canary_v1";
 const OVERSIGHT_ACTIVE_CANARY_PREFIX: &str = "oversight_active_canary:v1";
 const OVERSIGHT_CONTROLLER_ADMIN_ID: &str = "controller:oversight_canary";
+const OVERSIGHT_CANDIDATE_WINDOW_STATUS_NOT_REQUESTED: &str = "not_requested";
+const OVERSIGHT_CANDIDATE_WINDOW_STATUS_PENDING: &str = "pending";
+const OVERSIGHT_CANDIDATE_WINDOW_STATUS_RUNNING: &str = "running";
+const OVERSIGHT_CANDIDATE_WINDOW_STATUS_MATERIALIZED: &str = "materialized";
+const OVERSIGHT_CANDIDATE_WINDOW_STATUS_EXPIRED: &str = "expired_without_candidate";
+const OVERSIGHT_CANDIDATE_WINDOW_AUTO_RUN_REASON: &str = "candidate_window_follow_on";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum OversightApplyMode {
@@ -75,7 +81,39 @@ pub(crate) struct OversightApplyResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct OversightActiveCanaryState {
+struct OversightCandidateWindowState {
+    #[serde(default = "default_candidate_window_status")]
+    status: String,
+    #[serde(default)]
+    requested_at_ts: u64,
+    #[serde(default)]
+    requested_lane: crate::admin::adversary_sim::RuntimeLane,
+    #[serde(default)]
+    requested_duration_seconds: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    follow_on_run_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    follow_on_started_at: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    materialized_at_ts: Option<u64>,
+}
+
+impl Default for OversightCandidateWindowState {
+    fn default() -> Self {
+        Self {
+            status: OVERSIGHT_CANDIDATE_WINDOW_STATUS_NOT_REQUESTED.to_string(),
+            requested_at_ts: 0,
+            requested_lane: crate::admin::adversary_sim::RuntimeLane::ScraplingTraffic,
+            requested_duration_seconds: 0,
+            follow_on_run_id: None,
+            follow_on_started_at: None,
+            materialized_at_ts: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct OversightActiveCanaryState {
     schema_version: String,
     canary_id: String,
     opened_at_ts: u64,
@@ -90,6 +128,8 @@ struct OversightActiveCanaryState {
     proposal: OversightPatchProposal,
     baseline_snapshot: BenchmarkComparableSnapshot,
     previous_config: Config,
+    #[serde(default)]
+    candidate_window: OversightCandidateWindowState,
 }
 
 #[derive(Debug, Clone)]
@@ -98,12 +138,99 @@ pub(crate) struct OversightActiveCanaryEpisodeContext {
     pub proposal: OversightPatchProposal,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct OversightCandidateWindowStatus {
+    pub status: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub canary_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub patch_family: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub requested_lane: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub requested_duration_seconds: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub requested_at_ts: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub watch_window_end_at: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub follow_on_run_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub follow_on_started_at: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub materialized_at_ts: Option<u64>,
+}
+
 fn default_active_canary_declared_watch_window_seconds() -> u64 {
     0
 }
 
 fn default_active_canary_watch_window_source() -> String {
     OPERATOR_WATCH_WINDOW_SOURCE_DECLARED_OBJECTIVE_WINDOW.to_string()
+}
+
+fn default_candidate_window_status() -> String {
+    OVERSIGHT_CANDIDATE_WINDOW_STATUS_NOT_REQUESTED.to_string()
+}
+
+fn candidate_window_follow_on_duration_seconds(cfg: &Config) -> u64 {
+    let bounded = crate::admin::adversary_sim::clamp_duration_seconds(cfg.adversary_sim_duration_seconds);
+    if crate::config::runtime_environment().is_dev() {
+        bounded.min(crate::config::ADVERSARY_SIM_DURATION_SECONDS_MIN)
+    } else {
+        bounded
+    }
+}
+
+fn candidate_window_status_for_canary(
+    active_canary: &OversightActiveCanaryState,
+    now: u64,
+) -> OversightCandidateWindowStatus {
+    let stored_status = active_canary.candidate_window.status.as_str();
+    let projected_status = if matches!(
+        stored_status,
+        OVERSIGHT_CANDIDATE_WINDOW_STATUS_PENDING | OVERSIGHT_CANDIDATE_WINDOW_STATUS_RUNNING
+    ) && now >= active_canary.watch_window_end_at
+    {
+        OVERSIGHT_CANDIDATE_WINDOW_STATUS_EXPIRED
+    } else {
+        stored_status
+    };
+    OversightCandidateWindowStatus {
+        status: projected_status.to_string(),
+        canary_id: Some(active_canary.canary_id.clone()),
+        patch_family: Some(active_canary.proposal.patch_family.clone()),
+        requested_lane: Some(active_canary.candidate_window.requested_lane.as_str().to_string()),
+        requested_duration_seconds: (active_canary.candidate_window.requested_duration_seconds > 0)
+            .then_some(active_canary.candidate_window.requested_duration_seconds),
+        requested_at_ts: (active_canary.candidate_window.requested_at_ts > 0)
+            .then_some(active_canary.candidate_window.requested_at_ts),
+        watch_window_end_at: Some(active_canary.watch_window_end_at),
+        follow_on_run_id: active_canary.candidate_window.follow_on_run_id.clone(),
+        follow_on_started_at: active_canary.candidate_window.follow_on_started_at,
+        materialized_at_ts: active_canary.candidate_window.materialized_at_ts,
+    }
+}
+
+pub(crate) fn project_candidate_window_status<S: KeyValueStore>(
+    store: &S,
+    site_id: &str,
+    now: u64,
+) -> OversightCandidateWindowStatus {
+    load_active_canary(store, site_id)
+        .map(|active_canary| candidate_window_status_for_canary(&active_canary, now))
+        .unwrap_or(OversightCandidateWindowStatus {
+            status: OVERSIGHT_CANDIDATE_WINDOW_STATUS_NOT_REQUESTED.to_string(),
+            canary_id: None,
+            patch_family: None,
+            requested_lane: None,
+            requested_duration_seconds: None,
+            requested_at_ts: None,
+            watch_window_end_at: None,
+            follow_on_run_id: None,
+            follow_on_started_at: None,
+            materialized_at_ts: None,
+        })
 }
 
 pub(crate) fn evaluate_apply_cycle<S: KeyValueStore>(
@@ -211,6 +338,15 @@ pub(crate) fn evaluate_apply_cycle<S: KeyValueStore>(
         proposal: proposal.clone(),
         baseline_snapshot: comparable_snapshot_from_results(&snapshot.benchmark_results),
         previous_config: current_cfg.clone(),
+        candidate_window: OversightCandidateWindowState {
+            status: OVERSIGHT_CANDIDATE_WINDOW_STATUS_PENDING.to_string(),
+            requested_at_ts: now,
+            requested_lane: crate::admin::adversary_sim::RuntimeLane::ScraplingTraffic,
+            requested_duration_seconds: candidate_window_follow_on_duration_seconds(&updated_cfg),
+            follow_on_run_id: None,
+            follow_on_started_at: None,
+            materialized_at_ts: None,
+        },
     };
     save_active_canary(store, site_id, &active_canary)?;
     if let Err(err) = persist_config_change(
@@ -269,6 +405,7 @@ fn continue_active_canary<S: KeyValueStore>(
     active_canary: &OversightActiveCanaryState,
     mode: OversightApplyMode,
 ) -> Result<OversightApplyResult, ()> {
+    let candidate_window_status = candidate_window_status_for_canary(active_canary, now);
     if now < active_canary.watch_window_end_at {
         return Ok(OversightApplyResult {
             schema_version: OVERSIGHT_APPLY_SCHEMA_VERSION.to_string(),
@@ -282,13 +419,13 @@ fn continue_active_canary<S: KeyValueStore>(
             watch_window_started_at: Some(active_canary.opened_at_ts),
             watch_window_end_at: Some(active_canary.watch_window_end_at),
             baseline_generated_at: Some(active_canary.baseline_snapshot.generated_at),
-            candidate_generated_at: Some(snapshot.benchmark_results.generated_at),
+            candidate_generated_at: candidate_window_status.materialized_at_ts,
             comparison_status: None,
             rollback_reason: None,
         });
     }
 
-    let rollback_reason = rollback_reason(snapshot, active_canary);
+    let rollback_reason = rollback_reason(snapshot, active_canary, &candidate_window_status);
     let comparison_status = candidate_comparison_status(snapshot, &active_canary.baseline_snapshot);
     if mode == OversightApplyMode::PreviewOnly {
         return Ok(OversightApplyResult {
@@ -311,7 +448,9 @@ fn continue_active_canary<S: KeyValueStore>(
             watch_window_started_at: Some(active_canary.opened_at_ts),
             watch_window_end_at: Some(active_canary.watch_window_end_at),
             baseline_generated_at: Some(active_canary.baseline_snapshot.generated_at),
-            candidate_generated_at: Some(snapshot.benchmark_results.generated_at),
+            candidate_generated_at: candidate_window_status
+                .materialized_at_ts
+                .or_else(|| (snapshot.generated_at > active_canary.baseline_snapshot.generated_at).then_some(snapshot.generated_at)),
             comparison_status,
             rollback_reason,
         });
@@ -331,7 +470,9 @@ fn continue_active_canary<S: KeyValueStore>(
             watch_window_started_at: Some(active_canary.opened_at_ts),
             watch_window_end_at: Some(active_canary.watch_window_end_at),
             baseline_generated_at: Some(active_canary.baseline_snapshot.generated_at),
-            candidate_generated_at: Some(snapshot.benchmark_results.generated_at),
+            candidate_generated_at: candidate_window_status
+                .materialized_at_ts
+                .or_else(|| (snapshot.generated_at > active_canary.baseline_snapshot.generated_at).then_some(snapshot.generated_at)),
             comparison_status,
             rollback_reason: None,
         });
@@ -387,7 +528,9 @@ fn continue_active_canary<S: KeyValueStore>(
         watch_window_started_at: Some(active_canary.opened_at_ts),
         watch_window_end_at: Some(active_canary.watch_window_end_at),
         baseline_generated_at: Some(active_canary.baseline_snapshot.generated_at),
-        candidate_generated_at: Some(snapshot.benchmark_results.generated_at),
+        candidate_generated_at: candidate_window_status
+            .materialized_at_ts
+            .or_else(|| (snapshot.generated_at > active_canary.baseline_snapshot.generated_at).then_some(snapshot.generated_at)),
         comparison_status,
         rollback_reason: Some(rollback_reason),
     })
@@ -435,6 +578,7 @@ fn proposal_apply_refusal_reason(reconcile: &OversightReconcileResult) -> Option
 fn rollback_reason(
     snapshot: &OperatorSnapshotHotReadPayload,
     active_canary: &OversightActiveCanaryState,
+    candidate_window_status: &OversightCandidateWindowStatus,
 ) -> Option<String> {
     let stale_reasons = stale_evidence_reasons(snapshot);
     if !stale_reasons.is_empty() {
@@ -453,8 +597,11 @@ fn rollback_reason(
                 .join(","),
         );
     }
-    if snapshot.generated_at <= active_canary.baseline_snapshot.generated_at {
+    if candidate_window_status.status != OVERSIGHT_CANDIDATE_WINDOW_STATUS_MATERIALIZED {
         return Some("candidate_window_not_materialized".to_string());
+    }
+    if snapshot.generated_at <= active_canary.baseline_snapshot.generated_at {
+        return Some("candidate_snapshot_not_materialized".to_string());
     }
     None
 }
@@ -513,6 +660,76 @@ pub(crate) fn load_active_canary_episode_context<S: KeyValueStore>(
         baseline_snapshot: state.baseline_snapshot,
         proposal: state.proposal,
     })
+}
+
+pub(crate) fn prepare_pending_candidate_window_follow_on<S: KeyValueStore>(
+    store: &S,
+    site_id: &str,
+    now: u64,
+    current: &crate::admin::adversary_sim::ControlState,
+) -> Result<Option<(
+    crate::admin::adversary_sim::ControlState,
+    OversightActiveCanaryState,
+)>, ()> {
+    let Some(active_canary) = load_active_canary(store, site_id) else {
+        return Ok(None);
+    };
+    let candidate_window_status = candidate_window_status_for_canary(&active_canary, now);
+    if candidate_window_status.status != OVERSIGHT_CANDIDATE_WINDOW_STATUS_PENDING {
+        return Ok(None);
+    }
+    if current.phase != crate::admin::adversary_sim::ControlPhase::Off {
+        return Ok(None);
+    }
+    let lane_selected = crate::admin::adversary_sim::select_desired_lane(
+        now,
+        active_canary.candidate_window.requested_lane,
+        current,
+    );
+    let (started_state, _) = match crate::admin::adversary_sim::start_state_with_reason(
+        now,
+        active_canary.candidate_window.requested_duration_seconds,
+        &lane_selected,
+        OVERSIGHT_CANDIDATE_WINDOW_AUTO_RUN_REASON,
+    ) {
+        Ok(started) => started,
+        Err(crate::admin::adversary_sim::StartError::QueueFull) => return Ok(None),
+    };
+    let mut updated_canary = active_canary.clone();
+    updated_canary.candidate_window.status = OVERSIGHT_CANDIDATE_WINDOW_STATUS_RUNNING.to_string();
+    updated_canary.candidate_window.follow_on_run_id = started_state.run_id.clone();
+    updated_canary.candidate_window.follow_on_started_at = Some(now);
+    Ok(Some((started_state, updated_canary)))
+}
+
+pub(crate) fn save_active_canary_state<S: KeyValueStore>(
+    store: &S,
+    site_id: &str,
+    state: &OversightActiveCanaryState,
+) -> Result<(), ()> {
+    save_active_canary(store, site_id, state)
+}
+
+pub(crate) fn mark_candidate_window_materialized_for_run<S: KeyValueStore>(
+    store: &S,
+    site_id: &str,
+    completed_at_ts: u64,
+    sim_run_id: &str,
+) -> Result<bool, ()> {
+    let Some(mut active_canary) = load_active_canary(store, site_id) else {
+        return Ok(false);
+    };
+    if active_canary.candidate_window.status != OVERSIGHT_CANDIDATE_WINDOW_STATUS_RUNNING {
+        return Ok(false);
+    }
+    if active_canary.candidate_window.follow_on_run_id.as_deref() != Some(sim_run_id) {
+        return Ok(false);
+    }
+    active_canary.candidate_window.status =
+        OVERSIGHT_CANDIDATE_WINDOW_STATUS_MATERIALIZED.to_string();
+    active_canary.candidate_window.materialized_at_ts = Some(completed_at_ts);
+    save_active_canary(store, site_id, &active_canary)?;
+    Ok(true)
 }
 
 fn save_active_canary<S: KeyValueStore>(

@@ -1139,6 +1139,32 @@ mod tests {
         .expect("objectives save");
     }
 
+    fn mark_active_canary_candidate_window_materialized(
+        store: &TestStore,
+        materialized_at_ts: u64,
+    ) {
+        let mut active_canary: serde_json::Value = serde_json::from_slice(
+            &store
+                .get("oversight_active_canary:v1:default")
+                .expect("active canary lookup")
+                .expect("active canary present"),
+        )
+        .expect("active canary decodes");
+        active_canary["candidate_window"]["status"] = serde_json::json!("materialized");
+        active_canary["candidate_window"]["follow_on_run_id"] =
+            serde_json::json!("simrun-candidate-window-001");
+        active_canary["candidate_window"]["follow_on_started_at"] =
+            serde_json::json!(materialized_at_ts.saturating_sub(1));
+        active_canary["candidate_window"]["materialized_at_ts"] =
+            serde_json::json!(materialized_at_ts);
+        store
+            .set(
+                "oversight_active_canary:v1:default",
+                &serde_json::to_vec(&active_canary).expect("active canary encodes"),
+            )
+            .expect("active canary save");
+    }
+
     #[test]
     fn reconcile_cycle_records_insufficient_evidence_when_snapshot_missing() {
         let store = TestStore::new();
@@ -1391,6 +1417,7 @@ mod tests {
 
             let canary_cfg =
                 crate::config::Config::load(&store, "default").expect("canary config loads");
+            mark_active_canary_candidate_window_materialized(&store, *generated_at);
             crate::test_support::seed_candidate_snapshot_with_candidate_families(
                 &store,
                 canary_cfg,

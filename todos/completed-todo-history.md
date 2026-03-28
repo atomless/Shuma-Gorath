@@ -2,6 +2,34 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-03-28)
+
+### RSI-GAME-ARCH-1K Post-Canary Candidate-Window Materialization
+
+- [x] Completed `RSI-GAME-ARCH-1K` across:
+  - [`../src/admin/adversary_sim_state.rs`](../src/admin/adversary_sim_state.rs)
+  - [`../src/admin/adversary_sim.rs`](../src/admin/adversary_sim.rs)
+  - [`../src/admin/adversary_sim_api.rs`](../src/admin/adversary_sim_api.rs)
+  - [`../src/admin/oversight_apply.rs`](../src/admin/oversight_apply.rs)
+  - [`../src/admin/oversight_agent.rs`](../src/admin/oversight_agent.rs)
+  - [`../src/admin/api.rs`](../src/admin/api.rs)
+  - [`../docs/configuration.md`](../docs/configuration.md)
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../docs/plans/2026-03-27-rsi-game-arch-1k-post-canary-candidate-window-plan.md`](../docs/plans/2026-03-27-rsi-game-arch-1k-post-canary-candidate-window-plan.md)
+  - [`../docs/research/2026-03-28-rsi-game-arch-1k-post-canary-candidate-window-post-implementation-review.md`](../docs/research/2026-03-28-rsi-game-arch-1k-post-canary-candidate-window-post-implementation-review.md)
+- [x] What landed:
+  - canary apply now creates explicit pending candidate-window state under the active canary,
+  - adversary-sim supervisor owns the one-shot protected follow-on Scrapling run and marks it materialized on completion,
+  - periodic judgment now consumes that linked candidate evidence instead of fail-closing by default,
+  - and oversight status exposes candidate-window lifecycle truth directly.
+- [x] Why:
+  - after `RSI-GAME-ARCH-1J`, the live local strict Scrapling loop could already open a canary and reach terminal timing, but still required manual babysitting to produce the post-change candidate evidence needed for a meaningful judged cycle.
+- [x] Evidence:
+  - [`../docs/research/2026-03-28-rsi-game-arch-1k-post-canary-candidate-window-post-implementation-review.md`](../docs/research/2026-03-28-rsi-game-arch-1k-post-canary-candidate-window-post-implementation-review.md)
+  - `make test-oversight-agent`
+  - `make test-oversight-post-sim-trigger`
+  - `make test-rsi-game-mainline`
+
 ## Additional completions (2026-03-27)
 
 ### Planning Only: RSI-GAME-ARCH-1K Post-Canary Candidate-Window Architecture Review

@@ -140,7 +140,7 @@ These keys are seeded into <abbr title="Key-Value">KV</abbr> and loaded from <ab
 | --- | --- | --- |
 | `SHUMA_SHADOW_MODE` | `false` | Enables shadow-mode behavior for controlled local testing. |
 | `SHUMA_ADVERSARY_SIM_ENABLED` | `false` | Seeds the initial adversary-sim desired state (including `/sim/public/*` crawl-surface pages) when the env-level adversary-sim surface is available. Default remains `false`, so generation stays off until an operator enables it. Runtime on/off changes must go through `POST /admin/adversary-sim/control`, and `GET /admin/adversary-sim/status` exposes the resulting production posture via deployment-profile, guardrail, and supervisor cadence fields. |
-| `SHUMA_ADVERSARY_SIM_DURATION_SECONDS` | `180` | Run-window duration for control-triggered adversary simulation orchestration. Value must be between `30` and `900` seconds (inclusive). |
+| `SHUMA_ADVERSARY_SIM_DURATION_SECONDS` | `180` | Run-window duration for control-triggered adversary simulation orchestration. Value must be between `30` and `900` seconds (inclusive). Runtime-dev keeps the supervisor-owned post-canary candidate follow-on run at `30` seconds so local judged cycles can materialize candidate evidence quickly without silently changing the general configured bound. |
 | `SHUMA_JS_REQUIRED_ENFORCED` | `true` | Enforces <abbr title="JavaScript">JS</abbr> verification (`js_verified` cookie gate). |
 | `SHUMA_MODE_RATE` | `both` | Rate module mode: `off`, `signal`, `enforce`, `both`. |
 | `SHUMA_MODE_GEO` | `both` | <abbr title="Geolocation">GEO</abbr> module mode: `off`, `signal`, `enforce`, `both`. |

@@ -1,5 +1,5 @@
 Date: 2026-03-27
-Status: proposed
+Status: implemented
 
 Related context:
 

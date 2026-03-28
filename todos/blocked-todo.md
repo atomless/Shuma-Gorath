@@ -1,19 +1,11 @@
 # Blocked TODO Roadmap
 
-Last updated: 2026-03-27
+Last updated: 2026-03-28
 
 This file holds gated, contingent, or explicitly deferred work that is not execution-ready.
 Move an item back into `todos/todo.md` only when its blocking condition is cleared.
 Completed work lives in `todos/completed-todo-history.md`.
 Security finding validity and closure status live in `todos/security-review.md`.
-
-## P0 Blocked by Current Game-Loop Architecture Decision
-
-- [ ] RSI-GAME-ARCH-1K Auto-materialize a post-canary candidate window before terminal judgment.
-  - Reference context:
-    - [`../docs/research/2026-03-27-rsi-game-arch-1k-post-canary-candidate-window-review.md`](../docs/research/2026-03-27-rsi-game-arch-1k-post-canary-candidate-window-review.md)
-    - [`../docs/plans/2026-03-27-rsi-game-arch-1k-post-canary-candidate-window-plan.md`](../docs/plans/2026-03-27-rsi-game-arch-1k-post-canary-candidate-window-plan.md)
-  Blocker: the March 27 live proof after `RSI-GAME-ARCH-1J` showed that the local strict Scrapling loop can now open a bounded canary and reach real terminal judgment at runtime-dev cadence, but terminal judgment still fail-closes as `candidate_window_not_materialized` unless a second protected post-change Scrapling window is materialized while the canary is open. Reopen only after the repo explicitly decides which component owns that candidate-evidence lifecycle. The current recommendation is: oversight declares the need for candidate evidence, adversary-sim supervisor owns the follow-on protected run. This is architecture-significant because it changes controller or supervisor ownership, evidence lineage, and the live RSI contract.
 
 ## P0 Blocked by Shared-Host Discovery and Runtime-Safety Gates
 

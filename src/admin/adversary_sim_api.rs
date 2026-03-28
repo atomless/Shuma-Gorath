@@ -301,11 +301,27 @@ pub(crate) fn handle_internal_adversary_sim_beat(
     state = reconciled_state;
     crate::admin::adversary_sim::project_effective_desired_state(&mut cfg, &state);
 
+    let pending_candidate_follow_on =
+        crate::admin::oversight_apply::prepare_pending_candidate_window_follow_on(
+            store, site_id, now, &state,
+        );
+    let pending_candidate_follow_on = match pending_candidate_follow_on {
+        Ok(value) => value,
+        Err(()) => return Response::new(500, "Key-value store error"),
+    };
+    if let Some((started_state, _)) = pending_candidate_follow_on.as_ref() {
+        state = started_state.clone();
+        crate::admin::adversary_sim::project_effective_desired_state(&mut cfg, &state);
+    }
+
     let summary =
         crate::admin::adversary_sim::run_autonomous_supervisor_ticks(store, &mut state, now);
+    let mut persist_candidate_follow_on_update = false;
     if state != previous_state {
         match save_adversary_sim_beat_state_if_unchanged(store, site_id, &previous_state, &state) {
-            Ok(true) => {}
+            Ok(true) => {
+                persist_candidate_follow_on_update = pending_candidate_follow_on.is_some();
+            }
             Ok(false) => {
                 let snapshot = match load_adversary_sim_lifecycle_snapshot(store, site_id) {
                     Ok(snapshot) => snapshot,
@@ -322,6 +338,14 @@ pub(crate) fn handle_internal_adversary_sim_beat(
                 crate::admin::adversary_sim::project_effective_desired_state(&mut cfg, &state);
             }
             Err(()) => return Response::new(500, "Key-value store error"),
+        }
+    }
+    if persist_candidate_follow_on_update {
+        let (_, updated_canary) = pending_candidate_follow_on.expect("candidate follow-on present");
+        if let Err(()) =
+            crate::admin::oversight_apply::save_active_canary_state(store, site_id, &updated_canary)
+        {
+            return Response::new(500, "Key-value store error");
         }
     }
 

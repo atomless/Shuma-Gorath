@@ -266,6 +266,15 @@ pub fn start_state(
     duration_seconds: u64,
     current: &ControlState,
 ) -> Result<(ControlState, Vec<Transition>), StartError> {
+    start_state_with_reason(now, duration_seconds, current, "manual_on")
+}
+
+pub fn start_state_with_reason(
+    now: u64,
+    duration_seconds: u64,
+    current: &ControlState,
+    reason: &str,
+) -> Result<(ControlState, Vec<Transition>), StartError> {
     if current.phase == ControlPhase::Running && current.active_run_count >= MAX_CONCURRENT_RUNS {
         return Err(StartError::QueueFull);
     }
@@ -273,7 +282,7 @@ pub fn start_state(
     let transition = Transition {
         from: current.phase,
         to: ControlPhase::Running,
-        reason: "manual_on".to_string(),
+        reason: reason.to_string(),
         run_id: Some(run_id.clone()),
     };
     let desired_lane = current.desired_lane;
@@ -292,7 +301,7 @@ pub fn start_state(
         lane_switch_seq: current.lane_switch_seq,
         last_lane_switch_at: current.last_lane_switch_at,
         last_lane_switch_reason: current.last_lane_switch_reason.clone(),
-        last_transition_reason: Some("manual_on".to_string()),
+        last_transition_reason: Some(reason.to_string()),
         last_terminal_failure_reason: None,
         last_run_id: current.last_run_id.clone(),
         generated_tick_count: 0,
