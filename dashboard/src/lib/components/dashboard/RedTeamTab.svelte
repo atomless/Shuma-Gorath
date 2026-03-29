@@ -1,19 +1,12 @@
 <script>
   import { onDestroy } from 'svelte';
   import { formatUnixSecondsLocal } from '../../domain/core/date-time.js';
-  import {
-    deriveAdversaryRunRowsFromSummaries,
-    deriveLatestScraplingEvidenceFromSummaries
-  } from './monitoring-view-model.js';
+  import { deriveAdversaryRunRowsFromSummaries } from './monitoring-view-model.js';
   import AdversaryRunPanel from './monitoring/AdversaryRunPanel.svelte';
-  import ScraplingEvidencePanel from './monitoring/ScraplingEvidencePanel.svelte';
   import ConfigPanel from './primitives/ConfigPanel.svelte';
   import ConfigPanelHeading from './primitives/ConfigPanelHeading.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
-  import {
-    deriveAdversarySimProgressState,
-    normalizeAdversarySimStatus
-  } from '../../runtime/dashboard-adversary-sim.js';
+  import { deriveAdversarySimProgressState } from '../../runtime/dashboard-adversary-sim.js';
 
   export let managed = false;
   export let isActive = false;
@@ -29,8 +22,6 @@
   export let eventsSnapshot = null;
   export let bansSnapshot = null;
   export let monitoringFreshnessSnapshot = null;
-  export let oversightHistory = null;
-  export let oversightAgentStatus = null;
   export let lifecycleCopy = '';
   export let noticeText = '';
   export let noticeKind = 'info';
@@ -39,87 +30,8 @@
 
   let nowMs = Date.now();
   let progressTimer = null;
-  const laneLabels = {
-    synthetic_traffic: 'Synthetic Traffic',
-    scrapling_traffic: 'Scrapling Traffic',
-    bot_red_team: 'Bot Red Team'
-  };
 
   const formatTime = (rawTs) => formatUnixSecondsLocal(rawTs, '-');
-  const lanePropertyForKey = (laneKey) => {
-    if (laneKey === 'scrapling_traffic') return 'scraplingTraffic';
-    if (laneKey === 'bot_red_team') return 'botRedTeam';
-    return 'syntheticTraffic';
-  };
-  const formatLaneLabel = (laneKey, fallback = '-') => laneLabels[laneKey] || fallback;
-  const formatStatusCount = (value) => {
-    const entries = value && typeof value === 'object'
-      ? Object.entries(value)
-      : [];
-    if (entries.length === 0) return '-';
-    return entries
-      .map(([code, count]) => `${code}: ${count}`)
-      .join(', ');
-  };
-  const formatFailureClasses = (value) => {
-    const failureClasses = value && typeof value === 'object' ? value : {};
-    return ['cancelled', 'timeout', 'transport', 'http']
-      .map((key) => `${key}: ${Number(failureClasses[key]?.count || 0)}`)
-      .join(', ');
-  };
-  const formatOptionalTime = (rawTs) => rawTs > 0 ? formatTime(rawTs) : '-';
-  const humanizeToken = (value) => String(value || '')
-    .trim()
-    .replace(/[_-]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-  const formatTruthBasisLabel = (value) => {
-    const normalized = String(value || '').trim().toLowerCase();
-    if (normalized === 'persisted_event_lower_bound') {
-      return 'Recovered persisted-event lower bound';
-    }
-    if (normalized === 'control_state') {
-      return 'Direct runtime control counters';
-    }
-    return normalized ? humanizeToken(normalized) : 'Unavailable';
-  };
-  const truthStateKind = (generationBasis, laneBasis, persistedEvidence) => {
-    if (
-      generationBasis === 'persisted_event_lower_bound' ||
-      laneBasis === 'persisted_event_lower_bound' ||
-      persistedEvidence?.truthBasis === 'persisted_event_lower_bound'
-    ) {
-      return 'lower_bound';
-    }
-    if (generationBasis === 'control_state' && laneBasis === 'control_state') {
-      return 'direct';
-    }
-    return 'unavailable';
-  };
-  const formatLaneList = (laneIds, fallback = 'No judged mixed-attacker episode recorded yet.') => {
-    const seen = new Set();
-    const labels = Array.isArray(laneIds)
-      ? laneIds
-        .map((laneId) => formatLaneLabel(String(laneId || '').trim(), ''))
-        .filter((laneLabel) => {
-          if (!laneLabel || seen.has(laneLabel)) return false;
-          seen.add(laneLabel);
-          return true;
-        })
-      : [];
-    return labels.length ? labels.join(', ') : fallback;
-  };
-  const summarizeRequiredRuns = (runs, fallback = 'No active mixed-attacker evidence set.') => {
-    if (!Array.isArray(runs) || runs.length === 0) return fallback;
-    return runs
-      .map((run) => {
-        const laneLabel = formatLaneLabel(run?.lane, '');
-        const statusLabel = humanizeToken(run?.status || '').toLowerCase();
-        return laneLabel && statusLabel ? `${laneLabel} ${statusLabel}` : '';
-      })
-      .filter(Boolean)
-      .join(' | ') || fallback;
-  };
 
   function handleToggleChange(event) {
     if (typeof onToggleChange === 'function') {
@@ -154,7 +66,6 @@
     controllerState,
     nowMs
   });
-  $: normalizedStatus = normalizeAdversarySimStatus(adversarySimStatus);
   $: events = eventsSnapshot && typeof eventsSnapshot === 'object' ? eventsSnapshot : {};
   $: banSnapshotStatus = String(bansSnapshot?.status || 'available').trim().toLowerCase() || 'available';
   $: banSnapshotUnavailableMessage = banSnapshotStatus === 'unavailable'
@@ -170,56 +81,6 @@
   $: adversaryRunRows = Array.isArray(adversaryRunSummary?.runRows)
     ? adversaryRunSummary.runRows.slice(0, 8)
     : [];
-  $: latestScraplingEvidence = deriveLatestScraplingEvidenceFromSummaries(rawRecentSimRuns);
-  $: desiredLaneLabel = formatLaneLabel(normalizedStatus.desiredLane, 'Synthetic Traffic');
-  $: activeLaneLabel = formatLaneLabel(normalizedStatus.activeLane, 'Not running');
-  $: episodeArchive = oversightHistory?.episode_archive?.schema_version
-    ? oversightHistory.episode_archive
-    : (oversightAgentStatus?.episode_archive || null);
-  $: episodeArchiveRows = Array.isArray(episodeArchive?.rows) ? episodeArchive.rows : [];
-  $: latestJudgedEpisode = episodeArchiveRows.find((row) => {
-    const outcome = String(row?.retain_or_rollback || '').trim();
-    return outcome === 'retained' || outcome === 'rolled_back';
-  }) || episodeArchiveRows[0] || null;
-  $: latestJudgedLaneLabels = formatLaneList(latestJudgedEpisode?.judged_lane_ids);
-  $: candidateWindow = oversightAgentStatus && typeof oversightAgentStatus === 'object'
-    ? (oversightAgentStatus.candidate_window || {})
-    : {};
-  $: continuationRun = oversightAgentStatus && typeof oversightAgentStatus === 'object'
-    ? (oversightAgentStatus.continuation_run || {})
-    : {};
-  $: currentEvidenceSource = Array.isArray(candidateWindow?.required_runs) && candidateWindow.required_runs.length
-    ? 'Current candidate window'
-    : Array.isArray(continuationRun?.required_runs) && continuationRun.required_runs.length
-      ? 'Current continuation run'
-      : 'No active mixed-attacker evidence set';
-  $: currentEvidenceStatus = Array.isArray(candidateWindow?.required_runs) && candidateWindow.required_runs.length
-    ? humanizeToken(candidateWindow?.status || '').toLowerCase()
-    : Array.isArray(continuationRun?.required_runs) && continuationRun.required_runs.length
-      ? humanizeToken(continuationRun?.status || '').toLowerCase()
-      : '';
-  $: currentEvidenceSummary = Array.isArray(candidateWindow?.required_runs) && candidateWindow.required_runs.length
-    ? summarizeRequiredRuns(candidateWindow.required_runs)
-    : Array.isArray(continuationRun?.required_runs) && continuationRun.required_runs.length
-      ? summarizeRequiredRuns(continuationRun.required_runs)
-      : 'No active mixed-attacker evidence set.';
-  $: diagnosticsLaneKey = normalizedStatus.activeLane || normalizedStatus.desiredLane;
-  $: diagnosticsLaneLabel = formatLaneLabel(diagnosticsLaneKey, 'Synthetic Traffic');
-  $: diagnosticsLaneProperty = lanePropertyForKey(diagnosticsLaneKey);
-  $: diagnosticsLaneState = normalizedStatus.laneDiagnostics.lanes[diagnosticsLaneProperty];
-  $: laneDivergence =
-    normalizedStatus.activeLane &&
-    normalizedStatus.activeLane !== normalizedStatus.desiredLane;
-  $: failureClassesText = formatFailureClasses(
-    normalizedStatus.laneDiagnostics.requestFailureClasses
-  );
-  $: generationTruthBasis = String(normalizedStatus.generationDiagnostics.truthBasis || '').trim().toLowerCase();
-  $: laneDiagnosticsTruthBasis = String(normalizedStatus.laneDiagnostics.truthBasis || '').trim().toLowerCase();
-  $: persistedEventEvidence = normalizedStatus.persistedEventEvidence;
-  $: generationTruthBasisLabel = formatTruthBasisLabel(generationTruthBasis);
-  $: laneDiagnosticsTruthBasisLabel = formatTruthBasisLabel(laneDiagnosticsTruthBasis);
-  $: persistedEvidenceLaneLabel = formatLaneLabel(persistedEventEvidence?.lane, '-');
-  $: truthState = truthStateKind(generationTruthBasis, laneDiagnosticsTruthBasis, persistedEventEvidence);
   $: progressWidth = `${Number(progressState.progressPercent || 0).toFixed(3)}%`;
   $: shouldTickProgress = progressState.active === true && (managed ? isActive : true);
   $: syncProgressTimer(shouldTickProgress);
@@ -280,191 +141,6 @@
       <div class="dashboard-adversary-sim-progress" aria-hidden="true">
         <div class="dashboard-adversary-sim-progress__fill" style={`width: ${progressWidth};`}></div>
       </div>
-      <div class="status-item">
-        <h3>Lane State</h3>
-        <p class="control-desc text-muted">
-          Desired lane records operator intent. Active lane shows the beat-boundary lane executing right now.
-        </p>
-        <div class="status-rows">
-          <div class="info-row">
-            <span class="info-label text-muted">Desired lane:</span>
-            <span id="adversary-sim-lane-state-desired" class="status-value">{desiredLaneLabel}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label text-muted">Active lane:</span>
-            <span id="adversary-sim-lane-state-active" class="status-value">{activeLaneLabel}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label text-muted">Switch sequence:</span>
-            <span class="status-value">{normalizedStatus.laneSwitchSeq}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label text-muted">Last switch at:</span>
-            <span class="status-value">{formatOptionalTime(normalizedStatus.lastLaneSwitchAt)}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label text-muted">Last switch reason:</span>
-            <span class="status-value">{normalizedStatus.lastLaneSwitchReason || '-'}</span>
-          </div>
-          {#if laneDivergence}
-            <div class="info-row">
-              <span class="info-label text-muted">Handoff:</span>
-              <span class="status-value">Awaiting beat-boundary reconciliation.</span>
-            </div>
-          {/if}
-        </div>
-      </div>
-      <div class="status-item">
-        <h3>Lane Diagnostics</h3>
-        <p class="control-desc text-muted">
-          Diagnostics follow the active lane while running, and the desired lane while the simulator is off.
-        </p>
-        <div class="status-rows">
-          <div class="info-row">
-            <span class="info-label text-muted">Diagnostics lane:</span>
-            <span class="status-value">{diagnosticsLaneLabel}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label text-muted">Beat attempts:</span>
-            <span class="status-value">{diagnosticsLaneState.beatAttempts}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label text-muted">Beat successes:</span>
-            <span class="status-value">{diagnosticsLaneState.beatSuccesses}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label text-muted">Beat failures:</span>
-            <span class="status-value">{diagnosticsLaneState.beatFailures}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label text-muted">Generated requests:</span>
-            <span class="status-value">{diagnosticsLaneState.generatedRequests}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label text-muted">Blocked requests:</span>
-            <span class="status-value">{diagnosticsLaneState.blockedRequests}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label text-muted">Offsite requests:</span>
-            <span class="status-value">{diagnosticsLaneState.offsiteRequests}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label text-muted">Response bytes:</span>
-            <span class="status-value">{diagnosticsLaneState.responseBytes}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label text-muted">Response status counts:</span>
-            <span class="status-value">{formatStatusCount(diagnosticsLaneState.responseStatusCount)}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label text-muted">Last generated at:</span>
-            <span class="status-value">{formatOptionalTime(diagnosticsLaneState.lastGeneratedAt)}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label text-muted">Last error:</span>
-            <span class="status-value">{diagnosticsLaneState.lastError || '-'}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label text-muted">Failure classes:</span>
-            <span class="status-value">{failureClassesText}</span>
-          </div>
-        </div>
-      </div>
-      <div class="status-item">
-        <h3>Status Truth</h3>
-        <p class="control-desc text-muted">
-          These markers distinguish direct runtime counters from bounded lower-bound recovery based on persisted monitoring evidence.
-        </p>
-        <div class="status-rows">
-          <div class="info-row">
-            <span class="info-label text-muted">Generation counters:</span>
-            <span id="adversary-sim-generation-truth-basis" class="status-value">{generationTruthBasisLabel}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label text-muted">Lane diagnostics:</span>
-            <span id="adversary-sim-lane-diagnostics-truth-basis" class="status-value">{laneDiagnosticsTruthBasisLabel}</span>
-          </div>
-        </div>
-        {#if truthState === 'lower_bound'}
-          <p id="adversary-sim-truth-state-lower-bound" class="message warning">
-            Recovered lower-bound evidence from persisted monitoring events.
-          </p>
-        {:else if truthState === 'direct'}
-          <p id="adversary-sim-truth-state-direct" class="message info">
-            Direct runtime control counters.
-          </p>
-        {:else}
-          <p id="adversary-sim-truth-state-unavailable" class="message warning">
-            Truth basis is unavailable for one or more adversary-sim counters.
-          </p>
-        {/if}
-      {#if persistedEventEvidence}
-        <div id="adversary-sim-persisted-event-evidence" class="status-rows">
-            <div class="info-row">
-              <span class="info-label text-muted">Evidence run:</span>
-              <span class="status-value">{persistedEventEvidence.runId || '-'}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label text-muted">Evidence lane:</span>
-              <span class="status-value">{persistedEvidenceLaneLabel}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label text-muted">Profile:</span>
-              <span class="status-value">{persistedEventEvidence.profile || '-'}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label text-muted">Monitoring events:</span>
-              <span class="status-value">{persistedEventEvidence.monitoringEventCount}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label text-muted">Defense deltas:</span>
-              <span class="status-value">{persistedEventEvidence.defenseDeltaCount}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label text-muted">Ban outcomes:</span>
-              <span class="status-value">{persistedEventEvidence.banOutcomeCount}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label text-muted">First observed at:</span>
-              <span class="status-value">{formatOptionalTime(persistedEventEvidence.firstObservedAt)}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label text-muted">Last observed at:</span>
-              <span class="status-value">{formatOptionalTime(persistedEventEvidence.lastObservedAt)}</span>
-            </div>
-        </div>
-      {/if}
-    </div>
-
-      <div id="red-team-judged-episode-basis" class="status-item">
-        <h3>Judged Episode Basis</h3>
-        <p class="control-desc text-muted">
-          Controller-grade judged basis is separate from recent run visibility and shows which lanes actually formed the latest mixed-attacker episode.
-        </p>
-        <div class="status-rows">
-          <div class="info-row">
-            <span class="info-label text-muted">Latest judged episode:</span>
-            <span class="status-value">
-              {latestJudgedLaneLabels}
-              {#if latestJudgedEpisode?.retain_or_rollback}
-                | {humanizeToken(latestJudgedEpisode.retain_or_rollback).toLowerCase()}
-              {/if}
-            </span>
-          </div>
-          <div class="info-row">
-            <span class="info-label text-muted">{currentEvidenceSource}:</span>
-            <span class="status-value">
-              {#if currentEvidenceStatus}
-                status {currentEvidenceStatus} |
-              {/if}
-              {currentEvidenceSummary}
-            </span>
-          </div>
-        </div>
-        <p class="control-desc text-muted">
-          Recent visibility alone does not mean the controller judged a mixed-attacker episode.
-        </p>
-      </div>
     </ConfigPanel>
   </div>
 
@@ -487,11 +163,5 @@
     summaryLabel="Active bans linked to recent runs"
     emptyText="No recent adversary simulation runs are currently retained in the compact run history."
     degradedText="Monitoring freshness is degraded or stale. Missing red team run rows may indicate delayed telemetry rather than no simulation activity."
-  />
-
-  <ScraplingEvidencePanel
-    loading={tabStatus?.loading === true}
-    runEvidence={latestScraplingEvidence}
-    {formatTime}
   />
 </section>

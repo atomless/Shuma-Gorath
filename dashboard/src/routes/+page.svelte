@@ -1246,7 +1246,6 @@
     isActive={activeTabKey === 'game-loop'}
     tabStatus={tabStatus['game-loop'] || {}}
     operatorSnapshot={snapshots.operatorSnapshot}
-    benchmarkResults={snapshots.benchmarkResults}
     oversightHistory={snapshots.oversightHistory}
     oversightAgentStatus={snapshots.oversightAgentStatus}
   />
@@ -1302,8 +1301,6 @@
               eventsSnapshot={snapshots.events}
               bansSnapshot={snapshots.bans}
               monitoringFreshnessSnapshot={snapshots.monitoringFreshness}
-              oversightHistory={snapshots.oversightHistory}
-              oversightAgentStatus={snapshots.oversightAgentStatus}
               lifecycleCopy={adversarySimLifecycleCopy}
               onToggleChange={onGlobalAdversarySimToggleChange}
               onLaneChange={onAdversarySimLaneChange}

@@ -4,6 +4,40 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-29)
 
+### RSI-GAME-ARCH-1E1 Retire Redundant Dashboard Machine-Diagnostic Surfaces
+
+- [x] Completed `RSI-GAME-ARCH-1E1` across:
+  - [`../dashboard/src/lib/components/dashboard/RedTeamTab.svelte`](../dashboard/src/lib/components/dashboard/RedTeamTab.svelte)
+  - [`../dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
+  - [`../dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte`](../dashboard/src/lib/components/dashboard/DiagnosticsTab.svelte)
+  - [`../dashboard/src/lib/components/dashboard/monitoring-view-model.js`](../dashboard/src/lib/components/dashboard/monitoring-view-model.js)
+  - [`../dashboard/src/lib/domain/api-client.js`](../dashboard/src/lib/domain/api-client.js)
+  - [`../dashboard/src/lib/domain/dashboard-state.js`](../dashboard/src/lib/domain/dashboard-state.js)
+  - [`../dashboard/src/lib/runtime/dashboard-runtime-refresh.js`](../dashboard/src/lib/runtime/dashboard-runtime-refresh.js)
+  - [`../dashboard/src/routes/+page.svelte`](../dashboard/src/routes/+page.svelte)
+  - [`../dashboard/src/lib/components/dashboard/monitoring/DefenseTrendBlocks.svelte`](../dashboard/src/lib/components/dashboard/monitoring/DefenseTrendBlocks.svelte)
+  - [`../dashboard/src/lib/components/dashboard/monitoring/ScraplingEvidencePanel.svelte`](../dashboard/src/lib/components/dashboard/monitoring/ScraplingEvidencePanel.svelte)
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`../Makefile`](../Makefile)
+  - [`../docs/dashboard-tabs/red-team.md`](../docs/dashboard-tabs/red-team.md)
+  - [`../docs/dashboard-tabs/game-loop.md`](../docs/dashboard-tabs/game-loop.md)
+  - [`../docs/dashboard-tabs/diagnostics.md`](../docs/dashboard-tabs/diagnostics.md)
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../todos/todo.md`](../todos/todo.md)
+- [x] What landed:
+  - `Red Team` now keeps only the adversary-sim controls, lifecycle/progress state, and `Recent Red Team Runs`, with the machine-diagnostic `Lane State`, `Lane Diagnostics`, `Status Truth`, `Judged Episode Basis`, and `Scrapling` sections retired cleanly.
+  - `Game Loop` now renders only the observer-facing `Recent Rounds`, `Adversaries In This Round`, and `Defences In This Round` sections, while the benchmark-driven lower machine-diagnostic sections and their fetch/store wiring are removed from the dashboard path.
+  - `Diagnostics` now flows directly into subsystem inspection sections without `Defense Breakdown`, and the now-dead overview helpers/components were deleted rather than left inert.
+  - the dashboard codebase no longer adapts or stores `benchmarkResults`, no longer carries dead Red Team oversight props, no longer ships the retired `ScraplingEvidencePanel` and `DefenseTrendBlocks`, and the focused smoke/unit proofs now assert the leaner surviving architecture truthfully.
+- [x] Why:
+  - the dashboard had accumulated internal machine-diagnostic surfaces that no longer earned their keep once the observer-facing Game Loop and simpler Red Team/Diagnostics ownership split were in place, which made the tabs noisier and left dead data paths hanging around the UI layer.
+- [x] Evidence:
+  - `make test-dashboard-game-loop-accountability`
+  - `make test-dashboard-red-team-pane`
+  - `make test-dashboard-diagnostics-pane`
+  - `make dashboard-build`
+
 ### SIM-CONFIG-1 Shorten Seeded Adversary Sim Run Window To 30 Seconds
 
 - [x] Completed the default-duration reduction across:

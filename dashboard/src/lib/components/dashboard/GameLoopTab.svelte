@@ -1,18 +1,13 @@
 <script>
   import { formatCompactNumber } from '../../domain/core/format.js';
   import { formatUnixSecondsLocal } from '../../domain/core/date-time.js';
-  import {
-    deriveAdversaryRunRowsFromSummaries,
-    deriveLatestScraplingEvidenceFromSummaries
-  } from './monitoring-view-model.js';
+  import { deriveAdversaryRunRowsFromSummaries } from './monitoring-view-model.js';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
-  import MetricStatCard from './primitives/MetricStatCard.svelte';
 
   export let managed = false;
   export let isActive = true;
   export let tabStatus = null;
   export let operatorSnapshot = null;
-  export let benchmarkResults = null;
   export let oversightHistory = null;
   export let oversightAgentStatus = null;
 
@@ -27,48 +22,13 @@
       id: 'adversary-cast',
       title: 'Adversaries In This Round',
       description:
-        'Simulator-ground-truth categories are visible here after the fact so we can see which adversaries showed up and what the recent recognition evaluation inferred.'
+        'This is the observer view. Simulator ground truth is visible here after the round, and recent recognition evaluation shows how Shuma categorized that traffic.'
     },
     {
       id: 'defence-cast',
       title: 'Defences In This Round',
       description:
-        'These rows stay surface-native. They show what Shuma’s defences observed and how those surfaces fared, without using simulator labels as defence truth.'
-    },
-    {
-      id: 'current-status',
-      title: 'Round Outcome',
-      description: 'The current machine-first outcome after the latest judged round.'
-    },
-    {
-      id: 'recent-loop-progress',
-      title: 'Loop Progress',
-      description:
-        'The existing loop lineage, cadence, and continuation state remain here as lower-level context.'
-    },
-    {
-      id: 'outcome-frontier',
-      title: 'Origin Leakage And Human Cost',
-      description:
-        'These guardrails measure suspicious-origin leakage and measured human friction. They do not, by themselves, prove total attacker defeat.'
-    },
-    {
-      id: 'change-judgment',
-      title: 'Loop Actionability',
-      description:
-        'The machine-first decision state, bounded move readiness, and whether the controller actually applied a config move or stayed blocked.'
-    },
-    {
-      id: 'pressure-sits',
-      title: 'Pressure Context',
-      description:
-        'The richer exploit-progress, surface-contract, recognition, and change context still sits below the observer-facing round summary.'
-    },
-    {
-      id: 'trust-and-blockers',
-      title: 'Trust And Blockers',
-      description:
-        'Evidence readiness, protected evidence status, replay-lineage context, coverage state, and explicit blockers that explain how trustworthy the current conclusion is.'
+        'This is the surface-native view. Each row stays with what the defence saw, how it responded, and whether the surface held or leaked.'
     }
   ]);
 
@@ -86,95 +46,20 @@
     ui: 'UI'
   });
 
-  const zeroTargetSuppressionMetricIds = new Set([
-    'suspicious_forwarded_request_rate',
-    'suspicious_forwarded_byte_rate',
-    'suspicious_forwarded_latency_share'
-  ]);
-  const terminalLoopOutcomes = new Set(['config_ring_exhausted', 'code_evolution_referral']);
-
-  const zeroTargetSuppressionLabels = Object.freeze({
-    suspicious_forwarded_request_rate: 'Non-Human Request Suppression',
-    suspicious_forwarded_byte_rate: 'Non-Human Byte Suppression',
-    suspicious_forwarded_latency_share: 'Non-Human Latency Suppression'
-  });
-
-  const knownGameLoopPolicyProfiles = Object.freeze({
-    site_default_v1: {
-      label: 'Mixed Site Default',
-      activationStatus: 'strict_human_only_not_active',
-      simOnlyTargetSummary:
-        '10% suspicious-forwarded budgets remain mixed-site defaults here, not the strict human-only target.',
-      humanCalibrationSummary:
-        'Separate real-human traversal calibration remains required; adversary-sim alone cannot prove likely-human safety.',
-      verifiedHandlingSummary:
-        'Current machine-loop posture is still the mixed-site default, so verified-identity relaxation is not the strict reference target.'
-    },
-    human_only_private: {
-      label: 'Human Only Private',
-      activationStatus: 'strict_human_only_active',
-      simOnlyTargetSummary:
-        'Strict sim-only proof should drive known non-human leakage toward zero or equivalent fail-closed suppression.',
-      humanCalibrationSummary:
-        'Separate real-human traversal calibration is still required after the strict config is found.',
-      verifiedHandlingSummary:
-        'Strict loop must still deny or equivalently suppress verified non-human traffic; verified identity stays telemetry and attribution.'
-    },
-    humans_plus_verified_only: {
-      label: 'Humans Plus Verified Only',
-      activationStatus: 'later_relaxed_verified_sweep',
-      simOnlyTargetSummary:
-        'This is a later relaxed verified-only sweep, not the strict human-only reference loop.',
-      humanCalibrationSummary:
-        'Real-human traversal measurement remains a separate proof ring from adversary-sim traffic.',
-      verifiedHandlingSummary:
-        'Verified non-human traffic can be evaluated separately here without reopening general unverified non-human access.'
-    }
-  });
-
-  const controllerBlockerGroupMeta = Object.freeze({
-    shared_classification: {
-      label: 'Shared Path Truth',
-      role: 'root'
-    },
-    recognition_evaluation: {
-      label: 'Recognition Quality',
-      role: 'root'
-    },
-    evidence_quality: {
-      label: 'Evidence Quality',
-      role: 'root'
-    },
-    surface_proof: {
-      label: 'Surface Proof',
-      role: 'root'
-    },
-    observation_window: {
-      label: 'Confidence Accumulation',
-      role: 'downstream'
-    },
-    bounded_move: {
-      label: 'Bounded Move',
-      role: 'downstream'
-    },
-    controller_guardrail: {
-      label: 'Controller Guardrails',
-      role: 'downstream'
-    }
-  });
-  const controllerBlockerGroupOrder = Object.freeze([
-    'shared_classification',
-    'recognition_evaluation',
-    'evidence_quality',
-    'surface_proof',
-    'observation_window',
-    'bounded_move',
-    'controller_guardrail'
-  ]);
-
-  const asRecord = (value) =>
-    value && typeof value === 'object' ? value : {};
+  const asRecord = (value) => (value && typeof value === 'object' ? value : {});
   const toArray = (value) => (Array.isArray(value) ? value : []);
+
+  const dedupeStrings = (values) => {
+    const seen = new Set();
+    const next = [];
+    toArray(values).forEach((entry) => {
+      const normalized = String(entry || '').trim();
+      if (!normalized || seen.has(normalized)) return;
+      seen.add(normalized);
+      next.push(normalized);
+    });
+    return next;
+  };
 
   const humanizeToken = (value, mode = 'title') => {
     const normalized = String(value || '').trim().replace(/[-]+/g, '_');
@@ -189,6 +74,21 @@
         return lowered.charAt(0).toUpperCase() + lowered.slice(1);
       });
     return words.join(' ');
+  };
+
+  const formatTimestamp = (value) => formatUnixSecondsLocal(value, '-');
+
+  const formatNumber = (value, fallback = 'n/a') => {
+    if (value === null || value === undefined || value === '') return fallback;
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return fallback;
+    return formatCompactNumber(numeric, '0');
+  };
+
+  const asFiniteNumber = (value) => {
+    if (value === null || value === undefined || value === '') return null;
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : null;
   };
 
   const formatLaneList = (laneIds, fallback = 'Not available') => {
@@ -212,330 +112,6 @@
       })
       .filter(Boolean);
     return labels.length ? labels.join(' | ') : fallback;
-  };
-
-  const resolveGameLoopPolicyProfile = (profileId) => {
-    const normalized = String(profileId || '').trim();
-    if (normalized && knownGameLoopPolicyProfiles[normalized]) {
-      return {
-        profileId: normalized,
-        recognized: true,
-        ...knownGameLoopPolicyProfiles[normalized]
-      };
-    }
-    if (!normalized) {
-      return {
-        profileId: '',
-        recognized: false,
-        label: 'Not Available',
-        activationStatus: 'objective_profile_not_available',
-        simOnlyTargetSummary: 'Objective profile is not materialized yet.',
-        humanCalibrationSummary:
-          'Separate real-human traversal calibration remains required when evaluating likely-human safety.',
-        verifiedHandlingSummary:
-          'Verified-identity handling cannot be interpreted until the objective profile is available.'
-      };
-    }
-    return {
-      profileId: normalized,
-      recognized: false,
-      label: humanizeToken(normalized),
-      activationStatus: 'custom_profile_active',
-      simOnlyTargetSummary:
-        'This profile is custom, so strict-loop target semantics must be read from the persisted profile and active proof plan.',
-      humanCalibrationSummary:
-        'Separate real-human traversal calibration remains required when evaluating likely-human safety.',
-      verifiedHandlingSummary:
-        'Verified-identity handling under this custom profile must be interpreted from the persisted posture matrix, not the legacy request-path stance alone.'
-    };
-  };
-
-  const formatTimestamp = (value) => formatUnixSecondsLocal(value, '-');
-
-  const formatNumber = (value, fallback = 'n/a') => {
-    if (value === null || value === undefined || value === '') return fallback;
-    const numeric = Number(value);
-    if (!Number.isFinite(numeric)) return fallback;
-    return formatCompactNumber(numeric, '0');
-  };
-
-  const asFiniteNumber = (value) => {
-    if (value === null || value === undefined || value === '') return null;
-    const numeric = Number(value);
-    return Number.isFinite(numeric) ? numeric : null;
-  };
-
-  const metricLooksRatio = (metricId = '') => /(rate|ratio|share|percent|mismatch)/i.test(metricId);
-
-  const formatMetricValue = (metricId, value) => {
-    if (value === null || value === undefined || value === '') return 'n/a';
-    const numeric = Number(value);
-    if (!Number.isFinite(numeric)) return 'n/a';
-    if (metricLooksRatio(metricId)) return `${(numeric * 100).toFixed(1)}%`;
-    if (Math.abs(numeric) >= 1000) return formatCompactNumber(numeric, '0');
-    if (Number.isInteger(numeric)) return String(numeric);
-    return numeric.toFixed(2);
-  };
-
-  const formatRatioPercent = (value, fallback = 'n/a') => {
-    if (value === null || value === undefined || value === '') return fallback;
-    const numeric = Number(value);
-    if (!Number.isFinite(numeric)) return fallback;
-    return `${(numeric * 100).toFixed(1)}%`;
-  };
-
-  const formatCategoryAchievedText = (current) =>
-    asFiniteNumber(current) === null ? 'Unscored' : formatRatioPercent(current);
-
-  const formatCategoryAchievementText = (ratio, unscored) =>
-    unscored ? 'Unscored pending exact evidence' : formatTargetRatioText(ratio);
-
-  const ratioToTarget = (current, target) => {
-    const currentNumeric = asFiniteNumber(current);
-    const targetNumeric = asFiniteNumber(target);
-    if (currentNumeric === null || targetNumeric === null || targetNumeric <= 0) {
-      return null;
-    }
-    return currentNumeric / targetNumeric;
-  };
-
-  const zeroTargetSuppressionRatio = (current) => {
-    const currentNumeric = asFiniteNumber(current);
-    if (currentNumeric === null) return null;
-    return Math.max(0, Math.min(1, 1 - currentNumeric));
-  };
-
-  const clampPercent = (value) => {
-    const numeric = Number(value);
-    if (!Number.isFinite(numeric) || numeric <= 0) return 0;
-    return Math.max(0, Math.min(100, numeric));
-  };
-
-  const formatTargetRatioText = (ratio) => {
-    const numeric = Number(ratio);
-    if (!Number.isFinite(numeric)) return 'Target usage unavailable';
-    return `${(numeric * 100).toFixed(0)}% of target`;
-  };
-
-  const isZeroTargetSuppressionMetric = (metricId, target) =>
-    zeroTargetSuppressionMetricIds.has(String(metricId || '').trim()) && asFiniteNumber(target) === 0;
-
-  const formatLeakageMetricValue = (metricId, value) => {
-    const formatted = formatMetricValue(metricId, value);
-    return formatted === 'n/a' ? formatted : `${formatted} leakage`;
-  };
-
-  const formatSuppressionAchievementText = (ratio) => {
-    const numeric = Number(ratio);
-    if (!Number.isFinite(numeric)) return 'Suppression progress unavailable';
-    return `${(numeric * 100).toFixed(1)}% non-human suppression achieved`;
-  };
-
-  const budgetMetricLabel = (metricId, zeroTargetSuppression) => {
-    const normalized = String(metricId || '').trim();
-    if (zeroTargetSuppression && zeroTargetSuppressionLabels[normalized]) {
-      return zeroTargetSuppressionLabels[normalized];
-    }
-    return humanizeToken(normalized);
-  };
-
-  const categoryIdFromMetric = (metricId = '') => {
-    const normalized = String(metricId || '').trim();
-    return normalized.startsWith('category_posture_alignment:')
-      ? normalized.slice('category_posture_alignment:'.length)
-      : '';
-  };
-
-  const formatSignedMetricValue = (metricId, value) => {
-    if (value === null || value === undefined || value === '') return 'n/a';
-    const numeric = Number(value);
-    if (!Number.isFinite(numeric)) return 'n/a';
-    const prefix = numeric > 0 ? '+' : '';
-    if (metricLooksRatio(metricId)) return `${prefix}${(numeric * 100).toFixed(1)}%`;
-    if (Math.abs(numeric) >= 1000) return `${prefix}${formatCompactNumber(numeric, '0')}`;
-    if (Number.isInteger(numeric)) return `${prefix}${numeric}`;
-    return `${prefix}${numeric.toFixed(2)}`;
-  };
-
-  const findBenchmarkFamily = (familyId) =>
-    toArray(benchmarkResults?.families).find((family) => family?.family_id === familyId) || null;
-
-  const dedupeStrings = (values) => {
-    const seen = new Set();
-    const next = [];
-    toArray(values).forEach((entry) => {
-      const normalized = String(entry || '').trim();
-      if (!normalized || seen.has(normalized)) return;
-      seen.add(normalized);
-      next.push(normalized);
-    });
-    return next;
-  };
-
-  const firstPrefixedValue = (values, prefix) =>
-    dedupeStrings(values).find((entry) => entry.startsWith(prefix)) || '';
-
-  const removePrefix = (value, prefix) =>
-    String(value || '').startsWith(prefix) ? String(value || '').slice(prefix.length) : String(value || '');
-
-  const formatLocusSample = (locus) => {
-    const source = asRecord(locus);
-    const method = String(source.sample_request_method || '').trim();
-    const path = String(source.sample_request_path || '').trim();
-    const status = asFiniteNumber(source.sample_response_status);
-    const parts = [];
-    const requestLine = [method, path].filter(Boolean).join(' ');
-    if (requestLine) parts.push(requestLine);
-    if (status !== null) parts.push(`-> ${formatNumber(status, '0')}`);
-    return parts.join(' ') || 'Sample unavailable';
-  };
-
-  const humanizeList = (values, mode = 'sentence') => {
-    const items = dedupeStrings(values).map((value) => humanizeToken(value, mode));
-    return items.length ? items.join(', ') : 'not available';
-  };
-
-  const formatLocusAttemptText = (locus) => {
-    const source = asRecord(locus);
-    const attemptCount = asFiniteNumber(source.attempt_count);
-    const status = String(source.attempt_count_status || '').trim();
-    if (attemptCount !== null) return `${formatNumber(attemptCount, '0')} attempts measured`;
-    if (status === 'not_applicable') return 'attempt count not applicable';
-    if (status === 'derived') return 'attempt count derived';
-    return 'attempt count not materialized';
-  };
-
-  const formatLocusEvidenceField = (label, values, status) => {
-    const items = dedupeStrings(values);
-    const normalizedStatus = String(status || '').trim();
-    if (items.length) {
-      const qualifier =
-        normalizedStatus && normalizedStatus !== 'measured' ? ` ${humanizeToken(normalizedStatus, 'sentence')}` : '';
-      return `${label}${qualifier}: ${humanizeList(items)}`;
-    }
-    if (normalizedStatus === 'not_applicable') return `${label} not applicable`;
-    if (normalizedStatus === 'derived') return `${label} derived`;
-    return `${label} not materialized`;
-  };
-
-  const blockerTargetToken = (value) => {
-    const normalized = String(value || '').trim();
-    const separatorIndex = normalized.indexOf(':');
-    return separatorIndex >= 0 ? normalized.slice(separatorIndex + 1).trim() : '';
-  };
-
-  const dedupeControllerBlockers = (blockers) => {
-    const seen = new Set();
-    return blockers.filter((blocker) => {
-      const group = String(blocker?.blocker_group || '').trim();
-      const id = String(blocker?.blocker_id || '').trim();
-      if (!group && !id) return false;
-      const key = `${group}:${id}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  };
-
-  const describeControllerBlockerGroup = (
-    groupId,
-    blockers,
-    {
-      controllerRecognitionEvaluation,
-      restrictionDiagnosis,
-      moveSelection,
-      evidenceQuality,
-      surfaceLabels,
-      repairFamilies
-    }
-  ) => {
-    if (groupId === 'recognition_evaluation') {
-      return joinStatusSummary(
-        [
-          controllerRecognitionEvaluation?.status
-            ? `status ${humanizeToken(controllerRecognitionEvaluation.status, 'sentence')}`
-            : '',
-          controllerRecognitionEvaluation?.note || '',
-          ...blockers.map((blocker) => blocker?.note || '')
-        ],
-        'Recognition quality is not materialized yet.'
-      );
-    }
-    if (groupId === 'evidence_quality') {
-      return joinStatusSummary(
-        [
-          evidenceQuality?.status
-            ? `evidence ${humanizeToken(evidenceQuality.status, 'sentence')}`
-            : '',
-          restrictionDiagnosis?.confidence
-            ? `diagnosis ${humanizeToken(restrictionDiagnosis.confidence, 'sentence')}`
-            : '',
-          ...blockers.map((blocker) => blocker?.note || '')
-        ],
-        'Evidence quality is not materialized yet.'
-      );
-    }
-    if (groupId === 'surface_proof') {
-      return surfaceLabels.length
-        ? surfaceLabels.join(', ')
-        : joinStatusSummary(
-            blockers.map(
-              (blocker) =>
-                blocker?.note ||
-                humanizeToken(blockerTargetToken(blocker?.blocker_id) || blocker?.blocker_id)
-            ),
-            'Surface proof is not yet materialized.'
-          );
-    }
-    if (groupId === 'bounded_move') {
-      return repairFamilies.length
-        ? repairFamilies.join(', ')
-        : joinStatusSummary(
-            [
-              moveSelection?.note || '',
-              ...blockers.map((blocker) => blocker?.note || '')
-            ],
-            'No bounded move details are materialized yet.'
-          );
-    }
-    return joinStatusSummary(
-      blockers.map(
-        (blocker) =>
-          blocker?.note ||
-          humanizeToken(blockerTargetToken(blocker?.blocker_id) || blocker?.blocker_id, 'sentence')
-      ),
-      'No blocker detail is materialized yet.'
-    );
-  };
-
-  const buildControllerBlockerGroups = (blockers, context) => {
-    const grouped = new Map();
-    for (const blocker of dedupeControllerBlockers(blockers)) {
-      const groupId = String(blocker?.blocker_group || '').trim() || 'controller_guardrail';
-      if (!grouped.has(groupId)) grouped.set(groupId, []);
-      grouped.get(groupId).push(blocker);
-    }
-    return controllerBlockerGroupOrder
-      .map((groupId) => {
-        const groupBlockers = grouped.get(groupId) || [];
-        if (groupBlockers.length === 0) return null;
-        const meta = controllerBlockerGroupMeta[groupId] || {
-          label: humanizeToken(groupId),
-          role: 'downstream'
-        };
-        return {
-          id: groupId,
-          label: meta.label,
-          role: meta.role,
-          detail: describeControllerBlockerGroup(groupId, groupBlockers, context)
-        };
-      })
-      .filter(Boolean);
-  };
-
-  const joinStatusSummary = (parts, fallback) => {
-    const normalized = dedupeStrings(parts.filter(Boolean));
-    return normalized.length ? normalized.join(' | ') : fallback;
   };
 
   const comparisonStatusText = (status) => {
@@ -570,18 +146,19 @@
     return details.filter(Boolean).join(' | ');
   };
 
-  const formatRoundResultSummary = (row) =>
-    joinStatusSummary(
-      [
-        row?.retain_or_rollback ? humanizeToken(row.retain_or_rollback) : '',
-        row?.watch_window_result ? humanizeToken(row.watch_window_result) : ''
-      ],
-      'No judged result'
-    );
+  const formatRoundResultSummary = (row) => {
+    const parts = dedupeStrings([
+      row?.retain_or_rollback ? humanizeToken(row.retain_or_rollback) : '',
+      row?.watch_window_result ? humanizeToken(row.watch_window_result) : ''
+    ]);
+    return parts.length ? parts.join(' | ') : 'No judged result';
+  };
 
   const formatRoundMoveSummary = (row, historyRow) => {
     const patchFamily =
-      row?.proposal?.patch_family || historyRow?.proposal?.patch_family || historyRow?.apply?.patch_family;
+      row?.proposal?.patch_family ||
+      historyRow?.proposal?.patch_family ||
+      historyRow?.apply?.patch_family;
     return patchFamily ? humanizeToken(patchFamily) : 'No config move recorded';
   };
 
@@ -659,37 +236,33 @@
     };
   };
 
-  const shapeRecentRunSurfaceRows = (run) => {
-    const receipts = toArray(run?.ownedSurfaceCoverage?.receipts);
-    return receipts.map((receipt) => shapeRecentRunSurfaceRow(run?.runId, receipt));
-  };
+  const shapeRecentRunSurfaceRows = (run) =>
+    toArray(run?.ownedSurfaceCoverage?.receipts).map((receipt) =>
+      shapeRecentRunSurfaceRow(run?.runId, receipt)
+    );
 
   $: oversightHistoryRows = toArray(oversightHistory?.rows);
-  $: latestHistoryRows = oversightHistoryRows.slice(0, 6);
-  $: latestHistoryRow = latestHistoryRows[0] || null;
-  $: latestDecision = asRecord(oversightAgentStatus?.latest_decision);
-  $: latestRecentRun = toArray(oversightAgentStatus?.recent_runs)[0] || null;
+  $: historyRowByEpisodeId = new Map(
+    oversightHistoryRows
+      .flatMap((row) => {
+        const keys = dedupeStrings([row?.episode_id, row?.decision_id]);
+        return keys.map((key) => [key, row]);
+      })
+      .filter(([key]) => key)
+  );
   $: candidateWindowStatus = asRecord(oversightAgentStatus?.candidate_window);
   $: continuationRunStatus = asRecord(oversightAgentStatus?.continuation_run);
-  $: episodeArchive = asRecord(oversightHistory?.episode_archive?.schema_version
-    ? oversightHistory?.episode_archive
-    : oversightAgentStatus?.episode_archive);
+  $: episodeArchive = asRecord(
+    oversightHistory?.episode_archive?.schema_version
+      ? oversightHistory?.episode_archive
+      : oversightAgentStatus?.episode_archive
+  );
   $: episodeArchiveRows = toArray(episodeArchive?.rows);
   $: judgedCycleRows = episodeArchiveRows.filter((row) => {
     const outcome = String(row?.retain_or_rollback || '').trim();
     return outcome === 'retained' || outcome === 'rolled_back';
   });
-  $: retainedCycleCount = judgedCycleRows.filter(
-    (row) => String(row?.retain_or_rollback || '').trim() === 'retained'
-  ).length;
-  $: rolledBackCycleCount = judgedCycleRows.filter(
-    (row) => String(row?.retain_or_rollback || '').trim() === 'rolled_back'
-  ).length;
   $: latestJudgedEpisodeRow = judgedCycleRows[0] || null;
-  $: latestJudgedLaneLabels = formatLaneList(
-    latestJudgedEpisodeRow?.judged_lane_ids,
-    'No judged mixed-attacker episode recorded yet.'
-  );
   $: currentMixedEvidenceSource =
     toArray(candidateWindowStatus?.required_runs).length > 0
       ? 'candidate_window'
@@ -715,8 +288,7 @@
         ? continuationRunStatus?.status
         : '';
   $: currentMixedEvidenceLaneSummary = summarizeRequiredRuns(currentMixedEvidenceRuns);
-  $: currentObjectiveProfileId = String(operatorSnapshot?.objectives?.profile_id || '').trim();
-  $: currentPolicyProfile = resolveGameLoopPolicyProfile(currentObjectiveProfileId);
+
   $: recognitionEvaluation = asRecord(operatorSnapshot?.non_human_traffic?.recognition_evaluation);
   $: recognitionComparisonRows = toArray(recognitionEvaluation?.comparison_rows);
   $: recognitionComparisonByCategoryId = new Map(
@@ -731,11 +303,7 @@
       .map((row) => [String(row?.category_id || '').trim(), row])
       .filter(([categoryId]) => categoryId)
   );
-  $: historyRowByEpisodeId = new Map(
-    oversightHistoryRows
-      .map((row) => [String(row?.decision_id || '').trim(), row])
-      .filter(([decisionId]) => decisionId)
-  );
+
   $: observerRoundArchive = asRecord(oversightHistory?.observer_round_archive);
   $: observerRoundArchiveRows = toArray(observerRoundArchive?.rows);
   $: observerRoundByEpisodeId = new Map(
@@ -748,6 +316,7 @@
   $: selectedObserverRoundMissing = Boolean(latestJudgedEpisodeRow && !selectedObserverRound);
   $: selectedRoundMissingRunIds = dedupeStrings(selectedObserverRound?.missing_run_ids);
   $: selectedRoundLaneRunRows = toArray(selectedObserverRound?.run_rows).map(shapeObserverRoundRunRow);
+
   $: recentObservedRunRows = deriveAdversaryRunRowsFromSummaries(
     toArray(operatorSnapshot?.adversary_sim?.recent_runs),
     []
@@ -841,8 +410,12 @@
   $: selectedRoundCastArchiveMissing = selectedRoundCastContext?.archiveMissing === true;
   $: selectedRoundCastRunRows = toArray(selectedRoundCastContext?.runRows);
   $: selectedRoundCastSurfaceRows = toArray(selectedRoundCastContext?.surfaceRows);
+
   $: recentRoundRows = judgedCycleRows.slice(0, 4).map((row, index) => {
-    const historyRow = historyRowByEpisodeId.get(String(row?.episode_id || '').trim()) || null;
+    const historyRow =
+      historyRowByEpisodeId.get(String(row?.episode_id || '').trim()) ||
+      historyRowByEpisodeId.get(String(row?.decision_id || '').trim()) ||
+      null;
     return {
       episodeId: String(row?.episode_id || historyRow?.decision_id || `round-${index}`),
       completedText: formatTimestamp(row?.completed_at_ts || historyRow?.recorded_at_ts),
@@ -858,6 +431,7 @@
       noteText: row?.proposal?.note || historyRow?.summary || ''
     };
   });
+
   $: adversaryCastRows = (() => {
     const rows = [];
     const seen = new Set();
@@ -875,7 +449,7 @@
             shumaCallText: 'Recent recognition evaluation unavailable',
             recognitionText: 'not materialized',
             noteText:
-              'This judged run did not preserve an explicit lane-owned simulator category label, so the observer page will not guess one.'
+              'This exact observer run did not preserve a lane-owned simulator category label, so the page will not guess one.'
           });
         }
         return;
@@ -910,385 +484,20 @@
     });
     return rows;
   })();
-  $: suspiciousOriginCostFamily = findBenchmarkFamily('suspicious_origin_cost');
-  $: likelyHumanFrictionFamily = findBenchmarkFamily('likely_human_friction');
-  $: exploitProgressFamily = findBenchmarkFamily('mixed_attacker_restriction_progress');
-  $: evidenceQuality = asRecord(benchmarkResults?.escalation_hint?.evidence_quality);
-  $: protectedEvidence = asRecord(benchmarkResults?.protected_evidence);
-  $: controllerContract = asRecord(benchmarkResults?.controller_contract);
-  $: restrictionDiagnosis = asRecord(controllerContract?.restriction_diagnosis);
-  $: controllerRecognitionEvaluation = asRecord(controllerContract?.recognition_evaluation);
-  $: moveSelection = asRecord(controllerContract?.move_selection);
-  $: urgencySummary = asRecord(benchmarkResults?.urgency);
-  $: recentChanges = toArray(operatorSnapshot?.recent_changes?.rows).slice(0, 3);
-  $: latestMoveOutcome = String(
-    latestHistoryRow?.outcome ||
-      latestDecision?.outcome ||
-      moveSelection?.decision ||
-      benchmarkResults?.escalation_hint?.decision ||
-      ''
-  ).trim();
-  $: latestApplyStage = String(latestHistoryRow?.apply?.stage || '').trim();
-  $: selectedRepairSurface = String(
-    latestHistoryRow?.proposal?.patch_family ||
-      moveSelection?.candidate_action_families?.[0] ||
-      benchmarkResults?.escalation_hint?.family_guidance?.[0]?.family ||
-      benchmarkResults?.escalation_hint?.candidate_action_families?.[0] ||
-      ''
-  ).trim();
-  $: controllerMoveBlockerIds = toArray(moveSelection?.blockers).map((blocker) =>
-    String(blocker?.blocker_id || '').trim()
-  );
-  $: configRingBlockedToken = firstPrefixedValue(
-    [
-      ...toArray(benchmarkResults?.tuning_eligibility?.blockers),
-      ...controllerMoveBlockerIds,
-      ...toArray(latestHistoryRow?.refusal_reasons)
-    ],
-    'config_ring_exhausted:'
-  );
-  $: configRingBlockedFamily = removePrefix(configRingBlockedToken, 'config_ring_exhausted:');
-  $: configRingStatus =
-    latestMoveOutcome === 'config_ring_exhausted' || configRingBlockedToken
-      ? 'exhausted'
-      : selectedRepairSurface
-        ? 'bounded_ring_available'
-        : 'not_evaluated';
-  $: codeEvolutionStatus =
-    latestMoveOutcome === 'code_evolution_referral' ||
-    moveSelection?.decision === 'code_evolution_candidate' ||
-    benchmarkResults?.escalation_hint?.decision === 'code_evolution_candidate'
-      ? 'required'
-      : 'not_required';
-  $: loopActionabilityDecisionToken = terminalLoopOutcomes.has(latestMoveOutcome)
-    ? latestMoveOutcome
-    : moveSelection?.decision || benchmarkResults?.escalation_hint?.decision;
-  $: loopActionabilityApplyText = latestApplyStage
-    ? humanizeToken(latestApplyStage, 'sentence')
-    : 'No Config Move Applied';
-  $: loopActionabilityText = dedupeStrings([
-    humanizeToken(benchmarkResults?.tuning_eligibility?.status),
-    humanizeToken(loopActionabilityDecisionToken, 'sentence'),
-    loopActionabilityApplyText
-  ]).join(' | ');
-  $: surfaceLabelLookup = (() => {
-    const map = new Map();
-    for (const receipt of toArray(surfaceContractCoverage?.receipts)) {
-      const surfaceId = String(receipt?.surfaceId || '').trim();
-      const surfaceLabel = String(receipt?.surfaceLabel || '').trim();
-      if (surfaceId && surfaceLabel) map.set(surfaceId, surfaceLabel);
-    }
-    for (const locus of [...toArray(restrictionDiagnosis?.breach_loci), ...toArray(breachLoci)]) {
-      const surfaceId = String(locus?.locus_id || '').trim();
-      const surfaceLabel = String(locus?.locus_label || '').trim();
-      if (surfaceId && surfaceLabel) map.set(surfaceId, surfaceLabel);
-    }
-    return map;
-  })();
-  $: surfaceProofLabels = dedupeStrings([
-    ...toArray(restrictionDiagnosis?.breach_loci).map(
-      (locus) => String(locus?.locus_label || '').trim() || humanizeToken(locus?.locus_id)
-    ),
-    ...dedupeControllerBlockers([...toArray(restrictionDiagnosis?.blockers), ...toArray(moveSelection?.blockers)])
-      .filter((blocker) => String(blocker?.blocker_group || '').trim() === 'surface_proof')
-      .map((blocker) => {
-        const targetToken = blockerTargetToken(blocker?.blocker_id);
-        return surfaceLabelLookup.get(targetToken) || humanizeToken(targetToken);
-      })
-  ]);
-  $: nextRepairFamilyLabels = dedupeStrings([
-    ...toArray(restrictionDiagnosis?.repair_surface_candidates).map((family) => humanizeToken(family)),
-    ...toArray(moveSelection?.candidate_action_families).map((family) => humanizeToken(family))
-  ]);
-  $: controllerBlockerGroups = buildControllerBlockerGroups(
-    [
-      ...toArray(controllerRecognitionEvaluation?.blockers),
-      ...toArray(restrictionDiagnosis?.blockers),
-      ...toArray(moveSelection?.blockers)
-    ],
-    {
-      controllerRecognitionEvaluation,
-      restrictionDiagnosis,
-      moveSelection,
-      evidenceQuality,
-      surfaceLabels: surfaceProofLabels,
-      repairFamilies: nextRepairFamilyLabels
-    }
-  );
-  $: rootCauseBlockerGroups = controllerBlockerGroups.filter((group) => group.role === 'root');
-  $: controllerOutcomeGroups = controllerBlockerGroups.filter((group) => group.role !== 'root');
-  $: loopActionabilityNote = rootCauseBlockerGroups.length
-    ? `${formatNumber(rootCauseBlockerGroups.length, '0')} root-cause blocker group(s): ${rootCauseBlockerGroups.map((group) => group.label).join(', ')}.`
-    : moveSelection?.note ||
-      latestHistoryRow?.summary ||
-      latestDecision?.summary ||
-      benchmarkResults?.escalation_hint?.note ||
-      'No bounded config move has been applied yet.';
-  $: breachLoci = (() => {
-    const escalationLoci = toArray(benchmarkResults?.escalation_hint?.breach_loci);
-    if (escalationLoci.length > 0) return escalationLoci;
-    const evidenceLoci = toArray(evidenceQuality?.breach_loci);
-    if (evidenceLoci.length > 0) return evidenceLoci;
-    return toArray(exploitProgressFamily?.exploit_loci);
-  })();
-  $: homeostasisSummary = asRecord(episodeArchive?.homeostasis);
-  $: homeostasisBreakReasons = dedupeStrings([
-    ...toArray(homeostasisSummary?.break_reasons),
-    ...toArray(urgencySummary?.homeostasis_break_reasons)
-  ]);
-  $: homeostasisBreakStatus = String(
-    homeostasisSummary?.break_status || urgencySummary?.homeostasis_break_status || ''
-  ).trim();
-  $: exploitUrgencyValue = humanizeToken(urgencySummary?.exploit_short_window_status);
-  $: exploitUrgencyNote = joinStatusSummary(
-    [
-      urgencySummary?.exploit_short_window_status
-        ? `Short window ${humanizeToken(urgencySummary?.exploit_short_window_status, 'sentence')}`
-        : '',
-      urgencySummary?.exploit_long_window_status
-        ? `Trend ${humanizeToken(urgencySummary?.exploit_long_window_status, 'sentence')}`
-        : '',
-      homeostasisBreakStatus
-        ? `Homeostasis ${humanizeToken(homeostasisBreakStatus, 'sentence')}`
-        : ''
-    ],
-    urgencySummary?.note || 'Exploit urgency is not materialized yet.'
-  );
-  $: humanFrictionUrgencyValue = humanizeToken(urgencySummary?.likely_human_short_window_status);
-  $: humanFrictionUrgencyNote = joinStatusSummary(
-    [
-      urgencySummary?.likely_human_short_window_status
-        ? `Short window ${humanizeToken(
-            urgencySummary?.likely_human_short_window_status,
-            'sentence'
-          )}`
-        : '',
-      urgencySummary?.likely_human_long_window_status
-        ? `Trend ${humanizeToken(urgencySummary?.likely_human_long_window_status, 'sentence')}`
-        : ''
-    ],
-    'Human-friction urgency is not materialized yet.'
-  );
-  $: restrictionConfidenceValue = humanizeToken(urgencySummary?.restriction_confidence_status);
-  $: restrictionConfidenceNote = joinStatusSummary(
-    [
-      urgencySummary?.restriction_confidence_status
-        ? `Restriction confidence ${humanizeToken(
-            urgencySummary?.restriction_confidence_status,
-            'sentence'
-          )}`
-        : '',
-      benchmarkResults?.non_human_classification?.status
-        ? `Restriction readiness ${humanizeToken(
-            benchmarkResults?.non_human_classification?.status,
-            'sentence'
-          )}`
-        : '',
-      evidenceQuality?.diagnosis_confidence
-        ? `Diagnosis ${humanizeToken(evidenceQuality?.diagnosis_confidence, 'sentence')}`
-        : ''
-    ],
-    'Restriction confidence is not materialized yet.'
-  );
-  $: abuseBackstopValue = humanizeToken(urgencySummary?.abuse_backstop_status);
-  $: abuseBackstopNote = joinStatusSummary(
-    [
-      urgencySummary?.abuse_backstop_status
-        ? `Backstop ${humanizeToken(urgencySummary?.abuse_backstop_status, 'sentence')}`
-        : '',
-      suspiciousOriginCostFamily?.status
-        ? `Suspicious-origin cost ${humanizeToken(suspiciousOriginCostFamily?.status, 'sentence')}`
-        : ''
-    ],
-    'The short-window abuse backstop is not materialized yet.'
-  );
-  $: restartBaseline = asRecord(homeostasisSummary?.restart_baseline);
-  $: recognitionDisplayRows = (() => {
-    const categoryIds = dedupeStrings([
-      ...recognitionComparisonRows.map((row) => String(row?.category_id || '').trim()),
-      ...simulatorGroundTruthCategoryRows.map((row) => String(row?.category_id || '').trim())
-    ]);
-    return categoryIds.map((categoryId) => {
-      const comparison = recognitionComparisonByCategoryId.get(categoryId) || null;
-      const groundTruth = simulatorGroundTruthByCategoryId.get(categoryId) || null;
-      return {
-        categoryId,
-        label:
-          groundTruth?.category_label ||
-          comparison?.category_label ||
-          humanizeToken(categoryId),
-        inferredLabel: comparison?.inferred_category_label || '',
-        statusText: comparison
-          ? comparisonStatusText(comparison.comparison_status)
-          : 'not materialized',
-        basisText: comparison?.basis ? humanizeToken(comparison.basis, 'sentence') : '',
-        recentRunCount: asFiniteNumber(groundTruth?.recent_run_count) || 0,
-        noteText: comparison?.note || ''
-      };
-    });
-  })();
-  $: latestScraplingEvidence = deriveLatestScraplingEvidenceFromSummaries(
-    toArray(operatorSnapshot?.adversary_sim?.recent_runs)
-  );
-  $: defenceCastRows = (() => {
-    return selectedRoundCastSurfaceRows.map((row) => ({
-      key: row.key,
-      surfaceLabel: row.surfaceLabel || humanizeToken(row.surfaceId),
-      observationText: formatReceiptObservation(row),
-      outcomeText: row.surfaceState
-        ? humanizeToken(row.surfaceState, 'sentence')
-        : 'state unavailable',
-      noteText: joinStatusSummary(
-        [
-          row.coverageStatus ? `coverage ${humanizeToken(row.coverageStatus, 'sentence')}` : '',
-          row.successContract
-            ? `success contract ${humanizeToken(row.successContract, 'sentence')}`
-            : '',
-          row.dependencyKind
-            ? `${humanizeToken(row.dependencyKind, 'sentence')} surface`
-            : ''
-        ],
-        'No additional surface detail.'
-      )
-    }));
-  })();
-  $: surfaceContractCoverage = asRecord(latestScraplingEvidence?.ownedSurfaceCoverage);
-  $: surfaceContractBlockingLabels = (() => {
-    const blockingReceipts = toArray(surfaceContractCoverage?.receipts).filter(
-      (receipt) => receipt && receipt.satisfied !== true
-    );
-    if (blockingReceipts.length > 0) {
-      return blockingReceipts.map((receipt) => {
-        const label = String(receipt?.surfaceLabel || '').trim() || humanizeToken(receipt?.surfaceId);
-        const stateLabel = String(receipt?.surfaceStateLabel || '').trim();
-        const dependencyLabel = String(receipt?.dependencyLabel || '').trim();
-        if (stateLabel && dependencyLabel) {
-          return `${label} (${stateLabel} | ${dependencyLabel})`;
-        }
-        return stateLabel ? `${label} (${stateLabel})` : label;
-      });
-    }
-    return toArray(surfaceContractCoverage?.blockingSurfaceIds).map((surfaceId) => humanizeToken(surfaceId));
-  })();
-  $: budgetUsageRows = [likelyHumanFrictionFamily, suspiciousOriginCostFamily]
-    .flatMap((family) =>
-      toArray(family?.metrics)
-        .filter((metric) => metric && metric.target !== null && metric.target !== undefined)
-        .map((metric) => {
-          const zeroTargetSuppression = isZeroTargetSuppressionMetric(
-            metric.metric_id,
-            metric.target
-          );
-          const usageRatio = zeroTargetSuppression
-            ? zeroTargetSuppressionRatio(metric.current)
-            : ratioToTarget(metric.current, metric.target);
-          return {
-            metricId: metric.metric_id,
-            label: budgetMetricLabel(metric.metric_id, zeroTargetSuppression),
-            currentText: zeroTargetSuppression
-              ? formatLeakageMetricValue(metric.metric_id, metric.current)
-              : formatMetricValue(metric.metric_id, metric.current),
-            targetText: zeroTargetSuppression
-              ? formatLeakageMetricValue(metric.metric_id, metric.target)
-              : formatMetricValue(metric.metric_id, metric.target),
-            deltaText: formatSignedMetricValue(metric.metric_id, metric.delta),
-            comparisonText:
-              metric.comparison_delta !== null && metric.comparison_delta !== undefined
-                ? formatSignedMetricValue(metric.metric_id, metric.comparison_delta)
-                : '',
-            usageText: zeroTargetSuppression
-              ? formatSuppressionAchievementText(usageRatio)
-              : formatTargetRatioText(usageRatio),
-            meterPercent: clampPercent((usageRatio || 0) * 100),
-            statusText: humanizeToken(metric.status, 'sentence')
-          };
-        })
-    );
-  $: exploitProgressRows = toArray(exploitProgressFamily?.metrics)
-    .map((metric) => ({
-      metricId: metric?.metric_id,
-      label: humanizeToken(metric?.metric_id),
-      currentText: formatMetricValue(metric?.metric_id, metric?.current),
-      targetText: formatMetricValue(metric?.metric_id, metric?.target),
-      deltaText: formatSignedMetricValue(metric?.metric_id, metric?.delta),
-      comparisonText:
-        metric?.comparison_delta !== null && metric?.comparison_delta !== undefined
-          ? formatSignedMetricValue(metric?.metric_id, metric?.comparison_delta)
-          : '',
-      statusText: humanizeToken(metric?.status, 'sentence')
-    }))
-    .filter((row) => row.metricId);
-  $: currentStatusCards = [
-    {
-      title: 'Overall Status',
-      valueId: 'game-loop-current-status-overall-status',
-      value: humanizeToken(benchmarkResults?.overall_status),
-      note: benchmarkResults?.coverage_status
-        ? `Coverage ${humanizeToken(benchmarkResults.coverage_status, 'sentence')}`
-        : 'Benchmark results not materialized yet.'
-    },
-    {
-      title: 'Improvement',
-      valueId: 'game-loop-current-status-improvement',
-      value: humanizeToken(benchmarkResults?.improvement_status),
-      note: benchmarkResults?.baseline_reference?.note || 'Awaiting a comparable prior-window reference.'
-    },
-    {
-      title: 'Loop Actionability',
-      valueId: 'game-loop-current-status-loop-actionability',
-      value: loopActionabilityText,
-      note: loopActionabilityNote
-    },
-    {
-      title: 'Terrain Breach Progress',
-      valueId: 'game-loop-current-status-exploit-progress',
-      value: humanizeToken(exploitProgressFamily?.status),
-      note:
-        exploitProgressFamily?.note ||
-        'No receipt-backed exploit-progress summary is materialized yet.'
-    },
-    {
-      title: 'Evidence Quality',
-      valueId: 'game-loop-current-status-evidence-quality',
-      value: humanizeToken(evidenceQuality?.status),
-      note:
-        evidenceQuality?.note ||
-        'Diagnosis confidence and evidence quality have not been materialized yet.'
-    },
-    {
-      title: 'Exploit Urgency',
-      valueId: 'game-loop-current-status-exploit-urgency',
-      value: exploitUrgencyValue,
-      note: exploitUrgencyNote
-    },
-    {
-      title: 'Restriction Confidence',
-      valueId: 'game-loop-current-status-restriction-confidence',
-      value: restrictionConfidenceValue,
-      note: restrictionConfidenceNote
-    },
-    {
-      title: 'Abuse Backstop',
-      valueId: 'game-loop-current-status-abuse-backstop',
-      value: abuseBackstopValue,
-      note: abuseBackstopNote
-    },
-    {
-      title: 'Human Friction Urgency',
-      valueId: 'game-loop-current-status-human-friction-urgency',
-      value: humanFrictionUrgencyValue,
-      note: humanFrictionUrgencyNote
-    }
-  ];
-  $: trustBlockers = dedupeStrings([
-    ...(currentObjectiveProfileId === 'human_only_private'
-      ? []
-      : ['strict_human_only_reference_not_active']),
-    ...(benchmarkResults?.tuning_eligibility?.blockers || []),
-    ...(benchmarkResults?.non_human_classification?.blockers || []),
-    ...(benchmarkResults?.non_human_coverage?.blocking_reasons || []),
-    ...(benchmarkResults?.protected_evidence?.eligibility_blockers || [])
-  ]);
+
+  $: defenceCastRows = selectedRoundCastSurfaceRows.map((row) => ({
+    key: row.key,
+    surfaceLabel: row.surfaceLabel || humanizeToken(row.surfaceId),
+    observationText: formatReceiptObservation(row),
+    outcomeText: row.surfaceState
+      ? humanizeToken(row.surfaceState, 'sentence')
+      : 'state unavailable',
+    noteText: dedupeStrings([
+      row.coverageStatus ? `coverage ${humanizeToken(row.coverageStatus, 'sentence')}` : '',
+      row.successContract ? `success contract ${humanizeToken(row.successContract, 'sentence')}` : '',
+      row.dependencyKind ? `${humanizeToken(row.dependencyKind, 'sentence')} surface` : ''
+    ]).join(' | ') || 'No additional surface detail.'
+  }));
 </script>
 
 <section
@@ -1304,12 +513,8 @@
 
   {#each gameLoopSections as section (section.id)}
     <section class="section" data-game-loop-section={section.id}>
-      {#if section.title}
-        <h2>{section.title}</h2>
-      {/if}
-      {#if section.description}
-        <p class="section-desc text-muted">{section.description}</p>
-      {/if}
+      <h2>{section.title}</h2>
+      <p class="section-desc text-muted">{section.description}</p>
 
       {#if section.id === 'recent-rounds'}
         <div id="game-loop-round-history" class="panel panel-soft pad-md">
@@ -1339,10 +544,15 @@
         <div id="game-loop-adversary-cast" class="panel panel-soft pad-md">
           <p class="caps-label">Adversaries In This Round</p>
           <p class="text-muted">
-            This is the observer view. The simulator ground truth is visible here after the round, while runtime defences still never read those labels.
+            The simulator ground truth is visible here after the round. Runtime defences still never read those labels directly.
           </p>
           {#if selectedRoundCastSourceText}
             <p class="text-muted">{selectedRoundCastSourceText}</p>
+          {/if}
+          {#if selectedRoundCastMissingRunIds.length > 0}
+            <p class="text-muted">
+              Missing exact run receipts: {selectedRoundCastMissingRunIds.join(', ')}.
+            </p>
           {/if}
           {#if adversaryCastRows.length === 0}
             <p class="text-muted">
@@ -1379,10 +589,15 @@
         <div id="game-loop-defence-cast" class="panel panel-soft pad-md">
           <p class="caps-label">Defences In This Round</p>
           <p class="text-muted">
-            This is the surface-native view. Each row stays with what the defence saw, how it responded, and whether the surface held or leaked.
+            This stays surface-native. It shows what each defence observed and how that surface fared, without simulator labels becoming defence truth.
           </p>
           {#if selectedRoundCastSourceText}
             <p class="text-muted">{selectedRoundCastSourceText}</p>
+          {/if}
+          {#if selectedRoundCastMissingRunIds.length > 0}
+            <p class="text-muted">
+              Missing exact run receipts: {selectedRoundCastMissingRunIds.join(', ')}.
+            </p>
           {/if}
           {#if defenceCastRows.length === 0}
             <p class="text-muted">
@@ -1408,514 +623,6 @@
                     <span class="text-muted">{row.noteText}</span>
                   {/if}
                 </li>
-              {/each}
-            </ul>
-          {/if}
-        </div>
-      {:else if section.id === 'current-status'}
-        <div class="stats-cards stats-cards--summary">
-          {#each currentStatusCards as card (card.valueId)}
-            <MetricStatCard title={card.title} valueId={card.valueId} value={card.value}>
-              <p class="text-muted">{card.note}</p>
-            </MetricStatCard>
-          {/each}
-        </div>
-        <div class="panel panel-soft pad-md">
-          <div class="status-rows">
-            <div class="info-row">
-              <span class="info-label text-muted">Runtime posture:</span>
-              <span class="status-value">
-                {humanizeToken(operatorSnapshot?.runtime_posture?.runtime_environment, 'sentence')}
-                | fail {humanizeToken(operatorSnapshot?.runtime_posture?.fail_mode, 'sentence')}
-                | shadow {operatorSnapshot?.runtime_posture?.shadow_mode ? 'on' : 'off'}
-                | adversary sim {operatorSnapshot?.runtime_posture?.adversary_sim_available ? 'available' : 'unavailable'}
-              </span>
-            </div>
-            <div class="info-row">
-              <span class="info-label text-muted">Traffic stance:</span>
-              <span class="status-value">
-                live {formatNumber(operatorSnapshot?.live_traffic?.total_requests, '0')} requests,
-                {formatNumber(operatorSnapshot?.live_traffic?.forwarded_requests, '0')} forwarded,
-                {formatNumber(operatorSnapshot?.live_traffic?.short_circuited_requests, '0')} short-circuited
-              </span>
-            </div>
-            <div class="info-row">
-              <span class="info-label text-muted">Adversary sim:</span>
-              <span class="status-value">
-                {formatNumber(operatorSnapshot?.adversary_sim?.total_requests, '0')} simulated requests,
-                {formatNumber(operatorSnapshot?.adversary_sim?.forwarded_requests, '0')} forwarded,
-                {toArray(operatorSnapshot?.adversary_sim?.recent_runs).length} recent run(s)
-              </span>
-            </div>
-          </div>
-        </div>
-      {:else if section.id === 'recent-loop-progress'}
-        <div class="panel panel-soft pad-md">
-          <div class="status-rows">
-            <div class="info-row">
-              <span class="info-label text-muted">Baseline:</span>
-              <span class="status-value">
-                {humanizeToken(benchmarkResults?.baseline_reference?.status, 'sentence')}
-                {#if benchmarkResults?.baseline_reference?.generated_at}
-                  | {formatTimestamp(benchmarkResults.baseline_reference.generated_at)}
-                {/if}
-              </span>
-            </div>
-            <div class="info-row">
-              <span class="info-label text-muted">Oversight cadence:</span>
-              <span class="status-value">
-                {formatNumber(oversightAgentStatus?.periodic_trigger?.default_interval_seconds, '0')}s
-                via <code>{oversightAgentStatus?.periodic_trigger?.surface || 'n/a'}</code>
-              </span>
-            </div>
-            <div id="game-loop-progress-lineage" class="info-row">
-              <span class="info-label text-muted">Cycle Lineage:</span>
-              <span class="status-value">
-                {formatNumber(judgedCycleRows.length, '0')} completed judged cycles
-                | {formatNumber(retainedCycleCount, '0')} retained
-                | {formatNumber(rolledBackCycleCount, '0')} rolled back
-                | homeostasis {humanizeToken(episodeArchive?.homeostasis?.status, 'sentence')}
-              </span>
-            </div>
-            <div id="game-loop-progress-judged-basis" class="info-row">
-              <span class="info-label text-muted">Judged Episode Basis:</span>
-              <span class="status-value">
-                {latestJudgedLaneLabels}
-                {#if latestJudgedEpisodeRow?.retain_or_rollback}
-                  | latest judgment {humanizeToken(latestJudgedEpisodeRow.retain_or_rollback, 'sentence')}
-                {/if}
-              </span>
-            </div>
-            <div id="game-loop-progress-current-evidence-set" class="info-row">
-              <span class="info-label text-muted">Current Mixed-Attacker Evidence Set:</span>
-              <span class="status-value">
-                {currentMixedEvidenceSourceLabel}
-                {#if currentMixedEvidenceStatus}
-                  | status {humanizeToken(currentMixedEvidenceStatus, 'sentence')}
-                {/if}
-                {#if currentMixedEvidenceRuns.length}
-                  | {currentMixedEvidenceLaneSummary}
-                {/if}
-              </span>
-            </div>
-            <div id="game-loop-progress-break-state" class="info-row">
-              <span class="info-label text-muted">Homeostasis Break:</span>
-              <span class="status-value">
-                {humanizeToken(homeostasisBreakStatus, 'sentence')}
-                {#if homeostasisBreakReasons.length}
-                  | reasons {homeostasisBreakReasons.map((reason) => humanizeToken(reason, 'sentence')).join(', ')}
-                {/if}
-                {#if restartBaseline?.source}
-                  | restart baseline {humanizeToken(restartBaseline.source, 'sentence')}
-                  {#if restartBaseline.generated_at}
-                    @ {formatTimestamp(restartBaseline.generated_at)}
-                  {/if}
-                {/if}
-              </span>
-            </div>
-          </div>
-          <p id="game-loop-progress-judged-basis-note" class="text-muted">
-            Recent visibility alone does not mean a judged mixed-attacker episode exists.
-          </p>
-        </div>
-        <div id="game-loop-progress-history" class="panel panel-soft pad-md">
-          {#if latestHistoryRows.length === 0}
-            <p class="text-muted">No bounded loop history is available yet.</p>
-          {:else}
-            <ul class="metric-list">
-              {#each latestHistoryRows as row (row.decision_id)}
-                <li>
-                  <strong>{formatTimestamp(row.recorded_at_ts)}</strong>:
-                  {row.summary}
-                  <br />
-                  <span class="text-muted">
-                    {humanizeToken(row.benchmark_overall_status)} |
-                    {humanizeToken(row.improvement_status)} |
-                    {humanizeToken(row.apply?.stage || row.outcome)}
-                  </span>
-                </li>
-              {/each}
-            </ul>
-          {/if}
-        </div>
-      {:else if section.id === 'outcome-frontier'}
-        <div id="game-loop-outcome-frontier" class="panel panel-soft pad-md">
-          <h3 class="caps-label">Origin Leakage And Human Cost</h3>
-          <p class="text-muted">
-            These rows are guardrails. They can be fully inside budget even while terrain breach progress is still non-zero elsewhere on the board.
-          </p>
-          {#if budgetUsageRows.length === 0}
-            <p class="text-muted">No numeric objective budgets are materialized yet.</p>
-          {:else}
-            <div id="game-loop-budget-usage" class="game-loop-meter-list">
-              {#each budgetUsageRows as row (row.metricId)}
-                <div class="game-loop-meter-row">
-                  <p class="caps-label">{row.label}</p>
-                  <div class="game-loop-meter" aria-hidden="true">
-                    <span class="game-loop-meter__fill" style={`width: ${row.meterPercent}%;`}></span>
-                  </div>
-                  <p class="game-loop-meter-meta text-muted">
-                    Current {row.currentText} | Target {row.targetText} | {row.usageText} | {row.statusText}
-                    {#if row.comparisonText}
-                      | vs prior {row.comparisonText}
-                    {/if}
-                  </p>
-                </div>
-              {/each}
-            </div>
-          {/if}
-        </div>
-      {:else if section.id === 'change-judgment'}
-        <div id="game-loop-change-judgment" class="panel panel-soft pad-md">
-          <div class="status-rows">
-            <div class="info-row">
-              <span class="info-label text-muted">Loop Actionability:</span>
-              <span class="status-value">{loopActionabilityText}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label text-muted">Judge State:</span>
-              <span class="status-value">
-                {humanizeToken(benchmarkResults?.overall_status)}
-                | improvement {humanizeToken(benchmarkResults?.improvement_status, 'sentence')}
-                | coverage {humanizeToken(benchmarkResults?.coverage_status, 'sentence')}
-              </span>
-            </div>
-            <div class="info-row">
-              <span class="info-label text-muted">Restriction Quest:</span>
-              <span class="status-value">
-                {humanizeToken(restrictionDiagnosis?.status)}
-                | diagnosis {humanizeToken(restrictionDiagnosis?.confidence, 'sentence')}
-                | problem class {humanizeToken(restrictionDiagnosis?.problem_class)}
-              </span>
-            </div>
-            <div class="info-row">
-              <span class="info-label text-muted">Recognition Quest:</span>
-              <span class="status-value">
-                {humanizeToken(controllerRecognitionEvaluation?.status)}
-                {#if controllerRecognitionEvaluation?.trigger_family_ids?.length}
-                  | trigger {controllerRecognitionEvaluation.trigger_family_ids
-                    .map((familyId) => humanizeToken(familyId))
-                    .join(', ')}
-                {/if}
-              </span>
-            </div>
-            <div class="info-row">
-              <span class="info-label text-muted">Move Or Escalation:</span>
-              <span class="status-value">
-                {humanizeToken(latestMoveOutcome)}
-                | benchmark {humanizeToken(moveSelection?.decision || benchmarkResults?.escalation_hint?.decision)}
-                | review {humanizeToken(moveSelection?.review_status || benchmarkResults?.escalation_hint?.review_status)}
-              </span>
-            </div>
-            <div class="info-row">
-              <span class="info-label text-muted">Config Ring:</span>
-              <span class="status-value">
-                {humanizeToken(configRingStatus)}
-                {#if configRingBlockedFamily}
-                  | exhausted at {humanizeToken(configRingBlockedFamily)}
-                {/if}
-              </span>
-            </div>
-            <div class="info-row">
-              <span class="info-label text-muted">Code Evolution:</span>
-              <span class="status-value">{humanizeToken(codeEvolutionStatus)}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label text-muted">Latest decision:</span>
-              <span class="status-value">{latestHistoryRow?.summary || latestDecision?.summary || 'No decision recorded yet.'}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label text-muted">Latest run:</span>
-              <span class="status-value">
-                {#if latestRecentRun}
-                  {humanizeToken(latestRecentRun.trigger_kind)} at {formatTimestamp(latestRecentRun.completed_at_ts)}
-                {:else}
-                  No recorded agent runs yet.
-                {/if}
-              </span>
-            </div>
-          </div>
-          <p class="text-muted">
-            Recent visibility alone does not mean a judged mixed-attacker episode exists.
-          </p>
-
-          {#if rootCauseBlockerGroups.length}
-            <p class="caps-label">Root Cause Blockers</p>
-            <ul class="metric-list">
-              {#each rootCauseBlockerGroups as group (group.id)}
-                <li>
-                  <strong>{group.label}</strong>: {group.detail}
-                </li>
-              {/each}
-            </ul>
-          {/if}
-
-          {#if controllerOutcomeGroups.length}
-            <p class="caps-label">Controller Outcome</p>
-            <ul class="metric-list">
-              {#each controllerOutcomeGroups as group (group.id)}
-                <li>
-                  <strong>{group.label}</strong>: {group.detail}
-                </li>
-              {/each}
-            </ul>
-          {/if}
-
-          {#if surfaceProofLabels.length || nextRepairFamilyLabels.length}
-            <p class="caps-label">Next Fix Surfaces</p>
-            <ul class="metric-list">
-              {#if surfaceProofLabels.length}
-                <li>
-                  <strong>Proof</strong>: {surfaceProofLabels.join(', ')}
-                </li>
-              {/if}
-              {#if nextRepairFamilyLabels.length}
-                <li>
-                  <strong>Repair families</strong>: {nextRepairFamilyLabels.join(', ')}
-                </li>
-              {/if}
-            </ul>
-          {/if}
-        </div>
-      {:else if section.id === 'pressure-sits'}
-        <div class="stats-cards">
-          <article id="game-loop-exploit-progress" class="card panel panel-border pad-md-b">
-            <h3 class="caps-label">Terrain Breach Progress</h3>
-            <p class="text-muted">
-              This surface tracks where the current mixed-attacker pressure actually advanced through the defended terrain. It is separate from origin leakage budgets and separate from category posture scoring.
-            </p>
-            <div class="status-rows">
-              <div class="info-row">
-                <span class="info-label text-muted">Status:</span>
-                <span class="status-value">
-                  {humanizeToken(exploitProgressFamily?.status)}
-                  | comparison {humanizeToken(exploitProgressFamily?.comparison_status, 'sentence')}
-                </span>
-              </div>
-              <div class="info-row">
-                <span class="info-label text-muted">Note:</span>
-                <span class="status-value">{exploitProgressFamily?.note || 'Exploit progress is not materialized yet.'}</span>
-              </div>
-            </div>
-            {#if breachLoci.length}
-              <div id="game-loop-breach-loci">
-                <p class="caps-label">Named Breach Loci</p>
-                <ul class="metric-list">
-                  {#each breachLoci as locus (`${locus.locus_id}-${locus.sample_request_path}`)}
-                    <li>
-                      <strong>{locus.locus_label || humanizeToken(locus.locus_id)}</strong>:
-                      {humanizeToken(locus.evidence_status, 'sentence')} |
-                      {humanizeToken(locus.stage_id, 'sentence')} |
-                      {formatLocusAttemptText(locus)}
-                      <br />
-                      <span class="text-muted">
-                        {formatLocusEvidenceField('Host cost', locus.cost_channel_ids, locus.cost_channel_status)}
-                        | {formatLocusEvidenceField(
-                          'Repair candidates',
-                          locus.repair_family_candidates,
-                          locus.repair_family_status
-                        )}
-                        | Sample {formatLocusSample(locus)}
-                      </span>
-                    </li>
-                  {/each}
-                </ul>
-              </div>
-            {/if}
-            {#if exploitProgressRows.length}
-              <ul class="metric-list">
-                {#each exploitProgressRows as row (row.metricId)}
-                  <li>
-                    <strong>{row.label}</strong>:
-                    Current {row.currentText} | Goal {row.targetText} | {row.statusText}
-                    {#if row.comparisonText}
-                      | vs prior {row.comparisonText}
-                    {/if}
-                  </li>
-                {/each}
-              </ul>
-            {/if}
-          </article>
-          <article id="game-loop-surface-contract" class="card panel panel-border pad-md-b">
-            <h3 class="caps-label">Surface Contract Satisfaction</h3>
-            <p class="text-muted">
-              This surface asks whether Scrapling satisfied the required defense-surface contract for the latest run. It is not the same as category posture achievement.
-            </p>
-            {#if latestScraplingEvidence?.ownedSurfaceCoverage}
-              <div class="status-rows">
-                <div class="info-row">
-                  <span class="info-label text-muted">Status:</span>
-                  <span class="status-value">
-                    {humanizeToken(surfaceContractCoverage.overallStatus)}
-                    | {formatNumber(surfaceContractCoverage.satisfiedSurfaceCount, '0')}
-                    / {formatNumber(surfaceContractCoverage.requiredSurfaceCount, '0')}
-                    required surfaces
-                  </span>
-                </div>
-                <div class="info-row">
-                  <span class="info-label text-muted">Blocking Surfaces:</span>
-                  <span class="status-value">
-                    {surfaceContractBlockingLabels.length
-                      ? surfaceContractBlockingLabels.join(', ')
-                      : 'None'}
-                  </span>
-                </div>
-              </div>
-            {:else}
-              <p class="text-muted">No receipt-backed Scrapling surface-contract evidence is materialized yet.</p>
-            {/if}
-          </article>
-          <article id="game-loop-recognition-evaluation" class="card panel panel-border pad-md-b">
-            <h3 class="caps-label">Recognition Evaluation</h3>
-            <p class="text-muted">
-              These rows compare simulator-known categories against Shuma’s recent category evaluation after the fact. They remain observer-only and must not drive bounded tuning or runtime restriction directly.
-            </p>
-            <div class="status-rows">
-              <div class="info-row">
-                <span class="info-label text-muted">Recognition Status:</span>
-                <span class="status-value">
-                  {humanizeToken(recognitionEvaluation?.comparison_status)}
-                  | readiness {humanizeToken(recognitionEvaluation?.readiness?.status)}
-                  | coverage {humanizeToken(recognitionEvaluation?.coverage?.overall_status)}
-                </span>
-              </div>
-              <div class="info-row">
-                <span class="info-label text-muted">Recognition Summary:</span>
-                <span class="status-value">
-                  exact {formatNumber(recognitionEvaluation?.current_exact_match_count, '0')}
-                  | collapsed unknown {formatNumber(recognitionEvaluation?.collapsed_to_unknown_count, '0')}
-                  | not materialized {formatNumber(recognitionEvaluation?.not_materialized_count, '0')}
-                </span>
-              </div>
-            </div>
-            {#if recognitionDisplayRows.length === 0}
-              <p class="text-muted">No recognition-evaluation rows are materialized yet.</p>
-            {:else}
-              <ul class="metric-list">
-                {#each recognitionDisplayRows as row (row.categoryId)}
-                  <li>
-                    <strong>{row.label}</strong>:
-                    {row.statusText}
-                    {#if row.recentRunCount}
-                      | simulator ground truth in {formatNumber(row.recentRunCount, '0')} recent run(s)
-                    {/if}
-                    <br />
-                    <span class="text-muted">
-                      {row.inferredLabel
-                        ? `Recent inference ${row.inferredLabel}`
-                        : 'Recent inference not materialized'}
-                      {#if row.basisText}
-                        | basis {row.basisText}
-                      {/if}
-                    </span>
-                    {#if row.noteText}
-                      <br />
-                      <span class="text-muted">{row.noteText}</span>
-                    {/if}
-                  </li>
-                {/each}
-              </ul>
-            {/if}
-          </article>
-          <article class="card panel panel-border pad-md-b">
-            <h3 class="caps-label">Recent Change Context</h3>
-            {#if recentChanges.length === 0}
-              <p class="text-muted">No recent config-change ledger rows are materialized yet.</p>
-            {:else}
-              <ul class="metric-list">
-                {#each recentChanges as change, index (`${change.changed_at_ts}-${index}`)}
-                  <li>
-                    <strong>{formatTimestamp(change.changed_at_ts)}</strong>:
-                    {change.change_summary || 'Change summary unavailable.'}
-                  </li>
-                {/each}
-              </ul>
-            {/if}
-          </article>
-        </div>
-      {:else if section.id === 'trust-and-blockers'}
-        <div id="game-loop-trust-blockers" class="panel panel-soft pad-md">
-          <div class="status-rows">
-            <div class="info-row">
-              <span class="info-label text-muted">Policy Profile:</span>
-              <span class="status-value">
-                {currentPolicyProfile.label}
-                | profile {currentPolicyProfile.profileId || 'not available'}
-                | {humanizeToken(currentPolicyProfile.activationStatus, 'sentence')}
-              </span>
-            </div>
-            <div class="info-row">
-              <span class="info-label text-muted">Sim-Only Target:</span>
-              <span class="status-value">{currentPolicyProfile.simOnlyTargetSummary}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label text-muted">Human Calibration:</span>
-              <span class="status-value">{currentPolicyProfile.humanCalibrationSummary}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label text-muted">Judge Path:</span>
-              <span class="status-value">
-                Sim and real traffic must share Shuma-side scoring truth; simulator metadata does not count as category truth.
-              </span>
-            </div>
-            <div class="info-row">
-              <span class="info-label text-muted">Classification:</span>
-              <span class="status-value">
-                {humanizeToken(benchmarkResults?.non_human_classification?.status)}
-                | live receipts {formatNumber(benchmarkResults?.non_human_classification?.live_receipt_count, '0')}
-                | sim receipts {formatNumber(benchmarkResults?.non_human_classification?.adversary_sim_receipt_count, '0')}
-              </span>
-            </div>
-            <div class="info-row">
-              <span class="info-label text-muted">Coverage:</span>
-              <span class="status-value">{humanizeToken(benchmarkResults?.non_human_coverage?.overall_status)}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label text-muted">Protected Evidence:</span>
-              <span class="status-value">
-                {humanizeToken(protectedEvidence?.availability)}
-                | evidence {humanizeToken(protectedEvidence?.evidence_status, 'sentence')}
-                | basis {humanizeToken(protectedEvidence?.protected_basis, 'sentence')}
-                | lineage {formatNumber(protectedEvidence?.protected_lineage_count, '0')}
-              </span>
-            </div>
-            <div class="info-row">
-              <span class="info-label text-muted">Replay Lineage:</span>
-              <span class="status-value">
-                {humanizeToken(benchmarkResults?.replay_promotion?.availability)}
-                | evidence {humanizeToken(benchmarkResults?.replay_promotion?.evidence_status, 'sentence')}
-                | lineage {formatNumber(benchmarkResults?.replay_promotion?.protected_lineage_count, '0')}
-              </span>
-            </div>
-            <div class="info-row">
-              <span class="info-label text-muted">Tuning Eligibility:</span>
-              <span class="status-value">
-                {humanizeToken(benchmarkResults?.tuning_eligibility?.status)}
-                | blockers {formatNumber(toArray(benchmarkResults?.tuning_eligibility?.blockers).length, '0')}
-              </span>
-            </div>
-            <div class="info-row">
-              <span class="info-label text-muted">Verified Identity:</span>
-              <span class="status-value">
-                {humanizeToken(operatorSnapshot?.verified_identity?.availability)}
-                | alignment {humanizeToken(operatorSnapshot?.verified_identity?.taxonomy_alignment?.status)}
-                | verified mode {humanizeToken(operatorSnapshot?.verified_identity?.effective_non_human_policy?.verified_identity_override_mode, 'sentence')}
-              </span>
-            </div>
-            <div class="info-row">
-              <span class="info-label text-muted">Verified Handling:</span>
-              <span class="status-value">
-                {currentPolicyProfile.verifiedHandlingSummary}
-              </span>
-            </div>
-          </div>
-
-          {#if trustBlockers.length === 0}
-            <p class="text-muted">No explicit trust blockers are currently active.</p>
-          {:else}
-            <ul class="metric-list">
-              {#each trustBlockers as blocker}
-                <li>{humanizeToken(blocker, 'sentence')}</li>
               {/each}
             </ul>
           {/if}

@@ -10,8 +10,6 @@
     NOT_A_BOT_LATENCY_LABELS,
     POW_REASON_LABELS,
     RATE_OUTCOME_LABELS,
-    deriveDefenseTrendRows,
-    deriveDefenseBreakdownRows,
     deriveIpRangeMonitoringViewModel,
     deriveMazeStatsViewModel,
     deriveMonitoringSummaryViewModel,
@@ -37,7 +35,6 @@
   import { formatIpRangeReasonLabel } from '../../domain/ip-range-policy.js';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
   import DiagnosticsSection from './monitoring/DiagnosticsSection.svelte';
-  import DefenseTrendBlocks from './monitoring/DefenseTrendBlocks.svelte';
   import CdpSection from './monitoring/CdpSection.svelte';
   import MazeSection from './monitoring/MazeSection.svelte';
   import TarpitSection from './monitoring/TarpitSection.svelte';
@@ -76,8 +73,6 @@
 
   let rawRecentEvents = [];
   let rawTelemetryFeed = [];
-  let defenseTrendRows = [];
-  let defenseBreakdownRows = [];
 
   let copyButtonLabel = 'Copy JavaScript Example';
   let copyCurlButtonLabel = 'Copy Curl Example';
@@ -340,7 +335,6 @@
     ? events.recent_events.slice(0, RAW_FEED_MAX_LINES)
     : [];
   $: rawTelemetryFeed = buildRawTelemetryFeed(rawRecentEvents);
-  $: defenseTrendRows = deriveDefenseTrendRows(rawRecentEvents);
   $: recentCdpEvents = Array.isArray(cdpEventsData.events)
     ? cdpEventsData.events.slice(0, CDP_ROW_RENDER_LIMIT)
     : [];
@@ -379,18 +373,6 @@
   $: rateOutcomeRows = normalizePairRows(monitoringSummary.rate.outcomes, RATE_OUTCOME_LABELS);
   $: geoTopCountries = normalizeTopCountries(monitoringSummary.geo.topCountries);
   $: ipRangeSummary = deriveIpRangeMonitoringViewModel(rawRecentEvents, config);
-  $: defenseBreakdownRows = deriveDefenseBreakdownRows({
-    trendRows: defenseTrendRows,
-    cdpDetections,
-    cdpAutoBans,
-    cdpUaClientHintMismatch: cdpFingerprintUaClientHintMismatch,
-    cdpUaTransportMismatch: cdpFingerprintUaTransportMismatch,
-    cdpFlowViolations: cdpFingerprintFlowViolations,
-    mazeStats,
-    tarpitSummary,
-    monitoringSummary,
-    ipRangeSummary
-  });
   $: ipRangeReasonRows = normalizeDimensionRows(
     ipRangeSummary.reasons,
     (key) => formatIpRangeReasonLabel(key)
@@ -487,12 +469,6 @@
   tabindex="-1"
 >
   <TabStateMessage tab="diagnostics" status={tabStatus} />
-
-  <DefenseTrendBlocks
-    data-diagnostics-section="defense-breakdown"
-    loading={tabStatus?.loading === true}
-    rows={defenseBreakdownRows}
-  />
 
   <CdpSection
     loading={tabStatus?.loading === true}

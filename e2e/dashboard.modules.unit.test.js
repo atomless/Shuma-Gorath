@@ -3325,170 +3325,6 @@ test('monitoring view model and status module remain pure snapshot transforms', 
     assert.equal(shadowDisplay.outcome, 'Would Challenge');
     assert.equal(shadowDisplay.event, 'Puzzle');
 
-    const defenseTrendRows = monitoringModelModule.deriveDefenseTrendRows(gc10Events);
-    const challengeTrend = defenseTrendRows.find((row) => row.defense === 'challenge');
-    const tarpitTrend = defenseTrendRows.find((row) => row.defense === 'tarpit');
-    assert.equal(Boolean(challengeTrend), true);
-    assert.equal(challengeTrend?.triggerCount, 2);
-    assert.equal(challengeTrend?.label, 'Puzzle');
-    assert.equal(challengeTrend?.escalationCount, 2);
-    assert.equal(challengeTrend?.hasOutcomeBreakdown, true);
-    assert.equal(challengeTrend?.sourceRows.some((row) => row.source === 'sim' && row.count === 2), true);
-    assert.equal(challengeTrend?.modeRows.some((row) => row.mode === 'shadow' && row.count === 1), true);
-    assert.equal(challengeTrend?.modeRows.some((row) => row.mode === 'enforced' && row.count === 1), true);
-    assert.equal(Boolean(tarpitTrend), true);
-    assert.equal(tarpitTrend?.triggerCount, 1);
-    assert.equal(tarpitTrend?.hasOutcomeBreakdown, false);
-    assert.equal(tarpitTrend?.passCount, 0);
-    assert.equal(tarpitTrend?.failCount, 0);
-    assert.equal(tarpitTrend?.escalationCount, 0);
-    const defenseTrendAccumulator = monitoringModelModule.createDefenseTrendAccumulator();
-    monitoringModelModule.appendDefenseTrendEvent(defenseTrendAccumulator, gc10Events[0]);
-    monitoringModelModule.appendDefenseTrendEvent(defenseTrendAccumulator, gc10Events[1]);
-    let accumulatedDefenseRows =
-      monitoringModelModule.deriveDefenseTrendRowsFromAccumulator(defenseTrendAccumulator);
-    let accumulatedChallenge = accumulatedDefenseRows.find((row) => row.defense === 'challenge');
-    assert.equal(accumulatedChallenge?.triggerCount, 2);
-    monitoringModelModule.appendDefenseTrendEvent(defenseTrendAccumulator, gc10Events[3]);
-    accumulatedDefenseRows =
-      monitoringModelModule.deriveDefenseTrendRowsFromAccumulator(defenseTrendAccumulator);
-    accumulatedChallenge = accumulatedDefenseRows.find((row) => row.defense === 'challenge');
-    const accumulatedPow = accumulatedDefenseRows.find((row) => row.defense === 'pow');
-    assert.equal(accumulatedChallenge?.triggerCount, 2);
-    assert.equal(accumulatedPow?.triggerCount, 1);
-
-    const defenseBreakdownRows = monitoringModelModule.deriveDefenseBreakdownRows({
-      trendRows: [
-        {
-          defense: 'challenge',
-          triggerCount: 7,
-          passCount: 0,
-          failCount: 4,
-          escalationCount: 3,
-          banOutcomeCount: 1,
-          hasOutcomeBreakdown: true,
-          modeRows: [{ mode: 'enforced', label: 'Enforced', count: 5 }],
-          sourceRows: [{ source: 'sim', label: 'Simulation', count: 2 }]
-        }
-      ],
-      cdpDetections: 13,
-      cdpAutoBans: 2,
-      cdpFlowViolations: 4,
-      mazeStats: {
-        totalHits: '12',
-        uniqueCrawlers: '5',
-        mazeAutoBans: '2'
-      },
-      tarpitSummary: {
-        activationsProgressive: '7',
-        fallbackMaze: '3',
-        escalationBlock: '1'
-      },
-      monitoringSummary: {
-        honeypot: {
-          totalHits: '4',
-          uniqueCrawlers: '2',
-          topOffender: { label: 'Top Offender (4 hits)', value: 'crawler-1' },
-          topPaths: [{ path: '/trap', count: 4 }]
-        },
-        challenge: {
-          totalFailures: '9',
-          uniqueOffenders: '3',
-          topOffender: { label: 'Top Offender (9 hits)', value: 'solver-1' },
-          reasons: [['incorrect', 6]]
-        },
-        notABot: {
-          served: '10',
-          submitted: '8',
-          pass: '6',
-          escalate: '2',
-          fail: '1',
-          abandonmentRate: '10.0%'
-        },
-        pow: {
-          totalSuccesses: '6',
-          totalFailures: '2',
-          totalAttempts: '8',
-          successRate: '75.0%',
-          uniqueOffenders: '2',
-          topOffender: { label: 'Top Offender (6 hits)', value: 'pow-1' }
-        },
-        rate: {
-          totalViolations: '5',
-          uniqueOffenders: '2',
-          topOffender: { label: 'Top Offender (5 hits)', value: 'ratelimit-1' },
-          outcomes: [['limited', 5]]
-        },
-        geo: {
-          totalViolations: '3',
-          actionMix: { block: '1', challenge: '1', maze: '1' },
-          topCountries: [{ country: 'GB', count: 2 }]
-        }
-      },
-      ipRangeSummary: {
-        mode: 'enforce',
-        totalMatches: 11,
-        totalFallbacks: 4,
-        uniqueSourceIds: 2,
-        catalog: {
-          customRuleCount: 1,
-          emergencyAllowlistCount: 1
-        }
-      }
-    });
-    assert.deepEqual(
-      defenseBreakdownRows.map((row) => row.defense),
-      ['cdp', 'maze', 'tarpit', 'honeypot', 'challenge', 'not_a_bot', 'pow', 'rate_limit', 'geo', 'ip_range']
-    );
-    assert.equal(
-      defenseBreakdownRows.find((row) => row.defense === 'challenge')?.factRows.some(
-        (fact) => fact.label === 'Failures' && fact.value === '9'
-      ),
-      true
-    );
-    assert.equal(
-      defenseBreakdownRows.find((row) => row.defense === 'challenge')?.factRows.some(
-        (fact) => fact.label === 'Recent Triggers' && fact.value === '7'
-      ),
-      true
-    );
-    assert.equal(
-      defenseBreakdownRows.find((row) => row.defense === 'challenge')?.factRows.some(
-        (fact) => fact.label === 'Recent Modes' && fact.value === 'Enforced: 5'
-      ),
-      true
-    );
-    assert.equal(
-      defenseBreakdownRows.find((row) => row.defense === 'challenge')?.factRows.some(
-        (fact) => fact.label === 'Recent Sources' && fact.value === 'Simulation: 2'
-      ),
-      true
-    );
-    assert.equal(
-      defenseBreakdownRows.find((row) => row.defense === 'pow')?.factRows.some(
-        (fact) => fact.label === 'Success Rate' && fact.value === '75.0%'
-      ),
-      true
-    );
-    assert.equal(
-      defenseBreakdownRows.find((row) => row.defense === 'ip_range')?.factRows.some(
-        (fact) => fact.label === 'Mode' && fact.value === 'Enforce'
-      ),
-      true
-    );
-    assert.equal(
-      defenseBreakdownRows.find((row) => row.defense === 'not_a_bot')?.factRows.some(
-        (fact) => fact.label === 'Abandonment Rate' && fact.value === '10.0%'
-      ),
-      true
-    );
-    assert.equal(
-      defenseBreakdownRows.find((row) => row.defense === 'ip_range')?.factRows.some(
-        (fact) => fact.label === 'Custom Rules' && fact.value === '1'
-      ),
-      true
-    );
-
     const runSummary = monitoringModelModule.deriveAdversaryRunRows(gc10Events, [
       { ip: '198.51.100.200' },
       { ip: '203.0.113.200' }
@@ -5789,14 +5625,15 @@ test('red team tab reuses verification-style config panel primitives for its adv
   assert.match(redTeamTabSource, /export let laneDisabledReason = '';/);
   assert.match(redTeamTabSource, /export let onLaneChange = null;/);
   assert.match(redTeamTabSource, /function handleLaneChange\(event\)/);
-  assert.match(redTeamTabSource, /<div class="status-item">[\s\S]*<h3>Lane State<\/h3>/m);
-  assert.match(redTeamTabSource, /Desired lane:/);
-  assert.match(redTeamTabSource, /Active lane:/);
-  assert.match(redTeamTabSource, /Switch sequence:/);
-  assert.match(redTeamTabSource, /<div class="status-item">[\s\S]*<h3>Lane Diagnostics<\/h3>/m);
-  assert.match(redTeamTabSource, /Beat attempts:/);
-  assert.match(redTeamTabSource, /Generated requests:/);
-  assert.match(redTeamTabSource, /Failure classes:/);
+  assert.doesNotMatch(redTeamTabSource, /<h3>Lane State<\/h3>/);
+  assert.doesNotMatch(redTeamTabSource, /<h3>Lane Diagnostics<\/h3>/);
+  assert.doesNotMatch(redTeamTabSource, /Desired lane:/);
+  assert.doesNotMatch(redTeamTabSource, /Active lane:/);
+  assert.doesNotMatch(redTeamTabSource, /Switch sequence:/);
+  assert.doesNotMatch(redTeamTabSource, /Beat attempts:/);
+  assert.doesNotMatch(redTeamTabSource, /Generated requests:/);
+  assert.doesNotMatch(redTeamTabSource, /Failure classes:/);
+  assert.doesNotMatch(redTeamTabSource, /ScraplingEvidencePanel/);
 });
 
 test('red team adversary-sim progress bar animates stripe motion and respects reduced motion', () => {
@@ -6192,11 +6029,9 @@ test('traffic and diagnostics tabs decompose traffic visibility and furniture di
   );
 
   assert.match(diagnosticsTabSource, /import DiagnosticsSection from '\.\/monitoring\/DiagnosticsSection\.svelte';/);
-  assert.match(diagnosticsTabSource, /import DefenseTrendBlocks from '\.\/monitoring\/DefenseTrendBlocks\.svelte';/);
   assert.match(diagnosticsTabSource, /import ExternalMonitoringSection from '\.\/monitoring\/ExternalMonitoringSection\.svelte';/);
   assert.match(diagnosticsTabSource, /import IpRangeSection from '\.\/monitoring\/IpRangeSection\.svelte';/);
   assert.match(diagnosticsTabSource, /export let ipBansFreshnessSnapshot = null;/);
-  assert.match(diagnosticsTabSource, /<DefenseTrendBlocks/);
   assert.match(diagnosticsTabSource, /<DiagnosticsSection/);
   assert.match(diagnosticsTabSource, /monitoringFreshnessSnapshot=\{monitoringFreshnessSnapshot\}/);
   assert.match(diagnosticsTabSource, /ipBansFreshnessSnapshot=\{ipBansFreshnessSnapshot\}/);
@@ -6213,6 +6048,8 @@ test('traffic and diagnostics tabs decompose traffic visibility and furniture di
   assert.doesNotMatch(diagnosticsTabSource, /import OverviewStats from '\.\/monitoring\/OverviewStats\.svelte';/);
   assert.doesNotMatch(diagnosticsTabSource, /import PrimaryCharts from '\.\/monitoring\/PrimaryCharts\.svelte';/);
   assert.doesNotMatch(diagnosticsTabSource, /import RecentEventsTable from '\.\/monitoring\/RecentEventsTable\.svelte';/);
+  assert.doesNotMatch(diagnosticsTabSource, /import DefenseTrendBlocks from '\.\/monitoring\/DefenseTrendBlocks\.svelte';/);
+  assert.doesNotMatch(diagnosticsTabSource, /<DefenseTrendBlocks/);
   assert.doesNotMatch(diagnosticsTabSource, /id="monitoring-freshness-state"/);
   assert.doesNotMatch(diagnosticsTabSource, /id="monitoring-freshness-meta"/);
 
@@ -6249,10 +6086,6 @@ test('game loop, traffic, and diagnostics tabs make ownership boundaries explici
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/DiagnosticsTab.svelte'),
     'utf8'
   );
-  const defenseBreakdownSource = fs.readFileSync(
-    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/monitoring/DefenseTrendBlocks.svelte'),
-    'utf8'
-  );
   const tabStateSource = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/primitives/TabStateMessage.svelte'),
     'utf8'
@@ -6274,19 +6107,31 @@ test('game loop, traffic, and diagnostics tabs make ownership boundaries explici
   assert.doesNotMatch(monitoringSource, /import SectionBlock from '\.\/primitives\/SectionBlock\.svelte';/);
   assert.doesNotMatch(monitoringSource, /section-copy-block/);
   assert.doesNotMatch(monitoringSource, /<div[^>]*class="[^"]*\bsection\b[^"]*"/);
-  assert.match(monitoringSource, /id: 'current-status'/);
-  assert.match(monitoringSource, /id: 'recent-loop-progress'/);
-  assert.match(monitoringSource, /id: 'outcome-frontier'/);
-  assert.match(monitoringSource, /id: 'change-judgment'/);
-  assert.match(monitoringSource, /id: 'pressure-sits'/);
-  assert.match(monitoringSource, /id: 'trust-and-blockers'/);
+  assert.match(monitoringSource, /id: 'recent-rounds'/);
+  assert.match(monitoringSource, /id: 'adversary-cast'/);
+  assert.match(monitoringSource, /id: 'defence-cast'/);
+  assert.doesNotMatch(monitoringSource, /id: 'current-status'/);
+  assert.doesNotMatch(monitoringSource, /id: 'recent-loop-progress'/);
+  assert.doesNotMatch(monitoringSource, /id: 'outcome-frontier'/);
+  assert.doesNotMatch(monitoringSource, /id: 'change-judgment'/);
+  assert.doesNotMatch(monitoringSource, /id: 'pressure-sits'/);
+  assert.doesNotMatch(monitoringSource, /id: 'trust-and-blockers'/);
   assert.doesNotMatch(monitoringSource, /Closed-Loop Accountability/);
   assert.doesNotMatch(monitoringSource, /data-game-loop-intro/);
   assert.doesNotMatch(monitoringSource, /Current Status/);
   assert.doesNotMatch(monitoringSource, /Loop verdict, budget state/);
   assert.doesNotMatch(monitoringSource, /Monitoring Overhaul In Progress/);
   assert.match(monitoringSource, /title: 'Recent Rounds'/);
-  assert.match(monitoringSource, /title: 'Round Outcome'/);
+  assert.match(monitoringSource, /title: 'Adversaries In This Round'/);
+  assert.match(monitoringSource, /title: 'Defences In This Round'/);
+  assert.doesNotMatch(monitoringSource, /title: 'Round Outcome'/);
+  assert.doesNotMatch(monitoringSource, /title: 'Loop Progress'/);
+  assert.doesNotMatch(monitoringSource, /title: 'Origin Leakage And Human Cost'/);
+  assert.doesNotMatch(monitoringSource, /title: 'Loop Actionability'/);
+  assert.doesNotMatch(monitoringSource, /title: 'Pressure Context'/);
+  assert.doesNotMatch(monitoringSource, /title: 'Trust And Blockers'/);
+  assert.doesNotMatch(monitoringSource, /export let benchmarkResults = null;/);
+  assert.doesNotMatch(monitoringSource, /deriveLatestScraplingEvidenceFromSummaries/);
   assert.match(sectionBlockSource, /\{#if title\}/);
 
   assert.match(trafficSource, /class="dashboard-tab-panel"/);
@@ -6312,7 +6157,7 @@ test('game loop, traffic, and diagnostics tabs make ownership boundaries explici
   assert.doesNotMatch(diagnosticsSource, /<section class="section" data-diagnostics-section="defense-breakdown">/);
   assert.doesNotMatch(diagnosticsSource, /<section class="section" data-diagnostics-section="telemetry-diagnostics">/);
   assert.doesNotMatch(diagnosticsSource, /<section class="section" data-diagnostics-section="external-monitoring">/);
-  assert.match(diagnosticsSource, /data-diagnostics-section="defense-breakdown"/);
+  assert.doesNotMatch(diagnosticsSource, /data-diagnostics-section="defense-breakdown"/);
   assert.doesNotMatch(diagnosticsSource, /data-diagnostics-section="defense-specific-diagnostics"/);
   assert.match(diagnosticsSource, /data-diagnostics-section="telemetry-diagnostics"/);
   assert.match(diagnosticsSource, /data-diagnostics-section="external-monitoring"/);
@@ -6321,8 +6166,7 @@ test('game loop, traffic, and diagnostics tabs make ownership boundaries explici
   assert.doesNotMatch(diagnosticsSource, />Diagnostics</);
   assert.doesNotMatch(diagnosticsSource, /deep inspection/i);
   assert.doesNotMatch(diagnosticsSource, /<div[^>]*class="[^"]*\bsection\b[^"]*"/);
-  assert.match(diagnosticsSource, /\$: defenseBreakdownRows = deriveDefenseBreakdownRows\(\{/);
-  assert.match(defenseBreakdownSource, /<strong>\{fact\.label\}:<\/strong> \{fact\.value\}/);
+  assert.doesNotMatch(diagnosticsSource, /deriveDefenseBreakdownRows/);
   assert.match(tabStateSource, /\{#if paneNoticeText\}/);
   assert.doesNotMatch(tabStateSource, /hidden=\{!paneNoticeText\}/);
   assert.match(sectionBlockSource, /<section class=\{rootClass\} \{\.\.\.\$\$restProps\}>/);
@@ -6347,7 +6191,7 @@ test('tarpit monitoring section centers progression and outcome telemetry', () =
   assert.match(source, /id="tarpit-escalation-outcomes-list"/);
 });
 
-test('red team tab renders the recent adversary runs panel with red-team-specific copy', () => {
+test('red team tab keeps only controls and recent adversary runs after diagnostic-surface retirement', () => {
   const source = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/RedTeamTab.svelte'),
     'utf8'
@@ -6366,16 +6210,17 @@ test('red team tab renders the recent adversary runs panel with red-team-specifi
   assert.match(source, /summaryLabel="Active bans linked to recent runs"/);
   assert.match(source, /emptyText="No recent adversary simulation runs are currently retained in the compact run history\."/);
   assert.match(source, /degradedText="Monitoring freshness is degraded or stale\. Missing red team run rows may indicate delayed telemetry rather than no simulation activity\."/);
-  assert.match(source, /<h3>Status Truth<\/h3>/);
-  assert.match(source, /id="adversary-sim-generation-truth-basis"/);
-  assert.match(source, /id="adversary-sim-lane-diagnostics-truth-basis"/);
-  assert.match(source, /id="adversary-sim-persisted-event-evidence"/);
-  assert.match(source, /Recovered lower-bound evidence from persisted monitoring events\./);
-  assert.match(source, /Direct runtime control counters\./);
-  assert.match(source, /export let oversightHistory = null;/);
-  assert.match(source, /export let oversightAgentStatus = null;/);
-  assert.match(source, /Judged Episode Basis/);
-  assert.match(source, /Recent visibility alone does not mean the controller judged a mixed-attacker episode\./);
+  assert.doesNotMatch(source, /<h3>Status Truth<\/h3>/);
+  assert.doesNotMatch(source, /id="adversary-sim-generation-truth-basis"/);
+  assert.doesNotMatch(source, /id="adversary-sim-lane-diagnostics-truth-basis"/);
+  assert.doesNotMatch(source, /id="adversary-sim-persisted-event-evidence"/);
+  assert.doesNotMatch(source, /Recovered lower-bound evidence from persisted monitoring events\./);
+  assert.doesNotMatch(source, /Direct runtime control counters\./);
+  assert.doesNotMatch(source, /export let oversightHistory = null;/);
+  assert.doesNotMatch(source, /export let oversightAgentStatus = null;/);
+  assert.doesNotMatch(source, /Judged Episode Basis/);
+  assert.doesNotMatch(source, /Recent visibility alone does not mean the controller judged a mixed-attacker episode\./);
+  assert.doesNotMatch(source, /ScraplingEvidencePanel/);
 });
 
 test('adversary run panel reserves a runtime column for additive llm runtime truth', () => {
@@ -6702,11 +6547,10 @@ test('dashboard verification tab wires verified identity operator snapshot and s
   assert.match(routeSource, /state\.snapshots \? state\.snapshots\.operatorSnapshot : null/);
 });
 
-test('dashboard game loop accountability adapters normalize benchmark and oversight payloads safely', async () => {
+test('dashboard game loop accountability adapters normalize operator and oversight payloads safely', async () => {
   const apiModule = await importBrowserModule('dashboard/src/lib/domain/api-client.js');
 
   assert.equal(typeof apiModule.adaptOperatorSnapshot, 'function');
-  assert.equal(typeof apiModule.adaptBenchmarkResults, 'function');
   assert.equal(typeof apiModule.adaptOversightHistory, 'function');
   assert.equal(typeof apiModule.adaptOversightAgentStatus, 'function');
 
@@ -6835,358 +6679,6 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
   assert.equal(
     operatorSnapshot.verified_identity.effective_non_human_policy.verified_identity_override_mode,
     'strict_human_only'
-  );
-
-  const benchmarkResults = apiModule.adaptBenchmarkResults({
-    schema_version: 'benchmark_results_v1',
-    generated_at: 1774306800,
-    overall_status: 'outside_budget',
-    improvement_status: 'improved',
-    coverage_status: 'supported',
-    urgency: {
-      status: 'critical',
-      exploit_short_window_status: 'critical',
-      exploit_long_window_status: 'elevated',
-      restriction_confidence_status: 'high',
-      abuse_backstop_status: 'triggered',
-      likely_human_short_window_status: 'steady',
-      likely_human_long_window_status: 'steady',
-      homeostasis_break_status: 'triggered',
-      homeostasis_break_reasons: ['exploit_success_regressed'],
-      note: 'Urgent exploit regression detected.'
-    },
-    watch_window: {
-      start_ts: 1774220400,
-      end_ts: 1774306799,
-      duration_seconds: 86400
-    },
-    baseline_reference: {
-      reference_kind: 'prior_window',
-      status: 'available',
-      subject_kind: 'prior_window',
-      generated_at: 1774220400,
-      note: 'Compared against the previous watch window.'
-    },
-    tuning_eligibility: {
-      status: 'blocked',
-      blockers: ['verified_identity_taxonomy_alignment_guardrail']
-    },
-    protected_evidence: {
-      availability: 'materialized',
-      evidence_status: 'protected',
-      tuning_eligible: true,
-      protected_basis: 'live_mixed_attacker_runtime',
-      protected_lineage_count: 0,
-      eligibility_blockers: [],
-      note: 'Strong live mixed-attacker runtime proof is protected.'
-    },
-    non_human_classification: {
-      status: 'ready',
-      blockers: [],
-      live_receipt_count: 4,
-      adversary_sim_receipt_count: 3
-    },
-    non_human_coverage: {
-      overall_status: 'partial',
-      blocking_reasons: ['mapped_categories_have_partial_coverage'],
-      blocking_category_ids: ['ai_scraper_bot']
-    },
-    escalation_hint: {
-      availability: 'available',
-      decision: 'observe_longer',
-      review_status: 'manual_review_required',
-      problem_class: 'mixed_attacker_restriction_gap',
-      guidance_status: 'localized_exploit_progress_guidance',
-      tractability: 'localized_config_repair',
-      expected_direction: 'tighten',
-      trigger_family_ids: ['mixed_attacker_restriction_progress'],
-      trigger_metric_ids: ['mixed_attacker_breach_locus_rate'],
-      candidate_action_families: ['fingerprint_signal'],
-      family_guidance: [
-        {
-          family: 'fingerprint_signal',
-          likely_human_risk: 'low',
-          tolerated_non_human_risk: 'low',
-          note: 'Tighten fingerprint signal first.'
-        }
-      ],
-      blockers: ['verified_identity_taxonomy_alignment_guardrail'],
-      evidence_quality: {
-        status: 'medium_confidence',
-        diagnosis_confidence: 'medium',
-        attribution_status: 'surface_native_shared_path',
-        sample_status: 'sufficient',
-        freshness_status: 'fresh',
-        recent_window_support_status: 'reproduced_recently',
-        locality_status: 'localized',
-        breach_loci: [
-          {
-            locus_id: 'maze_navigation',
-            locus_label: 'Maze Navigation',
-            stage_id: 'challenge_traversal',
-            evidence_status: 'progress_observed',
-            attempt_count: 3,
-            attempt_count_status: 'measured',
-            cost_channel_ids: ['interactive_defense_load', 'shuma_served_bytes'],
-            cost_channel_status: 'derived',
-            sample_request_method: 'GET',
-            sample_request_path: '/maze',
-            sample_response_status: 200,
-            repair_family_candidates: ['maze_core', 'cdp_detection'],
-            repair_family_status: 'derived'
-          },
-          {
-            locus_id: 'pow_verify_abuse',
-            locus_label: 'PoW Verify Abuse',
-            stage_id: 'challenge_submit',
-            evidence_status: 'progress_observed',
-            attempt_count_status: 'not_materialized',
-            cost_channel_ids: [],
-            cost_channel_status: 'not_materialized',
-            sample_request_method: 'POST',
-            sample_request_path: '/pow/verify',
-            sample_response_status: 202,
-            repair_family_candidates: [],
-            repair_family_status: 'not_materialized'
-          }
-        ],
-        note: 'Localized enough for bounded move review.'
-      },
-      breach_loci: [
-        {
-          locus_id: 'maze_navigation',
-          locus_label: 'Maze Navigation',
-          stage_id: 'challenge_traversal',
-          evidence_status: 'progress_observed',
-          attempt_count: 3,
-          attempt_count_status: 'measured',
-          cost_channel_ids: ['interactive_defense_load', 'shuma_served_bytes'],
-          cost_channel_status: 'derived',
-          sample_request_method: 'GET',
-          sample_request_path: '/maze',
-          sample_response_status: 200,
-          repair_family_candidates: ['maze_core', 'cdp_detection'],
-          repair_family_status: 'derived'
-        }
-      ],
-      note: 'Wait for more protected evidence.'
-    },
-    controller_contract: {
-      restriction_diagnosis: {
-        problem_class: 'mixed_attacker_restriction_gap',
-        status: 'localized',
-        confidence: 'medium',
-        repair_surface_candidates: ['maze_core', 'fingerprint_signal'],
-        breach_loci: [
-          {
-            locus_id: 'maze_navigation',
-            locus_label: 'Maze Navigation',
-            stage_id: 'challenge_traversal',
-            evidence_status: 'progress_observed',
-            attempt_count: 3,
-            attempt_count_status: 'measured',
-            cost_channel_ids: ['interactive_defense_load', 'shuma_served_bytes'],
-            cost_channel_status: 'derived',
-            sample_request_method: 'GET',
-            sample_request_path: '/maze',
-            sample_response_status: 200,
-            repair_family_candidates: ['maze_core', 'cdp_detection'],
-            repair_family_status: 'derived'
-          }
-        ],
-        blockers: [
-          {
-            blocker_group: 'surface_proof',
-            blocker_id: 'scrapling_surface_contract_not_ready',
-            note: 'Surface proof is still incomplete.'
-          }
-        ],
-        note: 'Restriction diagnosis localizes the gap to maze navigation.'
-      },
-      recognition_evaluation: {
-        status: 'needs_work',
-        trigger_family_ids: ['non_human_category_posture'],
-        blockers: [
-          {
-            blocker_group: 'recognition_evaluation',
-            blocker_id: 'recognition_evaluation_outside_budget_only',
-            note: 'Recognition quality still needs work.'
-          }
-        ],
-        note: 'Recognition remains a side quest.'
-      },
-      move_selection: {
-        decision: 'observe_longer',
-        review_status: 'manual_review_required',
-        guidance_status: 'localized_exploit_progress_guidance',
-        tractability: 'localized_config_repair',
-        expected_direction: 'tighten',
-        trigger_family_ids: ['mixed_attacker_restriction_progress'],
-        candidate_action_families: ['fingerprint_signal'],
-        family_guidance: [
-          {
-            family: 'fingerprint_signal',
-            likely_human_risk: 'low',
-            tolerated_non_human_risk: 'low',
-            note: 'Tighten fingerprint signal first.'
-          }
-        ],
-        blockers: [
-          {
-            blocker_group: 'surface_proof',
-            blocker_id: 'scrapling_surface_contract_not_ready',
-            note: 'Surface proof is still incomplete.'
-          },
-          {
-            blocker_group: 'evidence_quality',
-            blocker_id: 'mixed_attacker_exploit_evidence_quality_low',
-            note: 'Exploit evidence quality is still low.'
-          },
-          {
-            blocker_group: 'controller_guardrail',
-            blocker_id: 'verified_identity_taxonomy_alignment_guardrail',
-            note: 'Verified-identity taxonomy alignment still blocks automated tuning.'
-          }
-        ],
-        note: 'Wait for more protected evidence.'
-      }
-    },
-    replay_promotion: {
-      availability: 'materialized',
-      evidence_status: 'protected',
-      tuning_eligible: true,
-      protected_lineage_count: 2,
-      eligibility_blockers: []
-    },
-    families: [
-      {
-        family_id: 'suspicious_origin_cost',
-        status: 'outside_budget',
-        capability_gate: 'supported',
-        comparison_status: 'improved',
-        note: 'Suspicious cost remains above target.',
-        metrics: [
-          {
-            metric_id: 'suspicious_forwarded_request_rate',
-            status: 'outside_budget',
-            current: 0.33,
-            target: 0.1,
-            delta: 0.23,
-            baseline_current: 0.41,
-            comparison_delta: -0.08,
-            comparison_status: 'improved'
-          }
-        ]
-      },
-      {
-        family_id: 'non_human_category_posture',
-        status: 'partial',
-        capability_gate: 'partially_supported',
-        comparison_status: 'not_available',
-        note: 'Per-category posture alignment is mixed.',
-        metrics: [
-          {
-            metric_id: 'category_posture_alignment:ai_scraper_bot',
-            status: 'outside_budget',
-            current: 0.42,
-            target: 1,
-            delta: -0.58,
-            comparison_status: 'not_available'
-          },
-          {
-            metric_id: 'category_posture_alignment:automated_browser',
-            status: 'insufficient_evidence',
-            current: null,
-            target: 1,
-            delta: null,
-            comparison_status: 'not_available',
-            basis: 'projected_recent_sim_run',
-            capability_gate: 'partially_supported'
-          }
-        ]
-      }
-    ]
-  });
-
-  assert.equal(benchmarkResults.schema_version, 'benchmark_results_v1');
-  assert.equal(benchmarkResults.overall_status, 'outside_budget');
-  assert.equal(benchmarkResults.urgency.status, 'critical');
-  assert.equal(benchmarkResults.urgency.restriction_confidence_status, 'high');
-  assert.equal(benchmarkResults.urgency.abuse_backstop_status, 'triggered');
-  assert.equal(benchmarkResults.urgency.homeostasis_break_status, 'triggered');
-  assert.deepEqual(benchmarkResults.urgency.homeostasis_break_reasons, [
-    'exploit_success_regressed'
-  ]);
-  assert.equal(benchmarkResults.tuning_eligibility.status, 'blocked');
-  assert.deepEqual(benchmarkResults.tuning_eligibility.blockers, [
-    'verified_identity_taxonomy_alignment_guardrail'
-  ]);
-  assert.equal(benchmarkResults.protected_evidence.evidence_status, 'protected');
-  assert.equal(benchmarkResults.protected_evidence.protected_basis, 'live_mixed_attacker_runtime');
-  assert.equal(benchmarkResults.escalation_hint.problem_class, 'mixed_attacker_restriction_gap');
-  assert.equal(
-    benchmarkResults.escalation_hint.guidance_status,
-    'localized_exploit_progress_guidance'
-  );
-  assert.equal(benchmarkResults.escalation_hint.tractability, 'localized_config_repair');
-  assert.equal(benchmarkResults.escalation_hint.evidence_quality.status, 'medium_confidence');
-  assert.equal(
-    benchmarkResults.escalation_hint.evidence_quality.diagnosis_confidence,
-    'medium'
-  );
-  assert.equal(benchmarkResults.escalation_hint.breach_loci[0].locus_label, 'Maze Navigation');
-  assert.equal(benchmarkResults.escalation_hint.breach_loci[0].attempt_count, 3);
-  assert.equal(benchmarkResults.escalation_hint.breach_loci[0].attempt_count_status, 'measured');
-  assert.deepEqual(benchmarkResults.escalation_hint.breach_loci[0].cost_channel_ids, [
-    'interactive_defense_load',
-    'shuma_served_bytes'
-  ]);
-  assert.equal(benchmarkResults.escalation_hint.breach_loci[0].cost_channel_status, 'derived');
-  assert.deepEqual(benchmarkResults.escalation_hint.breach_loci[0].repair_family_candidates, [
-    'maze_core',
-    'cdp_detection'
-  ]);
-  assert.equal(benchmarkResults.escalation_hint.breach_loci[0].repair_family_status, 'derived');
-  assert.equal(benchmarkResults.escalation_hint.evidence_quality.breach_loci[1].attempt_count, null);
-  assert.equal(
-    benchmarkResults.escalation_hint.evidence_quality.breach_loci[1].attempt_count_status,
-    'not_materialized'
-  );
-  assert.equal(
-    benchmarkResults.escalation_hint.evidence_quality.breach_loci[1].cost_channel_status,
-    'not_materialized'
-  );
-  assert.equal(
-    benchmarkResults.escalation_hint.evidence_quality.breach_loci[1].repair_family_status,
-    'not_materialized'
-  );
-  assert.equal(benchmarkResults.families[0].family_id, 'suspicious_origin_cost');
-  assert.equal(benchmarkResults.families[0].metrics[0].comparison_delta, -0.08);
-  assert.equal(benchmarkResults.families[1].family_id, 'non_human_category_posture');
-  assert.equal(
-    benchmarkResults.families[1].metrics[0].metric_id,
-    'category_posture_alignment:ai_scraper_bot'
-  );
-  assert.equal(
-    benchmarkResults.families[1].metrics[1].metric_id,
-    'category_posture_alignment:automated_browser'
-  );
-  assert.equal(benchmarkResults.families[1].metrics[1].current, null);
-  assert.equal(benchmarkResults.families[1].metrics[1].basis, 'projected_recent_sim_run');
-  assert.equal(benchmarkResults.families[1].metrics[0].target, 1);
-  assert.equal(benchmarkResults.controller_contract.restriction_diagnosis.status, 'localized');
-  assert.equal(
-    benchmarkResults.controller_contract.restriction_diagnosis.blockers[0].blocker_group,
-    'surface_proof'
-  );
-  assert.equal(benchmarkResults.controller_contract.recognition_evaluation.status, 'needs_work');
-  assert.equal(
-    benchmarkResults.controller_contract.move_selection.blockers[1].blocker_group,
-    'evidence_quality'
-  );
-  assert.equal(
-    benchmarkResults.controller_contract.move_selection.candidate_action_families[0],
-    'fingerprint_signal'
   );
 
   const oversightHistory = apiModule.adaptOversightHistory({
@@ -7553,27 +7045,7 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
   assert.equal(oversightStatus.recent_runs[0].execution.apply.stage, 'canary_applied');
 });
 
-test('dashboard game loop policy truth stops presenting legacy verified-identity stance as the strict target', () => {
-  const gameLoopSource = fs.readFileSync(
-    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/GameLoopTab.svelte'),
-    'utf8'
-  );
-
-  assert.match(gameLoopSource, /const knownGameLoopPolicyProfiles = Object\.freeze\(/);
-  assert.match(gameLoopSource, /strict_human_only_reference_not_active/);
-  assert.match(gameLoopSource, /Policy Profile:/);
-  assert.match(gameLoopSource, /Sim-Only Target:/);
-  assert.match(gameLoopSource, /Human Calibration:/);
-  assert.match(gameLoopSource, /Verified Handling:/);
-  assert.match(gameLoopSource, /verified mode/);
-  assert.match(
-    gameLoopSource,
-    /effective_non_human_policy\?\.verified_identity_override_mode/
-  );
-  assert.doesNotMatch(gameLoopSource, /legacy request path/);
-});
-
-test('dashboard game loop accountability source distinguishes judge planes and localized move outcome', () => {
+test('dashboard game loop observer source stays scoped to recent rounds and exact receipts', () => {
   const gameLoopSource = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/GameLoopTab.svelte'),
     'utf8'
@@ -7593,38 +7065,27 @@ test('dashboard game loop accountability source distinguishes judge planes and l
   assert.match(gameLoopSource, /game-loop-round-history/);
   assert.match(gameLoopSource, /game-loop-adversary-cast/);
   assert.match(gameLoopSource, /game-loop-defence-cast/);
-  assert.match(gameLoopSource, /Recent recognition evaluation/);
   assert.match(gameLoopSource, /simulator ground truth/);
   assert.match(gameLoopSource, /surface-native view/);
-  assert.match(gameLoopSource, /game-loop-current-status-loop-actionability/);
-  assert.match(gameLoopSource, /simulator metadata does not count as category truth/);
   assert.match(gameLoopSource, /observerRoundArchive/);
   assert.match(gameLoopSource, /selectedObserverRound/);
   assert.match(gameLoopSource, /deriveAdversaryRunRowsFromSummaries/);
   assert.match(gameLoopSource, /selectedRoundCastContext/);
   assert.match(gameLoopSource, /Showing the latest exact recent sim run/);
   assert.match(gameLoopSource, /Showing current mixed-attacker evidence/);
+  assert.doesNotMatch(gameLoopSource, /knownGameLoopPolicyProfiles/);
+  assert.doesNotMatch(gameLoopSource, /MetricStatCard/);
+  assert.doesNotMatch(gameLoopSource, /game-loop-current-status-loop-actionability/);
+  assert.doesNotMatch(gameLoopSource, /game-loop-trust-blockers/);
   assert.doesNotMatch(gameLoopSource, /recentSimRunRowsById/);
   assert.doesNotMatch(gameLoopSource, /:\s*simulatorGroundTruthCategories/);
 
-  assert.match(apiClientSource, /const urgency = asRecord\(source\.urgency\);/);
-  assert.match(apiClientSource, /const evidenceQuality = asRecord\(escalationHint\.evidence_quality\);/);
-  assert.match(apiClientSource, /const controllerContract = asRecord\(source\.controller_contract\);/);
+  assert.doesNotMatch(apiClientSource, /const getBenchmarkResults = async \(requestOptions = \{\}\) =>/);
+  assert.doesNotMatch(apiClientSource, /getBenchmarkResults,/);
   assert.match(apiClientSource, /simulator_ground_truth/);
-  assert.match(apiClientSource, /restriction_diagnosis/);
-  assert.match(apiClientSource, /move_selection/);
-  assert.match(apiClientSource, /blocker_group/);
   assert.match(apiClientSource, /completed_at_ts/);
   assert.match(apiClientSource, /proposal: \{/);
   assert.match(apiClientSource, /evidence_references/);
-  assert.match(apiClientSource, /attempt_count/);
-  assert.match(apiClientSource, /attempt_count_status/);
-  assert.match(apiClientSource, /cost_channel_status/);
-  assert.match(apiClientSource, /repair_family_candidates/);
-  assert.match(apiClientSource, /repair_family_status/);
-  assert.match(apiClientSource, /cost_channel_ids/);
-  assert.match(apiClientSource, /homeostasis_break_reasons/);
-  assert.match(apiClientSource, /restart_baseline/);
   assert.match(apiClientSource, /judged_lane_ids/);
   assert.match(apiClientSource, /judged_run_ids/);
   assert.match(apiClientSource, /observer_round_archive/);
@@ -7634,7 +7095,7 @@ test('dashboard game loop accountability source distinguishes judge planes and l
   assert.match(apiClientSource, /continuation_run/);
 });
 
-test('dashboard game loop accountability refresh populates machine snapshots through behavior', { concurrency: false }, async () => {
+test('dashboard game loop accountability refresh populates observer snapshots through behavior', { concurrency: false }, async () => {
   await withBrowserGlobals({}, async () => {
     const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
     const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
@@ -7657,19 +7118,6 @@ test('dashboard game loop accountability refresh populates machine snapshots thr
         return {
           schema_version: 'operator_snapshot_v1',
           operator_profile: { profile_id: 'human_only_private' }
-        };
-      },
-      async getBenchmarkResults() {
-        calls.push('benchmarkResults');
-        return {
-          schema_version: 'benchmark_results_v1',
-          overall_status: 'outside_budget',
-          families: [
-            {
-              family_id: 'suspicious_origin_cost',
-              status: 'outside_budget'
-            }
-          ]
         };
       },
       async getOversightHistory() {
@@ -7704,7 +7152,6 @@ test('dashboard game loop accountability refresh populates machine snapshots thr
     await runtime.refreshDashboardForTab('game-loop', 'manual-refresh');
 
     assert.deepEqual(calls.sort(), [
-      'benchmarkResults',
       'config',
       'operatorSnapshot',
       'oversightAgentStatus',
@@ -7712,8 +7159,7 @@ test('dashboard game loop accountability refresh populates machine snapshots thr
     ]);
     assert.equal((store.getSnapshot('configRuntime') || {}).runtime_environment, 'runtime-prod');
     assert.equal((store.getSnapshot('operatorSnapshot') || {}).schema_version, 'operator_snapshot_v1');
-    assert.equal((store.getSnapshot('benchmarkResults') || {}).schema_version, 'benchmark_results_v1');
-    assert.equal((store.getSnapshot('benchmarkResults') || {}).families?.[0]?.family_id, 'suspicious_origin_cost');
+    assert.equal(store.getSnapshot('benchmarkResults'), null);
     assert.equal((store.getSnapshot('oversightHistory') || {}).rows?.[0]?.apply?.stage, 'canary_applied');
     assert.equal((store.getSnapshot('oversightAgentStatus') || {}).latest_decision?.outcome, 'canary_applied');
     assert.equal(store.getState().tabStatus['game-loop'].loading, false);

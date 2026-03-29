@@ -1086,7 +1086,7 @@ export function createDashboardRefreshRuntime(options = {}) {
   async function refreshMonitoringAccountabilityData(reason = 'manual', runtimeOptions = {}) {
     const dashboardApiClient = getApiClient();
     if (!dashboardApiClient) {
-      applySnapshots({ benchmarkResults: null, oversightHistory: null, oversightAgentStatus: null });
+      applySnapshots({ operatorSnapshot: null, oversightHistory: null, oversightAgentStatus: null });
       return;
     }
 
@@ -1112,16 +1112,14 @@ export function createDashboardRefreshRuntime(options = {}) {
       }
     };
 
-    const [operatorSnapshot, benchmarkResults, oversightHistory, oversightAgentStatus] = await Promise.all([
+    const [operatorSnapshot, oversightHistory, oversightAgentStatus] = await Promise.all([
       readOptional(dashboardApiClient.getOperatorSnapshot),
-      readOptional(dashboardApiClient.getBenchmarkResults),
       readOptional(dashboardApiClient.getOversightHistory),
       readOptional(dashboardApiClient.getOversightAgentStatus)
     ]);
 
     applySnapshots({
       operatorSnapshot,
-      benchmarkResults,
       oversightHistory,
       oversightAgentStatus
     });

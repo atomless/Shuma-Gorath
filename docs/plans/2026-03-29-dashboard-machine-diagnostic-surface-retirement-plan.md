@@ -49,7 +49,7 @@ Add or update focused assertions so they require the retired section titles and 
 Run:
 
 1. `make test-dashboard-game-loop-accountability`
-2. `make test-dashboard-red-team-truth-basis`
+2. `make test-dashboard-red-team-pane`
 3. `make test-dashboard-diagnostics-pane`
 
 Expected: the tests fail because the current UI still renders the retiring sections and still proves their old selectors and text.
@@ -75,7 +75,7 @@ Delete any imports, reactive state, and props that existed only for the retired 
 
 **Step 3: Verify focused Red Team proof**
 
-Run: `make test-dashboard-red-team-truth-basis`
+Run: `make test-dashboard-red-team-pane`
 
 Expected: the Red Team proof now verifies the leaner surviving surface rather than the retired diagnostic panels.
 
@@ -151,7 +151,7 @@ Record the new research/plan docs and move the completed execution item into his
 Run:
 
 1. `make test-dashboard-game-loop-accountability`
-2. `make test-dashboard-red-team-truth-basis`
+2. `make test-dashboard-red-team-pane`
 3. `make test-dashboard-diagnostics-pane`
 4. `make dashboard-build`
 
