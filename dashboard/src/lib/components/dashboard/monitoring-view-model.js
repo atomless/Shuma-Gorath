@@ -759,6 +759,104 @@ const shapeLlmRuntimeSummary = (summary = {}) => {
   };
 };
 
+const llmReceiptSurfaceId = (receipt = {}) => {
+  const path = String(receipt?.path || '').trim();
+  if (!path) return '';
+  if (
+    path === '/'
+    || path.startsWith('/sim/public/')
+    || path.startsWith('/detail/')
+    || path.startsWith('/search')
+  ) {
+    return 'public_path_traversal';
+  }
+  if (path.startsWith('/challenge')) return 'challenge_routing';
+  if (path.startsWith('/maze')) return 'maze_navigation';
+  if (path.startsWith('/pow')) return 'pow_verify_abuse';
+  if (path.startsWith('/tarpit')) return 'tarpit_progress_abuse';
+  return '';
+};
+
+const llmSurfaceLabel = (surfaceId) => {
+  switch (String(surfaceId || '').trim()) {
+    case 'public_path_traversal':
+      return 'Public Path Traversal';
+    case 'challenge_routing':
+      return 'Challenge Routing';
+    case 'maze_navigation':
+      return 'Maze Navigation';
+    case 'pow_verify_abuse':
+      return 'PoW Verify Abuse';
+    case 'tarpit_progress_abuse':
+      return 'Tarpit Progress Abuse';
+    default:
+      return formatMetricLabel(String(surfaceId || '').trim());
+  }
+};
+
+const llmSurfaceState = (receipt = {}) => {
+  const status = Number.isFinite(Number(receipt?.status)) ? Number(receipt.status) : null;
+  if (!String(receipt?.error || '').trim() && status !== null && status >= 200 && status < 400) {
+    return 'leaked';
+  }
+  if (status !== null) return 'held';
+  return 'attempted';
+};
+
+const mergeLlmSurfaceState = (current, next) => {
+  if (current === 'leaked' || next === 'leaked') return 'leaked';
+  if (current === 'held' || next === 'held') return 'held';
+  return 'attempted';
+};
+
+const llmRequestMethod = (actionType) => {
+  const normalized = String(actionType || '').trim().toLowerCase();
+  if (normalized === 'http_get' || normalized === 'browser_navigate') return 'GET';
+  return String(actionType || '').trim().toUpperCase() || 'GET';
+};
+
+export const deriveLlmSurfaceRowsFromRuntimeSummary = (summary = null, runId = '') => {
+  const shapedSummary = summary && typeof summary === 'object' ? summary : null;
+  const rowsBySurfaceId = new Map();
+  const latestActionReceipts = Array.isArray(shapedSummary?.latestActionReceipts)
+    ? shapedSummary.latestActionReceipts
+    : [];
+  latestActionReceipts.forEach((receipt) => {
+    const surfaceId = llmReceiptSurfaceId(receipt);
+    if (!surfaceId) return;
+    const key = `${String(runId || 'unknown').trim()}:${surfaceId}`;
+    const nextState = llmSurfaceState(receipt);
+    const entry = rowsBySurfaceId.get(key) || {
+      key,
+      runId: String(runId || '').trim(),
+      surfaceId,
+      surfaceLabel: llmSurfaceLabel(surfaceId),
+      surfaceState: nextState,
+      coverageStatus: 'attempt_observed',
+      successContract: 'runtime_action_observed',
+      dependencyKind: 'independent',
+      dependencySurfaceIds: [],
+      attemptCount: 0,
+      sampleRequestMethod: llmRequestMethod(receipt.actionType),
+      sampleRequestPath: String(receipt.path || '').trim(),
+      sampleResponseStatus:
+        Number.isFinite(Number(receipt.status)) ? Number(receipt.status) : null
+    };
+    entry.attemptCount += 1;
+    entry.surfaceState = mergeLlmSurfaceState(entry.surfaceState, nextState);
+    if (!entry.sampleRequestPath && String(receipt.path || '').trim()) {
+      entry.sampleRequestMethod = llmRequestMethod(receipt.actionType);
+      entry.sampleRequestPath = String(receipt.path || '').trim();
+      entry.sampleResponseStatus =
+        Number.isFinite(Number(receipt.status)) ? Number(receipt.status) : null;
+    } else if (entry.sampleResponseStatus === null && Number.isFinite(Number(receipt.status))) {
+      entry.sampleResponseStatus = Number(receipt.status);
+    }
+    rowsBySurfaceId.set(key, entry);
+  });
+  return Array.from(rowsBySurfaceId.values());
+};
+
 export const deriveAdversaryRunRowsFromSummaries = (summaries = [], bans = []) => {
   const rows = Array.isArray(summaries) ? summaries : [];
   const shapedRows = rows

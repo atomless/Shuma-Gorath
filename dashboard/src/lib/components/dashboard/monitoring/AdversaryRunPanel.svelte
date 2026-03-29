@@ -1,5 +1,6 @@
 <script>
   import { formatCompactNumber } from '../../../domain/core/format.js';
+  import { formatAdversarySimLaneLabel } from '../../../domain/adversary-sim.js';
   import SectionBlock from '../primitives/SectionBlock.svelte';
   import TableEmptyRow from '../primitives/TableEmptyRow.svelte';
   import TableWrapper from '../primitives/TableWrapper.svelte';
@@ -63,7 +64,7 @@
   const formatLaneLabel = (value) => {
     const normalized = String(value || '').trim();
     if (!normalized) return '-';
-    return humanizeToken(normalized);
+    return formatAdversarySimLaneLabel(normalized, '-');
   };
   const formatRuntimeSummary = (row = {}) => {
     const summary = row?.llmRuntimeSummary && typeof row.llmRuntimeSummary === 'object'

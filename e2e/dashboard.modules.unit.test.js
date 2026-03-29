@@ -6815,6 +6815,21 @@ test('dashboard game loop accountability adapters normalize operator and oversig
               sample_request_path: '/catalog?page=1',
               sample_response_status: 200
             }
+          ],
+          llm_surface_rows: [
+            {
+              run_id: 'simrun-003',
+              surface_id: 'pow_verify_abuse',
+              surface_state: 'satisfied',
+              coverage_status: 'pass_observed',
+              success_contract: 'mixed_outcomes',
+              dependency_kind: 'independent',
+              dependency_surface_ids: [],
+              attempt_count: 1,
+              sample_request_method: 'GET',
+              sample_request_path: '/pow/check',
+              sample_response_status: 403
+            }
           ]
         }
       ]
@@ -6906,6 +6921,14 @@ test('dashboard game loop accountability adapters normalize operator and oversig
   assert.equal(
     oversightHistory.observer_round_archive.rows[0].scrapling_surface_rows[0].sample_request_path,
     '/catalog?page=1'
+  );
+  assert.equal(
+    oversightHistory.observer_round_archive.rows[0].llm_surface_rows[0].surface_id,
+    'pow_verify_abuse'
+  );
+  assert.equal(
+    oversightHistory.observer_round_archive.rows[0].llm_surface_rows[0].sample_request_path,
+    '/pow/check'
   );
   assert.equal(oversightHistory.rows.length, 1);
   assert.equal(oversightHistory.rows[0].apply.stage, 'canary_applied');
@@ -7099,6 +7122,7 @@ test('dashboard game loop observer source stays scoped to recent rounds and exac
   assert.match(apiClientSource, /judged_run_ids/);
   assert.match(apiClientSource, /observer_round_archive/);
   assert.match(apiClientSource, /scrapling_surface_rows/);
+  assert.match(apiClientSource, /llm_surface_rows/);
   assert.match(apiClientSource, /basis_status/);
   assert.match(apiClientSource, /candidate_window/);
   assert.match(apiClientSource, /continuation_run/);

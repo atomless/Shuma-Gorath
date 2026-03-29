@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::observability::operator_snapshot::{
     OperatorSnapshotEpisodeRecord, OperatorSnapshotRecentSimRun,
 };
+use crate::observability::llm_surface_observation::summarize_llm_surface_observations;
 
 pub(crate) const OVERSIGHT_OBSERVER_ROUND_ARCHIVE_SCHEMA_VERSION: &str =
     "oversight_observer_round_archive_v1";
@@ -54,6 +55,8 @@ pub(crate) struct OversightObserverRoundRecord {
     pub run_rows: Vec<OversightObserverRoundRunRow>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub scrapling_surface_rows: Vec<OversightObserverRoundSurfaceRow>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub llm_surface_rows: Vec<OversightObserverRoundSurfaceRow>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -136,6 +139,7 @@ pub(crate) fn build_observer_round_record(
 ) -> OversightObserverRoundRecord {
     let mut run_rows = Vec::new();
     let mut scrapling_surface_rows = Vec::new();
+    let mut llm_surface_rows = Vec::new();
     let mut missing_run_ids = Vec::new();
 
     for run_id in dedupe_strings(episode_record.judged_run_ids.as_slice()) {
@@ -173,6 +177,24 @@ pub(crate) fn build_observer_round_record(
                     }
                 }));
             }
+        } else if run.lane == "bot_red_team" {
+            llm_surface_rows.extend(
+                summarize_llm_surface_observations(run.llm_runtime_summary.as_ref())
+                    .into_iter()
+                    .map(|surface| OversightObserverRoundSurfaceRow {
+                        run_id: run.run_id.clone(),
+                        surface_id: surface.surface_id,
+                        surface_state: surface.surface_state,
+                        coverage_status: surface.coverage_status,
+                        success_contract: surface.success_contract,
+                        dependency_kind: surface.dependency_kind,
+                        dependency_surface_ids: surface.dependency_surface_ids,
+                        attempt_count: surface.attempt_count,
+                        sample_request_method: surface.sample_request_method,
+                        sample_request_path: surface.sample_request_path,
+                        sample_response_status: surface.sample_response_status,
+                    }),
+            );
         }
     }
 
@@ -187,6 +209,7 @@ pub(crate) fn build_observer_round_record(
         missing_run_ids,
         run_rows,
         scrapling_surface_rows,
+        llm_surface_rows,
     }
 }
 
@@ -208,6 +231,9 @@ mod tests {
     use super::{
         build_observer_round_record, OversightObserverRoundArchive,
         OVERSIGHT_OBSERVER_ROUND_ARCHIVE_SCHEMA_VERSION,
+    };
+    use crate::admin::adversary_sim_worker_plan::{
+        LlmRuntimeActionReceipt, LlmRuntimeRecentRunSummary,
     };
     use crate::observability::benchmark_comparison::BenchmarkComparableSnapshot;
     use crate::observability::operator_snapshot::{
@@ -312,7 +338,34 @@ mod tests {
             defense_delta_count: 1,
             ban_outcome_count: 0,
             owned_surface_coverage: None,
-            llm_runtime_summary: None,
+            llm_runtime_summary: Some(LlmRuntimeRecentRunSummary {
+                receipt_count: 1,
+                fulfillment_mode: "request_mode".to_string(),
+                category_targets: vec!["browser_agent".to_string()],
+                backend_kind: "frontier_reference".to_string(),
+                backend_state: "configured".to_string(),
+                generation_source: "provider_response".to_string(),
+                provider: "openai".to_string(),
+                model_id: "gpt-5-mini".to_string(),
+                fallback_reason: None,
+                generated_action_count: 1,
+                executed_action_count: 1,
+                failed_action_count: 0,
+                passed_tick_count: 1,
+                failed_tick_count: 0,
+                last_response_status: Some(403),
+                failure_class: None,
+                error: None,
+                terminal_failure: None,
+                latest_action_receipts: vec![LlmRuntimeActionReceipt {
+                    action_index: 1,
+                    action_type: "http_get".to_string(),
+                    path: "/pow/check".to_string(),
+                    label: Some("pow".to_string()),
+                    status: Some(403),
+                    error: None,
+                }],
+            }),
         }
     }
 
@@ -324,6 +377,9 @@ mod tests {
         assert_eq!(record.run_rows.len(), 2);
         assert_eq!(record.scrapling_surface_rows.len(), 1);
         assert_eq!(record.scrapling_surface_rows[0].surface_id, "challenge_routing");
+        assert_eq!(record.llm_surface_rows.len(), 1);
+        assert_eq!(record.llm_surface_rows[0].surface_id, "pow_verify_abuse");
+        assert_eq!(record.llm_surface_rows[0].sample_request_path, "/pow/check");
     }
 
     #[test]
@@ -333,6 +389,7 @@ mod tests {
         assert_eq!(record.missing_run_ids, vec!["simrun-1".to_string()]);
         assert_eq!(record.run_rows.len(), 1);
         assert!(record.scrapling_surface_rows.is_empty());
+        assert_eq!(record.llm_surface_rows.len(), 1);
     }
 
     #[test]

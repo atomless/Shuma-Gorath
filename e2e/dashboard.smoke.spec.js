@@ -1895,8 +1895,8 @@ test("game loop projects observer-facing round, adversary, and defence accountab
                 latest_action_receipts: [
                   {
                     action_type: "http_get",
-                    method: "GET",
-                    path: "/maze"
+                    path: "/pow/check",
+                    status: 403
                   }
                 ]
               }
@@ -2101,6 +2101,21 @@ test("game loop projects observer-facing round, adversary, and defence accountab
                   sample_request_path: "",
                   sample_response_status: null
                 }
+              ],
+              llm_surface_rows: [
+                {
+                  run_id: "sim-43",
+                  surface_id: "pow_verify_abuse",
+                  surface_state: "satisfied",
+                  coverage_status: "pass_observed",
+                  success_contract: "mixed_outcomes",
+                  dependency_kind: "independent",
+                  dependency_surface_ids: [],
+                  attempt_count: 1,
+                  sample_request_method: "GET",
+                  sample_request_path: "/pow/check",
+                  sample_response_status: 403
+                }
               ]
             }
           ]
@@ -2278,13 +2293,13 @@ test("game loop projects observer-facing round, adversary, and defence accountab
   await expect(
     page.locator('#dashboard-panel-game-loop [data-game-loop-section="recent-rounds"]')
   ).toContainText("Recent Rounds");
-  await expect(page.locator("#game-loop-round-history")).toContainText("Scrapling Traffic, Bot Red Team");
+  await expect(page.locator("#game-loop-round-history")).toContainText("Scrapling Traffic, Agentic Traffic");
   await expect(page.locator("#game-loop-round-history")).toContainText("Fingerprint Signal");
   await expect(page.locator("#game-loop-round-history")).toContainText("Retained");
   await expect(page.locator("#game-loop-round-history")).toContainText("Continue");
   await expect(page.locator("#game-loop-adversary-cast")).toContainText("Adversaries In This Round");
   await expect(page.locator("#game-loop-adversary-cast")).toContainText("AI Scraper Bot");
-  await expect(page.locator("#game-loop-adversary-cast")).toContainText("Browser Agent");
+  await expect(page.locator("#game-loop-adversary-cast")).toContainText("Browser Agent via Agentic Traffic");
   await expect(page.locator("#game-loop-adversary-cast")).toContainText(
     "Recent recognition evaluation inferred AI Scraper Bot"
   );
@@ -2297,6 +2312,8 @@ test("game loop projects observer-facing round, adversary, and defence accountab
   await expect(page.locator("#game-loop-defence-cast")).toContainText("Challenge Routing");
   await expect(page.locator("#game-loop-defence-cast")).toContainText("Maze Navigation");
   await expect(page.locator("#game-loop-defence-cast")).toContainText("/catalog?page=1");
+  await expect(page.locator("#game-loop-defence-cast")).toContainText("PoW Verify Abuse");
+  await expect(page.locator("#game-loop-defence-cast")).toContainText("Saw GET /pow/check");
   await expect(page.locator("#game-loop-defence-cast")).not.toContainText("scrapling-");
   await expect(page.locator("#game-loop-defence-cast")).toContainText("required but unreached");
   await expect(page.locator('#dashboard-panel-game-loop [data-game-loop-section="current-status"]')).toHaveCount(0);
@@ -2755,7 +2772,7 @@ test("game loop observer archive marks missing judged runs without guessing adve
   await openDashboard(page);
   await openTab(page, "game-loop");
 
-  await expect(page.locator("#game-loop-adversary-cast")).toContainText("Browser Agent via Bot Red Team");
+  await expect(page.locator("#game-loop-adversary-cast")).toContainText("Browser Agent via Agentic Traffic");
   await expect(page.locator("#game-loop-adversary-cast")).toContainText(
     "Recent recognition evaluation not materialized"
   );
@@ -2815,64 +2832,34 @@ test("game loop top casts prefer the freshest exact recent sim run over stale ju
           short_circuited_requests: 171,
           recent_runs: [
             {
-              run_id: "sim-fresh-scrapling",
-              lane: "scrapling_traffic",
-              profile: "scrapling_runtime_lane",
-              observed_fulfillment_modes: [
-                "crawler",
-                "bulk_scraper",
-                "browser_automation",
-                "http_agent"
-              ],
-              observed_category_ids: [
-                "ai_scraper_bot",
-                "automated_browser",
-                "http_agent",
-                "indexing_bot"
-              ],
+              run_id: "sim-fresh-agentic",
+              lane: "bot_red_team",
+              profile: "llm_runtime_lane",
+              observed_fulfillment_modes: ["request_mode"],
+              observed_category_ids: ["ai_scraper_bot", "http_agent"],
               first_ts: 1774307060,
               last_ts: 1774307095,
               monitoring_event_count: 18,
               defense_delta_count: 5,
               ban_outcome_count: 0,
-              owned_surface_coverage: {
-                overall_status: "partial",
-                canonical_surface_ids: ["rate_pressure", "challenge_routing"],
-                surface_labels: {
-                  rate_pressure: "Rate Pressure",
-                  challenge_routing: "Challenge Routing"
-                },
-                required_surface_ids: ["rate_pressure", "challenge_routing"],
-                satisfied_surface_ids: ["rate_pressure"],
-                blocking_surface_ids: ["challenge_routing"],
-                receipts: [
+              llm_runtime_summary: {
+                category_targets: ["http_agent", "ai_scraper_bot"],
+                generation_source: "provider_response",
+                provider: "openai",
+                model_id: "gpt-5-mini",
+                generated_action_count: 3,
+                executed_action_count: 3,
+                failed_tick_count: 0,
+                latest_action_receipts: [
                   {
-                    surface_id: "rate_pressure",
-                    success_contract: "should_limit_some",
-                    dependency_kind: "independent",
-                    dependency_surface_ids: [],
-                    coverage_status: "pass_observed",
-                    surface_state: "satisfied",
-                    satisfied: true,
-                    blocked_by_surface_ids: [],
-                    attempt_count: 4,
-                    sample_request_method: "GET",
-                    sample_request_path: "/catalog/search?q=headless",
-                    sample_response_status: 429
+                    action_type: "http_get",
+                    path: "/pow/check",
+                    status: 403
                   },
                   {
-                    surface_id: "challenge_routing",
-                    success_contract: "mixed_outcomes",
-                    dependency_kind: "independent",
-                    dependency_surface_ids: [],
-                    coverage_status: "pass_observed",
-                    surface_state: "satisfied",
-                    satisfied: true,
-                    blocked_by_surface_ids: [],
-                    attempt_count: 2,
-                    sample_request_method: "GET",
-                    sample_request_path: "/catalog?page=2",
-                    sample_response_status: 200
+                    action_type: "http_get",
+                    path: "/",
+                    status: 200
                   }
                 ]
               }
@@ -2923,25 +2910,13 @@ test("game loop top casts prefer the freshest exact recent sim run over stale ju
                   category_id: "ai_scraper_bot",
                   category_label: "AI Scraper Bot",
                   recent_run_count: 1,
-                  evidence_references: ["sim-fresh-scrapling"]
-                },
-                {
-                  category_id: "automated_browser",
-                  category_label: "Automated Browser",
-                  recent_run_count: 1,
-                  evidence_references: ["sim-fresh-scrapling"]
+                  evidence_references: ["sim-fresh-agentic"]
                 },
                 {
                   category_id: "http_agent",
                   category_label: "HTTP Agent",
                   recent_run_count: 1,
-                  evidence_references: ["sim-fresh-scrapling"]
-                },
-                {
-                  category_id: "indexing_bot",
-                  category_label: "Indexing Bot",
-                  recent_run_count: 1,
-                  evidence_references: ["sim-fresh-scrapling"]
+                  evidence_references: ["sim-fresh-agentic"]
                 }
               ]
             },
@@ -2954,23 +2929,9 @@ test("game loop top casts prefer the freshest exact recent sim run over stale ju
                 note: "Exact recent match."
               },
               {
-                category_id: "automated_browser",
-                category_label: "Automated Browser",
-                inferred_category_label: "Unknown Non Human",
-                comparison_status: "collapsed_to_unknown_non_human",
-                note: "Collapsed recently."
-              },
-              {
                 category_id: "http_agent",
                 category_label: "HTTP Agent",
                 inferred_category_label: "HTTP Agent",
-                comparison_status: "current_exact_match",
-                note: "Exact recent match."
-              },
-              {
-                category_id: "indexing_bot",
-                category_label: "Indexing Bot",
-                inferred_category_label: "Indexing Bot",
                 comparison_status: "current_exact_match",
                 note: "Exact recent match."
               }
@@ -3123,15 +3084,14 @@ test("game loop top casts prefer the freshest exact recent sim run over stale ju
   await expect(page.locator("#game-loop-round-history")).toContainText("Recent Rounds");
   await expect(page.locator("#game-loop-round-history")).toContainText("Fingerprint Signal");
   await expect(page.locator("#game-loop-adversary-cast")).toContainText("AI Scraper Bot");
-  await expect(page.locator("#game-loop-adversary-cast")).toContainText("Automated Browser");
   await expect(page.locator("#game-loop-adversary-cast")).toContainText("HTTP Agent");
-  await expect(page.locator("#game-loop-adversary-cast")).toContainText("Indexing Bot");
+  await expect(page.locator("#game-loop-adversary-cast")).toContainText("Agentic Traffic");
   await expect(page.locator("#game-loop-adversary-cast")).toContainText(
     "Showing the latest exact recent sim run"
   );
-  await expect(page.locator("#game-loop-defence-cast")).toContainText("Rate Pressure");
+  await expect(page.locator("#game-loop-defence-cast")).toContainText("PoW Verify Abuse");
   await expect(page.locator("#game-loop-defence-cast")).toContainText(
-    "Saw GET /catalog/search?q=headless"
+    "Saw GET /pow/check"
   );
 });
 
@@ -4719,7 +4679,7 @@ test("red team tab surfaces llm runtime lineage in recent adversary runs", async
 
   const row = page.locator("#adversary-runs tbody tr").first();
   await expect(row).toContainText("simrun-llm-runtime");
-  await expect(row).toContainText("Bot Red Team");
+  await expect(row).toContainText("Agentic Traffic");
   await expect(row).toContainText("Request Mode");
   await expect(row).toContainText("AI Scraper Bot, HTTP Agent");
   await expect(row).toContainText("Provider Response");

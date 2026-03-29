@@ -1,7 +1,11 @@
 <script>
+  import { formatAdversarySimLaneLabel } from '../../domain/adversary-sim.js';
   import { formatCompactNumber } from '../../domain/core/format.js';
   import { formatUnixSecondsLocal } from '../../domain/core/date-time.js';
-  import { deriveAdversaryRunRowsFromSummaries } from './monitoring-view-model.js';
+  import {
+    deriveAdversaryRunRowsFromSummaries,
+    deriveLlmSurfaceRowsFromRuntimeSummary
+  } from './monitoring-view-model.js';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
 
   export let managed = false;
@@ -94,7 +98,7 @@
   const formatLaneList = (laneIds, fallback = 'Not available') => {
     const seen = new Set();
     const labels = toArray(laneIds)
-      .map((laneId) => humanizeToken(laneId))
+      .map((laneId) => formatAdversarySimLaneLabel(laneId, ''))
       .filter((laneId) => {
         if (!laneId || seen.has(laneId)) return false;
         seen.add(laneId);
@@ -106,7 +110,7 @@
   const summarizeRequiredRuns = (runs, fallback = 'No current mixed-attacker evidence set.') => {
     const labels = toArray(runs)
       .map((run) => {
-        const laneLabel = humanizeToken(run?.lane);
+        const laneLabel = formatAdversarySimLaneLabel(run?.lane, '');
         const statusLabel = humanizeToken(run?.status, 'sentence');
         return laneLabel && statusLabel ? `${laneLabel} ${statusLabel}` : '';
       })
@@ -237,9 +241,12 @@
   };
 
   const shapeRecentRunSurfaceRows = (run) =>
-    toArray(run?.ownedSurfaceCoverage?.receipts).map((receipt) =>
-      shapeRecentRunSurfaceRow(run?.runId, receipt)
-    );
+    [
+      ...toArray(run?.ownedSurfaceCoverage?.receipts).map((receipt) =>
+        shapeRecentRunSurfaceRow(run?.runId, receipt)
+      ),
+      ...deriveLlmSurfaceRowsFromRuntimeSummary(run?.llmRuntimeSummary, run?.runId)
+    ];
 
   $: oversightHistoryRows = toArray(oversightHistory?.rows);
   $: historyRowByEpisodeId = new Map(
@@ -366,8 +373,8 @@
       return {
         sourceKind: 'latest_recent_run',
         sourceText: latestJudgedEpisodeRow
-          ? `Showing the latest exact recent sim run: ${humanizeToken(latestRecentObservedRun.lane)}. Judged history remains above.`
-          : `Showing the latest exact recent sim run: ${humanizeToken(latestRecentObservedRun.lane)}.`,
+          ? `Showing the latest exact recent sim run: ${formatAdversarySimLaneLabel(latestRecentObservedRun.lane, humanizeToken(latestRecentObservedRun.lane))}. Judged history remains above.`
+          : `Showing the latest exact recent sim run: ${formatAdversarySimLaneLabel(latestRecentObservedRun.lane, humanizeToken(latestRecentObservedRun.lane))}.`,
         runRows: [latestRecentObservedRun],
         surfaceRows: latestRecentObservedRunSurfaceRows,
         missingRunIds: [],
@@ -379,9 +386,12 @@
         sourceKind: 'latest_judged_round',
         sourceText: 'Showing the latest completed judged round.',
         runRows: selectedRoundLaneRunRows,
-        surfaceRows: toArray(selectedObserverRound?.scrapling_surface_rows).map(
-          shapeObserverRoundSurfaceRow
-        ),
+        surfaceRows: [
+          ...toArray(selectedObserverRound?.scrapling_surface_rows).map(
+            shapeObserverRoundSurfaceRow
+          ),
+          ...toArray(selectedObserverRound?.llm_surface_rows).map(shapeObserverRoundSurfaceRow)
+        ],
         missingRunIds: selectedRoundMissingRunIds,
         archiveMissing: false
       };
@@ -444,7 +454,7 @@
           rows.push({
             key,
             categoryLabel: 'Category truth unavailable',
-            laneText: humanizeToken(run?.lane),
+            laneText: formatAdversarySimLaneLabel(run?.lane, humanizeToken(run?.lane)),
             activityText: formatObservedRunSummary(run),
             shumaCallText: 'Recent recognition evaluation unavailable',
             recognitionText: 'not materialized',
@@ -466,7 +476,7 @@
             groundTruth?.category_label ||
             comparison?.category_label ||
             humanizeToken(categoryId || run?.lane),
-          laneText: humanizeToken(run?.lane),
+          laneText: formatAdversarySimLaneLabel(run?.lane, humanizeToken(run?.lane)),
           activityText: formatObservedRunSummary(run),
           shumaCallText: comparison?.inferred_category_label
             ? `Recent recognition evaluation inferred ${comparison.inferred_category_label}`

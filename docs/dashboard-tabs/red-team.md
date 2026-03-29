@@ -18,6 +18,7 @@ Panel:
   - and a bounded warning when ban-state freshness is unavailable.
 - `Recent Red Team Runs`:
   - recent adversary simulation run identifiers derived from a compact monitoring-backed run-history summary,
+  - the lane column uses the same operator-facing lane names as the control surface, so `bot_red_team` rows read as `Agentic Traffic`,
   - observed fulfillment modes plus preserved category targets for each bounded run row,
   - monitoring-event, defence-reaction, and ban counts for quick run comparison,
   - additive LLM runtime lineage for `bot_red_team` rows when present in the bounded monitoring window:

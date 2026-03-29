@@ -1,6 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::admin::adversary_sim_worker_plan::LlmRuntimeActionReceipt;
 use crate::observability::operator_snapshot::{
     OperatorSnapshotAdversarySim, OperatorSnapshotRecentSimRun,
 };
@@ -10,6 +9,10 @@ use super::benchmark_results_families::aggregate_budget_status;
 use super::benchmark_scrapling_exploit_progress::{
     host_cost_channels_for_surface, latest_scrapling_recent_run, repair_families_for_surface,
     stage_id, stage_rank, zero_budget_metric,
+};
+use super::llm_surface_observation::{
+    llm_receipt_indicates_exploit_progress, llm_receipt_surface_id, llm_request_method,
+    llm_surface_label,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -239,55 +242,6 @@ pub(crate) fn latest_llm_recent_run(
         .iter()
         .filter(|run| run.lane == "bot_red_team")
         .max_by_key(|run| run.last_ts)
-}
-
-pub(crate) fn llm_receipt_surface_id(receipt: &LlmRuntimeActionReceipt) -> Option<&'static str> {
-    let path = receipt.path.as_str();
-    if path == "/"
-        || path.starts_with("/sim/public/")
-        || path.starts_with("/detail/")
-        || path.starts_with("/search")
-    {
-        Some("public_path_traversal")
-    } else if path.starts_with("/challenge") {
-        Some("challenge_routing")
-    } else if path.starts_with("/maze") {
-        Some("maze_navigation")
-    } else if path.starts_with("/pow") {
-        Some("pow_verify_abuse")
-    } else if path.starts_with("/tarpit") {
-        Some("tarpit_progress_abuse")
-    } else {
-        None
-    }
-}
-
-pub(crate) fn llm_receipt_indicates_exploit_progress(
-    receipt: &LlmRuntimeActionReceipt,
-) -> bool {
-    receipt.error.is_none()
-        && receipt
-            .status
-            .map(|status| (200..400).contains(&status))
-            .unwrap_or(false)
-}
-
-fn llm_request_method(receipt: &LlmRuntimeActionReceipt) -> String {
-    match receipt.action_type.as_str() {
-        "http_get" | "browser_navigate" => "GET".to_string(),
-        other => other.to_uppercase(),
-    }
-}
-
-fn llm_surface_label(surface_id: &str) -> &'static str {
-    match surface_id {
-        "public_path_traversal" => "Public Path Traversal",
-        "challenge_routing" => "Challenge Routing",
-        "maze_navigation" => "Maze Navigation",
-        "pow_verify_abuse" => "PoW Verify Abuse",
-        "tarpit_progress_abuse" => "Tarpit Progress Abuse",
-        _ => "Unknown Board Locus",
-    }
 }
 
 fn merge_locus(

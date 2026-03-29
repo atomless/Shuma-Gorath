@@ -4,6 +4,35 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-29)
 
+### GAME-LOOP-OBS-1D Restore Agentic Traffic Observer Naming And Defence Cast Projection
+
+- [x] Completed the observer-surface repair across:
+  - [`../dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
+  - [`../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte`](../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte)
+  - [`../dashboard/src/lib/components/dashboard/monitoring-view-model.js`](../dashboard/src/lib/components/dashboard/monitoring-view-model.js)
+  - [`../dashboard/src/lib/domain/adversary-sim.js`](../dashboard/src/lib/domain/adversary-sim.js)
+  - [`../dashboard/src/lib/domain/api-client.js`](../dashboard/src/lib/domain/api-client.js)
+  - [`../src/observability/llm_surface_observation.rs`](../src/observability/llm_surface_observation.rs)
+  - [`../src/observability/benchmark_mixed_attacker_restriction_progress.rs`](../src/observability/benchmark_mixed_attacker_restriction_progress.rs)
+  - [`../src/observability/mod.rs`](../src/observability/mod.rs)
+  - [`../src/admin/oversight_observer_round_archive.rs`](../src/admin/oversight_observer_round_archive.rs)
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`../docs/dashboard-tabs/game-loop.md`](../docs/dashboard-tabs/game-loop.md)
+  - [`../docs/dashboard-tabs/red-team.md`](../docs/dashboard-tabs/red-team.md)
+  - [`../docs/testing.md`](../docs/testing.md)
+- [x] What landed:
+  - Game Loop and Recent Red Team Runs now render `bot_red_team` with the operator-facing name `Agentic Traffic`,
+  - Game Loop defence casts now materialize LLM-lane surface rows from `llm_runtime_summary.latest_action_receipts` for both the freshest recent-run path and the durable judged-round archive path,
+  - the durable observer archive now preserves `llm_surface_rows` alongside the existing Scrapling surface rows,
+  - and the rendered Game Loop proofs now explicitly guard against blank defence casts for fresh or archived agentic runs.
+- [x] Why:
+  - the observer surface was still leaking backend lane ids and dropping `bot_red_team` defence evidence even when real LLM runtime receipts existed, which made the Game Loop tell an incomplete and misleading round story.
+- [x] Evidence:
+  - `make test-dashboard-game-loop-accountability`
+  - `make test-dashboard-red-team-pane`
+  - `make test-admin-machine-contracts`
+
 ### RED-TEAM-CTRL-1B Restore Bot Red Team Lane Selection And Rename It To Agentic Traffic
 
 - [x] Completed the Red Team selector regression fix across:

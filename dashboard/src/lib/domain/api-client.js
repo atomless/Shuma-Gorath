@@ -915,6 +915,9 @@ const adaptOversightObserverRoundArchiveRow = (value) => {
     run_rows: asObjectArray(source.run_rows).map(adaptOversightObserverRoundRunRow),
     scrapling_surface_rows: asObjectArray(source.scrapling_surface_rows).map(
       adaptOversightObserverRoundSurfaceRow
+    ),
+    llm_surface_rows: asObjectArray(source.llm_surface_rows).map(
+      adaptOversightObserverRoundSurfaceRow
     )
   };
 };
