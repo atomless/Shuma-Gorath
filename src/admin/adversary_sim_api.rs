@@ -603,6 +603,7 @@ fn log_scrapling_surface_receipts_event(
         sim_lane: Some(worker_result.lane.as_str().to_string()),
         is_simulation: true,
         scrapling_surface_receipts: worker_result.surface_receipts.clone(),
+        scrapling_category_targets: worker_result.category_targets.clone(),
         llm_runtime_summary: None,
         execution: super::api::EventExecutionMetadata::default(),
     };
@@ -642,6 +643,7 @@ fn log_llm_runtime_receipt_event(
         sim_lane: Some(worker_result.lane.as_str().to_string()),
         is_simulation: true,
         scrapling_surface_receipts: Vec::new(),
+        scrapling_category_targets: Vec::new(),
         llm_runtime_summary: Some(
             crate::admin::adversary_sim::LlmRuntimeRecentRunSummary::from_runtime_result(
                 worker_result,

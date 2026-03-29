@@ -15,7 +15,14 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from pathlib import Path
 from typing import Any, Dict, Optional
+
+RUNTIME_SURFACE_LANE = "scrapling_traffic"
+RUNTIME_SURFACE_IP_RESET_TICK_HORIZON = 40
+RUNTIME_SURFACE_ATTACK_CORPUS_PATH = (
+    Path(__file__).resolve().parent / "adversarial" / "deterministic_attack_corpus.v1.json"
+)
 
 
 def parse_bool(value: str, default: bool) -> bool:
@@ -34,6 +41,65 @@ def live_summary_leaks(current: Dict[str, int], baseline: Dict[str, int]) -> Dic
         if delta > 0:
             leaked[name] = delta
     return leaked
+
+
+def load_runtime_surface_corpus_profile() -> Dict[str, Any]:
+    raw = json.loads(RUNTIME_SURFACE_ATTACK_CORPUS_PATH.read_text(encoding="utf-8"))
+    runtime_toggle = raw.get("runtime_toggle")
+    return runtime_toggle if isinstance(runtime_toggle, dict) else {}
+
+
+def runtime_surface_primary_request_ip(
+    generation_batch_size_max: int,
+    tick_count: int,
+    index: int,
+) -> str:
+    offset = tick_count * generation_batch_size_max + index
+    third = ((offset // 254) % 254) + 1
+    fourth = (offset % 254) + 1
+    return f"198.51.{third}.{fourth}"
+
+
+def runtime_surface_lane_actor_ip(
+    third_octet: int,
+    tick_count: int,
+    rotate_every_ticks: int,
+    lane_salt: int,
+) -> str:
+    rotate_every_ticks = max(1, int(rotate_every_ticks))
+    bucket = ((tick_count // rotate_every_ticks) + lane_salt) % 254 + 1
+    return f"198.51.{int(third_octet)}.{bucket}"
+
+
+def runtime_surface_candidate_ips(
+    corpus_profile: Dict[str, Any],
+    tick_horizon: int = RUNTIME_SURFACE_IP_RESET_TICK_HORIZON,
+) -> list[str]:
+    primary_request_count = int(corpus_profile.get("primary_request_count") or 0)
+    supplemental_request_count = int(corpus_profile.get("supplemental_request_count") or 0)
+    rate_burst = corpus_profile.get("rate_burst") or {}
+    lane_ip_octets = corpus_profile.get("lane_ip_octets") or {}
+    lane_ip_rotation_ticks = corpus_profile.get("lane_ip_rotation_ticks") or {}
+    lane_ip_entropy_salts = corpus_profile.get("lane_ip_entropy_salts") or {}
+    generation_batch_size_max = (
+        primary_request_count
+        + supplemental_request_count
+        + int(rate_burst.get("high") or 0)
+    )
+    ips: set[str] = set()
+    for tick_count in range(max(0, int(tick_horizon))):
+        for index in range(primary_request_count):
+            ips.add(runtime_surface_primary_request_ip(generation_batch_size_max, tick_count, index))
+        for lane_name, third_octet in lane_ip_octets.items():
+            ips.add(
+                runtime_surface_lane_actor_ip(
+                    int(third_octet or 0),
+                    tick_count,
+                    int(lane_ip_rotation_ticks.get(lane_name) or 1),
+                    int(lane_ip_entropy_salts.get(lane_name) or 0),
+                )
+            )
+    return sorted(ips)
 
 
 class RuntimeToggleSurfaceGate:
@@ -164,6 +230,14 @@ class RuntimeToggleSurfaceGate:
                     f"failed to clear loopback ban for {ip}: status={response['status']} body={response['raw'][:200]}"
                 )
 
+    def clear_runtime_surface_bans(self) -> None:
+        for ip in runtime_surface_candidate_ips(load_runtime_surface_corpus_profile()):
+            response = self.request("POST", f"/admin/unban?ip={ip}")
+            if response["status"] != 200:
+                raise RuntimeError(
+                    f"failed to clear runtime-surface ban for {ip}: status={response['status']} body={response['raw'][:200]}"
+                )
+
     def configure_runtime_surface_profile(self) -> None:
         payload = {
             "defence_modes": {"rate": "both", "geo": "both", "js": "both"},
@@ -197,7 +271,11 @@ class RuntimeToggleSurfaceGate:
             response = self.request(
                 "POST",
                 "/admin/adversary-sim/control",
-                {"enabled": bool(enabled), "reason": "runtime_surface_gate"},
+                {
+                    "enabled": bool(enabled),
+                    "lane": RUNTIME_SURFACE_LANE,
+                    "reason": "runtime_surface_gate",
+                },
                 extra_headers={
                     "Idempotency-Key": operation_id,
                     "Origin": self.base_url,
@@ -217,6 +295,7 @@ class RuntimeToggleSurfaceGate:
         self,
         operator_snapshot_body: Dict[str, Any],
         existing_run_ids: Optional[set[str]] = None,
+        minimum_started_at: int = 0,
     ) -> Dict[str, Any]:
         objectives = self._as_obj(operator_snapshot_body.get("objectives"))
         verified_identity = self._as_obj(operator_snapshot_body.get("verified_identity"))
@@ -231,6 +310,9 @@ class RuntimeToggleSurfaceGate:
                 continue
             run_id = str(run.get("run_id") or "").strip()
             if run_id in existing_run_ids:
+                continue
+            run_started_at = self._as_int(run.get("first_ts"))
+            if minimum_started_at > 0 and run_started_at < minimum_started_at:
                 continue
             coverage = self._as_obj(run.get("owned_surface_coverage"))
             if not coverage:
@@ -303,6 +385,7 @@ class RuntimeToggleSurfaceGate:
     def poll_recent_scrapling_run_coverage(
         self,
         existing_run_ids: Optional[set[str]] = None,
+        minimum_started_at: int = 0,
     ) -> Dict[str, Any]:
         deadline = time.time() + float(self.timeout_seconds)
         last_seen = {
@@ -326,6 +409,7 @@ class RuntimeToggleSurfaceGate:
             last_seen = self.recent_scrapling_run_coverage(
                 self._as_obj(operator_snapshot["body"]),
                 existing_run_ids=existing_run_ids,
+                minimum_started_at=minimum_started_at,
             )
             if (
                 last_seen["run_id"]
@@ -428,11 +512,16 @@ def main() -> int:
     try:
         gate.ensure_health()
         gate.clear_loopback_bans()
+        gate.clear_runtime_surface_bans()
         gate.configure_runtime_surface_profile()
         live_summary_baseline = gate.read_live_summary_counts()
         existing_run_ids = gate.current_recent_scrapling_run_ids()
+        minimum_started_at = max(0, int(time.time()) - 1)
         gate.toggle(True, "on")
-        coverage = gate.poll_recent_scrapling_run_coverage(existing_run_ids=existing_run_ids)
+        coverage = gate.poll_recent_scrapling_run_coverage(
+            existing_run_ids=existing_run_ids,
+            minimum_started_at=minimum_started_at,
+        )
         live_summary_counts = gate.poll_live_summary_matches_baseline(live_summary_baseline)
     except Exception as exc:  # noqa: BLE001
         print(f"[runtime-surface-gate] error: {exc}", file=sys.stderr)

@@ -1302,6 +1302,8 @@
               eventsSnapshot={snapshots.events}
               bansSnapshot={snapshots.bans}
               monitoringFreshnessSnapshot={snapshots.monitoringFreshness}
+              oversightHistory={snapshots.oversightHistory}
+              oversightAgentStatus={snapshots.oversightAgentStatus}
               lifecycleCopy={adversarySimLifecycleCopy}
               onToggleChange={onGlobalAdversarySimToggleChange}
               onLaneChange={onAdversarySimLaneChange}

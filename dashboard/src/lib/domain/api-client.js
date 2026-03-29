@@ -202,6 +202,33 @@ const adaptRecognitionComparisonRow = (value) => {
 /**
  * @param {unknown} value
  */
+const adaptSimulatorGroundTruthCategory = (value) => {
+  const source = asRecord(value);
+  return {
+    category_id: String(source.category_id || ''),
+    category_label: String(source.category_label || ''),
+    recent_run_count: Number(source.recent_run_count || 0),
+    evidence_references: Array.isArray(source.evidence_references)
+      ? source.evidence_references.map((entry) => String(entry || ''))
+      : []
+  };
+};
+
+/**
+ * @param {unknown} value
+ */
+const adaptSimulatorGroundTruthSummary = (value) => {
+  const source = asRecord(value);
+  return {
+    status: String(source.status || ''),
+    recent_sim_run_count: Number(source.recent_sim_run_count || 0),
+    categories: asObjectArray(source.categories).map(adaptSimulatorGroundTruthCategory)
+  };
+};
+
+/**
+ * @param {unknown} value
+ */
 const adaptLaneCounterState = (value) => {
   const source = asRecord(value);
   return {
@@ -634,6 +661,9 @@ export const adaptOperatorSnapshot = (payload) => {
           recognitionEvaluation.collapsed_to_unknown_count || 0
         ),
         not_materialized_count: Number(recognitionEvaluation.not_materialized_count || 0),
+        simulator_ground_truth: adaptSimulatorGroundTruthSummary(
+          recognitionEvaluation.simulator_ground_truth
+        ),
         readiness: adaptNonHumanClassificationReadiness(recognitionEvaluation.readiness),
         coverage: adaptNonHumanCoverageSummary(recognitionEvaluation.coverage),
         comparison_rows: asObjectArray(recognitionEvaluation.comparison_rows).map(
@@ -974,13 +1004,40 @@ const adaptHomeostasisRestartBaseline = (value) => {
   };
 };
 
+const adaptOperatorDecisionEvidenceReference = (value) => {
+  const source = asRecord(value);
+  return {
+    kind: String(source.kind || ''),
+    reference: String(source.reference || ''),
+    note: String(source.note || '')
+  };
+};
+
+const adaptOversightEpisodeProposal = (value) => {
+  const source = asRecord(value);
+  return {
+    patch_family: String(source.patch_family || ''),
+    expected_impact: String(source.expected_impact || ''),
+    confidence: String(source.confidence || ''),
+    note: String(source.note || '')
+  };
+};
+
 const adaptOversightEpisodeArchiveRow = (value) => {
   const source = asRecord(value);
   return {
     episode_id: String(source.episode_id || ''),
+    completed_at_ts: adaptOptionalNumber(source.completed_at_ts),
     proposal_status: String(source.proposal_status || ''),
     watch_window_result: String(source.watch_window_result || ''),
     retain_or_rollback: String(source.retain_or_rollback || ''),
+    judged_lane_ids: Array.isArray(source.judged_lane_ids)
+      ? source.judged_lane_ids.map((entry) => String(entry || ''))
+      : [],
+    judged_run_ids: Array.isArray(source.judged_run_ids)
+      ? source.judged_run_ids.map((entry) => String(entry || ''))
+      : [],
+    proposal: adaptOversightEpisodeProposal(source.proposal),
     cycle_judgment: String(source.cycle_judgment || ''),
     homeostasis_eligible: source.homeostasis_eligible === true,
     benchmark_urgency_status: String(source.benchmark_urgency_status || ''),
@@ -988,7 +1045,57 @@ const adaptOversightEpisodeArchiveRow = (value) => {
     homeostasis_break_reasons: Array.isArray(source.homeostasis_break_reasons)
       ? source.homeostasis_break_reasons.map((entry) => String(entry || ''))
       : [],
-    restart_baseline: adaptHomeostasisRestartBaseline(source.restart_baseline)
+    restart_baseline: adaptHomeostasisRestartBaseline(source.restart_baseline),
+    evidence_references: asObjectArray(source.evidence_references).map(
+      adaptOperatorDecisionEvidenceReference
+    )
+  };
+};
+
+const adaptOversightRequiredLaneRun = (value) => {
+  const source = asRecord(value);
+  return {
+    lane: String(source.lane || ''),
+    status: String(source.status || ''),
+    requested_at_ts: adaptOptionalNumber(source.requested_at_ts),
+    requested_duration_seconds: adaptOptionalNumber(source.requested_duration_seconds),
+    follow_on_run_id: String(source.follow_on_run_id || ''),
+    follow_on_started_at: adaptOptionalNumber(source.follow_on_started_at),
+    materialized_at_ts: adaptOptionalNumber(source.materialized_at_ts)
+  };
+};
+
+const adaptOversightCandidateWindow = (value) => {
+  const source = asRecord(value);
+  return {
+    status: String(source.status || ''),
+    canary_id: String(source.canary_id || ''),
+    patch_family: String(source.patch_family || ''),
+    requested_lane: String(source.requested_lane || ''),
+    requested_duration_seconds: adaptOptionalNumber(source.requested_duration_seconds),
+    requested_at_ts: adaptOptionalNumber(source.requested_at_ts),
+    watch_window_end_at: adaptOptionalNumber(source.watch_window_end_at),
+    follow_on_run_id: String(source.follow_on_run_id || ''),
+    follow_on_started_at: adaptOptionalNumber(source.follow_on_started_at),
+    materialized_at_ts: adaptOptionalNumber(source.materialized_at_ts),
+    required_runs: asObjectArray(source.required_runs).map(adaptOversightRequiredLaneRun)
+  };
+};
+
+const adaptOversightContinuationRun = (value) => {
+  const source = asRecord(value);
+  return {
+    status: String(source.status || ''),
+    requested_lane: String(source.requested_lane || ''),
+    requested_duration_seconds: adaptOptionalNumber(source.requested_duration_seconds),
+    requested_at_ts: adaptOptionalNumber(source.requested_at_ts),
+    source_decision_id: String(source.source_decision_id || ''),
+    source_decision_outcome: String(source.source_decision_outcome || ''),
+    continue_reason: String(source.continue_reason || ''),
+    stop_reason: String(source.stop_reason || ''),
+    follow_on_run_id: String(source.follow_on_run_id || ''),
+    follow_on_started_at: adaptOptionalNumber(source.follow_on_started_at),
+    required_runs: asObjectArray(source.required_runs).map(adaptOversightRequiredLaneRun)
   };
 };
 
@@ -1092,6 +1199,8 @@ export const adaptOversightAgentStatus = (payload) => {
       qualifying_completion: String(postSimTrigger.qualifying_completion || ''),
       dedupe_key: String(postSimTrigger.dedupe_key || '')
     },
+    candidate_window: adaptOversightCandidateWindow(source.candidate_window),
+    continuation_run: adaptOversightContinuationRun(source.continuation_run),
     episode_archive: adaptOversightEpisodeArchive(source.episode_archive),
     latest_run: adaptOversightAgentRun(source.latest_run),
     latest_decision: adaptOversightDecision(source.latest_decision),

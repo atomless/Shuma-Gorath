@@ -165,38 +165,6 @@ def _expected_surface_targets_for_mode(fulfillment_mode: str) -> list[str]:
     }.get(fulfillment_mode, [])
 
 
-def _normalize_runtime_paths(raw_paths: Any) -> dict[str, str]:
-    required_keys = (
-        "public_search",
-        "not_a_bot_checkbox",
-        "challenge_submit",
-        "pow",
-        "pow_verify",
-        "tarpit_progress",
-        "maze_entry",
-    )
-    if not isinstance(raw_paths, dict):
-        raise WorkerConfigError("worker_plan runtime_paths must be an object")
-    normalized: dict[str, str] = {}
-    for key in required_keys:
-        value = str(raw_paths.get(key) or "").strip()
-        if not value:
-            raise WorkerConfigError(f"worker_plan runtime_paths.{key} must be a non-empty string")
-        normalized[key] = value
-    return normalized
-
-
-def _absolute_target(base_url: str, raw_target: str) -> str:
-    if str(raw_target).startswith("http://") or str(raw_target).startswith("https://"):
-        return str(raw_target)
-    return urljoin(base_url, str(raw_target))
-
-
-def _route_with_query(path: str, query: str) -> str:
-    separator = "&" if "?" in path else "?"
-    return f"{path}{separator}{query}"
-
-
 def _invalid_not_a_bot_body() -> str:
     telemetry = json.dumps(
         {
@@ -254,6 +222,112 @@ def _request_path_value(raw_target: str) -> str:
     if parsed.query:
         return f"{path}?{parsed.query}"
     return path
+
+
+def _ordered_unique(values: list[str]) -> list[str]:
+    ordered: list[str] = []
+    for value in values:
+        item = str(value or "").strip()
+        if item and item not in ordered:
+            ordered.append(item)
+    return ordered
+
+
+def _response_css_values(response: Any, selector: str) -> list[str]:
+    try:
+        values = response.css(selector).getall()
+    except Exception:
+        return []
+    return [str(value or "").strip() for value in values if str(value or "").strip()]
+
+
+def _response_anchor_targets(response: Any) -> list[str]:
+    base_url = str(getattr(response, "url", "") or "").strip()
+    targets = [
+        urljoin(base_url, raw_target)
+        for raw_target in _response_css_values(response, "a::attr(href)")
+    ]
+    return _ordered_unique(targets)
+
+
+def _response_form_targets(response: Any) -> list[str]:
+    base_url = str(getattr(response, "url", "") or "").strip()
+    targets = [
+        urljoin(base_url, raw_target)
+        for raw_target in _response_css_values(response, "form::attr(action)")
+    ]
+    return _ordered_unique(targets)
+
+
+def _public_discovery_surface_ids(surface_targets: set[str]) -> list[str]:
+    return [
+        surface_id
+        for surface_id in (
+            "challenge_routing",
+            "rate_pressure",
+            "geo_ip_policy",
+        )
+        if surface_id in surface_targets
+    ]
+
+
+def _path_contains(raw_target: str, *needles: str) -> bool:
+    candidate = _request_path_value(raw_target).lower()
+    return any(str(needle or "").lower() in candidate for needle in needles)
+
+
+def _looks_bulk_scraper_public_target(raw_target: str) -> bool:
+    candidate = _request_path_value(raw_target).lower()
+    return (
+        candidate == "/"
+        or "catalog" in candidate
+        or "/detail/" in candidate
+    )
+
+
+def _bulk_scraper_priority(raw_target: str) -> tuple[int, str]:
+    candidate = _request_path_value(raw_target).lower()
+    if "catalog" in candidate:
+        return (0, candidate)
+    if "/detail/" in candidate:
+        return (1, candidate)
+    if candidate == "/":
+        return (2, candidate)
+    return (3, candidate)
+
+
+def _crawler_link_priority(raw_target: str) -> tuple[int, str]:
+    candidate = _request_path_value(raw_target).lower()
+    if "redirect" in candidate:
+        return (0, candidate)
+    if candidate == "/page":
+        return (1, candidate)
+    if "catalog" in candidate:
+        return (2, candidate)
+    if "challenge" in candidate:
+        return (3, candidate)
+    if candidate == "/pow":
+        return (4, candidate)
+    if "/maze/" in candidate:
+        return (5, candidate)
+    return (6, candidate)
+
+
+def _first_matching_target(candidates: list[str], predicate) -> str | None:
+    for candidate in candidates:
+        if predicate(candidate):
+            return candidate
+    return None
+
+
+def _normalize_browser_discovery_targets(base_url: str, raw_targets: list[Any]) -> list[str]:
+    targets: list[str] = []
+    for raw_target in raw_targets:
+        value = str(raw_target or "").strip()
+        if not value:
+            continue
+        targets.append(urljoin(base_url, value))
+    return _ordered_unique(targets)
 
 
 def _coverage_status_for_http_status(status: int) -> str:
@@ -326,6 +400,7 @@ def _build_failure_result(
         "tick_id": str(plan.get("tick_id") or ""),
         "lane": str(plan.get("lane") or "scrapling_traffic"),
         "fulfillment_mode": str(plan.get("fulfillment_mode") or ""),
+        "category_targets": _normalize_category_targets(plan.get("category_targets")),
         "worker_id": socket.gethostname(),
         "tick_started_at": int(plan.get("tick_started_at") or now),
         "tick_completed_at": now,
@@ -459,7 +534,6 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
             self.sim_profile = str(plan.get("sim_profile") or "scrapling_runtime_lane")
             self.fulfillment_mode = str(plan.get("fulfillment_mode") or "crawler")
             self.surface_targets = set(_normalize_surface_targets(plan.get("surface_targets")))
-            self.runtime_paths = _normalize_runtime_paths(plan.get("runtime_paths"))
             self.deadline = time.monotonic() + (self.max_ms / 1000.0)
             self.sim_telemetry_secret = sim_telemetry_secret
             self.request_sequence = 0
@@ -471,16 +545,7 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
             self.surface_receipts: dict[str, dict[str, Any]] = {}
             self.allowed_domains = _normalize_allowed_domains(descriptor)
             self.start_urls = _normalized_start_urls(seed_inventory)
-            if "challenge_routing" in self.surface_targets:
-                challenge_probe = _absolute_target(
-                    self.start_urls[0] if self.start_urls else "",
-                    _route_with_query(
-                        self.runtime_paths["public_search"],
-                        "q=scrapling-crawler-probe",
-                    ),
-                )
-                if challenge_probe and challenge_probe not in self.start_urls:
-                    self.start_urls.insert(0, challenge_probe)
+            self.discovery_surfaces_recorded = False
             super().__init__(crawldir=str(crawldir), interval=0.0)
 
         def configure_sessions(self, manager) -> None:
@@ -514,23 +579,6 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
         def _record_rejection(self, reason: str | None) -> None:
             reason_key = str(reason or "malformed_url").strip() or "malformed_url"
             self.scope_rejections[reason_key] += 1
-
-        def _surface_ids_for_response(self, response) -> list[str]:
-            path = urlsplit(str(getattr(response, "url", ""))).path or "/"
-            public_search_path = urlsplit(self.runtime_paths["public_search"]).path or "/"
-            if path == public_search_path:
-                return [
-                    surface_id
-                    for surface_id in (
-                        "challenge_routing",
-                        "rate_pressure",
-                        "geo_ip_policy",
-                    )
-                    if surface_id in self.surface_targets
-                ]
-            if "public_path_traversal" in self.surface_targets:
-                return ["public_path_traversal"]
-            return []
 
         async def on_error(self, request, error: Exception) -> None:
             self.last_transport_error = f"{type(error).__name__}: {error}"
@@ -566,7 +614,14 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
             self.requests_observed += 1
             self.bytes_observed += len(response.body)
             self.last_response_status = int(response.status)
-            surface_ids = self._surface_ids_for_response(response)
+            surface_ids: list[str] = []
+            if "public_path_traversal" in self.surface_targets:
+                surface_ids.append("public_path_traversal")
+            if not self.discovery_surfaces_recorded:
+                discovery_surface_ids = _public_discovery_surface_ids(self.surface_targets)
+                if discovery_surface_ids:
+                    surface_ids.extend(discovery_surface_ids)
+                    self.discovery_surfaces_recorded = True
             if surface_ids:
                 _record_surface_receipt(
                     self.surface_receipts,
@@ -621,8 +676,11 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
                             return
                 return
 
-            for href in response.css("a::attr(href)").getall():
-                candidate = urljoin(response.url, href)
+            link_targets = sorted(
+                [urljoin(response.url, href) for href in response.css("a::attr(href)").getall()],
+                key=_crawler_link_priority,
+            )
+            for candidate in link_targets:
                 if next_depth > self.max_depth:
                     continue
                 allowed, normalized_url = self._allowed_request(
@@ -766,6 +824,7 @@ class _DirectPersonaTracker:
             "tick_id": self.tick_id,
             "lane": self.lane,
             "fulfillment_mode": self.fulfillment_mode,
+            "category_targets": _normalize_category_targets(self.plan.get("category_targets")),
             "worker_id": socket.gethostname(),
             "tick_started_at": int(self.plan.get("tick_started_at") or int(time.time())),
             "tick_completed_at": int(time.time()),
@@ -796,267 +855,107 @@ def _execute_request_sequence(
     for request_spec in requests:
         if tracker.should_stop():
             break
-        method_name = str(request_spec.get("method") or "").strip().lower()
-        raw_target = str(request_spec.get("target") or "").strip()
-        surface_ids = [str(value) for value in list(request_spec.get("surface_ids") or []) if str(value).strip()]
-        if not method_name or not raw_target:
-            continue
-        allowed, normalized_url = tracker.allowed_request(
-            base_url,
-            raw_target,
-            is_redirect=False,
+        _perform_request(
+            session,
+            tracker=tracker,
+            base_url=base_url,
+            request_spec=request_spec,
         )
-        if not allowed or not normalized_url:
-            continue
-        try:
-            response = getattr(session, method_name)(
-                normalized_url,
-                headers=tracker.next_headers(dict(request_spec.get("headers") or {})),
-                cookies=request_spec.get("cookies"),
-                data=request_spec.get("data"),
-                json=request_spec.get("json"),
-                follow_redirects=False,
-            )
-            tracker.record_response(
-                response,
-                surface_ids,
-                request_method=method_name,
-                request_target=normalized_url,
-            )
-            location = str(response.headers.get("location") or "").strip()
-            if (
-                request_spec.get("follow_redirect")
-                and 300 <= int(response.status) < 400
-                and location
-                and not tracker.should_stop()
-            ):
-                allowed, redirect_url = tracker.allowed_request(
-                    response.url,
-                    location,
-                    is_redirect=True,
-                )
-                if allowed and redirect_url:
-                    redirect_response = session.get(
-                        redirect_url,
-                        headers=tracker.next_headers({"accept": "application/json"}),
-                        cookies=request_spec.get("cookies"),
-                        follow_redirects=False,
-                    )
-                    tracker.record_response(
-                        redirect_response,
-                        surface_ids,
-                        request_method="get",
-                        request_target=redirect_url,
-                    )
-        except Exception as exc:
-            tracker.record_failure(
-                exc,
-                surface_ids=surface_ids,
-                request_method=method_name,
-                request_target=normalized_url or raw_target,
-            )
-            break
 
 
-def _bulk_scraper_request_urls(start_urls: list[str]) -> list[str]:
-    if not start_urls:
-        return []
-    base_url = start_urls[0]
-    ordered = [
-        urljoin(base_url, "/catalog?page=1"),
-        urljoin(base_url, "/catalog?page=2"),
-        urljoin(base_url, "/detail/1"),
-        urljoin(base_url, "/detail/2"),
-    ]
-    deduped: list[str] = []
-    for target in ordered:
-        if target not in deduped:
-            deduped.append(target)
-    return deduped
-
-
-def _bulk_scraper_owned_surface_requests(
-    base_url: str,
-    *,
-    surface_targets: set[str],
-    runtime_paths: dict[str, str],
-) -> list[dict[str, Any]]:
-    requests: list[dict[str, Any]] = []
-    if {"challenge_routing", "rate_pressure", "geo_ip_policy"} & surface_targets:
-        requests.append(
-            _request_spec(
-                "get",
-                _absolute_target(
-                    base_url,
-                    _route_with_query(
-                        runtime_paths["public_search"],
-                        "q=scrapling-bulk-scraper",
-                    ),
-                ),
-                surface_ids=["challenge_routing", "rate_pressure", "geo_ip_policy"],
-                headers={"accept": "application/json"},
-            )
-        )
-    if "not_a_bot_submit" in surface_targets:
-        requests.append(
-            _request_spec(
-                "post",
-                _absolute_target(base_url, runtime_paths["not_a_bot_checkbox"]),
-                surface_ids=["not_a_bot_submit"],
-                headers={
-                    "accept": "application/json",
-                    "content-type": "application/x-www-form-urlencoded",
-                },
-                data=_invalid_not_a_bot_body(),
-            )
-        )
-    if "puzzle_submit_or_escalation" in surface_targets:
-        requests.append(
-            _request_spec(
-                "post",
-                _absolute_target(base_url, runtime_paths["challenge_submit"]),
-                surface_ids=["puzzle_submit_or_escalation"],
-                headers={
-                    "accept": "application/json",
-                    "content-type": "application/x-www-form-urlencoded",
-                },
-                data="answer=bad&seed=invalid&return_to=%2Fsim%2Fpublic%2Flanding",
-            )
-        )
-    return requests
-
-
-def _http_agent_request_sequence(
-    base_url: str,
+def _perform_request(
+    session: Any,
     *,
     tracker: _DirectPersonaTracker,
-    surface_targets: set[str],
-    runtime_paths: dict[str, str],
-) -> list[dict[str, Any]]:
-    cookies = {"shuma_agent_mode": "http_agent"}
-    requests = [
-        _request_spec(
-            "get",
-            urljoin(base_url, "/agent/ping?mode=http_agent"),
-            headers={"accept": "application/json"},
-            cookies=cookies,
-        ),
-    ]
-    if {"challenge_routing", "rate_pressure", "geo_ip_policy"} & surface_targets:
-        requests.append(
-            _request_spec(
-                "get",
-                _absolute_target(
-                    base_url,
-                    _route_with_query(
-                        runtime_paths["public_search"],
-                        "q=scrapling-http-agent",
-                    ),
-                ),
-                surface_ids=["challenge_routing", "rate_pressure", "geo_ip_policy"],
-                headers={"accept": "application/json"},
-                cookies=cookies,
-            )
-        )
-    if "not_a_bot_submit" in surface_targets:
-        requests.append(
-            _request_spec(
-                "post",
-                _absolute_target(base_url, runtime_paths["not_a_bot_checkbox"]),
-                surface_ids=["not_a_bot_submit"],
-                headers={
-                    "accept": "application/json",
-                    "content-type": "application/x-www-form-urlencoded",
-                },
-                cookies=cookies,
-                data=_invalid_not_a_bot_body(),
-            )
-        )
-    if "puzzle_submit_or_escalation" in surface_targets:
-        requests.append(
-            _request_spec(
-                "post",
-                _absolute_target(base_url, runtime_paths["challenge_submit"]),
-                surface_ids=["puzzle_submit_or_escalation"],
-                headers={
-                    "accept": "application/json",
-                    "content-type": "application/x-www-form-urlencoded",
-                },
-                cookies=cookies,
-                data="answer=bad&seed=invalid&return_to=%2Fsim%2Fpublic%2Flanding",
-            )
-        )
-    if "pow_verify_abuse" in surface_targets:
-        requests.append(
-            _request_spec(
-                "post",
-                _absolute_target(base_url, runtime_paths["pow_verify"]),
-                surface_ids=["pow_verify_abuse"],
-                headers={
-                    "accept": "application/json",
-                    "content-type": "application/json",
-                },
-                cookies=cookies,
-                json_body={"seed": "invalid-seed", "nonce": "invalid-nonce"},
-            )
-        )
-    if "tarpit_progress_abuse" in surface_targets:
-        requests.append(
-            _request_spec(
-                "post",
-                _absolute_target(base_url, runtime_paths["tarpit_progress"]),
-                surface_ids=["tarpit_progress_abuse"],
-                headers={
-                    "accept": "application/json",
-                    "content-type": "application/json",
-                },
-                cookies=cookies,
-                json_body={
-                    "token": "invalid",
-                    "operation_id": "invalid",
-                    "proof_nonce": "invalid",
-                },
-            )
-        )
-    requests.extend(
-        [
-            _request_spec(
-                "post",
-                urljoin(base_url, "/agent/submit"),
-                headers={
-                    "accept": "application/json",
-                    "content-type": "application/json",
-                },
-                cookies=cookies,
-                json_body={
-                    "mode": "http_agent",
-                    "run_id": tracker.run_id,
-                    "tick_id": tracker.tick_id,
-                },
-            ),
-            _request_spec(
-                "put",
-                urljoin(base_url, "/agent/update"),
-                headers={
-                    "accept": "application/json",
-                    "content-type": "application/json",
-                },
-                cookies=cookies,
-                json_body={
-                    "mode": "http_agent",
-                    "request_sequence": 3,
-                },
-            ),
-            _request_spec(
-                "get",
-                urljoin(base_url, "/agent/redirect"),
-                headers={"accept": "application/json"},
-                cookies=cookies,
-                follow_redirect=True,
-            ),
-        ]
+    base_url: str,
+    request_spec: dict[str, Any],
+) -> Any | None:
+    method_name = str(request_spec.get("method") or "").strip().lower()
+    raw_target = str(request_spec.get("target") or "").strip()
+    surface_ids = [str(value) for value in list(request_spec.get("surface_ids") or []) if str(value).strip()]
+    if not method_name or not raw_target:
+        return None
+    allowed, normalized_url = tracker.allowed_request(
+        base_url,
+        raw_target,
+        is_redirect=False,
     )
-    return requests
+    if not allowed or not normalized_url:
+        return None
+    try:
+        response = getattr(session, method_name)(
+            normalized_url,
+            headers=tracker.next_headers(dict(request_spec.get("headers") or {})),
+            cookies=request_spec.get("cookies"),
+            data=request_spec.get("data"),
+            json=request_spec.get("json"),
+            follow_redirects=False,
+        )
+        tracker.record_response(
+            response,
+            surface_ids,
+            request_method=method_name,
+            request_target=normalized_url,
+        )
+        location = str(response.headers.get("location") or "").strip()
+        if (
+            request_spec.get("follow_redirect")
+            and 300 <= int(response.status) < 400
+            and location
+            and not tracker.should_stop()
+        ):
+            allowed, redirect_url = tracker.allowed_request(
+                response.url,
+                location,
+                is_redirect=True,
+            )
+            if allowed and redirect_url:
+                redirect_response = session.get(
+                    redirect_url,
+                    headers=tracker.next_headers({"accept": "application/json"}),
+                    cookies=request_spec.get("cookies"),
+                    follow_redirects=False,
+                )
+                tracker.record_response(
+                    redirect_response,
+                    surface_ids,
+                    request_method="get",
+                    request_target=redirect_url,
+                )
+                return redirect_response
+        return response
+    except Exception as exc:
+        tracker.record_failure(
+            exc,
+            surface_ids=surface_ids,
+            request_method=method_name,
+            request_target=normalized_url or raw_target,
+        )
+        return None
+
+
+def _browser_root_discovery_page_action(state: dict[str, Any]):
+    def action(page) -> None:
+        state["links"] = page.evaluate(
+            """() => Array.from(document.querySelectorAll('a[href]'))
+                .map((anchor) => anchor.getAttribute('href') || '')
+            """
+        )
+
+    return action
+
+
+def _browser_discovered_target(
+    root_state: dict[str, Any],
+    *,
+    base_url: str,
+    predicate,
+) -> str | None:
+    candidates = _normalize_browser_discovery_targets(
+        base_url,
+        list(root_state.get("links") or []),
+    )
+    return _first_matching_target(candidates, predicate)
 
 
 def _execute_bulk_scraper_persona(
@@ -1073,11 +972,39 @@ def _execute_bulk_scraper_persona(
         sim_telemetry_secret=sim_telemetry_secret,
     )
     surface_targets = set(_normalize_surface_targets(plan.get("surface_targets")))
-    runtime_paths = _normalize_runtime_paths(plan.get("runtime_paths"))
     request_proxy_url = _normalize_optional_proxy_url(plan.get("request_proxy_url"))
     start_urls = _normalized_start_urls(seed_inventory)
-    request_targets = _bulk_scraper_request_urls(start_urls)
+    if not start_urls:
+        raise WorkerConfigError("seed inventory must contain at least one accepted start or hint URL")
+    base_url = start_urls[0]
     visited: set[str] = set()
+    public_candidates: list[str] = []
+    challenge_page: str | None = None
+
+    def note_discovery(response: Any) -> None:
+        nonlocal challenge_page, public_candidates
+        discovered_targets = _response_anchor_targets(response)
+        if challenge_page is None:
+            challenge_page = _first_matching_target(
+                discovered_targets,
+                lambda candidate: _path_contains(candidate, "not-a-bot"),
+            )
+        public_candidates.extend(
+            [
+                candidate
+                for candidate in discovered_targets
+                if _looks_bulk_scraper_public_target(candidate)
+            ]
+        )
+        public_candidates = sorted(
+            [
+                candidate
+                for candidate in _ordered_unique(public_candidates)
+                if candidate not in visited
+            ],
+            key=_bulk_scraper_priority,
+        )
+
     with fetcher_session_cls(
         **_request_native_session_kwargs(
             timeout_seconds=max(1.0, min(30.0, tracker.max_ms / 1000.0)),
@@ -1085,65 +1012,98 @@ def _execute_bulk_scraper_persona(
             proxy_url=request_proxy_url,
         ),
     ) as session:
-        for raw_target in request_targets:
-            if tracker.should_stop():
-                break
-            allowed, normalized_url = tracker.allowed_request(
-                start_urls[0] if start_urls else raw_target,
-                raw_target,
-                is_redirect=False,
-            )
-            if not allowed or not normalized_url or normalized_url in visited:
+        root_surface_ids = ["public_path_traversal", *_public_discovery_surface_ids(surface_targets)]
+        root_response = _perform_request(
+            session,
+            tracker=tracker,
+            base_url=base_url,
+            request_spec=_request_spec(
+                "get",
+                base_url,
+                surface_ids=root_surface_ids,
+                headers={"accept-language": "en-GB,en;q=0.8"},
+            ),
+        )
+        if root_response is not None:
+            visited.add(str(getattr(root_response, "url", base_url)))
+            note_discovery(root_response)
+
+        while public_candidates and not tracker.should_stop():
+            candidate = public_candidates.pop(0)
+            if candidate in visited:
                 continue
-            try:
-                response = session.get(
-                    normalized_url,
-                    headers=tracker.next_headers(
-                        {"accept-language": "en-GB,en;q=0.8"}
-                    ),
-                )
-                visited.add(normalized_url)
-                tracker.record_response(response, ["public_path_traversal"])
-                if tracker.should_stop():
-                    break
-                for href in response.css("a::attr(href)").getall():
-                    if tracker.should_stop():
-                        break
-                    candidate = urljoin(response.url, href)
-                    allowed, discovered_url = tracker.allowed_request(
-                        response.url,
-                        candidate,
-                        is_redirect=False,
-                    )
-                    if not allowed or not discovered_url or discovered_url in visited:
-                        continue
-                    discovered_response = session.get(
-                        discovered_url,
-                        headers=tracker.next_headers(
-                            {"accept-language": "en-GB,en;q=0.8"}
-                        ),
-                    )
-                    visited.add(discovered_url)
-                    tracker.record_response(discovered_response, ["public_path_traversal"])
-            except Exception as exc:
-                tracker.record_failure(
-                    exc,
-                    surface_ids=["public_path_traversal"],
-                    request_method="get",
-                    request_target=normalized_url or raw_target,
-                )
-                break
-        if not tracker.should_stop() and start_urls:
-            _execute_request_sequence(
+            response = _perform_request(
                 session,
                 tracker=tracker,
-                base_url=start_urls[0],
-                requests=_bulk_scraper_owned_surface_requests(
-                    start_urls[0],
-                    surface_targets=surface_targets,
-                    runtime_paths=runtime_paths,
+                base_url=base_url,
+                request_spec=_request_spec(
+                    "get",
+                    candidate,
+                    surface_ids=["public_path_traversal"],
+                    headers={"accept-language": "en-GB,en;q=0.8"},
                 ),
             )
+            if response is None:
+                continue
+            visited.add(str(getattr(response, "url", candidate)))
+            note_discovery(response)
+
+        if not tracker.should_stop() and challenge_page:
+            challenge_response = _perform_request(
+                session,
+                tracker=tracker,
+                base_url=base_url,
+                request_spec=_request_spec(
+                    "get",
+                    challenge_page,
+                    headers={"accept-language": "en-GB,en;q=0.8"},
+                ),
+            )
+            form_targets = _response_form_targets(challenge_response) if challenge_response is not None else []
+            not_a_bot_target = _first_matching_target(
+                form_targets,
+                lambda candidate: _path_contains(candidate, "not-a-bot"),
+            )
+            puzzle_target = _first_matching_target(
+                form_targets,
+                lambda candidate: _path_contains(candidate, "puzzle"),
+            )
+            if "not_a_bot_submit" in surface_targets and not tracker.should_stop() and not_a_bot_target:
+                _perform_request(
+                    session,
+                    tracker=tracker,
+                    base_url=base_url,
+                    request_spec=_request_spec(
+                        "post",
+                        not_a_bot_target,
+                        surface_ids=["not_a_bot_submit"],
+                        headers={
+                            "accept": "application/json",
+                            "content-type": "application/x-www-form-urlencoded",
+                        },
+                        data=_invalid_not_a_bot_body(),
+                    ),
+                )
+            if (
+                "puzzle_submit_or_escalation" in surface_targets
+                and not tracker.should_stop()
+                and puzzle_target
+            ):
+                _perform_request(
+                    session,
+                    tracker=tracker,
+                    base_url=base_url,
+                    request_spec=_request_spec(
+                        "post",
+                        puzzle_target,
+                        surface_ids=["puzzle_submit_or_escalation"],
+                        headers={
+                            "accept": "application/json",
+                            "content-type": "application/x-www-form-urlencoded",
+                        },
+                        data="answer=bad&seed=invalid&return_to=%2F",
+                    ),
+                )
     return tracker.result_payload()
 
 
@@ -1161,18 +1121,11 @@ def _execute_http_agent_persona(
         sim_telemetry_secret=sim_telemetry_secret,
     )
     surface_targets = set(_normalize_surface_targets(plan.get("surface_targets")))
-    runtime_paths = _normalize_runtime_paths(plan.get("runtime_paths"))
     request_proxy_url = _normalize_optional_proxy_url(plan.get("request_proxy_url"))
     start_urls = _normalized_start_urls(seed_inventory)
     if not start_urls:
         raise WorkerConfigError("seed inventory must contain at least one accepted start or hint URL")
     base_url = start_urls[0]
-    requests = _http_agent_request_sequence(
-        base_url,
-        tracker=tracker,
-        surface_targets=surface_targets,
-        runtime_paths=runtime_paths,
-    )
     with fetcher_session_cls(
         **_request_native_session_kwargs(
             timeout_seconds=max(1.0, min(30.0, tracker.max_ms / 1000.0)),
@@ -1180,12 +1133,158 @@ def _execute_http_agent_persona(
             proxy_url=request_proxy_url,
         ),
     ) as session:
-        _execute_request_sequence(
+        root_response = _perform_request(
             session,
             tracker=tracker,
             base_url=base_url,
-            requests=requests,
+            request_spec=_request_spec(
+                "get",
+                base_url,
+                surface_ids=_public_discovery_surface_ids(surface_targets),
+                headers={"accept-language": "en-GB,en;q=0.8"},
+            ),
         )
+        root_links = _response_anchor_targets(root_response) if root_response is not None else []
+
+        challenge_target = _first_matching_target(
+            root_links,
+            lambda candidate: _path_contains(candidate, "not-a-bot"),
+        )
+        pow_target = _first_matching_target(
+            root_links,
+            lambda candidate: _request_path_value(candidate).lower() == "/pow",
+        )
+        redirect_target = _first_matching_target(
+            root_links,
+            lambda candidate: _path_contains(candidate, "redirect"),
+        )
+
+        if challenge_target and not tracker.should_stop():
+            challenge_response = _perform_request(
+                session,
+                tracker=tracker,
+                base_url=base_url,
+                request_spec=_request_spec(
+                    "get",
+                    challenge_target,
+                    headers={"accept-language": "en-GB,en;q=0.8"},
+                ),
+            )
+            challenge_forms = _response_form_targets(challenge_response) if challenge_response is not None else []
+            not_a_bot_target = _first_matching_target(
+                challenge_forms,
+                lambda candidate: _path_contains(candidate, "not-a-bot"),
+            )
+            puzzle_target = _first_matching_target(
+                challenge_forms,
+                lambda candidate: _path_contains(candidate, "puzzle"),
+            )
+            if "not_a_bot_submit" in surface_targets and not tracker.should_stop() and not_a_bot_target:
+                _perform_request(
+                    session,
+                    tracker=tracker,
+                    base_url=base_url,
+                    request_spec=_request_spec(
+                        "post",
+                        not_a_bot_target,
+                        surface_ids=["not_a_bot_submit"],
+                        headers={
+                            "accept": "application/json",
+                            "content-type": "application/x-www-form-urlencoded",
+                        },
+                        data=_invalid_not_a_bot_body(),
+                    ),
+                )
+            if (
+                "puzzle_submit_or_escalation" in surface_targets
+                and not tracker.should_stop()
+                and puzzle_target
+            ):
+                _perform_request(
+                    session,
+                    tracker=tracker,
+                    base_url=base_url,
+                    request_spec=_request_spec(
+                        "post",
+                        puzzle_target,
+                        surface_ids=["puzzle_submit_or_escalation"],
+                        headers={
+                            "accept": "application/json",
+                            "content-type": "application/x-www-form-urlencoded",
+                        },
+                        data="answer=bad&seed=invalid&return_to=%2F",
+                    ),
+                )
+
+        if pow_target and not tracker.should_stop():
+            pow_response = _perform_request(
+                session,
+                tracker=tracker,
+                base_url=base_url,
+                request_spec=_request_spec(
+                    "get",
+                    pow_target,
+                    headers={"accept-language": "en-GB,en;q=0.8"},
+                ),
+            )
+            pow_forms = _response_form_targets(pow_response) if pow_response is not None else []
+            pow_verify_target = _first_matching_target(
+                pow_forms,
+                lambda candidate: _path_contains(candidate, "/pow/verify"),
+            )
+            tarpit_target = _first_matching_target(
+                pow_forms,
+                lambda candidate: _path_contains(candidate, "/tarpit/progress"),
+            )
+            if "pow_verify_abuse" in surface_targets and not tracker.should_stop() and pow_verify_target:
+                _perform_request(
+                    session,
+                    tracker=tracker,
+                    base_url=base_url,
+                    request_spec=_request_spec(
+                        "post",
+                        pow_verify_target,
+                        surface_ids=["pow_verify_abuse"],
+                        headers={
+                            "accept": "application/json",
+                            "content-type": "application/json",
+                        },
+                        json_body={"seed": "invalid-seed", "nonce": "invalid-nonce"},
+                    ),
+                )
+            if "tarpit_progress_abuse" in surface_targets and not tracker.should_stop() and tarpit_target:
+                _perform_request(
+                    session,
+                    tracker=tracker,
+                    base_url=base_url,
+                    request_spec=_request_spec(
+                        "post",
+                        tarpit_target,
+                        surface_ids=["tarpit_progress_abuse"],
+                        headers={
+                            "accept": "application/json",
+                            "content-type": "application/json",
+                        },
+                        json_body={
+                            "token": "invalid",
+                            "operation_id": "invalid",
+                            "proof_nonce": "invalid",
+                        },
+                    ),
+                )
+
+        if redirect_target and not tracker.should_stop():
+            _perform_request(
+                session,
+                tracker=tracker,
+                base_url=base_url,
+                request_spec=_request_spec(
+                    "get",
+                    redirect_target,
+                    headers={"accept": "application/json"},
+                    follow_redirect=True,
+                ),
+            )
     return tracker.result_payload()
 
 
@@ -1272,7 +1371,6 @@ def _execute_browser_persona(
         sim_telemetry_secret=sim_telemetry_secret,
     )
     surface_targets = set(_normalize_surface_targets(plan.get("surface_targets")))
-    runtime_paths = _normalize_runtime_paths(plan.get("runtime_paths"))
     browser_proxy_url = _normalize_optional_proxy_url(plan.get("browser_proxy_url")) or _normalize_optional_proxy_url(
         plan.get("request_proxy_url")
     )
@@ -1289,39 +1387,40 @@ def _execute_browser_persona(
             proxy_url=browser_proxy_url,
         ),
     ) as session:
-        if "challenge_routing" in surface_targets and not tracker.should_stop():
-            challenge_target = _absolute_target(
-                base_url,
-                _route_with_query(
-                    runtime_paths["public_search"],
-                    f"q=scrapling-{tracker.fulfillment_mode}",
-                ),
+        root_state: dict[str, Any] = {}
+        root_target = base_url
+        try:
+            root_response = session.fetch(
+                root_target,
+                extra_headers=tracker.next_headers({"accept-language": "en-GB,en;q=0.8"}),
+                page_action=_browser_root_discovery_page_action(root_state),
             )
-            try:
-                response = session.fetch(
-                    challenge_target,
-                    extra_headers=tracker.next_headers({"accept-language": "en-GB,en;q=0.8"}),
-                )
-                tracker.record_response(
-                    response,
-                    ["challenge_routing"],
-                    request_method="get",
-                    request_target=challenge_target,
-                )
-            except Exception as exc:
-                tracker.record_failure(
-                    exc,
-                    surface_ids=["challenge_routing"],
-                    request_method="get",
-                    request_target=challenge_target,
-                )
-                return tracker.result_payload()
+            tracker.record_response(
+                root_response,
+                _public_discovery_surface_ids(surface_targets),
+                request_method="get",
+                request_target=root_target,
+            )
+        except Exception as exc:
+            tracker.record_failure(
+                exc,
+                surface_ids=_public_discovery_surface_ids(surface_targets),
+                request_method="get",
+                request_target=root_target,
+            )
+            return tracker.result_payload()
 
         if (
             {"js_verification_execution", "browser_automation_detection"} & surface_targets
             and not tracker.should_stop()
         ):
-            pow_target = _absolute_target(base_url, runtime_paths["pow"])
+            pow_target = _browser_discovered_target(
+                root_state,
+                base_url=base_url,
+                predicate=lambda candidate: _request_path_value(candidate).lower() == "/pow",
+            )
+            if pow_target is None:
+                return tracker.result_payload()
             pow_state: dict[str, Any] = {}
             try:
                 response = session.fetch(
@@ -1386,7 +1485,13 @@ def _execute_browser_persona(
                 return tracker.result_payload()
 
         if "maze_navigation" in surface_targets and not tracker.should_stop():
-            maze_target = _absolute_target(base_url, runtime_paths["maze_entry"])
+            maze_target = _browser_discovered_target(
+                root_state,
+                base_url=base_url,
+                predicate=lambda candidate: _path_contains(candidate, "/maze/"),
+            )
+            if maze_target is None:
+                return tracker.result_payload()
             maze_state: dict[str, Any] = {}
             try:
                 response = session.fetch(
@@ -1457,7 +1562,6 @@ def execute_worker_plan(
             raise WorkerConfigError(
                 "worker_plan surface_targets must match the bounded fulfillment_mode mapping"
             )
-        _normalize_runtime_paths(plan.get("runtime_paths"))
         if not sim_telemetry_secret.strip():
             raise WorkerConfigError("SHUMA_SIM_TELEMETRY_SECRET is required for Scrapling worker tagging")
 
@@ -1491,6 +1595,7 @@ def execute_worker_plan(
                 "tick_id": str(plan.get("tick_id") or ""),
                 "lane": "scrapling_traffic",
                 "fulfillment_mode": fulfillment_mode,
+                "category_targets": category_targets,
                 "worker_id": socket.gethostname(),
                 "tick_started_at": int(plan.get("tick_started_at") or int(time.time())),
                 "tick_completed_at": int(time.time()),

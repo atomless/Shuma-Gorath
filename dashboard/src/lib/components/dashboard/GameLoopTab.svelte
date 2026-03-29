@@ -1,7 +1,10 @@
 <script>
   import { formatCompactNumber } from '../../domain/core/format.js';
   import { formatUnixSecondsLocal } from '../../domain/core/date-time.js';
-  import { deriveLatestScraplingEvidenceFromSummaries } from './monitoring-view-model.js';
+  import {
+    deriveAdversaryRunRowsFromSummaries,
+    deriveLatestScraplingEvidenceFromSummaries
+  } from './monitoring-view-model.js';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
   import MetricStatCard from './primitives/MetricStatCard.svelte';
 
@@ -15,15 +18,33 @@
 
   const gameLoopSections = Object.freeze([
     {
+      id: 'recent-rounds',
+      title: 'Recent Rounds',
+      description:
+        'A simple recent history of judged rounds: who played, what move was tested, and whether the loop retained it or rolled it back.'
+    },
+    {
+      id: 'adversary-cast',
+      title: 'Adversaries In This Round',
+      description:
+        'Simulator-ground-truth categories are visible here after the fact so we can see which adversaries showed up and what the recent recognition evaluation inferred.'
+    },
+    {
+      id: 'defence-cast',
+      title: 'Defences In This Round',
+      description:
+        'These rows stay surface-native. They show what Shuma’s defences observed and how those surfaces fared, without using simulator labels as defence truth.'
+    },
+    {
       id: 'current-status',
-      title: '',
-      description: ''
+      title: 'Round Outcome',
+      description: 'The current machine-first outcome after the latest judged round.'
     },
     {
       id: 'recent-loop-progress',
-      title: 'Recent Loop Progress',
+      title: 'Loop Progress',
       description:
-        'Bounded multi-loop benchmark progress and recent controller action history from the oversight decision ledger.'
+        'The existing loop lineage, cadence, and continuation state remain here as lower-level context.'
     },
     {
       id: 'outcome-frontier',
@@ -39,9 +60,9 @@
     },
     {
       id: 'pressure-sits',
-      title: 'Board State',
+      title: 'Pressure Context',
       description:
-        'Terrain breach progress, surface-contract satisfaction, recognition evaluation, and recent change context shown as separate truths.'
+        'The richer exploit-progress, surface-contract, recognition, and change context still sits below the observer-facing round summary.'
     },
     {
       id: 'trust-and-blockers',
@@ -168,6 +189,29 @@
         return lowered.charAt(0).toUpperCase() + lowered.slice(1);
       });
     return words.join(' ');
+  };
+
+  const formatLaneList = (laneIds, fallback = 'Not available') => {
+    const seen = new Set();
+    const labels = toArray(laneIds)
+      .map((laneId) => humanizeToken(laneId))
+      .filter((laneId) => {
+        if (!laneId || seen.has(laneId)) return false;
+        seen.add(laneId);
+        return true;
+      });
+    return labels.length ? labels.join(', ') : fallback;
+  };
+
+  const summarizeRequiredRuns = (runs, fallback = 'No current mixed-attacker evidence set.') => {
+    const labels = toArray(runs)
+      .map((run) => {
+        const laneLabel = humanizeToken(run?.lane);
+        const statusLabel = humanizeToken(run?.status, 'sentence');
+        return laneLabel && statusLabel ? `${laneLabel} ${statusLabel}` : '';
+      })
+      .filter(Boolean);
+    return labels.length ? labels.join(' | ') : fallback;
   };
 
   const resolveGameLoopPolicyProfile = (profileId) => {
@@ -494,10 +538,82 @@
     return normalized.length ? normalized.join(' | ') : fallback;
   };
 
-  $: latestHistoryRows = toArray(oversightHistory?.rows).slice(0, 6);
+  const comparisonStatusText = (status) => {
+    const normalized = String(status || '').trim();
+    if (normalized === 'current_exact_match') return 'matched exactly';
+    if (normalized === 'collapsed_to_unknown_non_human') return 'collapsed to unknown non-human';
+    if (normalized === 'not_materialized') return 'not materialized';
+    return humanizeToken(normalized, 'sentence');
+  };
+
+  const formatModeSummary = (modes) => {
+    const labels = dedupeStrings(toArray(modes)).map((mode) => humanizeToken(mode));
+    if (labels.length === 1) return labels[0];
+    if (labels.length > 1) return 'Mixed activity';
+    return 'No mode detail';
+  };
+
+  const formatObservedRunSummary = (run) => {
+    if (!run) return 'No recent run detail is materialized yet.';
+    const details = [
+      formatModeSummary(run.observedFulfillmentModes),
+      `${formatNumber(run.monitoringEventCount, '0')} monitoring events`,
+      `${formatNumber(run.defenseDeltaCount, '0')} defence reactions`,
+      `${formatNumber(run.banOutcomeCount, '0')} bans`
+    ];
+    const runtimeSummary = run?.llmRuntimeSummary;
+    if (runtimeSummary?.provider || runtimeSummary?.modelId) {
+      details.push(
+        [humanizeToken(runtimeSummary.provider), runtimeSummary.modelId].filter(Boolean).join(' ')
+      );
+    }
+    return details.filter(Boolean).join(' | ');
+  };
+
+  const formatRoundResultSummary = (row) =>
+    joinStatusSummary(
+      [
+        row?.retain_or_rollback ? humanizeToken(row.retain_or_rollback) : '',
+        row?.watch_window_result ? humanizeToken(row.watch_window_result) : ''
+      ],
+      'No judged result'
+    );
+
+  const formatRoundMoveSummary = (row, historyRow) => {
+    const patchFamily =
+      row?.proposal?.patch_family || historyRow?.proposal?.patch_family || historyRow?.apply?.patch_family;
+    return patchFamily ? humanizeToken(patchFamily) : 'No config move recorded';
+  };
+
+  const formatRoundNextState = (row, isLatest, currentSourceLabel, currentStatus) => {
+    if (isLatest && currentSourceLabel && currentSourceLabel !== 'No active mixed-attacker evidence set') {
+      return currentStatus
+        ? `${currentSourceLabel} ${humanizeToken(currentStatus, 'sentence')}`
+        : currentSourceLabel;
+    }
+    if (row?.homeostasis_break_status === 'triggered') return 'Homeostasis break triggered';
+    return row?.cycle_judgment ? humanizeToken(row.cycle_judgment) : 'No next-state detail';
+  };
+
+  const formatReceiptObservation = (receipt) => {
+    const source = asRecord(receipt);
+    const attemptCount = asFiniteNumber(source.attemptCount);
+    const requestLine = [source.sampleRequestMethod, source.sampleRequestPath].filter(Boolean).join(' ');
+    const responseStatus = asFiniteNumber(source.sampleResponseStatus);
+    const fragments = [];
+    if (attemptCount !== null) fragments.push(`${formatNumber(attemptCount, '0')} attempts`);
+    if (requestLine) fragments.push(`Saw ${requestLine}`);
+    if (responseStatus !== null) fragments.push(`-> ${formatNumber(responseStatus, '0')}`);
+    return fragments.length ? fragments.join(' | ') : 'No attempt materialized in this round.';
+  };
+
+  $: oversightHistoryRows = toArray(oversightHistory?.rows);
+  $: latestHistoryRows = oversightHistoryRows.slice(0, 6);
   $: latestHistoryRow = latestHistoryRows[0] || null;
   $: latestDecision = asRecord(oversightAgentStatus?.latest_decision);
   $: latestRecentRun = toArray(oversightAgentStatus?.recent_runs)[0] || null;
+  $: candidateWindowStatus = asRecord(oversightAgentStatus?.candidate_window);
+  $: continuationRunStatus = asRecord(oversightAgentStatus?.continuation_run);
   $: episodeArchive = asRecord(oversightHistory?.episode_archive?.schema_version
     ? oversightHistory?.episode_archive
     : oversightAgentStatus?.episode_archive);
@@ -512,9 +628,140 @@
   $: rolledBackCycleCount = judgedCycleRows.filter(
     (row) => String(row?.retain_or_rollback || '').trim() === 'rolled_back'
   ).length;
+  $: latestJudgedEpisodeRow = judgedCycleRows[0] || null;
+  $: latestJudgedLaneLabels = formatLaneList(
+    latestJudgedEpisodeRow?.judged_lane_ids,
+    'No judged mixed-attacker episode recorded yet.'
+  );
+  $: currentMixedEvidenceSource =
+    toArray(candidateWindowStatus?.required_runs).length > 0
+      ? 'candidate_window'
+      : toArray(continuationRunStatus?.required_runs).length > 0
+        ? 'continuation_run'
+        : '';
+  $: currentMixedEvidenceRuns =
+    currentMixedEvidenceSource === 'candidate_window'
+      ? toArray(candidateWindowStatus?.required_runs)
+      : currentMixedEvidenceSource === 'continuation_run'
+        ? toArray(continuationRunStatus?.required_runs)
+        : [];
+  $: currentMixedEvidenceSourceLabel =
+    currentMixedEvidenceSource === 'candidate_window'
+      ? 'Candidate window'
+      : currentMixedEvidenceSource === 'continuation_run'
+        ? 'Loop continuation'
+        : 'No active mixed-attacker evidence set';
+  $: currentMixedEvidenceStatus =
+    currentMixedEvidenceSource === 'candidate_window'
+      ? candidateWindowStatus?.status
+      : currentMixedEvidenceSource === 'continuation_run'
+        ? continuationRunStatus?.status
+        : '';
+  $: currentMixedEvidenceLaneSummary = summarizeRequiredRuns(currentMixedEvidenceRuns);
   $: currentObjectiveProfileId = String(operatorSnapshot?.objectives?.profile_id || '').trim();
   $: currentPolicyProfile = resolveGameLoopPolicyProfile(currentObjectiveProfileId);
   $: recognitionEvaluation = asRecord(operatorSnapshot?.non_human_traffic?.recognition_evaluation);
+  $: recognitionComparisonRows = toArray(recognitionEvaluation?.comparison_rows);
+  $: recognitionComparisonByCategoryId = new Map(
+    recognitionComparisonRows
+      .map((row) => [String(row?.category_id || '').trim(), row])
+      .filter(([categoryId]) => categoryId)
+  );
+  $: simulatorGroundTruth = asRecord(recognitionEvaluation?.simulator_ground_truth);
+  $: simulatorGroundTruthCategoryRows = toArray(simulatorGroundTruth?.categories);
+  $: simulatorGroundTruthByCategoryId = new Map(
+    simulatorGroundTruthCategoryRows
+      .map((row) => [String(row?.category_id || '').trim(), row])
+      .filter(([categoryId]) => categoryId)
+  );
+  $: recentSimRunRows = deriveAdversaryRunRowsFromSummaries(
+    toArray(operatorSnapshot?.adversary_sim?.recent_runs),
+    []
+  ).runRows;
+  $: recentSimRunRowsById = new Map(
+    recentSimRunRows
+      .map((run) => [String(run?.runId || '').trim(), run])
+      .filter(([runId]) => runId)
+  );
+  $: historyRowByEpisodeId = new Map(
+    oversightHistoryRows
+      .map((row) => [String(row?.decision_id || '').trim(), row])
+      .filter(([decisionId]) => decisionId)
+  );
+  $: judgedRunIds = dedupeStrings(latestJudgedEpisodeRow?.judged_run_ids);
+  $: selectedRoundMissingRunIds = judgedRunIds.filter((runId) => !recentSimRunRowsById.has(runId));
+  $: selectedRoundLaneRunRows = judgedRunIds
+    .map((runId) => recentSimRunRowsById.get(runId) || null)
+    .filter(Boolean);
+  $: recentRoundRows = judgedCycleRows.slice(0, 4).map((row, index) => {
+    const historyRow = historyRowByEpisodeId.get(String(row?.episode_id || '').trim()) || null;
+    return {
+      episodeId: String(row?.episode_id || historyRow?.decision_id || `round-${index}`),
+      completedText: formatTimestamp(row?.completed_at_ts || historyRow?.recorded_at_ts),
+      lanesText: formatLaneList(row?.judged_lane_ids, 'No judged lanes recorded'),
+      resultText: formatRoundResultSummary(row),
+      moveText: formatRoundMoveSummary(row, historyRow),
+      nextText: formatRoundNextState(
+        row,
+        index === 0,
+        currentMixedEvidenceSourceLabel,
+        currentMixedEvidenceStatus
+      ),
+      noteText: row?.proposal?.note || historyRow?.summary || ''
+    };
+  });
+  $: adversaryCastRows = (() => {
+    const rows = [];
+    const seen = new Set();
+    selectedRoundLaneRunRows.forEach((run) => {
+      const categoryIds = dedupeStrings(run?.observedCategoryIds);
+      if (categoryIds.length === 0) {
+        const key = `${String(run?.runId || run?.lane || 'unknown')}:observer-category-unavailable`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          rows.push({
+            key,
+            categoryLabel: 'Category truth unavailable',
+            laneText: humanizeToken(run?.lane),
+            activityText: formatObservedRunSummary(run),
+            shumaCallText: 'Recent recognition evaluation unavailable',
+            recognitionText: 'not materialized',
+            noteText:
+              'This judged run did not preserve an explicit lane-owned simulator category label, so the observer page will not guess one.'
+          });
+        }
+        return;
+      }
+      categoryIds.forEach((categoryId) => {
+        const key = `${String(run?.runId || run?.lane || 'unknown')}:${categoryId || 'uncategorized'}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        const comparison = recognitionComparisonByCategoryId.get(categoryId) || null;
+        const groundTruth = simulatorGroundTruthByCategoryId.get(categoryId) || null;
+        rows.push({
+          key,
+          categoryLabel:
+            groundTruth?.category_label ||
+            comparison?.category_label ||
+            humanizeToken(categoryId || run?.lane),
+          laneText: humanizeToken(run?.lane),
+          activityText: formatObservedRunSummary(run),
+          shumaCallText: comparison?.inferred_category_label
+            ? `Recent recognition evaluation inferred ${comparison.inferred_category_label}`
+            : 'Recent recognition evaluation not materialized',
+          recognitionText: comparison
+            ? comparisonStatusText(comparison.comparison_status)
+            : 'not materialized',
+          noteText:
+            comparison?.note ||
+            (groundTruth?.evidence_references?.length
+              ? `Simulator ground truth preserved for ${formatNumber(groundTruth.recent_run_count, '0')} recent run(s).`
+              : '')
+        });
+      });
+    });
+    return rows;
+  })();
   $: suspiciousOriginCostFamily = findBenchmarkFamily('suspicious_origin_cost');
   $: likelyHumanFrictionFamily = findBenchmarkFamily('likely_human_friction');
   $: exploitProgressFamily = findBenchmarkFamily('mixed_attacker_restriction_progress');
@@ -708,15 +955,69 @@
     'The short-window abuse backstop is not materialized yet.'
   );
   $: restartBaseline = asRecord(homeostasisSummary?.restart_baseline);
-  $: categoryPostureTargets = new Map(
-    toArray(operatorSnapshot?.objectives?.category_postures).map((row) => [
-      String(row?.category_id || '').trim(),
-      String(row?.posture || '').trim()
-    ])
-  );
+  $: recognitionDisplayRows = (() => {
+    const categoryIds = dedupeStrings([
+      ...recognitionComparisonRows.map((row) => String(row?.category_id || '').trim()),
+      ...simulatorGroundTruthCategoryRows.map((row) => String(row?.category_id || '').trim())
+    ]);
+    return categoryIds.map((categoryId) => {
+      const comparison = recognitionComparisonByCategoryId.get(categoryId) || null;
+      const groundTruth = simulatorGroundTruthByCategoryId.get(categoryId) || null;
+      return {
+        categoryId,
+        label:
+          groundTruth?.category_label ||
+          comparison?.category_label ||
+          humanizeToken(categoryId),
+        inferredLabel: comparison?.inferred_category_label || '',
+        statusText: comparison
+          ? comparisonStatusText(comparison.comparison_status)
+          : 'not materialized',
+        basisText: comparison?.basis ? humanizeToken(comparison.basis, 'sentence') : '',
+        recentRunCount: asFiniteNumber(groundTruth?.recent_run_count) || 0,
+        noteText: comparison?.note || ''
+      };
+    });
+  })();
   $: latestScraplingEvidence = deriveLatestScraplingEvidenceFromSummaries(
     toArray(operatorSnapshot?.adversary_sim?.recent_runs)
   );
+  $: selectedScraplingRoundRun =
+    selectedRoundLaneRunRows.find((run) => run?.lane === 'scrapling_traffic') || null;
+  $: selectedSurfaceCoverage = asRecord(selectedScraplingRoundRun?.ownedSurfaceCoverage);
+  $: selectedSurfaceChecklistRows = toArray(selectedSurfaceCoverage?.surfaceChecklistRows);
+  $: surfaceReceiptById = new Map(
+    toArray(selectedSurfaceCoverage?.receipts)
+      .filter((receipt) => String(receipt?.surfaceId || '').trim())
+      .map((receipt) => [String(receipt.surfaceId || '').trim(), receipt])
+  );
+  $: defenceCastRows = (() => {
+    const rows = [];
+    const seen = new Set();
+    selectedSurfaceChecklistRows
+      .filter((row) => row && row.state !== 'not_required')
+      .forEach((row) => {
+        if (seen.has(row.surfaceId)) return;
+        seen.add(row.surfaceId);
+        const receipt = surfaceReceiptById.get(row.surfaceId);
+        rows.push({
+          key: `surface-${row.surfaceId}`,
+          surfaceLabel: row.surfaceLabel || humanizeToken(row.surfaceId),
+          observationText: formatReceiptObservation(receipt),
+          outcomeText: row.stateLabel || 'state unavailable',
+          noteText: joinStatusSummary(
+            [
+              row?.dependencyLabel || '',
+              receipt?.coverageStatus
+                ? `coverage ${humanizeToken(receipt.coverageStatus, 'sentence')}`
+                : ''
+            ],
+            'No additional surface detail.'
+          )
+        });
+      });
+    return rows;
+  })();
   $: surfaceContractCoverage = asRecord(latestScraplingEvidence?.ownedSurfaceCoverage);
   $: surfaceContractBlockingLabels = (() => {
     const blockingReceipts = toArray(surfaceContractCoverage?.receipts).filter(
@@ -769,28 +1070,6 @@
           };
         })
     );
-  $: categoryTargetRows = toArray(findBenchmarkFamily('non_human_category_posture')?.metrics)
-    .map((metric) => {
-      const categoryId = categoryIdFromMetric(metric?.metric_id);
-      const targetPosture = categoryPostureTargets.get(categoryId) || '';
-      const currentValue = asFiniteNumber(metric?.current);
-      const isUnscored = currentValue === null;
-      const achievementRatio = ratioToTarget(metric?.current, metric?.target);
-      return {
-        categoryId,
-        label: humanizeToken(categoryId),
-        targetPostureText: humanizeToken(targetPosture),
-        achievedText: formatCategoryAchievedText(metric?.current),
-        targetText: formatRatioPercent(metric?.target),
-        achievementText: formatCategoryAchievementText(achievementRatio, isUnscored),
-        meterPercent: isUnscored ? null : clampPercent((achievementRatio || 0) * 100),
-        isUnscored,
-        statusText: humanizeToken(metric?.status, 'sentence'),
-        capabilityText: humanizeToken(metric?.capability_gate, 'sentence'),
-        basisText: humanizeToken(metric?.basis, 'sentence')
-      };
-    })
-    .filter((row) => row.categoryId);
   $: exploitProgressRows = toArray(exploitProgressFamily?.metrics)
     .map((metric) => ({
       metricId: metric?.metric_id,
@@ -898,7 +1177,98 @@
         <p class="section-desc text-muted">{section.description}</p>
       {/if}
 
-      {#if section.id === 'current-status'}
+      {#if section.id === 'recent-rounds'}
+        <div id="game-loop-round-history" class="panel panel-soft pad-md">
+          <p class="caps-label">Recent Rounds</p>
+          <p class="text-muted">
+            Each row is a judged round: who played, what move was tested, and whether the loop kept going.
+          </p>
+          {#if recentRoundRows.length === 0}
+            <p class="text-muted">No completed judged rounds are materialized yet.</p>
+          {:else}
+            <ul class="metric-list">
+              {#each recentRoundRows as row (row.episodeId)}
+                <li>
+                  <strong>{row.completedText}</strong>: {row.lanesText}
+                  <br />
+                  <span class="text-muted">{row.resultText} | {row.moveText} | {row.nextText}</span>
+                  {#if row.noteText}
+                    <br />
+                    <span class="text-muted">{row.noteText}</span>
+                  {/if}
+                </li>
+              {/each}
+            </ul>
+          {/if}
+        </div>
+      {:else if section.id === 'adversary-cast'}
+        <div id="game-loop-adversary-cast" class="panel panel-soft pad-md">
+          <p class="caps-label">Adversaries In This Round</p>
+          <p class="text-muted">
+            This is the observer view. The simulator ground truth is visible here after the round, while runtime defences still never read those labels.
+          </p>
+          {#if adversaryCastRows.length === 0}
+            <p class="text-muted">
+              {#if selectedRoundMissingRunIds.length}
+                The judged round is recorded, but its exact run receipts are no longer present in recent sim history.
+              {:else}
+                No recent adversary cast is materialized yet.
+              {/if}
+            </p>
+          {:else}
+            <ul class="metric-list">
+              {#each adversaryCastRows as row (row.key)}
+                <li>
+                  <strong>{row.categoryLabel}</strong>
+                  {#if row.laneText}
+                    via {row.laneText}
+                  {/if}
+                  <br />
+                  <span class="text-muted">{row.activityText}</span>
+                  <br />
+                  <span class="text-muted">{row.shumaCallText} | {row.recognitionText}</span>
+                  {#if row.noteText}
+                    <br />
+                    <span class="text-muted">{row.noteText}</span>
+                  {/if}
+                </li>
+              {/each}
+            </ul>
+          {/if}
+        </div>
+      {:else if section.id === 'defence-cast'}
+        <div id="game-loop-defence-cast" class="panel panel-soft pad-md">
+          <p class="caps-label">Defences In This Round</p>
+          <p class="text-muted">
+            This is the surface-native view. Each row stays with what the defence saw, how it responded, and whether the surface held or leaked.
+          </p>
+          {#if defenceCastRows.length === 0}
+            <p class="text-muted">
+              {#if selectedRoundMissingRunIds.length}
+                The judged round is recorded, but its exact run receipts are no longer present in recent sim history.
+              {:else}
+                No defence-surface view is materialized for the selected round yet.
+              {/if}
+            </p>
+          {:else}
+            <ul class="metric-list">
+              {#each defenceCastRows as row (row.key)}
+                <li>
+                  <strong>{row.surfaceLabel}</strong>
+                  <br />
+                  <span class="text-muted">{row.observationText}</span>
+                  <br />
+                  <span class="text-muted">{row.outcomeText}</span>
+                  {#if row.noteText}
+                    <br />
+                    <span class="text-muted">{row.noteText}</span>
+                  {/if}
+                </li>
+              {/each}
+            </ul>
+          {/if}
+        </div>
+      {:else if section.id === 'current-status'}
         <div class="stats-cards stats-cards--summary">
           {#each currentStatusCards as card (card.valueId)}
             <MetricStatCard title={card.title} valueId={card.valueId} value={card.value}>
@@ -963,6 +1333,27 @@
                 | homeostasis {humanizeToken(episodeArchive?.homeostasis?.status, 'sentence')}
               </span>
             </div>
+            <div id="game-loop-progress-judged-basis" class="info-row">
+              <span class="info-label text-muted">Judged Episode Basis:</span>
+              <span class="status-value">
+                {latestJudgedLaneLabels}
+                {#if latestJudgedEpisodeRow?.retain_or_rollback}
+                  | latest judgment {humanizeToken(latestJudgedEpisodeRow.retain_or_rollback, 'sentence')}
+                {/if}
+              </span>
+            </div>
+            <div id="game-loop-progress-current-evidence-set" class="info-row">
+              <span class="info-label text-muted">Current Mixed-Attacker Evidence Set:</span>
+              <span class="status-value">
+                {currentMixedEvidenceSourceLabel}
+                {#if currentMixedEvidenceStatus}
+                  | status {humanizeToken(currentMixedEvidenceStatus, 'sentence')}
+                {/if}
+                {#if currentMixedEvidenceRuns.length}
+                  | {currentMixedEvidenceLaneSummary}
+                {/if}
+              </span>
+            </div>
             <div id="game-loop-progress-break-state" class="info-row">
               <span class="info-label text-muted">Homeostasis Break:</span>
               <span class="status-value">
@@ -979,6 +1370,9 @@
               </span>
             </div>
           </div>
+          <p id="game-loop-progress-judged-basis-note" class="text-muted">
+            Recent visibility alone does not mean a judged mixed-attacker episode exists.
+          </p>
         </div>
         <div id="game-loop-progress-history" class="panel panel-soft pad-md">
           {#if latestHistoryRows.length === 0}
@@ -1097,6 +1491,9 @@
               </span>
             </div>
           </div>
+          <p class="text-muted">
+            Recent visibility alone does not mean a judged mixed-attacker episode exists.
+          </p>
 
           {#if rootCauseBlockerGroups.length}
             <p class="caps-label">Root Cause Blockers</p>
@@ -1227,7 +1624,7 @@
           <article id="game-loop-recognition-evaluation" class="card panel panel-border pad-md-b">
             <h3 class="caps-label">Recognition Evaluation</h3>
             <p class="text-muted">
-              These rows are the recognition side quest. They compare Shuma-side category inference against simulator-known intent after the fact and must not drive bounded tuning or runtime restriction directly.
+              These rows compare simulator-known categories against Shuma’s recent category evaluation after the fact. They remain observer-only and must not drive bounded tuning or runtime restriction directly.
             </p>
             <div class="status-rows">
               <div class="info-row">
@@ -1247,27 +1644,33 @@
                 </span>
               </div>
             </div>
-            {#if categoryTargetRows.length === 0}
+            {#if recognitionDisplayRows.length === 0}
               <p class="text-muted">No recognition-evaluation rows are materialized yet.</p>
             {:else}
-              <div class="game-loop-meter-list">
-                {#each categoryTargetRows as row (row.categoryId)}
-                  <div class="game-loop-meter-row">
-                    <p class="caps-label">{row.label}</p>
-                    <div class="game-loop-meter" aria-hidden="true">
-                      {#if row.meterPercent !== null}
-                        <span class="game-loop-meter__fill" style={`width: ${row.meterPercent}%;`}></span>
+              <ul class="metric-list">
+                {#each recognitionDisplayRows as row (row.categoryId)}
+                  <li>
+                    <strong>{row.label}</strong>:
+                    {row.statusText}
+                    {#if row.recentRunCount}
+                      | simulator ground truth in {formatNumber(row.recentRunCount, '0')} recent run(s)
+                    {/if}
+                    <br />
+                    <span class="text-muted">
+                      {row.inferredLabel
+                        ? `Recent inference ${row.inferredLabel}`
+                        : 'Recent inference not materialized'}
+                      {#if row.basisText}
+                        | basis {row.basisText}
                       {/if}
-                    </div>
-                    <p class="game-loop-meter-meta text-muted">
-                      Target {row.targetPostureText} | Achieved {row.achievedText} | Goal {row.targetText} | {row.achievementText} | {row.statusText}
-                    </p>
-                    <p class="game-loop-meter-meta text-muted">
-                      Support {row.capabilityText} | Basis {row.basisText}
-                    </p>
-                  </div>
+                    </span>
+                    {#if row.noteText}
+                      <br />
+                      <span class="text-muted">{row.noteText}</span>
+                    {/if}
+                  </li>
                 {/each}
-              </div>
+              </ul>
             {/if}
           </article>
           <article class="card panel panel-border pad-md-b">

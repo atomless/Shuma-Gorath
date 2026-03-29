@@ -11,7 +11,7 @@ pub(crate) use super::adversary_sim_lane_runtime::{
 pub(crate) use super::adversary_sim_llm_lane::next_llm_fulfillment_plan;
 pub use super::adversary_sim_worker_plan::{
     AutonomousHeartbeatTickSummary, GenerationTickResult, LlmRuntimeRecentRunSummary,
-    LlmRuntimeResult, ScraplingRuntimePaths, ScraplingWorkerPlan, ScraplingWorkerResult,
+    LlmRuntimeResult, ScraplingWorkerPlan, ScraplingWorkerResult,
 };
 #[cfg(test)]
 use super::adversary_sim_corpus::{

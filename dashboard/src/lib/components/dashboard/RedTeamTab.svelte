@@ -29,6 +29,8 @@
   export let eventsSnapshot = null;
   export let bansSnapshot = null;
   export let monitoringFreshnessSnapshot = null;
+  export let oversightHistory = null;
+  export let oversightAgentStatus = null;
   export let lifecycleCopy = '';
   export let noticeText = '';
   export let noticeKind = 'info';
@@ -94,6 +96,30 @@
     }
     return 'unavailable';
   };
+  const formatLaneList = (laneIds, fallback = 'No judged mixed-attacker episode recorded yet.') => {
+    const seen = new Set();
+    const labels = Array.isArray(laneIds)
+      ? laneIds
+        .map((laneId) => formatLaneLabel(String(laneId || '').trim(), ''))
+        .filter((laneLabel) => {
+          if (!laneLabel || seen.has(laneLabel)) return false;
+          seen.add(laneLabel);
+          return true;
+        })
+      : [];
+    return labels.length ? labels.join(', ') : fallback;
+  };
+  const summarizeRequiredRuns = (runs, fallback = 'No active mixed-attacker evidence set.') => {
+    if (!Array.isArray(runs) || runs.length === 0) return fallback;
+    return runs
+      .map((run) => {
+        const laneLabel = formatLaneLabel(run?.lane, '');
+        const statusLabel = humanizeToken(run?.status || '').toLowerCase();
+        return laneLabel && statusLabel ? `${laneLabel} ${statusLabel}` : '';
+      })
+      .filter(Boolean)
+      .join(' | ') || fallback;
+  };
 
   function handleToggleChange(event) {
     if (typeof onToggleChange === 'function') {
@@ -147,6 +173,36 @@
   $: latestScraplingEvidence = deriveLatestScraplingEvidenceFromSummaries(rawRecentSimRuns);
   $: desiredLaneLabel = formatLaneLabel(normalizedStatus.desiredLane, 'Synthetic Traffic');
   $: activeLaneLabel = formatLaneLabel(normalizedStatus.activeLane, 'Not running');
+  $: episodeArchive = oversightHistory?.episode_archive?.schema_version
+    ? oversightHistory.episode_archive
+    : (oversightAgentStatus?.episode_archive || null);
+  $: episodeArchiveRows = Array.isArray(episodeArchive?.rows) ? episodeArchive.rows : [];
+  $: latestJudgedEpisode = episodeArchiveRows.find((row) => {
+    const outcome = String(row?.retain_or_rollback || '').trim();
+    return outcome === 'retained' || outcome === 'rolled_back';
+  }) || episodeArchiveRows[0] || null;
+  $: latestJudgedLaneLabels = formatLaneList(latestJudgedEpisode?.judged_lane_ids);
+  $: candidateWindow = oversightAgentStatus && typeof oversightAgentStatus === 'object'
+    ? (oversightAgentStatus.candidate_window || {})
+    : {};
+  $: continuationRun = oversightAgentStatus && typeof oversightAgentStatus === 'object'
+    ? (oversightAgentStatus.continuation_run || {})
+    : {};
+  $: currentEvidenceSource = Array.isArray(candidateWindow?.required_runs) && candidateWindow.required_runs.length
+    ? 'Current candidate window'
+    : Array.isArray(continuationRun?.required_runs) && continuationRun.required_runs.length
+      ? 'Current continuation run'
+      : 'No active mixed-attacker evidence set';
+  $: currentEvidenceStatus = Array.isArray(candidateWindow?.required_runs) && candidateWindow.required_runs.length
+    ? humanizeToken(candidateWindow?.status || '').toLowerCase()
+    : Array.isArray(continuationRun?.required_runs) && continuationRun.required_runs.length
+      ? humanizeToken(continuationRun?.status || '').toLowerCase()
+      : '';
+  $: currentEvidenceSummary = Array.isArray(candidateWindow?.required_runs) && candidateWindow.required_runs.length
+    ? summarizeRequiredRuns(candidateWindow.required_runs)
+    : Array.isArray(continuationRun?.required_runs) && continuationRun.required_runs.length
+      ? summarizeRequiredRuns(continuationRun.required_runs)
+      : 'No active mixed-attacker evidence set.';
   $: diagnosticsLaneKey = normalizedStatus.activeLane || normalizedStatus.desiredLane;
   $: diagnosticsLaneLabel = formatLaneLabel(diagnosticsLaneKey, 'Synthetic Traffic');
   $: diagnosticsLaneProperty = lanePropertyForKey(diagnosticsLaneKey);
@@ -342,8 +398,8 @@
             Truth basis is unavailable for one or more adversary-sim counters.
           </p>
         {/if}
-        {#if persistedEventEvidence}
-          <div id="adversary-sim-persisted-event-evidence" class="status-rows">
+      {#if persistedEventEvidence}
+        <div id="adversary-sim-persisted-event-evidence" class="status-rows">
             <div class="info-row">
               <span class="info-label text-muted">Evidence run:</span>
               <span class="status-value">{persistedEventEvidence.runId || '-'}</span>
@@ -376,8 +432,38 @@
               <span class="info-label text-muted">Last observed at:</span>
               <span class="status-value">{formatOptionalTime(persistedEventEvidence.lastObservedAt)}</span>
             </div>
+        </div>
+      {/if}
+    </div>
+
+      <div id="red-team-judged-episode-basis" class="status-item">
+        <h3>Judged Episode Basis</h3>
+        <p class="control-desc text-muted">
+          Controller-grade judged basis is separate from recent run visibility and shows which lanes actually formed the latest mixed-attacker episode.
+        </p>
+        <div class="status-rows">
+          <div class="info-row">
+            <span class="info-label text-muted">Latest judged episode:</span>
+            <span class="status-value">
+              {latestJudgedLaneLabels}
+              {#if latestJudgedEpisode?.retain_or_rollback}
+                | {humanizeToken(latestJudgedEpisode.retain_or_rollback).toLowerCase()}
+              {/if}
+            </span>
           </div>
-        {/if}
+          <div class="info-row">
+            <span class="info-label text-muted">{currentEvidenceSource}:</span>
+            <span class="status-value">
+              {#if currentEvidenceStatus}
+                status {currentEvidenceStatus} |
+              {/if}
+              {currentEvidenceSummary}
+            </span>
+          </div>
+        </div>
+        <p class="control-desc text-muted">
+          Recent visibility alone does not mean the controller judged a mixed-attacker episode.
+        </p>
       </div>
     </ConfigPanel>
   </div>

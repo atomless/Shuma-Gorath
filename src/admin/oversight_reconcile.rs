@@ -1547,6 +1547,8 @@ mod tests {
             proposal_status: "accepted".to_string(),
             watch_window_result: "rollback_applied".to_string(),
             retain_or_rollback: "rolled_back".to_string(),
+            judged_lane_ids: vec!["scrapling_traffic".to_string()],
+            judged_run_ids: Vec::new(),
             benchmark_deltas: Vec::new(),
             hard_guardrail_triggers: Vec::new(),
             cycle_judgment: "regressed".to_string(),

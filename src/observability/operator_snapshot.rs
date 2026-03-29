@@ -114,6 +114,10 @@ pub(crate) struct OperatorSnapshotEpisodeRecord {
     pub proposal_status: String,
     pub watch_window_result: String,
     pub retain_or_rollback: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub judged_lane_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub judged_run_ids: Vec<String>,
     pub benchmark_deltas: Vec<BenchmarkEpisodeFamilyDelta>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub hard_guardrail_triggers: Vec<String>,

@@ -6,17 +6,21 @@ Component: [`dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../../d
 Purpose:
 
 - Human-readable accountability surface for Shuma's closed feedback loop.
-- Keep loop outcome and controller judgment visible without collapsing into subsystem-forensics detail.
+- Keep recent loop rounds legible from the observer's point of view before the lower machine-first controller detail.
+- Show the adversaries and defences from the last round without collapsing into subsystem-forensics detail.
 - Avoid mixing operator accountability with the deeper diagnostics workflow that now lives in `#diagnostics`.
 
 Current behavior:
 
 - Exposes the bounded Game Loop accountability sections:
-  - top status cards and runtime posture rows with no extra framing pane
+  - `Recent Rounds`
+  - `Adversaries In This Round`
+  - `Defences In This Round`
+  - `Round Outcome`
   - `Recent Loop Progress`
   - `Origin Leakage And Human Cost`
   - `Loop Actionability`
-  - `Board State`
+  - `Pressure Context`
   - `Trust And Blockers`
 - Projects current machine-first feedback-loop reads from:
   - `operator_snapshot_v1`
@@ -24,14 +28,18 @@ Current behavior:
   - `oversight_history_v1`
   - `oversight_agent_status_v1`
 - Surfaces:
+  - a top-level recent-round history built from completed judged episodes, with completion time, participating lanes, retained versus rolled-back result, bounded config family when available, and continue versus stop state,
+  - that recent-round observer surface now selects exact runs from `judged_run_ids` preserved in the episode archive, so the page no longer reconstructs rounds by lane-plus-time coincidence or backfills empty rows from unrelated recent runs,
+  - recent Scrapling observer summaries now preserve explicit lane-owned `category_targets` from the worker receipt path, so the page does not have to infer Scrapling category truth only from `sim_profile`,
+  - an observer-facing adversary cast built from exact judged-run category truth plus recent recognition-evaluation comparison rows, so the page shows which simulator categories appeared without inventing impossible lane/category pairings or turning those simulator labels into runtime truth,
+  - an observer-facing defence cast built from the selected round’s receipt-backed Scrapling surface-contract checklist, so the top page stays surface-native and round-specific rather than reusing simulator labels as defence truth or borrowing broader breach-locus summaries into the selected round,
   - current benchmark overall status and improvement status plus separate current cards for terrain breach progress, evidence quality, exploit urgency, restriction confidence, abuse backstop, human-friction urgency, and top-level loop actionability,
   - bounded recent multi-loop oversight history rather than only the latest cycle,
   - completed judged-cycle lineage from the bounded episode archive, including retained versus rolled-back counts plus explicit homeostasis-break reasons and restart-baseline lineage,
   - true numeric budget usage for likely-human friction plus suspicious forwarded requests, bytes, and latency, with explicit wording that these are guardrails rather than proof of total attacker defeat,
   - a first-class `Terrain Breach Progress` panel showing terrain-local attacker advance separately from category posture,
   - named breach loci carrying explicit measured-vs-derived-vs-not-materialized truth for attempt counts, host-cost channels, repair families, and sample request or response evidence,
-  - taxonomy rows as `Recognition Evaluation`, explicitly described as the categorisation side quest rather than attacker surface-success proof or bounded-tuning truth,
-  - category rows that render as `Unscored` with no meter when exact shared-path category evidence is not available,
+  - taxonomy rows as `Recognition Evaluation`, now rendered as recent per-category comparison rows instead of category-posture meters, explicitly described as the categorisation side quest rather than the primary adversary story, attacker surface-success proof, or bounded-tuning truth,
   - recognition summary counts showing exact matches, collapse to `unknown_non_human`, and still-not-materialized hostile categories separately from the main restriction quest,
   - a separate `Surface Contract Satisfaction` panel so compact Scrapling corroboration stays distinct from both exploit progress and category posture,
   - surface-contract blocking rows that now distinguish `attempted and blocked` from `required but unreached` when receipt-backed proof is present,
@@ -43,7 +51,8 @@ Current behavior:
 - Directs operators and contributors to `#diagnostics` for deep subsystem inspection and rawer contributor-facing telemetry.
 - Keeps detailed adversary proof out of the tab:
   - `Red Team` is where operators verify Scrapling personas, categories, and owned-surface receipts,
-  - `Game Loop` only shows bounded corroborating signals for the detailed attacker receipts, and must say clearly when a row is category posture math rather than direct attacker surface-contract truth, so attacker truth is visible without turning the tab into a forensic adversary surface.
+  - `Game Loop` now starts with a compact round/adversary/defence box score, then shows bounded corroborating signals for the lower machine-first rails,
+  - and the tab must still say clearly when a row is category posture math rather than direct attacker surface-contract truth, so attacker truth is visible without turning the tab into a forensic adversary surface.
   - the tab now treats exploit progress as a separate judge plane from both category posture and compact Scrapling corroboration.
 
 Current limitation:
@@ -58,8 +67,8 @@ Current limitation:
   - and later human traversal calibration must remain a separate proof ring rather than something inferred from sim traffic alone.
 - The remaining Game Loop truthfulness limitation is still category-specific:
   - non-verified suspicious automation still routes mostly through `unknown_non_human`,
-  - recent Scrapling category presence can still appear only as degraded `projected_recent_sim_run` evidence,
-  - so exact live recognition scoring for Scrapling-populated categories remains intentionally unscored until Shuma itself can infer those categories from real shared-path request or behavior evidence.
+  - recent Scrapling category presence is now preserved as explicit observer-only lane-owned category truth for judged runs, but the recognition side still remains a recent category evaluation rather than a per-request transcript,
+  - so exact live recognition scoring for Scrapling-populated categories remains intentionally bounded by what Shuma itself can infer from real shared-path request or behavior evidence.
 - The main current architecture limitation has now narrowed:
   - category posture no longer drives the top-level restriction status or bounded-tuning escalation when it is the only outside-budget family,
   - restriction urgency now explicitly carries `Restriction Confidence` and `Abuse Backstop` as separate machine-first states rather than flattening them into one urgency label,

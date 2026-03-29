@@ -70,6 +70,11 @@ class _RecordingHandler(http.server.BaseHTTPRequestHandler):
             body = (
                 "<html><body>"
                 '<a href="/page">page</a>'
+                '<a href="/catalog?page=1">catalog</a>'
+                '<a href="/challenge/not-a-bot-checkbox">checkpoint</a>'
+                '<a href="/pow">pow</a>'
+                '<a href="/maze/start">maze</a>'
+                '<a href="/redirect-chain">redirect chain</a>'
                 '<a href="/redirect-out">redirect</a>'
                 '<a href="http://evil.example/outside">outside</a>'
                 "</body></html>"
@@ -81,7 +86,7 @@ class _RecordingHandler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(body)
             return
         if self.path == "/page":
-            body = b"<html><body>page</body></html>"
+            body = b"<html><body>page<a href=\"/detail/1\">detail</a></body></html>"
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
@@ -119,6 +124,19 @@ class _RecordingHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
+        if self.path == "/redirect-chain":
+            self.send_response(302)
+            self.send_header("Location", "/landing-final")
+            self.end_headers()
+            return
+        if self.path == "/landing-final":
+            body = json.dumps({"ok": True, "path": self.path, "kind": "landing"}).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if self.path == "/redirect-out":
             self.send_response(302)
             self.send_header("Location", "http://evil.example/escape")
@@ -128,6 +146,10 @@ class _RecordingHandler(http.server.BaseHTTPRequestHandler):
             body = (
                 "<html><body>"
                 '<form action="/challenge/not-a-bot-checkbox" method="post">'
+                '<input name="seed" value="seed"/>'
+                "</form>"
+                '<form action="/challenge/puzzle" method="post">'
+                '<input name="answer" value=""/>'
                 '<input name="seed" value="seed"/>'
                 "</form>"
                 "</body></html>"
@@ -146,6 +168,15 @@ class _RecordingHandler(http.server.BaseHTTPRequestHandler):
                 "document.cookie='js_verified=1; path=/';"
                 "</script>"
                 '<div id="pow-bootstrap" data-js-verified="1">pow</div>'
+                '<form action="/pow/verify" method="post">'
+                '<input name="seed" value="seed"/>'
+                '<input name="nonce" value="nonce"/>'
+                "</form>"
+                '<form action="/tarpit/progress" method="post">'
+                '<input name="token" value="token"/>'
+                '<input name="operation_id" value="operation"/>'
+                '<input name="proof_nonce" value="proof"/>'
+                "</form>"
                 "</body></html>"
             ).encode("utf-8")
             self.send_response(200)
@@ -349,15 +380,6 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
                 "fulfillment_mode": fulfillment_mode,
                 "category_targets": category_targets,
                 "surface_targets": mode_surface_targets[fulfillment_mode],
-                "runtime_paths": {
-                    "public_search": "/sim/public/search",
-                    "not_a_bot_checkbox": "/challenge/not-a-bot-checkbox",
-                    "challenge_submit": "/challenge/puzzle",
-                    "pow": "/pow",
-                    "pow_verify": "/pow/verify",
-                    "tarpit_progress": "/tarpit/progress",
-                    "maze_entry": "/maze/start",
-                },
                 "tick_started_at": int(time.time()),
                 "max_requests": max_requests,
                 "max_depth": 2,
@@ -387,6 +409,20 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
             for entry in list(result.get("surface_receipts") or [])
             if str(entry.get("surface_id") or "") == surface_id
         ]
+
+    def test_execute_worker_plan_preserves_category_targets_in_result_contract(self) -> None:
+        self.assertIsNotNone(scrapling_worker, "worker module missing")
+
+        result = scrapling_worker.execute_worker_plan(  # type: ignore[attr-defined]
+            self._make_beat_payload("bulk_scraper", ["ai_scraper_bot"], max_requests=2),
+            scope_descriptor_path=self.descriptor_path,
+            seed_inventory_path=self.inventory_path,
+            crawldir=self.crawldir,
+            sim_telemetry_secret=SIM_SECRET,
+        )
+
+        self.assertEqual(result["schema_version"], "adversary-sim-scrapling-worker-result.v1")
+        self.assertEqual(result.get("category_targets"), ["ai_scraper_bot"])
 
     def test_request_native_session_kwargs_lock_explicit_chrome_impersonation_contract(self) -> None:
         self.assertIsNotNone(scrapling_worker, "worker module missing")
@@ -534,6 +570,7 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
         self.assertIn("/catalog?page=2", paths)
         self.assertTrue(any(path.startswith("/detail/") for path in paths))
         self.assertTrue(all(entry["method"] == "GET" for entry in self.httpd.requests_seen))
+        self.assertFalse(any("scrapling-" in path for path in paths))
         self.assertTrue(
             all(
                 entry["headers"].get(sim_runner.SIM_TAG_HEADER_PROFILE)
@@ -542,7 +579,7 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
             )
         )
 
-    def test_execute_worker_plan_http_agent_uses_method_mix_and_redirect_followup(self) -> None:
+    def test_execute_worker_plan_http_agent_discovers_public_redirects_and_observed_forms(self) -> None:
         self.assertIsNotNone(scrapling_worker, "worker module missing")
         beat_payload = self._make_beat_payload(
             "http_agent",
@@ -563,20 +600,11 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
         methods = [entry["method"] for entry in self.httpd.requests_seen]
         self.assertIn("GET", methods)
         self.assertIn("POST", methods)
-        self.assertIn("PUT", methods)
         paths = [entry["path"] for entry in self.httpd.requests_seen]
-        self.assertIn("/agent/redirect", paths)
-        self.assertIn("/agent/final", paths)
-        submit = next(entry for entry in self.httpd.requests_seen if entry["path"] == "/agent/submit")
-        self.assertIn('"mode":"http_agent"', submit["body"])
-        self.assertEqual(
-            submit["headers"].get("content-type"),
-            "application/json",
-        )
-        self.assertIn(
-            "shuma_agent_mode=http_agent",
-            submit["headers"].get("cookie", ""),
-        )
+        self.assertIn("/redirect-chain", paths)
+        self.assertIn("/landing-final", paths)
+        self.assertFalse(any(path.startswith("/agent/") for path in paths))
+        self.assertFalse(any("scrapling-" in path for path in paths))
         self.assertTrue(
             all(
                 entry["headers"].get(sim_runner.SIM_TAG_HEADER_PROFILE)
@@ -636,6 +664,7 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
         )
         paths = [(entry["method"], entry["path"]) for entry in self.httpd.requests_seen]
         self.assertIn(("GET", "/catalog?page=1"), paths)
+        self.assertIn(("GET", "/challenge/not-a-bot-checkbox"), paths)
         self.assertIn(("POST", "/challenge/not-a-bot-checkbox"), paths)
         self.assertIn(("POST", "/challenge/puzzle"), paths)
         not_a_bot = next(
@@ -742,11 +771,16 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
             msg=json.dumps(result, indent=2),
         )
         paths = [(entry["method"], entry["path"]) for entry in self.httpd.requests_seen]
-        self.assertIn(("GET", "/agent/ping?mode=http_agent"), paths)
+        self.assertIn(("GET", "/challenge/not-a-bot-checkbox"), paths)
+        self.assertIn(("GET", "/pow"), paths)
+        self.assertIn(("GET", "/redirect-chain"), paths)
+        self.assertIn(("GET", "/landing-final"), paths)
         self.assertIn(("POST", "/challenge/not-a-bot-checkbox"), paths)
         self.assertIn(("POST", "/challenge/puzzle"), paths)
         self.assertIn(("POST", "/pow/verify"), paths)
         self.assertIn(("POST", "/tarpit/progress"), paths)
+        self.assertFalse(any(path.startswith("/agent/") for _, path in paths))
+        self.assertFalse(any("scrapling-" in path for _, path in paths))
         pow_verify = next(
             entry
             for entry in self.httpd.requests_seen
@@ -791,6 +825,7 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
         paths = [(entry["method"], entry["path"]) for entry in self.httpd.requests_seen]
         self.assertIn(("POST", "/pow/verify"), paths)
         self.assertIn(("POST", "/tarpit/progress"), paths)
+        self.assertFalse(any(path.startswith("/agent/") for _, path in paths))
 
     def test_execute_worker_plan_browser_automation_attempts_browser_owned_surfaces(self) -> None:
         self.assertIsNotNone(scrapling_worker, "worker module missing")

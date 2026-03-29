@@ -1224,6 +1224,7 @@ test-protected-tuning-evidence: ## Run focused protected-evidence eligibility ch
 test-admin-machine-contracts: ## Run focused admin read-contract checks for recent-change ledger plus operator snapshot and benchmark endpoints
 	@echo "$(CYAN)🧪 Running focused admin machine-contract checks...$(NC)"
 	@./scripts/set_crate_type.sh rlib
+	@cargo test admin::api::tests::recent_sim_run_history_prefers_explicit_scrapling_category_targets_when_profile_is_generic -- --exact --nocapture
 	@cargo test admin::api::tests::operator_snapshot_recent_changes_ledger_tracks_changed_config_families -- --exact --nocapture
 	@cargo test admin::api::tests::operator_snapshot_recent_changes_ledger_ignores_requested_families_without_diff -- --exact --nocapture
 	@cargo test admin::api::admin_config_tests::admin_config_updates_materialize_recent_changes_in_operator_snapshot -- --exact --nocapture
@@ -1437,6 +1438,12 @@ test-rsi-game-mixed-episode-orchestration: ## Run focused mixed-attacker candida
 	@./scripts/set_crate_type.sh rlib
 	@cargo test adversary_sim_candidate_window_sequences_required_scrapling_then_bot_red_team_lanes -- --nocapture
 	@cargo test adversary_sim_loop_continuation_waits_for_all_required_lanes_before_post_sim_judgment -- --nocapture
+
+.PHONY: test-rsi-game-mixed-proof-projection
+test-rsi-game-mixed-proof-projection: ## Run focused mixed-attacker judged-episode projection checks
+	@echo "$(CYAN)🧪 Running mixed-attacker proof projection checks...$(NC)"
+	@./scripts/set_crate_type.sh rlib
+	@cargo test post_sim_oversight_history_and_status_preserve_judged_mixed_attacker_lane_basis -- --nocapture
 
 test-rsi-game-mixed-restriction-score-spine: ## Run focused mixed-attacker restriction score-spine checks
 	@echo "$(CYAN)🧪 Running mixed-attacker restriction score-spine checks...$(NC)"

@@ -1478,7 +1478,7 @@ test("game loop, traffic, and diagnostics tabs expose their ownership split", as
   ).not.toContainText("Current Status");
   await expect(
     page.locator('#dashboard-panel-game-loop [data-game-loop-section="recent-loop-progress"]')
-  ).toContainText("Recent Loop Progress");
+  ).toContainText("Loop Progress");
   await expect(
     page.locator('#dashboard-panel-game-loop [data-game-loop-section="outcome-frontier"]')
   ).toContainText("Origin Leakage And Human Cost");
@@ -1487,7 +1487,7 @@ test("game loop, traffic, and diagnostics tabs expose their ownership split", as
   ).toContainText("Loop Actionability");
   await expect(
     page.locator('#dashboard-panel-game-loop [data-game-loop-section="pressure-sits"]')
-  ).toContainText("Board State");
+  ).toContainText("Pressure Context");
   await expect(
     page.locator('#dashboard-panel-game-loop [data-game-loop-section="trust-and-blockers"]')
   ).toContainText("Trust And Blockers");
@@ -1812,7 +1812,94 @@ test("game loop projects benchmark and oversight accountability from machine-fir
               run_id: "sim-42",
               lane: "scrapling_traffic",
               profile: "reference",
-              monitoring_event_count: 64
+              observed_fulfillment_modes: ["bulk_scraper", "http_agent"],
+              observed_category_ids: ["ai_scraper_bot"],
+              first_ts: 1774306700,
+              last_ts: 1774306750,
+              monitoring_event_count: 64,
+              defense_delta_count: 6,
+              ban_outcome_count: 1,
+              owned_surface_coverage: {
+                overall_status: "partial",
+                canonical_surface_ids: ["challenge_routing", "maze_navigation"],
+                surface_labels: {
+                  challenge_routing: "Challenge Routing",
+                  maze_navigation: "Maze Navigation"
+                },
+                required_surface_ids: ["challenge_routing", "maze_navigation"],
+                satisfied_surface_ids: ["challenge_routing"],
+                blocking_surface_ids: ["maze_navigation"],
+                receipts: [
+                  {
+                    surface_id: "challenge_routing",
+                    success_contract: "mixed_outcomes",
+                    dependency_kind: "independent",
+                    dependency_surface_ids: [],
+                    coverage_status: "pass_observed",
+                    surface_state: "satisfied",
+                    satisfied: true,
+                    blocked_by_surface_ids: [],
+                    attempt_count: 3,
+                    sample_request_method: "GET",
+                    sample_request_path: "/catalog?page=1",
+                    sample_response_status: 200
+                  },
+                  {
+                    surface_id: "maze_navigation",
+                    success_contract: "should_pass_some",
+                    dependency_kind: "independent",
+                    dependency_surface_ids: [],
+                    coverage_status: "unavailable",
+                    surface_state: "unreached",
+                    satisfied: false,
+                    blocked_by_surface_ids: [],
+                    attempt_count: 0,
+                    sample_request_method: "",
+                    sample_request_path: "",
+                    sample_response_status: null
+                  }
+                ]
+              }
+            },
+            {
+              run_id: "sim-44",
+              lane: "scrapling_traffic",
+              profile: "reference",
+              observed_fulfillment_modes: ["http_agent"],
+              observed_category_ids: ["http_agent"],
+              first_ts: 1774306755,
+              last_ts: 1774306795,
+              monitoring_event_count: 22,
+              defense_delta_count: 3,
+              ban_outcome_count: 0
+            },
+            {
+              run_id: "sim-43",
+              lane: "bot_red_team",
+              profile: "reference",
+              observed_fulfillment_modes: ["request_mode"],
+              observed_category_ids: ["browser_agent"],
+              first_ts: 1774306760,
+              last_ts: 1774306790,
+              monitoring_event_count: 28,
+              defense_delta_count: 4,
+              ban_outcome_count: 0,
+              llm_runtime_summary: {
+                category_targets: ["browser_agent", "agent_on_behalf_of_human"],
+                generation_source: "provider_response",
+                provider: "openai",
+                model_id: "gpt-5-mini",
+                generated_action_count: 3,
+                executed_action_count: 2,
+                failed_tick_count: 0,
+                latest_action_receipts: [
+                  {
+                    action_type: "http_get",
+                    method: "GET",
+                    path: "/maze"
+                  }
+                ]
+              }
             }
           ]
         },
@@ -1823,6 +1910,75 @@ test("game loop projects benchmark and oversight accountability from machine-fir
               summary: "Enabled stricter fingerprint evidence for suspicious automation."
             }
           ]
+        },
+        non_human_traffic: {
+          availability: "taxonomy_seeded",
+          restriction_readiness: {
+            status: "ready",
+            blockers: [],
+            live_receipt_count: 6,
+            adversary_sim_receipt_count: 3
+          },
+          recognition_evaluation: {
+            comparison_status: "mixed",
+            current_exact_match_count: 1,
+            degraded_match_count: 0,
+            collapsed_to_unknown_count: 1,
+            not_materialized_count: 0,
+            simulator_ground_truth: {
+              status: "observed_recent_runs",
+              recent_sim_run_count: 3,
+              categories: [
+                {
+                  category_id: "ai_scraper_bot",
+                  category_label: "AI Scraper Bot",
+                  recent_run_count: 1,
+                  evidence_references: ["recent_sim_runs:sim-42:reference:ai_scraper_bot"]
+                },
+                {
+                  category_id: "browser_agent",
+                  category_label: "Browser Agent",
+                  recent_run_count: 1,
+                  evidence_references: ["recent_sim_runs:sim-43:reference:browser_agent"]
+                }
+              ]
+            },
+            readiness: {
+              status: "partial",
+              blockers: ["exact_category_inference_not_ready"],
+              live_receipt_count: 6,
+              adversary_sim_receipt_count: 3
+            },
+            coverage: {
+              overall_status: "partial",
+              blocking_reasons: ["mapped_categories_have_partial_coverage"],
+              blocking_category_ids: ["browser_agent"]
+            },
+            comparison_rows: [
+              {
+                category_id: "ai_scraper_bot",
+                category_label: "AI Scraper Bot",
+                inference_capability_status: "candidate",
+                comparison_status: "current_exact_match",
+                inferred_category_id: "ai_scraper_bot",
+                inferred_category_label: "AI Scraper Bot",
+                exactness: "derived",
+                basis: "observed",
+                note: "Shared-path inference matched this category."
+              },
+              {
+                category_id: "browser_agent",
+                category_label: "Browser Agent",
+                inference_capability_status: "candidate",
+                comparison_status: "collapsed_to_unknown_non_human",
+                inferred_category_id: "unknown_non_human",
+                inferred_category_label: "Unknown Non Human",
+                exactness: "derived",
+                basis: "observed",
+                note: "Recognition collapsed to unknown."
+              }
+            ]
+          }
         },
         verified_identity: {
           availability: "supported",
@@ -2005,15 +2161,34 @@ test("game loop projects benchmark and oversight accountability from machine-fir
           rows: [
             {
               episode_id: "episode-2",
+              completed_at_ts: 1774306800,
               proposal_status: "accepted",
               watch_window_result: "improved",
-              retain_or_rollback: "retained"
+              retain_or_rollback: "retained",
+              judged_lane_ids: ["scrapling_traffic", "bot_red_team"],
+              judged_run_ids: ["sim-42", "sim-43"],
+              proposal: {
+                patch_family: "fingerprint_signal",
+                expected_impact: "Tighten suspicious automation detection.",
+                confidence: "medium",
+                note: "Retained after the mixed round improved."
+              },
+              cycle_judgment: "continue"
             },
             {
               episode_id: "episode-1",
+              completed_at_ts: 1774220400,
               proposal_status: "accepted",
               watch_window_result: "regressed",
-              retain_or_rollback: "rolled_back"
+              retain_or_rollback: "rolled_back",
+              judged_lane_ids: ["scrapling_traffic"],
+              proposal: {
+                patch_family: "maze_core",
+                expected_impact: "Tighten maze traversal restrictions.",
+                confidence: "medium",
+                note: "Rolled back after regressions."
+              },
+              cycle_judgment: "rollback_and_continue"
             }
           ]
         },
@@ -2082,6 +2257,59 @@ test("game loop projects benchmark and oversight accountability from machine-fir
           qualifying_completion: "transition_to_off_with_completed_run_id_and_generated_traffic",
           dedupe_key: "sim_run_id"
         },
+        candidate_window: {
+          status: "running",
+          canary_id: "canary-2",
+          patch_family: "fingerprint_signal",
+          requested_lane: "bot_red_team",
+          requested_duration_seconds: 120,
+          requested_at_ts: 1774306810,
+          watch_window_end_at: 1774306920,
+          follow_on_run_id: "simrun-002",
+          follow_on_started_at: 1774306812,
+          required_runs: [
+            {
+              lane: "scrapling_traffic",
+              status: "materialized",
+              requested_at_ts: 1774306800,
+              requested_duration_seconds: 30,
+              follow_on_run_id: "simrun-001",
+              follow_on_started_at: 1774306801,
+              materialized_at_ts: 1774306805
+            },
+            {
+              lane: "bot_red_team",
+              status: "running",
+              requested_at_ts: 1774306810,
+              requested_duration_seconds: 120,
+              follow_on_run_id: "simrun-002",
+              follow_on_started_at: 1774306812
+            }
+          ]
+        },
+        continuation_run: {
+          status: "pending",
+          requested_lane: "scrapling_traffic",
+          requested_duration_seconds: 30,
+          requested_at_ts: 1774307000,
+          source_decision_id: "ovr-2",
+          source_decision_outcome: "retained",
+          continue_reason: "outside_budget",
+          required_runs: [
+            {
+              lane: "scrapling_traffic",
+              status: "pending",
+              requested_at_ts: 1774307000,
+              requested_duration_seconds: 30
+            },
+            {
+              lane: "bot_red_team",
+              status: "pending",
+              requested_at_ts: 1774307000,
+              requested_duration_seconds: 120
+            }
+          ]
+        },
         latest_decision: {
           decision_id: "ovr-2",
           recorded_at_ts: 1774306800,
@@ -2097,9 +2325,19 @@ test("game loop projects benchmark and oversight accountability from machine-fir
           rows: [
             {
               episode_id: "episode-2",
+              completed_at_ts: 1774306800,
               proposal_status: "accepted",
               watch_window_result: "improved",
-              retain_or_rollback: "retained"
+              retain_or_rollback: "retained",
+              judged_lane_ids: ["scrapling_traffic", "bot_red_team"],
+              judged_run_ids: ["sim-42", "sim-43"],
+              proposal: {
+                patch_family: "fingerprint_signal",
+                expected_impact: "Tighten suspicious automation detection.",
+                confidence: "medium",
+                note: "Retained after the mixed round improved."
+              },
+              cycle_judgment: "continue"
             }
           ]
         },
@@ -2127,6 +2365,30 @@ test("game loop projects benchmark and oversight accountability from machine-fir
   await expect(
     page.locator('#dashboard-panel-game-loop [data-game-loop-section="current-status"] .stats-cards')
   ).toHaveClass(/stats-cards--summary/);
+  await expect(
+    page.locator('#dashboard-panel-game-loop [data-game-loop-section="recent-rounds"]')
+  ).toContainText("Recent Rounds");
+  await expect(page.locator("#game-loop-round-history")).toContainText("Scrapling Traffic, Bot Red Team");
+  await expect(page.locator("#game-loop-round-history")).toContainText("Fingerprint Signal");
+  await expect(page.locator("#game-loop-round-history")).toContainText("Retained");
+  await expect(page.locator("#game-loop-round-history")).toContainText("Continue");
+  await expect(page.locator("#game-loop-adversary-cast")).toContainText("Adversaries In This Round");
+  await expect(page.locator("#game-loop-adversary-cast")).toContainText("AI Scraper Bot");
+  await expect(page.locator("#game-loop-adversary-cast")).toContainText("Browser Agent");
+  await expect(page.locator("#game-loop-adversary-cast")).toContainText(
+    "Recent recognition evaluation inferred AI Scraper Bot"
+  );
+  await expect(page.locator("#game-loop-adversary-cast")).toContainText(
+    "Recent recognition evaluation inferred Unknown Non Human"
+  );
+  await expect(page.locator("#game-loop-adversary-cast")).not.toContainText("HTTP Agent");
+  await expect(page.locator("#game-loop-adversary-cast")).not.toContainText("Automated Browser");
+  await expect(page.locator("#game-loop-defence-cast")).toContainText("Defences In This Round");
+  await expect(page.locator("#game-loop-defence-cast")).toContainText("Challenge Routing");
+  await expect(page.locator("#game-loop-defence-cast")).toContainText("Maze Navigation");
+  await expect(page.locator("#game-loop-defence-cast")).toContainText("/catalog?page=1");
+  await expect(page.locator("#game-loop-defence-cast")).not.toContainText("scrapling-");
+  await expect(page.locator("#game-loop-defence-cast")).toContainText("required but unreached");
   const summaryCardTops = await page
     .locator('#dashboard-panel-game-loop [data-game-loop-section="current-status"] .stats-cards > .card')
     .evaluateAll((nodes) =>
@@ -2150,6 +2412,14 @@ test("game loop projects benchmark and oversight accountability from machine-fir
   await expect(page.locator("#game-loop-progress-lineage")).toContainText("1 retained");
   await expect(page.locator("#game-loop-progress-lineage")).toContainText("1 rolled back");
   await expect(page.locator("#game-loop-progress-lineage")).toContainText("not enough completed cycles");
+  await expect(page.locator("#game-loop-progress-judged-basis")).toContainText("Judged Episode Basis");
+  await expect(page.locator("#game-loop-progress-judged-basis")).toContainText("Scrapling Traffic, Bot Red Team");
+  await expect(page.locator("#game-loop-progress-current-evidence-set")).toContainText("Current Mixed-Attacker Evidence Set");
+  await expect(page.locator("#game-loop-progress-current-evidence-set")).toContainText("Candidate window");
+  await expect(page.locator("#game-loop-progress-current-evidence-set")).toContainText("Bot Red Team running");
+  await expect(page.locator("#game-loop-progress-judged-basis-note")).toContainText(
+    "Recent visibility alone does not mean a judged mixed-attacker episode exists."
+  );
   await expect(page.locator("#game-loop-budget-usage")).toContainText("Likely Human Friction Rate");
   await expect(page.locator("#game-loop-budget-usage")).toContainText("Suspicious Forwarded Request Rate");
   await expect(page.locator("#game-loop-budget-usage")).toContainText("Target 2.0%");
@@ -2157,13 +2427,6 @@ test("game loop projects benchmark and oversight accountability from machine-fir
   await expect(page.locator("#game-loop-outcome-frontier")).toContainText(
     "These rows are guardrails"
   );
-  await expect(page.locator("#game-loop-recognition-evaluation")).toContainText("Recognition Evaluation");
-  await expect(page.locator("#game-loop-recognition-evaluation")).toContainText(
-    "These rows are the recognition side quest"
-  );
-  await expect(page.locator("#game-loop-recognition-evaluation")).toContainText("AI Scraper Bot");
-  await expect(page.locator("#game-loop-recognition-evaluation")).toContainText("Target Blocked");
-  await expect(page.locator("#game-loop-recognition-evaluation")).toContainText("Achieved 42.0%");
   await expect(page.locator("#game-loop-change-judgment")).toContainText(/observe longer/i);
   await expect(page.locator("#game-loop-change-judgment")).toContainText("Loop Actionability");
   await expect(page.locator("#game-loop-change-judgment")).toContainText(/canary applied/i);
@@ -2423,6 +2686,30 @@ test("game loop tab corroborates latest scrapling evidence readiness", async ({ 
           surface: "host_supervisor_wrapper",
           wrapper_command: "scripts/run_with_oversight_supervisor.sh",
           default_interval_seconds: 300
+        },
+        episode_archive: {
+          schema_version: "oversight_episode_archive_v1",
+          homeostasis: {
+            status: "not_enough_completed_cycles"
+          },
+          rows: [
+            {
+              episode_id: "episode-sim-attack-partial",
+              completed_at_ts: 1774306900,
+              proposal_status: "accepted",
+              watch_window_result: "improved",
+              retain_or_rollback: "retained",
+              judged_lane_ids: ["scrapling_traffic"],
+              judged_run_ids: ["sim-attack-partial"],
+              proposal: {
+                patch_family: "fingerprint_signal",
+                expected_impact: "Tighten suspicious automation detection.",
+                confidence: "medium",
+                note: "Retained after the judged round."
+              },
+              cycle_judgment: "continue"
+            }
+          ]
         },
         latest_decision: {},
         recent_runs: []
@@ -3053,6 +3340,28 @@ test("game loop distinguishes recognition evaluation from scrapling surface cont
             degraded_match_count: 0,
             collapsed_to_unknown_count: 1,
             not_materialized_count: 0,
+            simulator_ground_truth: {
+              status: "observed_recent_runs",
+              recent_sim_run_count: 1,
+              categories: [
+                {
+                  category_id: "ai_scraper_bot",
+                  category_label: "AI Scraper Bot",
+                  recent_run_count: 1,
+                  evidence_references: [
+                    "recent_sim_runs:sim-attack-partial:scrapling_runtime_lane:ai_scraper_bot"
+                  ]
+                },
+                {
+                  category_id: "automated_browser",
+                  category_label: "Automated Browser",
+                  recent_run_count: 1,
+                  evidence_references: [
+                    "recent_sim_runs:sim-attack-partial:scrapling_runtime_lane:automated_browser"
+                  ]
+                }
+              ]
+            },
             readiness: {
               status: "partial",
               blockers: ["exact_category_inference_not_ready"],
@@ -3242,6 +3551,30 @@ test("game loop distinguishes recognition evaluation from scrapling surface cont
           wrapper_command: "scripts/run_with_oversight_supervisor.sh",
           default_interval_seconds: 300
         },
+        episode_archive: {
+          schema_version: "oversight_episode_archive_v1",
+          homeostasis: {
+            status: "not_enough_completed_cycles"
+          },
+          rows: [
+            {
+              episode_id: "episode-sim-attack-partial",
+              completed_at_ts: 1774306900,
+              proposal_status: "accepted",
+              watch_window_result: "improved",
+              retain_or_rollback: "retained",
+              judged_lane_ids: ["scrapling_traffic"],
+              judged_run_ids: ["sim-attack-partial"],
+              proposal: {
+                patch_family: "fingerprint_signal",
+                expected_impact: "Tighten suspicious automation detection.",
+                confidence: "medium",
+                note: "Retained after the judged round."
+              },
+              cycle_judgment: "continue"
+            }
+          ]
+        },
         latest_decision: {},
         recent_runs: []
       })
@@ -3251,27 +3584,25 @@ test("game loop distinguishes recognition evaluation from scrapling surface cont
   await openDashboard(page);
   await openTab(page, "game-loop");
 
-  await expect(page.locator("#game-loop-recognition-evaluation")).toContainText(
-    "These rows are the recognition side quest"
+  await expect(page.locator("#game-loop-adversary-cast")).toContainText(
+    "Adversaries In This Round"
   );
-  await expect(page.locator("#game-loop-recognition-evaluation")).toContainText("Recognition Evaluation");
-  await expect(page.locator("#game-loop-recognition-evaluation")).toContainText("Recognition Status:");
-  await expect(page.locator("#game-loop-recognition-evaluation")).toContainText("Recognition Summary:");
-  await expect(page.locator("#game-loop-recognition-evaluation")).toContainText("AI Scraper Bot");
-  await expect(page.locator("#game-loop-recognition-evaluation")).toContainText("Target Blocked");
-  await expect(page.locator("#game-loop-recognition-evaluation")).toContainText("Achieved 75.0%");
-  await expect(page.locator("#game-loop-recognition-evaluation")).toContainText("Automated Browser");
-  await expect(page.locator("#game-loop-recognition-evaluation")).toContainText("Achieved Unscored");
-  await expect(page.locator("#game-loop-recognition-evaluation")).toContainText("collapsed unknown 1");
-  await expect(page.locator("#game-loop-recognition-evaluation .game-loop-meter__fill")).toHaveCount(1);
-  await expect(page.locator("#game-loop-surface-contract")).toContainText("Partial");
-  await expect(page.locator("#game-loop-surface-contract")).toContainText("1 / 2 required surfaces");
-  await expect(page.locator("[data-game-loop-section='pressure-sits']")).toContainText(
-    "Surface Contract Satisfaction"
+  await expect(page.locator("#game-loop-adversary-cast")).toContainText("AI Scraper Bot");
+  await expect(page.locator("#game-loop-adversary-cast")).toContainText("Automated Browser");
+  await expect(page.locator("#game-loop-adversary-cast")).toContainText(
+    "Recent recognition evaluation inferred AI Scraper Bot"
   );
-  await expect(page.locator("[data-game-loop-section='pressure-sits']")).toContainText(
-    "Maze Navigation (required but unreached | independent surface)"
+  await expect(page.locator("#game-loop-adversary-cast")).toContainText(
+    "Recent recognition evaluation inferred Unknown Non Human"
   );
+  await expect(page.locator("#game-loop-defence-cast")).toContainText("Defences In This Round");
+  await expect(page.locator("#game-loop-defence-cast")).toContainText("Challenge Routing");
+  await expect(page.locator("#game-loop-defence-cast")).toContainText("satisfied");
+  await expect(page.locator("#game-loop-defence-cast")).toContainText("Maze Navigation");
+  await expect(page.locator("#game-loop-defence-cast")).toContainText(
+    "required but unreached"
+  );
+  await expect(page.locator("#game-loop-defence-cast")).toContainText("independent surface");
 });
 
 test("traffic manual refresh renders bounded traffic sections and preserves furniture diagnostics separately", async ({ page }) => {
@@ -4139,6 +4470,120 @@ test("red team tab surfaces recovered adversary-sim truth basis and persisted ev
   test.setTimeout(180_000);
   await withRestoredAdversarySimConfig(request, async () => {
     await forceAdversarySimDisabled(request);
+    await page.route("**/admin/oversight/history", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          schema_version: "oversight_history_v1",
+          episode_archive: {
+            schema_version: "oversight_episode_archive_v1",
+            homeostasis: {
+              status: "not_enough_completed_cycles"
+            },
+            rows: [
+              {
+                episode_id: "episode-red-team-1",
+                proposal_status: "accepted",
+                watch_window_result: "improved",
+                retain_or_rollback: "retained",
+                judged_lane_ids: ["scrapling_traffic", "bot_red_team"]
+              }
+            ]
+          },
+          rows: []
+        })
+      });
+    });
+    await page.route("**/admin/oversight/agent/status", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          schema_version: "oversight_agent_status_v1",
+          execution_boundary: "shared_host_only",
+          periodic_trigger: {
+            surface: "host_supervisor_wrapper",
+            wrapper_command: "scripts/run_with_oversight_supervisor.sh",
+            default_interval_seconds: 300
+          },
+          post_sim_trigger: {
+            surface: "internal_adversary_sim_completion_hook",
+            qualifying_completion: "transition_to_off_with_completed_run_id_and_generated_traffic",
+            dedupe_key: "sim_run_id"
+          },
+          candidate_window: {
+            status: "running",
+            canary_id: "canary-red-team",
+            patch_family: "fingerprint_signal",
+            requested_lane: "bot_red_team",
+            requested_duration_seconds: 120,
+            requested_at_ts: 1710000040,
+            watch_window_end_at: 1710000160,
+            follow_on_run_id: "simrun-red-team-follow-on",
+            follow_on_started_at: 1710000042,
+            required_runs: [
+              {
+                lane: "scrapling_traffic",
+                status: "materialized",
+                requested_at_ts: 1710000030,
+                requested_duration_seconds: 30,
+                follow_on_run_id: "simrun-red-team-scrapling",
+                follow_on_started_at: 1710000031,
+                materialized_at_ts: 1710000035
+              },
+              {
+                lane: "bot_red_team",
+                status: "running",
+                requested_at_ts: 1710000040,
+                requested_duration_seconds: 120,
+                follow_on_run_id: "simrun-red-team-follow-on",
+                follow_on_started_at: 1710000042
+              }
+            ]
+          },
+          continuation_run: {
+            status: "pending",
+            requested_lane: "scrapling_traffic",
+            requested_duration_seconds: 30,
+            requested_at_ts: 1710000200,
+            source_decision_id: "ovr-red-team-1",
+            source_decision_outcome: "retained",
+            continue_reason: "outside_budget",
+            required_runs: [
+              {
+                lane: "scrapling_traffic",
+                status: "pending",
+                requested_at_ts: 1710000200,
+                requested_duration_seconds: 30
+              },
+              {
+                lane: "bot_red_team",
+                status: "pending",
+                requested_at_ts: 1710000200,
+                requested_duration_seconds: 120
+              }
+            ]
+          },
+          episode_archive: {
+            schema_version: "oversight_episode_archive_v1",
+            homeostasis: {
+              status: "not_enough_completed_cycles"
+            },
+            rows: [
+              {
+                episode_id: "episode-red-team-1",
+                proposal_status: "accepted",
+                watch_window_result: "improved",
+                retain_or_rollback: "retained",
+                judged_lane_ids: ["scrapling_traffic", "bot_red_team"]
+              }
+            ]
+          },
+          recent_runs: []
+        })
+      });
+    });
     await page.route("**/admin/adversary-sim/status", async (route) => {
       if (route.request().method() !== "GET") {
         await route.continue();
@@ -4266,6 +4711,12 @@ test("red team tab surfaces recovered adversary-sim truth basis and persisted ev
     await expect(page.locator("#adversary-sim-persisted-event-evidence")).toContainText("simrun-red-team-truth");
     await expect(page.locator("#adversary-sim-persisted-event-evidence")).toContainText("Monitoring events:");
     await expect(page.locator("#adversary-runs")).toBeVisible();
+    await expect(page.locator("#red-team-judged-episode-basis")).toContainText("Judged Episode Basis");
+    await expect(page.locator("#red-team-judged-episode-basis")).toContainText("Scrapling Traffic, Bot Red Team");
+    await expect(page.locator("#red-team-judged-episode-basis")).toContainText("Current candidate window");
+    await expect(page.locator("#red-team-judged-episode-basis")).toContainText(
+      "Recent visibility alone does not mean the controller judged a mixed-attacker episode."
+    );
   });
 });
 
@@ -4699,7 +5150,7 @@ test("red team tab surfaces receipt-backed scrapling attack evidence from recent
                   blocked_by_surface_ids: [],
                   attempt_count: 6,
                   sample_request_method: "GET",
-                  sample_request_path: "/sim/public/search?q=scrapling",
+                  sample_request_path: "/catalog?page=1",
                   sample_response_status: 200
                 },
                 {

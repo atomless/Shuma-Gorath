@@ -103,6 +103,8 @@ pub(super) struct EventLogRecord {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub scrapling_surface_receipts:
         Vec<crate::observability::scrapling_owned_surface::ScraplingSurfaceObservationReceipt>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub scrapling_category_targets: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub llm_runtime_summary: Option<crate::admin::adversary_sim::LlmRuntimeRecentRunSummary>,
     #[serde(flatten)]
@@ -121,6 +123,7 @@ impl EventLogRecord {
             sim_lane: None,
             is_simulation: false,
             scrapling_surface_receipts: Vec::new(),
+            scrapling_category_targets: Vec::new(),
             llm_runtime_summary: None,
             execution: EventExecutionMetadata::default(),
         }
@@ -298,7 +301,9 @@ fn is_external_monitoring_event(record: &EventLogRecord) -> bool {
 }
 
 fn is_recent_sim_run_receipt_event(record: &EventLogRecord) -> bool {
-    (!record.scrapling_surface_receipts.is_empty() || record.llm_runtime_summary.is_some())
+    (!record.scrapling_surface_receipts.is_empty()
+        || !record.scrapling_category_targets.is_empty()
+        || record.llm_runtime_summary.is_some())
         && record
             .sim_run_id
             .as_deref()
@@ -1639,6 +1644,7 @@ mod tests {
                 sim_profile: Some("scrapling_runtime_lane.http_agent".to_string()),
                 sim_lane: Some("scrapling_traffic".to_string()),
                 is_simulation: true,
+                scrapling_category_targets: Vec::new(),
                 llm_runtime_summary: None,
                 execution: EventExecutionMetadata::default(),
                 scrapling_surface_receipts: vec![
@@ -1795,6 +1801,7 @@ mod tests {
                 sim_lane: Some("bot_red_team".to_string()),
                 is_simulation: true,
                 scrapling_surface_receipts: Vec::new(),
+                scrapling_category_targets: Vec::new(),
                 llm_runtime_summary: Some(
                     crate::admin::adversary_sim::LlmRuntimeRecentRunSummary {
                         receipt_count: 1,
@@ -1868,6 +1875,45 @@ mod tests {
         assert_eq!(llm_runtime_summary.failed_action_count, 0);
         assert_eq!(llm_runtime_summary.passed_tick_count, 1);
         assert_eq!(llm_runtime_summary.latest_action_receipts.len(), 2);
+    }
+
+    #[test]
+    fn recent_sim_run_history_prefers_explicit_scrapling_category_targets_when_profile_is_generic() {
+        let store = MockStore::new();
+        let now = now_ts();
+        let run_started_at = now.saturating_sub(90);
+
+        let record: EventLogRecord = serde_json::from_value(serde_json::json!({
+            "ts": run_started_at,
+            "event": "AdminAction",
+            "reason": "scrapling_surface_coverage",
+            "outcome": "tick_id=tick-001 receipts=1 generated_requests=2 failed_requests=0",
+            "sim_run_id": "simrun-scrapling-explicit-categories",
+            "sim_profile": "scrapling_runtime_lane",
+            "sim_lane": "scrapling_traffic",
+            "is_simulation": true,
+            "scrapling_category_targets": ["ai_scraper_bot"],
+            "scrapling_surface_receipts": [{
+                "surface_id": "challenge_routing",
+                "coverage_status": "pass_observed",
+                "attempt_count": 1,
+                "sample_request_method": "GET",
+                "sample_request_path": "/challenge",
+                "sample_response_status": 200
+            }]
+        }))
+        .expect("record decodes");
+        persist_event_record(&store, record);
+
+        let recent_runs = monitoring_recent_sim_run_summaries(&store, now, 24, 10);
+        let row = recent_runs
+            .iter()
+            .find(|value| value.run_id == "simrun-scrapling-explicit-categories")
+            .expect("scrapling row");
+        assert_eq!(row.lane, "scrapling_traffic");
+        assert_eq!(row.profile, "scrapling_runtime_lane");
+        assert!(row.observed_fulfillment_modes.is_empty());
+        assert_eq!(row.observed_category_ids, vec!["ai_scraper_bot".to_string()]);
     }
 
     #[test]
@@ -2043,6 +2089,7 @@ mod tests {
             sim_lane: Some("deterministic_black_box".to_string()),
             is_simulation: true,
             scrapling_surface_receipts: Vec::new(),
+            scrapling_category_targets: Vec::new(),
             llm_runtime_summary: None,
             execution: EventExecutionMetadata::default(),
         };
@@ -3890,6 +3937,41 @@ mod admin_config_tests {
         let completion_beat_resp = handle_internal_adversary_sim_beat(&beat_req, store, "default");
         assert_eq!(*completion_beat_resp.status(), 200u16);
         run_id
+    }
+
+    fn materialize_all_required_candidate_window_runs(
+        store: &TestStore,
+        api_key: &str,
+    ) -> Vec<String> {
+        let beat_req = make_internal_beat_request(api_key);
+
+        let first_beat_resp = handle_internal_adversary_sim_beat(&beat_req, store, "default");
+        assert_eq!(*first_beat_resp.status(), 200u16);
+        let first_beat_json: serde_json::Value =
+            serde_json::from_slice(first_beat_resp.body()).expect("first beat decodes");
+        assert_eq!(
+            first_beat_json["dispatch_mode"].as_str(),
+            Some("scrapling_worker")
+        );
+        let first_run_id =
+            materialize_dispatched_follow_on_run(store, api_key, &first_beat_json);
+
+        let second_beat_resp = handle_internal_adversary_sim_beat(&beat_req, store, "default");
+        assert_eq!(*second_beat_resp.status(), 200u16);
+        let second_beat_json: serde_json::Value =
+            serde_json::from_slice(second_beat_resp.body()).expect("second beat decodes");
+        assert_eq!(
+            second_beat_json["dispatch_mode"].as_str(),
+            Some("llm_fulfillment_plan")
+        );
+        assert_eq!(
+            second_beat_json["llm_fulfillment_plan"]["lane"].as_str(),
+            Some("bot_red_team")
+        );
+        let second_run_id =
+            materialize_dispatched_follow_on_run(store, api_key, &second_beat_json);
+
+        vec![first_run_id, second_run_id]
     }
 
     fn make_edge_cron_beat_request(secret: &str) -> Request {
@@ -5825,49 +5907,8 @@ mod admin_config_tests {
         assert_eq!(
             beat_json
                 .get("worker_plan")
-                .and_then(|value| value.get("runtime_paths"))
-                .and_then(|value| value.get("not_a_bot_checkbox"))
-                .and_then(|value| value.as_str()),
-            Some("/challenge/not-a-bot-checkbox")
-        );
-        assert_eq!(
-            beat_json
-                .get("worker_plan")
-                .and_then(|value| value.get("runtime_paths"))
-                .and_then(|value| value.get("challenge_submit"))
-                .and_then(|value| value.as_str()),
-            Some("/challenge/puzzle")
-        );
-        assert_eq!(
-            beat_json
-                .get("worker_plan")
-                .and_then(|value| value.get("runtime_paths"))
-                .and_then(|value| value.get("pow"))
-                .and_then(|value| value.as_str()),
-            Some("/pow")
-        );
-        assert_eq!(
-            beat_json
-                .get("worker_plan")
-                .and_then(|value| value.get("runtime_paths"))
-                .and_then(|value| value.get("pow_verify"))
-                .and_then(|value| value.as_str()),
-            Some("/pow/verify")
-        );
-        let maze_entry = beat_json
-            .get("worker_plan")
-            .and_then(|value| value.get("runtime_paths"))
-            .and_then(|value| value.get("maze_entry"))
-            .and_then(|value| value.as_str())
-            .expect("maze entry path");
-        assert!(maze_entry.starts_with(crate::maze::entry_path("").as_str()));
-        assert_eq!(
-            beat_json
-                .get("worker_plan")
-                .and_then(|value| value.get("runtime_paths"))
-                .and_then(|value| value.get("tarpit_progress"))
-                .and_then(|value| value.as_str()),
-            Some("/tarpit/progress")
+                .and_then(|value| value.get("runtime_paths")),
+            None
         );
         assert_eq!(
             beat_json
@@ -7054,6 +7095,134 @@ mod admin_config_tests {
         assert_eq!(
             second_beat_json["llm_fulfillment_plan"]["lane"].as_str(),
             Some("bot_red_team")
+        );
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+        std::env::remove_var("SHUMA_API_KEY");
+        std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
+        std::env::remove_var("SHUMA_FRONTIER_OPENAI_API_KEY");
+        std::env::remove_var("SHUMA_FRONTIER_OPENAI_MODEL");
+    }
+
+    #[test]
+    fn post_sim_oversight_history_and_status_preserve_judged_mixed_attacker_lane_basis() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "shared-server");
+        std::env::set_var("SHUMA_API_KEY", "oversight-mixed-judged-basis-test-key");
+        std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+        std::env::set_var("SHUMA_FRONTIER_OPENAI_API_KEY", "frontier-key");
+        std::env::set_var("SHUMA_FRONTIER_OPENAI_MODEL", "gpt-5-mini");
+
+        let store = TestStore::default();
+        crate::test_support::seed_canary_only_objectives(&store);
+
+        let mut cfg = crate::config::defaults().clone();
+        cfg.fingerprint_signal_enabled = false;
+        crate::test_support::seed_apply_ready_snapshot(&store, cfg);
+
+        let periodic_req = make_internal_oversight_request(
+            "oversight-mixed-judged-basis-test-key",
+            serde_json::to_vec(&serde_json::json!({
+                "trigger_kind": "periodic_supervisor"
+            }))
+            .expect("json body")
+            .as_slice(),
+        );
+        let first_periodic_resp =
+            handle_internal_oversight_agent_run(&periodic_req, &store, "default");
+        assert_eq!(*first_periodic_resp.status(), 200u16);
+
+        let materialized_run_ids = materialize_all_required_candidate_window_runs(
+            &store,
+            "oversight-mixed-judged-basis-test-key",
+        );
+        assert_eq!(materialized_run_ids.len(), 2);
+
+        let canary_cfg =
+            crate::config::Config::load(&store, "default").expect("canary config loads");
+        let mut active_canary: serde_json::Value = serde_json::from_slice(
+            &store
+                .get("oversight_active_canary:v1:default")
+                .expect("active canary lookup")
+                .expect("active canary present"),
+        )
+        .expect("active canary decodes");
+        active_canary["opened_at_ts"] = serde_json::json!(1);
+        active_canary["watch_window_end_at"] = serde_json::json!(1);
+        store
+            .set(
+                "oversight_active_canary:v1:default",
+                &serde_json::to_vec(&active_canary).expect("active canary encodes"),
+            )
+            .expect("active canary update");
+        crate::test_support::seed_candidate_snapshot(
+            &store,
+            canary_cfg,
+            1_700_004_100,
+            0.12,
+            "inside_budget",
+        );
+
+        let second_periodic_resp =
+            handle_internal_oversight_agent_run(&periodic_req, &store, "default");
+        assert_eq!(*second_periodic_resp.status(), 200u16);
+
+        let status_req = Request::builder()
+            .method(Method::Get)
+            .uri("/admin/oversight/agent/status")
+            .body(Vec::new())
+            .build();
+        let status_resp = handle_admin_oversight_agent_status(&status_req, &store, "default");
+        assert_eq!(*status_resp.status(), 200u16);
+        let status_json: serde_json::Value =
+            serde_json::from_slice(status_resp.body()).expect("status decodes");
+        assert_eq!(
+            status_json["episode_archive"]["rows"][0]["judged_lane_ids"][0].as_str(),
+            Some("scrapling_traffic")
+        );
+        assert_eq!(
+            status_json["episode_archive"]["rows"][0]["judged_lane_ids"][1].as_str(),
+            Some("bot_red_team")
+        );
+        assert_eq!(
+            status_json["episode_archive"]["rows"][0]["judged_run_ids"][0].as_str(),
+            Some(materialized_run_ids[0].as_str())
+        );
+        assert_eq!(
+            status_json["episode_archive"]["rows"][0]["judged_run_ids"][1].as_str(),
+            Some(materialized_run_ids[1].as_str())
+        );
+
+        let history_req = Request::builder()
+            .method(Method::Get)
+            .uri("/admin/oversight/history")
+            .body(Vec::new())
+            .build();
+        let history_resp = handle_admin_oversight_history(&history_req, &store, "default");
+        assert_eq!(*history_resp.status(), 200u16);
+        let history_json: serde_json::Value =
+            serde_json::from_slice(history_resp.body()).expect("history decodes");
+        assert_eq!(
+            history_json["episode_archive"]["rows"][0]["judged_lane_ids"][0].as_str(),
+            Some("scrapling_traffic")
+        );
+        assert_eq!(
+            history_json["episode_archive"]["rows"][0]["judged_lane_ids"][1].as_str(),
+            Some("bot_red_team")
+        );
+        assert_eq!(
+            history_json["episode_archive"]["rows"][0]["judged_run_ids"][0].as_str(),
+            Some(materialized_run_ids[0].as_str())
+        );
+        assert_eq!(
+            history_json["episode_archive"]["rows"][0]["judged_run_ids"][1].as_str(),
+            Some(materialized_run_ids[1].as_str())
         );
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
@@ -14785,6 +14954,15 @@ struct MonitoringRecentSimRunAccumulator {
     llm_runtime_summary: Option<crate::admin::adversary_sim::LlmRuntimeRecentRunSummary>,
 }
 
+fn merge_unique_tokens(target: &mut HashSet<String>, values: impl IntoIterator<Item = String>) {
+    for value in values {
+        let normalized = value.trim().to_string();
+        if !normalized.is_empty() {
+            target.insert(normalized);
+        }
+    }
+}
+
 fn normalize_monitoring_event_token(value: Option<&str>) -> String {
     value
         .unwrap_or_default()
@@ -14909,6 +15087,11 @@ pub(crate) fn monitoring_recent_sim_run_summaries<S: crate::challenge::KeyValueS
                 profile.as_str(),
                 stored.record.llm_runtime_summary.as_ref(),
             );
+        let explicit_scrapling_category_targets = if lane == "scrapling_traffic" {
+            stored.record.scrapling_category_targets.clone()
+        } else {
+            Vec::new()
+        };
         let defense = classify_monitoring_sim_run_defense(&stored.record);
         let accumulator =
             grouped
@@ -14941,14 +15124,15 @@ pub(crate) fn monitoring_recent_sim_run_summaries<S: crate::challenge::KeyValueS
         if accumulator.profile == "unknown" && normalized_profile != "unknown" {
             accumulator.profile = normalized_profile;
         }
-        for fulfillment_mode in observed_fulfillment_modes {
-            accumulator
-                .observed_fulfillment_modes
-                .insert(fulfillment_mode);
-        }
-        for category_id in observed_category_ids {
-            accumulator.observed_category_ids.insert(category_id);
-        }
+        merge_unique_tokens(
+            &mut accumulator.observed_fulfillment_modes,
+            observed_fulfillment_modes,
+        );
+        merge_unique_tokens(&mut accumulator.observed_category_ids, observed_category_ids);
+        merge_unique_tokens(
+            &mut accumulator.observed_category_ids,
+            explicit_scrapling_category_targets,
+        );
         if !receipt_event {
             accumulator.monitoring_event_count =
                 accumulator.monitoring_event_count.saturating_add(1);

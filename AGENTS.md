@@ -20,6 +20,7 @@ This file provides instructions for coding agents working in this repository.
 - Prioritize resource efficiency (bandwidth, CPU, memory, energy).
 - Keep architecture modular and platform-agnostic.
 - Treat observed telemetry as the authoritative map of runtime reality. Do not introduce speculative discovery or catalog machinery ahead of what Shuma actually observes unless an explicit safety boundary requires it.
+- Presentation-truth mandate (strict, repo-wide): presentation layers, dashboard adapters, hot-read projections, and operator summaries MUST represent only telemetry and execution evidence that was actually recorded. Agents MUST NOT stitch fallback claims, infer specific lane/category/round outcomes from adjacent aggregates, or fabricate apparently-observed facts to satisfy UI completeness. When exact evidence is absent, the surface must say that the evidence is unavailable or incomplete.
 - Implementation pattern mandate (strict, repo-wide): when adding or modifying behavior in an area that already has similar implementations, agents MUST first identify and follow the dominant existing project pattern (module boundaries, control flow, naming, error handling, telemetry shape, and test style). Introducing a new local pattern is allowed only when the current pattern is demonstrably insufficient and the user explicitly approves that deviation.
 - Reuse-first mandate (strict, repo-wide): agents MUST prefer extending shared modules/components/utilities over duplicating near-equivalent logic. If similar code exists, factor to a shared helper/component in the canonical location and consume it from feature code instead of copy/paste variants.
 - Enforcement command: treat avoidable duplication, one-off abstractions, and unapproved pattern drift as release-blocking non-compliance that must be revised before merge.
@@ -146,6 +147,12 @@ Planning-first workflow is mandatory unless the user explicitly stipulates a dif
    - agents MUST NEVER ad-lib, synthesize, or "best-guess" replacement code while claiming it is a restoration of prior code;
    - if exact prior content cannot be proven/recovered, the agent MUST stop, state that clearly, and request the missing source (commit hash/snippet/backup) before making further edits in that area;
    - completion claims for a revert are invalid unless the response includes concrete evidence of exact restoration (source reference and diff confirmation).
+21. Non-negotiable observed-telemetry truth rule for presentation and operator surfaces (release-blocking):
+   - agents MUST NOT make a UI, API payload, report, projection, summary, or observer surface look "complete" by inventing or stitching together fallback claims that were not explicitly recorded by the underlying execution or telemetry path;
+   - agents MUST NOT attribute a lane, category, surface, round, or outcome to a specific execution unless the code can point to exact recorded evidence for that same unit of execution;
+   - adjacent truths MUST NOT be collapsed into a stronger claim: run-window aggregates, round-level summaries, lane ownership maps, intended category targets, and historical comparisons MUST NOT be displayed as if they were direct per-event observations;
+   - if the exact observed datum is missing, stale, ambiguous, or only derivable by heuristic reconstruction, the product surface MUST present that uncertainty plainly instead of substituting a guessed value;
+   - release-blocking standard: any presentation-layer fallback that can cause an operator to believe Shuma observed, classified, generated, or defended against something it did not actually record is a correctness failure and must be removed before merge.
 
 ## Security and abuse posture
 

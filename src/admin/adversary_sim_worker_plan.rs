@@ -21,18 +21,6 @@ pub struct ScraplingCrawlStats {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
-pub struct ScraplingRuntimePaths {
-    pub public_search: String,
-    pub not_a_bot_checkbox: String,
-    pub challenge_submit: String,
-    pub pow: String,
-    pub pow_verify: String,
-    pub tarpit_progress: String,
-    pub maze_entry: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(deny_unknown_fields)]
 pub struct ScraplingWorkerPlan {
     pub schema_version: String,
     pub run_id: String,
@@ -44,7 +32,6 @@ pub struct ScraplingWorkerPlan {
     pub category_targets: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub surface_targets: Vec<String>,
-    pub runtime_paths: ScraplingRuntimePaths,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub request_proxy_url: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -64,6 +51,8 @@ pub struct ScraplingWorkerResult {
     pub tick_id: String,
     pub lane: RuntimeLane,
     pub fulfillment_mode: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub category_targets: Vec<String>,
     pub worker_id: String,
     pub tick_started_at: u64,
     pub tick_completed_at: u64,

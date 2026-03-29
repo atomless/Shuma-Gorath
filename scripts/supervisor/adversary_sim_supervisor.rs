@@ -379,6 +379,49 @@ fn json_string(body: &str, key: &str) -> Option<String> {
     None
 }
 
+fn json_string_array(body: &str, key: &str) -> Vec<String> {
+    let compact: String = body.chars().filter(|ch| !ch.is_whitespace()).collect();
+    let needle = format!("\"{key}\":[");
+    let Some(start) = compact.find(needle.as_str()) else {
+        return Vec::new();
+    };
+    let mut values = Vec::new();
+    let mut escaped = false;
+    let mut in_string = false;
+    let mut current = String::new();
+    for ch in compact[start + needle.len()..].chars() {
+        if !in_string {
+            match ch {
+                '"' => {
+                    in_string = true;
+                    current.clear();
+                }
+                ']' => break,
+                _ => continue,
+            }
+            continue;
+        }
+        if escaped {
+            current.push(ch);
+            escaped = false;
+            continue;
+        }
+        match ch {
+            '\\' => {
+                escaped = true;
+            }
+            '"' => {
+                in_string = false;
+                if !current.is_empty() {
+                    values.push(current.clone());
+                }
+            }
+            _ => current.push(ch),
+        }
+    }
+    values
+}
+
 fn dispatch_mode(body: &str) -> Option<String> {
     json_string(body, "dispatch_mode")
 }
@@ -402,6 +445,17 @@ fn json_escape(raw: &str) -> String {
             other => [other].into_iter().collect::<Vec<_>>(),
         })
         .collect()
+}
+
+fn json_render_string_array(values: &[String]) -> String {
+    format!(
+        "[{}]",
+        values
+            .iter()
+            .map(|value| format!("\"{}\"", json_escape(value.as_str())))
+            .collect::<Vec<_>>()
+            .join(",")
+    )
 }
 
 fn temp_file_path(prefix: &str) -> PathBuf {
@@ -443,12 +497,14 @@ fn build_scrapling_worker_failure_result(
         .duration_since(UNIX_EPOCH)
         .unwrap_or_else(|_| Duration::from_secs(0))
         .as_secs();
+    let category_targets = json_string_array(beat_body, "category_targets");
     format!(
-        "{{\"schema_version\":\"adversary-sim-scrapling-worker-result.v1\",\"run_id\":\"{}\",\"tick_id\":\"{}\",\"lane\":\"{}\",\"fulfillment_mode\":\"{}\",\"worker_id\":\"{}\",\"tick_started_at\":{},\"tick_completed_at\":{},\"generated_requests\":0,\"failed_requests\":0,\"last_response_status\":null,\"failure_class\":\"{}\",\"error\":\"{}\",\"crawl_stats\":{{\"requests_count\":0,\"offsite_requests_count\":0,\"blocked_requests_count\":0,\"response_status_count\":{{}},\"response_bytes\":0}},\"scope_rejections\":{{}}}}",
+        "{{\"schema_version\":\"adversary-sim-scrapling-worker-result.v1\",\"run_id\":\"{}\",\"tick_id\":\"{}\",\"lane\":\"{}\",\"fulfillment_mode\":\"{}\",\"category_targets\":{},\"worker_id\":\"{}\",\"tick_started_at\":{},\"tick_completed_at\":{},\"generated_requests\":0,\"failed_requests\":0,\"last_response_status\":null,\"failure_class\":\"{}\",\"error\":\"{}\",\"crawl_stats\":{{\"requests_count\":0,\"offsite_requests_count\":0,\"blocked_requests_count\":0,\"response_status_count\":{{}},\"response_bytes\":0}},\"scope_rejections\":{{}}}}",
         json_escape(run_id.as_str()),
         json_escape(tick_id.as_str()),
         json_escape(lane.as_str()),
         json_escape(fulfillment_mode.as_str()),
+        json_render_string_array(category_targets.as_slice()),
         json_escape(worker_id.as_str()),
         tick_started_at,
         tick_completed_at,

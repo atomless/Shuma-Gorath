@@ -1,4 +1,5 @@
 import unittest
+from unittest import mock
 
 import scripts.tests.adversary_runtime_toggle_surface_gate as runtime_surface_gate
 
@@ -26,6 +27,33 @@ class _Opener:
 
 
 class RuntimeToggleSurfaceGateTests(unittest.TestCase):
+    def test_toggle_requests_explicit_scrapling_lane_for_runtime_surface_gate(self) -> None:
+        gate = runtime_surface_gate.RuntimeToggleSurfaceGate(
+            base_url="http://127.0.0.1:3000",
+            api_key="test-api-key",
+            forwarded_secret="forwarded-secret",
+            health_secret="health-secret",
+            timeout_seconds=2,
+        )
+
+        captured = {}
+
+        def fake_request(method, path, payload=None, extra_headers=None):
+            captured["method"] = method
+            captured["path"] = path
+            captured["payload"] = payload
+            return {"status": 200, "body": {"operation_id": "simop-1"}, "raw": ""}
+
+        gate.request = fake_request
+
+        gate.toggle(True, "on")
+
+        self.assertEqual(captured["method"], "POST")
+        self.assertEqual(captured["path"], "/admin/adversary-sim/control")
+        self.assertEqual(captured["payload"]["enabled"], True)
+        self.assertEqual(captured["payload"]["lane"], "scrapling_traffic")
+        self.assertEqual(captured["payload"]["reason"], "runtime_surface_gate")
+
     def test_health_probe_includes_health_secret_when_configured(self) -> None:
         gate = runtime_surface_gate.RuntimeToggleSurfaceGate(
             base_url="http://127.0.0.1:3000",
@@ -181,6 +209,73 @@ class RuntimeToggleSurfaceGateTests(unittest.TestCase):
                 ("POST", "/admin/unban?ip=127.0.0.1"),
                 ("POST", "/admin/unban?ip=::1"),
                 ("POST", "/admin/unban?ip=unknown"),
+            ],
+        )
+
+    def test_runtime_surface_candidate_ips_follow_deterministic_runtime_profile(self) -> None:
+        ips = runtime_surface_gate.runtime_surface_candidate_ips(
+            {
+                "primary_request_count": 2,
+                "supplemental_request_count": 1,
+                "rate_burst": {"high": 3},
+                "lane_ip_octets": {
+                    "challenge_abuse": 250,
+                    "pow_abuse": 251,
+                },
+                "lane_ip_rotation_ticks": {
+                    "challenge_abuse": 1,
+                    "pow_abuse": 2,
+                },
+                "lane_ip_entropy_salts": {
+                    "challenge_abuse": 17,
+                    "pow_abuse": 29,
+                },
+            },
+            tick_horizon=2,
+        )
+
+        self.assertEqual(
+            ips,
+            [
+                "198.51.1.1",
+                "198.51.1.2",
+                "198.51.1.7",
+                "198.51.1.8",
+                "198.51.250.18",
+                "198.51.250.19",
+                "198.51.251.30",
+            ],
+        )
+
+    def test_clear_runtime_surface_bans_posts_unban_for_deterministic_runtime_ips(self) -> None:
+        gate = runtime_surface_gate.RuntimeToggleSurfaceGate(
+            base_url="http://127.0.0.1:3000",
+            api_key="test-api-key",
+            forwarded_secret="forwarded-secret",
+            health_secret="health-secret",
+            timeout_seconds=2,
+        )
+
+        seen: list[tuple[str, str]] = []
+
+        def fake_request(method, path, payload=None, extra_headers=None):
+            seen.append((method, path))
+            return {"status": 200, "body": {}, "raw": ""}
+
+        gate.request = fake_request
+
+        with mock.patch.object(
+            runtime_surface_gate,
+            "runtime_surface_candidate_ips",
+            return_value=["198.51.1.1", "198.51.250.18"],
+        ):
+            gate.clear_runtime_surface_bans()
+
+        self.assertEqual(
+            seen,
+            [
+                ("POST", "/admin/unban?ip=198.51.1.1"),
+                ("POST", "/admin/unban?ip=198.51.250.18"),
             ],
         )
 
@@ -417,6 +512,130 @@ class RuntimeToggleSurfaceGateTests(unittest.TestCase):
         self.assertEqual(coverage["run_id"], "sim-run-fresh")
         self.assertEqual(coverage["overall_status"], "covered")
         self.assertEqual(coverage["observed_fulfillment_modes"], ["stealth_browser"])
+
+    def test_poll_recent_scrapling_run_coverage_ignores_runs_started_before_toggle(self) -> None:
+        gate = runtime_surface_gate.RuntimeToggleSurfaceGate(
+            base_url="http://127.0.0.1:3000",
+            api_key="test-api-key",
+            forwarded_secret="forwarded-secret",
+            health_secret="health-secret",
+            timeout_seconds=2,
+        )
+
+        responses = iter(
+            [
+                {
+                    "status": 200,
+                    "body": {
+                        "adversary_sim": {
+                            "recent_runs": [
+                                {
+                                    "run_id": "sim-run-old-covered",
+                                    "lane": "scrapling_traffic",
+                                    "first_ts": 99,
+                                    "observed_fulfillment_modes": ["crawler"],
+                                    "owned_surface_coverage": {
+                                        "overall_status": "covered",
+                                        "required_surface_ids": ["public_path_traversal"],
+                                        "blocking_surface_ids": [],
+                                    },
+                                }
+                            ]
+                        },
+                        "objectives": {"profile_id": "human_only_private"},
+                        "verified_identity": {
+                            "effective_non_human_policy": {
+                                "verified_identity_override_mode": "strict_human_only"
+                            }
+                        },
+                        "budget_distance": {
+                            "rows": [
+                                {
+                                    "metric": "suspicious_forwarded_request_rate",
+                                    "target": 0.0,
+                                },
+                                {
+                                    "metric": "suspicious_forwarded_byte_rate",
+                                    "target": 0.0,
+                                },
+                                {
+                                    "metric": "suspicious_forwarded_latency_share",
+                                    "target": 0.0,
+                                },
+                            ]
+                        },
+                    },
+                    "raw": "",
+                },
+                {
+                    "status": 200,
+                    "body": {
+                        "adversary_sim": {
+                            "recent_runs": [
+                                {
+                                    "run_id": "sim-run-fresh-covered",
+                                    "lane": "scrapling_traffic",
+                                    "first_ts": 100,
+                                    "observed_fulfillment_modes": ["http_agent"],
+                                    "owned_surface_coverage": {
+                                        "overall_status": "covered",
+                                        "required_surface_ids": ["pow_verify_abuse"],
+                                        "blocking_surface_ids": [],
+                                    },
+                                },
+                                {
+                                    "run_id": "sim-run-old-covered",
+                                    "lane": "scrapling_traffic",
+                                    "first_ts": 99,
+                                    "observed_fulfillment_modes": ["crawler"],
+                                    "owned_surface_coverage": {
+                                        "overall_status": "covered",
+                                        "required_surface_ids": ["public_path_traversal"],
+                                        "blocking_surface_ids": [],
+                                    },
+                                },
+                            ]
+                        },
+                        "objectives": {"profile_id": "human_only_private"},
+                        "verified_identity": {
+                            "effective_non_human_policy": {
+                                "verified_identity_override_mode": "strict_human_only"
+                            }
+                        },
+                        "budget_distance": {
+                            "rows": [
+                                {
+                                    "metric": "suspicious_forwarded_request_rate",
+                                    "target": 0.0,
+                                },
+                                {
+                                    "metric": "suspicious_forwarded_byte_rate",
+                                    "target": 0.0,
+                                },
+                                {
+                                    "metric": "suspicious_forwarded_latency_share",
+                                    "target": 0.0,
+                                },
+                            ]
+                        },
+                    },
+                    "raw": "",
+                },
+            ]
+        )
+
+        def fake_request(method, path, payload=None, extra_headers=None):
+            self.assertEqual(method, "GET")
+            self.assertIn("/admin/operator-snapshot", path)
+            return next(responses)
+
+        gate.request = fake_request
+
+        coverage = gate.poll_recent_scrapling_run_coverage(minimum_started_at=100)
+
+        self.assertEqual(coverage["run_id"], "sim-run-fresh-covered")
+        self.assertEqual(coverage["overall_status"], "covered")
+        self.assertEqual(coverage["observed_fulfillment_modes"], ["http_agent"])
 
     def test_poll_post_sim_oversight_run_waits_for_matching_completed_sim_run(self) -> None:
         gate = runtime_surface_gate.RuntimeToggleSurfaceGate(

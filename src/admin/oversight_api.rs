@@ -772,6 +772,24 @@ fn completed_episode_record(
         homeostasis_break_reasons,
         restart_baseline,
     ) = completed_episode_homeostasis_state(snapshot, apply, active_canary_episode_context);
+    let judged_lane_ids = active_canary_episode_context
+        .map(|context| {
+            context
+                .required_runs
+                .iter()
+                .map(|run| run.lane.as_str().to_string())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let judged_run_ids = active_canary_episode_context
+        .map(|context| {
+            context
+                .required_runs
+                .iter()
+                .filter_map(|run| run.follow_on_run_id.clone())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
 
     Some(OperatorSnapshotEpisodeRecord {
         episode_id: decision.decision_id.clone(),
@@ -792,6 +810,8 @@ fn completed_episode_record(
         proposal_status: proposal_status.to_string(),
         watch_window_result: watch_window_result.to_string(),
         retain_or_rollback: retain_or_rollback.to_string(),
+        judged_lane_ids,
+        judged_run_ids,
         benchmark_deltas: benchmark_episode_delta_summary(&snapshot.benchmark_results),
         hard_guardrail_triggers: completed_episode_guardrail_triggers(snapshot, reconcile, apply),
         cycle_judgment: cycle_judgment.to_string(),

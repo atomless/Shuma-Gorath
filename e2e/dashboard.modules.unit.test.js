@@ -3558,7 +3558,7 @@ test('monitoring view model and status module remain pure snapshot transforms', 
               blocked_by_surface_ids: [],
               attempt_count: 4,
               sample_request_method: 'GET',
-              sample_request_path: '/sim/public/search?q=scrapling',
+              sample_request_path: '/catalog?page=1',
               sample_response_status: 200
             },
             {
@@ -3803,6 +3803,14 @@ test('monitoring view model and status module remain pure snapshot transforms', 
     assert.equal(
       summarizedRuns.runRows[1].ownedSurfaceCoverage?.receipts?.[0]?.surfaceLabel,
       'Challenge Routing'
+    );
+    assert.equal(
+      summarizedRuns.runRows[1].ownedSurfaceCoverage?.receipts?.[0]?.sampleRequestPath,
+      '/catalog?page=1'
+    );
+    assert.doesNotMatch(
+      summarizedRuns.runRows[1].ownedSurfaceCoverage?.receipts?.[0]?.sampleRequestPath || '',
+      /scrapling/i
     );
     assert.equal(summarizedRuns.activeBanCount, 1);
 
@@ -6277,7 +6285,8 @@ test('game loop, traffic, and diagnostics tabs make ownership boundaries explici
   assert.doesNotMatch(monitoringSource, /Current Status/);
   assert.doesNotMatch(monitoringSource, /Loop verdict, budget state/);
   assert.doesNotMatch(monitoringSource, /Monitoring Overhaul In Progress/);
-  assert.match(monitoringSource, /title: ''/);
+  assert.match(monitoringSource, /title: 'Recent Rounds'/);
+  assert.match(monitoringSource, /title: 'Round Outcome'/);
   assert.match(sectionBlockSource, /\{#if title\}/);
 
   assert.match(trafficSource, /class="dashboard-tab-panel"/);
@@ -6363,6 +6372,10 @@ test('red team tab renders the recent adversary runs panel with red-team-specifi
   assert.match(source, /id="adversary-sim-persisted-event-evidence"/);
   assert.match(source, /Recovered lower-bound evidence from persisted monitoring events\./);
   assert.match(source, /Direct runtime control counters\./);
+  assert.match(source, /export let oversightHistory = null;/);
+  assert.match(source, /export let oversightAgentStatus = null;/);
+  assert.match(source, /Judged Episode Basis/);
+  assert.match(source, /Recent visibility alone does not mean the controller judged a mixed-attacker episode\./);
 });
 
 test('adversary run panel reserves a runtime column for additive llm runtime truth', () => {
@@ -6729,6 +6742,24 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
         degraded_match_count: 0,
         collapsed_to_unknown_count: 1,
         not_materialized_count: 2,
+        simulator_ground_truth: {
+          status: 'observed_recent_runs',
+          recent_sim_run_count: 2,
+          categories: [
+            {
+              category_id: 'ai_scraper_bot',
+              category_label: 'AI Scraper Bot',
+              recent_run_count: 1,
+              evidence_references: ['recent_sim_runs:simrun-001:reference:ai_scraper_bot']
+            },
+            {
+              category_id: 'automated_browser',
+              category_label: 'Automated Browser',
+              recent_run_count: 1,
+              evidence_references: ['recent_sim_runs:simrun-002:reference:automated_browser']
+            }
+          ]
+        },
         readiness: {
           status: 'partial',
           blockers: ['exact_category_inference_not_ready'],
@@ -6790,6 +6821,15 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
   assert.equal(
     operatorSnapshot.non_human_traffic.recognition_evaluation.comparison_rows[0].category_id,
     'ai_scraper_bot'
+  );
+  assert.equal(
+    operatorSnapshot.non_human_traffic.recognition_evaluation.simulator_ground_truth.status,
+    'observed_recent_runs'
+  );
+  assert.equal(
+    operatorSnapshot.non_human_traffic.recognition_evaluation.simulator_ground_truth.categories[1]
+      .category_id,
+    'automated_browser'
   );
   assert.equal(operatorSnapshot.verified_identity.taxonomy_alignment.status, 'degraded');
   assert.equal(
@@ -7168,9 +7208,19 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
       rows: [
         {
           episode_id: 'episode-2',
+          completed_at_ts: 1774306800,
           proposal_status: 'accepted',
           watch_window_result: 'improved',
           retain_or_rollback: 'retained',
+          judged_lane_ids: ['scrapling_traffic', 'bot_red_team'],
+          judged_run_ids: ['simrun-002', 'simrun-003'],
+          proposal: {
+            patch_family: 'fingerprint_signal',
+            expected_impact: 'Tighten suspicious automation detection.',
+            confidence: 'medium',
+            note: 'Retained after the mixed round improved.'
+          },
+          cycle_judgment: 'continue',
           benchmark_urgency_status: 'steady',
           homeostasis_break_status: 'not_triggered',
           homeostasis_break_reasons: [],
@@ -7178,13 +7228,30 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
             source: 'retained_candidate_baseline',
             generated_at: 1774303200,
             note: 'Retained candidate became the restart baseline.'
-          }
+          },
+          evidence_references: [
+            {
+              kind: 'adversary_sim_recent_run',
+              reference: 'simrun-002',
+              note: 'Latest mixed-attacker run visible to the judge.'
+            }
+          ]
         },
         {
           episode_id: 'episode-1',
+          completed_at_ts: 1774220400,
           proposal_status: 'accepted',
           watch_window_result: 'regressed',
           retain_or_rollback: 'rolled_back',
+          judged_lane_ids: ['scrapling_traffic'],
+          judged_run_ids: ['simrun-001'],
+          proposal: {
+            patch_family: 'maze_core',
+            expected_impact: 'Tighten maze traversal restrictions.',
+            confidence: 'medium',
+            note: 'Rolled back after regressions.'
+          },
+          cycle_judgment: 'rollback_and_continue',
           benchmark_urgency_status: 'critical',
           homeostasis_break_status: 'triggered',
           homeostasis_break_reasons: ['candidate_baseline_regressed'],
@@ -7192,7 +7259,14 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
             source: 'restored_prior_baseline',
             generated_at: 1774220400,
             note: 'Rollback restored the prior accepted baseline.'
-          }
+          },
+          evidence_references: [
+            {
+              kind: 'adversary_sim_recent_run',
+              reference: 'simrun-001',
+              note: 'Latest Scrapling run visible to the judge.'
+            }
+          ]
         }
       ]
     },
@@ -7235,8 +7309,25 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
     'retained_candidate_baseline'
   );
   assert.equal(oversightHistory.episode_archive.rows.length, 2);
+  assert.equal(oversightHistory.episode_archive.rows[0].completed_at_ts, 1774306800);
   assert.equal(oversightHistory.episode_archive.rows[0].retain_or_rollback, 'retained');
+  assert.deepEqual(oversightHistory.episode_archive.rows[0].judged_lane_ids, [
+    'scrapling_traffic',
+    'bot_red_team'
+  ]);
+  assert.deepEqual(oversightHistory.episode_archive.rows[0].judged_run_ids, [
+    'simrun-002',
+    'simrun-003'
+  ]);
+  assert.equal(oversightHistory.episode_archive.rows[0].proposal.patch_family, 'fingerprint_signal');
+  assert.equal(oversightHistory.episode_archive.rows[0].cycle_judgment, 'continue');
+  assert.equal(
+    oversightHistory.episode_archive.rows[0].evidence_references[0].reference,
+    'simrun-002'
+  );
   assert.equal(oversightHistory.episode_archive.rows[1].retain_or_rollback, 'rolled_back');
+  assert.deepEqual(oversightHistory.episode_archive.rows[1].judged_lane_ids, ['scrapling_traffic']);
+  assert.deepEqual(oversightHistory.episode_archive.rows[1].judged_run_ids, ['simrun-001']);
   assert.equal(oversightHistory.episode_archive.rows[1].homeostasis_break_status, 'triggered');
   assert.equal(
     oversightHistory.episode_archive.rows[1].restart_baseline.source,
@@ -7258,6 +7349,59 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
       qualifying_completion: 'transition_to_off_with_completed_run_id_and_generated_traffic',
       dedupe_key: 'sim_run_id'
     },
+    candidate_window: {
+      status: 'running',
+      canary_id: 'canary-1',
+      patch_family: 'fingerprint_signal',
+      requested_lane: 'bot_red_team',
+      requested_duration_seconds: 120,
+      requested_at_ts: 1774306810,
+      watch_window_end_at: 1774306920,
+      follow_on_run_id: 'simrun-002',
+      follow_on_started_at: 1774306812,
+      required_runs: [
+        {
+          lane: 'scrapling_traffic',
+          status: 'materialized',
+          requested_at_ts: 1774306800,
+          requested_duration_seconds: 30,
+          follow_on_run_id: 'simrun-001',
+          follow_on_started_at: 1774306801,
+          materialized_at_ts: 1774306805
+        },
+        {
+          lane: 'bot_red_team',
+          status: 'running',
+          requested_at_ts: 1774306810,
+          requested_duration_seconds: 120,
+          follow_on_run_id: 'simrun-002',
+          follow_on_started_at: 1774306812
+        }
+      ]
+    },
+    continuation_run: {
+      status: 'pending',
+      requested_lane: 'scrapling_traffic',
+      requested_duration_seconds: 30,
+      requested_at_ts: 1774307000,
+      source_decision_id: 'ovr-1',
+      source_decision_outcome: 'retained',
+      continue_reason: 'outside_budget',
+      required_runs: [
+        {
+          lane: 'scrapling_traffic',
+          status: 'pending',
+          requested_at_ts: 1774307000,
+          requested_duration_seconds: 30
+        },
+        {
+          lane: 'bot_red_team',
+          status: 'pending',
+          requested_at_ts: 1774307000,
+          requested_duration_seconds: 120
+        }
+      ]
+    },
     latest_decision: {
       decision_id: 'ovr-1',
       recorded_at_ts: 1774306800,
@@ -7273,9 +7417,26 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
       rows: [
         {
           episode_id: 'episode-2',
+          completed_at_ts: 1774306800,
           proposal_status: 'accepted',
           watch_window_result: 'improved',
-          retain_or_rollback: 'retained'
+          retain_or_rollback: 'retained',
+          judged_lane_ids: ['scrapling_traffic', 'bot_red_team'],
+          judged_run_ids: ['simrun-001', 'simrun-002'],
+          proposal: {
+            patch_family: 'fingerprint_signal',
+            expected_impact: 'Tighten suspicious automation detection.',
+            confidence: 'medium',
+            note: 'Retained after the mixed round improved.'
+          },
+          cycle_judgment: 'continue',
+          evidence_references: [
+            {
+              kind: 'adversary_sim_recent_run',
+              reference: 'simrun-002',
+              note: 'Latest mixed-attacker run visible to the judge.'
+            }
+          ]
         }
       ]
     },
@@ -7298,8 +7459,24 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
 
   assert.equal(oversightStatus.schema_version, 'oversight_agent_status_v1');
   assert.equal(oversightStatus.latest_decision.outcome, 'canary_applied');
+  assert.equal(oversightStatus.candidate_window.status, 'running');
+  assert.equal(oversightStatus.candidate_window.required_runs.length, 2);
+  assert.equal(oversightStatus.candidate_window.required_runs[1].lane, 'bot_red_team');
+  assert.equal(oversightStatus.continuation_run.status, 'pending');
+  assert.equal(oversightStatus.continuation_run.required_runs.length, 2);
   assert.equal(oversightStatus.episode_archive.schema_version, 'oversight_episode_archive_v1');
+  assert.equal(oversightStatus.episode_archive.rows[0].completed_at_ts, 1774306800);
   assert.equal(oversightStatus.episode_archive.rows[0].retain_or_rollback, 'retained');
+  assert.deepEqual(oversightStatus.episode_archive.rows[0].judged_lane_ids, [
+    'scrapling_traffic',
+    'bot_red_team'
+  ]);
+  assert.deepEqual(oversightStatus.episode_archive.rows[0].judged_run_ids, [
+    'simrun-001',
+    'simrun-002'
+  ]);
+  assert.equal(oversightStatus.episode_archive.rows[0].proposal.patch_family, 'fingerprint_signal');
+  assert.equal(oversightStatus.episode_archive.rows[0].cycle_judgment, 'continue');
   assert.equal(oversightStatus.recent_runs[0].execution.apply.stage, 'canary_applied');
 });
 
@@ -7333,40 +7510,35 @@ test('dashboard game loop accountability source distinguishes judge planes and l
     'utf8'
   );
 
-  assert.match(gameLoopSource, /game-loop-current-status-exploit-progress/);
-  assert.match(gameLoopSource, /game-loop-current-status-evidence-quality/);
-  assert.match(gameLoopSource, /game-loop-current-status-exploit-urgency/);
-  assert.match(gameLoopSource, /game-loop-current-status-human-friction-urgency/);
-  assert.doesNotMatch(gameLoopSource, /game-loop-current-status-urgency/);
+  assert.match(gameLoopSource, /data-game-loop-section=\{section\.id\}/);
+  assert.match(gameLoopSource, /recent-rounds/);
+  assert.match(gameLoopSource, /adversary-cast/);
+  assert.match(gameLoopSource, /defence-cast/);
+  assert.match(gameLoopSource, /Recent Rounds/);
+  assert.match(gameLoopSource, /Adversaries In This Round/);
+  assert.match(gameLoopSource, /Defences In This Round/);
+  assert.match(gameLoopSource, /game-loop-round-history/);
+  assert.match(gameLoopSource, /game-loop-adversary-cast/);
+  assert.match(gameLoopSource, /game-loop-defence-cast/);
+  assert.match(gameLoopSource, /Recent recognition evaluation/);
+  assert.match(gameLoopSource, /simulator ground truth/);
+  assert.match(gameLoopSource, /surface-native view/);
   assert.match(gameLoopSource, /game-loop-current-status-loop-actionability/);
-  assert.match(gameLoopSource, /game-loop-progress-break-state/);
-  assert.match(gameLoopSource, /game-loop-exploit-progress/);
-  assert.match(gameLoopSource, /game-loop-breach-loci/);
-  assert.match(gameLoopSource, /game-loop-surface-contract/);
-  assert.match(gameLoopSource, /Judge State:/);
-  assert.match(gameLoopSource, /Exploit Urgency/);
-  assert.match(gameLoopSource, /Human Friction Urgency/);
-  assert.match(gameLoopSource, /Loop Actionability:/);
-  assert.match(gameLoopSource, /Restriction Quest:/);
-  assert.match(gameLoopSource, /Recognition Quest:/);
-  assert.match(gameLoopSource, /Root Cause Blockers/);
-  assert.match(gameLoopSource, /Controller Outcome/);
-  assert.match(gameLoopSource, /Next Fix Surfaces/);
-  assert.match(gameLoopSource, /Move Or Escalation:/);
-  assert.match(gameLoopSource, /Config Ring:/);
-  assert.match(gameLoopSource, /Code Evolution:/);
-  assert.doesNotMatch(gameLoopSource, /Urgency Split:/);
-  assert.match(gameLoopSource, /Host cost/);
-  assert.match(gameLoopSource, /Repair candidates/);
-  assert.match(gameLoopSource, /attempt count not materialized/);
   assert.match(gameLoopSource, /simulator metadata does not count as category truth/);
+  assert.match(gameLoopSource, /judgedRunIds/);
+  assert.doesNotMatch(gameLoopSource, /recentSimRunRows\.slice\(0,\s*2\)/);
+  assert.doesNotMatch(gameLoopSource, /:\s*simulatorGroundTruthCategories/);
 
   assert.match(apiClientSource, /const urgency = asRecord\(source\.urgency\);/);
   assert.match(apiClientSource, /const evidenceQuality = asRecord\(escalationHint\.evidence_quality\);/);
   assert.match(apiClientSource, /const controllerContract = asRecord\(source\.controller_contract\);/);
+  assert.match(apiClientSource, /simulator_ground_truth/);
   assert.match(apiClientSource, /restriction_diagnosis/);
   assert.match(apiClientSource, /move_selection/);
   assert.match(apiClientSource, /blocker_group/);
+  assert.match(apiClientSource, /completed_at_ts/);
+  assert.match(apiClientSource, /proposal: \{/);
+  assert.match(apiClientSource, /evidence_references/);
   assert.match(apiClientSource, /attempt_count/);
   assert.match(apiClientSource, /attempt_count_status/);
   assert.match(apiClientSource, /cost_channel_status/);
@@ -7375,6 +7547,10 @@ test('dashboard game loop accountability source distinguishes judge planes and l
   assert.match(apiClientSource, /cost_channel_ids/);
   assert.match(apiClientSource, /homeostasis_break_reasons/);
   assert.match(apiClientSource, /restart_baseline/);
+  assert.match(apiClientSource, /judged_lane_ids/);
+  assert.match(apiClientSource, /judged_run_ids/);
+  assert.match(apiClientSource, /candidate_window/);
+  assert.match(apiClientSource, /continuation_run/);
 });
 
 test('dashboard game loop accountability refresh populates machine snapshots through behavior', { concurrency: false }, async () => {

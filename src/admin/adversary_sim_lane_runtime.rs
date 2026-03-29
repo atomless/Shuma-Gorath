@@ -16,8 +16,8 @@ use crate::challenge::KeyValueStore;
 
 use super::adversary_sim::{
     next_llm_fulfillment_plan, AutonomousHeartbeatTickSummary, ControlPhase, ControlState,
-    GenerationTickResult, LlmRuntimeResult, RuntimeLane, ScraplingRuntimePaths,
-    ScraplingWorkerPlan, ScraplingWorkerResult,
+    GenerationTickResult, LlmRuntimeResult, RuntimeLane, ScraplingWorkerPlan,
+    ScraplingWorkerResult,
     WorkerFailureClass, SCRAPLING_MAX_BYTES_PER_TICK, SCRAPLING_MAX_DEPTH_PER_TICK,
     SCRAPLING_MAX_MS_PER_TICK, SCRAPLING_MAX_REQUESTS_PER_TICK, SCRAPLING_SIM_PROFILE,
     SCRAPLING_WORKER_PLAN_SCHEMA_VERSION,
@@ -509,7 +509,6 @@ fn next_scrapling_worker_plan(now: u64, state: &mut ControlState) -> ScraplingWo
         .unwrap_or_else(|| format!("simrun-runtime-{now}"));
     let tick_id = format!("scrapling-tick-{}-{:016x}", now, random::<u64>());
     let fulfillment_mode = scrapling_fulfillment_mode_for_tick(state.generated_tick_count);
-    let runtime_profile = deterministic_runtime_profile();
     let request_proxy_url = optional_scrapling_proxy_env("ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_URL");
     let browser_proxy_url = optional_scrapling_proxy_env("ADVERSARY_SIM_SCRAPLING_BROWSER_PROXY_URL")
         .or_else(|| request_proxy_url.clone());
@@ -531,15 +530,6 @@ fn next_scrapling_worker_plan(now: u64, state: &mut ControlState) -> ScraplingWo
             crate::observability::scrapling_owned_surface::scrapling_owned_surface_targets_for_mode(
                 fulfillment_mode,
             ),
-        runtime_paths: ScraplingRuntimePaths {
-            public_search: runtime_profile.paths.public_search.clone(),
-            not_a_bot_checkbox: runtime_profile.paths.not_a_bot_checkbox.clone(),
-            challenge_submit: runtime_profile.paths.challenge_submit.clone(),
-            pow: runtime_profile.paths.pow.clone(),
-            pow_verify: runtime_profile.paths.pow_verify.clone(),
-            tarpit_progress: crate::tarpit::progress_path().to_string(),
-            maze_entry: crate::maze::entry_path("scrapling-browser"),
-        },
         request_proxy_url,
         browser_proxy_url,
         tick_started_at: now,

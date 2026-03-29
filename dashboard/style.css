@@ -285,6 +285,10 @@
   padding: 20px 20px 20px 0;
 }
 
+*:focus {
+    outline: var(--inline-link-fg);
+}
+
 .input-field {
   border: 1px solid var(--border-hairline);
   background-color: var(--field-bg);

@@ -121,6 +121,7 @@ pub(crate) struct OversightActiveCanaryState {
 pub(crate) struct OversightActiveCanaryEpisodeContext {
     pub baseline_snapshot: BenchmarkComparableSnapshot,
     pub proposal: OversightPatchProposal,
+    pub required_runs: Vec<crate::admin::oversight_follow_on_runs::OversightRequiredLaneRun>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -652,6 +653,7 @@ pub(crate) fn load_active_canary_episode_context<S: KeyValueStore>(
     load_active_canary(store, site_id).map(|state| OversightActiveCanaryEpisodeContext {
         baseline_snapshot: state.baseline_snapshot,
         proposal: state.proposal,
+        required_runs: state.candidate_window.required_runs,
     })
 }
 

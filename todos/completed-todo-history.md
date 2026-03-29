@@ -2,7 +2,137 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-03-29)
+
+### SIM-TRUTH-1 Eliminate Presentation Fabrication And Out-Of-Band Scrapling Route Choreography
+
+- [x] Completed `SIM-TRUTH-1` across:
+  - [`../AGENTS.md`](../AGENTS.md)
+  - [`../docs/research/2026-03-29-observed-telemetry-truth-and-scrapling-discoverability-review.md`](../docs/research/2026-03-29-observed-telemetry-truth-and-scrapling-discoverability-review.md)
+  - [`../docs/plans/2026-03-29-observed-telemetry-truth-and-scrapling-discoverability-plan.md`](../docs/plans/2026-03-29-observed-telemetry-truth-and-scrapling-discoverability-plan.md)
+  - [`../docs/adversarial-operator-guide.md`](../docs/adversarial-operator-guide.md)
+  - [`../src/admin/adversary_sim_worker_plan.rs`](../src/admin/adversary_sim_worker_plan.rs)
+  - [`../src/admin/adversary_sim.rs`](../src/admin/adversary_sim.rs)
+  - [`../src/admin/adversary_sim_lane_runtime.rs`](../src/admin/adversary_sim_lane_runtime.rs)
+  - [`../scripts/supervisor/scrapling_worker.py`](../scripts/supervisor/scrapling_worker.py)
+  - [`../src/admin/api.rs`](../src/admin/api.rs)
+  - [`../scripts/tests/test_scrapling_worker.py`](../scripts/tests/test_scrapling_worker.py)
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`../todos/todo.md`](../todos/todo.md)
+- [x] What landed:
+  - `AGENTS.md` now explicitly forbids any presentation-layer fallback that invents or stitches together execution claims beyond what telemetry actually recorded,
+  - Scrapling worker plans no longer hand the worker a `runtime_paths` route catalog,
+  - Scrapling crawler ordering now remains rooted in discovered public links while still proving out-of-scope redirect rejection,
+  - Scrapling bulk-scraper, browser, and HTTP-agent personas now begin from the accepted root or hint documents and discover pages, forms, redirects, JS-verification entrypoints, and maze entrypoints from host-visible responses instead of injected host-internal paths,
+  - Scrapling public traffic no longer embeds persona/category convenience strings such as `scrapling-*`, no longer uses `/agent/*` helper choreography, and the Game Loop accountability proof now expects a truthful surface sample path such as `/catalog?page=1`.
+- [x] Why:
+  - the previous slice still allowed two kinds of truth break: UI/presentation fallbacks that could overstate what was observed, and attacker-lane behavior that was unrealistically helped by injected internal route knowledge and self-identifying request strings.
+- [x] Evidence:
+  - `make test-adversary-sim-scrapling-worker`
+  - `make test-admin-machine-contracts`
+  - `make test-dashboard-game-loop-accountability`
+  - `make test-adversarial-llm-fit`
+
+### RSI-GAME-BOARD-1I Exact Observer Truth For Judged Runs And Lane-Owned Categories
+
+- [x] Completed `RSI-GAME-BOARD-1I` across:
+  - [`../scripts/supervisor/scrapling_worker.py`](../scripts/supervisor/scrapling_worker.py)
+  - [`../scripts/supervisor/adversary_sim_supervisor.rs`](../scripts/supervisor/adversary_sim_supervisor.rs)
+  - [`../src/admin/adversary_sim_worker_plan.rs`](../src/admin/adversary_sim_worker_plan.rs)
+  - [`../src/admin/adversary_sim_api.rs`](../src/admin/adversary_sim_api.rs)
+  - [`../src/admin/api.rs`](../src/admin/api.rs)
+  - [`../src/admin/oversight_api.rs`](../src/admin/oversight_api.rs)
+  - [`../src/admin/oversight_reconcile.rs`](../src/admin/oversight_reconcile.rs)
+  - [`../src/observability/operator_snapshot.rs`](../src/observability/operator_snapshot.rs)
+  - [`../dashboard/src/lib/domain/api-client.js`](../dashboard/src/lib/domain/api-client.js)
+  - [`../dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`../scripts/tests/test_scrapling_worker.py`](../scripts/tests/test_scrapling_worker.py)
+  - [`../docs/dashboard-tabs/game-loop.md`](../docs/dashboard-tabs/game-loop.md)
+  - [`../docs/research/2026-03-29-game-loop-exact-observer-truth-review.md`](../docs/research/2026-03-29-game-loop-exact-observer-truth-review.md)
+  - [`../docs/plans/2026-03-29-game-loop-exact-observer-truth-plan.md`](../docs/plans/2026-03-29-game-loop-exact-observer-truth-plan.md)
+  - [`../todos/todo.md`](../todos/todo.md)
+- [x] What landed:
+  - Scrapling worker results and persisted receipt events now carry explicit observer-only `category_targets`, so recent Game Loop run summaries no longer have to invent Scrapling category truth from generic runtime profiles,
+  - completed judged episode archive rows now preserve exact `judged_run_ids` alongside `judged_lane_ids`, giving the Game Loop page an exact round basis instead of a lane-plus-time reconstruction,
+  - the Game Loop top sections now select the judged round from exact run ids, refuse to backfill missing lane categories from round-level simulator truth, and show an explicit unavailable message when exact run receipts have aged out,
+  - adversary rows now avoid cross-contaminating one category with unrelated run modes, and the lower `Recognition Evaluation` section now renders recent category comparison rows instead of the misleading posture-meter surface.
+- [x] Why:
+  - the earlier observer-facing page still had two truth breaks: it could stitch the wrong recent run onto a judged round, and it could claim impossible lane/category pairings whenever a lane row lacked explicit category evidence but broader round-level simulator categories existed.
+- [x] Evidence:
+  - `make test-adversary-sim-scrapling-worker`
+  - `make test-admin-machine-contracts`
+  - `make test-rsi-game-mixed-proof-projection`
+  - `make dashboard-build`
+  - `make run-prebuilt`
+  - `make test-dashboard-game-loop-accountability`
+
 ## Additional completions (2026-03-28)
+
+### RSI-GAME-BOARD-1H Observer-Facing Game Loop Presentation
+
+- [x] Completed `RSI-GAME-BOARD-1H` across:
+  - [`../dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
+  - [`../dashboard/src/lib/domain/api-client.js`](../dashboard/src/lib/domain/api-client.js)
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`../docs/dashboard-tabs/game-loop.md`](../docs/dashboard-tabs/game-loop.md)
+  - [`../docs/research/2026-03-28-game-loop-observer-facing-presentation-review.md`](../docs/research/2026-03-28-game-loop-observer-facing-presentation-review.md)
+  - [`../docs/plans/2026-03-28-game-loop-observer-facing-presentation-plan.md`](../docs/plans/2026-03-28-game-loop-observer-facing-presentation-plan.md)
+  - [`../docs/research/README.md`](../docs/research/README.md)
+  - [`../docs/plans/README.md`](../docs/plans/README.md)
+  - [`../todos/todo.md`](../todos/todo.md)
+- [x] What landed:
+  - the top of `Game Loop` now starts with a compact recent-round history instead of leading with judge-internal machinery,
+  - the tab now shows an adversary-side cast built from simulator ground truth plus Shuma recognition outcomes, so operators can see which non-human characters appeared and what Shuma called them,
+  - the tab now shows a defence-side cast built from surface-contract receipts and breach loci in surface-native language, so the page reports what each defence surface saw without leaking simulator labels into defence truth,
+  - and the previous loop-progress, pressure, and controller-detail panels remain lower on the page rather than being removed, keeping the change presentation-only.
+- [x] Why:
+  - the earlier page still felt like the loop narrating itself, forced operators to infer recent rounds from separate internal panels, and made the recognition section read as broken because it foregrounded category-target meters instead of the already-available per-category comparison truth.
+- [x] Evidence:
+  - `make dashboard-build`
+  - `make test-dashboard-game-loop-accountability`
+  - local Spin restart with `make run-prebuilt` so the focused Playwright proof hit the fresh dashboard assets rather than a stale bundle
+
+### Proof Path Hardening: Strict Scrapling Runtime Gate Dirty-State Isolation
+
+- [x] Completed the strict Scrapling proof-path hardening across:
+  - [`../scripts/tests/adversary_runtime_toggle_surface_gate.py`](../scripts/tests/adversary_runtime_toggle_surface_gate.py)
+  - [`../scripts/tests/test_adversary_runtime_toggle_surface_gate.py`](../scripts/tests/test_adversary_runtime_toggle_surface_gate.py)
+  - [`../src/admin/oversight_agent.rs`](../src/admin/oversight_agent.rs)
+- [x] What landed:
+  - the runtime-toggle Scrapling gate now clears the deterministic sim IP set it is about to reuse, so stale bans from earlier local runs no longer turn fresh `/pow` and browser-automation probes into false `403` receipts,
+  - the gate now only accepts Scrapling coverage from runs that actually started after the current toggle, which blocks stale historical covered runs from being misread as fresh proof,
+  - and the two continuation-duration unit tests now take the canonical env lock before asserting runtime-dev follow-on durations, eliminating the full-suite order-sensitive `30` vs `180` mismatch.
+- [x] Why:
+  - after the explicit-lane repair, the local strict proof could still fail or false-pass on a dirty long-lived server because stale sim bans and stale covered runs polluted the runtime gate, while the broader unit suite had a separate env-sensitive continuation assertion that could fail depending on prior test order.
+- [x] Evidence:
+  - `make test-adversary-sim-runtime-surface-unit`
+  - `make test-adversary-sim-runtime-surface`
+  - `make test-rsi-game-human-only-proof`
+  - `cargo test admin::oversight_agent::tests::agent_cycle_requests_continuation_run_after_retained_terminal_episode_when_still_outside_budget -- --exact --nocapture`
+  - `cargo test admin::oversight_agent::tests::agent_cycle_requests_continuation_run_after_rollback_terminal_episode_when_still_outside_budget -- --exact --nocapture`
+  - `git diff --check -- scripts/tests/adversary_runtime_toggle_surface_gate.py scripts/tests/test_adversary_runtime_toggle_surface_gate.py src/admin/oversight_agent.rs todos/completed-todo-history.md`
+  - `make test` progressed through the repaired runtime gate and later stopped at dashboard Playwright `e2e/dashboard.smoke.spec.js:4168` because the lane-selector UI still observed an active `bot_red_team` run instead of settling to `enabled=false`.
+
+### Proof Path Repair: Strict Scrapling Runtime Gate Explicit Lane Selection
+
+- [x] Completed the strict Scrapling proof-path repair across:
+  - [`../scripts/tests/adversary_runtime_toggle_surface_gate.py`](../scripts/tests/adversary_runtime_toggle_surface_gate.py)
+  - [`../scripts/tests/test_adversary_runtime_toggle_surface_gate.py`](../scripts/tests/test_adversary_runtime_toggle_surface_gate.py)
+- [x] What landed:
+  - the runtime-toggle Scrapling surface gate now sends an explicit `scrapling_traffic` lane when it starts the adversary sim instead of inheriting stale persisted lane state,
+  - and a focused unit test now locks that payload contract so the strict Scrapling proof cannot silently drift back to whatever lane the shared local server last used.
+- [x] Why:
+  - the shared local server had persisted `desired_lane=bot_red_team`, so the strict `human_only_private` proof bundle could launch the wrong lane and then wait forever for a Scrapling-owned-surface receipt that could never materialize, even though the judge/apply/continuation loop itself was already working.
+- [x] Evidence:
+  - `make test-adversary-sim-runtime-surface-unit`
+  - `make test-adversary-sim-runtime-surface`
+  - `make telemetry-clean`
+  - `make test-rsi-game-human-only-proof`
+  - `git diff --check -- scripts/tests/adversary_runtime_toggle_surface_gate.py scripts/tests/test_adversary_runtime_toggle_surface_gate.py todos/completed-todo-history.md`
 
 ### RSI-GAME-HO-2A2 Lane-Native Mixed-Attacker Restriction Score Spine
 

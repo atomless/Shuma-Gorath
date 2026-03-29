@@ -1886,6 +1886,8 @@ mod tests {
     #[test]
     fn agent_cycle_requests_continuation_run_after_retained_terminal_episode_when_still_outside_budget(
     ) {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
         let store = TestStore::new();
         let mut cfg = defaults().clone();
         cfg.fingerprint_signal_enabled = false;
@@ -1952,11 +1954,14 @@ mod tests {
                 &crate::config::Config::load(&store, "default").expect("config loads")
             ))
         );
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
     }
 
     #[test]
     fn agent_cycle_requests_continuation_run_after_rollback_terminal_episode_when_still_outside_budget(
     ) {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
         let store = TestStore::new();
         let mut cfg = defaults().clone();
         cfg.fingerprint_signal_enabled = false;
@@ -2021,6 +2026,7 @@ mod tests {
                 &crate::config::Config::load(&store, "default").expect("config loads")
             ))
         );
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
     }
 
     #[test]
