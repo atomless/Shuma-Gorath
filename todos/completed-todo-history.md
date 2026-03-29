@@ -4,6 +4,24 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-29)
 
+### Planning Only: RSI-GAME-BOARD-1J Durable Judged-Round Observer Archive Research And Plan
+
+- [x] Completed the planning-only tranche across:
+  - [`../docs/research/2026-03-29-game-loop-durable-observer-round-storage-review.md`](../docs/research/2026-03-29-game-loop-durable-observer-round-storage-review.md)
+  - [`../docs/plans/2026-03-29-game-loop-durable-observer-round-storage-plan.md`](../docs/plans/2026-03-29-game-loop-durable-observer-round-storage-plan.md)
+  - [`../docs/research/README.md`](../docs/research/README.md)
+  - [`../docs/plans/README.md`](../docs/plans/README.md)
+  - [`../todos/todo.md`](../todos/todo.md)
+- [x] What landed:
+  - documented the live root cause that the top Game Loop casts still depend on a transient recent-run buffer even after the exact-join repair,
+  - measured the current payload pressure and ruled out expanding the hot operator snapshot as the clean fix,
+  - and recommended a separate compact observer-round archive returned through `oversight/history`, so completed-round casts stay exact and durable without raw event-log replay or heuristic stitching.
+- [x] Why:
+  - the previous exactness tranche removed fabrication correctly, but it did not yet provide a durable home for judged-round observer truth after the underlying recent-run entries aged out.
+- [x] Evidence:
+  - docs-only planning tranche; behavior/config code was intentionally not changed in this step
+  - evidence basis is the live payload and code-path analysis captured in [`../docs/research/2026-03-29-game-loop-durable-observer-round-storage-review.md`](../docs/research/2026-03-29-game-loop-durable-observer-round-storage-review.md)
+
 ### SIM-TRUTH-1 Eliminate Presentation Fabrication And Out-Of-Band Scrapling Route Choreography
 
 - [x] Completed `SIM-TRUTH-1` across:
