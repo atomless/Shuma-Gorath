@@ -3885,6 +3885,398 @@ test("game loop observer archive marks missing judged runs without guessing adve
   await expect(page.locator("#game-loop-defence-cast")).not.toContainText("Challenge Routing");
 });
 
+test("game loop top casts prefer the freshest exact recent sim run over stale judged history", async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 1200 });
+  await page.route("**/admin/operator-snapshot", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "operator_snapshot_v1",
+        generated_at: 1774307100,
+        objectives: {
+          profile_id: "human_only_private",
+          revision: "objective-1774307100",
+          window_hours: 24,
+          category_postures: []
+        },
+        runtime_posture: {
+          shadow_mode: false,
+          fail_mode: "closed",
+          runtime_environment: "runtime-prod",
+          gateway_deployment_profile: "shared_server",
+          adversary_sim_available: true
+        },
+        live_traffic: {
+          traffic_origin: "live",
+          execution_mode: "enforced",
+          total_requests: 1200,
+          forwarded_requests: 860,
+          short_circuited_requests: 340,
+          human_friction: {
+            friction_rate: 0.018
+          }
+        },
+        shadow_mode: {
+          enabled: false,
+          total_actions: 0,
+          pass_through_total: 0
+        },
+        adversary_sim: {
+          traffic_origin: "adversary_sim",
+          execution_mode: "enforced",
+          total_requests: 180,
+          forwarded_requests: 9,
+          short_circuited_requests: 171,
+          recent_runs: [
+            {
+              run_id: "sim-fresh-scrapling",
+              lane: "scrapling_traffic",
+              profile: "scrapling_runtime_lane",
+              observed_fulfillment_modes: [
+                "crawler",
+                "bulk_scraper",
+                "browser_automation",
+                "http_agent"
+              ],
+              observed_category_ids: [
+                "ai_scraper_bot",
+                "automated_browser",
+                "http_agent",
+                "indexing_bot"
+              ],
+              first_ts: 1774307060,
+              last_ts: 1774307095,
+              monitoring_event_count: 18,
+              defense_delta_count: 5,
+              ban_outcome_count: 0,
+              owned_surface_coverage: {
+                overall_status: "partial",
+                canonical_surface_ids: ["rate_pressure", "challenge_routing"],
+                surface_labels: {
+                  rate_pressure: "Rate Pressure",
+                  challenge_routing: "Challenge Routing"
+                },
+                required_surface_ids: ["rate_pressure", "challenge_routing"],
+                satisfied_surface_ids: ["rate_pressure"],
+                blocking_surface_ids: ["challenge_routing"],
+                receipts: [
+                  {
+                    surface_id: "rate_pressure",
+                    success_contract: "should_limit_some",
+                    dependency_kind: "independent",
+                    dependency_surface_ids: [],
+                    coverage_status: "pass_observed",
+                    surface_state: "satisfied",
+                    satisfied: true,
+                    blocked_by_surface_ids: [],
+                    attempt_count: 4,
+                    sample_request_method: "GET",
+                    sample_request_path: "/catalog/search?q=headless",
+                    sample_response_status: 429
+                  },
+                  {
+                    surface_id: "challenge_routing",
+                    success_contract: "mixed_outcomes",
+                    dependency_kind: "independent",
+                    dependency_surface_ids: [],
+                    coverage_status: "pass_observed",
+                    surface_state: "satisfied",
+                    satisfied: true,
+                    blocked_by_surface_ids: [],
+                    attempt_count: 2,
+                    sample_request_method: "GET",
+                    sample_request_path: "/catalog?page=2",
+                    sample_response_status: 200
+                  }
+                ]
+              }
+            },
+            {
+              run_id: "sim-old-judged",
+              lane: "scrapling_traffic",
+              profile: "scrapling_runtime_lane",
+              observed_fulfillment_modes: ["crawler"],
+              observed_category_ids: ["indexing_bot"],
+              first_ts: 1774306900,
+              last_ts: 1774306940,
+              monitoring_event_count: 7,
+              defense_delta_count: 1,
+              ban_outcome_count: 0
+            }
+          ]
+        },
+        recent_changes: {
+          rows: []
+        },
+        non_human_traffic: {
+          availability: "taxonomy_seeded",
+          restriction_readiness: {
+            status: "ready",
+            blockers: [],
+            note: "Ready"
+          },
+          recognition_evaluation: {
+            comparison_status: "partial",
+            current_exact_match_count: 2,
+            degraded_match_count: 1,
+            collapsed_to_unknown_count: 1,
+            not_materialized_count: 0,
+            readiness: {
+              status: "ready",
+              blockers: [],
+              note: "Ready"
+            },
+            coverage: {
+              overall_status: "covered",
+              blocking_reasons: [],
+              blocking_category_ids: []
+            },
+            simulator_ground_truth: {
+              categories: [
+                {
+                  category_id: "ai_scraper_bot",
+                  category_label: "AI Scraper Bot",
+                  recent_run_count: 1,
+                  evidence_references: ["sim-fresh-scrapling"]
+                },
+                {
+                  category_id: "automated_browser",
+                  category_label: "Automated Browser",
+                  recent_run_count: 1,
+                  evidence_references: ["sim-fresh-scrapling"]
+                },
+                {
+                  category_id: "http_agent",
+                  category_label: "HTTP Agent",
+                  recent_run_count: 1,
+                  evidence_references: ["sim-fresh-scrapling"]
+                },
+                {
+                  category_id: "indexing_bot",
+                  category_label: "Indexing Bot",
+                  recent_run_count: 1,
+                  evidence_references: ["sim-fresh-scrapling"]
+                }
+              ]
+            },
+            comparison_rows: [
+              {
+                category_id: "ai_scraper_bot",
+                category_label: "AI Scraper Bot",
+                inferred_category_label: "AI Scraper Bot",
+                comparison_status: "current_exact_match",
+                note: "Exact recent match."
+              },
+              {
+                category_id: "automated_browser",
+                category_label: "Automated Browser",
+                inferred_category_label: "Unknown Non Human",
+                comparison_status: "collapsed_to_unknown_non_human",
+                note: "Collapsed recently."
+              },
+              {
+                category_id: "http_agent",
+                category_label: "HTTP Agent",
+                inferred_category_label: "HTTP Agent",
+                comparison_status: "current_exact_match",
+                note: "Exact recent match."
+              },
+              {
+                category_id: "indexing_bot",
+                category_label: "Indexing Bot",
+                inferred_category_label: "Indexing Bot",
+                comparison_status: "current_exact_match",
+                note: "Exact recent match."
+              }
+            ]
+          }
+        },
+        verified_identity: {
+          availability: "not_configured",
+          enabled: false,
+          native_web_bot_auth_enabled: false,
+          provider_assertions_enabled: false,
+          effective_non_human_policy: {
+            schema_version: "verified_identity_effective_policy_v1",
+            profile_id: "human_only_private",
+            objective_revision: "objective-1774307100",
+            verified_identity_override_mode: "strict",
+            rows: []
+          }
+        }
+      })
+    });
+  });
+
+  await page.route("**/admin/benchmark-results", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "benchmark_results_v1",
+        generated_at: 1774307100,
+        subject_kind: "site",
+        overall_status: "outside_budget",
+        improvement_status: "not_compared",
+        difficulty: "normal",
+        coverage: {
+          status: "supported"
+        },
+        judgment: {
+          current: "outside_budget",
+          comparison: "observe_longer"
+        },
+        recommendation: {
+          decision: "observe_longer"
+        },
+        budget_families: [],
+        families: []
+      })
+    });
+  });
+
+  await page.route("**/admin/oversight/history", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "oversight_history_v1",
+        episode_archive: {
+          schema_version: "oversight_episode_archive_v1",
+          homeostasis: {
+            status: "not_enough_completed_cycles"
+          },
+          rows: [
+            {
+              episode_id: "episode-old-judged-round",
+              completed_at_ts: 1774306950,
+              proposal_status: "accepted",
+              watch_window_result: "improved",
+              retain_or_rollback: "retained",
+              judged_lane_ids: ["scrapling_traffic"],
+              judged_run_ids: ["sim-old-judged"],
+              proposal: {
+                patch_family: "fingerprint_signal",
+                expected_impact: "Tighten suspicious automation detection.",
+                confidence: "medium",
+                note: "Retained after the judged round."
+              },
+              cycle_judgment: "continue"
+            }
+          ]
+        },
+        observer_round_archive: {
+          schema_version: "oversight_observer_round_archive_v1",
+          rows: [
+            {
+              episode_id: "episode-old-judged-round",
+              completed_at_ts: 1774306950,
+              basis_status: "exact_judged_run_receipts",
+              missing_run_ids: [],
+              run_rows: [
+                {
+                  run_id: "sim-old-judged",
+                  lane: "scrapling_traffic",
+                  profile: "scrapling_runtime_lane",
+                  observed_fulfillment_modes: ["crawler"],
+                  observed_category_ids: ["indexing_bot"],
+                  monitoring_event_count: 7,
+                  defense_delta_count: 1,
+                  ban_outcome_count: 0
+                }
+              ],
+              scrapling_surface_rows: [
+                {
+                  run_id: "sim-old-judged",
+                  surface_id: "challenge_routing",
+                  surface_state: "satisfied",
+                  coverage_status: "pass_observed",
+                  success_contract: "mixed_outcomes",
+                  dependency_kind: "independent",
+                  dependency_surface_ids: [],
+                  attempt_count: 1,
+                  sample_request_method: "GET",
+                  sample_request_path: "/catalog?page=1",
+                  sample_response_status: 200
+                }
+              ]
+            }
+          ]
+        },
+        rows: []
+      })
+    });
+  });
+
+  await page.route("**/admin/oversight/agent/status", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "oversight_agent_status_v1",
+        execution_boundary: "shared_host_only",
+        periodic_trigger: {
+          surface: "host_supervisor_wrapper",
+          wrapper_command: "scripts/run_with_oversight_supervisor.sh",
+          default_interval_seconds: 300
+        },
+        candidate_window: {
+          status: "not_requested",
+          required_runs: []
+        },
+        continuation_run: {
+          status: "not_requested",
+          required_runs: []
+        },
+        episode_archive: {
+          schema_version: "oversight_episode_archive_v1",
+          homeostasis: {
+            status: "not_enough_completed_cycles"
+          },
+          rows: [
+            {
+              episode_id: "episode-old-judged-round",
+              completed_at_ts: 1774306950,
+              proposal_status: "accepted",
+              watch_window_result: "improved",
+              retain_or_rollback: "retained",
+              judged_lane_ids: ["scrapling_traffic"],
+              judged_run_ids: ["sim-old-judged"],
+              proposal: {
+                patch_family: "fingerprint_signal",
+                expected_impact: "Tighten suspicious automation detection.",
+                confidence: "medium",
+                note: "Retained after the judged round."
+              },
+              cycle_judgment: "continue"
+            }
+          ]
+        },
+        latest_decision: {},
+        recent_runs: []
+      })
+    });
+  });
+
+  await openDashboard(page);
+  await openTab(page, "game-loop");
+
+  await expect(page.locator("#game-loop-round-history")).toContainText("Recent Rounds");
+  await expect(page.locator("#game-loop-round-history")).toContainText("Fingerprint Signal");
+  await expect(page.locator("#game-loop-adversary-cast")).toContainText("AI Scraper Bot");
+  await expect(page.locator("#game-loop-adversary-cast")).toContainText("Automated Browser");
+  await expect(page.locator("#game-loop-adversary-cast")).toContainText("HTTP Agent");
+  await expect(page.locator("#game-loop-adversary-cast")).toContainText("Indexing Bot");
+  await expect(page.locator("#game-loop-adversary-cast")).toContainText(
+    "Showing the latest exact recent sim run"
+  );
+  await expect(page.locator("#game-loop-defence-cast")).toContainText("Rate Pressure");
+  await expect(page.locator("#game-loop-defence-cast")).toContainText(
+    "Saw GET /catalog/search?q=headless"
+  );
+});
+
 test("traffic manual refresh renders bounded traffic sections and preserves furniture diagnostics separately", async ({ page }) => {
   const buildCountEntries = (prefix, count, start = 1) =>
     Array.from({ length: count }, (_, index) => ({

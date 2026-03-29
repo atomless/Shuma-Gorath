@@ -4,6 +4,25 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-29)
 
+### GAME-LOOP-OBSERVER-2 Prefer Fresh Exact Current Casts Over Stale Judged Casts
+
+- [x] Completed the top-cast truth repair across:
+  - [`../dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`../Makefile`](../Makefile)
+  - [`../docs/dashboard-tabs/game-loop.md`](../docs/dashboard-tabs/game-loop.md)
+- [x] What landed:
+  - `Recent Rounds` stays judged-history-only,
+  - but the top adversary and defence casts now prefer the freshest exact observer evidence in priority order: current mixed-attacker required runs, then the latest exact recent sim run, then the durable judged archive,
+  - the casts no longer stay pinned to an older judged Scrapling row when a fresher exact recent Scrapling run is already present with fuller category truth and surface receipts,
+  - and the focused Game Loop accountability target now proves this rendered contract directly.
+- [x] Why:
+  - the earlier durable archive work fixed stale judged-round reconstruction, but it still left the top casts anchored to the last judged episode, which made a fresh Scrapling run appear to “lose” categories even though current telemetry had them.
+- [x] Evidence:
+  - `make test-dashboard-e2e PLAYWRIGHT_ARGS='--grep "game loop top casts prefer the freshest exact recent sim run over stale judged history"'`
+  - `make test-dashboard-game-loop-accountability`
+
 ### SIM-TRUTH-2 Preserve Scrapling Category Truth Across Empty-Receipt Worker Ticks
 
 - [x] Completed the observer-truth repair across:

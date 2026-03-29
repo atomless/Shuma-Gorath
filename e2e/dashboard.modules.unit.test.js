@@ -7600,6 +7600,10 @@ test('dashboard game loop accountability source distinguishes judge planes and l
   assert.match(gameLoopSource, /simulator metadata does not count as category truth/);
   assert.match(gameLoopSource, /observerRoundArchive/);
   assert.match(gameLoopSource, /selectedObserverRound/);
+  assert.match(gameLoopSource, /deriveAdversaryRunRowsFromSummaries/);
+  assert.match(gameLoopSource, /selectedRoundCastContext/);
+  assert.match(gameLoopSource, /Showing the latest exact recent sim run/);
+  assert.match(gameLoopSource, /Showing current mixed-attacker evidence/);
   assert.doesNotMatch(gameLoopSource, /recentSimRunRowsById/);
   assert.doesNotMatch(gameLoopSource, /:\s*simulatorGroundTruthCategories/);
 

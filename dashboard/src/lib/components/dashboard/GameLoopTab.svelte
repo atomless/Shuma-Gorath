@@ -2,6 +2,7 @@
   import { formatCompactNumber } from '../../domain/core/format.js';
   import { formatUnixSecondsLocal } from '../../domain/core/date-time.js';
   import {
+    deriveAdversaryRunRowsFromSummaries,
     deriveLatestScraplingEvidenceFromSummaries
   } from './monitoring-view-model.js';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
@@ -639,6 +640,30 @@
     };
   };
 
+  const shapeRecentRunSurfaceRow = (runId, receipt) => {
+    const source = asRecord(receipt);
+    return {
+      key: `${String(runId || 'unknown').trim()}:${String(source.surfaceId || 'surface').trim()}`,
+      runId: String(runId || '').trim(),
+      surfaceId: String(source.surfaceId || '').trim(),
+      surfaceLabel: String(source.surfaceLabel || '').trim() || humanizeToken(source.surfaceId),
+      surfaceState: String(source.surfaceState || '').trim(),
+      coverageStatus: String(source.coverageStatus || '').trim(),
+      successContract: String(source.successContract || '').trim(),
+      dependencyKind: String(source.dependencyKind || '').trim(),
+      dependencySurfaceIds: dedupeStrings(source.dependencySurfaceIds),
+      attemptCount: Number(source.attemptCount || 0),
+      sampleRequestMethod: String(source.sampleRequestMethod || '').trim(),
+      sampleRequestPath: String(source.sampleRequestPath || '').trim(),
+      sampleResponseStatus: asFiniteNumber(source.sampleResponseStatus)
+    };
+  };
+
+  const shapeRecentRunSurfaceRows = (run) => {
+    const receipts = toArray(run?.ownedSurfaceCoverage?.receipts);
+    return receipts.map((receipt) => shapeRecentRunSurfaceRow(run?.runId, receipt));
+  };
+
   $: oversightHistoryRows = toArray(oversightHistory?.rows);
   $: latestHistoryRows = oversightHistoryRows.slice(0, 6);
   $: latestHistoryRow = latestHistoryRows[0] || null;
@@ -723,6 +748,99 @@
   $: selectedObserverRoundMissing = Boolean(latestJudgedEpisodeRow && !selectedObserverRound);
   $: selectedRoundMissingRunIds = dedupeStrings(selectedObserverRound?.missing_run_ids);
   $: selectedRoundLaneRunRows = toArray(selectedObserverRound?.run_rows).map(shapeObserverRoundRunRow);
+  $: recentObservedRunRows = deriveAdversaryRunRowsFromSummaries(
+    toArray(operatorSnapshot?.adversary_sim?.recent_runs),
+    []
+  ).runRows;
+  $: recentObservedRunById = new Map(
+    recentObservedRunRows
+      .map((run) => [String(run?.runId || '').trim(), run])
+      .filter(([runId]) => runId)
+  );
+  $: currentMixedEvidenceRunIds = dedupeStrings(
+    currentMixedEvidenceRuns.map((run) => String(run?.follow_on_run_id || '').trim())
+  );
+  $: currentMixedEvidenceObservedRunRows = currentMixedEvidenceRunIds
+    .map((runId) => recentObservedRunById.get(runId) || null)
+    .filter(Boolean);
+  $: currentMixedEvidenceMissingRunIds = currentMixedEvidenceRunIds.filter(
+    (runId) => !recentObservedRunById.has(runId)
+  );
+  $: currentMixedEvidenceSurfaceRows = currentMixedEvidenceObservedRunRows.flatMap((run) =>
+    shapeRecentRunSurfaceRows(run)
+  );
+  $: latestRecentObservedRun = recentObservedRunRows[0] || null;
+  $: latestRecentObservedRunTs =
+    asFiniteNumber(latestRecentObservedRun?.lastTs) ??
+    asFiniteNumber(latestRecentObservedRun?.firstTs) ??
+    0;
+  $: latestJudgedEpisodeCompletedAt = asFiniteNumber(latestJudgedEpisodeRow?.completed_at_ts) ?? 0;
+  $: latestRecentRunOutranksJudgedRound = Boolean(
+    latestRecentObservedRun &&
+      (!latestJudgedEpisodeRow || latestRecentObservedRunTs > latestJudgedEpisodeCompletedAt)
+  );
+  $: latestRecentObservedRunSurfaceRows = latestRecentObservedRun
+    ? shapeRecentRunSurfaceRows(latestRecentObservedRun)
+    : [];
+  $: selectedRoundCastContext = (() => {
+    if (currentMixedEvidenceObservedRunRows.length > 0) {
+      return {
+        sourceKind: 'current_mixed_evidence',
+        sourceText: `Showing current mixed-attacker evidence: ${currentMixedEvidenceLaneSummary}.`,
+        runRows: currentMixedEvidenceObservedRunRows,
+        surfaceRows: currentMixedEvidenceSurfaceRows,
+        missingRunIds: currentMixedEvidenceMissingRunIds,
+        archiveMissing: false
+      };
+    }
+    if (latestRecentRunOutranksJudgedRound && latestRecentObservedRun) {
+      return {
+        sourceKind: 'latest_recent_run',
+        sourceText: latestJudgedEpisodeRow
+          ? `Showing the latest exact recent sim run: ${humanizeToken(latestRecentObservedRun.lane)}. Judged history remains above.`
+          : `Showing the latest exact recent sim run: ${humanizeToken(latestRecentObservedRun.lane)}.`,
+        runRows: [latestRecentObservedRun],
+        surfaceRows: latestRecentObservedRunSurfaceRows,
+        missingRunIds: [],
+        archiveMissing: false
+      };
+    }
+    if (selectedObserverRound) {
+      return {
+        sourceKind: 'latest_judged_round',
+        sourceText: 'Showing the latest completed judged round.',
+        runRows: selectedRoundLaneRunRows,
+        surfaceRows: toArray(selectedObserverRound?.scrapling_surface_rows).map(
+          shapeObserverRoundSurfaceRow
+        ),
+        missingRunIds: selectedRoundMissingRunIds,
+        archiveMissing: false
+      };
+    }
+    if (selectedObserverRoundMissing) {
+      return {
+        sourceKind: 'judged_archive_missing',
+        sourceText: 'The latest judged round is recorded, but its durable observer archive is still unavailable.',
+        runRows: [],
+        surfaceRows: [],
+        missingRunIds: [],
+        archiveMissing: true
+      };
+    }
+    return {
+      sourceKind: 'none',
+      sourceText: '',
+      runRows: [],
+      surfaceRows: [],
+      missingRunIds: [],
+      archiveMissing: false
+    };
+  })();
+  $: selectedRoundCastSourceText = String(selectedRoundCastContext?.sourceText || '').trim();
+  $: selectedRoundCastMissingRunIds = dedupeStrings(selectedRoundCastContext?.missingRunIds);
+  $: selectedRoundCastArchiveMissing = selectedRoundCastContext?.archiveMissing === true;
+  $: selectedRoundCastRunRows = toArray(selectedRoundCastContext?.runRows);
+  $: selectedRoundCastSurfaceRows = toArray(selectedRoundCastContext?.surfaceRows);
   $: recentRoundRows = judgedCycleRows.slice(0, 4).map((row, index) => {
     const historyRow = historyRowByEpisodeId.get(String(row?.episode_id || '').trim()) || null;
     return {
@@ -743,7 +861,7 @@
   $: adversaryCastRows = (() => {
     const rows = [];
     const seen = new Set();
-    selectedRoundLaneRunRows.forEach((run) => {
+    selectedRoundCastRunRows.forEach((run) => {
       const categoryIds = dedupeStrings(run?.observedCategoryIds);
       if (categoryIds.length === 0) {
         const key = `${String(run?.runId || run?.lane || 'unknown')}:observer-category-unavailable`;
@@ -1012,11 +1130,8 @@
   $: latestScraplingEvidence = deriveLatestScraplingEvidenceFromSummaries(
     toArray(operatorSnapshot?.adversary_sim?.recent_runs)
   );
-  $: selectedRoundSurfaceRows = toArray(selectedObserverRound?.scrapling_surface_rows).map(
-    shapeObserverRoundSurfaceRow
-  );
   $: defenceCastRows = (() => {
-    return selectedRoundSurfaceRows.map((row) => ({
+    return selectedRoundCastSurfaceRows.map((row) => ({
       key: row.key,
       surfaceLabel: row.surfaceLabel || humanizeToken(row.surfaceId),
       observationText: formatReceiptObservation(row),
@@ -1226,12 +1341,15 @@
           <p class="text-muted">
             This is the observer view. The simulator ground truth is visible here after the round, while runtime defences still never read those labels.
           </p>
+          {#if selectedRoundCastSourceText}
+            <p class="text-muted">{selectedRoundCastSourceText}</p>
+          {/if}
           {#if adversaryCastRows.length === 0}
             <p class="text-muted">
-              {#if selectedObserverRoundMissing}
+              {#if selectedRoundCastArchiveMissing}
                 The judged round is recorded, but no durable observer-round archive was materialized for it yet.
-              {:else if selectedRoundMissingRunIds.length}
-                The judged round was archived with missing run receipts, so the observer page will not guess the missing adversaries.
+              {:else if selectedRoundCastMissingRunIds.length}
+                The current observer evidence is only partially materialized, so the page will not guess the missing adversaries.
               {:else}
                 No recent adversary cast is materialized yet.
               {/if}
@@ -1263,12 +1381,15 @@
           <p class="text-muted">
             This is the surface-native view. Each row stays with what the defence saw, how it responded, and whether the surface held or leaked.
           </p>
+          {#if selectedRoundCastSourceText}
+            <p class="text-muted">{selectedRoundCastSourceText}</p>
+          {/if}
           {#if defenceCastRows.length === 0}
             <p class="text-muted">
-              {#if selectedObserverRoundMissing}
+              {#if selectedRoundCastArchiveMissing}
                 The judged round is recorded, but no durable observer-round archive was materialized for it yet.
-              {:else if selectedRoundMissingRunIds.length}
-                The judged round was archived with missing run receipts, so the observer page will not guess the missing defence cast.
+              {:else if selectedRoundCastMissingRunIds.length}
+                The current observer evidence is only partially materialized, so the page will not guess the missing defence cast.
               {:else}
                 No defence-surface view is materialized for the selected round yet.
               {/if}

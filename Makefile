@@ -2252,7 +2252,7 @@ test-dashboard-game-loop-accountability: ## Run focused dashboard Game Loop mach
 		$(MAKE) --no-print-directory dashboard-verify-freshness || exit 1; \
 		./scripts/tests/verify_served_dashboard_assets.sh http://127.0.0.1:3000 || exit 1; \
 		$(MAKE) --no-print-directory seed-dashboard-data || exit 1; \
-		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) ./scripts/tests/run_dashboard_e2e.sh --grep "game loop projects benchmark and oversight accountability from machine-first contracts|game loop tab corroborates latest scrapling evidence readiness|game loop distinguishes category posture achievement from scrapling surface contract truth|game loop tab separates judge planes, breach loci, and config exhaustion state"; \
+		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) ./scripts/tests/run_dashboard_e2e.sh --grep "game loop projects benchmark and oversight accountability from machine-first contracts|game loop tab corroborates latest scrapling evidence readiness|game loop distinguishes category posture achievement from scrapling surface contract truth|game loop tab separates judge planes, breach loci, and config exhaustion state|game loop top casts prefer the freshest exact recent sim run over stale judged history"; \
 	else \
 		echo "$(RED)❌ Error: Spin server not ready$(NC)"; \
 		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \
