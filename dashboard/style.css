@@ -123,6 +123,10 @@
     --inline-link-hover-fg: hsl(var(--hue), 100%, 91%);
     --inline-link-visited-fg: hsl(var(--hue), 83%, 80%);
     --inline-link-focus-ring: hsla(var(--hue), 100%, 79%, 0.45);
+
+    .shuma-image-wrapper {
+      filter: brightness(.74) contrast(1.76) saturate(0.785);
+    }
   }
 
   :root.disconnected #lost-connection {
