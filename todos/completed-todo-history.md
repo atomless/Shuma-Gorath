@@ -4,6 +4,27 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-29)
 
+### RED-TEAM-CTRL-1B Restore Bot Red Team Lane Selection And Rename It To Agentic Traffic
+
+- [x] Completed the Red Team selector regression fix across:
+  - [`../dashboard/src/lib/components/dashboard/RedTeamTab.svelte`](../dashboard/src/lib/components/dashboard/RedTeamTab.svelte)
+  - [`../dashboard/src/routes/+page.svelte`](../dashboard/src/routes/+page.svelte)
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`../Makefile`](../Makefile)
+  - [`../docs/dashboard-tabs/red-team.md`](../docs/dashboard-tabs/red-team.md)
+  - [`../docs/adversarial-operator-guide.md`](../docs/adversarial-operator-guide.md)
+  - [`../docs/testing.md`](../docs/testing.md)
+- [x] What landed:
+  - the `bot_red_team` adversary-sim lane is operator-selectable again from the Red Team tab instead of being incorrectly greyed out,
+  - the selector label now presents that lane as `Agentic Traffic`,
+  - the dashboard route no longer rejects `bot_red_team` as if it were unavailable,
+  - and the focused Red Team tests and docs now assert the renamed selectable lane truth.
+- [x] Why:
+  - the dashboard had regressed into stale UI gating that contradicted the live adversary-sim lane contract and blocked operators from choosing the LLM-backed lane.
+- [x] Evidence:
+  - `make test-dashboard-red-team-pane`
+
 ### TUNE-SURFACE-RETIRE-1 Retire Defunct March 23-24 Tuning Expansion Chain
 
 - [x] Completed the docs-only retirement cleanup across:

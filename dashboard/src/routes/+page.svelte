@@ -73,7 +73,11 @@
   const AUTO_REFRESH_TABS = new Set(['traffic', 'game-loop', 'ip-bans', 'red-team']);
   const AUTO_REFRESH_PREF_KEY = 'shuma_dashboard_auto_refresh_v1';
   const DASHBOARD_LOADED_CLASS = 'dashboard-loaded';
-  const ADVERSARY_SIM_SELECTABLE_LANES = new Set(['synthetic_traffic', 'scrapling_traffic']);
+  const ADVERSARY_SIM_SELECTABLE_LANES = new Set([
+    'synthetic_traffic',
+    'scrapling_traffic',
+    'bot_red_team'
+  ]);
   const ACTIVE_DIRTY_CONFIG_SAVE_BAR_SELECTOR =
     '#dashboard-admin-section [data-dashboard-tab-panel][aria-hidden="false"] .config-save-bar:not(.hidden)';
 
@@ -850,11 +854,6 @@
     }
     if (!ADVERSARY_SIM_SELECTABLE_LANES.has(nextLane)) {
       if (target) target.value = previousLane;
-      setPaneNotice(
-        'red-team',
-        'Bot red team lane is not yet available. Select Synthetic Traffic or Scrapling Traffic for this tranche.',
-        'warning'
-      );
       return;
     }
     if (nextLane === previousLane) return;

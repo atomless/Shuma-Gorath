@@ -3962,7 +3962,7 @@ test("adversary sim toggle emits fresh telemetry visible in monitoring raw feed"
   });
 });
 
-test("adversary sim lane selector keeps off-state desired versus active truth and disables bot red team", async ({ page, request }) => {
+test("adversary sim lane selector keeps off-state desired truth and allows agentic traffic", async ({ page, request }) => {
   test.setTimeout(180_000);
   await withRestoredAdversarySimConfig(request, async () => {
     await forceAdversarySimDisabled(request);
@@ -3982,17 +3982,22 @@ test("adversary sim lane selector keeps off-state desired versus active truth an
     const laneSelect = page.locator("#adversary-sim-lane-select");
     const botRedTeamOption = page.locator('#adversary-sim-lane-select option[value="bot_red_team"]');
     await expect(laneSelect).toHaveValue("scrapling_traffic");
-    await expect(page.locator("#adversary-sim-lane-state-desired")).toContainText("Scrapling Traffic");
-    await expect(page.locator("#adversary-sim-lane-state-active")).toContainText("Not running");
-    await expect(botRedTeamOption).toBeDisabled();
+    await expect(botRedTeamOption).toHaveText("Agentic Traffic");
+    await expect(botRedTeamOption).not.toBeDisabled();
+
+    await laneSelect.selectOption("bot_red_team");
+    await expect.poll(async () => {
+      const payload = await fetchAdversarySimStatus(request);
+      return String(payload?.desired_lane || "").trim().toLowerCase();
+    }, { timeout: 30000 }).toBe("bot_red_team");
+    await expect(laneSelect).toHaveValue("bot_red_team");
 
     await laneSelect.selectOption("synthetic_traffic");
     await expect.poll(async () => {
       const payload = await fetchAdversarySimStatus(request);
       return String(payload?.desired_lane || "").trim().toLowerCase();
     }, { timeout: 30000 }).toBe("synthetic_traffic");
-    await expect(page.locator("#adversary-sim-lane-state-desired")).toContainText("Synthetic Traffic");
-    await expect(page.locator("#adversary-sim-lane-state-active")).toContainText("Not running");
+    await expect(laneSelect).toHaveValue("synthetic_traffic");
   });
 });
 

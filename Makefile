@@ -2387,11 +2387,11 @@ test-dashboard-red-team-pane: ## Run focused Red Team controls and recent-run su
 	fi
 	@$(MAKE) --no-print-directory test-dashboard-svelte-check
 	@node --test \
-		--test-name-pattern='dashboard API client preserves adversary-sim lane status and diagnostics fields|dashboard adversary-sim runtime normalizes orchestration status|red team tab keeps only controls and recent adversary runs after diagnostic-surface retirement' \
+		--test-name-pattern='dashboard API client preserves adversary-sim lane status and diagnostics fields|dashboard adversary-sim runtime normalizes orchestration status|red team tab reuses verification-style config panel primitives for its adversary sim pane|red team tab keeps only controls and recent adversary runs after diagnostic-surface retirement' \
 		e2e/dashboard.modules.unit.test.js
 	@if $(MAKE) --no-print-directory spin-wait-ready; then \
 		$(MAKE) --no-print-directory seed-dashboard-data || exit 1; \
-		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) ./scripts/tests/run_dashboard_e2e.sh --grep "red team tab keeps controls and recent run history without machine-diagnostic clutter"; \
+		SHUMA_BASE_URL=http://127.0.0.1:3000 SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) ./scripts/tests/run_dashboard_e2e.sh --grep "red team tab keeps controls and recent run history without machine-diagnostic clutter|adversary sim lane selector keeps off-state desired truth and allows agentic traffic"; \
 	else \
 		echo "$(RED)❌ Error: Spin server not ready$(NC)"; \
 		echo "$(YELLOW)   Start the server first: make dev$(NC)"; \

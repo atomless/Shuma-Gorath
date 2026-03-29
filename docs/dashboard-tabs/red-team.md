@@ -14,7 +14,7 @@ Panel:
   - on/off toggle backed by `POST /admin/adversary-sim/control`,
   - lifecycle copy rendered from backend status plus controller phase,
   - backend-timed run progress bar derived from `started_at`, `ends_at`, and `remaining_seconds`,
-  - lane selector for the currently supported deterministic lanes,
+  - lane selector for the currently supported operator-selectable lanes, with `bot_red_team` presented in the menu as `Agentic Traffic`,
   - and a bounded warning when ban-state freshness is unavailable.
 - `Recent Red Team Runs`:
   - recent adversary simulation run identifiers derived from a compact monitoring-backed run-history summary,

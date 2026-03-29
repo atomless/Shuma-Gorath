@@ -5602,6 +5602,10 @@ test('red team tab reuses verification-style config panel primitives for its adv
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/RedTeamTab.svelte'),
     'utf8'
   );
+  const dashboardPageSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/routes/+page.svelte'),
+    'utf8'
+  );
 
   assert.match(redTeamTabSource, /import ConfigPanel from '.\/primitives\/ConfigPanel\.svelte';/);
   assert.match(
@@ -5616,7 +5620,7 @@ test('red team tab reuses verification-style config panel primitives for its adv
   assert.match(redTeamTabSource, /<select[\s\S]*id="adversary-sim-lane-select"[\s\S]*class="input-field"[\s\S]*on:change=\{handleLaneChange\}/m);
   assert.match(redTeamTabSource, /<option value="synthetic_traffic">Synthetic Traffic<\/option>/);
   assert.match(redTeamTabSource, /<option value="scrapling_traffic">Scrapling Traffic<\/option>/);
-  assert.match(redTeamTabSource, /<option value="bot_red_team" disabled>Bot Red Team \(coming soon\)<\/option>/);
+  assert.match(redTeamTabSource, /<option value="bot_red_team">Agentic Traffic<\/option>/);
   assert.match(redTeamTabSource, /<p id="adversary-sim-lifecycle-copy" class="control-desc text-muted">\{lifecycleCopy\}<\/p>/);
   assert.match(redTeamTabSource, /class="dashboard-adversary-sim-progress"/);
   assert.match(redTeamTabSource, /class="dashboard-adversary-sim-progress__fill"/);
@@ -5625,6 +5629,11 @@ test('red team tab reuses verification-style config panel primitives for its adv
   assert.match(redTeamTabSource, /export let laneDisabledReason = '';/);
   assert.match(redTeamTabSource, /export let onLaneChange = null;/);
   assert.match(redTeamTabSource, /function handleLaneChange\(event\)/);
+  assert.match(
+    dashboardPageSource,
+    /const ADVERSARY_SIM_SELECTABLE_LANES = new Set\(\[\s*'synthetic_traffic',\s*'scrapling_traffic',\s*'bot_red_team'\s*\]\);/
+  );
+  assert.doesNotMatch(dashboardPageSource, /Bot red team lane is not yet available\./);
   assert.doesNotMatch(redTeamTabSource, /<h3>Lane State<\/h3>/);
   assert.doesNotMatch(redTeamTabSource, /<h3>Lane Diagnostics<\/h3>/);
   assert.doesNotMatch(redTeamTabSource, /Desired lane:/);

@@ -133,7 +133,7 @@
           >
             <option value="synthetic_traffic">Synthetic Traffic</option>
             <option value="scrapling_traffic">Scrapling Traffic</option>
-            <option value="bot_red_team" disabled>Bot Red Team (coming soon)</option>
+            <option value="bot_red_team">Agentic Traffic</option>
           </select>
         </div>
       </div>
