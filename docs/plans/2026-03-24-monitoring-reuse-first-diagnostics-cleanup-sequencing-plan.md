@@ -16,7 +16,7 @@ This note is now subordinate to [`2026-03-24-traffic-tab-and-diagnostics-furnitu
 2. then execute `TRAFFIC-TAB-1`,
 3. then execute `DIAG-CLEANUP-1`,
 4. then execute `MON-OVERHAUL-1C`,
-5. then later `TUNE-SURFACE-1`.
+5. then later operator-facing Tuning work, if reopened through fresh planning.
 
 ## `MON-OVERHAUL-1B` addition
 

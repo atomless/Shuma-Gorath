@@ -4,6 +4,36 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-29)
 
+### TUNE-SURFACE-RETIRE-1 Retire Defunct March 23-24 Tuning Expansion Chain
+
+- [x] Completed the docs-only retirement cleanup across:
+  - [`../docs/research/2026-03-29-tuning-surface-defunct-review.md`](../docs/research/2026-03-29-tuning-surface-defunct-review.md)
+  - [`../docs/plans/2026-03-29-tuning-surface-defunct-retirement-plan.md`](../docs/plans/2026-03-29-tuning-surface-defunct-retirement-plan.md)
+  - [`../docs/plans/2026-03-23-tuning-surface-taxonomy-posture-matrix-implementation-plan.md`](../docs/plans/2026-03-23-tuning-surface-taxonomy-posture-matrix-implementation-plan.md)
+  - [`../docs/plans/2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md`](../docs/plans/2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md)
+  - [`../docs/plans/2026-03-24-identification-tab-rename-and-taxonomy-distinction-plan.md`](../docs/plans/2026-03-24-identification-tab-rename-and-taxonomy-distinction-plan.md)
+  - [`../docs/research/2026-03-23-tuning-tab-taxonomy-posture-matrix-and-policy-archetypes-review.md`](../docs/research/2026-03-23-tuning-tab-taxonomy-posture-matrix-and-policy-archetypes-review.md)
+  - [`../docs/research/2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-review.md`](../docs/research/2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-review.md)
+  - [`../docs/research/2026-03-24-identification-tab-remit-and-taxonomy-distinction-review.md`](../docs/research/2026-03-24-identification-tab-remit-and-taxonomy-distinction-review.md)
+  - [`../docs/plans/README.md`](../docs/plans/README.md)
+  - [`../docs/research/README.md`](../docs/research/README.md)
+  - [`../docs/plans/2026-03-23-dashboard-operator-surfacing-sequencing-plan.md`](../docs/plans/2026-03-23-dashboard-operator-surfacing-sequencing-plan.md)
+  - [`../docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md`](../docs/plans/2026-03-21-feedback-loop-closure-and-architectural-restructuring-plan.md)
+  - [`../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
+  - [`../docs/dashboard-tabs/tuning.md`](../docs/dashboard-tabs/tuning.md)
+  - [`../todos/blocked-todo.md`](../todos/blocked-todo.md)
+  - [`../todos/todo.md`](../todos/todo.md)
+- [x] What landed:
+  - the March 23-24 `TUNE-SURFACE-1` expansion chain and its `1A`/`1B`/`1C` sub-tranches were removed from the blocked backlog and explicitly retired as defunct rather than left in permanently blocked limbo,
+  - the associated March 23-24 Tuning and Identification research and plan docs are now marked defunct at file top and kept only for audit,
+  - the active plan and research indexes no longer present that chain as current work and instead move it into historical or defunct sections,
+  - the higher-level roadmap and active dependency notes no longer point at `TUNE-SURFACE-1` as if it were still executable sequencing,
+  - and the current Tuning tab doc now states that the broader March 23-24 expansion chain is retired while preserving the narrow shipped contract.
+- [x] Why:
+  - the earlier Tuning expansion chain had become stale relative to the live bounded config loop and current dashboard product direction, so leaving it in active backlog and plan indexes was false roadmap truth.
+- [x] Evidence:
+  - `git diff --check`
+
 ### RSI-GAME-ARCH-1E1 Retire Redundant Dashboard Machine-Diagnostic Surfaces
 
 - [x] Completed `RSI-GAME-ARCH-1E1` across:

@@ -120,7 +120,7 @@ That later planning should remain blocked until the first bounded loop is proven
 4. the recommend-only reconciler,
 5. and the first working machine-first agent loop.
 
-`TUNE-SURFACE-1` should likewise follow the first bounded agent loop so it exposes:
+Any future broader Tuning re-expansion should likewise follow the first bounded agent loop so it exposes:
 
 1. the config families the backend actually tunes,
 2. the safety envelopes the patch-policy layer actually enforces,
@@ -151,7 +151,7 @@ The active mainline should now be:
 4. `OVR-RECON-1` recommend-only reconcile engine,
 5. `OVR-AGENT-1` first shared-host agent tweaker loop,
 6. `MON-OVERHAUL-1` Monitoring projection,
-7. `TUNE-SURFACE-1` bounded human control projection,
+7. a future bounded human control projection, if reopened through fresh planning,
 8. `OVR-AGENT-2` later broader scheduled or autonomous agent planning,
 9. and only then the code-evolution loop.
 

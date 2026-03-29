@@ -104,7 +104,7 @@ The next work is not more telemetry architecture. The next work is:
 2. write the Monitoring section-ownership and composition plan,
 3. then execute `MON-OVERHAUL-1`.
 
-`TUNE-SURFACE-1` should remain behind that Monitoring work, exactly as already planned.
+Any future broader Tuning re-expansion should remain behind that Monitoring work and must be reopened through fresh planning rather than the retired March 23-24 Tuning chain.
 
 # Remaining Risks
 

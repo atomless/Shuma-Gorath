@@ -32,7 +32,7 @@ This track should execute:
 
 1. after `SIM-SCR-FIT-1`, `SIM-SCR-FIT-2`, and `SIM-SCR-COVER-2`,
 2. before `MON-OVERHAUL-1`,
-3. before `TUNE-SURFACE-1`,
+3. before any future broader Tuning re-expansion,
 4. and before any broader `OVR-AGENT-2` expansion.
 
 Reason:

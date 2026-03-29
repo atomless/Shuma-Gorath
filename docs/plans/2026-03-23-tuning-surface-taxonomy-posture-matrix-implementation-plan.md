@@ -1,5 +1,5 @@
 Date: 2026-03-23
-Status: Proposed
+Status: Defunct on 2026-03-29
 
 Related context:
 
@@ -14,6 +14,13 @@ Related context:
 - [`../../dashboard/src/lib/domain/api-client.js`](../../dashboard/src/lib/domain/api-client.js)
 - [`../../dashboard/src/lib/domain/config-schema.js`](../../dashboard/src/lib/domain/config-schema.js)
 - [`../../todos/blocked-todo.md`](../../todos/blocked-todo.md)
+
+Retirement note (2026-03-29):
+
+1. This plan is retained for audit only.
+2. The broader March 23-24 Tuning expansion chain is now defunct and must not be treated as executable roadmap.
+3. The current shipped Tuning contract remains the narrow controller-tunable botness editor documented in [`../dashboard-tabs/tuning.md`](../dashboard-tabs/tuning.md).
+4. If broader Tuning work is reopened later, start from fresh research rather than resuming this plan as-is.
 
 # Objective
 

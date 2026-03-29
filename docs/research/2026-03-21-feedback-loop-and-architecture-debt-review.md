@@ -184,7 +184,7 @@ This review implies one immediate planning and backlog update:
 
 1. add a dedicated feedback-loop closure and structural-restructuring plan,
 2. add active TODO items for benchmark history, writable objectives, decision lineage, recommend-only reconcile, replay-promotion integration, and architectural decomposition,
-3. keep `MON-OVERHAUL-1`, `TUNE-SURFACE-1`, and `OVR-AGENT-2` blocked until those prerequisites are explicitly met,
+3. keep `MON-OVERHAUL-1` and `OVR-AGENT-2` blocked until those prerequisites are explicitly met, and treat any future broader Tuning re-expansion as a separate later planning decision,
 4. and pull the large-file refactors onto the active path instead of leaving them as vague future cleanup.
 
 # Conclusion

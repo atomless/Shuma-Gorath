@@ -1,5 +1,5 @@
 Date: 2026-03-24
-Status: Proposed
+Status: Historical planning driver (defunct on 2026-03-29)
 
 Related context:
 
@@ -8,6 +8,11 @@ Related context:
 - [`../../src/runtime/non_human_taxonomy.rs`](../../src/runtime/non_human_taxonomy.rs)
 - [`../research/2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-review.md`](2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-review.md)
 - [`../plans/2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md`](../plans/2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md)
+
+Retirement note (2026-03-29):
+
+1. This review is preserved for auditability, but the March 23-24 Identification rename chain is now defunct.
+2. Do not treat this note as current dashboard roadmap.
 
 # Objective
 

@@ -207,7 +207,7 @@ Implementation note:
 
 # Sequencing
 
-1. Keep the current mainline operator-facing work first: `MON-OVERHAUL-1`, `CTRL-SURFACE-1..3`, and `TUNE-SURFACE-1`.
+1. Keep the current mainline operator-facing work first: `MON-OVERHAUL-1`, `CTRL-SURFACE-1..3`, and any future broader Tuning work only if it is reopened through fresh planning.
 2. Keep the broader judge and role decomposition first: `RSI-GAME-1A..1C`, `RSI-ROLES-1`, and the player-role planning.
 3. Land `RSI-SCORE-1` before `OVR-AGENT-2B`, `OVR-AGENT-2C`, and `RSI-METH-1`.
 4. Land `RSI-PROTO-1` before `SIM-LLM-1A` and `OVR-AGENT-2A` are treated as execution-ready.

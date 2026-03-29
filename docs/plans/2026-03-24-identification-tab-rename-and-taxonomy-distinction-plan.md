@@ -1,5 +1,5 @@
 Date: 2026-03-24
-Status: Proposed
+Status: Defunct on 2026-03-29
 
 Related context:
 
@@ -8,6 +8,12 @@ Related context:
 - [`2026-03-23-dashboard-operator-surfacing-sequencing-plan.md`](2026-03-23-dashboard-operator-surfacing-sequencing-plan.md)
 - [`../../dashboard/src/lib/components/dashboard/FingerprintingTab.svelte`](../../dashboard/src/lib/components/dashboard/FingerprintingTab.svelte)
 - [`../../src/runtime/non_human_taxonomy.rs`](../../src/runtime/non_human_taxonomy.rs)
+
+Retirement note (2026-03-29):
+
+1. This plan is retained for audit only.
+2. The March 23-24 Tuning expansion chain is now defunct, so this rename and remit change is no longer active roadmap.
+3. The dashboard should not treat this document as executable sequencing for the current `Fingerprinting` tab.
 
 # Objective
 

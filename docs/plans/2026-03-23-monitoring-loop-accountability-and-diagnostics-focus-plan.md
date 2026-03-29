@@ -16,7 +16,7 @@ Redefine the operator-facing tab ownership so:
 2. Monitoring should show observed outcomes and loop judgment separately.
 3. Traffic visibility should not be forced into Monitoring merely because it uses charts.
 4. Diagnostics should keep subsystem and forensic depth without dominating the operator narrative.
-5. Tuning and posture editing stay out of Monitoring and remain later `TUNE-SURFACE-1` work.
+5. Tuning and posture editing stay out of Monitoring and remain separate future operator-surface work that would need fresh planning if reopened.
 6. Monitoring should describe accountability against the current operator-selected product stance; the later development reference stance belongs to later recursive-improvement methodology, not to the first Monitoring contract.
 7. Monitoring should show bounded progress over recent completed loops against benchmark families, not only the latest loop outcome.
 8. Monitoring is the human-readable projection of the loop's independent judge or evaluator, not one of the players in the later attacker-defender game.
@@ -142,7 +142,7 @@ Verification:
 3. then execute `TRAFFIC-TAB-1` so the traffic visibility surface gets its own truthful home,
 4. then execute `DIAG-CLEANUP-1`,
 5. then execute `MON-OVERHAUL-1C`,
-6. then later `TUNE-SURFACE-1`.
+6. then later operator-facing Tuning work, if reopened through fresh planning.
 
 ## Notes
 

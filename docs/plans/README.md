@@ -24,6 +24,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-29-game-loop-durable-observer-round-storage-plan.md`](2026-03-29-game-loop-durable-observer-round-storage-plan.md) - Makes the top Game Loop casts durable by archiving compact judged-round observer rows through `oversight/history` instead of depending on transient recent-run hot reads
 - [`2026-03-29-observed-telemetry-truth-and-scrapling-discoverability-plan.md`](2026-03-29-observed-telemetry-truth-and-scrapling-discoverability-plan.md) - Adds a release-blocking no-fabrication presentation rule and removes out-of-band Scrapling route hints so attacker behavior comes only from discoverable public host knowledge
 - [`2026-03-29-dashboard-machine-diagnostic-surface-retirement-plan.md`](2026-03-29-dashboard-machine-diagnostic-surface-retirement-plan.md) - Retires the now-redundant Red Team, Game Loop, and Diagnostics machine-diagnostic sections and removes the dead dashboard reads, helpers, docs, and tests that only existed to support them
+- [`2026-03-29-tuning-surface-defunct-retirement-plan.md`](2026-03-29-tuning-surface-defunct-retirement-plan.md) - Retires the defunct March 23-24 Tuning expansion chain and removes it from active backlog and sequencing
 - [`2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md`](2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md) - Makes attacker-faithful Scrapling coverage an explicit prerequisite for fuller player-side game-loop execution
 - [`2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md`](2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md) - Separates widened Scrapling defense-surface evaluation from the broader later browser-runtime question
 - [`2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-plan.md`](2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-plan.md) - Freezes the canonical owned-surface matrix and success contract for attacker-faithful Scrapling
@@ -68,8 +69,6 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-plan.md`](2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-plan.md) - Refines Monitoring-vs-Diagnostics ordering so Monitoring reuses shared transitional surfaces before Diagnostics cleanup
 - [`2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md`](2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md) - Introduces a dedicated Traffic tab and narrows Diagnostics to furniture-operational proof
 - [`2026-03-24-game-loop-tab-rename-and-ordering-plan.md`](2026-03-24-game-loop-tab-rename-and-ordering-plan.md) - Renames Monitoring to Game Loop and places it after Red Team
-- [`2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md`](2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md) - Sequence for making Tuning primary and narrowing Fingerprinting to provider posture plus diagnostics
-- [`2026-03-24-identification-tab-rename-and-taxonomy-distinction-plan.md`](2026-03-24-identification-tab-rename-and-taxonomy-distinction-plan.md) - Rename Fingerprinting to Identification and add taxonomy-distinction explanation
 
 ## Current Mainline
 
@@ -101,7 +100,6 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-20-monitoring-and-diagnostics-tab-ownership-plan.md`](2026-03-20-monitoring-and-diagnostics-tab-ownership-plan.md)
 - [`2026-03-23-dashboard-auth-gate-implementation-plan.md`](2026-03-23-dashboard-auth-gate-implementation-plan.md)
 - [`2026-03-23-dashboard-operator-surfacing-sequencing-plan.md`](2026-03-23-dashboard-operator-surfacing-sequencing-plan.md)
-- [`2026-03-23-tuning-surface-taxonomy-posture-matrix-implementation-plan.md`](2026-03-23-tuning-surface-taxonomy-posture-matrix-implementation-plan.md)
 - [`2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md)
 - [`2026-03-24-open-backlog-and-plan-reference-stance-alignment-plan.md`](2026-03-24-open-backlog-and-plan-reference-stance-alignment-plan.md)
 - [`2026-03-24-monitoring-multi-loop-benchmark-progress-plan.md`](2026-03-24-monitoring-multi-loop-benchmark-progress-plan.md)
@@ -129,8 +127,6 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-24-mz-t2-live-maze-browser-e2e-plan.md`](2026-03-24-mz-t2-live-maze-browser-e2e-plan.md)
 - [`2026-03-24-mz-t3-maze-state-concurrency-and-soak-plan.md`](2026-03-24-mz-t3-maze-state-concurrency-and-soak-plan.md)
 - [`2026-03-24-mz-t4-maze-canonical-verification-wiring-plan.md`](2026-03-24-mz-t4-maze-canonical-verification-wiring-plan.md)
-- [`2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md`](2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md)
-- [`2026-03-24-identification-tab-rename-and-taxonomy-distinction-plan.md`](2026-03-24-identification-tab-rename-and-taxonomy-distinction-plan.md)
 - [`2026-03-23-host-impact-cost-proxy-and-benchmark-implementation-plan.md`](2026-03-23-host-impact-cost-proxy-and-benchmark-implementation-plan.md)
 - [`2026-03-23-ban-duration-family-truthfulness-implementation-plan.md`](2026-03-23-ban-duration-family-truthfulness-implementation-plan.md)
 
@@ -159,6 +155,12 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`../deferred-edge-gateway.md`](../deferred-edge-gateway.md) - Current status and where the later edge gateway track now lives
 
 ## Historical Baselines And Superseded Plans
+
+### Defunct Tuning Expansion Chain
+
+- [`2026-03-23-tuning-surface-taxonomy-posture-matrix-implementation-plan.md`](2026-03-23-tuning-surface-taxonomy-posture-matrix-implementation-plan.md) - Defunct March 23-24 plan for making category-posture editing the primary Tuning contract
+- [`2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md`](2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-plan.md) - Defunct follow-on plan for making Tuning primary and narrowing Fingerprinting to provider posture plus diagnostics
+- [`2026-03-24-identification-tab-rename-and-taxonomy-distinction-plan.md`](2026-03-24-identification-tab-rename-and-taxonomy-distinction-plan.md) - Defunct rename and remit plan for turning Fingerprinting into Identification
 
 - [`2026-02-13-defence-excellence-program.md`](2026-02-13-defence-excellence-program.md)
 - [`2026-02-13-cdp-detection-excellence-plan.md`](2026-02-13-cdp-detection-excellence-plan.md)

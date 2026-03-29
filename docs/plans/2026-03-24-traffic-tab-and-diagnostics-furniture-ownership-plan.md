@@ -143,7 +143,7 @@ Sequencing refinement:
 4. `CTRL-SURFACE-1`
 5. `CTRL-SURFACE-2`
 6. `CTRL-SURFACE-3`
-7. `TUNE-SURFACE-1A`
+7. any future broader Tuning work reopened through fresh planning
 
 ## Notes
 

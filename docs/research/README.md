@@ -36,6 +36,7 @@ The directory is intentionally flat. Use this index, not nested folders, to dist
 - [`2026-03-29-game-loop-durable-observer-round-storage-review.md`](2026-03-29-game-loop-durable-observer-round-storage-review.md) - Explains the new durability gap: exact judged rounds still depend on a transient recent-run buffer, and recommends a compact history-only observer archive rather than growing hot reads or replaying raw event logs
 - [`2026-03-29-observed-telemetry-truth-and-scrapling-discoverability-review.md`](2026-03-29-observed-telemetry-truth-and-scrapling-discoverability-review.md) - Tightens the repo contract so presentation can never fabricate execution claims and removes out-of-band Scrapling route choreography in favor of discoverable host knowledge only
 - [`2026-03-29-dashboard-machine-diagnostic-surface-retirement-review.md`](2026-03-29-dashboard-machine-diagnostic-surface-retirement-review.md) - Audits which Red Team, Game Loop, and Diagnostics surfaces are now presentation clutter, confirms their removal does not reduce telemetry or controller truth, and identifies the dead dashboard reads, helpers, and tests that should be removed with them
+- [`2026-03-29-tuning-surface-defunct-review.md`](2026-03-29-tuning-surface-defunct-review.md) - Confirms the March 23-24 Tuning expansion chain is defunct and should be removed from active backlog and sequencing
 - [`2026-03-27-game-loop-live-protected-scrapling-evidence-gap-review.md`](2026-03-27-game-loop-live-protected-scrapling-evidence-gap-review.md) - Identifies the next live controller blocker: strong Scrapling runtime evidence still lacks a protected tuning basis, so the loop cannot yet make bounded config moves
 - [`2026-03-27-rsi-game-arch-1g-live-protected-evidence-post-implementation-review.md`](2026-03-27-rsi-game-arch-1g-live-protected-evidence-post-implementation-review.md) - Closeout for making effective protected evidence prefer strong live Scrapling runtime proof while keeping replay lineage separate
 - [`2026-03-27-rsi-game-arch-1j-runtime-dev-effective-watch-window-post-implementation-review.md`](2026-03-27-rsi-game-arch-1j-runtime-dev-effective-watch-window-post-implementation-review.md) - Closeout for adding an explicit runtime-dev watch-window cadence seam, surfacing declared versus effective watch-window truth, and proving live judged cycles can now close without waiting a full day
@@ -150,8 +151,6 @@ The directory is intentionally flat. Use this index, not nested folders, to dist
 - [`2026-03-24-rsi-game-mainline-1a-first-working-loop-post-implementation-review.md`](2026-03-24-rsi-game-mainline-1a-first-working-loop-post-implementation-review.md) - Closeout for landing the first explicit mainline proof over the automatic post-sim hook and the route-level canary -> judged archive loop
 - [`2026-03-24-tah-11-tarpit-observability-post-implementation-review.md`](2026-03-24-tah-11-tarpit-observability-post-implementation-review.md) - Closeout for expanding tarpit proof, chain, budget-reason, and offender-bucket observability across metrics and admin monitoring
 - [`2026-03-24-tah-19-tarpit-persistence-collateral-risk-review.md`](2026-03-24-tah-19-tarpit-persistence-collateral-risk-review.md) - Explains why tarpit punitive escalation must stop using shared bucket counts even though coarse bucket visibility remains useful
-- [`2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-review.md`](2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-review.md) - Ownership split for making Tuning primary and reducing Fingerprinting to truthful diagnostics
-- [`2026-03-24-identification-tab-remit-and-taxonomy-distinction-review.md`](2026-03-24-identification-tab-remit-and-taxonomy-distinction-review.md) - Why the future Fingerprinting tab should become Identification and explain taxonomy distinction
 
 ## Monitoring And Machine-First Operator Surfaces
 
@@ -163,7 +162,6 @@ The directory is intentionally flat. Use this index, not nested folders, to dist
 - [`2026-03-23-dashboard-auth-shell-flash-review.md`](2026-03-23-dashboard-auth-shell-flash-review.md)
 - [`2026-03-23-dashboard-auth-gate-post-implementation-review.md`](2026-03-23-dashboard-auth-gate-post-implementation-review.md)
 - [`2026-03-23-dashboard-operator-surfacing-gap-review.md`](2026-03-23-dashboard-operator-surfacing-gap-review.md)
-- [`2026-03-23-tuning-tab-taxonomy-posture-matrix-and-policy-archetypes-review.md`](2026-03-23-tuning-tab-taxonomy-posture-matrix-and-policy-archetypes-review.md)
 - [`2026-03-23-ui-vid-1-verified-identity-pane-post-implementation-review.md`](2026-03-23-ui-vid-1-verified-identity-pane-post-implementation-review.md)
 - [`2026-03-23-ui-red-1-red-team-truth-basis-post-implementation-review.md`](2026-03-23-ui-red-1-red-team-truth-basis-post-implementation-review.md)
 - [`2026-03-23-host-impact-cost-proxy-and-benchmark-review.md`](2026-03-23-host-impact-cost-proxy-and-benchmark-review.md)
@@ -298,6 +296,12 @@ The directory is intentionally flat. Use this index, not nested folders, to dist
 - [`2026-03-14-fermyon-edge-signal-and-blank-slate-live-proof.md`](2026-03-14-fermyon-edge-signal-and-blank-slate-live-proof.md)
 
 ## Historical Delivered Baselines
+
+### Defunct Tuning Expansion Drivers
+
+- [`2026-03-23-tuning-tab-taxonomy-posture-matrix-and-policy-archetypes-review.md`](2026-03-23-tuning-tab-taxonomy-posture-matrix-and-policy-archetypes-review.md) - Defunct March 23-24 review for a category-posture-matrix-led Tuning expansion
+- [`2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-review.md`](2026-03-24-tuning-surface-visibility-and-fingerprint-control-ownership-review.md) - Defunct review for making Tuning primary and narrowing Fingerprinting to diagnostics
+- [`2026-03-24-identification-tab-remit-and-taxonomy-distinction-review.md`](2026-03-24-identification-tab-remit-and-taxonomy-distinction-review.md) - Defunct review for the planned Identification rename and taxonomy-distinction explanation
 
 - [`2026-02-15-stage2.5-maze-efficiency-and-asymmetry.md`](2026-02-15-stage2.5-maze-efficiency-and-asymmetry.md)
 - [`2026-02-16-fingerprinting-research-synthesis.md`](2026-02-16-fingerprinting-research-synthesis.md)

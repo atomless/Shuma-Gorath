@@ -99,7 +99,7 @@ So they should be treated as blocked prerequisites for the later fully working g
 2. Add `RSI-PROTO-1` for canonical attacker and defender protocol schemas.
 3. Add `RSI-EVAL-1` for protected-vs-held-out evaluation separation.
 4. Make `SIM-LLM-1A`, `OVR-AGENT-2A`, `OVR-AGENT-2B`, `OVR-AGENT-2C`, `RSI-METH-1`, and `OVR-CODE-1` depend on the appropriate subset of those contracts.
-5. Keep these items blocked and downstream of the current mainline operator-facing work; do not let them pull `MON-OVERHAUL-1` or `TUNE-SURFACE-1` out of order.
+5. Keep these items blocked and downstream of the current mainline operator-facing work; do not let them pull `MON-OVERHAUL-1` or any future broader Tuning re-expansion out of order.
 
 # Required Follow-On Work
 

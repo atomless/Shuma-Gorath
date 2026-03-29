@@ -1,5 +1,5 @@
 Date: 2026-03-24
-Status: Proposed
+Status: Historical planning driver (defunct on 2026-03-29)
 
 Related context:
 
@@ -10,6 +10,11 @@ Related context:
 - [`../research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md`](2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md)
 - [`../plans/2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md`](../plans/2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md)
 - [`2026-03-24-identification-tab-remit-and-taxonomy-distinction-review.md`](2026-03-24-identification-tab-remit-and-taxonomy-distinction-review.md)
+
+Retirement note (2026-03-29):
+
+1. This review is preserved for auditability, but the March 23-24 Tuning expansion chain it fed is now defunct.
+2. The current roadmap does not treat this ownership split as active execution work.
 
 # Objective
 

@@ -252,7 +252,7 @@ Additional prerequisite note:
 # Sequencing
 
 1. Finish `CTRL-SURFACE-1..3` before `RSI-GAME-1A`.
-2. Keep `MON-OVERHAUL-1` and `TUNE-SURFACE-1A` on the current operator-facing path; do not block those surfaces on later recursive-game machinery.
+2. Keep `MON-OVERHAUL-1` on the current operator-facing path; do not block it on later recursive-game machinery. The earlier `TUNE-SURFACE-1A` chain is retired as defunct.
 3. Land `RSI-GAME-1A` and `RSI-GAME-1B` before reopening `OVR-AGENT-2`.
 4. Land `RSI-GAME-1C` before implementing `RSI-METH-1`.
 5. Land `RSI-ROLES-1` before any later dual-agent or triadic autonomous-loop design is treated as execution-ready.

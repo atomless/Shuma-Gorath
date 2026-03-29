@@ -13,6 +13,11 @@ Related context:
 - [`../../dashboard/src/lib/components/dashboard/RedTeamTab.svelte`](../../dashboard/src/lib/components/dashboard/RedTeamTab.svelte)
 - [`../../dashboard/src/lib/domain/api-client.js`](../../dashboard/src/lib/domain/api-client.js)
 
+Retirement note (2026-03-29):
+
+1. The `TUNE-SURFACE-1` chain described in this note is now defunct and must not be treated as active dashboard sequencing.
+2. Keep this document as historical dashboard-surfacing context only.
+
 # Objective
 
 Queue the missing operator-facing surfaces in the cleanest ownership buckets so the dashboard catches up with recent backend progress without undermining the Monitoring and Tuning redesigns.
@@ -21,7 +26,7 @@ Queue the missing operator-facing surfaces in the cleanest ownership buckets so 
 
 1. Add only local, already-settled tab surfaces before `MON-OVERHAUL-1`.
 2. Keep machine-first read-model projection work inside `MON-OVERHAUL-1`.
-3. Keep operator-objective editing inside `TUNE-SURFACE-1`.
+3. Keep any future operator-objective editing outside premature local tabs; if reopened, it must come through fresh planning rather than the retired March 23-24 Tuning chain.
 4. Do not add raw JSON panes as a substitute for proper operator surfaces.
 5. Treat verified identity as a broader product surface than native Web Bot Auth alone.
 6. Keep operator-facing product stance surfaces distinct from the later recursive-improvement development reference stance.
@@ -163,7 +168,7 @@ Give live and recent traffic visibility a truthful first-class home instead of f
 4. recent external traffic browsing,
 5. manual refresh plus bounded auto-refresh.
 
-## `TUNE-SURFACE-1`: Operator Objectives And Category Posture Editor
+## Defunct: `TUNE-SURFACE-1` Operator Objectives And Category Posture Editor
 
 ### Goal
 
@@ -209,9 +214,9 @@ Follow-on ownership after `TUNE-SURFACE-1A`:
 5. Then execute `TRAFFIC-TAB-1`.
 6. Then execute `DIAG-CLEANUP-1`.
 7. Then ratify the controller mutability policy and hard-no-touch boundary (`CTRL-SURFACE-1..3`).
-8. Then execute `TUNE-SURFACE-1A`.
-9. Then execute `TUNE-SURFACE-1B`.
-10. Then execute `TUNE-SURFACE-1C`.
+8. The earlier `TUNE-SURFACE-1A`,
+9. `TUNE-SURFACE-1B`,
+10. and `TUNE-SURFACE-1C` chain is now retired as defunct on 2026-03-29.
 
 # Definition Of Done
 
@@ -222,5 +227,5 @@ This plan is satisfied when:
 3. Monitoring owns the human projection of snapshot, benchmark, and oversight read models,
 4. Traffic owns live and recent traffic visibility,
 5. Diagnostics owns furniture-operational proof and subsystem investigation,
-6. Tuning owns operator-objective and category-posture editing,
+6. the earlier Tuning operator-objective and category-posture expansion chain is retained only as historical context,
 7. and the dashboard no longer lags the backend in these operator-critical areas.

@@ -33,7 +33,7 @@ The clean split is:
 
 1. a small number of local, already-settled controls should be surfaced before `MON-OVERHAUL-1`,
 2. machine-first benchmark, snapshot, and oversight read contracts should be projected through `MON-OVERHAUL-1`,
-3. and operator-objective editing should be treated as part of `TUNE-SURFACE-1`, not bolted into Status or Monitoring prematurely.
+3. and any future operator-objective editing should be treated as its own later operator surface, not bolted into Status or Monitoring prematurely.
 
 # Current Gap Findings
 
@@ -139,7 +139,7 @@ Evidence:
 
 Conclusion:
 
-This absolutely deserves operator surfacing, but it is not a Monitoring concern and should not be improvised into Status. It belongs to the later `TUNE-SURFACE-1` contract because it is a primary control-plane editor for category posture and benchmark intent.
+This absolutely deserves operator surfacing, but it is not a Monitoring concern and should not be improvised into Status. It belongs to a later dedicated operator-control surface if reopened, because it is a primary control-plane editor for category posture and benchmark intent.
 
 ## 4. Oversight status, history, and reconcile preview are backend-real but not yet projected
 
@@ -215,7 +215,7 @@ The Monitoring overhaul should consume those machine-first contracts and render 
 
 ## Tuning-owned later control
 
-These should be held for `TUNE-SURFACE-1`:
+These should be held for any future broader Tuning re-expansion if it is reopened through fresh planning:
 
 1. operator-objectives editor,
 2. category posture editor,
@@ -226,7 +226,7 @@ These should be held for `TUNE-SURFACE-1`:
 1. Land `UI-VID-1` after the remaining verified-identity backend truth tranches so the first pane surfaces already-faithful semantics.
 2. Land `UI-RED-1` once the local dashboard queue allows it because the backend truth it renders is already shipped.
 3. Keep `MON-OVERHAUL-1` responsible for operator-snapshot, benchmark-results, and oversight read-model projection.
-4. Keep `TUNE-SURFACE-1` responsible for operator-objectives and category-posture editing.
+4. Keep any future operator-objectives and category-posture editing in a dedicated later operator-control surface rather than forcing it into Monitoring or Status prematurely.
 
 # Non-Goals
 

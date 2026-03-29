@@ -370,7 +370,7 @@ The next implementation work should therefore be:
 1. `OPS-SNAPSHOT-1` machine-first operator snapshot foundation,
 2. benchmark-contract planning for code-evolution criteria,
 3. then `MON-OVERHAUL-1` as a thin projection over that foundation,
-4. then `TUNE-SURFACE-1` aligned to the same objective and action model,
+4. then any future broader operator-facing Tuning work, if reopened through fresh planning, aligned to the same objective and action model,
 5. then later `OVR-AGENT-2` for the scheduled recommend-or-apply loop,
 6. and only after that the separate code-evolution and PR-generation path.
 

@@ -8,6 +8,10 @@ Purpose:
 - Tune botness thresholds and signal weights.
 - Present only the operator-owned surfaces that are inside the canonical controller mutability policy's `controller_tunable` ring, leaving `never` and `manual_only` surfaces out of the main tuning affordance.
 
+Current scope note:
+
+- The broader March 23-24 Tuning expansion chain around category-posture editing, `Identification` ownership changes, and later objective-budget surfaces is retired as defunct and must not be treated as current roadmap.
+
 Panels:
 
 - `Botness Scoring`:

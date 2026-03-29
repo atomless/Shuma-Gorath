@@ -169,9 +169,9 @@ The plan must define:
 
 Status update (2026-03-24):
 
-1. The first concrete Tuning shape is now the taxonomy posture matrix plus optional stance-archetype seeding in [`2026-03-23-tuning-surface-taxonomy-posture-matrix-implementation-plan.md`](2026-03-23-tuning-surface-taxonomy-posture-matrix-implementation-plan.md).
-2. Those stance archetypes are operator-facing product presets, not the later recursive-improvement development reference stance contract.
-3. The later development reference stance and run-to-homeostasis methodology are now tracked separately in [`../research/2026-03-24-reference-stance-and-run-to-homeostasis-review.md`](../research/2026-03-24-reference-stance-and-run-to-homeostasis-review.md) and [`2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md).
+1. The March 23-24 Tuning expansion chain is now retired as defunct and kept only for audit.
+2. The current Tuning contract remains the narrow shipped controller-tunable botness editor documented in [`../dashboard-tabs/tuning.md`](../dashboard-tabs/tuning.md).
+3. The later development reference stance and run-to-homeostasis methodology remain tracked separately in [`../research/2026-03-24-reference-stance-and-run-to-homeostasis-review.md`](../research/2026-03-24-reference-stance-and-run-to-homeostasis-review.md) and [`2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md).
 
 ## C. Monitoring Overhaul For Operators, Not Contributors
 

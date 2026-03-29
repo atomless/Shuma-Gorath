@@ -1,7 +1,7 @@
 # Tuning Tab Taxonomy Posture Matrix And Policy Archetypes Review
 
 Date: 2026-03-23
-Status: Proposed planning driver
+Status: Historical planning driver (defunct on 2026-03-29)
 
 Related context:
 
@@ -16,6 +16,11 @@ Related context:
 - [`../../docs/dashboard-tabs/policy.md`](../../docs/dashboard-tabs/policy.md)
 - [`../../docs/dashboard-tabs/tuning.md`](../../docs/dashboard-tabs/tuning.md)
 - [`../../todos/blocked-todo.md`](../../todos/blocked-todo.md)
+
+Retirement note (2026-03-29):
+
+1. This review is preserved for auditability, but its recommended March 23-24 Tuning expansion path is now defunct.
+2. The current Tuning contract remains the narrower shipped botness editor.
 
 External references:
 

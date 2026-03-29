@@ -1,5 +1,5 @@
 Date: 2026-03-24
-Status: Proposed
+Status: Defunct on 2026-03-29
 
 Related context:
 
@@ -10,6 +10,13 @@ Related context:
 - [`2026-03-23-dashboard-operator-surfacing-sequencing-plan.md`](2026-03-23-dashboard-operator-surfacing-sequencing-plan.md)
 - [`../../dashboard/src/lib/components/dashboard/TuningTab.svelte`](../../dashboard/src/lib/components/dashboard/TuningTab.svelte)
 - [`../../dashboard/src/lib/components/dashboard/FingerprintingTab.svelte`](../../dashboard/src/lib/components/dashboard/FingerprintingTab.svelte)
+
+Retirement note (2026-03-29):
+
+1. This plan is retained for audit only.
+2. The March 23-24 Tuning expansion chain is now defunct and must not be treated as active sequencing.
+3. The current Tuning tab remains intentionally narrow, and the future `Identification` ownership split described here is not current roadmap.
+4. Any later reopening must start from fresh research against the then-current control-plane and product direction.
 
 # Objective
 
