@@ -1047,6 +1047,8 @@ test-deploy-fermyon: ## Validate Fermyon/Akamai edge setup and deploy helpers
 test-config-lifecycle: ## Validate read-only runtime config lifecycle checks and explicit seed/backfill flows
 	@echo "$(CYAN)🧪 Running config lifecycle verification...$(NC)"
 	@python3 -m unittest scripts/tests/test_config_lifecycle.py
+	@./scripts/set_crate_type.sh rlib
+	@cargo test config::tests::adversary_sim_duration_defaults_to_30_and_clamps_loaded_values -- --exact --nocapture
 
 test-js-verification-unit: ## Run focused JS verification interstitial unit checks
 	@echo "$(CYAN)🧪 Running JS verification interstitial checks...$(NC)"

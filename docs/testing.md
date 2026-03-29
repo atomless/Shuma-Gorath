@@ -455,7 +455,7 @@ Dashboard adversary-sim orchestration control contract:
 - Host-side supervisor requests must satisfy trusted-forwarding (`X-Shuma-Forwarded-Secret`, loopback `X-Forwarded-For`, `X-Forwarded-Proto: https`) and send the internal supervisor marker header. Only `/admin/adversary-sim/status`, `/internal/adversary-sim/beat`, and `/internal/adversary-sim/worker-result` bypass the public admin IP allowlist under that internal supervisor contract.
 - Runtime generation cadence ownership is backend/supervisor-only: dashboard refresh cadence must not control traffic generation.
 - The dashboard `Red Team` controller is page-scoped: the toggle reflects latest operator intent immediately, while status polling continues through submit/converge/running phases even if another top-level tab is selected.
-- Toggle-driven runs use `adversary_sim_duration_seconds` (default `180`, hard-bounded `30..900`) under backend autonomous heartbeat generation, and dashboard surfaces lifecycle state only (`off`, `running`, `stopping`) without procedural progress rendering.
+- Toggle-driven runs use `adversary_sim_duration_seconds` (default `30`, hard-bounded `30..900`) under backend autonomous heartbeat generation, and dashboard surfaces lifecycle state only (`off`, `running`, `stopping`) without procedural progress rendering.
 - If no frontier provider keys are configured, OFF -> ON toggle attempts must show a warning dialog with two outcomes:
   - continue without frontier calls, or
   - cancel, add `SHUMA_FRONTIER_*_API_KEY` values to `.env.local`, restart `make dev`, then toggle on again.

@@ -4,6 +4,23 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-29)
 
+### SIM-CONFIG-1 Shorten Seeded Adversary Sim Run Window To 30 Seconds
+
+- [x] Completed the default-duration reduction across:
+  - [`../config/defaults.env`](../config/defaults.env)
+  - [`../src/config/tests.rs`](../src/config/tests.rs)
+  - [`../docs/configuration.md`](../docs/configuration.md)
+  - [`../docs/adversarial-operator-guide.md`](../docs/adversarial-operator-guide.md)
+  - [`../docs/testing.md`](../docs/testing.md)
+- [x] What landed:
+  - the seeded `SHUMA_ADVERSARY_SIM_DURATION_SECONDS` default now starts at `30` seconds instead of `180`,
+  - the config default/clamp proof now asserts the new seeded value directly,
+  - and the operator/testing docs now describe the faster seeded iteration window while preserving the existing hard bound of `30..900`.
+- [x] Why:
+  - local adversary-sim and game-loop iteration was unnecessarily slow for the current development loop, and the existing minimum bound was already `30` seconds.
+- [x] Evidence:
+  - `make test-config-lifecycle`
+
 ### GAME-LOOP-OBSERVER-2 Prefer Fresh Exact Current Casts Over Stale Judged Casts
 
 - [x] Completed the top-cast truth repair across:

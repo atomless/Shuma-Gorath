@@ -685,7 +685,7 @@ Lifecycle semantics:
 
 Guardrail constants (hard-coded, not operator-configurable):
 
-1. `max_duration_seconds=900` (runtime key `adversary_sim_duration_seconds` is bounded to `30..900`, default `180`).
+1. `max_duration_seconds=900` (runtime key `adversary_sim_duration_seconds` is bounded to `30..900`, default `30`).
 2. `max_concurrent_runs=1`.
 3. `cpu_cap_millicores=1000`.
 4. `memory_cap_mib=512`.

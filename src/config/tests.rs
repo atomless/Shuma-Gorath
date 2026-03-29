@@ -1100,10 +1100,10 @@ fn frontier_summary_tracks_single_vs_multi_provider_modes() {
 }
 
 #[test]
-fn adversary_sim_duration_defaults_to_180_and_clamps_loaded_values() {
+fn adversary_sim_duration_defaults_to_30_and_clamps_loaded_values() {
     let store = CountingStore::default();
     let mut cfg = defaults().clone();
-    assert_eq!(cfg.adversary_sim_duration_seconds, 180);
+    assert_eq!(cfg.adversary_sim_duration_seconds, 30);
 
     cfg.adversary_sim_duration_seconds = 5;
     store
