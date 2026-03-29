@@ -1633,7 +1633,7 @@ mod tests {
                     ts: run_started_at.saturating_add(3),
                     event: EventType::AdminAction,
                     ip: Some("198.51.100.50".to_string()),
-                    reason: Some("scrapling_surface_coverage".to_string()),
+                    reason: Some("scrapling_worker_receipt".to_string()),
                     outcome: Some("receipts".to_string()),
                     admin: Some("internal".to_string()),
                 },
@@ -1886,7 +1886,7 @@ mod tests {
         let record: EventLogRecord = serde_json::from_value(serde_json::json!({
             "ts": run_started_at,
             "event": "AdminAction",
-            "reason": "scrapling_surface_coverage",
+            "reason": "scrapling_worker_receipt",
             "outcome": "tick_id=tick-001 receipts=1 generated_requests=2 failed_requests=0",
             "sim_run_id": "simrun-scrapling-explicit-categories",
             "sim_profile": "scrapling_runtime_lane",
@@ -6265,6 +6265,166 @@ mod admin_config_tests {
         assert_eq!(persisted.generated_tick_count, 1);
         assert_eq!(persisted.generated_request_count, 3);
         assert!(persisted.pending_worker_tick_id.is_none());
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+        std::env::remove_var("SHUMA_API_KEY");
+        std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
+    }
+
+    #[test]
+    fn scrapling_worker_results_without_surface_receipts_still_materialize_recent_run_categories() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "shared-server");
+        std::env::set_var("SHUMA_API_KEY", "sim-scrapling-empty-receipts-test-key");
+        std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+
+        let lane_resp = handle_admin_adversary_sim_control(
+            &make_control_request_json(
+                br#"{"enabled":true,"lane":"scrapling_traffic"}"#,
+                "scrapling-empty-receipts-enable-and-lane",
+            ),
+            &store,
+            "default",
+            &auth,
+        );
+        assert_eq!(*lane_resp.status(), 200u16);
+
+        let beat_req = make_internal_beat_request("sim-scrapling-empty-receipts-test-key");
+        let first_beat_resp = handle_internal_adversary_sim_beat(&beat_req, &store, "default");
+        assert_eq!(*first_beat_resp.status(), 200u16);
+        let first_beat_json: serde_json::Value =
+            serde_json::from_slice(first_beat_resp.body()).expect("first beat decodes");
+        assert_eq!(
+            first_beat_json["dispatch_mode"].as_str(),
+            Some("scrapling_worker")
+        );
+        let first_plan = first_beat_json
+            .get("worker_plan")
+            .cloned()
+            .expect("first worker plan");
+        assert_eq!(
+            first_plan["fulfillment_mode"].as_str(),
+            Some("crawler")
+        );
+
+        let first_result_body = serde_json::to_vec(&serde_json::json!({
+            "schema_version": "adversary-sim-scrapling-worker-result.v1",
+            "run_id": first_plan["run_id"],
+            "tick_id": first_plan["tick_id"],
+            "lane": "scrapling_traffic",
+            "fulfillment_mode": first_plan["fulfillment_mode"],
+            "category_targets": first_plan["category_targets"],
+            "worker_id": "scrapling-worker-test",
+            "tick_started_at": first_plan["tick_started_at"],
+            "tick_completed_at": first_plan["tick_started_at"].as_u64().unwrap_or(0).saturating_add(1),
+            "generated_requests": 2,
+            "failed_requests": 0,
+            "last_response_status": 200,
+            "failure_class": null,
+            "error": null,
+            "crawl_stats": {
+                "requests_count": 2,
+                "offsite_requests_count": 0,
+                "blocked_requests_count": 0,
+                "response_status_count": {
+                    "status_200": 2
+                },
+                "response_bytes": 256
+            },
+            "scope_rejections": {},
+            "surface_receipts": []
+        }))
+        .expect("first result encodes");
+        let first_result_req = make_internal_worker_result_request(
+            "sim-scrapling-empty-receipts-test-key",
+            first_result_body.as_slice(),
+        );
+        let first_result_resp =
+            handle_internal_adversary_sim_worker_result(&first_result_req, &store, "default");
+        assert_eq!(*first_result_resp.status(), 200u16);
+
+        let mut persisted = crate::admin::adversary_sim::load_state(&store, "default");
+        persisted.last_generated_at = Some(0);
+        crate::admin::adversary_sim::save_state(&store, "default", &persisted)
+            .expect("state save");
+
+        let second_beat_resp = handle_internal_adversary_sim_beat(&beat_req, &store, "default");
+        assert_eq!(*second_beat_resp.status(), 200u16);
+        let second_beat_json: serde_json::Value =
+            serde_json::from_slice(second_beat_resp.body()).expect("second beat decodes");
+        assert_eq!(
+            second_beat_json["dispatch_mode"].as_str(),
+            Some("scrapling_worker")
+        );
+        let second_plan = second_beat_json
+            .get("worker_plan")
+            .cloned()
+            .expect("second worker plan");
+        assert_eq!(
+            second_plan["fulfillment_mode"].as_str(),
+            Some("bulk_scraper")
+        );
+
+        let second_result_body = serde_json::to_vec(&serde_json::json!({
+            "schema_version": "adversary-sim-scrapling-worker-result.v1",
+            "run_id": second_plan["run_id"],
+            "tick_id": second_plan["tick_id"],
+            "lane": "scrapling_traffic",
+            "fulfillment_mode": second_plan["fulfillment_mode"],
+            "category_targets": second_plan["category_targets"],
+            "worker_id": "scrapling-worker-test",
+            "tick_started_at": second_plan["tick_started_at"],
+            "tick_completed_at": second_plan["tick_started_at"].as_u64().unwrap_or(0).saturating_add(1),
+            "generated_requests": 2,
+            "failed_requests": 0,
+            "last_response_status": 200,
+            "failure_class": null,
+            "error": null,
+            "crawl_stats": {
+                "requests_count": 2,
+                "offsite_requests_count": 0,
+                "blocked_requests_count": 0,
+                "response_status_count": {
+                    "status_200": 2
+                },
+                "response_bytes": 256
+            },
+            "scope_rejections": {},
+            "surface_receipts": []
+        }))
+        .expect("second result encodes");
+        let second_result_req = make_internal_worker_result_request(
+            "sim-scrapling-empty-receipts-test-key",
+            second_result_body.as_slice(),
+        );
+        let second_result_resp =
+            handle_internal_adversary_sim_worker_result(&second_result_req, &store, "default");
+        assert_eq!(*second_result_resp.status(), 200u16);
+
+        let recent_runs = monitoring_recent_sim_run_summaries(&store, now_ts(), 24, 10);
+        let row = recent_runs
+            .iter()
+            .find(|value| value.run_id == first_plan["run_id"].as_str().unwrap_or_default())
+            .expect("recent sim run row");
+        assert_eq!(row.lane, "scrapling_traffic");
+        assert_eq!(row.profile, "scrapling_runtime_lane");
+        assert_eq!(
+            row.observed_fulfillment_modes,
+            vec!["bulk_scraper".to_string(), "crawler".to_string()]
+        );
+        assert_eq!(
+            row.observed_category_ids,
+            vec!["ai_scraper_bot".to_string(), "indexing_bot".to_string()]
+        );
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");

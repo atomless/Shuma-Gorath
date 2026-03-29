@@ -512,9 +512,7 @@ pub(crate) fn handle_internal_adversary_sim_worker_result(
                 Err(()) => return Response::new(500, "Key-value store error"),
             }
 
-            if !worker_result.surface_receipts.is_empty() {
-                log_scrapling_surface_receipts_event(store, &worker_result);
-            }
+            log_scrapling_worker_receipt_event(store, &worker_result);
 
             worker_result.tick_completed_at
         }
@@ -572,7 +570,7 @@ pub(crate) fn handle_internal_adversary_sim_worker_result(
         .build()
 }
 
-fn log_scrapling_surface_receipts_event(
+fn log_scrapling_worker_receipt_event(
     store: &impl crate::challenge::KeyValueStore,
     worker_result: &crate::admin::adversary_sim::ScraplingWorkerResult,
 ) {
@@ -581,7 +579,7 @@ fn log_scrapling_surface_receipts_event(
             ts: worker_result.tick_completed_at,
             event: super::api::EventType::AdminAction,
             ip: None,
-            reason: Some("scrapling_surface_coverage".to_string()),
+            reason: Some("scrapling_worker_receipt".to_string()),
             outcome: Some(format!(
                 "tick_id={} receipts={} generated_requests={} failed_requests={}",
                 worker_result.tick_id,

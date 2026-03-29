@@ -4,6 +4,26 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-29)
 
+### SIM-TRUTH-2 Preserve Scrapling Category Truth Across Empty-Receipt Worker Ticks
+
+- [x] Completed the observer-truth repair across:
+  - [`../src/admin/adversary_sim_api.rs`](../src/admin/adversary_sim_api.rs)
+  - [`../src/admin/api.rs`](../src/admin/api.rs)
+  - [`../Makefile`](../Makefile)
+  - [`../docs/adversarial-operator-guide.md`](../docs/adversarial-operator-guide.md)
+  - [`../docs/dashboard-tabs/game-loop.md`](../docs/dashboard-tabs/game-loop.md)
+- [x] What landed:
+  - every Scrapling worker tick now persists an observer receipt event even when its `surface_receipts` list is empty,
+  - those observer receipts use explicit `category_targets`, so recent-run and durable Game Loop observer summaries can keep the full Scrapling adversary cast for a judged run without inventing anything or depending on owned-surface rows alone,
+  - the focused Scrapling worker make target now proves multi-tick category accumulation when the intermediate ticks contribute no owned-surface receipts,
+  - and the receipt event naming now reflects worker execution truth instead of implying that every persisted tick necessarily carried coverage rows.
+- [x] Why:
+  - the durable Game Loop archive was faithfully storing only `indexing_bot` for some judged Scrapling rounds because later Scrapling ticks with real category targets but empty owned-surface receipts were never persisted into the observer path at all.
+- [x] Evidence:
+  - `make test-adversary-sim-scrapling-worker`
+  - `make test-dashboard-game-loop-accountability`
+  - `make test-admin-machine-contracts`
+
 ### RSI-GAME-BOARD-1J Durable Judged-Round Observer Archive For Game Loop Casts
 
 - [x] Completed `RSI-GAME-BOARD-1J` across:

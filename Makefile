@@ -1738,6 +1738,7 @@ test-adversary-sim-scrapling-worker: ## Focused Scrapling lane worker gate (beat
 	@./scripts/set_crate_type.sh rlib
 	@cargo test adversary_sim_internal_beat_returns_scrapling_worker_plan_and_switches_active_lane -- --nocapture
 	@cargo test adversary_sim_worker_result_updates_scrapling_generation_and_lane_diagnostics -- --nocapture
+	@cargo test scrapling_worker_results_without_surface_receipts_still_materialize_recent_run_categories -- --nocapture
 	@cargo test adversary_sim_worker_result_is_rejected_after_manual_off_and_does_not_restore_running_state -- --nocapture
 	@$(MAKE) --no-print-directory test-adversary-sim-supervisor-unit
 	@if [ ! -x "$(SCRAPLING_VENV_PYTHON)" ]; then \
