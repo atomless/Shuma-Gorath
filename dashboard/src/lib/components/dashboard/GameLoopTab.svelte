@@ -2,7 +2,6 @@
   import { formatCompactNumber } from '../../domain/core/format.js';
   import { formatUnixSecondsLocal } from '../../domain/core/date-time.js';
   import {
-    deriveAdversaryRunRowsFromSummaries,
     deriveLatestScraplingEvidenceFromSummaries
   } from './monitoring-view-model.js';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
@@ -607,6 +606,39 @@
     return fragments.length ? fragments.join(' | ') : 'No attempt materialized in this round.';
   };
 
+  const shapeObserverRoundRunRow = (row) => {
+    const source = asRecord(row);
+    return {
+      runId: String(source.run_id || '').trim(),
+      lane: String(source.lane || 'none').trim() || 'none',
+      profile: String(source.profile || 'unknown').trim() || 'unknown',
+      observedFulfillmentModes: dedupeStrings(source.observed_fulfillment_modes),
+      observedCategoryIds: dedupeStrings(source.observed_category_ids),
+      monitoringEventCount: Number(source.monitoring_event_count || 0),
+      defenseDeltaCount: Number(source.defense_delta_count || 0),
+      banOutcomeCount: Number(source.ban_outcome_count || 0)
+    };
+  };
+
+  const shapeObserverRoundSurfaceRow = (row) => {
+    const source = asRecord(row);
+    return {
+      key: `${String(source.run_id || 'unknown').trim()}:${String(source.surface_id || 'surface').trim()}`,
+      runId: String(source.run_id || '').trim(),
+      surfaceId: String(source.surface_id || '').trim(),
+      surfaceLabel: humanizeToken(source.surface_id),
+      surfaceState: String(source.surface_state || '').trim(),
+      coverageStatus: String(source.coverage_status || '').trim(),
+      successContract: String(source.success_contract || '').trim(),
+      dependencyKind: String(source.dependency_kind || '').trim(),
+      dependencySurfaceIds: dedupeStrings(source.dependency_surface_ids),
+      attemptCount: Number(source.attempt_count || 0),
+      sampleRequestMethod: String(source.sample_request_method || '').trim(),
+      sampleRequestPath: String(source.sample_request_path || '').trim(),
+      sampleResponseStatus: asFiniteNumber(source.sample_response_status)
+    };
+  };
+
   $: oversightHistoryRows = toArray(oversightHistory?.rows);
   $: latestHistoryRows = oversightHistoryRows.slice(0, 6);
   $: latestHistoryRow = latestHistoryRows[0] || null;
@@ -674,25 +706,23 @@
       .map((row) => [String(row?.category_id || '').trim(), row])
       .filter(([categoryId]) => categoryId)
   );
-  $: recentSimRunRows = deriveAdversaryRunRowsFromSummaries(
-    toArray(operatorSnapshot?.adversary_sim?.recent_runs),
-    []
-  ).runRows;
-  $: recentSimRunRowsById = new Map(
-    recentSimRunRows
-      .map((run) => [String(run?.runId || '').trim(), run])
-      .filter(([runId]) => runId)
-  );
   $: historyRowByEpisodeId = new Map(
     oversightHistoryRows
       .map((row) => [String(row?.decision_id || '').trim(), row])
       .filter(([decisionId]) => decisionId)
   );
-  $: judgedRunIds = dedupeStrings(latestJudgedEpisodeRow?.judged_run_ids);
-  $: selectedRoundMissingRunIds = judgedRunIds.filter((runId) => !recentSimRunRowsById.has(runId));
-  $: selectedRoundLaneRunRows = judgedRunIds
-    .map((runId) => recentSimRunRowsById.get(runId) || null)
-    .filter(Boolean);
+  $: observerRoundArchive = asRecord(oversightHistory?.observer_round_archive);
+  $: observerRoundArchiveRows = toArray(observerRoundArchive?.rows);
+  $: observerRoundByEpisodeId = new Map(
+    observerRoundArchiveRows
+      .map((row) => [String(row?.episode_id || '').trim(), row])
+      .filter(([episodeId]) => episodeId)
+  );
+  $: selectedObserverRound =
+    observerRoundByEpisodeId.get(String(latestJudgedEpisodeRow?.episode_id || '').trim()) || null;
+  $: selectedObserverRoundMissing = Boolean(latestJudgedEpisodeRow && !selectedObserverRound);
+  $: selectedRoundMissingRunIds = dedupeStrings(selectedObserverRound?.missing_run_ids);
+  $: selectedRoundLaneRunRows = toArray(selectedObserverRound?.run_rows).map(shapeObserverRoundRunRow);
   $: recentRoundRows = judgedCycleRows.slice(0, 4).map((row, index) => {
     const historyRow = historyRowByEpisodeId.get(String(row?.episode_id || '').trim()) || null;
     return {
@@ -982,41 +1012,30 @@
   $: latestScraplingEvidence = deriveLatestScraplingEvidenceFromSummaries(
     toArray(operatorSnapshot?.adversary_sim?.recent_runs)
   );
-  $: selectedScraplingRoundRun =
-    selectedRoundLaneRunRows.find((run) => run?.lane === 'scrapling_traffic') || null;
-  $: selectedSurfaceCoverage = asRecord(selectedScraplingRoundRun?.ownedSurfaceCoverage);
-  $: selectedSurfaceChecklistRows = toArray(selectedSurfaceCoverage?.surfaceChecklistRows);
-  $: surfaceReceiptById = new Map(
-    toArray(selectedSurfaceCoverage?.receipts)
-      .filter((receipt) => String(receipt?.surfaceId || '').trim())
-      .map((receipt) => [String(receipt.surfaceId || '').trim(), receipt])
+  $: selectedRoundSurfaceRows = toArray(selectedObserverRound?.scrapling_surface_rows).map(
+    shapeObserverRoundSurfaceRow
   );
   $: defenceCastRows = (() => {
-    const rows = [];
-    const seen = new Set();
-    selectedSurfaceChecklistRows
-      .filter((row) => row && row.state !== 'not_required')
-      .forEach((row) => {
-        if (seen.has(row.surfaceId)) return;
-        seen.add(row.surfaceId);
-        const receipt = surfaceReceiptById.get(row.surfaceId);
-        rows.push({
-          key: `surface-${row.surfaceId}`,
-          surfaceLabel: row.surfaceLabel || humanizeToken(row.surfaceId),
-          observationText: formatReceiptObservation(receipt),
-          outcomeText: row.stateLabel || 'state unavailable',
-          noteText: joinStatusSummary(
-            [
-              row?.dependencyLabel || '',
-              receipt?.coverageStatus
-                ? `coverage ${humanizeToken(receipt.coverageStatus, 'sentence')}`
-                : ''
-            ],
-            'No additional surface detail.'
-          )
-        });
-      });
-    return rows;
+    return selectedRoundSurfaceRows.map((row) => ({
+      key: row.key,
+      surfaceLabel: row.surfaceLabel || humanizeToken(row.surfaceId),
+      observationText: formatReceiptObservation(row),
+      outcomeText: row.surfaceState
+        ? humanizeToken(row.surfaceState, 'sentence')
+        : 'state unavailable',
+      noteText: joinStatusSummary(
+        [
+          row.coverageStatus ? `coverage ${humanizeToken(row.coverageStatus, 'sentence')}` : '',
+          row.successContract
+            ? `success contract ${humanizeToken(row.successContract, 'sentence')}`
+            : '',
+          row.dependencyKind
+            ? `${humanizeToken(row.dependencyKind, 'sentence')} surface`
+            : ''
+        ],
+        'No additional surface detail.'
+      )
+    }));
   })();
   $: surfaceContractCoverage = asRecord(latestScraplingEvidence?.ownedSurfaceCoverage);
   $: surfaceContractBlockingLabels = (() => {
@@ -1209,8 +1228,10 @@
           </p>
           {#if adversaryCastRows.length === 0}
             <p class="text-muted">
-              {#if selectedRoundMissingRunIds.length}
-                The judged round is recorded, but its exact run receipts are no longer present in recent sim history.
+              {#if selectedObserverRoundMissing}
+                The judged round is recorded, but no durable observer-round archive was materialized for it yet.
+              {:else if selectedRoundMissingRunIds.length}
+                The judged round was archived with missing run receipts, so the observer page will not guess the missing adversaries.
               {:else}
                 No recent adversary cast is materialized yet.
               {/if}
@@ -1244,8 +1265,10 @@
           </p>
           {#if defenceCastRows.length === 0}
             <p class="text-muted">
-              {#if selectedRoundMissingRunIds.length}
-                The judged round is recorded, but its exact run receipts are no longer present in recent sim history.
+              {#if selectedObserverRoundMissing}
+                The judged round is recorded, but no durable observer-round archive was materialized for it yet.
+              {:else if selectedRoundMissingRunIds.length}
+                The judged round was archived with missing run receipts, so the observer page will not guess the missing defence cast.
               {:else}
                 No defence-surface view is materialized for the selected round yet.
               {/if}

@@ -159,19 +159,6 @@ Current note:
     - proof: focused API or route tests, `make test-dashboard-red-team-truth-basis`, and `make test-dashboard-game-loop-accountability`
     - insufficient: dashboard visibility of both lanes without judged mixed-episode lineage, or status payloads that still require operators to infer mixed proof from coincidence
 
-- [ ] RSI-GAME-BOARD-1J Add a durable judged-round observer archive for Game Loop casts.
-  - Reference context:
-    - [`docs/research/2026-03-29-game-loop-durable-observer-round-storage-review.md`](../docs/research/2026-03-29-game-loop-durable-observer-round-storage-review.md)
-    - [`docs/research/2026-03-29-game-loop-exact-observer-truth-review.md`](../docs/research/2026-03-29-game-loop-exact-observer-truth-review.md)
-    - [`docs/plans/2026-03-29-game-loop-durable-observer-round-storage-plan.md`](../docs/plans/2026-03-29-game-loop-durable-observer-round-storage-plan.md)
-  - Closure gate:
-    - durability: completed judged-round adversary and defence casts must remain renderable after one or more `judged_run_ids` age out of `operator_snapshot.adversary_sim.recent_runs`
-    - exactness: the durable archive must be populated only from exact judged run summaries present at completion time; if any run is unavailable, the archive must record that absence explicitly and the UI must not guess
-    - storage efficiency: the fix must not solve the problem by broadening the hot operator snapshot with repeated per-round cast payloads
-    - read efficiency: Game Loop must read completed-round cast truth from one bounded oversight-history read, not raw event-log replay on each refresh
-    - proof: focused API/archive contract coverage, `make test-admin-machine-contracts`, `make test-dashboard-game-loop-accountability`, and `make test`
-    - insufficient: merely increasing the recent-run cap, moving large cast payloads into `operator_snapshot.episode_archive`, or reviving lane/time heuristic stitching
-
 - [ ] RSI-GAME-ARCH-1E Retire replaced category-first Game Loop surfaces only after full-path replacement proof.
   - Reference context:
     - [`docs/research/2026-03-27-game-loop-architecture-alignment-gap-review.md`](../docs/research/2026-03-27-game-loop-architecture-alignment-gap-review.md)

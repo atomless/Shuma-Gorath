@@ -20,6 +20,7 @@ pub(crate) mod oversight_apply;
 pub(crate) mod oversight_follow_on_runs;
 mod oversight_api;
 pub(crate) mod oversight_decision_ledger;
+pub(crate) mod oversight_observer_round_archive;
 pub(crate) mod oversight_patch_policy;
 pub(crate) mod oversight_reconcile;
 mod operator_snapshot_api;

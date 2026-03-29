@@ -1122,6 +1122,67 @@ const adaptOversightEpisodeArchive = (value) => {
   };
 };
 
+const adaptOversightObserverRoundRunRow = (value) => {
+  const source = asRecord(value);
+  return {
+    run_id: String(source.run_id || ''),
+    lane: String(source.lane || ''),
+    profile: String(source.profile || ''),
+    observed_fulfillment_modes: Array.isArray(source.observed_fulfillment_modes)
+      ? source.observed_fulfillment_modes.map((entry) => String(entry || ''))
+      : [],
+    observed_category_ids: Array.isArray(source.observed_category_ids)
+      ? source.observed_category_ids.map((entry) => String(entry || ''))
+      : [],
+    monitoring_event_count: Number(source.monitoring_event_count || 0),
+    defense_delta_count: Number(source.defense_delta_count || 0),
+    ban_outcome_count: Number(source.ban_outcome_count || 0)
+  };
+};
+
+const adaptOversightObserverRoundSurfaceRow = (value) => {
+  const source = asRecord(value);
+  return {
+    run_id: String(source.run_id || ''),
+    surface_id: String(source.surface_id || ''),
+    surface_state: String(source.surface_state || ''),
+    coverage_status: String(source.coverage_status || ''),
+    success_contract: String(source.success_contract || ''),
+    dependency_kind: String(source.dependency_kind || ''),
+    dependency_surface_ids: Array.isArray(source.dependency_surface_ids)
+      ? source.dependency_surface_ids.map((entry) => String(entry || ''))
+      : [],
+    attempt_count: Number(source.attempt_count || 0),
+    sample_request_method: String(source.sample_request_method || ''),
+    sample_request_path: String(source.sample_request_path || ''),
+    sample_response_status: adaptOptionalNumber(source.sample_response_status)
+  };
+};
+
+const adaptOversightObserverRoundArchiveRow = (value) => {
+  const source = asRecord(value);
+  return {
+    episode_id: String(source.episode_id || ''),
+    completed_at_ts: adaptOptionalNumber(source.completed_at_ts),
+    basis_status: String(source.basis_status || ''),
+    missing_run_ids: Array.isArray(source.missing_run_ids)
+      ? source.missing_run_ids.map((entry) => String(entry || ''))
+      : [],
+    run_rows: asObjectArray(source.run_rows).map(adaptOversightObserverRoundRunRow),
+    scrapling_surface_rows: asObjectArray(source.scrapling_surface_rows).map(
+      adaptOversightObserverRoundSurfaceRow
+    )
+  };
+};
+
+const adaptOversightObserverRoundArchive = (value) => {
+  const source = asRecord(value);
+  return {
+    schema_version: String(source.schema_version || ''),
+    rows: asObjectArray(source.rows).map(adaptOversightObserverRoundArchiveRow)
+  };
+};
+
 const adaptOversightDecision = (value) => {
   const source = asRecord(value);
   const proposal = asRecord(source.proposal);
@@ -1163,6 +1224,7 @@ export const adaptOversightHistory = (payload) => {
   return {
     schema_version: String(source.schema_version || ''),
     episode_archive: adaptOversightEpisodeArchive(source.episode_archive),
+    observer_round_archive: adaptOversightObserverRoundArchive(source.observer_round_archive),
     rows: asObjectArray(source.rows).map(adaptOversightDecision)
   };
 };

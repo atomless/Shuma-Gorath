@@ -2,7 +2,7 @@ use flate2::write::GzEncoder;
 use flate2::Compression;
 use rand::random;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::io::Write;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -3828,6 +3828,9 @@ mod admin_config_tests {
                     .as_str()
                     .expect("fulfillment mode")
                     .to_string();
+                let category_targets = worker_plan["category_targets"].clone();
+                let surface_receipts =
+                    simulated_scrapling_surface_receipts(&worker_plan["surface_targets"]);
 
                 let result_body = serde_json::to_vec(&serde_json::json!({
                     "schema_version": "adversary-sim-scrapling-worker-result.v1",
@@ -3835,6 +3838,7 @@ mod admin_config_tests {
                     "tick_id": tick_id,
                     "lane": "scrapling_traffic",
                     "fulfillment_mode": fulfillment_mode,
+                    "category_targets": category_targets,
                     "worker_id": "scrapling-worker-test",
                     "tick_started_at": tick_started_at,
                     "tick_completed_at": tick_started_at.saturating_add(1),
@@ -3853,7 +3857,7 @@ mod admin_config_tests {
                         "response_bytes": 512
                     },
                     "scope_rejections": {},
-                    "surface_receipts": []
+                    "surface_receipts": surface_receipts
                 }))
                 .expect("scrapling worker result encodes");
                 let result_req =
@@ -3937,6 +3941,53 @@ mod admin_config_tests {
         let completion_beat_resp = handle_internal_adversary_sim_beat(&beat_req, store, "default");
         assert_eq!(*completion_beat_resp.status(), 200u16);
         run_id
+    }
+
+    fn simulated_scrapling_surface_receipts(
+        surface_targets: &serde_json::Value,
+    ) -> Vec<serde_json::Value> {
+        surface_targets
+            .as_array()
+            .into_iter()
+            .flat_map(|rows| rows.iter())
+            .filter_map(|surface_id| {
+                let surface_id = surface_id.as_str()?.trim();
+                let (coverage_status, method, path, response_status) = match surface_id {
+                    "public_path_traversal" => ("pass_observed", "GET", "/catalog?page=1", 200),
+                    "challenge_routing" => ("pass_observed", "GET", "/catalog?page=1", 200),
+                    "rate_pressure" => ("pass_observed", "GET", "/catalog?page=1", 200),
+                    "geo_ip_policy" => ("pass_observed", "GET", "/catalog?page=1", 200),
+                    "not_a_bot_submit" => (
+                        "fail_observed",
+                        "POST",
+                        "/challenge/not-a-bot-checkbox",
+                        400
+                    ),
+                    "puzzle_submit_or_escalation" => (
+                        "fail_observed",
+                        "POST",
+                        "/challenge/puzzle",
+                        400
+                    ),
+                    "pow_verify_abuse" => ("fail_observed", "POST", "/pow/verify", 400),
+                    "tarpit_progress_abuse" => {
+                        ("fail_observed", "POST", "/tarpit/progress", 400)
+                    }
+                    "maze_navigation" => ("pass_observed", "GET", "/maze/start", 200),
+                    "js_verification_execution" => ("pass_observed", "GET", "/pow", 200),
+                    "browser_automation_detection" => ("fail_observed", "GET", "/pow", 200),
+                    _ => return None,
+                };
+                Some(serde_json::json!({
+                    "surface_id": surface_id,
+                    "coverage_status": coverage_status,
+                    "attempt_count": 1,
+                    "sample_request_method": method,
+                    "sample_request_path": path,
+                    "sample_response_status": response_status
+                }))
+            })
+            .collect()
     }
 
     fn materialize_all_required_candidate_window_runs(
@@ -7224,6 +7275,53 @@ mod admin_config_tests {
             history_json["episode_archive"]["rows"][0]["judged_run_ids"][1].as_str(),
             Some(materialized_run_ids[1].as_str())
         );
+        assert_eq!(
+            history_json["observer_round_archive"]["schema_version"].as_str(),
+            Some("oversight_observer_round_archive_v1")
+        );
+        assert_eq!(
+            history_json["observer_round_archive"]["rows"][0]["episode_id"].as_str(),
+            history_json["episode_archive"]["rows"][0]["episode_id"].as_str()
+        );
+        assert_eq!(
+            history_json["observer_round_archive"]["rows"][0]["basis_status"].as_str(),
+            Some("exact_judged_run_receipts")
+        );
+        let observer_run_rows = history_json["observer_round_archive"]["rows"][0]["run_rows"]
+            .as_array()
+            .expect("observer run rows");
+        assert_eq!(observer_run_rows.len(), 2);
+        assert_eq!(
+            observer_run_rows[0]["run_id"].as_str(),
+            Some(materialized_run_ids[0].as_str())
+        );
+        assert_eq!(
+            observer_run_rows[0]["lane"].as_str(),
+            Some("scrapling_traffic")
+        );
+        assert_eq!(
+            observer_run_rows[1]["run_id"].as_str(),
+            Some(materialized_run_ids[1].as_str())
+        );
+        assert_eq!(
+            observer_run_rows[1]["lane"].as_str(),
+            Some("bot_red_team")
+        );
+        let scrapling_categories = observer_run_rows[0]["observed_category_ids"]
+            .as_array()
+            .expect("scrapling categories")
+            .iter()
+            .filter_map(|entry| entry.as_str())
+            .collect::<Vec<_>>();
+        assert!(!scrapling_categories.is_empty());
+        let observer_surface_rows =
+            history_json["observer_round_archive"]["rows"][0]["scrapling_surface_rows"]
+                .as_array()
+                .expect("observer surface rows");
+        assert!(!observer_surface_rows.is_empty());
+        assert!(observer_surface_rows.iter().all(|row| {
+            row["run_id"].as_str() == Some(materialized_run_ids[0].as_str())
+        }));
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
@@ -15047,6 +15145,40 @@ pub(crate) fn monitoring_recent_sim_run_summaries<S: crate::challenge::KeyValueS
     hours: u64,
     limit: usize,
 ) -> Vec<crate::observability::hot_read_documents::MonitoringRecentSimRunSummary> {
+    monitoring_recent_sim_run_summaries_filtered(store, now, hours, Some(limit), None)
+}
+
+pub(crate) fn monitoring_sim_run_summaries_for_run_ids<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    now: u64,
+    hours: u64,
+    run_ids: &[String],
+) -> Vec<crate::observability::hot_read_documents::MonitoringRecentSimRunSummary> {
+    let required_run_ids: BTreeSet<String> = run_ids
+        .iter()
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .collect();
+    if required_run_ids.is_empty() {
+        return Vec::new();
+    }
+    monitoring_recent_sim_run_summaries_filtered(
+        store,
+        now,
+        hours,
+        None,
+        Some(&required_run_ids),
+    )
+}
+
+fn monitoring_recent_sim_run_summaries_filtered<S: crate::challenge::KeyValueStore>(
+    store: &S,
+    now: u64,
+    hours: u64,
+    limit: Option<usize>,
+    required_run_ids: Option<&BTreeSet<String>>,
+) -> Vec<crate::observability::hot_read_documents::MonitoringRecentSimRunSummary> {
     let mut grouped: BTreeMap<String, MonitoringRecentSimRunAccumulator> = BTreeMap::new();
 
     for stored in load_recent_event_records_with_keys(store, now, hours) {
@@ -15063,6 +15195,11 @@ pub(crate) fn monitoring_recent_sim_run_summaries<S: crate::challenge::KeyValueS
             .to_string();
         if run_id.is_empty() {
             continue;
+        }
+        if let Some(required_run_ids) = required_run_ids {
+            if !required_run_ids.contains(run_id.as_str()) {
+                continue;
+            }
         }
         let ts = stored.record.entry.ts;
         let lane = stored
@@ -15189,7 +15326,9 @@ pub(crate) fn monitoring_recent_sim_run_summaries<S: crate::challenge::KeyValueS
             .cmp(&left.last_ts)
             .then_with(|| left.run_id.cmp(&right.run_id))
     });
-    rows.truncate(limit);
+    if let Some(limit) = limit {
+        rows.truncate(limit);
+    }
     rows
 }
 

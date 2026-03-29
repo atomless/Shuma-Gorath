@@ -4,6 +4,34 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-29)
 
+### RSI-GAME-BOARD-1J Durable Judged-Round Observer Archive For Game Loop Casts
+
+- [x] Completed `RSI-GAME-BOARD-1J` across:
+  - [`../src/admin/oversight_observer_round_archive.rs`](../src/admin/oversight_observer_round_archive.rs)
+  - [`../src/admin/mod.rs`](../src/admin/mod.rs)
+  - [`../src/admin/oversight_api.rs`](../src/admin/oversight_api.rs)
+  - [`../src/admin/api.rs`](../src/admin/api.rs)
+  - [`../dashboard/src/lib/domain/api-client.js`](../dashboard/src/lib/domain/api-client.js)
+  - [`../dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`../Makefile`](../Makefile)
+  - [`../docs/dashboard-tabs/game-loop.md`](../docs/dashboard-tabs/game-loop.md)
+  - [`../todos/todo.md`](../todos/todo.md)
+- [x] What landed:
+  - oversight now writes a compact durable `observer_round_archive` keyed by `episode_id` when a judged round completes, instead of forcing the dashboard to reconstruct completed rounds from the transient recent-run hot buffer,
+  - the archive stores only compact run-cast and Scrapling surface-cast rows needed by the top Game Loop sections, while leaving the hot `operator_snapshot` on its existing machine-first path,
+  - archive rows are populated only from exact judged-run summaries loaded for the episode’s `judged_run_ids`, and when a run summary is unavailable the stored record marks `partial_missing_run_receipts` plus `missing_run_ids` rather than inventing category or defence claims,
+  - `/admin/oversight/history` now returns the durable archive, and the Game Loop top sections read completed-round casts from that archive by `episode_id` instead of lane/time or recent-run heuristics,
+  - and the dashboard proof surface now includes a user-facing negative case showing that missing judged-run receipts render as explicit unavailable copy rather than guessed adversary or defence rows.
+- [x] Why:
+  - the earlier exactness tranche removed fabricated lane/category joins, but the page still lost truthful completed-round casts once the judged run aged out of the bounded recent-run window.
+- [x] Evidence:
+  - `make test-admin-machine-contracts`
+  - `make test-dashboard-game-loop-accountability`
+  - `make test-dashboard-e2e-tab-state-transitions`
+  - `make test`
+
 ### Planning Only: RSI-GAME-BOARD-1J Durable Judged-Round Observer Archive Research And Plan
 
 - [x] Completed the planning-only tranche across:

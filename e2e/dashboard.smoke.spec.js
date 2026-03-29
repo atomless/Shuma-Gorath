@@ -2192,6 +2192,67 @@ test("game loop projects benchmark and oversight accountability from machine-fir
             }
           ]
         },
+        observer_round_archive: {
+          schema_version: "oversight_observer_round_archive_v1",
+          rows: [
+            {
+              episode_id: "episode-2",
+              completed_at_ts: 1774306800,
+              basis_status: "exact_judged_run_receipts",
+              missing_run_ids: [],
+              run_rows: [
+                {
+                  run_id: "sim-42",
+                  lane: "scrapling_traffic",
+                  profile: "reference",
+                  observed_fulfillment_modes: ["bulk_scraper", "http_agent"],
+                  observed_category_ids: ["ai_scraper_bot"],
+                  monitoring_event_count: 64,
+                  defense_delta_count: 6,
+                  ban_outcome_count: 1
+                },
+                {
+                  run_id: "sim-43",
+                  lane: "bot_red_team",
+                  profile: "reference",
+                  observed_fulfillment_modes: ["request_mode"],
+                  observed_category_ids: ["browser_agent"],
+                  monitoring_event_count: 28,
+                  defense_delta_count: 4,
+                  ban_outcome_count: 0
+                }
+              ],
+              scrapling_surface_rows: [
+                {
+                  run_id: "sim-42",
+                  surface_id: "challenge_routing",
+                  surface_state: "satisfied",
+                  coverage_status: "pass_observed",
+                  success_contract: "mixed_outcomes",
+                  dependency_kind: "independent",
+                  dependency_surface_ids: [],
+                  attempt_count: 3,
+                  sample_request_method: "GET",
+                  sample_request_path: "/catalog?page=1",
+                  sample_response_status: 200
+                },
+                {
+                  run_id: "sim-42",
+                  surface_id: "maze_navigation",
+                  surface_state: "required_but_unreached",
+                  coverage_status: "unavailable",
+                  success_contract: "should_pass_some",
+                  dependency_kind: "independent",
+                  dependency_surface_ids: [],
+                  attempt_count: 0,
+                  sample_request_method: "",
+                  sample_request_path: "",
+                  sample_response_status: null
+                }
+              ]
+            }
+          ]
+        },
         rows: [
           {
             decision_id: "ovr-2",
@@ -3271,57 +3332,7 @@ test("game loop distinguishes recognition evaluation from scrapling surface cont
           total_requests: 180,
           forwarded_requests: 9,
           short_circuited_requests: 171,
-          recent_runs: [
-            {
-              run_id: "sim-attack-partial",
-              lane: "scrapling_traffic",
-              profile: "scrapling_runtime_lane",
-              observed_fulfillment_modes: ["bulk_scraper", "browser_automation"],
-              observed_category_ids: ["ai_scraper_bot", "automated_browser"],
-              monitoring_event_count: 64,
-              owned_surface_coverage: {
-                overall_status: "partial",
-                canonical_surface_ids: ["challenge_routing", "maze_navigation"],
-                surface_labels: {
-                  challenge_routing: "Challenge Routing",
-                  maze_navigation: "Maze Navigation"
-                },
-                required_surface_ids: ["challenge_routing", "maze_navigation"],
-                satisfied_surface_ids: ["challenge_routing"],
-                blocking_surface_ids: ["maze_navigation"],
-                receipts: [
-                  {
-                    surface_id: "challenge_routing",
-                    success_contract: "mixed_outcomes",
-                    dependency_kind: "independent",
-                    dependency_surface_ids: [],
-                    coverage_status: "pass_observed",
-                    surface_state: "satisfied",
-                    satisfied: true,
-                    blocked_by_surface_ids: [],
-                    attempt_count: 3,
-                    sample_request_method: "GET",
-                    sample_request_path: "/challenge",
-                    sample_response_status: 200
-                  },
-                  {
-                    surface_id: "maze_navigation",
-                    success_contract: "should_pass_some",
-                    dependency_kind: "independent",
-                    dependency_surface_ids: [],
-                    coverage_status: "unavailable",
-                    surface_state: "unreached",
-                    satisfied: false,
-                    blocked_by_surface_ids: [],
-                    attempt_count: 0,
-                    sample_request_method: "",
-                    sample_request_path: "",
-                    sample_response_status: null
-                  }
-                ]
-              }
-            }
-          ]
+          recent_runs: []
         },
         recent_changes: {
           rows: []
@@ -3534,6 +3545,81 @@ test("game loop distinguishes recognition evaluation from scrapling surface cont
       contentType: "application/json",
       body: JSON.stringify({
         schema_version: "oversight_history_v1",
+        episode_archive: {
+          schema_version: "oversight_episode_archive_v1",
+          homeostasis: {
+            status: "not_enough_completed_cycles"
+          },
+          rows: [
+            {
+              episode_id: "episode-sim-attack-partial",
+              completed_at_ts: 1774306900,
+              proposal_status: "accepted",
+              watch_window_result: "improved",
+              retain_or_rollback: "retained",
+              judged_lane_ids: ["scrapling_traffic"],
+              judged_run_ids: ["sim-attack-partial"],
+              proposal: {
+                patch_family: "fingerprint_signal",
+                expected_impact: "Tighten suspicious automation detection.",
+                confidence: "medium",
+                note: "Retained after the judged round."
+              },
+              cycle_judgment: "continue"
+            }
+          ]
+        },
+        observer_round_archive: {
+          schema_version: "oversight_observer_round_archive_v1",
+          rows: [
+            {
+              episode_id: "episode-sim-attack-partial",
+              completed_at_ts: 1774306900,
+              basis_status: "exact_judged_run_receipts",
+              missing_run_ids: [],
+              run_rows: [
+                {
+                  run_id: "sim-attack-partial",
+                  lane: "scrapling_traffic",
+                  profile: "scrapling_runtime_lane",
+                  observed_fulfillment_modes: ["bulk_scraper", "browser_automation"],
+                  observed_category_ids: ["ai_scraper_bot", "automated_browser"],
+                  monitoring_event_count: 64,
+                  defense_delta_count: 3,
+                  ban_outcome_count: 1
+                }
+              ],
+              scrapling_surface_rows: [
+                {
+                  run_id: "sim-attack-partial",
+                  surface_id: "challenge_routing",
+                  surface_state: "satisfied",
+                  coverage_status: "pass_observed",
+                  success_contract: "mixed_outcomes",
+                  dependency_kind: "independent",
+                  dependency_surface_ids: [],
+                  attempt_count: 3,
+                  sample_request_method: "GET",
+                  sample_request_path: "/catalog?page=1",
+                  sample_response_status: 200
+                },
+                {
+                  run_id: "sim-attack-partial",
+                  surface_id: "maze_navigation",
+                  surface_state: "required_but_unreached",
+                  coverage_status: "unavailable",
+                  success_contract: "should_pass_some",
+                  dependency_kind: "independent",
+                  dependency_surface_ids: [],
+                  attempt_count: 0,
+                  sample_request_method: "",
+                  sample_request_path: "",
+                  sample_response_status: null
+                }
+              ]
+            }
+          ]
+        },
         rows: []
       })
     });
@@ -3603,6 +3689,200 @@ test("game loop distinguishes recognition evaluation from scrapling surface cont
     "required but unreached"
   );
   await expect(page.locator("#game-loop-defence-cast")).toContainText("independent surface");
+});
+
+test("game loop observer archive marks missing judged runs without guessing adversary or defence casts", async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 1200 });
+  await page.route("**/admin/operator-snapshot", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "operator_snapshot_v1",
+        generated_at: 1774307000,
+        objectives: {
+          profile_id: "human_only_private",
+          revision: "objective-1774307000",
+          window_hours: 24,
+          category_postures: []
+        },
+        runtime_posture: {
+          shadow_mode: false,
+          fail_mode: "closed",
+          runtime_environment: "runtime-prod",
+          gateway_deployment_profile: "shared_server",
+          adversary_sim_available: true
+        },
+        live_traffic: {
+          traffic_origin: "live",
+          execution_mode: "enforced",
+          total_requests: 1200,
+          forwarded_requests: 860,
+          short_circuited_requests: 340,
+          human_friction: {
+            friction_rate: 0.018
+          }
+        },
+        shadow_mode: {
+          enabled: false,
+          total_actions: 0,
+          pass_through_total: 0
+        },
+        adversary_sim: {
+          traffic_origin: "adversary_sim",
+          execution_mode: "enforced",
+          total_requests: 180,
+          forwarded_requests: 9,
+          short_circuited_requests: 171,
+          recent_runs: []
+        },
+        recent_changes: {
+          rows: []
+        }
+      })
+    });
+  });
+
+  await page.route("**/admin/benchmark-results", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "benchmark_results_v1",
+        generated_at: 1774307000,
+        subject_kind: "site",
+        overall_status: "outside_budget",
+        improvement_status: "not_compared",
+        difficulty: "normal",
+        coverage: {
+          status: "supported"
+        },
+        judgment: {
+          current: "outside_budget",
+          comparison: "observe_longer"
+        },
+        recommendation: {
+          decision: "observe_longer"
+        },
+        budget_families: [],
+        families: []
+      })
+    });
+  });
+
+  await page.route("**/admin/oversight/history", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "oversight_history_v1",
+        episode_archive: {
+          schema_version: "oversight_episode_archive_v1",
+          homeostasis: {
+            status: "not_enough_completed_cycles"
+          },
+          rows: [
+            {
+              episode_id: "episode-missing-round",
+              completed_at_ts: 1774306990,
+              proposal_status: "accepted",
+              watch_window_result: "not_improved",
+              retain_or_rollback: "rolled_back",
+              judged_lane_ids: ["scrapling_traffic", "bot_red_team"],
+              judged_run_ids: ["sim-missing-scrapling", "sim-bot-red-team"],
+              proposal: {
+                patch_family: "fingerprint_signal",
+                expected_impact: "Tighten suspicious automation detection.",
+                confidence: "medium",
+                note: "Rolled back after the judged round."
+              },
+              cycle_judgment: "continue"
+            }
+          ]
+        },
+        observer_round_archive: {
+          schema_version: "oversight_observer_round_archive_v1",
+          rows: [
+            {
+              episode_id: "episode-missing-round",
+              completed_at_ts: 1774306990,
+              basis_status: "partial_missing_run_receipts",
+              missing_run_ids: ["sim-missing-scrapling"],
+              run_rows: [
+                {
+                  run_id: "sim-bot-red-team",
+                  lane: "bot_red_team",
+                  profile: "browser_mode",
+                  observed_fulfillment_modes: ["browser_mode"],
+                  observed_category_ids: ["browser_agent"],
+                  monitoring_event_count: 4,
+                  defense_delta_count: 1,
+                  ban_outcome_count: 0
+                }
+              ],
+              scrapling_surface_rows: []
+            }
+          ]
+        },
+        rows: []
+      })
+    });
+  });
+
+  await page.route("**/admin/oversight/agent/status", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "oversight_agent_status_v1",
+        execution_boundary: "shared_host_only",
+        periodic_trigger: {
+          surface: "host_supervisor_wrapper",
+          wrapper_command: "scripts/run_with_oversight_supervisor.sh",
+          default_interval_seconds: 300
+        },
+        episode_archive: {
+          schema_version: "oversight_episode_archive_v1",
+          homeostasis: {
+            status: "not_enough_completed_cycles"
+          },
+          rows: [
+            {
+              episode_id: "episode-missing-round",
+              completed_at_ts: 1774306990,
+              proposal_status: "accepted",
+              watch_window_result: "not_improved",
+              retain_or_rollback: "rolled_back",
+              judged_lane_ids: ["scrapling_traffic", "bot_red_team"],
+              judged_run_ids: ["sim-missing-scrapling", "sim-bot-red-team"],
+              proposal: {
+                patch_family: "fingerprint_signal",
+                expected_impact: "Tighten suspicious automation detection.",
+                confidence: "medium",
+                note: "Rolled back after the judged round."
+              },
+              cycle_judgment: "continue"
+            }
+          ]
+        },
+        current_cycle: null
+      })
+    });
+  });
+
+  await openDashboard(page);
+  await openTab(page, "game-loop");
+
+  await expect(page.locator("#game-loop-adversary-cast")).toContainText("Browser Agent via Bot Red Team");
+  await expect(page.locator("#game-loop-adversary-cast")).toContainText(
+    "Recent recognition evaluation not materialized"
+  );
+  await expect(page.locator("#game-loop-adversary-cast")).not.toContainText("AI Scraper Bot");
+  await expect(page.locator("#game-loop-adversary-cast")).not.toContainText("via Scrapling Traffic");
+  await expect(page.locator("#game-loop-defence-cast")).toContainText(
+    "The judged round was archived with missing run receipts, so the observer page will not guess the missing defence cast."
+  );
+  await expect(page.locator("#game-loop-defence-cast")).not.toContainText("Challenge Routing");
 });
 
 test("traffic manual refresh renders bounded traffic sections and preserves furniture diagnostics separately", async ({ page }) => {
@@ -5972,6 +6252,7 @@ test("tab bar reflects the canonical information architecture labels and order",
 });
 
 test("tab states surface loading and data-ready transitions across all tabs", async ({ page }) => {
+  test.setTimeout(90_000);
   await openDashboard(page);
   await openTab(page, "ip-bans");
   await setAutoRefresh(page, false);

@@ -29,7 +29,9 @@ Current behavior:
   - `oversight_agent_status_v1`
 - Surfaces:
   - a top-level recent-round history built from completed judged episodes, with completion time, participating lanes, retained versus rolled-back result, bounded config family when available, and continue versus stop state,
-  - that recent-round observer surface now selects exact runs from `judged_run_ids` preserved in the episode archive, so the page no longer reconstructs rounds by lane-plus-time coincidence or backfills empty rows from unrelated recent runs,
+  - completed-round observer casts now come from a compact durable `observer_round_archive` returned by `oversight_history_v1`, keyed by `episode_id` and written once at judged-round completion,
+  - that durable archive is populated only from exact judged-run receipts present at archive-write time, so the page no longer reconstructs rounds by lane-plus-time coincidence or backfills empty rows from unrelated recent runs,
+  - when one or more judged run receipts were unavailable at archive-write time, the archive preserves that absence explicitly via `basis_status` and `missing_run_ids`, and the top sections say the cast is unavailable instead of guessing,
   - recent Scrapling observer summaries now preserve explicit lane-owned `category_targets` from the worker receipt path, so the page does not have to infer Scrapling category truth only from `sim_profile`,
   - an observer-facing adversary cast built from exact judged-run category truth plus recent recognition-evaluation comparison rows, so the page shows which simulator categories appeared without inventing impossible lane/category pairings or turning those simulator labels into runtime truth,
   - an observer-facing defence cast built from the selected round’s receipt-backed Scrapling surface-contract checklist, so the top page stays surface-native and round-specific rather than reusing simulator labels as defence truth or borrowing broader breach-locus summaries into the selected round,
@@ -82,6 +84,7 @@ Current limitation:
 Refresh behavior:
 
 - On Game Loop activation, the dashboard runtime now refreshes shared config plus the bounded machine-first accountability reads listed above.
+- Completed judged-round casts are read from the bounded durable observer archive on `/admin/oversight/history`; `operator_snapshot.adversary_sim.recent_runs` remains a transient live window for current evidence, not the durable completed-round source.
 - The tab now shares the top-level dashboard refresh bar:
   - manual refresh is available for on-demand accountability reloads,
   - auto-refresh is available when operators want the same live cadence used on the other active operational tabs.

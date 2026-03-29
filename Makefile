@@ -1221,10 +1221,12 @@ test-protected-tuning-evidence: ## Run focused protected-evidence eligibility ch
 	@cargo test observability::operator_snapshot::tests::snapshot_payload_surfaces_materialized_replay_promotion_summary -- --exact --nocapture
 	@cargo test admin::api::tests::handle_admin_benchmark_results_returns_bounded_current_instance_contract -- --exact --nocapture
 
-test-admin-machine-contracts: ## Run focused admin read-contract checks for recent-change ledger plus operator snapshot and benchmark endpoints
+test-admin-machine-contracts: ## Run focused admin read-contract checks for recent changes, operator snapshot, benchmark endpoints, and durable oversight observer history
 	@echo "$(CYAN)🧪 Running focused admin machine-contract checks...$(NC)"
 	@./scripts/set_crate_type.sh rlib
 	@cargo test admin::api::tests::recent_sim_run_history_prefers_explicit_scrapling_category_targets_when_profile_is_generic -- --exact --nocapture
+	@cargo test admin::oversight_observer_round_archive::tests:: -- --nocapture
+	@cargo test admin::api::admin_config_tests::post_sim_oversight_history_and_status_preserve_judged_mixed_attacker_lane_basis -- --exact --nocapture
 	@cargo test admin::api::tests::operator_snapshot_recent_changes_ledger_tracks_changed_config_families -- --exact --nocapture
 	@cargo test admin::api::tests::operator_snapshot_recent_changes_ledger_ignores_requested_families_without_diff -- --exact --nocapture
 	@cargo test admin::api::admin_config_tests::admin_config_updates_materialize_recent_changes_in_operator_snapshot -- --exact --nocapture

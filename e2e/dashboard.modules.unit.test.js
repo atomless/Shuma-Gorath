@@ -7270,6 +7270,54 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
         }
       ]
     },
+    observer_round_archive: {
+      schema_version: 'oversight_observer_round_archive_v1',
+      rows: [
+        {
+          episode_id: 'episode-2',
+          completed_at_ts: 1774306800,
+          basis_status: 'exact_judged_run_receipts',
+          missing_run_ids: [],
+          run_rows: [
+            {
+              run_id: 'simrun-002',
+              lane: 'scrapling_traffic',
+              profile: 'bulk_scraper',
+              observed_fulfillment_modes: ['bulk_scraper'],
+              observed_category_ids: ['ai_scraper_bot'],
+              monitoring_event_count: 8,
+              defense_delta_count: 3,
+              ban_outcome_count: 1
+            },
+            {
+              run_id: 'simrun-003',
+              lane: 'bot_red_team',
+              profile: 'browser_mode',
+              observed_fulfillment_modes: ['browser_mode'],
+              observed_category_ids: ['browser_agent'],
+              monitoring_event_count: 4,
+              defense_delta_count: 1,
+              ban_outcome_count: 0
+            }
+          ],
+          scrapling_surface_rows: [
+            {
+              run_id: 'simrun-002',
+              surface_id: 'challenge_routing',
+              surface_state: 'satisfied',
+              coverage_status: 'pass_observed',
+              success_contract: 'mixed_outcomes',
+              dependency_kind: 'independent',
+              dependency_surface_ids: [],
+              attempt_count: 2,
+              sample_request_method: 'GET',
+              sample_request_path: '/catalog?page=1',
+              sample_response_status: 200
+            }
+          ]
+        }
+      ]
+    },
     rows: [
       {
         decision_id: 'ovr-1',
@@ -7332,6 +7380,31 @@ test('dashboard game loop accountability adapters normalize benchmark and oversi
   assert.equal(
     oversightHistory.episode_archive.rows[1].restart_baseline.source,
     'restored_prior_baseline'
+  );
+  assert.equal(
+    oversightHistory.observer_round_archive.schema_version,
+    'oversight_observer_round_archive_v1'
+  );
+  assert.equal(oversightHistory.observer_round_archive.rows.length, 1);
+  assert.equal(
+    oversightHistory.observer_round_archive.rows[0].basis_status,
+    'exact_judged_run_receipts'
+  );
+  assert.equal(
+    oversightHistory.observer_round_archive.rows[0].run_rows[0].run_id,
+    'simrun-002'
+  );
+  assert.equal(
+    oversightHistory.observer_round_archive.rows[0].run_rows[0].observed_category_ids[0],
+    'ai_scraper_bot'
+  );
+  assert.equal(
+    oversightHistory.observer_round_archive.rows[0].scrapling_surface_rows[0].surface_id,
+    'challenge_routing'
+  );
+  assert.equal(
+    oversightHistory.observer_round_archive.rows[0].scrapling_surface_rows[0].sample_request_path,
+    '/catalog?page=1'
   );
   assert.equal(oversightHistory.rows.length, 1);
   assert.equal(oversightHistory.rows[0].apply.stage, 'canary_applied');
@@ -7525,8 +7598,9 @@ test('dashboard game loop accountability source distinguishes judge planes and l
   assert.match(gameLoopSource, /surface-native view/);
   assert.match(gameLoopSource, /game-loop-current-status-loop-actionability/);
   assert.match(gameLoopSource, /simulator metadata does not count as category truth/);
-  assert.match(gameLoopSource, /judgedRunIds/);
-  assert.doesNotMatch(gameLoopSource, /recentSimRunRows\.slice\(0,\s*2\)/);
+  assert.match(gameLoopSource, /observerRoundArchive/);
+  assert.match(gameLoopSource, /selectedObserverRound/);
+  assert.doesNotMatch(gameLoopSource, /recentSimRunRowsById/);
   assert.doesNotMatch(gameLoopSource, /:\s*simulatorGroundTruthCategories/);
 
   assert.match(apiClientSource, /const urgency = asRecord\(source\.urgency\);/);
@@ -7549,6 +7623,9 @@ test('dashboard game loop accountability source distinguishes judge planes and l
   assert.match(apiClientSource, /restart_baseline/);
   assert.match(apiClientSource, /judged_lane_ids/);
   assert.match(apiClientSource, /judged_run_ids/);
+  assert.match(apiClientSource, /observer_round_archive/);
+  assert.match(apiClientSource, /scrapling_surface_rows/);
+  assert.match(apiClientSource, /basis_status/);
   assert.match(apiClientSource, /candidate_window/);
   assert.match(apiClientSource, /continuation_run/);
 });

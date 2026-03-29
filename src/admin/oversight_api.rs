@@ -12,6 +12,10 @@ use super::oversight_decision_ledger::{
     OversightDecisionEvidenceReference, OversightDecisionRecord,
 };
 use super::oversight_reconcile::{reconcile, OversightReconcileResult};
+use super::oversight_observer_round_archive::{
+    build_observer_round_record, load_oversight_observer_round_archive,
+    record_oversight_observer_round,
+};
 use crate::observability::benchmark_comparison::{
     benchmark_episode_delta_summary, classify_homeostasis, comparable_snapshot_from_results,
     unavailable_homeostasis_restart_baseline, BenchmarkCompletedCycleJudgment,
@@ -488,7 +492,32 @@ pub(crate) fn execute_oversight_cycle_at(
         &apply,
         active_canary_episode_context.as_ref(),
     ) {
-        record_completed_episode(store, site_id, episode_record)?;
+        record_completed_episode(store, site_id, episode_record.clone())?;
+        let observer_recent_runs = super::api::monitoring_sim_run_summaries_for_run_ids(
+            store,
+            now,
+            24,
+            episode_record.judged_run_ids.as_slice(),
+        )
+        .into_iter()
+        .map(|run| crate::observability::operator_snapshot::OperatorSnapshotRecentSimRun {
+            run_id: run.run_id,
+            lane: run.lane,
+            profile: run.profile,
+            observed_fulfillment_modes: run.observed_fulfillment_modes,
+            observed_category_ids: run.observed_category_ids,
+            first_ts: run.first_ts,
+            last_ts: run.last_ts,
+            monitoring_event_count: run.monitoring_event_count,
+            defense_delta_count: run.defense_delta_count,
+            ban_outcome_count: run.ban_outcome_count,
+            owned_surface_coverage: run.owned_surface_coverage,
+            llm_runtime_summary: run.llm_runtime_summary,
+        })
+        .collect::<Vec<_>>();
+        let observer_round_record =
+            build_observer_round_record(&episode_record, observer_recent_runs.as_slice());
+        record_oversight_observer_round(store, site_id, observer_round_record)?;
     }
 
     Ok(OversightExecutionPayload {
@@ -544,10 +573,12 @@ pub(crate) fn handle_admin_oversight_history(
             &crate::config::controller_legal_move_ring_v1(),
         );
     let (episode_archive, _) = load_oversight_episode_archive(store, site_id, &game_contract);
+    let observer_round_archive = load_oversight_observer_round_archive(store, site_id);
     let body = serde_json::to_string(&json!({
         "schema_version": OVERSIGHT_HISTORY_SCHEMA_VERSION,
         "game_contract": game_contract,
         "episode_archive": episode_archive,
+        "observer_round_archive": observer_round_archive,
         "rows": load_recent_decisions(store, site_id),
     }))
     .unwrap_or_else(|_| "{}".to_string());
