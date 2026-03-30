@@ -4,6 +4,26 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-30)
 
+### SIM-PUBSITE-PLAN-1 Contributor-Generated Public-Content Sim Site Research And Planning
+
+- [x] Completed the docs-only research, plan, and backlog extension across:
+  - [`../docs/research/2026-03-30-contributor-generated-public-content-sim-site-review.md`](../docs/research/2026-03-30-contributor-generated-public-content-sim-site-review.md)
+  - [`../docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md`](../docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md)
+  - [`../docs/research/README.md`](../docs/research/README.md)
+  - [`../docs/plans/README.md`](../docs/plans/README.md)
+  - [`../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
+  - [`../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
+  - [`../todos/todo.md`](../todos/todo.md)
+- [x] What landed:
+  - the richer dummy-site direction is now reframed as a contributor-generated public-content site rather than a slightly expanded hard-coded fake blog,
+  - the local-dev requirement is explicit: contributors should be able to browse `/sim/public/*` on `make dev` even when adversary sim is idle,
+  - the first tranche is now intentionally contributor-only, with any later public-hosting decision deferred,
+  - and the backlog now makes the old five-page dummy site removal, semantic hypertext-style HTML, and contributor/runtime flow split explicit acceptance criteria.
+- [x] Why:
+  - the user clarified that the existing fake blog is too thin for realistic traversal, that the richer site should be derived from existing project markdown without duplication, and that the current coupling to sim activity is wrong for contributor-local browsing.
+- [x] Evidence:
+  - docs-only slice; verification intentionally limited to `git diff --check`
+
 ### SIM-REALISM-2 Identity-Realism Backlog Extension
 
 - [x] Completed the docs-only backlog and plan extension across:

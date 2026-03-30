@@ -201,26 +201,33 @@
 ## Task 9: `SIM-REALISM-2H` Make The Dummy Site More Richly Publicly Discoverable Without Choreography
 
 **Files:**
-- Later code targets: `src/runtime/sim_public.rs`, `robots.txt` or sitemap support surfaces, shared-host seed/discovery helpers where needed
+- Later code targets: `src/runtime/sim_public.rs`, generated-site build surfaces, `robots.txt` or sitemap support surfaces, shared-host seed/discovery helpers where needed
 - Later proof targets: focused discoverability tests, shared-host seed-contract proof, `Makefile`
 
 **Work:**
-1. Expose broader dummy-site reachability through realistic public mechanisms:
+1. Replace the current thin hard-coded dummy site with a contributor-generated public-content site under the same `/sim/public/*` prefix.
+2. Expose broader site reachability through realistic public mechanisms:
    - root links,
    - realistic navigation,
    - `robots.txt` sitemap entries,
    - and sitemap documents.
-2. Keep hidden or internal route catalogs out of the workers and seed contract.
-3. Make the site itself, not private worker knowledge, responsible for richer discoverability.
+3. Keep the generated HTML semantic and well structured, with extremely minimal hypertext-style presentation rather than dashboard-style chrome.
+4. Make the contributor site viewable on local `make dev` even when adversary sim is idle.
+5. Keep hidden or internal route catalogs out of the workers and seed contract.
+6. Make the site itself, not private worker knowledge, responsible for richer discoverability.
+7. Remove the old five-page hard-coded dummy site once the generated path is live.
 
 **Acceptance criteria:**
-1. Broader dummy-site surfaces become publicly reachable without simulator choreography.
-2. The workers still discover those surfaces only through public traversal and accepted hint documents.
-3. The discovery contract continues to treat sitemap documents as bounded public hints, not authoritative surface truth.
+1. Broader site surfaces become publicly reachable without simulator choreography.
+2. Contributors can browse the site locally without first running adversary sim.
+3. The workers still discover those surfaces only through public traversal and accepted hint documents.
+4. The discovery contract continues to treat sitemap documents as bounded public hints, not authoritative surface truth.
+5. The old hard-coded dummy-site model is removed rather than preserved as a parallel surface.
 
 **Proof:**
 1. Add and pass `make test-sim-public-discoverability-contract`.
 2. Keep shared-host seed-contract proof green.
+3. See the dedicated generated-site execution chain in [`2026-03-30-contributor-generated-public-content-sim-site-plan.md`](./2026-03-30-contributor-generated-public-content-sim-site-plan.md).
 
 ## Task 10: `SIM-REALISM-2I` Add Trusted-Ingress Client-IP Realism Without Attacker-Plane Privilege Creep
 

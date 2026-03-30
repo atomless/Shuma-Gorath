@@ -28,6 +28,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md`](2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md) - Defines the next realism chain for Scrapling and Agentic Traffic so mixed-attacker proof depends on representative cadence, burst, dwell, and session behavior rather than lane presence alone
 - [`2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](2026-03-30-adversary-lane-wild-traffic-gap-plan.md) - Defines the field-grounded follow-on chain after `SIM-REALISM-1D` so adversary realism covers pressure envelopes, identity pools, transport coherence, browser background traffic, and recurrence instead of stopping at local burst-shape realism
 - [`2026-03-30-scrapling-0-4-3-upgrade-plan.md`](2026-03-30-scrapling-0-4-3-upgrade-plan.md) - Defines the immediate pre-realism Scrapling runtime upgrade so the repo absorbs upstream `0.4.3` fixes while deferring new browser-capability support to the realism chain
+- [`2026-03-30-contributor-generated-public-content-sim-site-plan.md`](2026-03-30-contributor-generated-public-content-sim-site-plan.md) - Defines the contributor-first replacement for the thin `/sim/public/*` dummy site so richer traversal comes from generated public content, local dev browsing no longer depends on sim state, and the old hard-coded site can be removed cleanly
 - [`2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md`](2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md) - Makes attacker-faithful Scrapling coverage an explicit prerequisite for fuller player-side game-loop execution
 - [`2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md`](2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md) - Separates widened Scrapling defense-surface evaluation from the broader later browser-runtime question
 - [`2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-plan.md`](2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-plan.md) - Freezes the canonical owned-surface matrix and success contract for attacker-faithful Scrapling
@@ -154,6 +155,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-20-mature-adversary-sim-evolution-roadmap.md`](2026-03-20-mature-adversary-sim-evolution-roadmap.md)
 - [`2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md`](2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md)
 - [`2026-03-30-scrapling-0-4-3-upgrade-plan.md`](2026-03-30-scrapling-0-4-3-upgrade-plan.md)
+- [`2026-03-30-contributor-generated-public-content-sim-site-plan.md`](2026-03-30-contributor-generated-public-content-sim-site-plan.md)
 - [`2026-03-20-sim-deploy-2-production-operating-envelope-implementation-plan.md`](2026-03-20-sim-deploy-2-production-operating-envelope-implementation-plan.md)
 - [`2026-03-20-sim-scr-lane-1-runtime-migration-plan.md`](2026-03-20-sim-scr-lane-1-runtime-migration-plan.md)
 

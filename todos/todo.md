@@ -261,14 +261,60 @@ Current note:
 
 - [ ] SIM-REALISM-2H Make the dummy site more richly publicly discoverable without choreography.
   - Reference context:
+    - [`docs/research/2026-03-30-contributor-generated-public-content-sim-site-review.md`](../docs/research/2026-03-30-contributor-generated-public-content-sim-site-review.md)
+    - [`docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md`](../docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md)
     - [`docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
     - [`docs/plans/2026-03-20-shared-host-seed-contract.md`](../docs/plans/2026-03-20-shared-host-seed-contract.md)
     - [`docs/plans/2026-03-29-observed-telemetry-truth-and-scrapling-discoverability-plan.md`](../docs/plans/2026-03-29-observed-telemetry-truth-and-scrapling-discoverability-plan.md)
   - Closure gate:
     - surface truth: broader dummy-site surfaces must become reachable through root links, realistic navigation, `robots.txt` sitemap entries, and sitemap documents rather than ad hoc worker hints
+    - implementation vehicle: the richer surface should land as a generated contributor content site under `/sim/public/*`, not as a runtime repo walker or a slightly expanded hard-coded fake blog
+    - contributor truth: contributors running `make dev` must be able to browse the site even when adversary sim is idle, while runtime-only flows must not silently generate or expose the contributor site
+    - cleanup truth: the old five-page hard-coded dummy site must be removed once the generated site path lands
     - discipline: keep hidden or internal route catalogs out of the workers and out of the seed contract
     - proof: add and pass `make test-sim-public-discoverability-contract`, and keep shared-host seed-contract proof green
     - insufficient: private worker-only route hints, simulator convenience endpoints, or sitemap/catalog artifacts treated as discovery truth
+
+- [ ] SIM-PUBSITE-1A Freeze the contributor-generated public-content site contract and contributor-only scope.
+  - Reference context:
+    - [`docs/research/2026-03-30-contributor-generated-public-content-sim-site-review.md`](../docs/research/2026-03-30-contributor-generated-public-content-sim-site-review.md)
+    - [`docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md`](../docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md)
+    - [`docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
+  - Closure gate:
+    - contract truth: the first tranche must explicitly be contributor-only, must forbid runtime repo walking, and must decouple site availability from adversary-sim control state
+    - flow truth: contributor flows and runtime-only flows must have explicit documented behavior rather than relying on incidental build outcomes
+    - proof: add and pass `make test-sim-public-generated-site-contract`
+    - insufficient: leaving `/sim/public/*` availability coupled to `adversary_sim_enabled`, or introducing live repo reads in the request path
+
+- [ ] SIM-PUBSITE-1B Build the generated contributor content artifact from allowlisted markdown roots.
+  - Reference context:
+    - [`docs/research/2026-03-30-contributor-generated-public-content-sim-site-review.md`](../docs/research/2026-03-30-contributor-generated-public-content-sim-site-review.md)
+    - [`docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md`](../docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md)
+  - Closure gate:
+    - content truth: the generated site must derive from allowlisted markdown roots including `README.md`, `docs/**/*.md`, `todos/todo.md`, `todos/blocked-todo.md`, and `todos/completed-todo-history.md`, while excluding `todos/security-review.md`
+    - presentation truth: the generated pages must use semantic HTML and extremely minimal hypertext-style presentation rather than dashboard-like chrome
+    - proof: add and pass `make test-sim-public-generator`
+    - insufficient: duplicated markdown copies committed as a fake site, or heavy bespoke styling that turns the content site into a secondary app
+
+- [ ] SIM-PUBSITE-1C Serve the generated site through `sim_public` on local dev and remove the old hard-coded dummy site.
+  - Reference context:
+    - [`docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md`](../docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md)
+    - [`docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
+  - Closure gate:
+    - serving truth: `/sim/public/*` must serve the generated contributor site whenever the artifact exists, even when adversary sim is idle
+    - cleanup truth: the legacy five-page `landing/docs/pricing/contact/search` implementation must be removed rather than preserved as a fallback parallel surface
+    - proof: add and pass `make test-sim-public-runtime-serving`, and keep `make test-sim-public-generated-site-contract` green
+    - insufficient: preserving the old hard-coded site behind the new one, or continuing to make the site disappear unless the sim lane is running
+
+- [ ] SIM-PUBSITE-1D Add discoverability artifacts and contributor/runtime flow wiring for the generated site.
+  - Reference context:
+    - [`docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md`](../docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md)
+    - [`docs/plans/2026-03-20-shared-host-seed-contract.md`](../docs/plans/2026-03-20-shared-host-seed-contract.md)
+  - Closure gate:
+    - discoverability truth: the generated site must expose root links, timeline-like feeds, `robots.txt`, and sitemap documents that materially increase public traversal depth
+    - workflow truth: `make setup`, `make build`, and `make dev` must generate or refresh the contributor artifact, while `make setup-runtime` and `make run-prebuilt` must stay free of accidental contributor-site generation
+    - proof: add and pass `make test-sim-public-build-flow-contract`, keep `make test-sim-public-discoverability-contract` green, and keep shared-host seed-contract proof green
+    - insufficient: a richer site that still relies on manual contributor steps, or runtime-only flows that silently inherit contributor content generation
 
 - [ ] SIM-REALISM-2I Add trusted-ingress client-IP realism without granting attacker-plane header privileges.
   - Reference context:
