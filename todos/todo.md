@@ -355,6 +355,63 @@ Current stance:
     - proof: add and pass `make test-challenge-behavior-microsignals`, and keep `make test-challenge-verification` green
     - insufficient: always-on cursor biometrics, opaque scoring with no signal IDs, or challenge behavior becoming mandatory for baseline routing
 
+## P1 Category-Labeling Signal Enrichment
+
+Reference context:
+- [`docs/research/2026-03-18-agentic-era-operator-telemetry-research-synthesis.md`](../docs/research/2026-03-18-agentic-era-operator-telemetry-research-synthesis.md)
+- [`docs/research/2026-03-22-canonical-non-human-taxonomy-and-sim-representativeness-review.md`](../docs/research/2026-03-22-canonical-non-human-taxonomy-and-sim-representativeness-review.md)
+- [`docs/research/2026-03-24-identification-tab-remit-and-taxonomy-distinction-review.md`](../docs/research/2026-03-24-identification-tab-remit-and-taxonomy-distinction-review.md)
+- [`docs/plans/2026-03-22-taxonomy-and-classification-implementation-plan.md`](../docs/plans/2026-03-22-taxonomy-and-classification-implementation-plan.md)
+
+Current stance:
+- Keep this chain behind the current `SIM-REALISM-1A..1D` priority unless a higher-severity runtime regression interrupts it.
+- Exact category claims must stay conservative: when evidence is weak, Shuma must keep failing closed to `unknown_non_human` rather than invent category precision.
+- Simulator-known labels remain observer-only and must never become runtime or tuning shortcuts for category assignment.
+
+- [ ] CAT-SIG-1 Add declared-crawler verification signals beyond naive `User-Agent` matching.
+  - Reference context:
+    - [`docs/research/2026-03-18-agentic-era-operator-telemetry-research-synthesis.md`](../docs/research/2026-03-18-agentic-era-operator-telemetry-research-synthesis.md)
+    - [`docs/plans/2026-03-22-taxonomy-and-classification-implementation-plan.md`](../docs/plans/2026-03-22-taxonomy-and-classification-implementation-plan.md)
+  - Closure gate:
+    - evidence truth: declared-crawler classification must require corroborating signals such as published IP ranges, reverse/forward DNS validation, known crawler tokens, or verified provider detection evidence rather than raw `User-Agent` alone
+    - category truth: exact `indexing_bot` assignment must become more trustworthy without widening false-positive risk onto likely humans or generic suspicious automation
+    - observability truth: receipts must preserve the specific declared-crawler evidence families that justified the exact category
+    - proof: add and pass `make test-category-labeling-signals`, and keep `make test-traffic-classification-contract` green
+    - insufficient: one-string allowlists, undocumented crawler exceptions, or exact crawler labels with no corroborating evidence lineage
+
+- [ ] CAT-SIG-2 Add execution-shape signals that distinguish direct HTTP, automated browser, and browser-agent traffic.
+  - Reference context:
+    - [`docs/research/2026-03-18-agentic-era-operator-telemetry-research-synthesis.md`](../docs/research/2026-03-18-agentic-era-operator-telemetry-research-synthesis.md)
+    - [`docs/research/2026-03-24-identification-tab-remit-and-taxonomy-distinction-review.md`](../docs/research/2026-03-24-identification-tab-remit-and-taxonomy-distinction-review.md)
+  - Closure gate:
+    - evidence truth: Shuma must incorporate bounded browser-execution, asset-fetch, persistence-marker, and request-shape evidence that helps separate `http_agent`, `automated_browser`, and `browser_agent`
+    - category truth: new exact or improved assignments must flow through the shared classification receipt contract with explicit basis, exactness, and degradation status
+    - cost truth: the new evidence must stay low-cost and same-path rather than requiring simulator knowledge or privileged host-side route catalogs
+    - proof: add and pass `make test-category-labeling-signals`, and keep `make test-traffic-classification-contract` green
+    - insufficient: mapping every JS-capable client to `automated_browser`, or every browser session to `browser_agent`
+
+- [ ] CAT-SIG-3 Add crawl and extraction pattern signals that distinguish indexing, scraping, and focused agentic retrieval.
+  - Reference context:
+    - [`docs/research/2026-03-18-agentic-era-operator-telemetry-research-synthesis.md`](../docs/research/2026-03-18-agentic-era-operator-telemetry-research-synthesis.md)
+    - [`docs/research/2026-03-22-canonical-non-human-taxonomy-and-sim-representativeness-review.md`](../docs/research/2026-03-22-canonical-non-human-taxonomy-and-sim-representativeness-review.md)
+  - Closure gate:
+    - evidence truth: Shuma must add bounded signals around robots/sitemap behavior, traversal breadth, listing/detail harvest patterns, and focused-vs-bulk retrieval that help separate `indexing_bot`, `ai_scraper_bot`, and `http_agent`
+    - category truth: the signals must improve classification confidence without depending on content semantics or simulator-side category labels
+    - observability truth: classification receipts and operator-facing readiness must reveal which pattern families are actually supporting the richer category claims
+    - proof: add and pass `make test-category-labeling-signals`, and keep `make test-traffic-classification-contract` green
+    - insufficient: equating any breadth-first crawl with AI scraping, or any direct HTTP fetch pattern with benign preview/service traffic
+
+- [ ] CAT-SIG-4 Add explicit category-confidence fusion over identity, browser/fingerprint, behavioral, and challenge/outcome evidence.
+  - Reference context:
+    - [`docs/plans/2026-03-22-taxonomy-and-classification-implementation-plan.md`](../docs/plans/2026-03-22-taxonomy-and-classification-implementation-plan.md)
+    - [`docs/research/2026-03-24-identification-tab-remit-and-taxonomy-distinction-review.md`](../docs/research/2026-03-24-identification-tab-remit-and-taxonomy-distinction-review.md)
+  - Closure gate:
+    - classifier truth: category assignment must be based on explicit bounded fusion of declared identity, browser/fingerprint evidence, behavior, and challenge/outcome evidence rather than one-off local heuristics
+    - fail-closed truth: the classifier must still collapse to `unknown_non_human` with honest degraded or insufficient-evidence receipts when exact category confidence is not high enough
+    - snapshot truth: operator snapshot and later benchmark/readiness surfaces must show the richer confidence basis without overstating exact inference
+    - proof: add and pass `make test-category-labeling-signals`, `make test-traffic-classification-contract`, and `make test-benchmark-results-contract`
+    - insufficient: silent heuristic drift, simulator-only confidence boosts, or exact category rows that cannot be explained through receipt evidence families
+
 ## P2 Hardening and Coverage
 
 Architecture alignment reference:
