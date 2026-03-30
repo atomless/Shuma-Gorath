@@ -145,8 +145,9 @@ Current note:
 - `SIM-LLM-1C3` is now landed: the later LLM attacker no longer disappears after runtime ingest, and recent-run or operator surfaces now project truthful additive `bot_red_team` runtime lineage without enabling the lane in controls.
 - `SIM-REALISM-1` is now the next adversary-sim maturity chain: both Scrapling and Agentic Traffic still need profile-driven cadence, burst, dwell, and identity or session realism before mixed-attacker or tuning claims are called representative.
 - `SIM-REALISM-1A` is now landed: the shared versioned realism-profile contract is frozen across Rust planners, Python workers, and Make-driven proof.
-- `SIM-REALISM-1B` is now landed: Scrapling personas now execute profile-driven pacing and dwell behavior, emit per-tick `realism_receipt` payloads, preserve the latest Scrapling realism receipt in recent-run monitoring history, and `SIM-REALISM-1C` is now the current top-priority adversary-sim work item.
-- Do not treat mere lane execution or recent-run visibility as characteristic attacker pressure while `bot_red_team` browser-mode still lacks real session execution and the lanes still retain overly uniform pacing.
+- `SIM-REALISM-1B` is now landed: Scrapling personas now execute profile-driven pacing and dwell behavior, emit per-tick `realism_receipt` payloads, preserve the latest Scrapling realism receipt in recent-run monitoring history, and `SIM-REALISM-1C` is now the current top-priority adversary-sim work item. But treat that tranche as local shape realism, not full wild-attacker realism.
+- `SIM-REALISM-2` is now the explicit follow-on chain after `SIM-REALISM-1D`: the lanes still fall short on field-grounded pressure envelopes, proxy and identity realism, coherent header or transport envelopes, browser secondary traffic, and long-horizon recurrence.
+- Do not treat mere lane execution or recent-run visibility as characteristic attacker pressure while `bot_red_team` browser-mode still lacks real session execution and the lanes still retain overly uniform pressure, identity, and transport behavior.
 - Do not open `humans_plus_verified_only` until a later second strict-baseline proof has shown retained config-change improvement under both Scrapling and LLM attacker pressure.
 - `DIAG-CLEANUP-1`, `MON-OVERHAUL-1C`, and `SIM-LLM-1C3` are now all landed, so the later combined-attacker strict-baseline proof is no longer blocked by missing LLM runtime visibility.
 - The real `RSI-GAME-HO-2` blocker is now architectural and explicit:
@@ -178,6 +179,61 @@ Current note:
     - observer truth: read models and operator surfaces must distinguish real browser-mode execution from request-mode-only runs
     - proof: add and pass `make test-adversarial-llm-browser-runtime`, and keep `make test-adversarial-llm-runtime-dispatch`, `make test-adversarial-llm-runtime-projection`, and `make test-admin-machine-contracts` green; if observer rendering changes, keep `make test-dashboard-game-loop-accountability` green too
     - insufficient: swapping the placeholder string for a synthetic success receipt, or calling request-mode traffic "agentic browser" without real browser execution
+
+- [ ] SIM-REALISM-2A Unclip per-persona pressure envelopes and add concurrency realism so the configured cadence can actually land.
+  - Reference context:
+    - [`docs/research/2026-03-30-adversary-lane-wild-traffic-gap-review.md`](../docs/research/2026-03-30-adversary-lane-wild-traffic-gap-review.md)
+    - [`docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
+    - [`docs/plans/2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md`](../docs/plans/2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md)
+  - Closure gate:
+    - pressure truth: request-native personas must no longer collapse to the current one-size clipped pressure envelope when their realism profile calls for materially stronger burst structure
+    - boundedness: stronger pressure must still be per-persona and contract-bounded rather than one global harsher default
+    - receipt truth: receipts must preserve actual peak burst counts, effective cadence, and any concurrency grouping used
+    - proof: add and pass `make test-adversary-sim-pressure-envelope-realism`, and keep the retained Scrapling and Agentic realism targets green
+    - insufficient: simply raising a global request cap, or faster loops that still serialize every persona into the same generic stream
+
+- [ ] SIM-REALISM-2B Add proxy-pool and identity-envelope realism across Scrapling and Agentic Traffic.
+  - Reference context:
+    - [`docs/research/2026-03-30-adversary-lane-wild-traffic-gap-review.md`](../docs/research/2026-03-30-adversary-lane-wild-traffic-gap-review.md)
+    - [`docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
+  - Closure gate:
+    - identity truth: the lanes must support bounded identity envelopes covering residential or mobile or datacenter provenance, geo affinity, session stickiness, and churn cadence
+    - honesty: when no proxy pool is configured, receipts and docs must explicitly say identity realism is degraded instead of pretending synthetic local session churn is network-identity rotation
+    - observer truth: machine-facing receipts may expose identity-envelope provenance for audit, but that provenance must not become defence truth
+    - proof: add and pass `make test-adversarial-identity-envelope-contract`, and keep relevant runtime-projection and machine-contract paths green if receipts change
+    - insufficient: synthetic request-session rotation without real identity provenance, or fake residential labels with no pool-backed evidence
+
+- [ ] SIM-REALISM-2C Add coherent header, locale, and transport envelopes per persona and identity.
+  - Reference context:
+    - [`docs/research/2026-03-30-adversary-lane-wild-traffic-gap-review.md`](../docs/research/2026-03-30-adversary-lane-wild-traffic-gap-review.md)
+    - [`docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
+  - Closure gate:
+    - traffic truth: user-agent family, Accept-Language, resource headers, browser locale, and any available transport fingerprinting surfaces must vary coherently with persona and identity instead of pinning every lane to one default local posture
+    - safety truth: the lanes must remain same-origin, bounded, public-discovery-only, and Shuma-blind
+    - proof: add and pass `make test-adversary-sim-header-transport-realism`, and keep existing lane-contract and worker targets green
+    - insufficient: random header churn with no coherent geo or persona story, or exposing simulator-only labels in emitted traffic
+
+- [ ] SIM-REALISM-2D Capture browser secondary traffic and background request realism.
+  - Reference context:
+    - [`docs/research/2026-03-30-adversary-lane-wild-traffic-gap-review.md`](../docs/research/2026-03-30-adversary-lane-wild-traffic-gap-review.md)
+    - [`docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
+    - [`docs/research/2026-03-30-scrapling-0-4-3-upgrade-and-realism-impact-review.md`](../docs/research/2026-03-30-scrapling-0-4-3-upgrade-and-realism-impact-review.md)
+  - Closure gate:
+    - emission truth: browser personas must receipt meaningful subresource or background XHR or fetch traffic instead of only top-level action counts
+    - observer truth: machine-facing surfaces must distinguish top-level navigation truth from secondary browser activity without bloating hot reads into raw traces
+    - proof: add and pass `make test-adversary-sim-browser-secondary-traffic-realism`, and keep relevant recent-run and machine-contract tests green if read models change
+    - insufficient: calling a browser session realistic while hiding emitted background traffic behind top-level-only receipts
+
+- [ ] SIM-REALISM-2E Add long-horizon dormancy, recurrence, and re-entry realism.
+  - Reference context:
+    - [`docs/research/2026-03-30-adversary-lane-wild-traffic-gap-review.md`](../docs/research/2026-03-30-adversary-lane-wild-traffic-gap-review.md)
+    - [`docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
+    - [`docs/research/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-research-synthesis.md`](../docs/research/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-research-synthesis.md)
+  - Closure gate:
+    - cadence truth: the realism contract must be able to express re-entry after absence and repeated narrow sessions over longer windows rather than only one isolated short burst
+    - tuning truth: longer-window evaluation must be able to consume explicit recurrence truth instead of inferring it from accidental repeated beats
+    - proof: add and pass `make test-adversary-sim-recurrence-realism`, and keep adversary-sim state or dispatch tests green
+    - insufficient: repeating the same short-run beat forever without any explicit dormancy or return model
 
 - [ ] RSI-GAME-HO-2A3 Project mixed-attacker judged-episode truth through operator/admin and Game Loop surfaces.
   - Reference context:

@@ -4,6 +4,26 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-30)
 
+### SIM-REALISM-2 Field-Gap Research, Plan, And Backlog Refresh
+
+- [x] Completed the docs-only realism gap refresh across:
+  - [`../docs/research/2026-03-30-adversary-lane-wild-traffic-gap-review.md`](../docs/research/2026-03-30-adversary-lane-wild-traffic-gap-review.md)
+  - [`../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
+  - [`../docs/research/README.md`](../docs/research/README.md)
+  - [`../docs/plans/README.md`](../docs/plans/README.md)
+  - [`../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
+  - [`../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`](../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md)
+  - [`../todos/todo.md`](../todos/todo.md)
+  - [`../todos/blocked-todo.md`](../todos/blocked-todo.md)
+- [x] What landed:
+  - a new field-grounded review now compares the current post-`SIM-REALISM-1B` lanes against current hostile web observations and records the remaining gaps in pressure, identity, transport, browser background traffic, and long-horizon recurrence,
+  - a new follow-on plan now defines `SIM-REALISM-2A..2E` as the explicit second realism chain after `SIM-REALISM-1D`,
+  - and the active backlog and sequencing docs now stop implying that `SIM-REALISM-1D` alone is enough to reopen representative mixed-attacker or tuning-quality claims.
+- [x] Why:
+  - the first realism tranche improved local burst and dwell shape, but field evidence shows that realistic attacker pressure still requires stronger work on distributed identity, coherent transport posture, browser background activity, and longer-horizon return patterns.
+- [x] Evidence:
+  - docs-only slice; verification intentionally limited to `git diff --check`
+
 ### SIM-REALISM-1B Implement Scrapling Profile-Driven Cadence, Burst, Dwell, And Identity Behavior
 
 - [x] Completed the Scrapling realism behavior tranche across:

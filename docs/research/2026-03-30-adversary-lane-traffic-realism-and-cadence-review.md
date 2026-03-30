@@ -3,6 +3,7 @@ Status: Proposed
 
 Related context:
 
+- [`2026-03-30-adversary-lane-wild-traffic-gap-review.md`](2026-03-30-adversary-lane-wild-traffic-gap-review.md)
 - [`../plans/2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md`](../plans/2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md)
 - [`../plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`](../plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md)
 - [`../plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
@@ -17,6 +18,11 @@ Related context:
 # Objective
 
 Freeze the next realism contract for Shuma's adversary lanes so Scrapling and Agentic Traffic apply characteristic real-world crawl or scrape pressure instead of one overly neat synthetic cadence. The goal is not "more aggressive by default." The goal is representative attacker behavior: not unrealistically polite, not theatrically reckless, and not choreographed for Shuma's convenience.
+
+Status note:
+
+1. `SIM-REALISM-1A` and `SIM-REALISM-1B` have since landed.
+2. The later field comparison in [`2026-03-30-adversary-lane-wild-traffic-gap-review.md`](2026-03-30-adversary-lane-wild-traffic-gap-review.md) shows that `SIM-REALISM-1A..1D` are necessary but not sufficient for full wild-attacker representativeness.
 
 # Current Ground Truth
 
