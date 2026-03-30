@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import subprocess
 import tempfile
+from unittest import mock
 import unittest
 
 from scripts.supervisor import llm_runtime_worker
@@ -11,6 +12,71 @@ from scripts.tests.adversarial_runner.contracts import resolve_lane_realism_prof
 
 
 class LlmRuntimeWorkerUnitTests(unittest.TestCase):
+    def test_build_browser_mode_realism_execution_plan_shapes_stable_session_and_dwell(self):
+        plan = {
+            "schema_version": "adversary-sim-llm-fulfillment-plan.v1",
+            "run_id": "simrun-llm-runtime",
+            "tick_id": "llm-fit-tick-browser-1",
+            "lane": "bot_red_team",
+            "fulfillment_mode": "browser_mode",
+            "backend_kind": "frontier_reference",
+            "backend_state": "configured",
+            "category_targets": ["browser_agent"],
+            "capability_envelope": {"max_actions": 8, "max_time_budget_seconds": 90},
+            "realism_profile": resolve_lane_realism_profile("bot_red_team", "browser_mode"),
+        }
+        generation = {
+            "generation_source": "provider_response",
+            "provider": "openai",
+            "model_id": "gpt-5-mini",
+            "actions": [
+                {
+                    "action_index": 1,
+                    "action_type": "browser_navigate",
+                    "path": "/",
+                    "label": "root",
+                },
+                {
+                    "action_index": 2,
+                    "action_type": "browser_click",
+                    "path": "/sim/public/research/",
+                    "label": "research",
+                },
+                {
+                    "action_index": 3,
+                    "action_type": "browser_snapshot",
+                    "path": "/sim/public/plans/",
+                    "label": "plans",
+                },
+            ],
+        }
+
+        execution_plan = llm_runtime_worker.build_browser_mode_realism_execution_plan(
+            fulfillment_plan=plan,
+            generation_result=generation,
+        )
+
+        self.assertEqual(
+            execution_plan["schema_version"],
+            "adversary-sim-llm-browser-realism-plan.v1",
+        )
+        self.assertEqual(execution_plan["profile_id"], "agentic.browser_mode.v1")
+        self.assertGreaterEqual(execution_plan["top_level_action_budget"], 1)
+        self.assertIn("/", execution_plan["focused_page_paths"])
+        self.assertEqual(
+            execution_plan["focused_page_set_size"],
+            len(execution_plan["focused_page_paths"]),
+        )
+        self.assertEqual(
+            len(execution_plan["dwell_intervals_ms"]),
+            max(0, execution_plan["top_level_action_budget"] - 1),
+        )
+        self.assertTrue(all(dwell >= 2000 for dwell in execution_plan["dwell_intervals_ms"]))
+        self.assertEqual(
+            execution_plan["session_handles"],
+            ["agentic-browser-session-1"],
+        )
+
     def test_build_request_mode_realism_execution_plan_shapes_focused_microbursts(self):
         plan = {
             "schema_version": "adversary-sim-llm-fulfillment-plan.v1",
@@ -177,55 +243,6 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
         self.assertEqual(result["last_response_status"], 404)
         self.assertEqual(result["action_receipts"][1]["status"], 404)
 
-    def test_build_llm_runtime_result_can_fail_closed_for_unsupported_browser_mode(self):
-        plan = {
-            "schema_version": "adversary-sim-llm-fulfillment-plan.v1",
-            "run_id": "simrun-llm-runtime",
-            "tick_id": "llm-fit-tick-2",
-            "lane": "bot_red_team",
-            "fulfillment_mode": "browser_mode",
-            "backend_kind": "frontier_reference",
-            "backend_state": "configured",
-            "category_targets": ["browser_agent"],
-            "capability_envelope": {"max_actions": 4, "max_time_budget_seconds": 90},
-            "realism_profile": resolve_lane_realism_profile("bot_red_team", "browser_mode"),
-        }
-        generation = {
-            "generation_source": "fallback_validation_error",
-            "provider": "openai",
-            "model_id": "gpt-5-mini",
-            "fallback_reason": "provider_output_failed_validation",
-            "actions": [
-                {
-                    "action_index": 1,
-                    "action_type": "browser_navigate",
-                    "path": "/",
-                    "label": "root",
-                }
-            ],
-        }
-
-        result = llm_runtime_worker.build_llm_runtime_result(
-            fulfillment_plan=plan,
-            generation_result=generation,
-            report_payload=None,
-            tick_completed_at=1_700_000_201,
-            worker_id="llm-runtime-worker-test",
-            error="browser_mode_dispatch_not_yet_supported_by_blackbox_worker",
-            failure_class="transport",
-            terminal_failure="browser_mode_not_supported",
-        )
-
-        self.assertFalse(result["passed"])
-        self.assertEqual(result["failure_class"], "transport")
-        self.assertEqual(result["terminal_failure"], "browser_mode_not_supported")
-        self.assertEqual(
-            result["error"],
-            "browser_mode_dispatch_not_yet_supported_by_blackbox_worker",
-        )
-        self.assertEqual(result["action_receipts"][0]["action_type"], "browser_navigate")
-        self.assertEqual(result["action_receipts"][0]["path"], "/")
-
     def test_run_request_mode_blackbox_uses_generated_actions_and_reads_report(self):
         plan = {
             "schema_version": "adversary-sim-llm-fulfillment-plan.v1",
@@ -317,6 +334,135 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
             report["worker_payload"]["traffic"][1]["status"],
             403,
         )
+
+    def test_run_browser_mode_blackbox_uses_browser_driver_and_reads_receipt(self):
+        plan = {
+            "schema_version": "adversary-sim-llm-fulfillment-plan.v1",
+            "run_id": "simrun-llm-runtime",
+            "tick_id": "llm-fit-tick-browser-2",
+            "lane": "bot_red_team",
+            "fulfillment_mode": "browser_mode",
+            "backend_kind": "frontier_reference",
+            "backend_state": "configured",
+            "category_targets": ["browser_agent"],
+            "capability_envelope": {"max_actions": 4, "max_time_budget_seconds": 90},
+            "realism_profile": resolve_lane_realism_profile("bot_red_team", "browser_mode"),
+        }
+        generation = {
+            "generation_source": "provider_response",
+            "provider": "openai",
+            "model_id": "gpt-5-mini",
+            "actions": [
+                {
+                    "action_index": 1,
+                    "action_type": "browser_navigate",
+                    "path": "/",
+                    "label": "root",
+                }
+            ],
+        }
+        observed = {}
+
+        def fake_runner(command, *, input, text, capture_output, timeout, check, env, cwd):
+            observed["command"] = list(command)
+            observed["input"] = json.loads(input)
+            observed["timeout"] = timeout
+            observed["env"] = dict(env)
+            observed["cwd"] = cwd
+            payload = {
+                "ok": True,
+                "observed_outcome": "browser_session",
+                "detail": "ok",
+                "top_level_actions": [
+                    {
+                        "action_index": 1,
+                        "action_type": "browser_navigate",
+                        "path": "/",
+                        "status": 200,
+                    },
+                    {
+                        "action_index": 2,
+                        "action_type": "browser_navigate",
+                        "path": "/sim/public/research/",
+                        "status": 200,
+                    },
+                ],
+                "realism_receipt": {
+                    "schema_version": "sim-lane-realism-receipt.v1",
+                    "profile_id": "agentic.browser_mode.v1",
+                    "planned_activity_budget": 4,
+                    "effective_activity_budget": 2,
+                    "activity_count": 2,
+                    "top_level_action_count": 2,
+                    "focused_page_set_size": 2,
+                    "dwell_intervals_ms": [2400],
+                    "session_handles": ["agentic-browser-session-1"],
+                    "identity_rotation_count": 0,
+                    "stop_reason": "top_level_budget_exhausted",
+                },
+                "browser_evidence": {
+                    "driver_runtime": "playwright_chromium",
+                    "js_executed": True,
+                    "dom_events": 4,
+                    "request_lineage": [
+                        {"method": "GET", "path": "/", "sim_nonce": "nonce-1"},
+                        {
+                            "method": "GET",
+                            "path": "/sim/public/research/",
+                            "sim_nonce": "nonce-2",
+                        },
+                    ],
+                    "correlation_ids": ["nonce-1", "nonce-2"],
+                },
+                "diagnostics": {
+                    "action_duration_ms": 4200,
+                    "launch_duration_ms": 300,
+                    "total_duration_ms": 4500,
+                },
+            }
+            return subprocess.CompletedProcess(
+                args=command,
+                returncode=0,
+                stdout=json.dumps(payload),
+                stderr="",
+            )
+
+        with mock.patch.dict(
+            "os.environ",
+            {"SHUMA_SIM_TELEMETRY_SECRET": "browser-mode-test-secret"},
+            clear=False,
+        ):
+            with mock.patch(
+                "scripts.supervisor.llm_runtime_worker.ensure_playwright_chromium",
+                return_value=mock.Mock(browser_cache="/tmp/pw-cache"),
+            ):
+                report = llm_runtime_worker.run_browser_mode_blackbox(
+                    base_url="http://127.0.0.1:3000/",
+                    fulfillment_plan=plan,
+                    generation_result=generation,
+                    runner=fake_runner,
+                )
+
+        self.assertEqual(observed["cwd"], str(llm_runtime_worker.REPO_ROOT))
+        self.assertEqual(
+            observed["command"][:4],
+            ["corepack", "pnpm", "exec", "node"],
+        )
+        self.assertEqual(
+            observed["input"]["action"],
+            "agentic_browser_session",
+        )
+        self.assertEqual(
+            observed["input"]["session_plan"]["profile_id"],
+            "agentic.browser_mode.v1",
+        )
+        self.assertEqual(
+            report["worker_payload"]["realism_receipt"]["top_level_action_count"],
+            2,
+        )
+        self.assertEqual(report["worker_payload"]["requests_sent"], 2)
+        self.assertEqual(len(report["_executed_actions"]), 2)
+        self.assertEqual(report["_executed_actions"][1]["path"], "/sim/public/research/")
 
 
 if __name__ == "__main__":

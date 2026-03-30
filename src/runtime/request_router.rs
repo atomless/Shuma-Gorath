@@ -842,7 +842,18 @@ pub(crate) fn maybe_handle_early_route(
                         label: Some("robots_txt".to_string()),
                     }],
                 );
-                let content = crate::crawler_policy::robots::generate_robots_txt(&cfg);
+                let public_origin = req.header("host").and_then(|value| value.as_str()).map(|host| {
+                    let scheme = if crate::request_is_https(req) {
+                        "https"
+                    } else {
+                        "http"
+                    };
+                    format!("{scheme}://{}", host.trim())
+                });
+                let content = crate::crawler_policy::robots::generate_robots_txt_for_public_origin(
+                    &cfg,
+                    public_origin.as_deref(),
+                );
                 let content_signal = crate::crawler_policy::robots::get_content_signal_header(&cfg);
                 return Some(
                     Response::builder()

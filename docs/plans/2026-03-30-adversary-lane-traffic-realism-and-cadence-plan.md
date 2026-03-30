@@ -131,6 +131,8 @@
 
 ## Task 5: `SIM-REALISM-1D` Replace `browser_mode_not_supported` With A Real Agentic Browser Session Lane
 
+Status: Landed on 2026-03-30.
+
 **Files:**
 - Later code targets: `src/admin/adversary_sim_llm_lane.rs`, `scripts/supervisor/llm_runtime_worker.py`, `scripts/tests/adversarial_runner/llm_fulfillment.py`, browser execution path under `scripts/tests/adversarial_container/`
 - Later proof targets: focused browser-mode runtime tests, `Makefile`, observer rendering proof if surfaced materially changes

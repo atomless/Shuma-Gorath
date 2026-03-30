@@ -11,6 +11,7 @@ const SANDBOX_PATTERNS = [
 ];
 
 const ALLOWED_ACTIONS = new Set([
+  "agentic_browser_session",
   "allow_browser_allowlist",
   "not_a_bot_pass",
   "challenge_puzzle_fail_maze",
@@ -40,6 +41,15 @@ const FORBIDDEN_HEADERS = new Set([
 
 const MAX_LINEAGE_ENTRIES = 64;
 const MAX_DOM_PATH_ENTRIES = 24;
+
+const DEFAULT_SIM_HEADER_NAMES = Object.freeze({
+  run_id: "x-shuma-sim-run-id",
+  profile: "x-shuma-sim-profile",
+  lane: "x-shuma-sim-lane",
+  timestamp: "x-shuma-sim-ts",
+  nonce: "x-shuma-sim-nonce",
+  signature: "x-shuma-sim-signature",
+});
 
 function clampInt(value, minimum, maximum, fallback) {
   const parsed = Number.parseInt(String(value ?? ""), 10);
@@ -152,6 +162,127 @@ function mustUseSafePath(path) {
   return normalized;
 }
 
+export function mergeAgenticSessionPaths(requestedPaths, discoveredPaths, actionBudget) {
+  const budget = clampInt(actionBudget, 1, 8, 1);
+  const merged = [];
+  const seen = new Set();
+  for (const path of ["/", ...(requestedPaths || []), ...(discoveredPaths || [])]) {
+    const normalized = mustUseSafePath(String(path || "").trim() || "/");
+    if (seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    merged.push(normalized);
+    if (merged.length >= budget) {
+      break;
+    }
+  }
+  return merged;
+}
+
+function sameOrigin(url, baseOrigin) {
+  try {
+    return new URL(url).origin === baseOrigin;
+  } catch {
+    return false;
+  }
+}
+
+function extractRobotsHintPaths(text, baseOrigin) {
+  const hintPaths = [];
+  const seen = new Set();
+  const body = String(text || "");
+  const pattern = /^\s*sitemap:\s*(\S+)\s*$/gim;
+  let match;
+  while ((match = pattern.exec(body)) !== null) {
+    try {
+      const resolved = new URL(String(match[1] || "").trim(), `${baseOrigin}/`);
+      if (resolved.origin !== baseOrigin) {
+        continue;
+      }
+      const path = mustUseSafePath(resolved.pathname || "/");
+      if (seen.has(path)) {
+        continue;
+      }
+      seen.add(path);
+      hintPaths.push(path);
+    } catch {
+      // Ignore malformed sitemap hints.
+    }
+  }
+  return hintPaths;
+}
+
+function extractSameOriginUrlPaths(text, baseOrigin) {
+  const hintPaths = [];
+  const seen = new Set();
+  const body = String(text || "");
+  const pattern = /https?:\/\/[^\s<>"']+|\/[A-Za-z0-9._~!$&'()*+,;=:@%/-]+/gim;
+  let match;
+  while ((match = pattern.exec(body)) !== null) {
+    try {
+      const resolved = new URL(String(match[1] || "").trim(), `${baseOrigin}/`);
+      if (resolved.origin !== baseOrigin) {
+        continue;
+      }
+      const path = mustUseSafePath(resolved.pathname || "/");
+      if (seen.has(path)) {
+        continue;
+      }
+      seen.add(path);
+      hintPaths.push(path);
+    } catch {
+      // Ignore malformed sitemap entries.
+    }
+  }
+  return hintPaths;
+}
+
+function normalizeSimIdentity(rawIdentity) {
+  const source = rawIdentity && typeof rawIdentity === "object" ? rawIdentity : {};
+  const headerNamesRaw =
+    source.header_names && typeof source.header_names === "object" ? source.header_names : {};
+  const headerNames = {
+    run_id: String(headerNamesRaw.run_id || DEFAULT_SIM_HEADER_NAMES.run_id).trim(),
+    profile: String(headerNamesRaw.profile || DEFAULT_SIM_HEADER_NAMES.profile).trim(),
+    lane: String(headerNamesRaw.lane || DEFAULT_SIM_HEADER_NAMES.lane).trim(),
+    timestamp: String(headerNamesRaw.timestamp || DEFAULT_SIM_HEADER_NAMES.timestamp).trim(),
+    nonce: String(headerNamesRaw.nonce || DEFAULT_SIM_HEADER_NAMES.nonce).trim(),
+    signature: String(headerNamesRaw.signature || DEFAULT_SIM_HEADER_NAMES.signature).trim(),
+  };
+  const envelopes = Array.isArray(source.envelopes)
+    ? source.envelopes
+        .map((entry) => ({
+          ts: String(entry?.ts || "").trim(),
+          nonce: String(entry?.nonce || "").trim(),
+          signature: String(entry?.signature || "").trim(),
+        }))
+        .filter((entry) => entry.ts && entry.nonce && entry.signature)
+    : [];
+  return {
+    runId: String(source.run_id || "").trim(),
+    profile: String(source.profile || "").trim(),
+    lane: String(source.lane || "").trim(),
+    headerNames,
+    envelopes,
+  };
+}
+
+function withSimHeaders(headers, simIdentity, envelope) {
+  if (!simIdentity.runId || !envelope) {
+    return headers;
+  }
+  return {
+    ...headers,
+    [simIdentity.headerNames.run_id]: simIdentity.runId,
+    [simIdentity.headerNames.profile]: simIdentity.profile,
+    [simIdentity.headerNames.lane]: simIdentity.lane,
+    [simIdentity.headerNames.timestamp]: envelope.ts,
+    [simIdentity.headerNames.nonce]: envelope.nonce,
+    [simIdentity.headerNames.signature]: envelope.signature,
+  };
+}
+
 function appendDomPath(evidence, action, selector) {
   if (!selector || typeof selector !== "string") {
     return;
@@ -197,6 +328,51 @@ export function classifyMazeDocument(status, content) {
 
 function requestLineageIncludesPath(evidence, targetPath) {
   return evidence.request_lineage.some((row) => String(row?.path || "") === targetPath);
+}
+
+async function discoverSameOriginPaths(page, baseOrigin, currentPath) {
+  const discovered = await page.evaluate(() => {
+    return Array.from(document.querySelectorAll("a[href]")).map((link) =>
+      String(link.getAttribute("href") || "").trim(),
+    );
+  });
+  const paths = [];
+  for (const href of discovered) {
+    if (!href) {
+      continue;
+    }
+    try {
+      const resolved = new URL(href, `${baseOrigin}/`);
+      if (resolved.origin !== baseOrigin) {
+        continue;
+      }
+      const safePath = mustUseSafePath(resolved.pathname || "/");
+      if (safePath === currentPath) {
+        continue;
+      }
+      paths.push(safePath);
+    } catch {
+      // Ignore malformed anchor hrefs.
+    }
+  }
+  return paths;
+}
+
+async function discoverSessionPaths(page, baseOrigin, currentPath, content) {
+  const discoveredPaths = await discoverSameOriginPaths(page, baseOrigin, currentPath);
+  if (currentPath === "/robots.txt") {
+    return [
+      ...discoveredPaths,
+      ...extractRobotsHintPaths(content, baseOrigin),
+    ];
+  }
+  if (currentPath.endsWith(".xml")) {
+    return [
+      ...discoveredPaths,
+      ...extractSameOriginUrlPaths(content, baseOrigin),
+    ];
+  }
+  return discoveredPaths;
 }
 
 export function validateAllowBrowserAllowlistResponse(status, content) {
@@ -279,6 +455,7 @@ async function runScenario(payload) {
     payload.trusted_forwarded_secret,
   );
   const userAgent = String(payload.user_agent || "ShumaAdversarial/1.0 browser-driver");
+  const simIdentity = normalizeSimIdentity(payload.sim_identity);
   const timeoutMs = clampInt(payload.timeout_ms, 1000, 60000, 15000);
   const settleMs = clampInt(payload.settle_ms, 0, 5000, 200);
   const javascriptEnabled = payload.javascript_enabled !== false;
@@ -312,6 +489,7 @@ async function runScenario(payload) {
   let scriptedDelayMs = 0;
 
   const normalizePath = (targetPath) => mustUseSafePath(String(targetPath || ""));
+  const baseOrigin = new URL(`${baseUrl}/`).origin;
   const toUrl = (targetPath) => new URL(normalizePath(targetPath), `${baseUrl}/`).toString();
 
   try {
@@ -331,6 +509,21 @@ async function runScenario(payload) {
       ignoreHTTPSErrors: true,
       javaScriptEnabled: javascriptEnabled,
     });
+    let simEnvelopeIndex = 0;
+    await context.route("**/*", async (route) => {
+      const request = route.request();
+      if (!sameOrigin(request.url(), baseOrigin)) {
+        await route.continue();
+        return;
+      }
+      const envelope = simIdentity.envelopes[simEnvelopeIndex] || null;
+      if (envelope) {
+        simEnvelopeIndex += 1;
+      }
+      await route.continue({
+        headers: withSimHeaders(request.headers(), simIdentity, envelope),
+      });
+    });
     const page = await context.newPage();
 
     page.on("domcontentloaded", () => {
@@ -340,7 +533,7 @@ async function runScenario(payload) {
       evidence.dom_events += 1;
     });
     page.on("request", (request) => {
-      if (!request.url().startsWith(baseUrl)) {
+      if (!sameOrigin(request.url(), baseOrigin)) {
         return;
       }
       const requestHeaders = request.headers();
@@ -357,7 +550,7 @@ async function runScenario(payload) {
       });
     });
     page.on("response", (response) => {
-      if (!response.url().startsWith(baseUrl)) {
+      if (!sameOrigin(response.url(), baseOrigin)) {
         return;
       }
       const responsePath = new URL(response.url()).pathname;
@@ -393,7 +586,12 @@ async function runScenario(payload) {
         scriptedDelayMs += settleMs;
       }
       const content = await page.content();
-      return { response, content };
+      const pageText = await page.evaluate(() => {
+        const body = document.body;
+        const root = document.documentElement;
+        return String(body?.innerText || body?.textContent || root?.textContent || "");
+      });
+      return { response, content, pageText };
     }
 
     async function navigateAbsolute(targetUrl) {
@@ -407,7 +605,12 @@ async function runScenario(payload) {
         scriptedDelayMs += settleMs;
       }
       const content = await page.content();
-      return { response, content };
+      const pageText = await page.evaluate(() => {
+        const body = document.body;
+        const root = document.documentElement;
+        return String(body?.innerText || body?.textContent || root?.textContent || "");
+      });
+      return { response, content, pageText };
     }
 
     async function countNamedCookies(cookieName) {
@@ -484,6 +687,123 @@ async function runScenario(payload) {
     }
 
     async function executeAction() {
+      if (action === "agentic_browser_session") {
+        const sessionPlanRaw =
+          payload.session_plan && typeof payload.session_plan === "object"
+            ? payload.session_plan
+            : {};
+        const publicHintPaths = Array.isArray(payload.public_hint_paths)
+          ? payload.public_hint_paths
+          : [];
+        const topLevelActionBudget = clampInt(
+          sessionPlanRaw.top_level_action_budget,
+          1,
+          8,
+          1,
+        );
+        const focusedPagePaths = mergeAgenticSessionPaths(
+          Array.isArray(sessionPlanRaw.focused_page_paths)
+            ? sessionPlanRaw.focused_page_paths
+            : [],
+          publicHintPaths,
+          topLevelActionBudget,
+        );
+        const dwellIntervalsMs = Array.isArray(sessionPlanRaw.dwell_intervals_ms)
+          ? sessionPlanRaw.dwell_intervals_ms
+              .map((value) => clampInt(value, 0, 15000, 0))
+              .slice(0, Math.max(0, topLevelActionBudget - 1))
+          : [];
+        const sessionHandles = Array.isArray(sessionPlanRaw.session_handles)
+          ? sessionPlanRaw.session_handles.map((value) => String(value || "").trim()).filter(Boolean)
+          : ["agentic-browser-session-1"];
+        const topLevelActions = [];
+        const usedDwells = [];
+        let sessionPaths = [...focusedPagePaths];
+        let queueIndex = 0;
+        let stopReason = "discovery_frontier_exhausted";
+
+        while (topLevelActions.length < topLevelActionBudget) {
+          let targetPath = sessionPaths[queueIndex];
+          if (!targetPath) {
+            const currentPath = (() => {
+              try {
+                return mustUseSafePath(new URL(page.url()).pathname || "/");
+              } catch {
+                return "/";
+              }
+            })();
+            const discoveredPaths = await discoverSameOriginPaths(page, baseOrigin, currentPath);
+            sessionPaths = mergeAgenticSessionPaths(
+              sessionPaths,
+              discoveredPaths,
+              topLevelActionBudget,
+            );
+            targetPath = sessionPaths[queueIndex];
+          }
+          if (!targetPath) {
+            break;
+          }
+
+          const { response, pageText } = await navigateAbsolute(toUrl(targetPath));
+          const status = Number(response?.status() || 0);
+          topLevelActions.push({
+            action_index: topLevelActions.length + 1,
+            action_type: "browser_navigate",
+            path: targetPath,
+            status,
+          });
+          appendDomPath(evidence, "read", "body");
+          sessionPaths = mergeAgenticSessionPaths(
+            sessionPaths,
+            await discoverSessionPaths(page, baseOrigin, targetPath, pageText),
+            topLevelActionBudget,
+          );
+          if (topLevelActions.length >= topLevelActionBudget) {
+            stopReason = "top_level_budget_exhausted";
+            break;
+          }
+          const nextQueueIndex = queueIndex + 1;
+          if (!sessionPaths[nextQueueIndex]) {
+            break;
+          }
+          const dwellMs = dwellIntervalsMs[topLevelActions.length - 1] || 0;
+          if (dwellMs > 0) {
+            await page.waitForTimeout(dwellMs);
+            scriptedDelayMs += dwellMs;
+            usedDwells.push(dwellMs);
+          }
+          queueIndex = nextQueueIndex;
+        }
+
+        evidence.agentic_session_paths = topLevelActions.map((row) => row.path);
+        return {
+          observed_outcome: "browser_session",
+          detail: "ok",
+          top_level_actions: topLevelActions,
+          realism_receipt: {
+            schema_version: "sim-lane-realism-receipt.v1",
+            profile_id: String(sessionPlanRaw.profile_id || ""),
+            planned_activity_budget: clampInt(
+              sessionPlanRaw.planned_activity_budget,
+              1,
+              64,
+              topLevelActionBudget,
+            ),
+            effective_activity_budget: topLevelActionBudget,
+            activity_count: topLevelActions.length,
+            top_level_action_count: topLevelActions.length,
+            focused_page_set_size: focusedPagePaths.length,
+            dwell_intervals_ms: usedDwells,
+            session_handles: sessionHandles,
+            identity_rotation_count: 0,
+            stop_reason:
+              topLevelActions.length >= topLevelActionBudget
+                ? "top_level_budget_exhausted"
+                : stopReason,
+          },
+        };
+      }
+
       if (action === "allow_browser_allowlist") {
         const { response, content } = await navigate("/");
         const result = validateAllowBrowserAllowlistResponse(
@@ -831,6 +1151,13 @@ async function runScenario(payload) {
       ok: true,
       observed_outcome: String(actionResult.observed_outcome || ""),
       detail: String(actionResult.detail || "ok"),
+      top_level_actions: Array.isArray(actionResult.top_level_actions)
+        ? actionResult.top_level_actions
+        : [],
+      realism_receipt:
+        actionResult.realism_receipt && typeof actionResult.realism_receipt === "object"
+          ? actionResult.realism_receipt
+          : null,
       browser_evidence: evidence,
       diagnostics: {
         ready_state: String(jsProbe?.ready_state || ""),

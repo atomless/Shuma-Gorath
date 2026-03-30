@@ -7,6 +7,8 @@
 
 use crate::config::Config;
 
+const DEFAULT_SIM_PUBLIC_SITEMAP_PATH: &str = "/sim/public/sitemap.xml";
+
 /// Known AI training crawler user-agents
 pub const AI_TRAINING_BOTS: &[&str] = &[
     "GPTBot",
@@ -60,6 +62,10 @@ pub const SEARCH_ENGINE_BOTS: &[&str] = &[
 
 /// Generate robots.txt content based on configuration
 pub fn generate_robots_txt(cfg: &Config) -> String {
+    generate_robots_txt_for_public_origin(cfg, None)
+}
+
+pub fn generate_robots_txt_for_public_origin(cfg: &Config, public_origin: Option<&str>) -> String {
     let mut lines: Vec<String> = Vec::new();
 
     // Header comment with Content-Signal
@@ -142,9 +148,24 @@ pub fn generate_robots_txt(cfg: &Config) -> String {
     // Sitemap reference (if applicable)
     lines.push("".to_string());
     lines.push("# Sitemap".to_string());
-    lines.push("# Sitemap: https://example.com/sitemap.xml".to_string());
+    lines.push(format!(
+        "Sitemap: {}",
+        sim_public_sitemap_url(public_origin)
+    ));
 
     lines.join("\n")
+}
+
+fn sim_public_sitemap_url(public_origin: Option<&str>) -> String {
+    let origin = public_origin
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or_default()
+        .trim_end_matches('/');
+    if origin.is_empty() {
+        return DEFAULT_SIM_PUBLIC_SITEMAP_PATH.to_string();
+    }
+    format!("{origin}{DEFAULT_SIM_PUBLIC_SITEMAP_PATH}")
 }
 
 /// Get a human-readable policy name
@@ -246,6 +267,7 @@ mod tests {
         // Should allow Googlebot
         assert!(robots.contains("User-agent: Googlebot"));
         assert!(robots.contains("Allow: /"));
+        assert!(robots.contains("Sitemap: /sim/public/sitemap.xml"));
     }
 
     #[test]
@@ -308,5 +330,13 @@ mod tests {
         assert!(robots.contains("# Search engine crawler directives (Allow policy)"));
         assert!(!robots.contains("Crawlers - BLOCKED"));
         assert!(!robots.contains("Crawlers - ALLOWED"));
+    }
+
+    #[test]
+    fn test_generate_robots_txt_can_render_public_origin_sitemap() {
+        let cfg = test_config();
+        let robots = generate_robots_txt_for_public_origin(&cfg, Some("https://shuma.test"));
+
+        assert!(robots.contains("Sitemap: https://shuma.test/sim/public/sitemap.xml"));
     }
 }

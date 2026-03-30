@@ -4,6 +4,39 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-30)
 
+### SIM-REALISM-1D Replace `browser_mode_not_supported` With A Real Agentic Browser Session Lane
+
+- [x] Completed the browser-mode realism tranche across:
+  - [`../scripts/supervisor/llm_runtime_worker.py`](../scripts/supervisor/llm_runtime_worker.py)
+  - [`../scripts/tests/adversarial_browser_driver.mjs`](../scripts/tests/adversarial_browser_driver.mjs)
+  - [`../scripts/tests/test_adversarial_browser_driver.mjs`](../scripts/tests/test_adversarial_browser_driver.mjs)
+  - [`../scripts/tests/test_llm_runtime_worker.py`](../scripts/tests/test_llm_runtime_worker.py)
+  - [`../scripts/tests/test_llm_runtime_browser_integration.py`](../scripts/tests/test_llm_runtime_browser_integration.py)
+  - [`../scripts/tests/test_adversary_sim_make_targets.py`](../scripts/tests/test_adversary_sim_make_targets.py)
+  - [`../src/admin/adversary_sim_worker_plan.rs`](../src/admin/adversary_sim_worker_plan.rs)
+  - [`../src/admin/api.rs`](../src/admin/api.rs)
+  - [`../src/observability/operator_snapshot.rs`](../src/observability/operator_snapshot.rs)
+  - [`../src/crawler_policy/robots.rs`](../src/crawler_policy/robots.rs)
+  - [`../src/runtime/request_router.rs`](../src/runtime/request_router.rs)
+  - [`../Makefile`](../Makefile)
+  - [`../docs/adversarial-operator-guide.md`](../docs/adversarial-operator-guide.md)
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../docs/plans/2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md`](../docs/plans/2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md)
+- [x] What landed:
+  - the host-side LLM runtime worker now drives a real Playwright-backed browser session for `browser_mode` instead of failing closed with `browser_mode_not_supported`,
+  - the browser driver now follows public breadcrumbs from root through `/robots.txt` and same-origin sitemap discovery rather than relying on hidden route catalogs,
+  - browser-mode now emits truthful browser-shaped `realism_receipt` payloads with top-level action count, dwell intervals, stable session handles, and stop reason,
+  - recent-run monitoring summaries can deserialize and preserve both request-mode and browser-mode realism receipts truthfully,
+  - and root `robots.txt` now advertises the generated `/sim/public/sitemap.xml` so the public content terrain is actually reachable through public hints during live browser-mode proof.
+- [x] Why:
+  - `SIM-REALISM-1D` was the final tranche required to stop treating Agentic Traffic browser-mode as a placeholder and to reopen the realism chain against real browser-session behavior.
+- [x] Evidence:
+  - `make test-adversarial-llm-browser-runtime`
+  - `make test-adversarial-llm-runtime-dispatch`
+  - `make test-adversarial-llm-runtime-projection`
+  - `make test-admin-machine-contracts`
+  - `make test-adversary-sim-make-target-contract`
+
 ### SIM-REALISM-1C Implement Agentic Request-Mode Profile-Driven Pacing And Focused Burst Or Pause Behavior
 
 - [x] Completed the request-mode realism tranche across:

@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import {
   applyChallengePuzzleWrongOutput,
   classifyMazeDocument,
+  mergeAgenticSessionPaths,
   validateAllowBrowserAllowlistResponse,
 } from "./adversarial_browser_driver.mjs";
 
@@ -156,3 +157,14 @@ function testClassifyMazeDocumentRecognizesBlockFallback() {
 testClassifyMazeDocumentRecognizesMazePages();
 testClassifyMazeDocumentRecognizesChallengeFallback();
 testClassifyMazeDocumentRecognizesBlockFallback();
+
+function testMergeAgenticSessionPathsRootsAndDeduplicatesWithinBudget() {
+  const merged = mergeAgenticSessionPaths(
+    ["/sim/public/research/", "/sim/public/research/"],
+    ["/sim/public/plans/", "/sim/public/work/"],
+    3,
+  );
+  assert.deepEqual(merged, ["/", "/sim/public/research/", "/sim/public/plans/"]);
+}
+
+testMergeAgenticSessionPathsRootsAndDeduplicatesWithinBudget();

@@ -125,17 +125,27 @@ pub struct LlmRuntimeRealismReceipt {
     pub profile_id: String,
     pub planned_activity_budget: u64,
     pub effective_activity_budget: u64,
-    pub planned_burst_size: u64,
-    pub effective_burst_size: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub planned_burst_size: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub effective_burst_size: Option<u64>,
     pub activity_count: u64,
-    pub burst_count: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub burst_count: Option<u64>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub burst_sizes: Vec<u64>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub inter_activity_gaps_ms: Vec<u64>,
-    pub focused_page_set_size: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub focused_page_set_size: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub top_level_action_count: Option<u64>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub dwell_intervals_ms: Vec<u64>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub session_handles: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub identity_rotation_count: Option<u64>,
     pub stop_reason: String,
 }
 

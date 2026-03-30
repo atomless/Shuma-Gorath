@@ -20,6 +20,15 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from scripts.tests.adversarial_runner import llm_fulfillment
+from scripts.tests.adversarial_container.worker import (
+    SIM_TAG_HEADER_LANE,
+    SIM_TAG_HEADER_NONCE,
+    SIM_TAG_HEADER_PROFILE,
+    SIM_TAG_HEADER_RUN_ID,
+    SIM_TAG_HEADER_SIGNATURE,
+    SIM_TAG_HEADER_TIMESTAMP,
+)
+from scripts.tests.adversarial_container_runner import build_sim_tag_envelopes
 from scripts.tests.adversarial_runner.contracts import (
     normalize_lane_realism_profile,
     resolve_lane_realism_profile,
@@ -28,10 +37,16 @@ from scripts.tests.adversarial_runner.realism import (
     partition_activity_budget,
     realism_range_value,
 )
+from scripts.tests.playwright_runtime import build_playwright_env, ensure_playwright_chromium
 
 
 LLM_RUNTIME_RESULT_SCHEMA_VERSION = "adversary-sim-llm-runtime-result.v1"
 REQUEST_MODE_REALISM_PLAN_SCHEMA_VERSION = "adversary-sim-llm-request-realism-plan.v1"
+BROWSER_MODE_REALISM_PLAN_SCHEMA_VERSION = "adversary-sim-llm-browser-realism-plan.v1"
+DEFAULT_AGENTIC_BROWSER_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+)
 DEFAULT_PUBLIC_HINT_PATHS = ["/robots.txt"]
 
 
@@ -65,6 +80,131 @@ def _normalized_request_mode_actions(actions: list[dict[str, Any]] | None) -> li
             "label": "root",
         }
     ]
+
+
+def _normalized_browser_mode_actions(actions: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+    normalized: list[dict[str, Any]] = []
+    for index, action in enumerate(list(actions or []), start=1):
+        if not isinstance(action, dict):
+            continue
+        action_type = str(action.get("action_type") or "").strip() or "browser_navigate"
+        path = str(action.get("path") or "").strip() or "/"
+        label = str(action.get("label") or "").strip()
+        normalized.append(
+            {
+                "action_index": index,
+                "action_type": action_type,
+                "path": path,
+                "label": label or None,
+            }
+        )
+    if normalized:
+        return normalized
+    return [
+        {
+            "action_index": 1,
+            "action_type": "browser_navigate",
+            "path": "/",
+            "label": "root",
+        }
+    ]
+
+
+def _focused_browser_mode_paths(
+    fulfillment_plan: dict[str, Any],
+    actions: list[dict[str, Any]],
+    *,
+    top_level_action_budget: int,
+) -> list[str]:
+    candidate_paths: list[str] = []
+    seen_paths = set()
+    for action in actions:
+        path = str(action.get("path") or "").strip() or "/"
+        if path in seen_paths:
+            continue
+        seen_paths.add(path)
+        candidate_paths.append(path)
+    if "/" not in seen_paths:
+        candidate_paths.insert(0, "/")
+
+    unique_count = len(candidate_paths)
+    min_focus_size = 1 if unique_count <= 1 else 2
+    max_focus_size = max(min_focus_size, min(3, unique_count, top_level_action_budget))
+    focus_size = realism_range_value(
+        {"min": min_focus_size, "max": max_focus_size},
+        fulfillment_plan.get("run_id"),
+        fulfillment_plan.get("tick_id"),
+        "browser_focused_page_set_size",
+    )
+    return candidate_paths[:focus_size]
+
+
+def _browser_dwell_intervals_ms(
+    fulfillment_plan: dict[str, Any],
+    top_level_action_budget: int,
+) -> list[int]:
+    profile = dict(fulfillment_plan.get("realism_profile") or {})
+    dwell_intervals_ms: list[int] = []
+    for action_index in range(1, top_level_action_budget):
+        dwell_ms = realism_range_value(
+            dict(profile.get("navigation_dwell_ms") or {}),
+            fulfillment_plan.get("run_id"),
+            fulfillment_plan.get("tick_id"),
+            fulfillment_plan.get("fulfillment_mode"),
+            "navigation_dwell_ms",
+            action_index,
+        )
+        dwell_intervals_ms.append(dwell_ms)
+    return dwell_intervals_ms
+
+
+def build_browser_mode_realism_execution_plan(
+    *,
+    fulfillment_plan: dict[str, Any],
+    generation_result: dict[str, Any],
+) -> dict[str, Any]:
+    capability_envelope = dict(fulfillment_plan.get("capability_envelope") or {})
+    profile = normalize_lane_realism_profile(
+        fulfillment_plan.get("realism_profile"),
+        field_name="llm_fulfillment_plan.realism_profile",
+    )
+    planned_activity_budget = realism_range_value(
+        dict(profile.get("activity_budget") or {}),
+        fulfillment_plan.get("run_id"),
+        fulfillment_plan.get("tick_id"),
+        fulfillment_plan.get("fulfillment_mode"),
+        "activity_budget",
+    )
+    top_level_action_budget = max(
+        1,
+        min(
+            int(capability_envelope.get("max_actions") or 1),
+            planned_activity_budget,
+        ),
+    )
+    candidate_actions = _normalized_browser_mode_actions(
+        list(generation_result.get("actions") or [])
+    )
+    focused_page_paths = _focused_browser_mode_paths(
+        fulfillment_plan,
+        candidate_actions,
+        top_level_action_budget=top_level_action_budget,
+    )
+    dwell_intervals_ms = _browser_dwell_intervals_ms(
+        fulfillment_plan,
+        top_level_action_budget,
+    )
+    return {
+        "schema_version": BROWSER_MODE_REALISM_PLAN_SCHEMA_VERSION,
+        "profile_id": str(profile.get("profile_id") or ""),
+        "planned_activity_budget": planned_activity_budget,
+        "effective_activity_budget": top_level_action_budget,
+        "top_level_action_budget": top_level_action_budget,
+        "focused_page_paths": focused_page_paths,
+        "focused_page_set_size": len(focused_page_paths),
+        "dwell_intervals_ms": dwell_intervals_ms,
+        "session_handles": ["agentic-browser-session-1"],
+    }
 
 
 def _focused_request_mode_actions(
@@ -492,6 +632,133 @@ def run_request_mode_blackbox(
     return payload
 
 
+def run_browser_mode_blackbox(
+    *,
+    base_url: str,
+    fulfillment_plan: dict[str, Any],
+    generation_result: dict[str, Any],
+    public_hint_paths: list[str] | None = None,
+    realism_execution_plan: dict[str, Any] | None = None,
+    runner: Any = subprocess.run,
+) -> dict[str, Any]:
+    if realism_execution_plan is None:
+        realism_execution_plan = build_browser_mode_realism_execution_plan(
+            fulfillment_plan=fulfillment_plan,
+            generation_result=generation_result,
+        )
+
+    capability_envelope = dict(fulfillment_plan.get("capability_envelope") or {})
+    browser_status = ensure_playwright_chromium()
+    runner_env = build_playwright_env(
+        base_env=os.environ,
+        browser_cache=Path(browser_status.browser_cache),
+    )
+    sim_tag_secret = str(os.environ.get("SHUMA_SIM_TELEMETRY_SECRET") or "").strip()
+    if not sim_tag_secret:
+        raise RuntimeError("browser_mode_missing_sim_telemetry_secret")
+    normalized_public_hint_paths = [
+        str(path).strip()
+        for path in list(public_hint_paths or DEFAULT_PUBLIC_HINT_PATHS)
+        if str(path).strip()
+    ]
+
+    top_level_action_budget = max(
+        1,
+        int(realism_execution_plan.get("top_level_action_budget") or 1),
+    )
+    sim_tag_envelope_count = max(24, top_level_action_budget * 8)
+    sim_tag_envelopes = build_sim_tag_envelopes(
+        secret=sim_tag_secret,
+        run_id=str(fulfillment_plan.get("run_id") or "").strip(),
+        profile=str(fulfillment_plan.get("fulfillment_mode") or "").strip() or "browser_mode",
+        lane=str(fulfillment_plan.get("lane") or "").strip() or "bot_red_team",
+        count=sim_tag_envelope_count,
+    )
+    command = [
+        "corepack",
+        "pnpm",
+        "exec",
+        "node",
+        str(REPO_ROOT / "scripts" / "tests" / "adversarial_browser_driver.mjs"),
+    ]
+    driver_input = {
+        "action": "agentic_browser_session",
+        "base_url": str(base_url).strip(),
+        "user_agent": DEFAULT_AGENTIC_BROWSER_USER_AGENT,
+        "timeout_ms": min(
+            60_000,
+            max(
+                15_000,
+                int(capability_envelope.get("max_time_budget_seconds") or 90) * 1_000,
+            ),
+        ),
+        "settle_ms": 0,
+        "storage_mode": "stateful_cookie_jar",
+        "session_plan": realism_execution_plan,
+        "public_hint_paths": normalized_public_hint_paths,
+        "sim_identity": {
+            "run_id": str(fulfillment_plan.get("run_id") or "").strip(),
+            "profile": str(fulfillment_plan.get("fulfillment_mode") or "").strip() or "browser_mode",
+            "lane": str(fulfillment_plan.get("lane") or "").strip() or "bot_red_team",
+            "header_names": {
+                "run_id": SIM_TAG_HEADER_RUN_ID,
+                "profile": SIM_TAG_HEADER_PROFILE,
+                "lane": SIM_TAG_HEADER_LANE,
+                "timestamp": SIM_TAG_HEADER_TIMESTAMP,
+                "nonce": SIM_TAG_HEADER_NONCE,
+                "signature": SIM_TAG_HEADER_SIGNATURE,
+            },
+            "envelopes": sim_tag_envelopes,
+        },
+    }
+    timeout_seconds = max(
+        20.0,
+        float(int(capability_envelope.get("max_time_budget_seconds") or 90) + 10),
+    )
+    completed = runner(
+        command,
+        input=json.dumps(driver_input, separators=(",", ":")),
+        text=True,
+        capture_output=True,
+        timeout=timeout_seconds,
+        check=False,
+        env=runner_env,
+        cwd=str(REPO_ROOT),
+    )
+    parsed_payload = json.loads(str(completed.stdout or "{}").strip() or "{}")
+    if not isinstance(parsed_payload, dict):
+        raise RuntimeError("browser_driver_report_invalid")
+
+    top_level_actions = [
+        dict(item)
+        for item in list(parsed_payload.get("top_level_actions") or [])
+        if isinstance(item, dict)
+    ]
+    detail = str(parsed_payload.get("detail") or "").strip()
+    browser_evidence = dict(parsed_payload.get("browser_evidence") or {})
+    realism_receipt = dict(parsed_payload.get("realism_receipt") or {})
+    worker_payload = {
+        "requests_sent": len(top_level_actions),
+        "errors": [] if completed.returncode == 0 and bool(parsed_payload.get("ok")) else [detail or "browser_driver_failed"],
+        "traffic": top_level_actions,
+        "browser_evidence": browser_evidence,
+        "realism_receipt": realism_receipt or None,
+    }
+    return {
+        "passed": completed.returncode == 0 and bool(parsed_payload.get("ok")),
+        "terminal_failure": {
+            "terminal_failure": "" if completed.returncode == 0 and bool(parsed_payload.get("ok")) else "browser_mode_execution_failed",
+            "reason": detail,
+        },
+        "worker_failure_detail": "" if completed.returncode == 0 and bool(parsed_payload.get("ok")) else detail,
+        "worker_payload": worker_payload,
+        "_runner_exit_code": int(completed.returncode),
+        "_runner_stdout": str(completed.stdout or ""),
+        "_runner_stderr": str(completed.stderr or ""),
+        "_executed_actions": top_level_actions,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Run bounded LLM runtime actions for the bot_red_team lane"
@@ -525,15 +792,27 @@ def main() -> int:
     )
 
     if str(fulfillment_plan.get("fulfillment_mode") or "").strip() == "browser_mode":
+        browser_mode_execution_plan = build_browser_mode_realism_execution_plan(
+            fulfillment_plan=fulfillment_plan,
+            generation_result=generation_result,
+        )
+        report_payload = run_browser_mode_blackbox(
+            base_url=base_url,
+            fulfillment_plan=fulfillment_plan,
+            generation_result=generation_result,
+            public_hint_paths=public_hint_paths,
+            realism_execution_plan=browser_mode_execution_plan,
+        )
+        generation_result = {
+            **generation_result,
+            "actions": list(report_payload.get("_executed_actions") or []),
+        }
         result = build_llm_runtime_result(
             fulfillment_plan=fulfillment_plan,
             generation_result=generation_result,
-            report_payload=None,
+            report_payload=report_payload,
             tick_completed_at=tick_completed_at,
             worker_id=worker_id,
-            error="browser_mode_dispatch_not_yet_supported_by_blackbox_worker",
-            failure_class="transport",
-            terminal_failure="browser_mode_not_supported",
         )
     else:
         request_mode_execution_plan = build_request_mode_realism_execution_plan(
