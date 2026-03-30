@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 
 use super::adversary_sim::{RuntimeLane, WorkerFailureClass};
 use super::adversary_sim_llm_lane::LlmFulfillmentPlan;
+use super::adversary_sim_realism_profile::LaneRealismProfile;
 use crate::observability::scrapling_owned_surface::ScraplingSurfaceObservationReceipt;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -37,6 +38,7 @@ pub struct ScraplingWorkerPlan {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub browser_proxy_url: Option<String>,
     pub tick_started_at: u64,
+    pub realism_profile: LaneRealismProfile,
     pub max_requests: u64,
     pub max_depth: u64,
     pub max_bytes: u64,

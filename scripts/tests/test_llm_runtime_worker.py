@@ -7,12 +7,53 @@ import tempfile
 import unittest
 
 from scripts.supervisor import llm_runtime_worker
+from scripts.tests.adversarial_runner.contracts import resolve_lane_realism_profile
 
 
 class LlmRuntimeWorkerUnitTests(unittest.TestCase):
     def test_extract_llm_fulfillment_plan_requires_nested_plan(self):
         with self.assertRaises(RuntimeError):
             llm_runtime_worker.extract_llm_fulfillment_plan({})
+
+    def test_extract_llm_fulfillment_plan_preserves_canonical_realism_profile(self):
+        payload = {
+            "llm_fulfillment_plan": {
+                "schema_version": "adversary-sim-llm-fulfillment-plan.v1",
+                "run_id": "simrun-llm-runtime",
+                "tick_id": "llm-fit-tick-0",
+                "lane": "bot_red_team",
+                "fulfillment_mode": "request_mode",
+                "realism_profile": resolve_lane_realism_profile(
+                    "bot_red_team",
+                    "request_mode",
+                ),
+            }
+        }
+
+        plan = llm_runtime_worker.extract_llm_fulfillment_plan(payload)
+
+        self.assertEqual(
+            plan["realism_profile"],
+            resolve_lane_realism_profile("bot_red_team", "request_mode"),
+        )
+
+    def test_extract_llm_fulfillment_plan_rejects_noncanonical_realism_profile(self):
+        payload = {
+            "llm_fulfillment_plan": {
+                "schema_version": "adversary-sim-llm-fulfillment-plan.v1",
+                "run_id": "simrun-llm-runtime",
+                "tick_id": "llm-fit-tick-0",
+                "lane": "bot_red_team",
+                "fulfillment_mode": "request_mode",
+                "realism_profile": {
+                    **resolve_lane_realism_profile("bot_red_team", "request_mode"),
+                    "profile_id": "wrong.profile.v1",
+                },
+            }
+        }
+
+        with self.assertRaises(RuntimeError):
+            llm_runtime_worker.extract_llm_fulfillment_plan(payload)
 
     def test_build_llm_runtime_result_preserves_provider_lineage_and_receipts(self):
         plan = {
@@ -25,6 +66,7 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
             "backend_state": "configured",
             "category_targets": ["http_agent", "ai_scraper_bot"],
             "capability_envelope": {"max_actions": 4, "max_time_budget_seconds": 120},
+            "realism_profile": resolve_lane_realism_profile("bot_red_team", "request_mode"),
         }
         generation = {
             "generation_source": "provider_response",
@@ -88,6 +130,7 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
             "backend_state": "configured",
             "category_targets": ["browser_agent"],
             "capability_envelope": {"max_actions": 4, "max_time_budget_seconds": 90},
+            "realism_profile": resolve_lane_realism_profile("bot_red_team", "browser_mode"),
         }
         generation = {
             "generation_source": "fallback_validation_error",
@@ -136,6 +179,7 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
             "backend_state": "configured",
             "category_targets": ["http_agent"],
             "capability_envelope": {"max_actions": 3, "max_time_budget_seconds": 120},
+            "realism_profile": resolve_lane_realism_profile("bot_red_team", "request_mode"),
         }
         generation = {
             "generation_source": "provider_response",

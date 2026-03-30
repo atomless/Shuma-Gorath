@@ -3,6 +3,7 @@ pub(crate) mod adversary_sim_corpus;
 pub(crate) mod adversary_sim_diagnostics;
 pub(crate) mod adversary_sim_llm_lane;
 pub(crate) mod adversary_sim_lane_runtime;
+pub(crate) mod adversary_sim_realism_profile;
 pub(crate) mod adversary_sim_status_truth;
 pub(crate) mod adversary_sim_state;
 pub(crate) mod adversary_sim_worker_plan;

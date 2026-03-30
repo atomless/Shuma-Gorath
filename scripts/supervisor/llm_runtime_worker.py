@@ -20,6 +20,10 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from scripts.tests.adversarial_runner import llm_fulfillment
+from scripts.tests.adversarial_runner.contracts import (
+    normalize_lane_realism_profile,
+    resolve_lane_realism_profile,
+)
 
 
 LLM_RUNTIME_RESULT_SCHEMA_VERSION = "adversary-sim-llm-runtime-result.v1"
@@ -41,7 +45,19 @@ def extract_llm_fulfillment_plan(beat_response_payload: dict[str, Any]) -> dict[
     plan = beat_response_payload.get("llm_fulfillment_plan")
     if not isinstance(plan, dict):
         raise RuntimeError("beat response must include nested llm_fulfillment_plan object")
-    return dict(plan)
+    normalized_plan = dict(plan)
+    fulfillment_mode = str(normalized_plan.get("fulfillment_mode") or "").strip()
+    realism_profile = normalize_lane_realism_profile(
+        normalized_plan.get("realism_profile"),
+        field_name="llm_fulfillment_plan.realism_profile",
+    )
+    expected_realism_profile = resolve_lane_realism_profile("bot_red_team", fulfillment_mode)
+    if realism_profile != expected_realism_profile:
+        raise RuntimeError(
+            "llm_fulfillment_plan realism_profile must match the canonical lane realism contract"
+        )
+    normalized_plan["realism_profile"] = realism_profile
+    return normalized_plan
 
 
 def _normalized_host_root_entrypoint(base_url: str) -> str:

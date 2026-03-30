@@ -4,6 +4,43 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-30)
 
+### SIM-REALISM-1A Freeze An Executable Realism Profile Contract For Scrapling And Agentic Traffic
+
+- [x] Completed the shared realism-contract tranche across:
+  - [`../src/admin/adversary_sim_realism_profile.rs`](../src/admin/adversary_sim_realism_profile.rs)
+  - [`../src/admin/adversary_sim_worker_plan.rs`](../src/admin/adversary_sim_worker_plan.rs)
+  - [`../src/admin/adversary_sim_lane_runtime.rs`](../src/admin/adversary_sim_lane_runtime.rs)
+  - [`../src/admin/adversary_sim_llm_lane.rs`](../src/admin/adversary_sim_llm_lane.rs)
+  - [`../src/admin/mod.rs`](../src/admin/mod.rs)
+  - [`../scripts/tests/adversarial/lane_realism_contract.v1.json`](../scripts/tests/adversarial/lane_realism_contract.v1.json)
+  - [`../scripts/tests/adversarial_runner/contracts.py`](../scripts/tests/adversarial_runner/contracts.py)
+  - [`../scripts/tests/adversarial_runner/llm_fulfillment.py`](../scripts/tests/adversarial_runner/llm_fulfillment.py)
+  - [`../scripts/supervisor/scrapling_worker.py`](../scripts/supervisor/scrapling_worker.py)
+  - [`../scripts/supervisor/llm_runtime_worker.py`](../scripts/supervisor/llm_runtime_worker.py)
+  - [`../scripts/tests/test_adversarial_lane_realism_contract.py`](../scripts/tests/test_adversarial_lane_realism_contract.py)
+  - [`../scripts/tests/test_scrapling_worker.py`](../scripts/tests/test_scrapling_worker.py)
+  - [`../scripts/tests/test_llm_runtime_worker.py`](../scripts/tests/test_llm_runtime_worker.py)
+  - [`../scripts/tests/test_llm_fulfillment.py`](../scripts/tests/test_llm_fulfillment.py)
+  - [`../scripts/tests/test_adversary_sim_make_targets.py`](../scripts/tests/test_adversary_sim_make_targets.py)
+  - [`../scripts/tests/adversarial/README.md`](../scripts/tests/adversarial/README.md)
+  - [`../docs/adversarial-operator-guide.md`](../docs/adversarial-operator-guide.md)
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../Makefile`](../Makefile)
+- [x] What landed:
+  - one versioned shared realism-profile contract now defines cadence, burst, dwell, identity rotation, browser or JavaScript propensity, retry ceilings, and receipt-field expectations for Scrapling personas and Agentic modes,
+  - Rust worker-plan generation now emits the canonical profile contract for both `scrapling_traffic` and `bot_red_team`,
+  - host-side Scrapling and LLM workers now fail closed if a runtime plan carries a non-canonical realism profile,
+  - and the focused Make-driven proof surface now freezes planner, worker, and target-contract parity around that shared realism contract.
+- [x] Why:
+  - the next realism work needs one executable source of truth for lane behavior shape before we start changing pacing, burst, dwell, or session behavior, otherwise later work would blur contract drift with behavior changes.
+- [x] Evidence:
+  - `make test-adversarial-lane-realism-contract`
+  - `make test-adversarial-lane-contract`
+  - `make test-adversarial-llm-fit`
+  - `make test-adversarial-llm-runtime-dispatch`
+  - `make test-adversary-sim-scrapling-worker`
+  - `make test-adversary-sim-make-target-contract`
+
 ### SIM-SCR-UPSTREAM-1 Upgrade The Repo-Owned Scrapling Runtime To Upstream 0.4.3
 
 - [x] Completed the upstream Scrapling upgrade tranche across:

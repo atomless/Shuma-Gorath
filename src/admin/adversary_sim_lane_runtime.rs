@@ -23,6 +23,7 @@ use super::adversary_sim::{
     SCRAPLING_WORKER_PLAN_SCHEMA_VERSION,
 };
 use super::adversary_sim_corpus::deterministic_runtime_profile;
+use super::adversary_sim_realism_profile::scrapling_realism_profile_for_mode;
 use super::adversary_sim_state::{
     active_lane_count_for_lane, autonomous_execution_profile, effective_active_lane,
 };
@@ -533,6 +534,7 @@ fn next_scrapling_worker_plan(now: u64, state: &mut ControlState) -> ScraplingWo
         request_proxy_url,
         browser_proxy_url,
         tick_started_at: now,
+        realism_profile: scrapling_realism_profile_for_mode(fulfillment_mode),
         max_requests: SCRAPLING_MAX_REQUESTS_PER_TICK,
         max_depth: SCRAPLING_MAX_DEPTH_PER_TICK,
         max_bytes: SCRAPLING_MAX_BYTES_PER_TICK,
@@ -559,7 +561,8 @@ fn optional_scrapling_proxy_env(name: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::scrapling_fulfillment_mode_for_tick;
+    use super::{next_scrapling_worker_plan, scrapling_fulfillment_mode_for_tick};
+    use crate::admin::adversary_sim::ControlState;
 
     #[test]
     fn scrapling_fulfillment_modes_cycle_across_full_spectrum_personas() {
@@ -569,6 +572,22 @@ mod tests {
         assert_eq!(scrapling_fulfillment_mode_for_tick(3), "stealth_browser");
         assert_eq!(scrapling_fulfillment_mode_for_tick(4), "http_agent");
         assert_eq!(scrapling_fulfillment_mode_for_tick(5), "crawler");
+    }
+
+    #[test]
+    fn scrapling_worker_plan_surfaces_realism_profile_contract() {
+        let mut state = ControlState::default();
+        let plan = next_scrapling_worker_plan(1_700_000_000, &mut state);
+        let contract: serde_json::Value = serde_json::from_str(include_str!(
+            "../../scripts/tests/adversarial/lane_realism_contract.v1.json"
+        ))
+        .expect("lane realism contract parses");
+        let expected = &contract["profiles"]["scrapling_traffic"]["crawler"];
+
+        assert_eq!(
+            serde_json::to_value(&plan.realism_profile).expect("realism profile serializes"),
+            *expected
+        );
     }
 }
 

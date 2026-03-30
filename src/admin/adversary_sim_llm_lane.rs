@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::config::FrontierSummary;
 
 use super::adversary_sim::{ControlState, RuntimeLane};
+use super::adversary_sim_realism_profile::{llm_realism_profile_for_mode, LaneRealismProfile};
 
 pub(crate) const LLM_FULFILLMENT_PLAN_SCHEMA_VERSION: &str =
     "adversary-sim-llm-fulfillment-plan.v1";
@@ -108,6 +109,7 @@ pub(crate) struct LlmFulfillmentPlan {
     pub black_box_boundary: LlmBlackBoxBoundary,
     pub episode_harness: LlmEpisodeHarness,
     pub capability_envelope: LlmCapabilityEnvelope,
+    pub realism_profile: LaneRealismProfile,
 }
 
 pub(crate) fn next_llm_fulfillment_plan(
@@ -143,6 +145,7 @@ pub(crate) fn next_llm_fulfillment_plan(
         black_box_boundary: black_box_boundary_contract(),
         episode_harness: episode_harness_contract(),
         capability_envelope: capability_envelope_for_mode(mode),
+        realism_profile: llm_realism_profile_for_mode(mode.as_str()),
     }
 }
 
@@ -375,5 +378,21 @@ mod tests {
             .terminal_conditions
             .contains(&"objective_completed".to_string()));
         assert_eq!(plan.episode_harness.max_retained_episode_summaries, 5);
+    }
+
+    #[test]
+    fn llm_fulfillment_plan_surfaces_realism_profile_contract() {
+        let frontier = frontier_summary();
+        let plan = next_llm_fulfillment_plan(1_700_000_000, &ControlState::default(), &frontier);
+        let contract: serde_json::Value = serde_json::from_str(include_str!(
+            "../../scripts/tests/adversarial/lane_realism_contract.v1.json"
+        ))
+        .expect("lane realism contract parses");
+        let expected = &contract["profiles"]["bot_red_team"]["browser_mode"];
+
+        assert_eq!(
+            serde_json::to_value(&plan.realism_profile).expect("realism profile serializes"),
+            *expected
+        );
     }
 }

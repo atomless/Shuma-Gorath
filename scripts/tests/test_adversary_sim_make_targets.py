@@ -62,6 +62,29 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
             body,
         )
 
+    def test_lane_realism_contract_target_uses_shared_planner_and_worker_selectors(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-adversarial-lane-realism-contract:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn(
+            "scrapling_worker_plan_surfaces_realism_profile_contract",
+            body,
+        )
+        self.assertIn(
+            "llm_fulfillment_plan_surfaces_realism_profile_contract",
+            body,
+        )
+        self.assertIn("scripts/tests/test_llm_runtime_worker.py", body)
+        self.assertIn(
+            "scripts.tests.test_scrapling_worker.ScraplingWorkerUnitTests.test_execute_worker_plan_rejects_noncanonical_realism_profile",
+            body,
+        )
+
     def test_lane_selection_target_uses_control_lane_selectors(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")
         match = re.search(
@@ -141,7 +164,7 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
             "snapshot_payload_projects_recent_run_llm_runtime_summary",
             body,
         )
-        self.assertIn("test-dashboard-red-team-truth-basis", body)
+        self.assertIn("test-dashboard-red-team-pane", body)
 
     def test_scrapling_category_fit_target_uses_bounded_selectors(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")
@@ -154,7 +177,7 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
         body = match.group(0)
         self.assertIn("observability::non_human_lane_fulfillment::tests::", body)
         self.assertIn(
-            "scrapling_fulfillment_modes_cycle_across_request_native_personas",
+            "scrapling_fulfillment_modes_cycle_across_full_spectrum_personas",
             body,
         )
         self.assertIn(

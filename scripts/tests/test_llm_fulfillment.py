@@ -117,6 +117,10 @@ class LlmFulfillmentUnitTests(unittest.TestCase):
         self.assertEqual(plan["capability_envelope"]["allowed_tools"], ["http_get"])
         self.assertFalse(plan["capability_envelope"]["browser_automation_allowed"])
         self.assertTrue(plan["capability_envelope"]["direct_request_emission_allowed"])
+        self.assertEqual(
+            plan["realism_profile"]["profile_id"],
+            "agentic.request_mode.v1",
+        )
 
     def test_generate_llm_frontier_actions_uses_provider_response_when_frontier_key_exists(self):
         plan = llm_fulfillment.build_llm_fulfillment_plan(

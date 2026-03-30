@@ -22,6 +22,10 @@ if str(REPO_ROOT) not in sys.path:
 
 from scripts.tests import shared_host_scope
 from scripts.tests import sim_tag_helpers
+from scripts.tests.adversarial_runner.contracts import (
+    normalize_lane_realism_profile,
+    resolve_lane_realism_profile,
+)
 
 
 def _import_scrapling() -> tuple[Any, Any, Any, Any, Any]:
@@ -1561,6 +1565,18 @@ def execute_worker_plan(
         if surface_targets != expected_surface_targets:
             raise WorkerConfigError(
                 "worker_plan surface_targets must match the bounded fulfillment_mode mapping"
+            )
+        realism_profile = normalize_lane_realism_profile(
+            plan.get("realism_profile"),
+            field_name="worker_plan.realism_profile",
+        )
+        expected_realism_profile = resolve_lane_realism_profile(
+            "scrapling_traffic",
+            fulfillment_mode,
+        )
+        if realism_profile != expected_realism_profile:
+            raise WorkerConfigError(
+                "worker_plan realism_profile must match the canonical lane realism contract"
             )
         if not sim_telemetry_secret.strip():
             raise WorkerConfigError("SHUMA_SIM_TELEMETRY_SECRET is required for Scrapling worker tagging")

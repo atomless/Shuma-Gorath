@@ -16,6 +16,7 @@ from scripts.tests.adversarial_runner.contracts import (
     ATTACKER_FORBIDDEN_PATH_PREFIXES,
     CONTAINER_RUNTIME_PROFILE_PATH,
     FRONTIER_ACTION_CONTRACT_PATH,
+    resolve_lane_realism_profile,
 )
 from scripts.tests.adversarial_runner.shared import dict_or_empty, int_or_zero, list_or_empty
 from scripts.tests.frontier_action_contract import (
@@ -334,6 +335,10 @@ def load_llm_fulfillment_contract(
             mode_contract,
             runtime_contract,
         )
+        modes[mode_name]["realism_profile"] = resolve_lane_realism_profile(
+            "bot_red_team",
+            mode_name,
+        )
 
     black_box_boundary = _normalize_black_box_boundary(
         dict_or_empty(frontier_contract.get("llm_attacker_black_box"))
@@ -419,6 +424,7 @@ def build_llm_fulfillment_plan(
                 mode_contract.get("max_time_budget_seconds")
             ),
         },
+        "realism_profile": dict(mode_contract.get("realism_profile") or {}),
     }
 
 

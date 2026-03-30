@@ -44,6 +44,7 @@ make test-adversarial-repeatability # Deterministic drift gate across smoke/abus
 make test-adversarial-promote-candidates # Frontier finding triage + deterministic replay/promotion checks
 make test-adversarial-container-isolation # Validate black-box container isolation contract (Docker required)
 make test-adversarial-container-blackbox # Run containerized black-box adversary worker (Docker required)
+make test-adversarial-lane-realism-contract # Focused shared Scrapling/Agentic realism-profile contract gate
 make test-adversarial-llm-fit # Focused bounded LLM fulfillment-plan contract gate
 make test-adversarial-llm-runtime-dispatch # Focused bounded LLM runtime dispatch + typed ingest gate
 make test-scrapling-game-loop-mainline # Focused active-mainline bundle: attacker-faithful Scrapling plus the first working game loop
@@ -210,6 +211,7 @@ Notes:
 - `make test-dashboard-traffic-pane` is the narrow proof path for `TRAFFIC-TAB-1`; it covers traffic-first tab ordering, shared refresh-bar eligibility across `Traffic` and `Game Loop`, and a rendered Playwright proof that Traffic owns the traffic picture while Diagnostics narrows toward furniture proof.
 - `make test-dashboard-runtime-unit-contracts` is the narrow non-rendered proof path for dashboard native-runtime and refresh-runtime behavior; use it when auth/session restore, cache invalidation, or config-mutation invalidation logic changes without needing broader Playwright churn.
 - `make test-scrapling-game-loop-mainline` is the fastest truthful local/pre-merge proof path for the current active mainline. It bundles the attacker-faithful Scrapling owned-surface, malicious request-native, coverage-receipt, and first-working-game-loop gates without implying live/shared-host operational proof.
+- `make test-adversarial-lane-realism-contract` is the focused proof path for `SIM-REALISM-1A`; it proves the new versioned `realism_profile` contract is emitted by both planners and validated by both host-side worker paths before later pacing/dwell behavior work starts consuming it.
 - `make test-adversarial-llm-runtime-dispatch` is the focused proof path for `SIM-LLM-1C2`; it covers the typed Rust worker-result ingest, supervisor dispatch knowledge, and the dedicated Python LLM runtime worker contract without pretending the later receipt-projection and operator-surface chain is already complete.
 - `make test-adversary-sim-scrapling-owned-surface-contract` is the narrow proof path for the attacker-faithful Scrapling owned-surface matrix. Use it when changing which defenses the Scrapling lane owns, which fulfillment modes must touch them, or whether the contract says Scrapling should pass, fail, or expect mixed outcomes on those surfaces.
 - `make test-adversary-sim-scrapling-malicious-request-native` is the narrow proof path for widened request-native Scrapling abuse behavior. Use it when changing worker-plan route hints, per-mode malicious submit behavior, or the rule that Scrapling personas must mix ordinary success traffic with hostile request-native challenge, PoW, or tarpit interactions on the surfaces they own.
@@ -349,6 +351,7 @@ Available profiles:
 - `make test-adversarial-soak` - deep soak alias for `full_coverage` (scheduled/manual gate)
 - `make test-adversarial-manifest` - schema/fixture validation without server
 - `make test-adversarial-lane-contract` - black-box attacker/control capability contract parity check across deterministic/container tooling plus request-native header allowances used by Scrapling personas
+- `make test-adversarial-lane-realism-contract` - shared Scrapling/Agentic realism-profile contract parity check across Rust planners, the Python LLM fulfillment helper, the host-side LLM runtime worker, and the Scrapling worker fail-closed validation path
 - `make test-shared-host-scope-contract` - shared-host descriptor and fail-closed scope gate parity check across the versioned contract plus seed-tooling validator
 - `make test-shared-host-seed-contract` - minimal shared-host seed inventory contract parity check, including required primary URL handling, bounded `robots.txt` hint ingestion, provenance merge, and rejection diagnostics
 - `make prepare-scrapling-deploy` - shared-host deploy-prep helper that infers the fail-closed scope fence, root-only seed, runtime env mappings, and deploy-time receipt from the canonical public base URL

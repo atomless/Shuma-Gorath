@@ -17,6 +17,7 @@ from urllib.parse import parse_qs, urljoin, urlsplit
 import scripts.tests.adversarial_simulation_runner as sim_runner
 import scripts.tests.shared_host_scope as shared_host_scope
 import scripts.tests.shared_host_seed_inventory as shared_host_seed_inventory
+from scripts.tests.adversarial_runner.contracts import resolve_lane_realism_profile
 
 try:
     import scripts.supervisor.scrapling_worker as scrapling_worker
@@ -381,6 +382,10 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
                 "category_targets": category_targets,
                 "surface_targets": mode_surface_targets[fulfillment_mode],
                 "tick_started_at": int(time.time()),
+                "realism_profile": resolve_lane_realism_profile(
+                    "scrapling_traffic",
+                    fulfillment_mode,
+                ),
                 "max_requests": max_requests,
                 "max_depth": 2,
                 "max_bytes": 65536,
@@ -423,6 +428,23 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
 
         self.assertEqual(result["schema_version"], "adversary-sim-scrapling-worker-result.v1")
         self.assertEqual(result.get("category_targets"), ["ai_scraper_bot"])
+
+    def test_execute_worker_plan_rejects_noncanonical_realism_profile(self) -> None:
+        self.assertIsNotNone(scrapling_worker, "worker module missing")
+
+        beat_payload = self._make_beat_payload("crawler", ["indexing_bot"])
+        beat_payload["worker_plan"]["realism_profile"]["profile_id"] = "wrong.profile.v1"
+
+        result = scrapling_worker.execute_worker_plan(  # type: ignore[attr-defined]
+            beat_payload,
+            scope_descriptor_path=self.descriptor_path,
+            seed_inventory_path=self.inventory_path,
+            crawldir=self.crawldir,
+            sim_telemetry_secret=SIM_SECRET,
+        )
+
+        self.assertEqual(result["failure_class"], "transport")
+        self.assertIn("realism_profile", str(result.get("error") or ""))
 
     def test_request_native_session_kwargs_lock_explicit_chrome_impersonation_contract(self) -> None:
         self.assertIsNotNone(scrapling_worker, "worker module missing")

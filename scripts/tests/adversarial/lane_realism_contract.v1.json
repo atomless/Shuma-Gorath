@@ -1,0 +1,230 @@
+{
+  "schema_version": "sim-lane-realism-contract.v1",
+  "profiles": {
+    "scrapling_traffic": {
+      "crawler": {
+        "schema_version": "sim-lane-realism-profile.v1",
+        "profile_id": "scrapling.crawler.v1",
+        "activity_unit": "request",
+        "activity_budget": { "min": 6, "max": 14 },
+        "burst_size": { "min": 1, "max": 2 },
+        "intra_burst_jitter_ms": { "min": 300, "max": 1200 },
+        "between_burst_pause_ms": { "min": 0, "max": 0 },
+        "navigation_dwell_ms": { "min": 0, "max": 0 },
+        "identity_rotation": {
+          "strategy": "per_n_activities_when_proxy_available",
+          "min_every_n_activities": 2,
+          "max_every_n_activities": 4,
+          "stable_session_per_tick": false,
+          "proxy_required": true
+        },
+        "browser_propensity": "none",
+        "javascript_execution": "disabled",
+        "retry_ceiling": 2,
+        "receipt_contract": {
+          "schema_version": "sim-lane-realism-receipt.v1",
+          "required_fields": [
+            "activity_count",
+            "burst_count",
+            "burst_sizes",
+            "inter_activity_gaps_ms",
+            "identity_handles",
+            "identity_rotation_count",
+            "stop_reason"
+          ]
+        }
+      },
+      "bulk_scraper": {
+        "schema_version": "sim-lane-realism-profile.v1",
+        "profile_id": "scrapling.bulk_scraper.v1",
+        "activity_unit": "request",
+        "activity_budget": { "min": 18, "max": 45 },
+        "burst_size": { "min": 2, "max": 5 },
+        "intra_burst_jitter_ms": { "min": 200, "max": 800 },
+        "between_burst_pause_ms": { "min": 1000, "max": 3000 },
+        "navigation_dwell_ms": { "min": 0, "max": 0 },
+        "identity_rotation": {
+          "strategy": "per_n_activities_when_proxy_available",
+          "min_every_n_activities": 1,
+          "max_every_n_activities": 3,
+          "stable_session_per_tick": false,
+          "proxy_required": true
+        },
+        "browser_propensity": "none",
+        "javascript_execution": "disabled",
+        "retry_ceiling": 2,
+        "receipt_contract": {
+          "schema_version": "sim-lane-realism-receipt.v1",
+          "required_fields": [
+            "activity_count",
+            "burst_count",
+            "burst_sizes",
+            "inter_activity_gaps_ms",
+            "identity_handles",
+            "identity_rotation_count",
+            "stop_reason"
+          ]
+        }
+      },
+      "browser_automation": {
+        "schema_version": "sim-lane-realism-profile.v1",
+        "profile_id": "scrapling.browser_automation.v1",
+        "activity_unit": "action",
+        "activity_budget": { "min": 4, "max": 9 },
+        "burst_size": { "min": 1, "max": 1 },
+        "intra_burst_jitter_ms": { "min": 0, "max": 0 },
+        "between_burst_pause_ms": { "min": 0, "max": 0 },
+        "navigation_dwell_ms": { "min": 800, "max": 2500 },
+        "identity_rotation": {
+          "strategy": "none",
+          "min_every_n_activities": 0,
+          "max_every_n_activities": 0,
+          "stable_session_per_tick": true,
+          "proxy_required": false
+        },
+        "browser_propensity": "required",
+        "javascript_execution": "required",
+        "retry_ceiling": 1,
+        "receipt_contract": {
+          "schema_version": "sim-lane-realism-receipt.v1",
+          "required_fields": [
+            "activity_count",
+            "top_level_action_count",
+            "dwell_intervals_ms",
+            "session_handles",
+            "identity_rotation_count",
+            "stop_reason"
+          ]
+        }
+      },
+      "stealth_browser": {
+        "schema_version": "sim-lane-realism-profile.v1",
+        "profile_id": "scrapling.stealth_browser.v1",
+        "activity_unit": "action",
+        "activity_budget": { "min": 3, "max": 6 },
+        "burst_size": { "min": 1, "max": 1 },
+        "intra_burst_jitter_ms": { "min": 0, "max": 0 },
+        "between_burst_pause_ms": { "min": 0, "max": 0 },
+        "navigation_dwell_ms": { "min": 1400, "max": 3200 },
+        "identity_rotation": {
+          "strategy": "none",
+          "min_every_n_activities": 0,
+          "max_every_n_activities": 0,
+          "stable_session_per_tick": true,
+          "proxy_required": false
+        },
+        "browser_propensity": "required",
+        "javascript_execution": "required",
+        "retry_ceiling": 1,
+        "receipt_contract": {
+          "schema_version": "sim-lane-realism-receipt.v1",
+          "required_fields": [
+            "activity_count",
+            "top_level_action_count",
+            "dwell_intervals_ms",
+            "session_handles",
+            "identity_rotation_count",
+            "stop_reason"
+          ]
+        }
+      },
+      "http_agent": {
+        "schema_version": "sim-lane-realism-profile.v1",
+        "profile_id": "scrapling.http_agent.v1",
+        "activity_unit": "request",
+        "activity_budget": { "min": 10, "max": 24 },
+        "burst_size": { "min": 2, "max": 4 },
+        "intra_burst_jitter_ms": { "min": 100, "max": 500 },
+        "between_burst_pause_ms": { "min": 500, "max": 2000 },
+        "navigation_dwell_ms": { "min": 0, "max": 0 },
+        "identity_rotation": {
+          "strategy": "per_burst_when_proxy_available",
+          "min_every_n_activities": 1,
+          "max_every_n_activities": 1,
+          "stable_session_per_tick": false,
+          "proxy_required": true
+        },
+        "browser_propensity": "none",
+        "javascript_execution": "disabled",
+        "retry_ceiling": 2,
+        "receipt_contract": {
+          "schema_version": "sim-lane-realism-receipt.v1",
+          "required_fields": [
+            "activity_count",
+            "burst_count",
+            "burst_sizes",
+            "inter_activity_gaps_ms",
+            "identity_handles",
+            "identity_rotation_count",
+            "stop_reason"
+          ]
+        }
+      }
+    },
+    "bot_red_team": {
+      "browser_mode": {
+        "schema_version": "sim-lane-realism-profile.v1",
+        "profile_id": "agentic.browser_mode.v1",
+        "activity_unit": "action",
+        "activity_budget": { "min": 4, "max": 8 },
+        "burst_size": { "min": 1, "max": 1 },
+        "intra_burst_jitter_ms": { "min": 0, "max": 0 },
+        "between_burst_pause_ms": { "min": 0, "max": 0 },
+        "navigation_dwell_ms": { "min": 2000, "max": 7000 },
+        "identity_rotation": {
+          "strategy": "none",
+          "min_every_n_activities": 0,
+          "max_every_n_activities": 0,
+          "stable_session_per_tick": true,
+          "proxy_required": false
+        },
+        "browser_propensity": "required",
+        "javascript_execution": "required",
+        "retry_ceiling": 1,
+        "receipt_contract": {
+          "schema_version": "sim-lane-realism-receipt.v1",
+          "required_fields": [
+            "activity_count",
+            "top_level_action_count",
+            "dwell_intervals_ms",
+            "session_handles",
+            "identity_rotation_count",
+            "stop_reason"
+          ]
+        }
+      },
+      "request_mode": {
+        "schema_version": "sim-lane-realism-profile.v1",
+        "profile_id": "agentic.request_mode.v1",
+        "activity_unit": "action",
+        "activity_budget": { "min": 8, "max": 20 },
+        "burst_size": { "min": 3, "max": 8 },
+        "intra_burst_jitter_ms": { "min": 125, "max": 350 },
+        "between_burst_pause_ms": { "min": 1000, "max": 4000 },
+        "navigation_dwell_ms": { "min": 0, "max": 0 },
+        "identity_rotation": {
+          "strategy": "none",
+          "min_every_n_activities": 0,
+          "max_every_n_activities": 0,
+          "stable_session_per_tick": true,
+          "proxy_required": false
+        },
+        "browser_propensity": "none",
+        "javascript_execution": "disabled",
+        "retry_ceiling": 2,
+        "receipt_contract": {
+          "schema_version": "sim-lane-realism-receipt.v1",
+          "required_fields": [
+            "activity_count",
+            "burst_count",
+            "burst_sizes",
+            "inter_activity_gaps_ms",
+            "focused_page_set_size",
+            "session_handles",
+            "stop_reason"
+          ]
+        }
+      }
+    }
+  }
+}

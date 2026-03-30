@@ -107,7 +107,7 @@ Reference context:
 - [`docs/plans/2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md`](../docs/plans/2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md)
 
 Current note:
-- The immediate next execution priority is `SIM-REALISM-1A`, followed in order by `SIM-REALISM-1B`, `SIM-REALISM-1C`, and `SIM-REALISM-1D`.
+- The immediate next execution priority is `SIM-REALISM-1B`, followed in order by `SIM-REALISM-1C` and `SIM-REALISM-1D`.
 - Do not start new mixed-attacker proof or later tuning-quality work ahead of that chain unless a higher-severity regression forces an interruption.
 - `SIM-SCR-CHALLENGE-2A`, `SIM-SCR-CHALLENGE-2B`, and `SIM-SCR-CHALLENGE-2D` are landed.
 - `RSI-GAME-1A`, `RSI-GAME-1B`, `RSI-SCORE-1`, and `RSI-GAME-1C` are landed.
@@ -144,7 +144,7 @@ Current note:
 - Before further mainline completion claims, the repo now requires explicit acceptance-gate discipline. Do not describe `STANCE-MODEL-1`, `SIM-SCR-FULL-1`, `RSI-GAME-HO-1`, or `RSI-GAME-HO-2` as complete from planning progress, baseline capability, or dashboard pressure signals alone.
 - `SIM-LLM-1C3` is now landed: the later LLM attacker no longer disappears after runtime ingest, and recent-run or operator surfaces now project truthful additive `bot_red_team` runtime lineage without enabling the lane in controls.
 - `SIM-REALISM-1` is now the next adversary-sim maturity chain: both Scrapling and Agentic Traffic still need profile-driven cadence, burst, dwell, and identity or session realism before mixed-attacker or tuning claims are called representative.
-- `SIM-REALISM-1A` is the next atomic tranche and should be treated as the current top-priority adversary-sim work item.
+- `SIM-REALISM-1A` is now landed: the shared versioned realism-profile contract is frozen across Rust planners, Python workers, and Make-driven proof, and `SIM-REALISM-1B` is now the current top-priority adversary-sim work item.
 - Do not treat mere lane execution or recent-run visibility as characteristic attacker pressure while `bot_red_team` browser-mode still lacks real session execution and the lanes still retain overly uniform pacing.
 - Do not open `humans_plus_verified_only` until a later second strict-baseline proof has shown retained config-change improvement under both Scrapling and LLM attacker pressure.
 - `DIAG-CLEANUP-1`, `MON-OVERHAUL-1C`, and `SIM-LLM-1C3` are now all landed, so the later combined-attacker strict-baseline proof is no longer blocked by missing LLM runtime visibility.
@@ -153,17 +153,6 @@ Current note:
   - `bot_red_team` runtime receipts now contribute restriction-grade board loci,
   - and the next remaining blocker is projection truth: operator/admin and dashboard surfaces still need to distinguish judged mixed-attacker episodes from mere lane visibility.
 - Do not claim mixed-attacker strict-baseline proof from the new score spine alone; mixed-attacker proof projection and repeated retained improvement under mixed pressure still remain required.
-
-- [ ] SIM-REALISM-1A Freeze an executable realism profile contract for Scrapling and Agentic Traffic.
-  - Reference context:
-    - [`docs/research/2026-03-30-adversary-lane-traffic-realism-and-cadence-review.md`](../docs/research/2026-03-30-adversary-lane-traffic-realism-and-cadence-review.md)
-    - [`docs/plans/2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md`](../docs/plans/2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md)
-    - [`docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`](../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md)
-  - Closure gate:
-    - contract truth: one versioned profile contract must define cadence, burst, dwell, identity rotation, JavaScript or browser propensity, retry ceilings, and runtime receipt fields per lane or mode
-    - boundary truth: the contract must not widen host knowledge beyond scope fence, public seeds, public hint documents, and response-derived discovery
-    - proof: add and pass `make test-adversarial-lane-realism-contract` and keep `make test-adversarial-lane-contract` green
-    - insufficient: prose-only realism guidance, plan metadata with no receipt contract, or profile fields that reintroduce route choreography
 
 - [ ] SIM-REALISM-1B Implement Scrapling profile-driven cadence, burst, dwell, and identity behavior.
   - Reference context:

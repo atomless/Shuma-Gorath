@@ -37,6 +37,15 @@
     - deterministic diversity scoring weights and novelty expectations.
 - `lane_contract.v1.json`
   - Canonical attacker/control capability boundary contract for black-box simulation lanes.
+- `lane_realism_contract.v1.json`
+  - Canonical per-lane and per-mode realism-profile contract:
+    - activity budgets,
+    - burst and jitter windows,
+    - pause or dwell expectations,
+    - identity rotation posture,
+    - browser and JavaScript propensity,
+    - retry ceilings,
+    - and required runtime receipt fields.
 - `coverage_contract.v2.json` (+ temporary `coverage_contract.v1.json` compatibility)
   - Canonical `full_coverage` contract (minimum coverage categories + event/outcome obligations + depth-row minima) used for drift checks across plan rows, manifests, runner metrics, and verification matrix bindings.
   - Current depth-row contract covers event-stream minimums; deeper tarpit progression proof is intentionally deferred until a dedicated progress-walker scenario exists.
@@ -143,6 +152,7 @@ Notes:
   - attacker-plane requests are restricted to public paths and reject privileged headers (`Authorization`, health/admin/signing secret headers),
   - orchestrator-only setup/reset/config hooks remain on the control plane via admin-authenticated calls.
   - attacker-plane contract is versioned in `lane_contract.v1.json` and verified by `make test-adversarial-lane-contract`.
+  - realism-profile contract is versioned in `lane_realism_contract.v1.json` and verified by `make test-adversarial-lane-realism-contract`.
 - Execution-phase contract for realism-safe control-plane behavior:
   - `suite_setup` must own baseline preset application and any required reset/unban preparation before attacker traffic starts.
   - `attacker_execution` must not perform control-plane mutations; mutation attempts fail the run via `control_plane_mutation_policy`.

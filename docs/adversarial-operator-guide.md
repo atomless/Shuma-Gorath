@@ -116,6 +116,7 @@ The same promotion run must also materialize bounded replay-promotion lineage in
 Frontier threshold policy emits `scripts/tests/adversarial/frontier_unavailability_policy.json`.
 All manifests and reports are locked to `execution_lane=black_box`; non-black-box lane values are rejected at validation time.
 Lane capability boundaries are versioned in `scripts/tests/adversarial/lane_contract.v1.json` and validated by `make test-adversarial-lane-contract`.
+Lane realism profiles are versioned in `scripts/tests/adversarial/lane_realism_contract.v1.json` and validated by `make test-adversarial-lane-realism-contract`.
 Simulation-tag signing contract is versioned in `scripts/tests/adversarial/sim_tag_contract.v1.json` and validated by `make test-adversarial-sim-tag-contract`.
 Full-coverage category obligations are versioned in `scripts/tests/adversarial/coverage_contract.v2.json` (with temporary v1 compatibility) and validated by `make test-adversarial-coverage-contract`.
 Container frontier action grammar contract is versioned in `scripts/tests/adversarial/frontier_action_contract.v1.json` and enforced as reject-by-default by host and worker validators.
@@ -147,7 +148,8 @@ For the current full-spectrum expansion, Scrapling now owns these canonical cate
 2. `ai_scraper_bot` via `bulk_scraper`
 3. `automated_browser` via `browser_automation` and `stealth_browser`
 4. `http_agent` via `http_agent`
-The internal Scrapling worker plan now carries `fulfillment_mode`, bounded `category_targets`, and optional request or browser proxy hints so the shared-host lane can ask for a specific request-native or browser persona without pretending the whole lane is one undifferentiated crawler.
+The internal Scrapling worker plan now carries `fulfillment_mode`, bounded `category_targets`, optional request or browser proxy hints, and a versioned `realism_profile` so the shared-host lane can ask for a specific request-native or browser persona without pretending the whole lane is one undifferentiated crawler.
+That `realism_profile` is the executable cadence contract for the later realism chain: activity-budget ranges, burst/jitter windows, pause or dwell windows, identity rotation posture, browser/JavaScript propensity, retry ceilings, and the receipt fields later tranches must materialize. Host-side Scrapling and Agentic workers now validate that profile against the canonical `lane_realism_contract.v1.json` contract before executing a tick, so planner/worker drift fails closed instead of silently changing attacker-shape semantics.
 That plan must not carry a convenience route catalog or any synthetic host-internal map. Scrapling must begin from the accepted root or hint documents, then discover links, forms, redirects, and public challenge surfaces from host-visible responses during the run.
 That persona split is now implemented in the worker itself:
 1. `crawler` keeps the bounded spider traversal behavior,

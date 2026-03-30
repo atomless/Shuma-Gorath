@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 LANE_CONTRACT_PATH = Path("scripts/tests/adversarial/lane_contract.v1.json")
+LANE_REALISM_CONTRACT_PATH = Path("scripts/tests/adversarial/lane_realism_contract.v1.json")
 SIM_TAG_CONTRACT_PATH = Path("scripts/tests/adversarial/sim_tag_contract.v1.json")
 FRONTIER_ACTION_CONTRACT_PATH = Path(
     "scripts/tests/adversarial/frontier_action_contract.v1.json"
@@ -17,6 +18,8 @@ CONTAINER_RUNTIME_PROFILE_PATH = Path(
 DETERMINISTIC_ATTACK_CORPUS_PATH = Path(
     "scripts/tests/adversarial/deterministic_attack_corpus.v1.json"
 )
+LANE_REALISM_PROFILE_SCHEMA_VERSION = "sim-lane-realism-profile.v1"
+LANE_REALISM_RECEIPT_SCHEMA_VERSION = "sim-lane-realism-receipt.v1"
 
 
 def load_lane_contract(path: Path = LANE_CONTRACT_PATH) -> Dict[str, Any]:
@@ -57,7 +60,214 @@ def load_lane_contract(path: Path = LANE_CONTRACT_PATH) -> Dict[str, Any]:
     return payload
 
 
+def _is_non_negative_int(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 0
+
+
+def _normalize_realism_range(value: Any, *, field_name: str) -> Dict[str, int]:
+    if not isinstance(value, dict):
+        raise RuntimeError(f"{field_name} must be an object")
+    min_value = value.get("min")
+    max_value = value.get("max")
+    if not _is_non_negative_int(min_value) or not _is_non_negative_int(max_value):
+        raise RuntimeError(f"{field_name}.min and {field_name}.max must be integers >= 0")
+    if int(max_value) < int(min_value):
+        raise RuntimeError(f"{field_name}.max must be >= {field_name}.min")
+    return {"min": int(min_value), "max": int(max_value)}
+
+
+def normalize_lane_realism_profile(
+    payload: Any,
+    *,
+    field_name: str,
+) -> Dict[str, Any]:
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"{field_name} must be an object")
+    schema_version = str(payload.get("schema_version") or "").strip()
+    if schema_version != LANE_REALISM_PROFILE_SCHEMA_VERSION:
+        raise RuntimeError(
+            f"{field_name}.schema_version must be {LANE_REALISM_PROFILE_SCHEMA_VERSION}"
+        )
+    profile_id = str(payload.get("profile_id") or "").strip()
+    if not profile_id:
+        raise RuntimeError(f"{field_name}.profile_id must be non-empty")
+    activity_unit = str(payload.get("activity_unit") or "").strip()
+    if activity_unit not in {"request", "action"}:
+        raise RuntimeError(f"{field_name}.activity_unit must be request or action")
+    browser_propensity = str(payload.get("browser_propensity") or "").strip()
+    if browser_propensity not in {"none", "preferred", "required"}:
+        raise RuntimeError(
+            f"{field_name}.browser_propensity must be none, preferred, or required"
+        )
+    javascript_execution = str(payload.get("javascript_execution") or "").strip()
+    if javascript_execution not in {"disabled", "opportunistic", "required"}:
+        raise RuntimeError(
+            f"{field_name}.javascript_execution must be disabled, opportunistic, or required"
+        )
+    retry_ceiling = payload.get("retry_ceiling")
+    if not _is_non_negative_int(retry_ceiling):
+        raise RuntimeError(f"{field_name}.retry_ceiling must be integer >= 0")
+
+    identity_rotation = payload.get("identity_rotation")
+    if not isinstance(identity_rotation, dict):
+        raise RuntimeError(f"{field_name}.identity_rotation must be an object")
+    strategy = str(identity_rotation.get("strategy") or "").strip()
+    if strategy not in {
+        "none",
+        "per_burst_when_proxy_available",
+        "per_n_activities_when_proxy_available",
+    }:
+        raise RuntimeError(
+            f"{field_name}.identity_rotation.strategy must be a supported strategy"
+        )
+    min_every = identity_rotation.get("min_every_n_activities")
+    max_every = identity_rotation.get("max_every_n_activities")
+    if not _is_non_negative_int(min_every) or not _is_non_negative_int(max_every):
+        raise RuntimeError(
+            f"{field_name}.identity_rotation min/max cadence values must be integers >= 0"
+        )
+    if int(max_every) < int(min_every):
+        raise RuntimeError(
+            f"{field_name}.identity_rotation.max_every_n_activities must be >= min"
+        )
+    if strategy == "none" and (int(min_every) != 0 or int(max_every) != 0):
+        raise RuntimeError(
+            f"{field_name}.identity_rotation cadence values must be 0 when strategy is none"
+        )
+    if strategy != "none" and (int(min_every) < 1 or int(max_every) < 1):
+        raise RuntimeError(
+            f"{field_name}.identity_rotation cadence values must be >= 1 for rotating strategies"
+        )
+    stable_session_per_tick = identity_rotation.get("stable_session_per_tick")
+    proxy_required = identity_rotation.get("proxy_required")
+    if not isinstance(stable_session_per_tick, bool):
+        raise RuntimeError(
+            f"{field_name}.identity_rotation.stable_session_per_tick must be boolean"
+        )
+    if not isinstance(proxy_required, bool):
+        raise RuntimeError(f"{field_name}.identity_rotation.proxy_required must be boolean")
+
+    receipt_contract = payload.get("receipt_contract")
+    if not isinstance(receipt_contract, dict):
+        raise RuntimeError(f"{field_name}.receipt_contract must be an object")
+    receipt_schema = str(receipt_contract.get("schema_version") or "").strip()
+    if receipt_schema != LANE_REALISM_RECEIPT_SCHEMA_VERSION:
+        raise RuntimeError(
+            f"{field_name}.receipt_contract.schema_version must be {LANE_REALISM_RECEIPT_SCHEMA_VERSION}"
+        )
+    required_fields = [
+        str(item).strip()
+        for item in list(receipt_contract.get("required_fields") or [])
+        if str(item).strip()
+    ]
+    if not required_fields:
+        raise RuntimeError(
+            f"{field_name}.receipt_contract.required_fields must be a non-empty array"
+        )
+
+    return {
+        "schema_version": schema_version,
+        "profile_id": profile_id,
+        "activity_unit": activity_unit,
+        "activity_budget": _normalize_realism_range(
+            payload.get("activity_budget"),
+            field_name=f"{field_name}.activity_budget",
+        ),
+        "burst_size": _normalize_realism_range(
+            payload.get("burst_size"),
+            field_name=f"{field_name}.burst_size",
+        ),
+        "intra_burst_jitter_ms": _normalize_realism_range(
+            payload.get("intra_burst_jitter_ms"),
+            field_name=f"{field_name}.intra_burst_jitter_ms",
+        ),
+        "between_burst_pause_ms": _normalize_realism_range(
+            payload.get("between_burst_pause_ms"),
+            field_name=f"{field_name}.between_burst_pause_ms",
+        ),
+        "navigation_dwell_ms": _normalize_realism_range(
+            payload.get("navigation_dwell_ms"),
+            field_name=f"{field_name}.navigation_dwell_ms",
+        ),
+        "identity_rotation": {
+            "strategy": strategy,
+            "min_every_n_activities": int(min_every),
+            "max_every_n_activities": int(max_every),
+            "stable_session_per_tick": stable_session_per_tick,
+            "proxy_required": proxy_required,
+        },
+        "browser_propensity": browser_propensity,
+        "javascript_execution": javascript_execution,
+        "retry_ceiling": int(retry_ceiling),
+        "receipt_contract": {
+            "schema_version": receipt_schema,
+            "required_fields": required_fields,
+        },
+    }
+
+
+def load_lane_realism_contract(path: Path = LANE_REALISM_CONTRACT_PATH) -> Dict[str, Any]:
+    if not path.exists():
+        raise RuntimeError(f"lane realism contract not found: {path}")
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise RuntimeError(f"invalid lane realism contract JSON: {path}") from exc
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"lane realism contract must be a JSON object: {path}")
+    schema_version = str(payload.get("schema_version") or "").strip()
+    if schema_version != "sim-lane-realism-contract.v1":
+        raise RuntimeError(
+            "lane realism contract schema_version must be sim-lane-realism-contract.v1 "
+            f"(got {schema_version})"
+        )
+    profiles = payload.get("profiles")
+    if not isinstance(profiles, dict) or not profiles:
+        raise RuntimeError("lane realism contract profiles must be a non-empty object")
+    normalized_profiles: Dict[str, Dict[str, Dict[str, Any]]] = {}
+    for lane_name, lane_profiles in profiles.items():
+        normalized_lane = str(lane_name or "").strip()
+        if not normalized_lane:
+            raise RuntimeError("lane realism contract profiles contains empty lane key")
+        if not isinstance(lane_profiles, dict) or not lane_profiles:
+            raise RuntimeError(
+                f"lane realism contract profiles.{normalized_lane} must be a non-empty object"
+            )
+        normalized_profiles[normalized_lane] = {}
+        for mode_name, profile_payload in lane_profiles.items():
+            normalized_mode = str(mode_name or "").strip()
+            if not normalized_mode:
+                raise RuntimeError(
+                    f"lane realism contract profiles.{normalized_lane} contains empty mode key"
+                )
+            normalized_profiles[normalized_lane][normalized_mode] = normalize_lane_realism_profile(
+                profile_payload,
+                field_name=f"lane_realism_contract.profiles.{normalized_lane}.{normalized_mode}",
+            )
+    return {"schema_version": schema_version, "profiles": normalized_profiles}
+
+
+def resolve_lane_realism_profile(
+    lane: str,
+    fulfillment_mode: str,
+    *,
+    contract: Dict[str, Any] | None = None,
+) -> Dict[str, Any]:
+    resolved_contract = contract or LANE_REALISM_CONTRACT
+    profiles = dict(resolved_contract.get("profiles") or {})
+    lane_profiles = dict(profiles.get(str(lane).strip()) or {})
+    if not lane_profiles:
+        raise RuntimeError(f"lane realism contract missing lane profile set: {lane}")
+    profile = lane_profiles.get(str(fulfillment_mode).strip())
+    if not isinstance(profile, dict) or not profile:
+        raise RuntimeError(
+            f"lane realism contract missing mode profile: {lane}/{fulfillment_mode}"
+        )
+    return dict(profile)
+
+
 LANE_CONTRACT = load_lane_contract()
+LANE_REALISM_CONTRACT = load_lane_realism_contract()
 ATTACKER_CONTRACT = dict(LANE_CONTRACT.get("attacker") or {})
 ATTACKER_FORBIDDEN_PATH_PREFIXES = tuple(
     str(item).strip()
