@@ -603,7 +603,10 @@ fn log_scrapling_worker_receipt_event(
         scrapling_surface_receipts: worker_result.surface_receipts.clone(),
         scrapling_category_targets: worker_result.category_targets.clone(),
         llm_runtime_summary: None,
-        execution: super::api::EventExecutionMetadata::default(),
+        execution: super::api::EventExecutionMetadata {
+            scrapling_realism_receipt: worker_result.realism_receipt.clone(),
+            ..super::api::EventExecutionMetadata::default()
+        },
     };
     super::api::persist_event_record(store, record);
 }

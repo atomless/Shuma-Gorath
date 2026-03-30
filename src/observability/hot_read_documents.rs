@@ -178,6 +178,8 @@ pub(crate) struct MonitoringRecentSimRunSummary {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub owned_surface_coverage: Option<ScraplingOwnedSurfaceCoverageSummary>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub latest_scrapling_realism_receipt: Option<crate::admin::adversary_sim::ScraplingRealismReceipt>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub llm_runtime_summary: Option<LlmRuntimeRecentRunSummary>,
 }
 

@@ -62,6 +62,7 @@ fn shadow_event_metadata(
         execution_mode: Some("shadow".to_string()),
         intended_action: Some(intended_action.as_str().to_string()),
         enforcement_applied: Some(false),
+        ..crate::admin::EventExecutionMetadata::default()
     })
 }
 

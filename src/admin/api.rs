@@ -80,6 +80,8 @@ pub(crate) struct EventExecutionMetadata {
     pub intended_action: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub enforcement_applied: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scrapling_realism_receipt: Option<crate::admin::adversary_sim::ScraplingRealismReceipt>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -303,7 +305,8 @@ fn is_external_monitoring_event(record: &EventLogRecord) -> bool {
 fn is_recent_sim_run_receipt_event(record: &EventLogRecord) -> bool {
     (!record.scrapling_surface_receipts.is_empty()
         || !record.scrapling_category_targets.is_empty()
-        || record.llm_runtime_summary.is_some())
+        || record.llm_runtime_summary.is_some()
+        || record.execution.scrapling_realism_receipt.is_some())
         && record
             .sim_run_id
             .as_deref()
@@ -1112,6 +1115,7 @@ mod tests {
                 execution_mode: Some("shadow".to_string()),
                 intended_action: Some("block".to_string()),
                 enforcement_applied: Some(false),
+                ..EventExecutionMetadata::default()
             }),
         );
 
@@ -1875,6 +1879,85 @@ mod tests {
         assert_eq!(llm_runtime_summary.failed_action_count, 0);
         assert_eq!(llm_runtime_summary.passed_tick_count, 1);
         assert_eq!(llm_runtime_summary.latest_action_receipts.len(), 2);
+    }
+
+    #[test]
+    fn recent_sim_run_history_projects_latest_scrapling_realism_receipt() {
+        let store = MockStore::new();
+        let now = now_ts();
+        let run_started_at = now.saturating_sub(60);
+
+        persist_event_record(
+            &store,
+            EventLogRecord {
+                entry: EventLogEntry {
+                    ts: run_started_at,
+                    event: EventType::AdminAction,
+                    ip: None,
+                    reason: Some("scrapling_worker_receipt".to_string()),
+                    outcome: Some("realism".to_string()),
+                    admin: Some("internal".to_string()),
+                },
+                taxonomy: None,
+                outcome_code: None,
+                botness_score: None,
+                sim_run_id: Some("simrun-scrapling-realism-proof".to_string()),
+                sim_profile: Some("scrapling_runtime_lane.bulk_scraper".to_string()),
+                sim_lane: Some("scrapling_traffic".to_string()),
+                is_simulation: true,
+                scrapling_surface_receipts: Vec::new(),
+                scrapling_category_targets: vec!["ai_scraper_bot".to_string()],
+                llm_runtime_summary: None,
+                execution: EventExecutionMetadata {
+                    scrapling_realism_receipt: Some(
+                        crate::admin::adversary_sim::ScraplingRealismReceipt {
+                            schema_version: "sim-lane-realism-receipt.v1".to_string(),
+                            profile_id: "scrapling.bulk_scraper.v1".to_string(),
+                            activity_unit: "request".to_string(),
+                            planned_activity_budget: 24,
+                            effective_activity_budget: 24,
+                            planned_burst_size: 3,
+                            effective_burst_size: 3,
+                            activity_count: 7,
+                            burst_count: Some(3),
+                            burst_sizes: vec![3, 3, 1],
+                            inter_activity_gaps_ms: vec![220, 410, 1200, 240, 330, 1500],
+                            top_level_action_count: None,
+                            dwell_intervals_ms: Vec::new(),
+                            identity_handles: vec![
+                                "request-session-1".to_string(),
+                                "request-session-2".to_string(),
+                            ],
+                            session_handles: Vec::new(),
+                            identity_rotation_count: 1,
+                            stop_reason: "activity_sequence_exhausted".to_string(),
+                        },
+                    ),
+                    ..EventExecutionMetadata::default()
+                },
+            },
+        );
+
+        let recent_runs = monitoring_recent_sim_run_summaries(&store, now, 24, 10);
+        let row = recent_runs
+            .iter()
+            .find(|value| value.run_id == "simrun-scrapling-realism-proof")
+            .expect("scrapling realism row");
+        let receipt = row
+            .latest_scrapling_realism_receipt
+            .as_ref()
+            .expect("latest scrapling realism receipt");
+        assert_eq!(receipt.profile_id, "scrapling.bulk_scraper.v1");
+        assert_eq!(receipt.activity_count, 7);
+        assert_eq!(receipt.burst_count, Some(3));
+        assert_eq!(receipt.identity_rotation_count, 1);
+        assert_eq!(
+            receipt.identity_handles,
+            vec![
+                "request-session-1".to_string(),
+                "request-session-2".to_string()
+            ]
+        );
     }
 
     #[test]
@@ -15252,6 +15335,9 @@ struct MonitoringRecentSimRunAccumulator {
     ban_outcome_count: u64,
     surface_observations:
         Vec<crate::observability::scrapling_owned_surface::ScraplingSurfaceObservationReceipt>,
+    latest_scrapling_realism_receipt:
+        Option<crate::admin::adversary_sim::ScraplingRealismReceipt>,
+    latest_scrapling_realism_receipt_ts: u64,
     llm_runtime_summary: Option<crate::admin::adversary_sim::LlmRuntimeRecentRunSummary>,
 }
 
@@ -15448,6 +15534,8 @@ fn monitoring_recent_sim_run_summaries_filtered<S: crate::challenge::KeyValueSto
                     defense_keys: HashSet::new(),
                     ban_outcome_count: 0,
                     surface_observations: Vec::new(),
+                    latest_scrapling_realism_receipt: None,
+                    latest_scrapling_realism_receipt_ts: 0,
                     llm_runtime_summary: None,
                 });
         if ts > 0 {
@@ -15484,6 +15572,12 @@ fn monitoring_recent_sim_run_summaries_filtered<S: crate::challenge::KeyValueSto
         accumulator
             .surface_observations
             .extend(stored.record.scrapling_surface_receipts.iter().cloned());
+        if let Some(receipt) = stored.record.execution.scrapling_realism_receipt.as_ref() {
+            if ts >= accumulator.latest_scrapling_realism_receipt_ts {
+                accumulator.latest_scrapling_realism_receipt = Some(receipt.clone());
+                accumulator.latest_scrapling_realism_receipt_ts = ts;
+            }
+        }
         if let Some(summary) = stored.record.llm_runtime_summary.as_ref() {
             match accumulator.llm_runtime_summary.as_mut() {
                 Some(existing) => existing.merge_summary(summary),
@@ -15518,6 +15612,7 @@ fn monitoring_recent_sim_run_summaries_filtered<S: crate::challenge::KeyValueSto
                     defense_delta_count: row.defense_keys.len() as u64,
                     ban_outcome_count: row.ban_outcome_count,
                     owned_surface_coverage,
+                    latest_scrapling_realism_receipt: row.latest_scrapling_realism_receipt,
                     llm_runtime_summary: row.llm_runtime_summary,
                 }
             },

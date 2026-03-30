@@ -22,6 +22,35 @@ pub struct ScraplingCrawlStats {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
+pub struct ScraplingRealismReceipt {
+    pub schema_version: String,
+    pub profile_id: String,
+    pub activity_unit: String,
+    pub planned_activity_budget: u64,
+    pub effective_activity_budget: u64,
+    pub planned_burst_size: u64,
+    pub effective_burst_size: u64,
+    pub activity_count: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub burst_count: Option<u64>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub burst_sizes: Vec<u64>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub inter_activity_gaps_ms: Vec<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub top_level_action_count: Option<u64>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub dwell_intervals_ms: Vec<u64>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub identity_handles: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub session_handles: Vec<String>,
+    pub identity_rotation_count: u64,
+    pub stop_reason: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct ScraplingWorkerPlan {
     pub schema_version: String,
     pub run_id: String,
@@ -69,6 +98,8 @@ pub struct ScraplingWorkerResult {
     pub crawl_stats: ScraplingCrawlStats,
     #[serde(default)]
     pub scope_rejections: BTreeMap<String, u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub realism_receipt: Option<ScraplingRealismReceipt>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub surface_receipts: Vec<ScraplingSurfaceObservationReceipt>,
 }

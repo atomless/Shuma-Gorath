@@ -10,6 +10,7 @@ import tempfile
 import threading
 import time
 import unittest
+from unittest import mock
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urljoin, urlsplit
@@ -414,6 +415,11 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
             for entry in list(result.get("surface_receipts") or [])
             if str(entry.get("surface_id") or "") == surface_id
         ]
+
+    def _realism_receipt(self, result: dict[str, Any]) -> dict[str, Any]:
+        receipt = result.get("realism_receipt")
+        self.assertIsInstance(receipt, dict, msg=json.dumps(result, indent=2))
+        return dict(receipt or {})
 
     def test_execute_worker_plan_preserves_category_targets_in_result_contract(self) -> None:
         self.assertIsNotNone(scrapling_worker, "worker module missing")
@@ -848,6 +854,86 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
         self.assertIn(("POST", "/pow/verify"), paths)
         self.assertIn(("POST", "/tarpit/progress"), paths)
         self.assertFalse(any(path.startswith("/agent/") for _, path in paths))
+
+    def test_execute_worker_plan_bulk_scraper_emits_request_realism_receipt(self) -> None:
+        self.assertIsNotNone(scrapling_worker, "worker module missing")
+        beat_payload = self._make_beat_payload(
+            "bulk_scraper",
+            ["ai_scraper_bot"],
+            max_requests=50,
+        )
+        with mock.patch("scripts.supervisor.scrapling_worker.time.sleep") as sleep_mock:
+            result = scrapling_worker.execute_worker_plan(
+                beat_payload,
+                scope_descriptor_path=self.descriptor_path,
+                seed_inventory_path=self.inventory_path,
+                crawldir=self.crawldir,
+                sim_telemetry_secret=SIM_SECRET,
+            )
+
+        receipt = self._realism_receipt(result)
+        self.assertEqual(receipt["schema_version"], "sim-lane-realism-receipt.v1")
+        self.assertEqual(receipt["profile_id"], "scrapling.bulk_scraper.v1")
+        self.assertEqual(receipt["activity_unit"], "request")
+        self.assertGreaterEqual(receipt["planned_activity_budget"], 18)
+        self.assertGreaterEqual(receipt["planned_burst_size"], 2)
+        self.assertEqual(receipt["activity_count"], sum(receipt["burst_sizes"]))
+        self.assertEqual(receipt["burst_count"], len(receipt["burst_sizes"]))
+        self.assertEqual(
+            len(receipt["inter_activity_gaps_ms"]),
+            max(0, receipt["activity_count"] - 1),
+        )
+        self.assertGreaterEqual(len(receipt["identity_handles"]), 1)
+        self.assertGreaterEqual(sleep_mock.call_count, len(receipt["inter_activity_gaps_ms"]))
+        self.assertIn(
+            receipt["stop_reason"],
+            {
+                "activity_sequence_exhausted",
+                "activity_budget_reached",
+                "max_requests_exhausted",
+                "time_budget_exhausted",
+                "byte_budget_exhausted",
+            },
+        )
+
+    def test_execute_worker_plan_browser_automation_emits_browser_realism_receipt(self) -> None:
+        self.assertIsNotNone(scrapling_worker, "worker module missing")
+        beat_payload = self._make_beat_payload(
+            "browser_automation",
+            ["automated_browser"],
+            max_requests=6,
+        )
+        with mock.patch("scripts.supervisor.scrapling_worker.time.sleep") as sleep_mock:
+            result = scrapling_worker.execute_worker_plan(
+                beat_payload,
+                scope_descriptor_path=self.descriptor_path,
+                seed_inventory_path=self.inventory_path,
+                crawldir=self.crawldir,
+                sim_telemetry_secret=SIM_SECRET,
+            )
+
+        receipt = self._realism_receipt(result)
+        self.assertEqual(receipt["schema_version"], "sim-lane-realism-receipt.v1")
+        self.assertEqual(receipt["profile_id"], "scrapling.browser_automation.v1")
+        self.assertEqual(receipt["activity_unit"], "action")
+        self.assertGreaterEqual(receipt["planned_activity_budget"], 4)
+        self.assertEqual(receipt["top_level_action_count"], receipt["activity_count"])
+        self.assertGreaterEqual(len(receipt["session_handles"]), 1)
+        self.assertEqual(
+            len(receipt["dwell_intervals_ms"]),
+            max(0, receipt["top_level_action_count"] - 1),
+        )
+        self.assertGreaterEqual(sleep_mock.call_count, len(receipt["dwell_intervals_ms"]))
+        self.assertIn(
+            receipt["stop_reason"],
+            {
+                "activity_sequence_exhausted",
+                "activity_budget_reached",
+                "max_requests_exhausted",
+                "time_budget_exhausted",
+                "byte_budget_exhausted",
+            },
+        )
 
     def test_execute_worker_plan_browser_automation_attempts_browser_owned_surfaces(self) -> None:
         self.assertIsNotNone(scrapling_worker, "worker module missing")

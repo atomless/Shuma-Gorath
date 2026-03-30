@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 from collections import Counter
 from collections.abc import AsyncGenerator
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -46,6 +47,365 @@ SCRAPLING_FULFILLMENT_MODES = {
     "stealth_browser",
     "http_agent",
 }
+
+
+def _stable_bucket(*parts: Any) -> int:
+    material = "|".join(str(part) for part in parts).encode("utf-8")
+    digest = hashlib.sha256(material).digest()
+    return int.from_bytes(digest[:8], "big", signed=False)
+
+
+def _realism_range_value(range_payload: dict[str, Any], *seed_parts: Any) -> int:
+    minimum = max(0, int(range_payload.get("min") or 0))
+    maximum = max(minimum, int(range_payload.get("max") or minimum))
+    if maximum <= minimum:
+        return minimum
+    span = maximum - minimum + 1
+    return minimum + (_stable_bucket(*seed_parts) % span)
+
+
+def _sleep_ms(delay_ms: int) -> None:
+    if delay_ms > 0:
+        time.sleep(delay_ms / 1000.0)
+
+
+class _ScraplingRealismTracker:
+    def __init__(
+        self,
+        *,
+        plan: dict[str, Any],
+        browser_session: bool,
+        proxy_configured: bool,
+    ) -> None:
+        self.plan = plan
+        self.profile = normalize_lane_realism_profile(
+            plan.get("realism_profile"),
+            field_name="worker_plan.realism_profile",
+        )
+        self.browser_session = browser_session
+        self.proxy_configured = proxy_configured
+        self.run_id = str(plan.get("run_id") or "")
+        self.tick_id = str(plan.get("tick_id") or "")
+        self.fulfillment_mode = str(plan.get("fulfillment_mode") or "")
+        self.max_requests = max(1, int(plan.get("max_requests") or 1))
+        self.max_bytes = max(1, int(plan.get("max_bytes") or 1))
+        self.max_ms = max(1, int(plan.get("max_ms") or 1))
+        self.planned_activity_budget = _realism_range_value(
+            dict(self.profile.get("activity_budget") or {}),
+            self.run_id,
+            self.tick_id,
+            self.fulfillment_mode,
+            "activity_budget",
+        )
+        self.effective_activity_budget = max(
+            1,
+            min(self.max_requests, self.planned_activity_budget),
+        )
+        self.planned_burst_size = _realism_range_value(
+            dict(self.profile.get("burst_size") or {}),
+            self.run_id,
+            self.tick_id,
+            self.fulfillment_mode,
+            "burst_size",
+        )
+        self.effective_burst_size = max(
+            1,
+            min(self.effective_activity_budget, self.planned_burst_size),
+        )
+        rotation = dict(self.profile.get("identity_rotation") or {})
+        self.rotation_strategy = str(rotation.get("strategy") or "none")
+        if int(rotation.get("max_every_n_activities") or 0) > 0:
+            self.rotation_every_n_activities = _realism_range_value(
+                {
+                    "min": int(rotation.get("min_every_n_activities") or 0),
+                    "max": int(rotation.get("max_every_n_activities") or 0),
+                },
+                self.run_id,
+                self.tick_id,
+                self.fulfillment_mode,
+                "identity_rotation",
+            )
+        else:
+            self.rotation_every_n_activities = 0
+        self.download_delay_ms = _realism_range_value(
+            dict(self.profile.get("intra_burst_jitter_ms") or {}),
+            self.run_id,
+            self.tick_id,
+            self.fulfillment_mode,
+            "crawler_download_delay",
+        )
+        self.activity_count = 0
+        self.current_burst_size = 0
+        self.burst_sizes: list[int] = []
+        self.inter_activity_gaps_ms: list[int] = []
+        self.dwell_intervals_ms: list[int] = []
+        self.identity_handles: list[str] = []
+        self.session_handles: list[str] = []
+        self.identity_rotation_count = 0
+        self._last_identity_handle: str | None = None
+        self._last_session_handle: str | None = None
+        self._activities_since_rotation = 0
+
+    def activity_limit_reached(self) -> bool:
+        return self.activity_count >= self.effective_activity_budget
+
+    def crawler_download_delay_seconds(self) -> float:
+        return self.download_delay_ms / 1000.0
+
+    def _range_value(self, field_name: str, ordinal: int) -> int:
+        return _realism_range_value(
+            dict(self.profile.get(field_name) or {}),
+            self.run_id,
+            self.tick_id,
+            self.fulfillment_mode,
+            field_name,
+            ordinal,
+        )
+
+    def _cap_gap_to_remaining_window(self, gap_ms: int, remaining_ms: int) -> int:
+        if gap_ms <= 0 or remaining_ms <= 0:
+            return 0
+        remaining_activities = max(1, self.effective_activity_budget - self.activity_count)
+        return min(gap_ms, max(0, remaining_ms // remaining_activities))
+
+    def _record_handle(self, handle: str, *, browser_session: bool) -> None:
+        normalized = str(handle or "").strip()
+        if not normalized:
+            return
+        if browser_session:
+            if normalized not in self.session_handles:
+                self.session_handles.append(normalized)
+            if self._last_session_handle and self._last_session_handle != normalized:
+                self.identity_rotation_count += 1
+            self._last_session_handle = normalized
+            return
+        if normalized not in self.identity_handles:
+            self.identity_handles.append(normalized)
+        if self._last_identity_handle and self._last_identity_handle != normalized:
+            self.identity_rotation_count += 1
+        self._last_identity_handle = normalized
+
+    def _finalize_burst(self) -> None:
+        if self.current_burst_size > 0:
+            self.burst_sizes.append(self.current_burst_size)
+            self.current_burst_size = 0
+
+    def crawler_observe_activity(self, identity_handle: str) -> None:
+        if self.activity_count > 0 and self.download_delay_ms > 0:
+            self.inter_activity_gaps_ms.append(self.download_delay_ms)
+        self.activity_count += 1
+        self.current_burst_size += 1
+        if self.current_burst_size >= self.effective_burst_size:
+            self._finalize_burst()
+        self._record_handle(identity_handle, browser_session=False)
+
+    def prepare_request_attempt(self, *, remaining_ms: int) -> tuple[int, bool]:
+        rotate_identity = False
+        gap_ms = 0
+        if self.activity_count > 0:
+            if self.current_burst_size >= self.effective_burst_size:
+                self._finalize_burst()
+                gap_ms = self._range_value(
+                    "between_burst_pause_ms",
+                    len(self.burst_sizes),
+                )
+                if (
+                    self.proxy_configured
+                    and self.rotation_strategy == "per_burst_when_proxy_available"
+                ):
+                    rotate_identity = True
+            else:
+                gap_ms = self._range_value(
+                    "intra_burst_jitter_ms",
+                    self.activity_count,
+                )
+            if (
+                self.proxy_configured
+                and self.rotation_strategy == "per_n_activities_when_proxy_available"
+                and self.rotation_every_n_activities > 0
+                and self._activities_since_rotation >= self.rotation_every_n_activities
+            ):
+                rotate_identity = True
+        gap_ms = self._cap_gap_to_remaining_window(gap_ms, remaining_ms)
+        if gap_ms > 0:
+            self.inter_activity_gaps_ms.append(gap_ms)
+            _sleep_ms(gap_ms)
+        return gap_ms, rotate_identity
+
+    def mark_request_attempt(self, identity_handle: str) -> None:
+        self.activity_count += 1
+        self.current_burst_size += 1
+        self._activities_since_rotation += 1
+        self._record_handle(identity_handle, browser_session=False)
+
+    def note_rotation(self) -> None:
+        self._activities_since_rotation = 0
+
+    def prepare_browser_action(self, session_handle: str, *, remaining_ms: int) -> None:
+        if self.activity_count > 0:
+            dwell_ms = self._range_value(
+                "navigation_dwell_ms",
+                self.activity_count,
+            )
+            dwell_ms = self._cap_gap_to_remaining_window(dwell_ms, remaining_ms)
+            if dwell_ms > 0:
+                self.dwell_intervals_ms.append(dwell_ms)
+                _sleep_ms(dwell_ms)
+        self.activity_count += 1
+        self._record_handle(session_handle, browser_session=True)
+
+    def stop_reason(
+        self,
+        *,
+        bytes_observed: int,
+        deadline_reached: bool,
+        activity_sequence_exhausted: bool,
+        transport_failure: bool,
+    ) -> str:
+        if self.activity_count >= self.effective_activity_budget:
+            if self.max_requests <= self.planned_activity_budget:
+                return "max_requests_exhausted"
+            return "activity_budget_reached"
+        if bytes_observed >= self.max_bytes:
+            return "byte_budget_exhausted"
+        if deadline_reached:
+            return "time_budget_exhausted"
+        if transport_failure and self.activity_count == 0:
+            return "transport_error"
+        if activity_sequence_exhausted:
+            return "activity_sequence_exhausted"
+        return "completed"
+
+    def render_receipt(
+        self,
+        *,
+        bytes_observed: int,
+        deadline_reached: bool,
+        activity_sequence_exhausted: bool,
+        transport_failure: bool,
+    ) -> dict[str, Any]:
+        self._finalize_burst()
+        receipt = {
+            "schema_version": str(
+                dict(self.profile.get("receipt_contract") or {}).get("schema_version")
+                or "sim-lane-realism-receipt.v1"
+            ),
+            "profile_id": str(self.profile.get("profile_id") or ""),
+            "activity_unit": str(self.profile.get("activity_unit") or ""),
+            "planned_activity_budget": self.planned_activity_budget,
+            "effective_activity_budget": self.effective_activity_budget,
+            "planned_burst_size": self.planned_burst_size,
+            "effective_burst_size": self.effective_burst_size,
+            "activity_count": self.activity_count,
+            "identity_rotation_count": self.identity_rotation_count,
+            "stop_reason": self.stop_reason(
+                bytes_observed=bytes_observed,
+                deadline_reached=deadline_reached,
+                activity_sequence_exhausted=activity_sequence_exhausted,
+                transport_failure=transport_failure,
+            ),
+        }
+        if self.browser_session:
+            receipt.update(
+                {
+                    "top_level_action_count": self.activity_count,
+                    "dwell_intervals_ms": list(self.dwell_intervals_ms),
+                    "session_handles": list(self.session_handles),
+                }
+            )
+        else:
+            receipt.update(
+                {
+                    "burst_count": len(self.burst_sizes),
+                    "burst_sizes": list(self.burst_sizes),
+                    "inter_activity_gaps_ms": list(self.inter_activity_gaps_ms),
+                    "identity_handles": list(self.identity_handles),
+                }
+            )
+        required_fields = list(
+            dict(self.profile.get("receipt_contract") or {}).get("required_fields") or []
+        )
+        missing = [field for field in required_fields if field not in receipt]
+        if missing:
+            raise WorkerConfigError(
+                "worker_plan realism_profile receipt contract is missing required fields: "
+                + ", ".join(missing)
+            )
+        return receipt
+
+
+class _PacedRequestNativeSession:
+    def __init__(
+        self,
+        session_cls: Any,
+        *,
+        tracker: "_DirectPersonaTracker",
+        timeout_seconds: float,
+        accept_header: str,
+        proxy_url: str | None,
+    ) -> None:
+        self.session_cls = session_cls
+        self.tracker = tracker
+        self.timeout_seconds = timeout_seconds
+        self.accept_header = accept_header
+        self.proxy_url = proxy_url
+        self._session_cm: Any | None = None
+        self._session: Any | None = None
+        self._session_index = 0
+        self._current_identity_handle = ""
+
+    def __enter__(self) -> "_PacedRequestNativeSession":
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        if self._session_cm is not None:
+            self._session_cm.__exit__(exc_type, exc, tb)
+        self._session_cm = None
+        self._session = None
+
+    def _open_session(self) -> None:
+        if self._session_cm is not None:
+            self._session_cm.__exit__(None, None, None)
+        self._session_cm = self.session_cls(
+            **_request_native_session_kwargs(
+                timeout_seconds=self.timeout_seconds,
+                accept_header=self.accept_header,
+                proxy_url=self.proxy_url,
+            ),
+        )
+        self._session = self._session_cm.__enter__()
+        self._session_index += 1
+        self._current_identity_handle = f"request-session-{self._session_index}"
+        if self._session_index > 1:
+            self.tracker.realism_tracker.note_rotation()
+
+    def fetch(self, target: str, **kwargs) -> Any:
+        if self.tracker.should_stop():
+            raise RuntimeError("request budget exhausted before next persona fetch")
+        _, rotate_identity = self.tracker.realism_tracker.prepare_request_attempt(
+            remaining_ms=self.tracker.remaining_ms(),
+        )
+        if self._session is None or rotate_identity:
+            self._open_session()
+        self.tracker.realism_tracker.mark_request_attempt(self._current_identity_handle)
+        return self._session.fetch(target, **kwargs)
+
+    def _call_method(self, method_name: str, target: str, **kwargs) -> Any:
+        if self.tracker.should_stop():
+            raise RuntimeError("request budget exhausted before next persona fetch")
+        _, rotate_identity = self.tracker.realism_tracker.prepare_request_attempt(
+            remaining_ms=self.tracker.remaining_ms(),
+        )
+        if self._session is None or rotate_identity:
+            self._open_session()
+        self.tracker.realism_tracker.mark_request_attempt(self._current_identity_handle)
+        return getattr(self._session, method_name)(target, **kwargs)
+
+    def get(self, target: str, **kwargs) -> Any:
+        return self._call_method("get", target, **kwargs)
+
+    def post(self, target: str, **kwargs) -> Any:
+        return self._call_method("post", target, **kwargs)
 
 
 def _load_json(path: Path) -> dict[str, Any]:
@@ -538,6 +898,13 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
             self.sim_profile = str(plan.get("sim_profile") or "scrapling_runtime_lane")
             self.fulfillment_mode = str(plan.get("fulfillment_mode") or "crawler")
             self.surface_targets = set(_normalize_surface_targets(plan.get("surface_targets")))
+            self.realism_tracker = _ScraplingRealismTracker(
+                plan=plan,
+                browser_session=False,
+                proxy_configured=bool(
+                    _normalize_optional_proxy_url(plan.get("request_proxy_url"))
+                ),
+            )
             self.deadline = time.monotonic() + (self.max_ms / 1000.0)
             self.sim_telemetry_secret = sim_telemetry_secret
             self.request_sequence = 0
@@ -550,21 +917,25 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
             self.allowed_domains = _normalize_allowed_domains(descriptor)
             self.start_urls = _normalized_start_urls(seed_inventory)
             self.discovery_surfaces_recorded = False
+            self.activity_sequence_exhausted = False
             super().__init__(crawldir=str(crawldir), interval=0.0)
+            self.download_delay = self.realism_tracker.crawler_download_delay_seconds()
 
         def configure_sessions(self, manager) -> None:
             timeout_seconds = max(1.0, min(30.0, self.max_ms / 1000.0))
+            request_proxy_url = _normalize_optional_proxy_url(self.plan.get("request_proxy_url"))
             manager.add(
                 "default",
                 fetcher_session_cls(**_request_native_session_kwargs(
                     timeout_seconds=timeout_seconds,
                     accept_header="*/*",
+                    proxy_url=request_proxy_url,
                 )),
             )
 
         def _should_stop(self) -> bool:
             return (
-                self.requests_observed >= self.max_requests
+                self.realism_tracker.activity_limit_reached()
                 or self.bytes_observed >= self.max_bytes
                 or time.monotonic() >= self.deadline
             )
@@ -615,6 +986,7 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
                 )
 
         async def parse(self, response) -> AsyncGenerator[Any, None]:
+            self.realism_tracker.crawler_observe_activity("crawl-session-1")
             self.requests_observed += 1
             self.bytes_observed += len(response.body)
             self.last_response_status = int(response.status)
@@ -684,6 +1056,7 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
                 [urljoin(response.url, href) for href in response.css("a::attr(href)").getall()],
                 key=_crawler_link_priority,
             )
+            yielded_next_target = False
             for candidate in link_targets:
                 if next_depth > self.max_depth:
                     continue
@@ -698,9 +1071,12 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
                         meta={"depth": next_depth},
                         headers=self._next_headers(),
                     )
+                    yielded_next_target = True
                     if self._should_stop():
                         self.pause()
                         return
+            if not yielded_next_target:
+                self.activity_sequence_exhausted = True
 
     return ShumaScraplingSpider
 
@@ -723,6 +1099,14 @@ class _DirectPersonaTracker:
         self.lane = str(plan.get("lane") or "scrapling_traffic")
         self.sim_profile = str(plan.get("sim_profile") or "scrapling_runtime_lane")
         self.fulfillment_mode = str(plan.get("fulfillment_mode") or "")
+        self.realism_tracker = _ScraplingRealismTracker(
+            plan=plan,
+            browser_session=self.fulfillment_mode in {"browser_automation", "stealth_browser"},
+            proxy_configured=bool(
+                _normalize_optional_proxy_url(plan.get("request_proxy_url"))
+                or _normalize_optional_proxy_url(plan.get("browser_proxy_url"))
+            ),
+        )
         self.deadline = time.monotonic() + (self.max_ms / 1000.0)
         self.sim_telemetry_secret = sim_telemetry_secret
         self.request_sequence = 0
@@ -737,10 +1121,13 @@ class _DirectPersonaTracker:
 
     def should_stop(self) -> bool:
         return (
-            self.generated_requests >= self.max_requests
+            self.realism_tracker.activity_limit_reached()
             or self.bytes_observed >= self.max_bytes
             or time.monotonic() >= self.deadline
         )
+
+    def remaining_ms(self) -> int:
+        return max(0, int((self.deadline - time.monotonic()) * 1000))
 
     def next_headers(self, extra_headers: dict[str, str] | None = None) -> dict[str, str]:
         self.request_sequence += 1
@@ -844,6 +1231,12 @@ class _DirectPersonaTracker:
                 "response_status_count": dict(self.response_status_count),
                 "response_bytes": self.bytes_observed,
             },
+            "realism_receipt": self.realism_tracker.render_receipt(
+                bytes_observed=self.bytes_observed,
+                deadline_reached=time.monotonic() >= self.deadline,
+                activity_sequence_exhausted=not self.should_stop(),
+                transport_failure=bool(self.last_transport_error),
+            ),
             "scope_rejections": dict(sorted(self.scope_rejections.items())),
             "surface_receipts": _render_surface_receipts(self.surface_receipts),
         }
@@ -1009,12 +1402,12 @@ def _execute_bulk_scraper_persona(
             key=_bulk_scraper_priority,
         )
 
-    with fetcher_session_cls(
-        **_request_native_session_kwargs(
-            timeout_seconds=max(1.0, min(30.0, tracker.max_ms / 1000.0)),
-            accept_header="text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            proxy_url=request_proxy_url,
-        ),
+    with _PacedRequestNativeSession(
+        fetcher_session_cls,
+        tracker=tracker,
+        timeout_seconds=max(1.0, min(30.0, tracker.max_ms / 1000.0)),
+        accept_header="text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        proxy_url=request_proxy_url,
     ) as session:
         root_surface_ids = ["public_path_traversal", *_public_discovery_surface_ids(surface_targets)]
         root_response = _perform_request(
@@ -1130,12 +1523,12 @@ def _execute_http_agent_persona(
     if not start_urls:
         raise WorkerConfigError("seed inventory must contain at least one accepted start or hint URL")
     base_url = start_urls[0]
-    with fetcher_session_cls(
-        **_request_native_session_kwargs(
-            timeout_seconds=max(1.0, min(30.0, tracker.max_ms / 1000.0)),
-            accept_header="application/json",
-            proxy_url=request_proxy_url,
-        ),
+    with _PacedRequestNativeSession(
+        fetcher_session_cls,
+        tracker=tracker,
+        timeout_seconds=max(1.0, min(30.0, tracker.max_ms / 1000.0)),
+        accept_header="application/json",
+        proxy_url=request_proxy_url,
     ) as session:
         root_response = _perform_request(
             session,
@@ -1393,7 +1786,12 @@ def _execute_browser_persona(
     ) as session:
         root_state: dict[str, Any] = {}
         root_target = base_url
+        browser_session_handle = "browser-session-1"
         try:
+            tracker.realism_tracker.prepare_browser_action(
+                browser_session_handle,
+                remaining_ms=tracker.remaining_ms(),
+            )
             root_response = session.fetch(
                 root_target,
                 extra_headers=tracker.next_headers({"accept-language": "en-GB,en;q=0.8"}),
@@ -1427,6 +1825,10 @@ def _execute_browser_persona(
                 return tracker.result_payload()
             pow_state: dict[str, Any] = {}
             try:
+                tracker.realism_tracker.prepare_browser_action(
+                    browser_session_handle,
+                    remaining_ms=tracker.remaining_ms(),
+                )
                 response = session.fetch(
                     pow_target,
                     extra_headers=tracker.next_headers({"accept-language": "en-GB,en;q=0.8"}),
@@ -1498,6 +1900,10 @@ def _execute_browser_persona(
                 return tracker.result_payload()
             maze_state: dict[str, Any] = {}
             try:
+                tracker.realism_tracker.prepare_browser_action(
+                    browser_session_handle,
+                    remaining_ms=tracker.remaining_ms(),
+                )
                 response = session.fetch(
                     maze_target,
                     extra_headers=tracker.next_headers({"accept-language": "en-GB,en;q=0.8"}),
@@ -1627,6 +2033,14 @@ def execute_worker_plan(
                     "response_status_count": dict(stats.response_status_count),
                     "response_bytes": int(stats.response_bytes),
                 },
+                "realism_receipt": spider.realism_tracker.render_receipt(
+                    bytes_observed=spider.bytes_observed,
+                    deadline_reached=time.monotonic() >= spider.deadline,
+                    activity_sequence_exhausted=bool(
+                        spider.activity_sequence_exhausted
+                    ),
+                    transport_failure=bool(spider.last_transport_error),
+                ),
                 "scope_rejections": dict(sorted(spider.scope_rejections.items())),
                 "surface_receipts": _render_surface_receipts(spider.surface_receipts),
             }

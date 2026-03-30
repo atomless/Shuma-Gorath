@@ -186,6 +186,28 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
         )
         self.assertNotIn("scripts/tests/test_scrapling_worker.py", body)
 
+    def test_scrapling_realism_target_uses_receipt_and_worker_selectors(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-adversary-sim-scrapling-realism:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn(
+            "recent_sim_run_history_projects_latest_scrapling_realism_receipt",
+            body,
+        )
+        self.assertIn(
+            "test_execute_worker_plan_bulk_scraper_emits_request_realism_receipt",
+            body,
+        )
+        self.assertIn(
+            "test_execute_worker_plan_browser_automation_emits_browser_realism_receipt",
+            body,
+        )
+
     def test_scrapling_malicious_request_native_target_uses_focused_selectors(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")
         match = re.search(

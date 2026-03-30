@@ -4,6 +4,35 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-30)
 
+### SIM-REALISM-1B Implement Scrapling Profile-Driven Cadence, Burst, Dwell, And Identity Behavior
+
+- [x] Completed the Scrapling realism behavior tranche across:
+  - [`../scripts/supervisor/scrapling_worker.py`](../scripts/supervisor/scrapling_worker.py)
+  - [`../src/admin/adversary_sim_worker_plan.rs`](../src/admin/adversary_sim_worker_plan.rs)
+  - [`../src/admin/adversary_sim.rs`](../src/admin/adversary_sim.rs)
+  - [`../src/admin/adversary_sim_api.rs`](../src/admin/adversary_sim_api.rs)
+  - [`../src/admin/api.rs`](../src/admin/api.rs)
+  - [`../src/runtime/effect_intents/intent_executor.rs`](../src/runtime/effect_intents/intent_executor.rs)
+  - [`../src/observability/hot_read_documents.rs`](../src/observability/hot_read_documents.rs)
+  - [`../scripts/tests/test_scrapling_worker.py`](../scripts/tests/test_scrapling_worker.py)
+  - [`../scripts/tests/test_adversary_sim_make_targets.py`](../scripts/tests/test_adversary_sim_make_targets.py)
+  - [`../docs/adversarial-operator-guide.md`](../docs/adversarial-operator-guide.md)
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../Makefile`](../Makefile)
+- [x] What landed:
+  - Scrapling request-native personas now execute deterministic profile-driven activity budgets, burst sizing, gap pacing, and bounded session-identity behavior instead of one flat per-tick request pattern,
+  - Scrapling browser personas now execute profile-driven dwell intervals between top-level navigations,
+  - every Scrapling worker tick now emits a typed `realism_receipt` that records effective budgets, actual activity count, burst or dwell structure, session or identity handles, rotation count, and stop reason,
+  - and recent-run monitoring history now preserves the latest Scrapling realism receipt instead of dropping that pacing evidence after execution.
+- [x] Why:
+  - freezing the contract in `SIM-REALISM-1A` was not enough on its own; Scrapling needed to actually honor those persona-specific pacing and session-shape contracts without becoming so gentle that it failed to exercise the host surfaces it owns.
+- [x] Evidence:
+  - `make test-adversary-sim-scrapling-realism`
+  - `make test-adversary-sim-scrapling-worker`
+  - `make test-adversary-sim-scrapling-category-fit`
+  - `make test-adversary-sim-scrapling-coverage-receipts`
+  - `make test-adversary-sim-make-target-contract`
+
 ### SIM-REALISM-1A Freeze An Executable Realism Profile Contract For Scrapling And Agentic Traffic
 
 - [x] Completed the shared realism-contract tranche across:
