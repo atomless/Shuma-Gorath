@@ -108,7 +108,7 @@ Reference context:
 
 Current note:
 - The generated contributor-site chain `SIM-PUBSITE-1A` through `SIM-PUBSITE-1D` is now landed.
-- The immediate next execution priority is now the remaining realism chain in order with `SIM-REALISM-1C`, then `SIM-REALISM-1D`.
+- The immediate next execution priority is now the remaining realism chain with `SIM-REALISM-1D`.
 - Do not start new mixed-attacker proof or later tuning-quality work ahead of that resequenced chain unless a higher-severity regression forces an interruption.
 - `SIM-SCR-CHALLENGE-2A`, `SIM-SCR-CHALLENGE-2B`, and `SIM-SCR-CHALLENGE-2D` are landed.
 - `RSI-GAME-1A`, `RSI-GAME-1B`, `RSI-SCORE-1`, and `RSI-GAME-1C` are landed.
@@ -147,6 +147,7 @@ Current note:
 - `SIM-REALISM-1` is now the next adversary-sim maturity chain: both Scrapling and Agentic Traffic still need profile-driven cadence, burst, dwell, and identity or session realism before mixed-attacker or tuning claims are called representative.
 - `SIM-REALISM-1A` is now landed: the shared versioned realism-profile contract is frozen across Rust planners, Python workers, and Make-driven proof.
 - `SIM-REALISM-1B` is now landed: Scrapling personas now execute profile-driven pacing and dwell behavior, emit per-tick `realism_receipt` payloads, and preserve the latest Scrapling realism receipt in recent-run monitoring history. The next active execution priority is now the contributor-generated site chain because realism should continue against a richer public terrain than the current thin dummy surface.
+- `SIM-REALISM-1C` is now landed: Agentic Traffic request-mode now executes profile-driven focused micro-bursts and between-burst pauses, the container black-box worker emits typed request-mode `realism_receipt` payloads with focused-page-set and stop-reason truth, and recent-run monitoring history preserves the latest Agentic realism receipt alongside additive LLM runtime lineage. The next active execution priority is now `SIM-REALISM-1D`.
 - `SIM-REALISM-2` is now the explicit follow-on chain after `SIM-REALISM-1D`: the lanes still fall short on field-grounded pressure envelopes, proxy and identity realism, trusted-ingress client-IP realism, coherent header or transport envelopes, browser secondary traffic, per-persona exploration depth and frontier realism, compact traversal receipts, richer public discoverability of the dummy surface, explicit degraded identity labeling, and long-horizon recurrence.
 - Do not treat mere lane execution or recent-run visibility as characteristic attacker pressure while `bot_red_team` browser-mode still lacks real session execution and the lanes still retain overly uniform pressure, identity, and transport behavior.
 - Do not open `humans_plus_verified_only` until a later second strict-baseline proof has shown retained config-change improvement under both Scrapling and LLM attacker pressure.
@@ -156,18 +157,6 @@ Current note:
   - `bot_red_team` runtime receipts now contribute restriction-grade board loci,
   - and the next remaining blocker is projection truth: operator/admin and dashboard surfaces still need to distinguish judged mixed-attacker episodes from mere lane visibility.
 - Do not claim mixed-attacker strict-baseline proof from the new score spine alone; mixed-attacker proof projection and repeated retained improvement under mixed pressure still remain required.
-
-- [ ] SIM-REALISM-1C Implement Agentic request-mode profile-driven pacing and focused burst or pause behavior.
-  - Reference context:
-    - [`docs/research/2026-03-30-adversary-lane-traffic-realism-and-cadence-review.md`](../docs/research/2026-03-30-adversary-lane-traffic-realism-and-cadence-review.md)
-    - [`docs/plans/2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md`](../docs/plans/2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md)
-    - [`docs/plans/2026-03-25-sim-llm-1c-runtime-decomposition-plan.md`](../docs/plans/2026-03-25-sim-llm-1c-runtime-decomposition-plan.md)
-  - Closure gate:
-    - runtime truth: request-mode must emit focused micro-burst and pause behavior instead of one uniform sequential action stream
-    - receipt truth: runtime receipts must preserve the observed burst or pause structure and the focused-page-set behavior
-    - boundary truth: the lane must remain root-only, same-origin, public-hint-only, and Shuma-blind
-    - proof: add and pass `make test-adversarial-llm-realism`, and keep `make test-adversarial-llm-fit`, `make test-adversarial-llm-runtime-dispatch`, and `make test-adversarial-llm-runtime-projection` green
-    - insufficient: provider-backed generation with unchanged cadence semantics, or fallback that still collapses into a generic root-plus-hints loop
 
 - [ ] SIM-REALISM-1D Replace `browser_mode_not_supported` with a real Agentic browser-session lane.
   - Reference context:

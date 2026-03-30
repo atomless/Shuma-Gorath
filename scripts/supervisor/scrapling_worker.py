@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 from collections import Counter
 from collections.abc import AsyncGenerator
-import hashlib
 import json
 import os
 from pathlib import Path
@@ -26,6 +25,10 @@ from scripts.tests import sim_tag_helpers
 from scripts.tests.adversarial_runner.contracts import (
     normalize_lane_realism_profile,
     resolve_lane_realism_profile,
+)
+from scripts.tests.adversarial_runner.realism import (
+    realism_range_value as _realism_range_value,
+    stable_bucket as _stable_bucket,
 )
 
 
@@ -47,21 +50,6 @@ SCRAPLING_FULFILLMENT_MODES = {
     "stealth_browser",
     "http_agent",
 }
-
-
-def _stable_bucket(*parts: Any) -> int:
-    material = "|".join(str(part) for part in parts).encode("utf-8")
-    digest = hashlib.sha256(material).digest()
-    return int.from_bytes(digest[:8], "big", signed=False)
-
-
-def _realism_range_value(range_payload: dict[str, Any], *seed_parts: Any) -> int:
-    minimum = max(0, int(range_payload.get("min") or 0))
-    maximum = max(minimum, int(range_payload.get("max") or minimum))
-    if maximum <= minimum:
-        return minimum
-    span = maximum - minimum + 1
-    return minimum + (_stable_bucket(*seed_parts) % span)
 
 
 def _sleep_ms(delay_ms: int) -> None:

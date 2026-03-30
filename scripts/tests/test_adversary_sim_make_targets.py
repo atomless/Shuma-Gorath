@@ -131,6 +131,26 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
         )
         self.assertIn("scripts/tests/test_llm_fulfillment.py", body)
 
+    def test_llm_realism_target_uses_worker_and_projection_selectors(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-adversarial-llm-realism:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn("scripts/tests/test_llm_runtime_worker.py", body)
+        self.assertIn("scripts/tests/test_adversarial_container_worker.py", body)
+        self.assertIn(
+            "recent_sim_run_history_projects_llm_runtime_receipts_and_categories",
+            body,
+        )
+        self.assertIn(
+            "snapshot_payload_projects_recent_run_llm_runtime_summary",
+            body,
+        )
+
     def test_llm_runtime_dispatch_target_uses_typed_runtime_selectors(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")
         match = re.search(

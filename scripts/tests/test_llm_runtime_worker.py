@@ -11,6 +11,64 @@ from scripts.tests.adversarial_runner.contracts import resolve_lane_realism_prof
 
 
 class LlmRuntimeWorkerUnitTests(unittest.TestCase):
+    def test_build_request_mode_realism_execution_plan_shapes_focused_microbursts(self):
+        plan = {
+            "schema_version": "adversary-sim-llm-fulfillment-plan.v1",
+            "run_id": "simrun-llm-runtime",
+            "tick_id": "llm-fit-tick-4",
+            "lane": "bot_red_team",
+            "fulfillment_mode": "request_mode",
+            "backend_kind": "frontier_reference",
+            "backend_state": "configured",
+            "category_targets": ["http_agent"],
+            "capability_envelope": {"max_actions": 12, "max_time_budget_seconds": 120},
+            "realism_profile": resolve_lane_realism_profile("bot_red_team", "request_mode"),
+        }
+        generation = {
+            "generation_source": "provider_response",
+            "provider": "openai",
+            "model_id": "gpt-5-mini",
+            "actions": [
+                {"action_index": 1, "action_type": "http_get", "path": "/", "label": "root"},
+                {"action_index": 2, "action_type": "http_get", "path": "/robots.txt", "label": "robots"},
+                {"action_index": 3, "action_type": "http_get", "path": "/research/", "label": "research"},
+                {"action_index": 4, "action_type": "http_get", "path": "/plans/", "label": "plans"},
+                {"action_index": 5, "action_type": "http_get", "path": "/work/", "label": "work"},
+            ],
+        }
+
+        execution_plan = llm_runtime_worker.build_request_mode_realism_execution_plan(
+            fulfillment_plan=plan,
+            generation_result=generation,
+        )
+
+        self.assertEqual(
+            execution_plan["schema_version"],
+            "adversary-sim-llm-request-realism-plan.v1",
+        )
+        self.assertEqual(execution_plan["profile_id"], "agentic.request_mode.v1")
+        self.assertEqual(
+            len(execution_plan["actions"]),
+            execution_plan["effective_activity_budget"],
+        )
+        self.assertEqual(
+            sum(execution_plan["burst_sizes"]),
+            execution_plan["effective_activity_budget"],
+        )
+        self.assertEqual(
+            len(execution_plan["inter_action_gaps_ms"]),
+            max(0, execution_plan["effective_activity_budget"] - 1),
+        )
+        executed_paths = [action["path"] for action in execution_plan["actions"]]
+        self.assertIn("/", executed_paths)
+        self.assertLessEqual(len(set(executed_paths)), 4)
+        self.assertEqual(
+            execution_plan["focused_page_set_size"],
+            len(execution_plan["focused_page_paths"]),
+        )
+        self.assertTrue(any(0 < gap <= 350 for gap in execution_plan["inter_action_gaps_ms"]))
+        self.assertTrue(any(gap >= 1000 for gap in execution_plan["inter_action_gaps_ms"]))
+
     def test_extract_llm_fulfillment_plan_requires_nested_plan(self):
         with self.assertRaises(RuntimeError):
             llm_runtime_worker.extract_llm_fulfillment_plan({})
@@ -250,6 +308,7 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
         self.assertIn("--base-url", observed["command"])
         self.assertIn("http://127.0.0.1:3000/", observed["command"])
         self.assertIn("--frontier-actions", observed["command"])
+        self.assertIn("--request-realism-plan-json", observed["command"])
         self.assertIn("--request-budget", observed["command"])
         self.assertIn("3", observed["command"])
         self.assertEqual(report["_runner_exit_code"], 1)

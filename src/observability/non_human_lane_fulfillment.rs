@@ -449,6 +449,7 @@ mod tests {
             failure_class: None,
             error: None,
             terminal_failure: None,
+            latest_realism_receipt: None,
             latest_action_receipts: vec![],
         };
         let (profile, modes, categories) = observed_category_targets_for_runtime_profile(

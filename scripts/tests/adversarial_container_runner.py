@@ -48,6 +48,7 @@ DEFAULT_CONTAINER_RUNTIME_PROFILE_PATH = "scripts/tests/adversarial/container_ru
 FRONTIER_ACTIONS_ENV = "SHUMA_BLACKBOX_ACTIONS"
 CAPABILITY_ENVELOPES_ENV = "BLACKBOX_ACTION_ENVELOPES"
 CAPABILITY_VERIFY_KEY_ENV = "BLACKBOX_CAPABILITY_VERIFY_KEY"
+REQUEST_REALISM_PLAN_ENV = "BLACKBOX_REQUEST_REALISM_PLAN"
 DEFAULT_CLEANUP_TTL_HOURS = 72
 DEFAULT_CLEANUP_MAX_DELETE = 32
 DEFAULT_COMMAND_QUEUE_CAPACITY = 24
@@ -850,6 +851,7 @@ def container_command(
     time_budget_seconds: int,
     sim_tag_envelopes_json: str,
     frontier_actions_json: str,
+    request_realism_plan_json: str,
     capability_envelopes_json: str,
     capability_verify_key: str,
     docker_flags: List[str] | None = None,
@@ -886,6 +888,8 @@ def container_command(
         "-e",
         f"BLACKBOX_ACTIONS={frontier_actions_json}",
         "-e",
+        f"{REQUEST_REALISM_PLAN_ENV}={request_realism_plan_json}",
+        "-e",
         f"{CAPABILITY_ENVELOPES_ENV}={capability_envelopes_json}",
         "-e",
         f"{CAPABILITY_VERIFY_KEY_ENV}={capability_verify_key}",
@@ -904,6 +908,7 @@ def run_container_worker(
     time_budget_seconds: int,
     sim_tag_envelopes_json: str,
     frontier_actions_json: str,
+    request_realism_plan_json: str,
     capability_envelopes_json: str,
     capability_verify_key: str,
     docker_flags: List[str],
@@ -922,6 +927,7 @@ def run_container_worker(
         time_budget_seconds=time_budget_seconds,
         sim_tag_envelopes_json=sim_tag_envelopes_json,
         frontier_actions_json=frontier_actions_json,
+        request_realism_plan_json=request_realism_plan_json,
         capability_envelopes_json=capability_envelopes_json,
         capability_verify_key=capability_verify_key,
         docker_flags=docker_flags,
@@ -1135,6 +1141,11 @@ def main() -> int:
         help="Optional frontier action JSON list (defaults to contract default_actions)",
     )
     parser.add_argument(
+        "--request-realism-plan-json",
+        default=os.environ.get(REQUEST_REALISM_PLAN_ENV, ""),
+        help="Optional request-mode realism execution plan JSON passed through to the worker.",
+    )
+    parser.add_argument(
         "--cleanup-ttl-hours",
         default=os.environ.get("SHUMA_FRONTIER_ARTIFACT_TTL_HOURS", str(DEFAULT_CLEANUP_TTL_HOURS)),
         help="Retention TTL for frontier container report artifacts",
@@ -1337,6 +1348,7 @@ def main() -> int:
     sim_tag_envelopes_json = json.dumps(sim_tag_envelopes, separators=(",", ":"))
     worker_frontier_actions = worker_frontier_actions_payload(frontier_actions)
     frontier_actions_json = json.dumps(worker_frontier_actions, separators=(",", ":"))
+    request_realism_plan_json = str(args.request_realism_plan_json or "").strip()
     if args.mode == "blackbox":
         capability_verify_key, capability_envelopes = build_action_capability_envelopes(
             sim_tag_secret,
@@ -1365,6 +1377,7 @@ def main() -> int:
             time_budget_seconds=time_budget_seconds,
             sim_tag_envelopes_json=sim_tag_envelopes_json,
             frontier_actions_json=frontier_actions_json,
+            request_realism_plan_json=request_realism_plan_json,
             capability_envelopes_json=capability_envelopes_json,
             capability_verify_key=capability_verify_key,
             docker_flags=docker_flags,

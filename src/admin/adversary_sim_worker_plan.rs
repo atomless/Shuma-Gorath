@@ -120,6 +120,27 @@ pub struct LlmRuntimeActionReceipt {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
+pub struct LlmRuntimeRealismReceipt {
+    pub schema_version: String,
+    pub profile_id: String,
+    pub planned_activity_budget: u64,
+    pub effective_activity_budget: u64,
+    pub planned_burst_size: u64,
+    pub effective_burst_size: u64,
+    pub activity_count: u64,
+    pub burst_count: u64,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub burst_sizes: Vec<u64>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub inter_activity_gaps_ms: Vec<u64>,
+    pub focused_page_set_size: u64,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub session_handles: Vec<String>,
+    pub stop_reason: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct LlmRuntimeRecentRunSummary {
     pub receipt_count: u64,
     pub fulfillment_mode: String,
@@ -147,6 +168,8 @@ pub struct LlmRuntimeRecentRunSummary {
     pub error: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub terminal_failure: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub latest_realism_receipt: Option<LlmRuntimeRealismReceipt>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub latest_action_receipts: Vec<LlmRuntimeActionReceipt>,
 }
@@ -185,6 +208,8 @@ pub struct LlmRuntimeResult {
     pub error: Option<String>,
     #[serde(default)]
     pub terminal_failure: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub realism_receipt: Option<LlmRuntimeRealismReceipt>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub action_receipts: Vec<LlmRuntimeActionReceipt>,
 }
@@ -211,6 +236,7 @@ impl LlmRuntimeRecentRunSummary {
             failure_class: result.failure_class,
             error: result.error.clone(),
             terminal_failure: result.terminal_failure.clone(),
+            latest_realism_receipt: result.realism_receipt.clone(),
             latest_action_receipts: result.action_receipts.clone(),
         }
     }
@@ -243,6 +269,7 @@ impl LlmRuntimeRecentRunSummary {
         self.failure_class = summary.failure_class;
         self.error = summary.error.clone();
         self.terminal_failure = summary.terminal_failure.clone();
+        self.latest_realism_receipt = summary.latest_realism_receipt.clone();
         self.latest_action_receipts = summary.latest_action_receipts.clone();
         for category_id in &summary.category_targets {
             if !self.category_targets.iter().any(|value| value == category_id) {

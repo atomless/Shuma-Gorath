@@ -1829,6 +1829,23 @@ mod tests {
                         failure_class: None,
                         error: None,
                         terminal_failure: None,
+                        latest_realism_receipt: Some(
+                            crate::admin::adversary_sim_worker_plan::LlmRuntimeRealismReceipt {
+                                schema_version: "sim-lane-realism-receipt.v1".to_string(),
+                                profile_id: "agentic.request_mode.v1".to_string(),
+                                planned_activity_budget: 12,
+                                effective_activity_budget: 9,
+                                planned_burst_size: 3,
+                                effective_burst_size: 3,
+                                activity_count: 6,
+                                burst_count: 2,
+                                burst_sizes: vec![3, 3],
+                                inter_activity_gaps_ms: vec![150, 220, 1400, 180, 240],
+                                focused_page_set_size: 2,
+                                session_handles: vec!["agentic-request-session-1".to_string()],
+                                stop_reason: "response_pressure_stop".to_string(),
+                            },
+                        ),
                         latest_action_receipts: vec![
                             crate::admin::adversary_sim_worker_plan::LlmRuntimeActionReceipt {
                                 action_index: 1,
@@ -1878,6 +1895,14 @@ mod tests {
         assert_eq!(llm_runtime_summary.executed_action_count, 2);
         assert_eq!(llm_runtime_summary.failed_action_count, 0);
         assert_eq!(llm_runtime_summary.passed_tick_count, 1);
+        assert_eq!(
+            llm_runtime_summary
+                .latest_realism_receipt
+                .as_ref()
+                .expect("llm realism receipt")
+                .profile_id,
+            "agentic.request_mode.v1"
+        );
         assert_eq!(llm_runtime_summary.latest_action_receipts.len(), 2);
     }
 

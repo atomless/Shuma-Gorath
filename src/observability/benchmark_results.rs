@@ -2563,6 +2563,7 @@ mod tests {
                         failure_class: None,
                         error: None,
                         terminal_failure: None,
+                        latest_realism_receipt: None,
                         latest_action_receipts: vec![
                             crate::admin::adversary_sim_worker_plan::LlmRuntimeActionReceipt {
                                 action_index: 0,

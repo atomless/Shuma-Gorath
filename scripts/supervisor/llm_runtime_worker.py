@@ -24,14 +24,178 @@ from scripts.tests.adversarial_runner.contracts import (
     normalize_lane_realism_profile,
     resolve_lane_realism_profile,
 )
+from scripts.tests.adversarial_runner.realism import (
+    partition_activity_budget,
+    realism_range_value,
+)
 
 
 LLM_RUNTIME_RESULT_SCHEMA_VERSION = "adversary-sim-llm-runtime-result.v1"
+REQUEST_MODE_REALISM_PLAN_SCHEMA_VERSION = "adversary-sim-llm-request-realism-plan.v1"
 DEFAULT_PUBLIC_HINT_PATHS = ["/robots.txt"]
 
 
 class WorkerConfigError(ValueError):
     """Raised when required worker inputs are missing or invalid."""
+
+
+def _normalized_request_mode_actions(actions: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+    normalized: list[dict[str, Any]] = []
+    for index, action in enumerate(list(actions or []), start=1):
+        if not isinstance(action, dict):
+            continue
+        action_type = str(action.get("action_type") or "").strip() or "http_get"
+        path = str(action.get("path") or "").strip() or "/"
+        label = str(action.get("label") or "").strip()
+        normalized.append(
+            {
+                "action_index": index,
+                "action_type": action_type,
+                "path": path,
+                "label": label or None,
+            }
+        )
+    if normalized:
+        return normalized
+    return [
+        {
+            "action_index": 1,
+            "action_type": "http_get",
+            "path": "/",
+            "label": "root",
+        }
+    ]
+
+
+def _focused_request_mode_actions(
+    fulfillment_plan: dict[str, Any],
+    actions: list[dict[str, Any]],
+    *,
+    effective_burst_size: int,
+) -> list[dict[str, Any]]:
+    unique_actions: list[dict[str, Any]] = []
+    seen = set()
+    for action in actions:
+        key = (str(action.get("action_type") or ""), str(action.get("path") or ""))
+        if key in seen:
+            continue
+        unique_actions.append(action)
+        seen.add(key)
+    if not unique_actions:
+        unique_actions = _normalized_request_mode_actions(None)
+
+    root_actions = [action for action in unique_actions if str(action.get("path") or "") == "/"]
+    non_root_actions = [action for action in unique_actions if str(action.get("path") or "") != "/"]
+    prioritized_actions = root_actions[:1] + non_root_actions
+    if not prioritized_actions:
+        prioritized_actions = unique_actions
+
+    unique_count = len(prioritized_actions)
+    min_focus_size = 1 if unique_count <= 1 else 2
+    max_focus_size = max(min_focus_size, min(4, unique_count, max(2, effective_burst_size)))
+    focus_size = realism_range_value(
+        {"min": min_focus_size, "max": max_focus_size},
+        fulfillment_plan.get("run_id"),
+        fulfillment_plan.get("tick_id"),
+        "focused_page_set_size",
+    )
+    return prioritized_actions[:focus_size]
+
+
+def _inter_action_gaps_ms(
+    fulfillment_plan: dict[str, Any],
+    burst_sizes: list[int],
+) -> list[int]:
+    profile = dict(fulfillment_plan.get("realism_profile") or {})
+    gaps: list[int] = []
+    completed_actions = 0
+    burst_boundaries = set()
+    running_total = 0
+    for burst_size in burst_sizes[:-1]:
+        running_total += int(burst_size)
+        burst_boundaries.add(running_total)
+
+    total_actions = sum(burst_sizes)
+    for action_index in range(1, total_actions):
+        field_name = (
+            "between_burst_pause_ms" if action_index in burst_boundaries else "intra_burst_jitter_ms"
+        )
+        gap_ms = realism_range_value(
+            dict(profile.get(field_name) or {}),
+            fulfillment_plan.get("run_id"),
+            fulfillment_plan.get("tick_id"),
+            fulfillment_plan.get("fulfillment_mode"),
+            field_name,
+            completed_actions,
+            action_index,
+        )
+        gaps.append(gap_ms)
+        completed_actions += 1
+    return gaps
+
+
+def build_request_mode_realism_execution_plan(
+    *,
+    fulfillment_plan: dict[str, Any],
+    generation_result: dict[str, Any],
+) -> dict[str, Any]:
+    capability_envelope = dict(fulfillment_plan.get("capability_envelope") or {})
+    profile = normalize_lane_realism_profile(
+        fulfillment_plan.get("realism_profile"),
+        field_name="llm_fulfillment_plan.realism_profile",
+    )
+    planned_activity_budget = realism_range_value(
+        dict(profile.get("activity_budget") or {}),
+        fulfillment_plan.get("run_id"),
+        fulfillment_plan.get("tick_id"),
+        fulfillment_plan.get("fulfillment_mode"),
+        "activity_budget",
+    )
+    effective_activity_budget = max(
+        1,
+        min(
+            int(capability_envelope.get("max_actions") or 1),
+            planned_activity_budget,
+        ),
+    )
+    planned_burst_size = realism_range_value(
+        dict(profile.get("burst_size") or {}),
+        fulfillment_plan.get("run_id"),
+        fulfillment_plan.get("tick_id"),
+        fulfillment_plan.get("fulfillment_mode"),
+        "burst_size",
+    )
+    effective_burst_size = max(1, min(effective_activity_budget, planned_burst_size))
+    candidate_actions = _normalized_request_mode_actions(
+        list(generation_result.get("actions") or [])
+    )
+    focused_actions = _focused_request_mode_actions(
+        fulfillment_plan,
+        candidate_actions,
+        effective_burst_size=effective_burst_size,
+    )
+    expanded_actions: list[dict[str, Any]] = []
+    focus_count = max(1, len(focused_actions))
+    for action_index in range(1, effective_activity_budget + 1):
+        template = dict(focused_actions[(action_index - 1) % focus_count])
+        template["action_index"] = action_index
+        expanded_actions.append(template)
+    burst_sizes = partition_activity_budget(effective_activity_budget, effective_burst_size)
+    inter_action_gaps_ms = _inter_action_gaps_ms(fulfillment_plan, burst_sizes)
+    return {
+        "schema_version": REQUEST_MODE_REALISM_PLAN_SCHEMA_VERSION,
+        "profile_id": str(profile.get("profile_id") or ""),
+        "planned_activity_budget": planned_activity_budget,
+        "effective_activity_budget": effective_activity_budget,
+        "planned_burst_size": planned_burst_size,
+        "effective_burst_size": effective_burst_size,
+        "burst_sizes": burst_sizes,
+        "inter_action_gaps_ms": inter_action_gaps_ms,
+        "focused_page_paths": [str(action.get("path") or "/") for action in focused_actions],
+        "focused_page_set_size": len(focused_actions),
+        "session_handles": ["agentic-request-session-1"],
+        "actions": expanded_actions,
+    }
 
 
 def _load_json(path: Path) -> dict[str, Any]:
@@ -189,6 +353,7 @@ def build_llm_runtime_result(
         [item for item in list(generation_result.get("actions") or []) if isinstance(item, dict)]
     )
     worker_payload = dict(report_payload.get("worker_payload") or {}) if isinstance(report_payload, dict) else {}
+    realism_receipt = dict(worker_payload.get("realism_receipt") or {})
     traffic = [
         dict(item)
         for item in list(worker_payload.get("traffic") or [])
@@ -244,6 +409,7 @@ def build_llm_runtime_result(
         "failure_class": derived_failure_class,
         "error": derived_error,
         "terminal_failure": derived_terminal_failure,
+        "realism_receipt": realism_receipt or None,
         "action_receipts": action_receipts,
     }
 
@@ -253,13 +419,23 @@ def run_request_mode_blackbox(
     base_url: str,
     fulfillment_plan: dict[str, Any],
     generation_result: dict[str, Any],
+    realism_execution_plan: dict[str, Any] | None = None,
     runner: Any = subprocess.run,
     report_path: Path | None = None,
 ) -> dict[str, Any]:
     capability_envelope = dict(fulfillment_plan.get("capability_envelope") or {})
+    if realism_execution_plan is None:
+        realism_execution_plan = build_request_mode_realism_execution_plan(
+            fulfillment_plan=fulfillment_plan,
+            generation_result=generation_result,
+        )
+    execution_actions = list(realism_execution_plan.get("actions") or [])
     request_budget = max(
         1,
-        int(capability_envelope.get("max_actions") or len(list(generation_result.get("actions") or [])) or 1),
+        min(
+            int(capability_envelope.get("max_actions") or len(execution_actions) or 1),
+            int(realism_execution_plan.get("effective_activity_budget") or len(execution_actions) or 1),
+        ),
     )
     time_budget_seconds = max(
         10,
@@ -282,7 +458,9 @@ def run_request_mode_blackbox(
         "--base-url",
         str(base_url).strip(),
         "--frontier-actions",
-        json.dumps(list(generation_result.get("actions") or []), separators=(",", ":")),
+        json.dumps(execution_actions, separators=(",", ":")),
+        "--request-realism-plan-json",
+        json.dumps(realism_execution_plan, separators=(",", ":")),
         "--request-budget",
         str(request_budget),
         "--time-budget-seconds",
@@ -358,10 +536,19 @@ def main() -> int:
             terminal_failure="browser_mode_not_supported",
         )
     else:
+        request_mode_execution_plan = build_request_mode_realism_execution_plan(
+            fulfillment_plan=fulfillment_plan,
+            generation_result=generation_result,
+        )
+        generation_result = {
+            **generation_result,
+            "actions": list(request_mode_execution_plan.get("actions") or []),
+        }
         report_payload = run_request_mode_blackbox(
             base_url=base_url,
             fulfillment_plan=fulfillment_plan,
             generation_result=generation_result,
+            realism_execution_plan=request_mode_execution_plan,
         )
         result = build_llm_runtime_result(
             fulfillment_plan=fulfillment_plan,

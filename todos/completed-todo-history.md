@@ -4,6 +4,39 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-30)
 
+### SIM-REALISM-1C Implement Agentic Request-Mode Profile-Driven Pacing And Focused Burst Or Pause Behavior
+
+- [x] Completed the request-mode realism tranche across:
+  - [`../scripts/supervisor/llm_runtime_worker.py`](../scripts/supervisor/llm_runtime_worker.py)
+  - [`../scripts/tests/adversarial_runner/realism.py`](../scripts/tests/adversarial_runner/realism.py)
+  - [`../scripts/tests/adversarial_container/worker.py`](../scripts/tests/adversarial_container/worker.py)
+  - [`../scripts/tests/adversarial_container_runner.py`](../scripts/tests/adversarial_container_runner.py)
+  - [`../scripts/tests/test_llm_runtime_worker.py`](../scripts/tests/test_llm_runtime_worker.py)
+  - [`../scripts/tests/test_adversarial_container_worker.py`](../scripts/tests/test_adversarial_container_worker.py)
+  - [`../scripts/tests/test_adversarial_container_runner.py`](../scripts/tests/test_adversarial_container_runner.py)
+  - [`../scripts/tests/test_adversary_sim_make_targets.py`](../scripts/tests/test_adversary_sim_make_targets.py)
+  - [`../src/admin/adversary_sim_worker_plan.rs`](../src/admin/adversary_sim_worker_plan.rs)
+  - [`../src/admin/api.rs`](../src/admin/api.rs)
+  - [`../src/admin/oversight_observer_round_archive.rs`](../src/admin/oversight_observer_round_archive.rs)
+  - [`../src/observability/operator_snapshot.rs`](../src/observability/operator_snapshot.rs)
+  - [`../src/observability/non_human_lane_fulfillment.rs`](../src/observability/non_human_lane_fulfillment.rs)
+  - [`../src/observability/benchmark_results.rs`](../src/observability/benchmark_results.rs)
+  - [`../docs/adversarial-operator-guide.md`](../docs/adversarial-operator-guide.md)
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../docs/plans/2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md`](../docs/plans/2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md)
+- [x] What landed:
+  - the host-side LLM runtime worker now shapes request-mode traffic into a bounded focused page set, profile-driven micro-bursts, and between-burst pause windows instead of emitting one flat sequential action stream,
+  - the container black-box worker now executes that shaped plan with explicit inter-action pacing, response-pressure stop behavior, and typed `realism_receipt` payloads,
+  - recent-run and observer-facing Rust summaries now preserve the latest Agentic request-mode realism receipt alongside additive LLM runtime lineage,
+  - and the Makefile now exposes a focused `make test-adversarial-llm-realism` proof lane for the new runtime, receipt, and projection contract.
+- [x] Why:
+  - `SIM-REALISM-1C` was the next realism prerequisite before any claim that Agentic Traffic is representative enough for stricter mixed-attacker or tuning-quality work.
+- [x] Evidence:
+  - `make test-adversarial-llm-realism`
+  - `make test-adversarial-llm-fit`
+  - `make test-adversarial-llm-runtime-dispatch`
+  - `make test-adversarial-llm-runtime-projection`
+
 ### SIM-PUBSITE-1D Add Discoverability Artifacts And Contributor Or Runtime Flow Wiring For The Generated Site
 
 - [x] Completed the discoverability and build-flow tranche across:

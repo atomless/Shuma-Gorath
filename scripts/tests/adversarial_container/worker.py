@@ -42,6 +42,8 @@ FRONTIER_ACTION_CONTRACT_PATH = DEFAULT_CONTRACT_DIR / "frontier_action_contract
 FRONTIER_ACTIONS_ENV = "BLACKBOX_ACTIONS"
 CAPABILITY_ENVELOPES_ENV = "BLACKBOX_ACTION_ENVELOPES"
 CAPABILITY_VERIFY_KEY_ENV = "BLACKBOX_CAPABILITY_VERIFY_KEY"
+REQUEST_REALISM_PLAN_ENV = "BLACKBOX_REQUEST_REALISM_PLAN"
+REQUEST_REALISM_PLAN_SCHEMA_VERSION = "adversary-sim-llm-request-realism-plan.v1"
 
 
 def bool_env(name: str, default: bool = False) -> bool:
@@ -212,6 +214,241 @@ def make_request(
         }
 
 
+def _sleep_gap_ms(delay_ms: int) -> None:
+    if delay_ms > 0:
+        time.sleep(delay_ms / 1000.0)
+
+
+def _parse_request_realism_plan(
+    raw_value: str,
+    *,
+    resolved_actions: List[Dict[str, Any]],
+    request_budget: int,
+) -> Dict[str, Any]:
+    actions_count = len(resolved_actions)
+    fallback_paths = []
+    seen_paths = set()
+    for action in resolved_actions:
+        path = str(action.get("path") or "").strip() or "/"
+        if path in seen_paths:
+            continue
+        seen_paths.add(path)
+        fallback_paths.append(path)
+
+    text = str(raw_value or "").strip()
+    if not text:
+        return {
+            "schema_version": REQUEST_REALISM_PLAN_SCHEMA_VERSION,
+            "profile_id": "",
+            "planned_activity_budget": actions_count,
+            "effective_activity_budget": actions_count,
+            "planned_burst_size": max(1, actions_count),
+            "effective_burst_size": max(1, actions_count),
+            "burst_sizes": [actions_count] if actions_count else [],
+            "inter_action_gaps_ms": [0 for _ in range(max(0, actions_count - 1))],
+            "focused_page_paths": fallback_paths,
+            "focused_page_set_size": len(fallback_paths),
+            "session_handles": ["agentic-request-session-1"],
+        }
+
+    payload = json.loads(text)
+    if not isinstance(payload, dict):
+        raise RuntimeError("request realism plan must be a JSON object")
+    schema_version = str(payload.get("schema_version") or "").strip()
+    if schema_version != REQUEST_REALISM_PLAN_SCHEMA_VERSION:
+        raise RuntimeError(
+            "request realism plan schema_version must be "
+            f"{REQUEST_REALISM_PLAN_SCHEMA_VERSION}"
+        )
+
+    burst_sizes = [max(1, int(item)) for item in list(payload.get("burst_sizes") or [])]
+    inter_action_gaps_ms = [
+        max(0, int(item)) for item in list(payload.get("inter_action_gaps_ms") or [])
+    ]
+    focused_page_paths = [
+        str(item).strip() or "/"
+        for item in list(payload.get("focused_page_paths") or [])
+        if str(item).strip()
+    ]
+    session_handles = [
+        str(item).strip()
+        for item in list(payload.get("session_handles") or [])
+        if str(item).strip()
+    ]
+
+    if sum(burst_sizes) != actions_count:
+        raise RuntimeError("request realism plan burst_sizes must sum to resolved action count")
+    if len(inter_action_gaps_ms) != max(0, actions_count - 1):
+        raise RuntimeError(
+            "request realism plan inter_action_gaps_ms must match resolved action transitions"
+        )
+    if actions_count > request_budget:
+        raise RuntimeError("request realism plan must not exceed the worker request budget")
+
+    planned_activity_budget = max(actions_count, int(payload.get("planned_activity_budget") or actions_count))
+    effective_activity_budget = int(payload.get("effective_activity_budget") or actions_count)
+    if effective_activity_budget != actions_count:
+        raise RuntimeError(
+            "request realism plan effective_activity_budget must match resolved action count"
+        )
+    planned_burst_size = max(1, int(payload.get("planned_burst_size") or max(1, max(burst_sizes or [1]))))
+    effective_burst_size = max(1, int(payload.get("effective_burst_size") or max(burst_sizes or [1])))
+
+    return {
+        "schema_version": schema_version,
+        "profile_id": str(payload.get("profile_id") or "").strip(),
+        "planned_activity_budget": planned_activity_budget,
+        "effective_activity_budget": effective_activity_budget,
+        "planned_burst_size": planned_burst_size,
+        "effective_burst_size": effective_burst_size,
+        "burst_sizes": burst_sizes,
+        "inter_action_gaps_ms": inter_action_gaps_ms,
+        "focused_page_paths": focused_page_paths or fallback_paths,
+        "focused_page_set_size": int(payload.get("focused_page_set_size") or len(focused_page_paths or fallback_paths)),
+        "session_handles": session_handles or ["agentic-request-session-1"],
+    }
+
+
+def execute_resolved_actions_with_realism(
+    *,
+    resolved_actions: List[Dict[str, Any]],
+    request_realism_plan: Dict[str, Any],
+    request_budget: int,
+    time_budget_seconds: int,
+    start: float,
+    allowed_origins: List[str],
+    sim_headers: Dict[str, str],
+    sim_tag_envelopes: List[Dict[str, str]],
+    policy_audit: List[Dict[str, Any]],
+    run_id: str,
+) -> Dict[str, Any]:
+    traffic: List[Dict[str, Any]] = []
+    errors: List[str] = []
+    statuses: List[int] = []
+    requests_sent = 0
+    used_gaps_ms: List[int] = []
+    burst_sizes_executed: List[int] = []
+    burst_sizes = list(request_realism_plan.get("burst_sizes") or [])
+    current_burst_statuses: List[int] = []
+    current_burst_size = 0
+    stop_reason = "activity_sequence_exhausted"
+
+    for index, action in enumerate(resolved_actions):
+        if requests_sent >= request_budget:
+            stop_reason = "request_budget_exhausted"
+            break
+        if requests_sent >= len(sim_tag_envelopes):
+            errors.append("sim_tag_envelopes_exhausted")
+            append_policy_audit_event(
+                policy_audit,
+                stage="execution",
+                decision="deny",
+                code="sim_tag_envelopes_exhausted",
+                action=action,
+            )
+            stop_reason = "sim_tag_envelopes_exhausted"
+            break
+        if (time.monotonic() - start) >= time_budget_seconds:
+            errors.append("time_budget_exhausted")
+            append_policy_audit_event(
+                policy_audit,
+                stage="execution",
+                decision="deny",
+                code="time_budget_exhausted",
+                action=action,
+            )
+            stop_reason = "time_budget_exhausted"
+            break
+        if requests_sent > 0:
+            gap_ms = int(list(request_realism_plan.get("inter_action_gaps_ms") or [])[requests_sent - 1])
+            used_gaps_ms.append(gap_ms)
+            _sleep_gap_ms(gap_ms)
+
+        envelope = sim_tag_envelopes[requests_sent]
+        request_headers = dict(sim_headers)
+        request_headers[SIM_TAG_HEADER_TIMESTAMP] = envelope["ts"]
+        request_headers[SIM_TAG_HEADER_NONCE] = envelope["nonce"]
+        request_headers[SIM_TAG_HEADER_SIGNATURE] = envelope["signature"]
+        url = str(action.get("url") or "")
+        if not enforce_allowlist(url, allowed_origins):
+            errors.append(f"egress_disallowed:{url}")
+            append_policy_audit_event(
+                policy_audit,
+                stage="execution",
+                decision="deny",
+                code="egress_disallowed",
+                detail=url,
+                action=action,
+            )
+            stop_reason = "egress_disallowed"
+            break
+
+        emit_heartbeat(run_id, "before_action", action_index=requests_sent + 1)
+        result = make_request(url, request_headers)
+        result["action_index"] = action.get("action_index")
+        result["action_type"] = action.get("action_type")
+        result["path"] = action.get("path")
+        if str(action.get("label") or "").strip():
+            result["label"] = str(action.get("label")).strip()
+        traffic.append(result)
+        requests_sent += 1
+        statuses.append(int(result.get("status", 0)))
+        current_burst_statuses.append(int(result.get("status", 0)))
+        current_burst_size += 1
+        emit_heartbeat(run_id, "after_action", action_index=requests_sent)
+
+        if int(result.get("status", 0)) == 0:
+            errors.append(str(result.get("error") or "request_failed"))
+            append_policy_audit_event(
+                policy_audit,
+                stage="execution",
+                decision="deny",
+                code="request_failed",
+                detail=str(result.get("error") or "request_failed"),
+                action=action,
+            )
+            stop_reason = "transport_error"
+            break
+
+        planned_burst_size = int(burst_sizes[len(burst_sizes_executed)]) if len(burst_sizes_executed) < len(burst_sizes) else current_burst_size
+        if current_burst_size >= planned_burst_size:
+            burst_sizes_executed.append(current_burst_size)
+            if current_burst_statuses and all(status in {403, 429} for status in current_burst_statuses):
+                stop_reason = "response_pressure_stop"
+                current_burst_statuses = []
+                current_burst_size = 0
+                break
+            current_burst_statuses = []
+            current_burst_size = 0
+
+    if current_burst_size > 0:
+        burst_sizes_executed.append(current_burst_size)
+
+    realism_receipt = {
+        "schema_version": "sim-lane-realism-receipt.v1",
+        "profile_id": str(request_realism_plan.get("profile_id") or ""),
+        "planned_activity_budget": int(request_realism_plan.get("planned_activity_budget") or requests_sent),
+        "effective_activity_budget": int(request_realism_plan.get("effective_activity_budget") or requests_sent),
+        "planned_burst_size": int(request_realism_plan.get("planned_burst_size") or 1),
+        "effective_burst_size": int(request_realism_plan.get("effective_burst_size") or 1),
+        "activity_count": requests_sent,
+        "burst_count": len(burst_sizes_executed),
+        "burst_sizes": burst_sizes_executed,
+        "inter_activity_gaps_ms": used_gaps_ms[: max(0, requests_sent - 1)],
+        "focused_page_set_size": len(set(request_realism_plan.get("focused_page_paths") or [])),
+        "session_handles": list(request_realism_plan.get("session_handles") or []),
+        "stop_reason": stop_reason,
+    }
+
+    return {
+        "traffic": traffic,
+        "errors": errors,
+        "statuses": statuses,
+        "requests_sent": requests_sent,
+        "realism_receipt": realism_receipt,
+    }
+
+
 def append_policy_audit_event(
     events: List[Dict[str, Any]],
     *,
@@ -308,6 +545,7 @@ def main() -> int:
         "request_budget": request_budget,
         "time_budget_seconds": time_budget_seconds,
         "traffic": [],
+        "realism_receipt": None,
         "passed": False,
     }
 
@@ -448,71 +686,30 @@ def main() -> int:
         else:
             payload["capability_validation_passed"] = True
 
-    requests_sent = 0
-    for action in resolved_actions:
-        if errors:
-            break
-        if requests_sent >= request_budget:
-            break
-        if requests_sent >= len(sim_tag_envelopes):
-            errors.append("sim_tag_envelopes_exhausted")
-            append_policy_audit_event(
-                policy_audit,
-                stage="execution",
-                decision="deny",
-                code="sim_tag_envelopes_exhausted",
-                action=action,
-            )
-            break
-        if (time.monotonic() - start) >= time_budget_seconds:
-            errors.append("time_budget_exhausted")
-            append_policy_audit_event(
-                policy_audit,
-                stage="execution",
-                decision="deny",
-                code="time_budget_exhausted",
-                action=action,
-            )
-            break
-        envelope = sim_tag_envelopes[requests_sent]
-        request_headers = dict(sim_headers)
-        request_headers[SIM_TAG_HEADER_TIMESTAMP] = envelope["ts"]
-        request_headers[SIM_TAG_HEADER_NONCE] = envelope["nonce"]
-        request_headers[SIM_TAG_HEADER_SIGNATURE] = envelope["signature"]
-        url = str(action.get("url") or "")
-        if not enforce_allowlist(url, allowed_origins):
-            errors.append(f"egress_disallowed:{url}")
-            append_policy_audit_event(
-                policy_audit,
-                stage="execution",
-                decision="deny",
-                code="egress_disallowed",
-                detail=url,
-                action=action,
-            )
-            break
-        emit_heartbeat(run_id, "before_action", action_index=requests_sent + 1)
-        result = make_request(url, request_headers)
-        result["action_index"] = action.get("action_index")
-        result["action_type"] = action.get("action_type")
-        result["path"] = action.get("path")
-        if str(action.get("label") or "").strip():
-            result["label"] = str(action.get("label")).strip()
-        payload["traffic"].append(result)
-        requests_sent += 1
-        statuses.append(int(result.get("status", 0)))
-        emit_heartbeat(run_id, "after_action", action_index=requests_sent)
-        if result.get("status", 0) == 0:
-            errors.append(str(result.get("error") or "request_failed"))
-            append_policy_audit_event(
-                policy_audit,
-                stage="execution",
-                decision="deny",
-                code="request_failed",
-                detail=str(result.get("error") or "request_failed"),
-                action=action,
-            )
+    request_realism_plan = _parse_request_realism_plan(
+        os.environ.get(REQUEST_REALISM_PLAN_ENV, ""),
+        resolved_actions=resolved_actions,
+        request_budget=request_budget,
+    )
 
+    execution = execute_resolved_actions_with_realism(
+        resolved_actions=resolved_actions,
+        request_realism_plan=request_realism_plan,
+        request_budget=request_budget,
+        time_budget_seconds=time_budget_seconds,
+        start=start,
+        allowed_origins=allowed_origins,
+        sim_headers=sim_headers,
+        sim_tag_envelopes=sim_tag_envelopes,
+        policy_audit=policy_audit,
+        run_id=run_id,
+    )
+
+    payload["traffic"] = execution["traffic"]
+    payload["realism_receipt"] = execution["realism_receipt"]
+    requests_sent = int(execution["requests_sent"])
+    statuses = list(execution["statuses"])
+    errors.extend(str(item).strip() for item in list(execution["errors"]) if str(item).strip())
     payload["requests_sent"] = requests_sent
     payload["errors"] = errors
     payload["policy_violation_count"] = len(policy_audit)

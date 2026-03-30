@@ -137,6 +137,7 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
             time_budget_seconds=90,
             sim_tag_envelopes_json='[{"ts":"1","nonce":"n","signature":"s"}]',
             frontier_actions_json='[{"action_type":"http_get","path":"/"}]',
+            request_realism_plan_json='{"schema_version":"adversary-sim-llm-request-realism-plan.v1"}',
             capability_envelopes_json='[{"run_id":"r","step_id":1,"action_type":"http_get","path":"/","nonce":"n","issued_at":1,"expires_at":2,"key_id":"k","signature":"s"}]',
             capability_verify_key="verify-key",
             docker_flags=["--add-host=host.docker.internal:host-gateway", "--network=bridge"],
@@ -149,6 +150,7 @@ class AdversarialContainerRunnerUnitTests(unittest.TestCase):
         self.assertIn("--add-host=host.docker.internal:host-gateway", joined)
         self.assertIn("BLACKBOX_SIM_TAG_ENVELOPES=", joined)
         self.assertIn("BLACKBOX_ACTIONS=", joined)
+        self.assertIn("BLACKBOX_REQUEST_REALISM_PLAN=", joined)
         self.assertIn("BLACKBOX_ACTION_ENVELOPES=", joined)
         self.assertIn("BLACKBOX_CAPABILITY_VERIFY_KEY=", joined)
 

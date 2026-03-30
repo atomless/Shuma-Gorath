@@ -8,7 +8,7 @@
 
 **Tech Stack:** Rust adversary-sim runtime and internal API, Rust supervisor transport, Python Scrapling worker, Python LLM runtime worker and adversarial container runner, existing operator-snapshot and oversight observer surfaces, Makefile verification, backlog and docs closeout.
 
-**Status note:** `SIM-REALISM-1A` and `SIM-REALISM-1B` are now landed. The later field-grounded follow-on plan is [`2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](2026-03-30-adversary-lane-wild-traffic-gap-plan.md), which keeps representative mixed-attacker claims blocked until the second realism chain lands as well.
+**Status note:** `SIM-REALISM-1A`, `SIM-REALISM-1B`, and `SIM-REALISM-1C` are now landed. The later field-grounded follow-on plan is [`2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](2026-03-30-adversary-lane-wild-traffic-gap-plan.md), which keeps representative mixed-attacker claims blocked until the second realism chain lands as well.
 
 ---
 

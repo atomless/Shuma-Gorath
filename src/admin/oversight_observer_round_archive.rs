@@ -357,6 +357,7 @@ mod tests {
                 failure_class: None,
                 error: None,
                 terminal_failure: None,
+                latest_realism_receipt: None,
                 latest_action_receipts: vec![LlmRuntimeActionReceipt {
                     action_index: 1,
                     action_type: "http_get".to_string(),
