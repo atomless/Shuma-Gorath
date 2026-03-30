@@ -13,7 +13,6 @@ Top-level tabs and routes:
 - [`traps.md`](traps.md) - `#traps`
 - [`rate-limiting.md`](rate-limiting.md) - `#rate-limiting`
 - [`geo.md`](geo.md) - `#geo`
-- [`fingerprinting.md`](fingerprinting.md) - `#fingerprinting`
 - [`policy.md`](policy.md) - `#policy`
 - [`status.md`](status.md) - `#status`
 - [`advanced.md`](advanced.md) - `#advanced`

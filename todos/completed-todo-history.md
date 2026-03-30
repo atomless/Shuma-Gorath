@@ -4,6 +4,45 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-30)
 
+### DASH-FP-REHOME-1 Temporarily Rehome Fingerprint Controls And Retire The Fingerprinting Tab
+
+- [x] Completed the temporary dashboard ownership rehome across:
+  - [`../dashboard/src/lib/components/dashboard/VerificationTab.svelte`](../dashboard/src/lib/components/dashboard/VerificationTab.svelte)
+  - [`../dashboard/src/lib/components/dashboard/TuningTab.svelte`](../dashboard/src/lib/components/dashboard/TuningTab.svelte)
+  - [`../dashboard/src/lib/components/dashboard/FingerprintingTab.svelte`](../dashboard/src/lib/components/dashboard/FingerprintingTab.svelte)
+  - [`../dashboard/src/lib/domain/dashboard-state.js`](../dashboard/src/lib/domain/dashboard-state.js)
+  - [`../dashboard/src/lib/runtime/dashboard-native-runtime.js`](../dashboard/src/lib/runtime/dashboard-native-runtime.js)
+  - [`../dashboard/src/lib/runtime/dashboard-route-controller.js`](../dashboard/src/lib/runtime/dashboard-route-controller.js)
+  - [`../dashboard/src/lib/runtime/dashboard-runtime-refresh.js`](../dashboard/src/lib/runtime/dashboard-runtime-refresh.js)
+  - [`../dashboard/src/lib/state/dashboard-store.js`](../dashboard/src/lib/state/dashboard-store.js)
+  - [`../dashboard/src/routes/+page.svelte`](../dashboard/src/routes/+page.svelte)
+  - [`../docs/dashboard.md`](../docs/dashboard.md)
+  - [`../docs/dashboard-tabs/README.md`](../docs/dashboard-tabs/README.md)
+  - [`../docs/dashboard-tabs/fingerprinting.md`](../docs/dashboard-tabs/fingerprinting.md)
+  - [`../docs/dashboard-tabs/tuning.md`](../docs/dashboard-tabs/tuning.md)
+  - [`../docs/dashboard-tabs/verification.md`](../docs/dashboard-tabs/verification.md)
+  - [`../docs/research/2026-03-30-fingerprinting-tab-temporary-rehome-review.md`](../docs/research/2026-03-30-fingerprinting-tab-temporary-rehome-review.md)
+  - [`../docs/plans/2026-03-30-fingerprinting-tab-temporary-rehome-plan.md`](../docs/plans/2026-03-30-fingerprinting-tab-temporary-rehome-plan.md)
+  - [`../docs/research/README.md`](../docs/research/README.md)
+  - [`../docs/plans/README.md`](../docs/plans/README.md)
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`../Makefile`](../Makefile)
+- [x] What landed:
+  - the live `Fingerprinting` dashboard tab and its route/runtime/store ownership path are retired for now, so the dashboard no longer exposes a mostly-empty tab,
+  - `Verification` now owns the editable `Akamai Bot Signal` controls at the top of the pane, including edge availability and influence-mode posture,
+  - `Tuning` now temporarily carries the read-only runtime botness scoring-definition list, excluding the dedicated Akamai additive signal that now lives with `Verification`,
+  - the dedicated fingerprinting component was deleted, the tab docs were rewritten to a retired stub, and the dashboard/tests/docs no longer treat `#fingerprinting` as a live route,
+  - and a focused `make test-dashboard-fingerprint-control-rehome` proof target now exercises the exact rendered verification/tuning rehome contract without depending on unrelated broad dashboard suite state.
+- [x] Why:
+  - the read-only scoring list and the Akamai source controls had better semantic homes in `Tuning` and `Verification`, and leaving a separate Fingerprinting tab in place would have preserved dead chrome and stale ownership contracts ahead of the larger tuning-surface realignment.
+- [x] Evidence:
+  - `make test-dashboard-tab-information-architecture`
+  - `make test-dashboard-policy-pane-ownership`
+  - `make test-dashboard-verified-identity-pane`
+  - `make test-dashboard-fingerprint-control-rehome`
+  - `make dashboard-build`
+
 ### TUNE-SURFACE-PLAN-REFRAME-1 Capture Fresh Tuning-Tab Backlog Around Editable Cost-Shaping Controls
 
 - [x] Completed the docs-only backlog reshaping in:

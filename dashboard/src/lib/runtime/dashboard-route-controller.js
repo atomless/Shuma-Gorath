@@ -12,7 +12,6 @@ const DEFAULT_TAB_LOADING_MESSAGES = Object.freeze({
   advanced: 'Loading advanced controls...',
   'rate-limiting': 'Loading rate limiting controls...',
   geo: 'Loading GEO controls...',
-  fingerprinting: 'Loading fingerprinting controls...',
   policy: 'Loading policy controls...',
   tuning: 'Loading tuning values...'
 });
@@ -73,7 +72,7 @@ function normalizeRefreshInterval(value) {
 export function createDashboardRouteController(options = {}) {
   const tabs = Array.isArray(options.tabs) && options.tabs.length > 0
     ? Object.freeze([...options.tabs])
-    : Object.freeze(['traffic', 'ip-bans', 'red-team', 'game-loop', 'tuning', 'verification', 'traps', 'rate-limiting', 'geo', 'fingerprinting', 'policy', 'status', 'advanced', 'diagnostics']);
+    : Object.freeze(['traffic', 'ip-bans', 'red-team', 'game-loop', 'tuning', 'verification', 'traps', 'rate-limiting', 'geo', 'policy', 'status', 'advanced', 'diagnostics']);
 
   const normalizeTab =
     typeof options.normalizeTab === 'function' ? options.normalizeTab : (tab) => String(tab || '');

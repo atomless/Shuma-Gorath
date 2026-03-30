@@ -6,7 +6,11 @@
   import { onMount } from 'svelte';
   import SaveChangesBar from './primitives/SaveChangesBar.svelte';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
-  import { isAdminConfigWritable } from '../../domain/config-runtime.js';
+  import {
+    isAdminConfigWritable,
+    isAkamaiEdgeAvailable
+  } from '../../domain/config-runtime.js';
+  import { normalizeEdgeMode } from '../../domain/config-tab-helpers.js';
   import { parseFloatNumber, parseInteger } from '../../domain/core/math.js';
   import { inRange } from '../../domain/core/validation.js';
   import ToggleRow from './primitives/ToggleRow.svelte';
@@ -33,6 +37,9 @@
   let cdpDetectionEnabled = true;
   let cdpAutoBan = true;
   let cdpDetectionThreshold = 0.6;
+  let akamaiEdgeAvailable = false;
+  let akamaiBotSignalEnabled = false;
+  let edgeIntegrationMode = 'additive';
 
   let powEnabled = true;
   let powDifficulty = 15;
@@ -55,6 +62,10 @@
   let verifiedIdentityDirectoryFreshnessRequirementSeconds = 86400;
 
   let baseline = {
+    akamai: {
+      enabled: false,
+      mode: 'additive'
+    },
     jsRequired: { enforced: true },
     cdp: { enabled: true, autoBan: true, threshold: 0.6 },
     pow: { enabled: true, difficulty: 15, ttl: 90 },
@@ -85,6 +96,12 @@
     event.returnValue = '';
   };
 
+  const AKAMAI_EDGE_ADDITIVE_SIGNAL_KEY = 'fp_akamai_edge_additive';
+  const normalizedModeFromConfig = (value) => {
+    const normalized = normalizeEdgeMode(value);
+    return normalized === 'off' ? 'additive' : normalized;
+  };
+
   onMount(() => {
     if (typeof window === 'undefined') return undefined;
     window.addEventListener('beforeunload', handleBeforeUnload);
@@ -96,6 +113,9 @@
   function applyConfig(config = {}, runtime = {}) {
     hasConfigSnapshot = config && typeof config === 'object' && Object.keys(config).length > 0;
     writable = isAdminConfigWritable(runtime);
+    akamaiEdgeAvailable = isAkamaiEdgeAvailable(runtime);
+    akamaiBotSignalEnabled = String(config?.provider_backends?.fingerprint_signal || '').toLowerCase() === 'external';
+    edgeIntegrationMode = normalizedModeFromConfig(config.edge_integration_mode);
 
     jsRequiredEnforced = config.js_required_enforced !== false;
     cdpDetectionEnabled = config.cdp_detection_enabled !== false;
@@ -138,6 +158,10 @@
     );
 
     baseline = {
+      akamai: {
+        enabled: akamaiBotSignalEnabled,
+        mode: edgeIntegrationMode
+      },
       jsRequired: { enforced: jsRequiredEnforced },
       cdp: {
         enabled: cdpDetectionEnabled,
@@ -176,6 +200,12 @@
 
   const buildConfigPatch = ({ includeAll = false } = {}) => {
     const patch = {};
+    if ((includeAll || akamaiDirty) && akamaiEdgeAvailable) {
+      patch.edge_integration_mode = akamaiBotSignalEnabled ? normalizeEdgeMode(edgeIntegrationMode) : 'off';
+      patch.provider_backends = {
+        fingerprint_signal: akamaiBotSignalEnabled ? 'external' : 'internal'
+      };
+    }
     if (includeAll || jsRequiredDirty) {
       patch.js_required_enforced = jsRequiredEnforced;
     }
@@ -244,6 +274,35 @@
   }
 
   const readBool = (value) => value === true;
+
+  $: signalDefinitions = configRuntimeSnapshot && typeof configRuntimeSnapshot.botness_signal_definitions === 'object'
+    ? configRuntimeSnapshot.botness_signal_definitions
+    : {};
+  $: scoredSignals = Array.isArray(signalDefinitions.scored_signals)
+    ? signalDefinitions.scored_signals
+    : [];
+  $: akamaiEdgeAdditiveSignal = scoredSignals.find(
+    (signal) => String(signal?.key || '') === AKAMAI_EDGE_ADDITIVE_SIGNAL_KEY
+  ) || null;
+  $: akamaiEdgeModeValid = ['additive', 'authoritative'].includes(normalizeEdgeMode(edgeIntegrationMode));
+  $: akamaiValid = akamaiEdgeModeValid;
+  $: akamaiDirty = (
+    readBool(akamaiBotSignalEnabled) !== baseline.akamai.enabled ||
+    normalizeEdgeMode(edgeIntegrationMode) !== baseline.akamai.mode
+  );
+  $: effectiveAkamaiPosture = (() => {
+    if (!akamaiBotSignalEnabled) {
+      return 'Akamai bot signals are disabled. Internal passive fingerprint signals remain active.';
+    }
+    if (normalizeEdgeMode(edgeIntegrationMode) === 'authoritative') {
+      return 'Authoritative mode allows high-confidence Akamai outcomes to trigger immediate ban actions.';
+    }
+    return 'Additive mode contributes Akamai outcomes into internal fingerprint scoring with bounded weight.';
+  })();
+  $: showAkamaiAuthoritativeWarning = (
+    akamaiBotSignalEnabled &&
+    normalizeEdgeMode(edgeIntegrationMode) === 'authoritative'
+  );
 
   $: jsRequiredDirty = readBool(jsRequiredEnforced) !== baseline.jsRequired.enforced;
 
@@ -351,6 +410,7 @@
   $: verifiedIdentitySummaryAvailable = Object.keys(verifiedIdentitySummary).length > 0;
 
   $: dirtySections = [
+    { label: 'Akamai Bot Signal', dirty: akamaiDirty, valid: akamaiValid },
     { label: 'JavaScript required', dirty: jsRequiredDirty, valid: true },
     { label: 'Internal CDP probe', dirty: cdpDirty, valid: cdpValid },
     { label: 'Proof of Work', dirty: powDirty, valid: powValid },
@@ -409,6 +469,62 @@
 >
   <TabStateMessage tab="verification" status={tabStatus} noticeText={noticeText} noticeKind={noticeKind} />
   <div class="controls-grid controls-grid--config">
+    <ConfigPanel writable={writable} dirty={akamaiDirty}>
+      <ConfigPanelHeading title="Akamai Bot Signal">
+        {#if akamaiEdgeAvailable}
+          <label class="toggle-switch" for="verification-akamai-enabled-toggle">
+            <input
+              type="checkbox"
+              id="verification-akamai-enabled-toggle"
+              aria-label="Enable Akamai bot signals"
+              bind:checked={akamaiBotSignalEnabled}
+            >
+            <span class="toggle-slider"></span>
+          </label>
+        {/if}
+      </ConfigPanelHeading>
+      {#if akamaiEdgeAvailable}
+        <p class="control-desc text-muted">When calculating bot fingerprinting, Akamai can contribute transport and network-layer telemetry that Shuma-Gorath cannot directly observe at app level. Enable this only when your deployment is hosted on Akamai edge and forwards trusted bot outcomes.</p>
+        <div class="admin-controls">
+          <div class="input-row" class:input-row--disabled={!akamaiBotSignalEnabled}>
+            <label class="control-label control-label--wide" for="verification-edge-mode-select">Akamai Influence Mode</label>
+            <select
+              class="input-field input-row-control"
+              id="verification-edge-mode-select"
+              aria-label="Akamai influence mode"
+              bind:value={edgeIntegrationMode}
+              disabled={!akamaiBotSignalEnabled}
+            >
+              <option value="additive">additive</option>
+              <option value="authoritative">authoritative</option>
+            </select>
+          </div>
+          <p class="text-muted">Effective posture: {effectiveAkamaiPosture}</p>
+          <div class="info-panel">
+            <h4>Current Akamai Edge Contribution</h4>
+            <div id="verification-akamai-signal-list">
+              {#if akamaiEdgeAdditiveSignal}
+                <div class="info-row">
+                  <span class="info-label">{akamaiEdgeAdditiveSignal.label || 'Akamai edge bot signal (additive)'}</span>
+                  <span>{akamaiEdgeAdditiveSignal.weight ?? '--'}</span>
+                </div>
+              {:else}
+                <p class="text-muted">No Akamai additive edge signal definition is available.</p>
+              {/if}
+            </div>
+            <p class="text-muted">This scored contribution is used only when Akamai bot signals are enabled and the edge mode is `additive`.</p>
+          </div>
+        </div>
+      {:else}
+        <p id="verification-akamai-unavailable-message" class="control-desc text-muted">Akamai bot-signal controls are available only when Shuma-Gorath is deployed on Akamai edge (`gateway_deployment_profile=edge-fermyon`). Shared-server and other non-edge postures keep this integration hidden.</p>
+      {/if}
+      {#if showAkamaiAuthoritativeWarning}
+        <p class="message warning">
+          Authoritative Akamai mode allows trusted edge outcomes to drive stronger enforcement. Use only when upstream trust boundaries are well understood.
+        </p>
+      {/if}
+    </ConfigPanel>
+
     <ConfigPanel writable={writable} dirty={jsRequiredDirty}>
       <ConfigPanelHeading title='<abbr title="JavaScript">JS</abbr> Required'>
         <label class="toggle-switch" for="js-required-enforced-toggle">

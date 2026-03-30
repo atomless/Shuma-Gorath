@@ -107,6 +107,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-plan.md`](2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-plan.md)
 - [`2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md`](2026-03-24-traffic-tab-and-diagnostics-furniture-ownership-plan.md)
 - [`2026-03-24-game-loop-tab-rename-and-ordering-plan.md`](2026-03-24-game-loop-tab-rename-and-ordering-plan.md)
+- [`2026-03-30-fingerprinting-tab-temporary-rehome-plan.md`](2026-03-30-fingerprinting-tab-temporary-rehome-plan.md)
 - [`2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md`](2026-03-24-controller-mutability-policy-and-allowed-action-surface-implementation-plan.md)
 - [`2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md)
 - [`2026-03-24-llm-player-role-decomposition-plan.md`](2026-03-24-llm-player-role-decomposition-plan.md)

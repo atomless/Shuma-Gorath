@@ -1299,7 +1299,6 @@ test('dashboard state and store contracts remain immutable and bounded with hear
       'traps',
       'rate-limiting',
       'geo',
-      'fingerprinting',
       'policy',
       'status',
       'advanced',
@@ -1315,7 +1314,6 @@ test('dashboard state and store contracts remain immutable and bounded with hear
       'traps',
       'rate-limiting',
       'geo',
-      'fingerprinting',
       'policy',
       'status',
       'advanced',
@@ -5187,10 +5185,6 @@ test('dashboard config tabs reuse shared panels, save flows, and owned controls'
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/GeoTab.svelte'),
     'utf8'
   );
-  const fingerprintingSource = fs.readFileSync(
-    path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/FingerprintingTab.svelte'),
-    'utf8'
-  );
   const configMazeSource = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/components/dashboard/config/ConfigMazeSection.svelte'),
     'utf8'
@@ -5262,10 +5256,6 @@ test('dashboard config tabs reuse shared panels, save flows, and owned controls'
     configNetworkSource,
     configDurationsSource,
     configPathAllowlistSource,
-    saveChangesBarSource
-  ].join('\n');
-  const fingerprintingSurfaceSource = [
-    fingerprintingSource,
     saveChangesBarSource
   ].join('\n');
   const tuningSource = fs.readFileSync(
@@ -5364,6 +5354,13 @@ test('dashboard config tabs reuse shared panels, save flows, and owned controls'
   assert.match(configSurfaceSource, /Any scores above Fail and below Pass will be shown a tougher challenge\./);
   assert.match(configSource, /buttonId="save-verification-all"/);
   assert.match(configSource, /export let operatorSnapshot = null;/);
+  assert.match(configSource, /normalizeEdgeMode/);
+  assert.match(configSource, /isAkamaiEdgeAvailable/);
+  assert.match(configSource, /id="verification-akamai-enabled-toggle"/);
+  assert.match(configSource, /id="verification-edge-mode-select"/);
+  assert.match(configSource, /id="verification-akamai-unavailable-message"/);
+  assert.match(configSource, /id="verification-akamai-signal-list"/);
+  assert.match(configSource, /<h4>Current Akamai Edge Contribution<\/h4>/);
   assert.match(configSource, /title="Verified Identity"/);
   assert.match(configSource, /id="verified-identity-enabled-toggle"/);
   assert.match(configSource, /id="verified-identity-native-web-bot-auth-toggle"/);
@@ -5459,24 +5456,6 @@ test('dashboard config tabs reuse shared panels, save flows, and owned controls'
   assert.match(robotsSurfaceSource, /id="path-allowlist-enabled-toggle"/);
   assert.match(robotsSurfaceSource, /id="path-allowlist"/);
 
-  assert.match(fingerprintingSource, /export let onSaveConfig = null;/);
-  assert.match(fingerprintingSource, /await onSaveConfig\(payload/);
-  assert.match(fingerprintingSource, /isAkamaiEdgeAvailable/);
-  assert.match(fingerprintingSource, /akamaiEdgeAvailable = isAkamaiEdgeAvailable\(runtime\);/);
-  assert.match(fingerprintingSource, /id="fingerprinting-akamai-enabled-toggle"/);
-  assert.match(fingerprintingSource, /id="fingerprinting-edge-mode-select"/);
-  assert.match(fingerprintingSource, /id="fingerprinting-akamai-unavailable-message"/);
-  assert.match(fingerprintingSource, /buttonId="save-fingerprinting-config"/);
-  assert.match(fingerprintingSource, /window\.addEventListener\('beforeunload'/);
-  assert.match(fingerprintingSource, /const AKAMAI_EDGE_ADDITIVE_SIGNAL_KEY = 'fp_akamai_edge_additive';/);
-  assert.match(fingerprintingSource, /<h4>Current Akamai Edge Contribution<\/h4>/);
-  assert.match(fingerprintingSource, /id="fingerprinting-akamai-signal-list"/);
-  assert.match(fingerprintingSource, /key !== AKAMAI_EDGE_ADDITIVE_SIGNAL_KEY/);
-  assert.match(fingerprintingSource, /<ConfigPanelHeading title="Botness Scoring Signals">/);
-  assert.match(fingerprintingSource, /Additive "botness" fingerprinting signals used to decide how to route bot-like traffic\./);
-  assert.match(fingerprintingSource, /id="fingerprinting-botness-signal-list"/);
-  assert.match(fingerprintingSource, /js_verification_required/);
-  assert.match(fingerprintingSource, /browser_outdated/);
   assert.match(monitoringCdpSource, /title="Detection-Triggered Bans"/);
   assert.match(monitoringCdpSource, /valueId="cdp-total-auto-bans"/);
   assert.match(monitoringCdpSource, /valueId="cdp-fp-ua-client-hint-mismatch"/);
@@ -5491,6 +5470,11 @@ test('dashboard config tabs reuse shared panels, save flows, and owned controls'
   assert.doesNotMatch(tuningSource, /ban_durations/);
   assert.doesNotMatch(tuningSource, /browser_policy_enabled/);
   assert.doesNotMatch(tuningSource, /path_allowlist_enabled/);
+  assert.match(tuningSource, /botness_signal_definitions/);
+  assert.match(tuningSource, /const AKAMAI_EDGE_ADDITIVE_SIGNAL_KEY = 'fp_akamai_edge_additive';/);
+  assert.match(tuningSource, /title="Current Botness Scoring Signals"/);
+  assert.match(tuningSource, /id="tuning-botness-signal-list"/);
+  assert.match(tuningSource, /key !== AKAMAI_EDGE_ADDITIVE_SIGNAL_KEY/);
   assert.match(tuningSource, /buttonId="save-tuning-all"/);
   assert.match(tuningSource, /import SaveChangesBar from '\.\/primitives\/SaveChangesBar\.svelte';/);
   assert.match(tuningSource, /window\.addEventListener\('beforeunload'/);
@@ -5718,7 +5702,6 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.match(source, /import\('\$lib\/components\/dashboard\/AdvancedTab\.svelte'\)/);
   assert.match(source, /import\('\$lib\/components\/dashboard\/RateLimitingTab\.svelte'\)/);
   assert.match(source, /import\('\$lib\/components\/dashboard\/GeoTab\.svelte'\)/);
-  assert.match(source, /import\('\$lib\/components\/dashboard\/FingerprintingTab\.svelte'\)/);
   assert.match(source, /import\('\$lib\/components\/dashboard\/RobotsTab\.svelte'\)/);
   assert.match(source, /import\('\$lib\/components\/dashboard\/TuningTab\.svelte'\)/);
   assert.match(source, /\$lib\/runtime\/dashboard-route-controller\.js/);
@@ -5846,11 +5829,11 @@ test('dashboard smoke spec keeps the tab information architecture aligned with t
 
   assert.match(
     source,
-    /const DASHBOARD_TABS = Object\.freeze\(\["traffic", "ip-bans", "red-team", "game-loop", "tuning", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "policy", "status", "advanced", "diagnostics"\]\);/
+    /const DASHBOARD_TABS = Object\.freeze\(\["traffic", "ip-bans", "red-team", "game-loop", "tuning", "verification", "traps", "rate-limiting", "geo", "policy", "status", "advanced", "diagnostics"\]\);/
   );
   assert.match(
     source,
-    /const ADMIN_TABS = Object\.freeze\(\["traffic", "ip-bans", "red-team", "game-loop", "tuning", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "policy", "status", "advanced", "diagnostics"\]\);/
+    /const ADMIN_TABS = Object\.freeze\(\["traffic", "ip-bans", "red-team", "game-loop", "tuning", "verification", "traps", "rate-limiting", "geo", "policy", "status", "advanced", "diagnostics"\]\);/
   );
 });
 
@@ -6617,6 +6600,10 @@ test('dashboard verification tab wires verified identity operator snapshot and s
     path.join(DASHBOARD_ROOT, 'src/routes/+page.svelte'),
     'utf8'
   );
+  const refreshRuntimeSource = fs.readFileSync(
+    path.join(DASHBOARD_ROOT, 'src/lib/runtime/dashboard-runtime-refresh.js'),
+    'utf8'
+  );
 
   assert.match(apiClientSource, /export const adaptOperatorSnapshot = \(payload\) => \{/);
   assert.match(apiClientSource, /const getOperatorSnapshot = async \(requestOptions = \{\}\) =>/);
@@ -6624,8 +6611,11 @@ test('dashboard verification tab wires verified identity operator snapshot and s
   assert.match(stateSource, /'operatorSnapshot'/);
   assert.match(stateSource, /operatorSnapshot: null/);
   assert.match(routeSource, /operatorSnapshot=\{snapshots\.operatorSnapshot\}/);
-  assert.match(routeSource, /if \(normalized === 'verification'\) \{/);
-  assert.match(routeSource, /state\.snapshots \? state\.snapshots\.operatorSnapshot : null/);
+  assert.match(refreshRuntimeSource, /async function refreshVerificationTab\(reason = 'manual', runtimeOptions = \{\}\) \{/);
+  assert.match(refreshRuntimeSource, /showTabLoading\('verification', 'Loading verification controls\.\.\.'\);/);
+  assert.match(refreshRuntimeSource, /dashboardApiClient && typeof dashboardApiClient\.getOperatorSnapshot === 'function'/);
+  assert.match(refreshRuntimeSource, /const operatorSnapshot = await dashboardApiClient\.getOperatorSnapshot\(\{/);
+  assert.match(refreshRuntimeSource, /applySnapshots\(\{ operatorSnapshot \}\);/);
 });
 
 test('dashboard game loop accountability adapters normalize operator and oversight payloads safely', async () => {
@@ -7288,7 +7278,7 @@ test('dashboard route wires native runtime actions with separate manual and auto
   assert.match(source, /const AUTO_REFRESH_TABS = new Set\(\['traffic', 'game-loop', 'ip-bans', 'red-team'\]\);/);
   assert.match(
     source,
-    /const CONFIG_REFRESH_ON_ACTIVATE_TABS = new Set\(\[\s*'tuning',\s*'verification',\s*'traps',\s*'rate-limiting',\s*'geo',\s*'fingerprinting',\s*'policy',\s*'status',\s*'advanced'\s*\]\);/
+    /const CONFIG_REFRESH_ON_ACTIVATE_TABS = new Set\(\[\s*'tuning',\s*'verification',\s*'traps',\s*'rate-limiting',\s*'geo',\s*'policy',\s*'status',\s*'advanced'\s*\]\);/
   );
   assert.match(source, /if \(CONFIG_REFRESH_ON_ACTIVATE_TABS\.has\(normalized\)\) \{\s*return true;\s*\}/);
 });

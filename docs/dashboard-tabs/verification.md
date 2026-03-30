@@ -6,10 +6,15 @@ Component: [`dashboard/src/lib/components/dashboard/VerificationTab.svelte`](../
 Purpose:
 
 - Configure core verification and challenge controls.
+- Configure trusted verification-source posture.
 - Review bounded verified-identity health without leaving the Verification tab.
 
 Panels:
 
+- `Akamai Bot Signal`:
+  - enable toggle (`provider_backends.fingerprint_signal` internal/external),
+  - influence mode selector (`edge_integration_mode`: `additive` or `authoritative`),
+  - current additive scored contribution (`fp_akamai_edge_additive`) when Akamai edge posture controls are available.
 - `JS Required` toggle (`js_required_enforced`).
 - `Browser CDP Automation Probe`:
   - enable toggle (`cdp_detection_enabled`),
@@ -46,4 +51,4 @@ Notes:
 
 - Challenge and PoW advanced controls remain in [`advanced.md`](advanced.md).
 - This tab no longer includes IP range policy controls (those are in [`ip-bans.md`](ip-bans.md)).
-- This pane is intentionally mechanics-and-health only. Verified-identity posture, category defaults, and richer policy editing stay out of the tab until the dedicated editor lands.
+- This pane now owns verification mechanics plus trusted verification-source posture. Verified-identity category defaults, richer identity policy editing, and bounded tuning controls still stay out of this tab.

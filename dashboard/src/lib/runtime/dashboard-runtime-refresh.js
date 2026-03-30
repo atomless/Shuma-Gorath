@@ -1169,32 +1169,6 @@ export function createDashboardRefreshRuntime(options = {}) {
       runtimeOptions
     );
 
-  async function refreshFingerprintingTab(reason = 'manual', runtimeOptions = {}) {
-    const dashboardApiClient = getApiClient();
-    if (!dashboardApiClient) return;
-
-    if (reason !== 'auto-refresh') {
-      showTabLoading('fingerprinting', 'Loading fingerprinting controls...');
-    }
-
-    const requestOptions = toRequestOptions(runtimeOptions, {
-      tab: 'fingerprinting',
-      reason,
-      source: 'tab-refresh'
-    });
-    const [configEnvelope, cdp] = await Promise.all([
-      refreshSharedConfig(reason, runtimeOptions),
-      dashboardApiClient.getCdp(requestOptions)
-    ]);
-
-    applySnapshots({ cdp });
-    if (isConfigSnapshotEmpty(configEnvelope?.config)) {
-      showTabEmpty('fingerprinting', 'No fingerprinting config snapshot available yet.');
-    } else {
-      clearTabStateMessage('fingerprinting');
-    }
-  }
-
   const refreshPolicyTab = (reason = 'manual', runtimeOptions = {}) =>
     refreshConfigBackedTab(
       'policy',
@@ -1243,7 +1217,6 @@ export function createDashboardRefreshRuntime(options = {}) {
     advanced: refreshAdvancedTab,
     'rate-limiting': refreshRateLimitingTab,
     geo: refreshGeoTab,
-    fingerprinting: refreshFingerprintingTab,
     policy: refreshPolicyTab,
     tuning: refreshTuningTab
   });
@@ -1301,7 +1274,6 @@ export function createDashboardRefreshRuntime(options = {}) {
     refreshAdvancedTab,
     refreshRateLimitingTab,
     refreshGeoTab,
-    refreshFingerprintingTab,
     refreshPolicyTab,
     refreshTuningTab,
     refreshDashboardForTab,

@@ -4,8 +4,8 @@ const { seedDashboardData } = require("./seed-dashboard-data");
 const BASE_URL = process.env.SHUMA_BASE_URL || "http://127.0.0.1:3000";
 const API_KEY = (process.env.SHUMA_API_KEY || "").trim();
 const FORWARDED_IP_SECRET = (process.env.SHUMA_FORWARDED_IP_SECRET || "").trim();
-const DASHBOARD_TABS = Object.freeze(["traffic", "ip-bans", "red-team", "game-loop", "tuning", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "policy", "status", "advanced", "diagnostics"]);
-const ADMIN_TABS = Object.freeze(["traffic", "ip-bans", "red-team", "game-loop", "tuning", "verification", "traps", "rate-limiting", "geo", "fingerprinting", "policy", "status", "advanced", "diagnostics"]);
+const DASHBOARD_TABS = Object.freeze(["traffic", "ip-bans", "red-team", "game-loop", "tuning", "verification", "traps", "rate-limiting", "geo", "policy", "status", "advanced", "diagnostics"]);
+const ADMIN_TABS = Object.freeze(["traffic", "ip-bans", "red-team", "game-loop", "tuning", "verification", "traps", "rate-limiting", "geo", "policy", "status", "advanced", "diagnostics"]);
 const VERIFICATION_RESTORE_PATHS = Object.freeze([
   "js_required_enforced"
 ]);
@@ -1292,7 +1292,6 @@ test("dashboard generated runtime has no missing script or stylesheet requests",
   await openDashboard(page);
   await openTab(page, "status");
   await openTab(page, "verification");
-  await openTab(page, "fingerprinting");
   await openTab(page, "tuning");
   await openTab(page, "ip-bans");
   await openTab(page, "diagnostics");
@@ -3288,7 +3287,7 @@ test("traffic manual refresh renders bounded traffic sections and preserves furn
   await expect(page.locator("#monitoring-events tbody")).toContainText("Would Challenge");
 });
 
-test("status/verification/rate-limiting/geo/fingerprinting/tuning show empty state when config snapshot is empty", async ({ page }) => {
+test("status/verification/rate-limiting/geo/tuning show empty state when config snapshot is empty", async ({ page }) => {
   await page.route("**/admin/config", async (route) => {
     if (route.request().method() !== "GET") {
       await route.continue();
@@ -3312,9 +3311,6 @@ test("status/verification/rate-limiting/geo/fingerprinting/tuning show empty sta
 
   await openTab(page, "geo");
   await expect(page.locator('[data-tab-state="geo"]')).toContainText("No GEO config snapshot available yet.");
-
-  await openTab(page, "fingerprinting");
-  await expect(page.locator('[data-tab-state="fingerprinting"]')).toContainText("No fingerprinting config snapshot available yet.");
 
   await openTab(page, "tuning");
   await expect(page.locator('[data-tab-state="tuning"]')).toContainText("No tuning config snapshot available yet.");
@@ -3748,7 +3744,7 @@ test("verification tab surfaces verified identity controls and health summary", 
       await openDashboard(page);
       await openTab(page, "verification", { waitForReady: true });
 
-      await expect(page.locator("h3")).toContainText(["Verified Identity"]);
+      await expect(page.locator("h3")).toContainText(["Akamai Bot Signal", "Verified Identity"]);
       await expect(page.locator("label.toggle-switch[for='verified-identity-enabled-toggle']")).toBeVisible();
       await expect(page.locator("label.toggle-switch[for='verified-identity-native-web-bot-auth-toggle']")).toBeVisible();
       await expect(page.locator("label.toggle-switch[for='verified-identity-provider-assertions-toggle']")).toBeVisible();
@@ -5287,6 +5283,8 @@ test("geo and tuning save flows cover GEO lists and botness controls", async ({ 
     }
 
     await openTab(page, "tuning");
+    await expect(page.locator("#tuning-botness-signal-list")).toContainText("JS verification required");
+    await expect(page.locator("#tuning-botness-signal-list")).toContainText("Browser policy minimum-version match");
     const tuningSave = page.locator("#save-tuning-all");
     const botnessWeight = page.locator("#weight-js-required");
     if (await botnessWeight.isVisible() && await botnessWeight.isEnabled()) {
@@ -5349,16 +5347,15 @@ test("rate-limiting tab hides external backend controls outside edge-fermyon pos
   );
 });
 
-test("fingerprinting tab hides Akamai controls outside edge-fermyon posture", async ({ page }) => {
+test("verification tab hides Akamai controls outside edge-fermyon posture", async ({ page }) => {
   await openDashboard(page);
-  await openTab(page, "fingerprinting");
+  await openTab(page, "verification");
 
-  await expect(page.locator("#fingerprinting-akamai-enabled-toggle")).toHaveCount(0);
-  await expect(page.locator("#fingerprinting-edge-mode-select")).toHaveCount(0);
-  await expect(page.locator("#fingerprinting-akamai-unavailable-message")).toContainText(
+  await expect(page.locator("#verification-akamai-enabled-toggle")).toHaveCount(0);
+  await expect(page.locator("#verification-edge-mode-select")).toHaveCount(0);
+  await expect(page.locator("#verification-akamai-unavailable-message")).toContainText(
     "available only when Shuma-Gorath is deployed on Akamai edge"
   );
-  await expect(page.locator("#save-fingerprinting-config")).toBeHidden();
 });
 
 test("policy tab save flows cover robots serving, durations, browser policy, and path allowlist controls", async ({ page, request }) => {
@@ -5559,7 +5556,7 @@ test("diagnostics tab surfaces tab-scoped error when consolidated monitoring fet
   );
 });
 
-test("shared config endpoint failures surface per-tab errors for status/verification/advanced/fingerprinting/policy/tuning", async ({ page }) => {
+test("shared config endpoint failures surface per-tab errors for status/verification/advanced/policy/tuning", async ({ page }) => {
   const assertSharedConfigErrorOnInitialTab = async (tab, message) => {
     await page.route("**/admin/config", async (route) => {
       if (route.request().method() !== "GET") {
@@ -5580,7 +5577,6 @@ test("shared config endpoint failures surface per-tab errors for status/verifica
   await assertSharedConfigErrorOnInitialTab("status", "status endpoint outage");
   await assertSharedConfigErrorOnInitialTab("verification", "config endpoint outage");
   await assertSharedConfigErrorOnInitialTab("advanced", "advanced endpoint outage");
-  await assertSharedConfigErrorOnInitialTab("fingerprinting", "fingerprinting endpoint outage");
   await assertSharedConfigErrorOnInitialTab("policy", "robots endpoint outage");
   await assertSharedConfigErrorOnInitialTab("tuning", "tuning endpoint outage");
 });

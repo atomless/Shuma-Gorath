@@ -64,7 +64,6 @@
     advanced: 'Loading advanced controls...',
     'rate-limiting': 'Loading rate limiting controls...',
     geo: 'Loading GEO controls...',
-    fingerprinting: 'Loading fingerprinting controls...',
     policy: 'Loading policy controls...',
     tuning: 'Loading tuning values...'
   });
@@ -77,7 +76,6 @@
     'traps',
     'rate-limiting',
     'geo',
-    'fingerprinting',
     'policy',
     'status',
     'advanced'
@@ -138,7 +136,6 @@
   let DiagnosticsTabComponent = null;
   let RateLimitingTabComponent = null;
   let GeoTabComponent = null;
-  let FingerprintingTabComponent = null;
   let RobotsTabComponent = null;
   let TuningTabComponent = null;
   const tabLinks = {};
@@ -637,7 +634,6 @@
         { default: loadedDiagnosticsTab },
         { default: loadedRateLimitingTab },
         { default: loadedGeoTab },
-        { default: loadedFingerprintingTab },
         { default: loadedRobotsTab },
         { default: loadedTuningTab }
       ] = await Promise.all([
@@ -651,7 +647,6 @@
         import('$lib/components/dashboard/DiagnosticsTab.svelte'),
         import('$lib/components/dashboard/RateLimitingTab.svelte'),
         import('$lib/components/dashboard/GeoTab.svelte'),
-        import('$lib/components/dashboard/FingerprintingTab.svelte'),
         import('$lib/components/dashboard/RobotsTab.svelte'),
         import('$lib/components/dashboard/TuningTab.svelte')
       ]);
@@ -665,7 +660,6 @@
       DiagnosticsTabComponent = loadedDiagnosticsTab;
       RateLimitingTabComponent = loadedRateLimitingTab;
       GeoTabComponent = loadedGeoTab;
-      FingerprintingTabComponent = loadedFingerprintingTab;
       RobotsTabComponent = loadedRobotsTab;
       TuningTabComponent = loadedTuningTab;
 
@@ -1455,31 +1449,6 @@
           aria-hidden={activeTabKey === 'geo' ? 'false' : 'true'}
         >
           <p class="message info">Loading GEO controls...</p>
-        </section>
-      {/if}
-      {#if FingerprintingTabComponent}
-        <svelte:component
-          this={FingerprintingTabComponent}
-          managed={true}
-          isActive={activeTabKey === 'fingerprinting'}
-          tabStatus={tabStatus.fingerprinting || {}}
-          noticeText={paneNoticeValues.fingerprinting?.text || ''}
-          noticeKind={paneNoticeValues.fingerprinting?.kind || 'info'}
-          configSnapshot={snapshots.config}
-          configRuntimeSnapshot={snapshots.configRuntime}
-          configVersion={snapshotVersions.config || 0}
-          onSaveConfig={onSaveConfig}
-        />
-      {:else}
-        <section
-          id="dashboard-panel-fingerprinting"
-          class="admin-group"
-          data-dashboard-tab-panel="fingerprinting"
-          aria-labelledby="dashboard-tab-fingerprinting"
-          hidden={activeTabKey !== 'fingerprinting'}
-          aria-hidden={activeTabKey === 'fingerprinting' ? 'false' : 'true'}
-        >
-          <p class="message info">Loading fingerprinting controls...</p>
         </section>
       {/if}
       {#if RobotsTabComponent}

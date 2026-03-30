@@ -1,5 +1,7 @@
 <script>
   import { onMount } from 'svelte';
+  import ConfigPanel from './primitives/ConfigPanel.svelte';
+  import ConfigPanelHeading from './primitives/ConfigPanelHeading.svelte';
   import { parseInteger } from '../../domain/core/math.js';
   import { inRange } from '../../domain/core/validation.js';
   import NumericInputRow from './primitives/NumericInputRow.svelte';
@@ -29,6 +31,7 @@
   let warnOnUnload = false;
   let lastAppliedConfigVersion = -1;
   let lastSaveInvalidLabel = '';
+  const AKAMAI_EDGE_ADDITIVE_SIGNAL_KEY = 'fp_akamai_edge_additive';
 
   let baseline = {
     botness: {
@@ -123,6 +126,16 @@
   });
 
   $: writable = isAdminConfigWritable(configRuntimeSnapshot);
+  $: signalDefinitions = configRuntimeSnapshot && typeof configRuntimeSnapshot.botness_signal_definitions === 'object'
+    ? configRuntimeSnapshot.botness_signal_definitions
+    : {};
+  $: scoredSignals = Array.isArray(signalDefinitions.scored_signals)
+    ? signalDefinitions.scored_signals
+    : [];
+  $: tuningBotnessSignals = scoredSignals.filter((signal) => {
+    const key = String(signal?.key || '');
+    return key !== AKAMAI_EDGE_ADDITIVE_SIGNAL_KEY;
+  });
   $: notABotThresholdValid = (
     inRange(notABotThreshold, 1, 10) &&
     (Number(challengeThreshold) <= 1 || Number(notABotThreshold) < Number(challengeThreshold))
@@ -213,6 +226,29 @@
         <NumericInputRow id="weight-rate-high" label="Weight: Rate 80% (points)" min="0" max="10" step="1" inputmode="numeric" ariaLabel="Weight for high rate pressure" ariaInvalid={weightRateHighValid ? 'false' : 'true'} bind:value={weightRateHigh} disabled={!writable} />
       </div>
     </div>
+
+    <ConfigPanel writable={true}>
+      <ConfigPanelHeading title="Current Botness Scoring Signals">
+        <span class="status-value text-muted">Read-only</span>
+      </ConfigPanelHeading>
+      <p class="control-desc text-muted">Current runtime scoring definition for additive botness signals. This temporary reference view stays separate from the editable tuning controls.</p>
+      <div class="admin-controls">
+        <div class="info-panel">
+          <div id="tuning-botness-signal-list">
+            {#if tuningBotnessSignals.length === 0}
+              <p class="text-muted">No botness scoring signals available in the current scoring definition.</p>
+            {:else}
+              {#each tuningBotnessSignals as signal}
+                <div class="info-row">
+                  <span class="info-label">{signal.label || signal.key || '--'}</span>
+                  <span>{signal.weight ?? '--'}</span>
+                </div>
+              {/each}
+            {/if}
+          </div>
+        </div>
+      </div>
+    </ConfigPanel>
 
     <SaveChangesBar
       containerId="tuning-save-all-bar"

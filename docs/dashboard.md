@@ -24,7 +24,6 @@ The dashboard uses URL hash routes:
 - `#traps` - [`dashboard-tabs/traps.md`](dashboard-tabs/traps.md)
 - `#rate-limiting` - [`dashboard-tabs/rate-limiting.md`](dashboard-tabs/rate-limiting.md)
 - `#geo` - [`dashboard-tabs/geo.md`](dashboard-tabs/geo.md)
-- `#fingerprinting` - [`dashboard-tabs/fingerprinting.md`](dashboard-tabs/fingerprinting.md)
 - `#policy` - [`dashboard-tabs/policy.md`](dashboard-tabs/policy.md)
 - `#status` - [`dashboard-tabs/status.md`](dashboard-tabs/status.md)
 - `#advanced` - [`dashboard-tabs/advanced.md`](dashboard-tabs/advanced.md)
@@ -55,6 +54,8 @@ Behavior:
 - Auto-refresh is available on `Traffic`, `Game Loop`, `IP Bans`, and `Red Team`.
 - Most tabs refresh on initial load, on explicit refresh events, and after relevant save flows.
 - `Verification` now refreshes both shared config and the bounded `operator_snapshot_v1` verified-identity summary when the tab activates and that summary is not already present locally.
+- `Verification` now also owns Akamai bot-signal source posture.
+- `Tuning` temporarily carries the current read-only botness scoring-definition inventory while the broader tuning-surface realignment is still pending.
 - The `Red Team` adversary-sim controller is page-scoped rather than tab-scoped:
   - it forces a status refresh on dashboard bootstrap, `Red Team` tab activation, and page-visibility resume,
   - it keeps status polling alive while a control request is submitting/converging and while backend truth reports the sim as `running` or `stopping`,
