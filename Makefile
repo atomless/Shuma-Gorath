@@ -1585,6 +1585,13 @@ test-sim-public-generated-site-contract: ## Validate focused contributor-generat
 	@cargo test availability_from_runtime_uses_generated_artifact_presence_not_sim_controls -- --nocapture
 	@python3 -m unittest scripts/tests/test_sim_public_generated_site_contract.py
 
+test-sim-public-generator: ## Validate generated contributor sim-public site artifact rendering
+	@echo "$(CYAN)🧪 Validating sim-public site generator...$(NC)"
+	@if [ ! -d node_modules/commonmark ]; then \
+		corepack pnpm install --offline --frozen-lockfile || corepack pnpm install --frozen-lockfile; \
+	fi
+	@python3 -m unittest scripts/tests/test_build_sim_public_site.py
+
 build-shared-host-seed-inventory: ## Build minimal shared-host seed inventory from operator inputs under the shared-host scope contract
 	@python3 scripts/tests/shared_host_seed_inventory.py $(SHARED_HOST_SEED_ARGS)
 

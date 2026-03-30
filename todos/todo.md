@@ -276,19 +276,6 @@ Current note:
     - proof: add and pass `make test-sim-public-discoverability-contract`, and keep shared-host seed-contract proof green
     - insufficient: private worker-only route hints, simulator convenience endpoints, or sitemap/catalog artifacts treated as discovery truth
 
-- [ ] SIM-PUBSITE-1B Build the generated contributor content artifact from allowlisted markdown roots.
-  - Reference context:
-    - [`docs/research/2026-03-30-contributor-generated-public-content-sim-site-review.md`](../docs/research/2026-03-30-contributor-generated-public-content-sim-site-review.md)
-    - [`docs/research/2026-03-30-generated-public-content-site-standards-and-generator-pattern-review.md`](../docs/research/2026-03-30-generated-public-content-site-standards-and-generator-pattern-review.md)
-    - [`docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md`](../docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md)
-  - Closure gate:
-    - content truth: the generated site must derive from `README.md` as a separate `About` page, dated research entries, dated plan entries, and completed TODO history while excluding active backlog, blocked backlog, security review material, and undated general docs from the first profile
-    - structure truth: the homepage must be a chronology-driven feed rather than the `README` itself
-    - parser truth: markdown rendering must use a real CommonMark-conforming build-time parser rather than ad hoc regex or string transforms
-    - presentation truth: the generated pages must use semantic HTML and extremely minimal hypertext-style presentation rather than dashboard-like chrome
-    - proof: add and pass `make test-sim-public-generator`
-    - insufficient: duplicated markdown copies committed as a fake site, or heavy bespoke styling that turns the content site into a secondary app
-
 - [ ] SIM-PUBSITE-1C Serve the generated site through `sim_public` on local dev and remove the old hard-coded dummy site.
   - Reference context:
     - [`docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md`](../docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md)

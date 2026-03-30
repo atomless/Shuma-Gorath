@@ -4,6 +4,28 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-30)
 
+### SIM-PUBSITE-1B Build The Generated Contributor Content Artifact From Allowlisted Markdown Roots
+
+- [x] Completed the generator tranche across:
+  - [`../scripts/build_sim_public_site.py`](../scripts/build_sim_public_site.py)
+  - [`../scripts/sim_public_site/__init__.py`](../scripts/sim_public_site/__init__.py)
+  - [`../scripts/sim_public_site/build.py`](../scripts/sim_public_site/build.py)
+  - [`../scripts/sim_public_site/render_markdown.mjs`](../scripts/sim_public_site/render_markdown.mjs)
+  - [`../config/sim_public_site/corpus.toml`](../config/sim_public_site/corpus.toml)
+  - [`../scripts/tests/test_build_sim_public_site.py`](../scripts/tests/test_build_sim_public_site.py)
+  - [`../package.json`](../package.json)
+  - [`../pnpm-lock.yaml`](../pnpm-lock.yaml)
+  - [`../scripts/README.md`](../scripts/README.md)
+- [x] What landed:
+  - the contributor-site generator now builds a deterministic artifact from `README.md`, dated research entries, dated plan entries, and parsed completed-work entries while excluding active backlog material,
+  - the root site is now a chronology-driven feed with separate About, section, and article pages,
+  - markdown rendering now goes through a real CommonMark parser in the existing Node toolchain,
+  - and the generated artifact now includes a compact manifest, freshness receipt, and a standards-shaped Atom feed.
+- [x] Why:
+  - the contributor site needed a real generated corpus and feed structure before the runtime can truthfully serve it in place of the old hard-coded dummy site.
+- [x] Evidence:
+  - `make test-sim-public-generator`
+
 ### SIM-PUBSITE-1A Freeze The Contributor-Generated Site Contract And Contributor-Only Scope
 
 - [x] Completed the contract tranche across:

@@ -1,8 +1,10 @@
-"""Shared contract helpers for the contributor-generated /sim/public site."""
+"""Shared contract and build helpers for the contributor-generated /sim/public site."""
 
 from __future__ import annotations
 
 from pathlib import Path
+
+from .build import build_site
 
 
 SITE_DIRNAME = "sim-public-site"
@@ -27,3 +29,14 @@ def canonical_contract_summary() -> dict[str, object]:
         "site_root": (root / "site").as_posix(),
         "runtime_adapter": "src/runtime/sim_public.rs",
     }
+
+
+__all__ = [
+    "DEFAULT_LOCAL_STATE_DIR",
+    "FRESHNESS_FILENAME",
+    "MANIFEST_FILENAME",
+    "SITE_DIRNAME",
+    "artifact_root",
+    "build_site",
+    "canonical_contract_summary",
+]
