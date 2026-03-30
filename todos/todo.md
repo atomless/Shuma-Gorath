@@ -107,8 +107,8 @@ Reference context:
 - [`docs/plans/2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md`](../docs/plans/2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md)
 
 Current note:
-- The immediate next execution priority is now `SIM-PUBSITE-1A`, `SIM-PUBSITE-1B`, `SIM-PUBSITE-1C`, and `SIM-PUBSITE-1D`.
-- After that contributor-generated site chain lands, resume the remaining realism chain in order with `SIM-REALISM-1C`, then `SIM-REALISM-1D`.
+- The generated contributor-site chain `SIM-PUBSITE-1A` through `SIM-PUBSITE-1D` is now landed.
+- The immediate next execution priority is now the remaining realism chain in order with `SIM-REALISM-1C`, then `SIM-REALISM-1D`.
 - Do not start new mixed-attacker proof or later tuning-quality work ahead of that resequenced chain unless a higher-severity regression forces an interruption.
 - `SIM-SCR-CHALLENGE-2A`, `SIM-SCR-CHALLENGE-2B`, and `SIM-SCR-CHALLENGE-2D` are landed.
 - `RSI-GAME-1A`, `RSI-GAME-1B`, `RSI-SCORE-1`, and `RSI-GAME-1C` are landed.
@@ -275,19 +275,6 @@ Current note:
     - discipline: keep hidden or internal route catalogs out of the workers and out of the seed contract
     - proof: add and pass `make test-sim-public-discoverability-contract`, and keep shared-host seed-contract proof green
     - insufficient: private worker-only route hints, simulator convenience endpoints, or sitemap/catalog artifacts treated as discovery truth
-
-- [ ] SIM-PUBSITE-1D Add discoverability artifacts and contributor/runtime flow wiring for the generated site.
-  - Reference context:
-    - [`docs/research/2026-03-30-generated-public-content-site-standards-and-generator-pattern-review.md`](../docs/research/2026-03-30-generated-public-content-site-standards-and-generator-pattern-review.md)
-    - [`docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md`](../docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md)
-    - [`docs/plans/2026-03-20-shared-host-seed-contract.md`](../docs/plans/2026-03-20-shared-host-seed-contract.md)
-  - Closure gate:
-    - discoverability truth: the generated site must expose root links, dated feeds, `robots.txt`, sitemap documents, and a standards-based Atom feed that materially increase public traversal depth
-    - workflow truth: contributors must have explicit refresh commands and an optional stale-check path, while default `make build` and `make dev` runs reuse an existing artifact instead of regenerating it every time
-    - runtime-only truth: `make setup-runtime` and `make run-prebuilt` must stay free of accidental contributor-site generation
-    - crawlability truth: archive and pagination traversal must remain ordinary hyperlink navigation rather than JavaScript-only state
-    - proof: add and pass `make test-sim-public-build-flow-contract`, keep `make test-sim-public-discoverability-contract` green, and keep shared-host seed-contract proof green
-    - insufficient: a richer site that forces regeneration on every contributor build, or runtime-only flows that silently inherit contributor content generation
 
 - [ ] SIM-REALISM-2I Add trusted-ingress client-IP realism without granting attacker-plane header privileges.
   - Reference context:

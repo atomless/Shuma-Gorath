@@ -141,9 +141,11 @@ fn render_asset_response(asset_path: &Path, body: Vec<u8>) -> Response {
 }
 
 fn content_type_for_path(path: &Path) -> &'static str {
+    let file_name = path.file_name().and_then(|value| value.to_str());
     match path.extension().and_then(|value| value.to_str()) {
         Some("html") => "text/html; charset=utf-8",
-        Some("xml") => "application/atom+xml; charset=utf-8",
+        Some("xml") if file_name == Some("atom.xml") => "application/atom+xml; charset=utf-8",
+        Some("xml") => "application/xml; charset=utf-8",
         Some("txt") => "text/plain; charset=utf-8",
         _ => "application/octet-stream",
     }
@@ -183,6 +185,7 @@ mod tests {
         let site_root = seeded_site_root(base);
         fs::create_dir_all(site_root.join("about")).expect("about dir should be created");
         fs::create_dir_all(site_root.join("research").join("alpha")).expect("entry dir");
+        fs::create_dir_all(site_root.join("sitemaps")).expect("sitemaps dir");
         fs::write(
             base.join(".shuma").join("sim-public-site").join("manifest.json"),
             "{}\n",
@@ -197,6 +200,16 @@ mod tests {
         )
         .expect("entry html");
         fs::write(site_root.join("atom.xml"), "<feed>Alpha Research</feed>\n").expect("atom");
+        fs::write(
+            site_root.join("robots.txt"),
+            "User-agent: *\nAllow: /\nSitemap: http://127.0.0.1:3000/sim/public/sitemap.xml\n",
+        )
+        .expect("robots");
+        fs::write(
+            site_root.join("sitemap.xml"),
+            "<?xml version=\"1.0\" encoding=\"utf-8\"?><sitemapindex></sitemapindex>\n",
+        )
+        .expect("sitemap");
         site_root
     }
 
@@ -217,6 +230,14 @@ mod tests {
         assert_eq!(
             sim_public_relative_asset_path("/sim/public/atom.xml"),
             Some(PathBuf::from("atom.xml"))
+        );
+        assert_eq!(
+            sim_public_relative_asset_path("/sim/public/robots.txt"),
+            Some(PathBuf::from("robots.txt"))
+        );
+        assert_eq!(
+            sim_public_relative_asset_path("/sim/public/sitemap.xml"),
+            Some(PathBuf::from("sitemap.xml"))
         );
         assert_eq!(
             sim_public_relative_asset_path("/sim/public/research/alpha/"),
@@ -345,6 +366,48 @@ mod tests {
         assert_eq!(
             header_value(&resp, "content-type").as_deref(),
             Some("application/atom+xml; charset=utf-8")
+        );
+    }
+
+    #[test]
+    fn maybe_handle_serves_robots_txt_with_plain_text_content_type() {
+        let _lock = crate::test_support::lock_env();
+        let base = std::env::temp_dir().join(format!("sim-public-robots-{}", std::process::id()));
+        seed_generated_site(&base);
+        std::env::set_var("SHUMA_LOCAL_STATE_DIR", base.join(".shuma"));
+
+        let req = request(Method::Get, "/sim/public/robots.txt");
+        let resp = maybe_handle_with_availability(&req, "/sim/public/robots.txt", enabled_availability())
+            .expect("sim route should be handled");
+
+        std::env::remove_var("SHUMA_LOCAL_STATE_DIR");
+        let _ = fs::remove_dir_all(&base);
+
+        assert_eq!(*resp.status(), 200u16);
+        assert_eq!(
+            header_value(&resp, "content-type").as_deref(),
+            Some("text/plain; charset=utf-8")
+        );
+    }
+
+    #[test]
+    fn maybe_handle_serves_sitemap_with_xml_content_type() {
+        let _lock = crate::test_support::lock_env();
+        let base = std::env::temp_dir().join(format!("sim-public-sitemap-{}", std::process::id()));
+        seed_generated_site(&base);
+        std::env::set_var("SHUMA_LOCAL_STATE_DIR", base.join(".shuma"));
+
+        let req = request(Method::Get, "/sim/public/sitemap.xml");
+        let resp = maybe_handle_with_availability(&req, "/sim/public/sitemap.xml", enabled_availability())
+            .expect("sim route should be handled");
+
+        std::env::remove_var("SHUMA_LOCAL_STATE_DIR");
+        let _ = fs::remove_dir_all(&base);
+
+        assert_eq!(*resp.status(), 200u16);
+        assert_eq!(
+            header_value(&resp, "content-type").as_deref(),
+            Some("application/xml; charset=utf-8")
         );
     }
 

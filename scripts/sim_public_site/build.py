@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import html
 import json
 from pathlib import Path
@@ -14,6 +14,8 @@ from typing import Iterable
 
 FRESHNESS_FILENAME = "freshness.json"
 MANIFEST_FILENAME = "manifest.json"
+SITE_CONTENT_DIRNAME = "site"
+LISTING_PAGE_SIZE = 20
 
 SECTION_ORDER = ("research", "plans", "work")
 SECTION_LABELS = {
@@ -60,38 +62,69 @@ def build_site(
     rendered_entries = render_entries(repo_root, root_prefix, sections)
     about_html = render_markdown((repo_root / corpus["site"]["about_source"]).read_text(encoding="utf-8"))
 
-    site_root = artifact_root / "site"
+    site_root = artifact_root / SITE_CONTENT_DIRNAME
     reset_artifact_root(artifact_root)
     site_root.mkdir(parents=True, exist_ok=True)
 
+    generated_at = timestamp_utc()
+    page_routes: list[str] = []
     for entry in rendered_entries:
         write_html(site_root / entry.output_path, render_entry_page(entry, site_url, root_prefix))
+    entry_routes = [entry.route for entry in rendered_entries]
 
-    write_html(
-        site_root / "index.html",
-        render_root_page(rendered_entries, site_url, root_prefix),
-    )
+    for output_path, route, html_document in render_listing_pages(
+        entries=rendered_entries,
+        site_url=site_url,
+        root_prefix=root_prefix,
+        section_key=None,
+    ):
+        write_html(site_root / output_path, html_document)
+        page_routes.append(route)
+    about_route = f"{root_prefix}/about/"
     write_html(
         site_root / "about" / "index.html",
         render_about_page(about_html, site_url, root_prefix),
     )
+    page_routes.append(about_route)
     (site_root / "atom.xml").write_text(
         f"{render_atom_feed(rendered_entries, site_url, root_prefix)}\n",
         encoding="utf-8",
     )
     for section_key in SECTION_ORDER:
         section_entries = [entry for entry in rendered_entries if entry.section == section_key]
-        write_html(
-            site_root / section_key / "index.html",
-            render_section_page(section_key, section_entries, site_url, root_prefix),
-        )
+        for output_path, route, html_document in render_listing_pages(
+            entries=section_entries,
+            site_url=site_url,
+            root_prefix=root_prefix,
+            section_key=section_key,
+        ):
+            write_html(site_root / output_path, html_document)
+            page_routes.append(route)
+
+    write_text(
+        site_root / "robots.txt",
+        render_robots_txt(site_url, root_prefix),
+    )
+    write_text(
+        site_root / "sitemap.xml",
+        render_sitemap_index(site_url, root_prefix),
+    )
+    write_text(
+        site_root / "sitemaps" / "pages.xml",
+        render_urlset(page_routes, site_url),
+    )
+    write_text(
+        site_root / "sitemaps" / "entries.xml",
+        render_urlset(entry_routes, site_url),
+    )
 
     manifest = {
         "schema": "shuma.sim_public_site.v1",
-        "generated_at_utc": timestamp_utc(),
+        "generated_at_utc": generated_at,
         "site_url": site_url,
         "root_path": f"{root_prefix}/",
         "about_path": f"{root_prefix}/about/",
+        "page_routes": page_routes,
         "entries": [
             {
                 "section": entry.section,
@@ -104,7 +137,7 @@ def build_site(
         ],
     }
     freshness = {
-        "generated_at_utc": manifest["generated_at_utc"],
+        "generated_at_utc": generated_at,
         "source_paths": sorted(
             {corpus["site"]["about_source"], *(entry.source_path for entry in rendered_entries)}
         ),
@@ -112,6 +145,71 @@ def build_site(
     write_json(artifact_root / MANIFEST_FILENAME, manifest)
     write_json(artifact_root / FRESHNESS_FILENAME, freshness)
     return manifest
+
+
+def build_site_if_stale(
+    repo_root: Path,
+    artifact_root: Path,
+    corpus_config_path: Path,
+    site_url: str,
+    if_stale_hours: int,
+) -> dict[str, object] | None:
+    if if_stale_hours < 0:
+        raise ValueError("if_stale_hours must be zero or greater")
+    if not refresh_required(repo_root, artifact_root, if_stale_hours):
+        return None
+    return build_site(
+        repo_root=repo_root,
+        artifact_root=artifact_root,
+        corpus_config_path=corpus_config_path,
+        site_url=site_url,
+    )
+
+
+def refresh_required(repo_root: Path, artifact_root: Path, if_stale_hours: int) -> bool:
+    manifest_path = artifact_root / MANIFEST_FILENAME
+    freshness_path = artifact_root / FRESHNESS_FILENAME
+    site_root = artifact_root / SITE_CONTENT_DIRNAME
+    if not manifest_path.is_file() or not freshness_path.is_file() or not site_root.is_dir():
+        return True
+
+    freshness = load_json_file(freshness_path)
+    generated_at_utc = str(freshness.get("generated_at_utc") or "").strip()
+    generated_at = parse_utc_timestamp(generated_at_utc)
+    if generated_at is None:
+        return True
+    if datetime.now(timezone.utc) - generated_at > timedelta(hours=if_stale_hours):
+        return True
+
+    source_paths = freshness.get("source_paths")
+    if not isinstance(source_paths, list) or not source_paths:
+        return True
+    for relative_path in source_paths:
+        source_path = repo_root / str(relative_path)
+        if not source_path.is_file():
+            return True
+        if datetime.fromtimestamp(source_path.stat().st_mtime, timezone.utc) > generated_at:
+            return True
+    return False
+
+
+def load_json_file(path: Path) -> dict[str, object]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    if not isinstance(payload, dict):
+        return {}
+    return payload
+
+
+def parse_utc_timestamp(value: str) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
 
 
 def load_corpus_config(path: Path) -> dict[str, object]:
@@ -299,27 +397,113 @@ def excerpt_from_markdown(markdown_text: str) -> str:
     return ""
 
 
-def render_root_page(entries: list[Entry], site_url: str, root_prefix: str) -> str:
-    feed_intro = "<p>A dated public feed of research, plans, and shipped work.</p>"
-    return render_document(
-        title="Latest",
-        canonical_url=f"{site_url}{root_prefix}/",
-        root_prefix=root_prefix,
-        heading="Latest",
-        lead_html=feed_intro,
-        body_html=render_entry_listing(entries),
+def render_listing_pages(
+    *,
+    entries: list[Entry],
+    site_url: str,
+    root_prefix: str,
+    section_key: str | None,
+) -> list[tuple[Path, str, str]]:
+    pages = paginate_entries(entries)
+    total_pages = max(1, len(pages))
+    rendered: list[tuple[Path, str, str]] = []
+    for index, page_entries in enumerate(pages, start=1):
+        route = listing_route(root_prefix, section_key, index)
+        output_path = listing_output_path(section_key, index)
+        body_html = render_entry_listing(page_entries)
+        pagination_html = render_pagination_nav(root_prefix, section_key, index, total_pages)
+        if pagination_html:
+            body_html = f"{body_html}{pagination_html}"
+        if section_key is None:
+            title = "Latest" if index == 1 else f"Latest Page {index}"
+            heading = "Latest"
+            lead_html = (
+                "<p>A dated public feed of research, plans, and shipped work.</p>"
+                if index == 1
+                else f"<p>Older dated entries, page {index}.</p>"
+            )
+        else:
+            label = SECTION_LABELS[section_key]
+            title = label if index == 1 else f"{label} Page {index}"
+            heading = label
+            lead_html = (
+                f"<p>{html.escape(label)} entries.</p>"
+                if index == 1
+                else f"<p>{html.escape(label)} archive page {index}.</p>"
+            )
+        rendered.append(
+            (
+                output_path,
+                route,
+                render_document(
+                    title=title,
+                    canonical_url=f"{site_url}{route}",
+                    root_prefix=root_prefix,
+                    heading=heading,
+                    lead_html=lead_html,
+                    body_html=body_html,
+                ),
+            )
+        )
+    return rendered
+
+
+def paginate_entries(entries: list[Entry]) -> list[list[Entry]]:
+    if not entries:
+        return [[]]
+    return [
+        entries[index : index + LISTING_PAGE_SIZE]
+        for index in range(0, len(entries), LISTING_PAGE_SIZE)
+    ]
+
+
+def listing_route(root_prefix: str, section_key: str | None, page_number: int) -> str:
+    base = f"{root_prefix}/" if section_key is None else f"{root_prefix}/{section_key}/"
+    if page_number <= 1:
+        return base
+    return f"{base}page/{page_number}/"
+
+
+def listing_output_path(section_key: str | None, page_number: int) -> Path:
+    if section_key is None:
+        if page_number <= 1:
+            return Path("index.html")
+        return Path("page") / str(page_number) / "index.html"
+    if page_number <= 1:
+        return Path(section_key) / "index.html"
+    return Path(section_key) / "page" / str(page_number) / "index.html"
+
+
+def render_pagination_nav(
+    root_prefix: str,
+    section_key: str | None,
+    page_number: int,
+    total_pages: int,
+) -> str:
+    if total_pages <= 1:
+        return ""
+    links: list[str] = []
+    if page_number > 1:
+        links.append(
+            f'<a rel="prev" href="{html.escape(listing_route(root_prefix, section_key, page_number - 1))}">Newer</a>'
+        )
+    if page_number < total_pages:
+        links.append(
+            f'<a rel="next" href="{html.escape(listing_route(root_prefix, section_key, page_number + 1))}">Older</a>'
+        )
+    page_links = " ".join(
+        (
+            f"<strong>{index}</strong>"
+            if index == page_number
+            else f'<a href="{html.escape(listing_route(root_prefix, section_key, index))}">{index}</a>'
+        )
+        for index in range(1, total_pages + 1)
     )
-
-
-def render_section_page(section_key: str, entries: list[Entry], site_url: str, root_prefix: str) -> str:
-    label = SECTION_LABELS[section_key]
-    return render_document(
-        title=label,
-        canonical_url=f"{site_url}{root_prefix}/{section_key}/",
-        root_prefix=root_prefix,
-        heading=label,
-        lead_html=f"<p>{html.escape(label)} entries.</p>",
-        body_html=render_entry_listing(entries),
+    return (
+        '<nav aria-label="Pagination">'
+        f"<p>{' | '.join(links)}</p>"
+        f"<p>{page_links}</p>"
+        "</nav>"
     )
 
 
@@ -347,6 +531,36 @@ def render_atom_feed(entries: list[Entry], site_url: str, root_prefix: str) -> s
         f"<updated>{updated}T00:00:00Z</updated>"
         f"{entry_xml}"
         "</feed>"
+    )
+
+
+def render_robots_txt(site_url: str, root_prefix: str) -> str:
+    return (
+        "User-agent: *\n"
+        "Allow: /\n"
+        f"Sitemap: {site_url}{root_prefix}/sitemap.xml\n"
+    )
+
+
+def render_sitemap_index(site_url: str, root_prefix: str) -> str:
+    return (
+        "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
+        "<sitemapindex xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">"
+        f"<sitemap><loc>{html.escape(site_url + root_prefix + '/sitemaps/pages.xml')}</loc></sitemap>"
+        f"<sitemap><loc>{html.escape(site_url + root_prefix + '/sitemaps/entries.xml')}</loc></sitemap>"
+        "</sitemapindex>"
+    )
+
+
+def render_urlset(routes: list[str], site_url: str) -> str:
+    entries = "".join(
+        f"<url><loc>{html.escape(site_url + route)}</loc></url>" for route in routes
+    )
+    return (
+        "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
+        "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">"
+        f"{entries}"
+        "</urlset>"
     )
 
 
@@ -450,6 +664,11 @@ def reset_artifact_root(artifact_root: Path) -> None:
 def write_html(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(f"{content}\n", encoding="utf-8")
+
+
+def write_text(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
 
 
 def write_json(path: Path, payload: dict[str, object]) -> None:

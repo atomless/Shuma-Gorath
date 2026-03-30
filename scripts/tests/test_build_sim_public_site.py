@@ -2,6 +2,7 @@ import json
 import subprocess
 import tempfile
 import textwrap
+import time
 import unittest
 from pathlib import Path
 
@@ -97,19 +98,20 @@ class BuildSimPublicSiteTests(unittest.TestCase):
         )
 
     def run_build(self) -> subprocess.CompletedProcess:
+        command = [
+            "python3",
+            str(SCRIPT),
+            "--repo-root",
+            str(self.repo_root),
+            "--artifact-root",
+            str(self.artifact_root),
+            "--corpus-config",
+            str(self.repo_root / "config" / "sim_public_site" / "corpus.toml"),
+            "--site-url",
+            "https://example.test",
+        ]
         return subprocess.run(
-            [
-                "python3",
-                str(SCRIPT),
-                "--repo-root",
-                str(self.repo_root),
-                "--artifact-root",
-                str(self.artifact_root),
-                "--corpus-config",
-                str(self.repo_root / "config" / "sim_public_site" / "corpus.toml"),
-                "--site-url",
-                "https://example.test",
-            ],
+            command,
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,
@@ -156,6 +158,72 @@ class BuildSimPublicSiteTests(unittest.TestCase):
         self.assertIn("<feed", atom_xml)
         self.assertIn("https://example.test/sim/public/", atom_xml)
         self.assertIn("Alpha Research", atom_xml)
+
+    def test_build_generates_discoverability_artifacts_and_pagination(self) -> None:
+        for day in range(1, 25):
+            (self.repo_root / "docs" / "research" / f"2026-02-{day:02d}-entry-{day}.md").write_text(
+                f"# Research Entry {day}\n\nEntry {day} body.\n",
+                encoding="utf-8",
+            )
+
+        result = self.run_build()
+        self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
+
+        site_root = self.artifact_root / "site"
+        index_html = (site_root / "index.html").read_text(encoding="utf-8")
+        page_2_html = (site_root / "page" / "2" / "index.html").read_text(encoding="utf-8")
+        research_index = (site_root / "research" / "index.html").read_text(encoding="utf-8")
+        research_page_2 = (
+            site_root / "research" / "page" / "2" / "index.html"
+        ).read_text(encoding="utf-8")
+        robots_txt = (site_root / "robots.txt").read_text(encoding="utf-8")
+        sitemap_index = (site_root / "sitemap.xml").read_text(encoding="utf-8")
+        pages_sitemap = (site_root / "sitemaps" / "pages.xml").read_text(encoding="utf-8")
+        entries_sitemap = (site_root / "sitemaps" / "entries.xml").read_text(encoding="utf-8")
+
+        self.assertIn('href="/sim/public/page/2/"', index_html)
+        self.assertIn('rel="next"', index_html)
+        self.assertIn("Research Entry 4", page_2_html)
+        self.assertIn('href="/sim/public/research/page/2/"', research_index)
+        self.assertIn('rel="prev"', research_page_2)
+        self.assertIn("Sitemap: https://example.test/sim/public/sitemap.xml", robots_txt)
+        self.assertIn("sitemaps/pages.xml", sitemap_index)
+        self.assertIn("sitemaps/entries.xml", sitemap_index)
+        self.assertIn("https://example.test/sim/public/about/", pages_sitemap)
+        self.assertIn(
+            "https://example.test/sim/public/research/2026-03-30-alpha-research/",
+            entries_sitemap,
+        )
+
+    def test_if_stale_hours_skips_fresh_rebuilds(self) -> None:
+        first = self.run_build()
+        self.assertEqual(first.returncode, 0, msg=first.stderr or first.stdout)
+
+        freshness_path = self.artifact_root / "freshness.json"
+        first_freshness = freshness_path.read_text(encoding="utf-8")
+        time.sleep(1.1)
+        second = subprocess.run(
+            [
+                "python3",
+                str(SCRIPT),
+                "--repo-root",
+                str(self.repo_root),
+                "--artifact-root",
+                str(self.artifact_root),
+                "--corpus-config",
+                str(self.repo_root / "config" / "sim_public_site" / "corpus.toml"),
+                "--site-url",
+                "https://example.test",
+                "--if-stale-hours",
+                "24",
+            ],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(second.returncode, 0, msg=second.stderr or second.stdout)
+        self.assertEqual(freshness_path.read_text(encoding="utf-8"), first_freshness)
 
     def test_build_uses_commonmark_renderer_for_markdown_blocks(self) -> None:
         result = self.run_build()

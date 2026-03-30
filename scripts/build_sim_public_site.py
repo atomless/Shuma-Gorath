@@ -7,7 +7,12 @@ import argparse
 import json
 from pathlib import Path
 
-from sim_public_site import artifact_root, build_site, canonical_contract_summary
+from sim_public_site import (
+    artifact_root,
+    build_site,
+    build_site_if_stale,
+    canonical_contract_summary,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -41,6 +46,12 @@ def parse_args() -> argparse.Namespace:
         default="http://127.0.0.1:3000",
         help="Absolute site origin used for canonical URLs.",
     )
+    parser.add_argument(
+        "--if-stale-hours",
+        type=int,
+        default=None,
+        help="Only rebuild when the artifact is missing, source-stale, or older than this many hours.",
+    )
     return parser.parse_args()
 
 
@@ -58,12 +69,16 @@ def main() -> int:
     )
     corpus_config = Path(args.corpus_config).expanduser().resolve()
 
-    build_site(
-        repo_root=repo_root,
-        artifact_root=artifact_root_path,
-        corpus_config_path=corpus_config,
-        site_url=args.site_url.rstrip("/"),
-    )
+    build_kwargs = {
+        "repo_root": repo_root,
+        "artifact_root": artifact_root_path,
+        "corpus_config_path": corpus_config,
+        "site_url": args.site_url.rstrip("/"),
+    }
+    if args.if_stale_hours is None:
+        build_site(**build_kwargs)
+    else:
+        build_site_if_stale(if_stale_hours=args.if_stale_hours, **build_kwargs)
     return 0
 
 

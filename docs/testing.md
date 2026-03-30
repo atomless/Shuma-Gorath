@@ -437,9 +437,14 @@ Structural refactor proof map:
 - `make test-adversarial-runner-architecture` is the focused CLI, unit, and validate-only gate for the Python adversarial runner and closely related governance helpers.
 - `make test-adversary-sim-domain-contract` is the focused backend adversary-sim lifecycle and lane-domain gate that stays off the live runtime-surface path.
 
-The generated contributor public surface now lives at `/sim/public/`, with stable feed and section routes including `/sim/public/about/`, `/sim/public/research/`, `/sim/public/plans/`, `/sim/public/work/`, and `/sim/public/atom.xml`.
+The generated contributor public surface now lives at `/sim/public/`, with stable feed and section routes including `/sim/public/about/`, `/sim/public/research/`, `/sim/public/plans/`, `/sim/public/work/`, `/sim/public/atom.xml`, `/sim/public/robots.txt`, and `/sim/public/sitemap.xml`.
 That surface is available whenever the generated artifact exists; it no longer depends on adversary-sim being actively enabled.
 These pages are the intended first local public surface for strict-loop development and proof when contributors do not yet have a real hosted origin behind Shuma.
+Contributor refresh paths:
+- `make sim-public-refresh` rebuilds the generated artifact explicitly.
+- `make sim-public-refresh-if-stale` rebuilds only when the artifact is missing, source-stale, or older than the bounded freshness window.
+- `make dev` and `make run` reuse the stale-check path so contributors can browse `/sim/public/*` locally without running adversary sim first.
+- `make build`, `make setup-runtime`, and `make run-prebuilt` do not generate the contributor site artifact.
 Dashboard DOM-class contract for runtime/simulation affordances:
 - `<html>` must include exactly one runtime environment class: `runtime-dev` or `runtime-prod` (derived from trusted runtime config).
 - `<html>` connection state classes are heartbeat-owned: runtime boots in `disconnected`, flips to `connected` after successful heartbeat, enters `degraded` on heartbeat failures, and transitions to `disconnected` after configured hysteresis threshold (`N`) of consecutive heartbeat failures.

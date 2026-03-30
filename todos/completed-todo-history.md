@@ -4,6 +4,30 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-30)
 
+### SIM-PUBSITE-1D Add Discoverability Artifacts And Contributor Or Runtime Flow Wiring For The Generated Site
+
+- [x] Completed the discoverability and build-flow tranche across:
+  - [`../scripts/build_sim_public_site.py`](../scripts/build_sim_public_site.py)
+  - [`../scripts/sim_public_site/__init__.py`](../scripts/sim_public_site/__init__.py)
+  - [`../scripts/sim_public_site/build.py`](../scripts/sim_public_site/build.py)
+  - [`../scripts/tests/test_build_sim_public_site.py`](../scripts/tests/test_build_sim_public_site.py)
+  - [`../scripts/tests/test_sim_public_build_flow_contract.py`](../scripts/tests/test_sim_public_build_flow_contract.py)
+  - [`../src/runtime/sim_public.rs`](../src/runtime/sim_public.rs)
+  - [`../Makefile`](../Makefile)
+  - [`../docs/testing.md`](../docs/testing.md)
+- [x] What landed:
+  - the contributor-site generator now emits paginated archive pages, `robots.txt`, `sitemap.xml`, and split page or entry sitemap documents under the generated artifact,
+  - `sim_public` now serves `robots.txt` as plain text and non-Atom XML as `application/xml`, with focused runtime tests so discoverability checks no longer pass on empty cargo filters,
+  - `make sim-public-refresh` and `make sim-public-refresh-if-stale` now exist as explicit contributor refresh paths,
+  - and `make dev` plus `make run` now reuse the bounded stale-refresh path while `make build`, `make setup-runtime`, and `make run-prebuilt` stay free of accidental contributor-site generation.
+- [x] Why:
+  - the richer generated site needed real discoverability artifacts and truthful contributor/runtime workflow boundaries before the next adversary-realism tranches could use it as the canonical public terrain.
+- [x] Evidence:
+  - `make test-sim-public-build-flow-contract`
+  - `make test-sim-public-discoverability-contract`
+  - `make test-sim-public-runtime-serving`
+  - `make test-shared-host-seed-contract`
+
 ### SIM-PUBSITE-1C Serve The Generated Site Through `sim_public` And Remove The Old Hard-Coded Dummy Site
 
 - [x] Completed the runtime-serving tranche across:
