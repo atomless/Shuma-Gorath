@@ -4,6 +4,20 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-30)
 
+### TUNE-SURFACE-PLAN-REFRAME-1 Capture Fresh Tuning-Tab Backlog Around Editable Cost-Shaping Controls
+
+- [x] Completed the docs-only backlog reshaping in:
+  - [`../todos/todo.md`](../todos/todo.md)
+- [x] What landed:
+  - the active backlog now has a fresh `P1 Tuning Surface Realignment` section after the retired March 23-24 chain,
+  - the new TODOs explicitly define `Tuning` as editable cost-shaping controls only rather than a mixed read-only diagnostics tab,
+  - the chain now separates the broader current controller-tunable ring, fingerprint-control ownership cleanup, and the later bounded ban-behavior tuning question into distinct tranches,
+  - and the ban-related follow-up is now framed around jitter, repeat-offender, decay, promotion, and longer-window evaluation primitives rather than assuming raw `ban_durations.*` should become the first loop knobs.
+- [x] Why:
+  - the current narrow `Tuning` contract no longer matches the intended product direction, but the earlier March 23-24 expansion chain was explicitly retired, so the repo needed a fresh post-retirement backlog shape rather than a quiet resurrection of stale plans.
+- [x] Evidence:
+  - `git diff --check`
+
 ### DASH-CONFIG-TRUTH-1 Fix Phantom Unsaved State In Policy And Traps Tabs
 
 - [x] Completed the dashboard config-truth repair across:

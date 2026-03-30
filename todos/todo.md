@@ -412,6 +412,78 @@ Current stance:
     - proof: add and pass `make test-category-labeling-signals`, `make test-traffic-classification-contract`, and `make test-benchmark-results-contract`
     - insufficient: silent heuristic drift, simulator-only confidence boosts, or exact category rows that cannot be explained through receipt evidence families
 
+## P1 Tuning Surface Realignment
+
+Reference context:
+- [`docs/dashboard-tabs/tuning.md`](../docs/dashboard-tabs/tuning.md)
+- [`docs/dashboard-tabs/fingerprinting.md`](../docs/dashboard-tabs/fingerprinting.md)
+- [`docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md`](../docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md)
+- [`docs/research/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-research-synthesis.md`](../docs/research/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-research-synthesis.md)
+- [`docs/research/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/2026-02-16-fingerprinting-research-synthesis.md)
+
+Current stance:
+- Keep this chain behind the current `SIM-REALISM-1A..1D` execution priority unless the user explicitly reprioritizes it or a higher-severity regression interrupts that work.
+- `Tuning` should surface editable cost-shaping controls only; do not turn it into a mixed read-only diagnostics or explanation tab.
+- `Tuning` should distinguish bounded loop-tunable controls from any future manual-only cost-shaping controls, but it must not present hard-`never` trust-boundary or provider-topology settings as if they are tuning knobs.
+- Future ban-behavior tuning should begin with bounded jitter, repeat-offender, decay, and promotion controls rather than blindly exposing raw `ban_durations.*` as first-class loop moves.
+
+- [ ] TUNE-SURFACE-2 Write a fresh Tuning-tab research and implementation plan around editable cost-shaping controls only.
+  - Reference context:
+    - [`docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md`](../docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md)
+    - [`docs/research/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-research-synthesis.md`](../docs/research/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-research-synthesis.md)
+    - [`docs/research/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/2026-02-16-fingerprinting-research-synthesis.md)
+  - Closure gate:
+    - contract truth: the new research and plan must define `Tuning` as an editable cost-shaping surface, not a read-only explanation surface
+    - ownership truth: the plan must explicitly separate `controller_tunable`, future `manual_only` cost-shaping, and hard-`never` trust-topology or authorization policy
+    - horizon truth: the plan must distinguish short-window loop tuning from slower re-entry and recurrence tuning over longer evidence windows
+    - proof: add new research and plan docs, update any affected roadmap or dashboard-tab docs, and keep `git diff --check` clean
+    - insufficient: reviving the retired March 23-24 chain verbatim, or treating raw sanction-policy values as tuning without fresh mutability justification
+
+- [ ] TUNE-SURFACE-2A Expand `Tuning` to the full currently ratified editable controller-tunable ring.
+  - Reference context:
+    - [`docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md`](../docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md)
+    - [`docs/dashboard-tabs/tuning.md`](../docs/dashboard-tabs/tuning.md)
+  - Closure gate:
+    - surface truth: `Tuning` must expose editable controls for the current bounded tuning ring rather than only the narrow botness-threshold subset
+    - scope truth: the surfaced controls must cover the ratified tuning families that materially shape hostile cost or human friction, including `js_required`, `proof_of_work`, `challenge`, `not_a_bot`, `maze` rollout, `cdp_detection`, current botness thresholds and weights, and the in-bounds fingerprint sensitivity controls
+    - UI truth: the tab must remain editable-only and must not embed read-only signal inventories or runtime-definition furniture inside the main tuning surface
+    - proof: add and pass focused dashboard coverage through `make test-dashboard-policy-pane-ownership`, keep `make test-dashboard-config-surface-contract`, `make test-controller-mutability-policy`, and `make test-controller-action-surface` green, and update `docs/dashboard-tabs/tuning.md`
+    - insufficient: moving labels without wiring save semantics, or expanding the tab with controls that are still outside the ratified bounded ring
+
+- [ ] TUNE-SURFACE-2B Move editable fingerprint sensitivity controls into `Tuning` and narrow `Fingerprinting` to source or provider posture only.
+  - Reference context:
+    - [`docs/dashboard-tabs/fingerprinting.md`](../docs/dashboard-tabs/fingerprinting.md)
+    - [`docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md`](../docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md)
+    - [`docs/research/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/2026-02-16-fingerprinting-research-synthesis.md)
+  - Closure gate:
+    - ownership truth: editable fingerprint sensitivity knobs must live with the other bounded cost-shaping controls in `Tuning`
+    - boundary truth: provider-topology and edge-trust controls such as `provider_backends.fingerprint_signal` and `edge_integration_mode` must stay out of `Tuning`
+    - UI truth: `Fingerprinting` must stop presenting a misleading read-only ownership boundary for knobs that are actually editable elsewhere
+    - proof: add and pass focused dashboard coverage through `make test-dashboard-policy-pane-ownership`, keep `make test-dashboard-config-surface-contract` and `make test-controller-hard-boundaries` green, and update `docs/dashboard-tabs/tuning.md` plus `docs/dashboard-tabs/fingerprinting.md`
+    - insufficient: duplicating the same fingerprint knobs across tabs, or moving trust-topology controls into `Tuning`
+
+- [ ] TUNE-BAN-1 Design bounded ban-behavior tuning primitives for recurrence, re-entry, and longer-window cost shaping.
+  - Reference context:
+    - [`docs/research/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-research-synthesis.md`](../docs/research/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-research-synthesis.md)
+    - [`docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md`](../docs/research/2026-03-24-controller-tunable-config-surface-and-hard-boundaries-review.md)
+  - Closure gate:
+    - design truth: the research and plan must evaluate bounded jitter bands, repeat-offender ladders, decay windows, and promotion thresholds as candidate tuning primitives for recurring non-human traffic
+    - boundary truth: the design must explicitly justify whether any part of ban behavior should move from hard-`never` to `manual_only` or `controller_tunable`, and it must not assume raw `ban_durations.*` become loop knobs by default
+    - horizon truth: the work must define which ban-behavior knobs require longer evidence windows than the current short loop runs and how those windows remain observable and rollback-safe
+    - proof: add new research and plan docs, update roadmap or TODO sequencing if the execution order changes, and keep `git diff --check` clean
+    - insufficient: equating "ban durations matter" with "all ban durations should move into `Tuning`", or leaving recurrence tuning undefined beyond vague longer-window language
+
+- [ ] TUNE-BAN-2 If bounded ban-behavior tuning is ratified, surface those controls in `Tuning` with explicit horizon and mutability labeling.
+  - Reference context:
+    - [`docs/research/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-research-synthesis.md`](../docs/research/2026-03-16-agentic-era-ban-jitter-recidive-and-central-intelligence-research-synthesis.md)
+    - the future plan produced by `TUNE-BAN-1`
+  - Closure gate:
+    - surface truth: only the ratified bounded ban-behavior knobs, such as jitter width, repeat-offender multipliers, decay windows, or promotion thresholds, may appear in `Tuning`
+    - labeling truth: the UI must clearly distinguish short-window loop-tunable controls from longer-window or manual-review controls so operators do not mistake time-horizon semantics
+    - safety truth: any new ban-behavior controls must preserve auditability, rollback explainability, and explicit protection against synchronized expiry or punitive overreach
+    - proof: add and pass focused dashboard coverage through `make test-dashboard-policy-pane-ownership`, keep `make test-controller-mutability-policy`, `make test-controller-action-surface`, and the focused ban-behavior verification target added by the tranche green, and update the relevant dashboard-tab docs
+    - insufficient: exposing raw family base durations as the first shipped loop knobs, or shipping longer-window controls without proof of observability and rollback semantics
+
 ## P2 Hardening and Coverage
 
 Architecture alignment reference:
