@@ -1,4 +1,5 @@
 import os
+import re
 import stat
 import subprocess
 import tempfile
@@ -9,6 +10,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = REPO_ROOT / "scripts" / "bootstrap" / "setup-runtime.sh"
+SCRAPLING_RUNTIME_SCRIPT = REPO_ROOT / "scripts" / "bootstrap" / "scrapling_runtime.sh"
 
 
 def write_executable(path: Path, body: str) -> None:
@@ -284,6 +286,28 @@ SQLITE
         self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
         self.assertTrue(venv_ready.exists())
         self.assertTrue((self.workspace / ".venv-scrapling" / "bin" / "python3").exists())
+
+    def test_scrapling_runtime_pin_matches_package_spec_and_readiness_check(self) -> None:
+        script = SCRAPLING_RUNTIME_SCRIPT.read_text(encoding="utf-8")
+
+        version_match = re.search(
+            r'^SCRAPLING_RUNTIME_PACKAGE_VERSION="\$\{SCRAPLING_RUNTIME_PACKAGE_VERSION:-([^}]+)\}"$',
+            script,
+            re.MULTILINE,
+        )
+        readiness_match = re.search(
+            r'if importlib\.metadata\.version\("scrapling"\) != "([^"]+)":',
+            script,
+        )
+
+        self.assertIsNotNone(version_match)
+        self.assertIsNotNone(readiness_match)
+        self.assertIn(
+            'SCRAPLING_RUNTIME_PACKAGE_SPEC="${SCRAPLING_RUNTIME_PACKAGE_SPEC:-scrapling[fetchers]==${SCRAPLING_RUNTIME_PACKAGE_VERSION}}"',
+            script,
+        )
+        self.assertEqual(version_match.group(1), "0.4.3")
+        self.assertEqual(version_match.group(1), readiness_match.group(1))
 
 
 if __name__ == "__main__":

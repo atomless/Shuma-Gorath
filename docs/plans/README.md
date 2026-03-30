@@ -26,6 +26,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 - [`2026-03-29-dashboard-machine-diagnostic-surface-retirement-plan.md`](2026-03-29-dashboard-machine-diagnostic-surface-retirement-plan.md) - Retires the now-redundant Red Team, Game Loop, and Diagnostics machine-diagnostic sections and removes the dead dashboard reads, helpers, docs, and tests that only existed to support them
 - [`2026-03-29-tuning-surface-defunct-retirement-plan.md`](2026-03-29-tuning-surface-defunct-retirement-plan.md) - Retires the defunct March 23-24 Tuning expansion chain and removes it from active backlog and sequencing
 - [`2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md`](2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md) - Defines the next realism chain for Scrapling and Agentic Traffic so mixed-attacker proof depends on representative cadence, burst, dwell, and session behavior rather than lane presence alone
+- [`2026-03-30-scrapling-0-4-3-upgrade-plan.md`](2026-03-30-scrapling-0-4-3-upgrade-plan.md) - Defines the immediate pre-realism Scrapling runtime upgrade so the repo absorbs upstream `0.4.3` fixes while deferring new browser-capability support to the realism chain
 - [`2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md`](2026-03-24-game-loop-sequencing-require-attacker-faithful-scrapling-plan.md) - Makes attacker-faithful Scrapling coverage an explicit prerequisite for fuller player-side game-loop execution
 - [`2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md`](2026-03-24-scrapling-challenge-interaction-and-browser-expansion-plan.md) - Separates widened Scrapling defense-surface evaluation from the broader later browser-runtime question
 - [`2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-plan.md`](2026-03-24-sim-scr-challenge-2a-owned-surface-matrix-plan.md) - Freezes the canonical owned-surface matrix and success contract for attacker-faithful Scrapling
@@ -151,6 +152,7 @@ The directory is intentionally flat. Use this index to distinguish current execu
 
 - [`2026-03-20-mature-adversary-sim-evolution-roadmap.md`](2026-03-20-mature-adversary-sim-evolution-roadmap.md)
 - [`2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md`](2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md)
+- [`2026-03-30-scrapling-0-4-3-upgrade-plan.md`](2026-03-30-scrapling-0-4-3-upgrade-plan.md)
 - [`2026-03-20-sim-deploy-2-production-operating-envelope-implementation-plan.md`](2026-03-20-sim-deploy-2-production-operating-envelope-implementation-plan.md)
 - [`2026-03-20-sim-scr-lane-1-runtime-migration-plan.md`](2026-03-20-sim-scr-lane-1-runtime-migration-plan.md)
 

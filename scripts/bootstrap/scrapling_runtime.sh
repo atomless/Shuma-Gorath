@@ -2,7 +2,7 @@
 # Shared helper functions for the repo-owned Scrapling worker runtime.
 
 SCRAPLING_RUNTIME_VENV_DIR="${SCRAPLING_RUNTIME_VENV_DIR:-.venv-scrapling}"
-SCRAPLING_RUNTIME_PACKAGE_VERSION="${SCRAPLING_RUNTIME_PACKAGE_VERSION:-0.4.2}"
+SCRAPLING_RUNTIME_PACKAGE_VERSION="${SCRAPLING_RUNTIME_PACKAGE_VERSION:-0.4.3}"
 SCRAPLING_RUNTIME_PACKAGE_SPEC="${SCRAPLING_RUNTIME_PACKAGE_SPEC:-scrapling[fetchers]==${SCRAPLING_RUNTIME_PACKAGE_VERSION}}"
 SCRAPLING_RUNTIME_BREW_FORMULA="${SCRAPLING_RUNTIME_BREW_FORMULA:-python@3.11}"
 SCRAPLING_RUNTIME_MIN_MAJOR=3
@@ -111,7 +111,7 @@ from scrapling.fetchers import DynamicSession, FetcherSession, StealthySession  
 import anyio  # noqa: F401
 import curl_cffi  # noqa: F401
 
-if importlib.metadata.version("scrapling") != "0.4.2":
+if importlib.metadata.version("scrapling") != "0.4.3":
     raise SystemExit(1)
 PY
 }

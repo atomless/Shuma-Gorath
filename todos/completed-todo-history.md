@@ -4,6 +4,27 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-30)
 
+### SIM-SCR-UPSTREAM-1 Upgrade The Repo-Owned Scrapling Runtime To Upstream 0.4.3
+
+- [x] Completed the upstream Scrapling upgrade tranche across:
+  - [`../scripts/bootstrap/scrapling_runtime.sh`](../scripts/bootstrap/scrapling_runtime.sh)
+  - [`../scripts/tests/test_setup_runtime_spin_install.py`](../scripts/tests/test_setup_runtime_spin_install.py)
+  - [`../docs/research/2026-03-30-scrapling-0-4-3-upgrade-and-realism-impact-review.md`](../docs/research/2026-03-30-scrapling-0-4-3-upgrade-and-realism-impact-review.md)
+  - [`../docs/plans/2026-03-30-scrapling-0-4-3-upgrade-plan.md`](../docs/plans/2026-03-30-scrapling-0-4-3-upgrade-plan.md)
+  - [`../docs/research/README.md`](../docs/research/README.md)
+  - [`../docs/plans/README.md`](../docs/plans/README.md)
+- [x] What landed:
+  - the repo-owned Scrapling runtime bootstrap now pins and verifies `scrapling[fetchers]==0.4.3`,
+  - the bootstrap proof suite now includes an explicit anti-drift check that the install pin, package spec, and readiness check stay synchronized,
+  - and the new upstream `0.4.3` browser background-request capture and browser-path support are now captured as realism follow-ons rather than being silently adopted ahead of `SIM-REALISM-1A`.
+- [x] Why:
+  - upstream `0.4.3` contains retry and browser-session fixes we should absorb before realism work, while still preserving a clean boundary between the version bump and the later cadence/session-behavior contract.
+- [x] Evidence:
+  - `make setup-runtime`
+  - `make test-setup-runtime-bootstrap`
+  - `make test-adversary-sim-scrapling-worker`
+  - `make test-adversary-sim-scrapling-browser-capability`
+
 ### DASH-STATUS-VID-1 Move Verified Identity Health To Status
 
 - [x] Completed the dashboard ownership move across:
