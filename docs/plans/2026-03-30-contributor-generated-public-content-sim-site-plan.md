@@ -57,7 +57,7 @@ This contract keeps the generated site obviously identifiable as contributor-loc
 
 ## Acceptance Criteria
 
-1. Local contributor workflows expose the richer `/sim/public/*` site even when adversary sim is idle; browsing the site must no longer depend on `adversary_sim_enabled`.
+1. Local contributor workflows expose the richer `/sim/public/*` site even when adversary sim is idle or disabled; browsing the site must no longer depend on `adversary_sim_enabled`, and contributors must be able to use that surface under `make dev` as the local human-friction assessment terrain for current config.
 2. Runtime-only workflows do not silently generate or expose the contributor site artifact.
 3. The generated site is derived from allowlisted markdown roots rather than duplicated content copies or runtime repo walking.
 4. The generated site exposes a chronology-driven homepage feed, section feeds, article pages, `robots.txt`, and sitemap documents that materially improve public discoverability.
@@ -194,7 +194,7 @@ This contract keeps the generated site obviously identifiable as contributor-loc
 7. Ensure archive and pagination pages remain link-driven and crawlable without JavaScript.
 
 **Acceptance criteria:**
-1. A contributor can browse the site locally on `make dev` without first running adversary sim.
+1. A contributor can browse the site locally on `make dev` without first running adversary sim, including when adversary sim is disabled or idle, so the generated `/sim/public/*` surface can be used for local human-friction assessment against the active config.
 2. The new site materially improves public discoverability through a dated root feed, section feeds, `robots.txt`, and sitemap documents.
 3. Runtime-only setup remains clean and unsurprising.
 4. Feed traversal, archive traversal, and entry traversal all work through ordinary hyperlinks alone.

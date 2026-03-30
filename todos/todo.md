@@ -208,7 +208,7 @@ Current note:
   - Closure gate:
     - surface truth: broader dummy-site surfaces must become reachable through root links, realistic navigation, `robots.txt` sitemap entries, and sitemap documents rather than ad hoc worker hints
     - implementation vehicle: the richer surface should land as a generated contributor content site under `/sim/public/*`, not as a runtime repo walker or a slightly expanded hard-coded fake blog
-    - contributor truth: contributors running `make dev` must be able to browse the site even when adversary sim is idle, while runtime-only flows must not silently generate or expose the contributor site
+    - contributor truth: contributors running `make dev` must be able to browse the site even when adversary sim is idle or disabled, and that local surface must be usable for human-friction assessment against the active config while runtime-only flows must not silently generate or expose the contributor site
     - cleanup truth: the old five-page hard-coded dummy site must be removed once the generated site path lands
     - discipline: keep hidden or internal route catalogs out of the workers and out of the seed contract
     - proof: add and pass `make test-sim-public-discoverability-contract`, and keep shared-host seed-contract proof green

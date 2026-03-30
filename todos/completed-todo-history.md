@@ -4,6 +4,20 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-30)
 
+### Contributor Sim Public Site Local-Availability Requirement Refinement
+
+- [x] Tightened the contributor-site plan and backlog wording in:
+  - [`../docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md`](../docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md)
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../todos/todo.md`](../todos/todo.md)
+- [x] What changed:
+  - the generated `/sim/public/*` contributor surface is now explicitly required to stay browseable under `make dev` even when adversary sim is disabled or idle,
+  - and the contract now explicitly names that local surface as part of the human-friction assessment path for current config, not just a convenience for adversary traversal demos.
+- [x] Why:
+  - later sim-public implementation work must not accidentally tie contributor browsing to adversary-sim activity, because local friction inspection against current config is a first-class use of the generated site.
+- [x] Evidence:
+  - `git diff --check`
+
 ### SIM-REALISM-2D Capture Browser Secondary Traffic And Background Request Truth
 
 - [x] Completed the browser secondary-traffic realism tranche across:
