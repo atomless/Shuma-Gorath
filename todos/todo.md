@@ -146,7 +146,7 @@ Current note:
 - `SIM-REALISM-1` is now the next adversary-sim maturity chain: both Scrapling and Agentic Traffic still need profile-driven cadence, burst, dwell, and identity or session realism before mixed-attacker or tuning claims are called representative.
 - `SIM-REALISM-1A` is now landed: the shared versioned realism-profile contract is frozen across Rust planners, Python workers, and Make-driven proof.
 - `SIM-REALISM-1B` is now landed: Scrapling personas now execute profile-driven pacing and dwell behavior, emit per-tick `realism_receipt` payloads, preserve the latest Scrapling realism receipt in recent-run monitoring history, and `SIM-REALISM-1C` is now the current top-priority adversary-sim work item. But treat that tranche as local shape realism, not full wild-attacker realism.
-- `SIM-REALISM-2` is now the explicit follow-on chain after `SIM-REALISM-1D`: the lanes still fall short on field-grounded pressure envelopes, proxy and identity realism, coherent header or transport envelopes, browser secondary traffic, per-persona exploration depth and frontier realism, compact traversal receipts, richer public discoverability of the dummy surface, and long-horizon recurrence.
+- `SIM-REALISM-2` is now the explicit follow-on chain after `SIM-REALISM-1D`: the lanes still fall short on field-grounded pressure envelopes, proxy and identity realism, trusted-ingress client-IP realism, coherent header or transport envelopes, browser secondary traffic, per-persona exploration depth and frontier realism, compact traversal receipts, richer public discoverability of the dummy surface, explicit degraded identity labeling, and long-horizon recurrence.
 - Do not treat mere lane execution or recent-run visibility as characteristic attacker pressure while `bot_red_team` browser-mode still lacks real session execution and the lanes still retain overly uniform pressure, identity, and transport behavior.
 - Do not open `humans_plus_verified_only` until a later second strict-baseline proof has shown retained config-change improvement under both Scrapling and LLM attacker pressure.
 - `DIAG-CLEANUP-1`, `MON-OVERHAUL-1C`, and `SIM-LLM-1C3` are now all landed, so the later combined-attacker strict-baseline proof is no longer blocked by missing LLM runtime visibility.
@@ -269,6 +269,31 @@ Current note:
     - discipline: keep hidden or internal route catalogs out of the workers and out of the seed contract
     - proof: add and pass `make test-sim-public-discoverability-contract`, and keep shared-host seed-contract proof green
     - insufficient: private worker-only route hints, simulator convenience endpoints, or sitemap/catalog artifacts treated as discovery truth
+
+- [ ] SIM-REALISM-2I Add trusted-ingress client-IP realism without granting attacker-plane header privileges.
+  - Reference context:
+    - [`docs/research/2026-02-27-sim2-shortfall-4-sim-telemetry-authenticity.md`](../docs/research/2026-02-27-sim2-shortfall-4-sim-telemetry-authenticity.md)
+    - [`docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
+    - [`docs/deployment.md`](../docs/deployment.md)
+    - [`docs/security-hardening.md`](../docs/security-hardening.md)
+  - Closure gate:
+    - trust-boundary truth: realistic client-IP restoration for sim traffic must come only through a Shuma-owned trusted ingress or proxy path, not by teaching Scrapling or Agentic workers to emit `x-shuma-forwarded-secret` or any equivalent privileged header
+    - runtime truth: when trusted sim ingress is configured, Shuma must observe real parseable client IPs instead of mostly `unknown`; when it is not configured, receipts must explicitly mark identity realism as degraded
+    - parity truth: the same trust gate used for external forwarded headers must remain the only authority for client-IP restoration, with no sim-only bypass
+    - proof: add and pass `make test-adversary-sim-trusted-ingress-ip-realism`, and keep attacker-plane contract checks and forwarded-header security tests green
+    - insufficient: forging `x-forwarded-for` plus `x-shuma-forwarded-secret` from the workers, sim-only IP extraction shortcuts, or claiming realistic IPs from local process churn alone
+
+- [ ] SIM-REALISM-2J Add explicit identity-realism receipts and operator wording for degraded IP truth.
+  - Reference context:
+    - [`docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
+    - [`docs/plans/2026-03-29-observed-telemetry-truth-and-scrapling-discoverability-plan.md`](../docs/plans/2026-03-29-observed-telemetry-truth-and-scrapling-discoverability-plan.md)
+    - [`docs/dashboard-tabs/game-loop.md`](../docs/dashboard-tabs/game-loop.md)
+  - Closure gate:
+    - observer truth: recent-run and operator surfaces must distinguish `real client IP observed`, `bucketed IP`, and `identity realism degraded` instead of rendering hashed buckets like `h382` as if they were meaningful addresses
+    - receipt truth: machine-facing receipts must preserve whether identity realism was pool-backed, trusted-ingress-backed, or degraded
+    - wording truth: UI and docs must describe hashed or bucketed identity values as buckets, not as source IPs
+    - proof: add and pass `make test-adversary-sim-identity-observer-truth`, and keep relevant dashboard accountability and machine-contract targets green if rendered wording changes
+    - insufficient: continuing to show `unknown` or `h*` values without provenance labeling, or UI copy that implies realistic network identity when only degraded local identity exists
 
 - [ ] RSI-GAME-HO-2A3 Project mixed-attacker judged-episode truth through operator/admin and Game Loop surfaces.
   - Reference context:

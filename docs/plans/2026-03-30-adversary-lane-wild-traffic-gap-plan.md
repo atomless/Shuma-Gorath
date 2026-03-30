@@ -1,8 +1,8 @@
 # SIM-REALISM-2 Wild Traffic Gap Closure Plan
 
-**Goal:** Close the remaining field-grounded realism gaps after `SIM-REALISM-1C` and `SIM-REALISM-1D` so Shuma's adversary lanes no longer stop at local burst-shape realism and can instead represent the pressure, identity, transport, traversal, public discoverability, and recurrence patterns actually seen in current hostile traffic.
+**Goal:** Close the remaining field-grounded realism gaps after `SIM-REALISM-1C` and `SIM-REALISM-1D` so Shuma's adversary lanes no longer stop at local burst-shape realism and can instead represent the pressure, identity, trusted-ingress client-IP posture, transport, traversal, public discoverability, and recurrence patterns actually seen in current hostile traffic.
 
-**Architecture:** Reuse the existing lane realism contract, lane planner, supervisor, and worker seams. Extend that contract with pressure-envelope, identity-envelope, transport-envelope, browser-secondary-traffic, exploration-envelope, exploration-receipt, public-discoverability, and recurrence concepts. Preserve the existing public-discovery-only Scrapling boundary and the existing black-box Shuma-blind Agentic boundary. Do not widen host knowledge to achieve realism.
+**Architecture:** Reuse the existing lane realism contract, lane planner, supervisor, and worker seams. Extend that contract with pressure-envelope, identity-envelope, trusted-ingress identity restoration, transport-envelope, browser-secondary-traffic, exploration-envelope, exploration-receipt, public-discoverability, and recurrence concepts. Preserve the existing public-discovery-only Scrapling boundary and the existing black-box Shuma-blind Agentic boundary. Do not widen host knowledge to achieve realism.
 
 **Tech Stack:** Rust adversary-sim planner and state, Python Scrapling worker, Python LLM runtime worker and adversarial container worker, existing monitoring and observer read models, Makefile verification, backlog and sequencing docs.
 
@@ -17,6 +17,7 @@
 3. Do not let simulator-only identity, proxy, or category metadata leak into defence truth or category truth.
 4. Do not turn realism work into uncontrolled aggression. Every stronger behavior must remain bounded by an explicit contract and receipt-backed proof.
 5. Do not reintroduce hidden or internal route catalogs, worker-only path hints, or fake public-surface inventories to make traversal look deeper.
+6. Do not grant attacker-plane workers privileged ingress headers or sim-only trust shortcuts. If realistic client IPs are needed, restore them through the same trusted ingress boundary external traffic must satisfy.
 
 ## Task 1: Refresh Backlog And Sequencing Truth
 
@@ -221,6 +222,50 @@
 1. Add and pass `make test-sim-public-discoverability-contract`.
 2. Keep shared-host seed-contract proof green.
 
+## Task 10: `SIM-REALISM-2I` Add Trusted-Ingress Client-IP Realism Without Attacker-Plane Privilege Creep
+
+**Files:**
+- Later code targets: trusted ingress or proxy adapter surfaces, adversary-sim supervisor or harness wiring, relevant runtime client-IP extraction or deployment docs
+- Later proof targets: forwarded-header security tests, adversary-sim identity realism tests, `Makefile`
+
+**Work:**
+1. Add a truthful path for adversary-sim traffic to arrive through a Shuma-owned trusted ingress or proxy that can restore real client IP headers.
+2. Keep the attacker workers forbidden from emitting privileged trust headers such as `x-shuma-forwarded-secret`.
+3. Reuse the same forwarded-header trust gate used for external traffic rather than inventing a sim-only bypass.
+
+**Acceptance criteria:**
+1. When trusted sim ingress is configured, Shuma can observe parseable client IPs for sim traffic.
+2. When it is not configured, the system explicitly reports degraded identity realism instead of silently collapsing to misleading values.
+3. The attacker plane gains no new privilege to impersonate trusted ingress directly.
+
+**Proof:**
+1. Add and pass `make test-adversary-sim-trusted-ingress-ip-realism`.
+2. Keep attacker-plane contract checks and forwarded-header security tests green.
+
+## Task 11: `SIM-REALISM-2J` Add Explicit Identity-Realism Receipts And Observer Wording
+
+**Files:**
+- Later code targets: receipt emitters, recent-run/read-model adapters, dashboard observer surfaces, related docs
+- Later proof targets: machine-contract tests, rendered dashboard proofs, `Makefile`
+
+**Work:**
+1. Add explicit identity-realism receipt fields that record whether observed identity was:
+   - trusted-ingress-backed,
+   - pool-backed,
+   - bucketed only,
+   - or degraded.
+2. Update operator surfaces so `unknown` and hashed bucket values like `h382` are labeled truthfully as degraded or bucketed identity, not as source IPs.
+3. Keep those fields observer-only rather than turning them into defence truth.
+
+**Acceptance criteria:**
+1. Operators can distinguish real observed client-IP realism from degraded bucket-only identity.
+2. UI wording no longer makes hashed bucket values look like realistic source addresses.
+3. Receipt truth remains compact and machine-readable.
+
+**Proof:**
+1. Add and pass `make test-adversary-sim-identity-observer-truth`.
+2. Keep relevant dashboard accountability and machine-contract tests green.
+
 ## Recommended Execution Order
 
 1. finish `SIM-REALISM-1C`
@@ -232,5 +277,7 @@
 7. `SIM-REALISM-2F`
 8. `SIM-REALISM-2G`
 9. `SIM-REALISM-2H`
-10. `SIM-REALISM-2E`
-11. only then reopen representative mixed-attacker or tuning-quality claims
+10. `SIM-REALISM-2I`
+11. `SIM-REALISM-2J`
+12. `SIM-REALISM-2E`
+13. only then reopen representative mixed-attacker or tuning-quality claims
