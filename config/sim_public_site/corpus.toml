@@ -1,0 +1,18 @@
+# Contributor-generated /sim/public site corpus policy.
+# SIM-PUBSITE-1A freezes this location and the first-profile scope.
+
+[site]
+root_prefix = "/sim/public"
+about_source = "README.md"
+
+[sections.research]
+source_glob = "docs/research/2026-*.md"
+output_prefix = "research"
+
+[sections.plans]
+source_glob = "docs/plans/2026-*.md"
+output_prefix = "plans"
+
+[sections.work]
+source_file = "todos/completed-todo-history.md"
+output_prefix = "work"

@@ -24,6 +24,10 @@ ifneq ("$(wildcard $(ENV_LOCAL))","")
 include $(ENV_LOCAL)
 endif
 SHUMA_LOCAL_STATE_DIR ?= .shuma
+SIM_PUBLIC_SITE_ARTIFACT_ROOT ?= $(SHUMA_LOCAL_STATE_DIR)/sim-public-site
+SIM_PUBLIC_SITE_MANIFEST_PATH ?= $(SIM_PUBLIC_SITE_ARTIFACT_ROOT)/manifest.json
+SIM_PUBLIC_SITE_CORPUS_CONFIG ?= config/sim_public_site/corpus.toml
+SIM_PUBLIC_SITE_GENERATOR ?= scripts/build_sim_public_site.py
 LINODE_SETUP_RECEIPT ?= $(SHUMA_LOCAL_STATE_DIR)/linode-shared-host-setup.json
 FERMYON_AKAMAI_SETUP_RECEIPT ?= $(SHUMA_LOCAL_STATE_DIR)/fermyon-akamai-edge-setup.json
 FERMYON_AKAMAI_DEPLOY_RECEIPT ?= $(SHUMA_LOCAL_STATE_DIR)/fermyon-akamai-edge-deploy.json
@@ -1572,6 +1576,14 @@ test-shared-host-seed-contract: ## Validate shared-host seed contract parity and
 	@echo "$(CYAN)🧪 Validating shared-host seed contract...$(NC)"
 	@python3 scripts/tests/check_shared_host_seed_contract.py
 	@python3 -m unittest scripts/tests/test_shared_host_seed_inventory.py
+
+test-sim-public-generated-site-contract: ## Validate focused contributor-generated sim-public site contract gates
+	@echo "$(CYAN)🧪 Validating sim-public generated-site contract...$(NC)"
+	@./scripts/set_crate_type.sh rlib
+	@cargo test sim_public_site_root_defaults_under_shuma_local_state_dir -- --nocapture
+	@cargo test sim_public_site_root_honors_shuma_local_state_dir_override -- --nocapture
+	@cargo test availability_from_runtime_uses_generated_artifact_presence_not_sim_controls -- --nocapture
+	@python3 -m unittest scripts/tests/test_sim_public_generated_site_contract.py
 
 build-shared-host-seed-inventory: ## Build minimal shared-host seed inventory from operator inputs under the shared-host scope contract
 	@python3 scripts/tests/shared_host_seed_inventory.py $(SHARED_HOST_SEED_ARGS)

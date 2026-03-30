@@ -1,6 +1,11 @@
+use std::path::PathBuf;
+
 use spin_sdk::http::{Method, Request, Response};
 
 use crate::config::{Config, RuntimeEnvironment};
+
+const SIM_PUBLIC_SITE_DIRNAME: &str = "sim-public-site";
+const SIM_PUBLIC_SITE_MANIFEST_FILENAME: &str = "manifest.json";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SimPublicPage {
@@ -64,33 +69,41 @@ impl SimPublicPage {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct SimPublicAvailability {
     pub runtime_environment: RuntimeEnvironment,
-    pub env_available: bool,
-    pub cfg_enabled: bool,
+    pub artifact_available: bool,
 }
 
 impl SimPublicAvailability {
     pub(crate) fn is_enabled(self) -> bool {
-        sim_public_enabled(
-            self.runtime_environment,
-            self.env_available,
-            self.cfg_enabled,
-        )
+        sim_public_enabled(self.runtime_environment, self.artifact_available)
     }
 }
 
 pub(crate) fn sim_public_enabled(
     _runtime_environment: RuntimeEnvironment,
-    env_available: bool,
-    cfg_enabled: bool,
+    artifact_available: bool,
 ) -> bool {
-    env_available && cfg_enabled
+    artifact_available
+}
+
+pub(crate) fn sim_public_site_root() -> PathBuf {
+    let local_state_dir = crate::config::runtime_var_trimmed_optional("SHUMA_LOCAL_STATE_DIR")
+        .unwrap_or_else(|| ".shuma".to_string());
+    PathBuf::from(local_state_dir).join(SIM_PUBLIC_SITE_DIRNAME)
+}
+
+pub(crate) fn sim_public_site_manifest_path() -> PathBuf {
+    sim_public_site_root().join(SIM_PUBLIC_SITE_MANIFEST_FILENAME)
+}
+
+fn sim_public_site_artifact_available() -> bool {
+    sim_public_site_manifest_path().is_file()
 }
 
 pub(crate) fn availability_from_runtime(cfg: &Config) -> SimPublicAvailability {
+    let _ = cfg;
     SimPublicAvailability {
         runtime_environment: crate::config::runtime_environment(),
-        env_available: crate::config::adversary_sim_available(),
-        cfg_enabled: cfg.adversary_sim_enabled,
+        artifact_available: sim_public_site_artifact_available(),
     }
 }
 
@@ -275,8 +288,7 @@ mod tests {
     fn enabled_availability() -> SimPublicAvailability {
         SimPublicAvailability {
             runtime_environment: RuntimeEnvironment::RuntimeDev,
-            env_available: true,
-            cfg_enabled: true,
+            artifact_available: true,
         }
     }
 
@@ -299,27 +311,11 @@ mod tests {
     }
 
     #[test]
-    fn sim_public_enabled_requires_surface_opt_in_and_cfg_enabled() {
-        assert!(sim_public_enabled(
-            RuntimeEnvironment::RuntimeDev,
-            true,
-            true
-        ));
-        assert!(sim_public_enabled(
-            RuntimeEnvironment::RuntimeProd,
-            true,
-            true
-        ));
-        assert!(!sim_public_enabled(
-            RuntimeEnvironment::RuntimeProd,
-            false,
-            true
-        ));
-        assert!(!sim_public_enabled(
-            RuntimeEnvironment::RuntimeProd,
-            true,
-            false
-        ));
+    fn sim_public_enabled_requires_generated_artifact_presence() {
+        assert!(sim_public_enabled(RuntimeEnvironment::RuntimeDev, true));
+        assert!(sim_public_enabled(RuntimeEnvironment::RuntimeProd, true));
+        assert!(!sim_public_enabled(RuntimeEnvironment::RuntimeDev, false));
+        assert!(!sim_public_enabled(RuntimeEnvironment::RuntimeProd, false));
     }
 
     #[test]
@@ -333,12 +329,55 @@ mod tests {
         let req = request(Method::Get, "/sim/public/landing");
         let availability = SimPublicAvailability {
             runtime_environment: RuntimeEnvironment::RuntimeDev,
-            env_available: true,
-            cfg_enabled: false,
+            artifact_available: false,
         };
         let resp = maybe_handle_with_availability(&req, "/sim/public/landing", availability)
             .expect("sim route should be handled");
         assert_eq!(*resp.status(), 404u16);
+    }
+
+    #[test]
+    fn sim_public_site_root_defaults_under_shuma_local_state_dir() {
+        let _lock = crate::test_support::lock_env();
+        std::env::remove_var("SHUMA_LOCAL_STATE_DIR");
+
+        let root = sim_public_site_root();
+
+        assert_eq!(root, PathBuf::from(".shuma").join("sim-public-site"));
+    }
+
+    #[test]
+    fn sim_public_site_root_honors_shuma_local_state_dir_override() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_LOCAL_STATE_DIR", "/tmp/shuma-state");
+
+        let root = sim_public_site_root();
+
+        std::env::remove_var("SHUMA_LOCAL_STATE_DIR");
+        assert_eq!(root, PathBuf::from("/tmp/shuma-state").join("sim-public-site"));
+    }
+
+    #[test]
+    fn availability_from_runtime_uses_generated_artifact_presence_not_sim_controls() {
+        let _lock = crate::test_support::lock_env();
+        let base = std::env::temp_dir().join(format!("sim-public-contract-{}", std::process::id()));
+        let local_state_dir = base.join(".shuma");
+        let artifact_root = local_state_dir.join("sim-public-site");
+        let manifest_path = artifact_root.join("manifest.json");
+        std::fs::create_dir_all(&artifact_root).expect("artifact root should be creatable");
+        std::fs::write(&manifest_path, "{}\n").expect("manifest should be writable");
+        std::env::set_var("SHUMA_LOCAL_STATE_DIR", &local_state_dir);
+
+        let mut cfg = crate::config::default_seeded_config();
+        cfg.adversary_sim_enabled = false;
+        let availability = availability_from_runtime(&cfg);
+
+        std::env::remove_var("SHUMA_LOCAL_STATE_DIR");
+        let _ = std::fs::remove_file(&manifest_path);
+        let _ = std::fs::remove_dir_all(&base);
+
+        assert!(availability.artifact_available);
+        assert!(availability.is_enabled());
     }
 
     #[test]

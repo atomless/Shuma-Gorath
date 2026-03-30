@@ -4,6 +4,24 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-30)
 
+### SIM-PUBSITE-1A Freeze The Contributor-Generated Site Contract And Contributor-Only Scope
+
+- [x] Completed the contract tranche across:
+  - [`../src/runtime/sim_public.rs`](../src/runtime/sim_public.rs)
+  - [`../scripts/build_sim_public_site.py`](../scripts/build_sim_public_site.py)
+  - [`../scripts/sim_public_site/__init__.py`](../scripts/sim_public_site/__init__.py)
+  - [`../config/sim_public_site/corpus.toml`](../config/sim_public_site/corpus.toml)
+  - [`../scripts/tests/test_sim_public_generated_site_contract.py`](../scripts/tests/test_sim_public_generated_site_contract.py)
+  - [`../Makefile`](../Makefile)
+- [x] What landed:
+  - `sim_public` now derives availability from generated-site artifact presence rather than adversary-sim control state,
+  - the canonical generator, corpus-policy, artifact-root, and runtime-adapter locations are now present in code rather than existing only in planning docs,
+  - and the repo now has a focused `make test-sim-public-generated-site-contract` proof target for the contributor-site contract.
+- [x] Why:
+  - the generated-site chain needed a real executable contract before rendering work so the implementation does not sprawl into Shuma internals or stay coupled to sim-run state.
+- [x] Evidence:
+  - `make test-sim-public-generated-site-contract`
+
 ### SIM-PUBSITE-PLAN-6 Freeze Repository-Separation Contract For Generated Site
 
 - [x] Completed the docs-only contract refinement across:
