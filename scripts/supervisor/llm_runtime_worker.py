@@ -33,6 +33,10 @@ from scripts.tests.adversarial_runner.contracts import (
     normalize_lane_realism_profile,
     resolve_lane_realism_profile,
 )
+from scripts.tests.adversarial_runner.identity_envelope import (
+    normalize_identity_pool_entries,
+    summarize_identity_realism,
+)
 from scripts.tests.adversarial_runner.realism import (
     partition_activity_budget,
     realism_range_value,
@@ -194,6 +198,7 @@ def build_browser_mode_realism_execution_plan(
         fulfillment_plan,
         top_level_action_budget,
     )
+    identity_summary = summarize_identity_realism(profile)
     return {
         "schema_version": BROWSER_MODE_REALISM_PLAN_SCHEMA_VERSION,
         "profile_id": str(profile.get("profile_id") or ""),
@@ -204,6 +209,11 @@ def build_browser_mode_realism_execution_plan(
         "focused_page_set_size": len(focused_page_paths),
         "dwell_intervals_ms": dwell_intervals_ms,
         "session_handles": ["agentic-browser-session-1"],
+        "identity_realism_status": identity_summary["identity_realism_status"],
+        "identity_envelope_classes": identity_summary["identity_envelope_classes"],
+        "geo_affinity_mode": identity_summary["geo_affinity_mode"],
+        "session_stickiness": identity_summary["session_stickiness"],
+        "observed_country_codes": identity_summary["observed_country_codes"],
     }
 
 
@@ -272,6 +282,48 @@ def _inter_action_gaps_ms(
     return gaps
 
 
+def _request_mode_identity_assignments(
+    fulfillment_plan: dict[str, Any],
+    profile: dict[str, Any],
+    burst_sizes: list[int],
+    *,
+    action_count: int,
+) -> dict[str, Any]:
+    request_identity_pool = normalize_identity_pool_entries(
+        fulfillment_plan.get("request_identity_pool"),
+        field_name="llm_fulfillment_plan.request_identity_pool",
+    )
+    action_proxy_urls: list[str | None] = []
+    session_handles: list[str] = []
+    observed_country_codes: list[str] = []
+    if request_identity_pool:
+        for burst_index, burst_size in enumerate(burst_sizes):
+            entry = dict(request_identity_pool[burst_index % len(request_identity_pool)])
+            session_handle = f"agentic-request-session-{entry['label']}"
+            if session_handle not in session_handles:
+                session_handles.append(session_handle)
+            country_code = str(entry.get("country_code") or "").strip().upper()
+            if country_code and country_code not in observed_country_codes:
+                observed_country_codes.append(country_code)
+            for _ in range(int(burst_size)):
+                action_proxy_urls.append(str(entry.get("proxy_url") or "").strip() or None)
+        while len(action_proxy_urls) < action_count:
+            action_proxy_urls.append(None)
+    else:
+        session_handles = ["agentic-request-session-1"]
+        action_proxy_urls = [None for _ in range(action_count)]
+    return {
+        **summarize_identity_realism(
+            profile,
+            pool_entries=request_identity_pool,
+            observed_country_codes=observed_country_codes,
+        ),
+        "action_proxy_urls": action_proxy_urls[:action_count],
+        "session_handles": session_handles,
+        "identity_rotation_count": max(0, len(session_handles) - 1),
+    }
+
+
 def build_request_mode_realism_execution_plan(
     *,
     fulfillment_plan: dict[str, Any],
@@ -320,6 +372,12 @@ def build_request_mode_realism_execution_plan(
         expanded_actions.append(template)
     burst_sizes = partition_activity_budget(effective_activity_budget, effective_burst_size)
     inter_action_gaps_ms = _inter_action_gaps_ms(fulfillment_plan, burst_sizes)
+    identity_assignments = _request_mode_identity_assignments(
+        fulfillment_plan,
+        profile,
+        burst_sizes,
+        action_count=effective_activity_budget,
+    )
     return {
         "schema_version": REQUEST_MODE_REALISM_PLAN_SCHEMA_VERSION,
         "profile_id": str(profile.get("profile_id") or ""),
@@ -333,7 +391,14 @@ def build_request_mode_realism_execution_plan(
         "inter_action_gaps_ms": inter_action_gaps_ms,
         "focused_page_paths": [str(action.get("path") or "/") for action in focused_actions],
         "focused_page_set_size": len(focused_actions),
-        "session_handles": ["agentic-request-session-1"],
+        "session_handles": identity_assignments["session_handles"],
+        "identity_rotation_count": identity_assignments["identity_rotation_count"],
+        "identity_realism_status": identity_assignments["identity_realism_status"],
+        "identity_envelope_classes": identity_assignments["identity_envelope_classes"],
+        "geo_affinity_mode": identity_assignments["geo_affinity_mode"],
+        "session_stickiness": identity_assignments["session_stickiness"],
+        "observed_country_codes": identity_assignments["observed_country_codes"],
+        "action_proxy_urls": identity_assignments["action_proxy_urls"],
         "actions": expanded_actions,
     }
 
@@ -361,6 +426,10 @@ def extract_llm_fulfillment_plan(beat_response_payload: dict[str, Any]) -> dict[
             "llm_fulfillment_plan realism_profile must match the canonical lane realism contract"
         )
     normalized_plan["realism_profile"] = realism_profile
+    normalized_plan["request_identity_pool"] = normalize_identity_pool_entries(
+        normalized_plan.get("request_identity_pool"),
+        field_name="llm_fulfillment_plan.request_identity_pool",
+    )
     return normalized_plan
 
 

@@ -171,6 +171,11 @@ class AdversarialContainerWorkerUnitTests(unittest.TestCase):
             receipt["session_handles"],
             ["agentic-request-session-1"],
         )
+        self.assertEqual(receipt["identity_realism_status"], "degraded_local")
+        self.assertEqual(
+            receipt["identity_envelope_classes"],
+            ["residential", "mobile"],
+        )
         self.assertEqual(receipt["stop_reason"], "response_pressure_stop")
         self.assertEqual(len(receipt["inter_activity_gaps_ms"]), 5)
         self.assertEqual(receipt["inter_activity_gaps_ms"], [0, 0, 1400, 0, 0])

@@ -8,6 +8,8 @@
 
 **Related research:** [`../research/2026-03-30-adversary-lane-wild-traffic-gap-review.md`](../research/2026-03-30-adversary-lane-wild-traffic-gap-review.md)
 
+**Status note:** `SIM-REALISM-2A` and `SIM-REALISM-2B` are now landed. The next active realism tranche is `SIM-REALISM-2C`, which will add coherent persona and identity-specific header, locale, and transport envelopes on top of the new pressure and identity contract.
+
 ---
 
 ## Guardrails

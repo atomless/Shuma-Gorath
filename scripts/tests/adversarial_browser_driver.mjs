@@ -794,6 +794,22 @@ async function runScenario(payload) {
             top_level_action_count: topLevelActions.length,
             focused_page_set_size: focusedPagePaths.length,
             dwell_intervals_ms: usedDwells,
+            identity_realism_status:
+              String(sessionPlanRaw.identity_realism_status || "").trim() || "degraded_local",
+            identity_envelope_classes: Array.isArray(sessionPlanRaw.identity_envelope_classes)
+              ? sessionPlanRaw.identity_envelope_classes
+                  .map((value) => String(value || "").trim())
+                  .filter(Boolean)
+              : [],
+            geo_affinity_mode:
+              String(sessionPlanRaw.geo_affinity_mode || "").trim() || "pool_aligned",
+            session_stickiness:
+              String(sessionPlanRaw.session_stickiness || "").trim() || "stable_per_tick",
+            observed_country_codes: Array.isArray(sessionPlanRaw.observed_country_codes)
+              ? sessionPlanRaw.observed_country_codes
+                  .map((value) => String(value || "").trim().toUpperCase())
+                  .filter(Boolean)
+              : [],
             session_handles: sessionHandles,
             identity_rotation_count: 0,
             stop_reason:

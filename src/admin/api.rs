@@ -1841,6 +1841,14 @@ mod tests {
                                 burst_count: Some(2),
                                 burst_sizes: vec![3, 3],
                                 inter_activity_gaps_ms: vec![0, 0, 1400, 0, 0],
+                                identity_realism_status: "degraded_local".to_string(),
+                                identity_envelope_classes: vec![
+                                    "residential".to_string(),
+                                    "mobile".to_string(),
+                                ],
+                                geo_affinity_mode: "pool_aligned".to_string(),
+                                session_stickiness: "stable_per_identity".to_string(),
+                                observed_country_codes: Vec::new(),
                                 focused_page_set_size: Some(2),
                                 top_level_action_count: None,
                                 dwell_intervals_ms: Vec::new(),
@@ -1952,6 +1960,14 @@ mod tests {
                             burst_count: Some(3),
                             burst_sizes: vec![3, 3, 1],
                             inter_activity_gaps_ms: vec![220, 410, 1200, 240, 330, 1500],
+                            identity_realism_status: "degraded_local".to_string(),
+                            identity_envelope_classes: vec![
+                                "residential".to_string(),
+                                "mobile".to_string(),
+                            ],
+                            geo_affinity_mode: "pool_aligned".to_string(),
+                            session_stickiness: "stable_per_identity".to_string(),
+                            observed_country_codes: Vec::new(),
                             top_level_action_count: None,
                             dwell_intervals_ms: Vec::new(),
                             identity_handles: vec![
@@ -6021,6 +6037,10 @@ mod admin_config_tests {
             "ADVERSARY_SIM_SCRAPLING_BROWSER_PROXY_URL",
             "http://127.0.0.1:9900",
         );
+        std::env::set_var(
+            "ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_POOL_JSON",
+            r#"[{"label":"res-gb-1","proxy_url":"http://127.0.0.1:8899","identity_class":"residential","country_code":"GB"},{"label":"mob-gb-1","proxy_url":"http://127.0.0.1:8898","identity_class":"mobile","country_code":"GB"}]"#,
+        );
 
         let store = TestStore::default();
         let auth = bearer_rw_auth();
@@ -6114,6 +6134,24 @@ mod admin_config_tests {
         assert_eq!(
             beat_json
                 .get("worker_plan")
+                .and_then(|value| value.get("request_identity_pool"))
+                .and_then(|value| value.as_array())
+                .map(|values| values.len()),
+            Some(2)
+        );
+        assert_eq!(
+            beat_json
+                .get("worker_plan")
+                .and_then(|value| value.get("request_identity_pool"))
+                .and_then(|value| value.as_array())
+                .and_then(|values| values.first())
+                .and_then(|value| value.get("identity_class"))
+                .and_then(|value| value.as_str()),
+            Some("residential")
+        );
+        assert_eq!(
+            beat_json
+                .get("worker_plan")
                 .and_then(|value| value.get("runtime_paths")),
             None
         );
@@ -6154,6 +6192,7 @@ mod admin_config_tests {
         std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
         std::env::remove_var("ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_URL");
         std::env::remove_var("ADVERSARY_SIM_SCRAPLING_BROWSER_PROXY_URL");
+        std::env::remove_var("ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_POOL_JSON");
     }
 
     #[test]
@@ -6167,6 +6206,10 @@ mod admin_config_tests {
         std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
         std::env::set_var("SHUMA_FRONTIER_OPENAI_API_KEY", "frontier-key");
         std::env::set_var("SHUMA_FRONTIER_OPENAI_MODEL", "gpt-5-mini");
+        std::env::set_var(
+            "ADVERSARY_SIM_AGENTIC_REQUEST_PROXY_POOL_JSON",
+            r#"[{"label":"res-gb-1","proxy_url":"http://127.0.0.1:8897","identity_class":"residential","country_code":"GB"},{"label":"res-us-1","proxy_url":"http://127.0.0.1:8896","identity_class":"residential","country_code":"US"}]"#,
+        );
 
         let store = TestStore::default();
         let auth = bearer_rw_auth();
@@ -6265,6 +6308,24 @@ mod admin_config_tests {
         assert_eq!(
             beat_json
                 .get("llm_fulfillment_plan")
+                .and_then(|value| value.get("request_identity_pool"))
+                .and_then(|value| value.as_array())
+                .map(|values| values.len()),
+            Some(2)
+        );
+        assert_eq!(
+            beat_json
+                .get("llm_fulfillment_plan")
+                .and_then(|value| value.get("request_identity_pool"))
+                .and_then(|value| value.as_array())
+                .and_then(|values| values.first())
+                .and_then(|value| value.get("country_code"))
+                .and_then(|value| value.as_str()),
+            Some("GB")
+        );
+        assert_eq!(
+            beat_json
+                .get("llm_fulfillment_plan")
                 .and_then(|value| value.get("backend_kind"))
                 .and_then(|value| value.as_str()),
             Some("frontier_reference")
@@ -6292,6 +6353,7 @@ mod admin_config_tests {
         std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
         std::env::remove_var("SHUMA_FRONTIER_OPENAI_API_KEY");
         std::env::remove_var("SHUMA_FRONTIER_OPENAI_MODEL");
+        std::env::remove_var("ADVERSARY_SIM_AGENTIC_REQUEST_PROXY_POOL_JSON");
     }
 
     #[test]

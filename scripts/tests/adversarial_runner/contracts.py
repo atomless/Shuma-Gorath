@@ -158,6 +158,40 @@ def normalize_lane_realism_profile(
     if not isinstance(proxy_required, bool):
         raise RuntimeError(f"{field_name}.identity_rotation.proxy_required must be boolean")
 
+    identity_envelope = payload.get("identity_envelope")
+    if not isinstance(identity_envelope, dict):
+        raise RuntimeError(f"{field_name}.identity_envelope must be an object")
+    identity_classes = [
+        str(item).strip()
+        for item in list(identity_envelope.get("identity_classes") or [])
+        if str(item).strip()
+    ]
+    if not identity_classes:
+        raise RuntimeError(
+            f"{field_name}.identity_envelope.identity_classes must be a non-empty array"
+        )
+    if any(
+        item not in {"residential", "mobile", "datacenter"} for item in identity_classes
+    ):
+        raise RuntimeError(
+            f"{field_name}.identity_envelope.identity_classes must contain only supported classes"
+        )
+    geo_affinity_mode = str(identity_envelope.get("geo_affinity_mode") or "").strip()
+    if geo_affinity_mode != "pool_aligned":
+        raise RuntimeError(
+            f"{field_name}.identity_envelope.geo_affinity_mode must be pool_aligned"
+        )
+    session_stickiness = str(identity_envelope.get("session_stickiness") or "").strip()
+    if session_stickiness not in {"stable_per_identity", "stable_per_tick"}:
+        raise RuntimeError(
+            f"{field_name}.identity_envelope.session_stickiness must be stable_per_identity or stable_per_tick"
+        )
+    degraded_without_pool = str(identity_envelope.get("degraded_without_pool") or "").strip()
+    if degraded_without_pool not in {"local_session_only", "local_browser_session_only"}:
+        raise RuntimeError(
+            f"{field_name}.identity_envelope.degraded_without_pool must be a supported degraded mode"
+        )
+
     receipt_contract = payload.get("receipt_contract")
     if not isinstance(receipt_contract, dict):
         raise RuntimeError(f"{field_name}.receipt_contract must be an object")
@@ -206,6 +240,12 @@ def normalize_lane_realism_profile(
             "max_every_n_activities": int(max_every),
             "stable_session_per_tick": stable_session_per_tick,
             "proxy_required": proxy_required,
+        },
+        "identity_envelope": {
+            "identity_classes": identity_classes,
+            "geo_affinity_mode": geo_affinity_mode,
+            "session_stickiness": session_stickiness,
+            "degraded_without_pool": degraded_without_pool,
         },
         "browser_propensity": browser_propensity,
         "javascript_execution": javascript_execution,

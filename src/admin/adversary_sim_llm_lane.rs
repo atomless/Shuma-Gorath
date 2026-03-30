@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::config::FrontierSummary;
 
 use super::adversary_sim::{ControlState, RuntimeLane};
+use super::adversary_sim_identity_pool::{load_identity_pool_from_env, IdentityPoolEntry};
 use super::adversary_sim_realism_profile::{llm_realism_profile_for_mode, LaneRealismProfile};
 
 pub(crate) const LLM_FULFILLMENT_PLAN_SCHEMA_VERSION: &str =
@@ -110,6 +111,7 @@ pub(crate) struct LlmFulfillmentPlan {
     pub episode_harness: LlmEpisodeHarness,
     pub capability_envelope: LlmCapabilityEnvelope,
     pub realism_profile: LaneRealismProfile,
+    pub request_identity_pool: Vec<IdentityPoolEntry>,
 }
 
 pub(crate) fn next_llm_fulfillment_plan(
@@ -146,6 +148,9 @@ pub(crate) fn next_llm_fulfillment_plan(
         episode_harness: episode_harness_contract(),
         capability_envelope: capability_envelope_for_mode(mode),
         realism_profile: llm_realism_profile_for_mode(mode.as_str()),
+        request_identity_pool: load_identity_pool_from_env(
+            "ADVERSARY_SIM_AGENTIC_REQUEST_PROXY_POOL_JSON",
+        ),
     }
 }
 

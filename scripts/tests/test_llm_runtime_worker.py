@@ -143,6 +143,42 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
         self.assertTrue(any(gap == 0 for gap in execution_plan["inter_action_gaps_ms"]))
         self.assertTrue(any(gap >= 1000 for gap in execution_plan["inter_action_gaps_ms"]))
 
+    def test_build_request_mode_realism_execution_plan_marks_degraded_identity_without_pool(self):
+        plan = {
+            "schema_version": "adversary-sim-llm-fulfillment-plan.v1",
+            "run_id": "simrun-llm-runtime",
+            "tick_id": "llm-fit-tick-identity-1",
+            "lane": "bot_red_team",
+            "fulfillment_mode": "request_mode",
+            "backend_kind": "frontier_reference",
+            "backend_state": "configured",
+            "category_targets": ["http_agent"],
+            "capability_envelope": {"max_actions": 12, "max_time_budget_seconds": 120},
+            "realism_profile": resolve_lane_realism_profile("bot_red_team", "request_mode"),
+            "request_identity_pool": [],
+        }
+        generation = {
+            "generation_source": "provider_response",
+            "provider": "openai",
+            "model_id": "gpt-5-mini",
+            "actions": [
+                {"action_index": 1, "action_type": "http_get", "path": "/", "label": "root"},
+                {"action_index": 2, "action_type": "http_get", "path": "/robots.txt", "label": "robots"},
+            ],
+        }
+
+        execution_plan = llm_runtime_worker.build_request_mode_realism_execution_plan(
+            fulfillment_plan=plan,
+            generation_result=generation,
+        )
+
+        self.assertEqual(execution_plan["identity_realism_status"], "degraded_local")
+        self.assertEqual(
+            execution_plan["identity_envelope_classes"],
+            ["residential", "mobile"],
+        )
+        self.assertEqual(execution_plan["observed_country_codes"], [])
+
     def test_extract_llm_fulfillment_plan_requires_nested_plan(self):
         with self.assertRaises(RuntimeError):
             llm_runtime_worker.extract_llm_fulfillment_plan({})

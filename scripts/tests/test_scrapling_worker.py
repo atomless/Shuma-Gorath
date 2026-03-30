@@ -362,6 +362,50 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
             min(tracker.max_requests, tracker.planned_activity_budget),
         )
 
+    def test_realism_tracker_marks_degraded_identity_realism_without_pool(self) -> None:
+        if scrapling_worker is None:
+            self.fail("scrapling_worker module is required")
+
+        plan = {
+            "schema_version": "adversary-sim-scrapling-worker-plan.v1",
+            "run_id": "simrun-identity-envelope",
+            "tick_id": "scrapling-tick-identity-envelope",
+            "lane": "scrapling_traffic",
+            "sim_profile": "scrapling_runtime_lane",
+            "fulfillment_mode": "bulk_scraper",
+            "category_targets": ["ai_scraper_bot"],
+            "surface_targets": ["public_path_traversal"],
+            "tick_started_at": 1_700_000_000,
+            "realism_profile": resolve_lane_realism_profile("scrapling_traffic", "bulk_scraper"),
+            "request_identity_pool": [],
+            "browser_identity_pool": [],
+            "max_requests": 24,
+            "max_depth": 2,
+            "max_bytes": 262_144,
+            "max_ms": 30_000,
+        }
+
+        tracker = scrapling_worker._ScraplingRealismTracker(  # noqa: SLF001
+            plan=plan,
+            browser_session=False,
+            proxy_configured=False,
+        )
+        tracker.mark_request_attempt("request-session-1")
+
+        receipt = tracker.render_receipt(
+            bytes_observed=512,
+            deadline_reached=False,
+            activity_sequence_exhausted=True,
+            transport_failure=False,
+        )
+
+        self.assertEqual(receipt["identity_realism_status"], "degraded_local")
+        self.assertEqual(
+            receipt["identity_envelope_classes"],
+            ["residential", "mobile"],
+        )
+        self.assertEqual(receipt["observed_country_codes"], [])
+
     def _make_beat_payload(
         self,
         fulfillment_mode: str,
@@ -422,6 +466,8 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
                     "scrapling_traffic",
                     fulfillment_mode,
                 ),
+                "request_identity_pool": [],
+                "browser_identity_pool": [],
                 "max_requests": max_requests,
                 "max_depth": 2,
                 "max_bytes": 65536,

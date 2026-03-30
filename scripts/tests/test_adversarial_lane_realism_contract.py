@@ -32,6 +32,26 @@ class AdversarialLaneRealismContractUnitTests(unittest.TestCase):
             contracts.resolve_lane_realism_profile("bot_red_team", "request_mode"),
         )
 
+    def test_request_mode_profile_surfaces_identity_envelope_contract(self):
+        profile = contracts.resolve_lane_realism_profile("bot_red_team", "request_mode")
+
+        self.assertEqual(
+            profile["identity_envelope"]["geo_affinity_mode"],
+            "pool_aligned",
+        )
+        self.assertEqual(
+            profile["identity_envelope"]["session_stickiness"],
+            "stable_per_identity",
+        )
+        self.assertEqual(
+            profile["identity_envelope"]["degraded_without_pool"],
+            "local_session_only",
+        )
+        self.assertIn(
+            "residential",
+            profile["identity_envelope"]["identity_classes"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

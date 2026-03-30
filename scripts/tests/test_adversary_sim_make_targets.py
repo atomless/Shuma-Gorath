@@ -193,6 +193,23 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
         self.assertIn("scripts/tests/test_llm_runtime_worker.py", body)
         self.assertIn("scripts/tests/test_adversarial_container_worker.py", body)
 
+    def test_identity_envelope_realism_target_uses_contract_and_worker_selectors(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-adversarial-identity-envelope-contract:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn("scripts/tests/test_adversarial_lane_realism_contract.py", body)
+        self.assertIn(
+            "scripts.tests.test_scrapling_worker.ScraplingWorkerUnitTests.test_realism_tracker_marks_degraded_identity_realism_without_pool",
+            body,
+        )
+        self.assertIn("scripts/tests/test_llm_runtime_worker.py", body)
+        self.assertIn("scripts/tests/test_adversarial_container_worker.py", body)
+
     def test_llm_runtime_dispatch_target_uses_typed_runtime_selectors(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")
         match = re.search(

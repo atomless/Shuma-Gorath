@@ -22,6 +22,15 @@ pub(crate) struct LaneRealismIdentityRotation {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
+pub(crate) struct LaneRealismIdentityEnvelope {
+    pub identity_classes: Vec<String>,
+    pub geo_affinity_mode: String,
+    pub session_stickiness: String,
+    pub degraded_without_pool: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct LaneRealismReceiptContract {
     pub schema_version: String,
     pub required_fields: Vec<String>,
@@ -46,6 +55,7 @@ pub(crate) struct LaneRealismProfile {
     pub between_burst_pause_ms: LaneRealismRange,
     pub navigation_dwell_ms: LaneRealismRange,
     pub identity_rotation: LaneRealismIdentityRotation,
+    pub identity_envelope: LaneRealismIdentityEnvelope,
     pub browser_propensity: String,
     pub javascript_execution: String,
     pub retry_ceiling: u64,
@@ -90,12 +100,34 @@ fn pressure_envelope(max_activities: u64, max_time_budget_ms: u64) -> LaneRealis
     }
 }
 
+fn identity_envelope(
+    identity_classes: &[&str],
+    geo_affinity_mode: &str,
+    session_stickiness: &str,
+    degraded_without_pool: &str,
+) -> LaneRealismIdentityEnvelope {
+    LaneRealismIdentityEnvelope {
+        identity_classes: identity_classes
+            .iter()
+            .map(|value| (*value).to_string())
+            .collect(),
+        geo_affinity_mode: geo_affinity_mode.to_string(),
+        session_stickiness: session_stickiness.to_string(),
+        degraded_without_pool: degraded_without_pool.to_string(),
+    }
+}
+
 fn request_native_receipt_contract() -> LaneRealismReceiptContract {
     receipt_contract(&[
         "activity_count",
         "burst_count",
         "burst_sizes",
         "inter_activity_gaps_ms",
+        "identity_realism_status",
+        "identity_envelope_classes",
+        "geo_affinity_mode",
+        "session_stickiness",
+        "observed_country_codes",
         "identity_handles",
         "identity_rotation_count",
         "stop_reason",
@@ -107,6 +139,11 @@ fn browser_receipt_contract() -> LaneRealismReceiptContract {
         "activity_count",
         "top_level_action_count",
         "dwell_intervals_ms",
+        "identity_realism_status",
+        "identity_envelope_classes",
+        "geo_affinity_mode",
+        "session_stickiness",
+        "observed_country_codes",
         "session_handles",
         "identity_rotation_count",
         "stop_reason",
@@ -131,6 +168,12 @@ pub(crate) fn scrapling_realism_profile_for_mode(fulfillment_mode: &str) -> Lane
                 false,
                 true,
             ),
+            identity_envelope: identity_envelope(
+                &["datacenter", "residential"],
+                "pool_aligned",
+                "stable_per_identity",
+                "local_session_only",
+            ),
             browser_propensity: "none".to_string(),
             javascript_execution: "disabled".to_string(),
             retry_ceiling: 2,
@@ -153,6 +196,12 @@ pub(crate) fn scrapling_realism_profile_for_mode(fulfillment_mode: &str) -> Lane
                 false,
                 true,
             ),
+            identity_envelope: identity_envelope(
+                &["residential", "mobile"],
+                "pool_aligned",
+                "stable_per_identity",
+                "local_session_only",
+            ),
             browser_propensity: "none".to_string(),
             javascript_execution: "disabled".to_string(),
             retry_ceiling: 2,
@@ -169,6 +218,12 @@ pub(crate) fn scrapling_realism_profile_for_mode(fulfillment_mode: &str) -> Lane
             between_burst_pause_ms: range(0, 0),
             navigation_dwell_ms: range(800, 2_500),
             identity_rotation: identity_rotation("none", 0, 0, true, false),
+            identity_envelope: identity_envelope(
+                &["residential", "mobile"],
+                "pool_aligned",
+                "stable_per_tick",
+                "local_browser_session_only",
+            ),
             browser_propensity: "required".to_string(),
             javascript_execution: "required".to_string(),
             retry_ceiling: 1,
@@ -185,6 +240,12 @@ pub(crate) fn scrapling_realism_profile_for_mode(fulfillment_mode: &str) -> Lane
             between_burst_pause_ms: range(0, 0),
             navigation_dwell_ms: range(1_400, 3_200),
             identity_rotation: identity_rotation("none", 0, 0, true, false),
+            identity_envelope: identity_envelope(
+                &["residential", "mobile"],
+                "pool_aligned",
+                "stable_per_tick",
+                "local_browser_session_only",
+            ),
             browser_propensity: "required".to_string(),
             javascript_execution: "required".to_string(),
             retry_ceiling: 1,
@@ -207,6 +268,12 @@ pub(crate) fn scrapling_realism_profile_for_mode(fulfillment_mode: &str) -> Lane
                 false,
                 true,
             ),
+            identity_envelope: identity_envelope(
+                &["residential", "mobile"],
+                "pool_aligned",
+                "stable_per_identity",
+                "local_session_only",
+            ),
             browser_propensity: "none".to_string(),
             javascript_execution: "disabled".to_string(),
             retry_ceiling: 2,
@@ -228,6 +295,12 @@ pub(crate) fn llm_realism_profile_for_mode(fulfillment_mode: &str) -> LaneRealis
             between_burst_pause_ms: range(0, 0),
             navigation_dwell_ms: range(2_000, 7_000),
             identity_rotation: identity_rotation("none", 0, 0, true, false),
+            identity_envelope: identity_envelope(
+                &["residential", "mobile"],
+                "pool_aligned",
+                "stable_per_tick",
+                "local_browser_session_only",
+            ),
             browser_propensity: "required".to_string(),
             javascript_execution: "required".to_string(),
             retry_ceiling: 1,
@@ -244,6 +317,12 @@ pub(crate) fn llm_realism_profile_for_mode(fulfillment_mode: &str) -> LaneRealis
             between_burst_pause_ms: range(1_000, 4_000),
             navigation_dwell_ms: range(0, 0),
             identity_rotation: identity_rotation("none", 0, 0, true, false),
+            identity_envelope: identity_envelope(
+                &["residential", "mobile"],
+                "pool_aligned",
+                "stable_per_identity",
+                "local_session_only",
+            ),
             browser_propensity: "none".to_string(),
             javascript_execution: "disabled".to_string(),
             retry_ceiling: 2,

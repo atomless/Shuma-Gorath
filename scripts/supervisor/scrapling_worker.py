@@ -26,6 +26,10 @@ from scripts.tests.adversarial_runner.contracts import (
     normalize_lane_realism_profile,
     resolve_lane_realism_profile,
 )
+from scripts.tests.adversarial_runner.identity_envelope import (
+    normalize_identity_pool_entries,
+    summarize_identity_realism,
+)
 from scripts.tests.adversarial_runner.realism import (
     realism_range_value as _realism_range_value,
     stable_bucket as _stable_bucket,
@@ -72,6 +76,14 @@ class _ScraplingRealismTracker:
         )
         self.browser_session = browser_session
         self.proxy_configured = proxy_configured
+        self.request_identity_pool = normalize_identity_pool_entries(
+            plan.get("request_identity_pool"),
+            field_name="worker_plan.request_identity_pool",
+        )
+        self.browser_identity_pool = normalize_identity_pool_entries(
+            plan.get("browser_identity_pool"),
+            field_name="worker_plan.browser_identity_pool",
+        )
         self.run_id = str(plan.get("run_id") or "")
         self.tick_id = str(plan.get("tick_id") or "")
         self.fulfillment_mode = str(plan.get("fulfillment_mode") or "")
@@ -129,10 +141,25 @@ class _ScraplingRealismTracker:
         self.dwell_intervals_ms: list[int] = []
         self.identity_handles: list[str] = []
         self.session_handles: list[str] = []
+        self.observed_country_codes: list[str] = []
         self.identity_rotation_count = 0
         self._last_identity_handle: str | None = None
         self._last_session_handle: str | None = None
         self._activities_since_rotation = 0
+
+    def _identity_summary(self) -> dict[str, Any]:
+        relevant_pool = self.browser_identity_pool if self.browser_session else self.request_identity_pool
+        fixed_proxy_url = (
+            _normalize_optional_proxy_url(self.plan.get("browser_proxy_url"))
+            if self.browser_session
+            else _normalize_optional_proxy_url(self.plan.get("request_proxy_url"))
+        )
+        return summarize_identity_realism(
+            self.profile,
+            pool_entries=relevant_pool,
+            fixed_proxy_url=fixed_proxy_url,
+            observed_country_codes=self.observed_country_codes,
+        )
 
     def activity_limit_reached(self) -> bool:
         return self.activity_count >= self.effective_activity_budget
@@ -156,10 +183,19 @@ class _ScraplingRealismTracker:
         remaining_activities = max(1, self.effective_activity_budget - self.activity_count)
         return min(gap_ms, max(0, remaining_ms // remaining_activities))
 
-    def _record_handle(self, handle: str, *, browser_session: bool) -> None:
+    def _record_handle(
+        self,
+        handle: str,
+        *,
+        browser_session: bool,
+        country_code: str | None = None,
+    ) -> None:
         normalized = str(handle or "").strip()
         if not normalized:
             return
+        normalized_country = str(country_code or "").strip().upper()
+        if normalized_country and normalized_country not in self.observed_country_codes:
+            self.observed_country_codes.append(normalized_country)
         if browser_session:
             if normalized not in self.session_handles:
                 self.session_handles.append(normalized)
@@ -178,14 +214,19 @@ class _ScraplingRealismTracker:
             self.burst_sizes.append(self.current_burst_size)
             self.current_burst_size = 0
 
-    def crawler_observe_activity(self, identity_handle: str) -> None:
+    def crawler_observe_activity(
+        self,
+        identity_handle: str,
+        *,
+        country_code: str | None = None,
+    ) -> None:
         if self.activity_count > 0 and self.download_delay_ms > 0:
             self.inter_activity_gaps_ms.append(self.download_delay_ms)
         self.activity_count += 1
         self.current_burst_size += 1
         if self.current_burst_size >= self.effective_burst_size:
             self._finalize_burst()
-        self._record_handle(identity_handle, browser_session=False)
+        self._record_handle(identity_handle, browser_session=False, country_code=country_code)
 
     def prepare_request_attempt(self, *, remaining_ms: int) -> tuple[int, bool]:
         rotate_identity = False
@@ -220,16 +261,27 @@ class _ScraplingRealismTracker:
             _sleep_ms(gap_ms)
         return gap_ms, rotate_identity
 
-    def mark_request_attempt(self, identity_handle: str) -> None:
+    def mark_request_attempt(
+        self,
+        identity_handle: str,
+        *,
+        country_code: str | None = None,
+    ) -> None:
         self.activity_count += 1
         self.current_burst_size += 1
         self._activities_since_rotation += 1
-        self._record_handle(identity_handle, browser_session=False)
+        self._record_handle(identity_handle, browser_session=False, country_code=country_code)
 
     def note_rotation(self) -> None:
         self._activities_since_rotation = 0
 
-    def prepare_browser_action(self, session_handle: str, *, remaining_ms: int) -> None:
+    def prepare_browser_action(
+        self,
+        session_handle: str,
+        *,
+        remaining_ms: int,
+        country_code: str | None = None,
+    ) -> None:
         if self.activity_count > 0:
             dwell_ms = self._range_value(
                 "navigation_dwell_ms",
@@ -240,7 +292,11 @@ class _ScraplingRealismTracker:
                 self.dwell_intervals_ms.append(dwell_ms)
                 _sleep_ms(dwell_ms)
         self.activity_count += 1
-        self._record_handle(session_handle, browser_session=True)
+        self._record_handle(
+            session_handle,
+            browser_session=True,
+            country_code=country_code,
+        )
 
     def stop_reason(
         self,
@@ -273,6 +329,7 @@ class _ScraplingRealismTracker:
         transport_failure: bool,
     ) -> dict[str, Any]:
         self._finalize_burst()
+        identity_summary = self._identity_summary()
         receipt = {
             "schema_version": str(
                 dict(self.profile.get("receipt_contract") or {}).get("schema_version")
@@ -285,6 +342,13 @@ class _ScraplingRealismTracker:
             "planned_burst_size": self.planned_burst_size,
             "effective_burst_size": self.effective_burst_size,
             "activity_count": self.activity_count,
+            "identity_realism_status": identity_summary["identity_realism_status"],
+            "identity_envelope_classes": list(
+                identity_summary["identity_envelope_classes"]
+            ),
+            "geo_affinity_mode": identity_summary["geo_affinity_mode"],
+            "session_stickiness": identity_summary["session_stickiness"],
+            "observed_country_codes": list(identity_summary["observed_country_codes"]),
             "identity_rotation_count": self.identity_rotation_count,
             "stop_reason": self.stop_reason(
                 bytes_observed=bytes_observed,
@@ -331,16 +395,20 @@ class _PacedRequestNativeSession:
         timeout_seconds: float,
         accept_header: str,
         proxy_url: str | None,
+        identity_pool: list[dict[str, str]] | None = None,
     ) -> None:
         self.session_cls = session_cls
         self.tracker = tracker
         self.timeout_seconds = timeout_seconds
         self.accept_header = accept_header
         self.proxy_url = proxy_url
+        self.identity_pool = list(identity_pool or [])
         self._session_cm: Any | None = None
         self._session: Any | None = None
         self._session_index = 0
         self._current_identity_handle = ""
+        self._current_country_code: str | None = None
+        self._identity_pool_index = -1
 
     def __enter__(self) -> "_PacedRequestNativeSession":
         return self
@@ -354,16 +422,28 @@ class _PacedRequestNativeSession:
     def _open_session(self) -> None:
         if self._session_cm is not None:
             self._session_cm.__exit__(None, None, None)
+        current_proxy_url = self.proxy_url
+        current_identity_handle = ""
+        current_country_code: str | None = None
+        if self.identity_pool:
+            self._identity_pool_index = (self._identity_pool_index + 1) % len(self.identity_pool)
+            entry = dict(self.identity_pool[self._identity_pool_index])
+            current_proxy_url = str(entry.get("proxy_url") or "").strip() or None
+            current_identity_handle = f"request-session-{str(entry.get('label') or '').strip()}"
+            current_country_code = str(entry.get("country_code") or "").strip().upper() or None
         self._session_cm = self.session_cls(
             **_request_native_session_kwargs(
                 timeout_seconds=self.timeout_seconds,
                 accept_header=self.accept_header,
-                proxy_url=self.proxy_url,
+                proxy_url=current_proxy_url,
             ),
         )
         self._session = self._session_cm.__enter__()
         self._session_index += 1
-        self._current_identity_handle = f"request-session-{self._session_index}"
+        self._current_identity_handle = (
+            current_identity_handle or f"request-session-{self._session_index}"
+        )
+        self._current_country_code = current_country_code
         if self._session_index > 1:
             self.tracker.realism_tracker.note_rotation()
 
@@ -375,7 +455,10 @@ class _PacedRequestNativeSession:
         )
         if self._session is None or rotate_identity:
             self._open_session()
-        self.tracker.realism_tracker.mark_request_attempt(self._current_identity_handle)
+        self.tracker.realism_tracker.mark_request_attempt(
+            self._current_identity_handle,
+            country_code=self._current_country_code,
+        )
         return self._session.fetch(target, **kwargs)
 
     def _call_method(self, method_name: str, target: str, **kwargs) -> Any:
@@ -386,7 +469,10 @@ class _PacedRequestNativeSession:
         )
         if self._session is None or rotate_identity:
             self._open_session()
-        self.tracker.realism_tracker.mark_request_attempt(self._current_identity_handle)
+        self.tracker.realism_tracker.mark_request_attempt(
+            self._current_identity_handle,
+            country_code=self._current_country_code,
+        )
         return getattr(self._session, method_name)(target, **kwargs)
 
     def get(self, target: str, **kwargs) -> Any:
@@ -886,11 +972,16 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
             self.sim_profile = str(plan.get("sim_profile") or "scrapling_runtime_lane")
             self.fulfillment_mode = str(plan.get("fulfillment_mode") or "crawler")
             self.surface_targets = set(_normalize_surface_targets(plan.get("surface_targets")))
+            self.request_identity_pool = normalize_identity_pool_entries(
+                plan.get("request_identity_pool"),
+                field_name="worker_plan.request_identity_pool",
+            )
             self.realism_tracker = _ScraplingRealismTracker(
                 plan=plan,
                 browser_session=False,
                 proxy_configured=bool(
                     _normalize_optional_proxy_url(plan.get("request_proxy_url"))
+                    or self.request_identity_pool
                 ),
             )
             self.deadline = time.monotonic() + (self.max_ms / 1000.0)
@@ -912,6 +1003,11 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
         def configure_sessions(self, manager) -> None:
             timeout_seconds = max(1.0, min(30.0, self.max_ms / 1000.0))
             request_proxy_url = _normalize_optional_proxy_url(self.plan.get("request_proxy_url"))
+            if self.request_identity_pool:
+                request_proxy_url = (
+                    str(self.request_identity_pool[0].get("proxy_url") or "").strip()
+                    or request_proxy_url
+                )
             manager.add(
                 "default",
                 fetcher_session_cls(**_request_native_session_kwargs(
@@ -974,7 +1070,18 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
                 )
 
         async def parse(self, response) -> AsyncGenerator[Any, None]:
-            self.realism_tracker.crawler_observe_activity("crawl-session-1")
+            self.realism_tracker.crawler_observe_activity(
+                (
+                    f"crawl-session-{str(self.request_identity_pool[0].get('label') or '').strip()}"
+                    if self.request_identity_pool
+                    else "crawl-session-1"
+                ),
+                country_code=(
+                    str(self.request_identity_pool[0].get("country_code") or "").strip().upper()
+                    if self.request_identity_pool
+                    else None
+                ),
+            )
             self.requests_observed += 1
             self.bytes_observed += len(response.body)
             self.last_response_status = int(response.status)
@@ -1093,6 +1200,14 @@ class _DirectPersonaTracker:
             proxy_configured=bool(
                 _normalize_optional_proxy_url(plan.get("request_proxy_url"))
                 or _normalize_optional_proxy_url(plan.get("browser_proxy_url"))
+                or normalize_identity_pool_entries(
+                    plan.get("request_identity_pool"),
+                    field_name="worker_plan.request_identity_pool",
+                )
+                or normalize_identity_pool_entries(
+                    plan.get("browser_identity_pool"),
+                    field_name="worker_plan.browser_identity_pool",
+                )
             ),
         )
         self.deadline = time.monotonic() + (self.max_ms / 1000.0)
@@ -1358,6 +1473,10 @@ def _execute_bulk_scraper_persona(
     )
     surface_targets = set(_normalize_surface_targets(plan.get("surface_targets")))
     request_proxy_url = _normalize_optional_proxy_url(plan.get("request_proxy_url"))
+    request_identity_pool = normalize_identity_pool_entries(
+        plan.get("request_identity_pool"),
+        field_name="worker_plan.request_identity_pool",
+    )
     start_urls = _normalized_start_urls(seed_inventory)
     if not start_urls:
         raise WorkerConfigError("seed inventory must contain at least one accepted start or hint URL")
@@ -1396,6 +1515,7 @@ def _execute_bulk_scraper_persona(
         timeout_seconds=max(1.0, min(30.0, tracker.max_ms / 1000.0)),
         accept_header="text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         proxy_url=request_proxy_url,
+        identity_pool=request_identity_pool,
     ) as session:
         root_surface_ids = ["public_path_traversal", *_public_discovery_surface_ids(surface_targets)]
         root_response = _perform_request(
@@ -1507,6 +1627,10 @@ def _execute_http_agent_persona(
     )
     surface_targets = set(_normalize_surface_targets(plan.get("surface_targets")))
     request_proxy_url = _normalize_optional_proxy_url(plan.get("request_proxy_url"))
+    request_identity_pool = normalize_identity_pool_entries(
+        plan.get("request_identity_pool"),
+        field_name="worker_plan.request_identity_pool",
+    )
     start_urls = _normalized_start_urls(seed_inventory)
     if not start_urls:
         raise WorkerConfigError("seed inventory must contain at least one accepted start or hint URL")
@@ -1517,6 +1641,7 @@ def _execute_http_agent_persona(
         timeout_seconds=max(1.0, min(30.0, tracker.max_ms / 1000.0)),
         accept_header="application/json",
         proxy_url=request_proxy_url,
+        identity_pool=request_identity_pool,
     ) as session:
         root_response = _perform_request(
             session,
@@ -1756,9 +1881,18 @@ def _execute_browser_persona(
         sim_telemetry_secret=sim_telemetry_secret,
     )
     surface_targets = set(_normalize_surface_targets(plan.get("surface_targets")))
+    browser_identity_pool = normalize_identity_pool_entries(
+        plan.get("browser_identity_pool"),
+        field_name="worker_plan.browser_identity_pool",
+    )
     browser_proxy_url = _normalize_optional_proxy_url(plan.get("browser_proxy_url")) or _normalize_optional_proxy_url(
         plan.get("request_proxy_url")
     )
+    if browser_identity_pool:
+        browser_proxy_url = (
+            str(browser_identity_pool[0].get("proxy_url") or "").strip()
+            or browser_proxy_url
+        )
     start_urls = _normalized_start_urls(seed_inventory)
     if not start_urls:
         raise WorkerConfigError("seed inventory must contain at least one accepted start or hint URL")
@@ -1774,11 +1908,21 @@ def _execute_browser_persona(
     ) as session:
         root_state: dict[str, Any] = {}
         root_target = base_url
-        browser_session_handle = "browser-session-1"
+        browser_session_handle = (
+            f"browser-session-{str(browser_identity_pool[0].get('label') or '').strip()}"
+            if browser_identity_pool
+            else "browser-session-1"
+        )
+        browser_country_code = (
+            str(browser_identity_pool[0].get("country_code") or "").strip().upper()
+            if browser_identity_pool
+            else None
+        )
         try:
             tracker.realism_tracker.prepare_browser_action(
                 browser_session_handle,
                 remaining_ms=tracker.remaining_ms(),
+                country_code=browser_country_code,
             )
             root_response = session.fetch(
                 root_target,
@@ -1816,6 +1960,7 @@ def _execute_browser_persona(
                 tracker.realism_tracker.prepare_browser_action(
                     browser_session_handle,
                     remaining_ms=tracker.remaining_ms(),
+                    country_code=browser_country_code,
                 )
                 response = session.fetch(
                     pow_target,
@@ -1891,6 +2036,7 @@ def _execute_browser_persona(
                 tracker.realism_tracker.prepare_browser_action(
                     browser_session_handle,
                     remaining_ms=tracker.remaining_ms(),
+                    country_code=browser_country_code,
                 )
                 response = session.fetch(
                     maze_target,

@@ -18,6 +18,12 @@
           "stable_session_per_tick": false,
           "proxy_required": true
         },
+        "identity_envelope": {
+          "identity_classes": ["datacenter", "residential"],
+          "geo_affinity_mode": "pool_aligned",
+          "session_stickiness": "stable_per_identity",
+          "degraded_without_pool": "local_session_only"
+        },
         "browser_propensity": "none",
         "javascript_execution": "disabled",
         "retry_ceiling": 2,
@@ -32,6 +38,11 @@
             "burst_count",
             "burst_sizes",
             "inter_activity_gaps_ms",
+            "identity_realism_status",
+            "identity_envelope_classes",
+            "geo_affinity_mode",
+            "session_stickiness",
+            "observed_country_codes",
             "identity_handles",
             "identity_rotation_count",
             "stop_reason"
@@ -54,6 +65,12 @@
           "stable_session_per_tick": false,
           "proxy_required": true
         },
+        "identity_envelope": {
+          "identity_classes": ["residential", "mobile"],
+          "geo_affinity_mode": "pool_aligned",
+          "session_stickiness": "stable_per_identity",
+          "degraded_without_pool": "local_session_only"
+        },
         "browser_propensity": "none",
         "javascript_execution": "disabled",
         "retry_ceiling": 2,
@@ -68,6 +85,11 @@
             "burst_count",
             "burst_sizes",
             "inter_activity_gaps_ms",
+            "identity_realism_status",
+            "identity_envelope_classes",
+            "geo_affinity_mode",
+            "session_stickiness",
+            "observed_country_codes",
             "identity_handles",
             "identity_rotation_count",
             "stop_reason"
@@ -90,6 +112,12 @@
           "stable_session_per_tick": true,
           "proxy_required": false
         },
+        "identity_envelope": {
+          "identity_classes": ["residential", "mobile"],
+          "geo_affinity_mode": "pool_aligned",
+          "session_stickiness": "stable_per_tick",
+          "degraded_without_pool": "local_browser_session_only"
+        },
         "browser_propensity": "required",
         "javascript_execution": "required",
         "retry_ceiling": 1,
@@ -103,6 +131,11 @@
             "activity_count",
             "top_level_action_count",
             "dwell_intervals_ms",
+            "identity_realism_status",
+            "identity_envelope_classes",
+            "geo_affinity_mode",
+            "session_stickiness",
+            "observed_country_codes",
             "session_handles",
             "identity_rotation_count",
             "stop_reason"
@@ -125,6 +158,12 @@
           "stable_session_per_tick": true,
           "proxy_required": false
         },
+        "identity_envelope": {
+          "identity_classes": ["residential", "mobile"],
+          "geo_affinity_mode": "pool_aligned",
+          "session_stickiness": "stable_per_tick",
+          "degraded_without_pool": "local_browser_session_only"
+        },
         "browser_propensity": "required",
         "javascript_execution": "required",
         "retry_ceiling": 1,
@@ -138,6 +177,11 @@
             "activity_count",
             "top_level_action_count",
             "dwell_intervals_ms",
+            "identity_realism_status",
+            "identity_envelope_classes",
+            "geo_affinity_mode",
+            "session_stickiness",
+            "observed_country_codes",
             "session_handles",
             "identity_rotation_count",
             "stop_reason"
@@ -160,6 +204,12 @@
           "stable_session_per_tick": false,
           "proxy_required": true
         },
+        "identity_envelope": {
+          "identity_classes": ["residential", "mobile"],
+          "geo_affinity_mode": "pool_aligned",
+          "session_stickiness": "stable_per_identity",
+          "degraded_without_pool": "local_session_only"
+        },
         "browser_propensity": "none",
         "javascript_execution": "disabled",
         "retry_ceiling": 2,
@@ -174,6 +224,11 @@
             "burst_count",
             "burst_sizes",
             "inter_activity_gaps_ms",
+            "identity_realism_status",
+            "identity_envelope_classes",
+            "geo_affinity_mode",
+            "session_stickiness",
+            "observed_country_codes",
             "identity_handles",
             "identity_rotation_count",
             "stop_reason"
@@ -198,6 +253,12 @@
           "stable_session_per_tick": true,
           "proxy_required": false
         },
+        "identity_envelope": {
+          "identity_classes": ["residential", "mobile"],
+          "geo_affinity_mode": "pool_aligned",
+          "session_stickiness": "stable_per_tick",
+          "degraded_without_pool": "local_browser_session_only"
+        },
         "browser_propensity": "required",
         "javascript_execution": "required",
         "retry_ceiling": 1,
@@ -211,6 +272,11 @@
             "activity_count",
             "top_level_action_count",
             "dwell_intervals_ms",
+            "identity_realism_status",
+            "identity_envelope_classes",
+            "geo_affinity_mode",
+            "session_stickiness",
+            "observed_country_codes",
             "session_handles",
             "identity_rotation_count",
             "stop_reason"
@@ -233,6 +299,12 @@
           "stable_session_per_tick": true,
           "proxy_required": false
         },
+        "identity_envelope": {
+          "identity_classes": ["residential", "mobile"],
+          "geo_affinity_mode": "pool_aligned",
+          "session_stickiness": "stable_per_identity",
+          "degraded_without_pool": "local_session_only"
+        },
         "browser_propensity": "none",
         "javascript_execution": "disabled",
         "retry_ceiling": 2,
@@ -250,6 +322,11 @@
             "focused_page_set_size",
             "concurrency_group_sizes",
             "peak_concurrent_activities",
+            "identity_realism_status",
+            "identity_envelope_classes",
+            "geo_affinity_mode",
+            "session_stickiness",
+            "observed_country_codes",
             "session_handles",
             "stop_reason"
           ]

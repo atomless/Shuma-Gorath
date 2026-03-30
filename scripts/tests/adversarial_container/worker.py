@@ -180,7 +180,10 @@ def enforce_allowlist(url: str, allowed_origins: List[str]) -> bool:
 
 
 def make_request(
-    url: str, sim_headers: Dict[str, str], timeout_seconds: float = 10.0
+    url: str,
+    sim_headers: Dict[str, str],
+    timeout_seconds: float = 10.0,
+    proxy_url: str | None = None,
 ) -> Dict[str, Any]:
     request = urllib.request.Request(url, method="GET")
     request.add_header("User-Agent", "ShumaContainerBlackBox/1.0")
@@ -188,7 +191,17 @@ def make_request(
         request.add_header(key, value)
     start = time.monotonic()
     try:
-        with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
+        opener = None
+        if str(proxy_url or "").strip():
+            opener = urllib.request.build_opener(
+                urllib.request.ProxyHandler(
+                    {
+                        "http": str(proxy_url).strip(),
+                        "https": str(proxy_url).strip(),
+                    }
+                )
+            )
+        with (opener.open(request, timeout=timeout_seconds) if opener else urllib.request.urlopen(request, timeout=timeout_seconds)) as response:
             body = response.read().decode("utf-8", errors="replace")
             latency_ms = int((time.monotonic() - start) * 1000)
             return {
@@ -249,7 +262,13 @@ def _parse_request_realism_plan(
             "inter_action_gaps_ms": [0 for _ in range(max(0, actions_count - 1))],
             "focused_page_paths": fallback_paths,
             "focused_page_set_size": len(fallback_paths),
+            "identity_realism_status": "degraded_local",
+            "identity_envelope_classes": ["residential", "mobile"],
+            "geo_affinity_mode": "pool_aligned",
+            "session_stickiness": "stable_per_identity",
+            "observed_country_codes": [],
             "session_handles": ["agentic-request-session-1"],
+            "action_proxy_urls": [None for _ in range(actions_count)],
         }
 
     payload = json.loads(text)
@@ -276,6 +295,10 @@ def _parse_request_realism_plan(
         for item in list(payload.get("session_handles") or [])
         if str(item).strip()
     ]
+    action_proxy_urls = [
+        (str(item).strip() or None) if item is not None else None
+        for item in list(payload.get("action_proxy_urls") or [])
+    ]
 
     if sum(burst_sizes) != actions_count:
         raise RuntimeError("request realism plan burst_sizes must sum to resolved action count")
@@ -285,6 +308,10 @@ def _parse_request_realism_plan(
         )
     if actions_count > request_budget:
         raise RuntimeError("request realism plan must not exceed the worker request budget")
+    if action_proxy_urls and len(action_proxy_urls) != actions_count:
+        raise RuntimeError(
+            "request realism plan action_proxy_urls must align to resolved action count"
+        )
 
     planned_activity_budget = max(actions_count, int(payload.get("planned_activity_budget") or actions_count))
     effective_activity_budget = int(payload.get("effective_activity_budget") or actions_count)
@@ -309,6 +336,21 @@ def _parse_request_realism_plan(
         1,
         int(payload.get("peak_concurrent_activities") or max(concurrency_group_sizes or [1])),
     )
+    identity_realism_status = str(payload.get("identity_realism_status") or "").strip() or "degraded_local"
+    identity_envelope_classes = [
+        str(item).strip()
+        for item in list(payload.get("identity_envelope_classes") or ["residential", "mobile"])
+        if str(item).strip()
+    ]
+    geo_affinity_mode = str(payload.get("geo_affinity_mode") or "").strip() or "pool_aligned"
+    session_stickiness = (
+        str(payload.get("session_stickiness") or "").strip() or "stable_per_identity"
+    )
+    observed_country_codes = [
+        str(item).strip().upper()
+        for item in list(payload.get("observed_country_codes") or [])
+        if str(item).strip()
+    ]
 
     return {
         "schema_version": schema_version,
@@ -323,7 +365,13 @@ def _parse_request_realism_plan(
         "inter_action_gaps_ms": inter_action_gaps_ms,
         "focused_page_paths": focused_page_paths or fallback_paths,
         "focused_page_set_size": int(payload.get("focused_page_set_size") or len(focused_page_paths or fallback_paths)),
+        "identity_realism_status": identity_realism_status,
+        "identity_envelope_classes": identity_envelope_classes,
+        "geo_affinity_mode": geo_affinity_mode,
+        "session_stickiness": session_stickiness,
+        "observed_country_codes": observed_country_codes,
         "session_handles": session_handles or ["agentic-request-session-1"],
+        "action_proxy_urls": action_proxy_urls or [None for _ in range(actions_count)],
     }
 
 
@@ -352,6 +400,7 @@ def execute_resolved_actions_with_realism(
     burst_sizes = list(request_realism_plan.get("burst_sizes") or [])
     concurrency_group_sizes = list(request_realism_plan.get("concurrency_group_sizes") or [])
     inter_action_gaps_ms = list(request_realism_plan.get("inter_action_gaps_ms") or [])
+    action_proxy_urls = list(request_realism_plan.get("action_proxy_urls") or [])
 
     for burst_index, planned_burst_size in enumerate(burst_sizes):
         if requests_sent >= request_budget:
@@ -417,6 +466,9 @@ def execute_resolved_actions_with_realism(
                     "action": action,
                     "url": url,
                     "request_headers": request_headers,
+                    "proxy_url": action_proxy_urls[requests_sent + offset]
+                    if requests_sent + offset < len(action_proxy_urls)
+                    else None,
                 }
             )
         if burst_denied:
@@ -429,7 +481,13 @@ def execute_resolved_actions_with_realism(
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             burst_results = list(
                 executor.map(
-                    lambda item: make_request(item["url"], item["request_headers"]),
+                    lambda item: make_request(
+                        item["url"],
+                        item["request_headers"],
+                        proxy_url=item.get("proxy_url"),
+                    )
+                    if item.get("proxy_url")
+                    else make_request(item["url"], item["request_headers"]),
                     prepared_burst,
                 )
             )
@@ -483,7 +541,13 @@ def execute_resolved_actions_with_realism(
         "focused_page_set_size": len(set(request_realism_plan.get("focused_page_paths") or [])),
         "concurrency_group_sizes": list(burst_sizes_executed),
         "peak_concurrent_activities": max(burst_sizes_executed or [1]),
+        "identity_realism_status": str(request_realism_plan.get("identity_realism_status") or "degraded_local"),
+        "identity_envelope_classes": list(request_realism_plan.get("identity_envelope_classes") or []),
+        "geo_affinity_mode": str(request_realism_plan.get("geo_affinity_mode") or "pool_aligned"),
+        "session_stickiness": str(request_realism_plan.get("session_stickiness") or "stable_per_identity"),
+        "observed_country_codes": list(request_realism_plan.get("observed_country_codes") or []),
         "session_handles": list(request_realism_plan.get("session_handles") or []),
+        "identity_rotation_count": int(request_realism_plan.get("identity_rotation_count") or 0),
         "stop_reason": stop_reason,
     }
 

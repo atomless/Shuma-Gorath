@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 use super::adversary_sim::{RuntimeLane, WorkerFailureClass};
+use super::adversary_sim_identity_pool::IdentityPoolEntry;
 use super::adversary_sim_llm_lane::LlmFulfillmentPlan;
 use super::adversary_sim_realism_profile::LaneRealismProfile;
 use crate::observability::scrapling_owned_surface::ScraplingSurfaceObservationReceipt;
@@ -37,6 +38,13 @@ pub struct ScraplingRealismReceipt {
     pub burst_sizes: Vec<u64>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub inter_activity_gaps_ms: Vec<u64>,
+    pub identity_realism_status: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub identity_envelope_classes: Vec<String>,
+    pub geo_affinity_mode: String,
+    pub session_stickiness: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub observed_country_codes: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub top_level_action_count: Option<u64>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -66,6 +74,10 @@ pub struct ScraplingWorkerPlan {
     pub request_proxy_url: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub browser_proxy_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub request_identity_pool: Vec<IdentityPoolEntry>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub browser_identity_pool: Vec<IdentityPoolEntry>,
     pub tick_started_at: u64,
     pub realism_profile: LaneRealismProfile,
     pub max_requests: u64,
@@ -136,6 +148,13 @@ pub struct LlmRuntimeRealismReceipt {
     pub burst_sizes: Vec<u64>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub inter_activity_gaps_ms: Vec<u64>,
+    pub identity_realism_status: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub identity_envelope_classes: Vec<String>,
+    pub geo_affinity_mode: String,
+    pub session_stickiness: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub observed_country_codes: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub focused_page_set_size: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

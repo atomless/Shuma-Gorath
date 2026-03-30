@@ -21,6 +21,7 @@ use super::adversary_sim::{
     SCRAPLING_MAX_DEPTH_PER_TICK, SCRAPLING_SIM_PROFILE, SCRAPLING_WORKER_PLAN_SCHEMA_VERSION,
 };
 use super::adversary_sim_corpus::deterministic_runtime_profile;
+use super::adversary_sim_identity_pool::load_identity_pool_from_env;
 use super::adversary_sim_realism_profile::scrapling_realism_profile_for_mode;
 use super::adversary_sim_state::{
     active_lane_count_for_lane, autonomous_execution_profile, effective_active_lane,
@@ -512,6 +513,10 @@ fn next_scrapling_worker_plan(now: u64, state: &mut ControlState) -> ScraplingWo
     let request_proxy_url = optional_scrapling_proxy_env("ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_URL");
     let browser_proxy_url = optional_scrapling_proxy_env("ADVERSARY_SIM_SCRAPLING_BROWSER_PROXY_URL")
         .or_else(|| request_proxy_url.clone());
+    let request_identity_pool =
+        load_identity_pool_from_env("ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_POOL_JSON");
+    let browser_identity_pool =
+        load_identity_pool_from_env("ADVERSARY_SIM_SCRAPLING_BROWSER_PROXY_POOL_JSON");
     state.pending_worker_tick_id = Some(tick_id.clone());
     state.pending_worker_started_at = Some(now);
     state.updated_at = now;
@@ -532,6 +537,8 @@ fn next_scrapling_worker_plan(now: u64, state: &mut ControlState) -> ScraplingWo
             ),
         request_proxy_url,
         browser_proxy_url,
+        request_identity_pool,
+        browser_identity_pool,
         tick_started_at: now,
         max_requests: realism_profile.pressure_envelope.max_activities,
         max_depth: SCRAPLING_MAX_DEPTH_PER_TICK,
