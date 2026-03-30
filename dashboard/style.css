@@ -125,7 +125,7 @@
     --inline-link-focus-ring: hsla(var(--hue), 100%, 79%, 0.45);
 
     .shuma-image-wrapper {
-      filter: brightness(.74) contrast(1.76) saturate(0.785);
+      filter: brightness(.72) contrast(1.9) saturate(.7);
     }
   }
 
@@ -608,7 +608,7 @@ h1 {
   width: 0;
   height: 198px;
   background: var(--striped-bright-bg);
-  animation: dashboard-adversary-sim-progress-stripes 1.5s linear infinite;
+  animation: dashboard-adversary-sim-progress-stripes .83s linear infinite;
 }
 
 .game-loop-meter-list {
