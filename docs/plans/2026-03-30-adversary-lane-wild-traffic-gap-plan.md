@@ -1,8 +1,8 @@
 # SIM-REALISM-2 Wild Traffic Gap Closure Plan
 
-**Goal:** Close the remaining field-grounded realism gaps after `SIM-REALISM-1C` and `SIM-REALISM-1D` so Shuma's adversary lanes no longer stop at local burst-shape realism and can instead represent the pressure, identity, transport, and recurrence patterns actually seen in current hostile traffic.
+**Goal:** Close the remaining field-grounded realism gaps after `SIM-REALISM-1C` and `SIM-REALISM-1D` so Shuma's adversary lanes no longer stop at local burst-shape realism and can instead represent the pressure, identity, transport, traversal, public discoverability, and recurrence patterns actually seen in current hostile traffic.
 
-**Architecture:** Reuse the existing lane realism contract, lane planner, supervisor, and worker seams. Extend that contract with pressure-envelope, identity-envelope, transport-envelope, browser-secondary-traffic, and recurrence concepts. Preserve the existing public-discovery-only Scrapling boundary and the existing black-box Shuma-blind Agentic boundary. Do not widen host knowledge to achieve realism.
+**Architecture:** Reuse the existing lane realism contract, lane planner, supervisor, and worker seams. Extend that contract with pressure-envelope, identity-envelope, transport-envelope, browser-secondary-traffic, exploration-envelope, exploration-receipt, public-discoverability, and recurrence concepts. Preserve the existing public-discovery-only Scrapling boundary and the existing black-box Shuma-blind Agentic boundary. Do not widen host knowledge to achieve realism.
 
 **Tech Stack:** Rust adversary-sim planner and state, Python Scrapling worker, Python LLM runtime worker and adversarial container worker, existing monitoring and observer read models, Makefile verification, backlog and sequencing docs.
 
@@ -16,6 +16,7 @@
 2. Do not achieve higher pressure by widening host knowledge, introducing internal route catalogs, or leaking Shuma-specific hints.
 3. Do not let simulator-only identity, proxy, or category metadata leak into defence truth or category truth.
 4. Do not turn realism work into uncontrolled aggression. Every stronger behavior must remain bounded by an explicit contract and receipt-backed proof.
+5. Do not reintroduce hidden or internal route catalogs, worker-only path hints, or fake public-surface inventories to make traversal look deeper.
 
 ## Task 1: Refresh Backlog And Sequencing Truth
 
@@ -150,6 +151,76 @@
 1. Add and pass `make test-adversary-sim-recurrence-realism`.
 2. Keep adversary-sim state and dispatch tests green.
 
+## Task 7: `SIM-REALISM-2F` Replace Flat Discovery Caps With Per-Persona Exploration Envelopes
+
+**Files:**
+- Later code targets: `src/admin/adversary_sim.rs`, `src/admin/adversary_sim_lane_runtime.rs`, `src/admin/adversary_sim_realism_profile.rs`, `scripts/supervisor/scrapling_worker.py`, `scripts/supervisor/llm_runtime_worker.py`
+- Later proof targets: focused realism tests, retained worker proofs, `Makefile`
+
+**Work:**
+1. Replace the current flat discovery clipping model with explicit per-persona and per-mode exploration envelopes covering request, depth, byte, and time budgets.
+2. Allow deeper traversal where the realism contract calls for it while keeping the public-discovery-only boundary intact.
+3. Preserve proof of the effective exploration envelope in runtime receipts so shallow coverage can be distinguished from exhausted frontier.
+
+**Acceptance criteria:**
+1. Scrapling and Agentic traversal no longer collapse to one flat discovery cap.
+2. Deeper exploration remains bounded by explicit contract rather than ad hoc worker freedom.
+3. No internal route catalogs or simulator-only helper hints are introduced to manufacture depth.
+
+**Proof:**
+1. Add and pass `make test-adversary-sim-exploration-envelope-realism`.
+2. Keep retained Scrapling and Agentic worker tests green.
+
+## Task 8: `SIM-REALISM-2G` Add Compact Exploration Receipts And Observer Truth
+
+**Files:**
+- Later code targets: worker receipt emitters, `src/observability/hot_read_documents.rs`, recent-run projection files, relevant admin or dashboard observer adapters
+- Later proof targets: machine-contract tests, rendered observer proofs if UI changes, `Makefile`
+
+**Work:**
+1. Add compact traversal receipts that persist:
+   - `visited_url_count`
+   - `discovered_url_count`
+   - `deepest_depth_reached`
+   - `sitemap_documents_seen`
+   - `frontier_remaining_count`
+   - `canonical_public_pages_reached`
+2. Preserve those facts as observer-only truth so operators can tell whether a lane stopped early or exhausted the reachable public frontier.
+3. Keep the receipts compact rather than turning hot reads into raw path traces.
+
+**Acceptance criteria:**
+1. Recent-run and observer surfaces can distinguish shallow traversal from frontier exhaustion.
+2. The receipt contract stays compact and machine-readable.
+3. No new receipt field leaks simulator-only hints into defence truth.
+
+**Proof:**
+1. Add and pass `make test-adversary-sim-exploration-receipts`.
+2. Keep relevant machine-contract tests green, and keep dashboard accountability proof green if rendered observer surfaces change.
+
+## Task 9: `SIM-REALISM-2H` Make The Dummy Site More Richly Publicly Discoverable Without Choreography
+
+**Files:**
+- Later code targets: `src/runtime/sim_public.rs`, `robots.txt` or sitemap support surfaces, shared-host seed/discovery helpers where needed
+- Later proof targets: focused discoverability tests, shared-host seed-contract proof, `Makefile`
+
+**Work:**
+1. Expose broader dummy-site reachability through realistic public mechanisms:
+   - root links,
+   - realistic navigation,
+   - `robots.txt` sitemap entries,
+   - and sitemap documents.
+2. Keep hidden or internal route catalogs out of the workers and seed contract.
+3. Make the site itself, not private worker knowledge, responsible for richer discoverability.
+
+**Acceptance criteria:**
+1. Broader dummy-site surfaces become publicly reachable without simulator choreography.
+2. The workers still discover those surfaces only through public traversal and accepted hint documents.
+3. The discovery contract continues to treat sitemap documents as bounded public hints, not authoritative surface truth.
+
+**Proof:**
+1. Add and pass `make test-sim-public-discoverability-contract`.
+2. Keep shared-host seed-contract proof green.
+
 ## Recommended Execution Order
 
 1. finish `SIM-REALISM-1C`
@@ -158,5 +229,8 @@
 4. `SIM-REALISM-2B`
 5. `SIM-REALISM-2C`
 6. `SIM-REALISM-2D`
-7. `SIM-REALISM-2E`
-8. only then reopen representative mixed-attacker or tuning-quality claims
+7. `SIM-REALISM-2F`
+8. `SIM-REALISM-2G`
+9. `SIM-REALISM-2H`
+10. `SIM-REALISM-2E`
+11. only then reopen representative mixed-attacker or tuning-quality claims

@@ -146,7 +146,7 @@ Current note:
 - `SIM-REALISM-1` is now the next adversary-sim maturity chain: both Scrapling and Agentic Traffic still need profile-driven cadence, burst, dwell, and identity or session realism before mixed-attacker or tuning claims are called representative.
 - `SIM-REALISM-1A` is now landed: the shared versioned realism-profile contract is frozen across Rust planners, Python workers, and Make-driven proof.
 - `SIM-REALISM-1B` is now landed: Scrapling personas now execute profile-driven pacing and dwell behavior, emit per-tick `realism_receipt` payloads, preserve the latest Scrapling realism receipt in recent-run monitoring history, and `SIM-REALISM-1C` is now the current top-priority adversary-sim work item. But treat that tranche as local shape realism, not full wild-attacker realism.
-- `SIM-REALISM-2` is now the explicit follow-on chain after `SIM-REALISM-1D`: the lanes still fall short on field-grounded pressure envelopes, proxy and identity realism, coherent header or transport envelopes, browser secondary traffic, and long-horizon recurrence.
+- `SIM-REALISM-2` is now the explicit follow-on chain after `SIM-REALISM-1D`: the lanes still fall short on field-grounded pressure envelopes, proxy and identity realism, coherent header or transport envelopes, browser secondary traffic, per-persona exploration depth and frontier realism, compact traversal receipts, richer public discoverability of the dummy surface, and long-horizon recurrence.
 - Do not treat mere lane execution or recent-run visibility as characteristic attacker pressure while `bot_red_team` browser-mode still lacks real session execution and the lanes still retain overly uniform pressure, identity, and transport behavior.
 - Do not open `humans_plus_verified_only` until a later second strict-baseline proof has shown retained config-change improvement under both Scrapling and LLM attacker pressure.
 - `DIAG-CLEANUP-1`, `MON-OVERHAUL-1C`, and `SIM-LLM-1C3` are now all landed, so the later combined-attacker strict-baseline proof is no longer blocked by missing LLM runtime visibility.
@@ -234,6 +234,41 @@ Current note:
     - tuning truth: longer-window evaluation must be able to consume explicit recurrence truth instead of inferring it from accidental repeated beats
     - proof: add and pass `make test-adversary-sim-recurrence-realism`, and keep adversary-sim state or dispatch tests green
     - insufficient: repeating the same short-run beat forever without any explicit dormancy or return model
+
+- [ ] SIM-REALISM-2F Replace flat discovery caps with per-persona exploration envelopes.
+  - Reference context:
+    - [`docs/research/2026-03-30-adversary-lane-wild-traffic-gap-review.md`](../docs/research/2026-03-30-adversary-lane-wild-traffic-gap-review.md)
+    - [`docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
+    - [`docs/plans/2026-03-20-shared-host-seed-contract.md`](../docs/plans/2026-03-20-shared-host-seed-contract.md)
+  - Closure gate:
+    - exploration truth: request, depth, byte, and time envelopes must vary by persona or mode instead of every lane collapsing to one flat discovery cap
+    - boundary truth: deeper traversal must still derive only from public discovery and accepted hint documents rather than internal route catalogs or simulator-only hints
+    - receipt truth: realism receipts must preserve the effective exploration envelope actually applied so shallow traversal can be distinguished from exhausted site frontier
+    - proof: add and pass `make test-adversary-sim-exploration-envelope-realism`, and keep retained Scrapling and Agentic worker targets green
+    - insufficient: globally raising `max_requests` or `max_depth`, or widening host knowledge to make traversal look deeper
+
+- [ ] SIM-REALISM-2G Add compact exploration receipts and observer truth for traversal depth and frontier state.
+  - Reference context:
+    - [`docs/research/2026-03-30-adversary-lane-wild-traffic-gap-review.md`](../docs/research/2026-03-30-adversary-lane-wild-traffic-gap-review.md)
+    - [`docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
+    - [`docs/plans/2026-03-29-observed-telemetry-truth-and-scrapling-discoverability-plan.md`](../docs/plans/2026-03-29-observed-telemetry-truth-and-scrapling-discoverability-plan.md)
+  - Closure gate:
+    - receipt truth: persist compact traversal facts including `visited_url_count`, `discovered_url_count`, `deepest_depth_reached`, `sitemap_documents_seen`, `frontier_remaining_count`, and `canonical_public_pages_reached`
+    - observer truth: operator and dashboard surfaces must be able to tell whether the lanes stopped early or simply exhausted the reachable public frontier, without bloating hot reads into raw traces
+    - boundary truth: the new receipts must stay observer-only and must not become defence truth or simulator-label leakage
+    - proof: add and pass `make test-adversary-sim-exploration-receipts`, and keep relevant machine-contract and dashboard accountability targets green if observer rendering changes
+    - insufficient: sample-path anecdotes without frontier counts, or dashboard guesswork about traversal progress
+
+- [ ] SIM-REALISM-2H Make the dummy site more richly publicly discoverable without choreography.
+  - Reference context:
+    - [`docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
+    - [`docs/plans/2026-03-20-shared-host-seed-contract.md`](../docs/plans/2026-03-20-shared-host-seed-contract.md)
+    - [`docs/plans/2026-03-29-observed-telemetry-truth-and-scrapling-discoverability-plan.md`](../docs/plans/2026-03-29-observed-telemetry-truth-and-scrapling-discoverability-plan.md)
+  - Closure gate:
+    - surface truth: broader dummy-site surfaces must become reachable through root links, realistic navigation, `robots.txt` sitemap entries, and sitemap documents rather than ad hoc worker hints
+    - discipline: keep hidden or internal route catalogs out of the workers and out of the seed contract
+    - proof: add and pass `make test-sim-public-discoverability-contract`, and keep shared-host seed-contract proof green
+    - insufficient: private worker-only route hints, simulator convenience endpoints, or sitemap/catalog artifacts treated as discovery truth
 
 - [ ] RSI-GAME-HO-2A3 Project mixed-attacker judged-episode truth through operator/admin and Game Loop surfaces.
   - Reference context:

@@ -4,6 +4,20 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-30)
 
+### SIM-REALISM-2 Traversal And Discoverability Backlog Extension
+
+- [x] Completed the docs-only backlog and plan extension across:
+  - [`../todos/todo.md`](../todos/todo.md)
+  - [`../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
+- [x] What landed:
+  - the active realism chain now explicitly includes per-persona exploration envelopes, compact exploration receipts, and richer public dummy-site discoverability as follow-on work after the existing wild-traffic gap tasks,
+  - each new item now has explicit closure gates and proof expectations,
+  - and the plan now makes the anti-catalog guardrail explicit for traversal-depth work.
+- [x] Why:
+  - the user called out that it is currently hard to tell whether the lanes fail to traverse much of the dummy site because they stop early or because observer surfaces do not preserve that truth, and the earlier realism backlog did not make that distinction execution-ready.
+- [x] Evidence:
+  - docs-only slice; verification intentionally limited to `git diff --check`
+
 ### SIM-REALISM-2 Field-Gap Research, Plan, And Backlog Refresh
 
 - [x] Completed the docs-only realism gap refresh across:
