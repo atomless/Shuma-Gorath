@@ -327,6 +327,41 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
 
         self.beat_payload = self._make_beat_payload("crawler", ["indexing_bot"])
 
+    def test_realism_tracker_respects_bulk_scraper_pressure_envelope_above_legacy_flat_cap(
+        self,
+    ) -> None:
+        if scrapling_worker is None:
+            self.fail("scrapling_worker module is required")
+
+        plan = {
+            "schema_version": "adversary-sim-scrapling-worker-plan.v1",
+            "run_id": "simrun-pressure-envelope",
+            "tick_id": "scrapling-tick-pressure-envelope",
+            "lane": "scrapling_traffic",
+            "sim_profile": "scrapling_runtime_lane",
+            "fulfillment_mode": "bulk_scraper",
+            "category_targets": ["ai_scraper_bot", "indexing_bot"],
+            "surface_targets": ["public_path_traversal"],
+            "tick_started_at": 1_700_000_000,
+            "realism_profile": resolve_lane_realism_profile("scrapling_traffic", "bulk_scraper"),
+            "max_requests": 45,
+            "max_depth": 2,
+            "max_bytes": 262_144,
+            "max_ms": 30_000,
+        }
+
+        tracker = scrapling_worker._ScraplingRealismTracker(  # noqa: SLF001
+            plan=plan,
+            browser_session=False,
+            proxy_configured=False,
+        )
+
+        self.assertGreater(tracker.effective_activity_budget, 8)
+        self.assertEqual(
+            tracker.effective_activity_budget,
+            min(tracker.max_requests, tracker.planned_activity_budget),
+        )
+
     def _make_beat_payload(
         self,
         fulfillment_mode: str,

@@ -132,7 +132,15 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
             execution_plan["focused_page_set_size"],
             len(execution_plan["focused_page_paths"]),
         )
-        self.assertTrue(any(0 < gap <= 350 for gap in execution_plan["inter_action_gaps_ms"]))
+        self.assertEqual(
+            execution_plan["peak_concurrent_activities"],
+            max(execution_plan["concurrency_group_sizes"]),
+        )
+        self.assertEqual(
+            execution_plan["concurrency_group_sizes"],
+            execution_plan["burst_sizes"],
+        )
+        self.assertTrue(any(gap == 0 for gap in execution_plan["inter_action_gaps_ms"]))
         self.assertTrue(any(gap >= 1000 for gap in execution_plan["inter_action_gaps_ms"]))
 
     def test_extract_llm_fulfillment_plan_requires_nested_plan(self):

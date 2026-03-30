@@ -143,6 +143,10 @@ pub struct LlmRuntimeRealismReceipt {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub dwell_intervals_ms: Vec<u64>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub concurrency_group_sizes: Vec<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub peak_concurrent_activities: Option<u64>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub session_handles: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub identity_rotation_count: Option<u64>,

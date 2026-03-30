@@ -38,6 +38,8 @@
 
 ## Task 2: `SIM-REALISM-2A` Unclip Pressure Envelopes And Add Per-Persona Concurrency
 
+**Status:** Landed on 2026-03-30.
+
 **Files:**
 - Later code targets: `src/admin/adversary_sim.rs`, `src/admin/adversary_sim_lane_runtime.rs`, `src/admin/adversary_sim_realism_profile.rs`, `scripts/supervisor/scrapling_worker.py`, `src/admin/adversary_sim_llm_lane.rs`, `scripts/tests/adversarial_container/worker.py`
 - Later proof targets: focused realism tests, `Makefile`

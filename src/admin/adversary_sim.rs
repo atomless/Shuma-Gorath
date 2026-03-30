@@ -41,10 +41,8 @@ pub const SCRAPLING_WORKER_RESULT_SCHEMA_VERSION: &str = "adversary-sim-scraplin
 pub const LLM_RUNTIME_RESULT_SCHEMA_VERSION: &str = "adversary-sim-llm-runtime-result.v1";
 pub const SCRAPLING_SIM_PROFILE: &str = "scrapling_runtime_lane";
 pub const LLM_SIM_PROFILE: &str = "llm_runtime_lane";
-pub const SCRAPLING_MAX_REQUESTS_PER_TICK: u64 = 8;
 pub const SCRAPLING_MAX_DEPTH_PER_TICK: u64 = 2;
 pub const SCRAPLING_MAX_BYTES_PER_TICK: u64 = 262_144;
-pub const SCRAPLING_MAX_MS_PER_TICK: u64 = 2_000;
 
 #[cfg(test)]
 pub fn state_key(site_id: &str) -> String {

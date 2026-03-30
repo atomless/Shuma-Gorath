@@ -7,6 +7,7 @@ import json
 import os
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -293,6 +294,21 @@ def _parse_request_realism_plan(
         )
     planned_burst_size = max(1, int(payload.get("planned_burst_size") or max(1, max(burst_sizes or [1]))))
     effective_burst_size = max(1, int(payload.get("effective_burst_size") or max(burst_sizes or [1])))
+    concurrency_group_sizes = [
+        max(1, int(item)) for item in list(payload.get("concurrency_group_sizes") or burst_sizes)
+    ]
+    if len(concurrency_group_sizes) != len(burst_sizes):
+        raise RuntimeError(
+            "request realism plan concurrency_group_sizes must align to burst_sizes"
+        )
+    if any(group_size > burst_size for group_size, burst_size in zip(concurrency_group_sizes, burst_sizes)):
+        raise RuntimeError(
+            "request realism plan concurrency_group_sizes must not exceed burst_sizes"
+        )
+    peak_concurrent_activities = max(
+        1,
+        int(payload.get("peak_concurrent_activities") or max(concurrency_group_sizes or [1])),
+    )
 
     return {
         "schema_version": schema_version,
@@ -302,6 +318,8 @@ def _parse_request_realism_plan(
         "planned_burst_size": planned_burst_size,
         "effective_burst_size": effective_burst_size,
         "burst_sizes": burst_sizes,
+        "concurrency_group_sizes": concurrency_group_sizes,
+        "peak_concurrent_activities": peak_concurrent_activities,
         "inter_action_gaps_ms": inter_action_gaps_ms,
         "focused_page_paths": focused_page_paths or fallback_paths,
         "focused_page_set_size": int(payload.get("focused_page_set_size") or len(focused_page_paths or fallback_paths)),
@@ -330,23 +348,17 @@ def execute_resolved_actions_with_realism(
     burst_sizes_executed: List[int] = []
     burst_sizes = list(request_realism_plan.get("burst_sizes") or [])
     current_burst_statuses: List[int] = []
-    current_burst_size = 0
     stop_reason = "activity_sequence_exhausted"
+    burst_sizes = list(request_realism_plan.get("burst_sizes") or [])
+    concurrency_group_sizes = list(request_realism_plan.get("concurrency_group_sizes") or [])
+    inter_action_gaps_ms = list(request_realism_plan.get("inter_action_gaps_ms") or [])
 
-    for index, action in enumerate(resolved_actions):
+    for burst_index, planned_burst_size in enumerate(burst_sizes):
         if requests_sent >= request_budget:
             stop_reason = "request_budget_exhausted"
             break
-        if requests_sent >= len(sim_tag_envelopes):
-            errors.append("sim_tag_envelopes_exhausted")
-            append_policy_audit_event(
-                policy_audit,
-                stage="execution",
-                decision="deny",
-                code="sim_tag_envelopes_exhausted",
-                action=action,
-            )
-            stop_reason = "sim_tag_envelopes_exhausted"
+        if requests_sent >= len(resolved_actions):
+            stop_reason = "activity_sequence_exhausted"
             break
         if (time.monotonic() - start) >= time_budget_seconds:
             errors.append("time_budget_exhausted")
@@ -355,74 +367,107 @@ def execute_resolved_actions_with_realism(
                 stage="execution",
                 decision="deny",
                 code="time_budget_exhausted",
-                action=action,
+                action=resolved_actions[requests_sent],
             )
             stop_reason = "time_budget_exhausted"
             break
         if requests_sent > 0:
-            gap_ms = int(list(request_realism_plan.get("inter_action_gaps_ms") or [])[requests_sent - 1])
+            gap_ms = int(inter_action_gaps_ms[requests_sent - 1])
             used_gaps_ms.append(gap_ms)
             _sleep_gap_ms(gap_ms)
 
-        envelope = sim_tag_envelopes[requests_sent]
-        request_headers = dict(sim_headers)
-        request_headers[SIM_TAG_HEADER_TIMESTAMP] = envelope["ts"]
-        request_headers[SIM_TAG_HEADER_NONCE] = envelope["nonce"]
-        request_headers[SIM_TAG_HEADER_SIGNATURE] = envelope["signature"]
-        url = str(action.get("url") or "")
-        if not enforce_allowlist(url, allowed_origins):
-            errors.append(f"egress_disallowed:{url}")
+        burst_end = min(len(resolved_actions), requests_sent + int(planned_burst_size))
+        burst_actions = list(resolved_actions[requests_sent:burst_end])
+        if requests_sent + len(burst_actions) > len(sim_tag_envelopes):
+            errors.append("sim_tag_envelopes_exhausted")
             append_policy_audit_event(
                 policy_audit,
                 stage="execution",
                 decision="deny",
-                code="egress_disallowed",
-                detail=url,
-                action=action,
+                code="sim_tag_envelopes_exhausted",
+                action=burst_actions[0] if burst_actions else None,
             )
-            stop_reason = "egress_disallowed"
+            stop_reason = "sim_tag_envelopes_exhausted"
             break
 
-        emit_heartbeat(run_id, "before_action", action_index=requests_sent + 1)
-        result = make_request(url, request_headers)
-        result["action_index"] = action.get("action_index")
-        result["action_type"] = action.get("action_type")
-        result["path"] = action.get("path")
-        if str(action.get("label") or "").strip():
-            result["label"] = str(action.get("label")).strip()
-        traffic.append(result)
-        requests_sent += 1
-        statuses.append(int(result.get("status", 0)))
-        current_burst_statuses.append(int(result.get("status", 0)))
-        current_burst_size += 1
-        emit_heartbeat(run_id, "after_action", action_index=requests_sent)
-
-        if int(result.get("status", 0)) == 0:
-            errors.append(str(result.get("error") or "request_failed"))
-            append_policy_audit_event(
-                policy_audit,
-                stage="execution",
-                decision="deny",
-                code="request_failed",
-                detail=str(result.get("error") or "request_failed"),
-                action=action,
-            )
-            stop_reason = "transport_error"
-            break
-
-        planned_burst_size = int(burst_sizes[len(burst_sizes_executed)]) if len(burst_sizes_executed) < len(burst_sizes) else current_burst_size
-        if current_burst_size >= planned_burst_size:
-            burst_sizes_executed.append(current_burst_size)
-            if current_burst_statuses and all(status in {403, 429} for status in current_burst_statuses):
-                stop_reason = "response_pressure_stop"
-                current_burst_statuses = []
-                current_burst_size = 0
+        prepared_burst: List[Dict[str, Any]] = []
+        burst_denied = False
+        for offset, action in enumerate(burst_actions):
+            envelope = sim_tag_envelopes[requests_sent + offset]
+            request_headers = dict(sim_headers)
+            request_headers[SIM_TAG_HEADER_TIMESTAMP] = envelope["ts"]
+            request_headers[SIM_TAG_HEADER_NONCE] = envelope["nonce"]
+            request_headers[SIM_TAG_HEADER_SIGNATURE] = envelope["signature"]
+            url = str(action.get("url") or "")
+            if not enforce_allowlist(url, allowed_origins):
+                errors.append(f"egress_disallowed:{url}")
+                append_policy_audit_event(
+                    policy_audit,
+                    stage="execution",
+                    decision="deny",
+                    code="egress_disallowed",
+                    detail=url,
+                    action=action,
+                )
+                stop_reason = "egress_disallowed"
+                burst_denied = True
                 break
-            current_burst_statuses = []
-            current_burst_size = 0
+            prepared_burst.append(
+                {
+                    "action": action,
+                    "url": url,
+                    "request_headers": request_headers,
+                }
+            )
+        if burst_denied:
+            break
 
-    if current_burst_size > 0:
-        burst_sizes_executed.append(current_burst_size)
+        for offset, _ in enumerate(prepared_burst, start=1):
+            emit_heartbeat(run_id, "before_action", action_index=requests_sent + offset)
+
+        max_workers = max(1, int(concurrency_group_sizes[burst_index] if burst_index < len(concurrency_group_sizes) else len(prepared_burst)))
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            burst_results = list(
+                executor.map(
+                    lambda item: make_request(item["url"], item["request_headers"]),
+                    prepared_burst,
+                )
+            )
+
+        for offset, (prepared, result) in enumerate(zip(prepared_burst, burst_results), start=1):
+            action = dict(prepared["action"])
+            result["action_index"] = action.get("action_index")
+            result["action_type"] = action.get("action_type")
+            result["path"] = action.get("path")
+            if str(action.get("label") or "").strip():
+                result["label"] = str(action.get("label")).strip()
+            traffic.append(result)
+            requests_sent += 1
+            statuses.append(int(result.get("status", 0)))
+            current_burst_statuses.append(int(result.get("status", 0)))
+            emit_heartbeat(run_id, "after_action", action_index=requests_sent)
+
+            if int(result.get("status", 0)) == 0:
+                errors.append(str(result.get("error") or "request_failed"))
+                append_policy_audit_event(
+                    policy_audit,
+                    stage="execution",
+                    decision="deny",
+                    code="request_failed",
+                    detail=str(result.get("error") or "request_failed"),
+                    action=action,
+                )
+                stop_reason = "transport_error"
+                break
+        burst_sizes_executed.append(len(prepared_burst))
+        if len(prepared_burst) > 1:
+            used_gaps_ms.extend([0] * (len(prepared_burst) - 1))
+        if stop_reason == "transport_error":
+            break
+        if current_burst_statuses and all(status in {403, 429} for status in current_burst_statuses):
+            stop_reason = "response_pressure_stop"
+            break
+        current_burst_statuses = []
 
     realism_receipt = {
         "schema_version": "sim-lane-realism-receipt.v1",
@@ -436,6 +481,8 @@ def execute_resolved_actions_with_realism(
         "burst_sizes": burst_sizes_executed,
         "inter_activity_gaps_ms": used_gaps_ms[: max(0, requests_sent - 1)],
         "focused_page_set_size": len(set(request_realism_plan.get("focused_page_paths") or [])),
+        "concurrency_group_sizes": list(burst_sizes_executed),
+        "peak_concurrent_activities": max(burst_sizes_executed or [1]),
         "session_handles": list(request_realism_plan.get("session_handles") or []),
         "stop_reason": stop_reason,
     }

@@ -173,6 +173,26 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
             body,
         )
 
+    def test_pressure_envelope_realism_target_uses_scrapling_and_llm_pressure_selectors(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-adversary-sim-pressure-envelope-realism:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn(
+            "scrapling_worker_plan_uses_mode_specific_pressure_envelopes",
+            body,
+        )
+        self.assertIn(
+            "scripts.tests.test_scrapling_worker.ScraplingWorkerUnitTests.test_realism_tracker_respects_bulk_scraper_pressure_envelope_above_legacy_flat_cap",
+            body,
+        )
+        self.assertIn("scripts/tests/test_llm_runtime_worker.py", body)
+        self.assertIn("scripts/tests/test_adversarial_container_worker.py", body)
+
     def test_llm_runtime_dispatch_target_uses_typed_runtime_selectors(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")
         match = re.search(

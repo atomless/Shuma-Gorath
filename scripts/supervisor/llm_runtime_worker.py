@@ -249,28 +249,26 @@ def _inter_action_gaps_ms(
     profile = dict(fulfillment_plan.get("realism_profile") or {})
     gaps: list[int] = []
     completed_actions = 0
-    burst_boundaries = set()
-    running_total = 0
-    for burst_size in burst_sizes[:-1]:
-        running_total += int(burst_size)
-        burst_boundaries.add(running_total)
-
-    total_actions = sum(burst_sizes)
-    for action_index in range(1, total_actions):
-        field_name = (
-            "between_burst_pause_ms" if action_index in burst_boundaries else "intra_burst_jitter_ms"
-        )
+    for burst_index, burst_size in enumerate(burst_sizes):
+        if burst_size <= 1:
+            completed_actions += max(0, burst_size)
+        else:
+            for _ in range(1, int(burst_size)):
+                gaps.append(0)
+                completed_actions += 1
+            completed_actions += 1
+        if burst_index >= len(burst_sizes) - 1:
+            continue
         gap_ms = realism_range_value(
-            dict(profile.get(field_name) or {}),
+            dict(profile.get("between_burst_pause_ms") or {}),
             fulfillment_plan.get("run_id"),
             fulfillment_plan.get("tick_id"),
             fulfillment_plan.get("fulfillment_mode"),
-            field_name,
+            "between_burst_pause_ms",
+            burst_index,
             completed_actions,
-            action_index,
         )
         gaps.append(gap_ms)
-        completed_actions += 1
     return gaps
 
 
@@ -330,6 +328,8 @@ def build_request_mode_realism_execution_plan(
         "planned_burst_size": planned_burst_size,
         "effective_burst_size": effective_burst_size,
         "burst_sizes": burst_sizes,
+        "concurrency_group_sizes": burst_sizes,
+        "peak_concurrent_activities": max(burst_sizes or [1]),
         "inter_action_gaps_ms": inter_action_gaps_ms,
         "focused_page_paths": [str(action.get("path") or "/") for action in focused_actions],
         "focused_page_set_size": len(focused_actions),

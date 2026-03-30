@@ -4,6 +4,8 @@ import contextlib
 import io
 import json
 import os
+import threading
+import time
 from unittest import mock
 import unittest
 
@@ -171,7 +173,121 @@ class AdversarialContainerWorkerUnitTests(unittest.TestCase):
         )
         self.assertEqual(receipt["stop_reason"], "response_pressure_stop")
         self.assertEqual(len(receipt["inter_activity_gaps_ms"]), 5)
-        self.assertEqual(sleep_mock.call_count, 5)
+        self.assertEqual(receipt["inter_activity_gaps_ms"], [0, 0, 1400, 0, 0])
+        self.assertEqual(sleep_mock.call_count, 1)
+
+    def test_blackbox_main_executes_request_mode_bursts_concurrently(self):
+        actions = []
+        for index in range(1, 7):
+            path = "/" if index % 2 else "/robots.txt"
+            label = "root" if path == "/" else "robots"
+            actions.append(
+                {
+                    "action_index": index,
+                    "action_type": "http_get",
+                    "path": path,
+                    "label": label,
+                    "url": f"https://example.test{path}",
+                }
+            )
+
+        realism_plan = {
+            "schema_version": "adversary-sim-llm-request-realism-plan.v1",
+            "profile_id": "agentic.request_mode.v1",
+            "planned_activity_budget": 6,
+            "effective_activity_budget": 6,
+            "planned_burst_size": 3,
+            "effective_burst_size": 3,
+            "burst_sizes": [3, 3],
+            "inter_action_gaps_ms": [0, 0, 1200, 0, 0],
+            "focused_page_paths": ["/", "/robots.txt"],
+            "session_handles": ["agentic-request-session-1"],
+        }
+        env = {
+            "BLACKBOX_MODE": "blackbox",
+            "BLACKBOX_BASE_URL": "https://example.test/",
+            "BLACKBOX_ALLOWED_ORIGINS": "https://example.test",
+            "BLACKBOX_RUN_ID": "simrun-llm-runtime",
+            "BLACKBOX_REQUEST_BUDGET": "6",
+            "BLACKBOX_TIME_BUDGET_SECONDS": "120",
+            "BLACKBOX_SIM_TAG_ENVELOPES": _sim_tag_envelopes(6),
+            "BLACKBOX_ACTIONS": json.dumps(actions),
+            "BLACKBOX_REQUEST_REALISM_PLAN": json.dumps(realism_plan),
+            worker.CAPABILITY_ENVELOPES_ENV: "[]",
+            worker.CAPABILITY_VERIFY_KEY_ENV: "verify-key",
+        }
+        lane_contract = {
+            "schema_version": "lane-contract.v1",
+            "attacker": {
+                "required_sim_headers": [
+                    worker.SIM_TAG_HEADER_RUN_ID,
+                    worker.SIM_TAG_HEADER_PROFILE,
+                    worker.SIM_TAG_HEADER_LANE,
+                    worker.SIM_TAG_HEADER_TIMESTAMP,
+                    worker.SIM_TAG_HEADER_NONCE,
+                    worker.SIM_TAG_HEADER_SIGNATURE,
+                ],
+                "forbidden_headers": [],
+            },
+        }
+
+        concurrency_lock = threading.Lock()
+        current_concurrency = 0
+        peak_concurrency = 0
+
+        original_sleep = time.sleep
+
+        def fake_make_request(url, sim_headers, timeout_seconds=10.0):
+            nonlocal current_concurrency, peak_concurrency
+            with concurrency_lock:
+                current_concurrency += 1
+                peak_concurrency = max(peak_concurrency, current_concurrency)
+            original_sleep(0.02)
+            with concurrency_lock:
+                current_concurrency -= 1
+            return {"status": 200, "latency_ms": 20, "url": url}
+
+        stdout = io.StringIO()
+        with (
+            mock.patch.dict(os.environ, env, clear=True),
+            mock.patch("scripts.tests.adversarial_container.worker.os.getuid", return_value=1000),
+            mock.patch("scripts.tests.adversarial_container.worker.workspace_mount_absent", return_value=True),
+            mock.patch("scripts.tests.adversarial_container.worker.load_lane_contract", return_value=lane_contract),
+            mock.patch(
+                "scripts.tests.adversarial_container.worker.load_frontier_action_contract",
+                return_value={"schema_version": "frontier_action_contract.v1"},
+            ),
+            mock.patch(
+                "scripts.tests.adversarial_container.worker.resolve_frontier_actions",
+                return_value=actions,
+            ),
+            mock.patch(
+                "scripts.tests.adversarial_container.worker.parse_action_capability_envelopes",
+                return_value=[],
+            ),
+            mock.patch(
+                "scripts.tests.adversarial_container.worker.validate_action_capability_envelopes",
+                return_value=[],
+            ),
+            mock.patch(
+                "scripts.tests.adversarial_container.worker.make_request",
+                side_effect=fake_make_request,
+            ),
+            mock.patch("scripts.tests.adversarial_container.worker.time.sleep") as sleep_mock,
+            contextlib.redirect_stdout(stdout),
+        ):
+            exit_code = worker.main()
+
+        payload = json.loads(stdout.getvalue())
+        receipt = payload["realism_receipt"]
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(payload["requests_sent"], 6)
+        self.assertGreaterEqual(peak_concurrency, 3)
+        self.assertEqual(receipt["burst_sizes"], [3, 3])
+        self.assertEqual(receipt["concurrency_group_sizes"], [3, 3])
+        self.assertEqual(receipt["peak_concurrent_activities"], 3)
+        self.assertEqual(sleep_mock.call_count, 1)
 
 
 if __name__ == "__main__":

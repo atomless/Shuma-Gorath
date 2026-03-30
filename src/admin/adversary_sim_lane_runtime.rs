@@ -17,10 +17,8 @@ use crate::challenge::KeyValueStore;
 use super::adversary_sim::{
     next_llm_fulfillment_plan, AutonomousHeartbeatTickSummary, ControlPhase, ControlState,
     GenerationTickResult, LlmRuntimeResult, RuntimeLane, ScraplingWorkerPlan,
-    ScraplingWorkerResult,
-    WorkerFailureClass, SCRAPLING_MAX_BYTES_PER_TICK, SCRAPLING_MAX_DEPTH_PER_TICK,
-    SCRAPLING_MAX_MS_PER_TICK, SCRAPLING_MAX_REQUESTS_PER_TICK, SCRAPLING_SIM_PROFILE,
-    SCRAPLING_WORKER_PLAN_SCHEMA_VERSION,
+    ScraplingWorkerResult, WorkerFailureClass, SCRAPLING_MAX_BYTES_PER_TICK,
+    SCRAPLING_MAX_DEPTH_PER_TICK, SCRAPLING_SIM_PROFILE, SCRAPLING_WORKER_PLAN_SCHEMA_VERSION,
 };
 use super::adversary_sim_corpus::deterministic_runtime_profile;
 use super::adversary_sim_realism_profile::scrapling_realism_profile_for_mode;
@@ -510,6 +508,7 @@ fn next_scrapling_worker_plan(now: u64, state: &mut ControlState) -> ScraplingWo
         .unwrap_or_else(|| format!("simrun-runtime-{now}"));
     let tick_id = format!("scrapling-tick-{}-{:016x}", now, random::<u64>());
     let fulfillment_mode = scrapling_fulfillment_mode_for_tick(state.generated_tick_count);
+    let realism_profile = scrapling_realism_profile_for_mode(fulfillment_mode);
     let request_proxy_url = optional_scrapling_proxy_env("ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_URL");
     let browser_proxy_url = optional_scrapling_proxy_env("ADVERSARY_SIM_SCRAPLING_BROWSER_PROXY_URL")
         .or_else(|| request_proxy_url.clone());
@@ -534,11 +533,11 @@ fn next_scrapling_worker_plan(now: u64, state: &mut ControlState) -> ScraplingWo
         request_proxy_url,
         browser_proxy_url,
         tick_started_at: now,
-        realism_profile: scrapling_realism_profile_for_mode(fulfillment_mode),
-        max_requests: SCRAPLING_MAX_REQUESTS_PER_TICK,
+        max_requests: realism_profile.pressure_envelope.max_activities,
         max_depth: SCRAPLING_MAX_DEPTH_PER_TICK,
         max_bytes: SCRAPLING_MAX_BYTES_PER_TICK,
-        max_ms: SCRAPLING_MAX_MS_PER_TICK,
+        max_ms: realism_profile.pressure_envelope.max_time_budget_ms,
+        realism_profile,
     }
 }
 
@@ -588,6 +587,37 @@ mod tests {
             serde_json::to_value(&plan.realism_profile).expect("realism profile serializes"),
             *expected
         );
+    }
+
+    #[test]
+    fn scrapling_worker_plan_uses_mode_specific_pressure_envelopes() {
+        let mut crawler_state = ControlState::default();
+        crawler_state.generated_tick_count = 0;
+        let crawler_plan = next_scrapling_worker_plan(1_700_000_100, &mut crawler_state);
+
+        let mut bulk_state = ControlState::default();
+        bulk_state.generated_tick_count = 1;
+        let bulk_plan = next_scrapling_worker_plan(1_700_000_101, &mut bulk_state);
+
+        assert_eq!(
+            crawler_plan.max_requests,
+            crawler_plan.realism_profile.pressure_envelope.max_activities
+        );
+        assert_eq!(
+            bulk_plan.max_requests,
+            bulk_plan.realism_profile.pressure_envelope.max_activities
+        );
+        assert_eq!(
+            crawler_plan.max_ms,
+            crawler_plan.realism_profile.pressure_envelope.max_time_budget_ms
+        );
+        assert_eq!(
+            bulk_plan.max_ms,
+            bulk_plan.realism_profile.pressure_envelope.max_time_budget_ms
+        );
+        assert!(bulk_plan.max_requests > crawler_plan.max_requests);
+        assert!(bulk_plan.max_requests > 8);
+        assert!(bulk_plan.max_ms > 2_000);
     }
 }
 

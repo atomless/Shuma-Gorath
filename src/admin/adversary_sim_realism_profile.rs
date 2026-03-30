@@ -29,6 +29,13 @@ pub(crate) struct LaneRealismReceiptContract {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
+pub(crate) struct LaneRealismPressureEnvelope {
+    pub max_activities: u64,
+    pub max_time_budget_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct LaneRealismProfile {
     pub schema_version: String,
     pub profile_id: String,
@@ -42,6 +49,7 @@ pub(crate) struct LaneRealismProfile {
     pub browser_propensity: String,
     pub javascript_execution: String,
     pub retry_ceiling: u64,
+    pub pressure_envelope: LaneRealismPressureEnvelope,
     pub receipt_contract: LaneRealismReceiptContract,
 }
 
@@ -72,6 +80,13 @@ fn identity_rotation(
         max_every_n_activities,
         stable_session_per_tick,
         proxy_required,
+    }
+}
+
+fn pressure_envelope(max_activities: u64, max_time_budget_ms: u64) -> LaneRealismPressureEnvelope {
+    LaneRealismPressureEnvelope {
+        max_activities,
+        max_time_budget_ms,
     }
 }
 
@@ -119,6 +134,7 @@ pub(crate) fn scrapling_realism_profile_for_mode(fulfillment_mode: &str) -> Lane
             browser_propensity: "none".to_string(),
             javascript_execution: "disabled".to_string(),
             retry_ceiling: 2,
+            pressure_envelope: pressure_envelope(14, 12_000),
             receipt_contract: request_native_receipt_contract(),
         },
         "bulk_scraper" => LaneRealismProfile {
@@ -140,6 +156,7 @@ pub(crate) fn scrapling_realism_profile_for_mode(fulfillment_mode: &str) -> Lane
             browser_propensity: "none".to_string(),
             javascript_execution: "disabled".to_string(),
             retry_ceiling: 2,
+            pressure_envelope: pressure_envelope(45, 30_000),
             receipt_contract: request_native_receipt_contract(),
         },
         "browser_automation" => LaneRealismProfile {
@@ -155,6 +172,7 @@ pub(crate) fn scrapling_realism_profile_for_mode(fulfillment_mode: &str) -> Lane
             browser_propensity: "required".to_string(),
             javascript_execution: "required".to_string(),
             retry_ceiling: 1,
+            pressure_envelope: pressure_envelope(9, 20_000),
             receipt_contract: browser_receipt_contract(),
         },
         "stealth_browser" => LaneRealismProfile {
@@ -170,6 +188,7 @@ pub(crate) fn scrapling_realism_profile_for_mode(fulfillment_mode: &str) -> Lane
             browser_propensity: "required".to_string(),
             javascript_execution: "required".to_string(),
             retry_ceiling: 1,
+            pressure_envelope: pressure_envelope(6, 24_000),
             receipt_contract: browser_receipt_contract(),
         },
         _ => LaneRealismProfile {
@@ -191,6 +210,7 @@ pub(crate) fn scrapling_realism_profile_for_mode(fulfillment_mode: &str) -> Lane
             browser_propensity: "none".to_string(),
             javascript_execution: "disabled".to_string(),
             retry_ceiling: 2,
+            pressure_envelope: pressure_envelope(24, 18_000),
             receipt_contract: request_native_receipt_contract(),
         },
     }
@@ -211,6 +231,7 @@ pub(crate) fn llm_realism_profile_for_mode(fulfillment_mode: &str) -> LaneRealis
             browser_propensity: "required".to_string(),
             javascript_execution: "required".to_string(),
             retry_ceiling: 1,
+            pressure_envelope: pressure_envelope(8, 90_000),
             receipt_contract: browser_receipt_contract(),
         },
         _ => LaneRealismProfile {
@@ -226,12 +247,15 @@ pub(crate) fn llm_realism_profile_for_mode(fulfillment_mode: &str) -> LaneRealis
             browser_propensity: "none".to_string(),
             javascript_execution: "disabled".to_string(),
             retry_ceiling: 2,
+            pressure_envelope: pressure_envelope(24, 120_000),
             receipt_contract: receipt_contract(&[
                 "activity_count",
                 "burst_count",
                 "burst_sizes",
                 "inter_activity_gaps_ms",
                 "focused_page_set_size",
+                "concurrency_group_sizes",
+                "peak_concurrent_activities",
                 "session_handles",
                 "stop_reason",
             ]),

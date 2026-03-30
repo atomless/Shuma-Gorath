@@ -21,6 +21,10 @@
         "browser_propensity": "none",
         "javascript_execution": "disabled",
         "retry_ceiling": 2,
+        "pressure_envelope": {
+          "max_activities": 14,
+          "max_time_budget_ms": 12000
+        },
         "receipt_contract": {
           "schema_version": "sim-lane-realism-receipt.v1",
           "required_fields": [
@@ -53,6 +57,10 @@
         "browser_propensity": "none",
         "javascript_execution": "disabled",
         "retry_ceiling": 2,
+        "pressure_envelope": {
+          "max_activities": 45,
+          "max_time_budget_ms": 30000
+        },
         "receipt_contract": {
           "schema_version": "sim-lane-realism-receipt.v1",
           "required_fields": [
@@ -85,6 +93,10 @@
         "browser_propensity": "required",
         "javascript_execution": "required",
         "retry_ceiling": 1,
+        "pressure_envelope": {
+          "max_activities": 9,
+          "max_time_budget_ms": 20000
+        },
         "receipt_contract": {
           "schema_version": "sim-lane-realism-receipt.v1",
           "required_fields": [
@@ -116,6 +128,10 @@
         "browser_propensity": "required",
         "javascript_execution": "required",
         "retry_ceiling": 1,
+        "pressure_envelope": {
+          "max_activities": 6,
+          "max_time_budget_ms": 24000
+        },
         "receipt_contract": {
           "schema_version": "sim-lane-realism-receipt.v1",
           "required_fields": [
@@ -147,6 +163,10 @@
         "browser_propensity": "none",
         "javascript_execution": "disabled",
         "retry_ceiling": 2,
+        "pressure_envelope": {
+          "max_activities": 24,
+          "max_time_budget_ms": 18000
+        },
         "receipt_contract": {
           "schema_version": "sim-lane-realism-receipt.v1",
           "required_fields": [
@@ -181,6 +201,10 @@
         "browser_propensity": "required",
         "javascript_execution": "required",
         "retry_ceiling": 1,
+        "pressure_envelope": {
+          "max_activities": 8,
+          "max_time_budget_ms": 90000
+        },
         "receipt_contract": {
           "schema_version": "sim-lane-realism-receipt.v1",
           "required_fields": [
@@ -212,6 +236,10 @@
         "browser_propensity": "none",
         "javascript_execution": "disabled",
         "retry_ceiling": 2,
+        "pressure_envelope": {
+          "max_activities": 24,
+          "max_time_budget_ms": 120000
+        },
         "receipt_contract": {
           "schema_version": "sim-lane-realism-receipt.v1",
           "required_fields": [
@@ -220,6 +248,8 @@
             "burst_sizes",
             "inter_activity_gaps_ms",
             "focused_page_set_size",
+            "concurrency_group_sizes",
+            "peak_concurrent_activities",
             "session_handles",
             "stop_reason"
           ]

@@ -4,6 +4,41 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-30)
 
+### SIM-REALISM-2A Unclip Per-Persona Pressure Envelopes And Add Concurrency Realism
+
+- [x] Completed the pressure-envelope tranche across:
+  - [`../src/admin/adversary_sim_realism_profile.rs`](../src/admin/adversary_sim_realism_profile.rs)
+  - [`../src/admin/adversary_sim_lane_runtime.rs`](../src/admin/adversary_sim_lane_runtime.rs)
+  - [`../src/admin/adversary_sim.rs`](../src/admin/adversary_sim.rs)
+  - [`../src/admin/adversary_sim_worker_plan.rs`](../src/admin/adversary_sim_worker_plan.rs)
+  - [`../src/admin/api.rs`](../src/admin/api.rs)
+  - [`../src/observability/operator_snapshot.rs`](../src/observability/operator_snapshot.rs)
+  - [`../scripts/supervisor/llm_runtime_worker.py`](../scripts/supervisor/llm_runtime_worker.py)
+  - [`../scripts/tests/adversarial/lane_realism_contract.v1.json`](../scripts/tests/adversarial/lane_realism_contract.v1.json)
+  - [`../scripts/tests/adversarial_runner/contracts.py`](../scripts/tests/adversarial_runner/contracts.py)
+  - [`../scripts/tests/adversarial_container/worker.py`](../scripts/tests/adversarial_container/worker.py)
+  - [`../scripts/tests/test_scrapling_worker.py`](../scripts/tests/test_scrapling_worker.py)
+  - [`../scripts/tests/test_llm_runtime_worker.py`](../scripts/tests/test_llm_runtime_worker.py)
+  - [`../scripts/tests/test_adversarial_container_worker.py`](../scripts/tests/test_adversarial_container_worker.py)
+  - [`../scripts/tests/test_adversary_sim_make_targets.py`](../scripts/tests/test_adversary_sim_make_targets.py)
+  - [`../Makefile`](../Makefile)
+  - [`../docs/adversarial-operator-guide.md`](../docs/adversarial-operator-guide.md)
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
+- [x] What landed:
+  - request-native Scrapling personas now consume explicit profile-specific pressure envelopes instead of the old flat `8 requests / 2 seconds` ceiling,
+  - Agentic request-mode now executes each realism burst as a bounded concurrent group instead of serializing all micro-bursts through one sequential loop,
+  - the canonical realism contract and both Rust or Python receipt paths now preserve concurrency-group truth and peak concurrent activity,
+  - and the Makefile now exposes a focused `make test-adversary-sim-pressure-envelope-realism` proof path for the new pressure-envelope and concurrency contract.
+- [x] Why:
+  - `SIM-REALISM-2A` was the first field-grounded follow-on tranche after browser-mode realism and was required before any later identity, transport, or traversal realism work could claim to be acting against representative attacker pressure.
+- [x] Evidence:
+  - `make test-adversary-sim-pressure-envelope-realism`
+  - `make test-adversary-sim-scrapling-realism`
+  - `make test-adversarial-llm-realism`
+  - `make test-adversarial-lane-realism-contract`
+  - `make test-adversary-sim-make-target-contract`
+
 ### SIM-REALISM-1D Replace `browser_mode_not_supported` With A Real Agentic Browser Session Lane
 
 - [x] Completed the browser-mode realism tranche across:

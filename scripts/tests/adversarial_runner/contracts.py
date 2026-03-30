@@ -107,6 +107,17 @@ def normalize_lane_realism_profile(
     retry_ceiling = payload.get("retry_ceiling")
     if not _is_non_negative_int(retry_ceiling):
         raise RuntimeError(f"{field_name}.retry_ceiling must be integer >= 0")
+    pressure_envelope = payload.get("pressure_envelope")
+    if not isinstance(pressure_envelope, dict):
+        raise RuntimeError(f"{field_name}.pressure_envelope must be an object")
+    max_activities = pressure_envelope.get("max_activities")
+    max_time_budget_ms = pressure_envelope.get("max_time_budget_ms")
+    if not _is_non_negative_int(max_activities) or int(max_activities) < 1:
+        raise RuntimeError(f"{field_name}.pressure_envelope.max_activities must be integer >= 1")
+    if not _is_non_negative_int(max_time_budget_ms) or int(max_time_budget_ms) < 1:
+        raise RuntimeError(
+            f"{field_name}.pressure_envelope.max_time_budget_ms must be integer >= 1"
+        )
 
     identity_rotation = payload.get("identity_rotation")
     if not isinstance(identity_rotation, dict):
@@ -199,6 +210,10 @@ def normalize_lane_realism_profile(
         "browser_propensity": browser_propensity,
         "javascript_execution": javascript_execution,
         "retry_ceiling": int(retry_ceiling),
+        "pressure_envelope": {
+            "max_activities": int(max_activities),
+            "max_time_budget_ms": int(max_time_budget_ms),
+        },
         "receipt_contract": {
             "schema_version": receipt_schema,
             "required_fields": required_fields,
