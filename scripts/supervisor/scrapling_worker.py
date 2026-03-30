@@ -30,6 +30,10 @@ from scripts.tests.adversarial_runner.identity_envelope import (
     normalize_identity_pool_entries,
     summarize_identity_realism,
 )
+from scripts.tests.adversarial_runner.transport_envelope import (
+    resolve_browser_transport_observation,
+    resolve_request_transport_observation,
+)
 from scripts.tests.adversarial_runner.realism import (
     realism_range_value as _realism_range_value,
     stable_bucket as _stable_bucket,
@@ -142,6 +146,10 @@ class _ScraplingRealismTracker:
         self.identity_handles: list[str] = []
         self.session_handles: list[str] = []
         self.observed_country_codes: list[str] = []
+        self.transport_profile = ""
+        self.observed_user_agent_families: list[str] = []
+        self.observed_accept_languages: list[str] = []
+        self.observed_browser_locales: list[str] = []
         self.identity_rotation_count = 0
         self._last_identity_handle: str | None = None
         self._last_session_handle: str | None = None
@@ -208,6 +216,27 @@ class _ScraplingRealismTracker:
         if self._last_identity_handle and self._last_identity_handle != normalized:
             self.identity_rotation_count += 1
         self._last_identity_handle = normalized
+
+    def observe_transport(
+        self,
+        *,
+        transport_profile: str,
+        user_agent_family: str,
+        accept_language: str,
+        browser_locale: str | None = None,
+    ) -> None:
+        normalized_transport = str(transport_profile or "").strip()
+        if normalized_transport:
+            self.transport_profile = normalized_transport
+        normalized_family = str(user_agent_family or "").strip()
+        if normalized_family and normalized_family not in self.observed_user_agent_families:
+            self.observed_user_agent_families.append(normalized_family)
+        normalized_language = str(accept_language or "").strip()
+        if normalized_language and normalized_language not in self.observed_accept_languages:
+            self.observed_accept_languages.append(normalized_language)
+        normalized_locale = str(browser_locale or "").strip()
+        if normalized_locale and normalized_locale not in self.observed_browser_locales:
+            self.observed_browser_locales.append(normalized_locale)
 
     def _finalize_burst(self) -> None:
         if self.current_burst_size > 0:
@@ -342,6 +371,9 @@ class _ScraplingRealismTracker:
             "planned_burst_size": self.planned_burst_size,
             "effective_burst_size": self.effective_burst_size,
             "activity_count": self.activity_count,
+            "transport_profile": self.transport_profile,
+            "observed_user_agent_families": list(self.observed_user_agent_families),
+            "observed_accept_languages": list(self.observed_accept_languages),
             "identity_realism_status": identity_summary["identity_realism_status"],
             "identity_envelope_classes": list(
                 identity_summary["identity_envelope_classes"]
@@ -362,6 +394,7 @@ class _ScraplingRealismTracker:
                 {
                     "top_level_action_count": self.activity_count,
                     "dwell_intervals_ms": list(self.dwell_intervals_ms),
+                    "observed_browser_locales": list(self.observed_browser_locales),
                     "session_handles": list(self.session_handles),
                 }
             )
@@ -395,6 +428,7 @@ class _PacedRequestNativeSession:
         timeout_seconds: float,
         accept_header: str,
         proxy_url: str | None,
+        request_transport: dict[str, str],
         identity_pool: list[dict[str, str]] | None = None,
     ) -> None:
         self.session_cls = session_cls
@@ -402,6 +436,7 @@ class _PacedRequestNativeSession:
         self.timeout_seconds = timeout_seconds
         self.accept_header = accept_header
         self.proxy_url = proxy_url
+        self.request_transport = dict(request_transport)
         self.identity_pool = list(identity_pool or [])
         self._session_cm: Any | None = None
         self._session: Any | None = None
@@ -431,11 +466,19 @@ class _PacedRequestNativeSession:
             current_proxy_url = str(entry.get("proxy_url") or "").strip() or None
             current_identity_handle = f"request-session-{str(entry.get('label') or '').strip()}"
             current_country_code = str(entry.get("country_code") or "").strip().upper() or None
+            request_transport = resolve_request_transport_observation(
+                self.tracker.realism_tracker.profile,
+                country_code=current_country_code,
+            )
+        else:
+            request_transport = dict(self.request_transport)
         self._session_cm = self.session_cls(
             **_request_native_session_kwargs(
                 timeout_seconds=self.timeout_seconds,
                 accept_header=self.accept_header,
                 proxy_url=current_proxy_url,
+                request_impersonate=str(request_transport.get("request_impersonate") or "chrome"),
+                accept_language=str(request_transport.get("accept_language") or "en-US,en;q=0.9"),
             ),
         )
         self._session = self._session_cm.__enter__()
@@ -444,6 +487,11 @@ class _PacedRequestNativeSession:
             current_identity_handle or f"request-session-{self._session_index}"
         )
         self._current_country_code = current_country_code
+        self.tracker.realism_tracker.observe_transport(
+            transport_profile=str(request_transport.get("transport_profile") or ""),
+            user_agent_family=str(request_transport.get("user_agent_family") or ""),
+            accept_language=str(request_transport.get("accept_language") or ""),
+        )
         if self._session_index > 1:
             self.tracker.realism_tracker.note_rotation()
 
@@ -862,15 +910,20 @@ def _request_native_session_kwargs(
     *,
     timeout_seconds: float,
     accept_header: str,
+    request_impersonate: str,
+    accept_language: str,
     proxy_url: str | None = None,
 ) -> dict[str, Any]:
     kwargs = {
-        "impersonate": "chrome",
+        "impersonate": request_impersonate,
         "stealthy_headers": True,
         "follow_redirects": False,
         "timeout": timeout_seconds,
         "retries": 1,
-        "headers": {"accept": accept_header},
+        "headers": {
+            "accept": accept_header,
+            "accept-language": accept_language,
+        },
     }
     if proxy_url:
         kwargs["proxy"] = proxy_url
@@ -881,6 +934,8 @@ def _browser_session_kwargs(
     *,
     fulfillment_mode: str,
     timeout_ms: int,
+    locale: str,
+    useragent: str,
     proxy_url: str | None = None,
 ) -> dict[str, Any]:
     kwargs: dict[str, Any] = {
@@ -893,7 +948,8 @@ def _browser_session_kwargs(
         "wait": min(500, max(100, timeout_ms // 12)),
         "retries": 1,
         "retry_delay": 0,
-        "locale": "en-GB",
+        "locale": locale,
+        "useragent": useragent,
     }
     if fulfillment_mode == "stealth_browser":
         kwargs.update(
@@ -984,6 +1040,19 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
                     or self.request_identity_pool
                 ),
             )
+            self.request_transport = resolve_request_transport_observation(
+                self.realism_tracker.profile,
+                country_code=(
+                    str(self.request_identity_pool[0].get("country_code") or "").strip().upper()
+                    if self.request_identity_pool
+                    else None
+                ),
+            )
+            self.realism_tracker.observe_transport(
+                transport_profile=str(self.request_transport.get("transport_profile") or ""),
+                user_agent_family=str(self.request_transport.get("user_agent_family") or ""),
+                accept_language=str(self.request_transport.get("accept_language") or ""),
+            )
             self.deadline = time.monotonic() + (self.max_ms / 1000.0)
             self.sim_telemetry_secret = sim_telemetry_secret
             self.request_sequence = 0
@@ -1013,6 +1082,8 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
                 fetcher_session_cls(**_request_native_session_kwargs(
                     timeout_seconds=timeout_seconds,
                     accept_header="*/*",
+                    request_impersonate=str(self.request_transport.get("request_impersonate") or "chrome"),
+                    accept_language=str(self.request_transport.get("accept_language") or "en-US,en;q=0.9"),
                     proxy_url=request_proxy_url,
                 )),
             )
@@ -1024,7 +1095,7 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
                 or time.monotonic() >= self.deadline
             )
 
-        def _next_headers(self) -> dict[str, str]:
+        def _next_headers(self, extra_headers: dict[str, str] | None = None) -> dict[str, str]:
             self.request_sequence += 1
             return _signed_headers(
                 self.sim_telemetry_secret,
@@ -1033,6 +1104,7 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
                 lane=self.lane,
                 fulfillment_mode=self.fulfillment_mode,
                 seq=self.request_sequence,
+                extra_headers=extra_headers,
             )
 
         def _record_rejection(self, reason: str | None) -> None:
@@ -1066,7 +1138,9 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
                     url,
                     sid="default",
                     meta={"depth": 0},
-                    headers=self._next_headers(),
+                    headers=self._next_headers(
+                        {"accept-language": str(self.request_transport.get("accept_language") or "")}
+                    ),
                 )
 
         async def parse(self, response) -> AsyncGenerator[Any, None]:
@@ -1122,7 +1196,13 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
                         yield response.follow(
                             normalized_url,
                             meta={"depth": next_depth},
-                            headers=self._next_headers(),
+                            headers=self._next_headers(
+                                {
+                                    "accept-language": str(
+                                        self.request_transport.get("accept_language") or ""
+                                    )
+                                }
+                            ),
                         )
                 return
 
@@ -1140,7 +1220,13 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
                         yield response.follow(
                             normalized_url,
                             meta={"depth": next_depth},
-                            headers=self._next_headers(),
+                            headers=self._next_headers(
+                                {
+                                    "accept-language": str(
+                                        self.request_transport.get("accept_language") or ""
+                                    )
+                                }
+                            ),
                         )
                         if self._should_stop():
                             self.pause()
@@ -1515,6 +1601,9 @@ def _execute_bulk_scraper_persona(
         timeout_seconds=max(1.0, min(30.0, tracker.max_ms / 1000.0)),
         accept_header="text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         proxy_url=request_proxy_url,
+        request_transport=resolve_request_transport_observation(
+            tracker.realism_tracker.profile
+        ),
         identity_pool=request_identity_pool,
     ) as session:
         root_surface_ids = ["public_path_traversal", *_public_discovery_surface_ids(surface_targets)]
@@ -1526,7 +1615,6 @@ def _execute_bulk_scraper_persona(
                 "get",
                 base_url,
                 surface_ids=root_surface_ids,
-                headers={"accept-language": "en-GB,en;q=0.8"},
             ),
         )
         if root_response is not None:
@@ -1545,7 +1633,6 @@ def _execute_bulk_scraper_persona(
                     "get",
                     candidate,
                     surface_ids=["public_path_traversal"],
-                    headers={"accept-language": "en-GB,en;q=0.8"},
                 ),
             )
             if response is None:
@@ -1561,7 +1648,6 @@ def _execute_bulk_scraper_persona(
                 request_spec=_request_spec(
                     "get",
                     challenge_page,
-                    headers={"accept-language": "en-GB,en;q=0.8"},
                 ),
             )
             form_targets = _response_form_targets(challenge_response) if challenge_response is not None else []
@@ -1641,6 +1727,9 @@ def _execute_http_agent_persona(
         timeout_seconds=max(1.0, min(30.0, tracker.max_ms / 1000.0)),
         accept_header="application/json",
         proxy_url=request_proxy_url,
+        request_transport=resolve_request_transport_observation(
+            tracker.realism_tracker.profile
+        ),
         identity_pool=request_identity_pool,
     ) as session:
         root_response = _perform_request(
@@ -1651,7 +1740,6 @@ def _execute_http_agent_persona(
                 "get",
                 base_url,
                 surface_ids=_public_discovery_surface_ids(surface_targets),
-                headers={"accept-language": "en-GB,en;q=0.8"},
             ),
         )
         root_links = _response_anchor_targets(root_response) if root_response is not None else []
@@ -1677,7 +1765,6 @@ def _execute_http_agent_persona(
                 request_spec=_request_spec(
                     "get",
                     challenge_target,
-                    headers={"accept-language": "en-GB,en;q=0.8"},
                 ),
             )
             challenge_forms = _response_form_targets(challenge_response) if challenge_response is not None else []
@@ -1734,7 +1821,6 @@ def _execute_http_agent_persona(
                 request_spec=_request_spec(
                     "get",
                     pow_target,
-                    headers={"accept-language": "en-GB,en;q=0.8"},
                 ),
             )
             pow_forms = _response_form_targets(pow_response) if pow_response is not None else []
@@ -1893,6 +1979,21 @@ def _execute_browser_persona(
             str(browser_identity_pool[0].get("proxy_url") or "").strip()
             or browser_proxy_url
         )
+    browser_country_code = (
+        str(browser_identity_pool[0].get("country_code") or "").strip().upper()
+        if browser_identity_pool
+        else None
+    )
+    browser_transport = resolve_browser_transport_observation(
+        tracker.realism_tracker.profile,
+        country_code=browser_country_code,
+    )
+    tracker.realism_tracker.observe_transport(
+        transport_profile=str(browser_transport.get("transport_profile") or ""),
+        user_agent_family=str(browser_transport.get("user_agent_family") or ""),
+        accept_language=str(browser_transport.get("accept_language") or ""),
+        browser_locale=str(browser_transport.get("browser_locale") or ""),
+    )
     start_urls = _normalized_start_urls(seed_inventory)
     if not start_urls:
         raise WorkerConfigError("seed inventory must contain at least one accepted start or hint URL")
@@ -1903,6 +2004,8 @@ def _execute_browser_persona(
         **_browser_session_kwargs(
             fulfillment_mode=tracker.fulfillment_mode,
             timeout_ms=timeout_ms,
+            locale=str(browser_transport.get("browser_locale") or "en-US"),
+            useragent=str(browser_transport.get("user_agent") or ""),
             proxy_url=browser_proxy_url,
         ),
     ) as session:
@@ -1913,11 +2016,6 @@ def _execute_browser_persona(
             if browser_identity_pool
             else "browser-session-1"
         )
-        browser_country_code = (
-            str(browser_identity_pool[0].get("country_code") or "").strip().upper()
-            if browser_identity_pool
-            else None
-        )
         try:
             tracker.realism_tracker.prepare_browser_action(
                 browser_session_handle,
@@ -1926,7 +2024,9 @@ def _execute_browser_persona(
             )
             root_response = session.fetch(
                 root_target,
-                extra_headers=tracker.next_headers({"accept-language": "en-GB,en;q=0.8"}),
+                extra_headers=tracker.next_headers(
+                    {"accept-language": str(browser_transport.get("accept_language") or "")}
+                ),
                 page_action=_browser_root_discovery_page_action(root_state),
             )
             tracker.record_response(
@@ -1964,7 +2064,9 @@ def _execute_browser_persona(
                 )
                 response = session.fetch(
                     pow_target,
-                    extra_headers=tracker.next_headers({"accept-language": "en-GB,en;q=0.8"}),
+                    extra_headers=tracker.next_headers(
+                        {"accept-language": str(browser_transport.get("accept_language") or "")}
+                    ),
                     page_action=_pow_surface_page_action(pow_state),
                 )
                 tracker.record_response(
@@ -2040,7 +2142,9 @@ def _execute_browser_persona(
                 )
                 response = session.fetch(
                     maze_target,
-                    extra_headers=tracker.next_headers({"accept-language": "en-GB,en;q=0.8"}),
+                    extra_headers=tracker.next_headers(
+                        {"accept-language": str(browser_transport.get("accept_language") or "")}
+                    ),
                     page_action=_maze_navigation_page_action(maze_state),
                 )
                 tracker.record_response(

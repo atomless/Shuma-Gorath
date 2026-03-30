@@ -455,6 +455,7 @@ async function runScenario(payload) {
     payload.trusted_forwarded_secret,
   );
   const userAgent = String(payload.user_agent || "ShumaAdversarial/1.0 browser-driver");
+  const locale = String(payload.locale || "en-US");
   const simIdentity = normalizeSimIdentity(payload.sim_identity);
   const timeoutMs = clampInt(payload.timeout_ms, 1000, 60000, 15000);
   const settleMs = clampInt(payload.settle_ms, 0, 5000, 200);
@@ -505,6 +506,7 @@ async function runScenario(payload) {
     }
     const context = await browser.newContext({
       userAgent,
+      locale,
       extraHTTPHeaders: contextHeaders,
       ignoreHTTPSErrors: true,
       javaScriptEnabled: javascriptEnabled,
@@ -794,6 +796,29 @@ async function runScenario(payload) {
             top_level_action_count: topLevelActions.length,
             focused_page_set_size: focusedPagePaths.length,
             dwell_intervals_ms: usedDwells,
+            transport_profile:
+              String(sessionPlanRaw.transport_profile || "").trim() || "playwright_chromium",
+            observed_user_agent_families: Array.isArray(
+              sessionPlanRaw.observed_user_agent_families,
+            )
+              ? sessionPlanRaw.observed_user_agent_families
+                  .map((value) => String(value || "").trim())
+                  .filter(Boolean)
+              : [],
+            observed_accept_languages: Array.isArray(
+              sessionPlanRaw.observed_accept_languages,
+            )
+              ? sessionPlanRaw.observed_accept_languages
+                  .map((value) => String(value || "").trim())
+                  .filter(Boolean)
+              : [],
+            observed_browser_locales: Array.isArray(
+              sessionPlanRaw.observed_browser_locales,
+            )
+              ? sessionPlanRaw.observed_browser_locales
+                  .map((value) => String(value || "").trim())
+                  .filter(Boolean)
+              : [locale],
             identity_realism_status:
               String(sessionPlanRaw.identity_realism_status || "").trim() || "degraded_local",
             identity_envelope_classes: Array.isArray(sessionPlanRaw.identity_envelope_classes)

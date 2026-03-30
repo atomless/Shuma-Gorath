@@ -8,7 +8,7 @@
 
 **Related research:** [`../research/2026-03-30-adversary-lane-wild-traffic-gap-review.md`](../research/2026-03-30-adversary-lane-wild-traffic-gap-review.md)
 
-**Status note:** `SIM-REALISM-2A` and `SIM-REALISM-2B` are now landed. The next active realism tranche is `SIM-REALISM-2C`, which will add coherent persona and identity-specific header, locale, and transport envelopes on top of the new pressure and identity contract.
+**Status note:** `SIM-REALISM-2A`, `SIM-REALISM-2B`, and `SIM-REALISM-2C` are now landed. The next active realism tranche is `SIM-REALISM-2D`, which will add browser secondary-traffic truth on top of the new pressure, identity, and transport-envelope contract.
 
 ---
 
@@ -86,6 +86,8 @@
 2. Keep recent-run projection and machine-contract tests green if receipt or observer shapes change.
 
 ## Task 4: `SIM-REALISM-2C` Add Coherent Header, Locale, And Transport Envelopes
+
+**Status:** landed on 2026-03-30. The shared realism contract now carries a bounded `transport_envelope`, request-native Scrapling and Agentic request-mode now emit coherent persona or geo-aligned header posture, and Agentic browser-mode now carries explicit browser locale plus client posture into the Playwright session and receipt contract.
 
 **Files:**
 - Later code targets: `scripts/supervisor/scrapling_worker.py`, `scripts/tests/adversarial_container/worker.py`, `scripts/tests/adversarial_runner/llm_fulfillment.py`, `src/admin/adversary_sim_realism_profile.rs`

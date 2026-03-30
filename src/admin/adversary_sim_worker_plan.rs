@@ -38,6 +38,12 @@ pub struct ScraplingRealismReceipt {
     pub burst_sizes: Vec<u64>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub inter_activity_gaps_ms: Vec<u64>,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub transport_profile: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub observed_user_agent_families: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub observed_accept_languages: Vec<String>,
     pub identity_realism_status: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub identity_envelope_classes: Vec<String>,
@@ -49,6 +55,8 @@ pub struct ScraplingRealismReceipt {
     pub top_level_action_count: Option<u64>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub dwell_intervals_ms: Vec<u64>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub observed_browser_locales: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub identity_handles: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -148,6 +156,12 @@ pub struct LlmRuntimeRealismReceipt {
     pub burst_sizes: Vec<u64>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub inter_activity_gaps_ms: Vec<u64>,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub transport_profile: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub observed_user_agent_families: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub observed_accept_languages: Vec<String>,
     pub identity_realism_status: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub identity_envelope_classes: Vec<String>,
@@ -161,6 +175,8 @@ pub struct LlmRuntimeRealismReceipt {
     pub top_level_action_count: Option<u64>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub dwell_intervals_ms: Vec<u64>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub observed_browser_locales: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub concurrency_group_sizes: Vec<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

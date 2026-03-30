@@ -31,6 +31,17 @@ pub(crate) struct LaneRealismIdentityEnvelope {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
+pub(crate) struct LaneRealismTransportEnvelope {
+    pub request_client_posture: String,
+    pub browser_client_posture: String,
+    pub accept_language_strategy: String,
+    pub browser_locale_strategy: String,
+    pub request_transport_profile: String,
+    pub browser_transport_profile: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct LaneRealismReceiptContract {
     pub schema_version: String,
     pub required_fields: Vec<String>,
@@ -56,6 +67,7 @@ pub(crate) struct LaneRealismProfile {
     pub navigation_dwell_ms: LaneRealismRange,
     pub identity_rotation: LaneRealismIdentityRotation,
     pub identity_envelope: LaneRealismIdentityEnvelope,
+    pub transport_envelope: LaneRealismTransportEnvelope,
     pub browser_propensity: String,
     pub javascript_execution: String,
     pub retry_ceiling: u64,
@@ -117,12 +129,33 @@ fn identity_envelope(
     }
 }
 
+fn transport_envelope(
+    request_client_posture: &str,
+    browser_client_posture: &str,
+    accept_language_strategy: &str,
+    browser_locale_strategy: &str,
+    request_transport_profile: &str,
+    browser_transport_profile: &str,
+) -> LaneRealismTransportEnvelope {
+    LaneRealismTransportEnvelope {
+        request_client_posture: request_client_posture.to_string(),
+        browser_client_posture: browser_client_posture.to_string(),
+        accept_language_strategy: accept_language_strategy.to_string(),
+        browser_locale_strategy: browser_locale_strategy.to_string(),
+        request_transport_profile: request_transport_profile.to_string(),
+        browser_transport_profile: browser_transport_profile.to_string(),
+    }
+}
+
 fn request_native_receipt_contract() -> LaneRealismReceiptContract {
     receipt_contract(&[
         "activity_count",
         "burst_count",
         "burst_sizes",
         "inter_activity_gaps_ms",
+        "transport_profile",
+        "observed_user_agent_families",
+        "observed_accept_languages",
         "identity_realism_status",
         "identity_envelope_classes",
         "geo_affinity_mode",
@@ -139,6 +172,10 @@ fn browser_receipt_contract() -> LaneRealismReceiptContract {
         "activity_count",
         "top_level_action_count",
         "dwell_intervals_ms",
+        "transport_profile",
+        "observed_user_agent_families",
+        "observed_accept_languages",
+        "observed_browser_locales",
         "identity_realism_status",
         "identity_envelope_classes",
         "geo_affinity_mode",
@@ -174,6 +211,14 @@ pub(crate) fn scrapling_realism_profile_for_mode(fulfillment_mode: &str) -> Lane
                 "stable_per_identity",
                 "local_session_only",
             ),
+            transport_envelope: transport_envelope(
+                "desktop_browser_like",
+                "desktop_browser_like",
+                "identity_geo_aligned",
+                "identity_geo_aligned",
+                "curl_impersonate",
+                "playwright_chromium",
+            ),
             browser_propensity: "none".to_string(),
             javascript_execution: "disabled".to_string(),
             retry_ceiling: 2,
@@ -202,6 +247,14 @@ pub(crate) fn scrapling_realism_profile_for_mode(fulfillment_mode: &str) -> Lane
                 "stable_per_identity",
                 "local_session_only",
             ),
+            transport_envelope: transport_envelope(
+                "mobile_browser_like",
+                "desktop_browser_like",
+                "identity_geo_aligned",
+                "identity_geo_aligned",
+                "curl_impersonate",
+                "playwright_chromium",
+            ),
             browser_propensity: "none".to_string(),
             javascript_execution: "disabled".to_string(),
             retry_ceiling: 2,
@@ -224,6 +277,14 @@ pub(crate) fn scrapling_realism_profile_for_mode(fulfillment_mode: &str) -> Lane
                 "stable_per_tick",
                 "local_browser_session_only",
             ),
+            transport_envelope: transport_envelope(
+                "desktop_browser_like",
+                "desktop_browser_like",
+                "identity_geo_aligned",
+                "identity_geo_aligned",
+                "curl_impersonate",
+                "playwright_chromium",
+            ),
             browser_propensity: "required".to_string(),
             javascript_execution: "required".to_string(),
             retry_ceiling: 1,
@@ -245,6 +306,14 @@ pub(crate) fn scrapling_realism_profile_for_mode(fulfillment_mode: &str) -> Lane
                 "pool_aligned",
                 "stable_per_tick",
                 "local_browser_session_only",
+            ),
+            transport_envelope: transport_envelope(
+                "desktop_browser_like",
+                "desktop_browser_like",
+                "identity_geo_aligned",
+                "identity_geo_aligned",
+                "curl_impersonate",
+                "playwright_chromium",
             ),
             browser_propensity: "required".to_string(),
             javascript_execution: "required".to_string(),
@@ -274,6 +343,14 @@ pub(crate) fn scrapling_realism_profile_for_mode(fulfillment_mode: &str) -> Lane
                 "stable_per_identity",
                 "local_session_only",
             ),
+            transport_envelope: transport_envelope(
+                "desktop_browser_like",
+                "desktop_browser_like",
+                "identity_geo_aligned",
+                "identity_geo_aligned",
+                "curl_impersonate",
+                "playwright_chromium",
+            ),
             browser_propensity: "none".to_string(),
             javascript_execution: "disabled".to_string(),
             retry_ceiling: 2,
@@ -301,6 +378,14 @@ pub(crate) fn llm_realism_profile_for_mode(fulfillment_mode: &str) -> LaneRealis
                 "stable_per_tick",
                 "local_browser_session_only",
             ),
+            transport_envelope: transport_envelope(
+                "desktop_browser_like",
+                "desktop_browser_like",
+                "identity_geo_aligned",
+                "identity_geo_aligned",
+                "urllib_direct",
+                "playwright_chromium",
+            ),
             browser_propensity: "required".to_string(),
             javascript_execution: "required".to_string(),
             retry_ceiling: 1,
@@ -323,6 +408,14 @@ pub(crate) fn llm_realism_profile_for_mode(fulfillment_mode: &str) -> LaneRealis
                 "stable_per_identity",
                 "local_session_only",
             ),
+            transport_envelope: transport_envelope(
+                "mobile_browser_like",
+                "desktop_browser_like",
+                "identity_geo_aligned",
+                "identity_geo_aligned",
+                "urllib_direct",
+                "playwright_chromium",
+            ),
             browser_propensity: "none".to_string(),
             javascript_execution: "disabled".to_string(),
             retry_ceiling: 2,
@@ -335,6 +428,15 @@ pub(crate) fn llm_realism_profile_for_mode(fulfillment_mode: &str) -> LaneRealis
                 "focused_page_set_size",
                 "concurrency_group_sizes",
                 "peak_concurrent_activities",
+                "transport_profile",
+                "observed_user_agent_families",
+                "observed_accept_languages",
+                "identity_realism_status",
+                "identity_envelope_classes",
+                "geo_affinity_mode",
+                "session_stickiness",
+                "observed_country_codes",
+                "identity_rotation_count",
                 "session_handles",
                 "stop_reason",
             ]),

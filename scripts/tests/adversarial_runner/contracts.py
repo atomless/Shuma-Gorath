@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 from typing import Any, Dict
 
+from scripts.tests.adversarial_runner.transport_envelope import normalize_transport_envelope
+
 LANE_CONTRACT_PATH = Path("scripts/tests/adversarial/lane_contract.v1.json")
 LANE_REALISM_CONTRACT_PATH = Path("scripts/tests/adversarial/lane_realism_contract.v1.json")
 SIM_TAG_CONTRACT_PATH = Path("scripts/tests/adversarial/sim_tag_contract.v1.json")
@@ -247,6 +249,10 @@ def normalize_lane_realism_profile(
             "session_stickiness": session_stickiness,
             "degraded_without_pool": degraded_without_pool,
         },
+        "transport_envelope": normalize_transport_envelope(
+            payload.get("transport_envelope"),
+            field_name=f"{field_name}.transport_envelope",
+        ),
         "browser_propensity": browser_propensity,
         "javascript_execution": javascript_execution,
         "retry_ceiling": int(retry_ceiling),

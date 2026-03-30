@@ -533,20 +533,26 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
         self.assertEqual(result["failure_class"], "transport")
         self.assertIn("realism_profile", str(result.get("error") or ""))
 
-    def test_request_native_session_kwargs_lock_explicit_chrome_impersonation_contract(self) -> None:
+    def test_request_native_session_kwargs_support_mobile_posture_and_geo_aligned_language(self) -> None:
         self.assertIsNotNone(scrapling_worker, "worker module missing")
 
         kwargs = scrapling_worker._request_native_session_kwargs(  # type: ignore[attr-defined]
             timeout_seconds=4.0,
             accept_header="application/json",
+            request_impersonate="chrome131_android",
+            accept_language="fr-FR,fr;q=0.9,en-US;q=0.7,en;q=0.6",
         )
 
-        self.assertEqual(kwargs["impersonate"], "chrome")
+        self.assertEqual(kwargs["impersonate"], "chrome131_android")
         self.assertTrue(kwargs["stealthy_headers"])
         self.assertFalse(kwargs["follow_redirects"])
         self.assertEqual(kwargs["retries"], 1)
         self.assertEqual(kwargs["timeout"], 4.0)
         self.assertEqual(kwargs["headers"]["accept"], "application/json")
+        self.assertEqual(
+            kwargs["headers"]["accept-language"],
+            "fr-FR,fr;q=0.9,en-US;q=0.7,en;q=0.6",
+        )
         self.assertNotIn("user-agent", {key.lower(): value for key, value in kwargs["headers"].items()})
 
     def test_request_native_session_kwargs_accept_optional_proxy_contract(self) -> None:
@@ -555,6 +561,8 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
         kwargs = scrapling_worker._request_native_session_kwargs(  # type: ignore[attr-defined]
             timeout_seconds=4.0,
             accept_header="application/json",
+            request_impersonate="chrome",
+            accept_language="en-US,en;q=0.9",
             proxy_url="http://127.0.0.1:8899",
         )
 
@@ -567,9 +575,13 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
             fulfillment_mode="stealth_browser",
             timeout_ms=4000,
             proxy_url="http://127.0.0.1:9900",
+            locale="fr-FR",
+            useragent="Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36",
         )
 
         self.assertEqual(kwargs["proxy"], "http://127.0.0.1:9900")
+        self.assertEqual(kwargs["locale"], "fr-FR")
+        self.assertIn("Android 14", kwargs["useragent"])
         self.assertTrue(kwargs["hide_canvas"])
         self.assertTrue(kwargs["block_webrtc"])
 
@@ -965,6 +977,9 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
             max(0, receipt["activity_count"] - 1),
         )
         self.assertGreaterEqual(len(receipt["identity_handles"]), 1)
+        self.assertEqual(receipt["transport_profile"], "curl_impersonate")
+        self.assertIn("chrome_android", receipt["observed_user_agent_families"])
+        self.assertIn("en-US,en;q=0.9", receipt["observed_accept_languages"])
         self.assertGreaterEqual(sleep_mock.call_count, len(receipt["inter_activity_gaps_ms"]))
         self.assertIn(
             receipt["stop_reason"],
@@ -1000,6 +1015,10 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
         self.assertGreaterEqual(receipt["planned_activity_budget"], 4)
         self.assertEqual(receipt["top_level_action_count"], receipt["activity_count"])
         self.assertGreaterEqual(len(receipt["session_handles"]), 1)
+        self.assertEqual(receipt["transport_profile"], "playwright_chromium")
+        self.assertIn("chrome_desktop", receipt["observed_user_agent_families"])
+        self.assertIn("en-US,en;q=0.9", receipt["observed_accept_languages"])
+        self.assertIn("en-US", receipt["observed_browser_locales"])
         self.assertEqual(
             len(receipt["dwell_intervals_ms"]),
             max(0, receipt["top_level_action_count"] - 1),

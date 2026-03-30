@@ -4,6 +4,46 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-30)
 
+### SIM-REALISM-2C Add Coherent Header, Locale, And Transport Envelopes
+
+- [x] Completed the header or locale realism tranche across:
+  - [`../src/admin/adversary_sim_realism_profile.rs`](../src/admin/adversary_sim_realism_profile.rs)
+  - [`../src/admin/adversary_sim_worker_plan.rs`](../src/admin/adversary_sim_worker_plan.rs)
+  - [`../src/admin/api.rs`](../src/admin/api.rs)
+  - [`../src/observability/operator_snapshot.rs`](../src/observability/operator_snapshot.rs)
+  - [`../scripts/tests/adversarial/lane_realism_contract.v1.json`](../scripts/tests/adversarial/lane_realism_contract.v1.json)
+  - [`../scripts/tests/adversarial_runner/contracts.py`](../scripts/tests/adversarial_runner/contracts.py)
+  - [`../scripts/tests/adversarial_runner/transport_envelope.py`](../scripts/tests/adversarial_runner/transport_envelope.py)
+  - [`../scripts/supervisor/scrapling_worker.py`](../scripts/supervisor/scrapling_worker.py)
+  - [`../scripts/supervisor/llm_runtime_worker.py`](../scripts/supervisor/llm_runtime_worker.py)
+  - [`../scripts/tests/adversarial_container/worker.py`](../scripts/tests/adversarial_container/worker.py)
+  - [`../scripts/tests/adversarial_browser_driver.mjs`](../scripts/tests/adversarial_browser_driver.mjs)
+  - [`../scripts/tests/test_scrapling_worker.py`](../scripts/tests/test_scrapling_worker.py)
+  - [`../scripts/tests/test_llm_runtime_worker.py`](../scripts/tests/test_llm_runtime_worker.py)
+  - [`../scripts/tests/test_adversarial_container_worker.py`](../scripts/tests/test_adversarial_container_worker.py)
+  - [`../scripts/tests/test_adversarial_lane_realism_contract.py`](../scripts/tests/test_adversarial_lane_realism_contract.py)
+  - [`../scripts/tests/test_adversary_sim_make_targets.py`](../scripts/tests/test_adversary_sim_make_targets.py)
+  - [`../Makefile`](../Makefile)
+  - [`../docs/adversarial-operator-guide.md`](../docs/adversarial-operator-guide.md)
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
+  - [`../todos/todo.md`](../todos/todo.md)
+- [x] What landed:
+  - the canonical lane realism contract now carries a bounded `transport_envelope` covering request and browser client posture, geo-aligned Accept-Language or locale strategy, and the transport profile the current libraries expose,
+  - Scrapling request-native personas now use coherent persona-specific impersonation and Accept-Language posture instead of pinning everything to one `en-GB` default, while Scrapling browser personas now carry explicit locale and browser user-agent posture into the dynamic browser session,
+  - Agentic request-mode now emits explicit per-action request headers aligned to the chosen identity envelope, Agentic browser-mode now passes explicit locale and browser client posture into the Playwright session, and both receipt paths preserve transport-profile plus header or locale evidence as observer-only truth,
+  - and the new focused `make test-adversary-sim-header-transport-realism` lane freezes the planner, worker, receipt, and Makefile selector contract for this slice.
+- [x] Why:
+  - `SIM-REALISM-2C` was the next field-grounded realism gap after pressure and identity work and was required before later browser-secondary-traffic or deeper traversal realism could claim to sit on a representative header or locale posture.
+- [x] Evidence:
+  - `make test-adversary-sim-header-transport-realism`
+  - `make test-adversarial-lane-realism-contract`
+  - `make test-adversarial-llm-realism`
+  - `make test-adversarial-llm-browser-runtime`
+  - `make test-adversary-sim-scrapling-realism`
+  - `make test-admin-machine-contracts`
+  - `make test-adversary-sim-make-target-contract`
+
 ### SIM-REALISM-2B Add Proxy-Pool And Identity-Envelope Realism Across Scrapling And Agentic Traffic
 
 - [x] Completed the identity-envelope tranche across:

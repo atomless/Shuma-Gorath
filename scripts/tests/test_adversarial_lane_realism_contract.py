@@ -52,6 +52,38 @@ class AdversarialLaneRealismContractUnitTests(unittest.TestCase):
             profile["identity_envelope"]["identity_classes"],
         )
 
+    def test_bulk_scraper_profile_surfaces_transport_envelope_contract(self):
+        profile = contracts.resolve_lane_realism_profile("scrapling_traffic", "bulk_scraper")
+
+        self.assertEqual(
+            profile["transport_envelope"]["request_client_posture"],
+            "mobile_browser_like",
+        )
+        self.assertEqual(
+            profile["transport_envelope"]["accept_language_strategy"],
+            "identity_geo_aligned",
+        )
+        self.assertEqual(
+            profile["transport_envelope"]["request_transport_profile"],
+            "curl_impersonate",
+        )
+
+    def test_browser_mode_profile_surfaces_browser_locale_transport_contract(self):
+        profile = contracts.resolve_lane_realism_profile("bot_red_team", "browser_mode")
+
+        self.assertEqual(
+            profile["transport_envelope"]["browser_client_posture"],
+            "desktop_browser_like",
+        )
+        self.assertEqual(
+            profile["transport_envelope"]["browser_locale_strategy"],
+            "identity_geo_aligned",
+        )
+        self.assertEqual(
+            profile["transport_envelope"]["browser_transport_profile"],
+            "playwright_chromium",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

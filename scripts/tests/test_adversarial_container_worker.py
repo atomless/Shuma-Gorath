@@ -88,6 +88,17 @@ class AdversarialContainerWorkerUnitTests(unittest.TestCase):
             "inter_action_gaps_ms": [150, 220, 1400, 180, 240, 1300, 160, 210],
             "focused_page_paths": ["/", "/robots.txt"],
             "session_handles": ["agentic-request-session-1"],
+            "action_request_headers": [
+                {
+                    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                    "accept-language": "fr-FR,fr;q=0.9,en-US;q=0.7,en;q=0.6",
+                    "user-agent": "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36",
+                }
+                for _ in range(9)
+            ],
+            "observed_user_agent_families": ["chrome_android"],
+            "observed_accept_languages": ["fr-FR,fr;q=0.9,en-US;q=0.7,en;q=0.6"],
+            "transport_profile": "urllib_direct",
         }
         env = {
             "BLACKBOX_MODE": "blackbox",
@@ -176,6 +187,12 @@ class AdversarialContainerWorkerUnitTests(unittest.TestCase):
             receipt["identity_envelope_classes"],
             ["residential", "mobile"],
         )
+        self.assertEqual(receipt["transport_profile"], "urllib_direct")
+        self.assertEqual(receipt["observed_user_agent_families"], ["chrome_android"])
+        self.assertEqual(
+            receipt["observed_accept_languages"],
+            ["fr-FR,fr;q=0.9,en-US;q=0.7,en;q=0.6"],
+        )
         self.assertEqual(receipt["stop_reason"], "response_pressure_stop")
         self.assertEqual(len(receipt["inter_activity_gaps_ms"]), 5)
         self.assertEqual(receipt["inter_activity_gaps_ms"], [0, 0, 1400, 0, 0])
@@ -242,7 +259,13 @@ class AdversarialContainerWorkerUnitTests(unittest.TestCase):
 
         original_sleep = time.sleep
 
-        def fake_make_request(url, sim_headers, timeout_seconds=10.0):
+        def fake_make_request(
+            url,
+            sim_headers,
+            request_headers=None,
+            timeout_seconds=10.0,
+            proxy_url=None,
+        ):
             nonlocal current_concurrency, peak_concurrency
             with concurrency_lock:
                 current_concurrency += 1

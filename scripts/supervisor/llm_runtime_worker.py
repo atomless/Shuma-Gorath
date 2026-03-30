@@ -41,16 +41,18 @@ from scripts.tests.adversarial_runner.realism import (
     partition_activity_budget,
     realism_range_value,
 )
+from scripts.tests.adversarial_runner.transport_envelope import (
+    CHROME_DESKTOP_USER_AGENT,
+    resolve_browser_transport_observation,
+    resolve_request_transport_observation,
+)
 from scripts.tests.playwright_runtime import build_playwright_env, ensure_playwright_chromium
 
 
 LLM_RUNTIME_RESULT_SCHEMA_VERSION = "adversary-sim-llm-runtime-result.v1"
 REQUEST_MODE_REALISM_PLAN_SCHEMA_VERSION = "adversary-sim-llm-request-realism-plan.v1"
 BROWSER_MODE_REALISM_PLAN_SCHEMA_VERSION = "adversary-sim-llm-browser-realism-plan.v1"
-DEFAULT_AGENTIC_BROWSER_USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-)
+DEFAULT_AGENTIC_BROWSER_USER_AGENT = CHROME_DESKTOP_USER_AGENT
 DEFAULT_PUBLIC_HINT_PATHS = ["/robots.txt"]
 
 
@@ -199,6 +201,7 @@ def build_browser_mode_realism_execution_plan(
         top_level_action_budget,
     )
     identity_summary = summarize_identity_realism(profile)
+    browser_transport = resolve_browser_transport_observation(profile)
     return {
         "schema_version": BROWSER_MODE_REALISM_PLAN_SCHEMA_VERSION,
         "profile_id": str(profile.get("profile_id") or ""),
@@ -214,6 +217,14 @@ def build_browser_mode_realism_execution_plan(
         "geo_affinity_mode": identity_summary["geo_affinity_mode"],
         "session_stickiness": identity_summary["session_stickiness"],
         "observed_country_codes": identity_summary["observed_country_codes"],
+        "transport_profile": str(browser_transport.get("transport_profile") or ""),
+        "user_agent_family": str(browser_transport.get("user_agent_family") or ""),
+        "user_agent": str(browser_transport.get("user_agent") or ""),
+        "browser_locale": str(browser_transport.get("browser_locale") or ""),
+        "accept_language": str(browser_transport.get("accept_language") or ""),
+        "observed_user_agent_families": [str(browser_transport.get("user_agent_family") or "")],
+        "observed_accept_languages": [str(browser_transport.get("accept_language") or "")],
+        "observed_browser_locales": [str(browser_transport.get("browser_locale") or "")],
     }
 
 
@@ -294,6 +305,7 @@ def _request_mode_identity_assignments(
         field_name="llm_fulfillment_plan.request_identity_pool",
     )
     action_proxy_urls: list[str | None] = []
+    action_identity_rows: list[dict[str, str | None]] = []
     session_handles: list[str] = []
     observed_country_codes: list[str] = []
     if request_identity_pool:
@@ -307,11 +319,21 @@ def _request_mode_identity_assignments(
                 observed_country_codes.append(country_code)
             for _ in range(int(burst_size)):
                 action_proxy_urls.append(str(entry.get("proxy_url") or "").strip() or None)
+                action_identity_rows.append(
+                    {
+                        "country_code": country_code or None,
+                        "identity_class": str(entry.get("identity_class") or "").strip() or None,
+                    }
+                )
         while len(action_proxy_urls) < action_count:
             action_proxy_urls.append(None)
+            action_identity_rows.append({"country_code": None, "identity_class": None})
     else:
         session_handles = ["agentic-request-session-1"]
         action_proxy_urls = [None for _ in range(action_count)]
+        action_identity_rows = [
+            {"country_code": None, "identity_class": None} for _ in range(action_count)
+        ]
     return {
         **summarize_identity_realism(
             profile,
@@ -319,6 +341,7 @@ def _request_mode_identity_assignments(
             observed_country_codes=observed_country_codes,
         ),
         "action_proxy_urls": action_proxy_urls[:action_count],
+        "action_identity_rows": action_identity_rows[:action_count],
         "session_handles": session_handles,
         "identity_rotation_count": max(0, len(session_handles) - 1),
     }
@@ -378,6 +401,39 @@ def build_request_mode_realism_execution_plan(
         burst_sizes,
         action_count=effective_activity_budget,
     )
+    action_request_headers: list[dict[str, str]] = []
+    observed_user_agent_families: list[str] = []
+    observed_accept_languages: list[str] = []
+    action_identity_rows = list(identity_assignments.get("action_identity_rows") or [])
+    for identity_row in action_identity_rows:
+        request_transport = resolve_request_transport_observation(
+            profile,
+            country_code=str(identity_row.get("country_code") or "").strip() or None,
+        )
+        user_agent_family = str(request_transport.get("user_agent_family") or "").strip()
+        if user_agent_family and user_agent_family not in observed_user_agent_families:
+            observed_user_agent_families.append(user_agent_family)
+        accept_language = str(request_transport.get("accept_language") or "").strip()
+        if accept_language and accept_language not in observed_accept_languages:
+            observed_accept_languages.append(accept_language)
+        action_request_headers.append(
+            {
+                "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "accept-language": accept_language,
+                "user-agent": str(request_transport.get("user_agent") or ""),
+            }
+        )
+    first_identity_country_code = (
+        str(dict(action_identity_rows[0] if action_identity_rows else {}).get("country_code") or "").strip()
+        or None
+    )
+    request_transport_profile = str(
+        resolve_request_transport_observation(
+            profile,
+            country_code=first_identity_country_code,
+        ).get("transport_profile")
+        or ""
+    )
     return {
         "schema_version": REQUEST_MODE_REALISM_PLAN_SCHEMA_VERSION,
         "profile_id": str(profile.get("profile_id") or ""),
@@ -399,6 +455,10 @@ def build_request_mode_realism_execution_plan(
         "session_stickiness": identity_assignments["session_stickiness"],
         "observed_country_codes": identity_assignments["observed_country_codes"],
         "action_proxy_urls": identity_assignments["action_proxy_urls"],
+        "action_request_headers": action_request_headers,
+        "transport_profile": request_transport_profile,
+        "observed_user_agent_families": observed_user_agent_families,
+        "observed_accept_languages": observed_accept_languages,
         "actions": expanded_actions,
     }
 
@@ -753,7 +813,11 @@ def run_browser_mode_blackbox(
     driver_input = {
         "action": "agentic_browser_session",
         "base_url": str(base_url).strip(),
-        "user_agent": DEFAULT_AGENTIC_BROWSER_USER_AGENT,
+        "user_agent": str(realism_execution_plan.get("user_agent") or DEFAULT_AGENTIC_BROWSER_USER_AGENT),
+        "locale": str(realism_execution_plan.get("browser_locale") or "en-US"),
+        "headers": {
+            "accept-language": str(realism_execution_plan.get("accept_language") or "en-US,en;q=0.9")
+        },
         "timeout_ms": min(
             60_000,
             max(

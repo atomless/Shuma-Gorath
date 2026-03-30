@@ -150,7 +150,8 @@ Current note:
 - `SIM-REALISM-1C` is now landed: Agentic Traffic request-mode now executes profile-driven focused micro-bursts and between-burst pauses, the container black-box worker emits typed request-mode `realism_receipt` payloads with focused-page-set and stop-reason truth, and recent-run monitoring history preserves the latest Agentic realism receipt alongside additive LLM runtime lineage. The next active execution priority is now `SIM-REALISM-1D`.
 - `SIM-REALISM-1D` is now landed: Agentic Traffic browser-mode now emits a real Playwright-driven black-box session, follows public hints from root through `robots.txt` and sitemap discovery instead of using hidden route knowledge, emits browser-shaped `realism_receipt` payloads with stable session and dwell truth, and preserves that browser receipt in recent-run monitoring history. The next active execution priority is now `SIM-REALISM-2A`.
 - `SIM-REALISM-2A` is now landed: request-native Scrapling personas and Agentic Traffic request-mode now consume explicit per-profile pressure envelopes instead of collapsing to the old flat `8 requests / 2 seconds` ceiling, Agentic request-mode now executes bounded concurrent bursts rather than serializing every micro-burst into one file of requests, and both Rust and Python receipt paths preserve peak concurrency and effective cadence truth.
-- `SIM-REALISM-2B` is now landed: Scrapling and Agentic Traffic now carry a bounded identity-envelope contract, planners can emit pool-backed request or browser identities, and observer-only realism receipts now distinguish `pool_backed`, `fixed_proxy`, and `degraded_local` identity posture without leaking simulator provenance into Shuma defence truth. The next active execution priority is now `SIM-REALISM-2C`.
+- `SIM-REALISM-2B` is now landed: Scrapling and Agentic Traffic now carry a bounded identity-envelope contract, planners can emit pool-backed request or browser identities, and observer-only realism receipts now distinguish `pool_backed`, `fixed_proxy`, and `degraded_local` identity posture without leaking simulator provenance into Shuma defence truth.
+- `SIM-REALISM-2C` is now landed: the shared realism contract now carries a bounded `transport_envelope`, Scrapling and Agentic request-mode emit coherent persona and geo-aligned Accept-Language or user-agent posture instead of pinning everything to one local default, Agentic browser-mode now carries explicit locale and browser-client posture into the Playwright session, and both worker receipt paths preserve the applied transport or locale envelope as observer-only truth. The next active execution priority is now `SIM-REALISM-2D`.
 - `SIM-REALISM-2` is now the explicit follow-on chain after `SIM-REALISM-1D`: the lanes still fall short on field-grounded pressure envelopes, proxy and identity realism, trusted-ingress client-IP realism, coherent header or transport envelopes, browser secondary traffic, per-persona exploration depth and frontier realism, compact traversal receipts, richer public discoverability of the dummy surface, explicit degraded identity labeling, and long-horizon recurrence.
 - Do not treat mere lane execution or recent-run visibility as characteristic attacker pressure while the lanes still retain overly uniform pressure, identity, transport, and long-horizon recurrence behavior even after browser-mode session execution is real.
 - Do not open `humans_plus_verified_only` until a later second strict-baseline proof has shown retained config-change improvement under both Scrapling and LLM attacker pressure.
@@ -160,16 +161,6 @@ Current note:
   - `bot_red_team` runtime receipts now contribute restriction-grade board loci,
   - and the next remaining blocker is projection truth: operator/admin and dashboard surfaces still need to distinguish judged mixed-attacker episodes from mere lane visibility.
 - Do not claim mixed-attacker strict-baseline proof from the new score spine alone; mixed-attacker proof projection and repeated retained improvement under mixed pressure still remain required.
-
-- [ ] SIM-REALISM-2C Add coherent header, locale, and transport envelopes per persona and identity.
-  - Reference context:
-    - [`docs/research/2026-03-30-adversary-lane-wild-traffic-gap-review.md`](../docs/research/2026-03-30-adversary-lane-wild-traffic-gap-review.md)
-    - [`docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
-  - Closure gate:
-    - traffic truth: user-agent family, Accept-Language, resource headers, browser locale, and any available transport fingerprinting surfaces must vary coherently with persona and identity instead of pinning every lane to one default local posture
-    - safety truth: the lanes must remain same-origin, bounded, public-discovery-only, and Shuma-blind
-    - proof: add and pass `make test-adversary-sim-header-transport-realism`, and keep existing lane-contract and worker targets green
-    - insufficient: random header churn with no coherent geo or persona story, or exposing simulator-only labels in emitted traffic
 
 - [ ] SIM-REALISM-2D Capture browser secondary traffic and background request realism.
   - Reference context:

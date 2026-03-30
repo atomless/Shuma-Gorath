@@ -76,6 +76,11 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
             execution_plan["session_handles"],
             ["agentic-browser-session-1"],
         )
+        self.assertEqual(execution_plan["user_agent_family"], "chrome_desktop")
+        self.assertEqual(execution_plan["browser_locale"], "en-US")
+        self.assertEqual(execution_plan["transport_profile"], "playwright_chromium")
+        self.assertIn("en-US", execution_plan["accept_language"])
+        self.assertIn("Mozilla/5.0", execution_plan["user_agent"])
 
     def test_build_request_mode_realism_execution_plan_shapes_focused_microbursts(self):
         plan = {
@@ -178,6 +183,73 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
             ["residential", "mobile"],
         )
         self.assertEqual(execution_plan["observed_country_codes"], [])
+        self.assertEqual(execution_plan["transport_profile"], "urllib_direct")
+        self.assertEqual(
+            execution_plan["observed_user_agent_families"],
+            ["chrome_android"],
+        )
+        self.assertEqual(
+            execution_plan["observed_accept_languages"],
+            ["en-US,en;q=0.9"],
+        )
+        self.assertEqual(
+            len(execution_plan["action_request_headers"]),
+            execution_plan["effective_activity_budget"],
+        )
+        first_headers = execution_plan["action_request_headers"][0]
+        self.assertEqual(first_headers["accept-language"], "en-US,en;q=0.9")
+        self.assertIn("Mozilla/5.0", first_headers["user-agent"])
+        self.assertIn("text/html", first_headers["accept"])
+
+    def test_build_request_mode_realism_execution_plan_aligns_mobile_geo_headers_with_pool_identity(self):
+        plan = {
+            "schema_version": "adversary-sim-llm-fulfillment-plan.v1",
+            "run_id": "simrun-llm-runtime",
+            "tick_id": "llm-fit-tick-identity-fr",
+            "lane": "bot_red_team",
+            "fulfillment_mode": "request_mode",
+            "backend_kind": "frontier_reference",
+            "backend_state": "configured",
+            "category_targets": ["http_agent"],
+            "capability_envelope": {"max_actions": 6, "max_time_budget_seconds": 120},
+            "realism_profile": resolve_lane_realism_profile("bot_red_team", "request_mode"),
+            "request_identity_pool": [
+                {
+                    "label": "fr-mobile-1",
+                    "proxy_url": "http://proxy.example:9001",
+                    "identity_class": "mobile",
+                    "country_code": "FR",
+                }
+            ],
+        }
+        generation = {
+            "generation_source": "provider_response",
+            "provider": "openai",
+            "model_id": "gpt-5-mini",
+            "actions": [
+                {"action_index": 1, "action_type": "http_get", "path": "/", "label": "root"},
+                {"action_index": 2, "action_type": "http_get", "path": "/robots.txt", "label": "robots"},
+            ],
+        }
+
+        execution_plan = llm_runtime_worker.build_request_mode_realism_execution_plan(
+            fulfillment_plan=plan,
+            generation_result=generation,
+        )
+
+        self.assertEqual(execution_plan["identity_realism_status"], "fixed_proxy")
+        self.assertEqual(execution_plan["transport_profile"], "urllib_direct")
+        self.assertEqual(execution_plan["observed_country_codes"], ["FR"])
+        self.assertEqual(execution_plan["observed_user_agent_families"], ["chrome_android"])
+        self.assertEqual(
+            execution_plan["observed_accept_languages"],
+            ["fr-FR,fr;q=0.9,en-US;q=0.7,en;q=0.6"],
+        )
+        first_headers = execution_plan["action_request_headers"][0]
+        self.assertEqual(
+            first_headers["accept-language"],
+            "fr-FR,fr;q=0.9,en-US;q=0.7,en;q=0.6",
+        )
 
     def test_extract_llm_fulfillment_plan_requires_nested_plan(self):
         with self.assertRaises(RuntimeError):

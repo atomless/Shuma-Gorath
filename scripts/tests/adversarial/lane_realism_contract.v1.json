@@ -24,6 +24,14 @@
           "session_stickiness": "stable_per_identity",
           "degraded_without_pool": "local_session_only"
         },
+        "transport_envelope": {
+          "request_client_posture": "desktop_browser_like",
+          "browser_client_posture": "desktop_browser_like",
+          "accept_language_strategy": "identity_geo_aligned",
+          "browser_locale_strategy": "identity_geo_aligned",
+          "request_transport_profile": "curl_impersonate",
+          "browser_transport_profile": "playwright_chromium"
+        },
         "browser_propensity": "none",
         "javascript_execution": "disabled",
         "retry_ceiling": 2,
@@ -38,6 +46,9 @@
             "burst_count",
             "burst_sizes",
             "inter_activity_gaps_ms",
+            "transport_profile",
+            "observed_user_agent_families",
+            "observed_accept_languages",
             "identity_realism_status",
             "identity_envelope_classes",
             "geo_affinity_mode",
@@ -71,6 +82,14 @@
           "session_stickiness": "stable_per_identity",
           "degraded_without_pool": "local_session_only"
         },
+        "transport_envelope": {
+          "request_client_posture": "mobile_browser_like",
+          "browser_client_posture": "desktop_browser_like",
+          "accept_language_strategy": "identity_geo_aligned",
+          "browser_locale_strategy": "identity_geo_aligned",
+          "request_transport_profile": "curl_impersonate",
+          "browser_transport_profile": "playwright_chromium"
+        },
         "browser_propensity": "none",
         "javascript_execution": "disabled",
         "retry_ceiling": 2,
@@ -85,6 +104,9 @@
             "burst_count",
             "burst_sizes",
             "inter_activity_gaps_ms",
+            "transport_profile",
+            "observed_user_agent_families",
+            "observed_accept_languages",
             "identity_realism_status",
             "identity_envelope_classes",
             "geo_affinity_mode",
@@ -118,6 +140,14 @@
           "session_stickiness": "stable_per_tick",
           "degraded_without_pool": "local_browser_session_only"
         },
+        "transport_envelope": {
+          "request_client_posture": "desktop_browser_like",
+          "browser_client_posture": "desktop_browser_like",
+          "accept_language_strategy": "identity_geo_aligned",
+          "browser_locale_strategy": "identity_geo_aligned",
+          "request_transport_profile": "curl_impersonate",
+          "browser_transport_profile": "playwright_chromium"
+        },
         "browser_propensity": "required",
         "javascript_execution": "required",
         "retry_ceiling": 1,
@@ -131,6 +161,10 @@
             "activity_count",
             "top_level_action_count",
             "dwell_intervals_ms",
+            "transport_profile",
+            "observed_user_agent_families",
+            "observed_accept_languages",
+            "observed_browser_locales",
             "identity_realism_status",
             "identity_envelope_classes",
             "geo_affinity_mode",
@@ -164,6 +198,14 @@
           "session_stickiness": "stable_per_tick",
           "degraded_without_pool": "local_browser_session_only"
         },
+        "transport_envelope": {
+          "request_client_posture": "desktop_browser_like",
+          "browser_client_posture": "desktop_browser_like",
+          "accept_language_strategy": "identity_geo_aligned",
+          "browser_locale_strategy": "identity_geo_aligned",
+          "request_transport_profile": "curl_impersonate",
+          "browser_transport_profile": "playwright_chromium"
+        },
         "browser_propensity": "required",
         "javascript_execution": "required",
         "retry_ceiling": 1,
@@ -177,6 +219,10 @@
             "activity_count",
             "top_level_action_count",
             "dwell_intervals_ms",
+            "transport_profile",
+            "observed_user_agent_families",
+            "observed_accept_languages",
+            "observed_browser_locales",
             "identity_realism_status",
             "identity_envelope_classes",
             "geo_affinity_mode",
@@ -210,6 +256,14 @@
           "session_stickiness": "stable_per_identity",
           "degraded_without_pool": "local_session_only"
         },
+        "transport_envelope": {
+          "request_client_posture": "desktop_browser_like",
+          "browser_client_posture": "desktop_browser_like",
+          "accept_language_strategy": "identity_geo_aligned",
+          "browser_locale_strategy": "identity_geo_aligned",
+          "request_transport_profile": "curl_impersonate",
+          "browser_transport_profile": "playwright_chromium"
+        },
         "browser_propensity": "none",
         "javascript_execution": "disabled",
         "retry_ceiling": 2,
@@ -224,6 +278,9 @@
             "burst_count",
             "burst_sizes",
             "inter_activity_gaps_ms",
+            "transport_profile",
+            "observed_user_agent_families",
+            "observed_accept_languages",
             "identity_realism_status",
             "identity_envelope_classes",
             "geo_affinity_mode",
@@ -259,6 +316,14 @@
           "session_stickiness": "stable_per_tick",
           "degraded_without_pool": "local_browser_session_only"
         },
+        "transport_envelope": {
+          "request_client_posture": "desktop_browser_like",
+          "browser_client_posture": "desktop_browser_like",
+          "accept_language_strategy": "identity_geo_aligned",
+          "browser_locale_strategy": "identity_geo_aligned",
+          "request_transport_profile": "urllib_direct",
+          "browser_transport_profile": "playwright_chromium"
+        },
         "browser_propensity": "required",
         "javascript_execution": "required",
         "retry_ceiling": 1,
@@ -272,6 +337,10 @@
             "activity_count",
             "top_level_action_count",
             "dwell_intervals_ms",
+            "transport_profile",
+            "observed_user_agent_families",
+            "observed_accept_languages",
+            "observed_browser_locales",
             "identity_realism_status",
             "identity_envelope_classes",
             "geo_affinity_mode",
@@ -305,6 +374,14 @@
           "session_stickiness": "stable_per_identity",
           "degraded_without_pool": "local_session_only"
         },
+        "transport_envelope": {
+          "request_client_posture": "mobile_browser_like",
+          "browser_client_posture": "desktop_browser_like",
+          "accept_language_strategy": "identity_geo_aligned",
+          "browser_locale_strategy": "identity_geo_aligned",
+          "request_transport_profile": "urllib_direct",
+          "browser_transport_profile": "playwright_chromium"
+        },
         "browser_propensity": "none",
         "javascript_execution": "disabled",
         "retry_ceiling": 2,
@@ -322,11 +399,15 @@
             "focused_page_set_size",
             "concurrency_group_sizes",
             "peak_concurrent_activities",
+            "transport_profile",
+            "observed_user_agent_families",
+            "observed_accept_languages",
             "identity_realism_status",
             "identity_envelope_classes",
             "geo_affinity_mode",
             "session_stickiness",
             "observed_country_codes",
+            "identity_rotation_count",
             "session_handles",
             "stop_reason"
           ]

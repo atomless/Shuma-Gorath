@@ -1841,6 +1841,13 @@ mod tests {
                                 burst_count: Some(2),
                                 burst_sizes: vec![3, 3],
                                 inter_activity_gaps_ms: vec![0, 0, 1400, 0, 0],
+                                transport_profile: "urllib_direct".to_string(),
+                                observed_user_agent_families: vec![
+                                    "chrome_android".to_string(),
+                                ],
+                                observed_accept_languages: vec![
+                                    "en-US,en;q=0.9".to_string(),
+                                ],
                                 identity_realism_status: "degraded_local".to_string(),
                                 identity_envelope_classes: vec![
                                     "residential".to_string(),
@@ -1852,6 +1859,7 @@ mod tests {
                                 focused_page_set_size: Some(2),
                                 top_level_action_count: None,
                                 dwell_intervals_ms: Vec::new(),
+                                observed_browser_locales: Vec::new(),
                                 concurrency_group_sizes: vec![3, 3],
                                 peak_concurrent_activities: Some(3),
                                 session_handles: vec!["agentic-request-session-1".to_string()],
@@ -1960,6 +1968,9 @@ mod tests {
                             burst_count: Some(3),
                             burst_sizes: vec![3, 3, 1],
                             inter_activity_gaps_ms: vec![220, 410, 1200, 240, 330, 1500],
+                            transport_profile: "curl_impersonate".to_string(),
+                            observed_user_agent_families: vec!["chrome_android".to_string()],
+                            observed_accept_languages: vec!["en-US,en;q=0.9".to_string()],
                             identity_realism_status: "degraded_local".to_string(),
                             identity_envelope_classes: vec![
                                 "residential".to_string(),
@@ -1970,6 +1981,7 @@ mod tests {
                             observed_country_codes: Vec::new(),
                             top_level_action_count: None,
                             dwell_intervals_ms: Vec::new(),
+                            observed_browser_locales: Vec::new(),
                             identity_handles: vec![
                                 "request-session-1".to_string(),
                                 "request-session-2".to_string(),

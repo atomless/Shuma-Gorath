@@ -182,11 +182,20 @@ def enforce_allowlist(url: str, allowed_origins: List[str]) -> bool:
 def make_request(
     url: str,
     sim_headers: Dict[str, str],
+    request_headers: Dict[str, str] | None = None,
     timeout_seconds: float = 10.0,
     proxy_url: str | None = None,
 ) -> Dict[str, Any]:
     request = urllib.request.Request(url, method="GET")
-    request.add_header("User-Agent", "ShumaContainerBlackBox/1.0")
+    normalized_request_headers = {
+        str(key).strip().lower(): str(value).strip()
+        for key, value in dict(request_headers or {}).items()
+        if str(key).strip() and str(value).strip()
+    }
+    for key, value in normalized_request_headers.items():
+        request.add_header(str(key), str(value))
+    if "user-agent" not in normalized_request_headers:
+        request.add_header("User-Agent", "ShumaContainerBlackBox/1.0")
     for key, value in sim_headers.items():
         request.add_header(key, value)
     start = time.monotonic()
@@ -267,8 +276,12 @@ def _parse_request_realism_plan(
             "geo_affinity_mode": "pool_aligned",
             "session_stickiness": "stable_per_identity",
             "observed_country_codes": [],
+            "transport_profile": "urllib_direct",
+            "observed_user_agent_families": [],
+            "observed_accept_languages": [],
             "session_handles": ["agentic-request-session-1"],
             "action_proxy_urls": [None for _ in range(actions_count)],
+            "action_request_headers": [{} for _ in range(actions_count)],
         }
 
     payload = json.loads(text)
@@ -299,6 +312,17 @@ def _parse_request_realism_plan(
         (str(item).strip() or None) if item is not None else None
         for item in list(payload.get("action_proxy_urls") or [])
     ]
+    action_request_headers = []
+    for item in list(payload.get("action_request_headers") or []):
+        if not isinstance(item, dict):
+            raise RuntimeError("request realism plan action_request_headers entries must be objects")
+        normalized_headers: Dict[str, str] = {}
+        for key, value in item.items():
+            normalized_key = str(key).strip().lower()
+            normalized_value = str(value).strip()
+            if normalized_key and normalized_value:
+                normalized_headers[normalized_key] = normalized_value
+        action_request_headers.append(normalized_headers)
 
     if sum(burst_sizes) != actions_count:
         raise RuntimeError("request realism plan burst_sizes must sum to resolved action count")
@@ -311,6 +335,10 @@ def _parse_request_realism_plan(
     if action_proxy_urls and len(action_proxy_urls) != actions_count:
         raise RuntimeError(
             "request realism plan action_proxy_urls must align to resolved action count"
+        )
+    if action_request_headers and len(action_request_headers) != actions_count:
+        raise RuntimeError(
+            "request realism plan action_request_headers must align to resolved action count"
         )
 
     planned_activity_budget = max(actions_count, int(payload.get("planned_activity_budget") or actions_count))
@@ -351,6 +379,17 @@ def _parse_request_realism_plan(
         for item in list(payload.get("observed_country_codes") or [])
         if str(item).strip()
     ]
+    observed_user_agent_families = [
+        str(item).strip()
+        for item in list(payload.get("observed_user_agent_families") or [])
+        if str(item).strip()
+    ]
+    observed_accept_languages = [
+        str(item).strip()
+        for item in list(payload.get("observed_accept_languages") or [])
+        if str(item).strip()
+    ]
+    transport_profile = str(payload.get("transport_profile") or "").strip() or "urllib_direct"
 
     return {
         "schema_version": schema_version,
@@ -370,8 +409,12 @@ def _parse_request_realism_plan(
         "geo_affinity_mode": geo_affinity_mode,
         "session_stickiness": session_stickiness,
         "observed_country_codes": observed_country_codes,
+        "transport_profile": transport_profile,
+        "observed_user_agent_families": observed_user_agent_families,
+        "observed_accept_languages": observed_accept_languages,
         "session_handles": session_handles or ["agentic-request-session-1"],
         "action_proxy_urls": action_proxy_urls or [None for _ in range(actions_count)],
+        "action_request_headers": action_request_headers or [{} for _ in range(actions_count)],
     }
 
 
@@ -401,6 +444,7 @@ def execute_resolved_actions_with_realism(
     concurrency_group_sizes = list(request_realism_plan.get("concurrency_group_sizes") or [])
     inter_action_gaps_ms = list(request_realism_plan.get("inter_action_gaps_ms") or [])
     action_proxy_urls = list(request_realism_plan.get("action_proxy_urls") or [])
+    action_request_headers = list(request_realism_plan.get("action_request_headers") or [])
 
     for burst_index, planned_burst_size in enumerate(burst_sizes):
         if requests_sent >= request_budget:
@@ -466,6 +510,9 @@ def execute_resolved_actions_with_realism(
                     "action": action,
                     "url": url,
                     "request_headers": request_headers,
+                    "action_request_headers": action_request_headers[requests_sent + offset]
+                    if requests_sent + offset < len(action_request_headers)
+                    else {},
                     "proxy_url": action_proxy_urls[requests_sent + offset]
                     if requests_sent + offset < len(action_proxy_urls)
                     else None,
@@ -484,10 +531,15 @@ def execute_resolved_actions_with_realism(
                     lambda item: make_request(
                         item["url"],
                         item["request_headers"],
+                        request_headers=item.get("action_request_headers"),
                         proxy_url=item.get("proxy_url"),
                     )
                     if item.get("proxy_url")
-                    else make_request(item["url"], item["request_headers"]),
+                    else make_request(
+                        item["url"],
+                        item["request_headers"],
+                        request_headers=item.get("action_request_headers"),
+                    ),
                     prepared_burst,
                 )
             )
@@ -541,6 +593,13 @@ def execute_resolved_actions_with_realism(
         "focused_page_set_size": len(set(request_realism_plan.get("focused_page_paths") or [])),
         "concurrency_group_sizes": list(burst_sizes_executed),
         "peak_concurrent_activities": max(burst_sizes_executed or [1]),
+        "transport_profile": str(request_realism_plan.get("transport_profile") or "urllib_direct"),
+        "observed_user_agent_families": list(
+            request_realism_plan.get("observed_user_agent_families") or []
+        ),
+        "observed_accept_languages": list(
+            request_realism_plan.get("observed_accept_languages") or []
+        ),
         "identity_realism_status": str(request_realism_plan.get("identity_realism_status") or "degraded_local"),
         "identity_envelope_classes": list(request_realism_plan.get("identity_envelope_classes") or []),
         "geo_affinity_mode": str(request_realism_plan.get("geo_affinity_mode") or "pool_aligned"),
