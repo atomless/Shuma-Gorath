@@ -71,6 +71,9 @@ class _RecordingHandler(http.server.BaseHTTPRequestHandler):
         if self.path == "/":
             body = (
                 "<html><body>"
+                '<link rel="stylesheet" href="/static/site.css"/>'
+                '<script src="/static/app.js"></script>'
+                '<img src="/static/pixel.png" alt="pixel"/>'
                 '<a href="/page">page</a>'
                 '<a href="/catalog?page=1">catalog</a>'
                 '<a href="/challenge/not-a-bot-checkbox">checkpoint</a>'
@@ -83,6 +86,38 @@ class _RecordingHandler(http.server.BaseHTTPRequestHandler):
             ).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        if self.path == "/static/site.css":
+            body = b"body { color: black; }"
+            self.send_response(200)
+            self.send_header("Content-Type", "text/css; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        if self.path == "/static/app.js":
+            body = (
+                "fetch('/browser-beacon', {method: 'POST', headers: {'content-type': 'application/json'}, "
+                "body: JSON.stringify({kind: 'browser-beacon'})}).catch(() => null);"
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/javascript; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        if self.path == "/static/pixel.png":
+            body = (
+                b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
+                b"\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00"
+                b"\x1f\x15\xc4\x89\x00\x00\x00\rIDATx\x9cc````\x00\x00\x00\x05\x00\x01"
+                b"\x0d\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+            )
+            self.send_response(200)
+            self.send_header("Content-Type", "image/png")
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
@@ -265,6 +300,14 @@ class _RecordingHandler(http.server.BaseHTTPRequestHandler):
         if self.path == "/fingerprint-report":
             self.send_response(204)
             self.end_headers()
+            return
+        if self.path == "/browser-beacon":
+            body = json.dumps({"accepted": True}).encode("utf-8")
+            self.send_response(202)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
             return
         if self.path == "/pow/verify":
             body = json.dumps({"verified": False}).encode("utf-8")
@@ -1019,6 +1062,10 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
         self.assertIn("chrome_desktop", receipt["observed_user_agent_families"])
         self.assertIn("en-US,en;q=0.9", receipt["observed_accept_languages"])
         self.assertIn("en-US", receipt["observed_browser_locales"])
+        self.assertEqual(receipt["secondary_capture_mode"], "xhr_capture")
+        self.assertGreaterEqual(receipt["secondary_request_count"], 1)
+        self.assertGreaterEqual(receipt["background_request_count"], 1)
+        self.assertEqual(receipt["subresource_request_count"], 0)
         self.assertEqual(
             len(receipt["dwell_intervals_ms"]),
             max(0, receipt["top_level_action_count"] - 1),
@@ -1034,6 +1081,8 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
                 "byte_budget_exhausted",
             },
         )
+        paths = [(entry["method"], entry["path"]) for entry in self.httpd.requests_seen]
+        self.assertIn(("POST", "/browser-beacon"), paths)
 
     def test_execute_worker_plan_browser_automation_attempts_browser_owned_surfaces(self) -> None:
         self.assertIsNotNone(scrapling_worker, "worker module missing")

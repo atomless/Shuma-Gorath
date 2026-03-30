@@ -4,6 +4,40 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-30)
 
+### SIM-REALISM-2D Capture Browser Secondary Traffic And Background Request Truth
+
+- [x] Completed the browser secondary-traffic realism tranche across:
+  - [`../scripts/tests/adversarial_browser_driver.mjs`](../scripts/tests/adversarial_browser_driver.mjs)
+  - [`../scripts/supervisor/scrapling_worker.py`](../scripts/supervisor/scrapling_worker.py)
+  - [`../scripts/tests/test_adversarial_browser_driver.mjs`](../scripts/tests/test_adversarial_browser_driver.mjs)
+  - [`../scripts/tests/test_llm_runtime_browser_integration.py`](../scripts/tests/test_llm_runtime_browser_integration.py)
+  - [`../scripts/tests/test_llm_runtime_worker.py`](../scripts/tests/test_llm_runtime_worker.py)
+  - [`../scripts/tests/test_scrapling_worker.py`](../scripts/tests/test_scrapling_worker.py)
+  - [`../scripts/tests/test_adversarial_lane_realism_contract.py`](../scripts/tests/test_adversarial_lane_realism_contract.py)
+  - [`../scripts/tests/test_adversary_sim_make_targets.py`](../scripts/tests/test_adversary_sim_make_targets.py)
+  - [`../scripts/tests/adversarial/lane_realism_contract.v1.json`](../scripts/tests/adversarial/lane_realism_contract.v1.json)
+  - [`../src/admin/adversary_sim_realism_profile.rs`](../src/admin/adversary_sim_realism_profile.rs)
+  - [`../src/admin/adversary_sim_worker_plan.rs`](../src/admin/adversary_sim_worker_plan.rs)
+  - [`../src/admin/api.rs`](../src/admin/api.rs)
+  - [`../src/observability/operator_snapshot.rs`](../src/observability/operator_snapshot.rs)
+  - [`../Makefile`](../Makefile)
+  - [`../docs/adversarial-operator-guide.md`](../docs/adversarial-operator-guide.md)
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
+  - [`../todos/todo.md`](../todos/todo.md)
+- [x] What landed:
+  - the canonical browser realism contract now requires compact `secondary_capture_mode`, `secondary_request_count`, `background_request_count`, and `subresource_request_count` fields for Scrapling browser personas and Agentic browser-mode,
+  - Scrapling browser personas now reuse upstream XHR capture to preserve compact secondary-traffic counts in their `realism_receipt` payloads instead of reducing browser sessions to top-level visits only,
+  - Agentic browser-mode now classifies same-origin request events into top-level, background, and subresource truth, preserves that compact summary in `browser_evidence`, and folds the same counts into the browser `realism_receipt`,
+  - and recent-run plus operator-snapshot read models now project those compact counts so machine-facing surfaces can distinguish top-level actions from secondary browser traffic without shipping raw traces.
+- [x] Why:
+  - `SIM-REALISM-2D` was the next field-grounded realism gap after transport-envelope work because browser lanes were still understating real emitted pressure by hiding background or subresource activity behind top-level-only receipts.
+- [x] Evidence:
+  - `make test-adversary-sim-browser-secondary-traffic-realism`
+  - `make test-adversary-sim-make-target-contract`
+  - `make test-adversarial-lane-realism-contract`
+  - `make test-adversary-sim-scrapling-realism`
+
 ### SIM-REALISM-2C Add Coherent Header, Locale, And Transport Envelopes
 
 - [x] Completed the header or locale realism tranche across:

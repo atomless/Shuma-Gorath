@@ -1803,6 +1803,21 @@ test-adversary-sim-header-transport-realism: ## Focused adversary-sim header/loc
 		scripts.tests.test_scrapling_worker.ScraplingWorkerUnitTests.test_request_native_session_kwargs_support_mobile_posture_and_geo_aligned_language \
 		scripts.tests.test_scrapling_worker.ScraplingWorkerUnitTests.test_browser_session_kwargs_accept_optional_proxy_contract
 
+test-adversary-sim-browser-secondary-traffic-realism: ## Focused adversary-sim browser secondary-traffic realism gate (compact browser background/subresource receipts plus projection truth)
+	@echo "$(CYAN)🧪 Running adversary-sim browser secondary-traffic realism gate...$(NC)"
+	@python3 -m unittest scripts/tests/test_llm_runtime_worker.py
+	@corepack pnpm exec node scripts/tests/test_adversarial_browser_driver.mjs
+	@python3 -m unittest scripts.tests.test_llm_runtime_browser_integration.LlmRuntimeBrowserIntegrationTests.test_run_browser_mode_blackbox_receipts_secondary_background_and_subresource_traffic
+	@if [ ! -x "$(SCRAPLING_VENV_PYTHON)" ]; then \
+		echo "$(RED)❌ Error: $(SCRAPLING_VENV_PYTHON) not found.$(NC)"; \
+		echo "$(YELLOW)   Run make setup or make setup-runtime to provision the repo-owned Scrapling worker runtime.$(NC)"; \
+		exit 1; \
+	fi
+	@$(SCRAPLING_VENV_PYTHON) -m unittest scripts.tests.test_scrapling_worker.ScraplingWorkerUnitTests.test_execute_worker_plan_browser_automation_emits_browser_realism_receipt
+	@./scripts/set_crate_type.sh rlib
+	@cargo test recent_sim_run_history_projects_llm_browser_secondary_traffic_receipt_counts -- --exact --nocapture
+	@cargo test snapshot_payload_projects_llm_browser_secondary_traffic_receipt_counts -- --exact --nocapture
+
 test-adversary-sim-scrapling-browser-capability: ## Focused Scrapling browser-capability gate (browser persona worker execution plus browser owned-surface receipts)
 	@echo "$(CYAN)🧪 Running adversary-sim Scrapling browser-capability gate...$(NC)"
 	@./scripts/set_crate_type.sh rlib

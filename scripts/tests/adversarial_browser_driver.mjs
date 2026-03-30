@@ -41,6 +41,12 @@ const FORBIDDEN_HEADERS = new Set([
 
 const MAX_LINEAGE_ENTRIES = 64;
 const MAX_DOM_PATH_ENTRIES = 24;
+const EMPTY_SECONDARY_TRAFFIC_SUMMARY = Object.freeze({
+  secondary_capture_mode: "same_origin_request_events",
+  secondary_request_count: 0,
+  background_request_count: 0,
+  subresource_request_count: 0,
+});
 
 const DEFAULT_SIM_HEADER_NAMES = Object.freeze({
   run_id: "x-shuma-sim-run-id",
@@ -433,6 +439,57 @@ function maybeRecordLineage(evidence, row) {
   evidence.request_lineage.push(row);
 }
 
+function classifyBrowserRequestKind(request, page) {
+  const resourceType = String(request.resourceType() || "").trim() || "other";
+  let isMainFrame = false;
+  try {
+    isMainFrame = request.frame() === page.mainFrame();
+  } catch {
+    isMainFrame = false;
+  }
+  if (
+    request.isNavigationRequest() &&
+    isMainFrame &&
+    resourceType === "document"
+  ) {
+    return {
+      request_kind: "top_level",
+      resource_type: resourceType,
+    };
+  }
+  if (resourceType === "xhr" || resourceType === "fetch") {
+    return {
+      request_kind: "background",
+      resource_type: resourceType,
+    };
+  }
+  return {
+    request_kind: "subresource",
+    resource_type: resourceType,
+  };
+}
+
+export function summarizeBrowserSecondaryTraffic(requestLineage) {
+  let backgroundRequestCount = 0;
+  let subresourceRequestCount = 0;
+  for (const row of Array.isArray(requestLineage) ? requestLineage : []) {
+    const requestKind = String(row?.request_kind || "").trim();
+    if (requestKind === "background") {
+      backgroundRequestCount += 1;
+      continue;
+    }
+    if (requestKind === "subresource") {
+      subresourceRequestCount += 1;
+    }
+  }
+  return {
+    secondary_capture_mode: "same_origin_request_events",
+    secondary_request_count: backgroundRequestCount + subresourceRequestCount,
+    background_request_count: backgroundRequestCount,
+    subresource_request_count: subresourceRequestCount,
+  };
+}
+
 function summarizeRequestHeaders(headers) {
   return {
     sim_run_id: String(headers["x-shuma-sim-run-id"] || ""),
@@ -476,6 +533,7 @@ async function runScenario(payload) {
     request_lineage: [],
     correlation_ids: [],
     response_statuses: [],
+    secondary_traffic: { ...EMPTY_SECONDARY_TRAFFIC_SUMMARY },
     launch_mode: "headless",
     anti_flake_policy: {
       timeout_ms: timeoutMs,
@@ -545,9 +603,12 @@ async function runScenario(payload) {
         knownCorrelationIds.add(nonce);
       }
       const requestPath = new URL(request.url()).pathname;
+      const requestClassification = classifyBrowserRequestKind(request, page);
       maybeRecordLineage(evidence, {
         method: request.method(),
         path: requestPath,
+        request_kind: requestClassification.request_kind,
+        resource_type: requestClassification.resource_type,
         ...simHeaders,
       });
     });
@@ -1187,6 +1248,14 @@ async function runScenario(payload) {
     }));
     evidence.js_executed = Boolean(jsProbe?.has_window);
     evidence.correlation_ids = Array.from(knownCorrelationIds).sort();
+    evidence.secondary_traffic = summarizeBrowserSecondaryTraffic(evidence.request_lineage);
+    const realismReceipt =
+      actionResult.realism_receipt && typeof actionResult.realism_receipt === "object"
+        ? {
+            ...actionResult.realism_receipt,
+            ...evidence.secondary_traffic,
+          }
+        : null;
 
     return {
       ok: true,
@@ -1195,10 +1264,7 @@ async function runScenario(payload) {
       top_level_actions: Array.isArray(actionResult.top_level_actions)
         ? actionResult.top_level_actions
         : [],
-      realism_receipt:
-        actionResult.realism_receipt && typeof actionResult.realism_receipt === "object"
-          ? actionResult.realism_receipt
-          : null,
+      realism_receipt: realismReceipt,
       browser_evidence: evidence,
       diagnostics: {
         ready_state: String(jsProbe?.ready_state || ""),
@@ -1221,6 +1287,7 @@ async function runScenario(payload) {
       ? Math.max(0, actionStartedAt - scenarioStartedAt)
       : totalDurationMs;
     evidence.correlation_ids = Array.from(knownCorrelationIds).sort();
+    evidence.secondary_traffic = summarizeBrowserSecondaryTraffic(evidence.request_lineage);
     return {
       ok: false,
       observed_outcome: null,
@@ -1263,6 +1330,7 @@ async function main() {
         request_lineage: [],
         correlation_ids: [],
         response_statuses: [],
+        secondary_traffic: { ...EMPTY_SECONDARY_TRAFFIC_SUMMARY },
       },
       diagnostics: {
         error_code: classifyError(message),

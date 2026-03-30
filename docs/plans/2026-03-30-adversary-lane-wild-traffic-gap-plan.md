@@ -8,7 +8,7 @@
 
 **Related research:** [`../research/2026-03-30-adversary-lane-wild-traffic-gap-review.md`](../research/2026-03-30-adversary-lane-wild-traffic-gap-review.md)
 
-**Status note:** `SIM-REALISM-2A`, `SIM-REALISM-2B`, and `SIM-REALISM-2C` are now landed. The next active realism tranche is `SIM-REALISM-2D`, which will add browser secondary-traffic truth on top of the new pressure, identity, and transport-envelope contract.
+**Status note:** `SIM-REALISM-2A`, `SIM-REALISM-2B`, `SIM-REALISM-2C`, and `SIM-REALISM-2D` are now landed. The next active realism tranche is `SIM-REALISM-2E`, which will add explicit long-horizon dormancy, recurrence, and re-entry truth on top of the new pressure, identity, transport-envelope, and browser-secondary-traffic contract.
 
 ---
 
@@ -113,6 +113,8 @@
 2. Keep relevant lane-contract and worker tests green.
 
 ## Task 5: `SIM-REALISM-2D` Capture Browser Secondary Traffic And Background Request Truth
+
+**Status:** landed on 2026-03-30. Scrapling browser personas now preserve compact XHR-backed secondary-traffic counts, Agentic browser-mode now preserves compact same-origin request-event secondary-traffic counts, and recent-run plus operator-snapshot read models now project those counts without turning hot reads into raw browser traces.
 
 **Files:**
 - Later code targets: `scripts/supervisor/scrapling_worker.py`, browser-mode execution under `scripts/tests/adversarial_container/`, read-model and recent-run projection files if needed

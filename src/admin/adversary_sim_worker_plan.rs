@@ -57,6 +57,14 @@ pub struct ScraplingRealismReceipt {
     pub dwell_intervals_ms: Vec<u64>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub observed_browser_locales: Vec<String>,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub secondary_capture_mode: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub secondary_request_count: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub background_request_count: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub subresource_request_count: Option<u64>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub identity_handles: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -177,6 +185,14 @@ pub struct LlmRuntimeRealismReceipt {
     pub dwell_intervals_ms: Vec<u64>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub observed_browser_locales: Vec<String>,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub secondary_capture_mode: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub secondary_request_count: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub background_request_count: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub subresource_request_count: Option<u64>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub concurrency_group_sizes: Vec<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

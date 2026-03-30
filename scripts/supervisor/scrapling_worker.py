@@ -150,6 +150,10 @@ class _ScraplingRealismTracker:
         self.observed_user_agent_families: list[str] = []
         self.observed_accept_languages: list[str] = []
         self.observed_browser_locales: list[str] = []
+        self.secondary_capture_mode = "xhr_capture" if browser_session else ""
+        self.secondary_request_count = 0
+        self.background_request_count = 0
+        self.subresource_request_count = 0
         self.identity_rotation_count = 0
         self._last_identity_handle: str | None = None
         self._last_session_handle: str | None = None
@@ -304,6 +308,24 @@ class _ScraplingRealismTracker:
     def note_rotation(self) -> None:
         self._activities_since_rotation = 0
 
+    def observe_browser_secondary_traffic(
+        self,
+        *,
+        capture_mode: str,
+        background_paths: list[str] | None = None,
+        subresource_count: int = 0,
+    ) -> None:
+        if not self.browser_session:
+            return
+        normalized_capture_mode = str(capture_mode or "").strip()
+        if normalized_capture_mode:
+            self.secondary_capture_mode = normalized_capture_mode
+        background_count = len(list(background_paths or []))
+        subresource_total = max(0, int(subresource_count))
+        self.background_request_count += background_count
+        self.subresource_request_count += subresource_total
+        self.secondary_request_count += background_count + subresource_total
+
     def prepare_browser_action(
         self,
         session_handle: str,
@@ -395,6 +417,10 @@ class _ScraplingRealismTracker:
                     "top_level_action_count": self.activity_count,
                     "dwell_intervals_ms": list(self.dwell_intervals_ms),
                     "observed_browser_locales": list(self.observed_browser_locales),
+                    "secondary_capture_mode": self.secondary_capture_mode,
+                    "secondary_request_count": self.secondary_request_count,
+                    "background_request_count": self.background_request_count,
+                    "subresource_request_count": self.subresource_request_count,
                     "session_handles": list(self.session_handles),
                 }
             )
@@ -944,6 +970,7 @@ def _browser_session_kwargs(
         "google_search": False,
         "network_idle": False,
         "load_dom": True,
+        "capture_xhr": ".*",
         "timeout": timeout_ms,
         "wait": min(500, max(100, timeout_ms // 12)),
         "retries": 1,
@@ -1544,6 +1571,24 @@ def _browser_discovered_target(
     return _first_matching_target(candidates, predicate)
 
 
+def _browser_captured_xhr_paths(response: Any, *, base_url: str) -> list[str]:
+    base_parts = urlsplit(str(base_url or ""))
+    base_origin = (base_parts.scheme.lower(), base_parts.netloc.lower())
+    paths: list[str] = []
+    for captured in list(getattr(response, "captured_xhr", []) or []):
+        raw_url = str(getattr(captured, "url", "") or "").strip()
+        if not raw_url:
+            continue
+        resolved = urlsplit(urljoin(base_url, raw_url))
+        candidate_origin = (resolved.scheme.lower(), resolved.netloc.lower())
+        if candidate_origin != base_origin:
+            continue
+        request_path = _request_path_value(raw_url)
+        if request_path and request_path not in paths:
+            paths.append(request_path)
+    return paths
+
+
 def _execute_bulk_scraper_persona(
     fetcher_session_cls: Any,
     *,
@@ -2035,6 +2080,13 @@ def _execute_browser_persona(
                 request_method="get",
                 request_target=root_target,
             )
+            tracker.realism_tracker.observe_browser_secondary_traffic(
+                capture_mode="xhr_capture",
+                background_paths=_browser_captured_xhr_paths(
+                    root_response,
+                    base_url=base_url,
+                ),
+            )
         except Exception as exc:
             tracker.record_failure(
                 exc,
@@ -2073,6 +2125,13 @@ def _execute_browser_persona(
                     response,
                     request_method="get",
                     request_target=pow_target,
+                )
+                tracker.realism_tracker.observe_browser_secondary_traffic(
+                    capture_mode="xhr_capture",
+                    background_paths=_browser_captured_xhr_paths(
+                        response,
+                        base_url=base_url,
+                    ),
                 )
                 response_status = int(response.status)
                 pow_details = (
@@ -2151,6 +2210,13 @@ def _execute_browser_persona(
                     response,
                     request_method="get",
                     request_target=maze_target,
+                )
+                tracker.realism_tracker.observe_browser_secondary_traffic(
+                    capture_mode="xhr_capture",
+                    background_paths=_browser_captured_xhr_paths(
+                        response,
+                        base_url=base_url,
+                    ),
                 )
                 after_url = str(maze_state.get("after_url") or "")
                 before_url = str(maze_state.get("before_url") or "")

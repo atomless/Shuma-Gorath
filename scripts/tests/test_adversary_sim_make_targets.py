@@ -227,6 +227,33 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
             body,
         )
 
+    def test_browser_secondary_traffic_realism_target_uses_browser_runtime_and_projection_selectors(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-adversary-sim-browser-secondary-traffic-realism:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn("scripts/tests/test_adversarial_browser_driver.mjs", body)
+        self.assertIn(
+            "scripts.tests.test_llm_runtime_browser_integration.LlmRuntimeBrowserIntegrationTests.test_run_browser_mode_blackbox_receipts_secondary_background_and_subresource_traffic",
+            body,
+        )
+        self.assertIn(
+            "scripts.tests.test_scrapling_worker.ScraplingWorkerUnitTests.test_execute_worker_plan_browser_automation_emits_browser_realism_receipt",
+            body,
+        )
+        self.assertIn(
+            "recent_sim_run_history_projects_llm_browser_secondary_traffic_receipt_counts",
+            body,
+        )
+        self.assertIn(
+            "snapshot_payload_projects_llm_browser_secondary_traffic_receipt_counts",
+            body,
+        )
+
     def test_llm_runtime_dispatch_target_uses_typed_runtime_selectors(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")
         match = re.search(

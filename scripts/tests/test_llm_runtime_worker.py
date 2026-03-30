@@ -512,6 +512,10 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
                     "top_level_action_count": 2,
                     "focused_page_set_size": 2,
                     "dwell_intervals_ms": [2400],
+                    "secondary_capture_mode": "same_origin_request_events",
+                    "secondary_request_count": 3,
+                    "background_request_count": 1,
+                    "subresource_request_count": 2,
                     "session_handles": ["agentic-browser-session-1"],
                     "identity_rotation_count": 0,
                     "stop_reason": "top_level_budget_exhausted",
@@ -575,6 +579,14 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
         self.assertEqual(
             report["worker_payload"]["realism_receipt"]["top_level_action_count"],
             2,
+        )
+        self.assertEqual(
+            report["worker_payload"]["realism_receipt"]["secondary_capture_mode"],
+            "same_origin_request_events",
+        )
+        self.assertEqual(
+            report["worker_payload"]["realism_receipt"]["secondary_request_count"],
+            3,
         )
         self.assertEqual(report["worker_payload"]["requests_sent"], 2)
         self.assertEqual(len(report["_executed_actions"]), 2)

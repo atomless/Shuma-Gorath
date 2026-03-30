@@ -83,6 +83,42 @@ class AdversarialLaneRealismContractUnitTests(unittest.TestCase):
             profile["transport_envelope"]["browser_transport_profile"],
             "playwright_chromium",
         )
+        self.assertIn(
+            "secondary_capture_mode",
+            profile["receipt_contract"]["required_fields"],
+        )
+        self.assertIn(
+            "secondary_request_count",
+            profile["receipt_contract"]["required_fields"],
+        )
+        self.assertIn(
+            "background_request_count",
+            profile["receipt_contract"]["required_fields"],
+        )
+        self.assertIn(
+            "subresource_request_count",
+            profile["receipt_contract"]["required_fields"],
+        )
+
+    def test_scrapling_browser_profile_requires_secondary_traffic_receipt_fields(self):
+        profile = contracts.resolve_lane_realism_profile("scrapling_traffic", "browser_automation")
+
+        self.assertIn(
+            "secondary_capture_mode",
+            profile["receipt_contract"]["required_fields"],
+        )
+        self.assertIn(
+            "secondary_request_count",
+            profile["receipt_contract"]["required_fields"],
+        )
+        self.assertIn(
+            "background_request_count",
+            profile["receipt_contract"]["required_fields"],
+        )
+        self.assertIn(
+            "subresource_request_count",
+            profile["receipt_contract"]["required_fields"],
+        )
 
 
 if __name__ == "__main__":

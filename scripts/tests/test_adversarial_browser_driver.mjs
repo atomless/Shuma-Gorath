@@ -6,6 +6,7 @@ import {
   applyChallengePuzzleWrongOutput,
   classifyMazeDocument,
   mergeAgenticSessionPaths,
+  summarizeBrowserSecondaryTraffic,
   validateAllowBrowserAllowlistResponse,
 } from "./adversarial_browser_driver.mjs";
 
@@ -168,3 +169,41 @@ function testMergeAgenticSessionPathsRootsAndDeduplicatesWithinBudget() {
 }
 
 testMergeAgenticSessionPathsRootsAndDeduplicatesWithinBudget();
+
+function testSummarizeBrowserSecondaryTrafficSeparatesBackgroundAndSubresources() {
+  const summary = summarizeBrowserSecondaryTraffic([
+    {
+      method: "GET",
+      path: "/",
+      request_kind: "top_level",
+      resource_type: "document",
+    },
+    {
+      method: "GET",
+      path: "/static/site.css",
+      request_kind: "subresource",
+      resource_type: "stylesheet",
+    },
+    {
+      method: "GET",
+      path: "/static/app.js",
+      request_kind: "subresource",
+      resource_type: "script",
+    },
+    {
+      method: "POST",
+      path: "/browser-beacon",
+      request_kind: "background",
+      resource_type: "fetch",
+    },
+  ]);
+
+  assert.deepEqual(summary, {
+    secondary_capture_mode: "same_origin_request_events",
+    secondary_request_count: 3,
+    background_request_count: 1,
+    subresource_request_count: 2,
+  });
+}
+
+testSummarizeBrowserSecondaryTrafficSeparatesBackgroundAndSubresources();

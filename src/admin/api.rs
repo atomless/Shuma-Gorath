@@ -1860,6 +1860,10 @@ mod tests {
                                 top_level_action_count: None,
                                 dwell_intervals_ms: Vec::new(),
                                 observed_browser_locales: Vec::new(),
+                                secondary_capture_mode: String::new(),
+                                secondary_request_count: None,
+                                background_request_count: None,
+                                subresource_request_count: None,
                                 concurrency_group_sizes: vec![3, 3],
                                 peak_concurrent_activities: Some(3),
                                 session_handles: vec!["agentic-request-session-1".to_string()],
@@ -1928,6 +1932,128 @@ mod tests {
     }
 
     #[test]
+    fn recent_sim_run_history_projects_llm_browser_secondary_traffic_receipt_counts() {
+        let store = MockStore::new();
+        let now = now_ts();
+        let run_started_at = now.saturating_sub(90);
+
+        persist_event_record(
+            &store,
+            EventLogRecord {
+                entry: EventLogEntry {
+                    ts: run_started_at,
+                    event: EventType::AdminAction,
+                    ip: None,
+                    reason: Some("llm_runtime_receipt".to_string()),
+                    outcome: Some("browser_mode provider_response".to_string()),
+                    admin: Some("internal".to_string()),
+                },
+                taxonomy: None,
+                outcome_code: None,
+                botness_score: None,
+                sim_run_id: Some("simrun-llm-browser-secondary-proof".to_string()),
+                sim_profile: Some("llm_runtime_lane.browser_mode".to_string()),
+                sim_lane: Some("bot_red_team".to_string()),
+                is_simulation: true,
+                scrapling_surface_receipts: Vec::new(),
+                scrapling_category_targets: Vec::new(),
+                llm_runtime_summary: Some(
+                    crate::admin::adversary_sim::LlmRuntimeRecentRunSummary {
+                        receipt_count: 1,
+                        fulfillment_mode: "browser_mode".to_string(),
+                        category_targets: vec!["browser_agent".to_string()],
+                        backend_kind: "frontier_reference".to_string(),
+                        backend_state: "configured".to_string(),
+                        generation_source: "provider_response".to_string(),
+                        provider: "openai".to_string(),
+                        model_id: "gpt-5-mini".to_string(),
+                        fallback_reason: None,
+                        generated_action_count: 2,
+                        executed_action_count: 2,
+                        failed_action_count: 0,
+                        passed_tick_count: 1,
+                        failed_tick_count: 0,
+                        last_response_status: Some(200),
+                        failure_class: None,
+                        error: None,
+                        terminal_failure: None,
+                        latest_realism_receipt: Some(
+                            crate::admin::adversary_sim_worker_plan::LlmRuntimeRealismReceipt {
+                                schema_version: "sim-lane-realism-receipt.v1".to_string(),
+                                profile_id: "agentic.browser_mode.v1".to_string(),
+                                planned_activity_budget: 4,
+                                effective_activity_budget: 2,
+                                planned_burst_size: None,
+                                effective_burst_size: None,
+                                activity_count: 2,
+                                burst_count: None,
+                                burst_sizes: Vec::new(),
+                                inter_activity_gaps_ms: Vec::new(),
+                                transport_profile: "playwright_chromium".to_string(),
+                                observed_user_agent_families: vec![
+                                    "chrome_desktop".to_string(),
+                                ],
+                                observed_accept_languages: vec![
+                                    "en-US,en;q=0.9".to_string(),
+                                ],
+                                identity_realism_status: "degraded_local".to_string(),
+                                identity_envelope_classes: vec![
+                                    "residential".to_string(),
+                                    "mobile".to_string(),
+                                ],
+                                geo_affinity_mode: "pool_aligned".to_string(),
+                                session_stickiness: "stable_per_tick".to_string(),
+                                observed_country_codes: Vec::new(),
+                                focused_page_set_size: Some(2),
+                                top_level_action_count: Some(2),
+                                dwell_intervals_ms: vec![2400],
+                                observed_browser_locales: vec!["en-US".to_string()],
+                                secondary_capture_mode: "same_origin_request_events".to_string(),
+                                secondary_request_count: Some(5),
+                                background_request_count: Some(2),
+                                subresource_request_count: Some(3),
+                                concurrency_group_sizes: Vec::new(),
+                                peak_concurrent_activities: None,
+                                session_handles: vec!["agentic-browser-session-1".to_string()],
+                                identity_rotation_count: Some(0),
+                                stop_reason: "top_level_budget_exhausted".to_string(),
+                            },
+                        ),
+                        latest_action_receipts: vec![
+                            crate::admin::adversary_sim_worker_plan::LlmRuntimeActionReceipt {
+                                action_index: 1,
+                                action_type: "browser_navigate".to_string(),
+                                path: "/".to_string(),
+                                label: Some("root".to_string()),
+                                status: Some(200),
+                                error: None,
+                            },
+                        ],
+                    },
+                ),
+                execution: EventExecutionMetadata::default(),
+            },
+        );
+
+        let recent_runs = monitoring_recent_sim_run_summaries(&store, now, 24, 10);
+        let row = recent_runs
+            .iter()
+            .find(|value| value.run_id == "simrun-llm-browser-secondary-proof")
+            .expect("llm browser runtime row");
+        let receipt = row
+            .llm_runtime_summary
+            .as_ref()
+            .and_then(|summary| summary.latest_realism_receipt.as_ref())
+            .expect("llm browser realism receipt");
+        assert_eq!(receipt.profile_id, "agentic.browser_mode.v1");
+        assert_eq!(receipt.top_level_action_count, Some(2));
+        assert_eq!(receipt.secondary_capture_mode, "same_origin_request_events");
+        assert_eq!(receipt.secondary_request_count, Some(5));
+        assert_eq!(receipt.background_request_count, Some(2));
+        assert_eq!(receipt.subresource_request_count, Some(3));
+    }
+
+    #[test]
     fn recent_sim_run_history_projects_latest_scrapling_realism_receipt() {
         let store = MockStore::new();
         let now = now_ts();
@@ -1982,6 +2108,10 @@ mod tests {
                             top_level_action_count: None,
                             dwell_intervals_ms: Vec::new(),
                             observed_browser_locales: Vec::new(),
+                            secondary_capture_mode: String::new(),
+                            secondary_request_count: None,
+                            background_request_count: None,
+                            subresource_request_count: None,
                             identity_handles: vec![
                                 "request-session-1".to_string(),
                                 "request-session-2".to_string(),
