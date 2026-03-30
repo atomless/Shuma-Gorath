@@ -226,23 +226,25 @@ The immediate next execution priority on this roadmap is therefore:
 
 1. `SIM-REALISM-1A` profile contract,
 2. `SIM-REALISM-1B` Scrapling pacing realism,
-3. `SIM-REALISM-1C` Agentic request-mode realism,
-4. `SIM-REALISM-1D` real Agentic browser-mode execution,
-5. `SIM-REALISM-2A` pressure-envelope realism,
-6. `SIM-REALISM-2B` identity-envelope realism,
-7. `SIM-REALISM-2C` header and transport-envelope realism,
-8. `SIM-REALISM-2D` browser secondary-traffic realism,
-9. `SIM-REALISM-2E` long-horizon dormancy and recurrence realism.
+3. `SIM-PUBSITE-1A..1D` contributor-generated public-content site,
+4. `SIM-REALISM-1C` Agentic request-mode realism,
+5. `SIM-REALISM-1D` real Agentic browser-mode execution,
+6. `SIM-REALISM-2A` pressure-envelope realism,
+7. `SIM-REALISM-2B` identity-envelope realism,
+8. `SIM-REALISM-2C` header and transport-envelope realism,
+9. `SIM-REALISM-2D` browser secondary-traffic realism,
+10. `SIM-REALISM-2E` long-horizon dormancy and recurrence realism.
 
 Before Shuma should describe Scrapling or Agentic Traffic as representative tuning evidence, it should:
 
 1. freeze explicit per-lane or per-mode realism profiles for cadence, burst shape, dwell, identity rotation, JavaScript or browser propensity, and retry ceilings,
-2. prove those profiles through runtime receipts rather than by plan metadata alone,
-3. replace placeholder agentic browser-mode receipts with real bounded browser-session execution,
-4. unclip the current pressure envelope so request-native lanes can actually reach field-grounded burst shapes,
-5. add truthful identity, geo, and session realism instead of synthetic local session churn,
-6. add coherent header and transport envelopes,
-7. and model background browser traffic plus longer-horizon recurrence.
+2. land the richer generated public-content site so later realism work runs against a substantially deeper and more realistic public terrain,
+3. prove those profiles through runtime receipts rather than by plan metadata alone,
+4. replace placeholder agentic browser-mode receipts with real bounded browser-session execution,
+5. unclip the current pressure envelope so request-native lanes can actually reach field-grounded burst shapes,
+6. add truthful identity, geo, and session realism instead of synthetic local session churn,
+7. add coherent header and transport envelopes,
+8. and model background browser traffic plus longer-horizon recurrence.
 
 ## Acceptance Standard For This Roadmap
 

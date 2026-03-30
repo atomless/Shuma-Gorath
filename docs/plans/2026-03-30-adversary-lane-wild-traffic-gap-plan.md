@@ -275,16 +275,17 @@
 
 ## Recommended Execution Order
 
-1. finish `SIM-REALISM-1C`
-2. finish `SIM-REALISM-1D`
-3. `SIM-REALISM-2A`
-4. `SIM-REALISM-2B`
-5. `SIM-REALISM-2C`
-6. `SIM-REALISM-2D`
-7. `SIM-REALISM-2F`
-8. `SIM-REALISM-2G`
-9. `SIM-REALISM-2H`
-10. `SIM-REALISM-2I`
-11. `SIM-REALISM-2J`
-12. `SIM-REALISM-2E`
-13. only then reopen representative mixed-attacker or tuning-quality claims
+1. finish `SIM-PUBSITE-1A..1D`
+2. finish `SIM-REALISM-1C`
+3. finish `SIM-REALISM-1D`
+4. `SIM-REALISM-2A`
+5. `SIM-REALISM-2B`
+6. `SIM-REALISM-2C`
+7. `SIM-REALISM-2D`
+8. `SIM-REALISM-2F`
+9. `SIM-REALISM-2G`
+10. `SIM-REALISM-2H`
+11. `SIM-REALISM-2I`
+12. `SIM-REALISM-2J`
+13. `SIM-REALISM-2E`
+14. only then reopen representative mixed-attacker or tuning-quality claims

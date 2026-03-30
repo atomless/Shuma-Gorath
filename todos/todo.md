@@ -107,8 +107,9 @@ Reference context:
 - [`docs/plans/2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md`](../docs/plans/2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md)
 
 Current note:
-- The immediate next execution priority is `SIM-REALISM-1C`, followed in order by `SIM-REALISM-1D`.
-- Do not start new mixed-attacker proof or later tuning-quality work ahead of that chain unless a higher-severity regression forces an interruption.
+- The immediate next execution priority is now `SIM-PUBSITE-1A`, `SIM-PUBSITE-1B`, `SIM-PUBSITE-1C`, and `SIM-PUBSITE-1D`.
+- After that contributor-generated site chain lands, resume the remaining realism chain in order with `SIM-REALISM-1C`, then `SIM-REALISM-1D`.
+- Do not start new mixed-attacker proof or later tuning-quality work ahead of that resequenced chain unless a higher-severity regression forces an interruption.
 - `SIM-SCR-CHALLENGE-2A`, `SIM-SCR-CHALLENGE-2B`, and `SIM-SCR-CHALLENGE-2D` are landed.
 - `RSI-GAME-1A`, `RSI-GAME-1B`, `RSI-SCORE-1`, and `RSI-GAME-1C` are landed.
 - `RSI-GAME-MAINLINE-1A` and `RSI-GAME-MAINLINE-1B` are landed.
@@ -145,7 +146,7 @@ Current note:
 - `SIM-LLM-1C3` is now landed: the later LLM attacker no longer disappears after runtime ingest, and recent-run or operator surfaces now project truthful additive `bot_red_team` runtime lineage without enabling the lane in controls.
 - `SIM-REALISM-1` is now the next adversary-sim maturity chain: both Scrapling and Agentic Traffic still need profile-driven cadence, burst, dwell, and identity or session realism before mixed-attacker or tuning claims are called representative.
 - `SIM-REALISM-1A` is now landed: the shared versioned realism-profile contract is frozen across Rust planners, Python workers, and Make-driven proof.
-- `SIM-REALISM-1B` is now landed: Scrapling personas now execute profile-driven pacing and dwell behavior, emit per-tick `realism_receipt` payloads, preserve the latest Scrapling realism receipt in recent-run monitoring history, and `SIM-REALISM-1C` is now the current top-priority adversary-sim work item. But treat that tranche as local shape realism, not full wild-attacker realism.
+- `SIM-REALISM-1B` is now landed: Scrapling personas now execute profile-driven pacing and dwell behavior, emit per-tick `realism_receipt` payloads, and preserve the latest Scrapling realism receipt in recent-run monitoring history. The next active execution priority is now the contributor-generated site chain because realism should continue against a richer public terrain than the current thin dummy surface.
 - `SIM-REALISM-2` is now the explicit follow-on chain after `SIM-REALISM-1D`: the lanes still fall short on field-grounded pressure envelopes, proxy and identity realism, trusted-ingress client-IP realism, coherent header or transport envelopes, browser secondary traffic, per-persona exploration depth and frontier realism, compact traversal receipts, richer public discoverability of the dummy surface, explicit degraded identity labeling, and long-horizon recurrence.
 - Do not treat mere lane execution or recent-run visibility as characteristic attacker pressure while `bot_red_team` browser-mode still lacks real session execution and the lanes still retain overly uniform pressure, identity, and transport behavior.
 - Do not open `humans_plus_verified_only` until a later second strict-baseline proof has shown retained config-change improvement under both Scrapling and LLM attacker pressure.

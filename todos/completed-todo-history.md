@@ -4,6 +4,22 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-30)
 
+### SIM-PUBSITE-PLAN-5 Reprioritize Generated Site Ahead Of Remaining Realism Work
+
+- [x] Completed the docs-only sequencing refinement across:
+  - [`../todos/todo.md`](../todos/todo.md)
+  - [`../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
+  - [`../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`](../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md)
+  - [`../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
+- [x] What landed:
+  - the contributor-generated public-content site chain now sits ahead of the remaining realism tranches in the active backlog and roadmap,
+  - the sequencing docs now state explicitly that realism should continue against the richer generated public terrain rather than the current thin dummy surface,
+  - and the later `SIM-REALISM-1C/1D` and follow-on wild-traffic items are now downstream of `SIM-PUBSITE-1A..1D`.
+- [x] Why:
+  - the user decided the generated site should land first because it materially improves the public surface and therefore the realism quality of later adversary-sim work.
+- [x] Evidence:
+  - docs-only slice; verification intentionally limited to `git diff --check`
+
 ### SIM-PUBSITE-PLAN-4 Build-Hygiene Refinement For Cached Site Generation
 
 - [x] Completed the docs-only refinement across:
