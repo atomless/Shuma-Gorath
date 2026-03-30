@@ -133,11 +133,12 @@ The first implementation should be contributor-only by default.
 
 That means:
 
-1. contributor flows such as `make setup`, `make build`, and `make dev` should generate or refresh the contributor site automatically,
-2. runtime-only flows such as `make setup-runtime` and `make run-prebuilt` should not silently generate it,
-3. and `sim_public` availability for contributor browsing should be tied to generated-site presence, not to `adversary_sim_enabled`.
+1. normal contributor flows such as `make build` and `make dev` should serve an existing generated artifact rather than rebuilding it every time,
+2. contributor refresh should happen through an explicit command and optionally through a bounded freshness check such as `refresh-if-stale`,
+3. runtime-only flows such as `make setup-runtime` and `make run-prebuilt` should not silently generate it,
+4. and `sim_public` availability for contributor browsing should be tied to generated-site presence, not to `adversary_sim_enabled`.
 
-This keeps the contributor traversal surface available locally without granting runtime-only operators a surprise content site they did not build or ask for.
+This keeps the contributor traversal surface available locally without granting runtime-only operators a surprise content site they did not build or ask for, and without turning every contributor build into an avoidable regeneration step.
 
 ## Architectural Guardrails
 

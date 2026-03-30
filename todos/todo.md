@@ -285,6 +285,7 @@ Current note:
     - contract truth: the first tranche must explicitly be contributor-only, must forbid runtime repo walking, and must decouple site availability from adversary-sim control state
     - flow truth: contributor flows and runtime-only flows must have explicit documented behavior rather than relying on incidental build outcomes
     - standards truth: the contract must explicitly freeze a chronology-driven homepage feed, a separate `About` page, crawlable `<a href>` pagination, absolute canonical URLs, and semantic `<time datetime>` markup
+    - build-hygiene truth: the contract must explicitly forbid unconditional regeneration on every `make build` or `make dev` restart
     - proof: add and pass `make test-sim-public-generated-site-contract`
     - insufficient: leaving `/sim/public/*` availability coupled to `adversary_sim_enabled`, or introducing live repo reads in the request path
 
@@ -318,10 +319,11 @@ Current note:
     - [`docs/plans/2026-03-20-shared-host-seed-contract.md`](../docs/plans/2026-03-20-shared-host-seed-contract.md)
   - Closure gate:
     - discoverability truth: the generated site must expose root links, dated feeds, `robots.txt`, sitemap documents, and a standards-based Atom feed that materially increase public traversal depth
-    - workflow truth: `make setup`, `make build`, and `make dev` must generate or refresh the contributor artifact, while `make setup-runtime` and `make run-prebuilt` must stay free of accidental contributor-site generation
+    - workflow truth: contributors must have explicit refresh commands and an optional stale-check path, while default `make build` and `make dev` runs reuse an existing artifact instead of regenerating it every time
+    - runtime-only truth: `make setup-runtime` and `make run-prebuilt` must stay free of accidental contributor-site generation
     - crawlability truth: archive and pagination traversal must remain ordinary hyperlink navigation rather than JavaScript-only state
     - proof: add and pass `make test-sim-public-build-flow-contract`, keep `make test-sim-public-discoverability-contract` green, and keep shared-host seed-contract proof green
-    - insufficient: a richer site that still relies on manual contributor steps, or runtime-only flows that silently inherit contributor content generation
+    - insufficient: a richer site that forces regeneration on every contributor build, or runtime-only flows that silently inherit contributor content generation
 
 - [ ] SIM-REALISM-2I Add trusted-ingress client-IP realism without granting attacker-plane header privileges.
   - Reference context:

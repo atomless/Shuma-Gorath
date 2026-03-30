@@ -4,6 +4,21 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-30)
 
+### SIM-PUBSITE-PLAN-4 Build-Hygiene Refinement For Cached Site Generation
+
+- [x] Completed the docs-only refinement across:
+  - [`../docs/research/2026-03-30-contributor-generated-public-content-sim-site-review.md`](../docs/research/2026-03-30-contributor-generated-public-content-sim-site-review.md)
+  - [`../docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md`](../docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md)
+  - [`../todos/todo.md`](../todos/todo.md)
+- [x] What landed:
+  - the contributor-site contract now explicitly forbids unconditional regeneration on every `make build` or `make dev` restart,
+  - the planned workflow now prefers a cached artifact plus explicit refresh commands and an optional stale-check path,
+  - and the backlog now treats build hygiene as a first-class closure gate rather than an incidental implementation detail.
+- [x] Why:
+  - the user called out that always rebuilding the generated site during normal contributor workflows would clog local build/dev loops and make the feature more annoying than useful.
+- [x] Evidence:
+  - docs-only slice; verification intentionally limited to `git diff --check`
+
 ### SIM-PUBSITE-PLAN-3 Standards And Generator-Pattern Research Refresh
 
 - [x] Completed the docs-only research and planning refinement across:

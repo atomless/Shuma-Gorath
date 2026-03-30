@@ -33,6 +33,7 @@ Related context:
 8. Feed pages and archives are reachable through ordinary `<a href>` links and paginated URLs rather than JS-only navigation.
 9. Entry and feed pages emit absolute canonical URLs, and timestamps are rendered with semantic `<time datetime>` markup.
 10. Markdown rendering is performed by a real CommonMark-conforming build-time parser, not ad hoc string or regex transforms in the runtime.
+11. Normal contributor builds and dev restarts do not regenerate the site artifact by default; refresh happens only on explicit command or bounded stale-check policy.
 
 ## Task 1: Freeze The Generated-Site Contract And Contributor-Only Scope
 
@@ -61,6 +62,7 @@ Related context:
 3. The contract explicitly distinguishes contributor flows from runtime-only flows.
 4. The contract explicitly requires ordinary crawlable anchor links for pagination and archive traversal.
 5. The contract explicitly requires canonical URLs and semantic `time` markup.
+6. The contract explicitly forbids unconditional regeneration on every `make build` or `make dev` restart.
 
 **Proof:**
 1. Add and pass `make test-sim-public-generated-site-contract`.
@@ -133,15 +135,21 @@ Related context:
 **Work:**
 1. Generate `robots.txt` and sitemap documents for the new site.
 2. Ensure the root page and section feeds create meaningful public traversal depth.
-3. Wire contributor flows so `make setup`, `make build`, and `make dev` generate or refresh the contributor site automatically.
-4. Keep `make setup-runtime` and `make run-prebuilt` free from accidental contributor-site generation.
-5. Ensure archive and pagination pages remain link-driven and crawlable without JavaScript.
+3. Add explicit contributor refresh commands, for example:
+   - `make sim-public-refresh`
+   - `make sim-public-refresh-if-stale`
+4. Store generation metadata so the stale-check path can skip rebuilds until a bounded threshold or source-change rule is crossed.
+5. Wire contributor flows so `make dev` and `make build` serve the existing artifact without forcing regeneration on every invocation.
+6. Keep `make setup-runtime` and `make run-prebuilt` free from accidental contributor-site generation.
+7. Ensure archive and pagination pages remain link-driven and crawlable without JavaScript.
 
 **Acceptance criteria:**
 1. A contributor can browse the site locally on `make dev` without first running adversary sim.
 2. The new site materially improves public discoverability through a dated root feed, section feeds, `robots.txt`, and sitemap documents.
 3. Runtime-only setup remains clean and unsurprising.
 4. Feed traversal, archive traversal, and entry traversal all work through ordinary hyperlinks alone.
+5. Default contributor build/dev paths do not trigger expensive regeneration when a usable artifact already exists.
+6. Contributors have an explicit refresh path and an optional bounded stale-refresh path instead of an always-rebuild policy.
 
 **Proof:**
 1. Add and pass `make test-sim-public-build-flow-contract`.
