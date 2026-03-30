@@ -4,6 +4,21 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-30)
 
+### SIM-REALISM-PLAN-2 Reprioritize The Realism Chain As The Immediate Next Execution Step
+
+- [x] Completed the docs-only reprioritization update across:
+  - [`../todos/todo.md`](../todos/todo.md)
+  - [`../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
+  - [`../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`](../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md)
+- [x] What landed:
+  - the active backlog now says explicitly that `SIM-REALISM-1A` is the immediate next execution priority and that the full `SIM-REALISM-1A..1D` chain comes before new mixed-attacker proof or later tuning-quality work,
+  - the sequencing roadmap now names the realism chain as the next active step after the landed `SIM-LLM-1C3` proof,
+  - and the mature adversary-sim roadmap now states the exact execution order for the realism chain rather than only describing it as a general maturity gap.
+- [x] Why:
+  - the prior planning slice made the realism work active, but it still needed explicit priority wording so the repo did not leave room for later mixed-attacker work to leapfrog it.
+- [x] Evidence:
+  - `git diff --check`
+
 ### SIM-REALISM-PLAN-1 Formalize The Adversary-Lane Traffic Realism Planning Chain
 
 - [x] Completed the planning-only realism tranche across:

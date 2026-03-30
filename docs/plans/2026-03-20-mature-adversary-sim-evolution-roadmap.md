@@ -222,6 +222,13 @@ Only later, if important non-human traffic persistently falls outside the existi
 
 The next realism gap is no longer whether the lanes own the right categories. It is whether they emit behavior that is characteristic of those categories.
 
+The immediate next execution priority on this roadmap is therefore:
+
+1. `SIM-REALISM-1A` profile contract,
+2. `SIM-REALISM-1B` Scrapling pacing realism,
+3. `SIM-REALISM-1C` Agentic request-mode realism,
+4. `SIM-REALISM-1D` real Agentic browser-mode execution.
+
 Before Shuma should describe Scrapling or Agentic Traffic as representative tuning evidence, it should:
 
 1. freeze explicit per-lane or per-mode realism profiles for cadence, burst shape, dwell, identity rotation, JavaScript or browser propensity, and retry ceilings,
