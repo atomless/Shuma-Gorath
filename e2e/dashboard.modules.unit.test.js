@@ -5501,6 +5501,30 @@ test('dashboard config tabs reuse shared panels, save flows, and owned controls'
   assert.doesNotMatch(tuningSurfaceSource, /id="path-allowlist"/);
 });
 
+test('dashboard smoke policy restore paths cover every config family the smoke mutates', () => {
+  const source = fs.readFileSync(
+    path.join(WORKSPACE_ROOT, 'e2e/dashboard.smoke.spec.js'),
+    'utf8'
+  );
+
+  assert.match(source, /const POLICY_RESTORE_PATHS = Object\.freeze\(\[/);
+  assert.match(source, /"robots_enabled"/);
+  assert.match(source, /"robots_crawl_delay"/);
+  assert.match(source, /"ai_policy_block_training"/);
+  assert.match(source, /"ai_policy_block_search"/);
+  assert.match(source, /"ai_policy_allow_search_engines"/);
+  assert.match(source, /"ban_durations\.rate_limit"/);
+  assert.match(source, /"ban_durations\.tarpit_persistence"/);
+  assert.match(source, /"browser_policy_enabled"/);
+  assert.match(source, /"browser_block"/);
+  assert.match(source, /"path_allowlist_enabled"/);
+  assert.match(source, /"path_allowlist"/);
+  assert.match(
+    source,
+    /withRestoredAdminConfig\(request, POLICY_RESTORE_PATHS, async \(\) => \{/
+  );
+});
+
 test('ban duration families remain aligned across runtime, config, and policy surfaces', () => {
   const configSource = fs.readFileSync(
     path.join(WORKSPACE_ROOT, 'src/config/mod.rs'),
@@ -6532,6 +6556,54 @@ test('dashboard refresh runtime clears caches and resets freshness snapshots thr
   });
 });
 
+test('dashboard config-backed tab refreshes shared config from the server on click even when a snapshot exists', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const refreshModule = await importBrowserModule('dashboard/src/lib/runtime/dashboard-runtime-refresh.js');
+    const storeModule = await importBrowserModule('dashboard/src/lib/state/dashboard-store.js');
+
+    const store = storeModule.createDashboardStore({ initialTab: 'policy' });
+    store.setSnapshot('config', {
+      browser_policy_enabled: true,
+      maze_auto_ban: true
+    });
+    store.setSnapshot('configRuntime', {
+      admin_config_write_enabled: true,
+      runtime_environment: 'runtime-prod'
+    });
+
+    let configFetchCount = 0;
+    const apiClient = {
+      async getConfig() {
+        configFetchCount += 1;
+        return {
+          config: {
+            browser_policy_enabled: false,
+            maze_auto_ban: false
+          },
+          runtime: {
+            admin_config_write_enabled: true,
+            runtime_environment: 'runtime-prod'
+          }
+        };
+      }
+    };
+
+    const runtime = refreshModule.createDashboardRefreshRuntime({
+      normalizeTab: (value) => String(value || ''),
+      getApiClient: () => apiClient,
+      getStateStore: () => store
+    });
+
+    await runtime.refreshPolicyTab('click');
+    assert.equal(configFetchCount, 1);
+    assert.equal((store.getSnapshot('config') || {}).browser_policy_enabled, false);
+
+    await runtime.refreshTrapsTab('click');
+    assert.equal(configFetchCount, 2);
+    assert.equal((store.getSnapshot('config') || {}).maze_auto_ban, false);
+  });
+});
+
 test('dashboard verification tab wires verified identity operator snapshot and store state', () => {
   const apiClientSource = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/domain/api-client.js'),
@@ -7214,6 +7286,11 @@ test('dashboard route wires native runtime actions with separate manual and auto
   assert.match(source, /getDashboardRobotsPreview/);
   assert.match(source, /const MANUAL_REFRESH_TABS = new Set\(\['traffic', 'game-loop', 'diagnostics', 'ip-bans', 'red-team'\]\);/);
   assert.match(source, /const AUTO_REFRESH_TABS = new Set\(\['traffic', 'game-loop', 'ip-bans', 'red-team'\]\);/);
+  assert.match(
+    source,
+    /const CONFIG_REFRESH_ON_ACTIVATE_TABS = new Set\(\[\s*'tuning',\s*'verification',\s*'traps',\s*'rate-limiting',\s*'geo',\s*'fingerprinting',\s*'policy',\s*'status',\s*'advanced'\s*\]\);/
+  );
+  assert.match(source, /if \(CONFIG_REFRESH_ON_ACTIVATE_TABS\.has\(normalized\)\) \{\s*return true;\s*\}/);
 });
 
 test('dashboard route keeps the shadow-mode eye overlay mounted and lets CSS reveal it when enabled', () => {

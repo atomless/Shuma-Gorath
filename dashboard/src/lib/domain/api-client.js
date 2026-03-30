@@ -1455,7 +1455,10 @@ export const create = (options = {}) => {
    * @param {RequestOptions} [requestOptions]
    */
   const getConfig = async (requestOptions = {}) =>
-    adaptConfigEnvelope(await request('/admin/config', requestOptions));
+    adaptConfigEnvelope(await request('/admin/config', {
+      ...requestOptions,
+      cache: 'no-store'
+    }));
 
   /**
    * @param {RequestOptions} [requestOptions]

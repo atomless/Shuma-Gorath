@@ -42,7 +42,6 @@
   let savingPolicy = false;
   let warnOnUnload = false;
   let lastAppliedConfigVersion = -1;
-  let lastSaveInvalidLabel = '';
 
   let robotsEnabled = true;
   let robotsCrawlDelay = 2;
@@ -92,6 +91,49 @@
   let robotsPreviewPatchKey = '';
   let robotsPreviewRequestId = 0;
   let robotsPreviewAutoRefreshTimer = null;
+  let robotsCrawlDelayValid = true;
+  let robotsValid = true;
+  let robotsDirty = false;
+  let aiPolicyDirty = false;
+  let honeypotDurationSeconds = 86400;
+  let ipRangeHoneypotDurationSeconds = 86400;
+  let mazeCrawlerDurationSeconds = 86400;
+  let rateDurationSeconds = 3600;
+  let cdpDurationSeconds = 43200;
+  let edgeFingerprintDurationSeconds = 43200;
+  let tarpitPersistenceDurationSeconds = 600;
+  let notABotAbuseDurationSeconds = 600;
+  let challengePuzzleAbuseDurationSeconds = 600;
+  let adminDurationSeconds = 21600;
+  let durHoneypotValid = true;
+  let durIpRangeHoneypotValid = true;
+  let durMazeCrawlerValid = true;
+  let durRateLimitValid = true;
+  let durCdpValid = true;
+  let durEdgeFingerprintValid = true;
+  let durTarpitPersistenceValid = true;
+  let durNotABotAbuseValid = true;
+  let durChallengePuzzleAbuseValid = true;
+  let durAdminValid = true;
+  let durationsValid = true;
+  let durationsDirty = false;
+  let browserBlockNormalized = '';
+  let browserBlockRulesValid = true;
+  let browserPolicyValid = true;
+  let browserPolicyDirty = false;
+  let pathAllowlistNormalized = '';
+  let pathAllowlistDirty = false;
+  let dirtySections = [];
+  let dirtySectionEntries = [];
+  let invalidDirtySectionEntries = [];
+  let invalidDirtySectionLabels = [];
+  let dirtySectionCount = 0;
+  let hasUnsavedChanges = false;
+  let hasInvalidUnsavedChanges = false;
+  let savePolicyDisabled = true;
+  let savePolicyLabel = 'Save policy changes';
+  let savePolicySummary = 'No unsaved changes';
+  let savePolicyInvalidText = '';
 
   let baseline = {
     robotsPolicy: {
@@ -166,6 +208,130 @@
       ai_policy_block_search: robotsBlockSearch === true,
       ai_policy_allow_search_engines: restrictSearchEngines !== true
     };
+  };
+
+  const applyPolicyFieldChange = (field, value) => {
+    switch (field) {
+      case 'robotsEnabled':
+        robotsEnabled = value === true;
+        break;
+      case 'robotsCrawlDelay':
+        robotsCrawlDelay = value;
+        break;
+      case 'robotsBlockTraining':
+        robotsBlockTraining = value === true;
+        break;
+      case 'robotsBlockSearch':
+        robotsBlockSearch = value === true;
+        break;
+      case 'restrictSearchEngines':
+        restrictSearchEngines = value === true;
+        break;
+      case 'durHoneypotDays':
+        durHoneypotDays = value;
+        break;
+      case 'durHoneypotHours':
+        durHoneypotHours = value;
+        break;
+      case 'durHoneypotMinutes':
+        durHoneypotMinutes = value;
+        break;
+      case 'durIpRangeHoneypotDays':
+        durIpRangeHoneypotDays = value;
+        break;
+      case 'durIpRangeHoneypotHours':
+        durIpRangeHoneypotHours = value;
+        break;
+      case 'durIpRangeHoneypotMinutes':
+        durIpRangeHoneypotMinutes = value;
+        break;
+      case 'durMazeCrawlerDays':
+        durMazeCrawlerDays = value;
+        break;
+      case 'durMazeCrawlerHours':
+        durMazeCrawlerHours = value;
+        break;
+      case 'durMazeCrawlerMinutes':
+        durMazeCrawlerMinutes = value;
+        break;
+      case 'durRateLimitDays':
+        durRateLimitDays = value;
+        break;
+      case 'durRateLimitHours':
+        durRateLimitHours = value;
+        break;
+      case 'durRateLimitMinutes':
+        durRateLimitMinutes = value;
+        break;
+      case 'durCdpDays':
+        durCdpDays = value;
+        break;
+      case 'durCdpHours':
+        durCdpHours = value;
+        break;
+      case 'durCdpMinutes':
+        durCdpMinutes = value;
+        break;
+      case 'durEdgeFingerprintDays':
+        durEdgeFingerprintDays = value;
+        break;
+      case 'durEdgeFingerprintHours':
+        durEdgeFingerprintHours = value;
+        break;
+      case 'durEdgeFingerprintMinutes':
+        durEdgeFingerprintMinutes = value;
+        break;
+      case 'durTarpitPersistenceDays':
+        durTarpitPersistenceDays = value;
+        break;
+      case 'durTarpitPersistenceHours':
+        durTarpitPersistenceHours = value;
+        break;
+      case 'durTarpitPersistenceMinutes':
+        durTarpitPersistenceMinutes = value;
+        break;
+      case 'durNotABotAbuseDays':
+        durNotABotAbuseDays = value;
+        break;
+      case 'durNotABotAbuseHours':
+        durNotABotAbuseHours = value;
+        break;
+      case 'durNotABotAbuseMinutes':
+        durNotABotAbuseMinutes = value;
+        break;
+      case 'durChallengePuzzleAbuseDays':
+        durChallengePuzzleAbuseDays = value;
+        break;
+      case 'durChallengePuzzleAbuseHours':
+        durChallengePuzzleAbuseHours = value;
+        break;
+      case 'durChallengePuzzleAbuseMinutes':
+        durChallengePuzzleAbuseMinutes = value;
+        break;
+      case 'durAdminDays':
+        durAdminDays = value;
+        break;
+      case 'durAdminHours':
+        durAdminHours = value;
+        break;
+      case 'durAdminMinutes':
+        durAdminMinutes = value;
+        break;
+      case 'browserPolicyEnabled':
+        browserPolicyEnabled = value === true;
+        break;
+      case 'browserBlockRules':
+        browserBlockRules = String(value || '');
+        break;
+      case 'pathAllowlistEnabled':
+        pathAllowlistEnabled = value === true;
+        break;
+      case 'pathAllowlist':
+        pathAllowlist = String(value || '');
+        break;
+      default:
+        break;
+    }
   };
 
   const applyConfig = (config = {}) => {
@@ -325,7 +491,6 @@
           }
         };
       }
-      lastSaveInvalidLabel = '';
     } finally {
       savingPolicy = false;
     }
@@ -390,180 +555,176 @@
     clearRobotsPreviewAutoRefreshTimer();
   });
 
-  $: writable = isAdminConfigWritable(configRuntimeSnapshot);
-  $: robotsCrawlDelayValid = inRange(robotsCrawlDelay, 0, 60);
-  $: robotsValid = robotsCrawlDelayValid;
-  $: robotsDirty = (
-    readBool(robotsEnabled) !== baseline.robotsPolicy.enabled ||
-    Number(robotsCrawlDelay) !== baseline.robotsPolicy.crawlDelay
-  );
-  $: aiPolicyDirty = (
-    readBool(robotsBlockTraining) !== baseline.robotsPolicy.blockTraining ||
-    readBool(robotsBlockSearch) !== baseline.robotsPolicy.blockSearch ||
-    readBool(restrictSearchEngines) !== baseline.robotsPolicy.restrictSearchEngines
-  );
+  $: {
+    writable = isAdminConfigWritable(configRuntimeSnapshot);
+    robotsCrawlDelayValid = inRange(robotsCrawlDelay, 0, 60);
+    robotsValid = robotsCrawlDelayValid;
+    robotsDirty = (
+      readBool(robotsEnabled) !== baseline.robotsPolicy.enabled ||
+      Number(robotsCrawlDelay) !== baseline.robotsPolicy.crawlDelay
+    );
+    aiPolicyDirty = (
+      readBool(robotsBlockTraining) !== baseline.robotsPolicy.blockTraining ||
+      readBool(robotsBlockSearch) !== baseline.robotsPolicy.blockSearch ||
+      readBool(restrictSearchEngines) !== baseline.robotsPolicy.restrictSearchEngines
+    );
 
-  $: honeypotDurationSeconds = durationSeconds(durHoneypotDays, durHoneypotHours, durHoneypotMinutes);
-  $: ipRangeHoneypotDurationSeconds = durationSeconds(
-    durIpRangeHoneypotDays,
-    durIpRangeHoneypotHours,
-    durIpRangeHoneypotMinutes
-  );
-  $: mazeCrawlerDurationSeconds = durationSeconds(
-    durMazeCrawlerDays,
-    durMazeCrawlerHours,
-    durMazeCrawlerMinutes
-  );
-  $: rateDurationSeconds = durationSeconds(durRateLimitDays, durRateLimitHours, durRateLimitMinutes);
-  $: cdpDurationSeconds = durationSeconds(durCdpDays, durCdpHours, durCdpMinutes);
-  $: edgeFingerprintDurationSeconds = durationSeconds(
-    durEdgeFingerprintDays,
-    durEdgeFingerprintHours,
-    durEdgeFingerprintMinutes
-  );
-  $: tarpitPersistenceDurationSeconds = durationSeconds(
-    durTarpitPersistenceDays,
-    durTarpitPersistenceHours,
-    durTarpitPersistenceMinutes
-  );
-  $: notABotAbuseDurationSeconds = durationSeconds(
-    durNotABotAbuseDays,
-    durNotABotAbuseHours,
-    durNotABotAbuseMinutes
-  );
-  $: challengePuzzleAbuseDurationSeconds = durationSeconds(
-    durChallengePuzzleAbuseDays,
-    durChallengePuzzleAbuseHours,
-    durChallengePuzzleAbuseMinutes
-  );
-  $: adminDurationSeconds = durationSeconds(durAdminDays, durAdminHours, durAdminMinutes);
+    honeypotDurationSeconds = durationSeconds(durHoneypotDays, durHoneypotHours, durHoneypotMinutes);
+    ipRangeHoneypotDurationSeconds = durationSeconds(
+      durIpRangeHoneypotDays,
+      durIpRangeHoneypotHours,
+      durIpRangeHoneypotMinutes
+    );
+    mazeCrawlerDurationSeconds = durationSeconds(
+      durMazeCrawlerDays,
+      durMazeCrawlerHours,
+      durMazeCrawlerMinutes
+    );
+    rateDurationSeconds = durationSeconds(durRateLimitDays, durRateLimitHours, durRateLimitMinutes);
+    cdpDurationSeconds = durationSeconds(durCdpDays, durCdpHours, durCdpMinutes);
+    edgeFingerprintDurationSeconds = durationSeconds(
+      durEdgeFingerprintDays,
+      durEdgeFingerprintHours,
+      durEdgeFingerprintMinutes
+    );
+    tarpitPersistenceDurationSeconds = durationSeconds(
+      durTarpitPersistenceDays,
+      durTarpitPersistenceHours,
+      durTarpitPersistenceMinutes
+    );
+    notABotAbuseDurationSeconds = durationSeconds(
+      durNotABotAbuseDays,
+      durNotABotAbuseHours,
+      durNotABotAbuseMinutes
+    );
+    challengePuzzleAbuseDurationSeconds = durationSeconds(
+      durChallengePuzzleAbuseDays,
+      durChallengePuzzleAbuseHours,
+      durChallengePuzzleAbuseMinutes
+    );
+    adminDurationSeconds = durationSeconds(durAdminDays, durAdminHours, durAdminMinutes);
 
-  $: durHoneypotValid = isDurationTupleValid(
-    durHoneypotDays,
-    durHoneypotHours,
-    durHoneypotMinutes,
-    DURATION_VALIDATION_BOUNDS
-  );
-  $: durIpRangeHoneypotValid = isDurationTupleValid(
-    durIpRangeHoneypotDays,
-    durIpRangeHoneypotHours,
-    durIpRangeHoneypotMinutes,
-    DURATION_VALIDATION_BOUNDS
-  );
-  $: durMazeCrawlerValid = isDurationTupleValid(
-    durMazeCrawlerDays,
-    durMazeCrawlerHours,
-    durMazeCrawlerMinutes,
-    DURATION_VALIDATION_BOUNDS
-  );
-  $: durRateLimitValid = isDurationTupleValid(
-    durRateLimitDays,
-    durRateLimitHours,
-    durRateLimitMinutes,
-    DURATION_VALIDATION_BOUNDS
-  );
-  $: durCdpValid = isDurationTupleValid(
-    durCdpDays,
-    durCdpHours,
-    durCdpMinutes,
-    DURATION_VALIDATION_BOUNDS
-  );
-  $: durEdgeFingerprintValid = isDurationTupleValid(
-    durEdgeFingerprintDays,
-    durEdgeFingerprintHours,
-    durEdgeFingerprintMinutes,
-    DURATION_VALIDATION_BOUNDS
-  );
-  $: durTarpitPersistenceValid = isDurationTupleValid(
-    durTarpitPersistenceDays,
-    durTarpitPersistenceHours,
-    durTarpitPersistenceMinutes,
-    DURATION_VALIDATION_BOUNDS
-  );
-  $: durNotABotAbuseValid = isDurationTupleValid(
-    durNotABotAbuseDays,
-    durNotABotAbuseHours,
-    durNotABotAbuseMinutes,
-    DURATION_VALIDATION_BOUNDS
-  );
-  $: durChallengePuzzleAbuseValid = isDurationTupleValid(
-    durChallengePuzzleAbuseDays,
-    durChallengePuzzleAbuseHours,
-    durChallengePuzzleAbuseMinutes,
-    DURATION_VALIDATION_BOUNDS
-  );
-  $: durAdminValid = isDurationTupleValid(
-    durAdminDays,
-    durAdminHours,
-    durAdminMinutes,
-    DURATION_VALIDATION_BOUNDS
-  );
-  $: durationsValid = (
-    durHoneypotValid &&
-    durIpRangeHoneypotValid &&
-    durMazeCrawlerValid &&
-    durRateLimitValid &&
-    durCdpValid &&
-    durEdgeFingerprintValid &&
-    durTarpitPersistenceValid &&
-    durNotABotAbuseValid &&
-    durChallengePuzzleAbuseValid &&
-    durAdminValid
-  );
-  $: durationsDirty = (
-    honeypotDurationSeconds !== baseline.durations.honeypot ||
-    ipRangeHoneypotDurationSeconds !== baseline.durations.ipRangeHoneypot ||
-    mazeCrawlerDurationSeconds !== baseline.durations.mazeCrawler ||
-    rateDurationSeconds !== baseline.durations.rateLimit ||
-    cdpDurationSeconds !== baseline.durations.cdp ||
-    edgeFingerprintDurationSeconds !== baseline.durations.edgeFingerprint ||
-    tarpitPersistenceDurationSeconds !== baseline.durations.tarpitPersistence ||
-    notABotAbuseDurationSeconds !== baseline.durations.notABotAbuse ||
-    challengePuzzleAbuseDurationSeconds !== baseline.durations.challengePuzzleAbuse ||
-    adminDurationSeconds !== baseline.durations.admin
-  );
+    durHoneypotValid = isDurationTupleValid(
+      durHoneypotDays,
+      durHoneypotHours,
+      durHoneypotMinutes,
+      DURATION_VALIDATION_BOUNDS
+    );
+    durIpRangeHoneypotValid = isDurationTupleValid(
+      durIpRangeHoneypotDays,
+      durIpRangeHoneypotHours,
+      durIpRangeHoneypotMinutes,
+      DURATION_VALIDATION_BOUNDS
+    );
+    durMazeCrawlerValid = isDurationTupleValid(
+      durMazeCrawlerDays,
+      durMazeCrawlerHours,
+      durMazeCrawlerMinutes,
+      DURATION_VALIDATION_BOUNDS
+    );
+    durRateLimitValid = isDurationTupleValid(
+      durRateLimitDays,
+      durRateLimitHours,
+      durRateLimitMinutes,
+      DURATION_VALIDATION_BOUNDS
+    );
+    durCdpValid = isDurationTupleValid(
+      durCdpDays,
+      durCdpHours,
+      durCdpMinutes,
+      DURATION_VALIDATION_BOUNDS
+    );
+    durEdgeFingerprintValid = isDurationTupleValid(
+      durEdgeFingerprintDays,
+      durEdgeFingerprintHours,
+      durEdgeFingerprintMinutes,
+      DURATION_VALIDATION_BOUNDS
+    );
+    durTarpitPersistenceValid = isDurationTupleValid(
+      durTarpitPersistenceDays,
+      durTarpitPersistenceHours,
+      durTarpitPersistenceMinutes,
+      DURATION_VALIDATION_BOUNDS
+    );
+    durNotABotAbuseValid = isDurationTupleValid(
+      durNotABotAbuseDays,
+      durNotABotAbuseHours,
+      durNotABotAbuseMinutes,
+      DURATION_VALIDATION_BOUNDS
+    );
+    durChallengePuzzleAbuseValid = isDurationTupleValid(
+      durChallengePuzzleAbuseDays,
+      durChallengePuzzleAbuseHours,
+      durChallengePuzzleAbuseMinutes,
+      DURATION_VALIDATION_BOUNDS
+    );
+    durAdminValid = isDurationTupleValid(
+      durAdminDays,
+      durAdminHours,
+      durAdminMinutes,
+      DURATION_VALIDATION_BOUNDS
+    );
+    durationsValid = (
+      durHoneypotValid &&
+      durIpRangeHoneypotValid &&
+      durMazeCrawlerValid &&
+      durRateLimitValid &&
+      durCdpValid &&
+      durEdgeFingerprintValid &&
+      durTarpitPersistenceValid &&
+      durNotABotAbuseValid &&
+      durChallengePuzzleAbuseValid &&
+      durAdminValid
+    );
+    durationsDirty = (
+      honeypotDurationSeconds !== baseline.durations.honeypot ||
+      ipRangeHoneypotDurationSeconds !== baseline.durations.ipRangeHoneypot ||
+      mazeCrawlerDurationSeconds !== baseline.durations.mazeCrawler ||
+      rateDurationSeconds !== baseline.durations.rateLimit ||
+      cdpDurationSeconds !== baseline.durations.cdp ||
+      edgeFingerprintDurationSeconds !== baseline.durations.edgeFingerprint ||
+      tarpitPersistenceDurationSeconds !== baseline.durations.tarpitPersistence ||
+      notABotAbuseDurationSeconds !== baseline.durations.notABotAbuse ||
+      challengePuzzleAbuseDurationSeconds !== baseline.durations.challengePuzzleAbuse ||
+      adminDurationSeconds !== baseline.durations.admin
+    );
 
-  $: browserBlockNormalized = normalizeBrowserRulesForCompare(browserBlockRules);
-  $: browserBlockRulesValid = browserBlockNormalized !== '__invalid__';
-  $: browserPolicyValid = browserBlockRulesValid;
-  $: browserPolicyDirty = (
-    (browserPolicyEnabled === true) !== baseline.browserPolicy.enabled ||
-    browserBlockNormalized !== baseline.browserPolicy.block
-  );
+    browserBlockNormalized = normalizeBrowserRulesForCompare(browserBlockRules);
+    browserBlockRulesValid = browserBlockNormalized !== '__invalid__';
+    browserPolicyValid = browserBlockRulesValid;
+    browserPolicyDirty = (
+      (browserPolicyEnabled === true) !== baseline.browserPolicy.enabled ||
+      browserBlockNormalized !== baseline.browserPolicy.block
+    );
 
-  $: pathAllowlistNormalized = normalizeListTextareaForCompare(pathAllowlist);
-  $: pathAllowlistDirty = (
-    (pathAllowlistEnabled === true) !== baseline.pathAllowlist.enabled ||
-    pathAllowlistNormalized !== baseline.pathAllowlist.entries
-  );
+    pathAllowlistNormalized = normalizeListTextareaForCompare(pathAllowlist);
+    pathAllowlistDirty = (
+      (pathAllowlistEnabled === true) !== baseline.pathAllowlist.enabled ||
+      pathAllowlistNormalized !== baseline.pathAllowlist.entries
+    );
 
-  $: dirtySections = [
-    { label: 'Robots and AI policy', dirty: robotsDirty || aiPolicyDirty, valid: robotsValid },
-    { label: 'Ban durations', dirty: durationsDirty, valid: durationsValid },
-    { label: 'Browser policy', dirty: browserPolicyDirty, valid: browserPolicyValid },
-    { label: 'Path allowlist', dirty: pathAllowlistDirty, valid: true }
-  ];
-  $: dirtySectionEntries = dirtySections.filter((section) => section.dirty === true);
-  $: invalidDirtySectionEntries = dirtySectionEntries.filter((section) => section.valid !== true);
-  $: invalidDirtySectionLabels = invalidDirtySectionEntries.map((section) => section.label);
-  $: dirtySectionCount = dirtySectionEntries.length;
-  $: hasUnsavedChanges = dirtySectionCount > 0;
-  $: hasInvalidUnsavedChanges = invalidDirtySectionEntries.length > 0;
-  $: savePolicyDisabled = !writable || !hasUnsavedChanges || hasInvalidUnsavedChanges || savingPolicy;
-  $: savePolicyLabel = savingPolicy ? 'Saving...' : 'Save policy changes';
-  $: savePolicySummary = hasUnsavedChanges
-    ? `${dirtySectionCount} policy section${dirtySectionCount === 1 ? '' : 's'} with unsaved changes`
-    : 'No unsaved changes';
-  $: savePolicyInvalidText = hasInvalidUnsavedChanges
-    ? `Fix invalid values in: ${lastSaveInvalidLabel}`
-    : '';
-  $: warnOnUnload = writable && hasUnsavedChanges;
-  $: robotsPreviewPatchKey = JSON.stringify(buildRobotsPreviewPatch());
-
-  $: if (hasInvalidUnsavedChanges) {
-    lastSaveInvalidLabel = invalidDirtySectionLabels.join(', ');
-  } else if (!hasUnsavedChanges) {
-    lastSaveInvalidLabel = '';
+    dirtySections = [
+      { label: 'Robots and AI policy', dirty: robotsDirty || aiPolicyDirty, valid: robotsValid },
+      { label: 'Ban durations', dirty: durationsDirty, valid: durationsValid },
+      { label: 'Browser policy', dirty: browserPolicyDirty, valid: browserPolicyValid },
+      { label: 'Path allowlist', dirty: pathAllowlistDirty, valid: true }
+    ];
+    dirtySectionEntries = dirtySections.filter((section) => section.dirty === true);
+    invalidDirtySectionEntries = dirtySectionEntries.filter((section) => section.valid !== true);
+    invalidDirtySectionLabels = invalidDirtySectionEntries.map((section) => section.label);
+    dirtySectionCount = dirtySectionEntries.length;
+    hasUnsavedChanges = dirtySectionCount > 0;
+    hasInvalidUnsavedChanges = invalidDirtySectionEntries.length > 0;
+    savePolicyDisabled = !writable || !hasUnsavedChanges || hasInvalidUnsavedChanges || savingPolicy;
+    savePolicyLabel = savingPolicy ? 'Saving...' : 'Save policy changes';
+    savePolicySummary = hasUnsavedChanges
+      ? `${dirtySectionCount} policy section${dirtySectionCount === 1 ? '' : 's'} with unsaved changes`
+      : 'No unsaved changes';
+    savePolicyInvalidText = hasInvalidUnsavedChanges
+      ? `Fix invalid values in: ${invalidDirtySectionLabels.join(', ')}`
+      : '';
+    warnOnUnload = writable && hasUnsavedChanges;
+    robotsPreviewPatchKey = JSON.stringify(buildRobotsPreviewPatch());
   }
 
   $: if (robotsPreviewOpen) {
@@ -583,6 +744,7 @@
       }
     }
   }
+
 </script>
 
 <section
@@ -597,55 +759,56 @@
   <TabStateMessage tab="policy" status={tabStatus} noticeText={noticeText} noticeKind={noticeKind} />
   <div class="controls-grid controls-grid--config">
     <ConfigRobotsSection
-      bind:writable
+      writable={writable}
       robotsDirty={robotsDirty}
       aiPolicyDirty={aiPolicyDirty}
-      bind:robotsEnabled
-      bind:robotsCrawlDelay
+      robotsEnabled={robotsEnabled}
+      robotsCrawlDelay={robotsCrawlDelay}
       robotsCrawlDelayValid={robotsCrawlDelayValid}
-      bind:robotsBlockTraining
-      bind:robotsBlockSearch
-      bind:restrictSearchEngines
-      bind:robotsPreviewOpen
-      bind:robotsPreviewLoading
-      bind:robotsPreviewContent
+      robotsBlockTraining={robotsBlockTraining}
+      robotsBlockSearch={robotsBlockSearch}
+      restrictSearchEngines={restrictSearchEngines}
+      robotsPreviewOpen={robotsPreviewOpen}
+      robotsPreviewLoading={robotsPreviewLoading}
+      robotsPreviewContent={robotsPreviewContent}
       onRobotsPreviewControlChanged={onRobotsPreviewControlChanged}
       onToggleRobotsPreview={toggleRobotsPreview}
+      onFieldChange={applyPolicyFieldChange}
     />
 
     <ConfigDurationsSection
-      bind:writable
+      writable={writable}
       durationsDirty={durationsDirty}
-      bind:durHoneypotDays
-      bind:durHoneypotHours
-      bind:durHoneypotMinutes
-      bind:durIpRangeHoneypotDays
-      bind:durIpRangeHoneypotHours
-      bind:durIpRangeHoneypotMinutes
-      bind:durMazeCrawlerDays
-      bind:durMazeCrawlerHours
-      bind:durMazeCrawlerMinutes
-      bind:durRateLimitDays
-      bind:durRateLimitHours
-      bind:durRateLimitMinutes
-      bind:durCdpDays
-      bind:durCdpHours
-      bind:durCdpMinutes
-      bind:durEdgeFingerprintDays
-      bind:durEdgeFingerprintHours
-      bind:durEdgeFingerprintMinutes
-      bind:durTarpitPersistenceDays
-      bind:durTarpitPersistenceHours
-      bind:durTarpitPersistenceMinutes
-      bind:durNotABotAbuseDays
-      bind:durNotABotAbuseHours
-      bind:durNotABotAbuseMinutes
-      bind:durChallengePuzzleAbuseDays
-      bind:durChallengePuzzleAbuseHours
-      bind:durChallengePuzzleAbuseMinutes
-      bind:durAdminDays
-      bind:durAdminHours
-      bind:durAdminMinutes
+      durHoneypotDays={durHoneypotDays}
+      durHoneypotHours={durHoneypotHours}
+      durHoneypotMinutes={durHoneypotMinutes}
+      durIpRangeHoneypotDays={durIpRangeHoneypotDays}
+      durIpRangeHoneypotHours={durIpRangeHoneypotHours}
+      durIpRangeHoneypotMinutes={durIpRangeHoneypotMinutes}
+      durMazeCrawlerDays={durMazeCrawlerDays}
+      durMazeCrawlerHours={durMazeCrawlerHours}
+      durMazeCrawlerMinutes={durMazeCrawlerMinutes}
+      durRateLimitDays={durRateLimitDays}
+      durRateLimitHours={durRateLimitHours}
+      durRateLimitMinutes={durRateLimitMinutes}
+      durCdpDays={durCdpDays}
+      durCdpHours={durCdpHours}
+      durCdpMinutes={durCdpMinutes}
+      durEdgeFingerprintDays={durEdgeFingerprintDays}
+      durEdgeFingerprintHours={durEdgeFingerprintHours}
+      durEdgeFingerprintMinutes={durEdgeFingerprintMinutes}
+      durTarpitPersistenceDays={durTarpitPersistenceDays}
+      durTarpitPersistenceHours={durTarpitPersistenceHours}
+      durTarpitPersistenceMinutes={durTarpitPersistenceMinutes}
+      durNotABotAbuseDays={durNotABotAbuseDays}
+      durNotABotAbuseHours={durNotABotAbuseHours}
+      durNotABotAbuseMinutes={durNotABotAbuseMinutes}
+      durChallengePuzzleAbuseDays={durChallengePuzzleAbuseDays}
+      durChallengePuzzleAbuseHours={durChallengePuzzleAbuseHours}
+      durChallengePuzzleAbuseMinutes={durChallengePuzzleAbuseMinutes}
+      durAdminDays={durAdminDays}
+      durAdminHours={durAdminHours}
+      durAdminMinutes={durAdminMinutes}
       durHoneypotValid={durHoneypotValid}
       durIpRangeHoneypotValid={durIpRangeHoneypotValid}
       durMazeCrawlerValid={durMazeCrawlerValid}
@@ -656,23 +819,26 @@
       durNotABotAbuseValid={durNotABotAbuseValid}
       durChallengePuzzleAbuseValid={durChallengePuzzleAbuseValid}
       durAdminValid={durAdminValid}
+      onFieldChange={applyPolicyFieldChange}
     />
 
     <ConfigNetworkSection
-      bind:writable
+      writable={writable}
       showHoneypot={false}
       showBrowserPolicy={true}
-      bind:browserPolicyDirty
-      bind:browserPolicyEnabled
-      bind:browserBlockRules
+      browserPolicyDirty={browserPolicyDirty}
+      browserPolicyEnabled={browserPolicyEnabled}
+      browserBlockRules={browserBlockRules}
       browserBlockRulesValid={browserBlockRulesValid}
+      onFieldChange={applyPolicyFieldChange}
     />
 
     <ConfigPathAllowlistSection
-      bind:writable
-      bind:pathAllowlistDirty
-      bind:pathAllowlistEnabled
-      bind:pathAllowlist
+      writable={writable}
+      pathAllowlistDirty={pathAllowlistDirty}
+      pathAllowlistEnabled={pathAllowlistEnabled}
+      pathAllowlist={pathAllowlist}
+      onFieldChange={applyPolicyFieldChange}
     />
 
     <SaveChangesBar

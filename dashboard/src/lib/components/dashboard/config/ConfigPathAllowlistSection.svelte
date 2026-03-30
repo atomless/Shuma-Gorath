@@ -7,6 +7,13 @@
   export let pathAllowlistDirty = false;
   export let pathAllowlistEnabled = true;
   export let pathAllowlist = '';
+  export let onFieldChange = null;
+
+  const handleFieldChange = (field, value) => {
+    if (typeof onFieldChange === 'function') {
+      onFieldChange(field, value);
+    }
+  };
 </script>
 
 <ConfigPanel writable={writable} dirty={pathAllowlistDirty}>
@@ -16,8 +23,9 @@
         type="checkbox"
         id="path-allowlist-enabled-toggle"
         aria-label="Enable path allowlist bypass"
-        bind:checked={pathAllowlistEnabled}
+        checked={pathAllowlistEnabled}
         disabled={!writable}
+        on:change={(event) => handleFieldChange('pathAllowlistEnabled', event?.currentTarget?.checked === true)}
       >
       <span class="toggle-slider"></span>
     </label>
@@ -43,6 +51,7 @@
     ariaLabel="Path allowlist"
     spellcheck={false}
     disabled={!writable || !pathAllowlistEnabled}
-    bind:value={pathAllowlist}
+    value={pathAllowlist}
+    onInput={(event) => handleFieldChange('pathAllowlist', event?.currentTarget?.value ?? '')}
   />
 </ConfigPanel>

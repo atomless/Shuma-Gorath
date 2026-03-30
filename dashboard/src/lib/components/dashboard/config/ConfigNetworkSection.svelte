@@ -17,19 +17,32 @@
   export let browserPolicyEnabled = true;
   export let browserBlockRules = '';
   export let browserBlockRulesValid = true;
+  export let onFieldChange = null;
+
+  const handleFieldChange = (field, value) => {
+    if (typeof onFieldChange === 'function') {
+      onFieldChange(field, value);
+    }
+  };
 </script>
 
 {#if showHoneypot}
   <ConfigPanel writable={writable} dirty={honeypotDirty}>
     <ConfigPanelHeading title="Honeypot Paths">
       <label class="toggle-switch" for="honeypot-enabled-toggle">
-        <input type="checkbox" id="honeypot-enabled-toggle" aria-label="Enable honeypot" bind:checked={honeypotEnabled}>
+        <input
+          type="checkbox"
+          id="honeypot-enabled-toggle"
+          aria-label="Enable honeypot"
+          checked={honeypotEnabled}
+          on:change={(event) => handleFieldChange('honeypotEnabled', event?.currentTarget?.checked === true)}
+        >
         <span class="toggle-slider"></span>
       </label>
     </ConfigPanelHeading>
     <p class="control-desc text-muted">One path per line. Each path must start with <code>/</code>. Unencoded path characters are limited to letters, digits, <code>/ - . _ ~ ! $ &amp; ' ( ) * + , ; = : @</code>. Query (<code>?</code>) and fragment (<code>#</code>) are not allowed. Any other character must be percent-encoded as <code>%HH</code>.</p>
     <div class="admin-controls">
-      <TextareaField id="honeypot-paths" label="Paths" rows="3" ariaLabel="Honeypot paths" spellcheck={false} ariaInvalid={honeypotPathsValid ? 'false' : 'true'} bind:value={honeypotPaths} />
+      <TextareaField id="honeypot-paths" label="Paths" rows="3" ariaLabel="Honeypot paths" spellcheck={false} ariaInvalid={honeypotPathsValid ? 'false' : 'true'} value={honeypotPaths} onInput={(event) => handleFieldChange('honeypotPaths', event?.currentTarget?.value ?? '')} />
       {#if !honeypotPathsValid && honeypotInvalidMessage}
         <p id="honeypot-paths-error" class="field-error visible">{honeypotInvalidMessage}</p>
       {/if}
@@ -41,13 +54,18 @@
   <ConfigPanel writable={writable} dirty={browserPolicyDirty}>
     <ConfigPanelHeading title="Browser Policy">
       <label class="toggle-switch" for="browser-policy-toggle">
-        <input type="checkbox" id="browser-policy-toggle" bind:checked={browserPolicyEnabled}>
+        <input
+          type="checkbox"
+          id="browser-policy-toggle"
+          checked={browserPolicyEnabled}
+          on:change={(event) => handleFieldChange('browserPolicyEnabled', event?.currentTarget?.checked === true)}
+        >
         <span class="toggle-slider"></span>
       </label>
     </ConfigPanelHeading>
     <p class="control-desc text-muted">Use one rule per line in <code>BrowserName,min_major</code> format (for example <code>Chrome,120</code>). Requests that match these minimum-version rules add a small browser-policy signal to botness scoring. JS Browser Allowlist is Advanced JSON only.</p>
     <div class="admin-controls">
-      <TextareaField id="browser-block-rules" label="Minimum Versions (Signal)" rows="3" ariaLabel="Browser policy minimum versions" spellcheck={false} ariaInvalid={browserBlockRulesValid ? 'false' : 'true'} bind:value={browserBlockRules} />
+      <TextareaField id="browser-block-rules" label="Minimum Versions (Signal)" rows="3" ariaLabel="Browser policy minimum versions" spellcheck={false} ariaInvalid={browserBlockRulesValid ? 'false' : 'true'} value={browserBlockRules} onInput={(event) => handleFieldChange('browserBlockRules', event?.currentTarget?.value ?? '')} />
     </div>
   </ConfigPanel>
 {/if}

@@ -36,6 +36,25 @@
   let tarpitEnabled = true;
   let mazeAutoBan = true;
   let mazeThreshold = 50;
+  let honeypotNormalized = '';
+  let honeypotValid = true;
+  let honeypotDirty = false;
+  let mazeThresholdValid = true;
+  let mazeValid = true;
+  let mazeDirty = false;
+  let tarpitValid = true;
+  let tarpitDirty = false;
+  let dirtySections = [];
+  let dirtySectionEntries = [];
+  let invalidDirtySectionEntries = [];
+  let invalidDirtySectionLabels = [];
+  let dirtySectionCount = 0;
+  let hasUnsavedChanges = false;
+  let hasInvalidUnsavedChanges = false;
+  let saveTrapsDisabled = true;
+  let saveTrapsLabel = 'Save trap settings';
+  let saveTrapsSummary = 'No unsaved changes';
+  let saveTrapsInvalidText = '';
 
   let baseline = {
     honeypot: {
@@ -77,6 +96,31 @@
         enabled: tarpitEnabled === true
       }
     };
+  };
+
+  const applyTrapFieldChange = (field, value) => {
+    switch (field) {
+      case 'honeypotEnabled':
+        honeypotEnabled = value === true;
+        break;
+      case 'honeypotPaths':
+        honeypotPaths = String(value || '');
+        break;
+      case 'mazeEnabled':
+        mazeEnabled = value === true;
+        break;
+      case 'mazeAutoBan':
+        mazeAutoBan = value === true;
+        break;
+      case 'mazeThreshold':
+        mazeThreshold = value;
+        break;
+      case 'tarpitEnabled':
+        tarpitEnabled = value === true;
+        break;
+      default:
+        break;
+    }
   };
 
   async function saveTrapsConfig() {
@@ -139,55 +183,56 @@
     };
   });
 
-  $: honeypotNormalized = normalizeHoneypotPathsForCompare(honeypotPaths);
-  $: honeypotValid = (() => {
+  $: {
+    honeypotNormalized = normalizeHoneypotPathsForCompare(honeypotPaths);
     try {
       parseHoneypotPathsTextarea(honeypotPaths);
       honeypotInvalidMessage = '';
-      return true;
+      honeypotValid = true;
     } catch (error) {
       honeypotInvalidMessage = error && error.message
         ? String(error.message)
         : 'Invalid honeypot path list.';
-      return false;
+      honeypotValid = false;
     }
-  })();
-  $: honeypotDirty = (
-    readBool(honeypotEnabled) !== baseline.honeypot.enabled ||
-    honeypotNormalized !== baseline.honeypot.values
-  );
 
-  $: mazeThresholdValid = inRange(mazeThreshold, 5, 500);
-  $: mazeValid = mazeThresholdValid;
-  $: mazeDirty = (
-    readBool(mazeEnabled) !== baseline.maze.enabled ||
-    readBool(mazeAutoBan) !== baseline.maze.autoBan ||
-    Number(mazeThreshold) !== baseline.maze.threshold
-  );
+    honeypotDirty = (
+      readBool(honeypotEnabled) !== baseline.honeypot.enabled ||
+      honeypotNormalized !== baseline.honeypot.values
+    );
 
-  $: tarpitValid = true;
-  $: tarpitDirty = readBool(tarpitEnabled) !== baseline.tarpit.enabled;
+    mazeThresholdValid = inRange(mazeThreshold, 5, 500);
+    mazeValid = mazeThresholdValid;
+    mazeDirty = (
+      readBool(mazeEnabled) !== baseline.maze.enabled ||
+      readBool(mazeAutoBan) !== baseline.maze.autoBan ||
+      Number(mazeThreshold) !== baseline.maze.threshold
+    );
 
-  $: dirtySections = [
-    { label: 'Maze', dirty: mazeDirty, valid: mazeValid },
-    { label: 'Tarpit', dirty: tarpitDirty, valid: tarpitValid },
-    { label: 'Honeypot paths', dirty: honeypotDirty, valid: honeypotValid }
-  ];
-  $: dirtySectionEntries = dirtySections.filter((section) => section.dirty === true);
-  $: invalidDirtySectionEntries = dirtySectionEntries.filter((section) => section.valid !== true);
-  $: invalidDirtySectionLabels = invalidDirtySectionEntries.map((section) => section.label);
-  $: dirtySectionCount = dirtySectionEntries.length;
-  $: hasUnsavedChanges = dirtySectionCount > 0;
-  $: hasInvalidUnsavedChanges = invalidDirtySectionEntries.length > 0;
-  $: saveTrapsDisabled = !writable || !hasUnsavedChanges || hasInvalidUnsavedChanges || savingTraps;
-  $: saveTrapsLabel = savingTraps ? 'Saving...' : 'Save trap settings';
-  $: saveTrapsSummary = hasUnsavedChanges
-    ? `${dirtySectionCount} section${dirtySectionCount === 1 ? '' : 's'} with unsaved changes`
-    : 'No unsaved changes';
-  $: saveTrapsInvalidText = hasInvalidUnsavedChanges
-    ? `Fix invalid values in: ${invalidDirtySectionLabels.join(', ')}`
-    : '';
-  $: warnOnUnload = writable && hasUnsavedChanges;
+    tarpitValid = true;
+    tarpitDirty = readBool(tarpitEnabled) !== baseline.tarpit.enabled;
+
+    dirtySections = [
+      { label: 'Maze', dirty: mazeDirty, valid: mazeValid },
+      { label: 'Tarpit', dirty: tarpitDirty, valid: tarpitValid },
+      { label: 'Honeypot paths', dirty: honeypotDirty, valid: honeypotValid }
+    ];
+    dirtySectionEntries = dirtySections.filter((section) => section.dirty === true);
+    invalidDirtySectionEntries = dirtySectionEntries.filter((section) => section.valid !== true);
+    invalidDirtySectionLabels = invalidDirtySectionEntries.map((section) => section.label);
+    dirtySectionCount = dirtySectionEntries.length;
+    hasUnsavedChanges = dirtySectionCount > 0;
+    hasInvalidUnsavedChanges = invalidDirtySectionEntries.length > 0;
+    saveTrapsDisabled = !writable || !hasUnsavedChanges || hasInvalidUnsavedChanges || savingTraps;
+    saveTrapsLabel = savingTraps ? 'Saving...' : 'Save trap settings';
+    saveTrapsSummary = hasUnsavedChanges
+      ? `${dirtySectionCount} section${dirtySectionCount === 1 ? '' : 's'} with unsaved changes`
+      : 'No unsaved changes';
+    saveTrapsInvalidText = hasInvalidUnsavedChanges
+      ? `Fix invalid values in: ${invalidDirtySectionLabels.join(', ')}`
+      : '';
+    warnOnUnload = writable && hasUnsavedChanges;
+  }
   $: hasConfigSnapshot = configSnapshot && typeof configSnapshot === 'object' && Object.keys(configSnapshot).length > 0;
 
   $: {
@@ -215,25 +260,27 @@
   <TabStateMessage tab="traps" status={tabStatus} noticeText={noticeText} noticeKind={noticeKind} />
   <div class="controls-grid controls-grid--config">
     <ConfigMazeSection
-      bind:writable
-      bind:mazeDirty
-      bind:tarpitDirty
-      bind:mazeEnabled
-      bind:mazeAutoBan
-      bind:mazeThreshold
+      writable={writable}
+      mazeDirty={mazeDirty}
+      tarpitDirty={tarpitDirty}
+      mazeEnabled={mazeEnabled}
+      mazeAutoBan={mazeAutoBan}
+      mazeThreshold={mazeThreshold}
       mazeThresholdValid={mazeThresholdValid}
-      bind:tarpitEnabled
+      tarpitEnabled={tarpitEnabled}
+      onFieldChange={applyTrapFieldChange}
     />
 
     <ConfigNetworkSection
-      bind:writable
+      writable={writable}
       showHoneypot={true}
       showBrowserPolicy={false}
-      bind:honeypotDirty
-      bind:honeypotEnabled
-      bind:honeypotPaths
+      honeypotDirty={honeypotDirty}
+      honeypotEnabled={honeypotEnabled}
+      honeypotPaths={honeypotPaths}
       honeypotPathsValid={honeypotValid}
       honeypotInvalidMessage={honeypotInvalidMessage}
+      onFieldChange={applyTrapFieldChange}
     />
 
     <SaveChangesBar

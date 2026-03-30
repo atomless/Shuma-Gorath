@@ -4946,6 +4946,49 @@ mod admin_config_tests {
     }
 
     #[test]
+    fn admin_config_responses_disable_caching() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        let store = TestStore::default();
+
+        let get_req = make_request(Method::Get, "/admin/config", Vec::new());
+        let get_resp = handle_admin_config(&get_req, &store, "default");
+        assert_eq!(*get_resp.status(), 200u16);
+        assert_eq!(
+            get_resp
+                .header("cache-control")
+                .and_then(|value| value.as_str()),
+            Some("no-store")
+        );
+        assert_eq!(
+            get_resp
+                .header("content-type")
+                .and_then(|value| value.as_str()),
+            Some("application/json")
+        );
+
+        let post_req = make_request(
+            Method::Post,
+            "/admin/config",
+            br#"{"shadow_mode": false}"#.to_vec(),
+        );
+        let post_resp = handle_admin_config(&post_req, &store, "default");
+        assert_eq!(*post_resp.status(), 200u16);
+        assert_eq!(
+            post_resp
+                .header("cache-control")
+                .and_then(|value| value.as_str()),
+            Some("no-store")
+        );
+        assert_eq!(
+            post_resp
+                .header("content-type")
+                .and_then(|value| value.as_str()),
+            Some("application/json")
+        );
+    }
+
+    #[test]
     fn admin_config_includes_runtime_environment_and_adversary_sim_state() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
@@ -19225,7 +19268,12 @@ pub(super) fn handle_admin_config_internal(
             )
         }))
         .unwrap();
-        return Response::new(200, body);
+        return Response::builder()
+            .status(200)
+            .header("Content-Type", "application/json")
+            .header("Cache-Control", "no-store")
+            .body(body)
+            .build();
     }
     // GET: Return current config
     let snapshot = match load_adversary_sim_lifecycle_snapshot(store, site_id) {
@@ -19254,7 +19302,12 @@ pub(super) fn handle_admin_config_internal(
         maze_default,
     ))
     .unwrap();
-    Response::new(200, body)
+    Response::builder()
+        .status(200)
+        .header("Content-Type", "application/json")
+        .header("Cache-Control", "no-store")
+        .body(body)
+        .build()
 }
 
 

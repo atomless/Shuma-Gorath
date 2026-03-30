@@ -46,12 +46,26 @@ const RATE_LIMITING_RESTORE_PATHS = Object.freeze([
   "defence_modes.rate",
   "provider_backends.rate_limiter"
 ]);
-const ROBOTS_RESTORE_PATHS = Object.freeze([
+const POLICY_RESTORE_PATHS = Object.freeze([
   "robots_enabled",
   "robots_crawl_delay",
   "ai_policy_block_training",
   "ai_policy_block_search",
-  "ai_policy_allow_search_engines"
+  "ai_policy_allow_search_engines",
+  "ban_durations.rate_limit",
+  "ban_durations.tarpit_persistence",
+  "browser_policy_enabled",
+  "browser_block",
+  "path_allowlist_enabled",
+  "path_allowlist"
+]);
+const TRAPS_RESTORE_PATHS = Object.freeze([
+  "honeypot_enabled",
+  "honeypots",
+  "maze_enabled",
+  "maze_auto_ban",
+  "maze_auto_ban_threshold",
+  "tarpit_enabled"
 ]);
 const ADVERSARY_SIM_RESTORE_PATHS = Object.freeze([
   "adversary_sim_duration_seconds"
@@ -207,6 +221,41 @@ function parseDashboardCounterText(text) {
   if (!digits) return 0;
   const parsed = Number.parseFloat(digits);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatTextareaList(values) {
+  return Array.isArray(values)
+    ? values.map((value) => String(value || "").trim()).filter((value) => value.length > 0).join("\n")
+    : "";
+}
+
+function formatBrowserRules(rules) {
+  if (!Array.isArray(rules)) {
+    return "";
+  }
+  return rules
+    .map((rule) => {
+      if (!Array.isArray(rule) || rule.length < 2) {
+        return "";
+      }
+      const name = String(rule[0] || "").trim();
+      const version = Number.parseInt(rule[1], 10);
+      if (!name || !Number.isFinite(version)) {
+        return "";
+      }
+      return `${name},${version}`;
+    })
+    .filter((rule) => rule.length > 0)
+    .join("\n");
+}
+
+function durationParts(totalSeconds) {
+  const safeSeconds = Math.max(0, Number.parseInt(totalSeconds, 10) || 0);
+  const totalMinutes = Math.floor(safeSeconds / 60);
+  const days = Math.floor(totalMinutes / (24 * 60));
+  const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+  const minutes = totalMinutes % 60;
+  return { days, hours, minutes };
 }
 
 async function assertActiveTabPanelVisibility(page, activeTab) {
@@ -5313,7 +5362,7 @@ test("fingerprinting tab hides Akamai controls outside edge-fermyon posture", as
 });
 
 test("policy tab save flows cover robots serving, durations, browser policy, and path allowlist controls", async ({ page, request }) => {
-  await withRestoredAdminConfig(request, ROBOTS_RESTORE_PATHS, async () => {
+  await withRestoredAdminConfig(request, POLICY_RESTORE_PATHS, async () => {
     await openDashboard(page);
     await openTab(page, "policy");
 
@@ -5414,6 +5463,65 @@ test("policy tab save flows cover robots serving, durations, browser policy, and
       await submitConfigSave(page, saveButton);
     }
   });
+});
+
+test("config-backed tabs rehydrate external config mutations without surfacing unsaved changes", async ({ page, request }) => {
+  await withRestoredAdminConfig(
+    request,
+    [...POLICY_RESTORE_PATHS, ...TRAPS_RESTORE_PATHS],
+    async () => {
+      const initialConfig = await fetchAdminConfig(request);
+      const initialBrowserPolicyEnabled = initialConfig.browser_policy_enabled !== false;
+      const initialBrowserRules = formatBrowserRules(initialConfig.browser_block);
+      const initialPathAllowlist = formatTextareaList(initialConfig.path_allowlist);
+      const initialRateLimitDuration = durationParts(initialConfig?.ban_durations?.rate_limit);
+      const initialTarpitPersistenceDuration = durationParts(initialConfig?.ban_durations?.tarpit_persistence);
+      const initialMazeAutoBan = initialConfig.maze_auto_ban !== false;
+      const initialHoneypotPaths = formatTextareaList(initialConfig.honeypots);
+
+      await openDashboard(page);
+      await openTab(page, "policy", { waitForReady: true });
+      await expect(page.locator("#dur-rate-limit-days")).toHaveValue(String(initialRateLimitDuration.days));
+      await expect(page.locator("#dur-rate-limit-hours")).toHaveValue(String(initialRateLimitDuration.hours));
+      await expect(page.locator("#dur-rate-limit-minutes")).toHaveValue(String(initialRateLimitDuration.minutes));
+      await expect(page.locator("#dur-tarpit-persistence-days")).toHaveValue(String(initialTarpitPersistenceDuration.days));
+      await expect(page.locator("#dur-tarpit-persistence-hours")).toHaveValue(String(initialTarpitPersistenceDuration.hours));
+      await expect(page.locator("#dur-tarpit-persistence-minutes")).toHaveValue(String(initialTarpitPersistenceDuration.minutes));
+      await expect(page.locator("#browser-block-rules")).toHaveValue(initialBrowserRules);
+      await expect(page.locator("#path-allowlist")).toHaveValue(initialPathAllowlist);
+      await expect(page.locator("#save-policy-config")).toBeHidden();
+      await expect(page.locator("#dashboard-panel-policy")).toContainText("No unsaved changes");
+
+      await updateAdminConfig(request, {
+        browser_policy_enabled: !initialBrowserPolicyEnabled
+      });
+
+      await openTab(page, "traps", { waitForReady: true });
+      await openTab(page, "policy", { waitForReady: true });
+      if (initialBrowserPolicyEnabled) {
+        await expect(page.locator("#browser-policy-toggle")).not.toBeChecked();
+      } else {
+        await expect(page.locator("#browser-policy-toggle")).toBeChecked();
+      }
+      await expect(page.locator("#save-policy-config")).toBeHidden();
+      await expect(page.locator("#dashboard-panel-policy")).toContainText("No unsaved changes");
+
+      await updateAdminConfig(request, {
+        maze_auto_ban: !initialMazeAutoBan
+      });
+
+      await openTab(page, "game-loop");
+      await openTab(page, "traps", { waitForReady: true });
+      await expect(page.locator("#honeypot-paths")).toHaveValue(initialHoneypotPaths);
+      if (initialMazeAutoBan) {
+        await expect(page.locator("#maze-auto-ban-toggle")).not.toBeChecked();
+      } else {
+        await expect(page.locator("#maze-auto-ban-toggle")).toBeChecked();
+      }
+      await expect(page.locator("#save-traps-config")).toBeHidden();
+      await expect(page.locator("#dashboard-panel-traps")).toContainText("No unsaved changes");
+    }
+  );
 });
 
 test("tab error state is surfaced when tab-scoped fetch fails", async ({ page }) => {

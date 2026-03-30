@@ -260,6 +260,10 @@ export function createDashboardRefreshRuntime(options = {}) {
     );
   }
 
+  function shouldReuseExistingSharedConfig(reason = 'manual') {
+    return reason === 'auto-refresh';
+  }
+
   function readCache(cacheKey) {
     if (!storage) return null;
     try {
@@ -575,7 +579,11 @@ export function createDashboardRefreshRuntime(options = {}) {
         runtime: existingRuntime && typeof existingRuntime === 'object' ? existingRuntime : {}
       };
     }
-    if (!isConfigSnapshotEmpty(existingConfig) && !isConfigRuntimeSnapshotEmpty(existingRuntime)) {
+    if (
+      shouldReuseExistingSharedConfig(reason) &&
+      !isConfigSnapshotEmpty(existingConfig) &&
+      !isConfigRuntimeSnapshotEmpty(existingRuntime)
+    ) {
       return {
         config: existingConfig,
         runtime: existingRuntime

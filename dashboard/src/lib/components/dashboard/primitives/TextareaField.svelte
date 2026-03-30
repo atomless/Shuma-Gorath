@@ -10,6 +10,7 @@
   export let monospace = false;
   export let ariaInvalid = undefined;
   export let showLineNumbers = false;
+  export let onInput = null;
 
   $: textareaClass = `input-field textarea-field__input ${monospace ? 'input-field--mono' : ''}`.trim();
   $: lineCount = Math.max(1, String(value || '').split('\n').length);
@@ -21,6 +22,12 @@
     const target = event && event.currentTarget ? event.currentTarget : null;
     if (!target) return;
     lineNumberOffset = target.scrollTop;
+  };
+
+  const handleTextareaInput = (event) => {
+    if (typeof onInput === 'function') {
+      onInput(event);
+    }
   };
 </script>
 
@@ -42,6 +49,7 @@
         bind:value
         {disabled}
         aria-invalid={ariaInvalid}
+        on:input={handleTextareaInput}
         on:scroll={handleTextareaScroll}
       ></textarea>
     </div>
@@ -55,6 +63,7 @@
       bind:value
       {disabled}
       aria-invalid={ariaInvalid}
+      on:input={handleTextareaInput}
     ></textarea>
   {/if}
 </div>

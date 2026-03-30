@@ -7,6 +7,27 @@
   export let hours = 0;
   export let minutes = 0;
   export let ariaInvalid = undefined;
+  export let onDaysInput = null;
+  export let onHoursInput = null;
+  export let onMinutesInput = null;
+
+  const handleDaysInput = (event) => {
+    if (typeof onDaysInput === 'function') {
+      onDaysInput(event);
+    }
+  };
+
+  const handleHoursInput = (event) => {
+    if (typeof onHoursInput === 'function') {
+      onHoursInput(event);
+    }
+  };
+
+  const handleMinutesInput = (event) => {
+    if (typeof onMinutesInput === 'function') {
+      onMinutesInput(event);
+    }
+  };
 </script>
 
 <div class="duration-row">
@@ -23,6 +44,7 @@
         inputmode="numeric"
         bind:value={days}
         aria-invalid={ariaInvalid}
+        on:input={handleDaysInput}
       />
       <span class="input-unit">days</span>
     </label>
@@ -37,6 +59,7 @@
         inputmode="numeric"
         bind:value={hours}
         aria-invalid={ariaInvalid}
+        on:input={handleHoursInput}
       />
       <span class="input-unit">hrs</span>
     </label>
@@ -51,6 +74,7 @@
         inputmode="numeric"
         bind:value={minutes}
         aria-invalid={ariaInvalid}
+        on:input={handleMinutesInput}
       />
       <span class="input-unit">mins</span>
     </label>

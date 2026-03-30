@@ -4,6 +4,36 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-30)
 
+### DASH-CONFIG-TRUTH-1 Fix Phantom Unsaved State In Policy And Traps Tabs
+
+- [x] Completed the dashboard config-truth repair across:
+  - [`../dashboard/src/lib/components/dashboard/RobotsTab.svelte`](../dashboard/src/lib/components/dashboard/RobotsTab.svelte)
+  - [`../dashboard/src/lib/components/dashboard/TrapsTab.svelte`](../dashboard/src/lib/components/dashboard/TrapsTab.svelte)
+  - [`../dashboard/src/lib/components/dashboard/config/ConfigDurationsSection.svelte`](../dashboard/src/lib/components/dashboard/config/ConfigDurationsSection.svelte)
+  - [`../dashboard/src/lib/components/dashboard/config/ConfigMazeSection.svelte`](../dashboard/src/lib/components/dashboard/config/ConfigMazeSection.svelte)
+  - [`../dashboard/src/lib/components/dashboard/config/ConfigNetworkSection.svelte`](../dashboard/src/lib/components/dashboard/config/ConfigNetworkSection.svelte)
+  - [`../dashboard/src/lib/components/dashboard/config/ConfigPathAllowlistSection.svelte`](../dashboard/src/lib/components/dashboard/config/ConfigPathAllowlistSection.svelte)
+  - [`../dashboard/src/lib/components/dashboard/config/ConfigRobotsSection.svelte`](../dashboard/src/lib/components/dashboard/config/ConfigRobotsSection.svelte)
+  - [`../dashboard/src/lib/components/dashboard/primitives/DurationInputRow.svelte`](../dashboard/src/lib/components/dashboard/primitives/DurationInputRow.svelte)
+  - [`../dashboard/src/lib/components/dashboard/primitives/TextareaField.svelte`](../dashboard/src/lib/components/dashboard/primitives/TextareaField.svelte)
+  - [`../dashboard/src/lib/domain/api-client.js`](../dashboard/src/lib/domain/api-client.js)
+  - [`../dashboard/src/lib/runtime/dashboard-runtime-refresh.js`](../dashboard/src/lib/runtime/dashboard-runtime-refresh.js)
+  - [`../dashboard/src/routes/+page.svelte`](../dashboard/src/routes/+page.svelte)
+  - [`../src/admin/api.rs`](../src/admin/api.rs)
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`../Makefile`](../Makefile)
+- [x] What landed:
+  - `/admin/config` responses and the dashboard config fetch path now disable caching so config-backed tabs read fresh server truth instead of stale browser or fetch-layer responses,
+  - manual and activation-driven dashboard refreshes now refetch shared config for config-backed tabs instead of silently reusing stale in-memory config on auto-refresh rules that do not fit the edit surface,
+  - the Policy and Traps tabs now own and recompute their derived save-state fields from the current hydrated config-backed inputs instead of letting stale child-bound derived values keep the save bar dirty after initial load,
+  - and the dashboard regression coverage now proves both external config rehydration and full smoke cleanup so tests do not leave phantom dirty state behind.
+- [x] Why:
+  - the tabs could show `Unsaved changes` even when the visible controls matched server config because raw config hydration updated the source fields while chained derived dirty-state values remained stuck on their initial defaults.
+- [x] Evidence:
+  - `make dashboard-build`
+  - `make test-dashboard-config-refresh-contract`
+
 ### SIM-REALISM-PLAN-2 Reprioritize The Realism Chain As The Immediate Next Execution Step
 
 - [x] Completed the docs-only reprioritization update across:

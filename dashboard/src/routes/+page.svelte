@@ -71,6 +71,17 @@
   const AUTO_REFRESH_INTERVAL_MS = 1000;
   const MANUAL_REFRESH_TABS = new Set(['traffic', 'game-loop', 'diagnostics', 'ip-bans', 'red-team']);
   const AUTO_REFRESH_TABS = new Set(['traffic', 'game-loop', 'ip-bans', 'red-team']);
+  const CONFIG_REFRESH_ON_ACTIVATE_TABS = new Set([
+    'tuning',
+    'verification',
+    'traps',
+    'rate-limiting',
+    'geo',
+    'fingerprinting',
+    'policy',
+    'status',
+    'advanced'
+  ]);
   const AUTO_REFRESH_PREF_KEY = 'shuma_dashboard_auto_refresh_v1';
   const DASHBOARD_LOADED_CLASS = 'dashboard-loaded';
   const ADVERSARY_SIM_SELECTABLE_LANES = new Set([
@@ -501,37 +512,11 @@
     },
     isAutoRefreshEnabled: () => autoRefreshEnabled === true,
     isAutoRefreshTab: (tab) => AUTO_REFRESH_TABS.has(normalizeTab(tab)),
-    shouldRefreshOnActivate: ({ tab, store }) => {
+    shouldRefreshOnActivate: ({ tab }) => {
       const normalized = normalizeTab(tab);
       if (AUTO_REFRESH_TABS.has(normalized)) return true;
-      const state = store && typeof store.getState === 'function' ? store.getState() : null;
-      const configSnapshot = state && state.snapshots ? state.snapshots.config : null;
-      if (!configSnapshot || Object.keys(configSnapshot).length === 0) {
+      if (CONFIG_REFRESH_ON_ACTIVATE_TABS.has(normalized)) {
         return true;
-      }
-      if (normalized === 'verification') {
-        const operatorSnapshot = state && state.snapshots ? state.snapshots.operatorSnapshot : null;
-        const hasVerifiedIdentitySummary =
-          operatorSnapshot &&
-          typeof operatorSnapshot === 'object' &&
-          operatorSnapshot.verified_identity &&
-          typeof operatorSnapshot.verified_identity === 'object' &&
-          Object.keys(operatorSnapshot.verified_identity).length > 0;
-        return !hasVerifiedIdentitySummary;
-      }
-      if (normalized === 'status') {
-        const monitoringSnapshot = state && state.snapshots ? state.snapshots.monitoring : null;
-        const monitoringFreshness = state && state.snapshots ? state.snapshots.monitoringFreshness : null;
-        const hasRetentionHealth =
-          monitoringSnapshot &&
-          typeof monitoringSnapshot === 'object' &&
-          monitoringSnapshot.retention_health &&
-          typeof monitoringSnapshot.retention_health === 'object';
-        const hasFreshness =
-          monitoringFreshness &&
-          typeof monitoringFreshness === 'object' &&
-          String(monitoringFreshness.state || '').trim().length > 0;
-        return !(hasRetentionHealth && hasFreshness);
       }
       return false;
     },

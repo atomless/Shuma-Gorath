@@ -10,12 +10,25 @@
   export let mazeThreshold = 50;
   export let mazeThresholdValid = true;
   export let tarpitEnabled = true;
+  export let onFieldChange = null;
+
+  const handleFieldChange = (field, value) => {
+    if (typeof onFieldChange === 'function') {
+      onFieldChange(field, value);
+    }
+  };
 </script>
 
 <ConfigPanel writable={writable} dirty={mazeDirty}>
   <ConfigPanelHeading title="Maze">
     <label class="toggle-switch" for="maze-enabled-toggle">
-      <input type="checkbox" id="maze-enabled-toggle" aria-label="Enable maze" bind:checked={mazeEnabled}>
+      <input
+        type="checkbox"
+        id="maze-enabled-toggle"
+        aria-label="Enable maze"
+        checked={mazeEnabled}
+        on:change={(event) => handleFieldChange('mazeEnabled', event?.currentTarget?.checked === true)}
+      >
       <span class="toggle-slider"></span>
     </label>
   </ConfigPanelHeading>
@@ -24,13 +37,32 @@
     <div class="toggle-row">
       <label class="control-label" for="maze-auto-ban-toggle">Enable Auto-ban</label>
       <label class="toggle-switch">
-        <input type="checkbox" id="maze-auto-ban-toggle" aria-label="Enable maze auto-ban" bind:checked={mazeAutoBan}>
+        <input
+          type="checkbox"
+          id="maze-auto-ban-toggle"
+          aria-label="Enable maze auto-ban"
+          checked={mazeAutoBan}
+          on:change={(event) => handleFieldChange('mazeAutoBan', event?.currentTarget?.checked === true)}
+        >
         <span class="toggle-slider"></span>
       </label>
     </div>
     <div class="input-row" class:input-row--disabled={!mazeAutoBan} aria-disabled={!mazeAutoBan}>
       <label class="control-label" class:text-muted={!mazeAutoBan} for="maze-threshold">Auto-ban Threshold (maze pages visited)</label>
-      <input class="input-field" type="number" id="maze-threshold" min="5" max="500" step="1" inputmode="numeric" aria-label="Maze ban threshold in pages" aria-invalid={mazeThresholdValid ? 'false' : 'true'} bind:value={mazeThreshold} disabled={!mazeAutoBan}>
+      <input
+        class="input-field"
+        type="number"
+        id="maze-threshold"
+        min="5"
+        max="500"
+        step="1"
+        inputmode="numeric"
+        aria-label="Maze ban threshold in pages"
+        aria-invalid={mazeThresholdValid ? 'false' : 'true'}
+        value={mazeThreshold}
+        disabled={!mazeAutoBan}
+        on:input={(event) => handleFieldChange('mazeThreshold', event?.currentTarget?.value ?? '')}
+      >
     </div>
   </div>
 </ConfigPanel>
@@ -38,7 +70,13 @@
 <ConfigPanel writable={writable} dirty={tarpitDirty}>
   <ConfigPanelHeading title="Tarpit">
     <label class="toggle-switch" for="tarpit-enabled-toggle">
-      <input type="checkbox" id="tarpit-enabled-toggle" aria-label="Enable tarpit" bind:checked={tarpitEnabled}>
+      <input
+        type="checkbox"
+        id="tarpit-enabled-toggle"
+        aria-label="Enable tarpit"
+        checked={tarpitEnabled}
+        on:change={(event) => handleFieldChange('tarpitEnabled', event?.currentTarget?.checked === true)}
+      >
       <span class="toggle-slider"></span>
     </label>
   </ConfigPanelHeading>
