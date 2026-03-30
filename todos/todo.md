@@ -291,7 +291,8 @@ Current note:
     - [`docs/research/2026-03-30-contributor-generated-public-content-sim-site-review.md`](../docs/research/2026-03-30-contributor-generated-public-content-sim-site-review.md)
     - [`docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md`](../docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md)
   - Closure gate:
-    - content truth: the generated site must derive from allowlisted markdown roots including `README.md`, `docs/**/*.md`, `todos/todo.md`, `todos/blocked-todo.md`, and `todos/completed-todo-history.md`, while excluding `todos/security-review.md`
+    - content truth: the generated site must derive from `README.md` as a separate `About` page, dated research entries, dated plan entries, and completed TODO history while excluding active backlog, blocked backlog, security review material, and undated general docs from the first profile
+    - structure truth: the homepage must be a chronology-driven feed rather than the `README` itself
     - presentation truth: the generated pages must use semantic HTML and extremely minimal hypertext-style presentation rather than dashboard-like chrome
     - proof: add and pass `make test-sim-public-generator`
     - insufficient: duplicated markdown copies committed as a fake site, or heavy bespoke styling that turns the content site into a secondary app

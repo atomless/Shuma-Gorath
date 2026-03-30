@@ -4,6 +4,20 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-30)
 
+### SIM-PUBSITE-PLAN-2 Dated-Corpus Scope Refinement For Contributor Site
+
+- [x] Completed the docs-only refinement across:
+  - [`../docs/research/2026-03-30-contributor-generated-public-content-sim-site-review.md`](../docs/research/2026-03-30-contributor-generated-public-content-sim-site-review.md)
+  - [`../docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md`](../docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md)
+  - [`../todos/todo.md`](../todos/todo.md)
+- [x] What landed:
+  - the first contributor-site profile now excludes active and blocked TODOs as well as security review material,
+  - the first published corpus is now narrowed to dated research, dated plans, completed work history, plus `README.md` as a separate `About` page,
+  - and the site structure now explicitly uses a chronology-driven homepage feed rather than making the `README` the root index.
+- [x] Why:
+  - the user decided the first generated site should publish only dated material that reads naturally as timeline content, which keeps the public traversal surface deeper and cleaner while avoiding exposure of in-progress backlog or security material.
+- [x] Evidence:
+  - docs-only slice; verification intentionally limited to `git diff --check`
 ### SIM-PUBSITE-PLAN-1 Contributor-Generated Public-Content Sim Site Research And Planning
 
 - [x] Completed the docs-only research, plan, and backlog extension across:

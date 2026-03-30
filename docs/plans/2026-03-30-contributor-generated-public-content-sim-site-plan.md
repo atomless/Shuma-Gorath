@@ -14,7 +14,7 @@ Related context:
 
 **Goal:** Replace the current hard-coded `/sim/public/*` dummy site with a build-time generated contributor content site that is richer, publicly discoverable, viewable on local dev even when sim is idle, and still faithful to the no-hidden-catalog discoverability doctrine.
 
-**Architecture:** Generate a bounded site artifact from allowlisted markdown roots during contributor workflows, then serve that artifact through the existing `sim_public` runtime surface. Keep the runtime free of repo-walking behavior and heavy markdown-rendering logic. Preserve the `/sim/public/*` public traversal prefix, add root links plus feed and article pages plus `robots.txt` and sitemap documents, and delete the old five-page dummy-site implementation once the generated path is live. Keep the first profile contributor-only; defer any later public-hosted profile to a separate follow-on.
+**Architecture:** Generate a bounded site artifact from allowlisted dated markdown roots during contributor workflows, then serve that artifact through the existing `sim_public` runtime surface. Keep the runtime free of repo-walking behavior and heavy markdown-rendering logic. Preserve the `/sim/public/*` public traversal prefix, use the homepage as a chronology-driven latest or all-entries feed, render `README.md` as a separate `About` page, add section feeds plus article pages plus `robots.txt` and sitemap documents, and delete the old five-page dummy-site implementation once the generated path is live. Keep the first profile contributor-only; defer any later public-hosted profile to a separate follow-on.
 
 **Tech Stack:** existing Rust runtime `sim_public` surface, build-time site generator script, allowlisted markdown roots, semantic HTML generation, minimal shared stylesheet or browser-default rendering, focused `Makefile` generation and proof targets, docs/TODO bookkeeping.
 
@@ -25,7 +25,7 @@ Related context:
 1. Local contributor workflows expose the richer `/sim/public/*` site even when adversary sim is idle; browsing the site must no longer depend on `adversary_sim_enabled`.
 2. Runtime-only workflows do not silently generate or expose the contributor site artifact.
 3. The generated site is derived from allowlisted markdown roots rather than duplicated content copies or runtime repo walking.
-4. The generated site exposes root links, timeline-like feed pages, article pages, `robots.txt`, and sitemap documents that materially improve public discoverability.
+4. The generated site exposes a chronology-driven homepage feed, section feeds, article pages, `robots.txt`, and sitemap documents that materially improve public discoverability.
 5. The generated HTML is semantic and well structured, and the visual treatment remains extremely minimal and hypertext-like rather than dashboard-styled.
 6. The old five-page hard-coded dummy site is removed once the generated site path is live; there must be only one canonical `/sim/public/*` surface model.
 7. No worker receives hidden route catalogs or simulator-only discoverability hints as part of this work.
@@ -60,16 +60,15 @@ Related context:
 - Modify: contributor docs
 
 **Work:**
-1. Generate the site from allowlisted markdown roots:
-   - `README.md`
-   - `docs/**/*.md`
-   - `todos/todo.md`
-   - `todos/blocked-todo.md`
-   - `todos/completed-todo-history.md`
-2. Exclude `todos/security-review.md` and any private or generated non-source content from the first profile.
+1. Generate the site from allowlisted source content:
+   - `README.md` as a separate `About` page
+   - dated research entries in `docs/research/2026-*.md`
+   - dated plan entries in `docs/plans/2026-*.md`
+   - dated completion history from `todos/completed-todo-history.md`
+2. Exclude active backlog, blocked backlog, security review material, and undated general docs from the first profile.
 3. Render:
-   - one root page,
-   - timeline-like feed pages,
+   - one chronology-driven root page,
+   - section feed pages,
    - article pages,
    - and compact metadata needed for sitemap generation and runtime serving.
 4. Keep presentation intentionally minimal. Prefer browser defaults plus at most one tiny shared stylesheet for readability.
@@ -77,8 +76,9 @@ Related context:
 **Acceptance criteria:**
 1. The artifact contains no duplicated source tree; it is a generated serving representation.
 2. Feed ordering and excerpts are deterministic.
-3. HTML structure is semantic and crawlable.
-4. Visual styling remains minimal enough that the site reads like hypertext, not a custom app.
+3. The root page is a dated feed and `README.md` is exposed separately as `About`.
+4. HTML structure is semantic and crawlable.
+5. Visual styling remains minimal enough that the site reads like hypertext, not a custom app.
 
 **Proof:**
 1. Add and pass `make test-sim-public-generator`.
@@ -114,13 +114,13 @@ Related context:
 
 **Work:**
 1. Generate `robots.txt` and sitemap documents for the new site.
-2. Ensure the root page and feed pages create meaningful public traversal depth.
+2. Ensure the root page and section feeds create meaningful public traversal depth.
 3. Wire contributor flows so `make setup`, `make build`, and `make dev` generate or refresh the contributor site automatically.
 4. Keep `make setup-runtime` and `make run-prebuilt` free from accidental contributor-site generation.
 
 **Acceptance criteria:**
 1. A contributor can browse the site locally on `make dev` without first running adversary sim.
-2. The new site materially improves public discoverability through root links, feeds, `robots.txt`, and sitemap documents.
+2. The new site materially improves public discoverability through a dated root feed, section feeds, `robots.txt`, and sitemap documents.
 3. Runtime-only setup remains clean and unsurprising.
 
 **Proof:**

@@ -104,22 +104,25 @@ Replace the current hard-coded dummy site with a build-time generated contributo
 
 Recommended first profile:
 
-1. `README.md`
-2. `docs/**/*.md`
-3. `todos/todo.md`
-4. `todos/blocked-todo.md`
-5. `todos/completed-todo-history.md`
+1. `README.md` rendered as a separate `About` page
+2. dated research entries in `docs/research/2026-*.md`
+3. dated plan entries in `docs/plans/2026-*.md`
+4. dated completion history from `todos/completed-todo-history.md`
 
 Recommended exclusions for the first contributor profile:
 
-1. `todos/security-review.md`
-2. any secret-bearing local files
-3. any generated artifacts that are not source-of-truth markdown
+1. `todos/todo.md`
+2. `todos/blocked-todo.md`
+3. `todos/security-review.md`
+4. undated general docs outside the explicit first-profile allowlist
+5. any secret-bearing local files
+6. any generated artifacts that are not source-of-truth markdown
 
 The generated site should:
 
 1. keep the `/sim/public/*` serving prefix so existing discovery and realism work can build on one canonical public surface,
-2. expose the root page, timeline-like feed pages, article pages, `robots.txt`, and sitemap documents,
+2. use the homepage as a dated latest or all-entries feed rather than as the `README` or About page,
+3. expose section feed pages for research, plans, and completed work, plus article pages, `robots.txt`, and sitemap documents,
 3. render semantic HTML using elements like `main`, `header`, `nav`, `section`, `article`, `aside`, `time`, and `footer`,
 4. use either no CSS or one extremely small shared stylesheet that mostly preserves browser defaults,
 5. and derive excerpts and ordering at generation time.
@@ -142,8 +145,9 @@ This keeps the contributor traversal surface available locally without granting 
 2. No hidden worker route catalogs.
 3. No simulator-only hints added to emitted traffic.
 4. Generated site content must come from allowlisted source markdown, not duplicated copies.
-5. The runtime must fail closed truthfully when the artifact is absent: either a minimal explicit unavailable response or no route, but never a fabricated richer site.
-6. The current five-page dummy site should be removed once the generated path is live, so there is only one public traversal model.
+5. The homepage must be a chronology-driven feed, while `README.md` remains a separate About page rather than becoming the root index.
+6. The runtime must fail closed truthfully when the artifact is absent: either a minimal explicit unavailable response or no route, but never a fabricated richer site.
+7. The current five-page dummy site should be removed once the generated path is live, so there is only one public traversal model.
 
 ## Consequence For The Realism Chain
 
