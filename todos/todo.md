@@ -296,6 +296,65 @@ Scope note:
 - [ ] SEC-GDPR-3 Add an optional event-log IP minimization mode (raw vs masked or pseudonymized) for privacy-sensitive deployments, with explicit tradeoff documentation.
 - [ ] SEC-GDPR-4 Add a deployer-ready privacy and cookie disclosure template in docs (lawful basis, retention table, storage inventory, and rights-handling workflow).
 
+## P1 Fingerprinting and Botness Signal Enrichment
+
+Reference context:
+- [`docs/research/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/2026-02-16-fingerprinting-research-synthesis.md)
+- [`docs/research/2026-03-18-agentic-era-operator-telemetry-research-synthesis.md`](../docs/research/2026-03-18-agentic-era-operator-telemetry-research-synthesis.md)
+- [`docs/research/lessons-from-cloudflare.md`](../docs/research/lessons-from-cloudflare.md)
+- [`docs/plans/2026-03-22-taxonomy-and-classification-implementation-plan.md`](../docs/plans/2026-03-22-taxonomy-and-classification-implementation-plan.md)
+- [`docs/bot-defence.md`](../docs/bot-defence.md)
+
+Current stance:
+- Keep this enrichment chain behind the current `SIM-REALISM-1A..1D` execution priority unless a higher-severity runtime regression interrupts it.
+- Additive evidence must remain bounded, explainable, privacy-guarded, and insufficient on its own for hard enforcement.
+- New signal work must improve both botness and later category-confidence quality without inventing a second scoring model or bypassing the canonical taxonomy and classification contracts.
+
+- [ ] FP-SIG-1 Add multi-store persistence-abuse signals to the fingerprint and botness pipeline.
+  - Reference context:
+    - [`docs/research/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/2026-02-16-fingerprinting-research-synthesis.md)
+    - [`docs/research/2026-03-18-agentic-era-operator-telemetry-research-synthesis.md`](../docs/research/2026-03-18-agentic-era-operator-telemetry-research-synthesis.md)
+  - Closure gate:
+    - runtime truth: Shuma must detect bounded multi-store recovery or reconstitution patterns across cookie, local-storage, session-storage, or equivalent short-lived challenge state instead of treating persistence as one cookie-only signal
+    - privacy truth: retention, pseudonymization, and TTL behavior must stay explicit and bounded rather than creating long-lived client identity semantics
+    - scoring truth: the new persistence-abuse signals must surface stable IDs, runtime definitions, and additive botness contributions without bypassing existing family caps
+    - proof: add and pass `make test-fingerprint-persistence-signals`, and keep `make test-traffic-classification-contract` green if classification receipts or readiness change
+    - insufficient: another unnamed boolean, long-lived storage linkage, or persistence logic that becomes a hidden hard-block path
+
+- [ ] FP-SIG-2 Add flow-centric request and JavaScript sequence signals to botness and classification evidence.
+  - Reference context:
+    - [`docs/research/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/2026-02-16-fingerprinting-research-synthesis.md)
+    - [`docs/research/2026-03-18-agentic-era-operator-telemetry-research-synthesis.md`](../docs/research/2026-03-18-agentic-era-operator-telemetry-research-synthesis.md)
+    - [`docs/research/lessons-from-cloudflare.md`](../docs/research/lessons-from-cloudflare.md)
+  - Closure gate:
+    - runtime truth: Shuma must add bounded flow or sequence evidence over API family, request ordering, timing windows, or response-aware progression rather than relying only on coarse rate buckets
+    - cost truth: the sequence state must stay short-window, low-cardinality, and safe for shared-host resource budgets
+    - observability truth: the new sequence signals must appear in runtime definitions and event or outcome evidence with stable identifiers
+    - proof: add and pass `make test-fingerprint-flow-signals`, and keep `make test-monitoring-telemetry-foundations` green if request-outcome or event payloads change
+    - insufficient: rebranding existing rate pressure as sequence intelligence, or adding unbounded per-session history
+
+- [ ] BOT-SIG-1 Add bounded behavioral evidence signals for traversal depth, friction re-entry, and post-friction persistence.
+  - Reference context:
+    - [`docs/research/2026-03-18-agentic-era-operator-telemetry-research-synthesis.md`](../docs/research/2026-03-18-agentic-era-operator-telemetry-research-synthesis.md)
+    - [`docs/research/lessons-from-cloudflare.md`](../docs/research/lessons-from-cloudflare.md)
+  - Closure gate:
+    - runtime truth: Shuma must accumulate additive behavioral evidence for deep traversal, repeated re-entry after challenge or ban friction, and other bounded workflow anomalies that are stronger than one-request fingerprint mismatches alone
+    - scoring truth: these signals must remain additive and corroborative, not silent replacements for explicit hard detections like honeypot or active ban
+    - category truth: if the new behavioral evidence improves category confidence, that improvement must flow through the existing classification-readiness contract rather than through simulator-only shortcuts
+    - proof: add and pass `make test-botness-behavioral-signals`, and keep `make test-traffic-classification-contract` green
+    - insufficient: counting every deep visit as malicious, or coupling the signals directly to simulator labels or lane metadata
+
+- [ ] BOT-SIG-2 Add optional low-friction challenge-context behavior micro-signals with privacy guardrails.
+  - Reference context:
+    - [`docs/research/2026-02-16-fingerprinting-research-synthesis.md`](../docs/research/2026-02-16-fingerprinting-research-synthesis.md)
+    - [`docs/research/2026-03-18-agentic-era-operator-telemetry-research-synthesis.md`](../docs/research/2026-03-18-agentic-era-operator-telemetry-research-synthesis.md)
+  - Closure gate:
+    - runtime truth: challenge or JS contexts may collect bounded timing, solve-latency, abandonment, or replay or tamper micro-signals, but only where those interactions already exist
+    - privacy truth: the implementation must be opt-in, documented, TTL-bounded, and must not become a general behavior-biometric tracking system
+    - scoring truth: the micro-signals must remain additive evidence only and must never become the sole hard gate for enforcement
+    - proof: add and pass `make test-challenge-behavior-microsignals`, and keep `make test-challenge-verification` green
+    - insufficient: always-on cursor biometrics, opaque scoring with no signal IDs, or challenge behavior becoming mandatory for baseline routing
+
 ## P2 Hardening and Coverage
 
 Architecture alignment reference:
