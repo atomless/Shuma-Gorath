@@ -278,21 +278,25 @@ Current note:
 - [ ] SIM-PUBSITE-1A Freeze the contributor-generated public-content site contract and contributor-only scope.
   - Reference context:
     - [`docs/research/2026-03-30-contributor-generated-public-content-sim-site-review.md`](../docs/research/2026-03-30-contributor-generated-public-content-sim-site-review.md)
+    - [`docs/research/2026-03-30-generated-public-content-site-standards-and-generator-pattern-review.md`](../docs/research/2026-03-30-generated-public-content-site-standards-and-generator-pattern-review.md)
     - [`docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md`](../docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md)
     - [`docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
   - Closure gate:
     - contract truth: the first tranche must explicitly be contributor-only, must forbid runtime repo walking, and must decouple site availability from adversary-sim control state
     - flow truth: contributor flows and runtime-only flows must have explicit documented behavior rather than relying on incidental build outcomes
+    - standards truth: the contract must explicitly freeze a chronology-driven homepage feed, a separate `About` page, crawlable `<a href>` pagination, absolute canonical URLs, and semantic `<time datetime>` markup
     - proof: add and pass `make test-sim-public-generated-site-contract`
     - insufficient: leaving `/sim/public/*` availability coupled to `adversary_sim_enabled`, or introducing live repo reads in the request path
 
 - [ ] SIM-PUBSITE-1B Build the generated contributor content artifact from allowlisted markdown roots.
   - Reference context:
     - [`docs/research/2026-03-30-contributor-generated-public-content-sim-site-review.md`](../docs/research/2026-03-30-contributor-generated-public-content-sim-site-review.md)
+    - [`docs/research/2026-03-30-generated-public-content-site-standards-and-generator-pattern-review.md`](../docs/research/2026-03-30-generated-public-content-site-standards-and-generator-pattern-review.md)
     - [`docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md`](../docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md)
   - Closure gate:
     - content truth: the generated site must derive from `README.md` as a separate `About` page, dated research entries, dated plan entries, and completed TODO history while excluding active backlog, blocked backlog, security review material, and undated general docs from the first profile
     - structure truth: the homepage must be a chronology-driven feed rather than the `README` itself
+    - parser truth: markdown rendering must use a real CommonMark-conforming build-time parser rather than ad hoc regex or string transforms
     - presentation truth: the generated pages must use semantic HTML and extremely minimal hypertext-style presentation rather than dashboard-like chrome
     - proof: add and pass `make test-sim-public-generator`
     - insufficient: duplicated markdown copies committed as a fake site, or heavy bespoke styling that turns the content site into a secondary app
@@ -309,11 +313,13 @@ Current note:
 
 - [ ] SIM-PUBSITE-1D Add discoverability artifacts and contributor/runtime flow wiring for the generated site.
   - Reference context:
+    - [`docs/research/2026-03-30-generated-public-content-site-standards-and-generator-pattern-review.md`](../docs/research/2026-03-30-generated-public-content-site-standards-and-generator-pattern-review.md)
     - [`docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md`](../docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md)
     - [`docs/plans/2026-03-20-shared-host-seed-contract.md`](../docs/plans/2026-03-20-shared-host-seed-contract.md)
   - Closure gate:
-    - discoverability truth: the generated site must expose root links, timeline-like feeds, `robots.txt`, and sitemap documents that materially increase public traversal depth
+    - discoverability truth: the generated site must expose root links, dated feeds, `robots.txt`, sitemap documents, and a standards-based Atom feed that materially increase public traversal depth
     - workflow truth: `make setup`, `make build`, and `make dev` must generate or refresh the contributor artifact, while `make setup-runtime` and `make run-prebuilt` must stay free of accidental contributor-site generation
+    - crawlability truth: archive and pagination traversal must remain ordinary hyperlink navigation rather than JavaScript-only state
     - proof: add and pass `make test-sim-public-build-flow-contract`, keep `make test-sim-public-discoverability-contract` green, and keep shared-host seed-contract proof green
     - insufficient: a richer site that still relies on manual contributor steps, or runtime-only flows that silently inherit contributor content generation
 

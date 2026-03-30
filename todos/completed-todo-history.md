@@ -4,6 +4,21 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-30)
 
+### SIM-PUBSITE-PLAN-3 Standards And Generator-Pattern Research Refresh
+
+- [x] Completed the docs-only research and planning refinement across:
+  - [`../docs/research/2026-03-30-generated-public-content-site-standards-and-generator-pattern-review.md`](../docs/research/2026-03-30-generated-public-content-site-standards-and-generator-pattern-review.md)
+  - [`../docs/research/README.md`](../docs/research/README.md)
+  - [`../docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md`](../docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md)
+  - [`../todos/todo.md`](../todos/todo.md)
+- [x] What landed:
+  - the contributor content-site chain is now grounded in explicit standards research covering semantic HTML structure, crawlable anchor-based pagination, sitemaps, canonical URLs, `robots.txt`, Atom feeds, and CommonMark rendering,
+  - the plan now freezes a tighter implementation contract around chronology-driven feed structure, semantic timestamps, canonical URLs, and build-time markdown parsing,
+  - and the TODO closure gates now require standards-based crawlability and parser discipline instead of leaving those concerns implicit.
+- [x] Why:
+  - the user asked for research before generator implementation so the site can follow excellent implementation patterns and standards-compliant markup rather than merely rendering markdown into pages.
+- [x] Evidence:
+  - docs-only slice; verification intentionally limited to `git diff --check`
 ### SIM-PUBSITE-PLAN-2 Dated-Corpus Scope Refinement For Contributor Site
 
 - [x] Completed the docs-only refinement across:

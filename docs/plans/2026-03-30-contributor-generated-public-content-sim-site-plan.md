@@ -6,6 +6,7 @@ Status: Active implementation plan
 Related context:
 
 - [`../research/2026-03-30-contributor-generated-public-content-sim-site-review.md`](../research/2026-03-30-contributor-generated-public-content-sim-site-review.md)
+- [`../research/2026-03-30-generated-public-content-site-standards-and-generator-pattern-review.md`](../research/2026-03-30-generated-public-content-site-standards-and-generator-pattern-review.md)
 - [`2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](./2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
 - [`2026-03-29-observed-telemetry-truth-and-scrapling-discoverability-plan.md`](./2026-03-29-observed-telemetry-truth-and-scrapling-discoverability-plan.md)
 - [`2026-03-20-shared-host-seed-contract.md`](./2026-03-20-shared-host-seed-contract.md)
@@ -14,7 +15,7 @@ Related context:
 
 **Goal:** Replace the current hard-coded `/sim/public/*` dummy site with a build-time generated contributor content site that is richer, publicly discoverable, viewable on local dev even when sim is idle, and still faithful to the no-hidden-catalog discoverability doctrine.
 
-**Architecture:** Generate a bounded site artifact from allowlisted dated markdown roots during contributor workflows, then serve that artifact through the existing `sim_public` runtime surface. Keep the runtime free of repo-walking behavior and heavy markdown-rendering logic. Preserve the `/sim/public/*` public traversal prefix, use the homepage as a chronology-driven latest or all-entries feed, render `README.md` as a separate `About` page, add section feeds plus article pages plus `robots.txt` and sitemap documents, and delete the old five-page dummy-site implementation once the generated path is live. Keep the first profile contributor-only; defer any later public-hosted profile to a separate follow-on.
+**Architecture:** Generate a bounded site artifact from allowlisted dated markdown roots during contributor workflows, then serve that artifact through the existing `sim_public` runtime surface. Keep the runtime free of repo-walking behavior and heavy markdown-rendering logic. Use a small build-time CLI plus shared helper module, following the repo’s existing deterministic generator pattern. Preserve the `/sim/public/*` public traversal prefix, use the homepage as a chronology-driven latest or all-entries feed, render `README.md` as a separate `About` page, add section feeds plus article pages plus `robots.txt`, sitemap documents, and an Atom feed, and delete the old five-page dummy-site implementation once the generated path is live. Keep the first profile contributor-only; defer any later public-hosted profile to a separate follow-on.
 
 **Tech Stack:** existing Rust runtime `sim_public` surface, build-time site generator script, allowlisted markdown roots, semantic HTML generation, minimal shared stylesheet or browser-default rendering, focused `Makefile` generation and proof targets, docs/TODO bookkeeping.
 
@@ -29,6 +30,9 @@ Related context:
 5. The generated HTML is semantic and well structured, and the visual treatment remains extremely minimal and hypertext-like rather than dashboard-styled.
 6. The old five-page hard-coded dummy site is removed once the generated site path is live; there must be only one canonical `/sim/public/*` surface model.
 7. No worker receives hidden route catalogs or simulator-only discoverability hints as part of this work.
+8. Feed pages and archives are reachable through ordinary `<a href>` links and paginated URLs rather than JS-only navigation.
+9. Entry and feed pages emit absolute canonical URLs, and timestamps are rendered with semantic `<time datetime>` markup.
+10. Markdown rendering is performed by a real CommonMark-conforming build-time parser, not ad hoc string or regex transforms in the runtime.
 
 ## Task 1: Freeze The Generated-Site Contract And Contributor-Only Scope
 
@@ -42,11 +46,21 @@ Related context:
 1. Freeze the generated-site contract around one canonical public prefix, contributor-only first profile, and truthful fallback behavior when the artifact is absent.
 2. Make the availability boundary explicit: local contributor browsing depends on generated-artifact presence, not on adversary-sim control state.
 3. Keep runtime-only workflows out of scope for auto-generation in the first tranche.
+4. Freeze the URL and markup contract:
+   - chronology-driven root feed
+   - `About` page from `README.md`
+   - section feeds
+   - entry pages
+   - paginated archives
+   - canonical URLs
+   - semantic timestamps
 
 **Acceptance criteria:**
 1. The contract explicitly forbids runtime repo walking.
 2. The contract explicitly forbids tying site visibility to sim-run activity.
 3. The contract explicitly distinguishes contributor flows from runtime-only flows.
+4. The contract explicitly requires ordinary crawlable anchor links for pagination and archive traversal.
+5. The contract explicitly requires canonical URLs and semantic `time` markup.
 
 **Proof:**
 1. Add and pass `make test-sim-public-generated-site-contract`.
@@ -70,8 +84,11 @@ Related context:
    - one chronology-driven root page,
    - section feed pages,
    - article pages,
+   - one `About` page,
+   - one site Atom feed and optional section feeds,
    - and compact metadata needed for sitemap generation and runtime serving.
 4. Keep presentation intentionally minimal. Prefer browser defaults plus at most one tiny shared stylesheet for readability.
+5. Use a CommonMark-conforming parser at build time rather than ad hoc markdown-to-HTML transforms.
 
 **Acceptance criteria:**
 1. The artifact contains no duplicated source tree; it is a generated serving representation.
@@ -79,6 +96,7 @@ Related context:
 3. The root page is a dated feed and `README.md` is exposed separately as `About`.
 4. HTML structure is semantic and crawlable.
 5. Visual styling remains minimal enough that the site reads like hypertext, not a custom app.
+6. Atom feed output is standards-based and reflects the latest chronology stream.
 
 **Proof:**
 1. Add and pass `make test-sim-public-generator`.
@@ -117,11 +135,13 @@ Related context:
 2. Ensure the root page and section feeds create meaningful public traversal depth.
 3. Wire contributor flows so `make setup`, `make build`, and `make dev` generate or refresh the contributor site automatically.
 4. Keep `make setup-runtime` and `make run-prebuilt` free from accidental contributor-site generation.
+5. Ensure archive and pagination pages remain link-driven and crawlable without JavaScript.
 
 **Acceptance criteria:**
 1. A contributor can browse the site locally on `make dev` without first running adversary sim.
 2. The new site materially improves public discoverability through a dated root feed, section feeds, `robots.txt`, and sitemap documents.
 3. Runtime-only setup remains clean and unsurprising.
+4. Feed traversal, archive traversal, and entry traversal all work through ordinary hyperlinks alone.
 
 **Proof:**
 1. Add and pass `make test-sim-public-build-flow-contract`.
