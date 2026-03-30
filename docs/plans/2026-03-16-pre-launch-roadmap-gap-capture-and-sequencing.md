@@ -191,10 +191,11 @@ Status update (2026-03-24):
 1. Monitoring is now explicitly being redesigned as a loop-accountability surface over the current operator-selected product stance.
 2. The later development reference stance should not leak into the first Monitoring contract except, much later, as clearly labeled separate evaluation context.
 3. When the operator-surface mainline resumes, the next ownership refinement should introduce a dedicated `Traffic` tab so the current traffic-facing Diagnostics surface does not get forced into Monitoring. After that, `DIAG-CLEANUP-1` can narrow Diagnostics to furniture-operational proof.
-4. That operator-surface cleanup is no longer the immediate mainline. The current execution order now inserts `VERIFY-GATE-1` first so the active mainline has explicit acceptance gates before more closure claims. After that come `STANCE-MODEL-1`, full-power Scrapling in `SIM-SCR-FULL-1`, repeated strict `human_only_private` operational proof in `RSI-GAME-HO-1`, the remaining LLM attacker runtime proof in `SIM-LLM-1C3`, a second strict-baseline proof in `RSI-GAME-HO-2`, and only after that the later `humans_plus_verified_only` sweep.
+4. That operator-surface cleanup is no longer the immediate mainline. The current execution order now inserts `VERIFY-GATE-1` first so the active mainline has explicit acceptance gates before more closure claims. After that come `STANCE-MODEL-1`, full-power Scrapling in `SIM-SCR-FULL-1`, repeated strict `human_only_private` operational proof in `RSI-GAME-HO-1`, the remaining LLM attacker runtime proof in `SIM-LLM-1C3`, the new lane-realism chain in `SIM-REALISM-1`, a second strict-baseline proof in `RSI-GAME-HO-2`, and only after that the later `humans_plus_verified_only` sweep.
 5. The current request-native Scrapling and first-working-game-loop proofs remain important, but they are now treated as baseline capability rather than the unlock condition for stance relaxation or later LLM runtime work.
 6. The later LLM attacker runtime remains decomposed as `SIM-LLM-1C1..1C3`, but those slices are now intentionally downstream of `STANCE-MODEL-1`, `SIM-SCR-FULL-1`, and `RSI-GAME-HO-1` rather than the next active backend mainline.
-7. See [`2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md`](2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md), [`2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-plan.md`](2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-plan.md), [`2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md`](2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md), [`2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md), [`2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md), and [`2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md`](2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md).
+7. The next adversary-side truth gap is no longer route knowledge or category ownership. It is behavior realism: both Scrapling and the later LLM lane now need explicit cadence, dwell, burst, and identity or session contracts before mixed-attacker or tuning claims can be called representative.
+8. See [`2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md`](2026-03-23-monitoring-loop-accountability-and-diagnostics-focus-plan.md), [`2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-plan.md`](2026-03-24-monitoring-reuse-first-diagnostics-cleanup-sequencing-plan.md), [`2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md`](2026-03-24-mainline-resequence-scrapling-before-game-loop-plan.md), [`2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md`](2026-03-24-reference-stance-and-run-to-homeostasis-implementation-plan.md), [`2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md`](2026-03-25-scrapling-full-power-human-only-loop-before-relaxation-plan.md), [`2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md`](2026-03-25-canonical-non-human-stance-and-verified-identity-override-plan.md), and [`2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md`](2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md).
 
 ## H. Protected Tuning Evidence And Category Coverage
 
@@ -497,12 +498,13 @@ Reason:
 
 1. Scrapling lane.
 2. Containerized frontier lane as a bounded emergent actor.
-3. Verified-agent, spoofed-agent, and replay-attempt scenarios against the identity lane.
-4. Explicit mapping from each lane's evidence to tuning confidence.
+3. Profile-driven cadence, burst, dwell, and identity or session realism across Scrapling and agentic lanes.
+4. Verified-agent, spoofed-agent, and replay-attempt scenarios against the identity lane.
+5. Explicit mapping from each lane's evidence to tuning confidence.
 
 Reason:
 
-1. Shuma needs realistic attacker input before automated tuning can be trusted to optimize against the actual agentic threat landscape.
+1. Shuma needs realistic attacker input before automated tuning can be trusted to optimize against the actual agentic threat landscape, and "realistic" now explicitly includes behavior shape rather than only lane presence.
 
 ## Stage 6: First Machine-First Agent Tweaker Loop
 

@@ -1,6 +1,6 @@
 # Blocked TODO Roadmap
 
-Last updated: 2026-03-28
+Last updated: 2026-03-30
 
 This file holds gated, contingent, or explicitly deferred work that is not execution-ready.
 Move an item back into `todos/todo.md` only when its blocking condition is cleared.
@@ -13,14 +13,16 @@ Security finding validity and closure status live in `todos/security-review.md`.
   Blocker: `SIM-LLM-1C3` is now landed, so missing LLM runtime visibility is no longer the blocker. Keep this tranche blocked until the combined-attacker architecture frozen in [`../docs/research/2026-03-28-rsi-game-ho-2-combined-attacker-architecture-gap-review.md`](../docs/research/2026-03-28-rsi-game-ho-2-combined-attacker-architecture-gap-review.md) and [`../docs/plans/2026-03-28-rsi-game-ho-2-combined-attacker-orchestration-plan.md`](../docs/plans/2026-03-28-rsi-game-ho-2-combined-attacker-orchestration-plan.md) is approved and landed. The real blocker is now:
   - controller-grade restriction scoring is still mostly Scrapling-native,
   - LLM runtime receipts are visible but not yet board-locus or restriction-grade breach receipts,
+  - mixed-attacker pressure is not yet representative while the new lane-realism chain remains open, because `bot_red_team` browser-mode still does not emit real sessions and both lanes still need profile-driven cadence, dwell, burst, and identity or session realism,
   - mixed-attacker judged-episode truth still needs to be projected through operator/admin and Game Loop surfaces instead of inferred from recent-run coincidence.
   This second strict-baseline tranche must prove repeated retained config-change improvement toward the strict target with both Scrapling and LLM attacker runs included in the loop before any later relaxed verified-identity sweep opens.
   - Closure gate:
+    - representativeness: both lanes must emit receipt-backed representative pressure rather than merely appear in recent runs
     - runtime/config: both Scrapling and the later LLM attacker contribute pressure under `human_only_private`, recommendations become bounded config changes, later mixed-attacker runs occur against changed config, and repeated retained changes show positive movement toward the strict target
     - API/snapshot: machine-first surfaces preserve mixed-attacker lineage and judged retain/rollback outcomes across repeated cycles
     - dashboard/admin: `Red Team` and `Game Loop` truthfully show both lanes contributing to the strict-baseline proof without overstating maturity from mere lane presence
     - proof: focused `make` paths must pass for mixed-attacker repeated-cycle proof
-    - insufficient: one mixed handoff, both lanes merely appearing in recent runs, or lack of repeated retained improvement under the strict stance
+    - insufficient: one mixed handoff, both lanes merely appearing in recent runs, non-executing agentic browser mode, or lack of repeated retained improvement under the strict stance
 
 - [ ] RSI-GAME-HV-1 Run the later `humans_plus_verified_only` sweep.
   Blocker: keep blocked until `RSI-GAME-HO-2` proves repeated retained improvement under the strict `human_only_private` baseline with both Scrapling and LLM attacker pressure. The strict Scrapling-only prerequisites are now satisfied, and the LLM runtime is now visible, but do not open this looser stance merely because one bounded Scrapling loop works, because both lanes merely appear in recent runs, or because verified identity exists.

@@ -2,6 +2,29 @@
 
 Moved from active TODO files on 2026-02-14.
 
+## Additional completions (2026-03-30)
+
+### SIM-REALISM-PLAN-1 Formalize The Adversary-Lane Traffic Realism Planning Chain
+
+- [x] Completed the planning-only realism tranche across:
+  - [`../docs/research/2026-03-30-adversary-lane-traffic-realism-and-cadence-review.md`](../docs/research/2026-03-30-adversary-lane-traffic-realism-and-cadence-review.md)
+  - [`../docs/plans/2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md`](../docs/plans/2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md)
+  - [`../docs/research/README.md`](../docs/research/README.md)
+  - [`../docs/plans/README.md`](../docs/plans/README.md)
+  - [`../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
+  - [`../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`](../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md)
+  - [`../todos/todo.md`](../todos/todo.md)
+  - [`../todos/blocked-todo.md`](../todos/blocked-todo.md)
+- [x] What landed:
+  - the repo now has an explicit research review and execution plan for representative adversary-lane cadence, burst, dwell, and identity or session behavior across Scrapling and Agentic Traffic,
+  - the active backlog now names `SIM-REALISM-1A..1D` instead of leaving traffic-shape realism as an implied future concern,
+  - the mature adversary-sim roadmap and active sequencing notes now state that mixed-attacker or tuning claims are not representative from lane presence alone,
+  - and the blocked `RSI-GAME-HO-2` proof now explicitly records the remaining realism dependency instead of treating LLM visibility alone as the last gap.
+- [x] Why:
+  - the current lanes already have the right knowledge boundaries, but they still need representative emitted behavior before Shuma should describe mixed-attacker loop outcomes or later tuning quality as realistic.
+- [x] Evidence:
+  - `git diff --check`
+
 ## Additional completions (2026-03-29)
 
 ### GAME-LOOP-OBS-1D Restore Agentic Traffic Observer Naming And Defence Cast Projection

@@ -218,6 +218,16 @@ In the near term, the thing that should evolve is the fingerprinting and classif
 
 Only later, if important non-human traffic persistently falls outside the existing categories, should Shuma consider a governed taxonomy-expansion path.
 
+### 7. Representativeness must be profile-backed, not just lane-backed
+
+The next realism gap is no longer whether the lanes own the right categories. It is whether they emit behavior that is characteristic of those categories.
+
+Before Shuma should describe Scrapling or Agentic Traffic as representative tuning evidence, it should:
+
+1. freeze explicit per-lane or per-mode realism profiles for cadence, burst shape, dwell, identity rotation, JavaScript or browser propensity, and retry ceilings,
+2. prove those profiles through runtime receipts rather than by plan metadata alone,
+3. and replace placeholder agentic browser-mode receipts with real bounded browser-session execution.
+
 ## Acceptance Standard For This Roadmap
 
 This roadmap should be considered adopted when the backlog and sequence make these things explicit:
@@ -227,3 +237,4 @@ This roadmap should be considered adopted when the backlog and sequence make the
 3. shared-host work is a minimal safety gate rather than a full first-product loop,
 4. and reviewed promotion from emergent exploit to deterministic scenario is a named future step.
 5. traversal telemetry is the authoritative adversary-reachable surface map, while any later export or curation tooling remains secondary and derived.
+6. lane presence alone is not treated as proof of representative adversary pressure; cadence and session realism must be explicit and receipt-backed.

@@ -1,6 +1,6 @@
 # TODO Roadmap
 
-Last updated: 2026-03-29
+Last updated: 2026-03-30
 
 This is the active execution-ready work queue.
 Blocked or contingent work lives in `todos/blocked-todo.md`.
@@ -103,6 +103,8 @@ Reference context:
 - [`docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md`](../docs/plans/2026-03-24-recursive-self-improvement-game-loop-definition-and-move-selection-plan.md)
 - [`docs/research/2026-03-24-rsi-game-mainline-first-working-loop-review.md`](../docs/research/2026-03-24-rsi-game-mainline-first-working-loop-review.md)
 - [`docs/plans/2026-03-24-rsi-game-mainline-first-working-loop-plan.md`](../docs/plans/2026-03-24-rsi-game-mainline-first-working-loop-plan.md)
+- [`docs/research/2026-03-30-adversary-lane-traffic-realism-and-cadence-review.md`](../docs/research/2026-03-30-adversary-lane-traffic-realism-and-cadence-review.md)
+- [`docs/plans/2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md`](../docs/plans/2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md)
 
 Current note:
 - `SIM-SCR-CHALLENGE-2A`, `SIM-SCR-CHALLENGE-2B`, and `SIM-SCR-CHALLENGE-2D` are landed.
@@ -139,6 +141,8 @@ Current note:
 - The board-state doctrine now has explicit follow-on planning for a later frontier-LLM code-evolution ring and a later real-human friction calibration ring, but both remain blocked from execution.
 - Before further mainline completion claims, the repo now requires explicit acceptance-gate discipline. Do not describe `STANCE-MODEL-1`, `SIM-SCR-FULL-1`, `RSI-GAME-HO-1`, or `RSI-GAME-HO-2` as complete from planning progress, baseline capability, or dashboard pressure signals alone.
 - `SIM-LLM-1C3` is now landed: the later LLM attacker no longer disappears after runtime ingest, and recent-run or operator surfaces now project truthful additive `bot_red_team` runtime lineage without enabling the lane in controls.
+- `SIM-REALISM-1` is now the next adversary-sim maturity chain: both Scrapling and Agentic Traffic still need profile-driven cadence, burst, dwell, and identity or session realism before mixed-attacker or tuning claims are called representative.
+- Do not treat mere lane execution or recent-run visibility as characteristic attacker pressure while `bot_red_team` browser-mode still lacks real session execution and the lanes still retain overly uniform pacing.
 - Do not open `humans_plus_verified_only` until a later second strict-baseline proof has shown retained config-change improvement under both Scrapling and LLM attacker pressure.
 - `DIAG-CLEANUP-1`, `MON-OVERHAUL-1C`, and `SIM-LLM-1C3` are now all landed, so the later combined-attacker strict-baseline proof is no longer blocked by missing LLM runtime visibility.
 - The real `RSI-GAME-HO-2` blocker is now architectural and explicit:
@@ -146,6 +150,52 @@ Current note:
   - `bot_red_team` runtime receipts now contribute restriction-grade board loci,
   - and the next remaining blocker is projection truth: operator/admin and dashboard surfaces still need to distinguish judged mixed-attacker episodes from mere lane visibility.
 - Do not claim mixed-attacker strict-baseline proof from the new score spine alone; mixed-attacker proof projection and repeated retained improvement under mixed pressure still remain required.
+
+- [ ] SIM-REALISM-1A Freeze an executable realism profile contract for Scrapling and Agentic Traffic.
+  - Reference context:
+    - [`docs/research/2026-03-30-adversary-lane-traffic-realism-and-cadence-review.md`](../docs/research/2026-03-30-adversary-lane-traffic-realism-and-cadence-review.md)
+    - [`docs/plans/2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md`](../docs/plans/2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md)
+    - [`docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`](../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md)
+  - Closure gate:
+    - contract truth: one versioned profile contract must define cadence, burst, dwell, identity rotation, JavaScript or browser propensity, retry ceilings, and runtime receipt fields per lane or mode
+    - boundary truth: the contract must not widen host knowledge beyond scope fence, public seeds, public hint documents, and response-derived discovery
+    - proof: add and pass `make test-adversarial-lane-realism-contract` and keep `make test-adversarial-lane-contract` green
+    - insufficient: prose-only realism guidance, plan metadata with no receipt contract, or profile fields that reintroduce route choreography
+
+- [ ] SIM-REALISM-1B Implement Scrapling profile-driven cadence, burst, dwell, and identity behavior.
+  - Reference context:
+    - [`docs/research/2026-03-30-adversary-lane-traffic-realism-and-cadence-review.md`](../docs/research/2026-03-30-adversary-lane-traffic-realism-and-cadence-review.md)
+    - [`docs/plans/2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md`](../docs/plans/2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md)
+  - Closure gate:
+    - runtime truth: Scrapling personas must emit materially different request or session shapes rather than one flat burst pattern
+    - receipt truth: worker results and read models must preserve actual request counts, pauses or dwell, and identity or session grouping
+    - boundary truth: Scrapling must still start only from allowed public seeds and response-derived traversal rather than hidden route knowledge
+    - proof: add and pass `make test-adversary-sim-scrapling-realism`, and keep `make test-adversary-sim-scrapling-worker`, `make test-adversary-sim-scrapling-category-fit`, and `make test-adversary-sim-scrapling-coverage-receipts` green
+    - insufficient: simply raising request caps, keeping one shared pacing shape across personas, or losing the discoverability-only host boundary
+
+- [ ] SIM-REALISM-1C Implement Agentic request-mode profile-driven pacing and focused burst or pause behavior.
+  - Reference context:
+    - [`docs/research/2026-03-30-adversary-lane-traffic-realism-and-cadence-review.md`](../docs/research/2026-03-30-adversary-lane-traffic-realism-and-cadence-review.md)
+    - [`docs/plans/2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md`](../docs/plans/2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md)
+    - [`docs/plans/2026-03-25-sim-llm-1c-runtime-decomposition-plan.md`](../docs/plans/2026-03-25-sim-llm-1c-runtime-decomposition-plan.md)
+  - Closure gate:
+    - runtime truth: request-mode must emit focused micro-burst and pause behavior instead of one uniform sequential action stream
+    - receipt truth: runtime receipts must preserve the observed burst or pause structure and the focused-page-set behavior
+    - boundary truth: the lane must remain root-only, same-origin, public-hint-only, and Shuma-blind
+    - proof: add and pass `make test-adversarial-llm-realism`, and keep `make test-adversarial-llm-fit`, `make test-adversarial-llm-runtime-dispatch`, and `make test-adversarial-llm-runtime-projection` green
+    - insufficient: provider-backed generation with unchanged cadence semantics, or fallback that still collapses into a generic root-plus-hints loop
+
+- [ ] SIM-REALISM-1D Replace `browser_mode_not_supported` with a real Agentic browser-session lane.
+  - Reference context:
+    - [`docs/research/2026-03-30-adversary-lane-traffic-realism-and-cadence-review.md`](../docs/research/2026-03-30-adversary-lane-traffic-realism-and-cadence-review.md)
+    - [`docs/plans/2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md`](../docs/plans/2026-03-30-adversary-lane-traffic-realism-and-cadence-plan.md)
+    - [`docs/plans/2026-03-25-sim-llm-1c-runtime-decomposition-plan.md`](../docs/plans/2026-03-25-sim-llm-1c-runtime-decomposition-plan.md)
+  - Closure gate:
+    - runtime truth: browser-mode must emit real bounded black-box session traffic rather than an unsupported placeholder receipt
+    - session truth: emitted behavior must preserve stable session identity, small action count, meaningful dwell, and narrow goal-driven traversal
+    - observer truth: read models and operator surfaces must distinguish real browser-mode execution from request-mode-only runs
+    - proof: add and pass `make test-adversarial-llm-browser-runtime`, and keep `make test-adversarial-llm-runtime-dispatch`, `make test-adversarial-llm-runtime-projection`, and `make test-admin-machine-contracts` green; if observer rendering changes, keep `make test-dashboard-game-loop-accountability` green too
+    - insufficient: swapping the placeholder string for a synthetic success receipt, or calling request-mode traffic "agentic browser" without real browser execution
 
 - [ ] RSI-GAME-HO-2A3 Project mixed-attacker judged-episode truth through operator/admin and Game Loop surfaces.
   - Reference context:
