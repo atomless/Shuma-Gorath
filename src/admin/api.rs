@@ -1665,7 +1665,7 @@ mod tests {
                         coverage_status: "pass_observed".to_string(),
                         attempt_count: 3,
                         sample_request_method: "GET".to_string(),
-                        sample_request_path: "/sim/public/search?q=scrapling".to_string(),
+                        sample_request_path: "/sim/public/?q=scrapling".to_string(),
                         sample_response_status: Some(200),
                     },
                     crate::observability::scrapling_owned_surface::ScraplingSurfaceObservationReceipt {
@@ -1673,7 +1673,7 @@ mod tests {
                         coverage_status: "pass_observed".to_string(),
                         attempt_count: 3,
                         sample_request_method: "GET".to_string(),
-                        sample_request_path: "/sim/public/search?q=scrapling".to_string(),
+                        sample_request_path: "/sim/public/?q=scrapling".to_string(),
                         sample_response_status: Some(200),
                     },
                     crate::observability::scrapling_owned_surface::ScraplingSurfaceObservationReceipt {
@@ -1681,7 +1681,7 @@ mod tests {
                         coverage_status: "pass_observed".to_string(),
                         attempt_count: 3,
                         sample_request_method: "GET".to_string(),
-                        sample_request_path: "/sim/public/search?q=scrapling".to_string(),
+                        sample_request_path: "/sim/public/?q=scrapling".to_string(),
                         sample_response_status: Some(200),
                     },
                     crate::observability::scrapling_owned_surface::ScraplingSurfaceObservationReceipt {

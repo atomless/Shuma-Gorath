@@ -467,11 +467,11 @@ fn static_bypass_excludes_admin_and_non_get_requests() {
 fn static_bypass_excludes_sim_public_prefix_paths() {
     let sim_with_extension = crate::test_support::request_with_method_and_headers(
         Method::Get,
-        "/sim/public/search.css",
+        "/sim/public/site.css",
         &[],
     );
     assert!(!should_bypass_expensive_bot_checks_for_static(
         &sim_with_extension,
-        "/sim/public/search.css"
+        "/sim/public/site.css"
     ));
 }

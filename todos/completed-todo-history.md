@@ -4,6 +4,37 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-30)
 
+### SIM-PUBSITE-1C Serve The Generated Site Through `sim_public` And Remove The Old Hard-Coded Dummy Site
+
+- [x] Completed the runtime-serving tranche across:
+  - [`../src/runtime/sim_public.rs`](../src/runtime/sim_public.rs)
+  - [`../src/admin/adversary_sim_corpus.rs`](../src/admin/adversary_sim_corpus.rs)
+  - [`../src/admin/adversary_sim_lane_runtime.rs`](../src/admin/adversary_sim_lane_runtime.rs)
+  - [`../src/runtime/request_flow.rs`](../src/runtime/request_flow.rs)
+  - [`../scripts/tests/adversarial/deterministic_attack_corpus.v1.json`](../scripts/tests/adversarial/deterministic_attack_corpus.v1.json)
+  - [`../scripts/tests/adversarial/frontier_action_contract.v1.json`](../scripts/tests/adversarial/frontier_action_contract.v1.json)
+  - [`../scripts/tests/adversarial/frontier_attack_generation_contract.v1.json`](../scripts/tests/adversarial/frontier_attack_generation_contract.v1.json)
+  - [`../scripts/tests/test_adversarial_container_runner.py`](../scripts/tests/test_adversarial_container_runner.py)
+  - [`../scripts/tests/test_adversarial_simulation_runner.py`](../scripts/tests/test_adversarial_simulation_runner.py)
+  - [`../scripts/tests/test_frontier_action_contract.py`](../scripts/tests/test_frontier_action_contract.py)
+  - [`../scripts/tests/test_frontier_capability_envelope.py`](../scripts/tests/test_frontier_capability_envelope.py)
+  - [`../scripts/tests/test_scrapling_worker.py`](../scripts/tests/test_scrapling_worker.py)
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../Makefile`](../Makefile)
+- [x] What landed:
+  - `sim_public` now serves the generated contributor artifact directly from `.shuma/sim-public-site/site` with truthful 404 behavior when the artifact is absent and no fallback return to the old hard-coded page enum,
+  - the active deterministic adversary corpus, frontier defaults, and runner/test fixtures now target the generated-site route model (`/sim/public/`, `about`, `research`, `plans`, `work`, `atom.xml`) instead of the deleted `landing/docs/pricing/contact/search` surface,
+  - and the remaining active docs/tests now describe the contributor-generated site as local public terrain that can be browsed when the artifact exists, not only while adversary sim is actively running.
+- [x] Why:
+  - the generated site needed to become the one canonical `/sim/public/*` surface before further realism work, otherwise the runtime and adversary tooling would keep testing against a site model that no longer exists.
+- [x] Evidence:
+  - `make test-adversarial-deterministic-corpus`
+  - `make test-adversarial-lane-contract`
+  - `make test-adversarial-runner-architecture`
+  - `make test-sim-public-generated-site-contract`
+  - `make test-sim-public-runtime-serving`
+  - `make test-adversary-sim-domain-contract`
+
 ### SIM-PUBSITE-1B Build The Generated Contributor Content Artifact From Allowlisted Markdown Roots
 
 - [x] Completed the generator tranche across:

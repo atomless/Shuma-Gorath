@@ -131,7 +131,7 @@ That command is the fastest truthful local/pre-merge proof bundle for the curren
 
 Additional scope notes:
 
-- This local path is expected to run against the loopback-hosted `/sim/public/*` realism pages when adversary-sim is enabled. That dummy surface is the intended first public surface for strict-loop iteration when there is no real hosted site behind Shuma.
+- This local path is expected to run against the generated contributor `/sim/public/*` feed/about/section surface. Contributors can browse that surface on local dev whenever the generated artifact exists; it no longer depends on adversary-sim being actively enabled.
 - It proves attacker-faithful Scrapling plus the first working game loop only.
 - It does not yet prove repeated retained improvement under the strict `human_only_private` loop, the later human-traversal calibration that must be measured from real human sessions, or the live-host realism layer on its own.
 
@@ -437,7 +437,8 @@ Structural refactor proof map:
 - `make test-adversarial-runner-architecture` is the focused CLI, unit, and validate-only gate for the Python adversarial runner and closely related governance helpers.
 - `make test-adversary-sim-domain-contract` is the focused backend adversary-sim lifecycle and lane-domain gate that stays off the live runtime-surface path.
 
-Simulation realism pages are available at `/sim/public/landing`, `/sim/public/docs`, `/sim/public/pricing`, `/sim/public/contact`, and `/sim/public/search?q=...` only when both availability gates are true: `SHUMA_ADVERSARY_SIM_AVAILABLE=true` and the effective adversary-sim desired state is enabled (seeded initially by `SHUMA_ADVERSARY_SIM_ENABLED`, then projected from persisted control state after the first `POST /admin/adversary-sim/control` write).
+The generated contributor public surface now lives at `/sim/public/`, with stable feed and section routes including `/sim/public/about/`, `/sim/public/research/`, `/sim/public/plans/`, `/sim/public/work/`, and `/sim/public/atom.xml`.
+That surface is available whenever the generated artifact exists; it no longer depends on adversary-sim being actively enabled.
 These pages are the intended first local public surface for strict-loop development and proof when contributors do not yet have a real hosted origin behind Shuma.
 Dashboard DOM-class contract for runtime/simulation affordances:
 - `<html>` must include exactly one runtime environment class: `runtime-dev` or `runtime-prod` (derived from trusted runtime config).

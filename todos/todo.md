@@ -276,16 +276,6 @@ Current note:
     - proof: add and pass `make test-sim-public-discoverability-contract`, and keep shared-host seed-contract proof green
     - insufficient: private worker-only route hints, simulator convenience endpoints, or sitemap/catalog artifacts treated as discovery truth
 
-- [ ] SIM-PUBSITE-1C Serve the generated site through `sim_public` on local dev and remove the old hard-coded dummy site.
-  - Reference context:
-    - [`docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md`](../docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md)
-    - [`docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
-  - Closure gate:
-    - serving truth: `/sim/public/*` must serve the generated contributor site whenever the artifact exists, even when adversary sim is idle
-    - cleanup truth: the legacy five-page `landing/docs/pricing/contact/search` implementation must be removed rather than preserved as a fallback parallel surface
-    - proof: add and pass `make test-sim-public-runtime-serving`, and keep `make test-sim-public-generated-site-contract` green
-    - insufficient: preserving the old hard-coded site behind the new one, or continuing to make the site disappear unless the sim lane is running
-
 - [ ] SIM-PUBSITE-1D Add discoverability artifacts and contributor/runtime flow wiring for the generated site.
   - Reference context:
     - [`docs/research/2026-03-30-generated-public-content-site-standards-and-generator-pattern-review.md`](../docs/research/2026-03-30-generated-public-content-site-standards-and-generator-pattern-review.md)

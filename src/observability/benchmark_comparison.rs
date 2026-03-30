@@ -873,7 +873,7 @@ mod tests {
                     ],
                     cost_channel_status: "derived".to_string(),
                     sample_request_method: "GET".to_string(),
-                    sample_request_path: "/sim/public/landing".to_string(),
+                    sample_request_path: "/sim/public/".to_string(),
                     sample_response_status: Some(200),
                     repair_family_candidates: vec![
                         "fingerprint_signal".to_string(),
@@ -911,7 +911,7 @@ mod tests {
                     ],
                     cost_channel_status: "derived".to_string(),
                     sample_request_method: "GET".to_string(),
-                    sample_request_path: "/sim/public/landing".to_string(),
+                    sample_request_path: "/sim/public/".to_string(),
                     sample_response_status: Some(200),
                     repair_family_candidates: vec![
                         "fingerprint_signal".to_string(),

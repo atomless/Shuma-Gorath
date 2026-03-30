@@ -1592,6 +1592,14 @@ test-sim-public-generator: ## Validate generated contributor sim-public site art
 	fi
 	@python3 -m unittest scripts/tests/test_build_sim_public_site.py
 
+test-sim-public-runtime-serving: ## Validate generated contributor sim-public runtime serving and legacy-surface removal
+	@echo "$(CYAN)🧪 Validating sim-public runtime serving...$(NC)"
+	@./scripts/set_crate_type.sh rlib
+	@cargo test sim_public_relative_asset_path_maps_root_and_nested_routes -- --nocapture
+	@cargo test maybe_handle_serves_generated_site_files_when_enabled -- --nocapture
+	@cargo test maybe_handle_serves_atom_feed_with_xml_content_type -- --nocapture
+	@cargo test maybe_handle_returns_empty_body_for_head -- --nocapture
+
 build-shared-host-seed-inventory: ## Build minimal shared-host seed inventory from operator inputs under the shared-host scope contract
 	@python3 scripts/tests/shared_host_seed_inventory.py $(SHARED_HOST_SEED_ARGS)
 
@@ -1654,6 +1662,8 @@ test-adversarial-runner-architecture: ## Run focused adversarial runner CLI, uni
 
 test-adversarial-deterministic-corpus: ## Validate shared deterministic attack corpus parity across runtime and CI oracle lanes
 	@echo "$(CYAN)🧪 Validating shared deterministic attack corpus parity...$(NC)"
+	@./scripts/set_crate_type.sh rlib
+	@cargo test default_deterministic_attack_corpus_targets_generated_sim_public_routes -- --nocapture
 	@python3 scripts/tests/check_adversarial_deterministic_corpus.py
 
 test-adversary-sim-lifecycle: ## Fast adversary-sim lifecycle regression gate (toggle/state/heartbeat contracts)

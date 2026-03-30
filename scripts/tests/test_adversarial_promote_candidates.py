@@ -60,7 +60,7 @@ def sample_attack_plan(frontier_mode="single_provider_self_play", diversity_conf
                 "tier": "SIM-T4",
                 "driver": "cdp_high_confidence_deny",
                 "payload": {
-                    "target": {"path_hint": "/sim/public/search"},
+                    "target": {"path_hint": "/sim/public/"},
                     "traffic_model": {
                         "user_agent": "ShumaAdversarial/1.0 mutated",
                         "retry_strategy": "retry_storm",

@@ -118,7 +118,7 @@ class _RecordingHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
-        if self.path.startswith("/sim/public/search"):
+        if self.path == "/sim/public/" or self.path.startswith("/sim/public/?"):
             body = json.dumps({"ok": True, "path": self.path, "kind": "search"}).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json")

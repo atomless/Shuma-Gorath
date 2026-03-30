@@ -71,31 +71,28 @@
     },
     {
       "action_type": "http_get",
-      "path": "/sim/public/landing",
-      "label": "landing"
+      "path": "/sim/public/",
+      "label": "latest"
     },
     {
       "action_type": "http_get",
-      "path": "/sim/public/docs",
-      "label": "docs"
+      "path": "/sim/public/about/",
+      "label": "about"
     },
     {
       "action_type": "http_get",
-      "path": "/sim/public/pricing",
-      "label": "pricing"
+      "path": "/sim/public/research/",
+      "label": "research"
     },
     {
       "action_type": "http_get",
-      "path": "/sim/public/contact",
-      "label": "contact"
+      "path": "/sim/public/plans/",
+      "label": "plans"
     },
     {
       "action_type": "http_get",
-      "path": "/sim/public/search",
-      "query": {
-        "q": "adversarial simulation"
-      },
-      "label": "search"
+      "path": "/sim/public/work/",
+      "label": "work"
     }
   ],
   "llm_fulfillment": {

@@ -34,18 +34,18 @@
         "id": "path-search-probe",
         "class": "path_selection",
         "behavioral_class": "path_variation",
-        "path_hint": "/sim/public/search",
+        "path_hint": "/sim/public/",
         "query_hint": {
           "q": "adaptive frontier probe"
         },
         "novelty_weight": 0.68
       },
       {
-        "id": "path-docs-revisit",
+        "id": "path-research-revisit",
         "class": "path_selection",
         "behavioral_class": "crawl_variation",
-        "path_hint": "/sim/public/docs",
-        "user_agent_suffix": "mut-docs-revisit",
+        "path_hint": "/sim/public/research/",
+        "user_agent_suffix": "mut-research-revisit",
         "novelty_weight": 0.55
       }
     ]
