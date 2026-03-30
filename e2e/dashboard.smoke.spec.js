@@ -3704,7 +3704,55 @@ test("verification save-all button reflects shared dirty-state behavior", async 
   }
 });
 
-test("verification tab surfaces verified identity controls and health summary", async ({ page, request }) => {
+test("verification tab surfaces verified identity controls", async ({ page, request }) => {
+  await withRestoredAdminConfig(
+    request,
+    [...VERIFICATION_RESTORE_PATHS, ...VERIFIED_IDENTITY_RESTORE_PATHS],
+    async () => {
+      await openDashboard(page);
+      await openTab(page, "verification", { waitForReady: true });
+
+      const verificationTab = page.locator("#dashboard-panel-verification");
+      await expect(verificationTab.locator("h3")).toContainText(["Akamai Bot Signal", "Verified Identity"]);
+      await expect(verificationTab.locator("label.toggle-switch[for='verified-identity-enabled-toggle']")).toBeVisible();
+      await expect(verificationTab.locator("label.toggle-switch[for='verified-identity-native-web-bot-auth-toggle']")).toBeVisible();
+      await expect(verificationTab.locator("label.toggle-switch[for='verified-identity-provider-assertions-toggle']")).toBeVisible();
+      await expect(verificationTab.locator("#verified-identity-replay-window")).toBeVisible();
+      await expect(verificationTab.locator("h3")).not.toContainText(["Verified Identity Health"]);
+      await expect(verificationTab.locator("#verified-identity-attempts")).toHaveCount(0);
+      await expect(verificationTab.locator("#verified-identity-top-failure-reasons")).toHaveCount(0);
+
+      const replayWindow = page.locator("#verified-identity-replay-window");
+      const configSave = page.locator("#save-verification-all");
+
+      if (!(await replayWindow.isVisible()) || !(await replayWindow.isEnabled())) {
+        await expect(configSave).toBeHidden();
+        return;
+      }
+
+      const initialReplayWindow = await replayWindow.inputValue();
+      const nextReplayWindow = String(Number(initialReplayWindow || "120") === 120 ? 180 : 120);
+      await replayWindow.fill(nextReplayWindow);
+      await replayWindow.dispatchEvent("input");
+      await expect(configSave).toBeVisible();
+      await expect(configSave).toBeEnabled();
+
+      await Promise.all([
+        page.waitForResponse((resp) => (
+          resp.url().includes("/admin/config") &&
+          resp.request().method() === "POST" &&
+          resp.status() >= 200 &&
+          resp.status() < 300
+        )),
+        configSave.click()
+      ]);
+
+      await expect(configSave).toBeHidden();
+    }
+  );
+});
+
+test("status tab surfaces verified identity health summary", async ({ page }) => {
   await page.route("**/admin/operator-snapshot", async (route) => {
     await route.fulfill({
       status: 200,
@@ -3737,53 +3785,16 @@ test("verification tab surfaces verified identity controls and health summary", 
     });
   });
 
-  await withRestoredAdminConfig(
-    request,
-    [...VERIFICATION_RESTORE_PATHS, ...VERIFIED_IDENTITY_RESTORE_PATHS],
-    async () => {
-      await openDashboard(page);
-      await openTab(page, "verification", { waitForReady: true });
+  await openDashboard(page);
+  await openTab(page, "status", { waitForReady: true });
 
-      await expect(page.locator("h3")).toContainText(["Akamai Bot Signal", "Verified Identity"]);
-      await expect(page.locator("label.toggle-switch[for='verified-identity-enabled-toggle']")).toBeVisible();
-      await expect(page.locator("label.toggle-switch[for='verified-identity-native-web-bot-auth-toggle']")).toBeVisible();
-      await expect(page.locator("label.toggle-switch[for='verified-identity-provider-assertions-toggle']")).toBeVisible();
-      await expect(page.locator("#verified-identity-replay-window")).toBeVisible();
-      await expect(page.locator("#verified-identity-attempts")).toHaveText("12");
-      await expect(page.locator("#verified-identity-verified")).toHaveText("9");
-      await expect(page.locator("#verified-identity-failed")).toHaveText("3");
-      await expect(page.locator("#verified-identity-top-failure-reasons")).toContainText("Directory Stale");
-      await expect(page.locator("#verified-identity-top-schemes")).toContainText("Http Message Signatures");
-      await expect(page.locator("#verified-identity-top-categories")).toContainText("Search");
-
-      const replayWindow = page.locator("#verified-identity-replay-window");
-      const configSave = page.locator("#save-verification-all");
-
-      if (!(await replayWindow.isVisible()) || !(await replayWindow.isEnabled())) {
-        await expect(configSave).toBeHidden();
-        return;
-      }
-
-      const initialReplayWindow = await replayWindow.inputValue();
-      const nextReplayWindow = String(Number(initialReplayWindow || "120") === 120 ? 180 : 120);
-      await replayWindow.fill(nextReplayWindow);
-      await replayWindow.dispatchEvent("input");
-      await expect(configSave).toBeVisible();
-      await expect(configSave).toBeEnabled();
-
-      await Promise.all([
-        page.waitForResponse((resp) => (
-          resp.url().includes("/admin/config") &&
-          resp.request().method() === "POST" &&
-          resp.status() >= 200 &&
-          resp.status() < 300
-        )),
-        configSave.click()
-      ]);
-
-      await expect(configSave).toBeHidden();
-    }
-  );
+  await expect(page.locator("h3")).toContainText(["Verified Identity Health"]);
+  await expect(page.locator("#verified-identity-attempts")).toHaveText("12");
+  await expect(page.locator("#verified-identity-verified")).toHaveText("9");
+  await expect(page.locator("#verified-identity-failed")).toHaveText("3");
+  await expect(page.locator("#verified-identity-top-failure-reasons")).toContainText("Directory Stale");
+  await expect(page.locator("#verified-identity-top-schemes")).toContainText("Http Message Signatures");
+  await expect(page.locator("#verified-identity-top-categories")).toContainText("Search");
 });
 
 test("advanced tab save flow validates and persists advanced JSON edits", async ({ page }) => {

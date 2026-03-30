@@ -977,7 +977,7 @@ export function createDashboardRefreshRuntime(options = {}) {
     );
 
     const dashboardApiClient = getApiClient();
-    if (!dashboardApiClient || typeof dashboardApiClient.getMonitoring !== 'function') return;
+    if (!dashboardApiClient) return;
 
     const requestOptions = toRequestOptions(runtimeOptions, {
       tab: 'status',
@@ -988,28 +988,44 @@ export function createDashboardRefreshRuntime(options = {}) {
     const configRuntimeSnapshot = dashboardState ? dashboardState.getSnapshot('configRuntime') : {};
     const requestBudgets = deriveDashboardRequestBudgets(configRuntimeSnapshot);
 
-    try {
-      const monitoringData = await dashboardApiClient.getMonitoring(
-        { hours: 24, limit: 1 },
-        {
+    if (typeof dashboardApiClient.getMonitoring === 'function') {
+      try {
+        const monitoringData = await dashboardApiClient.getMonitoring(
+          { hours: 24, limit: 1 },
+          {
+            ...requestOptions,
+            timeoutMs: requestBudgets.monitoringRequestTimeoutMs
+          }
+        );
+        const currentConfigSnapshot = dashboardState ? dashboardState.getSnapshot('config') : {};
+        const currentConfigRuntimeSnapshot = dashboardState ? dashboardState.getSnapshot('configRuntime') : {};
+        const monitoringSnapshots = buildMonitoringSnapshots(
+          monitoringData,
+          currentConfigSnapshot,
+          currentConfigRuntimeSnapshot
+        );
+        applySnapshots(monitoringSnapshots);
+        updateFreshnessSnapshot(
+          'monitoring',
+          monitoringData && typeof monitoringData === 'object' ? monitoringData.freshness || {} : {},
+          'snapshot_poll'
+        );
+      } catch (_error) {}
+    }
+
+    if (typeof dashboardApiClient.getOperatorSnapshot === 'function') {
+      try {
+        const operatorSnapshot = await dashboardApiClient.getOperatorSnapshot({
           ...requestOptions,
           timeoutMs: requestBudgets.monitoringRequestTimeoutMs
-        }
-      );
-      const currentConfigSnapshot = dashboardState ? dashboardState.getSnapshot('config') : {};
-      const currentConfigRuntimeSnapshot = dashboardState ? dashboardState.getSnapshot('configRuntime') : {};
-      const monitoringSnapshots = buildMonitoringSnapshots(
-        monitoringData,
-        currentConfigSnapshot,
-        currentConfigRuntimeSnapshot
-      );
-      applySnapshots(monitoringSnapshots);
-      updateFreshnessSnapshot(
-        'monitoring',
-        monitoringData && typeof monitoringData === 'object' ? monitoringData.freshness || {} : {},
-        'snapshot_poll'
-      );
-    } catch (_error) {}
+        });
+        applySnapshots({ operatorSnapshot });
+      } catch (_error) {
+        applySnapshots({ operatorSnapshot: null });
+      }
+    } else {
+      applySnapshots({ operatorSnapshot: null });
+    }
 
     if (typeof dashboardApiClient.getIpBansDelta !== 'function') return;
 
@@ -1055,40 +1071,13 @@ export function createDashboardRefreshRuntime(options = {}) {
   };
 
   async function refreshVerificationTab(reason = 'manual', runtimeOptions = {}) {
-    if (reason !== 'auto-refresh') {
-      showTabLoading('verification', 'Loading verification controls...');
-    }
-
-    const configEnvelope = await refreshSharedConfig(reason, runtimeOptions);
-    if (isConfigSnapshotEmpty(configEnvelope.config)) {
-      applySnapshots({ operatorSnapshot: null });
-      showTabEmpty('verification', 'No verification config snapshot available yet.');
-      return;
-    }
-
-    const dashboardApiClient = getApiClient();
-    const dashboardState = getStateStore();
-    const configRuntimeSnapshot = dashboardState ? dashboardState.getSnapshot('configRuntime') : {};
-    const requestBudgets = deriveDashboardRequestBudgets(configRuntimeSnapshot);
-    const requestOptions = toRequestOptions(runtimeOptions, {
-      tab: 'verification',
+    await refreshConfigBackedTab(
+      'verification',
       reason,
-      source: 'verification-operator-snapshot-refresh'
-    });
-
-    if (dashboardApiClient && typeof dashboardApiClient.getOperatorSnapshot === 'function') {
-      try {
-        const operatorSnapshot = await dashboardApiClient.getOperatorSnapshot({
-          ...requestOptions,
-          timeoutMs: requestBudgets.monitoringRequestTimeoutMs
-        });
-        applySnapshots({ operatorSnapshot });
-      } catch (_error) {
-        applySnapshots({ operatorSnapshot: null });
-      }
-    }
-
-    clearTabStateMessage('verification');
+      'Loading verification controls...',
+      'No verification config snapshot available yet.',
+      runtimeOptions
+    );
   }
 
   async function refreshMonitoringAccountabilityData(reason = 'manual', runtimeOptions = {}) {

@@ -1334,6 +1334,7 @@
           tabStatus={tabStatus.status || {}}
           configSnapshot={snapshots.config}
           configRuntimeSnapshot={snapshots.configRuntime}
+          operatorSnapshot={snapshots.operatorSnapshot}
           monitoringSnapshot={snapshots.monitoring}
           monitoringFreshnessSnapshot={snapshots.monitoringFreshness}
           ipBansFreshnessSnapshot={snapshots.ipBansFreshness}
@@ -1360,7 +1361,6 @@
           noticeKind={paneNoticeValues.verification?.kind || 'info'}
           configSnapshot={snapshots.config}
           configRuntimeSnapshot={snapshots.configRuntime}
-          operatorSnapshot={snapshots.operatorSnapshot}
           configVersion={snapshotVersions.config || 0}
           onSaveConfig={onSaveConfig}
         />

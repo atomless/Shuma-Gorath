@@ -18,7 +18,8 @@ What it shows:
 - Operator health sections:
   - heartbeat-owned backend connection state, last heartbeat success/failure, last heartbeat failure class, and failure threshold posture,
   - monitoring-feed freshness and IP-ban-feed freshness, including lag, last event time, and partial-data warnings when present,
-  - retention-worker health sourced from `/admin/monitoring` (`retention_health`).
+  - retention-worker health sourced from `/admin/monitoring` (`retention_health`),
+  - verified-identity health sourced from `/admin/operator-snapshot`, including availability, attempt/verification/failure counts, unique identity counts, policy/profile coverage, and top failure/scheme/category summaries.
 - Runtime performance telemetry for dashboard refresh behavior:
   - thresholds apply to the dashboard auto-refresh tabs (`ip-bans` and `red-team`),
   - fetch latency (last, avg, p95),
@@ -31,6 +32,7 @@ How to interpret it:
 - If `Ignored non-heartbeat failures` rises while connection stays healthy, tab-local endpoint failures are being contained correctly and must not be mistaken for a backend disconnect.
 - If `Ignored cancelled requests` rises during navigation/remount churn, the dashboard is correctly treating client-side aborts as local noise instead of connection loss.
 - If `Retention Health` degrades or stalls, recent traffic may still be live while older evidence ages out less reliably; treat that as a telemetry-lifecycle issue, not a connection issue.
+- If `Verified Identity Health` is unavailable while the rest of Status is healthy, the operator snapshot read path is degraded or has not yet materialized enough evidence for identity-health reporting.
 
 Writes:
 

@@ -7,7 +7,6 @@ Purpose:
 
 - Configure core verification and challenge controls.
 - Configure trusted verification-source posture.
-- Review bounded verified-identity health without leaving the Verification tab.
 
 Panels:
 
@@ -36,19 +35,11 @@ Panels:
   - clock skew (`verified_identity.clock_skew_seconds`),
   - directory cache TTL (`verified_identity.directory_cache_ttl_seconds`),
   - directory freshness requirement (`verified_identity.directory_freshness_requirement_seconds`).
-- `Verified Identity Health`:
-  - availability,
-  - attempts,
-  - verified,
-  - failed,
-  - unique identities,
-  - named policy and service-profile counts,
-  - top failure reasons,
-  - top schemes,
-  - top categories.
 
 Notes:
 
 - Challenge and PoW advanced controls remain in [`advanced.md`](advanced.md).
 - This tab no longer includes IP range policy controls (those are in [`ip-bans.md`](ip-bans.md)).
-- This pane now owns verification mechanics plus trusted verification-source posture. Verified-identity category defaults, richer identity policy editing, and bounded tuning controls still stay out of this tab.
+- This pane owns verification mechanics plus trusted verification-source posture.
+- `Verified Identity Health` now lives in [`status.md`](status.md) so the Verification tab stays focused on editable controls.
+- Verified-identity category defaults, richer identity policy editing, and bounded tuning controls still stay out of this tab.

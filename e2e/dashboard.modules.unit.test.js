@@ -5327,7 +5327,12 @@ test('dashboard config tabs reuse shared panels, save flows, and owned controls'
   assert.doesNotMatch(statusSource, />IP bans update path:</);
   assert.match(statusSource, /<h3>Retention Health<\/h3>/);
   assert.match(statusSource, /id="status-retention-health-state"/);
+  assert.match(statusSource, /export let operatorSnapshot = null;/);
   assert.match(statusSource, /<h3>Runtime Performance Telemetry<\/h3>/);
+  assert.match(statusSource, /<h3>Verified Identity Health<\/h3>/);
+  assert.match(statusSource, /id="verified-identity-top-failure-reasons"/);
+  assert.match(statusSource, /id="verified-identity-top-schemes"/);
+  assert.match(statusSource, /id="verified-identity-top-categories"/);
   assert.match(statusSource, /Operator thresholds for auto-refresh tabs/);
   assert.match(statusSource, /<code>ip-bans<\/code> and <code>red-team<\/code>/);
   assert.doesNotMatch(statusSource, /<code>diagnostics<\/code>, <code>ip-bans<\/code>, and\s*<code>red-team<\/code>/);
@@ -5353,7 +5358,6 @@ test('dashboard config tabs reuse shared panels, save flows, and owned controls'
   assert.match(configSurfaceSource, /max=\{notABotScoreFailMaxCap\}/);
   assert.match(configSurfaceSource, /Any scores above Fail and below Pass will be shown a tougher challenge\./);
   assert.match(configSource, /buttonId="save-verification-all"/);
-  assert.match(configSource, /export let operatorSnapshot = null;/);
   assert.match(configSource, /normalizeEdgeMode/);
   assert.match(configSource, /isAkamaiEdgeAvailable/);
   assert.match(configSource, /id="verification-akamai-enabled-toggle"/);
@@ -5369,9 +5373,10 @@ test('dashboard config tabs reuse shared panels, save flows, and owned controls'
   assert.match(configSource, /id="verified-identity-clock-skew"/);
   assert.match(configSource, /id="verified-identity-directory-cache-ttl"/);
   assert.match(configSource, /id="verified-identity-directory-freshness-requirement"/);
-  assert.match(configSource, /id="verified-identity-top-failure-reasons"/);
-  assert.match(configSource, /id="verified-identity-top-schemes"/);
-  assert.match(configSource, /id="verified-identity-top-categories"/);
+  assert.doesNotMatch(configSource, /Verified Identity Health/);
+  assert.doesNotMatch(configSource, /id="verified-identity-top-failure-reasons"/);
+  assert.doesNotMatch(configSource, /id="verified-identity-top-schemes"/);
+  assert.doesNotMatch(configSource, /id="verified-identity-top-categories"/);
   assert.match(configSource, /patch\.verified_identity = \{/);
   assert.match(configSource, /saveAllConfig\(/);
   assert.match(configSource, /window\.addEventListener\('beforeunload'/);
@@ -6587,7 +6592,7 @@ test('dashboard config-backed tab refreshes shared config from the server on cli
   });
 });
 
-test('dashboard verification tab wires verified identity operator snapshot and store state', () => {
+test('dashboard status tab wires verified identity operator snapshot and store state', () => {
   const apiClientSource = fs.readFileSync(
     path.join(DASHBOARD_ROOT, 'src/lib/domain/api-client.js'),
     'utf8'
@@ -6610,12 +6615,27 @@ test('dashboard verification tab wires verified identity operator snapshot and s
   assert.match(apiClientSource, /getOperatorSnapshot,/);
   assert.match(stateSource, /'operatorSnapshot'/);
   assert.match(stateSource, /operatorSnapshot: null/);
-  assert.match(routeSource, /operatorSnapshot=\{snapshots\.operatorSnapshot\}/);
-  assert.match(refreshRuntimeSource, /async function refreshVerificationTab\(reason = 'manual', runtimeOptions = \{\}\) \{/);
-  assert.match(refreshRuntimeSource, /showTabLoading\('verification', 'Loading verification controls\.\.\.'\);/);
-  assert.match(refreshRuntimeSource, /dashboardApiClient && typeof dashboardApiClient\.getOperatorSnapshot === 'function'/);
+  assert.match(
+    routeSource,
+    /\{#if StatusTabComponent\}[\s\S]*?this=\{StatusTabComponent\}[\s\S]*?operatorSnapshot=\{snapshots\.operatorSnapshot\}/
+  );
+  assert.doesNotMatch(
+    routeSource,
+    /\{#if VerificationTabComponent\}[\s\S]*?this=\{VerificationTabComponent\}[\s\S]*?operatorSnapshot=\{snapshots\.operatorSnapshot\}/
+  );
+  assert.match(refreshRuntimeSource, /async function refreshStatusTab\(reason = 'manual', runtimeOptions = \{\}\) \{/);
+  assert.match(refreshRuntimeSource, /source: 'status-operational-refresh'/);
+  assert.match(refreshRuntimeSource, /typeof dashboardApiClient\.getOperatorSnapshot === 'function'/);
   assert.match(refreshRuntimeSource, /const operatorSnapshot = await dashboardApiClient\.getOperatorSnapshot\(\{/);
   assert.match(refreshRuntimeSource, /applySnapshots\(\{ operatorSnapshot \}\);/);
+  assert.match(
+    refreshRuntimeSource,
+    /async function refreshVerificationTab\(reason = 'manual', runtimeOptions = \{\}\) \{[\s\S]*?refreshConfigBackedTab\([\s\S]*?'verification'[\s\S]*?\);\s*\}/
+  );
+  const refreshVerificationSource = refreshRuntimeSource.match(
+    /async function refreshVerificationTab\(reason = 'manual', runtimeOptions = \{\}\) \{[\s\S]*?\n  \}/
+  )?.[0] || '';
+  assert.equal(refreshVerificationSource.includes('getOperatorSnapshot'), false);
 });
 
 test('dashboard game loop accountability adapters normalize operator and oversight payloads safely', async () => {

@@ -4,6 +4,33 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-30)
 
+### DASH-STATUS-VID-1 Move Verified Identity Health To Status
+
+- [x] Completed the dashboard ownership move across:
+  - [`../dashboard/src/lib/components/dashboard/StatusTab.svelte`](../dashboard/src/lib/components/dashboard/StatusTab.svelte)
+  - [`../dashboard/src/lib/components/dashboard/VerificationTab.svelte`](../dashboard/src/lib/components/dashboard/VerificationTab.svelte)
+  - [`../dashboard/src/lib/runtime/dashboard-runtime-refresh.js`](../dashboard/src/lib/runtime/dashboard-runtime-refresh.js)
+  - [`../dashboard/src/routes/+page.svelte`](../dashboard/src/routes/+page.svelte)
+  - [`../docs/dashboard-tabs/status.md`](../docs/dashboard-tabs/status.md)
+  - [`../docs/dashboard-tabs/verification.md`](../docs/dashboard-tabs/verification.md)
+  - [`../docs/research/2026-03-30-verified-identity-health-status-ownership-review.md`](../docs/research/2026-03-30-verified-identity-health-status-ownership-review.md)
+  - [`../docs/plans/2026-03-30-verified-identity-health-status-ownership-plan.md`](../docs/plans/2026-03-30-verified-identity-health-status-ownership-plan.md)
+  - [`../docs/research/README.md`](../docs/research/README.md)
+  - [`../docs/plans/README.md`](../docs/plans/README.md)
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`../Makefile`](../Makefile)
+- [x] What landed:
+  - `Verified Identity Health` now renders at the bottom of `Status` as a read-only operator-health summary,
+  - `Verification` now keeps only editable verification and trusted-source controls,
+  - the status refresh path now owns the `operatorSnapshot` fetch needed for verified-identity health, while the verification refresh path no longer does,
+  - and the focused dashboard proof targets now separately cover the new `Status` summary contract and the retained `Verification` control contract.
+- [x] Why:
+  - the verified-identity health summary is runtime/operator health, not an editable verification control, so moving it to `Status` keeps both tabs semantically cleaner and removes mixed ownership from `Verification`.
+- [x] Evidence:
+  - `make test-dashboard-status-pane`
+  - `make test-dashboard-verified-identity-pane`
+
 ### DASH-FP-REHOME-1 Temporarily Rehome Fingerprint Controls And Retire The Fingerprinting Tab
 
 - [x] Completed the temporary dashboard ownership rehome across:

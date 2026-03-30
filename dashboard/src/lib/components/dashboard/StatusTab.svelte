@@ -13,6 +13,7 @@
   export let tabStatus = null;
   export let configSnapshot = null;
   export let configRuntimeSnapshot = null;
+  export let operatorSnapshot = null;
   export let monitoringSnapshot = null;
   export let monitoringFreshnessSnapshot = null;
   export let ipBansFreshnessSnapshot = null;
@@ -80,6 +81,29 @@
       })
       .join(' -> ');
   };
+  const readOperatorSnapshotVerifiedIdentity = (snapshot) => {
+    if (!snapshot || typeof snapshot !== 'object') return {};
+    return snapshot.verified_identity && typeof snapshot.verified_identity === 'object'
+      ? snapshot.verified_identity
+      : {};
+  };
+  const readCountEntries = (value) => (
+    Array.isArray(value)
+      ? value.filter((entry) => entry && typeof entry === 'object')
+      : []
+  );
+  const formatAvailability = (value) => {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (normalized === 'supported') return 'Supported';
+    if (normalized === 'not_configured') return 'Not configured';
+    return normalized ? normalized.replace(/_/g, ' ') : '-';
+  };
+  const formatCountEntryLabel = (value) =>
+    String(value || '')
+      .split('_')
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ') || '-';
 
   $: statusSnapshot = deriveStatusSnapshot(configSnapshot || {}, configRuntimeSnapshot || {});
   $: featureStatusItems = buildFeatureStatusItems(statusSnapshot);
@@ -96,6 +120,11 @@
   $: retentionHealth = monitoringSnapshot && monitoringSnapshot.retention_health
     ? monitoringSnapshot.retention_health
     : {};
+  $: verifiedIdentitySummary = readOperatorSnapshotVerifiedIdentity(operatorSnapshot);
+  $: verifiedIdentityTopFailureReasons = readCountEntries(verifiedIdentitySummary.top_failure_reasons);
+  $: verifiedIdentityTopSchemes = readCountEntries(verifiedIdentitySummary.top_schemes);
+  $: verifiedIdentityTopCategories = readCountEntries(verifiedIdentitySummary.top_categories);
+  $: verifiedIdentitySummaryAvailable = Object.keys(verifiedIdentitySummary).length > 0;
 </script>
 
 <section
@@ -314,6 +343,80 @@
             <span id="runtime-polling-last-resume-at" class="status-value">{formatIsoTimestamp(polling.lastResumeAt)}</span>
           </div>
         </div>
+      </div>
+
+      <div class="status-item">
+        <h3>Verified Identity Health</h3>
+        <p class="control-desc text-muted">
+          Bounded operator snapshot summary for recent verified-identity activity and the main failure or category
+          signals currently observed.
+        </p>
+        {#if verifiedIdentitySummaryAvailable}
+          <div class="status-rows">
+            <div class="info-row">
+              <span class="info-label text-muted">Availability:</span>
+              <span id="verified-identity-availability" class="status-value">{formatAvailability(verifiedIdentitySummary.availability)}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label text-muted">Attempts:</span>
+              <span id="verified-identity-attempts" class="status-value">{verifiedIdentitySummary.attempts}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label text-muted">Verified:</span>
+              <span id="verified-identity-verified" class="status-value">{verifiedIdentitySummary.verified}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label text-muted">Failed:</span>
+              <span id="verified-identity-failed" class="status-value">{verifiedIdentitySummary.failed}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label text-muted">Unique identities:</span>
+              <span id="verified-identity-unique-identities" class="status-value">{verifiedIdentitySummary.unique_verified_identities}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label text-muted">Named policies:</span>
+              <span id="verified-identity-named-policy-count" class="status-value">{verifiedIdentitySummary.named_policy_count}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label text-muted">Service profiles:</span>
+              <span id="verified-identity-service-profile-count" class="status-value">{verifiedIdentitySummary.service_profile_count}</span>
+            </div>
+          </div>
+          <h3>Top Failure Reasons</h3>
+          <ul id="verified-identity-top-failure-reasons" class="metric-list">
+            {#if verifiedIdentityTopFailureReasons.length > 0}
+              {#each verifiedIdentityTopFailureReasons as entry}
+                <li><strong>{formatCountEntryLabel(entry.label)}:</strong> {entry.count}</li>
+              {/each}
+            {:else}
+              <li>No recent verification failures.</li>
+            {/if}
+          </ul>
+          <h3>Top Schemes</h3>
+          <ul id="verified-identity-top-schemes" class="metric-list">
+            {#if verifiedIdentityTopSchemes.length > 0}
+              {#each verifiedIdentityTopSchemes as entry}
+                <li><strong>{formatCountEntryLabel(entry.label)}:</strong> {entry.count}</li>
+              {/each}
+            {:else}
+              <li>No recent verified-identity scheme activity.</li>
+            {/if}
+          </ul>
+          <h3>Top Categories</h3>
+          <ul id="verified-identity-top-categories" class="metric-list">
+            {#if verifiedIdentityTopCategories.length > 0}
+              {#each verifiedIdentityTopCategories as entry}
+                <li><strong>{formatCountEntryLabel(entry.label)}:</strong> {entry.count}</li>
+              {/each}
+            {:else}
+              <li>No recent verified-identity category activity.</li>
+            {/if}
+          </ul>
+        {:else}
+          <p id="verified-identity-summary-empty" class="message info">
+            Verified-identity summary is not materialized yet.
+          </p>
+        {/if}
       </div>
     </div>
   </div>
