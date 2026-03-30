@@ -284,9 +284,11 @@ Current note:
     - [`docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
   - Closure gate:
     - contract truth: the first tranche must explicitly be contributor-only, must forbid runtime repo walking, and must decouple site availability from adversary-sim control state
+    - layout truth: the contract must freeze generator source under `scripts/build_sim_public_site.py` plus `scripts/sim_public_site/`, corpus policy under `config/sim_public_site/corpus.toml`, generated artifacts under `.shuma/sim-public-site/`, and runtime serving under `src/runtime/sim_public.rs`
     - flow truth: contributor flows and runtime-only flows must have explicit documented behavior rather than relying on incidental build outcomes
     - standards truth: the contract must explicitly freeze a chronology-driven homepage feed, a separate `About` page, crawlable `<a href>` pagination, absolute canonical URLs, and semantic `<time datetime>` markup
     - build-hygiene truth: the contract must explicitly forbid unconditional regeneration on every `make build` or `make dev` restart
+    - separation truth: the contract must explicitly forbid generated site files from being stored under `docs/`, `src/`, or `dist/`
     - proof: add and pass `make test-sim-public-generated-site-contract`
     - insufficient: leaving `/sim/public/*` availability coupled to `adversary_sim_enabled`, or introducing live repo reads in the request path
 

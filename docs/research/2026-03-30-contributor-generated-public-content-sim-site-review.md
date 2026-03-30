@@ -127,6 +127,44 @@ The generated site should:
 4. use either no CSS or one extremely small shared stylesheet that mostly preserves browser defaults,
 5. and derive excerpts and ordering at generation time.
 
+## Recommended Repository Separation
+
+The generated site should be kept visibly separate from Shuma runtime internals.
+
+Recommended source and artifact contract:
+
+1. build-time entrypoint at `scripts/build_sim_public_site.py`
+2. generator implementation package under `scripts/sim_public_site/`
+3. declarative corpus policy under `config/sim_public_site/corpus.toml`
+4. generated contributor artifact under `.shuma/sim-public-site/`
+5. runtime serving adapter limited to `src/runtime/sim_public.rs`
+
+Recommended generated artifact shape:
+
+1. `.shuma/sim-public-site/manifest.json`
+2. `.shuma/sim-public-site/freshness.json`
+3. `.shuma/sim-public-site/site/index.html`
+4. `.shuma/sim-public-site/site/about/index.html`
+5. `.shuma/sim-public-site/site/research/...`
+6. `.shuma/sim-public-site/site/plans/...`
+7. `.shuma/sim-public-site/site/work/...`
+8. `.shuma/sim-public-site/site/sitemap.xml`
+9. `.shuma/sim-public-site/site/atom.xml`
+
+This separation is preferable to alternatives because:
+
+1. `scripts/` already owns deterministic build-time generators in this repo,
+2. `config/` is the right home for declarative allowlist policy,
+3. `.shuma/` is already the ignored local-state root for contributor-generated artifacts,
+4. and `src/runtime/` should stay limited to serving a prebuilt artifact rather than becoming a content-generator subsystem.
+
+The first tranche should explicitly avoid:
+
+1. generated HTML under `docs/`, which would blur source markdown and rendered output,
+2. generated site files under `src/`, which would make contributor content look like core runtime logic,
+3. generated site output under `dist/`, which is already used for release-like build artifacts rather than contributor-local state,
+4. and runtime markdown rendering or repo walking on request.
+
 ## Availability And Environment Contract
 
 The first implementation should be contributor-only by default.
@@ -149,6 +187,7 @@ This keeps the contributor traversal surface available locally without granting 
 5. The homepage must be a chronology-driven feed, while `README.md` remains a separate About page rather than becoming the root index.
 6. The runtime must fail closed truthfully when the artifact is absent: either a minimal explicit unavailable response or no route, but never a fabricated richer site.
 7. The current five-page dummy site should be removed once the generated path is live, so there is only one public traversal model.
+8. Generator source, corpus policy, generated artifacts, and runtime serving code must stay in their own bounded locations rather than scattering site-specific files across `src/`, `docs/`, and release-output directories.
 
 ## Consequence For The Realism Chain
 

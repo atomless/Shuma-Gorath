@@ -21,6 +21,40 @@ Related context:
 
 ---
 
+## Canonical Directory And File Contract
+
+The first implementation must keep the generated-site toolchain and artifacts visibly separate from Shuma internals.
+
+Canonical locations:
+
+1. build-time CLI entrypoint: `scripts/build_sim_public_site.py`
+2. generator implementation package: `scripts/sim_public_site/`
+3. corpus allowlist and section policy: `config/sim_public_site/corpus.toml`
+4. generated contributor-local artifact root: `.shuma/sim-public-site/`
+5. runtime serving adapter: `src/runtime/sim_public.rs`
+
+Canonical generated artifact layout:
+
+1. `.shuma/sim-public-site/manifest.json`
+2. `.shuma/sim-public-site/freshness.json`
+3. `.shuma/sim-public-site/site/index.html`
+4. `.shuma/sim-public-site/site/about/index.html`
+5. `.shuma/sim-public-site/site/research/...`
+6. `.shuma/sim-public-site/site/plans/...`
+7. `.shuma/sim-public-site/site/work/...`
+8. `.shuma/sim-public-site/site/sitemap.xml`
+9. `.shuma/sim-public-site/site/atom.xml`
+
+Non-goals for this tranche:
+
+1. no generated HTML committed under `docs/`
+2. no generated site files under `src/`
+3. no contributor-site output under `dist/`
+4. no runtime repo walking
+5. no runtime markdown rendering
+
+This contract keeps the generated site obviously identifiable as contributor-local public terrain rather than Shuma core runtime code.
+
 ## Acceptance Criteria
 
 1. Local contributor workflows expose the richer `/sim/public/*` site even when adversary sim is idle; browsing the site must no longer depend on `adversary_sim_enabled`.
@@ -34,10 +68,14 @@ Related context:
 9. Entry and feed pages emit absolute canonical URLs, and timestamps are rendered with semantic `<time datetime>` markup.
 10. Markdown rendering is performed by a real CommonMark-conforming build-time parser, not ad hoc string or regex transforms in the runtime.
 11. Normal contributor builds and dev restarts do not regenerate the site artifact by default; refresh happens only on explicit command or bounded stale-check policy.
+12. Generator source, corpus policy, generated artifacts, and runtime serving code live only in the canonical locations defined above rather than being mixed into `docs/`, `src/`, or `dist/`.
 
 ## Task 1: Freeze The Generated-Site Contract And Contributor-Only Scope
 
 **Files:**
+- Create: `scripts/build_sim_public_site.py`
+- Create: `scripts/sim_public_site/`
+- Create: `config/sim_public_site/corpus.toml`
 - Modify: `src/runtime/sim_public.rs`
 - Modify: focused contract tests for `sim_public`
 - Modify: `Makefile`
@@ -55,6 +93,12 @@ Related context:
    - paginated archives
    - canonical URLs
    - semantic timestamps
+5. Freeze the repository-separation contract:
+   - generator source under `scripts/`
+   - corpus policy under `config/`
+   - generated site artifact under `.shuma/`
+   - runtime serving adapter under `src/runtime/sim_public.rs`
+   - no generated pages under `docs/`, `src/`, or `dist/`
 
 **Acceptance criteria:**
 1. The contract explicitly forbids runtime repo walking.
@@ -63,6 +107,8 @@ Related context:
 4. The contract explicitly requires ordinary crawlable anchor links for pagination and archive traversal.
 5. The contract explicitly requires canonical URLs and semantic `time` markup.
 6. The contract explicitly forbids unconditional regeneration on every `make build` or `make dev` restart.
+7. The contract explicitly freezes the canonical generator, config, artifact, and runtime locations named above.
+8. The contract explicitly forbids generated site files from being stored under `docs/`, `src/`, or `dist/`.
 
 **Proof:**
 1. Add and pass `make test-sim-public-generated-site-contract`.
@@ -70,8 +116,10 @@ Related context:
 ## Task 2: Build The Generator And Content Artifact
 
 **Files:**
-- Create: build-time generator script and related templates or helpers
-- Create: generated artifact location under ignored/generated content output
+- Create: `scripts/build_sim_public_site.py`
+- Create: `scripts/sim_public_site/`
+- Create: `config/sim_public_site/corpus.toml`
+- Create: generated artifact location under `.shuma/sim-public-site/`
 - Modify: `Makefile`
 - Modify: contributor docs
 
@@ -99,6 +147,7 @@ Related context:
 4. HTML structure is semantic and crawlable.
 5. Visual styling remains minimal enough that the site reads like hypertext, not a custom app.
 6. Atom feed output is standards-based and reflects the latest chronology stream.
+7. The generated artifact lives entirely under `.shuma/sim-public-site/` with no rendered pages committed under `docs/`, `src/`, or `dist/`.
 
 **Proof:**
 1. Add and pass `make test-sim-public-generator`.
@@ -119,6 +168,7 @@ Related context:
 1. `/sim/public/*` serves the generated contributor site when the artifact exists.
 2. The old five-page dummy site no longer exists as a parallel public surface.
 3. Any unavailable state is explicit and truthful rather than silently falling back to the old fake site.
+4. Runtime serving code remains a narrow adapter over the generated artifact rather than absorbing markdown-rendering or repo-walking responsibilities.
 
 **Proof:**
 1. Keep `make test-sim-public-generated-site-contract` green.

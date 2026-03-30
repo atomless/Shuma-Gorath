@@ -4,6 +4,21 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-30)
 
+### SIM-PUBSITE-PLAN-6 Freeze Repository-Separation Contract For Generated Site
+
+- [x] Completed the docs-only contract refinement across:
+  - [`../docs/research/2026-03-30-contributor-generated-public-content-sim-site-review.md`](../docs/research/2026-03-30-contributor-generated-public-content-sim-site-review.md)
+  - [`../docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md`](../docs/plans/2026-03-30-contributor-generated-public-content-sim-site-plan.md)
+  - [`../todos/todo.md`](../todos/todo.md)
+- [x] What landed:
+  - the generated-site chain now freezes one canonical separation contract with generator code under `scripts/`, corpus policy under `config/`, contributor-local artifacts under `.shuma/sim-public-site/`, and only a narrow serving adapter in `src/runtime/sim_public.rs`,
+  - the plan now explicitly forbids storing generated site files under `docs/`, `src/`, or `dist/`,
+  - and `SIM-PUBSITE-1A` now treats repository separation as a first-class closure gate rather than an implied implementation preference.
+- [x] Why:
+  - the user asked for a cleaner structural boundary so the generated public site does not clutter the repo or get confused for Shuma core internals.
+- [x] Evidence:
+  - docs-only slice; verification intentionally limited to `git diff --check`
+
 ### SIM-PUBSITE-PLAN-5 Reprioritize Generated Site Ahead Of Remaining Realism Work
 
 - [x] Completed the docs-only sequencing refinement across:
