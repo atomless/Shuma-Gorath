@@ -87,6 +87,8 @@ Those remain separate realism work after the trust-boundary slice is correct.
 
 ## Task 3: Expose Degraded Identity Truth Explicitly
 
+**Status:** Landed on 2026-03-31.
+
 **Files:**
 - Later code targets: sim receipts, admin/operator read models, dashboard wording, docs
 - Later proof targets: machine-contract tests, rendered observer proofs, `Makefile`

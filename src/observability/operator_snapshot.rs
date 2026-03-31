@@ -677,6 +677,7 @@ mod tests {
                 defense_delta_count: 2,
                 ban_outcome_count: 0,
                 owned_surface_coverage: None,
+                latest_scrapling_realism_receipt: None,
                 llm_runtime_summary: None,
             }],
             OperatorSnapshotRecentChanges {
@@ -836,6 +837,7 @@ mod tests {
                 defense_delta_count: 2,
                 ban_outcome_count: 0,
                 owned_surface_coverage: None,
+                latest_scrapling_realism_receipt: None,
                 llm_runtime_summary: None,
             }],
             OperatorSnapshotRecentChanges::default(),
@@ -1070,6 +1072,7 @@ mod tests {
                         ],
                     },
                 ),
+                latest_scrapling_realism_receipt: None,
                 llm_runtime_summary: None,
             }],
             OperatorSnapshotRecentChanges::default(),
@@ -1117,6 +1120,7 @@ mod tests {
                 defense_delta_count: 0,
                 ban_outcome_count: 0,
                 owned_surface_coverage: None,
+                latest_scrapling_realism_receipt: None,
                 llm_runtime_summary: Some(
                     crate::admin::adversary_sim::LlmRuntimeRecentRunSummary {
                         receipt_count: 1,
@@ -1160,6 +1164,7 @@ mod tests {
                                     "en-US,en;q=0.9".to_string(),
                                 ],
                                 identity_realism_status: "degraded_local".to_string(),
+                                identity_provenance_mode: "degraded_local".to_string(),
                                 identity_envelope_classes: vec![
                                     "residential".to_string(),
                                     "mobile".to_string(),
@@ -1224,10 +1229,110 @@ mod tests {
                 .latest_realism_receipt
                 .as_ref()
                 .expect("llm realism receipt")
+                .identity_provenance_mode,
+            "degraded_local"
+        );
+        assert_eq!(
+            llm_runtime_summary
+                .latest_realism_receipt
+                .as_ref()
+                .expect("llm realism receipt")
                 .profile_id,
             "agentic.request_mode.v1"
         );
         assert_eq!(llm_runtime_summary.latest_action_receipts.len(), 1);
+    }
+
+    #[test]
+    fn snapshot_payload_projects_latest_scrapling_recent_run_identity_receipt() {
+        let store = TestStore::new();
+        let summary = summarize_with_store(&store, 24, 10);
+        let payload = build_operator_snapshot_payload(
+            &store,
+            "default",
+            1_700_000_060,
+            &summary,
+            &[OperatorSnapshotRecentSimRun {
+                run_id: "simrun-scrapling-identity".to_string(),
+                lane: "scrapling_traffic".to_string(),
+                profile: "scrapling_runtime_lane".to_string(),
+                observed_fulfillment_modes: vec!["bulk_scraper".to_string()],
+                observed_category_ids: vec!["ai_scraper_bot".to_string()],
+                first_ts: 1_700_000_000,
+                last_ts: 1_700_000_040,
+                monitoring_event_count: 12,
+                defense_delta_count: 3,
+                ban_outcome_count: 1,
+                owned_surface_coverage: None,
+                latest_scrapling_realism_receipt: Some(
+                    crate::admin::adversary_sim_worker_plan::ScraplingRealismReceipt {
+                        schema_version: "sim-lane-realism-receipt.v1".to_string(),
+                        profile_id: "scrapling.bulk_scraper.v1".to_string(),
+                        activity_unit: "request".to_string(),
+                        planned_activity_budget: 24,
+                        effective_activity_budget: 12,
+                        planned_burst_size: 3,
+                        effective_burst_size: 3,
+                        activity_count: 6,
+                        burst_count: Some(2),
+                        burst_sizes: vec![3, 3],
+                        inter_activity_gaps_ms: vec![0, 0, 1400, 0, 0],
+                        transport_profile: "curl_impersonate".to_string(),
+                        observed_user_agent_families: vec!["chrome_android".to_string()],
+                        observed_accept_languages: vec!["en-US,en;q=0.9".to_string()],
+                        identity_realism_status: "degraded_local".to_string(),
+                        identity_provenance_mode: "degraded_local".to_string(),
+                        identity_envelope_classes: vec![
+                            "residential".to_string(),
+                            "mobile".to_string(),
+                        ],
+                        geo_affinity_mode: "pool_aligned".to_string(),
+                        session_stickiness: "stable_per_identity".to_string(),
+                        observed_country_codes: Vec::new(),
+                        top_level_action_count: None,
+                        dwell_intervals_ms: Vec::new(),
+                        observed_browser_locales: Vec::new(),
+                        secondary_capture_mode: String::new(),
+                        secondary_request_count: None,
+                        background_request_count: None,
+                        subresource_request_count: None,
+                        identity_handles: vec!["request-session-1".to_string()],
+                        session_handles: Vec::new(),
+                        identity_rotation_count: 0,
+                        recurrence_strategy: "bounded_single_tick_reentry".to_string(),
+                        session_index: Some(1),
+                        reentry_count: Some(0),
+                        max_reentries_per_run: Some(2),
+                        planned_dormant_gap_seconds: Some(3),
+                        visited_url_count: Some(4),
+                        discovered_url_count: Some(6),
+                        deepest_depth_reached: Some(3),
+                        sitemap_documents_seen: Some(1),
+                        frontier_remaining_count: Some(2),
+                        canonical_public_pages_reached: Some(4),
+                        stop_reason: "activity_sequence_exhausted".to_string(),
+                    },
+                ),
+                llm_runtime_summary: None,
+            }],
+            OperatorSnapshotRecentChanges::default(),
+            1_700_000_060,
+            1_700_000_060,
+            1_700_000_060,
+        );
+
+        let recent_run = payload
+            .adversary_sim
+            .recent_runs
+            .iter()
+            .find(|row| row.run_id == "simrun-scrapling-identity")
+            .expect("recent scrapling row");
+        let receipt = recent_run
+            .latest_scrapling_realism_receipt
+            .as_ref()
+            .expect("latest scrapling realism receipt");
+        assert_eq!(receipt.profile_id, "scrapling.bulk_scraper.v1");
+        assert_eq!(receipt.identity_provenance_mode, "degraded_local");
     }
 
     #[test]
@@ -1251,6 +1356,7 @@ mod tests {
                 defense_delta_count: 0,
                 ban_outcome_count: 0,
                 owned_surface_coverage: None,
+                latest_scrapling_realism_receipt: None,
                 llm_runtime_summary: Some(
                     crate::admin::adversary_sim::LlmRuntimeRecentRunSummary {
                         receipt_count: 1,
@@ -1291,6 +1397,7 @@ mod tests {
                                     "en-US,en;q=0.9".to_string(),
                                 ],
                                 identity_realism_status: "degraded_local".to_string(),
+                                identity_provenance_mode: "degraded_local".to_string(),
                                 identity_envelope_classes: vec![
                                     "residential".to_string(),
                                     "mobile".to_string(),

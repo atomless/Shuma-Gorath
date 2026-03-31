@@ -1850,6 +1850,7 @@ mod tests {
                                     "en-US,en;q=0.9".to_string(),
                                 ],
                                 identity_realism_status: "degraded_local".to_string(),
+                                identity_provenance_mode: "degraded_local".to_string(),
                                 identity_envelope_classes: vec![
                                     "residential".to_string(),
                                     "mobile".to_string(),
@@ -1931,6 +1932,14 @@ mod tests {
                 .latest_realism_receipt
                 .as_ref()
                 .expect("llm realism receipt")
+                .identity_provenance_mode,
+            "degraded_local"
+        );
+        assert_eq!(
+            llm_runtime_summary
+                .latest_realism_receipt
+                .as_ref()
+                .expect("llm realism receipt")
                 .profile_id,
             "agentic.request_mode.v1"
         );
@@ -2003,6 +2012,7 @@ mod tests {
                                     "en-US,en;q=0.9".to_string(),
                                 ],
                                 identity_realism_status: "degraded_local".to_string(),
+                                identity_provenance_mode: "degraded_local".to_string(),
                                 identity_envelope_classes: vec![
                                     "residential".to_string(),
                                     "mobile".to_string(),
@@ -2109,6 +2119,7 @@ mod tests {
                             observed_user_agent_families: vec!["chrome_android".to_string()],
                             observed_accept_languages: vec!["en-US,en;q=0.9".to_string()],
                             identity_realism_status: "degraded_local".to_string(),
+                            identity_provenance_mode: "degraded_local".to_string(),
                             identity_envelope_classes: vec![
                                 "residential".to_string(),
                                 "mobile".to_string(),
@@ -2158,6 +2169,7 @@ mod tests {
             .as_ref()
             .expect("latest scrapling realism receipt");
         assert_eq!(receipt.profile_id, "scrapling.bulk_scraper.v1");
+        assert_eq!(receipt.identity_provenance_mode, "degraded_local");
         assert_eq!(receipt.activity_count, 7);
         assert_eq!(receipt.burst_count, Some(3));
         assert_eq!(receipt.identity_rotation_count, 1);

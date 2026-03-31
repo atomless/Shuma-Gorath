@@ -4,6 +4,38 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-31)
 
+### SIM-REALISM-2J Explicit Identity-Realism Receipts And Observer Wording
+
+- [x] Completed `SIM-REALISM-2J` across:
+  - [`../src/admin/adversary_sim_worker_plan.rs`](../src/admin/adversary_sim_worker_plan.rs)
+  - [`../src/admin/api.rs`](../src/admin/api.rs)
+  - [`../src/admin/oversight_api.rs`](../src/admin/oversight_api.rs)
+  - [`../src/observability/operator_snapshot_live_traffic.rs`](../src/observability/operator_snapshot_live_traffic.rs)
+  - [`../src/observability/hot_read_projection.rs`](../src/observability/hot_read_projection.rs)
+  - [`../src/observability/operator_snapshot.rs`](../src/observability/operator_snapshot.rs)
+  - [`../scripts/tests/adversarial_runner/identity_envelope.py`](../scripts/tests/adversarial_runner/identity_envelope.py)
+  - [`../scripts/supervisor/llm_runtime_worker.py`](../scripts/supervisor/llm_runtime_worker.py)
+  - [`../scripts/supervisor/scrapling_worker.py`](../scripts/supervisor/scrapling_worker.py)
+  - [`../dashboard/src/lib/components/dashboard/monitoring-view-model.js`](../dashboard/src/lib/components/dashboard/monitoring-view-model.js)
+  - [`../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte`](../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte)
+  - [`../dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`../Makefile`](../Makefile)
+  - [`../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
+  - [`../docs/plans/2026-03-31-current-ip-collapse-topology-and-trusted-ingress-plan.md`](../docs/plans/2026-03-31-current-ip-collapse-topology-and-trusted-ingress-plan.md)
+  - [`../docs/adversarial-operator-guide.md`](../docs/adversarial-operator-guide.md)
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../todos/todo.md`](../todos/todo.md)
+  - [`../todos/blocked-todo.md`](../todos/blocked-todo.md)
+- [x] What landed:
+  - recent-run and operator-snapshot read models now preserve compact identity provenance truth for both Agentic and Scrapling realism receipts,
+  - Red Team and Game Loop now render trusted-ingress-backed versus degraded identity states explicitly instead of leaving degraded identity to masquerade as source-IP truth,
+  - and the focused proof target now enforces dashboard freshness and served-asset parity so Playwright cannot pass against stale dashboard builds.
+- [x] Evidence:
+  - `make dashboard-build`
+  - `make test-adversary-sim-identity-observer-truth`
+
 ### SIM-REALISM-2I Trusted Sim-Ingress Without Worker Privilege Creep
 
 - [x] Completed the second `SIM-REALISM-2I` execution slice across:

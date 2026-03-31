@@ -428,6 +428,7 @@ class _ScraplingRealismTracker:
             "observed_user_agent_families": list(self.observed_user_agent_families),
             "observed_accept_languages": list(self.observed_accept_languages),
             "identity_realism_status": identity_summary["identity_realism_status"],
+            "identity_provenance_mode": identity_summary["identity_provenance_mode"],
             "identity_envelope_classes": list(
                 identity_summary["identity_envelope_classes"]
             ),

@@ -3510,6 +3510,12 @@ test('monitoring view model and status module remain pure snapshot transforms', 
           failure_class: null,
           error: null,
           terminal_failure: null,
+          latest_realism_receipt: {
+            profile_id: 'agentic.request_mode.v1',
+            identity_realism_status: 'fixed_proxy',
+            identity_provenance_mode: 'trusted_ingress_backed',
+            observed_country_codes: ['FR']
+          },
           latest_action_receipts: [
             {
               action_index: 1,
@@ -3530,7 +3536,13 @@ test('monitoring view model and status module remain pure snapshot transforms', 
         last_ts: 1710000050,
         monitoring_event_count: 3,
         defense_delta_count: 1,
-        ban_outcome_count: 0
+        ban_outcome_count: 0,
+        latest_scrapling_realism_receipt: {
+          profile_id: 'scrapling.bulk_scraper.v1',
+          identity_realism_status: 'degraded_local',
+          identity_provenance_mode: 'degraded_local',
+          observed_country_codes: []
+        }
       }
     ], [
       { ip: '198.51.100.200' }
@@ -3557,6 +3569,10 @@ test('monitoring view model and status module remain pure snapshot transforms', 
       'openai'
     );
     assert.equal(
+      summarizedRuns.runRows[0].llmRuntimeSummary?.latestRealismReceipt?.identityProvenanceMode,
+      'trusted_ingress_backed'
+    );
+    assert.equal(
       summarizedRuns.runRows[0].llmRuntimeSummary?.modelId,
       'gpt-5-mini'
     );
@@ -3576,6 +3592,10 @@ test('monitoring view model and status module remain pure snapshot transforms', 
     assert.equal(
       summarizedRuns.runRows[1].ownedSurfaceCoverage?.overallStatus,
       'partial'
+    );
+    assert.equal(
+      summarizedRuns.runRows[2].latestScraplingRealismReceipt?.identityProvenanceMode,
+      'degraded_local'
     );
     assert.deepEqual(
       summarizedRuns.runRows[1].ownedSurfaceCoverage?.canonicalSurfaceIds,

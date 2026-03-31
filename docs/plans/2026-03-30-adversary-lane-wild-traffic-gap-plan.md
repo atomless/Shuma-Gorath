@@ -8,7 +8,7 @@
 
 **Related research:** [`../research/2026-03-30-adversary-lane-wild-traffic-gap-review.md`](../research/2026-03-30-adversary-lane-wild-traffic-gap-review.md)
 
-**Status note:** `SIM-REALISM-2A`, `SIM-REALISM-2B`, `SIM-REALISM-2C`, `SIM-REALISM-2D`, `SIM-REALISM-2E`, `SIM-REALISM-2F`, `SIM-REALISM-2G`, and `SIM-REALISM-2I` are now landed. The generated root-hosted contributor public site that satisfied the old `SIM-REALISM-2H` discoverability need is also already landed. The next active realism tranche is therefore `SIM-REALISM-2J`.
+**Status note:** `SIM-REALISM-2A`, `SIM-REALISM-2B`, `SIM-REALISM-2C`, `SIM-REALISM-2D`, `SIM-REALISM-2E`, `SIM-REALISM-2F`, `SIM-REALISM-2G`, `SIM-REALISM-2I`, and `SIM-REALISM-2J` are now landed. The generated root-hosted contributor public site that satisfied the old `SIM-REALISM-2H` discoverability need is also already landed. The next active realism tranche is therefore `SIM-REALISM-3A`.
 
 ---
 
@@ -283,6 +283,8 @@ Detailed topology and trust-boundary addendum:
 
 ## Task 11: `SIM-REALISM-2J` Add Explicit Identity-Realism Receipts And Observer Wording
 
+**Status:** Landed on 2026-03-31.
+
 Detailed topology and trust-boundary addendum:
 
 - [`2026-03-31-current-ip-collapse-topology-and-trusted-ingress-plan.md`](./2026-03-31-current-ip-collapse-topology-and-trusted-ingress-plan.md)
@@ -312,11 +314,9 @@ Detailed topology and trust-boundary addendum:
 
 ## Recommended Execution Order
 
-1. `SIM-REALISM-2I`
-2. `SIM-REALISM-2J`
-3. `SIM-REALISM-3A`
-4. `SIM-REALISM-3B`
-5. `SIM-REALISM-3C`
-6. `SIM-REALISM-3D`
-7. `SIM-REALISM-3E`
-8. only then reopen representative mixed-attacker or tuning-quality claims
+1. `SIM-REALISM-3A`
+2. `SIM-REALISM-3B`
+3. `SIM-REALISM-3C`
+4. `SIM-REALISM-3D`
+5. `SIM-REALISM-3E`
+6. only then reopen representative mixed-attacker or tuning-quality claims

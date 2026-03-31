@@ -243,6 +243,7 @@ fn operator_snapshot_recent_sim_run(
         defense_delta_count: run.defense_delta_count,
         ban_outcome_count: run.ban_outcome_count,
         owned_surface_coverage: run.owned_surface_coverage.clone(),
+        latest_scrapling_realism_receipt: run.latest_scrapling_realism_receipt.clone(),
         llm_runtime_summary: run.llm_runtime_summary.clone(),
     }
 }

@@ -1,6 +1,7 @@
 <script>
   import { formatCompactNumber } from '../../../domain/core/format.js';
   import { formatAdversarySimLaneLabel } from '../../../domain/adversary-sim.js';
+  import { formatIdentityRealismSummary } from '../monitoring-view-model.js';
   import SectionBlock from '../primitives/SectionBlock.svelte';
   import TableEmptyRow from '../primitives/TableEmptyRow.svelte';
   import TableWrapper from '../primitives/TableWrapper.svelte';
@@ -70,27 +71,42 @@
     const summary = row?.llmRuntimeSummary && typeof row.llmRuntimeSummary === 'object'
       ? row.llmRuntimeSummary
       : null;
-    if (!summary) return '-';
-    const parts = [];
-    const generationSource = humanizeToken(summary.generationSource || '');
-    const providerLabel = formatProviderLabel(summary.provider || '');
-    const modelId = String(summary.modelId || '').trim();
-    const executed = formatCompactNumber(summary.executedActionCount || 0, '0');
-    const generated = formatCompactNumber(summary.generatedActionCount || 0, '0');
-    const terminalFailure = humanizeToken(summary.terminalFailure || '');
-    const fallbackReason = humanizeToken(summary.fallbackReason || '');
-    const outcome = summary.failedTickCount > 0 || summary.failureClass || summary.error || summary.terminalFailure
-      ? 'failed'
-      : 'passed';
-    if (generationSource) parts.push(generationSource);
-    if (providerLabel || modelId) {
-      parts.push([providerLabel, modelId].filter(Boolean).join(' '));
+    if (summary) {
+      const parts = [];
+      const generationSource = humanizeToken(summary.generationSource || '');
+      const providerLabel = formatProviderLabel(summary.provider || '');
+      const modelId = String(summary.modelId || '').trim();
+      const executed = formatCompactNumber(summary.executedActionCount || 0, '0');
+      const generated = formatCompactNumber(summary.generatedActionCount || 0, '0');
+      const terminalFailure = humanizeToken(summary.terminalFailure || '');
+      const fallbackReason = humanizeToken(summary.fallbackReason || '');
+      const identitySummary = formatIdentityRealismSummary(summary.latestRealismReceipt);
+      const outcome = summary.failedTickCount > 0 || summary.failureClass || summary.error || summary.terminalFailure
+        ? 'failed'
+        : 'passed';
+      if (generationSource) parts.push(generationSource);
+      if (providerLabel || modelId) {
+        parts.push([providerLabel, modelId].filter(Boolean).join(' '));
+      }
+      parts.push(`${executed} / ${generated} actions`);
+      parts.push(outcome);
+      if (identitySummary) parts.push(identitySummary);
+      if (terminalFailure) parts.push(terminalFailure);
+      else if (fallbackReason) parts.push(fallbackReason);
+      return parts.filter(Boolean).join(' | ');
     }
-    parts.push(`${executed} / ${generated} actions`);
-    parts.push(outcome);
-    if (terminalFailure) parts.push(terminalFailure);
-    else if (fallbackReason) parts.push(fallbackReason);
-    return parts.filter(Boolean).join(' | ');
+    const receipt = row?.latestScraplingRealismReceipt && typeof row.latestScraplingRealismReceipt === 'object'
+      ? row.latestScraplingRealismReceipt
+      : null;
+    if (!receipt) return '-';
+    const parts = [];
+    const activityCount = Number(receipt.activityCount || 0);
+    const transportProfile = humanizeToken(receipt.transportProfile || '');
+    const identitySummary = formatIdentityRealismSummary(receipt);
+    if (activityCount > 0) parts.push(`${formatCompactNumber(activityCount, '0')} activities`);
+    if (identitySummary) parts.push(identitySummary);
+    if (transportProfile) parts.push(transportProfile);
+    return parts.filter(Boolean).join(' | ') || '-';
   };
 </script>
 

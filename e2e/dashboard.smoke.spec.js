@@ -3186,6 +3186,142 @@ test("game loop top casts prefer the freshest exact recent sim run over stale ju
   );
 });
 
+test("game loop observer cast labels recent-run identity realism truthfully", async ({ page }) => {
+  await page.route("**/shuma/admin/operator-snapshot", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "operator_snapshot_v1",
+        generated_at: 1774306999,
+        objectives: {
+          profile_id: "human_only_private",
+          revision: "objective-1774306999",
+          window_hours: 24,
+          category_postures: []
+        },
+        runtime_posture: {
+          shadow_mode: false,
+          fail_mode: "closed",
+          runtime_environment: "runtime-dev",
+          gateway_deployment_profile: "shared_server",
+          adversary_sim_available: true
+        },
+        live_traffic: {
+          traffic_origin: "live",
+          execution_mode: "enforced",
+          total_requests: 12,
+          forwarded_requests: 8,
+          short_circuited_requests: 4
+        },
+        shadow_mode: {
+          enabled: false,
+          total_actions: 0,
+          pass_through_total: 0
+        },
+        adversary_sim: {
+          traffic_origin: "adversary_sim",
+          execution_mode: "enforced",
+          total_requests: 24,
+          forwarded_requests: 9,
+          short_circuited_requests: 15,
+          recent_runs: [
+            {
+              run_id: "simrun-recent-identity",
+              lane: "bot_red_team",
+              profile: "llm_runtime_lane",
+              observed_fulfillment_modes: ["request_mode"],
+              observed_category_ids: ["browser_agent"],
+              first_ts: 1774306980,
+              last_ts: 1774306995,
+              monitoring_event_count: 4,
+              defense_delta_count: 2,
+              ban_outcome_count: 0,
+              llm_runtime_summary: {
+                receipt_count: 1,
+                fulfillment_mode: "request_mode",
+                category_targets: ["browser_agent"],
+                backend_kind: "frontier_reference",
+                backend_state: "configured",
+                generation_source: "provider_response",
+                provider: "openai",
+                model_id: "gpt-5-mini",
+                generated_action_count: 3,
+                executed_action_count: 3,
+                failed_action_count: 0,
+                passed_tick_count: 1,
+                failed_tick_count: 0,
+                latest_realism_receipt: {
+                  profile_id: "agentic.request_mode.v1",
+                  identity_realism_status: "fixed_proxy",
+                  identity_provenance_mode: "trusted_ingress_backed",
+                  observed_country_codes: ["FR"]
+                },
+                latest_action_receipts: [
+                  {
+                    action_index: 1,
+                    action_type: "http_get",
+                    path: "/",
+                    label: "root",
+                    status: 200,
+                    error: null
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        recent_changes: {
+          rows: []
+        },
+        verified_identity: {},
+        non_human_traffic: {
+          recognition_evaluation: {
+            comparison_rows: []
+          }
+        }
+      })
+    });
+  });
+  await page.route("**/shuma/admin/oversight/history", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "oversight_history_v1",
+        observer_round_archive: {
+          rows: []
+        },
+        rows: []
+      })
+    });
+  });
+  await page.route("**/shuma/admin/oversight/agent/status", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema_version: "oversight_agent_status_v1",
+        candidate_window: { status: "not_requested", required_runs: [] },
+        continuation_run: { status: "not_requested", required_runs: [] },
+        episode_archive: {
+          schema_version: "oversight_episode_archive_v1",
+          homeostasis: { status: "not_enough_completed_cycles" },
+          rows: []
+        },
+        latest_decision: {},
+        recent_runs: []
+      })
+    });
+  });
+
+  await openDashboard(page);
+  await openTab(page, "game-loop");
+
+  await expect(page.locator("#game-loop-adversary-cast")).toContainText("Trusted ingress IP observed");
+  await expect(page.locator("#game-loop-adversary-cast")).toContainText("FR");
+});
+
 test("traffic manual refresh renders bounded traffic sections and preserves furniture diagnostics separately", async ({ page }) => {
   const buildCountEntries = (prefix, count, start = 1) =>
     Array.from({ length: count }, (_, index) => ({
@@ -4785,6 +4921,153 @@ test("red team tab surfaces llm runtime lineage in recent adversary runs", async
   await expect(row).toContainText("OpenAI");
   await expect(row).toContainText("gpt-5-mini");
   await expect(row).toContainText("2 / 2 actions");
+});
+
+test("red team recent runs label trusted and degraded identity realism truthfully", async ({ page }) => {
+  const now = Math.floor(Date.now() / 1000);
+  const buildMonitoringPayload = () => ({
+    summary: {
+      honeypot: { total_hits: 0, unique_crawlers: 0, top_crawlers: [], top_paths: [] },
+      challenge: { total_failures: 0, unique_offenders: 0, top_offenders: [], reasons: {}, trend: [] },
+      pow: {
+        total_failures: 0,
+        total_successes: 0,
+        total_attempts: 0,
+        success_ratio: 0,
+        unique_offenders: 0,
+        top_offenders: [],
+        reasons: {},
+        outcomes: {},
+        trend: []
+      },
+      rate: { total_violations: 0, unique_offenders: 0, top_offenders: [], outcomes: {} },
+      geo: { total_violations: 0, actions: { block: 0, challenge: 0, maze: 0 }, top_countries: [] }
+    },
+    prometheus: { endpoint: "/shuma/metrics", notes: [] },
+    details: {
+      analytics: { ban_count: 0, shadow_mode: false, fail_mode: "open" },
+      events: {
+        recent_events: [],
+        recent_sim_runs: [
+          {
+            run_id: "simrun-identity-llm",
+            lane: "bot_red_team",
+            profile: "llm_runtime_lane",
+            observed_fulfillment_modes: ["request_mode"],
+            observed_category_ids: ["ai_scraper_bot", "http_agent"],
+            first_ts: now - 20,
+            last_ts: now,
+            monitoring_event_count: 1,
+            defense_delta_count: 1,
+            ban_outcome_count: 0,
+            llm_runtime_summary: {
+              receipt_count: 1,
+              fulfillment_mode: "request_mode",
+              category_targets: ["http_agent", "ai_scraper_bot"],
+              backend_kind: "frontier_reference",
+              backend_state: "configured",
+              generation_source: "provider_response",
+              provider: "openai",
+              model_id: "gpt-5-mini",
+              generated_action_count: 2,
+              executed_action_count: 2,
+              failed_action_count: 0,
+              passed_tick_count: 1,
+              failed_tick_count: 0,
+              latest_realism_receipt: {
+                profile_id: "agentic.request_mode.v1",
+                identity_realism_status: "fixed_proxy",
+                identity_provenance_mode: "trusted_ingress_backed",
+                observed_country_codes: ["FR"]
+              },
+              latest_action_receipts: [
+                {
+                  action_index: 1,
+                  action_type: "http_get",
+                  path: "/",
+                  label: "root",
+                  status: 200,
+                  error: null
+                }
+              ]
+            }
+          },
+          {
+            run_id: "simrun-identity-scrapling",
+            lane: "scrapling_traffic",
+            profile: "scrapling_runtime_lane",
+            observed_fulfillment_modes: ["bulk_scraper"],
+            observed_category_ids: ["ai_scraper_bot"],
+            first_ts: now - 40,
+            last_ts: now - 10,
+            monitoring_event_count: 3,
+            defense_delta_count: 1,
+            ban_outcome_count: 1,
+            latest_scrapling_realism_receipt: {
+              profile_id: "scrapling.bulk_scraper.v1",
+              activity_unit: "request",
+              activity_count: 6,
+              identity_realism_status: "degraded_local",
+              identity_provenance_mode: "degraded_local",
+              transport_profile: "curl_impersonate",
+              observed_country_codes: []
+            }
+          }
+        ],
+        event_counts: {},
+        top_ips: [],
+        unique_ips: 0
+      },
+      bans: { bans: [] },
+      maze: { total_hits: 0, unique_crawlers: 0, maze_auto_bans: 0, top_crawlers: [] },
+      cdp: { stats: { total_detections: 0, auto_bans: 0 }, config: {}, fingerprint_stats: {} },
+      cdp_events: { events: [] }
+    }
+  });
+
+  await page.route("**/shuma/admin/monitoring?hours=*&limit=*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(buildMonitoringPayload())
+    });
+  });
+  await page.route("**/shuma/admin/monitoring/delta?hours=*&limit=*", async (route) => {
+    const url = new URL(route.request().url());
+    const afterCursor = (url.searchParams.get("after_cursor") || "").trim();
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        after_cursor: afterCursor,
+        window_end_cursor: "cursor-identity-realism",
+        next_cursor: "cursor-identity-realism",
+        has_more: false,
+        overflow: "none",
+        events: [],
+        recent_sim_runs: buildMonitoringPayload().details.events.recent_sim_runs,
+        freshness: { state: "fresh", lag_ms: 0, transport: "cursor_delta_poll" }
+      })
+    });
+  });
+  await page.route("**/shuma/admin/ip-bans*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [],
+        freshness: { state: "fresh", lag_ms: 0, transport: "cursor_delta_poll" }
+      })
+    });
+  });
+
+  await openDashboard(page);
+  await openTab(page, "red-team");
+
+  const rows = page.locator("#adversary-runs tbody tr");
+  await expect(rows.nth(0)).toContainText("Trusted ingress IP observed");
+  await expect(rows.nth(0)).toContainText("FR");
+  await expect(rows.nth(1)).toContainText("Degraded local identity");
 });
 
 test("manual refresh button appends new monitoring delta events when auto-refresh is off", async ({ page }) => {

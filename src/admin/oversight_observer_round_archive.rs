@@ -321,6 +321,7 @@ mod tests {
                     },
                 ],
             }),
+            latest_scrapling_realism_receipt: None,
             llm_runtime_summary: None,
         }
     }
@@ -338,6 +339,7 @@ mod tests {
             defense_delta_count: 1,
             ban_outcome_count: 0,
             owned_surface_coverage: None,
+            latest_scrapling_realism_receipt: None,
             llm_runtime_summary: Some(LlmRuntimeRecentRunSummary {
                 receipt_count: 1,
                 fulfillment_mode: "request_mode".to_string(),

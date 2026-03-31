@@ -4,7 +4,8 @@
   import { formatUnixSecondsLocal } from '../../domain/core/date-time.js';
   import {
     deriveAdversaryRunRowsFromSummaries,
-    deriveLlmSurfaceRowsFromRuntimeSummary
+    deriveLlmSurfaceRowsFromRuntimeSummary,
+    formatIdentityRealismSummary
   } from './monitoring-view-model.js';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
 
@@ -135,6 +136,9 @@
 
   const formatObservedRunSummary = (run) => {
     if (!run) return 'No recent run detail is materialized yet.';
+    const identitySummary =
+      formatIdentityRealismSummary(run?.llmRuntimeSummary?.latestRealismReceipt)
+      || formatIdentityRealismSummary(run?.latestScraplingRealismReceipt);
     const details = [
       formatModeSummary(run.observedFulfillmentModes),
       `${formatNumber(run.monitoringEventCount, '0')} monitoring events`,
@@ -147,6 +151,7 @@
         [humanizeToken(runtimeSummary.provider), runtimeSummary.modelId].filter(Boolean).join(' ')
       );
     }
+    if (identitySummary) details.push(identitySummary);
     return details.filter(Boolean).join(' | ');
   };
 

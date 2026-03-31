@@ -55,6 +55,7 @@ pub struct ScraplingRealismReceipt {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub observed_accept_languages: Vec<String>,
     pub identity_realism_status: String,
+    pub identity_provenance_mode: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub identity_envelope_classes: Vec<String>,
     pub geo_affinity_mode: String,
@@ -205,6 +206,7 @@ pub struct LlmRuntimeRealismReceipt {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub observed_accept_languages: Vec<String>,
     pub identity_realism_status: String,
+    pub identity_provenance_mode: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub identity_envelope_classes: Vec<String>,
     pub geo_affinity_mode: String,

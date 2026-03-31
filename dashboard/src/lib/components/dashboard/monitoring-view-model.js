@@ -438,6 +438,10 @@ const shapeAdversaryRunRows = (rows = [], activeBans = []) => {
       const ownedSurfaceCoverage = row?.ownedSurfaceCoverage && typeof row.ownedSurfaceCoverage === 'object'
         ? row.ownedSurfaceCoverage
         : null;
+      const latestScraplingRealismReceipt =
+        row?.latestScraplingRealismReceipt && typeof row.latestScraplingRealismReceipt === 'object'
+          ? row.latestScraplingRealismReceipt
+          : null;
       const llmRuntimeSummary = row?.llmRuntimeSummary && typeof row.llmRuntimeSummary === 'object'
         ? row.llmRuntimeSummary
         : null;
@@ -453,6 +457,7 @@ const shapeAdversaryRunRows = (rows = [], activeBans = []) => {
         observedFulfillmentModes,
         observedCategoryIds,
         ownedSurfaceCoverage,
+        latestScraplingRealismReceipt,
         llmRuntimeSummary,
         banOutcomeCount: row.banOutcomeCount,
         monitoringHref: '#game-loop',
@@ -725,6 +730,26 @@ const shapeLlmRuntimeActionReceipt = (receipt = {}) => {
   };
 };
 
+const shapeIdentityRealismReceipt = (receipt = {}) => {
+  const source = receipt && typeof receipt === 'object' ? receipt : {};
+  const hasAnyValue = Object.keys(source).length > 0;
+  if (!hasAnyValue) return null;
+  return {
+    profileId: String(source.profileId || source.profile_id || '').trim(),
+    transportProfile: String(source.transportProfile || source.transport_profile || '').trim(),
+    activityCount: Number(source.activityCount || source.activity_count || 0),
+    identityRealismStatus: String(
+      source.identityRealismStatus || source.identity_realism_status || ''
+    ).trim(),
+    identityProvenanceMode: String(
+      source.identityProvenanceMode || source.identity_provenance_mode || ''
+    ).trim(),
+    observedCountryCodes: toSummaryStringArray(
+      source.observedCountryCodes || source.observed_country_codes
+    )
+  };
+};
+
 const shapeLlmRuntimeSummary = (summary = {}) => {
   const source = summary && typeof summary === 'object' ? summary : {};
   const hasAnyValue = Object.keys(source).length > 0;
@@ -751,6 +776,9 @@ const shapeLlmRuntimeSummary = (summary = {}) => {
     failureClass: String(source.failureClass || source.failure_class || '').trim(),
     error: String(source.error || '').trim(),
     terminalFailure: String(source.terminalFailure || source.terminal_failure || '').trim(),
+    latestRealismReceipt: shapeIdentityRealismReceipt(
+      source.latestRealismReceipt || source.latest_realism_receipt
+    ),
     latestActionReceipts: (Array.isArray(source.latestActionReceipts || source.latest_action_receipts)
       ? source.latestActionReceipts || source.latest_action_receipts
       : [])
@@ -889,6 +917,9 @@ export const deriveAdversaryRunRowsFromSummaries = (summaries = [], bans = []) =
       ownedSurfaceCoverage: shapeOwnedSurfaceCoverage(
         summary?.ownedSurfaceCoverage || summary?.owned_surface_coverage
       ),
+      latestScraplingRealismReceipt: shapeIdentityRealismReceipt(
+        summary?.latestScraplingRealismReceipt || summary?.latest_scrapling_realism_receipt
+      ),
       llmRuntimeSummary: shapeLlmRuntimeSummary(
         summary?.llmRuntimeSummary || summary?.llm_runtime_summary
       ),
@@ -1000,6 +1031,31 @@ export const formatMetricLabel = (key, fallbackMap) => {
   return String(key || '-')
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const IDENTITY_PROVENANCE_LABELS = Object.freeze({
+  trusted_ingress_backed: 'Trusted ingress IP observed',
+  pool_backed: 'Pool-backed proxy identity',
+  fixed_proxy: 'Fixed proxy identity',
+  bucket_only: 'Bucketed identity only',
+  degraded_local: 'Degraded local identity'
+});
+
+export const formatIdentityRealismSummary = (receipt = null) => {
+  const shaped = receipt && typeof receipt === 'object' ? receipt : null;
+  if (!shaped) return '';
+  const provenanceMode = String(shaped.identityProvenanceMode || shaped.identity_provenance_mode || '').trim();
+  const identityStatus = String(shaped.identityRealismStatus || shaped.identity_realism_status || '').trim();
+  const label =
+    IDENTITY_PROVENANCE_LABELS[provenanceMode]
+    || IDENTITY_PROVENANCE_LABELS[identityStatus]
+    || (provenanceMode || identityStatus ? formatMetricLabel(provenanceMode || identityStatus) : '');
+  const countries = toSummaryStringArray(
+    shaped.observedCountryCodes || shaped.observed_country_codes
+  );
+  if (!label && countries.length === 0) return '';
+  if (!label) return countries.join(', ');
+  return countries.length > 0 ? `${label} (${countries.join(', ')})` : label;
 };
 
 export const deriveMazeStatsViewModel = (data = {}) => {

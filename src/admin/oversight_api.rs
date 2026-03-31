@@ -512,6 +512,7 @@ pub(crate) fn execute_oversight_cycle_at(
             defense_delta_count: run.defense_delta_count,
             ban_outcome_count: run.ban_outcome_count,
             owned_surface_coverage: run.owned_surface_coverage,
+            latest_scrapling_realism_receipt: run.latest_scrapling_realism_receipt,
             llm_runtime_summary: run.llm_runtime_summary,
         })
         .collect::<Vec<_>>();

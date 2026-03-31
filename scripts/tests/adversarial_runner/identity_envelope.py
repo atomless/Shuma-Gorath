@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import urllib.parse
 from typing import Any
 
 
@@ -72,10 +74,13 @@ def summarize_identity_realism(
     normalized_pool_entries = list(pool_entries or [])
     if len(normalized_pool_entries) >= 2:
         status = "pool_backed"
+        provenance_mode = "pool_backed"
     elif normalized_pool_entries or str(fixed_proxy_url or "").strip():
         status = "fixed_proxy"
+        provenance_mode = _fixed_proxy_provenance_mode(fixed_proxy_url)
     else:
         status = "degraded_local"
+        provenance_mode = "degraded_local"
     countries = [
         str(item).strip().upper()
         for item in list(observed_country_codes or [])
@@ -93,8 +98,37 @@ def summarize_identity_realism(
             unique_countries.append(item)
     return {
         "identity_realism_status": status,
+        "identity_provenance_mode": provenance_mode,
         "identity_envelope_classes": identity_classes,
         "geo_affinity_mode": geo_affinity_mode,
         "session_stickiness": session_stickiness,
         "observed_country_codes": unique_countries,
     }
+
+
+def _fixed_proxy_provenance_mode(fixed_proxy_url: str | None) -> str:
+    proxy_url = str(fixed_proxy_url or "").strip()
+    if not proxy_url:
+        return "fixed_proxy"
+    trusted_ingress_base = str(os.environ.get("ADVERSARY_SIM_TRUSTED_INGRESS_PROXY_URL") or "").strip()
+    if not trusted_ingress_base:
+        return "fixed_proxy"
+    if _same_proxy_origin(proxy_url, trusted_ingress_base):
+        return "trusted_ingress_backed"
+    return "fixed_proxy"
+
+
+def _same_proxy_origin(left: str, right: str) -> bool:
+    left_parts = urllib.parse.urlsplit(left)
+    right_parts = urllib.parse.urlsplit(right)
+    return (
+        left_parts.scheme.lower(),
+        left_parts.hostname or "",
+        left_parts.port,
+        left_parts.path.rstrip("/"),
+    ) == (
+        right_parts.scheme.lower(),
+        right_parts.hostname or "",
+        right_parts.port,
+        right_parts.path.rstrip("/"),
+    )
