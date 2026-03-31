@@ -4,6 +4,7 @@ import unittest
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 INTEGRATION_SCRIPT = REPO_ROOT / "scripts" / "tests" / "integration.sh"
+RUN_DASHBOARD_E2E_SCRIPT = REPO_ROOT / "scripts" / "tests" / "run_dashboard_e2e.sh"
 MAKEFILE = REPO_ROOT / "Makefile"
 
 
@@ -59,6 +60,32 @@ class IntegrationCleanupContractTests(unittest.TestCase):
         target_body = source[target_start:target_end]
         self.assertIn("for ip in 127.0.0.1 ::1 unknown; do", target_body)
         self.assertIn('/shuma/admin/unban?ip=$$ip', target_body)
+
+    def test_dashboard_e2e_wrapper_clears_loopback_bans_before_and_after_browser_runs(self):
+        source = RUN_DASHBOARD_E2E_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("cleanup_loopback_bans()", source)
+        self.assertIn("make --no-print-directory clear-dev-loopback-bans", source)
+        self.assertIn("trap cleanup_loopback_bans EXIT", source)
+        self.assertLess(
+            source.index("cleanup_loopback_bans"),
+            source.index("corepack pnpm run test:dashboard:e2e:raw"),
+        )
+
+    def test_dev_start_flows_schedule_loopback_cleanup_after_runtime_boot(self):
+        source = MAKEFILE.read_text(encoding="utf-8")
+        self.assertIn(
+            "LOCAL_LOOPBACK_BAN_CLEANUP_BACKGROUND := ( $(MAKE) --no-print-directory clear-dev-loopback-bans >/dev/null 2>&1 || true ) &",
+            source,
+        )
+        for target_name, next_target_name in [
+            ("dev: ## Build and run with file watching (auto-rebuild on save)", "\ndev-prod:"),
+            ("run: ## Build once and run (no file watching)", "\nrun-prebuilt:"),
+            ("run-prebuilt: ## Run Spin using prebuilt wasm (CI helper)", "\n\n#--------------------------"),
+        ]:
+            target_start = source.index(target_name)
+            target_end = source.index(next_target_name, target_start)
+            target_body = source[target_start:target_end]
+            self.assertIn("LOCAL_LOOPBACK_BAN_CLEANUP_BACKGROUND", target_body)
 
 
 if __name__ == "__main__":

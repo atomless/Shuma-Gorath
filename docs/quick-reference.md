@@ -38,6 +38,10 @@ make clean          # Clean build artifacts
 make reset-local-state # Wipe local .spin runtime/test state while preserving durable .shuma operator state
 ```
 
+Notes:
+- `make dev`, `make run`, and `make run-prebuilt` now schedule loopback-ban cleanup after local boot so stale `unknown` or loopback bans from earlier local browser automation do not keep the root-hosted site blocked for contributors.
+- Use `make clear-dev-loopback-bans` for a manual reset against a running local server.
+
 ### 🐙 Build & Run: Remote
 ```bash
 make prepare-linode-shared-host # Agent-oriented Linode shared-host setup + receipt generation

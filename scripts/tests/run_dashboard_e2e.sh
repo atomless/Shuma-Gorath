@@ -41,6 +41,16 @@ ensure_playwright_chromium() {
   corepack pnpm exec playwright install chromium
 }
 
+cleanup_loopback_bans() {
+  if ! command -v make >/dev/null 2>&1; then
+    return 0
+  fi
+  if [[ -z "${SHUMA_API_KEY:-}" ]]; then
+    return 0
+  fi
+  make --no-print-directory clear-dev-loopback-bans >/dev/null 2>&1 || true
+}
+
 run_preflight() {
   local status=0
   corepack pnpm exec node scripts/tests/verify_playwright_launch.mjs || status=$?
@@ -48,6 +58,9 @@ run_preflight() {
 }
 
 ensure_playwright_chromium
+
+cleanup_loopback_bans
+trap cleanup_loopback_bans EXIT
 
 status=0
 run_preflight || status=$?
@@ -90,4 +103,4 @@ else
   echo "Playwright preflight succeeded with system HOME (${HOME}) and system Playwright browser cache."
 fi
 
-exec corepack pnpm run test:dashboard:e2e:raw "$@"
+corepack pnpm run test:dashboard:e2e:raw "$@"

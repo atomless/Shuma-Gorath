@@ -4,6 +4,26 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-31)
 
+### Local Contributor Root Access Guardrails For Focused Browser Flows
+
+- [x] Completed the local contributor root-access hardening slice across:
+  - [`../Makefile`](../Makefile)
+  - [`../scripts/tests/run_dashboard_e2e.sh`](../scripts/tests/run_dashboard_e2e.sh)
+  - [`../scripts/tests/test_integration_cleanup.py`](../scripts/tests/test_integration_cleanup.py)
+  - [`../scripts/tests/verify_local_root_access_cleanup.py`](../scripts/tests/verify_local_root_access_cleanup.py)
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../docs/quick-reference.md`](../docs/quick-reference.md)
+- [x] What landed:
+  - local dashboard Playwright runs now clear loopback-style bans before and after browser execution,
+  - `make dev`, `make dev-closed`, `make run`, and `make run-prebuilt` now schedule loopback-ban cleanup after local Spin boot so stale `unknown` bans do not strand contributor browsing at `/`,
+  - and a live proof target now bans `unknown`, runs the cleanup path, and verifies that the root-hosted site becomes browseable again.
+- [x] Why:
+  - the earlier post-suite fix only protected the full `make test` handoff,
+  - but focused browser/e2e paths and ordinary local startup could still leave contributor-local traffic blocked because direct local browsing collapses to `unknown` and shared that identity with local browser automation bans.
+- [x] Evidence:
+  - `make test-integration-cleanup-contract`
+  - `make test-local-contributor-root-access-contract`
+
 ### Current IP-Collapse Topology And Trusted-Ingress Addendum
 
 - [x] Completed the focused research and planning addendum across:
