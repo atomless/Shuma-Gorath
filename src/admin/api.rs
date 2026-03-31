@@ -1843,6 +1843,13 @@ mod tests {
                                 burst_sizes: vec![3, 3],
                                 inter_activity_gaps_ms: vec![0, 0, 1400, 0, 0],
                                 transport_profile: "urllib_direct".to_string(),
+                                transport_realism_class: "degraded_direct_library"
+                                    .to_string(),
+                                transport_emission_basis: "python_urllib_runtime"
+                                    .to_string(),
+                                transport_degraded_reason:
+                                    "no_tls_or_protocol_impersonation_support"
+                                        .to_string(),
                                 observed_user_agent_families: vec![
                                     "chrome_android".to_string(),
                                 ],
@@ -1946,6 +1953,14 @@ mod tests {
                 .profile_id,
             "agentic.request_mode.v1"
         );
+        assert_eq!(
+            llm_runtime_summary
+                .latest_realism_receipt
+                .as_ref()
+                .expect("llm realism receipt")
+                .transport_realism_class,
+            "degraded_direct_library"
+        );
         assert_eq!(llm_runtime_summary.latest_action_receipts.len(), 2);
     }
 
@@ -2008,6 +2023,11 @@ mod tests {
                                 burst_sizes: Vec::new(),
                                 inter_activity_gaps_ms: Vec::new(),
                                 transport_profile: "playwright_chromium".to_string(),
+                                transport_realism_class: "browser_runtime_stack"
+                                    .to_string(),
+                                transport_emission_basis:
+                                    "playwright_chromium_runtime".to_string(),
+                                transport_degraded_reason: String::new(),
                                 observed_user_agent_families: vec![
                                     "chrome_desktop".to_string(),
                                 ],
@@ -2073,6 +2093,7 @@ mod tests {
             .and_then(|summary| summary.latest_realism_receipt.as_ref())
             .expect("llm browser realism receipt");
         assert_eq!(receipt.profile_id, "agentic.browser_mode.v1");
+        assert_eq!(receipt.transport_realism_class, "browser_runtime_stack");
         assert_eq!(receipt.top_level_action_count, Some(2));
         assert_eq!(receipt.secondary_capture_mode, "same_origin_request_events");
         assert_eq!(receipt.secondary_request_count, Some(5));
@@ -2122,6 +2143,11 @@ mod tests {
                             burst_sizes: vec![3, 3, 1],
                             inter_activity_gaps_ms: vec![220, 410, 1200, 240, 330, 1500],
                             transport_profile: "curl_impersonate".to_string(),
+                            transport_realism_class: "impersonated_request_stack"
+                                .to_string(),
+                            transport_emission_basis: "curl_cffi_impersonate"
+                                .to_string(),
+                            transport_degraded_reason: String::new(),
                             observed_user_agent_families: vec!["chrome_android".to_string()],
                             observed_accept_languages: vec!["en-US,en;q=0.9".to_string()],
                             identity_realism_status: "degraded_local".to_string(),
@@ -2178,6 +2204,7 @@ mod tests {
             .as_ref()
             .expect("latest scrapling realism receipt");
         assert_eq!(receipt.profile_id, "scrapling.bulk_scraper.v1");
+        assert_eq!(receipt.transport_realism_class, "impersonated_request_stack");
         assert_eq!(receipt.identity_provenance_mode, "degraded_local");
         assert_eq!(receipt.activity_count, 7);
         assert_eq!(receipt.burst_count, Some(3));

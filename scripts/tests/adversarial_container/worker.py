@@ -24,6 +24,9 @@ from scripts.tests.frontier_capability_envelope import (
     parse_action_capability_envelopes,
     validate_action_capability_envelopes,
 )
+from scripts.tests.adversarial_runner.transport_envelope import (
+    request_transport_realism_descriptor,
+)
 
 
 FORBIDDEN_ENV_PREFIXES = ("SHUMA_",)
@@ -284,6 +287,9 @@ def _parse_request_realism_plan(
             "session_stickiness": "stable_per_identity",
             "observed_country_codes": [],
             "transport_profile": "urllib_direct",
+            "transport_realism_class": "degraded_direct_library",
+            "transport_emission_basis": "python_urllib_runtime",
+            "transport_degraded_reason": "no_tls_or_protocol_impersonation_support",
             "observed_user_agent_families": [],
             "observed_accept_languages": [],
             "session_handles": ["agentic-request-session-1"],
@@ -405,6 +411,19 @@ def _parse_request_realism_plan(
         if str(item).strip()
     ]
     transport_profile = str(payload.get("transport_profile") or "").strip() or "urllib_direct"
+    transport_realism = request_transport_realism_descriptor(transport_profile)
+    transport_realism_class = (
+        str(payload.get("transport_realism_class") or "").strip()
+        or transport_realism["transport_realism_class"]
+    )
+    transport_emission_basis = (
+        str(payload.get("transport_emission_basis") or "").strip()
+        or transport_realism["transport_emission_basis"]
+    )
+    transport_degraded_reason = (
+        str(payload.get("transport_degraded_reason") or "").strip()
+        or transport_realism["transport_degraded_reason"]
+    )
     recurrence_strategy = str(payload.get("recurrence_strategy") or "").strip()
     reentry_scope = str(payload.get("reentry_scope") or "").strip()
     dormancy_truth_mode = str(payload.get("dormancy_truth_mode") or "").strip()
@@ -427,6 +446,8 @@ def _parse_request_realism_plan(
         str(payload.get("targeting_strategy") or "").strip() or "single_entrypoint_probe"
     )
 
+    transport_profile = str(payload.get("transport_profile") or "urllib_direct")
+    transport_realism = request_transport_realism_descriptor(transport_profile)
     return {
         "schema_version": schema_version,
         "profile_id": str(payload.get("profile_id") or "").strip(),
@@ -449,6 +470,9 @@ def _parse_request_realism_plan(
         "session_stickiness": session_stickiness,
         "observed_country_codes": observed_country_codes,
         "transport_profile": transport_profile,
+        "transport_realism_class": transport_realism_class,
+        "transport_emission_basis": transport_emission_basis,
+        "transport_degraded_reason": transport_degraded_reason,
         "observed_user_agent_families": observed_user_agent_families,
         "observed_accept_languages": observed_accept_languages,
         "session_handles": session_handles or ["agentic-request-session-1"],
@@ -628,6 +652,8 @@ def execute_resolved_actions_with_realism(
             break
         current_burst_statuses = []
 
+    transport_profile = str(request_realism_plan.get("transport_profile") or "urllib_direct")
+    transport_realism = request_transport_realism_descriptor(transport_profile)
     realism_receipt = {
         "schema_version": "sim-lane-realism-receipt.v1",
         "profile_id": str(request_realism_plan.get("profile_id") or ""),
@@ -651,7 +677,19 @@ def execute_resolved_actions_with_realism(
         "focused_page_set_size": len(set(request_realism_plan.get("focused_page_paths") or [])),
         "concurrency_group_sizes": list(burst_sizes_executed),
         "peak_concurrent_activities": max(burst_sizes_executed or [1]),
-        "transport_profile": str(request_realism_plan.get("transport_profile") or "urllib_direct"),
+        "transport_profile": transport_profile,
+        "transport_realism_class": str(
+            request_realism_plan.get("transport_realism_class")
+            or transport_realism["transport_realism_class"]
+        ),
+        "transport_emission_basis": str(
+            request_realism_plan.get("transport_emission_basis")
+            or transport_realism["transport_emission_basis"]
+        ),
+        "transport_degraded_reason": str(
+            request_realism_plan.get("transport_degraded_reason")
+            or transport_realism["transport_degraded_reason"]
+        ),
         "observed_user_agent_families": list(
             request_realism_plan.get("observed_user_agent_families") or []
         ),

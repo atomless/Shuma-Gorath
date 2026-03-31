@@ -4,6 +4,39 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-31)
 
+### SIM-REALISM-3D Transport And Network Fingerprint Realism
+
+- [x] Completed `SIM-REALISM-3D` across:
+  - [`../scripts/tests/adversarial_runner/transport_envelope.py`](../scripts/tests/adversarial_runner/transport_envelope.py)
+  - [`../scripts/supervisor/llm_runtime_worker.py`](../scripts/supervisor/llm_runtime_worker.py)
+  - [`../scripts/supervisor/scrapling_worker.py`](../scripts/supervisor/scrapling_worker.py)
+  - [`../scripts/tests/adversarial_container/worker.py`](../scripts/tests/adversarial_container/worker.py)
+  - [`../scripts/tests/adversarial_browser_driver.mjs`](../scripts/tests/adversarial_browser_driver.mjs)
+  - [`../scripts/tests/adversarial/lane_realism_contract.v1.json`](../scripts/tests/adversarial/lane_realism_contract.v1.json)
+  - [`../scripts/tests/test_adversarial_lane_realism_contract.py`](../scripts/tests/test_adversarial_lane_realism_contract.py)
+  - [`../scripts/tests/test_llm_runtime_worker.py`](../scripts/tests/test_llm_runtime_worker.py)
+  - [`../scripts/tests/test_adversarial_container_worker.py`](../scripts/tests/test_adversarial_container_worker.py)
+  - [`../scripts/tests/test_scrapling_worker.py`](../scripts/tests/test_scrapling_worker.py)
+  - [`../scripts/tests/test_adversary_sim_make_targets.py`](../scripts/tests/test_adversary_sim_make_targets.py)
+  - [`../src/admin/adversary_sim_worker_plan.rs`](../src/admin/adversary_sim_worker_plan.rs)
+  - [`../src/admin/adversary_sim_realism_profile.rs`](../src/admin/adversary_sim_realism_profile.rs)
+  - [`../src/admin/api.rs`](../src/admin/api.rs)
+  - [`../src/observability/operator_snapshot.rs`](../src/observability/operator_snapshot.rs)
+  - [`../dashboard/src/lib/components/dashboard/monitoring-view-model.js`](../dashboard/src/lib/components/dashboard/monitoring-view-model.js)
+  - [`../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte`](../dashboard/src/lib/components/dashboard/monitoring/AdversaryRunPanel.svelte)
+  - [`../dashboard/src/lib/components/dashboard/GameLoopTab.svelte`](../dashboard/src/lib/components/dashboard/GameLoopTab.svelte)
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`../Makefile`](../Makefile)
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../todos/todo.md`](../todos/todo.md)
+- [x] What landed:
+  - Runtime receipts now preserve `transport_realism_class`, `transport_emission_basis`, and `transport_degraded_reason` instead of collapsing transport claims to coarse posture names when the underlying request or browser stack cannot truthfully model deeper fingerprint realism.
+  - Recent-run hot reads, operator snapshots, and the rendered Red Team plus Game Loop runtime summaries now surface that achieved-versus-degraded transport truth compactly, so operators can distinguish impersonated request stacks, browser runtime stacks, and degraded direct-library traffic without raw handshake traces.
+  - The focused proof gate `make test-adversary-sim-transport-fingerprint-realism` now executes real exact backend selectors end to end rather than silently passing on zero matched admin API tests.
+- [x] Evidence:
+  - `make test-adversary-sim-transport-fingerprint-realism`
+
 ### SIM-REALISM-3C Long-Window Dormancy And Return Realism
 
 - [x] Completed `SIM-REALISM-3C` across:

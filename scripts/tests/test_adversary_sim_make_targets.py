@@ -391,6 +391,35 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
             body,
         )
 
+    def test_transport_fingerprint_realism_target_chains_runtime_projection_and_dashboard_selectors(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-adversary-sim-transport-fingerprint-realism:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn("test-adversary-sim-header-transport-realism", body)
+        self.assertIn(
+            "admin::api::tests::recent_sim_run_history_projects_llm_runtime_receipts_and_categories",
+            body,
+        )
+        self.assertIn(
+            "admin::api::tests::recent_sim_run_history_projects_llm_browser_secondary_traffic_receipt_counts",
+            body,
+        )
+        self.assertIn(
+            "admin::api::tests::recent_sim_run_history_projects_latest_scrapling_realism_receipt",
+            body,
+        )
+        self.assertIn(
+            "snapshot_payload_projects_recent_run_llm_runtime_summary",
+            body,
+        )
+        self.assertIn("e2e/dashboard.modules.unit.test.js", body)
+        self.assertIn("test-dashboard-red-team-pane", body)
+
     def test_browser_secondary_traffic_realism_target_uses_browser_runtime_and_projection_selectors(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")
         match = re.search(

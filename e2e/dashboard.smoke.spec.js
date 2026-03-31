@@ -4933,7 +4933,7 @@ test("red team tab surfaces llm runtime lineage in recent adversary runs", async
   await expect(row).toContainText("2 / 2 actions");
 });
 
-test("red team recent runs label trusted and degraded identity realism truthfully", async ({ page }) => {
+test("red team recent runs label identity and transport realism truthfully", async ({ page }) => {
   const now = Math.floor(Date.now() / 1000);
   const buildMonitoringPayload = () => ({
     summary: {
@@ -4986,6 +4986,10 @@ test("red team recent runs label trusted and degraded identity realism truthfull
               failed_tick_count: 0,
               latest_realism_receipt: {
                 profile_id: "agentic.request_mode.v1",
+                transport_profile: "urllib_direct",
+                transport_realism_class: "degraded_direct_library",
+                transport_emission_basis: "python_urllib_runtime",
+                transport_degraded_reason: "no_tls_or_protocol_impersonation_support",
                 identity_realism_status: "fixed_proxy",
                 identity_provenance_mode: "trusted_ingress_backed",
                 observed_country_codes: ["FR"]
@@ -5020,6 +5024,9 @@ test("red team recent runs label trusted and degraded identity realism truthfull
               identity_realism_status: "degraded_local",
               identity_provenance_mode: "degraded_local",
               transport_profile: "curl_impersonate",
+              transport_realism_class: "impersonated_request_stack",
+              transport_emission_basis: "curl_cffi_impersonate",
+              transport_degraded_reason: "",
               observed_country_codes: []
             }
           }
@@ -5077,7 +5084,10 @@ test("red team recent runs label trusted and degraded identity realism truthfull
   const rows = page.locator("#adversary-runs tbody tr");
   await expect(rows.nth(0)).toContainText("Trusted ingress IP observed");
   await expect(rows.nth(0)).toContainText("FR");
+  await expect(rows.nth(0)).toContainText("Degraded Direct Library");
+  await expect(rows.nth(0)).toContainText("No TLS Or Protocol Impersonation Support");
   await expect(rows.nth(1)).toContainText("Degraded local identity");
+  await expect(rows.nth(1)).toContainText("Impersonated Request Stack");
 });
 
 test("manual refresh button appends new monitoring delta events when auto-refresh is off", async ({ page }) => {

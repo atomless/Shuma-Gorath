@@ -34,6 +34,40 @@ _LANGUAGE_BY_COUNTRY = {
     "US": ("en-US", "en-US,en;q=0.9"),
 }
 
+_REQUEST_TRANSPORT_REALISM = {
+    "curl_impersonate": {
+        "transport_realism_class": "impersonated_request_stack",
+        "transport_emission_basis": "curl_cffi_impersonate",
+        "transport_degraded_reason": "",
+    },
+    "urllib_direct": {
+        "transport_realism_class": "degraded_direct_library",
+        "transport_emission_basis": "python_urllib_runtime",
+        "transport_degraded_reason": "no_tls_or_protocol_impersonation_support",
+    },
+}
+
+_BROWSER_TRANSPORT_REALISM = {
+    "playwright_chromium": {
+        "transport_realism_class": "browser_runtime_stack",
+        "transport_emission_basis": "playwright_chromium_runtime",
+        "transport_degraded_reason": "",
+    }
+}
+
+
+def request_transport_realism_descriptor(transport_profile: str) -> dict[str, str]:
+    normalized = str(transport_profile or "").strip()
+    return dict(_REQUEST_TRANSPORT_REALISM.get(normalized) or _REQUEST_TRANSPORT_REALISM["urllib_direct"])
+
+
+def browser_transport_realism_descriptor(transport_profile: str) -> dict[str, str]:
+    normalized = str(transport_profile or "").strip()
+    return dict(
+        _BROWSER_TRANSPORT_REALISM.get(normalized)
+        or _BROWSER_TRANSPORT_REALISM["playwright_chromium"]
+    )
+
 
 def normalize_transport_envelope(raw_value: Any, *, field_name: str) -> dict[str, str]:
     if not isinstance(raw_value, dict):
@@ -128,8 +162,14 @@ def resolve_request_transport_observation(
     user_agent_profile = _request_user_agent_profile(
         transport_envelope["request_client_posture"]
     )
+    transport_realism = request_transport_realism_descriptor(
+        transport_envelope["request_transport_profile"]
+    )
     return {
         "transport_profile": transport_envelope["request_transport_profile"],
+        "transport_realism_class": transport_realism["transport_realism_class"],
+        "transport_emission_basis": transport_realism["transport_emission_basis"],
+        "transport_degraded_reason": transport_realism["transport_degraded_reason"],
         "user_agent_family": user_agent_profile["user_agent_family"],
         "user_agent": user_agent_profile["user_agent"],
         "request_impersonate": user_agent_profile["request_impersonate"],
@@ -150,8 +190,14 @@ def resolve_browser_transport_observation(
     user_agent_profile = _browser_user_agent_profile(
         transport_envelope["browser_client_posture"]
     )
+    transport_realism = browser_transport_realism_descriptor(
+        transport_envelope["browser_transport_profile"]
+    )
     return {
         "transport_profile": transport_envelope["browser_transport_profile"],
+        "transport_realism_class": transport_realism["transport_realism_class"],
+        "transport_emission_basis": transport_realism["transport_emission_basis"],
+        "transport_degraded_reason": transport_realism["transport_degraded_reason"],
         "user_agent_family": user_agent_profile["user_agent_family"],
         "user_agent": user_agent_profile["user_agent"],
         "browser_locale": browser_locale,

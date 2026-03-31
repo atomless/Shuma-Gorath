@@ -148,6 +148,9 @@ class _ScraplingRealismTracker:
         self.session_handles: list[str] = []
         self.observed_country_codes: list[str] = []
         self.transport_profile = ""
+        self.transport_realism_class = ""
+        self.transport_emission_basis = ""
+        self.transport_degraded_reason = ""
         self.observed_user_agent_families: list[str] = []
         self.observed_accept_languages: list[str] = []
         self.observed_browser_locales: list[str] = []
@@ -231,6 +234,9 @@ class _ScraplingRealismTracker:
         self,
         *,
         transport_profile: str,
+        transport_realism_class: str,
+        transport_emission_basis: str,
+        transport_degraded_reason: str,
         user_agent_family: str,
         accept_language: str,
         browser_locale: str | None = None,
@@ -238,6 +244,14 @@ class _ScraplingRealismTracker:
         normalized_transport = str(transport_profile or "").strip()
         if normalized_transport:
             self.transport_profile = normalized_transport
+        normalized_class = str(transport_realism_class or "").strip()
+        if normalized_class:
+            self.transport_realism_class = normalized_class
+        normalized_basis = str(transport_emission_basis or "").strip()
+        if normalized_basis:
+            self.transport_emission_basis = normalized_basis
+        normalized_degraded_reason = str(transport_degraded_reason or "").strip()
+        self.transport_degraded_reason = normalized_degraded_reason
         normalized_family = str(user_agent_family or "").strip()
         if normalized_family and normalized_family not in self.observed_user_agent_families:
             self.observed_user_agent_families.append(normalized_family)
@@ -425,6 +439,9 @@ class _ScraplingRealismTracker:
             "effective_burst_size": self.effective_burst_size,
             "activity_count": self.activity_count,
             "transport_profile": self.transport_profile,
+            "transport_realism_class": self.transport_realism_class,
+            "transport_emission_basis": self.transport_emission_basis,
+            "transport_degraded_reason": self.transport_degraded_reason,
             "observed_user_agent_families": list(self.observed_user_agent_families),
             "observed_accept_languages": list(self.observed_accept_languages),
             "identity_realism_status": identity_summary["identity_realism_status"],
@@ -577,6 +594,15 @@ class _PacedRequestNativeSession:
         self._current_country_code = current_country_code
         self.tracker.realism_tracker.observe_transport(
             transport_profile=str(request_transport.get("transport_profile") or ""),
+            transport_realism_class=str(
+                request_transport.get("transport_realism_class") or ""
+            ),
+            transport_emission_basis=str(
+                request_transport.get("transport_emission_basis") or ""
+            ),
+            transport_degraded_reason=str(
+                request_transport.get("transport_degraded_reason") or ""
+            ),
             user_agent_family=str(request_transport.get("user_agent_family") or ""),
             accept_language=str(request_transport.get("accept_language") or ""),
         )
@@ -1185,6 +1211,15 @@ def _build_spider_class(fetcher_session_cls: Any, request_cls: Any, spider_base:
             )
             self.realism_tracker.observe_transport(
                 transport_profile=str(self.request_transport.get("transport_profile") or ""),
+                transport_realism_class=str(
+                    self.request_transport.get("transport_realism_class") or ""
+                ),
+                transport_emission_basis=str(
+                    self.request_transport.get("transport_emission_basis") or ""
+                ),
+                transport_degraded_reason=str(
+                    self.request_transport.get("transport_degraded_reason") or ""
+                ),
                 user_agent_family=str(self.request_transport.get("user_agent_family") or ""),
                 accept_language=str(self.request_transport.get("accept_language") or ""),
             )
@@ -2175,6 +2210,11 @@ def _execute_browser_persona(
     )
     tracker.realism_tracker.observe_transport(
         transport_profile=str(browser_transport.get("transport_profile") or ""),
+        transport_realism_class=str(browser_transport.get("transport_realism_class") or ""),
+        transport_emission_basis=str(browser_transport.get("transport_emission_basis") or ""),
+        transport_degraded_reason=str(
+            browser_transport.get("transport_degraded_reason") or ""
+        ),
         user_agent_family=str(browser_transport.get("user_agent_family") or ""),
         accept_language=str(browser_transport.get("accept_language") or ""),
         browser_locale=str(browser_transport.get("browser_locale") or ""),

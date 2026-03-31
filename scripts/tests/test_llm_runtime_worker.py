@@ -79,6 +79,9 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
         self.assertEqual(execution_plan["user_agent_family"], "chrome_desktop")
         self.assertEqual(execution_plan["browser_locale"], "en-US")
         self.assertEqual(execution_plan["transport_profile"], "playwright_chromium")
+        self.assertEqual(execution_plan["transport_realism_class"], "browser_runtime_stack")
+        self.assertEqual(execution_plan["transport_emission_basis"], "playwright_chromium_runtime")
+        self.assertEqual(execution_plan["transport_degraded_reason"], "")
         self.assertIn("en-US", execution_plan["accept_language"])
         self.assertIn("Mozilla/5.0", execution_plan["user_agent"])
         self.assertEqual(
@@ -322,6 +325,12 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
         )
         self.assertEqual(execution_plan["observed_country_codes"], [])
         self.assertEqual(execution_plan["transport_profile"], "urllib_direct")
+        self.assertEqual(execution_plan["transport_realism_class"], "degraded_direct_library")
+        self.assertEqual(execution_plan["transport_emission_basis"], "python_urllib_runtime")
+        self.assertEqual(
+            execution_plan["transport_degraded_reason"],
+            "no_tls_or_protocol_impersonation_support",
+        )
         self.assertEqual(
             execution_plan["observed_user_agent_families"],
             ["chrome_android"],

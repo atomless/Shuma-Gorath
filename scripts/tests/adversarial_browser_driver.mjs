@@ -904,6 +904,14 @@ async function runScenario(payload) {
             dwell_intervals_ms: usedDwells,
             transport_profile:
               String(sessionPlanRaw.transport_profile || "").trim() || "playwright_chromium",
+            transport_realism_class:
+              String(sessionPlanRaw.transport_realism_class || "").trim()
+              || "browser_runtime_stack",
+            transport_emission_basis:
+              String(sessionPlanRaw.transport_emission_basis || "").trim()
+              || "playwright_chromium_runtime",
+            transport_degraded_reason:
+              String(sessionPlanRaw.transport_degraded_reason || "").trim(),
             observed_user_agent_families: Array.isArray(
               sessionPlanRaw.observed_user_agent_families,
             )

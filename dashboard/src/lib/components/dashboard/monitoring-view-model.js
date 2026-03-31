@@ -737,6 +737,15 @@ const shapeIdentityRealismReceipt = (receipt = {}) => {
   return {
     profileId: String(source.profileId || source.profile_id || '').trim(),
     transportProfile: String(source.transportProfile || source.transport_profile || '').trim(),
+    transportRealismClass: String(
+      source.transportRealismClass || source.transport_realism_class || ''
+    ).trim(),
+    transportEmissionBasis: String(
+      source.transportEmissionBasis || source.transport_emission_basis || ''
+    ).trim(),
+    transportDegradedReason: String(
+      source.transportDegradedReason || source.transport_degraded_reason || ''
+    ).trim(),
     activityCount: Number(source.activityCount || source.activity_count || 0),
     identityRealismStatus: String(
       source.identityRealismStatus || source.identity_realism_status || ''
@@ -1056,6 +1065,34 @@ export const formatIdentityRealismSummary = (receipt = null) => {
   if (!label && countries.length === 0) return '';
   if (!label) return countries.join(', ');
   return countries.length > 0 ? `${label} (${countries.join(', ')})` : label;
+};
+
+export const formatTransportRealismSummary = (receipt = null) => {
+  const shaped = receipt && typeof receipt === 'object' ? receipt : null;
+  if (!shaped) return '';
+  const formatTransportLabel = (value) => formatMetricLabel(value)
+    .replace(/\bAi\b/g, 'AI')
+    .replace(/\bCdp\b/g, 'CDP')
+    .replace(/\bHttp\b/g, 'HTTP')
+    .replace(/\bIp\b/g, 'IP')
+    .replace(/\bJs\b/g, 'JS')
+    .replace(/\bTls\b/g, 'TLS');
+  const realismClass = String(
+    shaped.transportRealismClass || shaped.transport_realism_class || ''
+  ).trim();
+  const transportProfile = String(
+    shaped.transportProfile || shaped.transport_profile || ''
+  ).trim();
+  const degradedReason = String(
+    shaped.transportDegradedReason || shaped.transport_degraded_reason || ''
+  ).trim();
+  const label = realismClass ? formatTransportLabel(realismClass) : (
+    transportProfile ? formatTransportLabel(transportProfile) : ''
+  );
+  if (!label && !degradedReason) return '';
+  if (!degradedReason) return label;
+  if (!label) return formatTransportLabel(degradedReason);
+  return `${label} (${formatTransportLabel(degradedReason)})`;
 };
 
 export const deriveMazeStatsViewModel = (data = {}) => {

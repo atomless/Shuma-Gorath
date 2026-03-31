@@ -103,6 +103,18 @@ class AdversarialLaneRealismContractUnitTests(unittest.TestCase):
             profile["transport_envelope"]["request_transport_profile"],
             "curl_impersonate",
         )
+        self.assertIn(
+            "transport_realism_class",
+            profile["receipt_contract"]["required_fields"],
+        )
+        self.assertIn(
+            "transport_emission_basis",
+            profile["receipt_contract"]["required_fields"],
+        )
+        self.assertIn(
+            "transport_degraded_reason",
+            profile["receipt_contract"]["required_fields"],
+        )
 
     def test_browser_mode_profile_surfaces_browser_locale_transport_contract(self):
         profile = contracts.resolve_lane_realism_profile("bot_red_team", "browser_mode")
@@ -118,6 +130,18 @@ class AdversarialLaneRealismContractUnitTests(unittest.TestCase):
         self.assertEqual(
             profile["transport_envelope"]["browser_transport_profile"],
             "playwright_chromium",
+        )
+        self.assertIn(
+            "transport_realism_class",
+            profile["receipt_contract"]["required_fields"],
+        )
+        self.assertIn(
+            "transport_emission_basis",
+            profile["receipt_contract"]["required_fields"],
+        )
+        self.assertIn(
+            "transport_degraded_reason",
+            profile["receipt_contract"]["required_fields"],
         )
         self.assertIn(
             "secondary_capture_mode",

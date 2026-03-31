@@ -5,7 +5,8 @@
   import {
     deriveAdversaryRunRowsFromSummaries,
     deriveLlmSurfaceRowsFromRuntimeSummary,
-    formatIdentityRealismSummary
+    formatIdentityRealismSummary,
+    formatTransportRealismSummary
   } from './monitoring-view-model.js';
   import TabStateMessage from './primitives/TabStateMessage.svelte';
 
@@ -139,6 +140,9 @@
     const identitySummary =
       formatIdentityRealismSummary(run?.llmRuntimeSummary?.latestRealismReceipt)
       || formatIdentityRealismSummary(run?.latestScraplingRealismReceipt);
+    const transportSummary =
+      formatTransportRealismSummary(run?.llmRuntimeSummary?.latestRealismReceipt)
+      || formatTransportRealismSummary(run?.latestScraplingRealismReceipt);
     const details = [
       formatModeSummary(run.observedFulfillmentModes),
       `${formatNumber(run.monitoringEventCount, '0')} monitoring events`,
@@ -152,6 +156,7 @@
       );
     }
     if (identitySummary) details.push(identitySummary);
+    if (transportSummary) details.push(transportSummary);
     return details.filter(Boolean).join(' | ');
   };
 

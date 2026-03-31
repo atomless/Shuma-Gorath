@@ -196,6 +196,12 @@ class AdversarialContainerWorkerUnitTests(unittest.TestCase):
             ["residential", "mobile"],
         )
         self.assertEqual(receipt["transport_profile"], "urllib_direct")
+        self.assertEqual(receipt["transport_realism_class"], "degraded_direct_library")
+        self.assertEqual(receipt["transport_emission_basis"], "python_urllib_runtime")
+        self.assertEqual(
+            receipt["transport_degraded_reason"],
+            "no_tls_or_protocol_impersonation_support",
+        )
         self.assertEqual(receipt["observed_user_agent_families"], ["chrome_android"])
         self.assertEqual(
             receipt["observed_accept_languages"],

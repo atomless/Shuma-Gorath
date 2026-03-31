@@ -3512,6 +3512,10 @@ test('monitoring view model and status module remain pure snapshot transforms', 
           terminal_failure: null,
           latest_realism_receipt: {
             profile_id: 'agentic.request_mode.v1',
+            transport_profile: 'urllib_direct',
+            transport_realism_class: 'degraded_direct_library',
+            transport_emission_basis: 'python_urllib_runtime',
+            transport_degraded_reason: 'no_tls_or_protocol_impersonation_support',
             identity_realism_status: 'fixed_proxy',
             identity_provenance_mode: 'trusted_ingress_backed',
             observed_country_codes: ['FR']
@@ -3539,9 +3543,14 @@ test('monitoring view model and status module remain pure snapshot transforms', 
         ban_outcome_count: 0,
         latest_scrapling_realism_receipt: {
           profile_id: 'scrapling.bulk_scraper.v1',
+          transport_profile: 'curl_impersonate',
+          transport_realism_class: 'impersonated_request_stack',
+          transport_emission_basis: 'curl_cffi_impersonate',
+          transport_degraded_reason: '',
           identity_realism_status: 'degraded_local',
           identity_provenance_mode: 'degraded_local',
-          observed_country_codes: []
+          observed_country_codes: [],
+          activity_count: 6
         }
       }
     ], [
@@ -3571,6 +3580,22 @@ test('monitoring view model and status module remain pure snapshot transforms', 
     assert.equal(
       summarizedRuns.runRows[0].llmRuntimeSummary?.latestRealismReceipt?.identityProvenanceMode,
       'trusted_ingress_backed'
+    );
+    assert.equal(
+      summarizedRuns.runRows[0].llmRuntimeSummary?.latestRealismReceipt?.transportRealismClass,
+      'degraded_direct_library'
+    );
+    assert.equal(
+      monitoringModelModule.formatTransportRealismSummary(
+        summarizedRuns.runRows[0].llmRuntimeSummary?.latestRealismReceipt
+      ),
+      'Degraded Direct Library (No TLS Or Protocol Impersonation Support)'
+    );
+    assert.equal(
+      monitoringModelModule.formatTransportRealismSummary(
+        summarizedRuns.runRows[2].latestScraplingRealismReceipt
+      ),
+      'Impersonated Request Stack'
     );
     assert.equal(
       summarizedRuns.runRows[0].llmRuntimeSummary?.modelId,
@@ -3839,6 +3864,27 @@ test('monitoring view model and status module remain pure snapshot transforms', 
       /https:\/\/github\.com\/atomless\/Shuma-Gorath\/blob\/main\/docs\/quick-reference\.md#runtime-and-deployment-posture-matrix/
     );
     assert.equal(statusItems.some((item) => stripHtml(item.title) === 'Challenge'), false);
+  });
+});
+
+test('monitoring view model formats transport realism summaries for recent adversary runs', { concurrency: false }, async () => {
+  await withBrowserGlobals({}, async () => {
+    const monitoringModelModule = await importBrowserModule('dashboard/src/lib/components/dashboard/monitoring-view-model.js');
+
+    assert.equal(
+      monitoringModelModule.formatTransportRealismSummary({
+        transport_realism_class: 'degraded_direct_library',
+        transport_degraded_reason: 'no_tls_or_protocol_impersonation_support'
+      }),
+      'Degraded Direct Library (No TLS Or Protocol Impersonation Support)'
+    );
+    assert.equal(
+      monitoringModelModule.formatTransportRealismSummary({
+        transport_realism_class: 'impersonated_request_stack',
+        transport_degraded_reason: ''
+      }),
+      'Impersonated Request Stack'
+    );
   });
 });
 

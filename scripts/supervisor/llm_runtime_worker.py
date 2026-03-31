@@ -337,6 +337,15 @@ def build_browser_mode_realism_execution_plan(
         "session_stickiness": identity_summary["session_stickiness"],
         "observed_country_codes": identity_summary["observed_country_codes"],
         "transport_profile": str(browser_transport.get("transport_profile") or ""),
+        "transport_realism_class": str(
+            browser_transport.get("transport_realism_class") or ""
+        ),
+        "transport_emission_basis": str(
+            browser_transport.get("transport_emission_basis") or ""
+        ),
+        "transport_degraded_reason": str(
+            browser_transport.get("transport_degraded_reason") or ""
+        ),
         "user_agent_family": str(browser_transport.get("user_agent_family") or ""),
         "user_agent": str(browser_transport.get("user_agent") or ""),
         "browser_locale": str(browser_transport.get("browser_locale") or ""),
@@ -578,13 +587,11 @@ def build_request_mode_realism_execution_plan(
         str(dict(action_identity_rows[0] if action_identity_rows else {}).get("country_code") or "").strip()
         or None
     )
-    request_transport_profile = str(
-        resolve_request_transport_observation(
-            profile,
-            country_code=first_identity_country_code,
-        ).get("transport_profile")
-        or ""
+    first_request_transport = resolve_request_transport_observation(
+        profile,
+        country_code=first_identity_country_code,
     )
+    request_transport_profile = str(first_request_transport.get("transport_profile") or "")
     recurrence_context = _resolve_recurrence_context(fulfillment_plan, profile)
     capability_state = _capability_state_for_generation(generation_result)
     action_types_attempted = _ordered_unique_strings(
@@ -618,6 +625,15 @@ def build_request_mode_realism_execution_plan(
         "action_proxy_urls": identity_assignments["action_proxy_urls"],
         "action_request_headers": action_request_headers,
         "transport_profile": request_transport_profile,
+        "transport_realism_class": str(
+            first_request_transport.get("transport_realism_class") or ""
+        ),
+        "transport_emission_basis": str(
+            first_request_transport.get("transport_emission_basis") or ""
+        ),
+        "transport_degraded_reason": str(
+            first_request_transport.get("transport_degraded_reason") or ""
+        ),
         "observed_user_agent_families": observed_user_agent_families,
         "observed_accept_languages": observed_accept_languages,
         "actions": expanded_actions,

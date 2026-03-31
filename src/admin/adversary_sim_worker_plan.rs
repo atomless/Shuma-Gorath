@@ -53,6 +53,12 @@ pub struct ScraplingRealismReceipt {
     pub inter_activity_gaps_ms: Vec<u64>,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub transport_profile: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub transport_realism_class: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub transport_emission_basis: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub transport_degraded_reason: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub observed_user_agent_families: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -210,6 +216,12 @@ pub struct LlmRuntimeRealismReceipt {
     pub inter_activity_gaps_ms: Vec<u64>,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub transport_profile: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub transport_realism_class: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub transport_emission_basis: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub transport_degraded_reason: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub observed_user_agent_families: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
