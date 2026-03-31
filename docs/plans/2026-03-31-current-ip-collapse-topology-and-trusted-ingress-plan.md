@@ -44,6 +44,8 @@ Those remain separate realism work after the trust-boundary slice is correct.
 
 ## Task 1: Freeze The Current IP-Collapse Topology Contract
 
+**Status:** Landed on 2026-03-31.
+
 **Files:**
 - Later code targets: focused extraction tests around [`../../src/lib.rs`](../../src/lib.rs), related `Makefile` targets, and docs that describe local identity behavior
 - Later proof targets: a new focused Make target for client-IP topology

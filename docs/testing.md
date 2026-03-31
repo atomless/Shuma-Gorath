@@ -57,6 +57,7 @@ make test-adversary-sim-exploration-receipts # Focused Scrapling traversal-front
 make test-adversary-sim-header-transport-realism # Focused header, locale, and transport-envelope realism gate
 make test-adversary-sim-browser-secondary-traffic-realism # Focused browser secondary-traffic and compact projection realism gate
 make test-adversary-sim-recurrence-realism # Focused bounded dormancy, re-entry, and recurrence receipt/dispatch gate
+make test-client-ip-topology-contract # Focused client-IP topology gate for shared-host, edge, and /shuma/health trust behavior
 make test-scrapling-game-loop-mainline # Focused active-mainline bundle: attacker-faithful Scrapling plus the first working game loop
 make test-adversary-sim-scrapling-owned-surface-contract # Focused Scrapling owned-surface matrix and success-contract gate
 make test-adversary-sim-scrapling-category-fit # Focused Scrapling category-ownership and worker-plan contract gate
@@ -372,6 +373,7 @@ Available profiles:
 - `make test-adversary-sim-header-transport-realism` - focused header, locale, and transport-envelope realism gate covering the canonical realism contract, the host-side Agentic execution-plan builders, the black-box container request receipt, and Scrapling request-native plus browser worker receipts
 - `make test-adversary-sim-browser-secondary-traffic-realism` - focused browser secondary-traffic realism gate covering the compact browser request-event or XHR receipt contract, the Agentic browser black-box integration path, the Scrapling browser worker receipt path, and recent-run plus operator-snapshot projection of compact secondary-traffic counts
 - `make test-adversary-sim-scrapling-realism` - focused Scrapling pacing/dwell realism gate covering request-native and browser `realism_receipt` materialization plus recent-run projection of the latest Scrapling realism receipt
+- `make test-client-ip-topology-contract` - focused trusted-header topology gate covering shared-host direct collapse to `unknown`, shared-host trusted proxy extraction, shared-host misconfigured proxy fail-closed behavior, edge `true-client-ip`, edge trusted-header fallback, and `/shuma/health` single-hop versus multi-hop rules
 - `make test-shared-host-scope-contract` - shared-host descriptor and fail-closed scope gate parity check across the versioned contract plus seed-tooling validator
 - `make test-shared-host-seed-contract` - minimal shared-host seed inventory contract parity check, including required primary URL handling, bounded `robots.txt` hint ingestion, provenance merge, and rejection diagnostics
 - `make prepare-scrapling-deploy` - shared-host deploy-prep helper that infers the fail-closed scope fence, root-only seed, runtime env mappings, and deploy-time receipt from the canonical public base URL

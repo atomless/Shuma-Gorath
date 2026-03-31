@@ -242,6 +242,54 @@ fn forwarded_headers_are_trusted_with_matching_secret() {
 }
 
 #[test]
+fn shared_host_direct_requests_collapse_client_ip_to_unknown() {
+    let _lock = crate::test_support::lock_env();
+    std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+    std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
+
+    let req = crate::test_support::request_with_headers("/", &[]);
+
+    assert_eq!(extract_client_ip(&req), "unknown");
+}
+
+#[test]
+fn shared_host_trusted_proxy_uses_forwarded_for_for_client_ip_extraction() {
+    let _lock = crate::test_support::lock_env();
+    std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+    std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+
+    let req = crate::test_support::request_with_headers(
+        "/",
+        &[
+            ("x-forwarded-for", "198.51.100.24, 203.0.113.9"),
+            ("x-shuma-forwarded-secret", "test-forwarded-secret"),
+        ],
+    );
+
+    assert_eq!(extract_client_ip(&req), "198.51.100.24");
+    std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
+}
+
+#[test]
+fn shared_host_misconfigured_proxy_headers_fail_closed_to_unknown() {
+    let _lock = crate::test_support::lock_env();
+    std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+    std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "expected-secret");
+
+    let req = crate::test_support::request_with_headers(
+        "/",
+        &[
+            ("x-forwarded-for", "198.51.100.24"),
+            ("x-real-ip", "198.51.100.25"),
+            ("x-shuma-forwarded-secret", "wrong-secret"),
+        ],
+    );
+
+    assert_eq!(extract_client_ip(&req), "unknown");
+    std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
+}
+
+#[test]
 fn edge_fermyon_uses_true_client_ip_for_client_ip_extraction() {
     let _lock = crate::test_support::lock_env();
     std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "edge-fermyon");
@@ -252,6 +300,40 @@ fn edge_fermyon_uses_true_client_ip_for_client_ip_extraction() {
     );
 
     assert_eq!(extract_client_ip(&req), "203.0.113.8");
+    std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+}
+
+#[test]
+fn edge_fermyon_falls_back_to_trusted_forwarded_for_when_true_client_ip_missing() {
+    let _lock = crate::test_support::lock_env();
+    std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "edge-fermyon");
+    std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+
+    let req = crate::test_support::request_with_headers(
+        "/",
+        &[
+            ("x-forwarded-for", "198.51.100.44, 203.0.113.11"),
+            ("x-shuma-forwarded-secret", "test-forwarded-secret"),
+        ],
+    );
+
+    assert_eq!(extract_client_ip(&req), "198.51.100.44");
+    std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+    std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
+}
+
+#[test]
+fn edge_fermyon_without_trusted_identity_headers_returns_unknown() {
+    let _lock = crate::test_support::lock_env();
+    std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "edge-fermyon");
+    std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
+
+    let req = crate::test_support::request_with_headers(
+        "/",
+        &[("true-client-ip", "unknown"), ("x-forwarded-for", "198.51.100.44")],
+    );
+
+    assert_eq!(extract_client_ip(&req), "unknown");
     std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
 }
 
@@ -282,6 +364,22 @@ fn health_ip_extraction_rejects_multi_hop_forwarded_for() {
     );
 
     assert_eq!(extract_health_client_ip(&req), "unknown");
+    std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
+}
+
+#[test]
+fn health_ip_extraction_accepts_single_hop_trusted_forwarded_for() {
+    let _lock = crate::test_support::lock_env();
+    std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+    let req = crate::test_support::request_with_headers(
+        "/shuma/health",
+        &[
+            ("x-forwarded-for", "198.51.100.88"),
+            ("x-shuma-forwarded-secret", "test-forwarded-secret"),
+        ],
+    );
+
+    assert_eq!(extract_health_client_ip(&req), "198.51.100.88");
     std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
 }
 

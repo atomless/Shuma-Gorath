@@ -4,6 +4,24 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-31)
 
+### SIM-REALISM-2I Task 1 Client-IP Topology Contract
+
+- [x] Completed the first `SIM-REALISM-2I` execution slice across:
+  - [`../src/lib_tests/security.rs`](../src/lib_tests/security.rs)
+  - [`../Makefile`](../Makefile)
+  - [`../docs/plans/2026-03-31-current-ip-collapse-topology-and-trusted-ingress-plan.md`](../docs/plans/2026-03-31-current-ip-collapse-topology-and-trusted-ingress-plan.md)
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../todos/todo.md`](../todos/todo.md)
+- [x] What landed:
+  - the current client-IP collapse matrix is now executable through `make test-client-ip-topology-contract`,
+  - the focused Rust security contract now proves shared-host direct collapse to `unknown`, trusted shared-host proxy extraction, misconfigured shared-host proxy fail-closed behavior, edge `true-client-ip`, edge trusted-header fallback when `true-client-ip` is missing, edge degraded fallback, and `/shuma/health` single-hop versus multi-hop extraction,
+  - and the current-IP/trusted-ingress plan now marks Task 1 as landed so the next active work in `SIM-REALISM-2I` is the trusted sim-ingress implementation itself.
+- [x] Why:
+  - the realism plan required the current topology matrix to be frozen in executable proof before any ingress redesign could be trusted,
+  - and the repo previously had partial coverage for this area but not one focused gate that owned the whole matrix end to end.
+- [x] Evidence:
+  - `make test-client-ip-topology-contract`
+
 ### Adversary Realism Acceptance And Envelope Governance Addendum
 
 - [x] Completed the realism acceptance-governance planning slice across:
