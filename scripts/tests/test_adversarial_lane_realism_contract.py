@@ -143,6 +143,18 @@ class AdversarialLaneRealismContractUnitTests(unittest.TestCase):
             "planned_dormant_gap_seconds",
             profile["receipt_contract"]["required_fields"],
         )
+        self.assertIn(
+            "action_types_attempted",
+            profile["receipt_contract"]["required_fields"],
+        )
+        self.assertIn(
+            "capability_state",
+            profile["receipt_contract"]["required_fields"],
+        )
+        self.assertIn(
+            "targeting_strategy",
+            profile["receipt_contract"]["required_fields"],
+        )
 
     def test_profiles_surface_mode_specific_exploration_envelopes(self):
         crawler_profile = contracts.resolve_lane_realism_profile(
@@ -180,6 +192,22 @@ class AdversarialLaneRealismContractUnitTests(unittest.TestCase):
                 field,
                 crawler_profile["receipt_contract"]["required_fields"],
             )
+
+    def test_request_mode_profile_requires_capability_and_targeting_receipt_fields(self):
+        profile = contracts.resolve_lane_realism_profile("bot_red_team", "request_mode")
+
+        self.assertIn(
+            "action_types_attempted",
+            profile["receipt_contract"]["required_fields"],
+        )
+        self.assertIn(
+            "capability_state",
+            profile["receipt_contract"]["required_fields"],
+        )
+        self.assertIn(
+            "targeting_strategy",
+            profile["receipt_contract"]["required_fields"],
+        )
 
     def test_scrapling_browser_profile_requires_secondary_traffic_receipt_fields(self):
         profile = contracts.resolve_lane_realism_profile("scrapling_traffic", "browser_automation")

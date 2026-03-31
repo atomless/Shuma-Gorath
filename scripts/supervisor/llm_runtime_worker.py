@@ -57,6 +57,45 @@ DEFAULT_AGENTIC_BROWSER_USER_AGENT = CHROME_DESKTOP_USER_AGENT
 DEFAULT_PUBLIC_HINT_PATHS = ["/robots.txt"]
 
 
+def _ordered_unique_strings(values: list[Any]) -> list[str]:
+    ordered: list[str] = []
+    seen = set()
+    for value in values:
+        normalized = str(value or "").strip()
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        ordered.append(normalized)
+    return ordered
+
+
+def _capability_state_for_generation(generation_result: dict[str, Any]) -> str:
+    generation_source = str(generation_result.get("generation_source") or "").strip()
+    if generation_source.startswith("fallback_"):
+        return "degraded_fallback"
+    if generation_source == "provider_response":
+        return "frontier_provider"
+    return "runtime_generated"
+
+
+def _action_targeting_strategy(actions: list[dict[str, Any]]) -> str:
+    archive_walk_paths = {"/research/", "/plans/", "/work/", "/page/2/"}
+    for action in actions:
+        path = str(action.get("path") or "").strip() or "/"
+        if path in archive_walk_paths:
+            return "archive_walk"
+        query = action.get("query")
+        if isinstance(query, dict):
+            page_value = str(query.get("page") or "").strip()
+            if page_value.isdigit() and int(page_value) >= 2:
+                return "archive_walk"
+    for action in actions:
+        path = str(action.get("path") or "").strip() or "/"
+        if path in {"/robots.txt", "/sitemap.xml", "/atom.xml"} or path.endswith(".xml"):
+            return "discoverability_probe"
+    return "single_entrypoint_probe"
+
+
 class WorkerConfigError(ValueError):
     """Raised when required worker inputs are missing or invalid."""
 
@@ -69,11 +108,21 @@ def _normalized_request_mode_actions(actions: list[dict[str, Any]] | None) -> li
         action_type = str(action.get("action_type") or "").strip() or "http_get"
         path = str(action.get("path") or "").strip() or "/"
         label = str(action.get("label") or "").strip()
+        query = action.get("query") if isinstance(action.get("query"), dict) else {}
+        method = str(action.get("method") or "").strip().upper() or (
+            "HEAD" if action_type == "http_head" else "GET"
+        )
         normalized.append(
             {
                 "action_index": index,
                 "action_type": action_type,
+                "method": method,
                 "path": path,
+                "query": {
+                    str(key).strip(): str(value).strip()
+                    for key, value in dict(query).items()
+                    if str(key).strip()
+                },
                 "label": label or None,
             }
         )
@@ -83,7 +132,9 @@ def _normalized_request_mode_actions(actions: list[dict[str, Any]] | None) -> li
         {
             "action_index": 1,
             "action_type": "http_get",
+            "method": "GET",
             "path": "/",
+            "query": {},
             "label": "root",
         }
     ]
@@ -241,9 +292,17 @@ def build_browser_mode_realism_execution_plan(
     )
     browser_transport = resolve_browser_transport_observation(profile)
     recurrence_context = _resolve_recurrence_context(fulfillment_plan, profile)
+    capability_state = _capability_state_for_generation(generation_result)
+    action_types_attempted = _ordered_unique_strings(
+        [action.get("action_type") for action in candidate_actions]
+    )
+    targeting_strategy = _action_targeting_strategy(candidate_actions)
     return {
         "schema_version": BROWSER_MODE_REALISM_PLAN_SCHEMA_VERSION,
         "profile_id": str(profile.get("profile_id") or ""),
+        "capability_state": capability_state,
+        "action_types_attempted": action_types_attempted,
+        "targeting_strategy": targeting_strategy,
         "planned_activity_budget": planned_activity_budget,
         "effective_activity_budget": top_level_action_budget,
         "top_level_action_budget": top_level_action_budget,
@@ -283,7 +342,17 @@ def _focused_request_mode_actions(
     unique_actions: list[dict[str, Any]] = []
     seen = set()
     for action in actions:
-        key = (str(action.get("action_type") or ""), str(action.get("path") or ""))
+        query = action.get("query") if isinstance(action.get("query"), dict) else {}
+        query_key = tuple(
+            (str(key).strip(), str(query[key]).strip())
+            for key in sorted(query.keys(), key=lambda item: str(item))
+            if str(key).strip()
+        )
+        key = (
+            str(action.get("action_type") or ""),
+            str(action.get("path") or ""),
+            query_key,
+        )
         if key in seen:
             continue
         unique_actions.append(action)
@@ -492,9 +561,17 @@ def build_request_mode_realism_execution_plan(
         or ""
     )
     recurrence_context = _resolve_recurrence_context(fulfillment_plan, profile)
+    capability_state = _capability_state_for_generation(generation_result)
+    action_types_attempted = _ordered_unique_strings(
+        [action.get("action_type") for action in candidate_actions]
+    )
+    targeting_strategy = _action_targeting_strategy(candidate_actions)
     return {
         "schema_version": REQUEST_MODE_REALISM_PLAN_SCHEMA_VERSION,
         "profile_id": str(profile.get("profile_id") or ""),
+        "capability_state": capability_state,
+        "action_types_attempted": action_types_attempted,
+        "targeting_strategy": targeting_strategy,
         "planned_activity_budget": planned_activity_budget,
         "effective_activity_budget": effective_activity_budget,
         "planned_burst_size": planned_burst_size,

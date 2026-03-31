@@ -57,6 +57,8 @@ That means:
 
 ## Task 2: `SIM-REALISM-3B` Expand Agentic Action Capability And Degraded Fallback Realism
 
+**Status:** Landed. Agentic request-mode now supports truthful `HEAD` probes, query-preserving archive walks, and sharper degraded fallback rooted in public discoverability and archive/feed surfaces; browser-mode fallback now walks multiple public pages instead of a single root navigation; and both request/browser receipts preserve `capability_state`, `action_types_attempted`, and `targeting_strategy`.
+
 **Files:**
 - Later code targets: `src/admin/adversary_sim_llm_lane.rs`, `scripts/tests/adversarial_runner/llm_fulfillment.py`, `scripts/tests/adversarial_container/worker.py`, `scripts/supervisor/llm_runtime_worker.py`, related contract files, and observer receipts
 - Later proof targets: focused LLM runtime tests, black-box contract tests, `Makefile`

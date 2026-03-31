@@ -114,12 +114,62 @@ class LlmFulfillmentUnitTests(unittest.TestCase):
         self.assertEqual(plan["backend_state"], "unavailable")
         self.assertEqual(plan["backend_id"], "frontier_reference:unconfigured")
         self.assertEqual(plan["category_targets"], ["http_agent", "ai_scraper_bot"])
-        self.assertEqual(plan["capability_envelope"]["allowed_tools"], ["http_get"])
+        self.assertEqual(
+            plan["capability_envelope"]["allowed_tools"],
+            ["http_get", "http_head"],
+        )
         self.assertFalse(plan["capability_envelope"]["browser_automation_allowed"])
         self.assertTrue(plan["capability_envelope"]["direct_request_emission_allowed"])
         self.assertEqual(
             plan["realism_profile"]["profile_id"],
             "agentic.request_mode.v1",
+        )
+
+    def test_generate_llm_frontier_actions_request_mode_accepts_head_probe_from_provider(self):
+        plan = llm_fulfillment.build_llm_fulfillment_plan(
+            run_id="simrun-llm-fit",
+            generated_tick_count=1,
+            frontier_metadata={
+                "provider_count": 1,
+                "frontier_mode": "single_provider_self_play",
+                "reduced_diversity_warning": False,
+            },
+            now=1_700_000_010,
+        )
+        env = {
+            "SHUMA_FRONTIER_OPENAI_API_KEY": "sk-openai-test",
+            "SHUMA_FRONTIER_OPENAI_MODEL": "gpt-5-mini",
+        }
+
+        result = llm_fulfillment.generate_llm_frontier_actions(
+            fulfillment_plan=plan,
+            host_root_entrypoint="https://example.com/",
+            env_reader=lambda key: env.get(key, ""),
+            provider_executor=lambda *_args, **_kwargs: {
+                "actions": [
+                    {
+                        "action_type": "http_head",
+                        "path": "/robots.txt",
+                        "label": "robots_head",
+                    },
+                    {
+                        "action_type": "http_get",
+                        "path": "/research/",
+                        "label": "research",
+                    },
+                ],
+                "rationale": "Probe discoverability artifacts before focused retrieval.",
+            },
+        )
+
+        self.assertEqual(result["generation_source"], "provider_response")
+        self.assertEqual(
+            [action["action_type"] for action in result["actions"]],
+            ["http_head", "http_get"],
+        )
+        self.assertEqual(
+            [action["method"] for action in result["actions"]],
+            ["HEAD", "GET"],
         )
 
     def test_generate_llm_frontier_actions_uses_provider_response_when_frontier_key_exists(self):
@@ -200,9 +250,18 @@ class LlmFulfillmentUnitTests(unittest.TestCase):
         self.assertEqual(result["generation_source"], "fallback_no_provider")
         self.assertEqual(result["provider"], "")
         self.assertEqual(result["fallback_reason"], "no_configured_frontier_provider")
-        self.assertGreaterEqual(len(result["actions"]), 1)
+        self.assertGreaterEqual(len(result["actions"]), 6)
         self.assertEqual(result["actions"][0]["action_type"], "http_get")
         self.assertEqual(result["actions"][0]["path"], "/")
+        self.assertIn("http_head", [action["action_type"] for action in result["actions"]])
+        self.assertIn("/robots.txt", [action["path"] for action in result["actions"]])
+        self.assertIn("/sitemap.xml", [action["path"] for action in result["actions"]])
+        self.assertTrue(
+            any(
+                path in {"/research/", "/plans/", "/work/", "/page/2/"}
+                for path in [action["path"] for action in result["actions"]]
+            )
+        )
 
     def test_generate_llm_frontier_actions_falls_back_when_provider_output_breaks_mode_contract(self):
         plan = llm_fulfillment.build_llm_fulfillment_plan(
@@ -238,8 +297,15 @@ class LlmFulfillmentUnitTests(unittest.TestCase):
         self.assertEqual(result["generation_source"], "fallback_validation_error")
         self.assertEqual(result["provider"], "openai")
         self.assertEqual(result["fallback_reason"], "provider_output_failed_validation")
+        self.assertGreaterEqual(len(result["actions"]), 3)
         self.assertEqual(result["actions"][0]["action_type"], "browser_navigate")
         self.assertEqual(result["actions"][0]["path"], "/")
+        self.assertTrue(
+            any(
+                action["path"] in {"/research/", "/plans/", "/work/", "/page/2/"}
+                for action in result["actions"][1:]
+            )
+        )
 
 
 if __name__ == "__main__":

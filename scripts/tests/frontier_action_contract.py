@@ -129,6 +129,13 @@ def _validate_contract_defaults(contract: Dict[str, Any]) -> None:
             raise FrontierActionContractError("default_actions entries must be objects")
 
 
+def _action_method_for_type(action_type: str) -> str:
+    normalized = str(action_type or "").strip()
+    if normalized == "http_head":
+        return "HEAD"
+    return "GET"
+
+
 def load_frontier_action_contract(
     path: Path = DEFAULT_FRONTIER_ACTION_CONTRACT_PATH,
 ) -> Dict[str, Any]:
@@ -407,7 +414,7 @@ def validate_frontier_actions(
             {
                 "action_index": index + 1,
                 "action_type": action_type,
-                "method": "GET",
+                "method": _action_method_for_type(action_type),
                 "path": path,
                 "query": query,
                 "label": label,

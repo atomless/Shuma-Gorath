@@ -50,6 +50,7 @@ make test-adversarial-lane-realism-contract # Focused shared Scrapling/Agentic r
 make test-adversarial-llm-realism # Focused Agentic request-mode burst/pause realism, worker receipt truth, and recent-run projection gate
 make test-adversarial-llm-browser-runtime # Focused Agentic browser-mode live session, receipt truth, and recent-run projection gate (requires running Spin)
 make test-adversarial-llm-fit # Focused bounded LLM fulfillment-plan contract gate
+make test-adversary-sim-agentic-action-realism # Focused Agentic action-surface + degraded-fallback realism gate
 make test-adversarial-llm-runtime-dispatch # Focused bounded LLM runtime dispatch + typed ingest gate
 make test-adversarial-identity-envelope-contract # Focused proxy-pool and identity-envelope realism contract gate
 make test-adversary-sim-exploration-envelope-realism # Focused Scrapling exploration-envelope contract and planner gate

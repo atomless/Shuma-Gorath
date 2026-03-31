@@ -568,21 +568,95 @@ def _fallback_label(path: str) -> str:
     return token[:80] if token else "hint"
 
 
+def _dedupe_fallback_actions(actions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    deduped: List[Dict[str, Any]] = []
+    seen = set()
+    for action in actions:
+        action_type = str(action.get("action_type") or "").strip()
+        path = str(action.get("path") or "").strip() or "/"
+        query = dict_or_empty(action.get("query"))
+        query_key = tuple(
+            (str(key).strip(), str(query[key]).strip())
+            for key in sorted(query.keys(), key=lambda item: str(item))
+            if str(key).strip()
+        )
+        key = (action_type, path, query_key)
+        if key in seen:
+            continue
+        deduped.append(action)
+        seen.add(key)
+    return deduped
+
+
+def _archive_walk_request_defaults(contract: Dict[str, Any]) -> List[Dict[str, Any]]:
+    defaults = [
+        dict(item)
+        for item in list_or_empty(dict_or_empty(contract).get("default_actions"))
+        if isinstance(item, dict)
+    ]
+    defaults.extend(
+        [
+            {
+                "action_type": "http_get",
+                "path": "/research/",
+                "query": {"page": "2"},
+                "label": "research_page_2",
+            },
+            {
+                "action_type": "http_get",
+                "path": "/plans/",
+                "query": {"page": "2"},
+                "label": "plans_page_2",
+            },
+        ]
+    )
+    return _dedupe_fallback_actions(defaults)
+
+
+def _archive_walk_browser_defaults() -> List[Dict[str, Any]]:
+    return [
+        {"action_type": "browser_navigate", "path": "/", "label": "root"},
+        {"action_type": "browser_navigate", "path": "/research/", "label": "research"},
+        {"action_type": "browser_navigate", "path": "/plans/", "label": "plans"},
+        {"action_type": "browser_navigate", "path": "/work/", "label": "work"},
+        {"action_type": "browser_navigate", "path": "/page/2/", "label": "archive_page_2"},
+    ]
+
+
 def _fallback_actions_for_plan(
     fulfillment_plan: Dict[str, Any],
     *,
     generation_context: Dict[str, Any],
+    contract: Dict[str, Any],
 ) -> List[Dict[str, Any]]:
     if str(fulfillment_plan.get("fulfillment_mode") or "").strip() == "browser_mode":
-        return [{"action_type": "browser_navigate", "path": "/", "label": "root"}]
+        actions = _archive_walk_browser_defaults()
+        for hint_path in list_or_empty(generation_context.get("public_hint_paths")):
+            if hint_path == "/":
+                continue
+            actions.append(
+                {
+                    "action_type": "browser_navigate",
+                    "path": hint_path,
+                    "label": _fallback_label(hint_path),
+                }
+            )
+        max_actions = max(
+            1,
+            int_or_zero(
+                dict_or_empty(fulfillment_plan.get("capability_envelope")).get("max_actions")
+            ),
+        )
+        return _dedupe_fallback_actions(actions)[:max_actions]
 
-    actions: List[Dict[str, Any]] = [{"action_type": "http_get", "path": "/", "label": "root"}]
+    actions = _archive_walk_request_defaults(contract)
     for hint_path in list_or_empty(generation_context.get("public_hint_paths")):
         if hint_path == "/":
             continue
+        action_type = "http_head" if hint_path == "/robots.txt" else "http_get"
         actions.append(
             {
-                "action_type": "http_get",
+                "action_type": action_type,
                 "path": hint_path,
                 "label": _fallback_label(hint_path),
             }
@@ -591,7 +665,7 @@ def _fallback_actions_for_plan(
         1,
         int_or_zero(dict_or_empty(fulfillment_plan.get("capability_envelope")).get("max_actions")),
     )
-    return actions[:max_actions]
+    return _dedupe_fallback_actions(actions)[:max_actions]
 
 
 def _prompt_text(generation_context: Dict[str, Any]) -> str:
@@ -826,6 +900,7 @@ def generate_llm_frontier_actions(
         fallback_actions = _fallback_actions_for_plan(
             fulfillment_plan,
             generation_context=generation_context,
+            contract=resolved_contract,
         )
         return {
             "generation_source": "fallback_no_provider",
@@ -864,6 +939,7 @@ def generate_llm_frontier_actions(
         fallback_actions = _fallback_actions_for_plan(
             fulfillment_plan,
             generation_context=generation_context,
+            contract=resolved_contract,
         )
         return {
             "generation_source": "fallback_validation_error",

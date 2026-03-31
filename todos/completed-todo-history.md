@@ -4,6 +4,36 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-31)
 
+### SIM-REALISM-3B Agentic Action Capability And Degraded Fallback Realism
+
+- [x] Completed `SIM-REALISM-3B` across:
+  - [`../src/admin/adversary_sim_llm_lane.rs`](../src/admin/adversary_sim_llm_lane.rs)
+  - [`../src/admin/adversary_sim_realism_profile.rs`](../src/admin/adversary_sim_realism_profile.rs)
+  - [`../scripts/tests/adversarial/frontier_action_contract.v1.json`](../scripts/tests/adversarial/frontier_action_contract.v1.json)
+  - [`../scripts/tests/adversarial/lane_realism_contract.v1.json`](../scripts/tests/adversarial/lane_realism_contract.v1.json)
+  - [`../scripts/tests/frontier_action_contract.py`](../scripts/tests/frontier_action_contract.py)
+  - [`../scripts/tests/adversarial_runner/llm_fulfillment.py`](../scripts/tests/adversarial_runner/llm_fulfillment.py)
+  - [`../scripts/supervisor/llm_runtime_worker.py`](../scripts/supervisor/llm_runtime_worker.py)
+  - [`../scripts/tests/adversarial_container/worker.py`](../scripts/tests/adversarial_container/worker.py)
+  - [`../scripts/tests/adversarial_browser_driver.mjs`](../scripts/tests/adversarial_browser_driver.mjs)
+  - [`../scripts/supervisor/scrapling_worker.py`](../scripts/supervisor/scrapling_worker.py)
+  - [`../scripts/tests/test_llm_fulfillment.py`](../scripts/tests/test_llm_fulfillment.py)
+  - [`../scripts/tests/test_llm_runtime_worker.py`](../scripts/tests/test_llm_runtime_worker.py)
+  - [`../scripts/tests/test_adversarial_container_worker.py`](../scripts/tests/test_adversarial_container_worker.py)
+  - [`../scripts/tests/test_adversarial_lane_realism_contract.py`](../scripts/tests/test_adversarial_lane_realism_contract.py)
+  - [`../scripts/tests/test_adversary_sim_make_targets.py`](../scripts/tests/test_adversary_sim_make_targets.py)
+  - [`../Makefile`](../Makefile)
+  - [`../docs/plans/2026-03-31-post-2j-adversary-realism-sufficiency-plan.md`](../docs/plans/2026-03-31-post-2j-adversary-realism-sufficiency-plan.md)
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../todos/todo.md`](../todos/todo.md)
+- [x] What landed:
+  - Agentic request-mode now truthfully supports `HEAD` probes alongside `GET`, preserves query and pagination variants through the runtime plan, and keeps degraded fallback sharp by walking public discoverability plus archive/feed surfaces from the root-hosted site instead of collapsing to a polite root fetch.
+  - Agentic browser-mode degraded fallback now walks multiple public archive/feed pages rather than only `/`, and both browser and request receipts preserve `capability_state`, `action_types_attempted`, and `targeting_strategy` as observer truth.
+  - The proof surface now has an explicit tranche target, `make test-adversary-sim-agentic-action-realism`, that chains the shared realism contract, fulfillment-plan contract, request-mode runtime, and browser-mode live-session gates.
+- [x] Evidence:
+  - `make test-adversary-sim-agentic-action-realism`
+  - `python3 -m unittest scripts.tests.test_adversary_sim_make_targets`
+
 ### SIM-REALISM-3A Overlapping Mixed-Lane Concurrency Realism
 
 - [x] Completed `SIM-REALISM-3A` across:

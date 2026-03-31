@@ -1,7 +1,8 @@
 {
   "schema_version": "frontier-action-contract.v1",
   "allowed_tools": [
-    "http_get"
+    "http_get",
+    "http_head"
   ],
   "network_constraints": {
     "allowed_schemes": [
@@ -49,7 +50,8 @@
   "dsl": {
     "schema_version": "frontier-action-dsl.v1",
     "allowed_action_types": [
-      "http_get"
+      "http_get",
+      "http_head"
     ],
     "required_action_keys": [
       "action_type",
@@ -70,9 +72,19 @@
       "label": "root"
     },
     {
+      "action_type": "http_head",
+      "path": "/robots.txt",
+      "label": "robots_head"
+    },
+    {
       "action_type": "http_get",
-      "path": "/",
-      "label": "latest"
+      "path": "/sitemap.xml",
+      "label": "sitemap"
+    },
+    {
+      "action_type": "http_get",
+      "path": "/atom.xml",
+      "label": "feed"
     },
     {
       "action_type": "http_get",
@@ -93,6 +105,11 @@
       "action_type": "http_get",
       "path": "/work/",
       "label": "work"
+    },
+    {
+      "action_type": "http_get",
+      "path": "/page/2/",
+      "label": "archive_page_2"
     }
   ],
   "llm_fulfillment": {
@@ -117,7 +134,8 @@
       "request_mode": {
         "reference_backend_kind": "frontier_reference",
         "allowed_tools": [
-          "http_get"
+          "http_get",
+          "http_head"
         ],
         "category_targets": [
           "http_agent",

@@ -164,6 +164,102 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
         self.assertGreaterEqual(execution_plan["max_reentries_per_run"], 1)
         self.assertGreaterEqual(execution_plan["planned_dormant_gap_seconds"], 1)
 
+    def test_build_request_mode_realism_execution_plan_marks_degraded_capability_and_attempted_action_types(self):
+        plan = {
+            "schema_version": "adversary-sim-llm-fulfillment-plan.v1",
+            "run_id": "simrun-llm-runtime",
+            "tick_id": "llm-fit-tick-fallback-1",
+            "lane": "bot_red_team",
+            "fulfillment_mode": "request_mode",
+            "backend_kind": "frontier_reference",
+            "backend_state": "unavailable",
+            "category_targets": ["http_agent"],
+            "capability_envelope": {
+                "allowed_tools": ["http_get", "http_head"],
+                "max_actions": 12,
+                "max_time_budget_seconds": 120,
+            },
+            "realism_profile": resolve_lane_realism_profile("bot_red_team", "request_mode"),
+        }
+        generation = {
+            "generation_source": "fallback_no_provider",
+            "fallback_reason": "no_configured_frontier_provider",
+            "actions": [
+                {"action_index": 1, "action_type": "http_get", "path": "/", "label": "root"},
+                {
+                    "action_index": 2,
+                    "action_type": "http_head",
+                    "path": "/robots.txt",
+                    "label": "robots_head",
+                },
+                {
+                    "action_index": 3,
+                    "action_type": "http_get",
+                    "path": "/page/2/",
+                    "label": "archive_walk",
+                },
+            ],
+        }
+
+        execution_plan = llm_runtime_worker.build_request_mode_realism_execution_plan(
+            fulfillment_plan=plan,
+            generation_result=generation,
+        )
+
+        self.assertEqual(execution_plan["capability_state"], "degraded_fallback")
+        self.assertEqual(
+            execution_plan["action_types_attempted"],
+            ["http_get", "http_head"],
+        )
+        self.assertEqual(execution_plan["targeting_strategy"], "archive_walk")
+
+    def test_build_request_mode_realism_execution_plan_preserves_query_variants(self):
+        plan = {
+            "schema_version": "adversary-sim-llm-fulfillment-plan.v1",
+            "run_id": "simrun-llm-runtime",
+            "tick_id": "llm-fit-tick-query-1",
+            "lane": "bot_red_team",
+            "fulfillment_mode": "request_mode",
+            "backend_kind": "frontier_reference",
+            "backend_state": "configured",
+            "category_targets": ["http_agent"],
+            "capability_envelope": {"max_actions": 6, "max_time_budget_seconds": 120},
+            "realism_profile": resolve_lane_realism_profile("bot_red_team", "request_mode"),
+        }
+        generation = {
+            "generation_source": "provider_response",
+            "provider": "openai",
+            "model_id": "gpt-5-mini",
+            "actions": [
+                {
+                    "action_index": 1,
+                    "action_type": "http_get",
+                    "path": "/research/",
+                    "query": {"page": "2"},
+                    "label": "research_page_2",
+                },
+                {
+                    "action_index": 2,
+                    "action_type": "http_get",
+                    "path": "/research/",
+                    "query": {"page": "3"},
+                    "label": "research_page_3",
+                },
+            ],
+        }
+
+        execution_plan = llm_runtime_worker.build_request_mode_realism_execution_plan(
+            fulfillment_plan=plan,
+            generation_result=generation,
+        )
+
+        self.assertTrue(
+            any(action.get("query") == {"page": "2"} for action in execution_plan["actions"])
+        )
+        self.assertTrue(
+            any(action.get("query") == {"page": "3"} for action in execution_plan["actions"])
+        )
+
     def test_build_request_mode_realism_execution_plan_marks_degraded_identity_without_pool(self):
         plan = {
             "schema_version": "adversary-sim-llm-fulfillment-plan.v1",
@@ -347,6 +443,56 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
             execution_plan["browser_proxy_url"],
             "http://198.51.100.55:trusted-token@127.0.0.1:3871",
         )
+
+    def test_build_browser_mode_realism_execution_plan_marks_degraded_capability_and_attempted_action_types(self):
+        plan = {
+            "schema_version": "adversary-sim-llm-fulfillment-plan.v1",
+            "run_id": "simrun-llm-runtime",
+            "tick_id": "llm-fit-tick-browser-fallback-1",
+            "lane": "bot_red_team",
+            "fulfillment_mode": "browser_mode",
+            "backend_kind": "frontier_reference",
+            "backend_state": "degraded",
+            "category_targets": ["browser_agent"],
+            "capability_envelope": {"max_actions": 8, "max_time_budget_seconds": 90},
+            "realism_profile": resolve_lane_realism_profile("bot_red_team", "browser_mode"),
+        }
+        generation = {
+            "generation_source": "fallback_validation_error",
+            "fallback_reason": "provider_output_failed_validation",
+            "actions": [
+                {
+                    "action_index": 1,
+                    "action_type": "browser_navigate",
+                    "path": "/",
+                    "label": "root",
+                },
+                {
+                    "action_index": 2,
+                    "action_type": "browser_navigate",
+                    "path": "/research/",
+                    "label": "research",
+                },
+                {
+                    "action_index": 3,
+                    "action_type": "browser_navigate",
+                    "path": "/page/2/",
+                    "label": "archive",
+                },
+            ],
+        }
+
+        execution_plan = llm_runtime_worker.build_browser_mode_realism_execution_plan(
+            fulfillment_plan=plan,
+            generation_result=generation,
+        )
+
+        self.assertEqual(execution_plan["capability_state"], "degraded_fallback")
+        self.assertEqual(
+            execution_plan["action_types_attempted"],
+            ["browser_navigate"],
+        )
+        self.assertEqual(execution_plan["targeting_strategy"], "archive_walk")
 
     def test_extract_llm_fulfillment_plan_requires_nested_plan(self):
         with self.assertRaises(RuntimeError):

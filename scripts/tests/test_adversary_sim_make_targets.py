@@ -173,6 +173,20 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
             body,
         )
 
+    def test_agentic_action_realism_target_chains_contract_and_runtime_selectors(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-adversary-sim-agentic-action-realism:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn("test-adversarial-lane-realism-contract", body)
+        self.assertIn("test-adversarial-llm-fit", body)
+        self.assertIn("test-adversarial-llm-realism", body)
+        self.assertIn("test-adversarial-llm-browser-runtime", body)
+
     def test_pressure_envelope_realism_target_uses_scrapling_and_llm_pressure_selectors(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")
         match = re.search(

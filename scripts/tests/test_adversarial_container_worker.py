@@ -278,6 +278,7 @@ class AdversarialContainerWorkerUnitTests(unittest.TestCase):
             url,
             sim_headers,
             request_headers=None,
+            method="GET",
             timeout_seconds=10.0,
             proxy_url=None,
         ):
@@ -331,6 +332,111 @@ class AdversarialContainerWorkerUnitTests(unittest.TestCase):
         self.assertEqual(receipt["concurrency_group_sizes"], [3, 3])
         self.assertEqual(receipt["peak_concurrent_activities"], 3)
         self.assertEqual(sleep_mock.call_count, 1)
+
+    def test_blackbox_main_uses_head_method_for_head_probe_actions(self):
+        actions = [
+            {
+                "action_index": 1,
+                "action_type": "http_head",
+                "path": "/robots.txt",
+                "label": "robots_head",
+                "url": "https://example.test/robots.txt",
+                "method": "HEAD",
+            },
+            {
+                "action_index": 2,
+                "action_type": "http_get",
+                "path": "/research/",
+                "label": "research",
+                "url": "https://example.test/research/",
+                "method": "GET",
+            },
+        ]
+        realism_plan = {
+            "schema_version": "adversary-sim-llm-request-realism-plan.v1",
+            "profile_id": "agentic.request_mode.v1",
+            "planned_activity_budget": 2,
+            "effective_activity_budget": 2,
+            "planned_burst_size": 2,
+            "effective_burst_size": 2,
+            "burst_sizes": [2],
+            "concurrency_group_sizes": [2],
+            "peak_concurrent_activities": 2,
+            "inter_action_gaps_ms": [0],
+            "focused_page_paths": ["/robots.txt", "/research/"],
+            "session_handles": ["agentic-request-session-1"],
+            "action_request_headers": [{}, {}],
+            "recurrence_strategy": "bounded_single_tick_reentry",
+            "session_index": 1,
+            "reentry_count": 0,
+            "max_reentries_per_run": 3,
+            "planned_dormant_gap_seconds": 3,
+        }
+        env = {
+            "BLACKBOX_MODE": "blackbox",
+            "BLACKBOX_BASE_URL": "https://example.test/",
+            "BLACKBOX_ALLOWED_ORIGINS": "https://example.test",
+            "BLACKBOX_RUN_ID": "simrun-llm-runtime",
+            "BLACKBOX_REQUEST_BUDGET": "2",
+            "BLACKBOX_TIME_BUDGET_SECONDS": "120",
+            "BLACKBOX_SIM_TAG_ENVELOPES": _sim_tag_envelopes(2),
+            "BLACKBOX_ACTIONS": json.dumps(actions),
+            "BLACKBOX_REQUEST_REALISM_PLAN": json.dumps(realism_plan),
+            worker.CAPABILITY_ENVELOPES_ENV: "[]",
+            worker.CAPABILITY_VERIFY_KEY_ENV: "verify-key",
+        }
+        lane_contract = {
+            "schema_version": "lane-contract.v1",
+            "attacker": {
+                "required_sim_headers": [
+                    worker.SIM_TAG_HEADER_RUN_ID,
+                    worker.SIM_TAG_HEADER_PROFILE,
+                    worker.SIM_TAG_HEADER_LANE,
+                    worker.SIM_TAG_HEADER_TIMESTAMP,
+                    worker.SIM_TAG_HEADER_NONCE,
+                    worker.SIM_TAG_HEADER_SIGNATURE,
+                ],
+                "forbidden_headers": [],
+            },
+        }
+
+        stdout = io.StringIO()
+        with (
+            mock.patch.dict(os.environ, env, clear=True),
+            mock.patch("scripts.tests.adversarial_container.worker.os.getuid", return_value=1000),
+            mock.patch("scripts.tests.adversarial_container.worker.workspace_mount_absent", return_value=True),
+            mock.patch("scripts.tests.adversarial_container.worker.load_lane_contract", return_value=lane_contract),
+            mock.patch(
+                "scripts.tests.adversarial_container.worker.load_frontier_action_contract",
+                return_value={"schema_version": "frontier_action_contract.v1"},
+            ),
+            mock.patch(
+                "scripts.tests.adversarial_container.worker.resolve_frontier_actions",
+                return_value=actions,
+            ),
+            mock.patch(
+                "scripts.tests.adversarial_container.worker.parse_action_capability_envelopes",
+                return_value=[],
+            ),
+            mock.patch(
+                "scripts.tests.adversarial_container.worker.validate_action_capability_envelopes",
+                return_value=[],
+            ),
+            mock.patch(
+                "scripts.tests.adversarial_container.worker.make_request",
+                return_value={"status": 200, "latency_ms": 20, "url": "https://example.test/robots.txt"},
+            ) as make_request_mock,
+            mock.patch("scripts.tests.adversarial_container.worker.time.sleep"),
+            contextlib.redirect_stdout(stdout),
+        ):
+            exit_code = worker.main()
+
+        payload = json.loads(stdout.getvalue())
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(payload["requests_sent"], 2)
+        self.assertEqual(make_request_mock.call_args_list[0].kwargs.get("method"), "HEAD")
+        self.assertEqual(make_request_mock.call_args_list[1].kwargs.get("method"), "GET")
 
 
 if __name__ == "__main__":

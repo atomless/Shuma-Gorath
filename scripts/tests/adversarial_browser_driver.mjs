@@ -882,6 +882,15 @@ async function runScenario(payload) {
           realism_receipt: {
             schema_version: "sim-lane-realism-receipt.v1",
             profile_id: String(sessionPlanRaw.profile_id || ""),
+            capability_state:
+              String(sessionPlanRaw.capability_state || "").trim() || "degraded_fallback",
+            action_types_attempted: Array.isArray(sessionPlanRaw.action_types_attempted)
+              ? sessionPlanRaw.action_types_attempted
+                  .map((value) => String(value || "").trim())
+                  .filter(Boolean)
+              : ["browser_navigate"],
+            targeting_strategy:
+              String(sessionPlanRaw.targeting_strategy || "").trim() || "archive_walk",
             planned_activity_budget: clampInt(
               sessionPlanRaw.planned_activity_budget,
               1,

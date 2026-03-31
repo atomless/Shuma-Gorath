@@ -222,7 +222,7 @@ fn capability_envelope_for_mode(mode: LlmFulfillmentMode) -> LlmCapabilityEnvelo
             max_time_budget_seconds: 90,
         },
         LlmFulfillmentMode::RequestMode => LlmCapabilityEnvelope {
-            allowed_tools: vec!["http_get".to_string()],
+            allowed_tools: vec!["http_get".to_string(), "http_head".to_string()],
             browser_automation_allowed: false,
             direct_request_emission_allowed: true,
             max_actions: 24,
@@ -405,7 +405,10 @@ mod tests {
         assert_eq!(plan.backend_state, "unavailable");
         assert_eq!(plan.fulfillment_mode, "request_mode");
         assert_eq!(plan.category_targets, vec!["http_agent", "ai_scraper_bot"]);
-        assert_eq!(plan.capability_envelope.allowed_tools, vec!["http_get"]);
+        assert_eq!(
+            plan.capability_envelope.allowed_tools,
+            vec!["http_get", "http_head"]
+        );
         assert!(plan.black_box_boundary.public_knowledge_only);
         assert!(!plan.black_box_boundary.repo_visibility_allowed);
         assert!(!plan.black_box_boundary.judge_visibility_allowed);

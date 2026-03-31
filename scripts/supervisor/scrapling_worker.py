@@ -467,6 +467,9 @@ class _ScraplingRealismTracker:
             receipt.update(
                 {
                     "top_level_action_count": self.activity_count,
+                    "action_types_attempted": ["browser_navigate"],
+                    "capability_state": "native_persona",
+                    "targeting_strategy": "surface_probe",
                     "dwell_intervals_ms": list(self.dwell_intervals_ms),
                     "observed_browser_locales": list(self.observed_browser_locales),
                     "secondary_capture_mode": self.secondary_capture_mode,

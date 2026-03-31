@@ -183,10 +183,14 @@ def make_request(
     url: str,
     sim_headers: Dict[str, str],
     request_headers: Dict[str, str] | None = None,
+    method: str = "GET",
     timeout_seconds: float = 10.0,
     proxy_url: str | None = None,
 ) -> Dict[str, Any]:
-    request = urllib.request.Request(url, method="GET")
+    request = urllib.request.Request(
+        url,
+        method=str(method or "GET").strip().upper() or "GET",
+    )
     normalized_request_headers = {
         str(key).strip().lower(): str(value).strip()
         for key, value in dict(request_headers or {}).items()
@@ -263,6 +267,9 @@ def _parse_request_realism_plan(
         return {
             "schema_version": REQUEST_REALISM_PLAN_SCHEMA_VERSION,
             "profile_id": "",
+            "capability_state": "degraded_fallback",
+            "action_types_attempted": ["http_get"],
+            "targeting_strategy": "single_entrypoint_probe",
             "planned_activity_budget": actions_count,
             "effective_activity_budget": actions_count,
             "planned_burst_size": max(1, actions_count),
@@ -402,10 +409,22 @@ def _parse_request_realism_plan(
     planned_dormant_gap_seconds = max(
         0, int(payload.get("planned_dormant_gap_seconds") or 0)
     )
+    capability_state = str(payload.get("capability_state") or "").strip() or "degraded_fallback"
+    action_types_attempted = [
+        str(item).strip()
+        for item in list(payload.get("action_types_attempted") or [])
+        if str(item).strip()
+    ]
+    targeting_strategy = (
+        str(payload.get("targeting_strategy") or "").strip() or "single_entrypoint_probe"
+    )
 
     return {
         "schema_version": schema_version,
         "profile_id": str(payload.get("profile_id") or "").strip(),
+        "capability_state": capability_state,
+        "action_types_attempted": action_types_attempted or ["http_get"],
+        "targeting_strategy": targeting_strategy,
         "planned_activity_budget": planned_activity_budget,
         "effective_activity_budget": effective_activity_budget,
         "planned_burst_size": planned_burst_size,
@@ -549,6 +568,7 @@ def execute_resolved_actions_with_realism(
                         item["url"],
                         item["request_headers"],
                         request_headers=item.get("action_request_headers"),
+                        method=str(item["action"].get("method") or "GET"),
                         proxy_url=item.get("proxy_url"),
                     )
                     if item.get("proxy_url")
@@ -556,6 +576,7 @@ def execute_resolved_actions_with_realism(
                         item["url"],
                         item["request_headers"],
                         request_headers=item.get("action_request_headers"),
+                        method=str(item["action"].get("method") or "GET"),
                     ),
                     prepared_burst,
                 )
@@ -599,6 +620,15 @@ def execute_resolved_actions_with_realism(
     realism_receipt = {
         "schema_version": "sim-lane-realism-receipt.v1",
         "profile_id": str(request_realism_plan.get("profile_id") or ""),
+        "capability_state": str(
+            request_realism_plan.get("capability_state") or "degraded_fallback"
+        ),
+        "action_types_attempted": list(
+            request_realism_plan.get("action_types_attempted") or ["http_get"]
+        ),
+        "targeting_strategy": str(
+            request_realism_plan.get("targeting_strategy") or "single_entrypoint_probe"
+        ),
         "planned_activity_budget": int(request_realism_plan.get("planned_activity_budget") or requests_sent),
         "effective_activity_budget": int(request_realism_plan.get("effective_activity_budget") or requests_sent),
         "planned_burst_size": int(request_realism_plan.get("planned_burst_size") or 1),
