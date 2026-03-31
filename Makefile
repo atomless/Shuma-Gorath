@@ -1579,6 +1579,14 @@ test-shared-host-seed-contract: ## Validate shared-host seed contract parity and
 	@python3 scripts/tests/check_shared_host_seed_contract.py
 	@python3 -m unittest scripts/tests/test_shared_host_seed_inventory.py
 
+test-shuma-route-namespace-contract: ## Validate canonical Shuma route-namespace contract gates
+	@echo "$(CYAN)🧪 Validating Shuma route namespace contract...$(NC)"
+	@./scripts/set_crate_type.sh rlib
+	@cargo test canonical_shuma_owned_routes_live_under_shuma_prefix -- --nocapture
+	@cargo test shuma_route_matchers_are_boundary_aware -- --nocapture
+	@cargo test static_bypass_preserves_route_namespace_public_and_shuma_control_paths -- --nocapture
+	@python3 -m unittest scripts/tests/test_shuma_route_namespace_contract.py
+
 test-sim-public-generated-site-contract: ## Validate focused contributor-generated sim-public site contract gates
 	@echo "$(CYAN)🧪 Validating sim-public generated-site contract...$(NC)"
 	@./scripts/set_crate_type.sh rlib

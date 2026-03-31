@@ -23,6 +23,7 @@ mod config; // Config loading and defaults
 mod crawler_policy; // Crawler-facing policy surfaces (robots.txt)
 mod deception; // Shared deception primitives (maze+tarpit)
 mod enforcement; // Enforcement actions (ban, block page, honeypot, rate limiting)
+mod http_route_namespace; // Canonical Shuma-owned versus public route namespace contract
 mod maze; // maze crawler trap
 mod observability; // Metrics and monitoring surfaces
 mod providers; // Provider contracts for swappable implementations
@@ -175,9 +176,9 @@ pub(crate) fn should_bypass_expensive_bot_checks_for_static(req: &Request, path:
     }
     if matches!(
         path,
-        "/health"
-            | "/metrics"
-            | "/robots.txt"
+        crate::http_route_namespace::SHUMA_HEALTH_PATH
+            | crate::http_route_namespace::SHUMA_METRICS_PATH
+            | crate::http_route_namespace::PUBLIC_ROBOTS_TXT_PATH
             | "/pow"
             | "/pow/verify"
             | "/tarpit/progress"
@@ -186,7 +187,7 @@ pub(crate) fn should_bypass_expensive_bot_checks_for_static(req: &Request, path:
     ) {
         return false;
     }
-    if path.starts_with("/admin") {
+    if crate::http_route_namespace::is_shuma_admin_path(path) {
         return false;
     }
     if path == "/sim/public" || path.starts_with("/sim/public/") {

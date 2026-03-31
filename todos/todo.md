@@ -164,16 +164,6 @@ Current note:
   - and the next remaining blocker is projection truth: operator/admin and dashboard surfaces still need to distinguish judged mixed-attacker episodes from mere lane visibility.
 - Do not claim mixed-attacker strict-baseline proof from the new score spine alone; mixed-attacker proof projection and repeated retained improvement under mixed pressure still remain required.
 
-- [ ] ROUTE-NS-1A Freeze the canonical Shuma route-namespace contract.
-  - Reference context:
-    - [`docs/research/2026-03-31-route-namespace-and-root-hosted-public-site-review.md`](../docs/research/2026-03-31-route-namespace-and-root-hosted-public-site-review.md)
-    - [`docs/plans/2026-03-31-route-namespace-and-root-hosted-public-site-plan.md`](../docs/plans/2026-03-31-route-namespace-and-root-hosted-public-site-plan.md)
-  - Closure gate:
-    - namespace truth: one canonical route-namespace module must own Shuma control-plane prefixes and public metadata paths instead of route literals being scattered across runtime code
-    - boundary truth: the contract must explicitly distinguish root-hosted public content from `/shuma/*` control and operational surfaces
-    - proof: add and pass `make test-shuma-route-namespace-contract`
-    - insufficient: ad hoc route renames with no central ownership contract or dual canonical path families left active
-
 - [ ] ROUTE-NS-1B Move the generated contributor public-content site from `/sim/public/*` to root-hosted public paths.
   - Reference context:
     - [`docs/research/2026-03-31-route-namespace-and-root-hosted-public-site-review.md`](../docs/research/2026-03-31-route-namespace-and-root-hosted-public-site-review.md)

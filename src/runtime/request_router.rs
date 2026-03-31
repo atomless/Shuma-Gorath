@@ -1,6 +1,8 @@
 use spin_sdk::http::{Method, Request, Response};
 use spin_sdk::key_value::Store;
 
+use crate::http_route_namespace as route_namespace;
+
 const SITE_ID_DEFAULT: &str = "default";
 
 fn request_user_agent(req: &Request) -> &str {
@@ -820,7 +822,7 @@ pub(crate) fn maybe_handle_early_route(
     }
 
     // robots.txt - configurable AI crawler blocking
-    if path == "/robots.txt" {
+    if path == route_namespace::PUBLIC_ROBOTS_TXT_PATH {
         if let Ok(store) = Store::open_default() {
             let cfg = match crate::load_runtime_config(&store, "default", path) {
                 Ok(cfg) => cfg,

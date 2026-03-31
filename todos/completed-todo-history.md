@@ -4,6 +4,25 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-31)
 
+### ROUTE-NS-1A Freeze The Canonical Shuma Route-Namespace Contract
+
+- [x] Completed the first executable route-namespace tranche across:
+  - [`../src/http_route_namespace.rs`](../src/http_route_namespace.rs)
+  - [`../src/lib.rs`](../src/lib.rs)
+  - [`../src/lib_tests/mod.rs`](../src/lib_tests/mod.rs)
+  - [`../src/lib_tests/route_namespace.rs`](../src/lib_tests/route_namespace.rs)
+  - [`../src/runtime/request_router.rs`](../src/runtime/request_router.rs)
+  - [`../scripts/tests/test_shuma_route_namespace_contract.py`](../scripts/tests/test_shuma_route_namespace_contract.py)
+  - [`../Makefile`](../Makefile)
+- [x] What landed:
+  - one canonical `http_route_namespace` module now owns the intended `/shuma/*` control-plane contract plus root-hosted public metadata paths,
+  - runtime code now imports that module instead of embedding fresh route literals in isolation,
+  - and a focused `make test-shuma-route-namespace-contract` gate now freezes the namespace module, boundary-aware matchers, and route-sensitive static-bypass behavior.
+- [x] Why:
+  - the wider route migration needs one authoritative route contract before the generated-site move and the later `/shuma/*` control-plane migration can proceed without path drift.
+- [x] Evidence:
+  - `make test-shuma-route-namespace-contract`
+
 ### Route Namespace And Root-Hosted Public Site Planning Chain
 
 - [x] Captured the route-namespace correction research and implementation plan in:
