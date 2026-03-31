@@ -223,6 +223,10 @@ def _resolve_recurrence_context(
     if recurrence_context:
         return {
             "strategy": str(recurrence_context.get("strategy") or ""),
+            "reentry_scope": str(recurrence_context.get("reentry_scope") or ""),
+            "dormancy_truth_mode": str(
+                recurrence_context.get("dormancy_truth_mode") or ""
+            ),
             "session_index": int(recurrence_context.get("session_index") or 0),
             "reentry_count": int(recurrence_context.get("reentry_count") or 0),
             "max_reentries_per_run": int(
@@ -231,18 +235,34 @@ def _resolve_recurrence_context(
             "planned_dormant_gap_seconds": int(
                 recurrence_context.get("planned_dormant_gap_seconds") or 0
             ),
+            "representative_dormant_gap_seconds": int(
+                recurrence_context.get("representative_dormant_gap_seconds") or 0
+            ),
         }
     recurrence_envelope = dict(profile.get("recurrence_envelope") or {})
     dormant_gap = recurrence_envelope.get("dormant_gap_seconds")
     dormant_gap_min = 0
     if isinstance(dormant_gap, dict):
         dormant_gap_min = int(dormant_gap.get("min") or 0)
+    representative_dormant_gap = recurrence_envelope.get(
+        "representative_dormant_gap_seconds"
+    )
+    representative_dormant_gap_min = 0
+    if isinstance(representative_dormant_gap, dict):
+        representative_dormant_gap_min = int(representative_dormant_gap.get("min") or 0)
     return {
         "strategy": str(recurrence_envelope.get("strategy") or ""),
+        "reentry_scope": str(recurrence_envelope.get("reentry_scope") or ""),
+        "dormancy_truth_mode": (
+            "accelerated_local_proof"
+            if representative_dormant_gap_min > dormant_gap_min
+            else "representative_runtime"
+        ),
         "session_index": 1,
         "reentry_count": 0,
         "max_reentries_per_run": int(recurrence_envelope.get("max_reentries_per_run") or 0),
         "planned_dormant_gap_seconds": dormant_gap_min,
+        "representative_dormant_gap_seconds": representative_dormant_gap_min,
     }
 
 
@@ -326,10 +346,15 @@ def build_browser_mode_realism_execution_plan(
         "observed_browser_locales": [str(browser_transport.get("browser_locale") or "")],
         "browser_proxy_url": browser_proxy_url,
         "recurrence_strategy": str(recurrence_context["strategy"]),
+        "reentry_scope": str(recurrence_context["reentry_scope"]),
+        "dormancy_truth_mode": str(recurrence_context["dormancy_truth_mode"]),
         "session_index": int(recurrence_context["session_index"]),
         "reentry_count": int(recurrence_context["reentry_count"]),
         "max_reentries_per_run": int(recurrence_context["max_reentries_per_run"]),
         "planned_dormant_gap_seconds": int(recurrence_context["planned_dormant_gap_seconds"]),
+        "representative_dormant_gap_seconds": int(
+            recurrence_context["representative_dormant_gap_seconds"]
+        ),
     }
 
 
@@ -597,10 +622,15 @@ def build_request_mode_realism_execution_plan(
         "observed_accept_languages": observed_accept_languages,
         "actions": expanded_actions,
         "recurrence_strategy": str(recurrence_context["strategy"]),
+        "reentry_scope": str(recurrence_context["reentry_scope"]),
+        "dormancy_truth_mode": str(recurrence_context["dormancy_truth_mode"]),
         "session_index": int(recurrence_context["session_index"]),
         "reentry_count": int(recurrence_context["reentry_count"]),
         "max_reentries_per_run": int(recurrence_context["max_reentries_per_run"]),
         "planned_dormant_gap_seconds": int(recurrence_context["planned_dormant_gap_seconds"]),
+        "representative_dormant_gap_seconds": int(
+            recurrence_context["representative_dormant_gap_seconds"]
+        ),
     }
 
 

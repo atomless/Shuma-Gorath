@@ -946,6 +946,12 @@ async function runScenario(payload) {
             recurrence_strategy:
               String(sessionPlanRaw.recurrence_strategy || "").trim() ||
               String(sessionPlanRaw.recurrence_context?.strategy || "").trim(),
+            reentry_scope:
+              String(sessionPlanRaw.reentry_scope || "").trim() ||
+              String(sessionPlanRaw.recurrence_context?.reentry_scope || "").trim(),
+            dormancy_truth_mode:
+              String(sessionPlanRaw.dormancy_truth_mode || "").trim() ||
+              String(sessionPlanRaw.recurrence_context?.dormancy_truth_mode || "").trim(),
             session_index: clampInt(
               sessionPlanRaw.session_index ?? sessionPlanRaw.recurrence_context?.session_index,
               0,
@@ -970,6 +976,13 @@ async function runScenario(payload) {
                 sessionPlanRaw.recurrence_context?.planned_dormant_gap_seconds,
               0,
               3600,
+              0,
+            ),
+            representative_dormant_gap_seconds: clampInt(
+              sessionPlanRaw.representative_dormant_gap_seconds ??
+                sessionPlanRaw.recurrence_context?.representative_dormant_gap_seconds,
+              0,
+              604800,
               0,
             ),
             stop_reason:

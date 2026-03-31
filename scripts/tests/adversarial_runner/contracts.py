@@ -133,19 +133,40 @@ def normalize_lane_realism_profile(
     if not isinstance(recurrence_envelope, dict):
         raise RuntimeError(f"{field_name}.recurrence_envelope must be an object")
     recurrence_strategy = str(recurrence_envelope.get("strategy") or "").strip()
-    if recurrence_strategy != "bounded_single_tick_reentry":
+    if recurrence_strategy != "bounded_campaign_return":
         raise RuntimeError(
-            f"{field_name}.recurrence_envelope.strategy must be bounded_single_tick_reentry"
+            f"{field_name}.recurrence_envelope.strategy must be bounded_campaign_return"
         )
     recurrence_scope = str(recurrence_envelope.get("reentry_scope") or "").strip()
-    if recurrence_scope != "within_run":
+    if recurrence_scope != "cross_window_campaign":
         raise RuntimeError(
-            f"{field_name}.recurrence_envelope.reentry_scope must be within_run"
+            f"{field_name}.recurrence_envelope.reentry_scope must be cross_window_campaign"
         )
     max_reentries_per_run = recurrence_envelope.get("max_reentries_per_run")
     if not _is_non_negative_int(max_reentries_per_run) or int(max_reentries_per_run) < 1:
         raise RuntimeError(
             f"{field_name}.recurrence_envelope.max_reentries_per_run must be integer >= 1"
+        )
+    representative_dormant_gap_seconds = _normalize_realism_range(
+        recurrence_envelope.get("representative_dormant_gap_seconds"),
+        field_name=(
+            f"{field_name}.recurrence_envelope.representative_dormant_gap_seconds"
+        ),
+    )
+    if representative_dormant_gap_seconds["min"] < 3600:
+        raise RuntimeError(
+            f"{field_name}.recurrence_envelope.representative_dormant_gap_seconds.min must be >= 3600"
+        )
+    effective_dormant_gap_seconds = _normalize_realism_range(
+        recurrence_envelope.get("dormant_gap_seconds"),
+        field_name=f"{field_name}.recurrence_envelope.dormant_gap_seconds",
+    )
+    if (
+        representative_dormant_gap_seconds["min"]
+        <= effective_dormant_gap_seconds["max"]
+    ):
+        raise RuntimeError(
+            f"{field_name}.recurrence_envelope.representative_dormant_gap_seconds.min must exceed effective dormant gap max"
         )
 
     identity_rotation = payload.get("identity_rotation")
@@ -294,10 +315,8 @@ def normalize_lane_realism_profile(
         "recurrence_envelope": {
             "strategy": recurrence_strategy,
             "reentry_scope": recurrence_scope,
-            "dormant_gap_seconds": _normalize_realism_range(
-                recurrence_envelope.get("dormant_gap_seconds"),
-                field_name=f"{field_name}.recurrence_envelope.dormant_gap_seconds",
-            ),
+            "dormant_gap_seconds": effective_dormant_gap_seconds,
+            "representative_dormant_gap_seconds": representative_dormant_gap_seconds,
             "max_reentries_per_run": int(max_reentries_per_run),
         },
         "receipt_contract": {

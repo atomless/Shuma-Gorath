@@ -1903,9 +1903,11 @@ test-adversary-sim-header-transport-realism: ## Focused adversary-sim header/loc
 test-adversary-sim-recurrence-realism: ## Focused adversary-sim recurrence realism gate (bounded dormancy, re-entry receipts, and dispatch truth)
 	@echo "$(CYAN)🧪 Running adversary-sim recurrence realism gate...$(NC)"
 	@./scripts/set_crate_type.sh rlib
-	@cargo test admin::adversary_sim_lane_runtime::tests::scrapling_worker_plan_surfaces_bounded_recurrence_context -- --exact --nocapture
+	@cargo test admin::adversary_sim_lane_runtime::tests::scrapling_worker_plan_surfaces_long_window_recurrence_context -- --exact --nocapture
+	@cargo test admin::adversary_sim_llm_lane::tests::llm_fulfillment_plan_surfaces_long_window_recurrence_context -- --exact --nocapture
 	@cargo test admin::adversary_sim_lane_runtime::tests::autonomous_supervisor_honors_recurrence_dormancy_before_dispatching_reentry_tick -- --exact --nocapture
 	@cargo test admin::adversary_sim::tests::generation_diagnostics_reports_healthy_recurrence_dormancy_between_sessions -- --exact --nocapture
+	@cargo test admin::adversary_sim::tests::status_payload_surfaces_long_window_recurrence_truth -- --exact --nocapture
 	@python3 -m unittest scripts/tests/test_adversarial_lane_realism_contract.py scripts/tests/test_llm_runtime_worker.py scripts/tests/test_adversarial_container_worker.py
 	@corepack pnpm exec node scripts/tests/test_adversarial_browser_driver.mjs
 	@python3 -m unittest scripts.tests.test_llm_runtime_browser_integration.LlmRuntimeBrowserIntegrationTests.test_run_browser_mode_blackbox_emits_real_session_traffic_against_local_public_site
@@ -1917,6 +1919,11 @@ test-adversary-sim-recurrence-realism: ## Focused adversary-sim recurrence reali
 	@$(SCRAPLING_VENV_PYTHON) -m unittest \
 		scripts.tests.test_scrapling_worker.ScraplingWorkerUnitTests.test_execute_worker_plan_bulk_scraper_emits_request_realism_receipt \
 		scripts.tests.test_scrapling_worker.ScraplingWorkerUnitTests.test_execute_worker_plan_browser_automation_emits_browser_realism_receipt
+
+test-adversary-sim-long-window-recurrence-realism: ## Focused adversary-sim long-window dormancy gate (campaign-return truth plus bounded local proof windows)
+	@echo "$(CYAN)🧪 Running adversary-sim long-window dormancy realism gate...$(NC)"
+	@$(MAKE) test-adversary-sim-recurrence-realism
+	@python3 -m unittest scripts/tests/test_adversary_sim_make_targets.py
 
 test-client-ip-topology-contract: ## Focused client-IP topology gate (shared-host direct/trusted/misconfigured, edge fallback, and /shuma/health hop rules)
 	@echo "$(CYAN)🧪 Running client-IP topology contract gate...$(NC)"

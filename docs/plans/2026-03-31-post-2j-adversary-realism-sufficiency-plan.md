@@ -85,6 +85,8 @@ That means:
 
 ## Task 3: `SIM-REALISM-3C` Add True Long-Window Dormancy And Return Realism
 
+**Status:** Landed. Recurrence profiles now preserve both an accelerated bounded local proof window and a representative hours-to-days campaign-return window, planner and worker receipts now expose `reentry_scope`, `dormancy_truth_mode`, and `representative_dormant_gap_seconds`, and status/diagnostics surfaces now make that distinction explicit instead of letting a short local dormancy masquerade as proven campaign-scale return behavior.
+
 **Files:**
 - Later code targets: `src/admin/adversary_sim_state.rs`, `src/admin/adversary_sim_lane_runtime.rs`, realism-profile contracts, recurrence receipts, and relevant docs
 - Later proof targets: focused recurrence tests, `Makefile`

@@ -1870,11 +1870,14 @@ mod tests {
                                 peak_concurrent_activities: Some(3),
                                 session_handles: vec!["agentic-request-session-1".to_string()],
                                 identity_rotation_count: None,
-                                recurrence_strategy: "bounded_single_tick_reentry".to_string(),
+                                recurrence_strategy: "bounded_campaign_return".to_string(),
+                                reentry_scope: "cross_window_campaign".to_string(),
+                                dormancy_truth_mode: "accelerated_local_proof".to_string(),
                                 session_index: Some(1),
                                 reentry_count: Some(0),
                                 max_reentries_per_run: Some(3),
                                 planned_dormant_gap_seconds: Some(4),
+                                representative_dormant_gap_seconds: Some(7_200),
                                 stop_reason: "response_pressure_stop".to_string(),
                             },
                         ),
@@ -2032,11 +2035,14 @@ mod tests {
                                 peak_concurrent_activities: None,
                                 session_handles: vec!["agentic-browser-session-1".to_string()],
                                 identity_rotation_count: Some(0),
-                                recurrence_strategy: "bounded_single_tick_reentry".to_string(),
+                                recurrence_strategy: "bounded_campaign_return".to_string(),
+                                reentry_scope: "cross_window_campaign".to_string(),
+                                dormancy_truth_mode: "accelerated_local_proof".to_string(),
                                 session_index: Some(1),
                                 reentry_count: Some(0),
                                 max_reentries_per_run: Some(2),
                                 planned_dormant_gap_seconds: Some(7),
+                                representative_dormant_gap_seconds: Some(21_600),
                                 stop_reason: "top_level_budget_exhausted".to_string(),
                             },
                         ),
@@ -2140,11 +2146,14 @@ mod tests {
                             ],
                             session_handles: Vec::new(),
                             identity_rotation_count: 1,
-                            recurrence_strategy: "bounded_single_tick_reentry".to_string(),
+                            recurrence_strategy: "bounded_campaign_return".to_string(),
+                            reentry_scope: "cross_window_campaign".to_string(),
+                            dormancy_truth_mode: "accelerated_local_proof".to_string(),
                             session_index: Some(1),
                             reentry_count: Some(0),
                             max_reentries_per_run: Some(3),
                             planned_dormant_gap_seconds: Some(3),
+                            representative_dormant_gap_seconds: Some(14_400),
                             visited_url_count: Some(7),
                             discovered_url_count: Some(9),
                             deepest_depth_reached: Some(4),
@@ -6755,10 +6764,13 @@ mod admin_config_tests {
         let mut persisted = crate::admin::adversary_sim::load_state(&store, "default");
         persisted.last_generated_at = Some(0);
         persisted.recurrence_strategy = None;
+        persisted.recurrence_reentry_scope = None;
+        persisted.recurrence_dormancy_truth_mode = None;
         persisted.recurrence_session_index = 0;
         persisted.recurrence_reentry_count = 0;
         persisted.recurrence_max_reentries_per_run = None;
         persisted.recurrence_last_planned_gap_seconds = None;
+        persisted.recurrence_last_representative_gap_seconds = None;
         persisted.recurrence_dormant_until = None;
         crate::admin::adversary_sim::save_state(&store, "default", &persisted)
             .expect("state save");
@@ -7657,10 +7669,13 @@ mod admin_config_tests {
         let mut active_state = crate::admin::adversary_sim::load_state(&store, "default");
         active_state.ends_at = Some(now_ts().saturating_sub(1));
         active_state.recurrence_strategy = None;
+        active_state.recurrence_reentry_scope = None;
+        active_state.recurrence_dormancy_truth_mode = None;
         active_state.recurrence_session_index = 0;
         active_state.recurrence_reentry_count = 0;
         active_state.recurrence_max_reentries_per_run = None;
         active_state.recurrence_last_planned_gap_seconds = None;
+        active_state.recurrence_last_representative_gap_seconds = None;
         active_state.recurrence_dormant_until = None;
         crate::admin::adversary_sim::save_state(&store, "default", &active_state)
             .expect("state save");
@@ -8743,10 +8758,13 @@ mod admin_config_tests {
             pending_llm_tick_id: None,
             pending_llm_started_at: None,
             recurrence_strategy: None,
+            recurrence_reentry_scope: None,
+            recurrence_dormancy_truth_mode: None,
             recurrence_session_index: 0,
             recurrence_reentry_count: 0,
             recurrence_max_reentries_per_run: None,
             recurrence_last_planned_gap_seconds: None,
+            recurrence_last_representative_gap_seconds: None,
             recurrence_dormant_until: None,
             lane_diagnostics: crate::admin::adversary_sim::LaneDiagnosticsState::default(),
             updated_at: now.saturating_sub(300),
@@ -8912,10 +8930,13 @@ mod admin_config_tests {
             pending_llm_tick_id: None,
             pending_llm_started_at: None,
             recurrence_strategy: None,
+            recurrence_reentry_scope: None,
+            recurrence_dormancy_truth_mode: None,
             recurrence_session_index: 0,
             recurrence_reentry_count: 0,
             recurrence_max_reentries_per_run: None,
             recurrence_last_planned_gap_seconds: None,
+            recurrence_last_representative_gap_seconds: None,
             recurrence_dormant_until: None,
             lane_diagnostics: crate::admin::adversary_sim::LaneDiagnosticsState::default(),
             updated_at: now,
@@ -9420,10 +9441,13 @@ mod admin_config_tests {
             pending_llm_tick_id: None,
             pending_llm_started_at: None,
             recurrence_strategy: None,
+            recurrence_reentry_scope: None,
+            recurrence_dormancy_truth_mode: None,
             recurrence_session_index: 0,
             recurrence_reentry_count: 0,
             recurrence_max_reentries_per_run: None,
             recurrence_last_planned_gap_seconds: None,
+            recurrence_last_representative_gap_seconds: None,
             recurrence_dormant_until: None,
             lane_diagnostics: crate::admin::adversary_sim::LaneDiagnosticsState::default(),
             updated_at: now.saturating_sub(10),

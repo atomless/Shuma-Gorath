@@ -569,6 +569,8 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
                 "realism_profile": realism_profile,
                 "recurrence_context": {
                     "strategy": realism_profile["recurrence_envelope"]["strategy"],
+                    "reentry_scope": realism_profile["recurrence_envelope"]["reentry_scope"],
+                    "dormancy_truth_mode": "accelerated_local_proof",
                     "session_index": 1,
                     "reentry_count": 0,
                     "max_reentries_per_run": realism_profile["recurrence_envelope"][
@@ -577,6 +579,9 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
                     "planned_dormant_gap_seconds": realism_profile["recurrence_envelope"][
                         "dormant_gap_seconds"
                     ]["min"],
+                    "representative_dormant_gap_seconds": realism_profile[
+                        "recurrence_envelope"
+                    ]["representative_dormant_gap_seconds"]["min"],
                 },
                 "request_identity_pool": [],
                 "browser_identity_pool": [],
@@ -1092,11 +1097,18 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
         self.assertEqual(receipt["transport_profile"], "curl_impersonate")
         self.assertIn("chrome_android", receipt["observed_user_agent_families"])
         self.assertIn("en-US,en;q=0.9", receipt["observed_accept_languages"])
-        self.assertEqual(receipt["recurrence_strategy"], "bounded_single_tick_reentry")
+        self.assertEqual(receipt["recurrence_strategy"], "bounded_campaign_return")
+        self.assertEqual(receipt["reentry_scope"], "cross_window_campaign")
+        self.assertEqual(receipt["dormancy_truth_mode"], "accelerated_local_proof")
         self.assertEqual(receipt["session_index"], 1)
         self.assertEqual(receipt["reentry_count"], 0)
         self.assertGreaterEqual(receipt["max_reentries_per_run"], 1)
         self.assertGreaterEqual(receipt["planned_dormant_gap_seconds"], 1)
+        self.assertGreaterEqual(receipt["representative_dormant_gap_seconds"], 3_600)
+        self.assertGreater(
+            receipt["representative_dormant_gap_seconds"],
+            receipt["planned_dormant_gap_seconds"],
+        )
         self.assertGreaterEqual(sleep_mock.call_count, len(receipt["inter_activity_gaps_ms"]))
         self.assertIn(
             receipt["stop_reason"],
@@ -1184,11 +1196,18 @@ class ScraplingWorkerUnitTests(unittest.TestCase):
         self.assertGreaterEqual(receipt["secondary_request_count"], 1)
         self.assertGreaterEqual(receipt["background_request_count"], 1)
         self.assertEqual(receipt["subresource_request_count"], 0)
-        self.assertEqual(receipt["recurrence_strategy"], "bounded_single_tick_reentry")
+        self.assertEqual(receipt["recurrence_strategy"], "bounded_campaign_return")
+        self.assertEqual(receipt["reentry_scope"], "cross_window_campaign")
+        self.assertEqual(receipt["dormancy_truth_mode"], "accelerated_local_proof")
         self.assertEqual(receipt["session_index"], 1)
         self.assertEqual(receipt["reentry_count"], 0)
         self.assertGreaterEqual(receipt["max_reentries_per_run"], 1)
         self.assertGreaterEqual(receipt["planned_dormant_gap_seconds"], 1)
+        self.assertGreaterEqual(receipt["representative_dormant_gap_seconds"], 3_600)
+        self.assertGreater(
+            receipt["representative_dormant_gap_seconds"],
+            receipt["planned_dormant_gap_seconds"],
+        )
         self.assertEqual(
             len(receipt["dwell_intervals_ms"]),
             max(0, receipt["top_level_action_count"] - 1),

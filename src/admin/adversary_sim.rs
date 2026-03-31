@@ -373,11 +373,14 @@ mod tests {
             ends_at: Some(400),
             active_run_count: 1,
             active_lane_count: 1,
-            recurrence_strategy: Some("bounded_single_tick_reentry".to_string()),
+            recurrence_strategy: Some("bounded_campaign_return".to_string()),
+            recurrence_reentry_scope: Some("cross_window_campaign".to_string()),
+            recurrence_dormancy_truth_mode: Some("accelerated_local_proof".to_string()),
             recurrence_session_index: 2,
             recurrence_reentry_count: 1,
             recurrence_max_reentries_per_run: Some(3),
             recurrence_last_planned_gap_seconds: Some(6),
+            recurrence_last_representative_gap_seconds: Some(21_600),
             recurrence_dormant_until: Some(150),
             updated_at: 120,
             ..ControlState::default()
@@ -386,8 +389,69 @@ mod tests {
         let diagnostics = generation_diagnostics(140, true, &state);
         assert_eq!(diagnostics.health, "healthy");
         assert_eq!(diagnostics.reason, "recurrence_dormant_gap");
+        assert!(
+            diagnostics
+                .recommended_action
+                .contains("accelerated local proof window")
+        );
 
         std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+    }
+
+    #[test]
+    fn status_payload_surfaces_long_window_recurrence_truth() {
+        let state = ControlState {
+            phase: ControlPhase::Running,
+            desired_enabled: true,
+            desired_lane: RuntimeLane::ScraplingTraffic,
+            active_lane: Some(RuntimeLane::ScraplingTraffic),
+            run_id: Some("run-recurrence-status".to_string()),
+            started_at: Some(100),
+            ends_at: Some(400),
+            active_run_count: 1,
+            active_lane_count: 1,
+            recurrence_strategy: Some("bounded_campaign_return".to_string()),
+            recurrence_reentry_scope: Some("cross_window_campaign".to_string()),
+            recurrence_dormancy_truth_mode: Some("accelerated_local_proof".to_string()),
+            recurrence_session_index: 2,
+            recurrence_reentry_count: 1,
+            recurrence_max_reentries_per_run: Some(3),
+            recurrence_last_planned_gap_seconds: Some(6),
+            recurrence_last_representative_gap_seconds: Some(21_600),
+            recurrence_dormant_until: Some(150),
+            updated_at: 120,
+            ..ControlState::default()
+        };
+
+        let payload = status_payload(
+            140,
+            crate::config::RuntimeEnvironment::RuntimeDev,
+            true,
+            true,
+            180,
+            &state,
+        );
+        assert_eq!(
+            payload
+                .get("recurrence")
+                .and_then(|value| value.get("reentry_scope"))
+                .and_then(|value| value.as_str()),
+            Some("cross_window_campaign")
+        );
+        assert_eq!(
+            payload
+                .get("recurrence")
+                .and_then(|value| value.get("dormancy_truth_mode"))
+                .and_then(|value| value.as_str()),
+            Some("accelerated_local_proof")
+        );
+        assert_eq!(
+            payload
+                .get("recurrence")
+                .and_then(|value| value.get("last_representative_gap_seconds"))
+                .and_then(|value| value.as_u64()),
+            Some(21_600)
+        );
     }
 
     #[test]

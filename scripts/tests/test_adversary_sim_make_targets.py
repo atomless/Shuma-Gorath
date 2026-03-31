@@ -316,11 +316,19 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
         self.assertIsNotNone(match)
         body = match.group(0)
         self.assertIn(
-            "scrapling_worker_plan_surfaces_bounded_recurrence_context",
+            "scrapling_worker_plan_surfaces_long_window_recurrence_context",
+            body,
+        )
+        self.assertIn(
+            "llm_fulfillment_plan_surfaces_long_window_recurrence_context",
             body,
         )
         self.assertIn(
             "generation_diagnostics_reports_healthy_recurrence_dormancy_between_sessions",
+            body,
+        )
+        self.assertIn(
+            "status_payload_surfaces_long_window_recurrence_truth",
             body,
         )
         self.assertIn(
@@ -329,6 +337,18 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
         )
         self.assertIn("scripts/tests/test_llm_runtime_worker.py", body)
         self.assertIn("scripts/tests/test_adversarial_container_worker.py", body)
+
+    def test_long_window_recurrence_realism_target_uses_campaign_truth_selectors(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-adversary-sim-long-window-recurrence-realism:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn("test-adversary-sim-recurrence-realism", body)
+        self.assertIn("long-window dormancy", body)
 
     def test_trusted_ingress_realism_target_uses_proxy_and_planner_selectors(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")

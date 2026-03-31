@@ -25,10 +25,13 @@ pub struct ScraplingCrawlStats {
 #[serde(deny_unknown_fields)]
 pub(crate) struct LaneRealismRecurrenceContext {
     pub strategy: String,
+    pub reentry_scope: String,
+    pub dormancy_truth_mode: String,
     pub session_index: u64,
     pub reentry_count: u64,
     pub max_reentries_per_run: u64,
     pub planned_dormant_gap_seconds: u64,
+    pub representative_dormant_gap_seconds: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -83,6 +86,10 @@ pub struct ScraplingRealismReceipt {
     pub identity_rotation_count: u64,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub recurrence_strategy: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub reentry_scope: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub dormancy_truth_mode: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session_index: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -91,6 +98,8 @@ pub struct ScraplingRealismReceipt {
     pub max_reentries_per_run: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub planned_dormant_gap_seconds: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub representative_dormant_gap_seconds: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub visited_url_count: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -239,6 +248,10 @@ pub struct LlmRuntimeRealismReceipt {
     pub identity_rotation_count: Option<u64>,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub recurrence_strategy: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub reentry_scope: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub dormancy_truth_mode: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session_index: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -247,6 +260,8 @@ pub struct LlmRuntimeRealismReceipt {
     pub max_reentries_per_run: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub planned_dormant_gap_seconds: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub representative_dormant_gap_seconds: Option<u64>,
     pub stop_reason: String,
 }
 

@@ -379,13 +379,24 @@ def _build_recurrence_context(realism_profile: Dict[str, Any]) -> Dict[str, Any]
     recurrence = dict_or_empty(realism_profile.get("recurrence_envelope"))
     dormant_gap = dict_or_empty(recurrence.get("dormant_gap_seconds"))
     min_gap = int_or_zero(dormant_gap.get("min"))
+    representative_dormant_gap = dict_or_empty(
+        recurrence.get("representative_dormant_gap_seconds")
+    )
+    representative_min_gap = int_or_zero(representative_dormant_gap.get("min"))
     max_reentries = int_or_zero(recurrence.get("max_reentries_per_run"))
     return {
         "strategy": str(recurrence.get("strategy") or "").strip(),
+        "reentry_scope": str(recurrence.get("reentry_scope") or "").strip(),
+        "dormancy_truth_mode": (
+            "accelerated_local_proof"
+            if representative_min_gap > min_gap
+            else "representative_runtime"
+        ),
         "session_index": 1,
         "reentry_count": 0,
         "max_reentries_per_run": max_reentries,
         "planned_dormant_gap_seconds": max(1, min_gap),
+        "representative_dormant_gap_seconds": representative_min_gap,
     }
 
 

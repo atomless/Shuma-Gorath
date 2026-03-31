@@ -290,10 +290,13 @@ def _parse_request_realism_plan(
             "action_proxy_urls": [None for _ in range(actions_count)],
             "action_request_headers": [{} for _ in range(actions_count)],
             "recurrence_strategy": "",
+            "reentry_scope": "",
+            "dormancy_truth_mode": "",
             "session_index": 0,
             "reentry_count": 0,
             "max_reentries_per_run": 0,
             "planned_dormant_gap_seconds": 0,
+            "representative_dormant_gap_seconds": 0,
         }
 
     payload = json.loads(text)
@@ -403,11 +406,16 @@ def _parse_request_realism_plan(
     ]
     transport_profile = str(payload.get("transport_profile") or "").strip() or "urllib_direct"
     recurrence_strategy = str(payload.get("recurrence_strategy") or "").strip()
+    reentry_scope = str(payload.get("reentry_scope") or "").strip()
+    dormancy_truth_mode = str(payload.get("dormancy_truth_mode") or "").strip()
     session_index = max(0, int(payload.get("session_index") or 0))
     reentry_count = max(0, int(payload.get("reentry_count") or 0))
     max_reentries_per_run = max(0, int(payload.get("max_reentries_per_run") or 0))
     planned_dormant_gap_seconds = max(
         0, int(payload.get("planned_dormant_gap_seconds") or 0)
+    )
+    representative_dormant_gap_seconds = max(
+        0, int(payload.get("representative_dormant_gap_seconds") or 0)
     )
     capability_state = str(payload.get("capability_state") or "").strip() or "degraded_fallback"
     action_types_attempted = [
@@ -447,10 +455,13 @@ def _parse_request_realism_plan(
         "action_proxy_urls": action_proxy_urls or [None for _ in range(actions_count)],
         "action_request_headers": action_request_headers or [{} for _ in range(actions_count)],
         "recurrence_strategy": recurrence_strategy,
+        "reentry_scope": reentry_scope,
+        "dormancy_truth_mode": dormancy_truth_mode,
         "session_index": session_index,
         "reentry_count": reentry_count,
         "max_reentries_per_run": max_reentries_per_run,
         "planned_dormant_gap_seconds": planned_dormant_gap_seconds,
+        "representative_dormant_gap_seconds": representative_dormant_gap_seconds,
     }
 
 
@@ -655,6 +666,8 @@ def execute_resolved_actions_with_realism(
         "session_handles": list(request_realism_plan.get("session_handles") or []),
         "identity_rotation_count": int(request_realism_plan.get("identity_rotation_count") or 0),
         "recurrence_strategy": str(request_realism_plan.get("recurrence_strategy") or ""),
+        "reentry_scope": str(request_realism_plan.get("reentry_scope") or ""),
+        "dormancy_truth_mode": str(request_realism_plan.get("dormancy_truth_mode") or ""),
         "session_index": int(request_realism_plan.get("session_index") or 0),
         "reentry_count": int(request_realism_plan.get("reentry_count") or 0),
         "max_reentries_per_run": int(
@@ -662,6 +675,9 @@ def execute_resolved_actions_with_realism(
         ),
         "planned_dormant_gap_seconds": int(
             request_realism_plan.get("planned_dormant_gap_seconds") or 0
+        ),
+        "representative_dormant_gap_seconds": int(
+            request_realism_plan.get("representative_dormant_gap_seconds") or 0
         ),
         "stop_reason": stop_reason,
     }

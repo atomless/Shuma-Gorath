@@ -129,6 +129,10 @@ pub struct ControlState {
     #[serde(default)]
     pub recurrence_strategy: Option<String>,
     #[serde(default)]
+    pub recurrence_reentry_scope: Option<String>,
+    #[serde(default)]
+    pub recurrence_dormancy_truth_mode: Option<String>,
+    #[serde(default)]
     pub recurrence_session_index: u64,
     #[serde(default)]
     pub recurrence_reentry_count: u64,
@@ -136,6 +140,8 @@ pub struct ControlState {
     pub recurrence_max_reentries_per_run: Option<u64>,
     #[serde(default)]
     pub recurrence_last_planned_gap_seconds: Option<u64>,
+    #[serde(default)]
+    pub recurrence_last_representative_gap_seconds: Option<u64>,
     #[serde(default)]
     pub recurrence_dormant_until: Option<u64>,
     #[serde(default)]
@@ -173,10 +179,13 @@ impl Default for ControlState {
             pending_llm_tick_id: None,
             pending_llm_started_at: None,
             recurrence_strategy: None,
+            recurrence_reentry_scope: None,
+            recurrence_dormancy_truth_mode: None,
             recurrence_session_index: 0,
             recurrence_reentry_count: 0,
             recurrence_max_reentries_per_run: None,
             recurrence_last_planned_gap_seconds: None,
+            recurrence_last_representative_gap_seconds: None,
             recurrence_dormant_until: None,
             lane_diagnostics: LaneDiagnosticsState::default(),
             updated_at: 0,
@@ -411,10 +420,13 @@ pub fn start_state_with_reason(
         pending_llm_tick_id: None,
         pending_llm_started_at: None,
         recurrence_strategy: None,
+        recurrence_reentry_scope: None,
+        recurrence_dormancy_truth_mode: None,
         recurrence_session_index: 1,
         recurrence_reentry_count: 0,
         recurrence_max_reentries_per_run: None,
         recurrence_last_planned_gap_seconds: None,
+        recurrence_last_representative_gap_seconds: None,
         recurrence_dormant_until: None,
         lane_diagnostics: current.lane_diagnostics.clone(),
         updated_at: now,
@@ -444,10 +456,13 @@ pub fn stop_state(now: u64, reason: &str, current: &ControlState) -> (ControlSta
     next.pending_llm_tick_id = None;
     next.pending_llm_started_at = None;
     next.recurrence_strategy = None;
+    next.recurrence_reentry_scope = None;
+    next.recurrence_dormancy_truth_mode = None;
     next.recurrence_session_index = 0;
     next.recurrence_reentry_count = 0;
     next.recurrence_max_reentries_per_run = None;
     next.recurrence_last_planned_gap_seconds = None;
+    next.recurrence_last_representative_gap_seconds = None;
     next.recurrence_dormant_until = None;
     next.updated_at = now;
 
@@ -520,10 +535,13 @@ pub fn reconcile_state(
             next.pending_llm_tick_id = None;
             next.pending_llm_started_at = None;
             next.recurrence_strategy = None;
+            next.recurrence_reentry_scope = None;
+            next.recurrence_dormancy_truth_mode = None;
             next.recurrence_session_index = 0;
             next.recurrence_reentry_count = 0;
             next.recurrence_max_reentries_per_run = None;
             next.recurrence_last_planned_gap_seconds = None;
+            next.recurrence_last_representative_gap_seconds = None;
             next.recurrence_dormant_until = None;
             next.updated_at = now;
         } else if next.stop_deadline.map(|deadline| now >= deadline).unwrap_or(false) {
@@ -550,10 +568,13 @@ pub fn reconcile_state(
             next.pending_llm_tick_id = None;
             next.pending_llm_started_at = None;
             next.recurrence_strategy = None;
+            next.recurrence_reentry_scope = None;
+            next.recurrence_dormancy_truth_mode = None;
             next.recurrence_session_index = 0;
             next.recurrence_reentry_count = 0;
             next.recurrence_max_reentries_per_run = None;
             next.recurrence_last_planned_gap_seconds = None;
+            next.recurrence_last_representative_gap_seconds = None;
             next.recurrence_dormant_until = None;
             next.updated_at = now;
         }
@@ -568,10 +589,13 @@ pub fn reconcile_state(
         next.pending_llm_tick_id = None;
         next.pending_llm_started_at = None;
         next.recurrence_strategy = None;
+        next.recurrence_reentry_scope = None;
+        next.recurrence_dormancy_truth_mode = None;
         next.recurrence_session_index = 0;
         next.recurrence_reentry_count = 0;
         next.recurrence_max_reentries_per_run = None;
         next.recurrence_last_planned_gap_seconds = None;
+        next.recurrence_last_representative_gap_seconds = None;
         next.recurrence_dormant_until = None;
     }
 

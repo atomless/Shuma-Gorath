@@ -220,11 +220,24 @@ class LlmRuntimeBrowserIntegrationTests(unittest.TestCase):
             max(0, realism_receipt["top_level_action_count"] - 1),
         )
         self.assertEqual(realism_receipt["identity_rotation_count"], 0)
-        self.assertEqual(realism_receipt["recurrence_strategy"], "bounded_single_tick_reentry")
+        self.assertEqual(realism_receipt["recurrence_strategy"], "bounded_campaign_return")
+        self.assertEqual(realism_receipt["reentry_scope"], "cross_window_campaign")
+        self.assertEqual(
+            realism_receipt["dormancy_truth_mode"],
+            "accelerated_local_proof",
+        )
         self.assertEqual(realism_receipt["session_index"], 1)
         self.assertEqual(realism_receipt["reentry_count"], 0)
         self.assertGreaterEqual(realism_receipt["max_reentries_per_run"], 1)
         self.assertGreaterEqual(realism_receipt["planned_dormant_gap_seconds"], 1)
+        self.assertGreaterEqual(
+            realism_receipt["representative_dormant_gap_seconds"],
+            3_600,
+        )
+        self.assertGreater(
+            realism_receipt["representative_dormant_gap_seconds"],
+            realism_receipt["planned_dormant_gap_seconds"],
+        )
 
         browser_evidence = worker_payload["browser_evidence"]
         self.assertEqual(browser_evidence["driver_runtime"], "playwright_chromium")

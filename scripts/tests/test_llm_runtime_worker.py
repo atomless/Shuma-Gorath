@@ -83,12 +83,25 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
         self.assertIn("Mozilla/5.0", execution_plan["user_agent"])
         self.assertEqual(
             execution_plan["recurrence_strategy"],
-            "bounded_single_tick_reentry",
+            "bounded_campaign_return",
+        )
+        self.assertEqual(execution_plan["reentry_scope"], "cross_window_campaign")
+        self.assertEqual(
+            execution_plan["dormancy_truth_mode"],
+            "accelerated_local_proof",
         )
         self.assertEqual(execution_plan["session_index"], 1)
         self.assertEqual(execution_plan["reentry_count"], 0)
         self.assertGreaterEqual(execution_plan["max_reentries_per_run"], 1)
         self.assertGreaterEqual(execution_plan["planned_dormant_gap_seconds"], 1)
+        self.assertGreaterEqual(
+            execution_plan["representative_dormant_gap_seconds"],
+            3_600,
+        )
+        self.assertGreater(
+            execution_plan["representative_dormant_gap_seconds"],
+            execution_plan["planned_dormant_gap_seconds"],
+        )
 
     def test_build_request_mode_realism_execution_plan_shapes_focused_microbursts(self):
         plan = {
@@ -157,12 +170,25 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
         self.assertTrue(any(gap >= 1000 for gap in execution_plan["inter_action_gaps_ms"]))
         self.assertEqual(
             execution_plan["recurrence_strategy"],
-            "bounded_single_tick_reentry",
+            "bounded_campaign_return",
+        )
+        self.assertEqual(execution_plan["reentry_scope"], "cross_window_campaign")
+        self.assertEqual(
+            execution_plan["dormancy_truth_mode"],
+            "accelerated_local_proof",
         )
         self.assertEqual(execution_plan["session_index"], 1)
         self.assertEqual(execution_plan["reentry_count"], 0)
         self.assertGreaterEqual(execution_plan["max_reentries_per_run"], 1)
         self.assertGreaterEqual(execution_plan["planned_dormant_gap_seconds"], 1)
+        self.assertGreaterEqual(
+            execution_plan["representative_dormant_gap_seconds"],
+            3_600,
+        )
+        self.assertGreater(
+            execution_plan["representative_dormant_gap_seconds"],
+            execution_plan["planned_dormant_gap_seconds"],
+        )
 
     def test_build_request_mode_realism_execution_plan_marks_degraded_capability_and_attempted_action_types(self):
         plan = {

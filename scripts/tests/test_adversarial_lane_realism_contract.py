@@ -52,7 +52,7 @@ class AdversarialLaneRealismContractUnitTests(unittest.TestCase):
             profile["identity_envelope"]["identity_classes"],
         )
 
-    def test_profiles_surface_bounded_recurrence_envelopes(self):
+    def test_profiles_surface_long_window_recurrence_envelopes(self):
         request_profile = contracts.resolve_lane_realism_profile(
             "bot_red_team",
             "request_mode",
@@ -66,13 +66,25 @@ class AdversarialLaneRealismContractUnitTests(unittest.TestCase):
             recurrence = profile["recurrence_envelope"]
             self.assertEqual(
                 recurrence["strategy"],
-                "bounded_single_tick_reentry",
+                "bounded_campaign_return",
             )
-            self.assertEqual(recurrence["reentry_scope"], "within_run")
+            self.assertEqual(recurrence["reentry_scope"], "cross_window_campaign")
             self.assertGreaterEqual(recurrence["dormant_gap_seconds"]["min"], 1)
             self.assertGreaterEqual(
                 recurrence["dormant_gap_seconds"]["max"],
                 recurrence["dormant_gap_seconds"]["min"],
+            )
+            self.assertGreaterEqual(
+                recurrence["representative_dormant_gap_seconds"]["min"],
+                3_600,
+            )
+            self.assertGreaterEqual(
+                recurrence["representative_dormant_gap_seconds"]["max"],
+                recurrence["representative_dormant_gap_seconds"]["min"],
+            )
+            self.assertGreater(
+                recurrence["representative_dormant_gap_seconds"]["min"],
+                recurrence["dormant_gap_seconds"]["max"],
             )
             self.assertGreaterEqual(recurrence["max_reentries_per_run"], 1)
 
@@ -121,6 +133,18 @@ class AdversarialLaneRealismContractUnitTests(unittest.TestCase):
         )
         self.assertIn(
             "subresource_request_count",
+            profile["receipt_contract"]["required_fields"],
+        )
+        self.assertIn(
+            "reentry_scope",
+            profile["receipt_contract"]["required_fields"],
+        )
+        self.assertIn(
+            "dormancy_truth_mode",
+            profile["receipt_contract"]["required_fields"],
+        )
+        self.assertIn(
+            "representative_dormant_gap_seconds",
             profile["receipt_contract"]["required_fields"],
         )
         self.assertIn(
@@ -226,6 +250,18 @@ class AdversarialLaneRealismContractUnitTests(unittest.TestCase):
         )
         self.assertIn(
             "subresource_request_count",
+            profile["receipt_contract"]["required_fields"],
+        )
+        self.assertIn(
+            "reentry_scope",
+            profile["receipt_contract"]["required_fields"],
+        )
+        self.assertIn(
+            "dormancy_truth_mode",
+            profile["receipt_contract"]["required_fields"],
+        )
+        self.assertIn(
+            "representative_dormant_gap_seconds",
             profile["receipt_contract"]["required_fields"],
         )
         self.assertIn(

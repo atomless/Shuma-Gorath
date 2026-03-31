@@ -210,10 +210,13 @@ pub fn status_payload(
         "recurrence": {
             "state": recurrence_state(state, now),
             "strategy": state.recurrence_strategy.clone(),
+            "reentry_scope": state.recurrence_reentry_scope.clone(),
+            "dormancy_truth_mode": state.recurrence_dormancy_truth_mode.clone(),
             "session_index": state.recurrence_session_index,
             "reentry_count": state.recurrence_reentry_count,
             "max_reentries_per_run": state.recurrence_max_reentries_per_run,
             "last_planned_gap_seconds": state.recurrence_last_planned_gap_seconds,
+            "last_representative_gap_seconds": state.recurrence_last_representative_gap_seconds,
             "dormant_until": state.recurrence_dormant_until
         }
     })
@@ -233,9 +236,20 @@ pub fn generation_diagnostics(
         if state.recurrence_dormant_until.map(|deadline| now < deadline).unwrap_or(false) {
             health = "healthy".to_string();
             reason = "recurrence_dormant_gap".to_string();
-            recommended_action =
-                "No action required; the active lane is intentionally dormant between bounded re-entry sessions."
-                    .to_string();
+            let truth_mode = state
+                .recurrence_dormancy_truth_mode
+                .as_deref()
+                .unwrap_or("representative_runtime");
+            let representative_gap = state
+                .recurrence_last_representative_gap_seconds
+                .unwrap_or_default();
+            recommended_action = if truth_mode == "accelerated_local_proof" {
+                format!(
+                    "No action required; the active lane is intentionally dormant between bounded campaign-return sessions, and this local run is using an accelerated local proof window for a representative {} second dormancy."
+                , representative_gap)
+            } else {
+                "No action required; the active lane is intentionally dormant between bounded campaign-return sessions.".to_string()
+            };
             return GenerationDiagnostics {
                 health,
                 reason,

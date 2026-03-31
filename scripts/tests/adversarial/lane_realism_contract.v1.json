@@ -44,10 +44,11 @@
           "max_bytes": 393216
         },
         "recurrence_envelope": {
-          "strategy": "bounded_single_tick_reentry",
-          "reentry_scope": "within_run",
+          "strategy": "bounded_campaign_return",
+          "reentry_scope": "cross_window_campaign",
           "max_reentries_per_run": 2,
-          "dormant_gap_seconds": { "min": 3, "max": 8 }
+          "dormant_gap_seconds": { "min": 3, "max": 8 },
+          "representative_dormant_gap_seconds": { "min": 14400, "max": 43200 }
         },
         "receipt_contract": {
           "schema_version": "sim-lane-realism-receipt.v1",
@@ -67,10 +68,13 @@
             "identity_handles",
             "identity_rotation_count",
             "recurrence_strategy",
+            "reentry_scope",
+            "dormancy_truth_mode",
             "session_index",
             "reentry_count",
             "max_reentries_per_run",
             "planned_dormant_gap_seconds",
+            "representative_dormant_gap_seconds",
             "visited_url_count",
             "discovered_url_count",
             "deepest_depth_reached",
@@ -123,10 +127,11 @@
           "max_bytes": 786432
         },
         "recurrence_envelope": {
-          "strategy": "bounded_single_tick_reentry",
-          "reentry_scope": "within_run",
+          "strategy": "bounded_campaign_return",
+          "reentry_scope": "cross_window_campaign",
           "max_reentries_per_run": 3,
-          "dormant_gap_seconds": { "min": 2, "max": 6 }
+          "dormant_gap_seconds": { "min": 2, "max": 6 },
+          "representative_dormant_gap_seconds": { "min": 7200, "max": 28800 }
         },
         "receipt_contract": {
           "schema_version": "sim-lane-realism-receipt.v1",
@@ -146,10 +151,13 @@
             "identity_handles",
             "identity_rotation_count",
             "recurrence_strategy",
+            "reentry_scope",
+            "dormancy_truth_mode",
             "session_index",
             "reentry_count",
             "max_reentries_per_run",
             "planned_dormant_gap_seconds",
+            "representative_dormant_gap_seconds",
             "visited_url_count",
             "discovered_url_count",
             "deepest_depth_reached",
@@ -202,10 +210,11 @@
           "max_bytes": 393216
         },
         "recurrence_envelope": {
-          "strategy": "bounded_single_tick_reentry",
-          "reentry_scope": "within_run",
+          "strategy": "bounded_campaign_return",
+          "reentry_scope": "cross_window_campaign",
           "max_reentries_per_run": 2,
-          "dormant_gap_seconds": { "min": 4, "max": 10 }
+          "dormant_gap_seconds": { "min": 4, "max": 10 },
+          "representative_dormant_gap_seconds": { "min": 21600, "max": 86400 }
         },
         "receipt_contract": {
           "schema_version": "sim-lane-realism-receipt.v1",
@@ -232,10 +241,13 @@
             "session_handles",
             "identity_rotation_count",
             "recurrence_strategy",
+            "reentry_scope",
+            "dormancy_truth_mode",
             "session_index",
             "reentry_count",
             "max_reentries_per_run",
             "planned_dormant_gap_seconds",
+            "representative_dormant_gap_seconds",
             "stop_reason"
           ]
         }
@@ -282,10 +294,11 @@
           "max_bytes": 393216
         },
         "recurrence_envelope": {
-          "strategy": "bounded_single_tick_reentry",
-          "reentry_scope": "within_run",
+          "strategy": "bounded_campaign_return",
+          "reentry_scope": "cross_window_campaign",
           "max_reentries_per_run": 1,
-          "dormant_gap_seconds": { "min": 6, "max": 12 }
+          "dormant_gap_seconds": { "min": 6, "max": 12 },
+          "representative_dormant_gap_seconds": { "min": 43200, "max": 172800 }
         },
         "receipt_contract": {
           "schema_version": "sim-lane-realism-receipt.v1",
@@ -312,10 +325,13 @@
             "session_handles",
             "identity_rotation_count",
             "recurrence_strategy",
+            "reentry_scope",
+            "dormancy_truth_mode",
             "session_index",
             "reentry_count",
             "max_reentries_per_run",
             "planned_dormant_gap_seconds",
+            "representative_dormant_gap_seconds",
             "stop_reason"
           ]
         }
@@ -362,10 +378,11 @@
           "max_bytes": 524288
         },
         "recurrence_envelope": {
-          "strategy": "bounded_single_tick_reentry",
-          "reentry_scope": "within_run",
+          "strategy": "bounded_campaign_return",
+          "reentry_scope": "cross_window_campaign",
           "max_reentries_per_run": 3,
-          "dormant_gap_seconds": { "min": 2, "max": 5 }
+          "dormant_gap_seconds": { "min": 2, "max": 5 },
+          "representative_dormant_gap_seconds": { "min": 3600, "max": 21600 }
         },
         "receipt_contract": {
           "schema_version": "sim-lane-realism-receipt.v1",
@@ -385,10 +402,13 @@
             "identity_handles",
             "identity_rotation_count",
             "recurrence_strategy",
+            "reentry_scope",
+            "dormancy_truth_mode",
             "session_index",
             "reentry_count",
             "max_reentries_per_run",
             "planned_dormant_gap_seconds",
+            "representative_dormant_gap_seconds",
             "stop_reason"
           ]
         }
@@ -437,10 +457,11 @@
           "max_bytes": 393216
         },
         "recurrence_envelope": {
-          "strategy": "bounded_single_tick_reentry",
-          "reentry_scope": "within_run",
+          "strategy": "bounded_campaign_return",
+          "reentry_scope": "cross_window_campaign",
           "max_reentries_per_run": 2,
-          "dormant_gap_seconds": { "min": 5, "max": 12 }
+          "dormant_gap_seconds": { "min": 5, "max": 12 },
+          "representative_dormant_gap_seconds": { "min": 21600, "max": 86400 }
         },
         "receipt_contract": {
           "schema_version": "sim-lane-realism-receipt.v1",
@@ -467,10 +488,13 @@
             "session_handles",
             "identity_rotation_count",
             "recurrence_strategy",
+            "reentry_scope",
+            "dormancy_truth_mode",
             "session_index",
             "reentry_count",
             "max_reentries_per_run",
             "planned_dormant_gap_seconds",
+            "representative_dormant_gap_seconds",
             "stop_reason"
           ]
         }
@@ -517,10 +541,11 @@
           "max_bytes": 524288
         },
         "recurrence_envelope": {
-          "strategy": "bounded_single_tick_reentry",
-          "reentry_scope": "within_run",
+          "strategy": "bounded_campaign_return",
+          "reentry_scope": "cross_window_campaign",
           "max_reentries_per_run": 3,
-          "dormant_gap_seconds": { "min": 3, "max": 9 }
+          "dormant_gap_seconds": { "min": 3, "max": 9 },
+          "representative_dormant_gap_seconds": { "min": 7200, "max": 43200 }
         },
         "receipt_contract": {
           "schema_version": "sim-lane-realism-receipt.v1",
@@ -546,10 +571,13 @@
             "identity_rotation_count",
             "session_handles",
             "recurrence_strategy",
+            "reentry_scope",
+            "dormancy_truth_mode",
             "session_index",
             "reentry_count",
             "max_reentries_per_run",
             "planned_dormant_gap_seconds",
+            "representative_dormant_gap_seconds",
             "stop_reason"
           ]
         }

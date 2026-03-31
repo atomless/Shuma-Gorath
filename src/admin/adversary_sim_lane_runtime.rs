@@ -365,11 +365,28 @@ fn record_lane_internal_result(
 
 fn reset_recurrence_state(state: &mut ControlState) {
     state.recurrence_strategy = None;
+    state.recurrence_reentry_scope = None;
+    state.recurrence_dormancy_truth_mode = None;
     state.recurrence_session_index = 0;
     state.recurrence_reentry_count = 0;
     state.recurrence_max_reentries_per_run = None;
     state.recurrence_last_planned_gap_seconds = None;
+    state.recurrence_last_representative_gap_seconds = None;
     state.recurrence_dormant_until = None;
+}
+
+fn recurrence_gap_seconds_from_range(
+    now: u64,
+    state: &ControlState,
+    gap_range: &super::adversary_sim_realism_profile::LaneRealismRange,
+) -> u64 {
+    let min_gap = gap_range.min;
+    let max_gap = gap_range.max.max(min_gap);
+    if min_gap == max_gap {
+        return min_gap;
+    }
+    let salt = state.recurrence_reentry_count.saturating_add(state.generated_tick_count);
+    min_gap + (deterministic_lane_entropy(state.run_id.as_deref().unwrap_or("simrun-runtime"), now, salt) % (max_gap - min_gap + 1))
 }
 
 fn recurrence_gap_seconds(
@@ -377,14 +394,33 @@ fn recurrence_gap_seconds(
     state: &ControlState,
     realism_profile: &super::adversary_sim_realism_profile::LaneRealismProfile,
 ) -> u64 {
-    let envelope = &realism_profile.recurrence_envelope;
-    let min_gap = envelope.dormant_gap_seconds.min;
-    let max_gap = envelope.dormant_gap_seconds.max.max(min_gap);
-    if min_gap == max_gap {
-        return min_gap;
+    recurrence_gap_seconds_from_range(
+        now,
+        state,
+        &realism_profile.recurrence_envelope.dormant_gap_seconds,
+    )
+}
+
+fn representative_recurrence_gap_seconds(
+    now: u64,
+    state: &ControlState,
+    realism_profile: &super::adversary_sim_realism_profile::LaneRealismProfile,
+) -> u64 {
+    recurrence_gap_seconds_from_range(
+        now,
+        state,
+        &realism_profile
+            .recurrence_envelope
+            .representative_dormant_gap_seconds,
+    )
+}
+
+fn dormancy_truth_mode(planned_gap: u64, representative_gap: u64) -> &'static str {
+    if representative_gap > planned_gap {
+        "accelerated_local_proof"
+    } else {
+        "representative_runtime"
     }
-    let salt = state.recurrence_reentry_count.saturating_add(state.generated_tick_count);
-    min_gap + (deterministic_lane_entropy(state.run_id.as_deref().unwrap_or("simrun-runtime"), now, salt) % (max_gap - min_gap + 1))
 }
 
 pub(crate) fn recurrence_context_for_profile(
@@ -399,18 +435,26 @@ pub(crate) fn recurrence_context_for_profile(
     if state.recurrence_strategy.as_deref() != Some(envelope.strategy.as_str()) {
         state.recurrence_strategy = Some(envelope.strategy.clone());
     }
+    state.recurrence_reentry_scope = Some(envelope.reentry_scope.clone());
     if state.recurrence_session_index == 0 {
         state.recurrence_session_index = 1;
     }
     state.recurrence_max_reentries_per_run = Some(envelope.max_reentries_per_run);
     let planned_gap = recurrence_gap_seconds(now, state, realism_profile);
+    let representative_gap = representative_recurrence_gap_seconds(now, state, realism_profile);
+    let truth_mode = dormancy_truth_mode(planned_gap, representative_gap);
+    state.recurrence_dormancy_truth_mode = Some(truth_mode.to_string());
     state.recurrence_last_planned_gap_seconds = Some(planned_gap);
+    state.recurrence_last_representative_gap_seconds = Some(representative_gap);
     Some(LaneRealismRecurrenceContext {
         strategy: envelope.strategy.clone(),
+        reentry_scope: envelope.reentry_scope.clone(),
+        dormancy_truth_mode: truth_mode.to_string(),
         session_index: state.recurrence_session_index,
         reentry_count: state.recurrence_reentry_count,
         max_reentries_per_run: envelope.max_reentries_per_run,
         planned_dormant_gap_seconds: planned_gap,
+        representative_dormant_gap_seconds: representative_gap,
     })
 }
 
@@ -442,6 +486,7 @@ fn schedule_recurrence_dormancy_after_tick(
         return;
     }
     state.recurrence_strategy = Some(envelope.strategy.clone());
+    state.recurrence_reentry_scope = Some(envelope.reentry_scope.clone());
     state.recurrence_max_reentries_per_run = Some(envelope.max_reentries_per_run);
     if state.recurrence_session_index == 0 {
         state.recurrence_session_index = 1;
@@ -453,7 +498,13 @@ fn schedule_recurrence_dormancy_after_tick(
     let planned_gap = state
         .recurrence_last_planned_gap_seconds
         .unwrap_or_else(|| recurrence_gap_seconds(tick_completed_at, state, realism_profile));
+    let representative_gap = state
+        .recurrence_last_representative_gap_seconds
+        .unwrap_or_else(|| representative_recurrence_gap_seconds(tick_completed_at, state, realism_profile));
     state.recurrence_last_planned_gap_seconds = Some(planned_gap);
+    state.recurrence_last_representative_gap_seconds = Some(representative_gap);
+    state.recurrence_dormancy_truth_mode =
+        Some(dormancy_truth_mode(planned_gap, representative_gap).to_string());
     state.recurrence_reentry_count = state.recurrence_reentry_count.saturating_add(1);
     state.recurrence_dormant_until = Some(tick_completed_at.saturating_add(planned_gap));
 }
@@ -869,7 +920,7 @@ mod tests {
     }
 
     #[test]
-    fn scrapling_worker_plan_surfaces_bounded_recurrence_context() {
+    fn scrapling_worker_plan_surfaces_long_window_recurrence_context() {
         let mut state = ControlState::default();
         let plan = next_scrapling_worker_plan(1_700_000_000, &mut state);
         let recurrence = plan
@@ -877,11 +928,18 @@ mod tests {
             .as_ref()
             .expect("recurrence context");
 
-        assert_eq!(recurrence.strategy, "bounded_single_tick_reentry");
+        assert_eq!(recurrence.strategy, "bounded_campaign_return");
+        assert_eq!(recurrence.reentry_scope, "cross_window_campaign");
+        assert_eq!(recurrence.dormancy_truth_mode, "accelerated_local_proof");
         assert_eq!(recurrence.session_index, 1);
         assert_eq!(recurrence.reentry_count, 0);
         assert!(recurrence.max_reentries_per_run >= 1);
         assert!(recurrence.planned_dormant_gap_seconds >= 1);
+        assert!(recurrence.representative_dormant_gap_seconds >= 3_600);
+        assert!(
+            recurrence.representative_dormant_gap_seconds
+                > recurrence.planned_dormant_gap_seconds
+        );
     }
 
     #[test]

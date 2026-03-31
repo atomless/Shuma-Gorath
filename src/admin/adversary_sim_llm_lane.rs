@@ -441,7 +441,7 @@ mod tests {
     }
 
     #[test]
-    fn llm_fulfillment_plan_surfaces_bounded_recurrence_context() {
+    fn llm_fulfillment_plan_surfaces_long_window_recurrence_context() {
         let frontier = frontier_summary();
         let mut state = ControlState::default();
         let plan = next_llm_fulfillment_plan(1_700_000_000, &mut state, &frontier);
@@ -450,11 +450,18 @@ mod tests {
             .as_ref()
             .expect("recurrence context");
 
-        assert_eq!(recurrence.strategy, "bounded_single_tick_reentry");
+        assert_eq!(recurrence.strategy, "bounded_campaign_return");
+        assert_eq!(recurrence.reentry_scope, "cross_window_campaign");
+        assert_eq!(recurrence.dormancy_truth_mode, "accelerated_local_proof");
         assert_eq!(recurrence.session_index, 1);
         assert_eq!(recurrence.reentry_count, 0);
         assert!(recurrence.max_reentries_per_run >= 1);
         assert!(recurrence.planned_dormant_gap_seconds >= 1);
+        assert!(recurrence.representative_dormant_gap_seconds >= 3_600);
+        assert!(
+            recurrence.representative_dormant_gap_seconds
+                > recurrence.planned_dormant_gap_seconds
+        );
     }
 
     #[test]

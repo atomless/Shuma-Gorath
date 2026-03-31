@@ -439,6 +439,10 @@ class _ScraplingRealismTracker:
             "recurrence_strategy": str(
                 self.recurrence_context.get("strategy") or ""
             ),
+            "reentry_scope": str(self.recurrence_context.get("reentry_scope") or ""),
+            "dormancy_truth_mode": str(
+                self.recurrence_context.get("dormancy_truth_mode") or ""
+            ),
             "session_index": int(self.recurrence_context.get("session_index") or 0),
             "reentry_count": int(self.recurrence_context.get("reentry_count") or 0),
             "max_reentries_per_run": int(
@@ -446,6 +450,9 @@ class _ScraplingRealismTracker:
             ),
             "planned_dormant_gap_seconds": int(
                 self.recurrence_context.get("planned_dormant_gap_seconds") or 0
+            ),
+            "representative_dormant_gap_seconds": int(
+                self.recurrence_context.get("representative_dormant_gap_seconds") or 0
             ),
             "visited_url_count": len(self.visited_targets),
             "discovered_url_count": len(self.discovered_targets),

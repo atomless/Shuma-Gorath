@@ -58,6 +58,7 @@ make test-adversary-sim-exploration-receipts # Focused Scrapling traversal-front
 make test-adversary-sim-header-transport-realism # Focused header, locale, and transport-envelope realism gate
 make test-adversary-sim-browser-secondary-traffic-realism # Focused browser secondary-traffic and compact projection realism gate
 make test-adversary-sim-recurrence-realism # Focused bounded dormancy, re-entry, and recurrence receipt/dispatch gate
+make test-adversary-sim-long-window-recurrence-realism # Focused campaign-return dormancy realism gate with representative-vs-local proof truth
 make test-client-ip-topology-contract # Focused client-IP topology gate for shared-host, edge, and /shuma/health trust behavior
 make test-adversary-sim-trusted-ingress-ip-realism # Focused sim trusted-ingress proxy, planner fallback, and no-worker-privilege IP realism gate
 make test-adversary-sim-identity-observer-truth # Focused identity-provenance receipt and truthful Red Team/Game Loop wording gate

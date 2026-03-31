@@ -99,11 +99,14 @@ class AdversarialContainerWorkerUnitTests(unittest.TestCase):
             "observed_user_agent_families": ["chrome_android"],
             "observed_accept_languages": ["fr-FR,fr;q=0.9,en-US;q=0.7,en;q=0.6"],
             "transport_profile": "urllib_direct",
-            "recurrence_strategy": "bounded_single_tick_reentry",
+            "recurrence_strategy": "bounded_campaign_return",
+            "reentry_scope": "cross_window_campaign",
+            "dormancy_truth_mode": "accelerated_local_proof",
             "session_index": 1,
             "reentry_count": 0,
             "max_reentries_per_run": 3,
             "planned_dormant_gap_seconds": 3,
+            "representative_dormant_gap_seconds": 7200,
         }
         env = {
             "BLACKBOX_MODE": "blackbox",
@@ -198,11 +201,18 @@ class AdversarialContainerWorkerUnitTests(unittest.TestCase):
             receipt["observed_accept_languages"],
             ["fr-FR,fr;q=0.9,en-US;q=0.7,en;q=0.6"],
         )
-        self.assertEqual(receipt["recurrence_strategy"], "bounded_single_tick_reentry")
+        self.assertEqual(receipt["recurrence_strategy"], "bounded_campaign_return")
+        self.assertEqual(receipt["reentry_scope"], "cross_window_campaign")
+        self.assertEqual(receipt["dormancy_truth_mode"], "accelerated_local_proof")
         self.assertEqual(receipt["session_index"], 1)
         self.assertEqual(receipt["reentry_count"], 0)
         self.assertEqual(receipt["max_reentries_per_run"], 3)
         self.assertEqual(receipt["planned_dormant_gap_seconds"], 3)
+        self.assertGreaterEqual(receipt["representative_dormant_gap_seconds"], 3_600)
+        self.assertGreater(
+            receipt["representative_dormant_gap_seconds"],
+            receipt["planned_dormant_gap_seconds"],
+        )
         self.assertEqual(receipt["stop_reason"], "response_pressure_stop")
         self.assertEqual(len(receipt["inter_activity_gaps_ms"]), 5)
         self.assertEqual(receipt["inter_activity_gaps_ms"], [0, 0, 1400, 0, 0])
@@ -234,11 +244,14 @@ class AdversarialContainerWorkerUnitTests(unittest.TestCase):
             "inter_action_gaps_ms": [0, 0, 1200, 0, 0],
             "focused_page_paths": ["/", "/robots.txt"],
             "session_handles": ["agentic-request-session-1"],
-            "recurrence_strategy": "bounded_single_tick_reentry",
+            "recurrence_strategy": "bounded_campaign_return",
+            "reentry_scope": "cross_window_campaign",
+            "dormancy_truth_mode": "accelerated_local_proof",
             "session_index": 1,
             "reentry_count": 0,
             "max_reentries_per_run": 3,
             "planned_dormant_gap_seconds": 3,
+            "representative_dormant_gap_seconds": 7200,
         }
         env = {
             "BLACKBOX_MODE": "blackbox",
@@ -366,11 +379,14 @@ class AdversarialContainerWorkerUnitTests(unittest.TestCase):
             "focused_page_paths": ["/robots.txt", "/research/"],
             "session_handles": ["agentic-request-session-1"],
             "action_request_headers": [{}, {}],
-            "recurrence_strategy": "bounded_single_tick_reentry",
+            "recurrence_strategy": "bounded_campaign_return",
+            "reentry_scope": "cross_window_campaign",
+            "dormancy_truth_mode": "accelerated_local_proof",
             "session_index": 1,
             "reentry_count": 0,
             "max_reentries_per_run": 3,
             "planned_dormant_gap_seconds": 3,
+            "representative_dormant_gap_seconds": 7200,
         }
         env = {
             "BLACKBOX_MODE": "blackbox",

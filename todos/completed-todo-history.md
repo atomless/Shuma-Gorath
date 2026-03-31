@@ -4,6 +4,42 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-31)
 
+### SIM-REALISM-3C Long-Window Dormancy And Return Realism
+
+- [x] Completed `SIM-REALISM-3C` across:
+  - [`../src/admin/adversary_sim_realism_profile.rs`](../src/admin/adversary_sim_realism_profile.rs)
+  - [`../src/admin/adversary_sim_state.rs`](../src/admin/adversary_sim_state.rs)
+  - [`../src/admin/adversary_sim_lane_runtime.rs`](../src/admin/adversary_sim_lane_runtime.rs)
+  - [`../src/admin/adversary_sim_diagnostics.rs`](../src/admin/adversary_sim_diagnostics.rs)
+  - [`../src/admin/adversary_sim.rs`](../src/admin/adversary_sim.rs)
+  - [`../src/admin/adversary_sim_llm_lane.rs`](../src/admin/adversary_sim_llm_lane.rs)
+  - [`../src/admin/adversary_sim_worker_plan.rs`](../src/admin/adversary_sim_worker_plan.rs)
+  - [`../src/admin/api.rs`](../src/admin/api.rs)
+  - [`../src/observability/operator_snapshot.rs`](../src/observability/operator_snapshot.rs)
+  - [`../scripts/tests/adversarial/lane_realism_contract.v1.json`](../scripts/tests/adversarial/lane_realism_contract.v1.json)
+  - [`../scripts/tests/adversarial_runner/contracts.py`](../scripts/tests/adversarial_runner/contracts.py)
+  - [`../scripts/tests/adversarial_runner/llm_fulfillment.py`](../scripts/tests/adversarial_runner/llm_fulfillment.py)
+  - [`../scripts/supervisor/llm_runtime_worker.py`](../scripts/supervisor/llm_runtime_worker.py)
+  - [`../scripts/supervisor/scrapling_worker.py`](../scripts/supervisor/scrapling_worker.py)
+  - [`../scripts/tests/adversarial_container/worker.py`](../scripts/tests/adversarial_container/worker.py)
+  - [`../scripts/tests/adversarial_browser_driver.mjs`](../scripts/tests/adversarial_browser_driver.mjs)
+  - [`../scripts/tests/test_adversarial_lane_realism_contract.py`](../scripts/tests/test_adversarial_lane_realism_contract.py)
+  - [`../scripts/tests/test_llm_runtime_worker.py`](../scripts/tests/test_llm_runtime_worker.py)
+  - [`../scripts/tests/test_llm_runtime_browser_integration.py`](../scripts/tests/test_llm_runtime_browser_integration.py)
+  - [`../scripts/tests/test_scrapling_worker.py`](../scripts/tests/test_scrapling_worker.py)
+  - [`../scripts/tests/test_adversarial_container_worker.py`](../scripts/tests/test_adversarial_container_worker.py)
+  - [`../scripts/tests/test_adversary_sim_make_targets.py`](../scripts/tests/test_adversary_sim_make_targets.py)
+  - [`../Makefile`](../Makefile)
+  - [`../docs/plans/2026-03-31-post-2j-adversary-realism-sufficiency-plan.md`](../docs/plans/2026-03-31-post-2j-adversary-realism-sufficiency-plan.md)
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../todos/todo.md`](../todos/todo.md)
+- [x] What landed:
+  - Recurrence profiles now model bounded campaign-return behavior with a short explicit local proof gap and a separate representative hours-to-days dormant window instead of pretending one short sleep proves long-horizon recurrence.
+  - Planner, worker, and browser receipts now preserve `reentry_scope`, `dormancy_truth_mode`, and `representative_dormant_gap_seconds`, while status and diagnostics surfaces expose the same distinction so healthy dormancy stays visible without overstating realism.
+  - The verification surface now includes the explicit tranche target `make test-adversary-sim-long-window-recurrence-realism`, and the older recurrence gate’s stale exact selector was corrected so it cannot pass while skipping the core recurrence-context proof.
+- [x] Evidence:
+  - `make test-adversary-sim-long-window-recurrence-realism`
+
 ### SIM-REALISM-3B Agentic Action Capability And Degraded Fallback Realism
 
 - [x] Completed `SIM-REALISM-3B` across:
