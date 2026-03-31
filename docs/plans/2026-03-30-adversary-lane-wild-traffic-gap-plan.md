@@ -239,6 +239,10 @@
 
 ## Task 10: `SIM-REALISM-2I` Add Trusted-Ingress Client-IP Realism Without Attacker-Plane Privilege Creep
 
+Detailed topology and trust-boundary addendum:
+
+- [`2026-03-31-current-ip-collapse-topology-and-trusted-ingress-plan.md`](./2026-03-31-current-ip-collapse-topology-and-trusted-ingress-plan.md)
+
 **Files:**
 - Later code targets: trusted ingress or proxy adapter surfaces, adversary-sim supervisor or harness wiring, relevant runtime client-IP extraction or deployment docs
 - Later proof targets: forwarded-header security tests, adversary-sim identity realism tests, `Makefile`
@@ -258,6 +262,10 @@
 2. Keep attacker-plane contract checks and forwarded-header security tests green.
 
 ## Task 11: `SIM-REALISM-2J` Add Explicit Identity-Realism Receipts And Observer Wording
+
+Detailed topology and trust-boundary addendum:
+
+- [`2026-03-31-current-ip-collapse-topology-and-trusted-ingress-plan.md`](./2026-03-31-current-ip-collapse-topology-and-trusted-ingress-plan.md)
 
 **Files:**
 - Later code targets: receipt emitters, recent-run/read-model adapters, dashboard observer surfaces, related docs

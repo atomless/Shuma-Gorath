@@ -4,6 +4,25 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-31)
 
+### Current IP-Collapse Topology And Trusted-Ingress Addendum
+
+- [x] Completed the focused research and planning addendum across:
+  - [`../docs/research/2026-03-31-current-ip-collapse-topology-and-trusted-ingress-review.md`](../docs/research/2026-03-31-current-ip-collapse-topology-and-trusted-ingress-review.md)
+  - [`../docs/plans/2026-03-31-current-ip-collapse-topology-and-trusted-ingress-plan.md`](../docs/plans/2026-03-31-current-ip-collapse-topology-and-trusted-ingress-plan.md)
+  - [`../docs/research/README.md`](../docs/research/README.md)
+  - [`../docs/plans/README.md`](../docs/plans/README.md)
+  - [`../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
+  - [`../todos/todo.md`](../todos/todo.md)
+- [x] What landed:
+  - the current client-IP collapse matrix is now frozen explicitly across shared-host direct traffic, trusted-proxy traffic, edge `true-client-ip`, `/shuma/health`, and contributor-local browsing,
+  - the trusted-ingress design for later sim-IP realism is now narrowed to one acceptable model: Shuma-owned ingress restores client IP while attacker-plane workers remain forbidden from emitting privileged trust headers,
+  - and the active `SIM-REALISM-2I` and `SIM-REALISM-2J` backlog/plan chain now points at this focused addendum rather than relying only on the broader wild-traffic realism notes.
+- [x] Why:
+  - we needed a small exact trust-boundary addendum before implementing IP-realism work so the next tranche does not mix topology proof, ingress design, degraded local identity truth, and broader proxy-pool realism into one blurry slice.
+- [x] Evidence:
+  - `git diff --check`
+  - docs-only tranche: tests intentionally not run because no runtime, dashboard, or config behavior changed
+
 ### Local Contributor Root Access Cleanup After Full Suite
 
 - [x] Completed the local contributor post-suite cleanup fix across:

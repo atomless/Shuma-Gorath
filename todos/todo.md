@@ -207,7 +207,9 @@ Current note:
 
 - [ ] SIM-REALISM-2I Add trusted-ingress client-IP realism without granting attacker-plane header privileges.
   - Reference context:
+    - [`docs/research/2026-03-31-current-ip-collapse-topology-and-trusted-ingress-review.md`](../docs/research/2026-03-31-current-ip-collapse-topology-and-trusted-ingress-review.md)
     - [`docs/research/2026-02-27-sim2-shortfall-4-sim-telemetry-authenticity.md`](../docs/research/2026-02-27-sim2-shortfall-4-sim-telemetry-authenticity.md)
+    - [`docs/plans/2026-03-31-current-ip-collapse-topology-and-trusted-ingress-plan.md`](../docs/plans/2026-03-31-current-ip-collapse-topology-and-trusted-ingress-plan.md)
     - [`docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
     - [`docs/deployment.md`](../docs/deployment.md)
     - [`docs/security-hardening.md`](../docs/security-hardening.md)
@@ -220,6 +222,8 @@ Current note:
 
 - [ ] SIM-REALISM-2J Add explicit identity-realism receipts and operator wording for degraded IP truth.
   - Reference context:
+    - [`docs/research/2026-03-31-current-ip-collapse-topology-and-trusted-ingress-review.md`](../docs/research/2026-03-31-current-ip-collapse-topology-and-trusted-ingress-review.md)
+    - [`docs/plans/2026-03-31-current-ip-collapse-topology-and-trusted-ingress-plan.md`](../docs/plans/2026-03-31-current-ip-collapse-topology-and-trusted-ingress-plan.md)
     - [`docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
     - [`docs/plans/2026-03-29-observed-telemetry-truth-and-scrapling-discoverability-plan.md`](../docs/plans/2026-03-29-observed-telemetry-truth-and-scrapling-discoverability-plan.md)
     - [`docs/dashboard-tabs/game-loop.md`](../docs/dashboard-tabs/game-loop.md)
