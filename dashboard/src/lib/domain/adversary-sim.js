@@ -1,7 +1,8 @@
 const ADVERSARY_SIM_LANE_LABELS = Object.freeze({
   synthetic_traffic: 'Synthetic Traffic',
   scrapling_traffic: 'Scrapling Traffic',
-  bot_red_team: 'Agentic Traffic'
+  bot_red_team: 'Agentic Traffic',
+  parallel_mixed_traffic: 'Scrapling + Agentic'
 });
 
 const TOKEN_ACRONYMS = Object.freeze({
@@ -37,4 +38,3 @@ export const formatAdversarySimLaneLabel = (value, fallback = '-') => {
   if (!normalized) return fallback;
   return ADVERSARY_SIM_LANE_LABELS[normalized] || humanizeAdversarySimToken(normalized, fallback);
 };
-

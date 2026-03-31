@@ -68,6 +68,9 @@ pub(crate) fn follow_on_duration_seconds_for_lane(
             crate::admin::adversary_sim_llm_lane::minimum_meaningful_llm_window_seconds(),
         ),
         crate::admin::adversary_sim::RuntimeLane::SyntheticTraffic => bounded,
+        crate::admin::adversary_sim::RuntimeLane::ParallelMixedTraffic => bounded.max(
+            crate::admin::adversary_sim_llm_lane::minimum_meaningful_llm_window_seconds(),
+        ),
     }
 }
 

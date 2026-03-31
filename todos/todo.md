@@ -156,12 +156,13 @@ Current note:
 - `SIM-REALISM-2E` is now landed: adversary lanes now carry bounded recurrence envelopes, planner and worker receipts preserve explicit dormancy and re-entry truth, supervisor dispatch honors recurrence dormancy without misreporting healthy idle windows as stalled generation, and the next active execution priority is now `SIM-REALISM-2J`.
 - `SIM-REALISM-2I` is now landed: the current client-IP collapse matrix is executable through `make test-client-ip-topology-contract`, and the adversary-sim supervisor plus planner paths now support a Shuma-owned trusted-ingress proxy that restores parseable client IPs without letting attacker-plane workers emit privileged trust headers. The focused proof for the full slice is `make test-adversary-sim-trusted-ingress-ip-realism`.
 - `SIM-REALISM-2J` is now landed: compact identity-provenance receipts now preserve `trusted_ingress_backed`, `pool_backed`, `fixed_proxy`, `bucket_only`, and `degraded_local` observer truth through recent-run and operator-snapshot read models, Red Team and Game Loop now label those states truthfully instead of presenting degraded identity as source-IP truth, and the focused proof path now fails fast when the running server is serving stale dashboard assets. The next active execution priority is now `SIM-REALISM-3A`.
+- `SIM-REALISM-3A` is now landed: Shuma can now dispatch bounded overlapping Scrapling and Agentic worker plans in the same beat window through the explicit `parallel_mixed_traffic` lane, the Red Team selector now exposes that mode as `Scrapling + Agentic`, and the focused proof path now fails fast when the served runtime Wasm is stale as well as when dashboard assets are stale. The next active execution priority is now `SIM-REALISM-3B`.
 - `ROUTE-NS-1` is now landed: the generated public-content site moved from `/sim/public/*` to the protected host root, and Shuma-owned control and operational routes moved under `/shuma/*` with no pre-launch compatibility aliases.
 - `SIM-REALISM-2` is now fully landed, but it still should not be treated as field-representative attacker realism on its own: the next remaining gaps are overlapping mixed-lane pressure, stronger agentic capability, true long-window dormancy, deeper transport realism, and explicit representativeness gating.
-- `SIM-REALISM-3` is now the explicit post-`2J` sufficiency chain: even after `SIM-REALISM-2F..2J`, the lanes will still fall short on overlapping multi-lane pressure, richer agentic action capability, true campaign-scale dormancy, deeper transport realism, and explicit representativeness gating unless `SIM-REALISM-3A..3E` land as well.
+- `SIM-REALISM-3` is now the explicit post-`2J` sufficiency chain: even after `SIM-REALISM-2F..2J`, the lanes would still have fallen short on overlapping multi-lane pressure, richer agentic action capability, true campaign-scale dormancy, deeper transport realism, and explicit representativeness gating. `SIM-REALISM-3A` is now landed, and `SIM-REALISM-3B..3E` remain open.
 - Remaining adversary-realism tranches now inherit the shared acceptance and envelope-governance contract in [`../docs/plans/2026-03-31-adversary-realism-acceptance-and-envelope-governance-plan.md`](../docs/plans/2026-03-31-adversary-realism-acceptance-and-envelope-governance-plan.md): no tranche closes from “more bans” alone, every envelope must be justified as a hostile persona model rather than a simulator comfort limit, and every tranche must prove measurable baseline-to-post-tranche realism escalation in its relevant scorecard dimensions.
 - Do not treat mere lane execution or recent-run visibility as characteristic attacker pressure while the lanes still lack overlapping mixed-lane pressure, stronger agentic action capability, true long-window return behavior, deeper transport realism, and explicit representativeness gating.
-- Remaining adversary realism is now the hard prerequisite for later Game Loop and Tuning work. Until `SIM-REALISM-3A..3E` are landed, keep the later Game Loop refactor or mixed-attacker proof chain and the later Tuning realignment chain blocked rather than execution-ready.
+- Remaining adversary realism is now the hard prerequisite for later Game Loop and Tuning work. Until `SIM-REALISM-3B..3E` are landed, keep the later Game Loop refactor or mixed-attacker proof chain and the later Tuning realignment chain blocked rather than execution-ready.
 - Do not open `humans_plus_verified_only` until a later second strict-baseline proof has shown retained config-change improvement under both Scrapling and LLM attacker pressure.
 - `DIAG-CLEANUP-1`, `MON-OVERHAUL-1C`, and `SIM-LLM-1C3` are now all landed, so the later combined-attacker strict-baseline proof is no longer blocked by missing LLM runtime visibility.
 - The real `RSI-GAME-HO-2` blocker is now architectural and explicit:
@@ -169,20 +170,6 @@ Current note:
   - `bot_red_team` runtime receipts now contribute restriction-grade board loci,
   - and the next remaining blocker is projection truth: operator/admin and dashboard surfaces still need to distinguish judged mixed-attacker episodes from mere lane visibility.
 - Do not claim mixed-attacker strict-baseline proof from the new score spine alone; mixed-attacker proof projection and repeated retained improvement under mixed pressure still remain required.
-
-- [ ] SIM-REALISM-3A Add overlapping multi-lane and multi-identity concurrency realism, including an explicit Scrapling plus Agentic parallel lane mode.
-  - Reference context:
-    - [`docs/research/2026-03-31-post-2j-adversary-realism-sufficiency-review.md`](../docs/research/2026-03-31-post-2j-adversary-realism-sufficiency-review.md)
-    - [`docs/plans/2026-03-31-post-2j-adversary-realism-sufficiency-plan.md`](../docs/plans/2026-03-31-post-2j-adversary-realism-sufficiency-plan.md)
-    - [`docs/research/2026-03-28-rsi-game-ho-2-combined-attacker-architecture-gap-review.md`](../docs/research/2026-03-28-rsi-game-ho-2-combined-attacker-architecture-gap-review.md)
-    - [`docs/plans/2026-03-28-rsi-game-ho-2-combined-attacker-orchestration-plan.md`](../docs/plans/2026-03-28-rsi-game-ho-2-combined-attacker-orchestration-plan.md)
-  - Closure gate:
-    - runtime truth: Shuma must be able to execute bounded overlapping Scrapling and Agentic pressure instead of serializing every adversary lane into one pending-worker slot
-    - operator truth: the Red Team lane selector must expose an explicit mixed Scrapling plus Agentic parallel mode rather than forcing the operator to infer concurrency from separate runs
-    - receipt truth: recent-run and operator read models must preserve overlapping-lane lineage, peak concurrency, and per-lane contribution truth without inventing simulator labels in runtime evidence
-    - scorecard truth: closure must show measurable baseline-to-post-tranche overlap or concurrency escalation, not just a new mixed-lane label
-    - proof: add and pass `make test-adversary-sim-parallel-lane-realism` and `make test-dashboard-red-team-lane-selector-contract`
-    - insufficient: alternating Scrapling and Agentic runs that only appear adjacent in history, or a UI label for parallel mode without bounded overlapping execution proof
 
 - [ ] SIM-REALISM-3B Expand agentic action capability and degraded fallback realism beyond polite GET-only retrieval.
   - Reference context:

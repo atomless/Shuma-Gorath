@@ -85,7 +85,8 @@
   const ADVERSARY_SIM_SELECTABLE_LANES = new Set([
     'synthetic_traffic',
     'scrapling_traffic',
-    'bot_red_team'
+    'bot_red_team',
+    'parallel_mixed_traffic'
   ]);
   const ACTIVE_DIRTY_CONFIG_SAVE_BAR_SELECTOR =
     '#dashboard-admin-section [data-dashboard-tab-panel][aria-hidden="false"] .config-save-bar:not(.hidden)';

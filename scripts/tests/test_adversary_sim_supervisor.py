@@ -32,6 +32,13 @@ class AdversarySimSupervisorContractTests(unittest.TestCase):
         self.assertIn("llm_fulfillment_plan", source)
         self.assertIn("llm_runtime_worker.py", source)
 
+    def test_supervisor_worker_knows_about_parallel_mixed_dispatch_mode(self) -> None:
+        source = SUPERVISOR_WORKER_SOURCE.read_text(encoding="utf-8")
+        self.assertIn('\\"worker_plan\\":{', source)
+        self.assertIn('\\"llm_fulfillment_plan\\":{', source)
+        self.assertIn("worker_dispatches", source)
+        self.assertIn("thread::spawn", source)
+
     def test_supervisor_worker_failure_fallback_keeps_fulfillment_mode_field(self) -> None:
         source = SUPERVISOR_WORKER_SOURCE.read_text(encoding="utf-8")
         self.assertIn('json_string(beat_body, "fulfillment_mode")', source)

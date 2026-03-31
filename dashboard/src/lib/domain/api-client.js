@@ -83,7 +83,8 @@ const asRecord = (value) =>
 const ADVERSARY_SIM_LANES = Object.freeze([
   'synthetic_traffic',
   'scrapling_traffic',
-  'bot_red_team'
+  'bot_red_team',
+  'parallel_mixed_traffic'
 ]);
 
 /**

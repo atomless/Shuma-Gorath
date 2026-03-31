@@ -6364,7 +6364,7 @@ mod admin_config_tests {
             persisted.active_lane,
             Some(crate::admin::adversary_sim::RuntimeLane::ScraplingTraffic)
         );
-        assert!(persisted.pending_worker_tick_id.is_some());
+        assert!(persisted.pending_scrapling_tick_id.is_some());
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
@@ -6664,7 +6664,7 @@ mod admin_config_tests {
         );
         assert_eq!(persisted.generated_tick_count, 1);
         assert_eq!(persisted.generated_request_count, 3);
-        assert!(persisted.pending_worker_tick_id.is_none());
+        assert!(persisted.pending_scrapling_tick_id.is_none());
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
@@ -6985,7 +6985,7 @@ mod admin_config_tests {
         );
         assert_eq!(persisted.generated_tick_count, 1);
         assert_eq!(persisted.generated_request_count, 2);
-        assert!(persisted.pending_worker_tick_id.is_none());
+        assert!(persisted.pending_llm_tick_id.is_none());
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
@@ -6995,6 +6995,104 @@ mod admin_config_tests {
         std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
         std::env::remove_var("SHUMA_FRONTIER_OPENAI_API_KEY");
         std::env::remove_var("SHUMA_FRONTIER_OPENAI_MODEL");
+    }
+
+    #[test]
+    fn adversary_sim_internal_beat_returns_parallel_scrapling_and_llm_dispatch_for_parallel_mixed_lane() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "shared-server");
+        std::env::set_var("SHUMA_API_KEY", "sim-parallel-mixed-beat-test-key");
+        std::env::set_var("SHUMA_FORWARDED_IP_SECRET", "test-forwarded-secret");
+        std::env::set_var("SHUMA_FRONTIER_OPENAI_API_KEY", "frontier-key");
+        std::env::set_var("SHUMA_FRONTIER_OPENAI_MODEL", "gpt-5-mini");
+        std::env::set_var(
+            "ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_POOL_JSON",
+            r#"[{"label":"res-gb-1","proxy_url":"http://127.0.0.1:8899","identity_class":"residential","country_code":"GB"}]"#,
+        );
+        std::env::set_var(
+            "ADVERSARY_SIM_AGENTIC_REQUEST_PROXY_POOL_JSON",
+            r#"[{"label":"res-us-1","proxy_url":"http://127.0.0.1:8896","identity_class":"residential","country_code":"US"}]"#,
+        );
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+
+        let lane_resp = handle_admin_adversary_sim_control(
+            &make_control_request_json(
+                br#"{"enabled":true,"lane":"parallel_mixed_traffic"}"#,
+                "parallel-mixed-enable-and-lane",
+            ),
+            &store,
+            "default",
+            &auth,
+        );
+        assert_eq!(*lane_resp.status(), 200u16);
+
+        let beat_req = make_internal_beat_request("sim-parallel-mixed-beat-test-key");
+        let beat_resp = handle_internal_adversary_sim_beat(&beat_req, &store, "default");
+        assert_eq!(*beat_resp.status(), 200u16);
+        let beat_json: serde_json::Value = serde_json::from_slice(beat_resp.body()).unwrap();
+        assert_eq!(
+            beat_json.get("dispatch_mode").and_then(|value| value.as_str()),
+            Some("parallel_mixed_workers")
+        );
+        assert_eq!(
+            beat_json
+                .get("worker_plan")
+                .and_then(|value| value.get("lane"))
+                .and_then(|value| value.as_str()),
+            Some("scrapling_traffic")
+        );
+        assert_eq!(
+            beat_json
+                .get("llm_fulfillment_plan")
+                .and_then(|value| value.get("lane"))
+                .and_then(|value| value.as_str()),
+            Some("bot_red_team")
+        );
+        assert_eq!(
+            beat_json
+                .get("status")
+                .and_then(|value| value.get("desired_lane"))
+                .and_then(|value| value.as_str()),
+            Some("parallel_mixed_traffic")
+        );
+        assert_eq!(
+            beat_json
+                .get("status")
+                .and_then(|value| value.get("active_lane"))
+                .and_then(|value| value.as_str()),
+            Some("parallel_mixed_traffic")
+        );
+        assert_eq!(
+            beat_json
+                .get("status")
+                .and_then(|value| value.get("active_lane_count"))
+                .and_then(|value| value.as_u64()),
+            Some(2)
+        );
+
+        let persisted = crate::admin::adversary_sim::load_state(&store, "default");
+        assert_eq!(
+            persisted.active_lane,
+            Some(crate::admin::adversary_sim::RuntimeLane::ParallelMixedTraffic)
+        );
+        assert!(persisted.pending_scrapling_tick_id.is_some());
+        assert!(persisted.pending_llm_tick_id.is_some());
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+        std::env::remove_var("SHUMA_API_KEY");
+        std::env::remove_var("SHUMA_FORWARDED_IP_SECRET");
+        std::env::remove_var("SHUMA_FRONTIER_OPENAI_API_KEY");
+        std::env::remove_var("SHUMA_FRONTIER_OPENAI_MODEL");
+        std::env::remove_var("ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_POOL_JSON");
+        std::env::remove_var("ADVERSARY_SIM_AGENTIC_REQUEST_PROXY_POOL_JSON");
     }
 
     #[test]
@@ -7092,7 +7190,7 @@ mod admin_config_tests {
             crate::admin::adversary_sim::ControlPhase::Off
         );
         assert!(!persisted.desired_enabled);
-        assert!(persisted.pending_worker_tick_id.is_none());
+        assert!(persisted.pending_scrapling_tick_id.is_none());
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");
@@ -8640,8 +8738,10 @@ mod admin_config_tests {
             generated_request_count: 0,
             last_generated_at: None,
             last_generation_error: None,
-            pending_worker_tick_id: None,
-            pending_worker_started_at: None,
+            pending_scrapling_tick_id: None,
+            pending_scrapling_started_at: None,
+            pending_llm_tick_id: None,
+            pending_llm_started_at: None,
             recurrence_strategy: None,
             recurrence_session_index: 0,
             recurrence_reentry_count: 0,
@@ -8807,8 +8907,10 @@ mod admin_config_tests {
             generated_request_count: 0,
             last_generated_at: None,
             last_generation_error: None,
-            pending_worker_tick_id: None,
-            pending_worker_started_at: None,
+            pending_scrapling_tick_id: None,
+            pending_scrapling_started_at: None,
+            pending_llm_tick_id: None,
+            pending_llm_started_at: None,
             recurrence_strategy: None,
             recurrence_session_index: 0,
             recurrence_reentry_count: 0,
@@ -9313,8 +9415,10 @@ mod admin_config_tests {
             generated_request_count: 0,
             last_generated_at: None,
             last_generation_error: None,
-            pending_worker_tick_id: None,
-            pending_worker_started_at: None,
+            pending_scrapling_tick_id: None,
+            pending_scrapling_started_at: None,
+            pending_llm_tick_id: None,
+            pending_llm_started_at: None,
             recurrence_strategy: None,
             recurrence_session_index: 0,
             recurrence_reentry_count: 0,
@@ -9715,6 +9819,52 @@ mod admin_config_tests {
         );
         assert_eq!(operation.desired_lane.as_deref(), Some("scrapling_traffic"));
         assert_eq!(operation.actual_lane, None);
+
+        std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
+        std::env::remove_var("SHUMA_RUNTIME_ENV");
+        std::env::remove_var("SHUMA_ADVERSARY_SIM_AVAILABLE");
+    }
+
+    #[test]
+    fn adversary_sim_control_accepts_parallel_mixed_lane_selection_while_off_and_persists_desired_lane() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED", "true");
+        std::env::set_var("SHUMA_RUNTIME_ENV", "runtime-dev");
+        std::env::set_var("SHUMA_ADVERSARY_SIM_AVAILABLE", "true");
+
+        let store = TestStore::default();
+        let auth = bearer_rw_auth();
+
+        let resp = handle_admin_adversary_sim_control(
+            &make_control_request_json(
+                br#"{"enabled":false,"lane":"parallel_mixed_traffic","reason":"prestage_parallel_lane"}"#,
+                "lane-off-parallel-1",
+            ),
+            &store,
+            "default",
+            &auth,
+        );
+        assert_eq!(*resp.status(), 200u16);
+        let body: serde_json::Value = serde_json::from_slice(resp.body()).unwrap();
+        assert_eq!(
+            body.get("accepted_state")
+                .and_then(|value| value.get("desired_lane"))
+                .and_then(|value| value.as_str()),
+            Some("parallel_mixed_traffic")
+        );
+        assert_eq!(
+            body.get("status")
+                .and_then(|value| value.get("desired_lane"))
+                .and_then(|value| value.as_str()),
+            Some("parallel_mixed_traffic")
+        );
+
+        let persisted = crate::admin::adversary_sim::load_state(&store, "default");
+        assert_eq!(
+            persisted.desired_lane,
+            crate::admin::adversary_sim::RuntimeLane::ParallelMixedTraffic
+        );
+        assert_eq!(persisted.active_lane, None);
 
         std::env::remove_var("SHUMA_ADMIN_CONFIG_WRITE_ENABLED");
         std::env::remove_var("SHUMA_RUNTIME_ENV");

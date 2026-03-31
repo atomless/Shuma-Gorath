@@ -4,7 +4,8 @@ const DEFAULT_DURATION_SECONDS = 180;
 const ADVERSARY_SIM_LANES = Object.freeze([
   'synthetic_traffic',
   'scrapling_traffic',
-  'bot_red_team'
+  'bot_red_team',
+  'parallel_mixed_traffic'
 ]);
 const hasOwn = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
 

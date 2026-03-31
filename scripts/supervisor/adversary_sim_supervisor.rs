@@ -426,12 +426,16 @@ fn dispatch_mode(body: &str) -> Option<String> {
     json_string(body, "dispatch_mode")
 }
 
-fn external_worker_dispatch(dispatch_mode: &str) -> Option<ExternalWorkerDispatch> {
-    match dispatch_mode {
-        "scrapling_worker" => Some(ExternalWorkerDispatch::Scrapling),
-        "llm_fulfillment_plan" => Some(ExternalWorkerDispatch::LlmRuntime),
-        _ => None,
+fn worker_dispatches(body: &str) -> Vec<ExternalWorkerDispatch> {
+    let compact: String = body.chars().filter(|ch| !ch.is_whitespace()).collect();
+    let mut dispatches = Vec::new();
+    if compact.contains("\"worker_plan\":{") {
+        dispatches.push(ExternalWorkerDispatch::Scrapling);
     }
+    if compact.contains("\"llm_fulfillment_plan\":{") {
+        dispatches.push(ExternalWorkerDispatch::LlmRuntime);
+    }
+    dispatches
 }
 
 fn json_escape(raw: &str) -> String {
@@ -741,6 +745,18 @@ fn post_worker_result(config: &Config, body: &str) -> Result<HttpResponse, Strin
     request_post(config, WORKER_RESULT_PATH, body)
 }
 
+fn run_external_worker_dispatch(
+    config: &Config,
+    beat_body: &str,
+    worker_dispatch: ExternalWorkerDispatch,
+) -> Result<HttpResponse, String> {
+    let worker_result_body = match worker_dispatch {
+        ExternalWorkerDispatch::Scrapling => run_scrapling_worker(config, beat_body),
+        ExternalWorkerDispatch::LlmRuntime => run_llm_runtime_worker(config, beat_body),
+    };
+    post_worker_result(config, worker_result_body.as_str())
+}
+
 fn main() {
     let config = match parse_args() {
         Ok(parsed) => parsed,
@@ -779,39 +795,49 @@ fn main() {
                             executed_ticks, generated_requests, failed_requests
                         );
                     }
-                    if let Some(worker_dispatch) = external_worker_dispatch(dispatch_mode.as_str()) {
-                        let worker_result_body = match worker_dispatch {
-                            ExternalWorkerDispatch::Scrapling => {
-                                run_scrapling_worker(&config, response.body.as_str())
-                            }
-                            ExternalWorkerDispatch::LlmRuntime => {
-                                run_llm_runtime_worker(&config, response.body.as_str())
-                            }
-                        };
-                        match post_worker_result(&config, worker_result_body.as_str()) {
-                            Ok(worker_response) if worker_response.status == 200 => {}
-                            Ok(worker_response) if worker_response.status == 409 => {
-                                eprintln!(
-                                    "[adversary-sim-supervisor] worker result rejected as stale status={} body={}",
-                                    worker_response.status, worker_response.body
-                                );
-                            }
-                            Ok(worker_response) => {
-                                consecutive_failures = consecutive_failures.saturating_add(1);
-                                eprintln!(
-                                    "[adversary-sim-supervisor] worker result post failed status={} failures={}/{} body={}",
-                                    worker_response.status,
-                                    consecutive_failures,
-                                    config.max_failures,
-                                    worker_response.body
-                                );
-                            }
-                            Err(err) => {
-                                consecutive_failures = consecutive_failures.saturating_add(1);
-                                eprintln!(
-                                    "[adversary-sim-supervisor] worker result transport error failures={}/{} err={}",
-                                    consecutive_failures, config.max_failures, err
-                                );
+                    let worker_dispatches = worker_dispatches(response.body.as_str());
+                    if !worker_dispatches.is_empty() {
+                        let mut handles = Vec::new();
+                        for worker_dispatch in worker_dispatches {
+                            let dispatch_config = config.clone();
+                            let beat_body = response.body.clone();
+                            handles.push(thread::spawn(move || {
+                                run_external_worker_dispatch(
+                                    &dispatch_config,
+                                    beat_body.as_str(),
+                                    worker_dispatch,
+                                )
+                            }));
+                        }
+                        for handle in handles {
+                            let worker_outcome = handle
+                                .join()
+                                .unwrap_or_else(|_| Err("worker dispatch thread panicked".to_string()));
+                            match worker_outcome {
+                                Ok(worker_response) if worker_response.status == 200 => {}
+                                Ok(worker_response) if worker_response.status == 409 => {
+                                    eprintln!(
+                                        "[adversary-sim-supervisor] worker result rejected as stale status={} body={}",
+                                        worker_response.status, worker_response.body
+                                    );
+                                }
+                                Ok(worker_response) => {
+                                    consecutive_failures = consecutive_failures.saturating_add(1);
+                                    eprintln!(
+                                        "[adversary-sim-supervisor] worker result post failed status={} failures={}/{} body={}",
+                                        worker_response.status,
+                                        consecutive_failures,
+                                        config.max_failures,
+                                        worker_response.body
+                                    );
+                                }
+                                Err(err) => {
+                                    consecutive_failures = consecutive_failures.saturating_add(1);
+                                    eprintln!(
+                                        "[adversary-sim-supervisor] worker result transport error failures={}/{} err={}",
+                                        consecutive_failures, config.max_failures, err
+                                    );
+                                }
                             }
                         }
                     }
@@ -870,7 +896,7 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::{external_worker_dispatch, parse_http_response, ExternalWorkerDispatch};
+    use super::{parse_http_response, worker_dispatches, ExternalWorkerDispatch};
 
     #[test]
     fn parse_http_response_keeps_plain_json_body() {
@@ -895,15 +921,18 @@ mod tests {
     }
 
     #[test]
-    fn external_worker_dispatch_knows_about_llm_runtime_mode() {
+    fn worker_dispatches_detects_parallel_payload_plans() {
         assert_eq!(
-            external_worker_dispatch("scrapling_worker"),
-            Some(ExternalWorkerDispatch::Scrapling)
+            worker_dispatches(r#"{"worker_plan":{},"llm_fulfillment_plan":{}}"#),
+            vec![
+                ExternalWorkerDispatch::Scrapling,
+                ExternalWorkerDispatch::LlmRuntime
+            ]
         );
         assert_eq!(
-            external_worker_dispatch("llm_fulfillment_plan"),
-            Some(ExternalWorkerDispatch::LlmRuntime)
+            worker_dispatches(r#"{"worker_plan":{}}"#),
+            vec![ExternalWorkerDispatch::Scrapling]
         );
-        assert_eq!(external_worker_dispatch("internal"), None);
+        assert_eq!(worker_dispatches(r#"{"dispatch_mode":"internal"}"#), Vec::new());
     }
 }

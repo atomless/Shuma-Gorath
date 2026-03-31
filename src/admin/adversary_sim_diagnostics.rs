@@ -76,6 +76,7 @@ impl LaneDiagnosticsState {
             RuntimeLane::SyntheticTraffic => &mut self.synthetic_traffic,
             RuntimeLane::ScraplingTraffic => &mut self.scrapling_traffic,
             RuntimeLane::BotRedTeam => &mut self.bot_red_team,
+            RuntimeLane::ParallelMixedTraffic => &mut self.scrapling_traffic,
         }
     }
 

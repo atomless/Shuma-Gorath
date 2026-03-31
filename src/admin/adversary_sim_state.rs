@@ -50,6 +50,7 @@ pub enum RuntimeLane {
     SyntheticTraffic,
     ScraplingTraffic,
     BotRedTeam,
+    ParallelMixedTraffic,
 }
 
 impl RuntimeLane {
@@ -58,6 +59,17 @@ impl RuntimeLane {
             Self::SyntheticTraffic => "synthetic_traffic",
             Self::ScraplingTraffic => "scrapling_traffic",
             Self::BotRedTeam => "bot_red_team",
+            Self::ParallelMixedTraffic => "parallel_mixed_traffic",
+        }
+    }
+
+    pub fn includes_worker_lane(self, worker_lane: RuntimeLane) -> bool {
+        match self {
+            Self::ParallelMixedTraffic => matches!(
+                worker_lane,
+                Self::ScraplingTraffic | Self::BotRedTeam
+            ),
+            _ => self == worker_lane,
         }
     }
 }
@@ -107,9 +119,13 @@ pub struct ControlState {
     #[serde(default)]
     pub last_generation_error: Option<String>,
     #[serde(default)]
-    pub pending_worker_tick_id: Option<String>,
+    pub pending_scrapling_tick_id: Option<String>,
     #[serde(default)]
-    pub pending_worker_started_at: Option<u64>,
+    pub pending_scrapling_started_at: Option<u64>,
+    #[serde(default)]
+    pub pending_llm_tick_id: Option<String>,
+    #[serde(default)]
+    pub pending_llm_started_at: Option<u64>,
     #[serde(default)]
     pub recurrence_strategy: Option<String>,
     #[serde(default)]
@@ -152,8 +168,10 @@ impl Default for ControlState {
             generated_request_count: 0,
             last_generated_at: None,
             last_generation_error: None,
-            pending_worker_tick_id: None,
-            pending_worker_started_at: None,
+            pending_scrapling_tick_id: None,
+            pending_scrapling_started_at: None,
+            pending_llm_tick_id: None,
+            pending_llm_started_at: None,
             recurrence_strategy: None,
             recurrence_session_index: 0,
             recurrence_reentry_count: 0,
@@ -276,6 +294,68 @@ pub(crate) fn active_lane_count_for_lane(lane: RuntimeLane) -> u32 {
         RuntimeLane::SyntheticTraffic => deterministic_runtime_profile().active_lane_count,
         RuntimeLane::ScraplingTraffic => 1,
         RuntimeLane::BotRedTeam => 0,
+        RuntimeLane::ParallelMixedTraffic => 2,
+    }
+}
+
+pub(crate) fn lane_pending_tick_id<'a>(
+    state: &'a ControlState,
+    lane: RuntimeLane,
+) -> Option<&'a str> {
+    match lane {
+        RuntimeLane::ScraplingTraffic => state.pending_scrapling_tick_id.as_deref(),
+        RuntimeLane::BotRedTeam => state.pending_llm_tick_id.as_deref(),
+        RuntimeLane::SyntheticTraffic | RuntimeLane::ParallelMixedTraffic => None,
+    }
+}
+
+pub(crate) fn lane_has_pending_worker(state: &ControlState, lane: RuntimeLane) -> bool {
+    match lane {
+        RuntimeLane::ScraplingTraffic => state.pending_scrapling_tick_id.is_some(),
+        RuntimeLane::BotRedTeam => state.pending_llm_tick_id.is_some(),
+        RuntimeLane::ParallelMixedTraffic => {
+            state.pending_scrapling_tick_id.is_some() || state.pending_llm_tick_id.is_some()
+        }
+        RuntimeLane::SyntheticTraffic => false,
+    }
+}
+
+pub(crate) fn set_lane_pending_worker(
+    state: &mut ControlState,
+    lane: RuntimeLane,
+    tick_id: String,
+    started_at: u64,
+) {
+    match lane {
+        RuntimeLane::ScraplingTraffic => {
+            state.pending_scrapling_tick_id = Some(tick_id);
+            state.pending_scrapling_started_at = Some(started_at);
+        }
+        RuntimeLane::BotRedTeam => {
+            state.pending_llm_tick_id = Some(tick_id);
+            state.pending_llm_started_at = Some(started_at);
+        }
+        RuntimeLane::SyntheticTraffic | RuntimeLane::ParallelMixedTraffic => {}
+    }
+}
+
+pub(crate) fn clear_lane_pending_worker(state: &mut ControlState, lane: RuntimeLane) {
+    match lane {
+        RuntimeLane::ScraplingTraffic => {
+            state.pending_scrapling_tick_id = None;
+            state.pending_scrapling_started_at = None;
+        }
+        RuntimeLane::BotRedTeam => {
+            state.pending_llm_tick_id = None;
+            state.pending_llm_started_at = None;
+        }
+        RuntimeLane::ParallelMixedTraffic => {
+            state.pending_scrapling_tick_id = None;
+            state.pending_scrapling_started_at = None;
+            state.pending_llm_tick_id = None;
+            state.pending_llm_started_at = None;
+        }
+        RuntimeLane::SyntheticTraffic => {}
     }
 }
 
@@ -326,8 +406,10 @@ pub fn start_state_with_reason(
         generated_request_count: 0,
         last_generated_at: None,
         last_generation_error: None,
-        pending_worker_tick_id: None,
-        pending_worker_started_at: None,
+        pending_scrapling_tick_id: None,
+        pending_scrapling_started_at: None,
+        pending_llm_tick_id: None,
+        pending_llm_started_at: None,
         recurrence_strategy: None,
         recurrence_session_index: 1,
         recurrence_reentry_count: 0,
@@ -357,8 +439,10 @@ pub fn stop_state(now: u64, reason: &str, current: &ControlState) -> (ControlSta
     next.active_run_count = 0;
     next.active_lane_count = 0;
     next.active_lane = None;
-    next.pending_worker_tick_id = None;
-    next.pending_worker_started_at = None;
+    next.pending_scrapling_tick_id = None;
+    next.pending_scrapling_started_at = None;
+    next.pending_llm_tick_id = None;
+    next.pending_llm_started_at = None;
     next.recurrence_strategy = None;
     next.recurrence_session_index = 0;
     next.recurrence_reentry_count = 0;
@@ -431,8 +515,10 @@ pub fn reconcile_state(
             next.active_run_count = 0;
             next.active_lane_count = 0;
             next.active_lane = None;
-            next.pending_worker_tick_id = None;
-            next.pending_worker_started_at = None;
+            next.pending_scrapling_tick_id = None;
+            next.pending_scrapling_started_at = None;
+            next.pending_llm_tick_id = None;
+            next.pending_llm_started_at = None;
             next.recurrence_strategy = None;
             next.recurrence_session_index = 0;
             next.recurrence_reentry_count = 0;
@@ -459,8 +545,10 @@ pub fn reconcile_state(
             next.active_lane = None;
             next.last_transition_reason = Some("forced_kill_timeout".to_string());
             next.last_terminal_failure_reason = Some("forced_kill_timeout".to_string());
-            next.pending_worker_tick_id = None;
-            next.pending_worker_started_at = None;
+            next.pending_scrapling_tick_id = None;
+            next.pending_scrapling_started_at = None;
+            next.pending_llm_tick_id = None;
+            next.pending_llm_started_at = None;
             next.recurrence_strategy = None;
             next.recurrence_session_index = 0;
             next.recurrence_reentry_count = 0;
@@ -475,8 +563,10 @@ pub fn reconcile_state(
         next.active_run_count = 0;
         next.active_lane_count = 0;
         next.active_lane = None;
-        next.pending_worker_tick_id = None;
-        next.pending_worker_started_at = None;
+        next.pending_scrapling_tick_id = None;
+        next.pending_scrapling_started_at = None;
+        next.pending_llm_tick_id = None;
+        next.pending_llm_started_at = None;
         next.recurrence_strategy = None;
         next.recurrence_session_index = 0;
         next.recurrence_reentry_count = 0;

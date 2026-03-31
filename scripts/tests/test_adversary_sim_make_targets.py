@@ -238,7 +238,59 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
             body,
         )
         self.assertIn("scripts/tests/test_llm_runtime_worker.py", body)
-        self.assertIn("scripts/tests/test_adversarial_container_worker.py", body)
+
+    def test_parallel_lane_realism_target_uses_runtime_api_supervisor_and_dashboard_selectors(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-adversary-sim-parallel-lane-realism:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn(
+            "autonomous_supervisor_dispatches_parallel_scrapling_and_llm_plans_for_parallel_mixed_lane",
+            body,
+        )
+        self.assertIn(
+            "adversary_sim_internal_beat_returns_parallel_scrapling_and_llm_dispatch_for_parallel_mixed_lane",
+            body,
+        )
+        self.assertIn("scripts/tests/test_adversary_sim_supervisor.py", body)
+
+    def test_dashboard_red_team_lane_selector_contract_target_includes_parallel_mixed_lane_proof(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-dashboard-red-team-lane-selector-contract:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn("allows agentic and parallel mixed traffic", body)
+        self.assertIn(
+            "red team tab reuses verification-style config panel primitives for its adversary sim pane",
+            body,
+        )
+        self.assertIn("runtime-verify-freshness", body)
+        self.assertIn(
+            "adversary sim lane selector keeps off-state desired truth and allows agentic and parallel mixed traffic",
+            body,
+        )
+        self.assertIn("./scripts/tests/run_dashboard_e2e.sh --grep", body)
+
+    def test_runtime_verify_freshness_target_guards_prebuilt_wasm_against_stale_sources(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^runtime-verify-freshness:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn("$(WASM_ARTIFACT)", body)
+        self.assertIn("make build-runtime", body)
+        self.assertIn("find src -type f", body)
 
     def test_recurrence_realism_target_uses_state_dispatch_and_worker_receipt_selectors(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")

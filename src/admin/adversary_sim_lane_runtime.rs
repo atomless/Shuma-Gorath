@@ -23,7 +23,8 @@ use super::adversary_sim_corpus::deterministic_runtime_profile;
 use super::adversary_sim_identity_pool::load_identity_pool_from_env;
 use super::adversary_sim_realism_profile::scrapling_realism_profile_for_mode;
 use super::adversary_sim_state::{
-    active_lane_count_for_lane, autonomous_execution_profile, effective_active_lane,
+    active_lane_count_for_lane, autonomous_execution_profile, clear_lane_pending_worker,
+    effective_active_lane, lane_has_pending_worker, set_lane_pending_worker,
 };
 use super::adversary_sim_trusted_ingress::{
     trusted_ingress_proxy_config_from_env, trusted_ingress_proxy_url_for_client_ip,
@@ -504,10 +505,13 @@ pub(crate) fn apply_scrapling_worker_result(
         .saturating_add(result.generated_requests);
     state.last_generated_at = Some(result.tick_completed_at);
     state.last_generation_error = last_error;
-    state.pending_worker_tick_id = None;
-    state.pending_worker_started_at = None;
+    clear_lane_pending_worker(state, RuntimeLane::ScraplingTraffic);
     let realism_profile = scrapling_realism_profile_for_mode(result.fulfillment_mode.as_str());
-    schedule_recurrence_dormancy_after_tick(state, result.tick_completed_at, &realism_profile);
+    if state.desired_lane == RuntimeLane::ParallelMixedTraffic {
+        reset_recurrence_state(state);
+    } else {
+        schedule_recurrence_dormancy_after_tick(state, result.tick_completed_at, &realism_profile);
+    }
     state.updated_at = result.tick_completed_at;
 }
 
@@ -555,13 +559,16 @@ pub(crate) fn apply_llm_runtime_result(state: &mut ControlState, result: &LlmRun
         .saturating_add(result.executed_action_count);
     state.last_generated_at = Some(result.tick_completed_at);
     state.last_generation_error = last_error;
-    state.pending_worker_tick_id = None;
-    state.pending_worker_started_at = None;
+    clear_lane_pending_worker(state, RuntimeLane::BotRedTeam);
     let realism_profile =
         super::adversary_sim_realism_profile::llm_realism_profile_for_mode(
             result.fulfillment_mode.as_str(),
         );
-    schedule_recurrence_dormancy_after_tick(state, result.tick_completed_at, &realism_profile);
+    if state.desired_lane == RuntimeLane::ParallelMixedTraffic {
+        reset_recurrence_state(state);
+    } else {
+        schedule_recurrence_dormancy_after_tick(state, result.tick_completed_at, &realism_profile);
+    }
     state.updated_at = result.tick_completed_at;
 }
 
@@ -574,9 +581,10 @@ fn reconcile_active_lane_at_beat_boundary(now: u64, state: &mut ControlState) {
         state.active_lane_count = active_lane_count_for_lane(state.desired_lane);
         return;
     }
-    if state.pending_worker_tick_id.is_some() && state.active_lane != Some(state.desired_lane) {
-        state.pending_worker_tick_id = None;
-        state.pending_worker_started_at = None;
+    if lane_has_pending_worker(state, state.active_lane.unwrap_or(state.desired_lane))
+        && state.active_lane != Some(state.desired_lane)
+    {
+        clear_lane_pending_worker(state, RuntimeLane::ParallelMixedTraffic);
     }
     state.active_lane = Some(state.desired_lane);
     state.active_lane_count = active_lane_count_for_lane(state.desired_lane);
@@ -646,8 +654,7 @@ fn next_scrapling_worker_plan(now: u64, state: &mut ControlState) -> ScraplingWo
         .or_else(|| trusted_browser_proxy_url.clone())
         .or_else(|| request_proxy_url.clone());
     let recurrence_context = recurrence_context_for_profile(now, state, &realism_profile);
-    state.pending_worker_tick_id = Some(tick_id.clone());
-    state.pending_worker_started_at = Some(now);
+    set_lane_pending_worker(state, RuntimeLane::ScraplingTraffic, tick_id.clone(), now);
     state.updated_at = now;
     ScraplingWorkerPlan {
         schema_version: SCRAPLING_WORKER_PLAN_SCHEMA_VERSION.to_string(),
@@ -948,6 +955,88 @@ mod tests {
 
         std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
     }
+
+    #[test]
+    fn autonomous_supervisor_dispatches_parallel_scrapling_and_llm_plans_for_parallel_mixed_lane() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "shared-server");
+        let store = InMemoryStore::default();
+        let mut state = ControlState {
+            phase: ControlPhase::Running,
+            desired_enabled: true,
+            desired_lane: RuntimeLane::ParallelMixedTraffic,
+            active_lane: Some(RuntimeLane::ParallelMixedTraffic),
+            owner_instance_id: Some(process_instance_id().to_string()),
+            run_id: Some("run-parallel-mixed".to_string()),
+            started_at: Some(100),
+            ends_at: Some(500),
+            active_run_count: 1,
+            active_lane_count: 2,
+            ..ControlState::default()
+        };
+
+        let summary = run_autonomous_supervisor_ticks(&store, &mut state, 110);
+
+        assert_eq!(summary.due_ticks, 1);
+        assert!(summary.worker_plan.is_some());
+        assert!(summary.llm_fulfillment_plan.is_some());
+        assert_eq!(
+            summary
+                .worker_plan
+                .as_ref()
+                .map(|plan| plan.lane.as_str()),
+            Some("scrapling_traffic")
+        );
+        assert_eq!(
+            summary
+                .llm_fulfillment_plan
+                .as_ref()
+                .map(|plan| plan.lane.as_str()),
+            Some("bot_red_team")
+        );
+        assert!(!summary.worker_pending);
+        assert_eq!(summary.pending_dispatch_mode.as_deref(), Some("parallel_mixed_workers"));
+        assert!(state.pending_scrapling_tick_id.is_some());
+        assert!(state.pending_llm_tick_id.is_some());
+
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+    }
+
+    #[test]
+    fn autonomous_supervisor_parallel_mixed_lane_waits_for_both_worker_results_before_redispatching() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "shared-server");
+        let store = InMemoryStore::default();
+        let mut state = ControlState {
+            phase: ControlPhase::Running,
+            desired_enabled: true,
+            desired_lane: RuntimeLane::ParallelMixedTraffic,
+            active_lane: Some(RuntimeLane::ParallelMixedTraffic),
+            owner_instance_id: Some(process_instance_id().to_string()),
+            run_id: Some("run-parallel-pending".to_string()),
+            started_at: Some(100),
+            ends_at: Some(500),
+            active_run_count: 1,
+            active_lane_count: 2,
+            pending_scrapling_tick_id: Some("scrapling-tick-pending".to_string()),
+            pending_scrapling_started_at: Some(109),
+            pending_llm_tick_id: Some("llm-fit-tick-pending".to_string()),
+            pending_llm_started_at: Some(109),
+            ..ControlState::default()
+        };
+
+        let summary = run_autonomous_supervisor_ticks(&store, &mut state, 110);
+
+        assert!(summary.worker_plan.is_none());
+        assert!(summary.llm_fulfillment_plan.is_none());
+        assert!(summary.worker_pending);
+        assert_eq!(
+            summary.pending_dispatch_mode.as_deref(),
+            Some("parallel_mixed_workers_pending")
+        );
+
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+    }
 }
 
 pub(crate) fn run_autonomous_supervisor_ticks(
@@ -972,7 +1061,7 @@ pub(crate) fn run_autonomous_supervisor_ticks(
                 summary.pending_dispatch_mode = Some("recurrence_dormant".to_string());
                 return summary;
             }
-            if state.pending_worker_tick_id.is_some() {
+            if lane_has_pending_worker(state, RuntimeLane::ScraplingTraffic) {
                 summary.worker_pending = true;
                 summary.pending_dispatch_mode = Some("scrapling_worker_pending".to_string());
                 return summary;
@@ -986,7 +1075,7 @@ pub(crate) fn run_autonomous_supervisor_ticks(
                 summary.pending_dispatch_mode = Some("recurrence_dormant".to_string());
                 return summary;
             }
-            if state.pending_worker_tick_id.is_some() {
+            if lane_has_pending_worker(state, RuntimeLane::BotRedTeam) {
                 summary.worker_pending = true;
                 summary.pending_dispatch_mode = Some("llm_fulfillment_plan_pending".to_string());
                 return summary;
@@ -1003,9 +1092,34 @@ pub(crate) fn run_autonomous_supervisor_ticks(
                 None
             };
             state.last_generation_error = counters.last_error.clone();
-            state.pending_worker_tick_id = Some(plan.tick_id.clone());
-            state.pending_worker_started_at = Some(plan.tick_started_at);
+            set_lane_pending_worker(state, RuntimeLane::BotRedTeam, plan.tick_id.clone(), plan.tick_started_at);
             state.updated_at = now;
+            summary.llm_fulfillment_plan = Some(plan);
+            return summary;
+        }
+        Some(RuntimeLane::ParallelMixedTraffic) => {
+            if lane_has_pending_worker(state, RuntimeLane::ParallelMixedTraffic) {
+                summary.worker_pending = true;
+                summary.pending_dispatch_mode = Some("parallel_mixed_workers_pending".to_string());
+                return summary;
+            }
+            record_lane_attempt(state, RuntimeLane::ScraplingTraffic);
+            record_lane_attempt(state, RuntimeLane::BotRedTeam);
+            summary.worker_plan = Some(next_scrapling_worker_plan(now, state));
+            let frontier = crate::config::frontier_summary();
+            let plan = next_llm_fulfillment_plan(now, state, &frontier);
+            let counters = state.lane_diagnostics.lane_mut(RuntimeLane::BotRedTeam);
+            counters.last_error = if plan.backend_state == "unavailable" {
+                Some("llm_backend_unavailable".to_string())
+            } else if plan.backend_state == "degraded" {
+                Some("llm_backend_degraded".to_string())
+            } else {
+                None
+            };
+            state.last_generation_error = counters.last_error.clone();
+            set_lane_pending_worker(state, RuntimeLane::BotRedTeam, plan.tick_id.clone(), plan.tick_started_at);
+            state.updated_at = now;
+            summary.pending_dispatch_mode = Some("parallel_mixed_workers".to_string());
             summary.llm_fulfillment_plan = Some(plan);
             return summary;
         }

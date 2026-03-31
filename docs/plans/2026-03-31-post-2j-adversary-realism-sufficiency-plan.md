@@ -29,6 +29,8 @@ That means:
 
 ## Task 1: `SIM-REALISM-3A` Add Overlapping Multi-Lane And Multi-Identity Concurrency Realism
 
+**Status:** Landed. The runtime now supports the explicit `parallel_mixed_traffic` lane, the Red Team selector exposes it as `Scrapling + Agentic`, and the focused proof path includes both runtime and served-runtime freshness checks.
+
 **Files:**
 - Later code targets: `src/admin/adversary_sim.rs`, `src/admin/adversary_sim_state.rs`, `src/admin/adversary_sim_lane_runtime.rs`, relevant worker-plan/result contracts, dashboard lane-selector surfaces, Red Team docs, and observer read models
 - Later proof targets: focused runtime and dashboard tests, `Makefile`

@@ -410,7 +410,9 @@ pub(crate) fn handle_internal_adversary_sim_beat(
     let generation_active = cfg.adversary_sim_enabled
         && state.phase == crate::admin::adversary_sim::ControlPhase::Running;
     let status = adversary_sim_status_payload(store, site_id, &cfg, &state, now);
-    let dispatch_mode = if summary.worker_plan.is_some() {
+    let dispatch_mode = if summary.worker_plan.is_some() && summary.llm_fulfillment_plan.is_some() {
+        "parallel_mixed_workers"
+    } else if summary.worker_plan.is_some() {
         "scrapling_worker"
     } else if summary.llm_fulfillment_plan.is_some() {
         "llm_fulfillment_plan"
@@ -491,10 +493,14 @@ pub(crate) fn handle_internal_adversary_sim_worker_result(
                 Ok(parsed) => parsed,
                 Err(_) => return Response::new(400, "Invalid Scrapling worker result payload"),
             };
-            let worker_tick_matches =
-                state.pending_worker_tick_id.as_deref() == Some(worker_result.tick_id.as_str());
+            let worker_tick_matches = crate::admin::adversary_sim_state::lane_pending_tick_id(
+                &state,
+                worker_result.lane,
+            ) == Some(worker_result.tick_id.as_str());
             let run_matches = state.run_id.as_deref() == Some(worker_result.run_id.as_str());
-            let lane_matches = active_lane == Some(worker_result.lane);
+            let lane_matches = active_lane
+                .map(|lane| lane.includes_worker_lane(worker_result.lane))
+                .unwrap_or(false);
             if !matches!(
                 state.phase,
                 crate::admin::adversary_sim::ControlPhase::Running
@@ -526,10 +532,14 @@ pub(crate) fn handle_internal_adversary_sim_worker_result(
                 Ok(parsed) => parsed,
                 Err(_) => return Response::new(400, "Invalid LLM runtime result payload"),
             };
-            let worker_tick_matches =
-                state.pending_worker_tick_id.as_deref() == Some(worker_result.tick_id.as_str());
+            let worker_tick_matches = crate::admin::adversary_sim_state::lane_pending_tick_id(
+                &state,
+                worker_result.lane,
+            ) == Some(worker_result.tick_id.as_str());
             let run_matches = state.run_id.as_deref() == Some(worker_result.run_id.as_str());
-            let lane_matches = active_lane == Some(worker_result.lane);
+            let lane_matches = active_lane
+                .map(|lane| lane.includes_worker_lane(worker_result.lane))
+                .unwrap_or(false);
             if !matches!(
                 state.phase,
                 crate::admin::adversary_sim::ControlPhase::Running

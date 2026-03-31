@@ -245,7 +245,7 @@ The adopted execution order on this roadmap is therefore:
 19. `SIM-REALISM-3D` deeper transport and network fingerprint realism,
 20. `SIM-REALISM-3E` explicit representativeness infrastructure gating.
 
-At the current point in that order, the live next step is `SIM-REALISM-3A`. No further Game Loop or Tuning execution should proceed until `SIM-REALISM-3A..3E` are complete, because later loop and tuning work would otherwise optimize against attacker traffic that still falls short on overlapping mixed-lane pressure, richer agentic capability, true long-window dormancy, deeper transport realism, and explicit representativeness gating.
+At the current point in that order, the live next step is `SIM-REALISM-3B`. No further Game Loop or Tuning execution should proceed until `SIM-REALISM-3B..3E` are complete, because later loop and tuning work would otherwise optimize against attacker traffic that still falls short on richer agentic capability, true long-window dormancy, deeper transport realism, and explicit representativeness gating even after overlapping mixed-lane pressure is now available.
 
 Before Shuma should describe Scrapling or Agentic Traffic as representative tuning evidence, it should:
 

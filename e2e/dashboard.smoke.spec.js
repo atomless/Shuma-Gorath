@@ -4157,7 +4157,7 @@ test("adversary sim toggle emits fresh telemetry visible in monitoring raw feed"
   });
 });
 
-test("adversary sim lane selector keeps off-state desired truth and allows agentic traffic", async ({ page, request }) => {
+test("adversary sim lane selector keeps off-state desired truth and allows agentic and parallel mixed traffic", async ({ page, request }) => {
   test.setTimeout(180_000);
   await withRestoredAdversarySimConfig(request, async () => {
     await forceAdversarySimDisabled(request);
@@ -4176,9 +4176,12 @@ test("adversary sim lane selector keeps off-state desired truth and allows agent
 
     const laneSelect = page.locator("#adversary-sim-lane-select");
     const botRedTeamOption = page.locator('#adversary-sim-lane-select option[value="bot_red_team"]');
+    const parallelMixedOption = page.locator('#adversary-sim-lane-select option[value="parallel_mixed_traffic"]');
     await expect(laneSelect).toHaveValue("scrapling_traffic");
     await expect(botRedTeamOption).toHaveText("Agentic Traffic");
     await expect(botRedTeamOption).not.toBeDisabled();
+    await expect(parallelMixedOption).toHaveText("Scrapling + Agentic");
+    await expect(parallelMixedOption).not.toBeDisabled();
 
     await laneSelect.selectOption("bot_red_team");
     await expect.poll(async () => {
@@ -4186,6 +4189,13 @@ test("adversary sim lane selector keeps off-state desired truth and allows agent
       return String(payload?.desired_lane || "").trim().toLowerCase();
     }, { timeout: 30000 }).toBe("bot_red_team");
     await expect(laneSelect).toHaveValue("bot_red_team");
+
+    await laneSelect.selectOption("parallel_mixed_traffic");
+    await expect.poll(async () => {
+      const payload = await fetchAdversarySimStatus(request);
+      return String(payload?.desired_lane || "").trim().toLowerCase();
+    }, { timeout: 30000 }).toBe("parallel_mixed_traffic");
+    await expect(laneSelect).toHaveValue("parallel_mixed_traffic");
 
     await laneSelect.selectOption("synthetic_traffic");
     await expect.poll(async () => {

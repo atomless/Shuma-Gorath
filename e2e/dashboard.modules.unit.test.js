@@ -5755,6 +5755,7 @@ test('red team tab reuses verification-style config panel primitives for its adv
   assert.match(redTeamTabSource, /<option value="synthetic_traffic">Synthetic Traffic<\/option>/);
   assert.match(redTeamTabSource, /<option value="scrapling_traffic">Scrapling Traffic<\/option>/);
   assert.match(redTeamTabSource, /<option value="bot_red_team">Agentic Traffic<\/option>/);
+  assert.match(redTeamTabSource, /<option value="parallel_mixed_traffic">Scrapling \+ Agentic<\/option>/);
   assert.match(redTeamTabSource, /<p id="adversary-sim-lifecycle-copy" class="control-desc text-muted">\{lifecycleCopy\}<\/p>/);
   assert.match(redTeamTabSource, /class="dashboard-adversary-sim-progress"/);
   assert.match(redTeamTabSource, /class="dashboard-adversary-sim-progress__fill"/);
@@ -5765,7 +5766,7 @@ test('red team tab reuses verification-style config panel primitives for its adv
   assert.match(redTeamTabSource, /function handleLaneChange\(event\)/);
   assert.match(
     dashboardPageSource,
-    /const ADVERSARY_SIM_SELECTABLE_LANES = new Set\(\[\s*'synthetic_traffic',\s*'scrapling_traffic',\s*'bot_red_team'\s*\]\);/
+    /const ADVERSARY_SIM_SELECTABLE_LANES = new Set\(\[\s*'synthetic_traffic',\s*'scrapling_traffic',\s*'bot_red_team',\s*'parallel_mixed_traffic'\s*\]\);/
   );
   assert.doesNotMatch(dashboardPageSource, /Bot red team lane is not yet available\./);
   assert.doesNotMatch(redTeamTabSource, /<h3>Lane State<\/h3>/);

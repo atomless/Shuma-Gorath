@@ -134,6 +134,7 @@
             <option value="synthetic_traffic">Synthetic Traffic</option>
             <option value="scrapling_traffic">Scrapling Traffic</option>
             <option value="bot_red_team">Agentic Traffic</option>
+            <option value="parallel_mixed_traffic">Scrapling + Agentic</option>
           </select>
         </div>
       </div>

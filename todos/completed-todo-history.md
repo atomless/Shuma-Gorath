@@ -4,6 +4,44 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-31)
 
+### SIM-REALISM-3A Overlapping Mixed-Lane Concurrency Realism
+
+- [x] Completed `SIM-REALISM-3A` across:
+  - [`../src/admin/adversary_sim_state.rs`](../src/admin/adversary_sim_state.rs)
+  - [`../src/admin/adversary_sim_lane_runtime.rs`](../src/admin/adversary_sim_lane_runtime.rs)
+  - [`../src/admin/adversary_sim_api.rs`](../src/admin/adversary_sim_api.rs)
+  - [`../src/admin/adversary_sim_diagnostics.rs`](../src/admin/adversary_sim_diagnostics.rs)
+  - [`../src/admin/oversight_follow_on_runs.rs`](../src/admin/oversight_follow_on_runs.rs)
+  - [`../src/admin/api.rs`](../src/admin/api.rs)
+  - [`../scripts/supervisor/adversary_sim_supervisor.rs`](../scripts/supervisor/adversary_sim_supervisor.rs)
+  - [`../scripts/tests/test_adversary_sim_supervisor.py`](../scripts/tests/test_adversary_sim_supervisor.py)
+  - [`../scripts/tests/test_adversary_sim_make_targets.py`](../scripts/tests/test_adversary_sim_make_targets.py)
+  - [`../dashboard/src/lib/domain/adversary-sim.js`](../dashboard/src/lib/domain/adversary-sim.js)
+  - [`../dashboard/src/lib/domain/api-client.js`](../dashboard/src/lib/domain/api-client.js)
+  - [`../dashboard/src/lib/runtime/dashboard-adversary-sim.js`](../dashboard/src/lib/runtime/dashboard-adversary-sim.js)
+  - [`../dashboard/src/routes/+page.svelte`](../dashboard/src/routes/+page.svelte)
+  - [`../dashboard/src/lib/components/dashboard/RedTeamTab.svelte`](../dashboard/src/lib/components/dashboard/RedTeamTab.svelte)
+  - [`../e2e/dashboard.modules.unit.test.js`](../e2e/dashboard.modules.unit.test.js)
+  - [`../e2e/dashboard.smoke.spec.js`](../e2e/dashboard.smoke.spec.js)
+  - [`../Makefile`](../Makefile)
+  - [`../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
+  - [`../docs/plans/2026-03-31-post-2j-adversary-realism-sufficiency-plan.md`](../docs/plans/2026-03-31-post-2j-adversary-realism-sufficiency-plan.md)
+  - [`../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md`](../docs/plans/2026-03-20-mature-adversary-sim-evolution-roadmap.md)
+  - [`../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md`](../docs/plans/2026-03-16-pre-launch-roadmap-gap-capture-and-sequencing.md)
+  - [`../docs/adversarial-operator-guide.md`](../docs/adversarial-operator-guide.md)
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../todos/todo.md`](../todos/todo.md)
+- [x] What landed:
+  - Shuma now has an explicit `parallel_mixed_traffic` lane that can dispatch Scrapling and Agentic worker plans in the same beat window instead of forcing one pending-worker slot to serialize every lane,
+  - the Red Team selector now exposes that mode as `Scrapling + Agentic` while preserving truthful desired-lane versus active-lane status,
+  - and the focused operator proof path now fails fast when either the served dashboard bundle or the served runtime Wasm is stale, so browser checks cannot misdiagnose stale prebuilt artifacts as runtime regressions.
+- [x] Evidence:
+  - `make test-adversary-sim-parallel-lane-realism`
+  - `python3 -m unittest scripts.tests.test_adversary_sim_make_targets`
+  - `make build-runtime`
+  - `make dashboard-build`
+  - `make test-dashboard-red-team-lane-selector-contract`
+
 ### SIM-REALISM-2J Explicit Identity-Realism Receipts And Observer Wording
 
 - [x] Completed `SIM-REALISM-2J` across:
