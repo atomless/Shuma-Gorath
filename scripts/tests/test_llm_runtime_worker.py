@@ -217,6 +217,48 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
         self.assertIn("Mozilla/5.0", first_headers["user-agent"])
         self.assertIn("text/html", first_headers["accept"])
 
+    def test_build_request_mode_realism_execution_plan_marks_fixed_proxy_identity_with_trusted_ingress_proxy(self):
+        plan = {
+            "schema_version": "adversary-sim-llm-fulfillment-plan.v1",
+            "run_id": "simrun-llm-runtime",
+            "tick_id": "llm-fit-tick-identity-fixed-proxy",
+            "lane": "bot_red_team",
+            "fulfillment_mode": "request_mode",
+            "backend_kind": "frontier_reference",
+            "backend_state": "configured",
+            "category_targets": ["http_agent"],
+            "capability_envelope": {"max_actions": 4, "max_time_budget_seconds": 120},
+            "realism_profile": resolve_lane_realism_profile("bot_red_team", "request_mode"),
+            "request_proxy_url": "http://198.51.100.44:trusted-token@127.0.0.1:3871",
+            "request_identity_pool": [],
+        }
+        generation = {
+            "generation_source": "provider_response",
+            "provider": "openai",
+            "model_id": "gpt-5-mini",
+            "actions": [
+                {"action_index": 1, "action_type": "http_get", "path": "/", "label": "root"},
+                {"action_index": 2, "action_type": "http_get", "path": "/robots.txt", "label": "robots"},
+            ],
+        }
+
+        execution_plan = llm_runtime_worker.build_request_mode_realism_execution_plan(
+            fulfillment_plan=plan,
+            generation_result=generation,
+        )
+
+        self.assertEqual(execution_plan["identity_realism_status"], "fixed_proxy")
+        self.assertEqual(
+            execution_plan["session_handles"],
+            ["agentic-request-session-trusted-ingress"],
+        )
+        self.assertTrue(
+            all(
+                proxy_url == "http://198.51.100.44:trusted-token@127.0.0.1:3871"
+                for proxy_url in execution_plan["action_proxy_urls"]
+            )
+        )
+
     def test_build_request_mode_realism_execution_plan_aligns_mobile_geo_headers_with_pool_identity(self):
         plan = {
             "schema_version": "adversary-sim-llm-fulfillment-plan.v1",
@@ -265,6 +307,45 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
         self.assertEqual(
             first_headers["accept-language"],
             "fr-FR,fr;q=0.9,en-US;q=0.7,en;q=0.6",
+        )
+
+    def test_build_browser_mode_realism_execution_plan_marks_fixed_proxy_identity_when_browser_proxy_present(self):
+        plan = {
+            "schema_version": "adversary-sim-llm-fulfillment-plan.v1",
+            "run_id": "simrun-llm-runtime",
+            "tick_id": "llm-fit-tick-browser-proxy-1",
+            "lane": "bot_red_team",
+            "fulfillment_mode": "browser_mode",
+            "backend_kind": "frontier_reference",
+            "backend_state": "configured",
+            "category_targets": ["browser_agent"],
+            "capability_envelope": {"max_actions": 8, "max_time_budget_seconds": 90},
+            "browser_proxy_url": "http://198.51.100.55:trusted-token@127.0.0.1:3871",
+            "realism_profile": resolve_lane_realism_profile("bot_red_team", "browser_mode"),
+        }
+        generation = {
+            "generation_source": "provider_response",
+            "provider": "openai",
+            "model_id": "gpt-5-mini",
+            "actions": [
+                {
+                    "action_index": 1,
+                    "action_type": "browser_navigate",
+                    "path": "/",
+                    "label": "root",
+                }
+            ],
+        }
+
+        execution_plan = llm_runtime_worker.build_browser_mode_realism_execution_plan(
+            fulfillment_plan=plan,
+            generation_result=generation,
+        )
+
+        self.assertEqual(execution_plan["identity_realism_status"], "fixed_proxy")
+        self.assertEqual(
+            execution_plan["browser_proxy_url"],
+            "http://198.51.100.55:trusted-token@127.0.0.1:3871",
         )
 
     def test_extract_llm_fulfillment_plan_requires_nested_plan(self):
@@ -478,6 +559,7 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
             "backend_state": "configured",
             "category_targets": ["browser_agent"],
             "capability_envelope": {"max_actions": 4, "max_time_budget_seconds": 90},
+            "browser_proxy_url": "http://198.51.100.55:trusted-token@127.0.0.1:3871",
             "realism_profile": resolve_lane_realism_profile("bot_red_team", "browser_mode"),
         }
         generation = {
@@ -587,6 +669,10 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
         self.assertEqual(
             observed["input"]["action"],
             "agentic_browser_session",
+        )
+        self.assertEqual(
+            observed["input"]["proxy_url"],
+            "http://198.51.100.55:trusted-token@127.0.0.1:3871",
         )
         self.assertEqual(
             observed["input"]["session_plan"]["profile_id"],

@@ -8,7 +8,7 @@
 
 **Related research:** [`../research/2026-03-30-adversary-lane-wild-traffic-gap-review.md`](../research/2026-03-30-adversary-lane-wild-traffic-gap-review.md)
 
-**Status note:** `SIM-REALISM-2A`, `SIM-REALISM-2B`, `SIM-REALISM-2C`, `SIM-REALISM-2D`, `SIM-REALISM-2E`, `SIM-REALISM-2F`, and `SIM-REALISM-2G` are now landed. The generated root-hosted contributor public site that satisfied the old `SIM-REALISM-2H` discoverability need is also already landed. The next active realism tranche is therefore `SIM-REALISM-2I`.
+**Status note:** `SIM-REALISM-2A`, `SIM-REALISM-2B`, `SIM-REALISM-2C`, `SIM-REALISM-2D`, `SIM-REALISM-2E`, `SIM-REALISM-2F`, `SIM-REALISM-2G`, and `SIM-REALISM-2I` are now landed. The generated root-hosted contributor public site that satisfied the old `SIM-REALISM-2H` discoverability need is also already landed. The next active realism tranche is therefore `SIM-REALISM-2J`.
 
 ---
 
@@ -255,6 +255,8 @@ That means:
 3. See the dedicated generated-site execution chain in [`2026-03-30-contributor-generated-public-content-sim-site-plan.md`](./2026-03-30-contributor-generated-public-content-sim-site-plan.md).
 
 ## Task 10: `SIM-REALISM-2I` Add Trusted-Ingress Client-IP Realism Without Attacker-Plane Privilege Creep
+
+**Status:** Landed on 2026-03-31.
 
 Detailed topology and trust-boundary addendum:
 

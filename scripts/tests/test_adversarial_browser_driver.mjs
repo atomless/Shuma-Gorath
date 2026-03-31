@@ -6,6 +6,7 @@ import {
   applyChallengePuzzleWrongOutput,
   classifyMazeDocument,
   mergeAgenticSessionPaths,
+  normalizeProxyConfig,
   summarizeBrowserSecondaryTraffic,
   validateAllowBrowserAllowlistResponse,
 } from "./adversarial_browser_driver.mjs";
@@ -169,6 +170,27 @@ function testMergeAgenticSessionPathsRootsAndDeduplicatesWithinBudget() {
 }
 
 testMergeAgenticSessionPathsRootsAndDeduplicatesWithinBudget();
+
+function testNormalizeProxyConfigExtractsServerAndCredentials() {
+  assert.deepEqual(
+    normalizeProxyConfig("http://198.51.100.44:trusted-token@127.0.0.1:3871"),
+    {
+      server: "http://127.0.0.1:3871",
+      username: "198.51.100.44",
+      password: "trusted-token",
+    },
+  );
+}
+
+function testNormalizeProxyConfigRejectsPathBearingProxyUrl() {
+  assert.throws(
+    () => normalizeProxyConfig("http://127.0.0.1:3871/proxy"),
+    /browser_driver_proxy_url_must_not_include_path_query_or_fragment/,
+  );
+}
+
+testNormalizeProxyConfigExtractsServerAndCredentials();
+testNormalizeProxyConfigRejectsPathBearingProxyUrl();
 
 function testSummarizeBrowserSecondaryTrafficSeparatesBackgroundAndSubresources() {
   const summary = summarizeBrowserSecondaryTraffic([

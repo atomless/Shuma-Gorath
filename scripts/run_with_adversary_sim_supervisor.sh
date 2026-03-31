@@ -9,6 +9,7 @@ fi
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SUPERVISOR_MANAGER_PID=""
 SUPERVISOR_WORKER_PID=""
+TRUSTED_INGRESS_PROXY_PID=""
 APP_PID=""
 
 SIM_AVAILABLE_RAW="${SHUMA_ADVERSARY_SIM_AVAILABLE:-true}"
@@ -19,6 +20,10 @@ SUPERVISOR_MANAGER_POLL_SECONDS="${SHUMA_ADVERSARY_SIM_SUPERVISOR_MANAGER_POLL_S
 BASE_URL="${SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL:-http://127.0.0.1:3000}"
 ADMIN_API_KEY="${SHUMA_API_KEY:-}"
 FORWARDED_SECRET="${SHUMA_FORWARDED_IP_SECRET:-}"
+TRUSTED_INGRESS_PROXY_URL="${ADVERSARY_SIM_TRUSTED_INGRESS_PROXY_URL:-}"
+TRUSTED_INGRESS_AUTH_TOKEN="${ADVERSARY_SIM_TRUSTED_INGRESS_AUTH_TOKEN:-}"
+TRUSTED_INGRESS_LISTEN_HOST="${ADVERSARY_SIM_TRUSTED_INGRESS_LISTEN_HOST:-127.0.0.1}"
+TRUSTED_INGRESS_LISTEN_PORT="${ADVERSARY_SIM_TRUSTED_INGRESS_LISTEN_PORT:-3871}"
 
 supervisor_attention_required() {
   if [[ -z "${ADMIN_API_KEY}" ]]; then
@@ -54,6 +59,60 @@ cleanup_worker() {
   fi
 }
 
+cleanup_trusted_ingress_proxy() {
+  if [[ -n "${TRUSTED_INGRESS_PROXY_PID}" ]]; then
+    kill "${TRUSTED_INGRESS_PROXY_PID}" 2>/dev/null || true
+    wait "${TRUSTED_INGRESS_PROXY_PID}" 2>/dev/null || true
+    TRUSTED_INGRESS_PROXY_PID=""
+  fi
+}
+
+start_trusted_ingress_proxy_if_needed() {
+  if [[ -z "${FORWARDED_SECRET}" ]]; then
+    return 0
+  fi
+  if [[ -n "${TRUSTED_INGRESS_PROXY_URL}" && -n "${TRUSTED_INGRESS_AUTH_TOKEN}" ]]; then
+    export ADVERSARY_SIM_TRUSTED_INGRESS_PROXY_URL="${TRUSTED_INGRESS_PROXY_URL}"
+    export ADVERSARY_SIM_TRUSTED_INGRESS_AUTH_TOKEN="${TRUSTED_INGRESS_AUTH_TOKEN}"
+    return 0
+  fi
+
+  TRUSTED_INGRESS_AUTH_TOKEN="$(
+    python3 - <<'PY'
+import secrets
+print(secrets.token_urlsafe(18))
+PY
+  )"
+  TRUSTED_INGRESS_PROXY_URL="http://${TRUSTED_INGRESS_LISTEN_HOST}:${TRUSTED_INGRESS_LISTEN_PORT}"
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "[adversary-sim-supervisor-manager] trusted ingress disabled: python3 unavailable; sim worker IP realism will remain degraded" >&2
+    TRUSTED_INGRESS_PROXY_URL=""
+    TRUSTED_INGRESS_AUTH_TOKEN=""
+    return 0
+  fi
+
+  python3 "${ROOT_DIR}/scripts/supervisor/trusted_ingress_proxy.py" \
+    --listen-host "${TRUSTED_INGRESS_LISTEN_HOST}" \
+    --listen-port "${TRUSTED_INGRESS_LISTEN_PORT}" \
+    --origin-base-url "${BASE_URL}" \
+    --auth-token "${TRUSTED_INGRESS_AUTH_TOKEN}" \
+    --forwarded-secret "${FORWARDED_SECRET}" &
+  TRUSTED_INGRESS_PROXY_PID=$!
+
+  sleep 0.2
+  if ! kill -0 "${TRUSTED_INGRESS_PROXY_PID}" 2>/dev/null; then
+    echo "[adversary-sim-supervisor-manager] trusted ingress disabled: local proxy failed to start; sim worker IP realism will remain degraded" >&2
+    cleanup_trusted_ingress_proxy
+    TRUSTED_INGRESS_PROXY_URL=""
+    TRUSTED_INGRESS_AUTH_TOKEN=""
+    return 0
+  fi
+
+  export ADVERSARY_SIM_TRUSTED_INGRESS_PROXY_URL="${TRUSTED_INGRESS_PROXY_URL}"
+  export ADVERSARY_SIM_TRUSTED_INGRESS_AUTH_TOKEN="${TRUSTED_INGRESS_AUTH_TOKEN}"
+}
+
 run_supervisor_manager() {
   trap cleanup_worker EXIT INT TERM
 
@@ -76,6 +135,7 @@ run_supervisor_manager() {
 }
 
 cleanup() {
+  cleanup_trusted_ingress_proxy
   if [[ -n "${SUPERVISOR_MANAGER_PID}" ]]; then
     kill "${SUPERVISOR_MANAGER_PID}" 2>/dev/null || true
     wait "${SUPERVISOR_MANAGER_PID}" 2>/dev/null || true
@@ -84,6 +144,8 @@ cleanup() {
 }
 
 trap cleanup EXIT INT TERM
+
+start_trusted_ingress_proxy_if_needed
 
 "$@" &
 APP_PID=$!

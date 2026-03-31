@@ -7,6 +7,7 @@ pub(crate) mod adversary_sim_lane_runtime;
 pub(crate) mod adversary_sim_realism_profile;
 pub(crate) mod adversary_sim_status_truth;
 pub(crate) mod adversary_sim_state;
+pub(crate) mod adversary_sim_trusted_ingress;
 pub(crate) mod adversary_sim_worker_plan;
 mod adversary_sim_api;
 pub(crate) mod adversary_sim_control;

@@ -4,8 +4,11 @@ use crate::config::FrontierSummary;
 
 use super::adversary_sim::{ControlState, RuntimeLane};
 use super::adversary_sim_identity_pool::{load_identity_pool_from_env, IdentityPoolEntry};
-use super::adversary_sim_lane_runtime::recurrence_context_for_profile;
+use super::adversary_sim_lane_runtime::{recurrence_context_for_profile, simulated_request_ip};
 use super::adversary_sim_realism_profile::{llm_realism_profile_for_mode, LaneRealismProfile};
+use super::adversary_sim_trusted_ingress::{
+    trusted_ingress_proxy_config_from_env, trusted_ingress_proxy_url_for_client_ip,
+};
 use super::adversary_sim_worker_plan::LaneRealismRecurrenceContext;
 
 pub(crate) const LLM_FULFILLMENT_PLAN_SCHEMA_VERSION: &str =
@@ -115,6 +118,10 @@ pub(crate) struct LlmFulfillmentPlan {
     pub realism_profile: LaneRealismProfile,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub recurrence_context: Option<LaneRealismRecurrenceContext>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub request_proxy_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub browser_proxy_url: Option<String>,
     pub request_identity_pool: Vec<IdentityPoolEntry>,
 }
 
@@ -132,6 +139,25 @@ pub(crate) fn next_llm_fulfillment_plan(
     let (backend_state, backend_id) = frontier_backend_state(frontier);
     let realism_profile = llm_realism_profile_for_mode(mode.as_str());
     let recurrence_context = recurrence_context_for_profile(now, state, &realism_profile);
+    let request_identity_pool =
+        load_identity_pool_from_env("ADVERSARY_SIM_AGENTIC_REQUEST_PROXY_POOL_JSON");
+    let trusted_ingress_config = trusted_ingress_proxy_config_from_env();
+    let request_proxy_url = if request_identity_pool.is_empty() {
+        trusted_ingress_config.as_ref().and_then(|config| {
+            trusted_ingress_proxy_url_for_client_ip(
+                config,
+                simulated_request_ip(state.generated_tick_count, 2).as_str(),
+            )
+        })
+    } else {
+        None
+    };
+    let browser_proxy_url = trusted_ingress_config.as_ref().and_then(|config| {
+        trusted_ingress_proxy_url_for_client_ip(
+            config,
+            simulated_request_ip(state.generated_tick_count, 3).as_str(),
+        )
+    });
 
     LlmFulfillmentPlan {
         schema_version: LLM_FULFILLMENT_PLAN_SCHEMA_VERSION.to_string(),
@@ -155,9 +181,9 @@ pub(crate) fn next_llm_fulfillment_plan(
         capability_envelope: capability_envelope_for_mode(mode),
         realism_profile,
         recurrence_context,
-        request_identity_pool: load_identity_pool_from_env(
-            "ADVERSARY_SIM_AGENTIC_REQUEST_PROXY_POOL_JSON",
-        ),
+        request_proxy_url,
+        browser_proxy_url,
+        request_identity_pool,
     }
 }
 
@@ -312,6 +338,7 @@ mod tests {
         llm_fulfillment_mode_for_tick, next_llm_fulfillment_plan, LlmFulfillmentMode,
     };
     use crate::admin::adversary_sim::ControlState;
+    use crate::admin::adversary_sim_lane_runtime::simulated_request_ip;
     use crate::config::frontier_summary;
 
     #[test]
@@ -425,5 +452,67 @@ mod tests {
         assert_eq!(recurrence.reentry_count, 0);
         assert!(recurrence.max_reentries_per_run >= 1);
         assert!(recurrence.planned_dormant_gap_seconds >= 1);
+    }
+
+    #[test]
+    fn llm_fulfillment_plan_uses_trusted_ingress_proxy_when_configured_and_request_pool_absent() {
+        let _lock = crate::test_support::lock_env();
+        std::env::remove_var("ADVERSARY_SIM_AGENTIC_REQUEST_PROXY_POOL_JSON");
+        std::env::set_var(
+            "ADVERSARY_SIM_TRUSTED_INGRESS_PROXY_URL",
+            "http://127.0.0.1:3871",
+        );
+        std::env::set_var("ADVERSARY_SIM_TRUSTED_INGRESS_AUTH_TOKEN", "trusted-token");
+
+        let frontier = frontier_summary();
+        let mut state = ControlState::default();
+        state.generated_tick_count = 1;
+        let plan = next_llm_fulfillment_plan(1_700_000_300, &mut state, &frontier);
+        let expected_request_ip = simulated_request_ip(1, 2);
+        let expected_browser_ip = simulated_request_ip(1, 3);
+
+        assert_eq!(
+            plan.request_proxy_url.as_deref(),
+            Some(format!("http://{expected_request_ip}:trusted-token@127.0.0.1:3871").as_str())
+        );
+        assert_eq!(
+            plan.browser_proxy_url.as_deref(),
+            Some(format!("http://{expected_browser_ip}:trusted-token@127.0.0.1:3871").as_str())
+        );
+        assert!(plan.request_identity_pool.is_empty());
+
+        std::env::remove_var("ADVERSARY_SIM_TRUSTED_INGRESS_PROXY_URL");
+        std::env::remove_var("ADVERSARY_SIM_TRUSTED_INGRESS_AUTH_TOKEN");
+    }
+
+    #[test]
+    fn llm_fulfillment_plan_keeps_request_pool_authoritative_over_trusted_ingress_fallback() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var(
+            "ADVERSARY_SIM_AGENTIC_REQUEST_PROXY_POOL_JSON",
+            r#"[{"label":"pool-one","proxy_url":"http://proxy.example:9001","identity_class":"mobile","country_code":"FR"}]"#,
+        );
+        std::env::set_var(
+            "ADVERSARY_SIM_TRUSTED_INGRESS_PROXY_URL",
+            "http://127.0.0.1:3871",
+        );
+        std::env::set_var("ADVERSARY_SIM_TRUSTED_INGRESS_AUTH_TOKEN", "trusted-token");
+
+        let frontier = frontier_summary();
+        let mut state = ControlState::default();
+        state.generated_tick_count = 1;
+        let plan = next_llm_fulfillment_plan(1_700_000_301, &mut state, &frontier);
+        let expected_browser_ip = simulated_request_ip(1, 3);
+
+        assert!(plan.request_proxy_url.is_none());
+        assert_eq!(plan.request_identity_pool.len(), 1);
+        assert_eq!(
+            plan.browser_proxy_url.as_deref(),
+            Some(format!("http://{expected_browser_ip}:trusted-token@127.0.0.1:3871").as_str())
+        );
+
+        std::env::remove_var("ADVERSARY_SIM_AGENTIC_REQUEST_PROXY_POOL_JSON");
+        std::env::remove_var("ADVERSARY_SIM_TRUSTED_INGRESS_PROXY_URL");
+        std::env::remove_var("ADVERSARY_SIM_TRUSTED_INGRESS_AUTH_TOKEN");
     }
 }

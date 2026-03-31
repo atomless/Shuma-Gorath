@@ -65,6 +65,8 @@ Those remain separate realism work after the trust-boundary slice is correct.
 
 ## Task 2: Add Trusted Sim-Ingress Without Worker Privilege Creep
 
+**Status:** Landed on 2026-03-31.
+
 **Files:**
 - Later code targets: adversary-sim supervisor or ingress adapter surfaces, deployment wiring, runtime trust-boundary docs
 - Later proof targets: attacker-plane contract tests, ingress realism tests, `Makefile`

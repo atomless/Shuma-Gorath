@@ -34,6 +34,7 @@ from scripts.tests.adversarial_runner.contracts import (
     resolve_lane_realism_profile,
 )
 from scripts.tests.adversarial_runner.identity_envelope import (
+    normalize_optional_proxy_url,
     normalize_identity_pool_entries,
     summarize_identity_realism,
 )
@@ -230,7 +231,14 @@ def build_browser_mode_realism_execution_plan(
         fulfillment_plan,
         top_level_action_budget,
     )
-    identity_summary = summarize_identity_realism(profile)
+    browser_proxy_url = normalize_optional_proxy_url(
+        fulfillment_plan.get("browser_proxy_url"),
+        field_name="llm_fulfillment_plan.browser_proxy_url",
+    )
+    identity_summary = summarize_identity_realism(
+        profile,
+        fixed_proxy_url=browser_proxy_url,
+    )
     browser_transport = resolve_browser_transport_observation(profile)
     recurrence_context = _resolve_recurrence_context(fulfillment_plan, profile)
     return {
@@ -256,6 +264,7 @@ def build_browser_mode_realism_execution_plan(
         "observed_user_agent_families": [str(browser_transport.get("user_agent_family") or "")],
         "observed_accept_languages": [str(browser_transport.get("accept_language") or "")],
         "observed_browser_locales": [str(browser_transport.get("browser_locale") or "")],
+        "browser_proxy_url": browser_proxy_url,
         "recurrence_strategy": str(recurrence_context["strategy"]),
         "session_index": int(recurrence_context["session_index"]),
         "reentry_count": int(recurrence_context["reentry_count"]),
@@ -336,6 +345,10 @@ def _request_mode_identity_assignments(
     *,
     action_count: int,
 ) -> dict[str, Any]:
+    fixed_proxy_url = normalize_optional_proxy_url(
+        fulfillment_plan.get("request_proxy_url"),
+        field_name="llm_fulfillment_plan.request_proxy_url",
+    )
     request_identity_pool = normalize_identity_pool_entries(
         fulfillment_plan.get("request_identity_pool"),
         field_name="llm_fulfillment_plan.request_identity_pool",
@@ -364,6 +377,12 @@ def _request_mode_identity_assignments(
         while len(action_proxy_urls) < action_count:
             action_proxy_urls.append(None)
             action_identity_rows.append({"country_code": None, "identity_class": None})
+    elif fixed_proxy_url:
+        session_handles = ["agentic-request-session-trusted-ingress"]
+        action_proxy_urls = [fixed_proxy_url for _ in range(action_count)]
+        action_identity_rows = [
+            {"country_code": None, "identity_class": None} for _ in range(action_count)
+        ]
     else:
         session_handles = ["agentic-request-session-1"]
         action_proxy_urls = [None for _ in range(action_count)]
@@ -374,6 +393,7 @@ def _request_mode_identity_assignments(
         **summarize_identity_realism(
             profile,
             pool_entries=request_identity_pool,
+            fixed_proxy_url=fixed_proxy_url,
             observed_country_codes=observed_country_codes,
         ),
         "action_proxy_urls": action_proxy_urls[:action_count],
@@ -531,6 +551,14 @@ def extract_llm_fulfillment_plan(beat_response_payload: dict[str, Any]) -> dict[
     normalized_plan["request_identity_pool"] = normalize_identity_pool_entries(
         normalized_plan.get("request_identity_pool"),
         field_name="llm_fulfillment_plan.request_identity_pool",
+    )
+    normalized_plan["request_proxy_url"] = normalize_optional_proxy_url(
+        normalized_plan.get("request_proxy_url"),
+        field_name="llm_fulfillment_plan.request_proxy_url",
+    )
+    normalized_plan["browser_proxy_url"] = normalize_optional_proxy_url(
+        normalized_plan.get("browser_proxy_url"),
+        field_name="llm_fulfillment_plan.browser_proxy_url",
     )
     return normalized_plan
 
@@ -860,6 +888,7 @@ def run_browser_mode_blackbox(
         "headers": {
             "accept-language": str(realism_execution_plan.get("accept_language") or "en-US,en;q=0.9")
         },
+        "proxy_url": str(realism_execution_plan.get("browser_proxy_url") or "").strip() or None,
         "timeout_ms": min(
             60_000,
             max(

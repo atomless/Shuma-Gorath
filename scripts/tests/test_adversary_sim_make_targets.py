@@ -264,6 +264,30 @@ class AdversarySimMakeTargetTests(unittest.TestCase):
         self.assertIn("scripts/tests/test_llm_runtime_worker.py", body)
         self.assertIn("scripts/tests/test_adversarial_container_worker.py", body)
 
+    def test_trusted_ingress_realism_target_uses_proxy_and_planner_selectors(self) -> None:
+        source = MAKEFILE.read_text(encoding="utf-8")
+        match = re.search(
+            r"^test-adversary-sim-trusted-ingress-ip-realism:.*?(?=^[A-Za-z0-9_.-]+:|\Z)",
+            source,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        body = match.group(0)
+        self.assertIn("test-client-ip-topology-contract", body)
+        self.assertIn("test-adversarial-lane-contract", body)
+        self.assertIn(
+            "scrapling_worker_plan_uses_trusted_ingress_proxy_when_configured_without_explicit_proxy_or_pool",
+            body,
+        )
+        self.assertIn(
+            "llm_fulfillment_plan_uses_trusted_ingress_proxy_when_configured_and_request_pool_absent",
+            body,
+        )
+        self.assertIn("scripts/tests/test_trusted_ingress_proxy.py", body)
+        self.assertIn("scripts/tests/test_llm_runtime_worker.py", body)
+        self.assertIn("scripts/tests/test_adversary_sim_supervisor.py", body)
+        self.assertIn("scripts/tests/test_adversarial_browser_driver.mjs", body)
+
     def test_header_transport_realism_target_uses_contract_and_worker_selectors(self) -> None:
         source = MAKEFILE.read_text(encoding="utf-8")
         match = re.search(

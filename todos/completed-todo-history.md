@@ -4,6 +4,40 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-31)
 
+### SIM-REALISM-2I Trusted Sim-Ingress Without Worker Privilege Creep
+
+- [x] Completed the second `SIM-REALISM-2I` execution slice across:
+  - [`../src/admin/adversary_sim_trusted_ingress.rs`](../src/admin/adversary_sim_trusted_ingress.rs)
+  - [`../src/admin/adversary_sim_lane_runtime.rs`](../src/admin/adversary_sim_lane_runtime.rs)
+  - [`../src/admin/adversary_sim_llm_lane.rs`](../src/admin/adversary_sim_llm_lane.rs)
+  - [`../src/admin/mod.rs`](../src/admin/mod.rs)
+  - [`../scripts/supervisor/llm_runtime_worker.py`](../scripts/supervisor/llm_runtime_worker.py)
+  - [`../scripts/supervisor/trusted_ingress_proxy.py`](../scripts/supervisor/trusted_ingress_proxy.py)
+  - [`../scripts/run_with_adversary_sim_supervisor.sh`](../scripts/run_with_adversary_sim_supervisor.sh)
+  - [`../scripts/tests/adversarial_browser_driver.mjs`](../scripts/tests/adversarial_browser_driver.mjs)
+  - [`../scripts/tests/adversarial_runner/identity_envelope.py`](../scripts/tests/adversarial_runner/identity_envelope.py)
+  - [`../scripts/tests/test_adversarial_browser_driver.mjs`](../scripts/tests/test_adversarial_browser_driver.mjs)
+  - [`../scripts/tests/test_adversary_sim_make_targets.py`](../scripts/tests/test_adversary_sim_make_targets.py)
+  - [`../scripts/tests/test_adversary_sim_supervisor.py`](../scripts/tests/test_adversary_sim_supervisor.py)
+  - [`../scripts/tests/test_llm_runtime_worker.py`](../scripts/tests/test_llm_runtime_worker.py)
+  - [`../scripts/tests/test_trusted_ingress_proxy.py`](../scripts/tests/test_trusted_ingress_proxy.py)
+  - [`../Makefile`](../Makefile)
+  - [`../docs/plans/2026-03-31-current-ip-collapse-topology-and-trusted-ingress-plan.md`](../docs/plans/2026-03-31-current-ip-collapse-topology-and-trusted-ingress-plan.md)
+  - [`../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
+  - [`../docs/adversarial-operator-guide.md`](../docs/adversarial-operator-guide.md)
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../todos/todo.md`](../todos/todo.md)
+- [x] What landed:
+  - the adversary-sim supervisor can now launch or consume a Shuma-owned trusted-ingress proxy and thread that path into Scrapling and Agentic plans as ordinary request or browser proxy configuration,
+  - the trusted-ingress proxy enforces same-origin forwarding, strips attacker-supplied forwarding or trust headers, injects only the runtime's existing trusted forwarded-header contract, and requires authenticated use with a parseable client-IP username,
+  - the host-side planners and workers now prefer explicit proxy pools when present, but can fall back to trusted-ingress-backed fixed proxy posture without granting attacker-plane workers the ability to emit `x-shuma-forwarded-secret` directly,
+  - and the browser-driver plus LLM runtime paths now carry proxy configuration cleanly so request-mode and browser-mode both participate in the same trust-boundary-safe client-IP restoration path.
+- [x] Why:
+  - the realism plan required a truthful client-IP restoration path before later observer wording or representativeness work could claim improvement,
+  - and the system previously had only two bad options for local/shared-host sim traffic: collapse to `unknown`, or cheat by letting workers impersonate trusted ingress.
+- [x] Evidence:
+  - `make test-adversary-sim-trusted-ingress-ip-realism`
+
 ### SIM-REALISM-2I Task 1 Client-IP Topology Contract
 
 - [x] Completed the first `SIM-REALISM-2I` execution slice across:

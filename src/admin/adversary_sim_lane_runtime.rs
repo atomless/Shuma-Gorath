@@ -25,6 +25,9 @@ use super::adversary_sim_realism_profile::scrapling_realism_profile_for_mode;
 use super::adversary_sim_state::{
     active_lane_count_for_lane, autonomous_execution_profile, effective_active_lane,
 };
+use super::adversary_sim_trusted_ingress::{
+    trusted_ingress_proxy_config_from_env, trusted_ingress_proxy_url_for_client_ip,
+};
 use super::adversary_sim_worker_plan::LaneRealismRecurrenceContext;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -198,7 +201,6 @@ pub(crate) fn deterministic_generated_request_target_for_tick(tick_count: u64) -
     )
 }
 
-#[cfg(not(test))]
 pub(crate) fn simulated_request_ip(tick_count: u64, index: usize) -> String {
     let runtime_profile = deterministic_runtime_profile();
     let generation_batch_size_max = runtime_profile
@@ -213,7 +215,7 @@ pub(crate) fn simulated_request_ip(tick_count: u64, index: usize) -> String {
     format!("198.51.{}.{}", third, fourth)
 }
 
-#[cfg(not(test))]
+#[allow(dead_code)]
 pub(crate) fn lane_actor_ip(
     third_octet: u8,
     tick_count: u64,
@@ -613,13 +615,36 @@ fn next_scrapling_worker_plan(now: u64, state: &mut ControlState) -> ScraplingWo
     let tick_id = format!("scrapling-tick-{}-{:016x}", now, random::<u64>());
     let fulfillment_mode = scrapling_fulfillment_mode_for_tick(state.generated_tick_count);
     let realism_profile = scrapling_realism_profile_for_mode(fulfillment_mode);
-    let request_proxy_url = optional_scrapling_proxy_env("ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_URL");
-    let browser_proxy_url = optional_scrapling_proxy_env("ADVERSARY_SIM_SCRAPLING_BROWSER_PROXY_URL")
-        .or_else(|| request_proxy_url.clone());
     let request_identity_pool =
         load_identity_pool_from_env("ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_POOL_JSON");
     let browser_identity_pool =
         load_identity_pool_from_env("ADVERSARY_SIM_SCRAPLING_BROWSER_PROXY_POOL_JSON");
+    let trusted_ingress_config = trusted_ingress_proxy_config_from_env();
+    let trusted_request_proxy_url = if request_identity_pool.is_empty() {
+        trusted_ingress_config.as_ref().and_then(|config| {
+            trusted_ingress_proxy_url_for_client_ip(
+                config,
+                simulated_request_ip(state.generated_tick_count, 0).as_str(),
+            )
+        })
+    } else {
+        None
+    };
+    let trusted_browser_proxy_url = if browser_identity_pool.is_empty() {
+        trusted_ingress_config.as_ref().and_then(|config| {
+            trusted_ingress_proxy_url_for_client_ip(
+                config,
+                simulated_request_ip(state.generated_tick_count, 1).as_str(),
+            )
+        })
+    } else {
+        None
+    };
+    let request_proxy_url = optional_scrapling_proxy_env("ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_URL")
+        .or(trusted_request_proxy_url);
+    let browser_proxy_url = optional_scrapling_proxy_env("ADVERSARY_SIM_SCRAPLING_BROWSER_PROXY_URL")
+        .or_else(|| trusted_browser_proxy_url.clone())
+        .or_else(|| request_proxy_url.clone());
     let recurrence_context = recurrence_context_for_profile(now, state, &realism_profile);
     state.pending_worker_tick_id = Some(tick_id.clone());
     state.pending_worker_started_at = Some(now);
@@ -770,6 +795,70 @@ mod tests {
         assert!(bulk_plan.max_depth > crawler_plan.max_depth);
         assert!(bulk_plan.max_bytes > crawler_plan.max_bytes);
         assert!(bulk_plan.max_depth > 2);
+    }
+
+    #[test]
+    fn scrapling_worker_plan_uses_trusted_ingress_proxy_when_configured_without_explicit_proxy_or_pool() {
+        let _lock = crate::test_support::lock_env();
+        std::env::remove_var("ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_URL");
+        std::env::remove_var("ADVERSARY_SIM_SCRAPLING_BROWSER_PROXY_URL");
+        std::env::remove_var("ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_POOL_JSON");
+        std::env::remove_var("ADVERSARY_SIM_SCRAPLING_BROWSER_PROXY_POOL_JSON");
+        std::env::set_var(
+            "ADVERSARY_SIM_TRUSTED_INGRESS_PROXY_URL",
+            "http://127.0.0.1:3871",
+        );
+        std::env::set_var("ADVERSARY_SIM_TRUSTED_INGRESS_AUTH_TOKEN", "trusted-token");
+
+        let mut state = ControlState::default();
+        state.generated_tick_count = 0;
+        let plan = next_scrapling_worker_plan(1_700_000_200, &mut state);
+
+        assert_eq!(
+            plan.request_proxy_url.as_deref(),
+            Some("http://198.51.1.1:trusted-token@127.0.0.1:3871")
+        );
+        assert_eq!(
+            plan.browser_proxy_url.as_deref(),
+            Some("http://198.51.1.2:trusted-token@127.0.0.1:3871")
+        );
+
+        std::env::remove_var("ADVERSARY_SIM_TRUSTED_INGRESS_PROXY_URL");
+        std::env::remove_var("ADVERSARY_SIM_TRUSTED_INGRESS_AUTH_TOKEN");
+    }
+
+    #[test]
+    fn scrapling_worker_plan_prefers_explicit_request_proxy_over_trusted_ingress_fallback() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var(
+            "ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_URL",
+            "http://explicit-proxy.internal:9001",
+        );
+        std::env::remove_var("ADVERSARY_SIM_SCRAPLING_BROWSER_PROXY_URL");
+        std::env::remove_var("ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_POOL_JSON");
+        std::env::remove_var("ADVERSARY_SIM_SCRAPLING_BROWSER_PROXY_POOL_JSON");
+        std::env::set_var(
+            "ADVERSARY_SIM_TRUSTED_INGRESS_PROXY_URL",
+            "http://127.0.0.1:3871",
+        );
+        std::env::set_var("ADVERSARY_SIM_TRUSTED_INGRESS_AUTH_TOKEN", "trusted-token");
+
+        let mut state = ControlState::default();
+        state.generated_tick_count = 0;
+        let plan = next_scrapling_worker_plan(1_700_000_201, &mut state);
+
+        assert_eq!(
+            plan.request_proxy_url.as_deref(),
+            Some("http://explicit-proxy.internal:9001")
+        );
+        assert_eq!(
+            plan.browser_proxy_url.as_deref(),
+            Some("http://198.51.1.2:trusted-token@127.0.0.1:3871")
+        );
+
+        std::env::remove_var("ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_URL");
+        std::env::remove_var("ADVERSARY_SIM_TRUSTED_INGRESS_PROXY_URL");
+        std::env::remove_var("ADVERSARY_SIM_TRUSTED_INGRESS_AUTH_TOKEN");
     }
 
     #[test]

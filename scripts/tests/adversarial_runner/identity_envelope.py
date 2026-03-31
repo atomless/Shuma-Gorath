@@ -8,6 +8,15 @@ from typing import Any
 SUPPORTED_IDENTITY_CLASSES = {"residential", "mobile", "datacenter"}
 
 
+def normalize_optional_proxy_url(raw_value: Any, *, field_name: str) -> str | None:
+    value = str(raw_value or "").strip()
+    if not value:
+        return None
+    if "\r" in value or "\n" in value:
+        raise RuntimeError(f"{field_name} must not contain newline characters")
+    return value
+
+
 def normalize_identity_pool_entries(raw_value: Any, *, field_name: str) -> list[dict[str, str]]:
     if not isinstance(raw_value, list):
         return []

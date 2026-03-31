@@ -46,6 +46,12 @@ class AdversarySimSupervisorContractTests(unittest.TestCase):
         script = SUPERVISOR_MANAGER_SCRIPT.read_text(encoding="utf-8")
         self.assertNotIn('local worker_pid=""', script)
 
+    def test_supervisor_manager_boots_local_trusted_ingress_proxy_for_worker_realism(self) -> None:
+        script = SUPERVISOR_MANAGER_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("trusted_ingress_proxy.py", script)
+        self.assertIn("ADVERSARY_SIM_TRUSTED_INGRESS_PROXY_URL", script)
+        self.assertIn("ADVERSARY_SIM_TRUSTED_INGRESS_AUTH_TOKEN", script)
+
 
 if __name__ == "__main__":
     unittest.main()

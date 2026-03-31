@@ -157,6 +157,34 @@ function normalizeTrustedForwardedSecret(rawSecret) {
   return value;
 }
 
+export function normalizeProxyConfig(rawProxyUrl) {
+  const value = String(rawProxyUrl || "").trim();
+  if (!value) {
+    return null;
+  }
+  let parsed;
+  try {
+    parsed = new URL(value);
+  } catch (error) {
+    throw new Error(`browser_driver_proxy_url_invalid:${extractErrorMessage(error)}`);
+  }
+  if (!["http:", "https:"].includes(parsed.protocol)) {
+    throw new Error(`browser_driver_proxy_url_protocol_unsupported:${parsed.protocol}`);
+  }
+  if ((parsed.pathname && parsed.pathname !== "/") || parsed.search || parsed.hash) {
+    throw new Error("browser_driver_proxy_url_must_not_include_path_query_or_fragment");
+  }
+  const username = parsed.username ? decodeURIComponent(parsed.username) : "";
+  const password = parsed.password ? decodeURIComponent(parsed.password) : "";
+  parsed.username = "";
+  parsed.password = "";
+  return {
+    server: parsed.toString().replace(/\/+$/, ""),
+    username,
+    password,
+  };
+}
+
 function mustUseSafePath(path) {
   const normalized = String(path || "").trim();
   if (!normalized.startsWith("/")) {
@@ -511,6 +539,7 @@ async function runScenario(payload) {
   const trustedForwardedSecret = normalizeTrustedForwardedSecret(
     payload.trusted_forwarded_secret,
   );
+  const proxyConfig = normalizeProxyConfig(payload.proxy_url);
   const userAgent = String(payload.user_agent || "ShumaAdversarial/1.0 browser-driver");
   const locale = String(payload.locale || "en-US");
   const simIdentity = normalizeSimIdentity(payload.sim_identity);
@@ -556,6 +585,13 @@ async function runScenario(payload) {
       channel: "chromium",
       headless: true,
       args: ["--disable-crashpad", "--disable-crash-reporter"],
+      proxy: proxyConfig
+        ? {
+            server: proxyConfig.server,
+            ...(proxyConfig.username ? { username: proxyConfig.username } : {}),
+            ...(proxyConfig.password ? { password: proxyConfig.password } : {}),
+          }
+        : undefined,
     });
     const contextHeaders = { ...headers };
     if (trustedForwardedSecret) {
