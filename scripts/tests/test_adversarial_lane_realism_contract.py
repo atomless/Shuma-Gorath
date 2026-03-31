@@ -52,6 +52,30 @@ class AdversarialLaneRealismContractUnitTests(unittest.TestCase):
             profile["identity_envelope"]["identity_classes"],
         )
 
+    def test_profiles_surface_bounded_recurrence_envelopes(self):
+        request_profile = contracts.resolve_lane_realism_profile(
+            "bot_red_team",
+            "request_mode",
+        )
+        crawler_profile = contracts.resolve_lane_realism_profile(
+            "scrapling_traffic",
+            "crawler",
+        )
+
+        for profile in (request_profile, crawler_profile):
+            recurrence = profile["recurrence_envelope"]
+            self.assertEqual(
+                recurrence["strategy"],
+                "bounded_single_tick_reentry",
+            )
+            self.assertEqual(recurrence["reentry_scope"], "within_run")
+            self.assertGreaterEqual(recurrence["dormant_gap_seconds"]["min"], 1)
+            self.assertGreaterEqual(
+                recurrence["dormant_gap_seconds"]["max"],
+                recurrence["dormant_gap_seconds"]["min"],
+            )
+            self.assertGreaterEqual(recurrence["max_reentries_per_run"], 1)
+
     def test_bulk_scraper_profile_surfaces_transport_envelope_contract(self):
         profile = contracts.resolve_lane_realism_profile("scrapling_traffic", "bulk_scraper")
 
@@ -99,6 +123,26 @@ class AdversarialLaneRealismContractUnitTests(unittest.TestCase):
             "subresource_request_count",
             profile["receipt_contract"]["required_fields"],
         )
+        self.assertIn(
+            "recurrence_strategy",
+            profile["receipt_contract"]["required_fields"],
+        )
+        self.assertIn(
+            "session_index",
+            profile["receipt_contract"]["required_fields"],
+        )
+        self.assertIn(
+            "reentry_count",
+            profile["receipt_contract"]["required_fields"],
+        )
+        self.assertIn(
+            "max_reentries_per_run",
+            profile["receipt_contract"]["required_fields"],
+        )
+        self.assertIn(
+            "planned_dormant_gap_seconds",
+            profile["receipt_contract"]["required_fields"],
+        )
 
     def test_scrapling_browser_profile_requires_secondary_traffic_receipt_fields(self):
         profile = contracts.resolve_lane_realism_profile("scrapling_traffic", "browser_automation")
@@ -117,6 +161,26 @@ class AdversarialLaneRealismContractUnitTests(unittest.TestCase):
         )
         self.assertIn(
             "subresource_request_count",
+            profile["receipt_contract"]["required_fields"],
+        )
+        self.assertIn(
+            "recurrence_strategy",
+            profile["receipt_contract"]["required_fields"],
+        )
+        self.assertIn(
+            "session_index",
+            profile["receipt_contract"]["required_fields"],
+        )
+        self.assertIn(
+            "reentry_count",
+            profile["receipt_contract"]["required_fields"],
+        )
+        self.assertIn(
+            "max_reentries_per_run",
+            profile["receipt_contract"]["required_fields"],
+        )
+        self.assertIn(
+            "planned_dormant_gap_seconds",
             profile["receipt_contract"]["required_fields"],
         )
 

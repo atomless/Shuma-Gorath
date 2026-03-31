@@ -4,7 +4,11 @@
     normalizeCountryCodesForCompare,
     parseCountryCodesStrict
   } from '../../domain/config-form-utils.js';
-  import { formatCountryCodes, geoModeFromToggleState, geoToggleStateFromMode } from '../../domain/config-tab-helpers.js';
+  import {
+    formatCountryCodes,
+    geoModeFromToggleState,
+    geoToggleStateFromMode
+  } from '../../domain/config-tab-helpers.js';
   import {
     isAdminConfigWritable,
     isAkamaiEdgeAvailable
@@ -28,7 +32,9 @@
   let writable = false;
   let savingGeo = false;
   let warnOnUnload = false;
+  let hasConfigSnapshot = false;
   let lastAppliedConfigVersion = -1;
+  let pendingConfigVersion = -1;
   let akamaiEdgeAvailable = false;
 
   let geoRiskList = '';
@@ -111,7 +117,7 @@
       payload.geo_maze = parseCountryCodesStrict(geoMazeList);
       payload.geo_block = parseCountryCodesStrict(geoBlockList);
     }
-    if (geoEdgeHeaderDirty) {
+    if (geoEdgeControlsVisible && geoEdgeHeaderDirty) {
       payload.geo_edge_headers_enabled = geoEdgeHeaderSignalEnabled === true;
     }
 
@@ -221,9 +227,9 @@
     geoMazeNormalized !== baseline.geo.maze ||
     geoBlockNormalized !== baseline.geo.block
   );
-  $: geoEdgeHeaderDirty =
-    readBool(geoEdgeHeaderSignalEnabled) !== baseline.edgeHeaderSignal.enabled;
   $: geoEdgeControlsVisible = akamaiEdgeAvailable === true;
+  $: geoEdgeHeaderDirty = geoEdgeControlsVisible &&
+    readBool(geoEdgeHeaderSignalEnabled) !== baseline.edgeHeaderSignal.enabled;
 
   $: hasUnsavedChanges = geoScoringDirty || geoRoutingDirty || geoEdgeHeaderDirty;
   $: saveGeoDisabled = !writable || !hasUnsavedChanges || !geoValid || savingGeo;
@@ -239,15 +245,18 @@
 
   $: {
     const nextVersion = Number(configVersion || 0);
-    if (nextVersion !== lastAppliedConfigVersion) {
-      lastAppliedConfigVersion = nextVersion;
-      if (!hasUnsavedChanges && !savingGeo) {
-        applyConfig(
-          configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {},
-          configRuntimeSnapshot && typeof configRuntimeSnapshot === 'object' ? configRuntimeSnapshot : {}
-        );
-      }
+    if (nextVersion !== lastAppliedConfigVersion && nextVersion !== pendingConfigVersion) {
+      pendingConfigVersion = nextVersion;
     }
+  }
+
+  $: if (pendingConfigVersion !== -1 && hasConfigSnapshot && !hasUnsavedChanges && !savingGeo) {
+    applyConfig(
+      configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {},
+      configRuntimeSnapshot && typeof configRuntimeSnapshot === 'object' ? configRuntimeSnapshot : {}
+    );
+    lastAppliedConfigVersion = pendingConfigVersion;
+    pendingConfigVersion = -1;
   }
 </script>
 

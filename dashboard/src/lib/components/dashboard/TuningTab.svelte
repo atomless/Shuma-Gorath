@@ -29,7 +29,9 @@
 
   let savingTuning = false;
   let warnOnUnload = false;
+  let hasConfigSnapshot = false;
   let lastAppliedConfigVersion = -1;
+  let pendingConfigVersion = -1;
   let lastSaveInvalidLabel = '';
   const AKAMAI_EDGE_ADDITIVE_SIGNAL_KEY = 'fp_akamai_edge_additive';
 
@@ -190,15 +192,19 @@
     ? `Fix invalid values in: ${lastSaveInvalidLabel}`
     : '';
   $: warnOnUnload = writable && hasUnsavedChanges;
+  $: hasConfigSnapshot = configSnapshot && typeof configSnapshot === 'object' && Object.keys(configSnapshot).length > 0;
 
   $: {
     const nextVersion = Number(configVersion || 0);
-    if (nextVersion !== lastAppliedConfigVersion) {
-      lastAppliedConfigVersion = nextVersion;
-      if (!hasUnsavedChanges && !savingTuning) {
-        applyConfig(configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {});
-      }
+    if (nextVersion !== lastAppliedConfigVersion && nextVersion !== pendingConfigVersion) {
+      pendingConfigVersion = nextVersion;
     }
+  }
+
+  $: if (pendingConfigVersion !== -1 && hasConfigSnapshot && !hasUnsavedChanges && !savingTuning) {
+    applyConfig(configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {});
+    lastAppliedConfigVersion = pendingConfigVersion;
+    pendingConfigVersion = -1;
   }
 </script>
 

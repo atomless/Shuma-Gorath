@@ -4,6 +4,48 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-31)
 
+### SIM-REALISM-2E Add Long-Horizon Dormancy, Recurrence, And Re-Entry Realism
+
+- [x] Completed the bounded recurrence realism tranche across:
+  - [`../src/admin/adversary_sim_realism_profile.rs`](../src/admin/adversary_sim_realism_profile.rs)
+  - [`../src/admin/adversary_sim_worker_plan.rs`](../src/admin/adversary_sim_worker_plan.rs)
+  - [`../src/admin/adversary_sim_state.rs`](../src/admin/adversary_sim_state.rs)
+  - [`../src/admin/adversary_sim_lane_runtime.rs`](../src/admin/adversary_sim_lane_runtime.rs)
+  - [`../src/admin/adversary_sim_llm_lane.rs`](../src/admin/adversary_sim_llm_lane.rs)
+  - [`../src/admin/adversary_sim_diagnostics.rs`](../src/admin/adversary_sim_diagnostics.rs)
+  - [`../src/admin/adversary_sim.rs`](../src/admin/adversary_sim.rs)
+  - [`../src/admin/api.rs`](../src/admin/api.rs)
+  - [`../src/observability/operator_snapshot.rs`](../src/observability/operator_snapshot.rs)
+  - [`../scripts/supervisor/scrapling_worker.py`](../scripts/supervisor/scrapling_worker.py)
+  - [`../scripts/supervisor/llm_runtime_worker.py`](../scripts/supervisor/llm_runtime_worker.py)
+  - [`../scripts/tests/adversarial/lane_realism_contract.v1.json`](../scripts/tests/adversarial/lane_realism_contract.v1.json)
+  - [`../scripts/tests/adversarial_runner/contracts.py`](../scripts/tests/adversarial_runner/contracts.py)
+  - [`../scripts/tests/adversarial_runner/llm_fulfillment.py`](../scripts/tests/adversarial_runner/llm_fulfillment.py)
+  - [`../scripts/tests/adversarial_browser_driver.mjs`](../scripts/tests/adversarial_browser_driver.mjs)
+  - [`../scripts/tests/adversarial_container/worker.py`](../scripts/tests/adversarial_container/worker.py)
+  - [`../scripts/tests/test_adversarial_lane_realism_contract.py`](../scripts/tests/test_adversarial_lane_realism_contract.py)
+  - [`../scripts/tests/test_scrapling_worker.py`](../scripts/tests/test_scrapling_worker.py)
+  - [`../scripts/tests/test_llm_runtime_worker.py`](../scripts/tests/test_llm_runtime_worker.py)
+  - [`../scripts/tests/test_llm_runtime_browser_integration.py`](../scripts/tests/test_llm_runtime_browser_integration.py)
+  - [`../scripts/tests/test_adversarial_container_worker.py`](../scripts/tests/test_adversarial_container_worker.py)
+  - [`../scripts/tests/test_adversary_sim_make_targets.py`](../scripts/tests/test_adversary_sim_make_targets.py)
+  - [`../Makefile`](../Makefile)
+  - [`../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md`](../docs/plans/2026-03-30-adversary-lane-wild-traffic-gap-plan.md)
+  - [`../docs/adversarial-operator-guide.md`](../docs/adversarial-operator-guide.md)
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../todos/todo.md`](../todos/todo.md)
+- [x] What landed:
+  - the shared realism contract now carries a bounded `recurrence_envelope` for every Scrapling and Agentic mode,
+  - Scrapling and Agentic worker plans now surface explicit `recurrence_context` so every receipt can say which bounded session index and planned dormant gap produced that tick,
+  - adversary-sim control state and runtime diagnostics now preserve recurrence dormancy truth and report `generation_diagnostics.reason=recurrence_dormant_gap` as a healthy between-session state instead of a misleading no-traffic alarm,
+  - and both host-side and container/browser receipt paths now preserve recurrence fields end-to-end for later tuning or evaluation work.
+- [x] Why:
+  - wild hostile traffic does not appear only as one isolated burst, and the realism chain needed explicit longer-horizon absence and return semantics before later tuning or recurrence-cost work can rely on those observations,
+  - and the old short-burst-only model risked conflating deliberate bounded dormancy with generation failure.
+- [x] Evidence:
+  - `make test-adversarial-lane-realism-contract`
+  - `make test-adversary-sim-recurrence-realism`
+
 ### ROUTE-NS-1F Remove Legacy Route-Family Assumptions From Docs And Operator Guidance
 
 - [x] Completed the docs-only route-contract cleanup across:

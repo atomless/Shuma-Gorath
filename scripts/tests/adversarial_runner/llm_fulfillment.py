@@ -375,6 +375,20 @@ def _frontier_backend_status(frontier_metadata: Dict[str, Any]) -> Tuple[str, st
     return ("configured", f"frontier_reference:{backend_mode}")
 
 
+def _build_recurrence_context(realism_profile: Dict[str, Any]) -> Dict[str, Any]:
+    recurrence = dict_or_empty(realism_profile.get("recurrence_envelope"))
+    dormant_gap = dict_or_empty(recurrence.get("dormant_gap_seconds"))
+    min_gap = int_or_zero(dormant_gap.get("min"))
+    max_reentries = int_or_zero(recurrence.get("max_reentries_per_run"))
+    return {
+        "strategy": str(recurrence.get("strategy") or "").strip(),
+        "session_index": 1,
+        "reentry_count": 0,
+        "max_reentries_per_run": max_reentries,
+        "planned_dormant_gap_seconds": max(1, min_gap),
+    }
+
+
 def build_llm_fulfillment_plan(
     *,
     run_id: str,
@@ -391,6 +405,7 @@ def build_llm_fulfillment_plan(
         raise RuntimeError(f"unsupported llm fulfillment mode: {fulfillment_mode}")
 
     backend_state, backend_id = _frontier_backend_status(frontier_metadata)
+    realism_profile = dict(mode_contract.get("realism_profile") or {})
     return {
         "schema_version": str(resolved_contract.get("schema_version") or "").strip(),
         "run_id": str(run_id).strip(),
@@ -424,7 +439,8 @@ def build_llm_fulfillment_plan(
                 mode_contract.get("max_time_budget_seconds")
             ),
         },
-        "realism_profile": dict(mode_contract.get("realism_profile") or {}),
+        "realism_profile": realism_profile,
+        "recurrence_context": _build_recurrence_context(realism_profile),
     }
 
 

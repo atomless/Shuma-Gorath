@@ -23,6 +23,16 @@ pub struct ScraplingCrawlStats {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
+pub(crate) struct LaneRealismRecurrenceContext {
+    pub strategy: String,
+    pub session_index: u64,
+    pub reentry_count: u64,
+    pub max_reentries_per_run: u64,
+    pub planned_dormant_gap_seconds: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct ScraplingRealismReceipt {
     pub schema_version: String,
     pub profile_id: String,
@@ -70,6 +80,16 @@ pub struct ScraplingRealismReceipt {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub session_handles: Vec<String>,
     pub identity_rotation_count: u64,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub recurrence_strategy: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_index: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reentry_count: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_reentries_per_run: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub planned_dormant_gap_seconds: Option<u64>,
     pub stop_reason: String,
 }
 
@@ -96,6 +116,8 @@ pub struct ScraplingWorkerPlan {
     pub browser_identity_pool: Vec<IdentityPoolEntry>,
     pub tick_started_at: u64,
     pub realism_profile: LaneRealismProfile,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recurrence_context: Option<LaneRealismRecurrenceContext>,
     pub max_requests: u64,
     pub max_depth: u64,
     pub max_bytes: u64,
@@ -201,6 +223,16 @@ pub struct LlmRuntimeRealismReceipt {
     pub session_handles: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub identity_rotation_count: Option<u64>,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub recurrence_strategy: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_index: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reentry_count: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_reentries_per_run: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub planned_dormant_gap_seconds: Option<u64>,
     pub stop_reason: String,
 }
 

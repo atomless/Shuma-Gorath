@@ -120,6 +120,24 @@ def normalize_lane_realism_profile(
         raise RuntimeError(
             f"{field_name}.pressure_envelope.max_time_budget_ms must be integer >= 1"
         )
+    recurrence_envelope = payload.get("recurrence_envelope")
+    if not isinstance(recurrence_envelope, dict):
+        raise RuntimeError(f"{field_name}.recurrence_envelope must be an object")
+    recurrence_strategy = str(recurrence_envelope.get("strategy") or "").strip()
+    if recurrence_strategy != "bounded_single_tick_reentry":
+        raise RuntimeError(
+            f"{field_name}.recurrence_envelope.strategy must be bounded_single_tick_reentry"
+        )
+    recurrence_scope = str(recurrence_envelope.get("reentry_scope") or "").strip()
+    if recurrence_scope != "within_run":
+        raise RuntimeError(
+            f"{field_name}.recurrence_envelope.reentry_scope must be within_run"
+        )
+    max_reentries_per_run = recurrence_envelope.get("max_reentries_per_run")
+    if not _is_non_negative_int(max_reentries_per_run) or int(max_reentries_per_run) < 1:
+        raise RuntimeError(
+            f"{field_name}.recurrence_envelope.max_reentries_per_run must be integer >= 1"
+        )
 
     identity_rotation = payload.get("identity_rotation")
     if not isinstance(identity_rotation, dict):
@@ -259,6 +277,15 @@ def normalize_lane_realism_profile(
         "pressure_envelope": {
             "max_activities": int(max_activities),
             "max_time_budget_ms": int(max_time_budget_ms),
+        },
+        "recurrence_envelope": {
+            "strategy": recurrence_strategy,
+            "reentry_scope": recurrence_scope,
+            "dormant_gap_seconds": _normalize_realism_range(
+                recurrence_envelope.get("dormant_gap_seconds"),
+                field_name=f"{field_name}.recurrence_envelope.dormant_gap_seconds",
+            ),
+            "max_reentries_per_run": int(max_reentries_per_run),
         },
         "receipt_contract": {
             "schema_version": receipt_schema,

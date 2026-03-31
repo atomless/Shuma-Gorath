@@ -56,6 +56,15 @@ pub(crate) struct LaneRealismPressureEnvelope {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
+pub(crate) struct LaneRealismRecurrenceEnvelope {
+    pub strategy: String,
+    pub reentry_scope: String,
+    pub dormant_gap_seconds: LaneRealismRange,
+    pub max_reentries_per_run: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct LaneRealismProfile {
     pub schema_version: String,
     pub profile_id: String,
@@ -72,6 +81,7 @@ pub(crate) struct LaneRealismProfile {
     pub javascript_execution: String,
     pub retry_ceiling: u64,
     pub pressure_envelope: LaneRealismPressureEnvelope,
+    pub recurrence_envelope: LaneRealismRecurrenceEnvelope,
     pub receipt_contract: LaneRealismReceiptContract,
 }
 
@@ -109,6 +119,21 @@ fn pressure_envelope(max_activities: u64, max_time_budget_ms: u64) -> LaneRealis
     LaneRealismPressureEnvelope {
         max_activities,
         max_time_budget_ms,
+    }
+}
+
+fn recurrence_envelope(
+    strategy: &str,
+    reentry_scope: &str,
+    dormant_gap_min_seconds: u64,
+    dormant_gap_max_seconds: u64,
+    max_reentries_per_run: u64,
+) -> LaneRealismRecurrenceEnvelope {
+    LaneRealismRecurrenceEnvelope {
+        strategy: strategy.to_string(),
+        reentry_scope: reentry_scope.to_string(),
+        dormant_gap_seconds: range(dormant_gap_min_seconds, dormant_gap_max_seconds),
+        max_reentries_per_run,
     }
 }
 
@@ -163,6 +188,11 @@ fn request_native_receipt_contract() -> LaneRealismReceiptContract {
         "observed_country_codes",
         "identity_handles",
         "identity_rotation_count",
+        "recurrence_strategy",
+        "session_index",
+        "reentry_count",
+        "max_reentries_per_run",
+        "planned_dormant_gap_seconds",
         "stop_reason",
     ])
 }
@@ -187,6 +217,11 @@ fn browser_receipt_contract() -> LaneRealismReceiptContract {
         "observed_country_codes",
         "session_handles",
         "identity_rotation_count",
+        "recurrence_strategy",
+        "session_index",
+        "reentry_count",
+        "max_reentries_per_run",
+        "planned_dormant_gap_seconds",
         "stop_reason",
     ])
 }
@@ -227,6 +262,13 @@ pub(crate) fn scrapling_realism_profile_for_mode(fulfillment_mode: &str) -> Lane
             javascript_execution: "disabled".to_string(),
             retry_ceiling: 2,
             pressure_envelope: pressure_envelope(14, 12_000),
+            recurrence_envelope: recurrence_envelope(
+                "bounded_single_tick_reentry",
+                "within_run",
+                3,
+                8,
+                2,
+            ),
             receipt_contract: request_native_receipt_contract(),
         },
         "bulk_scraper" => LaneRealismProfile {
@@ -263,6 +305,13 @@ pub(crate) fn scrapling_realism_profile_for_mode(fulfillment_mode: &str) -> Lane
             javascript_execution: "disabled".to_string(),
             retry_ceiling: 2,
             pressure_envelope: pressure_envelope(45, 30_000),
+            recurrence_envelope: recurrence_envelope(
+                "bounded_single_tick_reentry",
+                "within_run",
+                2,
+                6,
+                3,
+            ),
             receipt_contract: request_native_receipt_contract(),
         },
         "browser_automation" => LaneRealismProfile {
@@ -293,6 +342,13 @@ pub(crate) fn scrapling_realism_profile_for_mode(fulfillment_mode: &str) -> Lane
             javascript_execution: "required".to_string(),
             retry_ceiling: 1,
             pressure_envelope: pressure_envelope(9, 20_000),
+            recurrence_envelope: recurrence_envelope(
+                "bounded_single_tick_reentry",
+                "within_run",
+                4,
+                10,
+                2,
+            ),
             receipt_contract: browser_receipt_contract(),
         },
         "stealth_browser" => LaneRealismProfile {
@@ -323,6 +379,13 @@ pub(crate) fn scrapling_realism_profile_for_mode(fulfillment_mode: &str) -> Lane
             javascript_execution: "required".to_string(),
             retry_ceiling: 1,
             pressure_envelope: pressure_envelope(6, 24_000),
+            recurrence_envelope: recurrence_envelope(
+                "bounded_single_tick_reentry",
+                "within_run",
+                6,
+                12,
+                1,
+            ),
             receipt_contract: browser_receipt_contract(),
         },
         _ => LaneRealismProfile {
@@ -359,6 +422,13 @@ pub(crate) fn scrapling_realism_profile_for_mode(fulfillment_mode: &str) -> Lane
             javascript_execution: "disabled".to_string(),
             retry_ceiling: 2,
             pressure_envelope: pressure_envelope(24, 18_000),
+            recurrence_envelope: recurrence_envelope(
+                "bounded_single_tick_reentry",
+                "within_run",
+                2,
+                5,
+                3,
+            ),
             receipt_contract: request_native_receipt_contract(),
         },
     }
@@ -394,6 +464,13 @@ pub(crate) fn llm_realism_profile_for_mode(fulfillment_mode: &str) -> LaneRealis
             javascript_execution: "required".to_string(),
             retry_ceiling: 1,
             pressure_envelope: pressure_envelope(8, 90_000),
+            recurrence_envelope: recurrence_envelope(
+                "bounded_single_tick_reentry",
+                "within_run",
+                5,
+                12,
+                2,
+            ),
             receipt_contract: browser_receipt_contract(),
         },
         _ => LaneRealismProfile {
@@ -424,6 +501,13 @@ pub(crate) fn llm_realism_profile_for_mode(fulfillment_mode: &str) -> LaneRealis
             javascript_execution: "disabled".to_string(),
             retry_ceiling: 2,
             pressure_envelope: pressure_envelope(24, 120_000),
+            recurrence_envelope: recurrence_envelope(
+                "bounded_single_tick_reentry",
+                "within_run",
+                3,
+                9,
+                3,
+            ),
             receipt_contract: receipt_contract(&[
                 "activity_count",
                 "burst_count",
@@ -442,6 +526,11 @@ pub(crate) fn llm_realism_profile_for_mode(fulfillment_mode: &str) -> LaneRealis
                 "observed_country_codes",
                 "identity_rotation_count",
                 "session_handles",
+                "recurrence_strategy",
+                "session_index",
+                "reentry_count",
+                "max_reentries_per_run",
+                "planned_dormant_gap_seconds",
                 "stop_reason",
             ]),
         },

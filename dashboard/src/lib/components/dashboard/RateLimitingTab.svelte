@@ -29,7 +29,9 @@
   let writable = false;
   let savingRateLimiting = false;
   let warnOnUnload = false;
+  let hasConfigSnapshot = false;
   let lastAppliedConfigVersion = -1;
+  let pendingConfigVersion = -1;
   let akamaiEdgeAvailable = false;
 
   let rateLimitingEnabled = true;
@@ -148,15 +150,18 @@
 
   $: {
     const nextVersion = Number(configVersion || 0);
-    if (nextVersion !== lastAppliedConfigVersion) {
-      lastAppliedConfigVersion = nextVersion;
-      if (!hasUnsavedChanges && !savingRateLimiting) {
-        applyConfig(
-          configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {},
-          configRuntimeSnapshot && typeof configRuntimeSnapshot === 'object' ? configRuntimeSnapshot : {}
-        );
-      }
+    if (nextVersion !== lastAppliedConfigVersion && nextVersion !== pendingConfigVersion) {
+      pendingConfigVersion = nextVersion;
     }
+  }
+
+  $: if (pendingConfigVersion !== -1 && hasConfigSnapshot && !hasUnsavedChanges && !savingRateLimiting) {
+    applyConfig(
+      configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {},
+      configRuntimeSnapshot && typeof configRuntimeSnapshot === 'object' ? configRuntimeSnapshot : {}
+    );
+    lastAppliedConfigVersion = pendingConfigVersion;
+    pendingConfigVersion = -1;
   }
 </script>
 

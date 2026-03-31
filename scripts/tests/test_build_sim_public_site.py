@@ -225,6 +225,47 @@ class BuildSimPublicSiteTests(unittest.TestCase):
         self.assertEqual(second.returncode, 0, msg=second.stderr or second.stdout)
         self.assertEqual(freshness_path.read_text(encoding="utf-8"), first_freshness)
 
+    def test_if_stale_hours_rebuilds_when_corpus_config_changes(self) -> None:
+        corpus_config = self.repo_root / "config" / "sim_public_site" / "corpus.toml"
+        corpus_config.write_text(
+            corpus_config.read_text(encoding="utf-8").replace('root_prefix = "/"', 'root_prefix = "/sim/public"'),
+            encoding="utf-8",
+        )
+
+        first = self.run_build()
+        self.assertEqual(first.returncode, 0, msg=first.stderr or first.stdout)
+        first_manifest = json.loads((self.artifact_root / "manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(first_manifest["root_path"], "/sim/public/")
+
+        time.sleep(1.1)
+        corpus_config.write_text(
+            corpus_config.read_text(encoding="utf-8").replace('root_prefix = "/sim/public"', 'root_prefix = "/"'),
+            encoding="utf-8",
+        )
+        second = subprocess.run(
+            [
+                "python3",
+                str(SCRIPT),
+                "--repo-root",
+                str(self.repo_root),
+                "--artifact-root",
+                str(self.artifact_root),
+                "--corpus-config",
+                str(corpus_config),
+                "--site-url",
+                "https://example.test",
+                "--if-stale-hours",
+                "24",
+            ],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(second.returncode, 0, msg=second.stderr or second.stdout)
+        second_manifest = json.loads((self.artifact_root / "manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(second_manifest["root_path"], "/")
+
     def test_build_uses_commonmark_renderer_for_markdown_blocks(self) -> None:
         result = self.run_build()
         self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)

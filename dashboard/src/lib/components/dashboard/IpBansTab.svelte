@@ -74,6 +74,7 @@
   let savingBypassAllowlists = false;
   let savingIpRange = false;
   let warnOnUnload = false;
+  let hasConfigSnapshot = false;
   let lastAppliedConfigVersion = -1;
   let lastAppliedSuggestionsVersion = -1;
   let banReasonCanvas = null;

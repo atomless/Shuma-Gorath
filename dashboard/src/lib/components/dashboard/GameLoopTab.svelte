@@ -248,6 +248,84 @@
       ...deriveLlmSurfaceRowsFromRuntimeSummary(run?.llmRuntimeSummary, run?.runId)
     ];
 
+  const mergeSurfaceState = (current, next) => {
+    const normalizedCurrent = String(current || '').trim();
+    const normalizedNext = String(next || '').trim();
+    if (normalizedCurrent === 'leaked' || normalizedNext === 'leaked') return 'leaked';
+    if (normalizedCurrent === 'held' || normalizedNext === 'held') return 'held';
+    return normalizedCurrent || normalizedNext;
+  };
+
+  const dedupeSurfaceRows = (rows) => {
+    const rowsByKey = new Map();
+    toArray(rows).forEach((row) => {
+      const source = asRecord(row);
+      const key = String(
+        source.key ||
+        `${String(source.runId || source.run_id || 'unknown').trim()}:${String(source.surfaceId || source.surface_id || 'surface').trim()}`
+      ).trim();
+      if (!key) return;
+      const nextDependencySurfaceIds = dedupeStrings(
+        source.dependencySurfaceIds || source.dependency_surface_ids
+      );
+      const nextAttemptCount = Number(source.attemptCount || source.attempt_count || 0);
+      const nextSampleResponseStatus = asFiniteNumber(
+        source.sampleResponseStatus ?? source.sample_response_status
+      );
+      if (!rowsByKey.has(key)) {
+        rowsByKey.set(key, {
+          key,
+          runId: String(source.runId || source.run_id || '').trim(),
+          surfaceId: String(source.surfaceId || source.surface_id || '').trim(),
+          surfaceLabel: String(source.surfaceLabel || '').trim(),
+          surfaceState: String(source.surfaceState || source.surface_state || '').trim(),
+          coverageStatus: String(source.coverageStatus || source.coverage_status || '').trim(),
+          successContract: String(source.successContract || source.success_contract || '').trim(),
+          dependencyKind: String(source.dependencyKind || source.dependency_kind || '').trim(),
+          dependencySurfaceIds: nextDependencySurfaceIds,
+          attemptCount: nextAttemptCount,
+          sampleRequestMethod: String(
+            source.sampleRequestMethod || source.sample_request_method || ''
+          ).trim(),
+          sampleRequestPath: String(source.sampleRequestPath || source.sample_request_path || '').trim(),
+          sampleResponseStatus: nextSampleResponseStatus
+        });
+        return;
+      }
+      const existing = rowsByKey.get(key);
+      existing.surfaceLabel = existing.surfaceLabel || String(source.surfaceLabel || '').trim();
+      existing.surfaceState = mergeSurfaceState(
+        existing.surfaceState,
+        source.surfaceState || source.surface_state
+      );
+      existing.coverageStatus =
+        existing.coverageStatus || String(source.coverageStatus || source.coverage_status || '').trim();
+      existing.successContract =
+        existing.successContract || String(source.successContract || source.success_contract || '').trim();
+      existing.dependencyKind =
+        existing.dependencyKind || String(source.dependencyKind || source.dependency_kind || '').trim();
+      existing.dependencySurfaceIds = dedupeStrings([
+        ...existing.dependencySurfaceIds,
+        ...nextDependencySurfaceIds
+      ]);
+      existing.attemptCount += nextAttemptCount;
+      if (!existing.sampleRequestMethod) {
+        existing.sampleRequestMethod = String(
+          source.sampleRequestMethod || source.sample_request_method || ''
+        ).trim();
+      }
+      if (!existing.sampleRequestPath) {
+        existing.sampleRequestPath = String(
+          source.sampleRequestPath || source.sample_request_path || ''
+        ).trim();
+      }
+      if (existing.sampleResponseStatus === null) {
+        existing.sampleResponseStatus = nextSampleResponseStatus;
+      }
+    });
+    return Array.from(rowsByKey.values());
+  };
+
   $: oversightHistoryRows = toArray(oversightHistory?.rows);
   $: historyRowByEpisodeId = new Map(
     oversightHistoryRows
@@ -419,7 +497,7 @@
   $: selectedRoundCastMissingRunIds = dedupeStrings(selectedRoundCastContext?.missingRunIds);
   $: selectedRoundCastArchiveMissing = selectedRoundCastContext?.archiveMissing === true;
   $: selectedRoundCastRunRows = toArray(selectedRoundCastContext?.runRows);
-  $: selectedRoundCastSurfaceRows = toArray(selectedRoundCastContext?.surfaceRows);
+  $: selectedRoundCastSurfaceRows = dedupeSurfaceRows(selectedRoundCastContext?.surfaceRows);
 
   $: recentRoundRows = judgedCycleRows.slice(0, 4).map((row, index) => {
     const historyRow =

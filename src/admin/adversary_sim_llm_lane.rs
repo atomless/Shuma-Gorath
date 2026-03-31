@@ -4,7 +4,9 @@ use crate::config::FrontierSummary;
 
 use super::adversary_sim::{ControlState, RuntimeLane};
 use super::adversary_sim_identity_pool::{load_identity_pool_from_env, IdentityPoolEntry};
+use super::adversary_sim_lane_runtime::recurrence_context_for_profile;
 use super::adversary_sim_realism_profile::{llm_realism_profile_for_mode, LaneRealismProfile};
+use super::adversary_sim_worker_plan::LaneRealismRecurrenceContext;
 
 pub(crate) const LLM_FULFILLMENT_PLAN_SCHEMA_VERSION: &str =
     "adversary-sim-llm-fulfillment-plan.v1";
@@ -111,12 +113,14 @@ pub(crate) struct LlmFulfillmentPlan {
     pub episode_harness: LlmEpisodeHarness,
     pub capability_envelope: LlmCapabilityEnvelope,
     pub realism_profile: LaneRealismProfile,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recurrence_context: Option<LaneRealismRecurrenceContext>,
     pub request_identity_pool: Vec<IdentityPoolEntry>,
 }
 
 pub(crate) fn next_llm_fulfillment_plan(
     now: u64,
-    state: &ControlState,
+    state: &mut ControlState,
     frontier: &FrontierSummary,
 ) -> LlmFulfillmentPlan {
     let run_id = state
@@ -126,6 +130,8 @@ pub(crate) fn next_llm_fulfillment_plan(
         .unwrap_or_else(|| format!("simrun-runtime-{now}"));
     let mode = llm_fulfillment_mode_for_tick(state.generated_tick_count);
     let (backend_state, backend_id) = frontier_backend_state(frontier);
+    let realism_profile = llm_realism_profile_for_mode(mode.as_str());
+    let recurrence_context = recurrence_context_for_profile(now, state, &realism_profile);
 
     LlmFulfillmentPlan {
         schema_version: LLM_FULFILLMENT_PLAN_SCHEMA_VERSION.to_string(),
@@ -147,7 +153,8 @@ pub(crate) fn next_llm_fulfillment_plan(
         black_box_boundary: black_box_boundary_contract(),
         episode_harness: episode_harness_contract(),
         capability_envelope: capability_envelope_for_mode(mode),
-        realism_profile: llm_realism_profile_for_mode(mode.as_str()),
+        realism_profile,
+        recurrence_context,
         request_identity_pool: load_identity_pool_from_env(
             "ADVERSARY_SIM_AGENTIC_REQUEST_PROXY_POOL_JSON",
         ),
@@ -319,7 +326,8 @@ mod tests {
         std::env::set_var("SHUMA_FRONTIER_OPENAI_API_KEY", "test-key");
         std::env::set_var("SHUMA_FRONTIER_OPENAI_MODEL", "gpt-5-mini");
         let frontier = frontier_summary();
-        let plan = next_llm_fulfillment_plan(1_700_000_000, &ControlState::default(), &frontier);
+        let mut state = ControlState::default();
+        let plan = next_llm_fulfillment_plan(1_700_000_000, &mut state, &frontier);
 
         assert_eq!(plan.backend_kind, "frontier_reference");
         assert_eq!(plan.backend_state, "degraded");
@@ -364,7 +372,7 @@ mod tests {
         let frontier = frontier_summary();
         let mut state = ControlState::default();
         state.generated_tick_count = 1;
-        let plan = next_llm_fulfillment_plan(1_700_000_000, &state, &frontier);
+        let plan = next_llm_fulfillment_plan(1_700_000_000, &mut state, &frontier);
 
         assert_eq!(plan.backend_kind, "frontier_reference");
         assert_eq!(plan.backend_state, "unavailable");
@@ -388,7 +396,8 @@ mod tests {
     #[test]
     fn llm_fulfillment_plan_surfaces_realism_profile_contract() {
         let frontier = frontier_summary();
-        let plan = next_llm_fulfillment_plan(1_700_000_000, &ControlState::default(), &frontier);
+        let mut state = ControlState::default();
+        let plan = next_llm_fulfillment_plan(1_700_000_000, &mut state, &frontier);
         let contract: serde_json::Value = serde_json::from_str(include_str!(
             "../../scripts/tests/adversarial/lane_realism_contract.v1.json"
         ))
@@ -399,5 +408,22 @@ mod tests {
             serde_json::to_value(&plan.realism_profile).expect("realism profile serializes"),
             *expected
         );
+    }
+
+    #[test]
+    fn llm_fulfillment_plan_surfaces_bounded_recurrence_context() {
+        let frontier = frontier_summary();
+        let mut state = ControlState::default();
+        let plan = next_llm_fulfillment_plan(1_700_000_000, &mut state, &frontier);
+        let recurrence = plan
+            .recurrence_context
+            .as_ref()
+            .expect("recurrence context");
+
+        assert_eq!(recurrence.strategy, "bounded_single_tick_reentry");
+        assert_eq!(recurrence.session_index, 1);
+        assert_eq!(recurrence.reentry_count, 0);
+        assert!(recurrence.max_reentries_per_run >= 1);
+        assert!(recurrence.planned_dormant_gap_seconds >= 1);
     }
 }

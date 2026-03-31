@@ -93,7 +93,7 @@ fn admin_options_is_rejected_before_main_pipeline() {
     with_runtime_env(|| {
         let req = request(
             Method::Options,
-            "/admin/config",
+            "/shuma/admin/config",
             &[
                 ("origin", "https://example.com"),
                 ("access-control-request-method", "POST"),
@@ -109,10 +109,10 @@ fn admin_options_is_rejected_before_main_pipeline() {
 #[test]
 fn admin_route_requires_auth_even_with_fail_open_enabled() {
     with_runtime_env(|| {
-        let req = request(Method::Get, "/admin/config", &[]);
+        let req = request(Method::Get, "/shuma/admin/config", &[]);
         let resp = shuma_gorath::handle_bot_defence_impl(&req);
 
-        // Regression guard: /admin should be handled by the early router/admin adapter,
+        // Regression guard: /shuma/admin should be handled by the early router/admin adapter,
         // not fall through to KV fail-open bypass behavior.
         assert_eq!(*resp.status(), 401u16);
         assert_eq!(
@@ -125,10 +125,10 @@ fn admin_route_requires_auth_even_with_fail_open_enabled() {
 #[test]
 fn health_route_precedes_kv_fail_open_bypass() {
     with_runtime_env(|| {
-        let req = request(Method::Get, "/health", &[]);
+        let req = request(Method::Get, "/shuma/health", &[]);
         let resp = shuma_gorath::handle_bot_defence_impl(&req);
 
-        // Regression guard: /health should evaluate local/trusted-IP access first.
+        // Regression guard: /shuma/health should evaluate local/trusted-IP access first.
         assert_eq!(*resp.status(), 403u16);
         assert_eq!(String::from_utf8_lossy(resp.body()), "Forbidden");
     });
@@ -262,7 +262,11 @@ fn enforcement_paths_remain_local_and_do_not_require_upstream() {
             ("SHUMA_GATEWAY_NATIVE_TEST_MODE", None),
         ],
         || {
-            let req = request(Method::Get, "/health", &[("host", "public.example.com")]);
+            let req = request(
+                Method::Get,
+                "/shuma/health",
+                &[("host", "public.example.com")],
+            );
             let resp = shuma_gorath::handle_bot_defence_impl(&req);
             let body = response_body_string(&resp);
 
@@ -323,7 +327,7 @@ fn upgrade_requests_are_explicitly_unsupported_in_gateway_v1() {
 #[test]
 fn dashboard_root_path_redirects_to_index_shell() {
     with_runtime_env(|| {
-        let req = request(Method::Get, "/dashboard", &[]);
+        let req = request(Method::Get, "/shuma/dashboard", &[]);
         let resp = shuma_gorath::handle_bot_defence_impl(&req);
 
         assert_eq!(*resp.status(), 308u16);
@@ -332,14 +336,14 @@ fn dashboard_root_path_redirects_to_index_shell() {
             .find(|(name, _)| name.eq_ignore_ascii_case("location"))
             .and_then(|(_, value)| value.as_str())
             .unwrap_or("");
-        assert_eq!(location, "/dashboard/index.html");
+        assert_eq!(location, "/shuma/dashboard/index.html");
     });
 }
 
 #[test]
 fn dashboard_trailing_slash_root_redirects_to_index_shell() {
     with_runtime_env(|| {
-        let req = request(Method::Get, "/dashboard/", &[]);
+        let req = request(Method::Get, "/shuma/dashboard/", &[]);
         let resp = shuma_gorath::handle_bot_defence_impl(&req);
 
         assert_eq!(*resp.status(), 308u16);
@@ -348,6 +352,6 @@ fn dashboard_trailing_slash_root_redirects_to_index_shell() {
             .find(|(name, _)| name.eq_ignore_ascii_case("location"))
             .and_then(|(_, value)| value.as_str())
             .unwrap_or("");
-        assert_eq!(location, "/dashboard/index.html");
+        assert_eq!(location, "/shuma/dashboard/index.html");
     });
 }

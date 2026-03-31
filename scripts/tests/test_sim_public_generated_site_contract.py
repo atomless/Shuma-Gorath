@@ -5,6 +5,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MAKEFILE = REPO_ROOT / "Makefile"
+SPIN_TOML = REPO_ROOT / "spin.toml"
 
 
 def target_body(name: str) -> str:
@@ -51,6 +52,14 @@ class SimPublicGeneratedSiteContractTests(unittest.TestCase):
             REPO_ROOT / "scripts" / "deploy" / "gateway_surface_catalog.py"
         ).read_text(encoding="utf-8")
         self.assertNotIn('pattern="/sim/public"', gateway_catalog)
+
+    def test_bot_defence_component_mounts_generated_public_site_artifact(self) -> None:
+        spin_toml = SPIN_TOML.read_text(encoding="utf-8")
+        self.assertIn("[component.bot-defence]", spin_toml)
+        self.assertIn(
+            'files = [{ source = ".shuma/sim-public-site", destination = ".shuma/sim-public-site" }]',
+            spin_toml,
+        )
 
 
 if __name__ == "__main__":

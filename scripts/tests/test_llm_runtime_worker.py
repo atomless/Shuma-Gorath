@@ -81,6 +81,14 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
         self.assertEqual(execution_plan["transport_profile"], "playwright_chromium")
         self.assertIn("en-US", execution_plan["accept_language"])
         self.assertIn("Mozilla/5.0", execution_plan["user_agent"])
+        self.assertEqual(
+            execution_plan["recurrence_strategy"],
+            "bounded_single_tick_reentry",
+        )
+        self.assertEqual(execution_plan["session_index"], 1)
+        self.assertEqual(execution_plan["reentry_count"], 0)
+        self.assertGreaterEqual(execution_plan["max_reentries_per_run"], 1)
+        self.assertGreaterEqual(execution_plan["planned_dormant_gap_seconds"], 1)
 
     def test_build_request_mode_realism_execution_plan_shapes_focused_microbursts(self):
         plan = {
@@ -147,6 +155,14 @@ class LlmRuntimeWorkerUnitTests(unittest.TestCase):
         )
         self.assertTrue(any(gap == 0 for gap in execution_plan["inter_action_gaps_ms"]))
         self.assertTrue(any(gap >= 1000 for gap in execution_plan["inter_action_gaps_ms"]))
+        self.assertEqual(
+            execution_plan["recurrence_strategy"],
+            "bounded_single_tick_reentry",
+        )
+        self.assertEqual(execution_plan["session_index"], 1)
+        self.assertEqual(execution_plan["reentry_count"], 0)
+        self.assertGreaterEqual(execution_plan["max_reentries_per_run"], 1)
+        self.assertGreaterEqual(execution_plan["planned_dormant_gap_seconds"], 1)
 
     def test_build_request_mode_realism_execution_plan_marks_degraded_identity_without_pool(self):
         plan = {

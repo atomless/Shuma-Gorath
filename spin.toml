@@ -7,11 +7,11 @@ description = "Shuma-Gorath: Chthulucene Bot Defence for Fermyon Spin."
 
 # Dashboard static files (served first)
 [[trigger.http]]
-route = "/dashboard"
+route = "/shuma/dashboard"
 component = "bot-defence"
 
 [[trigger.http]]
-route = "/dashboard/..."
+route = "/shuma/dashboard/..."
 component = "dashboard-files"
 
 # Main bot defence handler (catch-all)
@@ -28,6 +28,7 @@ environment = { CACHE_CONTROL = "no-store, max-age=0, must-revalidate" }
 [component.bot-defence]
 source = "dist/wasm/shuma_gorath.wasm"
 key_value_stores = ["default"]
+files = [{ source = ".shuma/sim-public-site", destination = ".shuma/sim-public-site" }]
 # Default outbound posture is closed. Native verified-identity directory discovery
 # requires explicit approved hosts here; keep the default empty until the deployment
 # intentionally allows the directory sources it wants this component to reach.

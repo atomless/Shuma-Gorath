@@ -1,14 +1,18 @@
 <script>
   import { onDestroy, onMount } from 'svelte';
   import {
+    normalizeBrowserRulesForCompare,
     formatBrowserRulesTextarea,
     formatListTextarea,
     normalizeListTextareaForCompare,
-    parseListTextarea,
-    normalizeBrowserRulesForCompare,
-    parseBrowserRulesTextarea
+    parseBrowserRulesTextarea,
+    parseListTextarea
   } from '../../domain/config-form-utils.js';
-  import { durationPartsFromSeconds, durationSeconds } from '../../domain/core/date-time.js';
+  import {
+    durationPartsFromConfiguredSeconds,
+    durationSeconds,
+    normalizeDurationSecondsToMinuteUiGranularity
+  } from '../../domain/core/date-time.js';
   import { parseInteger } from '../../domain/core/math.js';
   import { inRange, isDurationTupleValid } from '../../domain/core/validation.js';
   import { isAdminConfigWritable } from '../../domain/config-runtime.js';
@@ -41,7 +45,9 @@
   let writable = false;
   let savingPolicy = false;
   let warnOnUnload = false;
+  let hasConfigSnapshot = false;
   let lastAppliedConfigVersion = -1;
+  let pendingConfigVersion = -1;
 
   let robotsEnabled = true;
   let robotsCrawlDelay = 2;
@@ -171,7 +177,8 @@
     const durations = config && typeof config.ban_durations === 'object'
       ? config.ban_durations
       : {};
-    const readDuration = (key, fallbackSeconds) => parseInteger(durations[key], fallbackSeconds);
+    const readDuration = (key, fallbackSeconds) =>
+      normalizeDurationSecondsToMinuteUiGranularity(durations[key], fallbackSeconds);
     return {
       honeypot: readDuration('honeypot', 86400),
       ipRangeHoneypot: readDuration('ip_range_honeypot', 86400),
@@ -343,52 +350,52 @@
     restrictSearchEngines = aiAllowSearchEngines === undefined ? false : aiAllowSearchEngines !== true;
 
     const durations = toDurationBaseline(config);
-    const honeypotParts = durationPartsFromSeconds(durations.honeypot, 86400);
+    const honeypotParts = durationPartsFromConfiguredSeconds(durations.honeypot, 86400);
     durHoneypotDays = honeypotParts.days;
     durHoneypotHours = honeypotParts.hours;
     durHoneypotMinutes = honeypotParts.minutes;
 
-    const ipRangeHoneypotParts = durationPartsFromSeconds(durations.ipRangeHoneypot, 86400);
+    const ipRangeHoneypotParts = durationPartsFromConfiguredSeconds(durations.ipRangeHoneypot, 86400);
     durIpRangeHoneypotDays = ipRangeHoneypotParts.days;
     durIpRangeHoneypotHours = ipRangeHoneypotParts.hours;
     durIpRangeHoneypotMinutes = ipRangeHoneypotParts.minutes;
 
-    const mazeCrawlerParts = durationPartsFromSeconds(durations.mazeCrawler, 86400);
+    const mazeCrawlerParts = durationPartsFromConfiguredSeconds(durations.mazeCrawler, 86400);
     durMazeCrawlerDays = mazeCrawlerParts.days;
     durMazeCrawlerHours = mazeCrawlerParts.hours;
     durMazeCrawlerMinutes = mazeCrawlerParts.minutes;
 
-    const rateLimitParts = durationPartsFromSeconds(durations.rateLimit, 3600);
+    const rateLimitParts = durationPartsFromConfiguredSeconds(durations.rateLimit, 3600);
     durRateLimitDays = rateLimitParts.days;
     durRateLimitHours = rateLimitParts.hours;
     durRateLimitMinutes = rateLimitParts.minutes;
 
-    const cdpParts = durationPartsFromSeconds(durations.cdp, 43200);
+    const cdpParts = durationPartsFromConfiguredSeconds(durations.cdp, 43200);
     durCdpDays = cdpParts.days;
     durCdpHours = cdpParts.hours;
     durCdpMinutes = cdpParts.minutes;
 
-    const edgeFingerprintParts = durationPartsFromSeconds(durations.edgeFingerprint, 43200);
+    const edgeFingerprintParts = durationPartsFromConfiguredSeconds(durations.edgeFingerprint, 43200);
     durEdgeFingerprintDays = edgeFingerprintParts.days;
     durEdgeFingerprintHours = edgeFingerprintParts.hours;
     durEdgeFingerprintMinutes = edgeFingerprintParts.minutes;
 
-    const tarpitPersistenceParts = durationPartsFromSeconds(durations.tarpitPersistence, 600);
+    const tarpitPersistenceParts = durationPartsFromConfiguredSeconds(durations.tarpitPersistence, 600);
     durTarpitPersistenceDays = tarpitPersistenceParts.days;
     durTarpitPersistenceHours = tarpitPersistenceParts.hours;
     durTarpitPersistenceMinutes = tarpitPersistenceParts.minutes;
 
-    const notABotAbuseParts = durationPartsFromSeconds(durations.notABotAbuse, 600);
+    const notABotAbuseParts = durationPartsFromConfiguredSeconds(durations.notABotAbuse, 600);
     durNotABotAbuseDays = notABotAbuseParts.days;
     durNotABotAbuseHours = notABotAbuseParts.hours;
     durNotABotAbuseMinutes = notABotAbuseParts.minutes;
 
-    const challengePuzzleAbuseParts = durationPartsFromSeconds(durations.challengePuzzleAbuse, 600);
+    const challengePuzzleAbuseParts = durationPartsFromConfiguredSeconds(durations.challengePuzzleAbuse, 600);
     durChallengePuzzleAbuseDays = challengePuzzleAbuseParts.days;
     durChallengePuzzleAbuseHours = challengePuzzleAbuseParts.hours;
     durChallengePuzzleAbuseMinutes = challengePuzzleAbuseParts.minutes;
 
-    const adminParts = durationPartsFromSeconds(durations.admin, 21600);
+    const adminParts = durationPartsFromConfiguredSeconds(durations.admin, 21600);
     durAdminDays = adminParts.days;
     durAdminHours = adminParts.hours;
     durAdminMinutes = adminParts.minutes;
@@ -732,17 +739,19 @@
     scheduleRobotsPreviewRefresh();
   }
 
+  $: hasConfigSnapshot = configSnapshot && typeof configSnapshot === 'object' && Object.keys(configSnapshot).length > 0;
+
   $: {
     const nextVersion = Number(configVersion || 0);
-    if (nextVersion !== lastAppliedConfigVersion) {
-      lastAppliedConfigVersion = nextVersion;
-      if (!hasUnsavedChanges && !savingPolicy) {
-        applyConfig(
-          configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {},
-          configRuntimeSnapshot && typeof configRuntimeSnapshot === 'object' ? configRuntimeSnapshot : {}
-        );
-      }
+    if (nextVersion !== lastAppliedConfigVersion && nextVersion !== pendingConfigVersion) {
+      pendingConfigVersion = nextVersion;
     }
+  }
+
+  $: if (pendingConfigVersion !== -1 && hasConfigSnapshot && !hasUnsavedChanges && !savingPolicy) {
+    applyConfig(configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {});
+    lastAppliedConfigVersion = pendingConfigVersion;
+    pendingConfigVersion = -1;
   }
 
 </script>

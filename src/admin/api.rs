@@ -1869,6 +1869,11 @@ mod tests {
                                 peak_concurrent_activities: Some(3),
                                 session_handles: vec!["agentic-request-session-1".to_string()],
                                 identity_rotation_count: None,
+                                recurrence_strategy: "bounded_single_tick_reentry".to_string(),
+                                session_index: Some(1),
+                                reentry_count: Some(0),
+                                max_reentries_per_run: Some(3),
+                                planned_dormant_gap_seconds: Some(4),
                                 stop_reason: "response_pressure_stop".to_string(),
                             },
                         ),
@@ -2017,6 +2022,11 @@ mod tests {
                                 peak_concurrent_activities: None,
                                 session_handles: vec!["agentic-browser-session-1".to_string()],
                                 identity_rotation_count: Some(0),
+                                recurrence_strategy: "bounded_single_tick_reentry".to_string(),
+                                session_index: Some(1),
+                                reentry_count: Some(0),
+                                max_reentries_per_run: Some(2),
+                                planned_dormant_gap_seconds: Some(7),
                                 stop_reason: "top_level_budget_exhausted".to_string(),
                             },
                         ),
@@ -2119,6 +2129,11 @@ mod tests {
                             ],
                             session_handles: Vec::new(),
                             identity_rotation_count: 1,
+                            recurrence_strategy: "bounded_single_tick_reentry".to_string(),
+                            session_index: Some(1),
+                            reentry_count: Some(0),
+                            max_reentries_per_run: Some(3),
+                            planned_dormant_gap_seconds: Some(3),
                             stop_reason: "activity_sequence_exhausted".to_string(),
                         },
                     ),
@@ -6721,6 +6736,12 @@ mod admin_config_tests {
 
         let mut persisted = crate::admin::adversary_sim::load_state(&store, "default");
         persisted.last_generated_at = Some(0);
+        persisted.recurrence_strategy = None;
+        persisted.recurrence_session_index = 0;
+        persisted.recurrence_reentry_count = 0;
+        persisted.recurrence_max_reentries_per_run = None;
+        persisted.recurrence_last_planned_gap_seconds = None;
+        persisted.recurrence_dormant_until = None;
         crate::admin::adversary_sim::save_state(&store, "default", &persisted)
             .expect("state save");
 
@@ -7463,7 +7484,7 @@ mod admin_config_tests {
 
         crate::test_support::seed_candidate_snapshot_with_candidate_families(
             &store,
-            retained_cfg,
+            retained_cfg.clone(),
             1_700_008_000,
             0.28,
             "outside_budget",
@@ -7505,8 +7526,26 @@ mod admin_config_tests {
             handle_internal_adversary_sim_worker_result(&worker_result_req, &store, "default");
         assert_eq!(*worker_result_resp.status(), 200u16);
 
+        // Worker receipt event append rebuilds the hot operator snapshot from current observed
+        // telemetry. Reseat the benchmark snapshot so this test keeps exercising continuation
+        // follow-on orchestration rather than benchmark rematerialization semantics.
+        crate::test_support::seed_candidate_snapshot_with_candidate_families(
+            &store,
+            retained_cfg.clone(),
+            1_700_008_000,
+            0.28,
+            "outside_budget",
+            &["cdp_detection"],
+        );
+
         let mut active_state = crate::admin::adversary_sim::load_state(&store, "default");
         active_state.ends_at = Some(now_ts().saturating_sub(1));
+        active_state.recurrence_strategy = None;
+        active_state.recurrence_session_index = 0;
+        active_state.recurrence_reentry_count = 0;
+        active_state.recurrence_max_reentries_per_run = None;
+        active_state.recurrence_last_planned_gap_seconds = None;
+        active_state.recurrence_dormant_until = None;
         crate::admin::adversary_sim::save_state(&store, "default", &active_state)
             .expect("state save");
 
@@ -7519,19 +7558,23 @@ mod admin_config_tests {
             serde_json::from_slice(final_status_resp.body()).expect("final status decodes");
         assert_eq!(
             final_status_json["latest_run"]["trigger_kind"].as_str(),
-            Some("post_adversary_sim")
+            Some("post_adversary_sim"),
+            "expected continuation completion to trigger a post-sim oversight run: {final_status_json}"
         );
         assert_eq!(
             final_status_json["latest_run"]["sim_run_id"].as_str(),
-            Some(continuation_run_id.as_str())
+            Some(continuation_run_id.as_str()),
+            "expected latest oversight run to bind to the continuation sim run: {final_status_json}"
         );
         assert_eq!(
             final_status_json["latest_run"]["execution"]["apply"]["stage"].as_str(),
-            Some("canary_applied")
+            Some("canary_applied"),
+            "expected continuation completion to reopen the next bounded canary instead of refusing: {final_status_json}"
         );
         assert_eq!(
             final_status_json["latest_run"]["execution"]["apply"]["patch_family"].as_str(),
-            Some("cdp_detection")
+            Some("cdp_detection"),
+            "expected continuation completion to apply the next cdp_detection canary: {final_status_json}"
         );
         assert_eq!(
             final_status_json["continuation_run"]["status"].as_str(),
@@ -8581,6 +8624,12 @@ mod admin_config_tests {
             last_generation_error: None,
             pending_worker_tick_id: None,
             pending_worker_started_at: None,
+            recurrence_strategy: None,
+            recurrence_session_index: 0,
+            recurrence_reentry_count: 0,
+            recurrence_max_reentries_per_run: None,
+            recurrence_last_planned_gap_seconds: None,
+            recurrence_dormant_until: None,
             lane_diagnostics: crate::admin::adversary_sim::LaneDiagnosticsState::default(),
             updated_at: now.saturating_sub(300),
         };
@@ -8742,6 +8791,12 @@ mod admin_config_tests {
             last_generation_error: None,
             pending_worker_tick_id: None,
             pending_worker_started_at: None,
+            recurrence_strategy: None,
+            recurrence_session_index: 0,
+            recurrence_reentry_count: 0,
+            recurrence_max_reentries_per_run: None,
+            recurrence_last_planned_gap_seconds: None,
+            recurrence_dormant_until: None,
             lane_diagnostics: crate::admin::adversary_sim::LaneDiagnosticsState::default(),
             updated_at: now,
         };
@@ -9242,6 +9297,12 @@ mod admin_config_tests {
             last_generation_error: None,
             pending_worker_tick_id: None,
             pending_worker_started_at: None,
+            recurrence_strategy: None,
+            recurrence_session_index: 0,
+            recurrence_reentry_count: 0,
+            recurrence_max_reentries_per_run: None,
+            recurrence_last_planned_gap_seconds: None,
+            recurrence_dormant_until: None,
             lane_diagnostics: crate::admin::adversary_sim::LaneDiagnosticsState::default(),
             updated_at: now.saturating_sub(10),
         };

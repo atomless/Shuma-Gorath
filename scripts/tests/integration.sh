@@ -88,6 +88,12 @@ is_gateway_forward_unavailable() {
   [[ "$status" =~ ^50[0-9]$ ]] && echo "$body" | grep -q "Gateway forwarding unavailable"
 }
 
+is_generated_public_site_response() {
+  local status="$1"
+  local body="$2"
+  [[ "$status" == "200" ]] && echo "$body" | grep -q "Generated contributor public-content site."
+}
+
 BASE_URL="http://127.0.0.1:3000"
 TEST_CLEANUP_IPS=(
   127.0.0.1
@@ -547,6 +553,8 @@ js_allowlist_body=$(echo "$js_allowlist_resp" | sed -e 's/HTTPSTATUS:.*//')
 js_allowlist_status=$(echo "$js_allowlist_resp" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
 if echo "$js_allowlist_body" | grep -q "OK (passed bot defence)"; then
   pass "JS browser allowlist bypass remains active when browser policy is disabled"
+elif is_generated_public_site_response "$js_allowlist_status" "$js_allowlist_body"; then
+  pass "JS browser allowlist bypass reaches the rooted generated public site when browser policy is disabled"
 elif is_gateway_forward_unavailable "$js_allowlist_status" "$js_allowlist_body"; then
   pass "JS browser allowlist path reaches gateway fail-closed fallback when upstream is unavailable"
 else

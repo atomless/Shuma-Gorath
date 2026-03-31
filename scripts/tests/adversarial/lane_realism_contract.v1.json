@@ -39,6 +39,12 @@
           "max_activities": 14,
           "max_time_budget_ms": 12000
         },
+        "recurrence_envelope": {
+          "strategy": "bounded_single_tick_reentry",
+          "reentry_scope": "within_run",
+          "max_reentries_per_run": 2,
+          "dormant_gap_seconds": { "min": 3, "max": 8 }
+        },
         "receipt_contract": {
           "schema_version": "sim-lane-realism-receipt.v1",
           "required_fields": [
@@ -56,6 +62,11 @@
             "observed_country_codes",
             "identity_handles",
             "identity_rotation_count",
+            "recurrence_strategy",
+            "session_index",
+            "reentry_count",
+            "max_reentries_per_run",
+            "planned_dormant_gap_seconds",
             "stop_reason"
           ]
         }
@@ -97,6 +108,12 @@
           "max_activities": 45,
           "max_time_budget_ms": 30000
         },
+        "recurrence_envelope": {
+          "strategy": "bounded_single_tick_reentry",
+          "reentry_scope": "within_run",
+          "max_reentries_per_run": 3,
+          "dormant_gap_seconds": { "min": 2, "max": 6 }
+        },
         "receipt_contract": {
           "schema_version": "sim-lane-realism-receipt.v1",
           "required_fields": [
@@ -114,6 +131,11 @@
             "observed_country_codes",
             "identity_handles",
             "identity_rotation_count",
+            "recurrence_strategy",
+            "session_index",
+            "reentry_count",
+            "max_reentries_per_run",
+            "planned_dormant_gap_seconds",
             "stop_reason"
           ]
         }
@@ -155,6 +177,12 @@
           "max_activities": 9,
           "max_time_budget_ms": 20000
         },
+        "recurrence_envelope": {
+          "strategy": "bounded_single_tick_reentry",
+          "reentry_scope": "within_run",
+          "max_reentries_per_run": 2,
+          "dormant_gap_seconds": { "min": 4, "max": 10 }
+        },
         "receipt_contract": {
           "schema_version": "sim-lane-realism-receipt.v1",
           "required_fields": [
@@ -176,6 +204,11 @@
             "observed_country_codes",
             "session_handles",
             "identity_rotation_count",
+            "recurrence_strategy",
+            "session_index",
+            "reentry_count",
+            "max_reentries_per_run",
+            "planned_dormant_gap_seconds",
             "stop_reason"
           ]
         }
@@ -217,6 +250,12 @@
           "max_activities": 6,
           "max_time_budget_ms": 24000
         },
+        "recurrence_envelope": {
+          "strategy": "bounded_single_tick_reentry",
+          "reentry_scope": "within_run",
+          "max_reentries_per_run": 1,
+          "dormant_gap_seconds": { "min": 6, "max": 12 }
+        },
         "receipt_contract": {
           "schema_version": "sim-lane-realism-receipt.v1",
           "required_fields": [
@@ -238,6 +277,11 @@
             "observed_country_codes",
             "session_handles",
             "identity_rotation_count",
+            "recurrence_strategy",
+            "session_index",
+            "reentry_count",
+            "max_reentries_per_run",
+            "planned_dormant_gap_seconds",
             "stop_reason"
           ]
         }
@@ -279,6 +323,12 @@
           "max_activities": 24,
           "max_time_budget_ms": 18000
         },
+        "recurrence_envelope": {
+          "strategy": "bounded_single_tick_reentry",
+          "reentry_scope": "within_run",
+          "max_reentries_per_run": 3,
+          "dormant_gap_seconds": { "min": 2, "max": 5 }
+        },
         "receipt_contract": {
           "schema_version": "sim-lane-realism-receipt.v1",
           "required_fields": [
@@ -296,6 +346,11 @@
             "observed_country_codes",
             "identity_handles",
             "identity_rotation_count",
+            "recurrence_strategy",
+            "session_index",
+            "reentry_count",
+            "max_reentries_per_run",
+            "planned_dormant_gap_seconds",
             "stop_reason"
           ]
         }
@@ -339,6 +394,12 @@
           "max_activities": 8,
           "max_time_budget_ms": 90000
         },
+        "recurrence_envelope": {
+          "strategy": "bounded_single_tick_reentry",
+          "reentry_scope": "within_run",
+          "max_reentries_per_run": 2,
+          "dormant_gap_seconds": { "min": 5, "max": 12 }
+        },
         "receipt_contract": {
           "schema_version": "sim-lane-realism-receipt.v1",
           "required_fields": [
@@ -360,6 +421,11 @@
             "observed_country_codes",
             "session_handles",
             "identity_rotation_count",
+            "recurrence_strategy",
+            "session_index",
+            "reentry_count",
+            "max_reentries_per_run",
+            "planned_dormant_gap_seconds",
             "stop_reason"
           ]
         }
@@ -401,6 +467,12 @@
           "max_activities": 24,
           "max_time_budget_ms": 120000
         },
+        "recurrence_envelope": {
+          "strategy": "bounded_single_tick_reentry",
+          "reentry_scope": "within_run",
+          "max_reentries_per_run": 3,
+          "dormant_gap_seconds": { "min": 3, "max": 9 }
+        },
         "receipt_contract": {
           "schema_version": "sim-lane-realism-receipt.v1",
           "required_fields": [
@@ -421,6 +493,11 @@
             "observed_country_codes",
             "identity_rotation_count",
             "session_handles",
+            "recurrence_strategy",
+            "session_index",
+            "reentry_count",
+            "max_reentries_per_run",
+            "planned_dormant_gap_seconds",
             "stop_reason"
           ]
         }

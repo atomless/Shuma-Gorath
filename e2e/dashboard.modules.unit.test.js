@@ -4985,6 +4985,13 @@ test('config form utils and JSON object helpers preserve parser contracts', { co
       hours: 1,
       minutes: 1
     });
+    assert.equal(coreDateTime.normalizeDurationSecondsToMinuteUiGranularity(1, 3600), 0);
+    assert.deepEqual(toPlain(coreDateTime.durationPartsFromConfiguredSeconds(1, 3600)), {
+      days: 0,
+      hours: 0,
+      minutes: 0
+    });
+    assert.equal(coreDateTime.normalizeDurationSecondsToMinuteUiGranularity(undefined, 3600), 3600);
     assert.equal(coreDateTime.durationSeconds(1, 2, 3), 93780);
     assert.equal(coreDateTime.formatUnixSecondsLocal(0, '-'), '-');
     assert.equal(typeof coreDateTime.formatUnixSecondsLocal(1, '-'), 'string');
@@ -5527,6 +5534,8 @@ test('dashboard config tabs reuse shared panels, save flows, and owned controls'
   assert.match(configGeoSource, /id="geo-routing-toggle"/);
   assert.match(geoSource, /id="geo-edge-unavailable-message"/);
   assert.match(geoSource, /geo_edge_headers_enabled/);
+  assert.match(geoSource, /\$: geoEdgeHeaderDirty = geoEdgeControlsVisible &&/);
+  assert.match(geoSource, /if \(geoEdgeControlsVisible && geoEdgeHeaderDirty\)/);
   assert.match(geoSource, /buttonId="save-geo-config"/);
   assert.match(geoSource, /window\.addEventListener\('beforeunload'/);
 
@@ -5535,6 +5544,9 @@ test('dashboard config tabs reuse shared panels, save flows, and owned controls'
   assert.match(robotsSource, /import ConfigDurationsSection from '\.\/config\/ConfigDurationsSection\.svelte';/);
   assert.match(robotsSource, /import ConfigNetworkSection from '\.\/config\/ConfigNetworkSection\.svelte';/);
   assert.match(robotsSource, /import ConfigPathAllowlistSection from '\.\/config\/ConfigPathAllowlistSection\.svelte';/);
+  assert.match(robotsSource, /durationPartsFromConfiguredSeconds/);
+  assert.match(robotsSource, /normalizeDurationSecondsToMinuteUiGranularity/);
+  assert.match(robotsSource, /\$: hasConfigSnapshot = configSnapshot && typeof configSnapshot === 'object' && Object\.keys\(configSnapshot\)\.length > 0;/);
   assert.match(robotsSource, /const buildRobotsPreviewPatch = \(\) => \{/);
   assert.match(robotsSource, /await onSaveConfig\(payload/);
   assert.match(robotsSource, /await onFetchRobotsPreview\(patch\);/);
@@ -5753,7 +5765,7 @@ test('red team adversary-sim progress bar animates stripe motion and respects re
     'utf8'
   );
 
-  assert.match(styleSource, /\.dashboard-adversary-sim-progress__fill\s*\{[\s\S]*animation:\s*dashboard-adversary-sim-progress-stripes\s+1\.5s\s+linear\s+infinite;[\s\S]*\}/m);
+  assert.match(styleSource, /\.dashboard-adversary-sim-progress__fill\s*\{[\s\S]*animation:\s*dashboard-adversary-sim-progress-stripes\s+\.83s\s+linear\s+infinite;[\s\S]*\}/m);
   assert.match(styleSource, /@keyframes dashboard-adversary-sim-progress-stripes\s*\{[\s\S]*background-position:\s*0 0;[\s\S]*background-position:\s*0 -198px;[\s\S]*\}/m);
   assert.match(styleSource, /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{[\s\S]*\.dashboard-adversary-sim-progress__fill\s*\{[\s\S]*animation:\s*none;[\s\S]*\}[\s\S]*\}/m);
 });
@@ -5790,14 +5802,14 @@ test('dashboard route preflights dirty config logout before mutating session sta
 test('dashboard route lazily loads heavy tabs and keeps orchestration local', () => {
   const source = fs.readFileSync(path.join(DASHBOARD_ROOT, 'src/routes/+page.svelte'), 'utf8');
 
-  assert.match(source, /import\('\$lib\/components\/shuma\/dashboard\/RedTeamTab\.svelte'\)/);
-  assert.match(source, /import\('\$lib\/components\/shuma\/dashboard\/VerificationTab\.svelte'\)/);
-  assert.match(source, /import\('\$lib\/components\/shuma\/dashboard\/TrapsTab\.svelte'\)/);
-  assert.match(source, /import\('\$lib\/components\/shuma\/dashboard\/AdvancedTab\.svelte'\)/);
-  assert.match(source, /import\('\$lib\/components\/shuma\/dashboard\/RateLimitingTab\.svelte'\)/);
-  assert.match(source, /import\('\$lib\/components\/shuma\/dashboard\/GeoTab\.svelte'\)/);
-  assert.match(source, /import\('\$lib\/components\/shuma\/dashboard\/RobotsTab\.svelte'\)/);
-  assert.match(source, /import\('\$lib\/components\/shuma\/dashboard\/TuningTab\.svelte'\)/);
+  assert.match(source, /import\('\$lib\/components\/dashboard\/RedTeamTab\.svelte'\)/);
+  assert.match(source, /import\('\$lib\/components\/dashboard\/VerificationTab\.svelte'\)/);
+  assert.match(source, /import\('\$lib\/components\/dashboard\/TrapsTab\.svelte'\)/);
+  assert.match(source, /import\('\$lib\/components\/dashboard\/AdvancedTab\.svelte'\)/);
+  assert.match(source, /import\('\$lib\/components\/dashboard\/RateLimitingTab\.svelte'\)/);
+  assert.match(source, /import\('\$lib\/components\/dashboard\/GeoTab\.svelte'\)/);
+  assert.match(source, /import\('\$lib\/components\/dashboard\/RobotsTab\.svelte'\)/);
+  assert.match(source, /import\('\$lib\/components\/dashboard\/TuningTab\.svelte'\)/);
   assert.match(source, /\$lib\/runtime\/dashboard-route-controller\.js/);
   assert.match(source, /\$lib\/runtime\/dashboard-body-classes\.js/);
   assert.match(source, /\$lib\/runtime\/dashboard-adversary-sim\.js/);
@@ -5820,7 +5832,7 @@ test('dashboard route lazily loads heavy tabs and keeps orchestration local', ()
   assert.match(source, /buildDashboardLoginPath/);
   assert.match(source, /const AUTO_REFRESH_INTERVAL_MS = 1000;/);
   assert.match(source, /isAutoRefreshEnabled: \(\) => autoRefreshEnabled === true/);
-  assert.match(source, /shouldRefreshOnActivate: \(\{ tab, store \}\) =>/);
+  assert.match(source, /shouldRefreshOnActivate: \(\{ tab \}\) =>/);
   assert.match(source, /onSaveConfig=\{onSaveConfig\}/);
   assert.match(source, /onValidateConfig=\{onValidateConfig\}/);
   assert.match(source, /onBan=\{onBan\}/);
@@ -7274,6 +7286,8 @@ test('dashboard game loop observer source stays scoped to recent rounds and exac
   assert.match(gameLoopSource, /selectedObserverRound/);
   assert.match(gameLoopSource, /deriveAdversaryRunRowsFromSummaries/);
   assert.match(gameLoopSource, /selectedRoundCastContext/);
+  assert.match(gameLoopSource, /const dedupeSurfaceRows = \(rows\) => \{/);
+  assert.match(gameLoopSource, /\$: selectedRoundCastSurfaceRows = dedupeSurfaceRows\(selectedRoundCastContext\?\.surfaceRows\);/);
   assert.match(gameLoopSource, /Showing the latest exact recent sim run/);
   assert.match(gameLoopSource, /Showing current mixed-attacker evidence/);
   assert.doesNotMatch(gameLoopSource, /knownGameLoopPolicyProfiles/);

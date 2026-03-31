@@ -26,6 +26,7 @@ use super::adversary_sim_realism_profile::scrapling_realism_profile_for_mode;
 use super::adversary_sim_state::{
     active_lane_count_for_lane, autonomous_execution_profile, effective_active_lane,
 };
+use super::adversary_sim_worker_plan::LaneRealismRecurrenceContext;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum SupplementalLane {
@@ -360,6 +361,101 @@ fn record_lane_internal_result(
     }
 }
 
+fn reset_recurrence_state(state: &mut ControlState) {
+    state.recurrence_strategy = None;
+    state.recurrence_session_index = 0;
+    state.recurrence_reentry_count = 0;
+    state.recurrence_max_reentries_per_run = None;
+    state.recurrence_last_planned_gap_seconds = None;
+    state.recurrence_dormant_until = None;
+}
+
+fn recurrence_gap_seconds(
+    now: u64,
+    state: &ControlState,
+    realism_profile: &super::adversary_sim_realism_profile::LaneRealismProfile,
+) -> u64 {
+    let envelope = &realism_profile.recurrence_envelope;
+    let min_gap = envelope.dormant_gap_seconds.min;
+    let max_gap = envelope.dormant_gap_seconds.max.max(min_gap);
+    if min_gap == max_gap {
+        return min_gap;
+    }
+    let salt = state.recurrence_reentry_count.saturating_add(state.generated_tick_count);
+    min_gap + (deterministic_lane_entropy(state.run_id.as_deref().unwrap_or("simrun-runtime"), now, salt) % (max_gap - min_gap + 1))
+}
+
+pub(crate) fn recurrence_context_for_profile(
+    now: u64,
+    state: &mut ControlState,
+    realism_profile: &super::adversary_sim_realism_profile::LaneRealismProfile,
+) -> Option<LaneRealismRecurrenceContext> {
+    let envelope = &realism_profile.recurrence_envelope;
+    if envelope.strategy.trim().is_empty() {
+        return None;
+    }
+    if state.recurrence_strategy.as_deref() != Some(envelope.strategy.as_str()) {
+        state.recurrence_strategy = Some(envelope.strategy.clone());
+    }
+    if state.recurrence_session_index == 0 {
+        state.recurrence_session_index = 1;
+    }
+    state.recurrence_max_reentries_per_run = Some(envelope.max_reentries_per_run);
+    let planned_gap = recurrence_gap_seconds(now, state, realism_profile);
+    state.recurrence_last_planned_gap_seconds = Some(planned_gap);
+    Some(LaneRealismRecurrenceContext {
+        strategy: envelope.strategy.clone(),
+        session_index: state.recurrence_session_index,
+        reentry_count: state.recurrence_reentry_count,
+        max_reentries_per_run: envelope.max_reentries_per_run,
+        planned_dormant_gap_seconds: planned_gap,
+    })
+}
+
+fn recurrence_dormant(state: &ControlState, now: u64) -> bool {
+    state.recurrence_dormant_until
+        .map(|until| now < until)
+        .unwrap_or(false)
+}
+
+fn clear_recurrence_dormancy_if_ready(state: &mut ControlState, now: u64) {
+    if state
+        .recurrence_dormant_until
+        .map(|until| now >= until)
+        .unwrap_or(false)
+    {
+        state.recurrence_dormant_until = None;
+        state.recurrence_session_index = state.recurrence_session_index.saturating_add(1);
+        state.updated_at = now;
+    }
+}
+
+fn schedule_recurrence_dormancy_after_tick(
+    state: &mut ControlState,
+    tick_completed_at: u64,
+    realism_profile: &super::adversary_sim_realism_profile::LaneRealismProfile,
+) {
+    let envelope = &realism_profile.recurrence_envelope;
+    if envelope.strategy.trim().is_empty() {
+        return;
+    }
+    state.recurrence_strategy = Some(envelope.strategy.clone());
+    state.recurrence_max_reentries_per_run = Some(envelope.max_reentries_per_run);
+    if state.recurrence_session_index == 0 {
+        state.recurrence_session_index = 1;
+    }
+    if state.recurrence_reentry_count >= envelope.max_reentries_per_run {
+        state.recurrence_dormant_until = None;
+        return;
+    }
+    let planned_gap = state
+        .recurrence_last_planned_gap_seconds
+        .unwrap_or_else(|| recurrence_gap_seconds(tick_completed_at, state, realism_profile));
+    state.recurrence_last_planned_gap_seconds = Some(planned_gap);
+    state.recurrence_reentry_count = state.recurrence_reentry_count.saturating_add(1);
+    state.recurrence_dormant_until = Some(tick_completed_at.saturating_add(planned_gap));
+}
+
 pub(crate) fn apply_scrapling_worker_result(
     state: &mut ControlState,
     result: &ScraplingWorkerResult,
@@ -409,6 +505,8 @@ pub(crate) fn apply_scrapling_worker_result(
     state.last_generation_error = last_error;
     state.pending_worker_tick_id = None;
     state.pending_worker_started_at = None;
+    let realism_profile = scrapling_realism_profile_for_mode(result.fulfillment_mode.as_str());
+    schedule_recurrence_dormancy_after_tick(state, result.tick_completed_at, &realism_profile);
     state.updated_at = result.tick_completed_at;
 }
 
@@ -458,6 +556,11 @@ pub(crate) fn apply_llm_runtime_result(state: &mut ControlState, result: &LlmRun
     state.last_generation_error = last_error;
     state.pending_worker_tick_id = None;
     state.pending_worker_started_at = None;
+    let realism_profile =
+        super::adversary_sim_realism_profile::llm_realism_profile_for_mode(
+            result.fulfillment_mode.as_str(),
+        );
+    schedule_recurrence_dormancy_after_tick(state, result.tick_completed_at, &realism_profile);
     state.updated_at = result.tick_completed_at;
 }
 
@@ -479,6 +582,7 @@ fn reconcile_active_lane_at_beat_boundary(now: u64, state: &mut ControlState) {
     state.lane_switch_seq = state.lane_switch_seq.saturating_add(1);
     state.last_lane_switch_at = Some(now);
     state.last_lane_switch_reason = Some("beat_boundary_reconciliation".to_string());
+    reset_recurrence_state(state);
     state.updated_at = now;
 }
 
@@ -517,6 +621,7 @@ fn next_scrapling_worker_plan(now: u64, state: &mut ControlState) -> ScraplingWo
         load_identity_pool_from_env("ADVERSARY_SIM_SCRAPLING_REQUEST_PROXY_POOL_JSON");
     let browser_identity_pool =
         load_identity_pool_from_env("ADVERSARY_SIM_SCRAPLING_BROWSER_PROXY_POOL_JSON");
+    let recurrence_context = recurrence_context_for_profile(now, state, &realism_profile);
     state.pending_worker_tick_id = Some(tick_id.clone());
     state.pending_worker_started_at = Some(now);
     state.updated_at = now;
@@ -540,6 +645,7 @@ fn next_scrapling_worker_plan(now: u64, state: &mut ControlState) -> ScraplingWo
         request_identity_pool,
         browser_identity_pool,
         tick_started_at: now,
+        recurrence_context,
         max_requests: realism_profile.pressure_envelope.max_activities,
         max_depth: SCRAPLING_MAX_DEPTH_PER_TICK,
         max_bytes: SCRAPLING_MAX_BYTES_PER_TICK,
@@ -567,8 +673,17 @@ fn optional_scrapling_proxy_env(name: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{next_scrapling_worker_plan, scrapling_fulfillment_mode_for_tick};
-    use crate::admin::adversary_sim::ControlState;
+    use super::{
+        apply_scrapling_worker_result, next_scrapling_worker_plan, run_autonomous_supervisor_ticks,
+        scrapling_fulfillment_mode_for_tick,
+    };
+    use crate::admin::adversary_sim::{
+        ControlPhase, ControlState, RuntimeLane, ScraplingWorkerResult,
+        SCRAPLING_WORKER_RESULT_SCHEMA_VERSION,
+    };
+    use crate::admin::adversary_sim_state::process_instance_id;
+    use crate::admin::adversary_sim_worker_plan::ScraplingCrawlStats;
+    use crate::test_support::InMemoryStore;
 
     #[test]
     fn scrapling_fulfillment_modes_cycle_across_full_spectrum_personas() {
@@ -626,6 +741,94 @@ mod tests {
         assert!(bulk_plan.max_requests > 8);
         assert!(bulk_plan.max_ms > 2_000);
     }
+
+    #[test]
+    fn scrapling_worker_plan_surfaces_bounded_recurrence_context() {
+        let mut state = ControlState::default();
+        let plan = next_scrapling_worker_plan(1_700_000_000, &mut state);
+        let recurrence = plan
+            .recurrence_context
+            .as_ref()
+            .expect("recurrence context");
+
+        assert_eq!(recurrence.strategy, "bounded_single_tick_reentry");
+        assert_eq!(recurrence.session_index, 1);
+        assert_eq!(recurrence.reentry_count, 0);
+        assert!(recurrence.max_reentries_per_run >= 1);
+        assert!(recurrence.planned_dormant_gap_seconds >= 1);
+    }
+
+    #[test]
+    fn autonomous_supervisor_honors_recurrence_dormancy_before_dispatching_reentry_tick() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "shared-server");
+        let store = InMemoryStore::default();
+        let mut state = ControlState {
+            phase: ControlPhase::Running,
+            desired_enabled: true,
+            desired_lane: RuntimeLane::ScraplingTraffic,
+            active_lane: Some(RuntimeLane::ScraplingTraffic),
+            owner_instance_id: Some(process_instance_id().to_string()),
+            run_id: Some("run-reentry".to_string()),
+            started_at: Some(100),
+            ends_at: Some(500),
+            active_run_count: 1,
+            active_lane_count: 1,
+            ..ControlState::default()
+        };
+
+        let first_plan = next_scrapling_worker_plan(1_700_000_000, &mut state);
+        let recurrence = first_plan
+            .recurrence_context
+            .clone()
+            .expect("recurrence context");
+        let first_result = ScraplingWorkerResult {
+            schema_version: SCRAPLING_WORKER_RESULT_SCHEMA_VERSION.to_string(),
+            run_id: first_plan.run_id.clone(),
+            tick_id: first_plan.tick_id.clone(),
+            lane: RuntimeLane::ScraplingTraffic,
+            fulfillment_mode: first_plan.fulfillment_mode.clone(),
+            category_targets: first_plan.category_targets.clone(),
+            worker_id: "scrapling-worker-test".to_string(),
+            tick_started_at: first_plan.tick_started_at,
+            tick_completed_at: first_plan.tick_started_at.saturating_add(1),
+            generated_requests: 2,
+            failed_requests: 0,
+            last_response_status: Some(200),
+            failure_class: None,
+            error: None,
+            crawl_stats: ScraplingCrawlStats::default(),
+            scope_rejections: std::collections::BTreeMap::new(),
+            realism_receipt: None,
+            surface_receipts: Vec::new(),
+        };
+        apply_scrapling_worker_result(&mut state, &first_result);
+
+        let dormant_at = first_result
+            .tick_completed_at
+            .saturating_add(recurrence.planned_dormant_gap_seconds)
+            .saturating_sub(1);
+        let dormant_summary = run_autonomous_supervisor_ticks(&store, &mut state, dormant_at);
+        assert!(dormant_summary.worker_plan.is_none());
+        assert_eq!(
+            dormant_summary.pending_dispatch_mode.as_deref(),
+            Some("recurrence_dormant")
+        );
+
+        let reentry_at = first_result
+            .tick_completed_at
+            .saturating_add(recurrence.planned_dormant_gap_seconds);
+        let reentry_summary = run_autonomous_supervisor_ticks(&store, &mut state, reentry_at);
+        let reentry_plan = reentry_summary.worker_plan.expect("re-entry worker plan");
+        let reentry_context = reentry_plan
+            .recurrence_context
+            .as_ref()
+            .expect("re-entry recurrence context");
+        assert_eq!(reentry_context.session_index, 2);
+        assert_eq!(reentry_context.reentry_count, 1);
+
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+    }
 }
 
 pub(crate) fn run_autonomous_supervisor_ticks(
@@ -642,9 +845,14 @@ pub(crate) fn run_autonomous_supervisor_ticks(
         return summary;
     }
     reconcile_active_lane_at_beat_boundary(now, state);
+    clear_recurrence_dormancy_if_ready(state, now);
     match effective_active_lane(state) {
         Some(RuntimeLane::SyntheticTraffic) => {}
         Some(RuntimeLane::ScraplingTraffic) => {
+            if recurrence_dormant(state, now) {
+                summary.pending_dispatch_mode = Some("recurrence_dormant".to_string());
+                return summary;
+            }
             if state.pending_worker_tick_id.is_some() {
                 summary.worker_pending = true;
                 summary.pending_dispatch_mode = Some("scrapling_worker_pending".to_string());
@@ -655,6 +863,10 @@ pub(crate) fn run_autonomous_supervisor_ticks(
             return summary;
         }
         Some(RuntimeLane::BotRedTeam) => {
+            if recurrence_dormant(state, now) {
+                summary.pending_dispatch_mode = Some("recurrence_dormant".to_string());
+                return summary;
+            }
             if state.pending_worker_tick_id.is_some() {
                 summary.worker_pending = true;
                 summary.pending_dispatch_mode = Some("llm_fulfillment_plan_pending".to_string());

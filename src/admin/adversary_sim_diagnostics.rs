@@ -137,6 +137,16 @@ pub struct GenerationDiagnostics {
     pub last_generation_error: Option<String>,
 }
 
+fn recurrence_state(state: &ControlState, now: u64) -> &'static str {
+    if state.phase != ControlPhase::Running {
+        return "inactive";
+    }
+    match state.recurrence_dormant_until {
+        Some(dormant_until) if now < dormant_until => "dormant_gap",
+        _ => "ready",
+    }
+}
+
 pub fn status_payload(
     now: u64,
     runtime_environment: crate::config::RuntimeEnvironment,
@@ -195,6 +205,15 @@ pub fn status_payload(
             "request_count": state.generated_request_count,
             "last_generated_at": state.last_generated_at,
             "last_generation_error": state.last_generation_error.clone()
+        },
+        "recurrence": {
+            "state": recurrence_state(state, now),
+            "strategy": state.recurrence_strategy.clone(),
+            "session_index": state.recurrence_session_index,
+            "reentry_count": state.recurrence_reentry_count,
+            "max_reentries_per_run": state.recurrence_max_reentries_per_run,
+            "last_planned_gap_seconds": state.recurrence_last_planned_gap_seconds,
+            "dormant_until": state.recurrence_dormant_until
         }
     })
 }
@@ -210,6 +229,22 @@ pub fn generation_diagnostics(
     let mut reason = "simulation_off".to_string();
     let mut recommended_action = "Enable adversary simulation to generate telemetry.".to_string();
     if state.phase == ControlPhase::Running && cfg_enabled {
+        if state.recurrence_dormant_until.map(|deadline| now < deadline).unwrap_or(false) {
+            health = "healthy".to_string();
+            reason = "recurrence_dormant_gap".to_string();
+            recommended_action =
+                "No action required; the active lane is intentionally dormant between bounded re-entry sessions."
+                    .to_string();
+            return GenerationDiagnostics {
+                health,
+                reason,
+                recommended_action,
+                generated_tick_count: state.generated_tick_count,
+                generated_request_count: state.generated_request_count,
+                last_generated_at: state.last_generated_at,
+                last_generation_error: state.last_generation_error.clone(),
+            };
+        }
         let has_error = state
             .last_generation_error
             .as_deref()

@@ -6,6 +6,7 @@ const API_KEY = (process.env.SHUMA_API_KEY || "").trim();
 const FORWARDED_IP_SECRET = (process.env.SHUMA_FORWARDED_IP_SECRET || "").trim();
 const DASHBOARD_TABS = Object.freeze(["traffic", "ip-bans", "red-team", "game-loop", "tuning", "verification", "traps", "rate-limiting", "geo", "policy", "status", "advanced", "diagnostics"]);
 const ADMIN_TABS = Object.freeze(["traffic", "ip-bans", "red-team", "game-loop", "tuning", "verification", "traps", "rate-limiting", "geo", "policy", "status", "advanced", "diagnostics"]);
+const CONFIG_BACKED_TABS = Object.freeze(new Set(["verification", "traps", "rate-limiting", "geo", "policy", "tuning", "advanced"]));
 const VERIFICATION_RESTORE_PATHS = Object.freeze([
   "js_required_enforced"
 ]);
@@ -52,13 +53,33 @@ const POLICY_RESTORE_PATHS = Object.freeze([
   "ai_policy_block_training",
   "ai_policy_block_search",
   "ai_policy_allow_search_engines",
+  "ban_durations.honeypot",
+  "ban_durations.ip_range_honeypot",
+  "ban_durations.maze_crawler",
   "ban_durations.rate_limit",
+  "ban_durations.cdp",
+  "ban_durations.edge_fingerprint",
   "ban_durations.tarpit_persistence",
+  "ban_durations.not_a_bot_abuse",
+  "ban_durations.challenge_puzzle_abuse",
+  "ban_durations.admin",
   "browser_policy_enabled",
   "browser_block",
   "path_allowlist_enabled",
   "path_allowlist"
 ]);
+const POLICY_VALID_BAN_DURATIONS = Object.freeze({
+  honeypot: 86400,
+  ip_range_honeypot: 86400,
+  maze_crawler: 86400,
+  rate_limit: 3600,
+  cdp: 43200,
+  edge_fingerprint: 43200,
+  tarpit_persistence: 600,
+  not_a_bot_abuse: 600,
+  challenge_puzzle_abuse: 600,
+  admin: 21600
+});
 const TRAPS_RESTORE_PATHS = Object.freeze([
   "honeypot_enabled",
   "honeypots",
@@ -221,6 +242,13 @@ function parseDashboardCounterText(text) {
   if (!digits) return 0;
   const parsed = Number.parseFloat(digits);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function normalizeVisibleText(text) {
+  return String(text || "")
+    .replace(/\u00a0/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function formatTextareaList(values) {
@@ -799,10 +827,24 @@ async function openDashboard(page, options = {}) {
 
 async function openTab(page, tab, options = {}) {
   const waitForReady = options.waitForReady === true;
+  const shouldWaitForConfigRefresh = waitForReady && CONFIG_BACKED_TABS.has(tab);
+  const configRefreshPromise = shouldWaitForConfigRefresh
+    ? page.waitForResponse((response) => (
+      response.url().includes("/shuma/admin/config") &&
+      response.request().method() === "GET" &&
+      response.status() >= 200 &&
+      response.status() < 300
+    ), { timeout: 15000 })
+    : Promise.resolve(null);
+
   await page.click(`#dashboard-tab-${tab}`);
   await expect(page).toHaveURL(new RegExp(`#${tab}$`));
   await assertActiveTabPanelVisibility(page, tab);
   if (waitForReady && ADMIN_TABS.includes(tab)) {
+    if (shouldWaitForConfigRefresh) {
+      await configRefreshPromise;
+    }
+    await page.waitForTimeout(100);
     await page.waitForFunction((tabName) => {
       const state = document.querySelector(`[data-tab-state="${tabName}"]`);
       if (!state) return true;
@@ -1502,7 +1544,9 @@ test("game loop, traffic, and diagnostics tabs expose their ownership split", as
   await openDashboard(page);
 
   await expect(page.locator("#dashboard-tab-game-loop")).toHaveText("Game Loop");
-  await expect(page.locator(".dashboard-tabs .dashboard-tab-link")).toHaveText([
+  expect(
+    (await page.locator(".dashboard-tabs .dashboard-tab-link").allInnerTexts()).map(normalizeVisibleText)
+  ).toEqual([
     "Traffic",
     "IP Bans",
     "Red Team",
@@ -1512,7 +1556,6 @@ test("game loop, traffic, and diagnostics tabs expose their ownership split", as
     "Traps",
     "Rate Limiting",
     "GEO",
-    "Fingerprinting",
     "Policy",
     "Status",
     "Advanced",
@@ -5252,7 +5295,7 @@ test("verification save roundtrip clears dirty state after successful write", as
 test("geo and tuning save flows cover GEO lists and botness controls", async ({ page, request }) => {
   await withRestoredAdminConfig(request, GEO_AND_TUNING_RESTORE_PATHS, async () => {
     await openDashboard(page);
-    await openTab(page, "geo");
+    await openTab(page, "geo", { waitForReady: true });
 
     const geoSave = page.locator("#save-geo-config");
     await expect(geoSave).toBeHidden();
@@ -5313,7 +5356,7 @@ test("geo and tuning save flows cover GEO lists and botness controls", async ({ 
 
 test("geo tab hides trusted edge header controls outside edge-fermyon posture", async ({ page }) => {
   await openDashboard(page);
-  await openTab(page, "geo");
+  await openTab(page, "geo", { waitForReady: true });
 
   await expect(page.locator("#geo-edge-header-enabled-toggle")).toHaveCount(0);
   await expect(page.locator("#geo-edge-unavailable-message")).toContainText(
@@ -5371,8 +5414,19 @@ test("verification tab hides Akamai controls outside edge-fermyon posture", asyn
 
 test("policy tab save flows cover robots serving, durations, browser policy, and path allowlist controls", async ({ page, request }) => {
   await withRestoredAdminConfig(request, POLICY_RESTORE_PATHS, async () => {
+    await updateAdminConfig(request, {
+      ban_durations: {
+        ...POLICY_VALID_BAN_DURATIONS
+      }
+    });
+
+    const initialConfig = await fetchAdminConfig(request);
+    expect(initialConfig?.ban_durations).toMatchObject(POLICY_VALID_BAN_DURATIONS);
+    const initialRateLimitDuration = durationParts(initialConfig?.ban_durations?.rate_limit);
+    const initialTarpitPersistenceDuration = durationParts(initialConfig?.ban_durations?.tarpit_persistence);
+
     await openDashboard(page);
-    await openTab(page, "policy");
+    await openTab(page, "policy", { waitForReady: true });
 
     await expect(page.locator("#dur-honeypot-days")).toBeVisible();
     await expect(page.locator("#dur-ip-range-honeypot-days")).toBeVisible();
@@ -5384,6 +5438,12 @@ test("policy tab save flows cover robots serving, durations, browser policy, and
     await expect(page.locator("#dur-not-a-bot-abuse-days")).toBeVisible();
     await expect(page.locator("#dur-challenge-puzzle-abuse-days")).toBeVisible();
     await expect(page.locator("#dur-admin-days")).toBeVisible();
+    await expect(page.locator("#dur-rate-limit-days")).toHaveValue(String(initialRateLimitDuration.days));
+    await expect(page.locator("#dur-rate-limit-hours")).toHaveValue(String(initialRateLimitDuration.hours));
+    await expect(page.locator("#dur-rate-limit-minutes")).toHaveValue(String(initialRateLimitDuration.minutes));
+    await expect(page.locator("#dur-tarpit-persistence-days")).toHaveValue(String(initialTarpitPersistenceDuration.days));
+    await expect(page.locator("#dur-tarpit-persistence-hours")).toHaveValue(String(initialTarpitPersistenceDuration.hours));
+    await expect(page.locator("#dur-tarpit-persistence-minutes")).toHaveValue(String(initialTarpitPersistenceDuration.minutes));
 
     const saveButton = page.locator("#save-policy-config");
     await expect(saveButton).toBeHidden();

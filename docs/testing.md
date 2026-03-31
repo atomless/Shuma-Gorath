@@ -52,6 +52,7 @@ make test-adversarial-llm-runtime-dispatch # Focused bounded LLM runtime dispatc
 make test-adversarial-identity-envelope-contract # Focused proxy-pool and identity-envelope realism contract gate
 make test-adversary-sim-header-transport-realism # Focused header, locale, and transport-envelope realism gate
 make test-adversary-sim-browser-secondary-traffic-realism # Focused browser secondary-traffic and compact projection realism gate
+make test-adversary-sim-recurrence-realism # Focused bounded dormancy, re-entry, and recurrence receipt/dispatch gate
 make test-scrapling-game-loop-mainline # Focused active-mainline bundle: attacker-faithful Scrapling plus the first working game loop
 make test-adversary-sim-scrapling-owned-surface-contract # Focused Scrapling owned-surface matrix and success-contract gate
 make test-adversary-sim-scrapling-category-fit # Focused Scrapling category-ownership and worker-plan contract gate

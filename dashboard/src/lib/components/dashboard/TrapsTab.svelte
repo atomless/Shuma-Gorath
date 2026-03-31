@@ -26,7 +26,9 @@
   let writable = false;
   let savingTraps = false;
   let warnOnUnload = false;
+  let hasConfigSnapshot = false;
   let lastAppliedConfigVersion = -1;
+  let pendingConfigVersion = -1;
 
   let honeypotEnabled = true;
   let honeypotPaths = '';
@@ -237,15 +239,18 @@
 
   $: {
     const nextVersion = Number(configVersion || 0);
-    if (nextVersion !== lastAppliedConfigVersion) {
-      lastAppliedConfigVersion = nextVersion;
-      if (!hasUnsavedChanges && !savingTraps) {
-        applyConfig(
-          configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {},
-          configRuntimeSnapshot && typeof configRuntimeSnapshot === 'object' ? configRuntimeSnapshot : {}
-        );
-      }
+    if (nextVersion !== lastAppliedConfigVersion && nextVersion !== pendingConfigVersion) {
+      pendingConfigVersion = nextVersion;
     }
+  }
+
+  $: if (pendingConfigVersion !== -1 && hasConfigSnapshot && !hasUnsavedChanges && !savingTraps) {
+    applyConfig(
+      configSnapshot && typeof configSnapshot === 'object' ? configSnapshot : {},
+      configRuntimeSnapshot && typeof configRuntimeSnapshot === 'object' ? configRuntimeSnapshot : {}
+    );
+    lastAppliedConfigVersion = pendingConfigVersion;
+    pendingConfigVersion = -1;
   }
 </script>
 

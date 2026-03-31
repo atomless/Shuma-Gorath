@@ -138,8 +138,11 @@ def build_site(
     }
     freshness = {
         "generated_at_utc": generated_at,
-        "source_paths": sorted(
-            {corpus["site"]["about_source"], *(entry.source_path for entry in rendered_entries)}
+        "source_paths": freshness_source_paths(
+            repo_root=repo_root,
+            corpus_config_path=corpus_config_path,
+            about_source=str(corpus["site"]["about_source"]),
+            rendered_entries=rendered_entries,
         ),
     }
     write_json(artifact_root / MANIFEST_FILENAME, manifest)
@@ -191,6 +194,40 @@ def refresh_required(repo_root: Path, artifact_root: Path, if_stale_hours: int) 
         if datetime.fromtimestamp(source_path.stat().st_mtime, timezone.utc) > generated_at:
             return True
     return False
+
+
+def freshness_source_paths(
+    *,
+    repo_root: Path,
+    corpus_config_path: Path,
+    about_source: str,
+    rendered_entries: Iterable[Entry],
+) -> list[str]:
+    source_paths = {
+        about_source,
+        *(entry.source_path for entry in rendered_entries),
+        path_reference(repo_root, corpus_config_path),
+        *generator_source_paths(repo_root),
+    }
+    return sorted(source_paths)
+
+
+def generator_source_paths(repo_root: Path) -> list[str]:
+    build_path = Path(__file__).resolve()
+    return [
+        path_reference(repo_root, build_path.parents[1] / "build_sim_public_site.py"),
+        path_reference(repo_root, build_path.parent / "__init__.py"),
+        path_reference(repo_root, build_path),
+        path_reference(repo_root, build_path.with_name("render_markdown.mjs")),
+    ]
+
+
+def path_reference(repo_root: Path, path: Path) -> str:
+    resolved = path.resolve()
+    try:
+        return resolved.relative_to(repo_root.resolve()).as_posix()
+    except ValueError:
+        return resolved.as_posix()
 
 
 def load_json_file(path: Path) -> dict[str, object]:

@@ -898,6 +898,35 @@ async function runScenario(payload) {
               : [],
             session_handles: sessionHandles,
             identity_rotation_count: 0,
+            recurrence_strategy:
+              String(sessionPlanRaw.recurrence_strategy || "").trim() ||
+              String(sessionPlanRaw.recurrence_context?.strategy || "").trim(),
+            session_index: clampInt(
+              sessionPlanRaw.session_index ?? sessionPlanRaw.recurrence_context?.session_index,
+              0,
+              64,
+              0,
+            ),
+            reentry_count: clampInt(
+              sessionPlanRaw.reentry_count ?? sessionPlanRaw.recurrence_context?.reentry_count,
+              0,
+              64,
+              0,
+            ),
+            max_reentries_per_run: clampInt(
+              sessionPlanRaw.max_reentries_per_run ??
+                sessionPlanRaw.recurrence_context?.max_reentries_per_run,
+              0,
+              64,
+              0,
+            ),
+            planned_dormant_gap_seconds: clampInt(
+              sessionPlanRaw.planned_dormant_gap_seconds ??
+                sessionPlanRaw.recurrence_context?.planned_dormant_gap_seconds,
+              0,
+              3600,
+              0,
+            ),
             stop_reason:
               topLevelActions.length >= topLevelActionBudget
                 ? "top_level_budget_exhausted"

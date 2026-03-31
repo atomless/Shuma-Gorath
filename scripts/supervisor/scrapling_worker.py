@@ -78,6 +78,7 @@ class _ScraplingRealismTracker:
             plan.get("realism_profile"),
             field_name="worker_plan.realism_profile",
         )
+        self.recurrence_context = dict(plan.get("recurrence_context") or {})
         self.browser_session = browser_session
         self.proxy_configured = proxy_configured
         self.request_identity_pool = normalize_identity_pool_entries(
@@ -404,6 +405,17 @@ class _ScraplingRealismTracker:
             "session_stickiness": identity_summary["session_stickiness"],
             "observed_country_codes": list(identity_summary["observed_country_codes"]),
             "identity_rotation_count": self.identity_rotation_count,
+            "recurrence_strategy": str(
+                self.recurrence_context.get("strategy") or ""
+            ),
+            "session_index": int(self.recurrence_context.get("session_index") or 0),
+            "reentry_count": int(self.recurrence_context.get("reentry_count") or 0),
+            "max_reentries_per_run": int(
+                self.recurrence_context.get("max_reentries_per_run") or 0
+            ),
+            "planned_dormant_gap_seconds": int(
+                self.recurrence_context.get("planned_dormant_gap_seconds") or 0
+            ),
             "stop_reason": self.stop_reason(
                 bytes_observed=bytes_observed,
                 deadline_reached=deadline_reached,

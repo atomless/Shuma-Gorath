@@ -99,6 +99,11 @@ class AdversarialContainerWorkerUnitTests(unittest.TestCase):
             "observed_user_agent_families": ["chrome_android"],
             "observed_accept_languages": ["fr-FR,fr;q=0.9,en-US;q=0.7,en;q=0.6"],
             "transport_profile": "urllib_direct",
+            "recurrence_strategy": "bounded_single_tick_reentry",
+            "session_index": 1,
+            "reentry_count": 0,
+            "max_reentries_per_run": 3,
+            "planned_dormant_gap_seconds": 3,
         }
         env = {
             "BLACKBOX_MODE": "blackbox",
@@ -193,6 +198,11 @@ class AdversarialContainerWorkerUnitTests(unittest.TestCase):
             receipt["observed_accept_languages"],
             ["fr-FR,fr;q=0.9,en-US;q=0.7,en;q=0.6"],
         )
+        self.assertEqual(receipt["recurrence_strategy"], "bounded_single_tick_reentry")
+        self.assertEqual(receipt["session_index"], 1)
+        self.assertEqual(receipt["reentry_count"], 0)
+        self.assertEqual(receipt["max_reentries_per_run"], 3)
+        self.assertEqual(receipt["planned_dormant_gap_seconds"], 3)
         self.assertEqual(receipt["stop_reason"], "response_pressure_stop")
         self.assertEqual(len(receipt["inter_activity_gaps_ms"]), 5)
         self.assertEqual(receipt["inter_activity_gaps_ms"], [0, 0, 1400, 0, 0])
@@ -224,6 +234,11 @@ class AdversarialContainerWorkerUnitTests(unittest.TestCase):
             "inter_action_gaps_ms": [0, 0, 1200, 0, 0],
             "focused_page_paths": ["/", "/robots.txt"],
             "session_handles": ["agentic-request-session-1"],
+            "recurrence_strategy": "bounded_single_tick_reentry",
+            "session_index": 1,
+            "reentry_count": 0,
+            "max_reentries_per_run": 3,
+            "planned_dormant_gap_seconds": 3,
         }
         env = {
             "BLACKBOX_MODE": "blackbox",

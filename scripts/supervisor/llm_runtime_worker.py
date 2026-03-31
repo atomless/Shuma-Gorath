@@ -164,6 +164,36 @@ def _browser_dwell_intervals_ms(
     return dwell_intervals_ms
 
 
+def _resolve_recurrence_context(
+    fulfillment_plan: dict[str, Any], profile: dict[str, Any]
+) -> dict[str, int | str]:
+    recurrence_context = dict(fulfillment_plan.get("recurrence_context") or {})
+    if recurrence_context:
+        return {
+            "strategy": str(recurrence_context.get("strategy") or ""),
+            "session_index": int(recurrence_context.get("session_index") or 0),
+            "reentry_count": int(recurrence_context.get("reentry_count") or 0),
+            "max_reentries_per_run": int(
+                recurrence_context.get("max_reentries_per_run") or 0
+            ),
+            "planned_dormant_gap_seconds": int(
+                recurrence_context.get("planned_dormant_gap_seconds") or 0
+            ),
+        }
+    recurrence_envelope = dict(profile.get("recurrence_envelope") or {})
+    dormant_gap = recurrence_envelope.get("dormant_gap_seconds")
+    dormant_gap_min = 0
+    if isinstance(dormant_gap, dict):
+        dormant_gap_min = int(dormant_gap.get("min") or 0)
+    return {
+        "strategy": str(recurrence_envelope.get("strategy") or ""),
+        "session_index": 1,
+        "reentry_count": 0,
+        "max_reentries_per_run": int(recurrence_envelope.get("max_reentries_per_run") or 0),
+        "planned_dormant_gap_seconds": dormant_gap_min,
+    }
+
+
 def build_browser_mode_realism_execution_plan(
     *,
     fulfillment_plan: dict[str, Any],
@@ -202,6 +232,7 @@ def build_browser_mode_realism_execution_plan(
     )
     identity_summary = summarize_identity_realism(profile)
     browser_transport = resolve_browser_transport_observation(profile)
+    recurrence_context = _resolve_recurrence_context(fulfillment_plan, profile)
     return {
         "schema_version": BROWSER_MODE_REALISM_PLAN_SCHEMA_VERSION,
         "profile_id": str(profile.get("profile_id") or ""),
@@ -225,6 +256,11 @@ def build_browser_mode_realism_execution_plan(
         "observed_user_agent_families": [str(browser_transport.get("user_agent_family") or "")],
         "observed_accept_languages": [str(browser_transport.get("accept_language") or "")],
         "observed_browser_locales": [str(browser_transport.get("browser_locale") or "")],
+        "recurrence_strategy": str(recurrence_context["strategy"]),
+        "session_index": int(recurrence_context["session_index"]),
+        "reentry_count": int(recurrence_context["reentry_count"]),
+        "max_reentries_per_run": int(recurrence_context["max_reentries_per_run"]),
+        "planned_dormant_gap_seconds": int(recurrence_context["planned_dormant_gap_seconds"]),
     }
 
 
@@ -434,6 +470,7 @@ def build_request_mode_realism_execution_plan(
         ).get("transport_profile")
         or ""
     )
+    recurrence_context = _resolve_recurrence_context(fulfillment_plan, profile)
     return {
         "schema_version": REQUEST_MODE_REALISM_PLAN_SCHEMA_VERSION,
         "profile_id": str(profile.get("profile_id") or ""),
@@ -460,6 +497,11 @@ def build_request_mode_realism_execution_plan(
         "observed_user_agent_families": observed_user_agent_families,
         "observed_accept_languages": observed_accept_languages,
         "actions": expanded_actions,
+        "recurrence_strategy": str(recurrence_context["strategy"]),
+        "session_index": int(recurrence_context["session_index"]),
+        "reentry_count": int(recurrence_context["reentry_count"]),
+        "max_reentries_per_run": int(recurrence_context["max_reentries_per_run"]),
+        "planned_dormant_gap_seconds": int(recurrence_context["planned_dormant_gap_seconds"]),
     }
 
 

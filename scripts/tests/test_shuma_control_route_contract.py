@@ -8,6 +8,16 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 ACTIVE_SHUMA_ROUTE_SURFACES = {
+    Path("spin.toml"): [
+        'route = "/shuma/dashboard"',
+        'route = "/shuma/dashboard/..."',
+    ],
+    Path("Makefile"): [
+        "http://127.0.0.1:3000/shuma/dashboard/index.html",
+        "http://127.0.0.1:3000/shuma/health",
+        "http://127.0.0.1:3000/shuma/metrics",
+        "http://127.0.0.1:3000/shuma/admin/maze/preview",
+    ],
     Path("src/runtime/request_router.rs"): [
         "is_shuma_dashboard_root_path(path)",
         "SHUMA_DASHBOARD_INDEX_PATH",
@@ -103,6 +113,17 @@ ACTIVE_SHUMA_ROUTE_SURFACES = {
 }
 
 LEGACY_ROUTE_DRIFT_SURFACES = {
+    Path("spin.toml"): [
+        r'route = "/dashboard(?![A-Za-z0-9_/.-])',
+        r'route = "/dashboard/',
+    ],
+    Path("Makefile"): [
+        r"http://127\.0\.0\.1:3000/dashboard/index\.html",
+        r"http://127\.0\.0\.1:3000/health(?![A-Za-z0-9_-])",
+        r"http://127\.0\.0\.1:3000/metrics(?![A-Za-z0-9_-])",
+        r"http://127\.0\.0\.1:3000/admin/maze/preview",
+        r"http://127\.0\.0\.1:3000/admin/adversary-sim/history/cleanup",
+    ],
     Path("scripts/run_with_adversary_sim_supervisor.sh"): [
         r"(?<!/shuma)/admin/adversary-sim/status",
     ],

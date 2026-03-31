@@ -1,4 +1,4 @@
-.PHONY: dev dev-prod local run run-prebuilt build build-runtime build-full-dev prod prod-start clean reset-local-state test test-unit unit-test test-native-build-warning-hygiene test-env-isolation-contract test-ci-workflow-action-versions test-tarpit-observability-contract test-tarpit-collateral-risk-contract test-verified-identity-contracts test-verified-identity-config test-verified-identity-provider test-verified-identity-native test-verified-identity-directory-discovery test-verified-identity-proxy-trust test-verified-identity-policy test-verified-identity-telemetry test-verified-identity-annotations test-verified-identity-calibration-readiness test-verified-identity-taxonomy-crosswalk test-verified-identity-alignment-receipts test-verified-identity-botness-conflicts test-verified-identity-guardrails test-verified-identity-make-target-contract test-host-impact-telemetry test-host-impact-benchmark test-oversight-host-impact test-host-impact-make-target-contract test-integration integration-test test-gateway-harness test-gateway-wasm-tls-harness test-gateway-origin-bypass-probe test-gateway-profile-shared-server test-gateway-profile-edge smoke-gateway-mode test-deploy-linode test-deploy-fermyon test-scrapling-deploy-shared-host test-config-lifecycle test-js-verification-unit test-runtime-preflight-unit test-runtime-preflight test-shadow-mode test-enterprise-ban-store-contract test-telemetry-storage test-telemetry-hot-read-contract test-telemetry-hot-read-projection test-telemetry-hot-read-bootstrap test-telemetry-hot-read-evidence test-telemetry-hot-read-live-evidence test-monitoring-telemetry-contract test-monitoring-telemetry-foundation-unit test-operator-snapshot-foundation test-traffic-taxonomy-contract test-traffic-classification-contract test-operator-objectives-contract test-operator-objectives-category-contract test-benchmark-category-eligibility test-oversight-reconcile test-oversight-agent test-oversight-episode-archive test-oversight-post-sim-trigger test-live-feedback-loop-remote test-live-feedback-loop-remote-unit test-live-feedback-loop-remote-contracts test-remote-target-contract test-setup-runtime-bootstrap test-admin-machine-contracts test-admin-api-routing-contract test-benchmark-suite-contract test-benchmark-results-contract test-benchmark-comparison-contract test-controller-mutability-policy test-controller-action-surface test-controller-action-surface-parity test-controller-hard-boundaries test-rsi-game-contract test-rsi-scorecard-contract test-rsi-score-exploit-progress test-rsi-score-evidence-quality test-rsi-score-urgency-and-homeostasis test-rsi-score-move-selection test-oversight-move-selection-policy telemetry-shared-host-evidence telemetry-fermyon-edge-evidence test-adversarial-python-unit test-adversarial-manifest test-adversarial-preflight test-adversarial-lane-contract test-adversarial-lane-realism-contract test-adversarial-identity-envelope-contract test-adversary-sim-header-transport-realism test-shared-host-scope-contract test-shared-host-seed-contract build-shared-host-seed-inventory prepare-scrapling-deploy prepare-scrapling-local test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-coverage-receipts test-adversarial-scenario-review test-adversarial-scenario-intent-evidence-unit test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live test-remote-edge-signal-smoke test-fermyon-edge-signal-smoke telemetry-clean adversary-sim-supervisor-build adversary-sim-supervisor test-adversary-sim-supervisor-unit test-adversary-sim-domain-contract test-adversary-sim-make-target-contract test-adversary-sim-runtime-surface test-adversary-sim-runtime-surface-unit test-adversary-sim-scrapling-owned-surface-contract test-adversary-sim-scrapling-category-fit test-adversary-sim-scrapling-realism test-adversary-sim-pressure-envelope-realism test-adversary-sim-scrapling-malicious-request-native test-adversary-sim-scrapling-coverage-receipts test-scrapling-game-loop-mainline test-adversary-sim-scrapling-worker test-adversary-sim-diagnostics-truth test-adversarial-llm-realism test-adversarial-llm-browser-runtime test-adversarial-llm-fit test-adversarial-llm-runtime-dispatch test-adversarial-llm-runtime-projection test-adversarial-repeatability test-adversarial-promote-candidates test-replay-promotion-contract test-protected-tuning-evidence test-adversarial-report-diff test-adversarial-runner-architecture test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-frontier-unavailability-policy-unit test-sim2-realtime-bench test-sim2-adr-conformance test-sim2-ci-diagnostics test-sim2-verification-matrix test-sim2-verification-matrix-advisory test-sim2-operational-regressions test-sim2-operational-regressions-strict test-sim2-governance-contract test-sim2-verification-e2e test-ip-range-suggestions test-testing-surface-artifact-path-contract test-make-selector-contract-targets test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-config-surface-contract test-dashboard-adversary-sim-lane-contract test-dashboard-auth-gate test-dashboard-tab-information-architecture test-dashboard-game-loop-accountability test-dashboard-traffic-pane test-dashboard-diagnostics-pane test-dashboard-runtime-unit-contracts test-dashboard-config-refresh-contract test-dashboard-ip-bans-refresh-contract test-dashboard-policy-pane-ownership test-dashboard-status-pane test-dashboard-verified-identity-pane test-dashboard-fingerprint-control-rehome test-dashboard-red-team-pane test-dashboard-e2e-tab-information-architecture test-dashboard-e2e-policy-pane-ownership test-dashboard-e2e-tab-state-transitions test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e test-dashboard-e2e-adversary-sim test-dashboard-e2e-red-team-frontier-warning test-dashboard-e2e-external seed-dashboard-data test-maze-benchmark test-maze-verification-wiring test-maze-verification-gate test-maze-live-traversal-unit test-maze-live-traversal-contract test-maze-live-browser-unit test-maze-live-browser-contract test-maze-state-concurrency-contract spin-wait-ready smoke-single-host prepare-linode-shared-host prepare-fermyon-akamai-edge remote-use remote-update remote-start remote-stop remote-status remote-logs remote-open-dashboard deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai deploy-linode-one-shot deploy-fermyon-akamai-edge logs status stop help setup setup-runtime verify verify-runtime config-seed config-verify dashboard-build dashboard-verify-freshness sim-public-refresh sim-public-refresh-if-stale test-sim-public-build-flow-contract test-sim-public-discoverability-contract env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate test-rsi-game-mixed-episode-orchestration test-rsi-game-mixed-restriction-score-spine
+.PHONY: dev dev-prod local run run-prebuilt build build-runtime build-full-dev prod prod-start clean reset-local-state test test-unit unit-test test-native-build-warning-hygiene test-env-isolation-contract test-ci-workflow-action-versions test-tarpit-observability-contract test-tarpit-collateral-risk-contract test-verified-identity-contracts test-verified-identity-config test-verified-identity-provider test-verified-identity-native test-verified-identity-directory-discovery test-verified-identity-proxy-trust test-verified-identity-policy test-verified-identity-telemetry test-verified-identity-annotations test-verified-identity-calibration-readiness test-verified-identity-taxonomy-crosswalk test-verified-identity-alignment-receipts test-verified-identity-botness-conflicts test-verified-identity-guardrails test-verified-identity-make-target-contract test-host-impact-telemetry test-host-impact-benchmark test-oversight-host-impact test-host-impact-make-target-contract test-integration integration-test test-gateway-harness test-gateway-wasm-tls-harness test-gateway-origin-bypass-probe test-gateway-profile-shared-server test-gateway-profile-edge smoke-gateway-mode test-deploy-linode test-deploy-fermyon test-scrapling-deploy-shared-host test-config-lifecycle test-js-verification-unit test-runtime-preflight-unit test-runtime-preflight test-shadow-mode test-enterprise-ban-store-contract test-telemetry-storage test-telemetry-hot-read-contract test-telemetry-hot-read-projection test-telemetry-hot-read-bootstrap test-telemetry-hot-read-evidence test-telemetry-hot-read-live-evidence test-monitoring-telemetry-contract test-monitoring-telemetry-foundation-unit test-operator-snapshot-foundation test-traffic-taxonomy-contract test-traffic-classification-contract test-operator-objectives-contract test-operator-objectives-category-contract test-benchmark-category-eligibility test-oversight-reconcile test-oversight-agent test-oversight-episode-archive test-oversight-post-sim-trigger test-oversight-loop-continuation-contract test-live-feedback-loop-remote test-live-feedback-loop-remote-unit test-live-feedback-loop-remote-contracts test-remote-target-contract test-setup-runtime-bootstrap test-admin-machine-contracts test-admin-api-routing-contract test-benchmark-suite-contract test-benchmark-results-contract test-benchmark-comparison-contract test-controller-mutability-policy test-controller-action-surface test-controller-action-surface-parity test-controller-hard-boundaries test-rsi-game-contract test-rsi-scorecard-contract test-rsi-score-exploit-progress test-rsi-score-evidence-quality test-rsi-score-urgency-and-homeostasis test-rsi-score-move-selection test-oversight-move-selection-policy telemetry-shared-host-evidence telemetry-fermyon-edge-evidence test-adversarial-python-unit test-adversarial-manifest test-adversarial-preflight test-adversarial-lane-contract test-adversarial-lane-realism-contract test-adversarial-identity-envelope-contract test-adversary-sim-header-transport-realism test-adversary-sim-recurrence-realism test-shared-host-scope-contract test-shared-host-seed-contract build-shared-host-seed-inventory prepare-scrapling-deploy prepare-scrapling-local test-adversarial-sim-tag-contract test-adversarial-coverage-contract test-adversarial-coverage-receipts test-adversarial-scenario-review test-adversarial-scenario-intent-evidence-unit test-adversarial-sim-selftest test-adversarial-fast test-adversarial-smoke test-adversarial-abuse test-adversarial-akamai test-adversarial-coverage test-adversarial-soak test-adversarial-live test-remote-edge-signal-smoke test-fermyon-edge-signal-smoke telemetry-clean adversary-sim-supervisor-build adversary-sim-supervisor test-adversary-sim-supervisor-unit test-adversary-sim-domain-contract test-adversary-sim-make-target-contract test-adversary-sim-runtime-surface test-adversary-sim-runtime-surface-unit test-adversary-sim-scrapling-owned-surface-contract test-adversary-sim-scrapling-category-fit test-adversary-sim-scrapling-realism test-adversary-sim-pressure-envelope-realism test-adversary-sim-scrapling-malicious-request-native test-adversary-sim-scrapling-coverage-receipts test-scrapling-game-loop-mainline test-adversary-sim-scrapling-worker test-adversary-sim-diagnostics-truth test-adversarial-llm-realism test-adversarial-llm-browser-runtime test-adversarial-llm-fit test-adversarial-llm-runtime-dispatch test-adversarial-llm-runtime-projection test-adversarial-repeatability test-adversarial-promote-candidates test-replay-promotion-contract test-protected-tuning-evidence test-adversarial-report-diff test-adversarial-runner-architecture test-adversarial-container-blackbox test-adversarial-container-isolation test-adversarial-frontier-attempt test-frontier-governance test-frontier-unavailability-policy test-frontier-unavailability-policy-unit test-sim2-realtime-bench test-sim2-adr-conformance test-sim2-ci-diagnostics test-sim2-verification-matrix test-sim2-verification-matrix-advisory test-sim2-operational-regressions test-sim2-operational-regressions-strict test-sim2-governance-contract test-sim2-verification-e2e test-ip-range-suggestions test-testing-surface-artifact-path-contract test-make-selector-contract-targets test-coverage test-dashboard test-dashboard-svelte-check test-dashboard-unit test-dashboard-config-surface-contract test-dashboard-adversary-sim-lane-contract test-dashboard-auth-gate test-dashboard-tab-information-architecture test-dashboard-game-loop-accountability test-dashboard-traffic-pane test-dashboard-diagnostics-pane test-dashboard-runtime-unit-contracts test-dashboard-config-refresh-contract test-dashboard-ip-bans-refresh-contract test-dashboard-policy-pane-ownership test-dashboard-status-pane test-dashboard-verified-identity-pane test-dashboard-fingerprint-control-rehome test-dashboard-red-team-pane test-dashboard-e2e-tab-information-architecture test-dashboard-e2e-policy-pane-ownership test-dashboard-e2e-tab-state-transitions test-dashboard-budgets test-dashboard-budgets-strict test-dashboard-e2e test-dashboard-e2e-adversary-sim test-dashboard-e2e-red-team-frontier-warning test-dashboard-e2e-external seed-dashboard-data test-maze-benchmark test-maze-verification-wiring test-maze-verification-gate test-maze-live-traversal-unit test-maze-live-traversal-contract test-maze-live-browser-unit test-maze-live-browser-contract test-maze-state-concurrency-contract spin-wait-ready smoke-single-host prepare-linode-shared-host prepare-fermyon-akamai-edge remote-use remote-update remote-start remote-stop remote-status remote-logs remote-open-dashboard deploy deploy-profile-baseline deploy-self-hosted-minimal deploy-enterprise-akamai deploy-linode-one-shot deploy-fermyon-akamai-edge logs status stop help setup setup-runtime verify verify-runtime config-seed config-verify dashboard-build dashboard-verify-freshness sim-public-refresh sim-public-refresh-if-stale test-sim-public-build-flow-contract test-sim-public-discoverability-contract env-help api-key-generate gen-admin-api-key api-key-show api-key-rotate api-key-validate deploy-env-validate test-rsi-game-mixed-episode-orchestration test-rsi-game-mixed-restriction-score-spine
 
 # Default target
 .DEFAULT_GOAL := help
@@ -358,10 +358,10 @@ dashboard-verify-freshness: ## Fail if dashboard source is newer than the curren
 
 dev: ## Build and run with file watching (auto-rebuild on save)
 	@echo "$(CYAN)🚀 Starting development server with file watching...$(NC)"
-	@echo "$(YELLOW)📊 Dashboard: http://127.0.0.1:3000/dashboard/index.html$(NC)"
-	@echo "$(YELLOW)📈 Metrics:   http://127.0.0.1:3000/metrics$(NC)"
-	@echo "$(YELLOW)❤️  Health:    http://127.0.0.1:3000/health$(NC)"
-	@echo "$(YELLOW)🌀 Maze Preview: http://127.0.0.1:3000/admin/maze/preview (admin auth)$(NC)"
+	@echo "$(YELLOW)📊 Dashboard: http://127.0.0.1:3000/shuma/dashboard/index.html$(NC)"
+	@echo "$(YELLOW)📈 Metrics:   http://127.0.0.1:3000/shuma/metrics$(NC)"
+	@echo "$(YELLOW)❤️  Health:    http://127.0.0.1:3000/shuma/health$(NC)"
+	@echo "$(YELLOW)🌀 Maze Preview: http://127.0.0.1:3000/shuma/admin/maze/preview (admin auth)$(NC)"
 	@echo "$(YELLOW)⚙️  Effective dev flags: WRITE=$(DEV_ADMIN_CONFIG_WRITE_ENABLED) DEBUG_HEADERS=$(DEV_DEBUG_HEADERS) RUNTIME=$(DEV_RUNTIME_ENV) SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE)$(NC)"
 	@echo "$(YELLOW)🔐 Local admin allowlist override: DEV_ADMIN_IP_ALLOWLIST='$(DEV_ADMIN_IP_ALLOWLIST)' (empty by default)$(NC)"
 	@echo "$(YELLOW)⚡ Startup rebuild override: DEV_FORCE_REBUILD=$${DEV_FORCE_REBUILD:-0}$(NC)"
@@ -402,10 +402,10 @@ dev-prod: ## Build and run with file watching using runtime-prod local-direct po
 
 dev-closed: ## Build and run with file watching and SHUMA_KV_STORE_FAIL_OPEN=false (fail-closed)
 	@echo "$(CYAN)🚨 Starting development server with SHUMA_KV_STORE_FAIL_OPEN=false (fail-closed)...$(NC)"
-	@echo "$(YELLOW)📊 Dashboard: http://127.0.0.1:3000/dashboard/index.html$(NC)"
-	@echo "$(YELLOW)📈 Metrics:   http://127.0.0.1:3000/metrics$(NC)"
-	@echo "$(YELLOW)❤️  Health:    http://127.0.0.1:3000/health$(NC)"
-	@echo "$(YELLOW)🌀 Maze Preview: http://127.0.0.1:3000/admin/maze/preview (admin auth)$(NC)"
+	@echo "$(YELLOW)📊 Dashboard: http://127.0.0.1:3000/shuma/dashboard/index.html$(NC)"
+	@echo "$(YELLOW)📈 Metrics:   http://127.0.0.1:3000/shuma/metrics$(NC)"
+	@echo "$(YELLOW)❤️  Health:    http://127.0.0.1:3000/shuma/health$(NC)"
+	@echo "$(YELLOW)🌀 Maze Preview: http://127.0.0.1:3000/shuma/admin/maze/preview (admin auth)$(NC)"
 	@echo "$(YELLOW)⚙️  Effective dev flags: WRITE=$(DEV_ADMIN_CONFIG_WRITE_ENABLED) DEBUG_HEADERS=$(DEV_DEBUG_HEADERS) RUNTIME=$(DEV_RUNTIME_ENV) SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE)$(NC)"
 	@echo "$(YELLOW)🔐 Local admin allowlist override: DEV_ADMIN_IP_ALLOWLIST='$(DEV_ADMIN_IP_ALLOWLIST)' (empty by default)$(NC)"
 	@echo "$(YELLOW)⚡ Startup rebuild override: DEV_FORCE_REBUILD=$${DEV_FORCE_REBUILD:-0}$(NC)"
@@ -457,10 +457,10 @@ run: ## Build once and run (no file watching)
 	@cp $(WASM_BUILD_OUTPUT) $(WASM_ARTIFACT)
 	@./scripts/set_crate_type.sh rlib
 	@echo "$(GREEN)✅ Build complete. Starting Spin...$(NC)"
-	@echo "$(YELLOW)📊 Dashboard: http://127.0.0.1:3000/dashboard/index.html$(NC)"
-	@echo "$(YELLOW)📈 Metrics:   http://127.0.0.1:3000/metrics$(NC)"
-	@echo "$(YELLOW)❤️  Health:    http://127.0.0.1:3000/health$(NC)"
-	@echo "$(YELLOW)🌀 Maze Preview: http://127.0.0.1:3000/admin/maze/preview (admin auth)$(NC)"
+	@echo "$(YELLOW)📊 Dashboard: http://127.0.0.1:3000/shuma/dashboard/index.html$(NC)"
+	@echo "$(YELLOW)📈 Metrics:   http://127.0.0.1:3000/shuma/metrics$(NC)"
+	@echo "$(YELLOW)❤️  Health:    http://127.0.0.1:3000/shuma/health$(NC)"
+	@echo "$(YELLOW)🌀 Maze Preview: http://127.0.0.1:3000/shuma/admin/maze/preview (admin auth)$(NC)"
 	@$(MAKE) --no-print-directory prepare-scrapling-local >/dev/null
 	@RUNTIME_INSTANCE_ID=$$(uuidgen); SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL=$(ADVERSARY_SIM_SUPERVISOR_BASE_URL) SHUMA_ADVERSARY_SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE) $(SCRAPLING_LOCAL_RUNTIME_ENV) ./scripts/run_with_oversight_supervisor.sh spin up $(SPIN_ENV_ONLY_BASE) $(SPIN_DEV_OVERRIDES) --env RUNTIME_INSTANCE_ID=$$RUNTIME_INSTANCE_ID --listen 127.0.0.1:3000
 
@@ -470,10 +470,10 @@ run-prebuilt: ## Run Spin using prebuilt wasm (CI helper)
 	@$(MAKE) --no-print-directory config-verify
 	@$(MAKE) --no-print-directory dashboard-build >/dev/null
 	@pkill -x spin 2>/dev/null || true
-	@echo "$(YELLOW)📊 Dashboard: http://127.0.0.1:3000/dashboard/index.html$(NC)"
-	@echo "$(YELLOW)📈 Metrics:   http://127.0.0.1:3000/metrics$(NC)"
-	@echo "$(YELLOW)❤️  Health:    http://127.0.0.1:3000/health$(NC)"
-	@echo "$(YELLOW)🌀 Maze Preview: http://127.0.0.1:3000/admin/maze/preview (admin auth)$(NC)"
+	@echo "$(YELLOW)📊 Dashboard: http://127.0.0.1:3000/shuma/dashboard/index.html$(NC)"
+	@echo "$(YELLOW)📈 Metrics:   http://127.0.0.1:3000/shuma/metrics$(NC)"
+	@echo "$(YELLOW)❤️  Health:    http://127.0.0.1:3000/shuma/health$(NC)"
+	@echo "$(YELLOW)🌀 Maze Preview: http://127.0.0.1:3000/shuma/admin/maze/preview (admin auth)$(NC)"
 	@$(MAKE) --no-print-directory prepare-scrapling-local >/dev/null
 	@RUNTIME_INSTANCE_ID=$$(uuidgen); SHUMA_API_KEY=$(SHUMA_API_KEY) SHUMA_FORWARDED_IP_SECRET=$(SHUMA_FORWARDED_IP_SECRET) SHUMA_ADVERSARY_SIM_SUPERVISOR_BASE_URL=$(ADVERSARY_SIM_SUPERVISOR_BASE_URL) SHUMA_ADVERSARY_SIM_AVAILABLE=$(DEV_ADVERSARY_SIM_AVAILABLE) $(SCRAPLING_LOCAL_RUNTIME_ENV) ./scripts/run_with_oversight_supervisor.sh spin up $(SPIN_ENV_ONLY_BASE) $(SPIN_DEV_OVERRIDES) --env RUNTIME_INSTANCE_ID=$$RUNTIME_INSTANCE_ID --listen 127.0.0.1:3000
 
@@ -1518,6 +1518,12 @@ test-oversight-post-sim-trigger: ## Run focused post-sim oversight agent trigger
 	@cargo test adversary_sim_completion_triggers_post_sim_oversight_agent_once -- --nocapture
 	@python3 -m unittest scripts/tests/test_oversight_supervisor.py
 
+test-oversight-loop-continuation-contract: ## Run focused loop-continuation follow-on and materialization checks
+	@echo "$(CYAN)🧪 Running oversight loop-continuation checks...$(NC)"
+	@./scripts/set_crate_type.sh rlib
+	@cargo test admin::api::admin_config_tests::adversary_sim_internal_beat_auto_starts_pending_loop_continuation_run_once_after_terminal_improved -- --exact --nocapture
+	@cargo test admin::api::admin_config_tests::adversary_sim_loop_continuation_waits_for_all_required_lanes_before_post_sim_judgment -- --exact --nocapture
+
 test-telemetry-hot-read-evidence: ## Run focused telemetry hot-read live-evidence tooling checks
 	@echo "$(CYAN)🧪 Running telemetry hot-read evidence checks...$(NC)"
 	@python3 -m unittest scripts/tests/test_telemetry_shared_host_evidence.py
@@ -1853,6 +1859,24 @@ test-adversary-sim-header-transport-realism: ## Focused adversary-sim header/loc
 	@$(SCRAPLING_VENV_PYTHON) -m unittest \
 		scripts.tests.test_scrapling_worker.ScraplingWorkerUnitTests.test_request_native_session_kwargs_support_mobile_posture_and_geo_aligned_language \
 		scripts.tests.test_scrapling_worker.ScraplingWorkerUnitTests.test_browser_session_kwargs_accept_optional_proxy_contract
+
+test-adversary-sim-recurrence-realism: ## Focused adversary-sim recurrence realism gate (bounded dormancy, re-entry receipts, and dispatch truth)
+	@echo "$(CYAN)🧪 Running adversary-sim recurrence realism gate...$(NC)"
+	@./scripts/set_crate_type.sh rlib
+	@cargo test admin::adversary_sim_lane_runtime::tests::scrapling_worker_plan_surfaces_bounded_recurrence_context -- --exact --nocapture
+	@cargo test admin::adversary_sim_lane_runtime::tests::autonomous_supervisor_honors_recurrence_dormancy_before_dispatching_reentry_tick -- --exact --nocapture
+	@cargo test admin::adversary_sim::tests::generation_diagnostics_reports_healthy_recurrence_dormancy_between_sessions -- --exact --nocapture
+	@python3 -m unittest scripts/tests/test_adversarial_lane_realism_contract.py scripts/tests/test_llm_runtime_worker.py scripts/tests/test_adversarial_container_worker.py
+	@corepack pnpm exec node scripts/tests/test_adversarial_browser_driver.mjs
+	@python3 -m unittest scripts.tests.test_llm_runtime_browser_integration.LlmRuntimeBrowserIntegrationTests.test_run_browser_mode_blackbox_emits_real_session_traffic_against_local_public_site
+	@if [ ! -x "$(SCRAPLING_VENV_PYTHON)" ]; then \
+		echo "$(RED)❌ Error: $(SCRAPLING_VENV_PYTHON) not found.$(NC)"; \
+		echo "$(YELLOW)   Run make setup or make setup-runtime to provision the repo-owned Scrapling worker runtime.$(NC)"; \
+		exit 1; \
+	fi
+	@$(SCRAPLING_VENV_PYTHON) -m unittest \
+		scripts.tests.test_scrapling_worker.ScraplingWorkerUnitTests.test_execute_worker_plan_bulk_scraper_emits_request_realism_receipt \
+		scripts.tests.test_scrapling_worker.ScraplingWorkerUnitTests.test_execute_worker_plan_browser_automation_emits_browser_realism_receipt
 
 test-adversary-sim-browser-secondary-traffic-realism: ## Focused adversary-sim browser secondary-traffic realism gate (compact browser background/subresource receipts plus projection truth)
 	@echo "$(CYAN)🧪 Running adversary-sim browser secondary-traffic realism gate...$(NC)"
@@ -2252,7 +2276,7 @@ telemetry-clean: ## Clear retained telemetry history from admin monitoring/event
 			-H "X-Shuma-Telemetry-Cleanup-Ack: I_UNDERSTAND_TELEMETRY_CLEANUP" \
 			-H "X-Forwarded-For: 127.0.0.1" \
 			$(FORWARDED_SECRET_HEADER) \
-			http://127.0.0.1:3000/admin/adversary-sim/history/cleanup)" || { \
+			http://127.0.0.1:3000/shuma/admin/adversary-sim/history/cleanup)" || { \
 			echo "$(RED)❌ Failed to clear retained telemetry history.$(NC)"; \
 			echo "$(YELLOW)   Endpoint requires admin write access; in runtime-prod it also requires explicit cleanup acknowledgement (sent by this target).$(NC)"; \
 			exit 1; \
@@ -2345,7 +2369,7 @@ test-coverage: ## Run unit test coverage (requires cargo-llvm-cov)
 test-dashboard: ## Dashboard testing instructions (manual)
 	@echo "$(CYAN)🧪 Dashboard testing (manual):$(NC)"
 	@echo "1. Ensure Spin is running: make dev"
-	@echo "2. Open: http://127.0.0.1:3000/dashboard/index.html"
+	@echo "2. Open: http://127.0.0.1:3000/shuma/dashboard/index.html"
 	@echo "3. Follow checklist in docs/testing.md"
 
 test-dashboard-svelte-check: ## Run Svelte static diagnostics for dashboard sources
@@ -2926,10 +2950,10 @@ stop: ## Stop running Spin server
 	@pkill -x spin 2>/dev/null && echo "$(GREEN)✅ Stopped$(NC)" || echo "$(YELLOW)No server running$(NC)"
 
 status: ## Check if Spin server is running
-	@if curl -sf -H "X-Forwarded-For: 127.0.0.1" $(FORWARDED_SECRET_HEADER) $(HEALTH_SECRET_HEADER) http://127.0.0.1:3000/health > /dev/null 2>&1; then \
+	@if curl -sf -H "X-Forwarded-For: 127.0.0.1" $(FORWARDED_SECRET_HEADER) $(HEALTH_SECRET_HEADER) http://127.0.0.1:3000/shuma/health > /dev/null 2>&1; then \
 		echo "$(GREEN)✅ Spin server is running$(NC)"; \
-		echo "   Dashboard: http://127.0.0.1:3000/dashboard/index.html"; \
-		echo "   Maze Preview: http://127.0.0.1:3000/admin/maze/preview (admin auth)"; \
+		echo "   Dashboard: http://127.0.0.1:3000/shuma/dashboard/index.html"; \
+		echo "   Maze Preview: http://127.0.0.1:3000/shuma/admin/maze/preview (admin auth)"; \
 	else \
 		echo "$(YELLOW)⚠️  Spin server is not running$(NC)"; \
 	fi

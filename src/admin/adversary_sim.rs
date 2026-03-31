@@ -362,6 +362,37 @@ mod tests {
     }
 
     #[test]
+    fn generation_diagnostics_reports_healthy_recurrence_dormancy_between_sessions() {
+        let _lock = crate::test_support::lock_env();
+        std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "shared-server");
+        let state = ControlState {
+            phase: ControlPhase::Running,
+            desired_enabled: true,
+            desired_lane: RuntimeLane::ScraplingTraffic,
+            active_lane: Some(RuntimeLane::ScraplingTraffic),
+            run_id: Some("run-recurrence".to_string()),
+            started_at: Some(100),
+            ends_at: Some(400),
+            active_run_count: 1,
+            active_lane_count: 1,
+            recurrence_strategy: Some("bounded_single_tick_reentry".to_string()),
+            recurrence_session_index: 2,
+            recurrence_reentry_count: 1,
+            recurrence_max_reentries_per_run: Some(3),
+            recurrence_last_planned_gap_seconds: Some(6),
+            recurrence_dormant_until: Some(150),
+            updated_at: 120,
+            ..ControlState::default()
+        };
+
+        let diagnostics = generation_diagnostics(140, true, &state);
+        assert_eq!(diagnostics.health, "healthy");
+        assert_eq!(diagnostics.reason, "recurrence_dormant_gap");
+
+        std::env::remove_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE");
+    }
+
+    #[test]
     fn status_payload_surfaces_explicit_production_operating_envelope() {
         let _lock = crate::test_support::lock_env();
         std::env::set_var("SHUMA_GATEWAY_DEPLOYMENT_PROFILE", "edge-fermyon");

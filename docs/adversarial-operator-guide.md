@@ -682,6 +682,7 @@ Lifecycle semantics:
 5. `lifecycle_diagnostics` is the primary triage contract:
    - `control` reports desired/actual state, ownership, reconciliation requirement, last transition/failure reason, and control lease operation metadata.
    - `supervisor` reports heartbeat expectation, generated ticks/requests, beat recency, and last generation error.
+   - `generation_diagnostics.health=healthy` with `reason=recurrence_dormant_gap` means the lane is intentionally between bounded recurrence sessions, not that traffic generation has stalled or silently stopped.
 6. Production posture is explicit in the same status payload:
    - top level: `gateway_deployment_profile`
    - guardrails: `surface_available_by_default`, `generation_default=off_until_explicit_enable`, `generation_requires_explicit_enable`

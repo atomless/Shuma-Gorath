@@ -8,7 +8,7 @@
 
 **Related research:** [`../research/2026-03-30-adversary-lane-wild-traffic-gap-review.md`](../research/2026-03-30-adversary-lane-wild-traffic-gap-review.md)
 
-**Status note:** `SIM-REALISM-2A`, `SIM-REALISM-2B`, `SIM-REALISM-2C`, and `SIM-REALISM-2D` are now landed. The next active realism tranche is `SIM-REALISM-2E`, which will add explicit long-horizon dormancy, recurrence, and re-entry truth on top of the new pressure, identity, transport-envelope, and browser-secondary-traffic contract.
+**Status note:** `SIM-REALISM-2A`, `SIM-REALISM-2B`, `SIM-REALISM-2C`, `SIM-REALISM-2D`, and `SIM-REALISM-2E` are now landed. The next active realism tranche is `SIM-REALISM-2F`, which will replace the remaining flat exploration caps with explicit per-persona traversal envelopes on top of the new pressure, identity, transport-envelope, browser-secondary-traffic, and recurrence contract.
 
 ---
 
