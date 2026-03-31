@@ -76,16 +76,16 @@ Behavior:
 
 Development:
 
-- `http://127.0.0.1:3000/dashboard/index.html`
-- `http://127.0.0.1:3000/dashboard` (redirects to `/dashboard/index.html`)
+- `http://127.0.0.1:3000/shuma/dashboard/index.html`
+- `http://127.0.0.1:3000/shuma/dashboard` (redirects to `/shuma/dashboard/index.html`)
 
 Notes:
 
-- Login page: `/dashboard/login.html`
-- Logged-out navigation to `/dashboard` or `/dashboard/index.html` now keeps the dashboard shell hidden while session truth is restored and leaves only the normal disconnected striped page state visible before redirect.
-- Login form uses a native form `POST` to `/admin/login`, a visible readonly `Account` field with `autocomplete="username"`, and `current-password` semantics for the API key field so browsers/password managers can recognize it as a normal sign-in flow and associate the saved key with the dashboard account for this origin.
+- Login page: `/shuma/dashboard/login.html`
+- Logged-out navigation to `/shuma/dashboard` or `/shuma/dashboard/index.html` now keeps the dashboard shell hidden while session truth is restored and leaves only the normal disconnected striped page state visible before redirect.
+- Login form uses a native form `POST` to `/shuma/admin/login`, a visible readonly `Account` field with `autocomplete="username"`, and `current-password` semantics for the API key field so browsers/password managers can recognize it as a normal sign-in flow and associate the saved key with the dashboard account for this origin.
 - When the login page is ready for a new session, it focuses the API key field automatically so operators can paste the key immediately on local and remote dashboards.
-- Both dashboard entry routes advertise an explicit dashboard-scoped favicon under `/dashboard/assets/...` so browsers do not fall back to probing `/favicon.ico` at the protected site root.
+- Both dashboard entry routes advertise an explicit dashboard-scoped favicon under `/shuma/dashboard/assets/...` so browsers do not fall back to probing `/favicon.ico` at the protected site root.
 - When `shadow_mode` is enabled, the dashboard header overlays the Shuma-Gorath image with the dashboard eye marker so operators can tell at a glance that the current session is in logging-only mode.
 - Admin session uses same-origin cookie + CSRF header for state-changing calls.
 - Config panes are editable only when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=true`.
@@ -95,30 +95,30 @@ Notes:
 
 ## 🐙 Admin API Endpoints Used by Dashboard
 
-- `GET /admin/session`
-- `POST /admin/logout`
-- `GET /admin/monitoring?hours=24&limit=10`
-- `GET /admin/events?hours=N`
-- `GET /admin/ban`
-- `POST /admin/ban`
-- `POST /admin/unban`
-- `GET /admin/cdp`
-- `GET /admin/config`
-- `GET /admin/operator-snapshot`
-- `GET /admin/benchmark-results`
-- `GET /admin/oversight/history`
-- `GET /admin/oversight/agent/status`
-- `POST /admin/config`
-- `POST /admin/config/validate`
-- `POST /admin/adversary-sim/control`
-- `GET /admin/adversary-sim/status`
-- `GET /admin/robots`
-- `POST /admin/robots/preview`
+- `GET /shuma/admin/session`
+- `POST /shuma/admin/logout`
+- `GET /shuma/admin/monitoring?hours=24&limit=10`
+- `GET /shuma/admin/events?hours=N`
+- `GET /shuma/admin/ban`
+- `POST /shuma/admin/ban`
+- `POST /shuma/admin/unban`
+- `GET /shuma/admin/cdp`
+- `GET /shuma/admin/config`
+- `GET /shuma/admin/operator-snapshot`
+- `GET /shuma/admin/benchmark-results`
+- `GET /shuma/admin/oversight/history`
+- `GET /shuma/admin/oversight/agent/status`
+- `POST /shuma/admin/config`
+- `POST /shuma/admin/config/validate`
+- `POST /shuma/admin/adversary-sim/control`
+- `GET /shuma/admin/adversary-sim/status`
+- `GET /shuma/admin/robots`
+- `POST /shuma/admin/robots/preview`
 
 Preview links surfaced in tab UI:
 
-- `GET /admin/maze/preview`
-- `GET /admin/tarpit/preview`
+- `GET /shuma/admin/maze/preview`
+- `GET /shuma/admin/tarpit/preview`
 - `GET /robots.txt`
 
 ## 🐙 Chart Runtime Provenance

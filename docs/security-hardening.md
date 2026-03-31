@@ -65,18 +65,18 @@ This is a **policy decision** and should be explicitly chosen for each deploymen
 ## 🐙 Admin <abbr title="Application Programming Interface">API</abbr> Protection
 
 - Generate `SHUMA_API_KEY` with `make api-key-generate`/`make gen-admin-api-key` (64-char hex), and rotate on a regular cadence (recommended 90 days) with `make api-key-rotate`
-- Optionally set `SHUMA_ADMIN_READONLY_API_KEY` for operators/automation that only need read access to `/admin/*`
+- Optionally set `SHUMA_ADMIN_READONLY_API_KEY` for operators/automation that only need read access to `/shuma/admin/*`
 - Restrict access with `SHUMA_ADMIN_IP_ALLOWLIST`
-- Add <abbr title="Content Delivery Network">CDN</abbr>/<abbr title="Web Application Firewall">WAF</abbr> rate limits for `POST /admin/login` and all `/admin/*`
+- Add <abbr title="Content Delivery Network">CDN</abbr>/<abbr title="Web Application Firewall">WAF</abbr> rate limits for `POST /shuma/admin/login` and all `/shuma/admin/*`
 - Keep `SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE` at a conservative value (default `10`)
 - Use <abbr title="Transport Layer Security">TLS</abbr> for all admin traffic
-- Keep mutating admin actions (`/admin/config`, `/admin/ban`, `/admin/unban`) on read/write credentials only; denied write attempts are logged for audit visibility
+- Keep mutating admin actions (`/shuma/admin/config`, `/shuma/admin/ban`, `/shuma/admin/unban`) on read/write credentials only; denied write attempts are logged for audit visibility
 - Keep admin <abbr title="Application Programming Interface">API</abbr> same-origin from the dashboard; no cross-origin admin <abbr title="Application Programming Interface">API</abbr> is enabled
-- <abbr title="Cross-Origin Resource Sharing">CORS</abbr> preflight (`OPTIONS`) for `/admin/*` is rejected by design
+- <abbr title="Cross-Origin Resource Sharing">CORS</abbr> preflight (`OPTIONS`) for `/shuma/admin/*` is rejected by design
 
 ## 🐙 Health Endpoint Access
 
-`/health` only allows loopback IPs (`127.0.0.1` and `::1`) and trusted forwarded headers.
+`/shuma/health` only allows loopback IPs (`127.0.0.1` and `::1`) and trusted forwarded headers.
 If your monitoring goes through a proxy, set:
 - `X-Forwarded-For: 127.0.0.1`
 - `X-Shuma-Forwarded-Secret: <SHUMA_FORWARDED_IP_SECRET>`
@@ -110,4 +110,4 @@ Use [`docs/privacy-gdpr-review.md`](privacy-gdpr-review.md) as the implementatio
 
 ## 🐙 Metrics Endpoint Exposure
 
-`/metrics` is unauthenticated for Prometheus compatibility. Restrict it at the network edge or via firewall rules if needed.
+`/shuma/metrics` is unauthenticated for Prometheus compatibility. Restrict it at the network edge or via firewall rules if needed.

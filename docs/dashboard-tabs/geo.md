@@ -22,4 +22,4 @@ Validation:
 - Country fields require valid ISO 3166-1 alpha-2 codes in comma-separated format.
 - Scoring/routing toggles are persisted through `defence_modes.geo`.
 - The current signal surface expects the upstream edge layer to map provider-native GEO data into `X-Geo-Country`; it is not yet a direct Akamai EdgeScape parser.
-- Operator controls for trusted GEO edge-header ingestion are hidden unless the deployment reports `gateway_deployment_profile=edge-fermyon` (`akamai_edge_available=true` in `/admin/config`).
+- Operator controls for trusted GEO edge-header ingestion are hidden unless the deployment reports `gateway_deployment_profile=edge-fermyon` (`akamai_edge_available=true` in `/shuma/admin/config`).

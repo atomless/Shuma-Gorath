@@ -31,7 +31,7 @@ make build-runtime  # Build runtime/deploy release artifact (no dashboard budget
 make build-full-dev # Build release artifact with dashboard budget reporting (set SHUMA_DASHBOARD_BUNDLE_BUDGET_ENFORCE=1 for hard-fail)
 make build          # Alias of make build-runtime
 make prod           # Build for production and start server
-make smoke-single-host # Post-deploy smoke: health/admin/metrics/challenge + forwarded public-path parity when gateway inputs are present
+make smoke-single-host # Post-deploy smoke: /shuma/health, /shuma/admin, /shuma/metrics, challenge, and forwarded public-path parity when gateway inputs are present
 make stop           # Stop running Spin server
 make status         # Check if server is running
 make clean          # Clean build artifacts
@@ -121,9 +121,9 @@ make test-dashboard-e2e    # In terminal 2
 
 ### 🐙 Public Endpoints
 - `GET /` - Main bot defence (may show block page, <abbr title="JavaScript">JS</abbr> challenge, or pass through)
-- `GET /health` - Health check (exact loopback or trusted forwarded loopback)
+- `GET /shuma/health` - Health check (exact loopback or trusted forwarded loopback)
 - `GET /instaban` - Honeypot (triggers ban)
-- `GET /metrics` - Prometheus metrics
+- `GET /shuma/metrics` - Prometheus metrics
 - `GET /robots.txt` - robots.txt (configurable)
 - `GET /pow` - <abbr title="Proof of Work">PoW</abbr> seed (when enabled)
 - `POST /pow/verify` - <abbr title="Proof of Work">PoW</abbr> verification
@@ -132,38 +132,38 @@ make test-dashboard-e2e    # In terminal 2
 - `POST /challenge/puzzle` - Submit puzzle challenge answer (if challenge is served)
 
 ### 🐙 Admin <abbr title="Application Programming Interface">API</abbr>
-- Supports read/write bearer auth (`SHUMA_API_KEY`), optional read-only bearer auth (`SHUMA_ADMIN_READONLY_API_KEY`), and same-origin admin sessions from `/admin/login`.
+- Supports read/write bearer auth (`SHUMA_API_KEY`), optional read-only bearer auth (`SHUMA_ADMIN_READONLY_API_KEY`), and same-origin admin sessions from `/shuma/admin/login`.
 - Mutating session-authenticated calls also require `X-Shuma-CSRF`.
 - If `SHUMA_ADMIN_IP_ALLOWLIST` is set, the client <abbr title="Internet Protocol">IP</abbr> must be allowlisted.
 
-- `POST /admin/login` - Native dashboard login form endpoint (`application/x-www-form-urlencoded` `password=<SHUMA_API_KEY>`, optional `next=...`) that sets the admin session cookie and redirects
-- `GET /admin/session` - Current auth/session state
-- `POST /admin/logout` - Clear the admin session cookie
-- `GET /admin/ban` - List all bans (`503` when strict external outage posture makes authoritative ban-state reads unavailable)
-- `POST /admin/ban` - Manually ban <abbr title="Internet Protocol">IP</abbr> (<abbr title="JavaScript Object Notation">JSON</abbr>: `{"ip":"x.x.x.x","duration":3600}`; reason is always `manual_ban`; strict external outage posture returns `503` on unsynced writes)
-- `POST /admin/unban?ip=x.x.x.x` - Unban an <abbr title="Internet Protocol">IP</abbr> (strict external outage posture returns `503` on unsynced writes)
-- `GET /admin/analytics` - Get ban statistics plus `ban_store_status` and `ban_store_message`
-- `GET /admin/events?hours=24` - Get recent events
-- `GET /admin/monitoring?hours=24&limit=10` - Get consolidated monitoring summaries + detail payload (`analytics`, `events`, `bans`, `maze`, `cdp`, `cdp_events`) for dashboard Monitoring refresh, including ban-state availability markers
-- `GET /admin/monitoring/delta?...` - Cursor-ordered monitoring deltas
-- `GET /admin/monitoring/stream?...` - One-shot monitoring SSE delta
-- `GET /admin/ip-bans/delta?...` - Cursor-ordered ban/unban deltas plus `active_bans_status` and `active_bans_message`
-- `GET /admin/ip-bans/stream?...` - One-shot IP-ban SSE delta plus `active_bans_status` and `active_bans_message`
-- Expensive admin reads (`/admin/events`, `/admin/cdp/events`, `/admin/monitoring`, `/admin/ban` `GET`) are per-<abbr title="Internet Protocol">IP</abbr> rate-limited and return `429` + `Retry-After: 60` when limited.
-- `GET /admin/config` - Get current configuration
-- `POST /admin/config` - Update configuration (shadow_mode, ban_durations, robots serving, <abbr title="Artificial Intelligence">AI</abbr> bot policy, <abbr title="Chrome DevTools Protocol">CDP</abbr>, etc.)
-- `POST /admin/config/validate` - Validate a config patch without persisting it
-- `GET /admin/config/export` - Export non-secret runtime config for immutable redeploy handoff
+- `POST /shuma/admin/login` - Native dashboard login form endpoint (`application/x-www-form-urlencoded` `password=<SHUMA_API_KEY>`, optional `next=...`) that sets the admin session cookie and redirects
+- `GET /shuma/admin/session` - Current auth/session state
+- `POST /shuma/admin/logout` - Clear the admin session cookie
+- `GET /shuma/admin/ban` - List all bans (`503` when strict external outage posture makes authoritative ban-state reads unavailable)
+- `POST /shuma/admin/ban` - Manually ban <abbr title="Internet Protocol">IP</abbr> (<abbr title="JavaScript Object Notation">JSON</abbr>: `{"ip":"x.x.x.x","duration":3600}`; reason is always `manual_ban`; strict external outage posture returns `503` on unsynced writes)
+- `POST /shuma/admin/unban?ip=x.x.x.x` - Unban an <abbr title="Internet Protocol">IP</abbr> (strict external outage posture returns `503` on unsynced writes)
+- `GET /shuma/admin/analytics` - Get ban statistics plus `ban_store_status` and `ban_store_message`
+- `GET /shuma/admin/events?hours=24` - Get recent events
+- `GET /shuma/admin/monitoring?hours=24&limit=10` - Get consolidated monitoring summaries + detail payload (`analytics`, `events`, `bans`, `maze`, `cdp`, `cdp_events`) for dashboard Monitoring refresh, including ban-state availability markers
+- `GET /shuma/admin/monitoring/delta?...` - Cursor-ordered monitoring deltas
+- `GET /shuma/admin/monitoring/stream?...` - One-shot monitoring SSE delta
+- `GET /shuma/admin/ip-bans/delta?...` - Cursor-ordered ban/unban deltas plus `active_bans_status` and `active_bans_message`
+- `GET /shuma/admin/ip-bans/stream?...` - One-shot IP-ban SSE delta plus `active_bans_status` and `active_bans_message`
+- Expensive admin reads (`/shuma/admin/events`, `/shuma/admin/cdp/events`, `/shuma/admin/monitoring`, `/shuma/admin/ban` `GET`) are per-<abbr title="Internet Protocol">IP</abbr> rate-limited and return `429` + `Retry-After: 60` when limited.
+- `GET /shuma/admin/config` - Get current configuration
+- `POST /shuma/admin/config` - Update configuration (shadow_mode, ban_durations, robots serving, <abbr title="Artificial Intelligence">AI</abbr> bot policy, <abbr title="Chrome DevTools Protocol">CDP</abbr>, etc.)
+- `POST /shuma/admin/config/validate` - Validate a config patch without persisting it
+- `GET /shuma/admin/config/export` - Export non-secret runtime config for immutable redeploy handoff
   - Redis provider URLs are treated as secrets and excluded from this export.
-- `POST /admin/adversary-sim/control` - Submit adversary-sim ON/OFF command
-- `GET /admin/adversary-sim/status` - Read lifecycle state and diagnostics
-- `POST /admin/adversary-sim/history/cleanup` - Explicitly clear retained simulation telemetry history
-- `GET /admin/maze` - maze statistics
-- `GET /admin/maze/preview?path=<maze_entry_path>...` - non-operational maze preview surface
-- `GET /admin/robots` - robots.txt configuration and preview
-- `POST /admin/robots/preview` - robots.txt preview from unsaved toggles/patch (no persistence)
-- `GET /admin/cdp` - <abbr title="Chrome DevTools Protocol">CDP</abbr> + fingerprint detection configuration and stats
-- `GET /admin` - <abbr title="Application Programming Interface">API</abbr> help
+- `POST /shuma/admin/adversary-sim/control` - Submit adversary-sim ON/OFF command
+- `GET /shuma/admin/adversary-sim/status` - Read lifecycle state and diagnostics
+- `POST /shuma/admin/adversary-sim/history/cleanup` - Explicitly clear retained simulation telemetry history
+- `GET /shuma/admin/maze` - maze statistics
+- `GET /shuma/admin/maze/preview?path=<maze_entry_path>...` - non-operational maze preview surface
+- `GET /shuma/admin/robots` - robots.txt configuration and preview
+- `POST /shuma/admin/robots/preview` - robots.txt preview from unsaved toggles/patch (no persistence)
+- `GET /shuma/admin/cdp` - <abbr title="Chrome DevTools Protocol">CDP</abbr> + fingerprint detection configuration and stats
+- `GET /shuma/admin` - <abbr title="Application Programming Interface">API</abbr> help
 
 ## 🐙 Configuration
 
@@ -176,7 +176,7 @@ environment = { SHUMA_API_KEY = "your-secret-key-here", SHUMA_JS_SECRET = "your-
 
 `SHUMA_JS_SECRET` is used to sign the `js_verified` cookie for the <abbr title="JavaScript">JS</abbr> challenge.
 `SHUMA_FORWARDED_IP_SECRET` is optional and is used to trust `X-Forwarded-For` from your proxy/<abbr title="Content Delivery Network">CDN</abbr> (it must also send `X-Shuma-Forwarded-Secret`). If you set it, include that header in integration tests.
-`SHUMA_HEALTH_SECRET` is optional and, when set, `/health` also requires `X-Shuma-Health-Secret`.
+`SHUMA_HEALTH_SECRET` is optional and, when set, `/shuma/health` also requires `X-Shuma-Health-Secret`.
 `SHUMA_EVENT_LOG_RETENTION_HOURS` requests raw event retention, but high-risk raw operator views are capped to `72h`.
 `SHUMA_MONITORING_RETENTION_HOURS` controls how long hourly monitoring counters and bucket indexes are kept.
 `SHUMA_MONITORING_ROLLUP_RETENTION_HOURS` controls how long derived daily monitoring rollups are kept for longer-window summary reads.
@@ -186,7 +186,7 @@ environment = { SHUMA_API_KEY = "your-secret-key-here", SHUMA_JS_SECRET = "your-
 `SHUMA_POW_DIFFICULTY` sets the leading-zero bit target (default: 15).
 `SHUMA_POW_TTL_SECONDS` controls <abbr title="Proof of Work">PoW</abbr> seed expiry (default: 90).
 `SHUMA_POW_SECRET` optionally overrides the <abbr title="Proof of Work">PoW</abbr> signing secret (falls back to `SHUMA_JS_SECRET`).
-`SHUMA_MAZE_PREVIEW_SECRET` optionally sets a dedicated secret for `/admin/maze/preview` entropy/signing isolation.
+`SHUMA_MAZE_PREVIEW_SECRET` optionally sets a dedicated secret for `/shuma/admin/maze/preview` entropy/signing isolation.
 `SHUMA_ADMIN_CONFIG_WRITE_ENABLED` controls whether admin config updates are allowed (default: true; set `false` only when you explicitly want read-only admin config).
 
 ### 🐙 Forwarded <abbr title="Internet Protocol">IP</abbr> Secret (Deployment)
@@ -237,14 +237,14 @@ Enable for safe production testing (logs but does not block):
 curl -X POST -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"shadow_mode": true}' \
-  http://127.0.0.1:3000/admin/config
+  http://127.0.0.1:3000/shuma/admin/config
 
 # Check current status
 curl -H "Authorization: Bearer YOUR_API_KEY" \
-  http://127.0.0.1:3000/admin/config
+  http://127.0.0.1:3000/shuma/admin/config
 ```
 
-Shadow mode is a <abbr title="Key-Value">KV</abbr>-backed admin-editable runtime setting; use dashboard or `POST /admin/config` to change it.
+Shadow mode is a <abbr title="Key-Value">KV</abbr>-backed admin-editable runtime setting; use dashboard or `POST /shuma/admin/config` to change it.
 
 ### 🐙 Default Config
 Defaults are defined in `config/defaults.env` and seeded into <abbr title="Key-Value">KV</abbr> for admin-editable runtime settings:
@@ -257,10 +257,10 @@ Full configuration reference (including configuration-class explanation): [`docs
 
 ## 🐙 Dashboard
 
-1. Open `http://127.0.0.1:3000/dashboard/login.html` in browser
+1. Open `http://127.0.0.1:3000/shuma/dashboard/login.html` in browser
 2. Enter the key from `make api-key-show` (local dev) or the deployed `SHUMA_API_KEY`
-3. Dashboard login submits a native form to `/admin/login`, which sets the same-origin admin session cookie and redirects into the dashboard
-4. After login, use `http://127.0.0.1:3000/dashboard/index.html` (or `/dashboard`) for the full tabbed UI
+3. Dashboard login submits a native form to `/shuma/admin/login`, which sets the same-origin admin session cookie and redirects into the dashboard
+4. After login, use `http://127.0.0.1:3000/shuma/dashboard/index.html` (or `/shuma/dashboard`) for the full tabbed UI
 
 ## 🐙 Common Tasks
 
@@ -269,25 +269,25 @@ Full configuration reference (including configuration-class explanation): [`docs
 curl -X POST -H "Authorization: Bearer $SHUMA_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"ip":"1.2.3.4","reason":"spam","duration":3600}' \
-  http://127.0.0.1:3000/admin/ban
+  http://127.0.0.1:3000/shuma/admin/ban
 ```
 
 ### 🐙 Unban an <abbr title="Internet Protocol">IP</abbr>
 ```bash
 curl -X POST -H "Authorization: Bearer $SHUMA_API_KEY" \
-  "http://127.0.0.1:3000/admin/unban?ip=1.2.3.4"
+  "http://127.0.0.1:3000/shuma/admin/unban?ip=1.2.3.4"
 ```
 
 ### 🐙 View recent events
 ```bash
 curl -H "Authorization: Bearer $SHUMA_API_KEY" \
-  "http://127.0.0.1:3000/admin/events?hours=24" | jq
+  "http://127.0.0.1:3000/shuma/admin/events?hours=24" | jq
 ```
 
 ### 🐙 Export runtime config for immutable redeploy handoff
 ```bash
 curl -H "Authorization: Bearer $SHUMA_API_KEY" \
-  "http://127.0.0.1:3000/admin/config/export" | jq -r '.env_text'
+  "http://127.0.0.1:3000/shuma/admin/config/export" | jq -r '.env_text'
 ```
 
 ### 🐙 Test honeypot
@@ -310,14 +310,14 @@ curl -H "X-Forwarded-For: 1.2.3.4" \
 
 ### 🐙 Tests Failing
 - Use Makefile targets (`make test`, `make test-unit`, `make test-dashboard-unit`, `make test-integration`, `make test-dashboard-e2e`)
-- `make test` waits for existing Spin readiness (`/health`) and requires the running server to report `runtime-dev`
+- `make test` waits for existing Spin readiness (`/shuma/health`) and requires the running server to report `runtime-dev`
 - `make dev-prod` is for prod-like localhost observation; stop it and restart with `make dev` before `make test`
 - If startup is slow, increase wait timeout: `make test SPIN_READY_TIMEOUT_SECONDS=180`
 - Check logs with `make logs`
 
 ### 🐙 Dashboard Not Loading
 - Ensure Spin is running: `make status`
-- Open `http://127.0.0.1:3000/dashboard/index.html`
+- Open `http://127.0.0.1:3000/shuma/dashboard/index.html`
 - Confirm <abbr title="Application Programming Interface">API</abbr> key and check logs: `make logs`
 
 ## 🐙 Project Structure

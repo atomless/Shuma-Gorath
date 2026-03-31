@@ -58,8 +58,8 @@ flowchart TB
   Dashboard -->|"Admin API calls"| Admin
   Visitors --> Entry
   SimTraffic --> Entry
-  AdvSup -->|"poll /admin/adversary-sim/status"| Admin
-  OvrSup -->|"POST /internal/oversight/agent/run"| Admin
+  AdvSup -->|"poll /shuma/admin/adversary-sim/status"| Admin
+  OvrSup -->|"POST /shuma/internal/oversight/agent/run"| Admin
 
   Entry --> Runtime
   Runtime --> Obs
@@ -81,7 +81,7 @@ flowchart LR
   Req["Incoming HTTP request"] --> Entry["src/lib.rs"]
   Entry --> Router["request_router<br/>early route handling"]
 
-  Router -->|early/admin/special route| Early["health, metrics, robots, sim public,<br/>admin/internal surfaces"]
+  Router -->|early shuma/special route| Early["/shuma/health, /shuma/metrics, robots,<br/>/shuma/admin and /shuma/internal surfaces"]
   Router -->|normal request| KVGate["kv_gate + runtime config load"]
 
   KVGate --> Facts["request_facts / normalization"]

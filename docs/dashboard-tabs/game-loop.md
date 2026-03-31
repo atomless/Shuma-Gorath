@@ -49,7 +49,7 @@ Current limitation:
 Refresh behavior:
 
 - On Game Loop activation, the dashboard runtime refreshes shared config plus the bounded accountability reads listed above.
-- Completed judged-round history is read from the bounded durable observer archive on `/admin/oversight/history`; `operator_snapshot.adversary_sim.recent_runs` remains the transient exact source for the top cast panels whenever fresher current observer evidence exists.
+- Completed judged-round history is read from the bounded durable observer archive on `/shuma/admin/oversight/history`; `operator_snapshot.adversary_sim.recent_runs` remains the transient exact source for the top cast panels whenever fresher current observer evidence exists.
 - The tab now shares the top-level dashboard refresh bar:
   - manual refresh is available for on-demand accountability reloads,
   - auto-refresh is available when operators want the same live cadence used on the other active operational tabs.

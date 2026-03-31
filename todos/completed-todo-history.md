@@ -4,6 +4,44 @@ Moved from active TODO files on 2026-02-14.
 
 ## Additional completions (2026-03-31)
 
+### ROUTE-NS-1F Remove Legacy Route-Family Assumptions From Docs And Operator Guidance
+
+- [x] Completed the docs-only route-contract cleanup across:
+  - [`../README.md`](../README.md)
+  - [`../docs/api.md`](../docs/api.md)
+  - [`../docs/configuration.md`](../docs/configuration.md)
+  - [`../docs/dashboard.md`](../docs/dashboard.md)
+  - [`../docs/deployment.md`](../docs/deployment.md)
+  - [`../docs/testing.md`](../docs/testing.md)
+  - [`../docs/quick-reference.md`](../docs/quick-reference.md)
+  - [`../docs/security-hardening.md`](../docs/security-hardening.md)
+  - [`../docs/adversarial-operator-guide.md`](../docs/adversarial-operator-guide.md)
+  - [`../docs/current-system-architecture.md`](../docs/current-system-architecture.md)
+  - [`../docs/module-boundaries.md`](../docs/module-boundaries.md)
+  - [`../docs/dashboard-tabs/advanced.md`](../docs/dashboard-tabs/advanced.md)
+  - [`../docs/dashboard-tabs/diagnostics.md`](../docs/dashboard-tabs/diagnostics.md)
+  - [`../docs/dashboard-tabs/game-loop.md`](../docs/dashboard-tabs/game-loop.md)
+  - [`../docs/dashboard-tabs/geo.md`](../docs/dashboard-tabs/geo.md)
+  - [`../docs/dashboard-tabs/ip-bans.md`](../docs/dashboard-tabs/ip-bans.md)
+  - [`../docs/dashboard-tabs/policy.md`](../docs/dashboard-tabs/policy.md)
+  - [`../docs/dashboard-tabs/rate-limiting.md`](../docs/dashboard-tabs/rate-limiting.md)
+  - [`../docs/dashboard-tabs/red-team.md`](../docs/dashboard-tabs/red-team.md)
+  - [`../docs/dashboard-tabs/status.md`](../docs/dashboard-tabs/status.md)
+  - [`../docs/dashboard-tabs/traps.md`](../docs/dashboard-tabs/traps.md)
+- [x] What landed:
+  - active operator docs, dashboard docs, deployment docs, quick-reference docs, and API docs now describe `/shuma/admin/*`, `/shuma/dashboard/*`, `/shuma/health`, `/shuma/metrics`, and `/shuma/internal/*` as the canonical Shuma-owned route family,
+  - the accidental doubled `/shuma/shuma/*` repair pass was corrected cleanly without leaving mangled dashboard component links behind,
+  - and the remaining route-family references in active docs are now either current canonical paths or source-code file paths rather than stale live-route guidance.
+- [x] Why:
+  - the runtime and dashboard route migration was already landed in code, but active contributor and operator guidance was still at risk of teaching the superseded top-level control routes,
+  - and leaving stale route examples in the docs would have made the root-host public-site correction feel incomplete even though the live runtime contract had already moved.
+- [x] Evidence:
+  - `git diff --check`
+  - rg -n '/shuma/shuma|components/shuma/shuma/dashboard|/shuma/dashboard/src|/shuma/internal/internal' docs README.md
+  - rg -n 'http://127\\.0\\.0\\.1:3000/(dashboard|admin|health|metrics)|/sim/public' README.md docs/deployment.md docs/testing.md docs/api.md docs/dashboard.md docs/quick-reference.md docs/current-system-architecture.md docs/module-boundaries.md docs/adversarial-operator-guide.md docs/dashboard-tabs docs/configuration.md
+  - rg -n '`/(dashboard|admin|health|metrics)(/|`)|`/internal/' README.md docs/deployment.md docs/testing.md docs/api.md docs/dashboard.md docs/quick-reference.md docs/current-system-architecture.md docs/module-boundaries.md docs/adversarial-operator-guide.md docs/dashboard-tabs docs/configuration.md
+  - docs-only tranche: focused route-contract tests were not rerun because the runtime code path was unchanged and the last route-migration code tranches already passed `make test-shuma-control-route-migration`
+
 ### ROUTE-NS-1D Namespace Internal Supervisor And Loop-Control Routes Under `/shuma/internal/*`
 
 - [x] Completed the internal-route namespace tranche across:

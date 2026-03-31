@@ -22,8 +22,8 @@ Panels:
 
 Preview links:
 
-- Maze preview: `/admin/maze/preview`.
-- Tarpit preview: `/admin/tarpit/preview`.
+- Maze preview: `/shuma/admin/maze/preview`.
+- Tarpit preview: `/shuma/admin/tarpit/preview`.
 
 Writes:
 

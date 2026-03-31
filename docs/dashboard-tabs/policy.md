@@ -18,7 +18,7 @@ Panels and controls:
   - restrict search engines (`ai_policy_allow_search_engines`, inverse of UI toggle).
 - preview controls:
   - direct link to `/robots.txt` for current saved policy,
-  - show or hide preview fed by `POST /admin/robots/preview` with unsaved state.
+  - show or hide preview fed by `POST /shuma/admin/robots/preview` with unsaved state.
 - `Ban Durations`:
   - per-trigger duration tuples for `honeypot`, `ip_range_honeypot`, `maze_crawler`, `rate_limit`, `cdp`, `edge_fingerprint`, `tarpit_persistence`, `not_a_bot_abuse`, `challenge_puzzle_abuse`, and `admin`.
 - `Browser Policy`:

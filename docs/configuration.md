@@ -2,7 +2,7 @@
 
 Shuma-Gorath uses two configuration sources:
 
-1. **Admin-editable runtime settings** are stored in <abbr title="Key-Value">KV</abbr> under `config:<site_id>` (default `config:default`) and can be changed via dashboard or `POST /admin/config`.
+1. **Admin-editable runtime settings** are stored in <abbr title="Key-Value">KV</abbr> under `config:<site_id>` (default `config:default`) and can be changed via dashboard or `POST /shuma/admin/config`.
 2. **Environment-only variables** are read from process environment and are reserved for secrets and deployment/runtime guardrails.
 
 `config/defaults.env` is the canonical source for defaults (no hidden defaults in Rust).
@@ -13,12 +13,12 @@ This section is the canonical operator explanation of configuration classes.
 
 - **Admin-editable runtime settings (<abbr title="Key-Value">KV</abbr>-backed):**
   - Stored in <abbr title="Key-Value">KV</abbr> (`config:<site_id>`).
-  - Editable at runtime in the dashboard or via `POST /admin/config` (when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=true`).
+  - Editable at runtime in the dashboard or via `POST /shuma/admin/config` (when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=true`).
   - Usually apply quickly without restart (instance-local cache invalidates on write; other instances converge within cache <abbr title="Time To Live">TTL</abbr>).
   - Best for operational tuning values (for example rate thresholds, challenge routing knobs, maze/tarpit feature toggles).
 - **Environment-only variables:**
   - Set outside the app (secret manager, deploy environment, or `.env.local` for local dev).
-  - Not writable via dashboard/admin config <abbr title="Application Programming Interface">API</abbr>.
+  - Not writable via dashboard/shuma/admin config <abbr title="Application Programming Interface">API</abbr>.
   - Used for secrets, trust-boundary controls, and deployment guardrails.
   - Changes generally require restart/redeploy.
 
@@ -48,7 +48,7 @@ At runtime:
 ## 🐙 Runtime Config Cache
 
 - <abbr title="Key-Value">KV</abbr>-backed runtime config is cached in-process for a short <abbr title="Time To Live">TTL</abbr> (currently 2 seconds).
-- `POST /admin/config` invalidates the cache on the handling instance immediately after a successful <abbr title="Key-Value">KV</abbr> write.
+- `POST /shuma/admin/config` invalidates the cache on the handling instance immediately after a successful <abbr title="Key-Value">KV</abbr> write.
 - In multi-instance deployments, other instances refresh on their own <abbr title="Time To Live">TTL</abbr> window, so brief config staleness (up to <abbr title="Time To Live">TTL</abbr>) is expected.
 
 ## 🐙 Canonical Variable Reference
@@ -65,14 +65,14 @@ These are read from process env at runtime (not from <abbr title="Key-Value">KV<
 | Variable | Required | Default in `config/defaults.env` | Purpose |
 | --- | --- | --- | --- |
 | `SHUMA_API_KEY` | Yes | `changeme-prod-api-key` | Admin authentication key for dashboard login and `Authorization: Bearer` admin <abbr title="Application Programming Interface">API</abbr> calls. |
-| `SHUMA_ADMIN_READONLY_API_KEY` | No | empty | Optional read-only admin bearer key for non-mutating `/admin/*` endpoints; write actions still require `SHUMA_API_KEY` or an admin session created from it. |
+| `SHUMA_ADMIN_READONLY_API_KEY` | No | empty | Optional read-only admin bearer key for non-mutating `/shuma/admin/*` endpoints; write actions still require `SHUMA_API_KEY` or an admin session created from it. |
 | `SHUMA_JS_SECRET` | Yes | `changeme-prod-js-secret` | Signs and verifies `js_verified` cookie. |
 | `SHUMA_POW_SECRET` | No | empty | Optional dedicated <abbr title="Proof of Work">PoW</abbr> signing secret. Falls back to `SHUMA_JS_SECRET` when unset. |
 | `SHUMA_CHALLENGE_SECRET` | No | empty | Optional dedicated challenge signing secret. Falls back to `SHUMA_JS_SECRET` when unset. |
 | `SHUMA_MAZE_PREVIEW_SECRET` | No | empty | Optional dedicated secret for admin maze preview entropy. When unset, preview entropy uses a namespaced fallback derived from the live maze secret so preview artifacts cannot forge production traversal tokens. |
 | `SHUMA_FORWARDED_IP_SECRET` | Yes | `changeme-prod-forwarded-ip-secret` | Trust boundary secret for forwarded <abbr title="Internet Protocol">IP</abbr>/proto headers (`X-Shuma-Forwarded-Secret`). |
-| `SHUMA_HEALTH_SECRET` | No | empty | Optional shared secret for `/health` via `X-Shuma-Health-Secret`. |
-| `SHUMA_ADMIN_IP_ALLOWLIST` | No (Yes for production deploys) | empty | <abbr title="Classless Inter-Domain Routing">CIDR</abbr>/<abbr title="Internet Protocol">IP</abbr> allowlist for `/admin/*`; required by deployment guardrails in production workflows. |
+| `SHUMA_HEALTH_SECRET` | No | empty | Optional shared secret for `/shuma/health` via `X-Shuma-Health-Secret`. |
+| `SHUMA_ADMIN_IP_ALLOWLIST` | No (Yes for production deploys) | empty | <abbr title="Classless Inter-Domain Routing">CIDR</abbr>/<abbr title="Internet Protocol">IP</abbr> allowlist for `/shuma/admin/*`; required by deployment guardrails in production workflows. |
 | `SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE` | No | `10` | Per-<abbr title="Internet Protocol">IP</abbr> per-minute limit for failed admin authentication attempts before returning `429`. |
 | `SHUMA_EVENT_LOG_RETENTION_HOURS` | Yes | `168` | Requested raw event retention window in hours. High-risk raw event retention is capped to `72` hours in operator telemetry surfaces even when this value is higher; set `0` to disable cleanup entirely. |
 | `SHUMA_MONITORING_RETENTION_HOURS` | Yes | `168` | Retention window in hours for operational monitoring counters and hourly bucket indexes. |
@@ -83,11 +83,11 @@ Post-compaction retention rebaseline note:
 - the 2026-03-14 live review kept these defaults unchanged.
 - compact event rows materially reduced raw challenge-row size, but the measured retained footprint on the live shared-host sample is still dominated by hot-read documents and retention metadata rather than raw event rows.
 - because of that, the project does not currently justify lengthening raw retention or shortening summary windows based on compaction alone.
-| `SHUMA_ADMIN_CONFIG_WRITE_ENABLED` | Yes | `true` | Enables/disables admin config writes to <abbr title="Key-Value">KV</abbr> (`POST /admin/config`). Set `false` when an operator explicitly wants read-only admin config in a deployment. |
+| `SHUMA_ADMIN_CONFIG_WRITE_ENABLED` | Yes | `true` | Enables/disables admin config writes to <abbr title="Key-Value">KV</abbr> (`POST /shuma/admin/config`). Set `false` when an operator explicitly wants read-only admin config in a deployment. |
 | `SHUMA_KV_STORE_FAIL_OPEN` | Yes | `true` | <abbr title="Key-Value">KV</abbr> failure policy (`true` fail-open, `false` fail-closed). |
 | `SHUMA_ENFORCE_HTTPS` | Yes | `false` | Rejects non-<abbr title="Hypertext Transfer Protocol Secure">HTTPS</abbr> requests when `true` (proxy/header trust rules still apply). |
 | `SHUMA_DEBUG_HEADERS` | Yes | `false` | Enables internal debug headers (for example health diagnostics). Keep `false` in production. |
-| `SHUMA_RUNTIME_ENV` | No | `runtime-prod` | Trusted runtime environment class (`runtime-dev` or `runtime-prod`) surfaced to admin/dashboard/runtime diagnostics and policy telemetry. |
+| `SHUMA_RUNTIME_ENV` | No | `runtime-prod` | Trusted runtime environment class (`runtime-dev` or `runtime-prod`) surfaced to `/shuma/dashboard` runtime diagnostics and policy telemetry. |
 | `SHUMA_RUNTIME_DEV_OVERSIGHT_WATCH_WINDOW_SECONDS` | No | `300` | Runtime-dev-only effective watch-window cadence override for oversight canary judgment. This must only accelerate local judged cycles; runtime-prod ignores it and declared objective policy remains authoritative outside runtime-dev. |
 | `SHUMA_LOCAL_PROD_DIRECT_MODE` | No | `false` | Local-only runtime escape hatch for `make dev-prod` style localhost runs. When `true`, `runtime-prod` may boot without `SHUMA_GATEWAY_UPSTREAM_ORIGIN` so developers can observe production posture locally without a gateway upstream. This must not be used as a deployment substitute and does not satisfy production/deploy guardrails. |
 | `SHUMA_ADVERSARY_SIM_AVAILABLE` | No | `true` | Env-only availability gate for adversary simulation surfaces in both `runtime-dev` and `runtime-prod`. Default is `true` so deployed operators can use the adversary-sim control surface immediately; set `false` only when a deployment must hide adversary-sim control, status, and simulation-public surfaces entirely. |
@@ -139,7 +139,7 @@ These keys are seeded into <abbr title="Key-Value">KV</abbr> and loaded from <ab
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `SHUMA_SHADOW_MODE` | `false` | Enables shadow-mode behavior for controlled local testing. |
-| `SHUMA_ADVERSARY_SIM_ENABLED` | `false` | Seeds the initial adversary-sim desired state against the root-hosted generated contributor public surface when the env-level adversary-sim surface is available. Default remains `false`, so generation stays off until an operator enables it. Runtime on/off changes must go through `POST /admin/adversary-sim/control`, and `GET /admin/adversary-sim/status` exposes the resulting production posture via deployment-profile, guardrail, and supervisor cadence fields. |
+| `SHUMA_ADVERSARY_SIM_ENABLED` | `false` | Seeds the initial adversary-sim desired state against the root-hosted generated contributor public surface when the env-level adversary-sim surface is available. Default remains `false`, so generation stays off until an operator enables it. Runtime on/off changes must go through `POST /shuma/admin/adversary-sim/control`, and `GET /shuma/admin/adversary-sim/status` exposes the resulting production posture via deployment-profile, guardrail, and supervisor cadence fields. |
 | `SHUMA_ADVERSARY_SIM_DURATION_SECONDS` | `30` | Run-window duration for control-triggered adversary simulation orchestration. Value must be between `30` and `900` seconds (inclusive). The seeded default now sits at the minimum bound so local adversary-sim and game-loop iteration stay fast unless an operator explicitly widens the window. Runtime-dev still keeps the supervisor-owned post-canary candidate follow-on run at `30` seconds, so the local judged-cycle path remains aligned with the general configured default. |
 | `SHUMA_JS_REQUIRED_ENFORCED` | `true` | Enforces <abbr title="JavaScript">JS</abbr> verification (`js_verified` cookie gate). |
 | `SHUMA_MODE_RATE` | `both` | Rate module mode: `off`, `signal`, `enforce`, `both`. |
@@ -294,19 +294,19 @@ These keys are seeded into <abbr title="Key-Value">KV</abbr> and loaded from <ab
 
 ## 🐙 Admin Config Writes
 
-- `GET /admin/config` returns a split envelope:
+- `GET /shuma/admin/config` returns a split envelope:
   - `config`: writable effective <abbr title="Key-Value">KV</abbr>-backed admin settings,
   - `runtime`: read-only operational/runtime facts used by dashboard posture gating and operator diagnostics.
-- `POST /admin/config` writes to <abbr title="Key-Value">KV</abbr> only when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=true`.
-- `POST /admin/config/validate` runs the same config validators as `POST /admin/config` without persisting writes (returns structured validation issues).
-- `GET /admin/config/export` returns a non-secret deploy handoff snapshot as env-style key/value output:
+- `POST /shuma/admin/config` writes to <abbr title="Key-Value">KV</abbr> only when `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=true`.
+- `POST /shuma/admin/config/validate` runs the same config validators as `POST /shuma/admin/config` without persisting writes (returns structured validation issues).
+- `GET /shuma/admin/config/export` returns a non-secret deploy handoff snapshot as env-style key/value output:
   - `env`: object of deploy-ready `SHUMA_*` non-secret values (env guardrails + <abbr title="Key-Value">KV</abbr>-backed admin-editable settings),
   - `env_text`: newline-delimited `KEY=value` output for copy/paste into immutable deploy config,
   - `excluded_secrets`: explicit list of secret keys intentionally omitted (includes `SHUMA_RATE_LIMITER_REDIS_URL` and `SHUMA_BAN_STORE_REDIS_URL`).
 - Successful writes invalidate runtime config cache on the instance that processed the request.
 - <abbr title="Key-Value">KV</abbr> writes persist across restarts.
 
-### `POST /admin/config` writable keys
+### `POST /shuma/admin/config` writable keys
 
 The following <abbr title="Key-Value">KV</abbr>-backed fields are currently writable via admin <abbr title="Application Programming Interface">API</abbr>:
 
@@ -320,8 +320,8 @@ The following <abbr title="Key-Value">KV</abbr>-backed fields are currently writ
 - Botness/challenge tuning: `pow_enabled`, `pow_difficulty`, `pow_ttl_seconds`, `challenge_puzzle_enabled`, `challenge_puzzle_transform_count`, `challenge_puzzle_seed_ttl_seconds`, `challenge_puzzle_attempt_limit_per_window`, `challenge_puzzle_attempt_window_seconds`, `challenge_puzzle_risk_threshold`, `not_a_bot_enabled`, `not_a_bot_risk_threshold`, `not_a_bot_pass_score`, `not_a_bot_fail_score`, `not_a_bot_nonce_ttl_seconds` (Verification Token Lifetime), `not_a_bot_marker_ttl_seconds` (Pass Marker Lifetime), `not_a_bot_attempt_limit_per_window`, `not_a_bot_attempt_window_seconds`, `botness_maze_threshold`, `botness_weights.{js_required,geo_risk,rate_medium,rate_high,maze_behavior}`, `defence_modes.{rate,geo,js}`.
 
 Operator-objectives contract notes:
-- `operator_objectives_v1` is not part of `POST /admin/config`. It has its own primary-state endpoint at `GET` and `POST /admin/operator-objectives`.
-- `POST /admin/operator-objectives` is guarded by the same `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=true` switch as other admin writes.
+- `operator_objectives_v1` is not part of `POST /shuma/admin/config`. It has its own primary-state endpoint at `GET` and `POST /shuma/admin/operator-objectives`.
+- `POST /shuma/admin/operator-objectives` is guarded by the same `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=true` switch as other admin writes.
 - Shuma now defines one canonical controller mutability policy over these surfaces:
   - `never`: permanently outside the controller move set, including all `operator_objectives_v1` fields, provider or edge topology, verified-identity policy, robots or AI policy, trust exceptions or allowlists, punishment horizons, privacy posture, and defender safety or resource budgets.
   - `manual_only`: operator-editable but not yet ratified as controller-tunable. The current narrow manual-only example is `rate_limit`.
@@ -350,8 +350,8 @@ Operator-objectives contract notes:
   - `trigger_metric_ids` preserving which exact metrics created the miss,
   - and `family_guidance` rows describing the allowed candidate families plus bounded likely-human and tolerated-non-human risk.
 - `oversight_reconcile_v1` must preserve those semantics rather than collapsing back to coarse pressure buckets. When a bounded proposal is shaped successfully, reconcile may upgrade the current result to `guidance_status=exact_bounded_move` and `tractability=exact_bounded_config_move`; otherwise it must surface the benchmark hint truthfully and fail closed.
-- `POST /admin/oversight/reconcile` is a control-plane preview over machine-first evidence, not a config-write endpoint. It must not mutate persisted config, even when automated canary apply is enabled, and it routes every candidate patch back through `POST /admin/config/validate` before a proposal is considered viable.
-- `GET /admin/oversight/history` and `GET /admin/oversight/agent/status` now expose the first bounded apply-loop lineage. Operators should expect explicit `apply.stage` values such as `eligible`, `canary_applied`, `watch_window_open`, `improved`, `refused`, and `rollback_applied` rather than inferring controller behavior from summary text alone.
+- `POST /shuma/admin/oversight/reconcile` is a control-plane preview over machine-first evidence, not a config-write endpoint. It must not mutate persisted config, even when automated canary apply is enabled, and it routes every candidate patch back through `POST /shuma/admin/config/validate` before a proposal is considered viable.
+- `GET /shuma/admin/oversight/history` and `GET /shuma/admin/oversight/agent/status` now expose the first bounded apply-loop lineage. Operators should expect explicit `apply.stage` values such as `eligible`, `canary_applied`, `watch_window_open`, `improved`, `refused`, and `rollback_applied` rather than inferring controller behavior from summary text alone.
 - `operator_snapshot_v1.non_human_traffic` now exposes the seeded taxonomy, the bounded decision chain (`fingerprinting_and_evidence` -> `categorization` -> `cumulative_abuse_score_botness` -> `posture_severity`), category receipts, and readiness blockers. `benchmark_results_v1` mirrors that readiness, carries explicit `tuning_eligibility` blockers, materializes the canonical `non_human_category_posture` family against persisted `category_postures`, and must fail closed to `observe_longer` when category evidence is not yet strong enough for protected tuning decisions.
 - The default objective profile now also budgets `suspicious_forwarded_latency_share` alongside the earlier suspicious forwarded request-rate and byte-rate controls, so the closed loop can reason about host-impact as observed forwarded latency share instead of only request and byte ratios.
 - `benchmark_results_v1.protected_evidence` is now the effective machine-first protected-evidence contract for later tuning work. It must distinguish replay-promoted lineage from strong live Scrapling runtime proof, and it may become `tuning_eligible=true` either for protected replay-promoted lineage or for strong live Scrapling runtime board evidence. `synthetic_traffic` and raw frontier or LLM discovery remain ineligible for protected tuning.
@@ -408,17 +408,17 @@ Verified-identity authorization notes:
 
 Shuma targets a 2-class model:
 - Env-only runtime keys in the Env-Only table above.
-- <abbr title="Key-Value">KV</abbr>-backed admin-editable runtime settings writable via `POST /admin/config`.
+- <abbr title="Key-Value">KV</abbr>-backed admin-editable runtime settings writable via `POST /shuma/admin/config`.
 
-Read-only operational overlays are returned under `GET /admin/config.runtime` and surfaced in the dashboard runtime inventory for operator clarity, but they are not writable via `POST /admin/config`.
+Read-only operational overlays are returned in the `runtime` section of `GET /shuma/admin/config` and surfaced in the dashboard runtime inventory for operator clarity, but they are not writable via `POST /shuma/admin/config`.
 
 For adversary-sim specifically:
 - `runtime.adversary_sim_enabled` is the effective desired state projection.
-- `GET /admin/adversary-sim/status` is the fuller runtime posture contract: it surfaces `gateway_deployment_profile`, `guardrails.surface_available_by_default`, `guardrails.generation_default`, `guardrails.generation_requires_explicit_enable`, and supervisor cadence/trigger metadata for the active deployment profile.
+- `GET /shuma/admin/adversary-sim/status` is the fuller runtime posture contract: it surfaces `gateway_deployment_profile`, `guardrails.surface_available_by_default`, `guardrails.generation_default`, `guardrails.generation_requires_explicit_enable`, and supervisor cadence/trigger metadata for the active deployment profile.
 - Leaving `SHUMA_ADVERSARY_SIM_AVAILABLE=true` is the canonical production posture. Treat that as a first-class operating lane: verify the status posture, keep the ON/OFF control `operation_id` receipts, and run `make test-adversary-sim-runtime-surface` against a running target before broader rollout. Set `SHUMA_ADVERSARY_SIM_AVAILABLE=false` only when a deployment must hide the surface entirely.
 
 Current exception:
-- `ip_range_suggestions_*` thresholds are still <abbr title="Key-Value">KV</abbr>-backed and visible in the Advanced runtime inventory, but they are not writable through `POST /admin/config` yet. Treat them as read-only runtime knobs until their final classification is resolved.
+- `ip_range_suggestions_*` thresholds are still <abbr title="Key-Value">KV</abbr>-backed and visible in the Advanced runtime inventory, but they are not writable through `POST /shuma/admin/config` yet. Treat them as read-only runtime knobs until their final classification is resolved.
 
 ## 🐙 Shadow Mode
 
@@ -429,7 +429,7 @@ Current exception:
   - `intended_action=...`
   - `enforcement_applied=false`
 - Shadow-mode clean pass-through traffic is counted in aggregate monitoring, but it does not emit one raw event per clean request.
-- Default stdout spam for would-act branches is intentionally removed; operators should inspect Monitoring and `/metrics` instead of relying on terminal logs.
+- Default stdout spam for would-act branches is intentionally removed; operators should inspect Monitoring and `/shuma/metrics` instead of relying on terminal logs.
 
 ## 🐙 <abbr title="JavaScript">JS</abbr> Verification + <abbr title="Proof of Work">PoW</abbr>
 
@@ -518,7 +518,7 @@ Default seeded modes are `both` for all three modules as the current pre-launch 
 
 - `js_required_enforced` is still a hard gate for <abbr title="JavaScript">JS</abbr> paths.
 - When `js_required_enforced=false`, <abbr title="JavaScript">JS</abbr> signal and <abbr title="JavaScript">JS</abbr> enforcement are both effectively disabled even if `defence_modes.js` is `signal`, `enforce`, or `both`.
-- `/admin/config` surfaces this as:
+- `/shuma/admin/config` surfaces this as:
   - `config.defence_modes` (configured modes),
   - `runtime.defence_modes_effective` (runtime-effective signal/action booleans),
   - `runtime.defence_mode_warnings` (configuration conflict notes).
@@ -605,7 +605,7 @@ Use these as startup presets, then tune incrementally:
 
 ### Observability surfaces for composability
 
-- `/metrics` includes:
+- `/shuma/metrics` includes:
   - `bot_defence_botness_signal_state_total{signal="...",state="active|disabled|unavailable"}`
   - `bot_defence_defence_mode_effective_total{module="rate|geo|js",configured="off|signal|enforce|both",signal_enabled="true|false",action_enabled="true|false"}`
   - `bot_defence_edge_integration_mode_total{mode="off|additive|authoritative"}`

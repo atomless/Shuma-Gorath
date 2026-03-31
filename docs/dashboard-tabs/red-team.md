@@ -11,7 +11,7 @@ Purpose:
 Panel:
 
 - `Adversary Simulation`:
-  - on/off toggle backed by `POST /admin/adversary-sim/control`,
+  - on/off toggle backed by `POST /shuma/admin/adversary-sim/control`,
   - lifecycle copy rendered from backend status plus controller phase,
   - backend-timed run progress bar derived from `started_at`, `ends_at`, and `remaining_seconds`,
   - lane selector for the currently supported operator-selectable lanes, with `bot_red_team` presented in the menu as `Agentic Traffic`,
@@ -45,11 +45,11 @@ Behavior:
 
 Reads and writes:
 
-- Read: `GET /admin/adversary-sim/status`
-- Write: `POST /admin/adversary-sim/control`
+- Read: `GET /shuma/admin/adversary-sim/status`
+- Write: `POST /shuma/admin/adversary-sim/control`
 
 Notes:
 
 - Retained simulation telemetry remains queryable after auto-off until retention expiry or explicit cleanup.
 - Detailed per-round adversary and defence storytelling now belongs on `#game-loop`, where the observer-facing casts can combine durable round receipts with recent recognition evaluation without turning `Red Team` into a second diagnostics pane.
-- Cleanup is intentionally not part of the tab UI; use `make telemetry-clean` or `POST /admin/adversary-sim/history/cleanup` when destructive retained-history removal is required.
+- Cleanup is intentionally not part of the tab UI; use `make telemetry-clean` or `POST /shuma/admin/adversary-sim/history/cleanup` when destructive retained-history removal is required.

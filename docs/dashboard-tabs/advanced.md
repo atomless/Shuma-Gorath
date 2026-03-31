@@ -25,8 +25,8 @@ Panels:
 Validation/save flow:
 
 - Client parse check must pass (valid JSON object).
-- Server validation (`POST /admin/config/validate`) must pass.
-- Save writes patch to `POST /admin/config`.
+- Server validation (`POST /shuma/admin/config/validate`) must pass.
+- Save writes patch to `POST /shuma/admin/config`.
 
 Policy note:
 

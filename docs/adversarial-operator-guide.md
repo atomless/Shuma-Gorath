@@ -24,8 +24,8 @@ Use this guide for:
 
 Runtime-toggle adversary generation is owned by a host-side supervisor heartbeat, not by dashboard polling:
 
-1. Dashboard uses control/status endpoints only (`/admin/adversary-sim/control`, `/admin/adversary-sim/status`).
-2. Host-side supervisors call the internal beat endpoint (`POST /internal/adversary-sim/beat`) on cadence and post bounded worker results through `POST /internal/adversary-sim/worker-result` when `scrapling_traffic` is active.
+1. Dashboard uses control/status endpoints only (`/shuma/admin/adversary-sim/control`, `/shuma/admin/adversary-sim/status`).
+2. Host-side supervisors call the internal beat endpoint (`POST /shuma/internal/adversary-sim/beat`) on cadence and post bounded worker results through `POST /shuma/internal/adversary-sim/worker-result` when `scrapling_traffic` is active.
 3. Local make targets (`make dev`, `make dev-prod`, `make run`, `make run-prebuilt`, `make prod`) wrap Spin with `scripts/run_with_oversight_supervisor.sh`, which chains the existing adversary-sim supervisor wrapper and adds bounded periodic recommend-only oversight runs on shared-host deployments.
 4. Equivalent worker deployment adapters are supported for single-host service managers and container sidecars. External edge supervisor services remain a deferred boundary note, not the current supported full hosted Scrapling runtime target.
 5. Host-side supervisor requests use trusted-forwarding plus the internal supervisor marker so `runtime-prod` deployments can keep HTTPS enforcement and operator IP allowlists without starving the supervisor.
@@ -58,16 +58,16 @@ Production adversary-sim is now a normal Shuma operating lane, not a runtime-pro
 
 That means operators should keep one standard receipt whenever they validate or exercise the lane on a deployed instance:
 
-1. read `GET /admin/adversary-sim/status` while the lane is off and confirm the explicit production posture:
+1. read `GET /shuma/admin/adversary-sim/status` while the lane is off and confirm the explicit production posture:
    - `gateway_deployment_profile` matches the deployment,
    - `guardrails.surface_available_by_default=true`,
    - `guardrails.generation_default=off_until_explicit_enable`,
    - `guardrails.generation_requires_explicit_enable=true`.
-2. enable the lane once through `POST /admin/adversary-sim/control` or the dashboard `Red Team` toggle and keep the returned ON `operation_id`.
+2. enable the lane once through `POST /shuma/admin/adversary-sim/control` or the dashboard `Red Team` toggle and keep the returned ON `operation_id`.
 3. run `make test-adversary-sim-runtime-surface` against the running target and keep the evidence that it proved both deterministic defense-surface coverage and live-summary no-impact.
 4. when the shared-host recommend-only feedback loop is part of the deployed target, run `make test-live-feedback-loop-remote` and keep the evidence that it proved the host is running through `scripts/run_with_oversight_supervisor.sh`, that public oversight status is readable, and that completed adversary-sim traffic produced a linked post-sim agent run.
 5. disable the lane through the same control endpoint and keep the OFF `operation_id` as the production kill-switch receipt.
-6. use `POST /admin/adversary-sim/history/cleanup` only when retained telemetry reset is intentionally required; normal OFF does not imply cleanup.
+6. use `POST /shuma/admin/adversary-sim/history/cleanup` only when retained telemetry reset is intentionally required; normal OFF does not imply cleanup.
 
 ## Shared-Host Scrapling Operator Journey
 
@@ -76,7 +76,7 @@ For the current full hosted Scrapling runtime, the expected journey is:
 1. deploy or update the shared-host target through the canonical shared-host path and let it infer the Scrapling scope, root-only seed, and `ADVERSARY_SIM_SCRAPLING_*` runtime env contract automatically,
 2. keep the deploy-time receipt and the focused `make test-scrapling-deploy-shared-host` proof as deployment evidence,
 3. before first enable, confirm deployment egress is constrained externally to the approved public host plus DNS; Shuma enforces hosted scope in application logic, but outbound sandboxing remains a deployer responsibility,
-4. with adversary sim off, preselect `scrapling_traffic` through `POST /admin/adversary-sim/control` or the Dashboard `Red Team` lane selector,
+4. with adversary sim off, preselect `scrapling_traffic` through `POST /shuma/admin/adversary-sim/control` or the Dashboard `Red Team` lane selector,
 5. toggle the simulator on and keep the accepted ON `operation_id`,
 6. watch `desired_lane` versus `active_lane` converge at the next beat boundary,
 7. use monitoring, event telemetry, and lane diagnostics as the runtime surface truth while the lane runs,
@@ -112,7 +112,7 @@ Canonical contract reference:
 All profiles write a report to `scripts/tests/adversarial/latest_report.json` unless `ADVERSARIAL_REPORT_PATH` overrides it.
 All runs also emit `scripts/tests/adversarial/attack_plan.json` with frontier mode/provider metadata and sanitized candidate payloads.
 Promotion triage emits `scripts/tests/adversarial/promotion_candidates_report.json` with candidate -> replay -> promotion lineage records.
-The same promotion run must also materialize bounded replay-promotion lineage into Shuma through `POST /admin/replay-promotion`; later controller reads consume that backend contract through `GET /admin/replay-promotion`, nested `operator_snapshot_v1.replay_promotion`, and nested `benchmark_results_v1.replay_promotion` rather than parsing the sidecar JSON directly.
+The same promotion run must also materialize bounded replay-promotion lineage into Shuma through `POST /shuma/admin/replay-promotion`; later controller reads consume that backend contract through `GET /shuma/admin/replay-promotion`, nested `operator_snapshot_v1.replay_promotion`, and nested `benchmark_results_v1.replay_promotion` rather than parsing the sidecar JSON directly.
 Frontier threshold policy emits `scripts/tests/adversarial/frontier_unavailability_policy.json`.
 All manifests and reports are locked to `execution_lane=black_box`; non-black-box lane values are rejected at validation time.
 Lane capability boundaries are versioned in `scripts/tests/adversarial/lane_contract.v1.json` and validated by `make test-adversarial-lane-contract`.
@@ -236,8 +236,8 @@ Those tags are an attribution and observability contract only. They exist so mon
 Storage and read-path policy:
 
 1. Simulation telemetry writes to canonical event/monitoring stores and is identified by metadata fields (`sim_run_id`, `sim_profile`, `sim_lane`, `is_simulation`).
-2. Admin read endpoints (`/admin/events`, `/admin/cdp/events`, `/admin/monitoring`, `/admin/monitoring/delta`, `/admin/monitoring/stream`, `/admin/ip-bans/delta`, `/admin/ip-bans/stream`) include tagged simulation rows whenever adversary simulation is active, with pseudonymized sensitive identifiers unless explicit forensic break-glass is acknowledged (`forensic=1&forensic_ack=I_UNDERSTAND_FORENSIC`).
-3. Deployments remain default-safe because adversary traffic generation stays off until an operator enables it through `POST /admin/adversary-sim/control` (or the dashboard `Red Team` toggle), even though the control surface is available by default. `SHUMA_ADVERSARY_SIM_ENABLED` seeds only the initial desired state; once any lifecycle state is persisted, `ControlState.desired_enabled` becomes the sole desired-state authority surfaced through status, config runtime overlays, and the root-hosted generated contributor surface being available.
+2. Admin read endpoints (`/shuma/admin/events`, `/shuma/admin/cdp/events`, `/shuma/admin/monitoring`, `/shuma/admin/monitoring/delta`, `/shuma/admin/monitoring/stream`, `/shuma/admin/ip-bans/delta`, `/shuma/admin/ip-bans/stream`) include tagged simulation rows whenever adversary simulation is active, with pseudonymized sensitive identifiers unless explicit forensic break-glass is acknowledged (`forensic=1&forensic_ack=I_UNDERSTAND_FORENSIC`).
+3. Deployments remain default-safe because adversary traffic generation stays off until an operator enables it through `POST /shuma/admin/adversary-sim/control` (or the dashboard `Red Team` toggle), even though the control surface is available by default. `SHUMA_ADVERSARY_SIM_ENABLED` seeds only the initial desired state; once any lifecycle state is persisted, `ControlState.desired_enabled` becomes the sole desired-state authority surfaced through status, config runtime overlays, and the root-hosted generated contributor surface being available.
    The same control endpoint with `{"enabled":false}` is the production kill-switch path; there is no separate runtime override writer.
    Treat this as a normal deployment receipt, not as a one-off validation path: keep the off-state status proof, ON/OFF `operation_id` values, and the runtime-surface no-impact proof together whenever production adversary-sim is exercised.
 4. Unsigned/invalid/stale/replayed simulation tags must not activate simulation context; requests stay in normal telemetry partition.
@@ -281,7 +281,7 @@ Troubleshooting sequence for failed sim tagging:
 2. Confirm secret presence on host runner and runtime process: `SHUMA_SIM_TELEMETRY_SECRET` is non-empty.
 3. Run `make test-adversarial-preflight` to verify required secret posture (`missing` vs `placeholder` vs `invalid format`) and browser-lane Chromium readiness.
 4. Run `make test-adversarial-sim-tag-contract` to verify contract parity.
-5. Inspect `/metrics` for `bot_defence_policy_signals_total{signal=\"S_SIM_TAG_*\"}` counters and identify dominant failure reason.
+5. Inspect `/shuma/metrics` for `bot_defence_policy_signals_total{signal=\"S_SIM_TAG_*\"}` counters and identify dominant failure reason.
 6. If failures persist, restart `make dev` to clear stale process env and rerun `make test-adversarial-fast`.
 
 ## Frontier Architecture Modes
@@ -539,8 +539,8 @@ For every failing run, operators must capture:
    - During `make test`, this report reflects the last fast-profile run and is consumed by the advisory SIM2 matrix.
    - Strict deterministic SIM2 coverage proof comes from `make test-adversarial-coverage` / `make test-adversarial-soak`.
 3. Attack plan artifact (`scripts/tests/adversarial/attack_plan.json`).
-4. Runtime config snapshot (`GET /admin/config`) from the failing environment.
-5. Monitoring snapshot (`GET /admin/monitoring?hours=24&limit=10` in dev runtime) from the same time window.
+4. Runtime config snapshot (`GET /shuma/admin/config`) from the failing environment.
+5. Monitoring snapshot (`GET /shuma/admin/monitoring?hours=24&limit=10` in dev runtime) from the same time window.
 6. Commit SHA and environment (`runtime-dev` or `runtime-prod`).
 7. Runner plane-separation evidence (`latest_report.json` -> `plane_contract`).
 8. Coverage contract evidence (`latest_report.json` -> `coverage_contract`) including schema/hash and category obligations.
@@ -659,9 +659,9 @@ The dashboard `Red Team` toggle is the only supported UI control path for dev or
 
 Control-plane endpoints:
 
-1. `POST /admin/adversary-sim/control` for explicit ON/OFF transitions.
-2. `GET /admin/adversary-sim/status` for phase + guardrail visibility.
-3. `POST /admin/adversary-sim/history/cleanup` for explicit retained-telemetry cleanup.
+1. `POST /shuma/admin/adversary-sim/control` for explicit ON/OFF transitions.
+2. `GET /shuma/admin/adversary-sim/status` for phase + guardrail visibility.
+3. `POST /shuma/admin/adversary-sim/history/cleanup` for explicit retained-telemetry cleanup.
 
 Mandatory lifecycle incident reference:
 
@@ -728,7 +728,7 @@ Failure-handling rules:
 
 Retention troubleshooting and rollback:
 
-1. Check `/admin/monitoring` `retention_health` first:
+1. Check `/shuma/admin/monitoring` `retention_health` first:
    - confirm `retention_hours`,
    - inspect `purge_lag_hours` and `pending_expired_buckets`,
    - capture `last_error` and `last_purged_bucket`.
@@ -738,7 +738,7 @@ Retention troubleshooting and rollback:
 
 Cost-governance troubleshooting and rollback:
 
-1. Check `/admin/monitoring` `details.cost_governance` first:
+1. Check `/shuma/admin/monitoring` `details.cost_governance` first:
    - `cardinality_pressure`,
    - `payload_budget_status`,
    - `sampling_status`,
@@ -746,14 +746,14 @@ Cost-governance troubleshooting and rollback:
    - `degraded_state` and `degraded_reasons`.
 2. Operators must treat `unsampleable_event_drop_count` as a hard safety signal: it must remain `0`.
 3. If `query_budget_status=exceeded`, operators must reduce dashboard query cost immediately by lowering `hours` and/or `limit` before changing thresholds.
-4. If `payload_budget_status=exceeded`, operators must use cursor endpoints (`/admin/monitoring/delta` or `/admin/monitoring/stream`) for drill-down instead of increasing base payload limits.
+4. If `payload_budget_status=exceeded`, operators must use cursor endpoints (`/shuma/admin/monitoring/delta` or `/shuma/admin/monitoring/stream`) for drill-down instead of increasing base payload limits.
 5. If `compression.status=not_negotiated`, clients must send `Accept-Encoding: gzip` for payloads above `64KB`.
 6. If `compression.status=below_target|compression_error`, operators must capture `compression.input_bytes`, `compression.output_bytes`, and `compression.reduction_percent` in incident notes, then prioritize payload-shaping fixes.
 7. Rollback must not disable unsampleable protections; if a cost-control rollback is required, revert query/payload/compression controls first while keeping unsampleable policy and cardinality caps active.
 
 Security/privacy troubleshooting and incident response:
 
-1. Check `/admin/monitoring` `security_privacy.classification` first and confirm `field_classification_enforced=true`.
+1. Check `/shuma/admin/monitoring` `security_privacy.classification` first and confirm `field_classification_enforced=true`.
 2. Check `security_privacy.sanitization.secret_canary_leak_count`; it must remain `0`.
 3. Check `security_privacy.access_control.view_mode`; default must be `pseudonymized_default`.
 4. For forensic investigations, operators must explicitly acknowledge break-glass (`forensic=1&forensic_ack=I_UNDERSTAND_FORENSIC`) and record the reason in incident notes.

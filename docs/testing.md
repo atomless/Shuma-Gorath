@@ -98,7 +98,7 @@ make test-host-impact-make-target-contract # Explicit Makefile selector/wiring c
 make test-coverage    # Unit coverage to lcov.info (requires cargo-llvm-cov)
 make test-dashboard-unit # Dashboard module unit tests (Node `node:test`)
 make test-dashboard-adversary-sim-lane-contract # Focused dashboard lane-contract checks for the red-team lane selector + diagnostics
-make test-dashboard-auth-gate # Focused dashboard auth-gate checks for logged-out /dashboard entry
+make test-dashboard-auth-gate # Focused dashboard auth-gate checks for logged-out /shuma/dashboard entry
 make test-dashboard-tab-information-architecture # Focused dashboard source + rendered IA proof for tab registry alignment and Monitoring/Traffic/Diagnostics ownership
 make test-dashboard-game-loop-accountability # Focused dashboard behavior + rendered proof for Game Loop observer-accountability projection
 make test-rsi-game-mixed-restriction-score-spine # Focused mixed-attacker restriction score-spine proof for controller-grade benchmark/comparison/urgency/move-selection wiring
@@ -194,8 +194,8 @@ Notes:
 - Live hosted/shared-host proof is a separate tier. Use `make test-live-feedback-loop-remote`, `make test-remote-edge-signal-smoke`, or `make test-dashboard-e2e-external` when you need deployment-level evidence.
 - `make test-live-feedback-loop-remote-unit` now proves the verifier's local behavior only. Use `make test-live-feedback-loop-remote-contracts` when you intentionally want the retained wrapper and remote wiring contract lane.
 - `make test-integration` and `make test` now call `make test-integration-cleanup-contract` before the real Spin HTTP integration run, so the retained shell-shape guard stays explicit about being contract proof.
-- `make test`, `make test-integration`, and `make test-dashboard-e2e` wait for `/health` readiness before failing.
-- `make test` now also checks `/admin/session` and fails fast if the running server is `runtime-prod`, because the full adversarial/dashboard contract is defined against `make dev`.
+- `make test`, `make test-integration`, and `make test-dashboard-e2e` wait for `/shuma/health` readiness before failing.
+- `make test` now also checks `/shuma/admin/session` and fails fast if the running server is `runtime-prod`, because the full adversarial/dashboard contract is defined against `make dev`.
 - `make test` includes the canonical maze verification gate (benchmark + live traversal + live browser + native concurrency proof), the adversary runtime-surface gate, the mandatory fast adversarial matrix (`smoke + abuse + Akamai`), SIM2 realtime/advisory gates, and Playwright dashboard e2e. If Docker is unavailable, the container black-box lane degrades to the advisory SIM2 verification matrix path instead of hard-failing the umbrella run.
 - The container black-box runner chooses its own Docker reachability mode for loopback-hosted Spin instances: bridge + `host.docker.internal` on non-Linux hosts, and host-network mode on Linux when the target base URL is loopback-only. This keeps `make dev` bound to `127.0.0.1` while preserving container reachability in CI.
 - Gateway profile gates are explicit and runnable independently:
@@ -332,8 +332,8 @@ Integration coverage includes:
 5. Challenge single-use behavior (`Incorrect` then replay `Expired`)
 6. Metrics endpoint
 7. <abbr title="Chrome DevTools Protocol">CDP</abbr> report ingestion and auto-ban flow
-8. <abbr title="Chrome DevTools Protocol">CDP</abbr> stats counters in `/admin/cdp`
-9. Monitoring summary endpoint in `/admin/monitoring`
+8. <abbr title="Chrome DevTools Protocol">CDP</abbr> stats counters in `/shuma/admin/cdp`
+9. Monitoring summary endpoint in `/shuma/admin/monitoring`
 10. Unban behavior
 
 ## 🐙 Adversarial Simulation Profiles (Manifest-Driven)
@@ -465,16 +465,16 @@ Dashboard DOM-class contract for runtime/simulation affordances:
 - These classes are presentational hooks only and must not alter defence/auth behavior directly.
 
 Dashboard adversary-sim orchestration control contract:
-- `POST /admin/adversary-sim/control` is the explicit admin-authenticated + CSRF-protected control path for ON/OFF transitions.
+- `POST /shuma/admin/adversary-sim/control` is the explicit admin-authenticated + CSRF-protected control path for ON/OFF transitions.
 - Control submissions must include `Idempotency-Key`, pass strict origin/referer + fetch-metadata trust checks, accept optional strict `lane` values (`synthetic_traffic`, `scrapling_traffic`, `bot_red_team`), and return `operation_id` + `decision`.
-- `GET /admin/adversary-sim/status` is the operator/dashboard read path and returns lifecycle phase, fixed guardrails, desired/actual state, active lane-routing fields (`desired_lane`, `active_lane`, `lane_switch_seq`, `last_lane_switch_at`, `last_lane_switch_reason`), live `lane_diagnostics` counters, and controller reconciliation/lease metadata. Legacy `active_lane_count` plus `lanes.{deterministic,containerized}` remain during the migration. This endpoint is read-only: it reports reconciliation need via `controller_reconciliation_required` and does not mutate/persist state on read.
+- `GET /shuma/admin/adversary-sim/status` is the operator/dashboard read path and returns lifecycle phase, fixed guardrails, desired/actual state, active lane-routing fields (`desired_lane`, `active_lane`, `lane_switch_seq`, `last_lane_switch_at`, `last_lane_switch_reason`), live `lane_diagnostics` counters, and controller reconciliation/lease metadata. Legacy `active_lane_count` plus `lanes.{deterministic,containerized}` remain during the migration. This endpoint is read-only: it reports reconciliation need via `controller_reconciliation_required` and does not mutate/persist state on read.
 - `make test-adversary-sim-lifecycle` is the focused regression gate for this contract: it must prove seeded desired-state semantics, runtime/config projection after cache reset, stale expired-run recovery, stale-state reconciliation diagnostics, auto-window expiry without a second enabled flag, and internal beat diagnostics.
 - `make test-adversary-sim-lane-contract` is the focused additive-migration gate for `SIM-SCR-0`: it must prove the new desired/active lane fields, the zeroed lane-diagnostics scaffold, and preservation of legacy lane-status compatibility without changing runtime routing.
 - `make test-adversary-sim-lane-selection` is the focused control-path gate for `SIM-SCR-1`: it must prove strict lane validation, lane-aware idempotency, off-state lane persistence, and truthful desired-versus-active divergence while runtime routing is still synthetic-only.
 - `make test-adversary-sim-scrapling-worker` is the focused worker-routing gate for `SIM-SCR-6`: it must prove beat-boundary lane activation, internal worker-plan/result exchange, fail-closed stale-result rejection, host-supervisor parser truth, and real Scrapling traffic bounded by the shared-host scope-and-seed contract.
 - `make test-adversarial-llm-runtime-projection` is the focused `SIM-LLM-1C3` gate for recent-run projection truth: it must prove additive LLM runtime receipt persistence, recent-run mode/category projection, operator-snapshot preservation, and rendered `Recent Red Team Runs` visibility for `bot_red_team` runtime rows.
-- `POST /internal/adversary-sim/beat` and `POST /internal/adversary-sim/worker-result` are internal-only endpoints used by host-side supervisor workers; dashboard clients never call them directly.
-- Host-side supervisor requests must satisfy trusted-forwarding (`X-Shuma-Forwarded-Secret`, loopback `X-Forwarded-For`, `X-Forwarded-Proto: https`) and send the internal supervisor marker header. Only `/admin/adversary-sim/status`, `/internal/adversary-sim/beat`, and `/internal/adversary-sim/worker-result` bypass the public admin IP allowlist under that internal supervisor contract.
+- `POST /shuma/internal/adversary-sim/beat` and `POST /shuma/internal/adversary-sim/worker-result` are internal-only endpoints used by host-side supervisor workers; dashboard clients never call them directly.
+- Host-side supervisor requests must satisfy trusted-forwarding (`X-Shuma-Forwarded-Secret`, loopback `X-Forwarded-For`, `X-Forwarded-Proto: https`) and send the internal supervisor marker header. Only `/shuma/admin/adversary-sim/status`, `/shuma/internal/adversary-sim/beat`, and `/shuma/internal/adversary-sim/worker-result` bypass the public admin IP allowlist under that internal supervisor contract.
 - Runtime generation cadence ownership is backend/supervisor-only: dashboard refresh cadence must not control traffic generation.
 - The dashboard `Red Team` controller is page-scoped: the toggle reflects latest operator intent immediately, while status polling continues through submit/converge/running phases even if another top-level tab is selected.
 - Toggle-driven runs use `adversary_sim_duration_seconds` (default `30`, hard-bounded `30..900`) under backend autonomous heartbeat generation, and dashboard surfaces lifecycle state only (`off`, `running`, `stopping`) without procedural progress rendering.
@@ -485,11 +485,11 @@ Dashboard adversary-sim orchestration control contract:
 - Lifecycle split is explicit: `generation_active` controls producer state, while retained telemetry visibility is independent (`historical_data_visible=true` until retention expiry or explicit cleanup).
 
 Host-side supervisor launch adapters:
-- Local development (`make dev`, `make dev-prod`, `make run`, `make run-prebuilt`, `make prod`) wraps `spin up` with `scripts/run_with_oversight_supervisor.sh`, which chains the existing adversary-sim supervisor wrapper and adds bounded periodic `POST /internal/oversight/agent/run` calls for the recommend-only agent loop.
+- Local development (`make dev`, `make dev-prod`, `make run`, `make run-prebuilt`, `make prod`) wraps `spin up` with `scripts/run_with_oversight_supervisor.sh`, which chains the existing adversary-sim supervisor wrapper and adds bounded periodic `POST /shuma/internal/oversight/agent/run` calls for the recommend-only agent loop.
 - Build/run helper targets:
   - `make adversary-sim-supervisor-build`
   - `make adversary-sim-supervisor`
-- Single-host/systemd style deployment should use the same wrapper/runtime contract as `make prod-start`: launch `scripts/run_with_oversight_supervisor.sh` around `spin up`, with `SHUMA_API_KEY` injected via service env/secret manager. That wrapper chains `scripts/run_with_adversary_sim_supervisor.sh`, manages the `target/tools/adversary_sim_supervisor` worker, polls `GET /admin/adversary-sim/status`, sends `POST /internal/adversary-sim/beat`, and when Scrapling is selected runs `scripts/supervisor/scrapling_worker.py` with the repo-owned `.venv-scrapling` runtime before posting `POST /internal/adversary-sim/worker-result`. It also sends bounded periodic `POST /internal/oversight/agent/run` calls with the `oversight-agent` internal supervisor marker so the recommend-only agent loop runs off the request path on shared-host deployments.
+- Single-host/systemd style deployment should use the same wrapper/runtime contract as `make prod-start`: launch `scripts/run_with_oversight_supervisor.sh` around `spin up`, with `SHUMA_API_KEY` injected via service env/secret manager. That wrapper chains `scripts/run_with_adversary_sim_supervisor.sh`, manages the `target/tools/adversary_sim_supervisor` worker, polls `GET /shuma/admin/adversary-sim/status`, sends `POST /shuma/internal/adversary-sim/beat`, and when Scrapling is selected runs `scripts/supervisor/scrapling_worker.py` with the repo-owned `.venv-scrapling` runtime before posting `POST /shuma/internal/adversary-sim/worker-result`. It also sends bounded periodic `POST /shuma/internal/oversight/agent/run` calls with the `oversight-agent` internal supervisor marker so the recommend-only agent loop runs off the request path on shared-host deployments.
 - Containerized deployment can run the same worker as a sidecar process sharing network reachability to the Shuma instance.
 - Edge/no-local-process environments are not the current supported full hosted Scrapling worker target. External-supervisor productization remains deferred until there is a concrete edge runtime target worth supporting end to end.
 
@@ -526,7 +526,7 @@ Live loop controls:
 - `ADVERSARIAL_CLEANUP_MODE` (default `0`) toggles preserve-vs-cleanup behavior per cycle:
   - `0`: preserve state by default for live observability loops.
   - `1`: force deterministic cleanup after each cycle.
-- When cleanup mode is active (`SHUMA_ADVERSARIAL_PRESERVE_STATE=0`), the runner clears both ban state and retained telemetry history through `POST /admin/adversary-sim/history/cleanup` before and after the run.
+- When cleanup mode is active (`SHUMA_ADVERSARIAL_PRESERVE_STATE=0`), the runner clears both ban state and retained telemetry history through `POST /shuma/admin/adversary-sim/history/cleanup` before and after the run.
 - Resilience controls:
   - `ADVERSARIAL_FATAL_CYCLE_LIMIT` (default `3`) stops the loop only after N consecutive fatal cycles.
   - `ADVERSARIAL_TRANSIENT_RETRY_LIMIT` (default `4`) retries transient failures before converting to one fatal cycle.
@@ -568,7 +568,7 @@ Live loop controls:
 `test-adversarial-fast` enforces `test-adversarial-lane-contract`, `test-adversarial-sim-tag-contract`, and `test-adversarial-coverage-contract` before running profile lanes.
 `test-adversarial-coverage` enforces `test-adversarial-sim-tag-contract`, `test-adversarial-coverage-contract`, and `test-frontier-governance` after artifact generation.
 `test-adversarial-coverage` forces deterministic cleanup plus per-run scenario-IP rotation (`SHUMA_ADVERSARIAL_PRESERVE_STATE=0`, `SHUMA_ADVERSARIAL_ROTATE_IPS=1`) to avoid stale local cadence/persistence collisions.
-Diagnostics now includes explicit tarpit progression telemetry (admissions or denials, proof outcomes, chain violations, budget reasons and fallbacks, escalation outcomes, duration and bytes buckets, and capped offender buckets) sourced from `/admin/monitoring`.
+Diagnostics now includes explicit tarpit progression telemetry (admissions or denials, proof outcomes, chain violations, budget reasons and fallbacks, escalation outcomes, duration and bytes buckets, and capped offender buckets) sourced from `/shuma/admin/monitoring`.
 Current `full_coverage` proves tarpit bootstrap entry and event-stream minimums, but it does not yet claim advanced tarpit progress-walker telemetry; reintroduce strict `tarpit_progress_advanced` depth gates only alongside a dedicated progress-following scenario.
 Container black-box controls:
 - worker image path: `scripts/tests/adversarial_container/Dockerfile` (non-root user, no workspace mount, read-only rootfs at runtime)
@@ -597,9 +597,9 @@ Frontier lane policy:
 - Deterministic replay/coverage remains the release-blocking oracle; stochastic one-off frontier anomalies do not block until deterministic replay confirms them.
 - Degraded-threshold tracker (`make test-frontier-unavailability-policy`) opens/updates a refresh action when protected lanes remain degraded for 10 consecutive runs or 7 days.
 Simulation telemetry read policy:
-- `/admin/events`, `/admin/cdp/events`, and `/admin/monitoring` include simulation-tagged rows whenever tagged simulation traffic is present.
+- `/shuma/admin/events`, `/shuma/admin/cdp/events`, and `/shuma/admin/monitoring` include simulation-tagged rows whenever tagged simulation traffic is present.
 - Tagged rows remain identifiable via `sim_run_id`, `sim_profile`, `sim_lane`, and `is_simulation`.
-- `POST /admin/adversary-sim/history/cleanup` is the explicit cleanup control path; auto-off is not a retention cleanup action.
+- `POST /shuma/admin/adversary-sim/history/cleanup` is the explicit cleanup control path; auto-off is not a retention cleanup action.
   In `runtime-prod`, cleanup requires `X-Shuma-Telemetry-Cleanup-Ack: I_UNDERSTAND_TELEMETRY_CLEANUP` (the Make target sends this header).
 `test-adversarial-akamai` is fixture-driven (local `/fingerprint-report` with canned payloads) and does not require a live Akamai edge instance.
 `test-remote-edge-signal-smoke` is the live ssh-managed-host proof for the currently implemented trusted-edge surfaces. It runs against the active normalized remote, uses SSH loopback transport to `127.0.0.1:3000` on the host, and proves:
@@ -608,7 +608,7 @@ Simulation telemetry read policy:
 - trusted GEO country-header routing for challenge, maze, and block.
 `test-live-feedback-loop-remote` is the live ssh-managed-host proof for the first shared-host recommend-only feedback loop. It runs against the active normalized remote, uses public admin endpoints plus SSH loopback to the internal supervisor route, and proves:
 - the running shared-host service is launched through `scripts/run_with_oversight_supervisor.sh`,
-- `GET /admin/operator-snapshot` and `GET /admin/oversight/agent/status` are available on the deployed target,
+- `GET /shuma/admin/operator-snapshot` and `GET /shuma/admin/oversight/agent/status` are available on the deployed target,
 - one bounded internal periodic agent trigger executes and becomes visible in the public status projection,
 - one bounded adversary-sim run completes with generated traffic,
 - and a linked `post_adversary_sim` agent run becomes visible in the public status and history surfaces.
@@ -627,13 +627,13 @@ Neither target proves future Akamai-native rate or rich-geo augmentations; those
 - total key counts by telemetry family,
 - keys per retained hour for monitoring, eventlog, and rollups,
 - telemetry-adjacent monitoring-detail key counts (`maze_hits:*`, tarpit active-bucket state),
-- retention health and lag from `/admin/monitoring`,
-- payload sizes and latency for `/admin/monitoring`, `/admin/monitoring/delta`, and `/admin/monitoring/stream`,
+- retention health and lag from `/shuma/admin/monitoring`,
+- payload sizes and latency for `/shuma/admin/monitoring`, `/shuma/admin/monitoring/delta`, and `/shuma/admin/monitoring/stream`,
 - transport gzip benefit for the monitoring snapshot.
 The first live shared-host baseline and compression decision are archived in [`docs/research/2026-03-11-shared-host-telemetry-storage-query-evidence.md`](research/2026-03-11-shared-host-telemetry-storage-query-evidence.md).
 `make telemetry-fermyon-edge-evidence` captures the equivalent live hot-read budget report for the deferred Fermyon/Akamai-edge deploy receipt at `.spin/telemetry_fermyon_edge_evidence.json`. Use it after deploying the current committed `HEAD` to confirm:
-- bootstrap latency for `/admin/monitoring?bootstrap=1...`,
-- delta latency for `/admin/monitoring/delta`,
+- bootstrap latency for `/shuma/admin/monitoring?bootstrap=1...`,
+- delta latency for `/shuma/admin/monitoring/delta`,
 - response shaping still comes from the bounded hot-read path,
 - the live edge app stays within the current budget envelope.
 `make test-telemetry-hot-read-live-evidence` remains available for cross-target telemetry acceptance proof work. It must pass against:
@@ -689,7 +689,7 @@ Behavior:
    - clean-state <abbr title="Application Programming Interface">API</abbr> payloads render explicit empty placeholders (no crash/blank <abbr title="User Interface">UI</abbr>)
    - form validation/submit-state behavior works
    - tab hash/keyboard routing works
-   - `/dashboard` canonical path redirects to `/dashboard/index.html`
+   - `/shuma/dashboard` canonical path redirects to `/shuma/dashboard/index.html`
    - tab-level error states surface backend failures
    - sticky table headers remain applied
 9. `make test` executes a final dashboard seed step (`make seed-dashboard-data`) after e2e so local dashboards retain recent sample data.
@@ -728,7 +728,7 @@ Use `make reset-local-state` when you intentionally want to wipe local `.spin` r
 
 Use these steps to manually validate behavior. They mirror the integration suite but let you inspect responses in detail.
 If `SHUMA_FORWARDED_IP_SECRET` is set, include the matching `X-Shuma-Forwarded-Secret` header on requests that use `X-Forwarded-For`.
-If `SHUMA_HEALTH_SECRET` is set, include `X-Shuma-Health-Secret` on `/health`.
+If `SHUMA_HEALTH_SECRET` is set, include `X-Shuma-Health-Secret` on `/shuma/health`.
 Start the server in another terminal with `make dev` before running these steps.
 
 1. Health check (loopback only):
@@ -736,7 +736,7 @@ Start the server in another terminal with `make dev` before running these steps.
 curl -H "X-Forwarded-For: 127.0.0.1" \
   -H "X-Shuma-Forwarded-Secret: $SHUMA_FORWARDED_IP_SECRET" \
   -H "X-Shuma-Health-Secret: $SHUMA_HEALTH_SECRET" \
-  http://127.0.0.1:3000/health
+  http://127.0.0.1:3000/shuma/health
 ```
 Expected: `OK`. If `SHUMA_DEBUG_HEADERS=true`, headers `X-KV-Status` and `X-Shuma-Fail-Mode` are also present.
 
@@ -769,31 +769,31 @@ Expected: "Access Blocked" for the banned <abbr title="Internet Protocol">IP</ab
 curl -X POST -H "Authorization: Bearer $SHUMA_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"ip":"10.20.30.40","duration":3600}' \
-  http://127.0.0.1:3000/admin/ban
+  http://127.0.0.1:3000/shuma/admin/ban
 ```
 Expected: a <abbr title="JavaScript Object Notation">JSON</abbr> response containing the new ban entry.
-Optional: verify with `GET /admin/ban` to confirm the <abbr title="Internet Protocol">IP</abbr> is listed.
+Optional: verify with `GET /shuma/admin/ban` to confirm the <abbr title="Internet Protocol">IP</abbr> is listed.
 
 5. Admin unban:
 ```bash
 curl -X POST -H "Authorization: Bearer $SHUMA_API_KEY" \
-  "http://127.0.0.1:3000/admin/unban?ip=1.2.3.4"
+  "http://127.0.0.1:3000/shuma/admin/unban?ip=1.2.3.4"
 ```
 Expected: the <abbr title="Internet Protocol">IP</abbr> removed from the ban list.
-Optional: verify with `GET /admin/ban` that the entry is gone.
+Optional: verify with `GET /shuma/admin/ban` that the entry is gone.
 
 6. Shadow mode toggle:
 ```bash
 curl -X POST -H "Authorization: Bearer $SHUMA_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"shadow_mode": true}' \
-  http://127.0.0.1:3000/admin/config
+  http://127.0.0.1:3000/shuma/admin/config
 ```
 Expected: a <abbr title="JavaScript Object Notation">JSON</abbr> response with `"shadow_mode":true`.
 
 7. Metrics endpoint:
 ```bash
-curl http://127.0.0.1:3000/metrics
+curl http://127.0.0.1:3000/shuma/metrics
 ```
 Expected: Prometheus metrics output.
 
@@ -844,10 +844,10 @@ FORWARDED_SECRET_HEADER=()
 if [[ -n "${SHUMA_FORWARDED_IP_SECRET:-}" ]]; then
   FORWARDED_SECRET_HEADER=(-H "X-Shuma-Forwarded-Secret: ${SHUMA_FORWARDED_IP_SECRET}")
 fi
-HONEYPOT_PATH="$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "Authorization: Bearer $SHUMA_API_KEY" "$BASE_URL/admin/config" | python3 -c 'import json,sys; d=json.loads(sys.stdin.read()); cfg=d.get("config") or {}; print((cfg.get("honeypots") or ["/instaban"])[0])')"
+HONEYPOT_PATH="$(curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "Authorization: Bearer $SHUMA_API_KEY" "$BASE_URL/shuma/admin/config" | python3 -c 'import json,sys; d=json.loads(sys.stdin.read()); cfg=d.get("config") or {}; print((cfg.get("honeypots") or ["/instaban"])[0])')"
 
 echo "1) Health"
-curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" "$BASE_URL/health"
+curl -s "${FORWARDED_SECRET_HEADER[@]}" -H "X-Forwarded-For: 127.0.0.1" "$BASE_URL/shuma/health"
 echo ""
 
 echo "2) Root (JS challenge / block page)"
@@ -863,25 +863,25 @@ echo "4) Admin ban"
 curl -s "${FORWARDED_SECRET_HEADER[@]}" -X POST -H "Authorization: Bearer $SHUMA_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"ip":"10.20.30.40","reason":"manual_test","duration":3600}' \
-  "$BASE_URL/admin/ban"
+  "$BASE_URL/shuma/admin/ban"
 echo ""
 
 echo "5) Admin unban"
 curl -s "${FORWARDED_SECRET_HEADER[@]}" -X POST -H "Authorization: Bearer $SHUMA_API_KEY" \
-  "$BASE_URL/admin/unban?ip=1.2.3.4"
+  "$BASE_URL/shuma/admin/unban?ip=1.2.3.4"
 echo ""
 
 echo "6) Shadow mode on, then off"
 curl -s "${FORWARDED_SECRET_HEADER[@]}" -X POST -H "Authorization: Bearer $SHUMA_API_KEY" \
   -H "Content-Type: application/json" -d '{"shadow_mode": true}' \
-  "$BASE_URL/admin/config"
+  "$BASE_URL/shuma/admin/config"
 curl -s "${FORWARDED_SECRET_HEADER[@]}" -X POST -H "Authorization: Bearer $SHUMA_API_KEY" \
   -H "Content-Type: application/json" -d '{"shadow_mode": false}' \
-  "$BASE_URL/admin/config"
+  "$BASE_URL/shuma/admin/config"
 echo ""
 
 echo "7) Metrics"
-curl -s "$BASE_URL/metrics" | head -20
+curl -s "$BASE_URL/shuma/metrics" | head -20
 echo ""
 
 echo "8) CDP report"
@@ -898,20 +898,20 @@ echo ""
 - To unban yourself locally:
 ```bash
 curl -X POST -H "Authorization: Bearer $SHUMA_API_KEY" \
-  "http://127.0.0.1:3000/admin/unban?ip=unknown"
+  "http://127.0.0.1:3000/shuma/admin/unban?ip=unknown"
 ```
 
 ## 🐙 Additional Manual Checks
 
-- Allowlist: add your <abbr title="Internet Protocol">IP</abbr> via `/admin/config` and confirm access is always allowed
+- Allowlist: add your <abbr title="Internet Protocol">IP</abbr> via `/shuma/admin/config` and confirm access is always allowed
 - Rate limit: send a burst of requests and confirm auto-ban
 - Browser policy signal: send a low-version User-Agent (example: `Chrome/50`) and confirm botness signal output reflects `browser_outdated`
-- <abbr title="Geolocation">GEO</abbr> policy: set `geo_*` lists via `/admin/config`, then send `X-Geo-Country` with a trusted forwarded-secret request and verify `allow/challenge/maze/block` routing precedence
-- Ban list: `GET /admin/ban` and confirm entries match recent actions
+- <abbr title="Geolocation">GEO</abbr> policy: set `geo_*` lists via `/shuma/admin/config`, then send `X-Geo-Country` with a trusted forwarded-secret request and verify `allow/challenge/maze/block` routing precedence
+- Ban list: `GET /shuma/admin/ban` and confirm entries match recent actions
 
 ## 🐙 Troubleshooting
 
-Problem: `/health` returns 403
+Problem: `/shuma/health` returns 403
 - Ensure you passed `X-Forwarded-For: 127.0.0.1`
 - If `SHUMA_FORWARDED_IP_SECRET` is set, include `X-Shuma-Forwarded-Secret`
 - If `SHUMA_HEALTH_SECRET` is set, include `X-Shuma-Health-Secret`
@@ -930,13 +930,13 @@ Problem: Unsure what <abbr title="Internet Protocol">IP</abbr> the bot defence d
 - Query the ban list:
 ```bash
 curl -H "Authorization: Bearer $SHUMA_API_KEY" \
-  http://127.0.0.1:3000/admin/ban
+  http://127.0.0.1:3000/shuma/admin/ban
 ```
 
 ## 🐙 Dashboard Manual Check
 
 Open:
-- `http://127.0.0.1:3000/dashboard/index.html`
+- `http://127.0.0.1:3000/shuma/dashboard/index.html`
 
 Verify:
 - Stats update on refresh

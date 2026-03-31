@@ -10,16 +10,16 @@ Purpose:
 What it shows:
 
 - Feature status cards derived from the split admin config envelope:
-  - writable settings from `GET /admin/config.config`,
-  - read-only posture/runtime facts from `GET /admin/config.runtime`.
+  - writable settings from the `config` section of `GET /shuma/admin/config`,
+  - read-only posture/runtime facts from the `runtime` section of `GET /shuma/admin/config`.
 - Appended operational posture cards:
   - runtime and deployment posture (`runtime_environment`, gateway deployment profile, and local-direct localhost prod mode), with a link to the operator quick-reference matrix for dev vs local prod-like vs deployed production,
   - admin config write posture (`admin_config_write_enabled`).
 - Operator health sections:
   - heartbeat-owned backend connection state, last heartbeat success/failure, last heartbeat failure class, and failure threshold posture,
   - monitoring-feed freshness and IP-ban-feed freshness, including lag, last event time, and partial-data warnings when present,
-  - retention-worker health sourced from `/admin/monitoring` (`retention_health`),
-  - verified-identity health sourced from `/admin/operator-snapshot`, including availability, attempt/verification/failure counts, unique identity counts, policy/profile coverage, and top failure/scheme/category summaries.
+  - retention-worker health sourced from `/shuma/admin/monitoring` (`retention_health`),
+  - verified-identity health sourced from `/shuma/admin/operator-snapshot`, including availability, attempt/verification/failure counts, unique identity counts, policy/profile coverage, and top failure/scheme/category summaries.
 - Runtime performance telemetry for dashboard refresh behavior:
   - thresholds apply to the dashboard auto-refresh tabs (`ip-bans` and `red-team`),
   - fetch latency (last, avg, p95),

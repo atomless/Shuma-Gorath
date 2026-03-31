@@ -26,7 +26,7 @@ Refresh behavior:
 
 - Supports manual refresh only.
 - Auto-refresh is intentionally not available on this tab.
-- Uses consolidated `/admin/monitoring` snapshot refresh and bounded local cache.
+- Uses consolidated `/shuma/admin/monitoring` snapshot refresh and bounded local cache.
 - Contributor-style freshness, transport, overflow, and raw-feed diagnostics are intentionally kept in the collapsed diagnostics section.
 
 Writes:

@@ -19,8 +19,8 @@ For the current deployment-track design record, see:
 - `make setup` and `make setup-runtime` seed <abbr title="Key-Value">KV</abbr>-backed admin-editable settings from `config/defaults.env` using `make config-seed`.
 - Normal runtime/deploy verification paths are read-only with respect to persisted <abbr title="Key-Value">KV</abbr> config and use `make config-verify`; if that check reports missing, stale, or invalid config, run `make config-seed` explicitly before starting or deploying.
 - Runtime config is process-cached for a short <abbr title="Time To Live">TTL</abbr> (2 seconds) to reduce hot-path <abbr title="Key-Value">KV</abbr> reads.
-- `POST /admin/config` invalidates cache on the handling instance; other instances converge on their <abbr title="Time To Live">TTL</abbr> window.
-- `GET /admin/config/export` provides a non-secret `KEY=value` handoff snapshot for immutable redeploy workflows.
+- `POST /shuma/admin/config` invalidates cache on the handling instance; other instances converge on their <abbr title="Time To Live">TTL</abbr> window.
+- `GET /shuma/admin/config/export` provides a non-secret `KEY=value` handoff snapshot for immutable redeploy workflows.
 
 For the canonical explanation of these two configuration classes, see:
 [`docs/configuration.md#configuration-sources-admin-editable-runtime-settings-vs-environment-only-variables`](configuration.md#configuration-sources-admin-editable-runtime-settings-vs-environment-only-variables).
@@ -52,9 +52,9 @@ Adversary simulation telemetry is isolated by authenticated tagging and explicit
 2. Simulation rows remain identifiable via metadata (`sim_run_id`, `sim_profile`, `sim_lane`, `is_simulation`).
 3. Production-capable control surface:
    - `SHUMA_ADVERSARY_SIM_AVAILABLE` defaults to `true` in both runtime classes so deployed operators can use adversary-sim controls in production.
-   - Traffic generation remains off until an operator enables it through `POST /admin/adversary-sim/control` (or the dashboard `Red Team` toggle). `SHUMA_ADVERSARY_SIM_ENABLED` seeds only the initial desired state.
-   - `GET /admin/adversary-sim/status` now makes the default production posture explicit: `gateway_deployment_profile`, `guardrails.surface_available_by_default=true`, `guardrails.generation_default=off_until_explicit_enable`, `guardrails.generation_requires_explicit_enable=true`, and deployment-profile-specific supervisor cadence/trigger fields (`deployment_profile`, `trigger_surface`, `cadence_seconds`, `cron_schedule` when edge cron applies).
-   - Shared-host startup paths now run through `scripts/run_with_oversight_supervisor.sh`, which chains the existing adversary-sim supervisor wrapper and adds bounded periodic `POST /internal/oversight/agent/run` calls so the first canary-apply feedback loop stays off the request path while sharing the same trusted-forwarding contract as the host-side sim supervisor.
+   - Traffic generation remains off until an operator enables it through `POST /shuma/admin/adversary-sim/control` (or the dashboard `Red Team` toggle). `SHUMA_ADVERSARY_SIM_ENABLED` seeds only the initial desired state.
+   - `GET /shuma/admin/adversary-sim/status` now makes the default production posture explicit: `gateway_deployment_profile`, `guardrails.surface_available_by_default=true`, `guardrails.generation_default=off_until_explicit_enable`, `guardrails.generation_requires_explicit_enable=true`, and deployment-profile-specific supervisor cadence/trigger fields (`deployment_profile`, `trigger_surface`, `cadence_seconds`, `cron_schedule` when edge cron applies).
+   - Shared-host startup paths now run through `scripts/run_with_oversight_supervisor.sh`, which chains the existing adversary-sim supervisor wrapper and adds bounded periodic `POST /shuma/internal/oversight/agent/run` calls so the first canary-apply feedback loop stays off the request path while sharing the same trusted-forwarding contract as the host-side sim supervisor.
    - Treat that surface as a normal production operating lane, not as a dev-only exception. A deployment receipt should capture one status read while off, an explicit ON operation, the no-impact proof from `make test-adversary-sim-runtime-surface` against the running target, the shared-host feedback-loop proof from `make test-live-feedback-loop-remote` when the bounded apply loop is in scope, and the explicit OFF operation used as the kill switch.
    - Deployments that must hide the surface entirely may set `SHUMA_ADVERSARY_SIM_AVAILABLE=false`.
 
@@ -122,7 +122,7 @@ Requirements:
 - domain/TLS is mandatory for the canonical production path
 - local `make deploy-env-validate` must pass before provisioning
 
-This workflow runs local production preflight, builds an exact local git `HEAD` release bundle, provisions the VM, bootstraps runtime dependencies on the server, validates remote single-host posture with `make deploy-self-hosted-minimal`, runs `make smoke-single-host` (including forwarded public-path parity against the configured upstream origin plus reserved-route/admin checks), installs a `systemd` unit that starts the already-prepared runtime with `make prod-start`, and prints the final dashboard URL. When `--open-dashboard` is set, it also opens `/dashboard` locally after success.
+This workflow runs local production preflight, builds an exact local git `HEAD` release bundle, provisions the VM, bootstraps runtime dependencies on the server, validates remote single-host posture with `make deploy-self-hosted-minimal`, runs `make smoke-single-host` (including forwarded public-path parity against the configured upstream origin plus reserved-route/shuma/admin checks), installs a `systemd` unit that starts the already-prepared runtime with `make prod-start`, and prints the final dashboard URL. When `--open-dashboard` is set, it also opens `/shuma/dashboard` locally after success.
 Telemetry-read responsiveness is part of the deploy acceptance contract, not a secondary polish check. After deploy:
 
 - shared-host / Linode acceptance should include `make telemetry-shared-host-evidence`,
@@ -176,7 +176,7 @@ Rules:
 - `.env.local` keeps only `SHUMA_ACTIVE_REMOTE=<name>` for remote selection, and successful setup/deploy now updates it automatically.
 - structured remote target state lives in `.shuma/remotes/<name>.json`.
 - the current generic backend contract is `ssh_systemd` only.
-- `remote-update` now means: ship the exact committed local `HEAD`, preserve remote `.env.local` and `.spin`, validate and restart on the remote host, run a remote loopback `/health` check plus public-route smoke against the public base URL, refresh local receipt metadata, and attempt rollback if smoke fails. If an older host is missing smoke-critical secrets in local `.env.local`, the helper hydrates those values from the remote `.env.local` first and persists them locally.
+- `remote-update` now means: ship the exact committed local `HEAD`, preserve remote `.env.local` and `.spin`, validate and restart on the remote host, run a remote loopback `/shuma/health` check plus public-route smoke against the public base URL, refresh local receipt metadata, and attempt rollback if smoke fails. If an older host is missing smoke-critical secrets in local `.env.local`, the helper hydrates those values from the remote `.env.local` first and persists them locally.
 - `remote-update` must use the shipped prebuilt release bundle on the host. It must not rebuild dashboard or runtime artifacts remotely, because day-2 updates must stay tied to the exact committed local bundle rather than to ad hoc remote build tooling.
 - `make remote-use REMOTE=<name>` remains the manual switch command when you want to change the active target later.
 - `make clean` must not remove `.shuma`; use `make reset-local-state` only when you intentionally want to wipe local `.spin` runtime/test state.
@@ -232,12 +232,12 @@ make smoke-single-host
 
 6. Verify the production adversary-sim operating receipt:
 
-   - From the trusted operator path, read `GET /admin/adversary-sim/status` (or the dashboard `Red Team` status card) and confirm:
+   - From the trusted operator path, read `GET /shuma/admin/adversary-sim/status` (or the dashboard `Red Team` status card) and confirm:
      - `gateway_deployment_profile` matches the deployed posture,
      - `guardrails.surface_available_by_default=true`,
      - `guardrails.generation_default=off_until_explicit_enable`,
      - `guardrails.generation_requires_explicit_enable=true`.
-   - Enable adversary-sim once through `POST /admin/adversary-sim/control` or the dashboard toggle and keep the returned `operation_id` as the ON receipt.
+   - Enable adversary-sim once through `POST /shuma/admin/adversary-sim/control` or the dashboard toggle and keep the returned `operation_id` as the ON receipt.
    - On the running host or an equivalent prod-like target, run:
 
 ```bash
@@ -245,7 +245,7 @@ make test-adversary-sim-runtime-surface
 ```
 
    - Record that the gate proved both deterministic adversary-sim defense-surface coverage and live-summary no-impact while the run was active.
-   - Disable adversary-sim through the same control path, keep the OFF `operation_id` as the production kill-switch receipt, and use `POST /admin/adversary-sim/history/cleanup` only when you intentionally need retained telemetry reset.
+   - Disable adversary-sim through the same control path, keep the OFF `operation_id` as the production kill-switch receipt, and use `POST /shuma/admin/adversary-sim/history/cleanup` only when you intentionally need retained telemetry reset.
 
 6. Verify the first shared-host bounded feedback loop when that loop is part of the release target:
 
@@ -253,7 +253,7 @@ make test-adversary-sim-runtime-surface
 make test-live-feedback-loop-remote
 ```
 
-   - Record that the live proof confirmed the deployed service is running through `scripts/run_with_oversight_supervisor.sh`, that `GET /admin/operator-snapshot` and `GET /admin/oversight/agent/status` are available, that one internal periodic agent run was recorded with explicit `execution.apply.stage` truth, and that one completed adversary-sim run produced a linked `post_adversary_sim` agent run with matching apply-stage lineage in the status/history projection.
+   - Record that the live proof confirmed the deployed service is running through `scripts/run_with_oversight_supervisor.sh`, that `GET /shuma/admin/operator-snapshot` and `GET /shuma/admin/oversight/agent/status` are available, that one internal periodic agent run was recorded with explicit `execution.apply.stage` truth, and that one completed adversary-sim run produced a linked `post_adversary_sim` agent run with matching apply-stage lineage in the status/history projection.
 
 7. Rollback quickly if smoke or adversary-sim verification fails:
 
@@ -264,7 +264,7 @@ make prod
 make smoke-single-host
 ```
 
-For immutable deployments, rollback is: redeploy previous release artifact + previous config export (`GET /admin/config/export` snapshot), then rerun `make smoke-single-host` with `GATEWAY_SURFACE_CATALOG_PATH` (and `SHUMA_SMOKE_FORWARD_PATH` when needed).
+For immutable deployments, rollback is: redeploy previous release artifact + previous config export (`GET /shuma/admin/config/export` snapshot), then rerun `make smoke-single-host` with `GATEWAY_SURFACE_CATALOG_PATH` (and `SHUMA_SMOKE_FORWARD_PATH` when needed).
 
 ## 🐙 Deployment Personas (Provider Scope)
 
@@ -323,7 +323,7 @@ Set these in your deployment secret/config system:
 - `SHUMA_ADMIN_READONLY_API_KEY` (optional; recommended when operators/automation need read-only admin <abbr title="Application Programming Interface">API</abbr> access)
 - `SHUMA_JS_SECRET`
 - `SHUMA_FORWARDED_IP_SECRET` (required when trusting forwarded headers)
-- `SHUMA_HEALTH_SECRET` (recommended; required if you want header-authenticated `/health`)
+- `SHUMA_HEALTH_SECRET` (recommended; required if you want header-authenticated `/shuma/health`)
 - `SHUMA_ADMIN_CONFIG_WRITE_ENABLED`
 - `SHUMA_KV_STORE_FAIL_OPEN`
 - `SHUMA_ENFORCE_HTTPS`
@@ -377,7 +377,7 @@ Gateway v1 protocol support matrix:
 | Capability | Gateway v1 status | Behavior |
 | --- | --- | --- |
 | HTTP request forwarding (`GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`) | Supported | Allow-path requests are forwarded to configured upstream origin. |
-| Control-plane and enforcement-local routes (`/admin`, `/internal`, `/health`, `/metrics`, challenge/maze/tarpit internals) | Supported (local ownership) | Always served locally by Shuma; never proxied upstream. |
+| Control-plane and enforcement-local routes (`/shuma/admin`, `/shuma/internal`, `/shuma/health`, `/shuma/metrics`, challenge/maze/tarpit internals) | Supported (local ownership) | Always served locally by Shuma; never proxied upstream. |
 | Forwarded/provenance headers | Supported (proxy-owned) | Client-supplied `Forwarded`/`X-Forwarded-*` is stripped and regenerated from trusted runtime context only. |
 | Redirect handling (`Location`) | Supported with confinement | Relative redirects pass; absolute/scheme-relative redirects must stay in configured upstream authority or are denied fail-closed. |
 | Cookie handling (`Set-Cookie`) | Supported with deterministic rewrite | Upstream-domain cookies are rewritten to public host domain when valid; foreign-domain cookies are dropped. |
@@ -405,7 +405,7 @@ Gateway onboarding with shared-host discovery outputs:
 3. Fix all collisions before cutover (no exceptions for Shuma/Spin-owned route namespaces).
 4. Use the same catalog during initial gateway tuning:
    - verify public paths expected by catalog are forwarded,
-   - verify sensitive/admin/internal routes remain local/non-forwarded,
+   - verify sensitive `/shuma/admin/*` and `/shuma/internal/*` routes remain local and non-forwarded,
    - tighten allowlists and origin lock before enabling strict enforcement.
 
 Shared-host same-box note:
@@ -439,11 +439,11 @@ Gateway cutover and rollback (operator runbook summary):
 
 - Keep `SHUMA_DEBUG_HEADERS=false` in production.
 - Keep `SHUMA_ENFORCE_HTTPS=true` in production.
-- Keep `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=true` for the normal production posture when you want live operational tuning through the dashboard/admin <abbr title="Application Programming Interface">API</abbr>. Set it to `false` only when you intentionally want read-only admin config.
+- Keep `SHUMA_ADMIN_CONFIG_WRITE_ENABLED=true` for the normal production posture when you want live operational tuning through the dashboard/shuma/admin <abbr title="Application Programming Interface">API</abbr>. Set it to `false` only when you intentionally want read-only admin config.
 - Generate a strong `SHUMA_API_KEY` with `make api-key-generate` (or rotate with `make api-key-rotate`).
-- Set `SHUMA_HEALTH_SECRET` and require `X-Shuma-Health-Secret` for `/health`.
-- Restrict `/admin/*` with `SHUMA_ADMIN_IP_ALLOWLIST` and upstream network controls.
-- Apply <abbr title="Content Delivery Network">CDN</abbr>/<abbr title="Web Application Firewall">WAF</abbr> rate limits to `POST /admin/login` and all `/admin/*`.
+- Set `SHUMA_HEALTH_SECRET` and require `X-Shuma-Health-Secret` for `/shuma/health`.
+- Restrict `/shuma/admin/*` with `SHUMA_ADMIN_IP_ALLOWLIST` and upstream network controls.
+- Apply <abbr title="Content Delivery Network">CDN</abbr>/<abbr title="Web Application Firewall">WAF</abbr> rate limits to `POST /shuma/admin/login` and all `/shuma/admin/*`.
 
 Validation helper before deploy:
 
@@ -481,13 +481,13 @@ make deploy-env-validate
 Run this checklist for every production deployment:
 
 1. Admin exposure:
-   - Confirm `/admin/*` is reachable only via trusted ingress (<abbr title="Content Delivery Network">CDN</abbr>/<abbr title="Web Application Firewall">WAF</abbr>/<abbr title="Virtual Private Network">VPN</abbr> path), not open origin exposure.
+   - Confirm `/shuma/admin/*` is reachable only via trusted ingress (<abbr title="Content Delivery Network">CDN</abbr>/<abbr title="Web Application Firewall">WAF</abbr>/<abbr title="Virtual Private Network">VPN</abbr> path), not open origin exposure.
 2. Admin allowlist:
    - Confirm `SHUMA_ADMIN_IP_ALLOWLIST` contains only trusted operator/<abbr title="Virtual Private Network">VPN</abbr> IPs or CIDRs.
    - Confirm no wildcard/global ranges are present.
 3. Login and admin edge rate limits:
-   - Confirm edge/<abbr title="Content Delivery Network">CDN</abbr> policy exists for `POST /admin/login` (strict threshold).
-   - Confirm edge/<abbr title="Content Delivery Network">CDN</abbr> policy exists for `/admin/*` (moderate threshold).
+   - Confirm edge/<abbr title="Content Delivery Network">CDN</abbr> policy exists for `POST /shuma/admin/login` (strict threshold).
+   - Confirm edge/<abbr title="Content Delivery Network">CDN</abbr> policy exists for `/shuma/admin/*` (moderate threshold).
    - Set `SHUMA_ADMIN_EDGE_RATE_LIMITS_CONFIRMED=true` in deploy-time environment after verification.
 4. App-side auth failure limiter:
    - Confirm `SHUMA_ADMIN_AUTH_FAILURE_LIMIT_PER_MINUTE` is set to a conservative value for the environment.
@@ -519,7 +519,7 @@ This runbook is required before enabling any external provider in non-dev enviro
   - `bot_defence_botness_signal_state_total`
   - `bot_defence_edge_integration_mode_total`
   - challenge/block rates and p95 latency from your platform metrics.
-- Ensure operators can quickly apply config changes (immutable redeploy or controlled `POST /admin/config` workflow).
+- Ensure operators can quickly apply config changes (immutable redeploy or controlled `POST /shuma/admin/config` workflow).
 - Ensure rollback authority and on-call ownership are assigned before cutover.
 
 ### 2. Staged Cutover Sequence
@@ -576,8 +576,8 @@ Treat this as first-layer abuse control. Keep app-level auth and rate-limiting l
 
 Recommended baseline policies:
 
-- `POST /admin/login`: strict limit (start around `5 requests/minute/IP`, burst up to `10`).
-- All other `/admin/*`: moderate limit (start around `60 requests/minute/IP`).
+- `POST /shuma/admin/login`: strict limit (start around `5 requests/minute/IP`, burst up to `10`).
+- All other `/shuma/admin/*`: moderate limit (start around `60 requests/minute/IP`).
 - Exempt trusted operator and monitoring source IPs/CIDRs to avoid self-lockout.
 
 ### 🐙 Cloudflare
@@ -587,17 +587,17 @@ Use <abbr title="Web Application Firewall">WAF</abbr> Rate Limiting rules with c
 Suggested rules:
 
 1. Login endpoint:
-   - Match expression: `http.request.method eq "POST" and http.request.uri.path eq "/admin/login"`
+   - Match expression: `http.request.method eq "POST" and http.request.uri.path eq "/shuma/admin/login"`
    - Initial action: `Managed Challenge` (or `Block` for <abbr title="Application Programming Interface">API</abbr>-only admin workflows)
 2. Admin surface:
-   - Match expression: `starts_with(http.request.uri.path, "/admin/") and http.request.uri.path ne "/admin/login"`
+   - Match expression: `starts_with(http.request.uri.path, "/shuma/admin/") and http.request.uri.path ne "/shuma/admin/login"`
    - Initial action: `Managed Challenge` or `Block` based on your operator <abbr title="User Experience">UX</abbr> requirements
 
 Operational notes:
 
 - Start in monitor/challenge mode, review false positives, then tighten.
 - Ensure Cloudflare uses the real client <abbr title="Internet Protocol">IP</abbr> signal from your edge chain.
-- Keep `/admin/*` route protections in place even after app-level distributed limiter work.
+- Keep `/shuma/admin/*` route protections in place even after app-level distributed limiter work.
 
 ### 🐙 Akamai
 
@@ -606,10 +606,10 @@ Use App & <abbr title="Application Programming Interface">API</abbr> Protector r
 Suggested policies:
 
 1. Login endpoint policy:
-   - Match target: path `/admin/login` + method `POST`
+   - Match target: path `/shuma/admin/login` + method `POST`
    - Threshold: strict (same baseline as above; tune with observed traffic)
 2. Admin surface policy:
-   - Match target: path prefix `/admin/` excluding login
+   - Match target: path prefix `/shuma/admin/` excluding login
    - Threshold: moderate (same baseline as above; tune with observed traffic)
 
 Operational notes:
@@ -631,7 +631,7 @@ Also sanitize incoming `X-Forwarded-For` / `X-Real-IP` from untrusted clients an
 
 ## 🐙 Health Endpoint Hardening
 
-- `/health` allows loopback IPs only (`127.0.0.1`, `::1`) after trusted forwarded-<abbr title="Internet Protocol">IP</abbr> extraction.
+- `/shuma/health` allows loopback IPs only (`127.0.0.1`, `::1`) after trusted forwarded-<abbr title="Internet Protocol">IP</abbr> extraction.
 - For defense in depth, set `SHUMA_HEALTH_SECRET` and require monitors/proxies to send:
 
 ```http

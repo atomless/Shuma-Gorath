@@ -41,4 +41,4 @@ Writes:
 
 Suggestion endpoint used by this tab:
 
-- `GET /admin/ip-range/suggestions?hours=24&limit=20`
+- `GET /shuma/admin/ip-range/suggestions?hours=24&limit=20`

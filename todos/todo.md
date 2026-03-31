@@ -164,16 +164,6 @@ Current note:
   - and the next remaining blocker is projection truth: operator/admin and dashboard surfaces still need to distinguish judged mixed-attacker episodes from mere lane visibility.
 - Do not claim mixed-attacker strict-baseline proof from the new score spine alone; mixed-attacker proof projection and repeated retained improvement under mixed pressure still remain required.
 
-- [ ] ROUTE-NS-1F Remove legacy route-family assumptions from docs, tests, and operator guidance after full-path proof.
-  - Reference context:
-    - [`docs/research/2026-03-31-route-namespace-and-root-hosted-public-site-review.md`](../docs/research/2026-03-31-route-namespace-and-root-hosted-public-site-review.md)
-    - [`docs/plans/2026-03-31-route-namespace-and-root-hosted-public-site-plan.md`](../docs/plans/2026-03-31-route-namespace-and-root-hosted-public-site-plan.md)
-  - Closure gate:
-    - doc truth: API, dashboard, testing, deployment, and quick-reference docs must stop advertising `/sim/public/*` and top-level `/admin|/dashboard|/health|/metrics` as canonical
-    - audit truth: tranche completion must include exact route-audit evidence showing remaining references are either removed or explicitly historical
-    - proof: use exact `rg` route-audit evidence in completion notes and keep the focused route-contract targets green
-    - insufficient: shipping the corrected runtime while leaving the old route families normalized in docs or support scripts
-
 - [ ] SIM-REALISM-2E Add long-horizon dormancy, recurrence, and re-entry realism.
   - Reference context:
     - [`docs/research/2026-03-30-adversary-lane-wild-traffic-gap-review.md`](../docs/research/2026-03-30-adversary-lane-wild-traffic-gap-review.md)

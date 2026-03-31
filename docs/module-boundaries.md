@@ -112,7 +112,7 @@ They are larger, multi-step flows with dedicated adapters/contracts and are like
 - Keep request-path orchestration in the sequence `facts -> decisions -> effects -> response`; policy stages must remain pure and side effects must run through effect-intent execution.
 - Privileged request-path writes (ban store, metrics, monitoring, event logging) must require explicit capability tokens from `src/runtime/capabilities.rs`; do not rely on convention-only access.
 - Adversary-sim control command policy (`trust`, `throttle`, `idempotency` plan decisions) must stay in `src/admin/adversary_sim_control.rs` pure planning functions; endpoint handlers execute effects only after typed decision output.
-- `GET /admin/adversary-sim/status` must remain read-only and must not perform hidden reconcile/config/state mutation.
+- `GET /shuma/admin/adversary-sim/status` must remain read-only and must not perform hidden reconcile/config/state mutation.
 - Add new cross-domain behavior by extending a boundary contract first.
 - Avoid adding direct `crate::<domain>` calls in `src/lib.rs` when a boundary exists.
 - When internal feature work touches a provider-managed capability, route behavior through `src/providers/contracts.rs` and `src/providers/registry.rs` rather than adding direct module calls in orchestration paths.

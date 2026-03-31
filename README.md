@@ -85,7 +85,7 @@ make prepare-linode-shared-host PREPARE_LINODE_ARGS="--docroot /abs/path/to/site
 
 That helper can persist `LINODE_TOKEN`, `SHUMA_ADMIN_IP_ALLOWLIST`, and `GATEWAY_SURFACE_CATALOG_PATH` to gitignored `.env.local` and write `.shuma/linode-shared-host-setup.json` with the instance id and public IP.
 It also emits `.shuma/remotes/<name>.json` and auto-selects it in `.env.local` so routine day-2 operations can switch to the generic remote layer with no extra step after the first successful deploy.
-The deploy step now also persists any generated operator secrets needed for dashboard/admin/smoke access back into local `.env.local`.
+The deploy step now also persists any generated operator secrets needed for dashboard, admin, and smoke access back into local `.env.local`.
 
 If the Linode host and same-box origin are already prepared, use `--existing-instance-id <linode-id>` to attach Shuma without reprovisioning.
 
@@ -100,13 +100,13 @@ make remote-stop
 make remote-open-dashboard
 ```
 
-`make remote-update` ships the exact committed local `HEAD`, preserves the remote `.env.local` and `.spin` state, runs a remote loopback `/health` check plus public-route smoke, refreshes the receipt metadata, and attempts rollback if smoke fails. If an older host is missing smoke-critical secrets in local `.env.local`, the helper hydrates them from the remote `.env.local` first and persists them locally.
+`make remote-update` ships the exact committed local `HEAD`, preserves the remote `.env.local` and `.spin` state, runs a remote loopback `/shuma/health` check plus public-route smoke, refreshes the receipt metadata, and attempts rollback if smoke fails. If an older host is missing smoke-critical secrets in local `.env.local`, the helper hydrates them from the remote `.env.local` first and persists them locally.
 Use `make remote-use REMOTE=<name>` later only when you want to switch the active remote.
 `make clean` now removes only reproducible build/test artifacts. Use `make reset-local-state` when you intentionally want to wipe local `.spin` runtime/test state without touching durable operator receipts under `.shuma`.
 
 Dashboard:
-- `http://127.0.0.1:3000/dashboard/index.html`
-- `http://127.0.0.1:3000/dashboard` (redirects to `/dashboard/index.html`)
+- `http://127.0.0.1:3000/shuma/dashboard/index.html`
+- `http://127.0.0.1:3000/shuma/dashboard` (redirects to `/shuma/dashboard/index.html`)
 - Tabbed <abbr title="Single-Page Application">SPA</abbr> routes:
   `#monitoring`, `#ip-bans`, `#status`, `#red-team`, `#verification`, `#traps`, `#rate-limiting`, `#geo`,
   `#fingerprinting`, `#robots`, `#tuning`, `#advanced`
@@ -143,7 +143,7 @@ make test-gateway-profile-edge # Edge/Fermyon gateway verification
 make smoke-gateway-mode # Fast gateway smoke checks
 make build-runtime    # Runtime/deploy build path (no dashboard budget gate)
 make build-full-dev   # Full-dev/CI build path with dashboard budget reporting (set SHUMA_DASHBOARD_BUNDLE_BUDGET_ENFORCE=1 for hard-fail)
-make smoke-single-host # Post-deploy smoke: health/admin/metrics/challenge + forwarded public-path parity when gateway inputs are present
+make smoke-single-host # Post-deploy smoke: /shuma/health, /shuma/admin, /shuma/metrics, challenge, and forwarded public-path parity when gateway inputs are present
 make prepare-linode-shared-host # Agent-oriented Linode shared-host setup + receipt generation
 make deploy-self-hosted-minimal # self_hosted_minimal profile wrapper
 make deploy-enterprise-akamai   # enterprise overlay wrapper on shared baseline
